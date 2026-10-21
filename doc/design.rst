@@ -121,6 +121,13 @@ Commands
    * - ``clean-worktrees CONFIG``
      - Removes stale worktrees, then ``git worktree prune``; branches are
        kept. Dry run unless ``--no-dry-run``.
+   * - ``clean-container``
+     - Removes the regular files directly in ``--root`` (default ``/``)
+       modified more than ``--hours`` (default 1) after ``--marker``
+       (default ``/container_info.json``, the one file a Claude Code on
+       the web container starts with there). Subdirectories are not
+       searched; symbolic links, directories and other entries are left
+       alone. Needs no configuration. Dry run unless ``--no-dry-run``.
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
    * - ``slots show|set|free|add|remove|failed|check|next CONFIG ...``
