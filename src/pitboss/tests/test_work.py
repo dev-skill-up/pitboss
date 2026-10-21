@@ -1,0 +1,204 @@
+"""Tests for what to start next."""
+
+import dataclasses
+import json
+import pathlib
+import unittest
+from typing import Mapping, Sequence
+
+from hamcrest import assert_that, equal_to
+
+from .. import config, ledger, parsing, pulls, reviews, shapes, work
+from . import fakes
+
+REPO = config.make_repo("owner", "project")
+GREEN = shapes.CheckRun(id=1, name="build", finished=True, failed=False)
+SLOTS = config.Slots(
+    ledger=pathlib.Path("/unused"),
+    default=(),
+    models=("small", "large"),
+    priority_labels=("urgent", "later"),
+    model_labels={"hard": "large", "odd": "unknown"},
+)
+NONE = reviews.Standing.NONE
+
+
+def facts(
+    number: int, standing: reviews.Standing, **changes: object
+) -> pulls.PullFacts:
+    """An open, green PR of the project.
+
+    Args:
+        number: its number.
+        standing: where its head stands.
+        **changes: changes to its JSON.
+
+    Returns:
+        The PR.
+    """
+    pull = parsing.pull(json.dumps(fakes.pull_body(number, **changes)))
+    return pulls.PullFacts(
+        repo=REPO, pull=pull, checks=(GREEN,), review=None, standing=standing
+    )
+
+
+def item(
+    reference: str,
+    category: work.Category,
+    priority: int = 0,
+    labels: Sequence[str] = (),
+) -> work.Item:
+    """An item to start.
+
+    Args:
+        reference: its reference.
+        category: its kind.
+        priority: its priority label's index.
+        labels: its labels.
+
+    Returns:
+        The item.
+    """
+    return work.Item(
+        category=category,
+        reference=reference,
+        created_at="2026",
+        title="t",
+        priority=priority,
+        labels=frozenset(labels),
+    )
+
+
+CATEGORIES = [
+    ("owner/project#1", work.Category.FIX_REVIEW),
+    ("owner/project#2", work.Category.REVIEW),
+    ("owner/project#3", work.Category.REVIEW),
+]
+PULL_CASES: Sequence[tuple[reviews.Standing, Mapping[str, object]]] = [
+    (reviews.Standing.CHANGES_NEEDED, {}),
+    (NONE, {}),
+    (reviews.Standing.OLDER_HEAD, {}),
+    (reviews.Standing.APPROVED, {}),
+    (NONE, {"draft": True}),
+    (NONE, {"mergeable_state": "dirty"}),
+]
+
+
+class TestPullItems(unittest.TestCase):
+    """The fixes and reviews open PRs need."""
+
+    def test_categories(self) -> None:
+        """Changes-needed is a fix; green with no review of the head is a review."""
+        open_pulls = [
+            facts(number, standing, **changes)
+            for number, (standing, changes) in enumerate(PULL_CASES, start=1)
+        ]
+        found = [
+            (each.reference, each.category) for each in work.pull_items(open_pulls)
+        ]
+        assert_that(found, equal_to(CATEGORIES))
+
+
+def _issue(number: int, body: str) -> dict[str, object]:
+    return {
+        "number": number,
+        "title": f"T{number}",
+        "created_at": f"2026-10-0{number}",
+        "labels": [{"name": "urgent"}],
+        "body": body,
+    }
+
+
+ISSUES = [
+    _issue(number, body)
+    for number, body in [
+        (1, ""),
+        (2, ""),
+        (4, ""),
+        (5, "Change `src/thing/` please"),
+        (6, "Change `docs/other.md`"),
+    ]
+]
+LISTING = "repos/owner/project/issues?state=open&labels="
+TICKET_BODIES = {
+    fakes.page("repos/owner/project/pulls/10/files"): [{"filename": "src/thing/a.py"}],
+    fakes.page("repos/owner/project/pulls/11/files"): [],
+    fakes.page(LISTING + "urgent"): ISSUES,
+    fakes.page(LISTING + "later"): [ISSUES[4]],
+}
+NAMING = {
+    "title": "Fixes #1",
+    "body": "see https://github.com/owner/project/issues/2 and lib#3",
+    "head": {"sha": fakes.HEAD, "ref": "claude/work-4"},
+}
+
+
+class TestTickets(unittest.TestCase):
+    """Open tickets that no open PR covers."""
+
+    def test_taken_and_offered(self) -> None:
+        """A ticket an open PR names or touches is left out."""
+        named = facts(10, NONE, **NAMING)
+        plain = facts(11, NONE, head={"sha": fakes.HEAD, "ref": "feature"})
+        api = fakes.github(dict(TICKET_BODIES))
+        settings = fakes.settings(fakes.directory())
+        taken = work.read_taken(api, [named, plain])
+        offered = work.ticket_items(
+            api, dataclasses.replace(settings, slots=SLOTS), taken
+        )
+        found = (
+            "owner/lib#3" in taken.references,
+            [each.reference for each in offered],
+        )
+        assert_that(found, equal_to((True, ["owner/project#6"])))
+
+
+class TestOrderAndAssign(unittest.TestCase):
+    """Sorting and filling empty slots."""
+
+    def test_order(self) -> None:
+        """Category, then priority, then age; held items are left out."""
+        newer = work.Item(
+            category=work.Category.NEW_PR, reference="b", created_at="2027", title="t"
+        )
+        items = [
+            item("c", work.Category.NEW_PR, priority=1),
+            newer,
+            item("a", work.Category.NEW_PR),
+            item("x", work.Category.REVIEW),
+            item("held", work.Category.FIX_REVIEW),
+        ]
+        found = work.ordered(items, ["held"])
+        assert_that([each.reference for each in found], equal_to(["x", "a", "b", "c"]))
+
+    def test_smallest_model(self) -> None:
+        """Labels raise the floor; failures move up; all failed is none."""
+        hard = item("h", work.Category.NEW_PR, labels=["hard", "odd"])
+        plain = item("p", work.Category.NEW_PR)
+        found = [
+            work.smallest_model(hard, SLOTS, {}),
+            work.smallest_model(plain, SLOTS, {"p": ["small"]}),
+            work.smallest_model(plain, SLOTS, {"p": ["small", "large"]}),
+        ]
+        assert_that(found, equal_to(["large", "large", None]))
+
+    def test_assign(self) -> None:
+        """The smallest empty slot takes the first item it may take."""
+        book = ledger.Ledger(
+            slots=(
+                ledger.Slot(name="big", model="large"),
+                ledger.Slot(name="tiny", model="small"),
+                ledger.Slot(name="busy", model="small", agent="a", task="t"),
+                ledger.Slot(name="odd", model="unknown"),
+            ),
+            failed={},
+        )
+        items = [
+            item("first", work.Category.NEW_PR),
+            item("hard", work.Category.NEW_PR, labels=["hard"]),
+        ]
+        found = work.assign(items, book, SLOTS)
+        assert_that(
+            [(slot.name, chosen and chosen.reference) for slot, chosen in found],
+            equal_to([("tiny", "first"), ("big", "hard"), ("odd", None)]),
+        )
