@@ -7,7 +7,7 @@ import pathlib
 import subprocess
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ghapi, shapes
+from . import config, ghapi, parsing, shapes
 from .running import Run, git
 
 _SKIPPED_DIRECTORIES = frozenset({".git", "node_modules"})
@@ -58,17 +58,17 @@ def fetch_each_repository(run: Run, paths: Iterable[pathlib.Path]) -> Sequence[s
         The checkouts whose fetch failed.
     """
     by_repository: dict[str, pathlib.Path] = {}
-    for path in paths:
+    for checkout in paths:
         common = git(
-            run, path, "rev-parse", "--path-format=absolute", "--git-common-dir"
+            run, checkout, "rev-parse", "--path-format=absolute", "--git-common-dir"
         )
-        by_repository.setdefault(common.strip(), path)
+        by_repository.setdefault(common.strip(), checkout)
     failed = []
-    for path in by_repository.values():
+    for checkout in by_repository.values():
         try:
-            git(run, path, "fetch", "-q", "origin")
+            git(run, checkout, "fetch", "-q", "origin")
         except subprocess.CalledProcessError:
-            failed.append(str(path))
+            failed.append(str(checkout))
     return failed
 
 
@@ -241,7 +241,7 @@ def read_outcomes(
         The outcome of each branch.
     """
     found: dict[str, shapes.Outcome] = {}
-    listed = ghapi.pages(github, f"repos/{repo.slug}/pulls?state=all", shapes.outcomes)
+    listed = ghapi.pages(github, f"repos/{repo.slug}/pulls?state=all", parsing.outcomes)
     for outcome in listed:
         found.setdefault(outcome.branch, outcome)
     return found

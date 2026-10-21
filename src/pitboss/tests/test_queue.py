@@ -2,73 +2,82 @@
 
 import datetime
 import unittest
+from typing import Sequence
 
-from hamcrest import assert_that, contains_exactly, equal_to
+from hamcrest import assert_that, equal_to
 
-from .. import config, queue
+from .. import config, ghapi, queue
 from . import fakes
 
-REPO = config.Repo(owner="o", name="r")
+REPO = config.make_repo("o", "r")
 RUNS = "repos/o/r/actions/runs?event=merge_group"
+QUEUE_BRANCH = "gh-readonly-queue/main/pr-"
 
 
-def _run(identifier: int, branch: str, status: str, created: str) -> dict[str, object]:
+def _run(identifier: int, branch: str, status: str, minute: int) -> dict[str, object]:
     return {
         "id": identifier,
         "status": status,
         "conclusion": "success" if status == "completed" else None,
-        "created_at": created,
+        "created_at": f"2026-10-01T00:{minute:02d}:00+00:00",
         "head_branch": branch,
     }
+
+
+def _jobs(*statuses: str) -> dict[str, object]:
+    return {"jobs": [{"status": status} for status in statuses]}
 
 
 BODIES = {
     fakes.page(RUNS): {
         "workflow_runs": [
-            _run(2, "gh-readonly-queue/main/pr-5-aaa", "queued", "2026-10-01T00:00:01+00:00"),
-            _run(1, "gh-readonly-queue/main/pr-5-aaa", "queued", "2026-10-01T00:00:00+00:00"),
-            _run(3, "gh-readonly-queue/main/pr-5-bbb", "in_progress", "2026-10-01T01:00:00+00:00"),
-            _run(4, "gh-readonly-queue/main/pr-6-ccc", "completed", "2026-10-01T00:30:00+00:00"),
-            _run(5, "main", "completed", "2026-10-01T00:00:00+00:00"),
+            _run(2, QUEUE_BRANCH + "5-aaa", "queued", 1),
+            _run(1, QUEUE_BRANCH + "5-aaa", "queued", 0),
+            _run(3, QUEUE_BRANCH + "5-bbb", "in_progress", 30),
+            _run(4, QUEUE_BRANCH + "6-ccc", "completed", 20),
+            _run(5, "main", "completed", 0),
         ]
     },
-    fakes.page("repos/o/r/actions/runs/1/jobs"): {"jobs": [{"status": "queued"}]},
-    fakes.page("repos/o/r/actions/runs/2/jobs"): {"jobs": []},
-    fakes.page("repos/o/r/actions/runs/3/jobs"): {
-        "jobs": [{"status": "queued"}, {"status": "in_progress"}, {"status": "queued"}]
-    },
+    fakes.page("repos/o/r/actions/runs/1/jobs"): _jobs("queued"),
+    fakes.page("repos/o/r/actions/runs/2/jobs"): _jobs(),
+    fakes.page("repos/o/r/actions/runs/3/jobs"): _jobs(
+        "queued", "in_progress", "queued"
+    ),
 }
+EXPECTED = {
+    "numbers": [5, 5, 5, 6],
+    "states": ["queued", "queued", "in_progress", "success"],
+    "newest": {5: 3, 6: 4},
+    "stale": [2, 1],
+    "waiting": 3,
+    "age": 30,
+}
+NOW = datetime.datetime.fromisoformat("2026-10-01T01:00:59+00:00")
+
+
+def read() -> tuple[ghapi.GitHub, Sequence[queue.QueueRun]]:
+    """Read the runs of a fake repository.
+
+    Returns:
+        The API and the runs.
+    """
+    api = fakes.github(dict(BODIES))
+    return api, queue.read_runs(api, REPO)
 
 
 class TestQueue(unittest.TestCase):
     """Reading queue runs and deciding about them."""
 
-    def setUp(self) -> None:
-        """Read the runs."""
-        self.api = fakes.github(BODIES)
-        self.runs = queue.read_runs(self.api, REPO)
-
-    def test_read(self) -> None:
-        """Only runs on a queue branch are read, with their PR."""
-        assert_that([run.number for run in self.runs], equal_to([5, 5, 5, 6]))
-        assert_that(self.runs[3].state, equal_to("success"))
-        assert_that(self.runs[1].state, equal_to("queued"))
-
-    def test_newest(self) -> None:
-        """Each PR's newest run is found."""
-        newest = queue.newest_groups(self.runs)
-        assert_that({key: run.run.id for key, run in newest.items()}, equal_to({5: 3, 6: 4}))
-
-    def test_stale(self) -> None:
-        """Unfinished runs of an older group are stale; the newest group is not."""
-        stale = queue.stale_runs(self.runs)
-        assert_that([run.run.id for run in stale], contains_exactly(2, 1))
-
-    def test_waiting(self) -> None:
-        """Queued jobs of unfinished runs are counted."""
-        assert_that(queue.waiting_jobs(self.api, self.runs), equal_to(3))
-
-    def test_age(self) -> None:
-        """A run's age is in whole minutes."""
-        now = datetime.datetime.fromisoformat("2026-10-01T01:30:59+00:00")
-        assert_that(queue.age_minutes(self.runs[2], now), equal_to(30))
+    def test_decisions(self) -> None:
+        """Runs on queue branches are read; stale, newest, waiting and age follow."""
+        api, runs = read()
+        newest = queue.newest_groups(runs)
+        found = {
+            "numbers": [each.number for each in runs],
+            "states": [queue.state(each) for each in runs],
+            "newest": {number: each.run.id for number, each in newest.items()},
+            "stale": [each.run.id for each in queue.stale_runs(runs)],
+            "waiting": queue.waiting_jobs(api, runs),
+            "age": queue.age_minutes(runs[2], NOW),
+        }
+        assert_that(found, equal_to(EXPECTED))

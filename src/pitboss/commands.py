@@ -26,6 +26,7 @@ CONFIG_ARGUMENT = add_argument(
 )
 NOW_ARGUMENT = add_argument("--now", default=None, help=argparse.SUPPRESS)
 DRY_RUN_ARGUMENT = add_argument("--no-dry-run", action="store_true", default=False)
+CHANGING_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, DRY_RUN_ARGUMENT)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -45,7 +46,31 @@ class Context:
     args: argparse.Namespace
 
 
-def context(args: argparse.Namespace) -> Context:
+def load_settings(args: argparse.Namespace) -> config.Config:
+    """Load the configuration the command was given.
+
+    Args:
+        args: the parsed arguments.
+
+    Returns:
+        The configuration.
+    """
+    return config.load(args.config, pathlib.Path(args.env.get("PWD", ".")))
+
+
+def open_pulls(found: Context) -> Sequence[pulls.PullFacts]:
+    """Read every open PR the configuration names.
+
+    Args:
+        found: the context.
+
+    Returns:
+        The PRs.
+    """
+    return pulls.read_open(found.github, found.settings)
+
+
+def load_context(args: argparse.Namespace) -> Context:
     """Load the configuration and set up the API.
 
     Args:
@@ -55,7 +80,6 @@ def context(args: argparse.Namespace) -> Context:
         The context.
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
-    start = pathlib.Path(args.env.get("PWD", "."))
     now = (
         datetime.datetime.fromisoformat(args.now)
         if args.now
@@ -63,7 +87,7 @@ def context(args: argparse.Namespace) -> Context:
     )
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
     return Context(
-        settings=readable(github, config.load(args.config, start)),
+        settings=readable(github, load_settings(args)),
         github=github,
         now=now,
         args=args,
@@ -83,19 +107,19 @@ def readable(github: ghapi.GitHub, settings: config.Config) -> config.Config:
     Raises:
         SystemExit: when the project's own repository cannot be read.
     """
-    slugs = [repo.slug for repo in (*settings.repositories, *settings.runners)]
-    reasons = ghapi.unreadable(github, slugs)
-    for slug, reason in reasons.items():
+    wanted = [repo.slug for repo in (*config.repositories(settings), *settings.runners)]
+    failures = ghapi.unreadable(github, wanted)
+    for slug, reason in failures.items():
         print(
             f"{Marker.UNREADABLE.text} {slug}: {reason}: give the session access"
             " or take it out of the configuration; swept without it"
         )
-    if settings.project.repo.slug in reasons:
+    if settings.project.repo.slug in failures:
         raise SystemExit(f"cannot read {settings.project.repo.slug}")
     return dataclasses.replace(
         settings,
-        libraries=[repo for repo in settings.libraries if repo.slug not in reasons],
-        runners=[repo for repo in settings.runners if repo.slug not in reasons],
+        libraries=[repo for repo in settings.libraries if repo.slug not in failures],
+        runners=[repo for repo in settings.runners if repo.slug not in failures],
     )
 
 
@@ -132,55 +156,64 @@ def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
         The runs.
     """
     settings = found.settings
-    repos = {repo.slug: repo for repo in (*settings.runners, *settings.repositories)}
+    repos = {
+        repo.slug: repo for repo in (*settings.runners, *config.repositories(settings))
+    }
     with concurrent.futures.ThreadPoolExecutor() as pool:
         batches = pool.map(
             lambda repo: queue.read_runs(found.github, repo), repos.values()
         )
-        return [run for batch in batches for run in batch]
+        return [each for batch in batches for each in batch]
 
 
 def _runner_runs(
     found: Context, runs: Sequence[queue.QueueRun]
 ) -> Sequence[queue.QueueRun]:
     sharing = {repo.slug for repo in found.settings.runners}
-    return [run for run in runs if run.repo.slug in sharing]
+    return [each for each in runs if each.repo.slug in sharing]
 
 
 def _newest_by_reference(runs: Sequence[queue.QueueRun]) -> dict[str, queue.QueueRun]:
     by_repo: dict[str, list[queue.QueueRun]] = {}
-    for run in runs:
-        by_repo.setdefault(run.repo.slug, []).append(run)
+    for queue_run in runs:
+        by_repo.setdefault(queue_run.repo.slug, []).append(queue_run)
     return {
-        f"{slug}#{number}": run
+        f"{slug}#{number}": newest
         for slug, repo_runs in by_repo.items()
-        for number, run in queue.newest_groups(repo_runs).items()
+        for number, newest in queue.newest_groups(repo_runs).items()
     }
 
 
 def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
     newest = _newest_by_reference(runs)
     broken = False
-    for pull in pulls.read_open(found.github, found.settings):
+    for pull in open_pulls(found):
         print(report.pull_line(pull, newest))
-        run = newest.get(pull.reference)
-        queued = run is not None and not run.finished
+        latest = newest.get(pulls.reference(pull))
+        queued = latest is not None and not latest.run.finished
         for line in report.action_lines(pull, found.settings, queued):
             print(line)
-        broken = broken or pull.conflicted or bool(pull.failed)
+        broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
     return broken
 
 
 def _straggler_section(found: Context) -> None:
     run = found.args.safe_run
-    paths = local.checkouts(found.settings.project.workspace)
-    for failed in local.fetch_each_repository(run, paths):
+    found_checkouts = local.checkouts(found.settings.project.workspace)
+    for failed in local.fetch_each_repository(run, found_checkouts):
         print(f"fetch failed in {failed}: its stragglers may be out of date")
-    for path in paths:
-        straggler = local.read_straggler(run, path)
+    for checkout in found_checkouts:
+        straggler = local.read_straggler(run, checkout)
         if straggler is not None:
             print(report.straggler_line(straggler))
     print("stragglers: sweep done")
+
+
+def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
+    waiting = queue.waiting_jobs(found.github, _runner_runs(found, runs))
+    print(report.pressure_line(waiting))
+    for line in report.queue_lines(runs, found.settings, found.now):
+        print(line)
 
 
 def _worktrees(found: Context) -> Sequence[tuple[local.Worktree, local.Reason]]:
@@ -221,34 +254,33 @@ def sweep(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a PR has a failed check or a merge conflict.
     """
-    found = context(args)
+    found = load_context(args)
     clock = Clock(started=time.monotonic())
     runs = read_queue_runs(found)
     broken = _pull_section(found, runs)
     lap(clock, "pull requests done")
-    print(
-        report.pressure_line(
-            queue.waiting_jobs(found.github, _runner_runs(found, runs))
-        )
-    )
-    for line in report.queue_lines(runs, found.settings, found.now):
-        print(line)
+    _queue_section(found, runs)
     lap(clock, "merge queue done")
     _straggler_section(found)
     _worktree_section(found)
     lap(clock, "checkouts done")
     for line in report.reminder_lines(found.settings):
         print(line)
-    _print_ledger(found.settings)
+    report.print_ledger(read_ledger(found.settings))
     if broken:
         raise SystemExit(1)
 
 
-def _print_ledger(settings: config.Config) -> None:
-    book = ledger.read(settings.slots.ledger, settings.slots.default)
-    for line in report.slot_lines(book):
-        print(line)
-    print(report.CHECK_LEDGER_LINE, file=sys.stderr)
+def read_ledger(settings: config.Config) -> ledger.Ledger:
+    """Read the configured ledger.
+
+    Args:
+        settings: the configuration.
+
+    Returns:
+        The ledger.
+    """
+    return ledger.read(settings.slots.ledger, settings.slots.default)
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="pressure")
@@ -261,7 +293,7 @@ def pressure(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 under runner pressure.
     """
-    found = context(args)
+    found = load_context(args)
     runs = _runner_runs(found, read_queue_runs(found))
     waiting = queue.waiting_jobs(found.github, runs)
     print(report.pressure_line(waiting))
@@ -269,37 +301,34 @@ def pressure(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
-@ENTRY_DATA.register(
-    CONFIG_ARGUMENT, NOW_ARGUMENT, DRY_RUN_ARGUMENT, name="cancel-stale-runs"
-)
+@ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="cancel-stale-runs")
 def cancel_stale_runs(args: argparse.Namespace) -> None:
     """Cancel the queue runs that are not the newest group of their PR.
 
     Args:
         args: the parsed arguments.
     """
-    found = context(args)
-    for run in queue.stale_runs(read_queue_runs(found)):
-        path = f"repos/{run.repo.slug}/actions/runs/{run.run.id}/cancel"
+    found = load_context(args)
+    verb = "" if args.no_dry_run else " (dry run: --no-dry-run cancels it)"
+    for stale in queue.stale_runs(read_queue_runs(found)):
+        name = f"{stale.repo.slug} {stale.run.id}"
         try:
+            path = f"repos/{stale.repo.slug}/actions/runs/{stale.run.id}/cancel"
             ghapi.post(found.github, path)
         except subprocess.CalledProcessError:
-            print(f"{Marker.COULD_NOT_CANCEL_STALE_QUEUE_RUN.text} {run.repo.slug} {run.run.id}")
+            print(f"{Marker.COULD_NOT_CANCEL_STALE_QUEUE_RUN.text} {name}")
             continue
-        verb = "" if args.no_dry_run else " (dry run: --no-dry-run cancels it)"
-        print(f"{Marker.CANCELLED_STALE_QUEUE_RUN.text} {run.repo.slug} {run.run.id}{verb}")
+        print(f"{Marker.CANCELLED_STALE_QUEUE_RUN.text} {name}{verb}")
 
 
-@ENTRY_DATA.register(
-    CONFIG_ARGUMENT, NOW_ARGUMENT, DRY_RUN_ARGUMENT, name="clean-worktrees"
-)
+@ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")
 def clean_worktrees(args: argparse.Namespace) -> None:
     """Remove the stale worktrees (their branches are kept).
 
     Args:
         args: the parsed arguments.
     """
-    found = context(args)
+    found = load_context(args)
     main_clone = found.settings.project.main_clone
     verb = "" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
     for worktree, reason in _worktrees(found):
@@ -319,7 +348,7 @@ def review_form(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
-    settings = config.load(args.config, pathlib.Path(args.env.get("PWD", ".")))
+    settings = load_settings(args)
     repo = config.parse_repo(args.repository, settings.project.repo.owner)
     gated = repo.slug in settings.review.gated
     form = settings.review.gated_form if gated else settings.review.form

@@ -3,13 +3,20 @@
 import argparse
 import enum
 import sys
-from typing import Callable, Mapping
+from typing import Callable, Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, config, ledger, pulls, report, work
+from . import ENTRY_DATA, config, ledger, report, work
+from .commands import (
+    CONFIG_ARGUMENT,
+    NOW_ARGUMENT,
+    Context,
+    load_context,
+    open_pulls,
+    read_ledger,
+)
 from .markers import Marker
-from .commands import CONFIG_ARGUMENT, NOW_ARGUMENT, Context, context
 
 
 class Action(enum.Enum):
@@ -45,62 +52,52 @@ class Action(enum.Enum):
         return self.name.lower()
 
 
-_WORD_COUNTS = {
-    Action.SHOW: 0,
-    Action.SET: 3,
-    Action.FREE: 1,
-    Action.ADD: 2,
-    Action.REMOVE: 1,
-    Action.FAILED: 2,
-    Action.CHECK: 0,
-    Action.NEXT: 0,
+Change = Callable[
+    [ledger.Ledger, Sequence[str], Context], ledger.Ledger | ledger.Refusal
+]
+
+
+def _set(
+    book: ledger.Ledger, words: Sequence[str], found: Context
+) -> ledger.Ledger | ledger.Refusal:
+    task = ledger.reference(words[2], found.settings.project.repo)
+    return ledger.take(book, words[0], words[1], task)
+
+
+def _add(
+    book: ledger.Ledger, words: Sequence[str], found: Context
+) -> ledger.Ledger | ledger.Refusal:
+    spec = config.SlotSpec(name=words[0], model=words[1])
+    return ledger.add(book, spec, found.settings.slots.models)
+
+
+def _failed(
+    book: ledger.Ledger, words: Sequence[str], found: Context
+) -> ledger.Ledger | ledger.Refusal:
+    ticket = ledger.reference(words[0], found.settings.project.repo)
+    return ledger.record_failure(book, ticket, words[1])
+
+
+CHANGES: Mapping[Action, tuple[int, Change]] = {
+    Action.SET: (3, _set),
+    Action.FREE: (1, lambda book, words, _: ledger.free(book, words[0])),
+    Action.ADD: (2, _add),
+    Action.REMOVE: (1, lambda book, words, _: ledger.remove(book, words[0])),
+    Action.FAILED: (2, _failed),
 }
-
-
-def _book(found: Context) -> ledger.Ledger:
-    slots = found.settings.slots
-    return ledger.read(slots.ledger, slots.default)
-
-
-def _change(found: Context) -> ledger.Ledger:
-    book = _book(found)
-    words = found.args.words
-    project = found.settings.project.repo
-    changes: Mapping[Action, Callable[[], ledger.Ledger]] = {
-        Action.SET: lambda: ledger.take(
-            book, words[0], words[1], ledger.reference(words[2], project)
-        ),
-        Action.FREE: lambda: ledger.free(book, words[0]),
-        Action.ADD: lambda: ledger.add(
-            book,
-            config.SlotSpec(name=words[0], model=words[1]),
-            found.settings.slots.models,
-        ),
-        Action.REMOVE: lambda: ledger.remove(book, words[0]),
-        Action.FAILED: lambda: ledger.record_failure(
-            book, ledger.reference(words[0], project), words[1]
-        ),
-    }
-    return changes.get(Action[found.args.action.upper()], lambda: book)()
-
-
-def _show(book: ledger.Ledger) -> None:
-    for line in report.slot_lines(book):
-        print(line)
-    print(report.CHECK_LEDGER_LINE, file=sys.stderr)
 
 
 def _check(found: Context, book: ledger.Ledger) -> None:
     for slot in ledger.gone(book, found.args.running or ()):
         print(
-            f"{Marker.GONE_AGENT.text}: slot {slot.name} holds {slot.agent},"
-            f" which is not running: 'pitboss slots free {found.args.config} {slot.name}'"
+            f"{Marker.GONE_AGENT.text}: slot {slot.name} holds {slot.agent}, which"
+            f" is not running: 'pitboss slots free {found.args.config} {slot.name}'"
         )
-    _show(book)
+    report.print_ledger(book)
 
 
 def _next(found: Context, book: ledger.Ledger) -> None:
-    facts = pulls.read_open(found.github, found.settings)
+    facts = open_pulls(found)
     taken = work.read_taken(found.github, facts)
     items = [
         *work.pull_items(facts),
@@ -119,6 +116,28 @@ def _next(found: Context, book: ledger.Ledger) -> None:
         print(line)
 
 
+def _refuse(message: str) -> SystemExit:
+    print(message, file=sys.stderr)
+    return SystemExit(2)
+
+
+def _changed(action: Action, found: Context) -> ledger.Ledger:
+    count, change = CHANGES[action]
+    if len(found.args.words) != count:
+        raise _refuse(f"slots {action.word} takes {count} words")
+    outcome = change(read_ledger(found.settings), found.args.words, found)
+    if isinstance(outcome, ledger.Refusal):
+        raise _refuse(f"refused: {outcome.reason}")
+    ledger.write(found.settings.slots.ledger, outcome)
+    return outcome
+
+
+def _read(found: Context) -> ledger.Ledger:
+    if found.args.words:
+        raise _refuse(f"slots {found.args.action} takes no words")
+    return read_ledger(found.settings)
+
+
 @ENTRY_DATA.register(
     add_argument("action", choices=tuple(action.word for action in Action)),
     CONFIG_ARGUMENT,
@@ -132,27 +151,14 @@ def slots(args: argparse.Namespace) -> None:
 
     Args:
         args: the parsed arguments.
-
-    Raises:
-        SystemExit: 2 on a wrong number of words or a refused change.
     """
     action = Action[args.action.upper()]
-    if len(args.words) != _WORD_COUNTS[action]:
-        print(
-            f"slots {action.word} takes {_WORD_COUNTS[action]} words", file=sys.stderr
-        )
-        raise SystemExit(2)
-    found = context(args)
-    try:
-        book = _change(found)
-    except ledger.LedgerError as error:
-        print(f"refused: {error}", file=sys.stderr)
-        raise SystemExit(2) from error
-    if _WORD_COUNTS[action] and action is not Action.SHOW:
-        ledger.write(found.settings.slots.ledger, book)
-    if action is Action.CHECK:
-        _check(found, book)
+    found = load_context(args)
+    if action in CHANGES:
+        report.print_ledger(_changed(action, found))
+    elif action is Action.CHECK:
+        _check(found, _read(found))
     elif action is Action.NEXT:
-        _next(found, book)
+        _next(found, _read(found))
     else:
-        _show(book)
+        report.print_ledger(_read(found))

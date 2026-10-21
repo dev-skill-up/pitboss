@@ -6,7 +6,7 @@ import datetime
 import re
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ghapi, shapes
+from . import config, ghapi, parsing, shapes
 
 QUEUE_PAGES = 3
 _PULL_NUMBER = re.compile(r"/pr-(\d+)-")
@@ -26,23 +26,17 @@ class QueueRun:
     run: shapes.WorkflowRun
     number: int
 
-    @property
-    def finished(self) -> bool:
-        """Whether the run has completed.
 
-        Returns:
-            True when completed.
-        """
-        return self.run.finished
+def state(queue_run: QueueRun) -> str:
+    """The run's conclusion, or its status while it runs.
 
-    @property
-    def state(self) -> str:
-        """The run's conclusion, or its status while it runs.
+    Args:
+        queue_run: the run.
 
-        Returns:
-            The state.
-        """
-        return self.run.conclusion or self.run.status
+    Returns:
+        The state.
+    """
+    return queue_run.run.conclusion or queue_run.run.status
 
 
 def read_runs(github: ghapi.GitHub, repo: config.Repo) -> Sequence[QueueRun]:
@@ -58,7 +52,7 @@ def read_runs(github: ghapi.GitHub, repo: config.Repo) -> Sequence[QueueRun]:
     found = ghapi.pages(
         github,
         f"repos/{repo.slug}/actions/runs?event=merge_group",
-        shapes.workflow_runs,
+        parsing.workflow_runs,
         limit=QUEUE_PAGES,
     )
     return [
@@ -102,7 +96,7 @@ def stale_runs(runs: Sequence[QueueRun]) -> Sequence[QueueRun]:
     return [
         candidate
         for candidate in runs
-        if not candidate.finished
+        if not candidate.run.finished
         and candidate.run.head_branch != newest[candidate.number].run.head_branch
     ]
 
@@ -111,7 +105,7 @@ def _queued_jobs(github: ghapi.GitHub, queue_run: QueueRun) -> int:
     waiting = ghapi.pages(
         github,
         f"repos/{queue_run.repo.slug}/actions/runs/{queue_run.run.id}/jobs",
-        shapes.jobs_waiting,
+        parsing.jobs_waiting,
     )
     return sum(waiting)
 
@@ -126,7 +120,7 @@ def waiting_jobs(github: ghapi.GitHub, runs: Iterable[QueueRun]) -> int:
     Returns:
         The number of queued jobs; more than none is runner pressure.
     """
-    unfinished = [candidate for candidate in runs if not candidate.finished]
+    unfinished = [candidate for candidate in runs if not candidate.run.finished]
     with concurrent.futures.ThreadPoolExecutor() as pool:
         return sum(pool.map(lambda each: _queued_jobs(github, each), unfinished))
 

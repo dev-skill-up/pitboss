@@ -3,7 +3,7 @@
 import dataclasses
 import enum
 import re
-from typing import Callable, Iterable, Sequence
+from typing import AbstractSet, Callable, Iterable, Sequence
 
 from . import config, shapes
 
@@ -180,7 +180,7 @@ def read_gated(body: str, form: config.ReviewForm) -> Reading | None:
 
 def _from_comments(
     posted: Iterable[shapes.Comment],
-    trusted: frozenset[str],
+    trusted: AbstractSet[str],
     read: Reader,
     form: config.ReviewForm,
 ) -> Iterable[Found]:
@@ -230,16 +230,21 @@ def newest(sources: Sources, review: config.Review, slug: str) -> Found | None:
     Returns:
         The newest review, or None.
     """
-    if slug in review.gated:
-        found = list(
-            _from_comments(sources.comments, review.trusted, read_gated, review.gated_form)
-        )
-    else:
-        found = [
-            *_from_comments(sources.comments, review.trusted, read_comment, review.form),
-            *_from_reviews(sources.reviews, review),
-        ]
+    found = _gated(sources, review) if slug in review.gated else _open(sources, review)
     return max(found, key=lambda item: item.when, default=None)
+
+
+def _gated(sources: Sources, review: config.Review) -> Sequence[Found]:
+    trusted, form = review.trusted, review.gated_form
+    return list(_from_comments(sources.comments, trusted, read_gated, form))
+
+
+def _open(sources: Sources, review: config.Review) -> Sequence[Found]:
+    trusted, form = review.trusted, review.form
+    return [
+        *_from_comments(sources.comments, trusted, read_comment, form),
+        *_from_reviews(sources.reviews, review),
+    ]
 
 
 def only_merges(

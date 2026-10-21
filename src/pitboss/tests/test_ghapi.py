@@ -1,39 +1,35 @@
-"""Tests for reading GitHub."""
+"""Tests for reading GitHub and parsing its answers."""
 
+import json
 import subprocess
 import unittest
+from typing import Sequence
 
-from hamcrest import assert_that, contains_exactly, equal_to, has_entries
+from hamcrest import assert_that, equal_to
 
-from .. import ghapi, shapes
+from .. import ghapi, parsing, shapes
 from . import fakes
+
+FULL_PAGE = [{"number": number} for number in range(100)]
 
 
 class TestPages(unittest.TestCase):
     """Reading a list page by page."""
 
-    def test_until_short_page(self) -> None:
-        """Pages are read until one is short."""
-        full = [{"number": number} for number in range(100)]
+    def test_counts(self) -> None:
+        """Pages are read until a short one, and no more than the limit."""
+        path = "repos/o/r/pulls?state=open"
         api = fakes.github(
             {
-                fakes.page("repos/o/r/pulls?state=open", 1): full,
-                fakes.page("repos/o/r/pulls?state=open", 2): [{"number": 100}],
+                fakes.page(path, 1): FULL_PAGE,
+                fakes.page(path, 2): [{"number": 100}],
             }
         )
-        found = ghapi.pages(api, "repos/o/r/pulls?state=open", shapes.pull_numbers)
-        assert_that(len(found), equal_to(101))
-
-    def test_limit(self) -> None:
-        """No more than ``limit`` pages are read."""
-        full = [{"number": number} for number in range(100)]
-        api = fakes.github({fakes.page("repos/o/r/pulls", 1): full})
-        found = ghapi.pages(api, "repos/o/r/pulls", shapes.pull_numbers, limit=1)
-        assert_that(len(found), equal_to(100))
-
-
-class TestPost(unittest.TestCase):
-    """Changing something on GitHub."""
+        found = [
+            len(ghapi.pages(api, path, parsing.pull_numbers)),
+            len(ghapi.pages(api, path, parsing.pull_numbers, limit=1)),
+        ]
+        assert_that(found, equal_to([101, 100]))
 
     def test_post(self) -> None:
         """A post goes through the changing runner."""
@@ -41,55 +37,63 @@ class TestPost(unittest.TestCase):
         assert_that(ghapi.post(api, "repos/o/r/thing"), equal_to('{"ok": true}'))
 
 
+def _silent_failure(cmdargs: Sequence[str], /) -> fakes.Output:
+    raise subprocess.CalledProcessError(4, list(cmdargs), output="", stderr=None)
+
+
 class TestUnreadable(unittest.TestCase):
     """Finding the repositories the session cannot read."""
 
     def test_reasons(self) -> None:
-        """Each unreadable repository comes with gh's first line."""
+        """Each unreadable repository comes with gh's first line, or its exit."""
         api = fakes.github({"repos/o/fine": {}})
-        found = ghapi.unreadable(api, ["o/fine", "o/gone", "o/gone"])
-        assert_that(found, equal_to({"o/gone": "gh: not found: repos/o/gone (HTTP 404)"}))
+        silent = ghapi.GitHub(run=_silent_failure, mutate=_silent_failure)
+        found = [
+            ghapi.unreadable(api, ["o/fine", "o/gone", "o/gone"]),
+            ghapi.unreadable(silent, ["o/r"]),
+        ]
+        expected = [
+            {"o/gone": "gh: not found: repos/o/gone (HTTP 404)"},
+            {"o/r": "gh exited 4"},
+        ]
+        assert_that(found, equal_to(expected))
 
-    def test_silent_failure(self) -> None:
-        """A failure with no message says how gh exited."""
-        api = ghapi.GitHub(run=_silent_failure, mutate=_silent_failure)
-        assert_that(ghapi.unreadable(api, ["o/r"]), has_entries({"o/r": "gh exited 4"}))
+
+ISSUES = """[
+  {"number": 1, "title": "t", "created_at": "c", "labels": [{"name": "p"}]},
+  {"number": 2, "title": "t", "created_at": "c", "labels": [], "pull_request": {}}
+]"""
+OUTCOMES = """[
+  {"head": {"ref": "a"}, "state": "closed", "merged_at": "x"},
+  {"head": {"ref": "b"}, "state": "open"}
+]"""
 
 
-def _silent_failure(cmdargs: object, /) -> fakes.Output:
-    raise subprocess.CalledProcessError(4, ["gh"], output="", stderr=None)
-
-
-class TestShapes(unittest.TestCase):
+class TestParsing(unittest.TestCase):
     """Parsing the parts of GitHub's answers pitboss reads."""
 
-    def test_issues_leave_out_pull_requests(self) -> None:
-        """The issues list includes PRs; they are left out."""
-        body = (
-            '[{"number": 1, "title": "t", "created_at": "c", "labels": [{"name": "p"}]},'
-            ' {"number": 2, "title": "t", "created_at": "c", "labels": [],'
-            ' "pull_request": {}}]'
+    def test_lists(self) -> None:
+        """Issues leave out PRs; outcomes say whether a PR merged; files are paths."""
+        found = [
+            parsing.issues(ISSUES),
+            parsing.outcomes(OUTCOMES),
+            parsing.filenames('[{"filename": "a/b"}]'),
+        ]
+        issue = shapes.Issue(
+            number=1, title="t", created_at="c", labels=frozenset({"p"}), body=""
         )
-        found = shapes.issues(body)
-        assert_that([issue.number for issue in found], contains_exactly(1))
-        assert_that(found[0].labels, equal_to(frozenset({"p"})))
-        assert_that(found[0].body, equal_to(""))
-
-    def test_outcomes(self) -> None:
-        """A closed PR's outcome says whether it merged."""
-        body = (
-            '[{"head": {"ref": "a"}, "state": "closed", "merged_at": "x"},'
-            ' {"head": {"ref": "b"}, "state": "open"}]'
-        )
-        found = shapes.outcomes(body)
-        assert_that(
-            found,
-            contains_exactly(
+        expected = [
+            [issue],
+            [
                 shapes.Outcome(branch="a", still_open=False, merged=True),
                 shapes.Outcome(branch="b", still_open=True, merged=False),
-            ),
-        )
+            ],
+            ["a/b"],
+        ]
+        assert_that(found, equal_to(expected))
 
-    def test_filenames(self) -> None:
-        """A PR's files are their paths."""
-        assert_that(shapes.filenames('[{"filename": "a/b"}]'), contains_exactly("a/b"))
+    def test_unknown_merge_state(self) -> None:
+        """A merge state GitHub adds later reads as unknown."""
+        body = fakes.pull_body(1, mergeable_state="brand_new")
+        found = parsing.pull(json.dumps(body))
+        assert_that(found.mergeable_state, equal_to(shapes.MergeState.UNKNOWN))

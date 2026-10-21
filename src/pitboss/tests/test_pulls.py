@@ -3,108 +3,126 @@
 import pathlib
 import tempfile
 import unittest
+from typing import Mapping, MutableMapping, Sequence
 
-from hamcrest import assert_that, contains_exactly, equal_to, is_
+from hamcrest import assert_that, equal_to
 
 from .. import pulls, reviews
 from . import fakes
 
 GATED = "[review]\ngated = ['gated']\n[libraries]\nrepositories = ['gated']\n"
-
-
-def _bodies(slug: str, number: int, **changes: object) -> dict[str, object]:
-    pull = fakes.pull_body(number, **changes)
-    head = fakes.SHA_A
-    return {
-        f"repos/{slug}/pulls/{number}": pull,
-        fakes.page(f"repos/{slug}/issues/{number}/comments"): [],
-        fakes.page(f"repos/{slug}/pulls/{number}/reviews"): [
-            {
-                "state": "APPROVED",
-                "commit_id": fakes.SHA_B,
-                "author_association": "MEMBER",
-                "submitted_at": "2026-10-02T00:00:00Z",
-            }
-        ],
-        fakes.page(f"repos/{slug}/commits/{head}/check-runs"): {
-            "check_runs": [
-                {"id": 1, "name": "build", "status": "completed", "conclusion": "failure"},
-                {"id": 2, "name": "lint", "status": "in_progress", "conclusion": None},
-            ]
-        },
-    }
-
-
-def _compare(slug: str, head: str, commits: list[object]) -> dict[str, object]:
-    return {f"repos/{slug}/compare/main...{head}": {"commits": commits}}
-
-
 AUTHORED = {"sha": "1", "parents": [{"sha": "0"}]}
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 FIX = {"sha": "3", "parents": [{"sha": "2"}]}
+GITHUB_APPROVAL = {
+    "state": "APPROVED",
+    "commit_id": fakes.OLDER,
+    "author_association": "MEMBER",
+    "submitted_at": "2026-10-02T00:00:00Z",
+}
+OLD_GATED_APPROVAL = {
+    "body": f"## Review\nReviewed: {fakes.OLDER}\nVerdict: approved\n",
+    "author_association": "MEMBER",
+    "created_at": "2026-10-03T00:00:00Z",
+}
+CHECKS = {
+    "check_runs": [
+        {"id": 1, "name": "build", "status": "completed", "conclusion": "failure"},
+        {"id": 2, "name": "lint", "status": "in_progress", "conclusion": None},
+    ]
+}
+
+
+def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, object]:
+    """A project PR approved on an older head, and a gated PR the same.
+
+    Args:
+        since_head: the commits of ``main...head`` of the project PR.
+        **pull: changes to the project PR.
+
+    Returns:
+        The canned bodies.
+    """
+    found: dict[str, object] = {
+        fakes.page("repos/owner/project/pulls?state=open"): [{"number": 1}],
+        fakes.page("repos/owner/gated/pulls?state=open"): [{"number": 2}],
+        "repos/owner/project/compare/main..." + fakes.HEAD: {"commits": since_head},
+        "repos/owner/project/compare/main..." + fakes.OLDER: {"commits": [AUTHORED]},
+    }
+    for slug, number, changes in [("owner/project", 1, pull), ("owner/gated", 2, {})]:
+        prefix = f"repos/{slug}"
+        found[f"{prefix}/pulls/{number}"] = fakes.pull_body(number, **changes)
+        pages = [
+            (f"issues/{number}/comments", [OLD_GATED_APPROVAL]),
+            (f"pulls/{number}/reviews", [GITHUB_APPROVAL]),
+            (f"commits/{fakes.HEAD}/check-runs", CHECKS),
+        ]
+        found.update(fakes.bodies_under(prefix, pages))
+    return found
+
+
+def read(found: MutableMapping[str, object]) -> Sequence[pulls.PullFacts]:
+    """Read the open PRs of the fake project.
+
+    Args:
+        found: the canned bodies.
+
+    Returns:
+        The PRs.
+    """
+    settings = fakes.settings(pathlib.Path(tempfile.mkdtemp()), GATED)
+    return pulls.read_open(fakes.github(found), settings)
+
+
+def summary(facts: pulls.PullFacts) -> Mapping[str, object]:
+    """What the tests compare about a PR.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        The summary.
+    """
+    return {
+        "reference": pulls.reference(facts),
+        "standing": facts.standing,
+        "approved": pulls.approved(facts),
+        "conflicted": pulls.conflicted(facts),
+        "failed": [check.id for check in pulls.failed_checks(facts)],
+        "pending": pulls.pending(facts),
+        "green": pulls.green(facts),
+    }
+
+
+BASE = {"failed": [1], "pending": 1, "green": False, "reference": "owner/project#1"}
+CASES = [
+    (
+        ([AUTHORED, MERGE], "dirty"),
+        {
+            **BASE,
+            "standing": reviews.Standing.APPROVED_BEFORE_MERGES,
+            "approved": True,
+            "conflicted": True,
+        },
+    ),
+    (
+        ([AUTHORED, FIX], "clean"),
+        {
+            **BASE,
+            "standing": reviews.Standing.OLDER_HEAD,
+            "approved": False,
+            "conflicted": False,
+        },
+    ),
+]
 
 
 class TestReadOpen(unittest.TestCase):
     """Reading every open PR."""
 
-    def setUp(self) -> None:
-        """Make a configuration."""
-        self.settings = fakes.settings(pathlib.Path(tempfile.mkdtemp()), GATED)
-
-    def _read(self, bodies: dict[str, object]) -> list[pulls.PullFacts]:
-        listing = {
-            fakes.page("repos/owner/project/pulls?state=open"): [{"number": 1}],
-            fakes.page("repos/owner/gated/pulls?state=open"): [{"number": 2}],
-        }
-        return list(pulls.read_open(fakes.github({**listing, **bodies}), self.settings))
-
-    def test_carried_over_merges(self) -> None:
-        """An older approval carries over merges, except in a gated repository."""
-        bodies = {
-            **_bodies("owner/project", 1, mergeable_state="dirty"),
-            **_bodies("owner/gated", 2),
-            **_compare("owner/project", fakes.SHA_A, [AUTHORED, MERGE]),
-            **_compare("owner/project", fakes.SHA_B, [AUTHORED]),
-        }
-        project, gated = self._read(bodies)
-        assert_that(project.standing, equal_to(reviews.Standing.APPROVED_BEFORE_MERGES))
-        assert_that(project.approved, is_(True))
-        assert_that(project.conflicted, is_(True))
-        assert_that(project.reference, equal_to("owner/project#1"))
-        assert_that(gated.standing, equal_to(reviews.Standing.NONE))
-        assert_that([check.id for check in project.failed], contains_exactly(1))
-        assert_that(project.pending, equal_to(1))
-        assert_that(project.green, is_(False))
-
-    def test_gated_never_carries(self) -> None:
-        """In a gated repository an approval of an older head does not carry."""
-        old_review = f"## Review\nReviewed: {fakes.SHA_B}\nVerdict: approved\n"
-        comments = fakes.page("repos/owner/gated/issues/2/comments")
-        bodies = {
-            **_bodies("owner/project", 1),
-            **_bodies("owner/gated", 2),
-            **_compare("owner/project", fakes.SHA_A, [AUTHORED]),
-            **_compare("owner/project", fakes.SHA_B, [AUTHORED]),
-            comments: [
-                {
-                    "body": old_review,
-                    "author_association": "MEMBER",
-                    "created_at": "2026-10-03T00:00:00Z",
-                }
-            ],
-        }
-        _, gated = self._read(bodies)
-        assert_that(gated.standing, equal_to(reviews.Standing.OLDER_HEAD))
-
-    def test_not_carried_over_a_fix(self) -> None:
-        """An authored commit since the approval needs a new review."""
-        bodies = {
-            **_bodies("owner/project", 1),
-            **_bodies("owner/gated", 2),
-            **_compare("owner/project", fakes.SHA_A, [AUTHORED, FIX]),
-            **_compare("owner/project", fakes.SHA_B, [AUTHORED]),
-        }
-        project, _ = self._read(bodies)
-        assert_that(project.standing, equal_to(reviews.Standing.OLDER_HEAD))
-        assert_that(project.approved, is_(False))
-        assert_that(project.conflicted, is_(False))
+    def test_carry_over(self) -> None:
+        """An older approval carries over merges, not a fix, and never when gated."""
+        for (since_head, state), expected in CASES:
+            project, gated = read(bodies(since_head, mergeable_state=state))
+            found = (summary(project), gated.standing)
+            assert_that(found, equal_to((expected, reviews.Standing.OLDER_HEAD)))

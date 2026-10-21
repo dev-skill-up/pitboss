@@ -1,3 +1,5 @@
+"""Run pitboss as ``python -m pitboss``."""
+
 from gather import entry
 
 from . import ENTRY_DATA

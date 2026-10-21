@@ -6,7 +6,7 @@ Nothing here names a project; the values come from the project's TOML file.
 import dataclasses
 import pathlib
 import tomllib
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 DEFAULT_REMINDERS = (
     "Is any ticket closeable? A ticket whose work merged: read the merged PR"
@@ -26,19 +26,25 @@ class Repo:
     Attributes:
         owner: the user or organization.
         name: the repository's name.
+        slug: the ``owner/name`` form.
     """
 
     owner: str
     name: str
+    slug: str
 
-    @property
-    def slug(self) -> str:
-        """The ``owner/name`` form.
 
-        Returns:
-            The slug.
-        """
-        return f"{self.owner}/{self.name}"
+def make_repo(owner: str, name: str) -> Repo:
+    """Make a repository, with its slug.
+
+    Args:
+        owner: the user or organization.
+        name: the repository's name.
+
+    Returns:
+        The repository.
+    """
+    return Repo(owner=owner, name=name, slug=f"{owner}/{name}")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -69,8 +75,8 @@ class Review:
         gated_form: the form in a gated repository.
     """
 
-    trusted: frozenset[str]
-    gated: frozenset[str]
+    trusted: AbstractSet[str]
+    gated: AbstractSet[str]
     form: ReviewForm
     gated_form: ReviewForm
 
@@ -142,7 +148,7 @@ class Config:
 
     project: Project
     libraries: Sequence[Repo]
-    no_auto_merge: frozenset[str]
+    no_auto_merge: AbstractSet[str]
     runners: Sequence[Repo]
     review: Review
     timeout_minutes: int
@@ -150,14 +156,17 @@ class Config:
     slots: Slots
     reminders: Sequence[str]
 
-    @property
-    def repositories(self) -> Sequence[Repo]:
-        """The project's repository, then its libraries.
 
-        Returns:
-            Every repository whose PRs are swept.
-        """
-        return (self.project.repo, *self.libraries)
+def repositories(settings: Config) -> Sequence[Repo]:
+    """The project's repository, then its libraries.
+
+    Args:
+        settings: the configuration.
+
+    Returns:
+        Every repository whose PRs are swept.
+    """
+    return (settings.project.repo, *settings.libraries)
 
 
 def parse_repo(text: str, owner: str) -> Repo:
@@ -171,7 +180,7 @@ def parse_repo(text: str, owner: str) -> Repo:
         The repository.
     """
     found_owner, _, name = text.rpartition("/")
-    return Repo(owner=found_owner or owner, name=name)
+    return make_repo(found_owner or owner, name)
 
 
 def _form(table: Mapping[str, object], fallback: ReviewForm) -> ReviewForm:
@@ -219,7 +228,7 @@ def _project(document: Mapping[str, object]) -> Project:
     table = _table(document, "project")
     main_clone = pathlib.Path(str(table["main_clone"]))
     return Project(
-        repo=Repo(owner=str(table["owner"]), name=str(table["repository"])),
+        repo=make_repo(str(table["owner"]), str(table["repository"])),
         base_branch=str(table.get("base_branch", "main")),
         main_clone=main_clone,
         workspace=pathlib.Path(str(table.get("workspace", main_clone.parent))),
@@ -249,6 +258,17 @@ def _slots(document: Mapping[str, object], project: Project) -> Slots:
     )
 
 
+def _repos(
+    document: Mapping[str, object], table: str, key: str, owner: str
+) -> Sequence[Repo]:
+    names = _strings(_table(document, table), key, ())
+    return tuple(parse_repo(name, owner) for name in names)
+
+
+def _setting(document: Mapping[str, object], table: str, key: str, default: int) -> str:
+    return str(_table(document, table).get(key, default))
+
+
 def from_document(document: Mapping[str, object]) -> Config:
     """Build the configuration from a parsed TOML document.
 
@@ -260,26 +280,17 @@ def from_document(document: Mapping[str, object]) -> Config:
     """
     project = _project(document)
     owner = project.repo.owner
-    libraries_table = _table(document, "libraries")
-    libraries = tuple(
-        parse_repo(item, owner)
-        for item in _strings(libraries_table, "repositories", ())
-    )
-    runners = _strings(_table(document, "runners"), "repositories", ())
+    libraries = _repos(document, "libraries", "repositories", owner)
+    no_auto_merge = _repos(document, "libraries", "no_auto_merge", owner)
+    runners = _repos(document, "runners", "repositories", owner)
     return Config(
         project=project,
         libraries=libraries,
-        no_auto_merge=frozenset(
-            parse_repo(item, owner).slug
-            for item in _strings(libraries_table, "no_auto_merge", ())
-        ),
-        runners=tuple(parse_repo(item, owner) for item in runners)
-        or (project.repo, *libraries),
+        no_auto_merge=frozenset(repo.slug for repo in no_auto_merge),
+        runners=runners or (project.repo, *libraries),
         review=_review(document, owner),
-        timeout_minutes=int(
-            str(_table(document, "merge_queue").get("timeout_minutes", 60))
-        ),
-        idle_hours=float(str(_table(document, "worktrees").get("idle_hours", 3))),
+        timeout_minutes=int(_setting(document, "merge_queue", "timeout_minutes", 60)),
+        idle_hours=float(_setting(document, "worktrees", "idle_hours", 3)),
         slots=_slots(document, project),
         reminders=_strings(_table(document, "sweep"), "reminders", DEFAULT_REMINDERS),
     )

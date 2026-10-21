@@ -4,8 +4,7 @@ import concurrent.futures
 import dataclasses
 from typing import Sequence
 
-from . import config, ghapi, reviews, shapes
-
+from . import config, ghapi, parsing, reviews, shapes
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -26,62 +25,92 @@ class PullFacts:
     review: reviews.Found | None
     standing: reviews.Standing
 
-    @property
-    def reference(self) -> str:
-        """The ``owner/name#number`` form.
 
-        Returns:
-            The reference.
-        """
-        return f"{self.repo.slug}#{self.pull.number}"
+def reference(facts: PullFacts) -> str:
+    """The PR's ``owner/name#number``.
 
-    @property
-    def failed(self) -> Sequence[shapes.CheckRun]:
-        """The head's failed checks.
+    Args:
+        facts: the PR.
 
-        Returns:
-            The checks.
-        """
-        return [check for check in self.checks if check.failed]
+    Returns:
+        The reference.
+    """
+    return f"{facts.repo.slug}#{facts.pull.number}"
 
-    @property
-    def pending(self) -> int:
-        """How many of the head's checks have not finished.
 
-        Returns:
-            The count.
-        """
-        return sum(1 for check in self.checks if not check.finished)
+def failed_checks(facts: PullFacts) -> Sequence[shapes.CheckRun]:
+    """The head's failed checks.
 
-    @property
-    def green(self) -> bool:
-        """Whether every check finished and none failed.
+    Args:
+        facts: the PR.
 
-        Returns:
-            True when green.
-        """
-        return not self.pending and not self.failed
+    Returns:
+        The checks.
+    """
+    return [check for check in facts.checks if check.failed]
 
-    @property
-    def conflicted(self) -> bool:
-        """Whether the PR has a merge conflict.
 
-        Returns:
-            True on a conflict.
-        """
-        return self.pull.mergeable_state is shapes.MergeState.DIRTY
+def pending(facts: PullFacts) -> int:
+    """How many of the head's checks have not finished.
 
-    @property
-    def approved(self) -> bool:
-        """Whether the head's review approves it.
+    Args:
+        facts: the PR.
 
-        Returns:
-            True when approved.
-        """
-        return self.standing in (
-            reviews.Standing.APPROVED,
-            reviews.Standing.APPROVED_BEFORE_MERGES,
-        )
+    Returns:
+        The count.
+    """
+    return sum(1 for check in facts.checks if not check.finished)
+
+
+def green(facts: PullFacts) -> bool:
+    """Whether every check of the head finished and none failed.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when green.
+    """
+    return not pending(facts) and not failed_checks(facts)
+
+
+def conflicted(facts: PullFacts) -> bool:
+    """Whether the PR has a merge conflict.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True on a conflict.
+    """
+    return facts.pull.mergeable_state is shapes.MergeState.DIRTY
+
+
+def changes_needed(facts: PullFacts) -> bool:
+    """Whether the newest review asks for changes to this very head.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when the head needs changes.
+    """
+    return facts.standing is reviews.Standing.CHANGES_NEEDED
+
+
+def approved(facts: PullFacts) -> bool:
+    """Whether the head's review approves it.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when approved.
+    """
+    return facts.standing in (
+        reviews.Standing.APPROVED,
+        reviews.Standing.APPROVED_BEFORE_MERGES,
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -104,21 +133,21 @@ def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> 
     since_base = ghapi.get(source.github, compare + pull.head.sha)
     reviewed = ghapi.get(source.github, compare + sha)
     return reviews.only_merges(
-        shapes.comparison(since_base), shapes.comparison(reviewed)
+        parsing.comparison(since_base), parsing.comparison(reviewed)
     )
 
 
 def _review_of(source: Source, repo: config.Repo, number: int) -> reviews.Found | None:
     prefix = f"repos/{repo.slug}"
-    sources = reviews.Sources(
+    review_sources = reviews.Sources(
         comments=ghapi.pages(
-            source.github, f"{prefix}/issues/{number}/comments", shapes.comments
+            source.github, f"{prefix}/issues/{number}/comments", parsing.comments
         ),
         reviews=ghapi.pages(
-            source.github, f"{prefix}/pulls/{number}/reviews", shapes.reviews
+            source.github, f"{prefix}/pulls/{number}/reviews", parsing.reviews
         ),
     )
-    return reviews.newest(sources, source.review, repo.slug)
+    return reviews.newest(review_sources, source.review, repo.slug)
 
 
 def _standing(
@@ -146,11 +175,13 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     Returns:
         The PR's facts.
     """
-    pull = shapes.pull(ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}"))
+    pull = parsing.pull(ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}"))
     head = pull.head.sha
     found = _review_of(source, repo, number)
     checks = ghapi.pages(
-        source.github, f"repos/{repo.slug}/commits/{head}/check-runs", shapes.check_runs
+        source.github,
+        f"repos/{repo.slug}/commits/{head}/check-runs",
+        parsing.check_runs,
     )
     return PullFacts(
         repo=repo,
@@ -173,9 +204,9 @@ def read_open(github: ghapi.GitHub, settings: config.Config) -> Sequence[PullFac
     """
     wanted = [
         (repo, number)
-        for repo in settings.repositories
+        for repo in config.repositories(settings)
         for number in ghapi.pages(
-            github, f"repos/{repo.slug}/pulls?state=open", shapes.pull_numbers
+            github, f"repos/{repo.slug}/pulls?state=open", parsing.pull_numbers
         )
     ]
     source = Source(github=github, review=settings.review)

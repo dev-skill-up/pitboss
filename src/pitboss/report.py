@@ -2,6 +2,7 @@
 
 import dataclasses
 import datetime
+import sys
 from typing import Iterable, Mapping, Sequence
 
 from . import config, ledger, local, pulls, queue, reviews, shapes, work
@@ -22,8 +23,8 @@ CATEGORY_WORDS = {
 
 
 def _queue_word(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
-    found = newest.get(pull.reference)
-    return found.state if found else "-"
+    found = newest.get(pulls.reference(pull))
+    return queue.state(found) if found else "-"
 
 
 def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
@@ -36,11 +37,13 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
     Returns:
         The line.
     """
-    failed = ",".join(f"{check.name} (job {check.id})" for check in pull.failed)
+    failed = ",".join(
+        f"{check.name} (job {check.id})" for check in pulls.failed_checks(pull)
+    )
     return (
-        f"{pull.reference} [{pull.pull.mergeable_state.name.lower()}]"
+        f"{pulls.reference(pull)} [{pull.pull.mergeable_state.name.lower()}]"
         f" auto-merge={'on' if pull.pull.auto_merge else 'off'}"
-        f" pending={pull.pending} failed=[{failed}]"
+        f" pending={pulls.pending(pull)} failed=[{failed}]"
         f" queue={_queue_word(pull, newest)}"
         f" review={STANDING_WORDS[pull.standing]}"
         f" {pull.pull.title[:55]} ({pull.pull.head.branch})"
@@ -49,11 +52,17 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
 
 def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
     clean = pull.pull.mergeable_state is shapes.MergeState.CLEAN
-    if not (pull.green and clean and pull.approved and not pull.pull.auto_merge):
+    ready = pulls.green(pull) and clean and pulls.approved(pull)
+    if not ready or pull.pull.auto_merge:
         return None
-    if pull.repo.slug in settings.no_auto_merge:
-        return f"{Marker.MERGE_BY_HAND.text} {pull.reference}: green, clean, approved"
-    return f"{Marker.READY_TO_MERGE.text} {pull.reference}: arm auto-merge or merge"
+    name = pulls.reference(pull)
+    if _by_hand(pull, settings):
+        return f"{Marker.MERGE_BY_HAND.text} {name}: green, clean, approved"
+    return f"{Marker.READY_TO_MERGE.text} {name}: arm auto-merge or merge"
+
+
+def _by_hand(pull: pulls.PullFacts, settings: config.Config) -> bool:
+    return pull.repo.slug in settings.no_auto_merge
 
 
 def action_lines(
@@ -69,36 +78,39 @@ def action_lines(
     Returns:
         The lines.
     """
-    found = []
-    base = pull.pull.base
-    if pull.conflicted:
-        found.append(
-            f"{Marker.CONFLICT.text} {pull.reference}: merge {base} into"
-            f" {pull.pull.head.branch} (never rewrite history)"
-        )
-    slug = pull.repo.slug
-    for check in pull.failed:
-        found.append(
-            f"{Marker.FAILED.text} {pull.reference}: {check.name}: read"
-            f" gh api repos/{slug}/actions/jobs/{check.id}/logs"
-        )
-    ready = _ready_line(pull, settings)
-    if ready is not None:
-        found.append(ready)
-    elif _auto_merge_off(pull, settings, queued):
-        found.append(f"{Marker.AUTO_MERGE_OFF.text} {pull.reference}: arm it again")
-    return found
+    merge = _ready_line(pull, settings)
+    if merge is None and _auto_merge_off(pull, settings, queued):
+        merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
+    return [*_conflict_lines(pull), *_failed_lines(pull), *([merge] if merge else [])]
+
+
+def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    if not pulls.conflicted(pull):
+        return []
+    return [
+        f"{Marker.CONFLICT.text} {pulls.reference(pull)}: merge {pull.pull.base} into"
+        f" {pull.pull.head.branch} (never rewrite history)"
+    ]
+
+
+def _failed_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    logs = f"gh api repos/{pull.repo.slug}/actions/jobs"
+    return [
+        f"{Marker.FAILED.text} {pulls.reference(pull)}: {check.name}: read"
+        f" {logs}/{check.id}/logs"
+        for check in pulls.failed_checks(pull)
+    ]
 
 
 def _auto_merge_off(
     pull: pulls.PullFacts, settings: config.Config, queued: bool
 ) -> bool:
-    manual = pull.repo.slug in settings.no_auto_merge
+    manual = _by_hand(pull, settings)
     healthy = not (
-        pull.failed
-        or pull.conflicted
+        pulls.failed_checks(pull)
+        or pulls.conflicted(pull)
         or pull.pull.draft
-        or pull.standing is reviews.Standing.CHANGES_NEEDED
+        or pulls.changes_needed(pull)
     )
     return healthy and not manual and not queued and not pull.pull.auto_merge
 
@@ -134,21 +146,27 @@ def queue_lines(
         The lines.
     """
     stale = queue.stale_runs(runs)
-    found = [
-        f"{Marker.STALE_QUEUE_RUN.text} {run.repo.slug} {run.run.id}"
-        f" (pr-{run.number}, {run.run.status}): cancel-stale-runs cancels it"
-        for run in stale
-    ]
-    stale_ids = {run.run.id for run in stale}
+    stale_ids = {each.run.id for each in stale}
+    live = [each for each in runs if not each.run.finished]
     limit = settings.timeout_minutes
-    for run in runs:
-        if not run.finished and run.run.id not in stale_ids:
-            found.append(
-                f"{Marker.QUEUE_RUN.text} {run.repo.slug} {run.run.id}"
-                f" (pr-{run.number}, {run.run.status},"
-                f" {queue.age_minutes(run, now)} of {limit} minutes)"
-            )
-    return found
+    stale_lines = [
+        f"{Marker.STALE_QUEUE_RUN.text} {_run_name(each)}: cancel-stale-runs cancels it"
+        for each in stale
+    ]
+    live_lines = [
+        f"{Marker.QUEUE_RUN.text} {_run_name(each)}:"
+        f" {queue.age_minutes(each, now)} of {limit} minutes"
+        for each in live
+        if each.run.id not in stale_ids
+    ]
+    return [*stale_lines, *live_lines]
+
+
+def _run_name(queue_run: queue.QueueRun) -> str:
+    return (
+        f"{queue_run.repo.slug} {queue_run.run.id}"
+        f" (pr-{queue_run.number}, {queue_run.run.status})"
+    )
 
 
 def straggler_line(straggler: local.Straggler) -> str:
@@ -160,9 +178,11 @@ def straggler_line(straggler: local.Straggler) -> str:
     Returns:
         The line.
     """
+    branch = straggler.branch or "detached"
     return (
-        f"{Marker.STRAGGLER.text} {straggler.path} [{straggler.branch or 'detached'}]"
-        f" uncommitted={straggler.uncommitted} commits-not-on-origin={straggler.unpushed}"
+        f"{Marker.STRAGGLER.text} {straggler.path} [{branch}]"
+        f" uncommitted={straggler.uncommitted}"
+        f" commits-not-on-origin={straggler.unpushed}"
         f" branch-on-origin={'yes' if straggler.on_origin else 'no'}"
         f" last={straggler.last}"
     )
@@ -189,23 +209,35 @@ def slot_lines(book: ledger.Ledger) -> Sequence[str]:
     Returns:
         The lines.
     """
-    found = []
-    for slot in book.slots:
-        if slot.agent:
-            found.append(f"slot {slot.name} ({slot.model}): {slot.task} ({slot.agent})")
-        else:
-            found.append(
-                f"{Marker.EMPTY_SLOT.text}: {slot.name} ({slot.model}):"
-                " run 'pitboss slots next' and start its line"
-            )
+    found = [_slot_line(slot) for slot in book.slots]
     if all(slot.agent for slot in book.slots):
         found.append("slots: the ledger says all full")
     return found
 
 
+def _slot_line(slot: ledger.Slot) -> str:
+    name = f"{slot.name} ({slot.model})"
+    if slot.agent:
+        return f"slot {name}: {slot.task} ({slot.agent})"
+    return (
+        f"{Marker.EMPTY_SLOT.text}: {name}: run 'pitboss slots next' and start its line"
+    )
+
+
+def print_ledger(book: ledger.Ledger) -> None:
+    """Print the ledger, and on stderr the reminder to check it.
+
+    Args:
+        book: the ledger.
+    """
+    for line in slot_lines(book):
+        print(line)
+    print(CHECK_LEDGER_LINE, file=sys.stderr)
+
+
 CHECK_LEDGER_LINE = (
-    f"{Marker.CHECK_BEFORE_YOU_ANSWER.text}: the ledger is kept by hand. List the agents"
-    " the session runs, run 'pitboss slots check CONFIG --running NAME ...',"
+    f"{Marker.CHECK_BEFORE_YOU_ANSWER.text}: the ledger is kept by hand. List the"
+    " agents the session runs, run 'pitboss slots check CONFIG --running NAME ...',"
     " fix the ledger with 'slots free' and 'slots set', then act or answer."
 )
 
@@ -223,7 +255,7 @@ class NextView:
     """
 
     items: Sequence[work.Item]
-    assignments: Sequence[tuple[ledger.Slot, work.Item | None]]
+    assignments: Sequence[work.Assignment]
     slots: config.Slots
     failed: Mapping[str, Sequence[str]]
     now: datetime.datetime

@@ -11,8 +11,15 @@ from . import config
 _REFERENCE = re.compile(r"^(?:(?P<owner>[\w.-]+)/)?(?P<name>[\w.-]+)?#(?P<number>\d+)$")
 
 
-class LedgerError(ValueError):
-    """A change the ledger refuses."""
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Refusal:
+    """A change the ledger refuses.
+
+    Attributes:
+        reason: why, and what to do instead.
+    """
+
+    reason: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -100,7 +107,7 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 
-def find(ledger: Ledger, name: str) -> Slot:
+def find(ledger: Ledger, name: str) -> Slot | Refusal:
     """Find a slot by name.
 
     Args:
@@ -108,16 +115,13 @@ def find(ledger: Ledger, name: str) -> Slot:
         name: the slot's name.
 
     Returns:
-        The slot.
-
-    Raises:
-        LedgerError: when there is no such slot.
+        The slot, or a refusal when there is no such slot.
     """
     for slot in ledger.slots:
         if slot.name == name:
             return slot
-    names = ", ".join(slot.name for slot in ledger.slots) or "none"
-    raise LedgerError(f"no slot {name!r} (slots: {names})")
+    listed = ", ".join(slot.name for slot in ledger.slots) or "none"
+    return Refusal(reason=f"no slot {name!r} (slots: {listed})")
 
 
 def _replace(ledger: Ledger, name: str, slot: Slot | None) -> Ledger:
@@ -125,7 +129,7 @@ def _replace(ledger: Ledger, name: str, slot: Slot | None) -> Ledger:
     return dataclasses.replace(ledger, slots=tuple(item for item in kept if item))
 
 
-def take(ledger: Ledger, slot_name: str, agent: str, task: str) -> Ledger:
+def take(ledger: Ledger, slot_name: str, agent: str, task: str) -> Ledger | Refusal:
     """Put an agent in an empty slot.
 
     Args:
@@ -135,22 +139,21 @@ def take(ledger: Ledger, slot_name: str, agent: str, task: str) -> Ledger:
         task: what it works on.
 
     Returns:
-        The new ledger.
-
-    Raises:
-        LedgerError: when the slot is taken (free it first).
+        The new ledger, or a refusal when the slot is taken (free it first).
     """
     slot = find(ledger, slot_name)
+    if isinstance(slot, Refusal):
+        return slot
     if slot.agent:
-        raise LedgerError(
-            f"slot {slot_name} holds {slot.agent} on {slot.task}: free it first"
+        return Refusal(
+            reason=f"slot {slot_name} holds {slot.agent} on {slot.task}: free it first"
         )
     return _replace(
         ledger, slot_name, dataclasses.replace(slot, agent=agent, task=task)
     )
 
 
-def free(ledger: Ledger, slot_name: str) -> Ledger:
+def free(ledger: Ledger, slot_name: str) -> Ledger | Refusal:
     """Empty a slot.
 
     Args:
@@ -158,13 +161,17 @@ def free(ledger: Ledger, slot_name: str) -> Ledger:
         slot_name: the slot.
 
     Returns:
-        The new ledger.
+        The new ledger, or a refusal when there is no such slot.
     """
     slot = find(ledger, slot_name)
+    if isinstance(slot, Refusal):
+        return slot
     return _replace(ledger, slot_name, dataclasses.replace(slot, agent="", task=""))
 
 
-def add(ledger: Ledger, spec: config.SlotSpec, models: Sequence[str]) -> Ledger:
+def add(
+    ledger: Ledger, spec: config.SlotSpec, models: Sequence[str]
+) -> Ledger | Refusal:
     """Add a slot.
 
     Args:
@@ -173,20 +180,19 @@ def add(ledger: Ledger, spec: config.SlotSpec, models: Sequence[str]) -> Ledger:
         models: the configured models.
 
     Returns:
-        The new ledger.
-
-    Raises:
-        LedgerError: when the name is taken or the model is not configured.
+        The new ledger, or a refusal when the name is taken or the model is
+        not configured.
     """
     if any(slot.name == spec.name for slot in ledger.slots):
-        raise LedgerError(f"slot {spec.name} already exists")
+        return Refusal(reason=f"slot {spec.name} already exists")
     if spec.model not in models:
-        raise LedgerError(f"model {spec.model!r} is not one of {', '.join(models)}")
+        configured = ", ".join(models) or "none: set [slots] models"
+        return Refusal(reason=f"model {spec.model!r} is not one of {configured}")
     added = Slot(name=spec.name, model=spec.model)
     return dataclasses.replace(ledger, slots=(*ledger.slots, added))
 
 
-def remove(ledger: Ledger, slot_name: str) -> Ledger:
+def remove(ledger: Ledger, slot_name: str) -> Ledger | Refusal:
     """Remove an empty slot.
 
     Args:
@@ -194,14 +200,14 @@ def remove(ledger: Ledger, slot_name: str) -> Ledger:
         slot_name: the slot.
 
     Returns:
-        The new ledger.
-
-    Raises:
-        LedgerError: when the slot holds an agent (free it first).
+        The new ledger, or a refusal when the slot holds an agent (free it
+        first).
     """
     slot = find(ledger, slot_name)
+    if isinstance(slot, Refusal):
+        return slot
     if slot.agent:
-        raise LedgerError(f"slot {slot_name} holds {slot.agent}: free it first")
+        return Refusal(reason=f"slot {slot_name} holds {slot.agent}: free it first")
     return _replace(ledger, slot_name, None)
 
 

@@ -10,9 +10,9 @@ import concurrent.futures
 import dataclasses
 import enum
 import re
-from typing import Iterable, Mapping, Sequence
+from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, ghapi, ledger, pulls, reviews, shapes
+from . import config, ghapi, ledger, parsing, pulls, reviews, shapes
 
 _BACKTICKED_PATH = re.compile(r"`([^`\s]+/[^`\s]+)`")
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
@@ -51,7 +51,7 @@ class Item:
     created_at: str
     title: str
     priority: int = 0
-    labels: frozenset[str] = frozenset()
+    labels: AbstractSet[str] = frozenset()
 
 
 def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
@@ -63,28 +63,34 @@ def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
     Returns:
         The items.
     """
-    found = []
-    for pull in facts:
-        category = None
-        if pull.standing is reviews.Standing.CHANGES_NEEDED:
-            category = Category.FIX_REVIEW
-        elif _awaits_review(pull):
-            category = Category.REVIEW
-        if category is not None:
-            found.append(
-                Item(
-                    category=category,
-                    reference=pull.reference,
-                    created_at=pull.pull.created_at,
-                    title=pull.pull.title,
-                )
-            )
-    return found
+    return [
+        Item(
+            category=category,
+            reference=pulls.reference(pull),
+            created_at=pull.pull.created_at,
+            title=pull.pull.title,
+        )
+        for pull in facts
+        if (category := _category(pull)) is not None
+    ]
+
+
+def _category(pull: pulls.PullFacts) -> Category | None:
+    if pulls.changes_needed(pull):
+        return Category.FIX_REVIEW
+    if _awaits_review(pull):
+        return Category.REVIEW
+    return None
 
 
 def _awaits_review(pull: pulls.PullFacts) -> bool:
     unreviewed = pull.standing in (reviews.Standing.NONE, reviews.Standing.OLDER_HEAD)
-    return unreviewed and pull.green and not pull.conflicted and not pull.pull.draft
+    return (
+        unreviewed
+        and pulls.green(pull)
+        and not pulls.conflicted(pull)
+        and not pull.pull.draft
+    )
 
 
 def _references(pull: pulls.PullFacts) -> frozenset[str]:
@@ -102,8 +108,8 @@ def _references(pull: pulls.PullFacts) -> frozenset[str]:
     return frozenset(found)
 
 
-def _touches(paths: Iterable[str], changed: Iterable[str]) -> bool:
-    for path in paths:
+def _touches(named: Iterable[str], changed: Iterable[str]) -> bool:
+    for path in named:
         directory = path.removeprefix("./").split(":")[0].rstrip("/")
         if any(
             name == directory or name.startswith(directory + "/") for name in changed
@@ -121,8 +127,8 @@ class Taken:
         changed: each repository's files that open PRs change.
     """
 
-    references: frozenset[str]
-    changed: Mapping[str, frozenset[str]]
+    references: AbstractSet[str]
+    changed: Mapping[str, AbstractSet[str]]
 
 
 def read_taken(github: ghapi.GitHub, facts: Sequence[pulls.PullFacts]) -> Taken:
@@ -138,7 +144,7 @@ def read_taken(github: ghapi.GitHub, facts: Sequence[pulls.PullFacts]) -> Taken:
 
     def files(pull: pulls.PullFacts) -> Sequence[str]:
         path = f"repos/{pull.repo.slug}/pulls/{pull.pull.number}/files"
-        return ghapi.pages(github, path, shapes.filenames)
+        return ghapi.pages(github, path, parsing.filenames)
 
     with concurrent.futures.ThreadPoolExecutor() as pool:
         changed_lists = list(pool.map(files, facts))
@@ -163,10 +169,10 @@ def ticket_items(
         The items.
     """
     found: dict[str, Item] = {}
-    for repo in settings.repositories:
+    for repo in config.repositories(settings):
         for priority, label in enumerate(settings.slots.priority_labels):
             path = f"repos/{repo.slug}/issues?state=open&labels={label}"
-            for issue in ghapi.pages(github, path, shapes.issues):
+            for issue in ghapi.pages(github, path, parsing.issues):
                 item = _ticket_item(repo, issue, priority, taken)
                 if item is not None:
                     found.setdefault(item.reference, item)
@@ -233,9 +239,12 @@ def smallest_model(
     return None
 
 
+Assignment = tuple[ledger.Slot, Item | None]
+
+
 def assign(
     items: Sequence[Item], book: ledger.Ledger, slots: config.Slots
-) -> Sequence[tuple[ledger.Slot, Item | None]]:
+) -> Sequence[Assignment]:
     """Give each empty slot, smallest model first, the first item it may take.
 
     Args:
@@ -247,18 +256,15 @@ def assign(
         Each empty slot with its item, or None when nothing fits.
     """
     rank = {model: index for index, model in enumerate(slots.models)}
-    left = list(items)
-    found: list[tuple[ledger.Slot, Item | None]] = []
-    empty = [slot for slot in book.slots if not slot.agent]
-    for slot in sorted(empty, key=lambda slot: rank.get(slot.model, len(rank))):
-        fits = [
-            item
-            for item in left
-            if (model := smallest_model(item, slots, book.failed)) is not None
-            and rank[model] <= rank.get(slot.model, -1)
-        ]
-        chosen = fits[0] if fits else None
-        if chosen is not None:
-            left.remove(chosen)
-        found.append((slot, chosen))
+    left = [
+        (item, rank[model])
+        for item in items
+        if (model := smallest_model(item, slots, book.failed)) is not None
+    ]
+    found: list[Assignment] = []
+    empty = [each for each in book.slots if not each.agent]
+    for empty_slot in sorted(empty, key=lambda each: rank.get(each.model, len(rank))):
+        size = rank.get(empty_slot.model, -1)
+        index = next((at for at, pair in enumerate(left) if pair[1] <= size), None)
+        found.append((empty_slot, None if index is None else left.pop(index)[0]))
     return found
