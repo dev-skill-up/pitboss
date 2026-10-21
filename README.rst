@@ -21,6 +21,8 @@ Commands
 ``pitboss pressure CONFIG``                     One line; exits 1 under runner pressure.
 ``pitboss cancel-stale-runs CONFIG``            Cancel superseded merge-queue runs (``--no-dry-run``).
 ``pitboss clean-worktrees CONFIG``              Remove finished worktrees (``--no-dry-run``).
+``pitboss clean-container``                     Remove files in ``/`` written over an hour after
+                                                the container started (``--no-dry-run``).
 ``pitboss review-form CONFIG REPOSITORY``       The form a review comment there must take.
 ``pitboss slots ACTION CONFIG ...``             The worker-slot ledger, and what to start next.
 ==============================================  =====================================================
