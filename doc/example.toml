@@ -1,0 +1,76 @@
+# A pitboss configuration, checked in as .claude/pitboss/<name>.toml.
+# Every key is shown; only [project] owner, repository and main_clone are
+# required. The values are an example's; the comments give the defaults.
+
+[project]
+owner = "example-org"
+repository = "app"
+main_clone = "/home/user/app"
+# base_branch = "main"
+# workspace = the main clone's parent directory
+workspace = "/home/user"
+
+[libraries]
+# Other repositories the project's sessions change: a bare name is the
+# project owner's; "owner/name" for another owner. Default: none.
+repositories = ["widgets", "other-org/parser"]
+# Libraries whose PRs are merged by hand. Default: none.
+no_auto_merge = ["other-org/parser"]
+
+[runners]
+# The repositories that share the runners, so whose merge-queue runs count
+# for runner pressure. Default: the project and its libraries.
+repositories = ["app", "widgets"]
+
+[review]
+# Author associations whose reviews count.
+# Default: ["OWNER", "MEMBER", "COLLABORATOR"].
+trusted_associations = ["OWNER", "MEMBER", "COLLABORATOR"]
+# Repositories whose reviews must take gated_form, strictly, and name the
+# exact head. Default: none.
+gated = ["other-org/parser"]
+
+[review.form]
+# The form of a review comment: line templates, the first matching the
+# comment's first line; {sha} is the reviewed head, {verdict} a verdict.
+# Default: these three lines, and these two words.
+lines = ["## Review", "Reviewed: {sha}", "Verdict: {verdict}"]
+approved = "approved"
+changes_needed = "changes needed"
+
+[review.gated_form]
+# The form in a gated repository. Default: the same as [review.form].
+lines = ["## Adversarial review", "Reviewed: {sha}", "Verdict: {verdict}"]
+
+[merge_queue]
+# How long a merge-queue run may take before GitHub dequeues it. Default: 60.
+timeout_minutes = 60
+
+[worktrees]
+# How long a worktree must be untouched before it may be stale. Default: 3.
+idle_hours = 3
+
+[sweep]
+# The questions each sweep ends with. Default: whether any ticket can be
+# closed, and whether any blocked ticket is unblocked.
+# reminders = ["..."]
+
+[slots]
+# The ledger: a file outside the repository.
+# Default: <main_clone>/.git/pitboss-slots.json
+ledger = "/home/user/app/.git/pitboss-slots.json"
+# The models workers run on, smallest first. Default: none.
+models = ["small-model", "large-model"]
+# The ticket labels that are offered, highest priority first; a ticket with
+# none of them is never offered. Default: none.
+priority_labels = ["urgent", "soon", "later"]
+# The slots a new ledger starts with. Default: none (add them with
+# `pitboss slots add`).
+default = [
+    { name = "large-1", model = "large-model" },
+    { name = "small-1", model = "small-model" },
+]
+
+[slots.model_labels]
+# A label, and the smallest model a ticket with it may go to. Default: none.
+"needs-large-model" = "large-model"

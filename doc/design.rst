@@ -130,19 +130,25 @@ Reads go through gather's ``args.safe_run``; every change on GitHub or to
 git (cancelling a run, removing a worktree) goes through ``args.run``, so it
 happens only with ``--no-dry-run``. ``slots`` writes its own ledger.
 
+Every command first reads each configured repository once; one the session
+cannot read is reported as ``UNREADABLE`` and left out, so one missing grant
+does not stop a sweep. Only the project's own repository is required.
+
 How each part decides
 ---------------------
 
-**Pull requests.** One request for the PR list, one per PR for its details
-and one for its head's check runs, all PRs at once in a thread pool. A line
-shows ``mergeable_state``, auto-merge, pending checks, the failed checks
-with their job ids, the PR's place in the merge queue (from the
-``merge_group`` runs: ``queued``, ``running``, or the last run's
-conclusion), and for a library PR the review state and ``READY-TO-MERGE``
-(checks all finished and none failed, state ``clean``, and an approving
-review of this head; for an ungated repository also of an older head when
-everything since is merges of the base branch). A library in
-``no_auto_merge`` is marked so the reader merges it by hand.
+**Pull requests.** One request for the PR list, then, per PR, its details,
+its comments and reviews, and one request for its head's check runs, all PRs
+at once in a thread pool. A line shows ``mergeable_state``, auto-merge,
+pending checks, the failed checks with their job ids, the PR's place in the
+merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
+the newest run's conclusion), and the review's standing. Action lines follow:
+``CONFLICT``, ``FAILED``, then ``READY TO MERGE`` (checks all finished and
+none failed, state ``clean``, an approving review of this head, or for an
+ungated repository of an older head when everything since is merges of the
+base branch) or, in a ``no_auto_merge`` repository, ``MERGE BY HAND``, or
+else ``AUTO MERGE OFF`` for a healthy PR with auto-merge off, not in the
+queue and not asked for changes.
 
 **Reviews.** A review is the newest comment by a trusted author whose lines
 match the repository's form. In a gated repository the form is strict: the
@@ -158,9 +164,10 @@ merges (the non-merge commits of ``base...head`` are those of
 **Runner pressure.** Under pressure when any ``merge_group`` run, queued or
 in progress, in any ``[runners] repositories``, has a job still ``queued``.
 
-**Queue runs.** The unfinished ``merge_group`` runs of the project; a run
-that is not the newest of its PR is stale. A run is reported with its age
-against ``timeout_minutes``.
+**Queue runs.** The unfinished ``merge_group`` runs of every repository
+read; a run is stale when its merge group (its ``gh-readonly-queue`` branch)
+is not its PR's newest. Runs of the newest group are never stale, one per
+workflow. A live run is reported with its age against ``timeout_minutes``.
 
 **Stragglers.** Every git checkout directly under ``workspace``: uncommitted
 files, and commits on no remote branch. Each repository is fetched once.
@@ -174,8 +181,11 @@ base branch. A worktree with an open PR is never stale.
 
 **Slots.** The ledger is a JSON file: each slot's name, model, agent and
 task, and the tickets each model has failed. ``set`` refuses an occupied
-slot. ``next`` reads GitHub and prints one sorted list, each line saying
-why it is where it is:
+slot, ``remove`` an occupied one, ``add`` a model not in ``models``; a
+refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
+slots whose agent is not among the names (the session passes what its own
+agent listing shows). ``next`` reads GitHub and prints one sorted list, each
+line saying why it is where it is:
 
 1. the author's fix for a review that asked for changes, on an unmoved head;
 2. a review of a PR whose checks are all green on its head and which has no
@@ -187,16 +197,31 @@ why it is where it is:
 Inside a category, oldest first by the PR's (or the ticket's) creation
 time; in the third, by ``priority_labels`` first. Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
-the ticket and is no smaller than a ``model_labels`` label on it.
+the ticket and is no smaller than a ``model_labels`` label on it. Empty
+slots are filled smallest model first, each with the first line it may take.
 
 Output
 ------
 
 Every line that calls for an action says the action. The markers
 (``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``EMPTY SLOT``,
-...) are members of one enum, ``pitboss.markers.Marker``; a check in CI
+...) are members of one enum, ``pitboss.markers.Marker``, printed as the
+member's name in words (so ``READY_TO_MERGE`` prints ``READY TO MERGE``,
+and the line with no pressure reads ``NO RUNNER PRESSURE``); a check in CI
 fails when one is not explained in the skill's references, or the
 references name one that does not exist. Timings go to stderr.
+
+Code
+----
+
+The package follows the python-standard template's rules, checked with no
+suppressions anywhere (no ``noqa``, ``type: ignore`` or ``pragma: no
+cover``): classes are frozen dataclasses with no behaviour, and behaviour is
+module functions over them. ``parsing`` turns GitHub's response bodies into
+``shapes`` dataclasses, its wire strings into enums and booleans, so nothing
+else reads JSON. ``ledger`` returns a ``Refusal`` rather than raising. Tests
+inject a fake ``gh`` (canned bodies by path) and run real git in temporary
+directories; ``unittest.mock`` is never used.
 
 The skill
 ---------

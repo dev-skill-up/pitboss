@@ -145,6 +145,23 @@ class TestLoad(unittest.TestCase):
         assert_that(found, equal_to([True] * len(WRONG)))
 
 
+EXAMPLE = pathlib.Path(__file__).resolve().parents[3] / "doc" / "example.toml"
+
+
+class TestExample(unittest.TestCase):
+    """The example configuration in the documentation."""
+
+    def test_example_loads(self) -> None:
+        """It parses, and what it gates and merges by hand are its libraries."""
+        settings = config.load(str(EXAMPLE), EXAMPLE.parent)
+        libraries = set(_slugs(settings.libraries))
+        found = (
+            settings.review.gated <= libraries,
+            settings.no_auto_merge <= libraries,
+        )
+        assert_that(found, equal_to((True, True)))
+
+
 class TestLocate(unittest.TestCase):
     """Finding the file a name stands for."""
 

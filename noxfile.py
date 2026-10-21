@@ -6,7 +6,7 @@ import urllib.request
 import nox
 
 nox.options.envdir = "build/nox"
-nox.options.sessions = ["lint", "tests", "mypy", "docs", "dry_release"]
+nox.options.sessions = ["lint", "tests", "mypy", "docs", "skills", "dry_release"]
 
 VERSIONS = ["3.12", "3.13", "3.14"]
 
@@ -104,7 +104,7 @@ def dry_release(session):
 
 @nox.session(python=VERSIONS[-1])
 def lint(session):
-    files = ["src/", "noxfile.py"]
+    files = ["src/", "scripts/", "noxfile.py"]
     session.install("-r", "requirements-lint.txt")
     session.install("-e", ".")
     session.run("black", "--check", "--diff", *files)
@@ -149,6 +149,29 @@ def docs(session):
     sphinx = ["sphinx-build", "-b", "html", "-W", "-d", doctrees, ".", html]
     session.cd("doc")
     session.run(*sphinx)
+
+
+@nox.session(python=VERSIONS[-1])
+def skills(session):
+    """Check the skill and its references, and that skill-zips/ is current."""
+    session.install("-r", "requirements-skills.txt")
+    session.install("-e", ".")
+    session.run("python", "scripts/check_skills.py")
+    session.run("python", "scripts/check_markers.py")
+    session.run("python", "scripts/build_dist.py")
+    session.run("git", "diff", "--exit-code", "--", "skill-zips/", external=True)
+    untracked = session.run(
+        "git",
+        "ls-files",
+        "--others",
+        "--exclude-standard",
+        "--",
+        "skill-zips/",
+        external=True,
+        silent=True,
+    )
+    if untracked.strip():
+        session.error(f"skill-zips/ has files not in git; add them:\n{untracked}")
 
 
 @nox.session(python=VERSIONS[-1])

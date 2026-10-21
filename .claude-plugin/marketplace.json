@@ -1,0 +1,22 @@
+{
+  "name": "pitboss",
+  "owner": {
+    "name": "Moshe Zadka",
+    "email": "moshez@zadka.club"
+  },
+  "description": "The pitboss plugin: a sweep of a project's pull requests, merge queue, local checkouts and worker slots.",
+  "plugins": [
+    {
+      "name": "pitboss",
+      "source": "./plugins/pitboss",
+      "description": "The sweep skill: run 'uvx pitboss sweep <config>' to see every open PR's state, runner pressure, stale merge-queue runs, unpushed work and stale worktrees, and what each calls for; keep the worker-slot ledger and get the sorted list of what to start next.",
+      "author": {
+        "name": "Moshe Zadka",
+        "email": "moshez@zadka.club"
+      },
+      "license": "MIT",
+      "keywords": ["github", "pull-requests", "merge-queue", "ci", "worktrees", "agents"],
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "pitboss",
+  "description": "The sweep skill: a project's pull requests, merge queue, local checkouts and worker slots, and what each calls for.",
+  "author": {
+    "name": "Moshe Zadka",
+    "email": "moshez@zadka.club"
+  },
+  "homepage": "https://github.com/dev-skill-up/pitboss",
+  "license": "MIT"
+}
