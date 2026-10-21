@@ -155,7 +155,7 @@ def docs(session):
 def refresh_deps(session):
     """Refresh the requirements-*.txt files"""
     session.install("pip-tools")
-    for deps in ["tests", "docs", "lint", "mypy"]:
+    for deps in ["tests", "docs", "lint", "mypy", "skills"]:
         session.run(
             "pip-compile",
             "--upgrade",

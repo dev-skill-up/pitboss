@@ -4,10 +4,12 @@ Design
 pitboss is the ``qsweep`` and ``slots`` tools of quire#573, rebuilt as one
 Python package that knows nothing about any one project. It starts from the
 design comment of 2026-10-18 on that issue, with the later comments folded
-in, and one change of principle: **every value that named quire, its
-libraries, its models, its review format or its machine is read from the
-project's configuration file.** The code holds only what GitHub, git and
-Claude Code define.
+in, and one change of principle: **every value that named quire, bats,
+pwa, their libraries, their models, their review format or their machine
+is read from the project's configuration file.** The code, its defaults,
+the example configuration and the skill hold only what GitHub, git and
+Claude Code define; the table below is the only place those projects are
+named, as the record of where each value went.
 
 What was project-specific, and where it went
 --------------------------------------------
@@ -35,8 +37,11 @@ What was project-specific, and where it went
      - ``[review] trusted_associations`` (this is the default)
    * - ``## Adversarial review``, ``Reviewed: <sha>``, ``Verdict: approved``
        and the ungated ``Independent review ... of head <sha>: approved``
-     - ``[review.gated_form]`` and ``[review.ungated_form]``: line templates
-       with ``{sha}`` and ``{verdict}``, and the two verdict words
+     - ``[review.form]`` and ``[review.gated_form]``: line templates with
+       ``{sha}`` and ``{verdict}``, and the two verdict words. The default
+       form is ``## Review`` / ``Reviewed: {sha}`` / ``Verdict: {verdict}``
+       with ``approved`` and ``changes needed``; ``gated_form`` defaults to
+       ``form``
    * - an approval survives a merge of main, except in gated repositories
      - built in: it is what "gated" means
    * - the 20 shared runners, and which repositories share them
@@ -46,13 +51,16 @@ What was project-specific, and where it went
    * - three hours of idleness before a worktree is stale
      - ``[worktrees] idle_hours``
    * - ``/tmp/claude-0/slots.tsv``
-     - ``[slots] ledger``
+     - ``[slots] ledger`` (default ``<main_clone>/.git/pitboss-slots.json``:
+       per clone, never committed)
    * - ``sonnet1 sonnet2 haiku1``, and "haiku before sonnet"
-     - ``[slots] models`` (smallest first) and ``[[slots.default]]``
-       (name and model of each slot)
+     - ``[slots] models`` (smallest first) and ``[[slots.default]]`` (the
+       name and model of each slot). Neither has a default: how many slots
+       there are and what runs in them is the project's, and ``slots add``
+       and ``slots remove`` change the count later
    * - ``p0 p1 p2``, p3 never
-     - ``[slots] priority_labels``: a ticket with none of them is never
-       offered
+     - ``[slots] priority_labels`` (default none): a ticket with none of
+       them is never offered
    * - "a ticket marked as needing a Sonnet"
      - ``[slots] model_labels``: a label that names the smallest model a
        ticket may go to

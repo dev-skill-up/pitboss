@@ -11,12 +11,15 @@ dynamic = ["version"]
 description = "Sweep a project's pull requests, merge queue, worktrees and worker slots"
 readme = "README.rst"
 authors = [{name = "Moshe Zadka", email = "moshez@zadka.club"}]
+requires-python = ">=3.12"
+dependencies = ["gather", "commander_data"]
 
 [project.optional-dependencies]
 tests = ["virtue", "pyhamcrest", "coverage"]
 mypy = ["mypy"]
 lint = ["flake8", "black", "stolid", "placard", "pydoclint"]
 docs = ["sphinx"]
+skills = ["pyyaml"]
 
 [project.license]
 text = """
@@ -50,3 +53,14 @@ is_main_match = ".*/main$"
 
 [project.entry-points.gather]
 placeholder = "pitboss"
+
+[project.scripts]
+pitboss = "pitboss:ENTRY_DATA.main_command"
+
+[[tool.mypy.overrides]]
+module = ["gather.*", "commander_data.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pitboss.commands", "pitboss.slot_commands"]
+disallow_untyped_decorators = false
