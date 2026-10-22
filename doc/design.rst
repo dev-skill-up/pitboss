@@ -198,8 +198,13 @@ line saying why it is where it is:
 2. a review of a PR whose checks are all green on its head and which has no
    review of that head (the reviewer is never the author);
 3. a new PR: an open ticket of the project or a library, with a priority
-   label, not referenced by an open PR and naming no file an open PR
-   changes.
+   label, not referenced by an open PR.
+
+Nothing predicts which files a ticket will touch (an earlier version held
+back a ticket whose backticked paths an open PR changed; the owner dropped
+that guess on 2026-10-22). Tickets are taken in strict order, every PR
+starts from the base branch (no stacking), and a conflict is resolved by
+merging the base branch in when it arises.
 
 Inside a category, oldest first by the PR's (or the ticket's) creation
 time; in the third, by ``priority_labels`` first. Each line names the

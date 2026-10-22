@@ -57,13 +57,19 @@ this order, and says on each line why it is where it is:
    finished green on that exact head; the author never waits on CI, but
    pushes, reports the head and finishes.
 3. **Start a PR**: an open ticket with one of the configured priority
-   labels, that no open PR names (in its title, body or branch) and whose
-   named paths no open PR changes; a ticket with none of the labels is never
-   offered.
+   labels that no open PR names (in its title, body or branch); a ticket
+   with none of the labels is never offered.
 
 Within a category: by priority label (the order of `priority_labels`), then
 oldest first by the creation time of the PR or the ticket. Items a slot
 already holds are left out.
+
+Take the lines in this order and nothing else: nobody guesses which files a
+ticket will touch, and no ticket is skipped or held back because another PR
+might touch the same files. No stacking: every PR starts from the base
+branch, never from another PR's branch. When a PR that merged first makes
+another conflict, the conflicted PR merges the base branch in when it needs
+to (see `CONFLICT` in `sweep.md`).
 
 Each line names the smallest model it may go to: the first configured model
 that has not failed it, and no smaller than the model a `[slots.model_labels]`

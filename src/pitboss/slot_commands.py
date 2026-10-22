@@ -98,10 +98,9 @@ def _check(found: Context, book: ledger.Ledger) -> None:
 
 def _next(found: Context, book: ledger.Ledger) -> None:
     facts = open_pulls(found)
-    taken = work.read_taken(found.github, facts)
     items = [
         *work.pull_items(facts),
-        *work.ticket_items(found.github, found.settings, taken),
+        *work.ticket_items(found.github, found.settings, work.taken(facts)),
     ]
     held = [slot.task for slot in book.slots if slot.agent]
     ordered = work.ordered(items, held)

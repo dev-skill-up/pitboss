@@ -73,12 +73,8 @@ class TestParsing(unittest.TestCase):
     """Parsing the parts of GitHub's answers pitboss reads."""
 
     def test_lists(self) -> None:
-        """Issues leave out PRs; outcomes say whether a PR merged; files are paths."""
-        found = [
-            parsing.issues(ISSUES),
-            parsing.outcomes(OUTCOMES),
-            parsing.filenames('[{"filename": "a/b"}]'),
-        ]
+        """Issues leave out PRs; outcomes say whether a PR merged."""
+        found = [parsing.issues(ISSUES), parsing.outcomes(OUTCOMES)]
         issue = shapes.Issue(
             number=1, title="t", created_at="c", labels=frozenset({"p"}), body=""
         )
@@ -88,7 +84,6 @@ class TestParsing(unittest.TestCase):
                 shapes.Outcome(branch="a", still_open=False, merged=True),
                 shapes.Outcome(branch="b", still_open=True, merged=False),
             ],
-            ["a/b"],
         ]
         assert_that(found, equal_to(expected))
 

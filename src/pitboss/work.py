@@ -3,10 +3,12 @@
 The order (work-order): (1) the author's fix for a review that asked for
 changes on the PR's current head; (2) a review of a PR that is green on
 its head and has no review of it; (3) a new PR for an open ticket with a
-priority label. Within a category, by priority label, then oldest first.
+priority label that no open PR names. Within a category, by priority label,
+then oldest first. Nothing predicts which files a ticket will touch: tickets
+are taken in this order, every PR starts from the base branch, and a conflict
+is resolved by merging the base branch in.
 """
 
-import concurrent.futures
 import dataclasses
 import enum
 import re
@@ -14,7 +16,6 @@ from typing import AbstractSet, Iterable, Mapping, Sequence
 
 from . import config, ghapi, ledger, parsing, pulls, reviews, shapes
 
-_BACKTICKED_PATH = re.compile(r"`([^`\s]+/[^`\s]+)`")
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
 
@@ -108,88 +109,54 @@ def _references(pull: pulls.PullFacts) -> frozenset[str]:
     return frozenset(found)
 
 
-def _touches(named: Iterable[str], changed: Iterable[str]) -> bool:
-    for path in named:
-        directory = path.removeprefix("./").split(":")[0].rstrip("/")
-        if any(
-            name == directory or name.startswith(directory + "/") for name in changed
-        ):
-            return True
-    return False
+def taken(facts: Iterable[pulls.PullFacts]) -> AbstractSet[str]:
+    """The tickets open PRs already work on.
 
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Taken:
-    """What open PRs already cover.
-
-    Attributes:
-        references: every ticket an open PR names.
-        changed: each repository's files that open PRs change.
-    """
-
-    references: AbstractSet[str]
-    changed: Mapping[str, AbstractSet[str]]
-
-
-def read_taken(github: ghapi.GitHub, facts: Sequence[pulls.PullFacts]) -> Taken:
-    """Read what the open PRs name and change.
+    A PR names a ticket by ``#N``, ``name#N``, ``owner/name#N`` or the
+    ticket's URL in its title or body, or by a branch ending in ``-N``.
 
     Args:
-        github: the API.
         facts: the open PRs.
 
     Returns:
-        What they cover.
+        The tickets' references.
     """
-
-    def files(pull: pulls.PullFacts) -> Sequence[str]:
-        path = f"repos/{pull.repo.slug}/pulls/{pull.pull.number}/files"
-        return ghapi.pages(github, path, parsing.filenames)
-
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        changed_lists = list(pool.map(files, facts))
-    changed: dict[str, frozenset[str]] = {}
-    for pull, names in zip(facts, changed_lists):
-        changed[pull.repo.slug] = changed.get(pull.repo.slug, frozenset()) | set(names)
-    references = frozenset().union(*(_references(pull) for pull in facts))
-    return Taken(references=references, changed=changed)
+    return frozenset().union(*(_references(pull) for pull in facts))
 
 
 def ticket_items(
-    github: ghapi.GitHub, settings: config.Config, taken: Taken
+    github: ghapi.GitHub, settings: config.Config, in_progress: AbstractSet[str]
 ) -> Sequence[Item]:
-    """The open tickets with a priority label that no open PR covers.
+    """The open tickets with a priority label that no open PR names.
 
     Args:
         github: the API.
         settings: the configuration.
-        taken: what open PRs cover.
+        in_progress: the tickets open PRs already work on.
 
     Returns:
         The items.
     """
     found: dict[str, Item] = {}
-    for repo in config.repositories(settings):
-        for priority, label in enumerate(settings.slots.priority_labels):
-            path = f"repos/{repo.slug}/issues?state=open&labels={label}"
-            for issue in ghapi.pages(github, path, parsing.issues):
-                item = _ticket_item(repo, issue, priority, taken)
-                if item is not None:
-                    found.setdefault(item.reference, item)
+    for item in _labelled(github, settings):
+        if item.reference not in in_progress:
+            found.setdefault(item.reference, item)
     return list(found.values())
 
 
-def _ticket_item(
-    repo: config.Repo, issue: shapes.Issue, priority: int, taken: Taken
-) -> Item | None:
-    item_reference = f"{repo.slug}#{issue.number}"
-    paths = _BACKTICKED_PATH.findall(issue.body)
-    changed = taken.changed.get(repo.slug, frozenset())
-    if item_reference in taken.references or _touches(paths, changed):
-        return None
+def _labelled(github: ghapi.GitHub, settings: config.Config) -> Iterable[Item]:
+    ranked = list(enumerate(settings.slots.priority_labels))
+    for repo in config.repositories(settings):
+        for priority, label in ranked:
+            path = f"repos/{repo.slug}/issues?state=open&labels={label}"
+            for issue in ghapi.pages(github, path, parsing.issues):
+                yield _ticket_item(f"{repo.slug}#{issue.number}", issue, priority)
+
+
+def _ticket_item(reference: str, issue: shapes.Issue, priority: int) -> Item:
     return Item(
         category=Category.NEW_PR,
-        reference=item_reference,
+        reference=reference,
         created_at=issue.created_at,
         title=issue.title,
         priority=priority,

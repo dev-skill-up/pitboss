@@ -201,15 +201,3 @@ def issues(text: str) -> Sequence[shapes.Issue]:
         for item in json.loads(text)
         if "pull_request" not in item
     ]
-
-
-def filenames(text: str) -> Sequence[str]:
-    """Parse a page of a PR's files into their paths.
-
-    Args:
-        text: the response body of ``pulls/<number>/files``.
-
-    Returns:
-        The paths.
-    """
-    return _each(text, "filename")
