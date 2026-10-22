@@ -137,7 +137,7 @@ class Result:
 def pull_bodies(
     slug: str, number: int, checks: object, state: str
 ) -> MutableMapping[str, object]:
-    """One open PR: details, comments, reviews, its head's checks, its files.
+    """One open PR: details, comments, reviews and its head's checks.
 
     PR 2 has a GitHub approval of its head; the library's PR a comment one.
 
@@ -159,7 +159,6 @@ def pull_bodies(
         (f"issues/{number}/comments", [COMMENT] if library else []),
         (f"pulls/{number}/reviews", [APPROVAL] if number == 2 else []),
         (f"commits/{head}/check-runs", {"check_runs": checks}),
-        (f"pulls/{number}/files", [{"filename": "f"}]),
     ]
     found = fakes.bodies_under(prefix, pages)
     found[f"{prefix}/pulls/{number}"] = details

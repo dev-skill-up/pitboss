@@ -121,8 +121,6 @@ ISSUES = [
 ]
 LISTING = "repos/owner/project/issues?state=open&labels="
 TICKET_BODIES = {
-    fakes.page("repos/owner/project/pulls/10/files"): [{"filename": "src/thing/a.py"}],
-    fakes.page("repos/owner/project/pulls/11/files"): [],
     fakes.page(LISTING + "urgent"): ISSUES,
     fakes.page(LISTING + "later"): [ISSUES[4]],
 }
@@ -134,23 +132,20 @@ NAMING = {
 
 
 class TestTickets(unittest.TestCase):
-    """Open tickets that no open PR covers."""
+    """Open tickets that no open PR names."""
 
     def test_taken_and_offered(self) -> None:
-        """A ticket an open PR names or touches is left out."""
+        """Only a ticket an open PR names is left out; named paths do not count."""
         named = facts(10, NONE, **NAMING)
         plain = facts(11, NONE, head={"sha": fakes.HEAD, "ref": "feature"})
         api = fakes.github(dict(TICKET_BODIES))
         settings = fakes.settings(fakes.directory())
-        taken = work.read_taken(api, [named, plain])
+        in_progress = work.taken([named, plain])
         offered = work.ticket_items(
-            api, dataclasses.replace(settings, slots=SLOTS), taken
+            api, dataclasses.replace(settings, slots=SLOTS), in_progress
         )
-        found = (
-            "owner/lib#3" in taken.references,
-            [each.reference for each in offered],
-        )
-        assert_that(found, equal_to((True, ["owner/project#6"])))
+        found = ("owner/lib#3" in in_progress, [each.reference for each in offered])
+        assert_that(found, equal_to((True, ["owner/project#5", "owner/project#6"])))
 
 
 class TestOrderAndAssign(unittest.TestCase):
