@@ -88,8 +88,9 @@ and changed:
 
 Nothing else in the code is a choice: the merge-queue branch shape
 (``gh-readonly-queue/<base>/pr-<n>-<sha>``), the check-run conclusions that
-count as failed (``failure``, ``cancelled``, ``timed_out``,
-``action_required``, ``startup_failure``), the dequeue reasons and
+count as failed (``failure``, ``timed_out``, ``action_required``,
+``startup_failure``; a ``cancelled``, ``skipped`` or ``neutral`` run is not
+one, since a concurrency group cancels the run it supersedes), the dequeue reasons and
 ``mergeable_state`` values are GitHub's.
 
 The configuration file
@@ -164,11 +165,18 @@ How each part decides
 
 **Pull requests.** One request for the PR list, then, per PR, its details,
 its comments and reviews, and one request for its head's check runs, all PRs
-at once in a thread pool. A line shows ``mergeable_state``, auto-merge,
+at once in a thread pool. Only the latest run of each check name on the PR's
+current head counts: a run of another head is dropped, and of two runs of one
+name the one that started later (then the higher id) stands, so a cancelled
+or superseded run never shows as failed. A line shows ``mergeable_state``, auto-merge,
 pending checks, the failed checks with their job ids, the PR's place in the
 merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
 the newest run's conclusion), and the review's standing. Action lines follow:
-``CONFLICT``, ``FAILED``, then ``READY TO MERGE`` (checks all finished and
+``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
+api.github.com only: the names of the job's failed steps, the check run's
+output title and summary, and its failure annotations, cut to 300 characters;
+no job log is downloaded, because the log is a redirect to blob storage that a
+sandbox may block), then ``READY TO MERGE`` (checks all finished and
 none failed, state ``clean``, an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
 base branch) or, in a ``no_auto_merge`` repository, ``MERGE BY HAND``, or
