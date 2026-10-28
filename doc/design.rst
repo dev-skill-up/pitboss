@@ -121,6 +121,13 @@ Commands
    * - ``clean-worktrees CONFIG``
      - Removes stale worktrees, then ``git worktree prune``; branches are
        kept. Dry run unless ``--no-dry-run``.
+   * - ``analyze-red CONFIG REPOSITORY WORKFLOW``
+     - Read-only on GitHub. Writes ``--output``: a Markdown summary table of
+       the red runs (failure, timed_out, startup_failure) of the workflow in
+       the window (``--last N`` newest runs, or ``--since`` and ``--until``
+       days), each a link, each with a class from the fixed list
+       (``red.RedClass``; ``not established`` until a rule or the prompt
+       decides, pitboss#8).
    * - ``clean-container``
      - Removes the regular files directly in ``--root`` (default ``/``)
        modified more than ``--hours`` (default 1) after ``--marker``

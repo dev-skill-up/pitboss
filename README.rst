@@ -25,6 +25,9 @@ Commands
                                                 the container started (``--no-dry-run``).
 ``pitboss review-form CONFIG REPOSITORY``       The form a review comment there must take.
 ``pitboss slots ACTION CONFIG ...``             The worker-slot ledger, and what to start next.
+``pitboss analyze-red CONFIG REPOSITORY         Read-only: the red runs of a workflow in a window
+WORKFLOW --last N --output FILE``               (``--since``/``--until`` for days) as a Markdown
+                                                summary table, each with the fixed class list.
 ==============================================  =====================================================
 
 ``CONFIG`` is a path, or a name looked up as ``.claude/pitboss/<name>.toml`` in

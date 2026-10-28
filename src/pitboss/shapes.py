@@ -5,7 +5,7 @@
 
 import dataclasses
 import enum
-from typing import AbstractSet
+from typing import AbstractSet, Sequence
 
 FINISHED_STATUSES = frozenset({"completed"})
 WAITING_STATUSES = frozenset({"queued"})
@@ -198,3 +198,29 @@ class Issue:
     created_at: str
     labels: AbstractSet[str]
     body: str
+
+
+RED_CONCLUSIONS = frozenset({"failure", "timed_out", "startup_failure"})
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WindowRun:
+    """A workflow run as the red-run analysis reads it.
+
+    Attributes:
+        id: its id.
+        url: its page.
+        conclusion: its conclusion, empty until it completes.
+        created_at: when it was created (ISO 8601).
+        branch: the branch it ran on.
+        head_sha: the commit it ran.
+        pulls: the numbers of the PRs GitHub ties it to.
+    """
+
+    id: int
+    url: str
+    conclusion: str
+    created_at: str
+    branch: str
+    head_sha: str
+    pulls: Sequence[int]
