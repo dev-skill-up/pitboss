@@ -121,6 +121,24 @@ Commands
    * - ``clean-worktrees CONFIG``
      - Removes stale worktrees, then ``git worktree prune``; branches are
        kept. Dry run unless ``--no-dry-run``.
+   * - ``analyze-red CONFIG REPOSITORY WORKFLOW``
+     - Read-only on GitHub (pitboss#8). Writes ``--output``, one Markdown
+       file: the summary table of the red runs (failure, timed_out,
+       startup_failure) of the workflow in the window (``--last N`` newest
+       runs, or ``--since`` and ``--until`` days), then the causes (bursts
+       of reds that share a step and error text within six hours or a PR;
+       every percentage by run and by cause), the costs (failed job-minutes,
+       largest runs, per class, extra runs per PR, red to fix push, fix push
+       to green, and red to green labelled as the scheduling measure), the
+       synthesis (the three largest changes, none whose cost is above what
+       CI took to show the failure), a page for each red run, and the open
+       p0 tickets with the runs that cite each. A page holds what has a
+       fixed answer (job, step and timestamps, the first error line, the
+       class where a rule decides it, the cost line, the next run, the
+       fix commit, the known-bad count, what the pushing worker ran from the
+       transcript under ``--transcripts``) and a fixed prompt, filled with
+       those facts, for what needs judgement. The class list is fixed
+       (``redshapes.RedClass``).
    * - ``clean-container``
      - Removes the regular files directly in ``--root`` (default ``/``)
        modified more than ``--hours`` (default 1) after ``--marker``

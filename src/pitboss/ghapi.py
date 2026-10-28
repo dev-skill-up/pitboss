@@ -3,6 +3,7 @@
 import concurrent.futures
 import dataclasses
 import subprocess
+import urllib.parse
 from typing import Callable, Iterable, Mapping, Sequence, TypeVar
 
 from .running import Run
@@ -22,6 +23,20 @@ class GitHub:
 
     run: Run
     mutate: Run
+
+
+def workflow_runs_path(slug: str, workflow: str) -> str:
+    """The path of a workflow's runs.
+
+    Args:
+        slug: the repository's ``owner/name``.
+        workflow: the workflow's file name or id.
+
+    Returns:
+        The path under ``https://api.github.com/``.
+    """
+    name = urllib.parse.quote(workflow, safe="")
+    return f"repos/{slug}/actions/workflows/{name}/runs"
 
 
 def get(github: GitHub, path: str) -> str:

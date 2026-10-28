@@ -183,6 +183,19 @@ def parse_repo(text: str, owner: str) -> Repo:
     return make_repo(found_owner or owner, name)
 
 
+def named_repo(text: str, settings: Config) -> Repo:
+    """Read a repository named on the command line.
+
+    Args:
+        text: ``name`` or ``owner/name``.
+        settings: the configuration (its owner is a bare name's).
+
+    Returns:
+        The repository.
+    """
+    return parse_repo(text, settings.project.repo.owner)
+
+
 def _form(table: Mapping[str, object], fallback: ReviewForm) -> ReviewForm:
     return ReviewForm(
         lines=tuple(_strings(table, "lines", fallback.lines)),

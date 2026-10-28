@@ -378,7 +378,7 @@ def review_form(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     settings = load_settings(args)
-    repo = config.parse_repo(args.repository, settings.project.repo.owner)
+    repo = config.named_repo(args.repository, settings)
     gated = repo.slug in settings.review.gated
     form = settings.review.gated_form if gated else settings.review.form
     print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")

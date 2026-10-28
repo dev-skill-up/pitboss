@@ -167,6 +167,31 @@ def workflow_runs(text: str) -> Sequence[shapes.WorkflowRun]:
     ]
 
 
+def window_runs(text: str) -> Sequence[shapes.WindowRun]:
+    """Parse a page of a workflow's runs, with the commit and PRs of each.
+
+    Args:
+        text: the response body of ``workflows/<workflow>/runs``.
+
+    Returns:
+        The runs.
+    """
+    return [
+        shapes.WindowRun(
+            id=item["id"],
+            url=item["html_url"],
+            conclusion=item.get("conclusion") or "",
+            created_at=item["created_at"],
+            branch=item.get("head_branch") or "",
+            head_sha=item["head_sha"],
+            pulls=tuple(pull["number"] for pull in item.get("pull_requests") or []),
+            event=item["event"],
+            updated_at=item["updated_at"],
+        )
+        for item in json.loads(text)["workflow_runs"]
+    ]
+
+
 def jobs_waiting(text: str) -> Sequence[bool]:
     """Parse a page of jobs into whether each waits for a runner.
 

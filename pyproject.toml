@@ -62,5 +62,5 @@ module = ["gather.*", "commander_data.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["pitboss.commands", "pitboss.slot_commands"]
+module = ["pitboss.commands", "pitboss.slot_commands", "pitboss.red_commands"]
 disallow_untyped_decorators = false
