@@ -93,6 +93,53 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     ]
 
 
+def failed_steps(text: str) -> Sequence[str]:
+    """Parse the names of the failed steps of a job.
+
+    Args:
+        text: the response body of ``actions/jobs/<id>``.
+
+    Returns:
+        The names of its steps that failed.
+    """
+    steps = json.loads(text).get("steps") or []
+    return [step["name"] for step in steps if step.get("conclusion") == "failure"]
+
+
+def output_text(text: str) -> tuple[str, str]:
+    """Parse a check run's output title and summary.
+
+    Args:
+        text: the response body of ``check-runs/<id>``.
+
+    Returns:
+        The title and the summary (empty when it has none).
+    """
+    output = json.loads(text).get("output") or {}
+    return output.get("title") or "", output.get("summary") or ""
+
+
+def annotations(text: str) -> Sequence[str]:
+    """Parse the failure annotations of a check run.
+
+    Warnings and notices (such as an action's deprecation notice) are left out.
+
+    Args:
+        text: the response body of ``check-runs/<id>/annotations``.
+
+    Returns:
+        Each as ``path:line: message``.
+    """
+    failures = [
+        item for item in json.loads(text) if item.get("annotation_level") == "failure"
+    ]
+    return [
+        f"{item.get('path') or ''}:{item.get('start_line') or 0}:"
+        f" {item.get('message') or ''}"
+        for item in failures
+    ]
+
+
 def comments(text: str) -> Sequence[shapes.Comment]:
     """Parse a page of issue comments.
 

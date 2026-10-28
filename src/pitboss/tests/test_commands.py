@@ -14,7 +14,7 @@ SWEEP_LINES = (
     "UNREADABLE owner/gone: gh: not found",
     "owner/project#1 [dirty] auto-merge=off pending=0 failed=[test (job 8)]",
     "CONFLICT owner/project#1: merge main into branch-1",
-    "FAILED owner/project#1: test: read gh api repos/owner/project/actions",
+    "FAILED owner/project#1: test: failed step",
     "READY TO MERGE owner/project#2",
     "queue=in_progress",
     "AUTO MERGE OFF owner/project#3",
@@ -87,6 +87,18 @@ def sweep(here: world.World) -> world.Result:
     return world.again(here, "sweep", "--now", world.FUTURE)
 
 
+def failed_line(here: world.World) -> str:
+    """The FAILED line of the first PR in a sweep.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The line.
+    """
+    return [x for x in sweep(here).out.splitlines() if x.startswith("FAILED")][0]
+
+
 class TestSweep(unittest.TestCase):
     """The sweep and the pressure check."""
 
@@ -102,18 +114,20 @@ class TestSweep(unittest.TestCase):
         )
         assert_that((found, result.code), equal_to((([], []), 1)))
 
-    def test_sweep_unreadable_log(self) -> None:
-        """A failed check whose log cannot be read gets a marker of its own."""
-        here = world.make_world()
-        del here.bodies[world.RED_LOG]
-        out = sweep(here).out
-        assert_that(
-            (
-                "UNREADABLE LOG owner/project#1: test: gh api " + world.RED_LOG in out,
-                "FAILED owner/project#1" in out,
-            ),
-            equal_to((True, False)),
+    def test_sweep_says_why(self) -> None:
+        """A failed check's line says its failed step, output and annotations."""
+        expected = (
+            "FAILED owner/project#1: test: failed step 'Run bats check'"
+            " | check failed | 1 error | src/a.bats:3: bad type"
         )
+        assert_that(failed_line(world.make_world()), equal_to(expected))
+
+    def test_sweep_says_nothing_when_nothing_is_read(self) -> None:
+        """A failed check GitHub answers nothing for is named alone."""
+        here = world.make_world()
+        for path in (world.RED_JOB, world.RED_RUN, world.RED_NOTES):
+            del here.bodies[path]
+        assert_that(failed_line(here), equal_to("FAILED owner/project#1: test"))
 
     def test_sweep_healthy(self) -> None:
         """With no red or conflicted PR the sweep exits 0."""

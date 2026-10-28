@@ -36,8 +36,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | :--- | :--- | :--- |
 | `UNREADABLE` | The session cannot read a repository the configuration names; it is left out of this sweep. | Give the session access, or take the repository out of the configuration. |
 | `CONFLICT` | The PR has a merge conflict. | Merge the base branch into the PR's branch (never rebase or force-push someone's branch) and regenerate generated files with the project's own tooling. |
-| `FAILED` | The latest run of a check on the head failed (a cancelled, skipped or superseded run is not one); the line names the command that prints its log. | Read the log and find the root cause. A flake is a bug, not a reason. Re-run failed jobs at most once, and only after the whole run finished. |
-| `UNREADABLE LOG` | A check failed on the head, but `gh api` could not read its job log (the log expired, or the session may not download it). | Open the job in the browser, or re-run it once the whole run finished; do not guess the cause. |
+| `FAILED` | The latest run of a check on the head failed (a cancelled, skipped or superseded run is not one); the line says what api.github.com gives of it: the failed step names, the check output and its annotations (job logs are not downloaded, as the sandbox blocks them). | Find the root cause from that, and from the code it names. A flake is a bug, not a reason. Re-run failed jobs at most once, and only after the whole run finished. |
 | `AUTO MERGE OFF` | A PR with nothing failing, no conflict and no changes-needed review has auto-merge off and is not in the queue. | Arm auto-merge again (a push clears it). |
 | `READY TO MERGE` | Green, `clean`, and its review approves this head; auto-merge is off. | Arm auto-merge, or merge. |
 | `MERGE BY HAND` | The same, in a repository without auto-merge. | Merge it now, by hand: no event will arrive to say it is ready. |

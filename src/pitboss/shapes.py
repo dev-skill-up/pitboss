@@ -122,6 +122,23 @@ class CheckRun:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Failure:
+    """What api.github.com says about why a check failed.
+
+    Attributes:
+        steps: the names of the job's failed steps.
+        title: the check run's output title.
+        summary: the check run's output summary.
+        annotations: each annotation as ``path:line: message``.
+    """
+
+    steps: Sequence[str]
+    title: str
+    summary: str
+    annotations: Sequence[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Comment:
     """An issue comment.
 

@@ -16,7 +16,6 @@ class Marker(enum.Enum):
         NO_RUNNER_PRESSURE: nothing waits for a runner.
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
-        UNREADABLE_LOG: a failed check whose log could not be read.
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
         READY_TO_MERGE: green, clean and approved; arm auto-merge.
         MERGE_BY_HAND: green, clean and approved, in a repository without
@@ -41,7 +40,6 @@ class Marker(enum.Enum):
     NO_RUNNER_PRESSURE = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
-    UNREADABLE_LOG = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
     MERGE_BY_HAND = enum.auto()

@@ -5,7 +5,7 @@ import contextlib
 import dataclasses
 import io
 import pathlib
-from typing import MutableMapping, MutableSequence, Sequence
+from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 from gather import commands as gather_commands
 
@@ -31,7 +31,32 @@ default = [{{name = "tiny", model = "small"}}, {{name = "big", model = "large"}}
 """
 GREEN = {"id": 7, "name": "build", "status": "completed", "conclusion": "success"}
 RED = {"id": 8, "name": "test", "status": "completed", "conclusion": "failure"}
-RED_LOG = "repos/owner/project/actions/jobs/8/logs"
+RED_JOB = "repos/owner/project/actions/jobs/8"
+RED_RUN = "repos/owner/project/check-runs/8"
+RED_NOTES = "repos/owner/project/check-runs/8/annotations?per_page=20"
+RED_BODIES: Mapping[str, object] = {
+    RED_JOB: {
+        "steps": [
+            {"name": "Set up job", "conclusion": "success"},
+            {"name": "Run bats check", "conclusion": "failure"},
+        ]
+    },
+    RED_RUN: {"output": {"title": "check failed", "summary": "1 error"}},
+    RED_NOTES: [
+        {
+            "path": "src/a.bats",
+            "start_line": 3,
+            "message": "bad\ntype",
+            "annotation_level": "failure",
+        },
+        {
+            "path": ".github",
+            "start_line": 2,
+            "message": "Node 20 is deprecated",
+            "annotation_level": "warning",
+        },
+    ],
+}
 APPROVAL = {
     "state": "APPROVED",
     "commit_id": fakes.HEAD,
@@ -175,7 +200,7 @@ def bodies() -> MutableMapping[str, object]:
     found = dict(REPOSITORY_BODIES)
     for slug, number, checks, state in PULLS:
         found.update(pull_bodies(slug, number, checks, state))
-    found[RED_LOG] = "the log of the failed job\n"
+    found.update(RED_BODIES)
     return found
 
 

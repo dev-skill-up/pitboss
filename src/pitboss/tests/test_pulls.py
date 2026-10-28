@@ -7,7 +7,7 @@ from typing import Mapping, MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import pulls, reviews
+from .. import failures, pulls, reviews, shapes
 from . import fakes
 
 GATED = "[review]\ngated = ['gated']\n[libraries]\nrepositories = ['gated']\n"
@@ -211,3 +211,14 @@ class TestCurrentChecks(unittest.TestCase):
         """A failure on another head says nothing of this one."""
         runs = [check(1, "failure", "2026-10-01T00:00:00Z", head=fakes.OLDER)]
         assert_that(lint_failed(runs), equal_to([]))
+
+
+class TestFailures(unittest.TestCase):
+    """Saying a failure on one line."""
+
+    def test_describe_cuts_long_text(self) -> None:
+        """A long summary is cut to the limit, and an empty failure says nothing."""
+        long = shapes.Failure(steps=[], title="", summary="x" * 400, annotations=[])
+        empty = shapes.Failure(steps=[], title="", summary="", annotations=[])
+        found = (len(failures.describe(long)), failures.describe(empty))
+        assert_that(found, equal_to((300, "")))
