@@ -126,3 +126,88 @@ class TestReadOpen(unittest.TestCase):
             project, gated = read(bodies(since_head, mergeable_state=state))
             found = (summary(project), gated.standing)
             assert_that(found, equal_to((expected, reviews.Standing.OLDER_HEAD)))
+
+
+def check(
+    identifier: int, conclusion: str | None, started: str, head: str = fakes.HEAD
+) -> Mapping[str, object]:
+    """A check run of the lint job.
+
+    Args:
+        identifier: its id.
+        conclusion: how it ended, or None while it runs.
+        started: when it started.
+        head: the commit it ran on.
+
+    Returns:
+        The canned check run.
+    """
+    return {
+        "id": identifier,
+        "name": "lint",
+        "status": "completed" if conclusion else "in_progress",
+        "conclusion": conclusion,
+        "head_sha": head,
+        "started_at": started,
+    }
+
+
+def lint_failed(runs: Sequence[Mapping[str, object]]) -> Sequence[int]:
+    """The ids of the failed checks of a PR whose head has these check runs.
+
+    Args:
+        runs: the check runs of the head.
+
+    Returns:
+        The ids pitboss calls failed.
+    """
+    found = bodies([AUTHORED])
+    found[fakes.page("repos/owner/project/commits/" + fakes.HEAD + "/check-runs")] = {
+        "check_runs": runs
+    }
+    project, _ = read(found)
+    return [each.id for each in pulls.failed_checks(project)]
+
+
+class TestCurrentChecks(unittest.TestCase):
+    """Only the latest run of a check on the current head counts."""
+
+    def test_cancelled_is_not_failed(self) -> None:
+        """A run cancelled by concurrency is superseded, not red."""
+        assert_that(
+            lint_failed([check(1, "cancelled", "2026-10-01T00:00:00Z")]), equal_to([])
+        )
+
+    def test_skipped_and_neutral_are_not_failed(self) -> None:
+        """A skipped or neutral conclusion is not a failure."""
+        runs = [
+            {**check(1, "skipped", "1"), "name": "a"},
+            {**check(2, "neutral", "1"), "name": "b"},
+        ]
+        assert_that(lint_failed(runs), equal_to([]))
+
+    def test_later_green_run_supersedes(self) -> None:
+        """A failure followed by a later success of the same name is not red."""
+        runs = [
+            check(2, "success", "2026-10-02T00:00:00Z"),
+            check(1, "failure", "2026-10-01T00:00:00Z"),
+        ]
+        assert_that(lint_failed(runs), equal_to([]))
+
+    def test_later_failure_counts(self) -> None:
+        """The latest run is what counts, so a later failure is red."""
+        runs = [
+            check(1, "success", "2026-10-01T00:00:00Z"),
+            check(2, "failure", "2026-10-02T00:00:00Z"),
+        ]
+        assert_that(lint_failed(runs), equal_to([2]))
+
+    def test_same_start_newer_id_wins(self) -> None:
+        """Runs that started together are ordered by id."""
+        runs = [check(1, "failure", "1"), check(2, "success", "1")]
+        assert_that(lint_failed(runs), equal_to([]))
+
+    def test_older_head_is_ignored(self) -> None:
+        """A failure on another head says nothing of this one."""
+        runs = [check(1, "failure", "2026-10-01T00:00:00Z", head=fakes.OLDER)]
+        assert_that(lint_failed(runs), equal_to([]))

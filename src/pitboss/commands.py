@@ -191,7 +191,12 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
         print(report.pull_line(pull, newest))
         latest = newest.get(pulls.reference(pull))
         queued = latest is not None and not latest.run.finished
-        for line in report.action_lines(pull, found.settings, queued):
+        unreadable = {
+            check.id
+            for check in pulls.failed_checks(pull)
+            if not ghapi.log_readable(found.github, report.log_path(pull, check))
+        }
+        for line in report.action_lines(pull, found.settings, queued, unreadable):
             print(line)
         broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
     return broken

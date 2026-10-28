@@ -31,6 +31,7 @@ default = [{{name = "tiny", model = "small"}}, {{name = "big", model = "large"}}
 """
 GREEN = {"id": 7, "name": "build", "status": "completed", "conclusion": "success"}
 RED = {"id": 8, "name": "test", "status": "completed", "conclusion": "failure"}
+RED_LOG = "repos/owner/project/actions/jobs/8/logs"
 APPROVAL = {
     "state": "APPROVED",
     "commit_id": fakes.HEAD,
@@ -174,6 +175,7 @@ def bodies() -> MutableMapping[str, object]:
     found = dict(REPOSITORY_BODIES)
     for slug, number, checks, state in PULLS:
         found.update(pull_bodies(slug, number, checks, state))
+    found[RED_LOG] = "the log of the failed job\n"
     return found
 
 

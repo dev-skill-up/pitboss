@@ -19,7 +19,7 @@ owner/name#12 [clean] auto-merge=off pending=0 failed=[test (job 345)] queue=- r
   `unknown` (GitHub is still computing it: look again later).
 - `auto-merge=on|off`: whether auto-merge is armed. A push clears it.
 - `pending=N`: checks on the head that have not finished.
-- `failed=[name (job id), ...]`: checks that failed on the head. An aggregate
+- `failed=[name (job id), ...]`: checks whose latest run on the head failed. An aggregate
   check failing usually means one of the jobs it gathers failed.
 - `queue=`: the state of the PR's newest merge-queue run (`queued`,
   `in_progress`, or its conclusion), `-` when it has none.
@@ -36,7 +36,8 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | :--- | :--- | :--- |
 | `UNREADABLE` | The session cannot read a repository the configuration names; it is left out of this sweep. | Give the session access, or take the repository out of the configuration. |
 | `CONFLICT` | The PR has a merge conflict. | Merge the base branch into the PR's branch (never rebase or force-push someone's branch) and regenerate generated files with the project's own tooling. |
-| `FAILED` | A check failed on the head; the line names the command that prints its log. | Read the log and find the root cause. A flake is a bug, not a reason. Re-run failed jobs at most once, and only after the whole run finished. |
+| `FAILED` | The latest run of a check on the head failed (a cancelled, skipped or superseded run is not one); the line names the command that prints its log. | Read the log and find the root cause. A flake is a bug, not a reason. Re-run failed jobs at most once, and only after the whole run finished. |
+| `UNREADABLE LOG` | A check failed on the head, but `gh api` could not read its job log (the log expired, or the session may not download it). | Open the job in the browser, or re-run it once the whole run finished; do not guess the cause. |
 | `AUTO MERGE OFF` | A PR with nothing failing, no conflict and no changes-needed review has auto-merge off and is not in the queue. | Arm auto-merge again (a push clears it). |
 | `READY TO MERGE` | Green, `clean`, and its review approves this head; auto-merge is off. | Arm auto-merge, or merge. |
 | `MERGE BY HAND` | The same, in a repository without auto-merge. | Merge it now, by hand: no event will arrive to say it is ready. |

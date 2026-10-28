@@ -102,6 +102,19 @@ class TestSweep(unittest.TestCase):
         )
         assert_that((found, result.code), equal_to((([], []), 1)))
 
+    def test_sweep_unreadable_log(self) -> None:
+        """A failed check whose log cannot be read gets a marker of its own."""
+        here = world.make_world()
+        del here.bodies[world.RED_LOG]
+        out = sweep(here).out
+        assert_that(
+            (
+                "UNREADABLE LOG owner/project#1: test: gh api " + world.RED_LOG in out,
+                "FAILED owner/project#1" in out,
+            ),
+            equal_to((True, False)),
+        )
+
     def test_sweep_healthy(self) -> None:
         """With no red or conflicted PR the sweep exits 0."""
         here = world.make_world()

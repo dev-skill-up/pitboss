@@ -98,6 +98,23 @@ def pages(
     return found
 
 
+def log_readable(github: GitHub, path: str) -> bool:
+    """Whether a job's log can be read.
+
+    Args:
+        github: the API.
+        path: the log's path under ``https://api.github.com/``.
+
+    Returns:
+        False when ``gh`` fails reading it.
+    """
+    try:
+        get(github, path)
+    except subprocess.CalledProcessError:
+        return False
+    return True
+
+
 def _why_unreadable(github: GitHub, slug: str) -> str:
     try:
         get(github, f"repos/{slug}")

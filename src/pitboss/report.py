@@ -3,7 +3,7 @@
 import dataclasses
 import datetime
 import sys
-from typing import Iterable, Mapping, Sequence
+from typing import AbstractSet, Iterable, Mapping, Sequence
 
 from . import config, ledger, local, pulls, queue, reviews, shapes, work
 from .markers import Marker
@@ -66,7 +66,10 @@ def _by_hand(pull: pulls.PullFacts, settings: config.Config) -> bool:
 
 
 def action_lines(
-    pull: pulls.PullFacts, settings: config.Config, queued: bool
+    pull: pulls.PullFacts,
+    settings: config.Config,
+    queued: bool,
+    unreadable: AbstractSet[int] = frozenset(),
 ) -> Sequence[str]:
     """The actions one PR calls for.
 
@@ -74,6 +77,7 @@ def action_lines(
         pull: the PR.
         settings: the configuration.
         queued: whether the PR's newest queue run is unfinished.
+        unreadable: ids of the failed checks whose log could not be read.
 
     Returns:
         The lines.
@@ -81,7 +85,11 @@ def action_lines(
     merge = _ready_line(pull, settings)
     if merge is None and _auto_merge_off(pull, settings, queued):
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
-    return [*_conflict_lines(pull), *_failed_lines(pull), *([merge] if merge else [])]
+    return [
+        *_conflict_lines(pull),
+        *_failure_lines(pull, unreadable),
+        *([merge] if merge else []),
+    ]
 
 
 def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
@@ -93,12 +101,36 @@ def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
     ]
 
 
-def _failed_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    logs = f"gh api repos/{pull.repo.slug}/actions/jobs"
+def log_path(pull: pulls.PullFacts, check: shapes.CheckRun) -> str:
+    """The path of a check's job log.
+
+    Args:
+        pull: the PR.
+        check: the check.
+
+    Returns:
+        The path under ``https://api.github.com/``.
+    """
+    return f"repos/{pull.repo.slug}/actions/jobs/{check.id}/logs"
+
+
+def _failed_line(
+    pull: pulls.PullFacts, check: shapes.CheckRun, unreadable: AbstractSet[int]
+) -> str:
+    name = f"{pulls.reference(pull)}: {check.name}"
+    if check.id in unreadable:
+        return (
+            f"{Marker.UNREADABLE_LOG.text} {name}: gh api {log_path(pull, check)}"
+            " failed; open the job in the browser"
+        )
+    return f"{Marker.FAILED.text} {name}: read gh api {log_path(pull, check)}"
+
+
+def _failure_lines(
+    pull: pulls.PullFacts, unreadable: AbstractSet[int]
+) -> Sequence[str]:
     return [
-        f"{Marker.FAILED.text} {pulls.reference(pull)}: {check.name}: read"
-        f" {logs}/{check.id}/logs"
-        for check in pulls.failed_checks(pull)
+        _failed_line(pull, check, unreadable) for check in pulls.failed_checks(pull)
     ]
 
 
