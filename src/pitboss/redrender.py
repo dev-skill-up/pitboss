@@ -99,7 +99,9 @@ def _local_lines(report: redmodel.Report, page: redmodel.Page) -> Sequence[str]:
             f" `{run.branch}` (searched {local.searched} transcripts); what the"
             " worker ran locally is not known."
         ]
-    shown = [f"  - `{each}`" for each in local.commands[:SHOWN_COMMANDS]]
+    shown = [
+        f"  - {redtext.command_line(each)}" for each in local.commands[:SHOWN_COMMANDS]
+    ]
     more = len(local.commands) - len(shown)
     return [
         f"Pushing worker's transcript: agent `{local.agent}`. Commands run"
@@ -211,7 +213,7 @@ def _page(report: redmodel.Report, page: redmodel.Page) -> Sequence[str]:
     return [
         f"### Run {run.id}: {run.conclusion} on `{run.branch}`",
         "",
-        *(line if line.startswith("  ") else f"- {line}" for line in lines),
+        redprompt.facts_block(lines),
         "",
         "Prompt for the judgement items:",
         "",

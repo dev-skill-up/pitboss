@@ -45,7 +45,7 @@ def facts_block(lines: Sequence[str]) -> str:
     Returns:
         The block.
     """
-    return "\n".join(f"- {line}" for line in lines)
+    return "\n".join(line if line.startswith("  ") else f"- {line}" for line in lines)
 
 
 def fill(workflow: str, repo: str, facts: Sequence[str]) -> str:

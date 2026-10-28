@@ -1,5 +1,6 @@
 """The whole report on a scenario with every kind of red run."""
 
+import json
 import unittest
 from typing import Mapping, Sequence
 
@@ -46,6 +47,22 @@ def text(texts: Mapping[str, str] | None = None) -> str:
 
 
 TRANSCRIPTS = {"abc": redworld.transcript("feat", redworld.ALPHA)}
+
+
+BASH = '{"message":{"content":[{"name":"Bash","input":{"command":%s}}]}}'
+
+
+def unpushed(*entries: str) -> str:
+    """The report when the worker's transcript never pushes.
+
+    Args:
+        *entries: more lines for the transcript.
+
+    Returns:
+        The Markdown.
+    """
+    stopped = TRANSCRIPTS["abc"].replace("git push", "git status")
+    return text({"abc": "\n".join([stopped, *entries])})
 
 
 def missing(report: str, pieces: Sequence[str]) -> Sequence[str]:
@@ -151,12 +168,16 @@ class TestPages(unittest.TestCase):
 
     def test_long_transcript(self) -> None:
         """Only the first commands are listed, and the rest are counted."""
-        echo = '{"message":{"content":[{"name":"Bash","input":{"command":"echo %d"}}]}}'
-        more = "\n".join(echo % number for number in range(40))
-        stopped = TRANSCRIPTS["abc"].replace("git push", "git status")
+        more = [BASH % json.dumps(f"echo {number}") for number in range(40)]
+        assert_that("  - ... and 13 more" in unpushed(*more), equal_to(True))
+
+    def test_a_long_command_is_one_short_line(self) -> None:
+        """A command that spans lines and has backticks is cut to one line."""
+        report = unpushed(BASH % json.dumps("echo `date`\n" + "x" * 300))
+        shown = {line for line in report.splitlines() if "'date'" in line}
         assert_that(
-            "  - ... and 13 more" in text({"abc": f"{stopped}\n{more}"}),
-            equal_to(True),
+            [(line.count("x"), line.endswith("...`")) for line in shown],
+            equal_to([(188, True)]),
         )
 
     def test_cost_line(self) -> None:

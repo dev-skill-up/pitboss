@@ -4,6 +4,8 @@ from typing import Mapping, Sequence
 
 from . import config, redcost, redshapes, redtickets, shapes
 
+COMMAND_WIDTH = 200
+
 
 def link(text: str, url: str) -> str:
     """A Markdown link.
@@ -114,6 +116,20 @@ def job_ref(job: redshapes.Job) -> str:
         The link, naming the job and its id.
     """
     return f"{job.name} (job {_numbered(job.id, job.url)})"
+
+
+def command_line(command: str) -> str:
+    """Make a shell command one short line of inline code.
+
+    Args:
+        command: the command, which may span lines and hold backticks.
+
+    Returns:
+        Its words on one line, cut at ``COMMAND_WIDTH`` characters.
+    """
+    words = " ".join(command.split()).replace("`", "'")
+    cut = words if len(words) <= COMMAND_WIDTH else words[:COMMAND_WIDTH] + "..."
+    return f"`{cut}`"
 
 
 def duration(total: int | None) -> str:
