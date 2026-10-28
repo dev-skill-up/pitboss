@@ -52,6 +52,13 @@ GDB = "FAILED gdb test 3 failed"
 UNLISTED = "##[error]fixture not listed in any group"
 REDS = (
     Red(
+        identifier=4,
+        branch="release",
+        sha=ALPHA,
+        log="##[error]versionCode 12 already exists\n",
+        steps=(("publish", "failure"),),
+    ),
+    Red(
         identifier=5,
         branch="anchor",
         sha=FOXTROT,
@@ -147,7 +154,7 @@ REDS = (
     ),
 )
 BRANCH_PAGES = ("g1", "g2", "dependabot%2Fnpm%2Fx", "reg", "nostep", "noline")
-MORE_BRANCHES = ("queue", "m", "n", "reg2", "running", "anchor")
+MORE_BRANCHES = ("queue", "m", "n", "reg2", "running", "anchor", "release")
 
 
 def run(slug: str, identifier: int, conclusion: str | None) -> Mapping[str, object]:
@@ -305,9 +312,13 @@ def _all_issues(slug: str) -> MutableMapping[str, object]:
         fakes.page(f"{prefix}/issues?state=open&labels=p0"): [
             _p0_issue(30, "gdb test fails", ["p0", "quarantined"]),
             _p0_issue(31, "unrelated", ["p0"]),
+            _p0_issue(32, "release", ["p0"]),
         ],
         fakes.page(f"{prefix}/issues/30/comments"): [cites],
         fakes.page(f"{prefix}/issues/31/comments"): [],
+        fakes.page(f"{prefix}/issues/32/comments"): [
+            {**cites, "body": "run 12", "created_at": "2026-10-03T06:00:00Z"}
+        ],
     }
 
 

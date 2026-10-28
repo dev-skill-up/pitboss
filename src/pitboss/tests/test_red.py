@@ -179,7 +179,7 @@ class TestCommand(unittest.TestCase):
                 "Made 2026-10-03T12:00:00+00:00." in report,
                 any("POST" in call for call in here.calls),
             ),
-            equal_to((f"{output}: 13 red of 15 runs", 0, True, True, False)),
+            equal_to((f"{output}: 14 red of 16 runs", 0, True, True, False)),
         )
 
     def test_default_clock_and_no_transcripts(self) -> None:

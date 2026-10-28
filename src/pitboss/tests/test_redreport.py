@@ -65,6 +65,19 @@ def unpushed(*entries: str) -> str:
     return text({"abc": "\n".join([stopped, *entries])})
 
 
+def page_of(report: str, run: int) -> str:
+    """The text of one run's page.
+
+    Args:
+        report: the Markdown.
+        run: the run id.
+
+    Returns:
+        From its heading to the next one.
+    """
+    return report.split(f"### Run {run}:", 1)[1].split("\n### ", 1)[0]
+
+
 def missing(report: str, pieces: Sequence[str]) -> Sequence[str]:
     """The pieces that are not in the report.
 
@@ -105,6 +118,8 @@ class TestPages(unittest.TestCase):
             " `ECONNRESET`)",
             "unlisted fixture (established by a rule: rule: error matches"
             " `not listed`)",
+            "own release or configuration bug (established by a rule: rule: error"
+            " matches `versionCode`)",
             "not established (not established: no rule matched; looked at:",
         ]
         assert_that(missing(report, expected), equal_to([]))
@@ -142,6 +157,19 @@ class TestPages(unittest.TestCase):
             "cheaper than CI's detection",
         ]
         assert_that(missing(report, expected), equal_to([]))
+
+    def test_first_detector_of_each_run(self) -> None:
+        """CI beat the mechanism on run 5; the mechanism beat CI on run 8."""
+        report = text()
+        assert_that(
+            (
+                "CI was faster than that" in page_of(report, 5),
+                "cheaper than CI's detection" in page_of(report, 5),
+                "CI was faster than that" in page_of(report, 8),
+                "cheaper than CI's detection" in page_of(report, 8),
+            ),
+            equal_to((True, False, False, True)),
+        )
 
     def test_transcript_found(self) -> None:
         """What the worker ran before the push, and which failing names."""
@@ -207,7 +235,7 @@ class TestAggregates(unittest.TestCase):
                 gdb.causes,
                 gdb.one_burst,
             ),
-            equal_to((13, 10, 2, 1, True)),
+            equal_to((14, 11, 2, 1, True)),
         )
 
     def test_summary_and_sections(self) -> None:
@@ -227,6 +255,9 @@ class TestAggregates(unittest.TestCase):
             "| 1h 00m 00s | cited by a red and still open a day later |",
             "| [o/r#31](https://github.com/o/r/issues/31) unrelated"
             " | 2026-10-01T05:00:00Z | none | none |  |",
+            "| [o/r#32](https://github.com/o/r/issues/32) release"
+            " | 2026-10-01T05:00:00Z | [12](https://github.com/o/r/actions/runs/12)"
+            " | 49h 00m 00s |  |",
         ]
         assert_that(missing(report, expected), equal_to([]))
 
@@ -243,6 +274,21 @@ class TestAggregates(unittest.TestCase):
         ]
         count = report.count("Cheapest mechanism")
         assert_that((missing(report, expected), count), equal_to(([], 3)))
+
+    def test_which_changes_are_to_the_fix_path(self) -> None:
+        """Only the burst CI showed faster than its mechanism is a fix-path change."""
+        changes = build()[0].changes
+        found = {each.red_class.value: each.fix_path for each in changes}
+        assert_that(
+            found,
+            equal_to(
+                {
+                    "stale anchor or expect": True,
+                    "not established": False,
+                    "known-bad test (ticketed)": False,
+                }
+            ),
+        )
 
     def test_read_only(self) -> None:
         """No call but GETs through gh api."""
