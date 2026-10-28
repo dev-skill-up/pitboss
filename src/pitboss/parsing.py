@@ -185,6 +185,8 @@ def window_runs(text: str) -> Sequence[shapes.WindowRun]:
             branch=item.get("head_branch") or "",
             head_sha=item["head_sha"],
             pulls=tuple(pull["number"] for pull in item.get("pull_requests") or []),
+            event=item["event"],
+            updated_at=item["updated_at"],
         )
         for item in json.loads(text)["workflow_runs"]
     ]

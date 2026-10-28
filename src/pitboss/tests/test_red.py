@@ -7,8 +7,8 @@ from typing import MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, red, shapes
-from . import fakes, world
+from .. import config, red, redshapes, shapes
+from . import fakes, redworld, world
 
 REPO = config.make_repo("o", "r")
 RUNS = "repos/o/r/actions/workflows/ci.yml/runs"
@@ -39,6 +39,8 @@ def _run(
         "head_branch": "a|b",
         "head_sha": fakes.HEAD,
         "pull_requests": [{"number": number} for number in pulls],
+        "event": "pull_request",
+        "updated_at": f"2026-10-0{identifier}T00:10:00Z",
     }
 
 
@@ -75,7 +77,10 @@ class TestWindow(unittest.TestCase):
         expected = red.DateRange(
             since=datetime.date(2026, 10, 1), until=datetime.date(2026, 10, 3)
         )
-        assert_that(found, equal_to(expected))
+        assert_that(
+            (found, red.describe(found)),
+            equal_to((expected, "runs created from 2026-10-01 to 2026-10-03")),
+        )
 
     def test_refused(self) -> None:
         """Nothing, both, half a range, zero or a bad date is refused."""
@@ -122,47 +127,18 @@ class TestAnalyze(unittest.TestCase):
             branch="a|b",
             head_sha=fakes.HEAD,
             pulls=(7, 8),
+            event="pull_request",
+            updated_at="2026-10-05T00:10:00Z",
         )
         assert_that(run, equal_to(expected))
 
 
-class TestRender(unittest.TestCase):
-    """The Markdown."""
-
-    def test_report(self) -> None:
-        """Read-only note first, then the window and a linked summary row."""
-        text = red.render(_analyze(red.LastRuns(count=4)))
-        lines = text.splitlines()
-        row = (
-            f"| [5]({SLUG}/actions/runs/5) | [#7]({SLUG}/pull/7), [#8]({SLUG}/pull/8)"
-            f" | a\\|b | [{fakes.HEAD[:7]}]({SLUG}/commit/{fakes.HEAD})"
-            " | failure | 2026-10-05T00:00:00Z | not established |"
-        )
-        assert_that(
-            (
-                lines[0],
-                red.READ_ONLY in lines[:4],
-                "Window: the newest 4 runs: 4 runs, 2 red." in lines,
-                row in lines,
-                "| [3]" in text and "| none |" in text,
-            ),
-            equal_to(("# Red runs of ci.yml in o/r", True, True, True, True)),
-        )
-
-    def test_dates_are_described(self) -> None:
-        """A date range reads as its days."""
-        window = red.window_of(None, "2026-10-01", "2026-10-03")
-        assert_that(
-            red.describe(window),
-            equal_to("runs created from 2026-10-01 to 2026-10-03"),
-        )
+class TestClasses(unittest.TestCase):
+    """The class list."""
 
     def test_the_classes_are_the_fixed_list(self) -> None:
         """The ten classes of the ticket, in its order."""
-        assert_that([each.value for each in red.RedClass], equal_to(CLASSES))
-
-
-OWNER_RUNS = "repos/owner/project/actions/workflows/ci.yml/runs"
+        assert_that([each.value for each in redshapes.RedClass], equal_to(CLASSES))
 
 
 def _go(
@@ -173,22 +149,47 @@ def _go(
     return world.again(here, *command, "--output", str(output)), output
 
 
+def _scenario() -> world.World:
+    here = world.make_world()
+    here.bodies.update(redworld.bodies("owner/project"))
+    here.bodies[fakes.page("repos/owner/lib/issues?state=open&labels=p0")] = []
+    return here
+
+
 class TestCommand(unittest.TestCase):
     """``pitboss analyze-red``."""
 
     def test_writes_the_file_and_changes_nothing(self) -> None:
-        """One file is written; no POST is made."""
-        here = world.make_world()
-        here.bodies[fakes.page(OWNER_RUNS)] = BODIES[fakes.page(RUNS)]
-        done, output = _go(here, "--last", "4")
-        written = (done.out.strip(), done.code, output.read_text())
+        """One file is written from the transcripts given; no POST is made."""
+        here = _scenario()
+        agents = here.workspace / "agents"
+        agents.mkdir()
+        (agents / "agent-abc.jsonl").write_text(
+            redworld.transcript("feat", redworld.ALPHA)
+        )
+        done, output = _go(
+            here, "--last", "50", "--now", redworld.NOW, "--transcripts", str(agents)
+        )
+        report = output.read_text()
         assert_that(
             (
-                written[:2],
-                red.READ_ONLY in written[2],
-                any("POST" in c for c in here.calls),
+                done.out.strip(),
+                done.code,
+                "Pushing worker's transcript: agent `abc`." in report,
+                "Made 2026-10-03T12:00:00+00:00." in report,
+                any("POST" in call for call in here.calls),
             ),
-            equal_to(((f"{output}: 2 red of 4 runs", 0), True, False)),
+            equal_to((f"{output}: 13 red of 15 runs", 0, True, True, False)),
+        )
+
+    def test_default_clock_and_no_transcripts(self) -> None:
+        """Without --now the clock is read; a missing directory has no transcripts."""
+        here = _scenario()
+        missing = here.workspace / "none"
+        done, output = _go(here, "--last", "50", "--transcripts", str(missing))
+        assert_that(
+            (done.code, "Transcripts searched: 0." in output.read_text()),
+            equal_to((0, True)),
         )
 
     def test_refuses(self) -> None:

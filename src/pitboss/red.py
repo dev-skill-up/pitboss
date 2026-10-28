@@ -5,48 +5,11 @@ Read-only on GitHub: the analysis reads runs and writes one Markdown file.
 
 import dataclasses
 import datetime
-import enum
-import urllib.parse
 from typing import Sequence
 
 from . import config, ghapi, parsing, shapes
 
 PAGE_SIZE = ghapi.PAGE_SIZE
-READ_ONLY = (
-    "This report is read-only on GitHub: it only reads (`gh api` GETs) and"
-    " changes nothing there."
-)
-
-
-class RedClass(enum.Enum):
-    """Why a run was red, by the first cause named; the list is fixed.
-
-    A report names one class for each red run, so two reports compare. The
-    value is the class's name in the report.
-
-    Attributes:
-        UNLISTED_FIXTURE: a fixture that no group lists, so CI never ran it.
-        STALE_ANCHOR_OR_EXPECT: an anchor or expected output out of date.
-        LOCAL_ENVIRONMENT_DIFFERS: the local run differs from CI's conditions.
-        PIN_MOVE: a pinned input moved.
-        PRODUCT_CHANGE_BROKE_UNRUN_SPECS: a product change broke specs not run.
-        KNOWN_BAD_TEST: a test with a ticket that is known to fail.
-        NEW_TEST_WRONG_UNDER_CI: a new test wrong under CI's conditions.
-        EXTERNAL_INFRASTRUCTURE: a service outside the project failed.
-        OWN_RELEASE_OR_CONFIGURATION_BUG: our release or configuration is wrong.
-        NOT_ESTABLISHED: the cause is not established.
-    """
-
-    UNLISTED_FIXTURE = "unlisted fixture"
-    STALE_ANCHOR_OR_EXPECT = "stale anchor or expect"
-    LOCAL_ENVIRONMENT_DIFFERS = "local environment differs from CI"
-    PIN_MOVE = "pin move"
-    PRODUCT_CHANGE_BROKE_UNRUN_SPECS = "product change broke unrun specs"
-    KNOWN_BAD_TEST = "known-bad test (ticketed)"
-    NEW_TEST_WRONG_UNDER_CI = "new test wrong under CI's conditions"
-    EXTERNAL_INFRASTRUCTURE = "external infrastructure"
-    OWN_RELEASE_OR_CONFIGURATION_BUG = "own release or configuration bug"
-    NOT_ESTABLISHED = "not established"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -137,8 +100,7 @@ def read_window(
     Returns:
         The runs, newest first.
     """
-    name = urllib.parse.quote(workflow, safe="")
-    path = f"repos/{repo.slug}/actions/workflows/{name}/runs"
+    path = ghapi.workflow_runs_path(repo.slug, workflow)
     if isinstance(window, LastRuns):
         pages = -(-window.count // PAGE_SIZE)
         found = ghapi.pages(github, path, parsing.window_runs, limit=pages)
@@ -180,44 +142,3 @@ def describe(window: Window) -> str:
     if isinstance(window, LastRuns):
         return f"the newest {window.count} runs"
     return f"runs created from {window.since.isoformat()} to {window.until.isoformat()}"
-
-
-def _cell(text: str) -> str:
-    return text.replace("|", "\\|")
-
-
-def _row(repo: config.Repo, run: shapes.WindowRun) -> str:
-    site = f"https://github.com/{repo.slug}"
-    pulls = ", ".join(f"[#{number}]({site}/pull/{number})" for number in run.pulls)
-    return (
-        f"| [{run.id}]({run.url}) | {pulls or 'none'} | {_cell(run.branch)}"
-        f" | [{run.head_sha[:7]}]({site}/commit/{run.head_sha})"
-        f" | {run.conclusion} | {run.created_at}"
-        f" | {RedClass.NOT_ESTABLISHED.value} |"
-    )
-
-
-def render(found: Analysis) -> str:
-    """Write the report as Markdown.
-
-    Args:
-        found: the analysis.
-
-    Returns:
-        The report: the read-only note, the window, and the summary table.
-    """
-    lines = [
-        f"# Red runs of {found.workflow} in {found.repo.slug}",
-        "",
-        READ_ONLY,
-        "",
-        f"Window: {describe(found.window)}: {found.total} runs, {len(found.reds)} red.",
-        "",
-        "## Summary",
-        "",
-        "| Run | PR | Branch | Commit | Conclusion | Started | Class |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
-        *(_row(found.repo, run) for run in found.reds),
-        "",
-    ]
-    return "\n".join(lines)

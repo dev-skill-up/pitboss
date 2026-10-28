@@ -9,6 +9,7 @@ import tempfile
 from typing import (
     Callable,
     Iterable,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Protocol,
@@ -53,7 +54,8 @@ class FakeProcesses:
     """Answers ``gh api`` from canned bodies, and runs everything else.
 
     Attributes:
-        bodies: each ``gh api`` path (or ``POST`` path) and its JSON body;
+        bodies: each ``gh api`` path (or ``POST`` path) and its JSON body (a
+            string is returned as it is, as a job's log is);
             a missing path fails like ``gh`` does on a 404.
         calls: every command line run, in order.
     """
@@ -84,7 +86,8 @@ class FakeProcesses:
             raise subprocess.CalledProcessError(
                 1, command, output="", stderr=f"gh: not found: {path} (HTTP 404)\n"
             )
-        return Output(stdout=json.dumps(self.bodies[path]))
+        body = self.bodies[path]
+        return Output(stdout=body if isinstance(body, str) else json.dumps(body))
 
 
 def github(bodies: MutableMapping[str, object]) -> ghapi.GitHub:
@@ -302,3 +305,42 @@ def error_of(action: Callable[[], object]) -> str:
     except (ValueError, FileNotFoundError) as error:
         return str(error)
     return ""
+
+
+def calls_of(api: ghapi.GitHub) -> Sequence[Sequence[str]]:
+    """Every command line a fake API ran.
+
+    Args:
+        api: an API made by ``github``.
+
+    Returns:
+        The command lines, in order.
+    """
+    runner = api.run
+    return runner.calls if isinstance(runner, FakeProcesses) else []
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class FakeTranscripts:
+    """Transcripts held in a dict (``_texts``: each agent id and its text)."""
+
+    _texts: Mapping[str, str]
+
+    def names(self) -> Sequence[str]:
+        """List the agents.
+
+        Returns:
+            The ids.
+        """
+        return sorted(self._texts)
+
+    def read(self, agent: str) -> str:
+        """Read a transcript.
+
+        Args:
+            agent: the id.
+
+        Returns:
+            The text.
+        """
+        return self._texts[agent]

@@ -215,6 +215,8 @@ class WindowRun:
         branch: the branch it ran on.
         head_sha: the commit it ran.
         pulls: the numbers of the PRs GitHub ties it to.
+        event: the event that started it.
+        updated_at: when it last changed (ISO 8601); its end once completed.
     """
 
     id: int
@@ -224,3 +226,5 @@ class WindowRun:
     branch: str
     head_sha: str
     pulls: Sequence[int]
+    event: str
+    updated_at: str
