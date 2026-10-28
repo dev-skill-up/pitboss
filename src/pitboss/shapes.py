@@ -9,8 +9,10 @@ from typing import AbstractSet, Sequence
 
 FINISHED_STATUSES = frozenset({"completed"})
 WAITING_STATUSES = frozenset({"queued"})
+# A cancelled check (concurrency cancel-in-progress) is superseded, not red;
+# skipped and neutral ones are not here either.
 FAILED_CONCLUSIONS = frozenset(
-    {"failure", "cancelled", "timed_out", "action_required", "startup_failure"}
+    {"failure", "timed_out", "action_required", "startup_failure"}
 )
 
 
@@ -107,12 +109,33 @@ class CheckRun:
         name: its name.
         finished: whether it completed.
         failed: whether it completed and failed.
+        head_sha: the commit it ran on ("" when GitHub does not say).
+        started_at: when it started (ISO 8601, "" when it has not).
     """
 
     id: int
     name: str
     finished: bool
     failed: bool
+    head_sha: str = ""
+    started_at: str = ""
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Failure:
+    """What api.github.com says about why a check failed.
+
+    Attributes:
+        steps: the names of the job's failed steps.
+        title: the check run's output title.
+        summary: the check run's output summary.
+        annotations: each annotation as ``path:line: message``.
+    """
+
+    steps: Sequence[str]
+    title: str
+    summary: str
+    annotations: Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

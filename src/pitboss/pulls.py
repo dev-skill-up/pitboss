@@ -164,6 +164,38 @@ def _standing(
     return standing
 
 
+def current_checks(
+    checks: Sequence[shapes.CheckRun], head: str
+) -> Sequence[shapes.CheckRun]:
+    """Keep the latest run of each check name on the current head.
+
+    A later run of the same check (a re-run, or a run that cancelled this
+    one) supersedes it, and a run of an older head says nothing of this one.
+
+    Args:
+        checks: the check runs read.
+        head: the PR's current head.
+
+    Returns:
+        The latest run of each name, in the order first seen.
+    """
+    latest: dict[str, shapes.CheckRun] = {}
+    for run in checks:
+        if run.head_sha not in ("", head):
+            continue
+        seen = latest.get(run.name)
+        if seen is None or (run.started_at, run.id) > (seen.started_at, seen.id):
+            latest[run.name] = run
+    return list(latest.values())
+
+
+def _head_checks(
+    source: Source, repo: config.Repo, head: str
+) -> Sequence[shapes.CheckRun]:
+    path = f"repos/{repo.slug}/commits/{head}/check-runs"
+    return current_checks(ghapi.pages(source.github, path, parsing.check_runs), head)
+
+
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     """Read one PR: its details, its head's checks and its review.
 
@@ -178,11 +210,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     pull = parsing.pull(ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}"))
     head = pull.head.sha
     found = _review_of(source, repo, number)
-    checks = ghapi.pages(
-        source.github,
-        f"repos/{repo.slug}/commits/{head}/check-runs",
-        parsing.check_runs,
-    )
+    checks = _head_checks(source, repo, head)
     return PullFacts(
         repo=repo,
         pull=pull,

@@ -18,6 +18,7 @@ from typing import Sequence
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, config, container, ghapi, ledger, local, pulls, queue, report
+from .failures import explain
 from .markers import Marker
 from .running import git
 
@@ -191,7 +192,8 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
         print(report.pull_line(pull, newest))
         latest = newest.get(pulls.reference(pull))
         queued = latest is not None and not latest.run.finished
-        for line in report.action_lines(pull, found.settings, queued):
+        why = explain(found.github, pull)
+        for line in report.action_lines(pull, found.settings, queued, why):
             print(line)
         broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
     return broken

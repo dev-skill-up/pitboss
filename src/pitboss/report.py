@@ -66,7 +66,10 @@ def _by_hand(pull: pulls.PullFacts, settings: config.Config) -> bool:
 
 
 def action_lines(
-    pull: pulls.PullFacts, settings: config.Config, queued: bool
+    pull: pulls.PullFacts,
+    settings: config.Config,
+    queued: bool,
+    why: Mapping[int, str],
 ) -> Sequence[str]:
     """The actions one PR calls for.
 
@@ -74,6 +77,7 @@ def action_lines(
         pull: the PR.
         settings: the configuration.
         queued: whether the PR's newest queue run is unfinished.
+        why: what was read of each failed check (by id), for its line.
 
     Returns:
         The lines.
@@ -81,7 +85,11 @@ def action_lines(
     merge = _ready_line(pull, settings)
     if merge is None and _auto_merge_off(pull, settings, queued):
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
-    return [*_conflict_lines(pull), *_failed_lines(pull), *([merge] if merge else [])]
+    return [
+        *_conflict_lines(pull),
+        *_failure_lines(pull, why),
+        *([merge] if merge else []),
+    ]
 
 
 def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
@@ -93,11 +101,10 @@ def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
     ]
 
 
-def _failed_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    logs = f"gh api repos/{pull.repo.slug}/actions/jobs"
+def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[str]:
     return [
-        f"{Marker.FAILED.text} {pulls.reference(pull)}: {check.name}: read"
-        f" {logs}/{check.id}/logs"
+        f"{Marker.FAILED.text} {pulls.reference(pull)}: {check.name}"
+        + (f": {why[check.id]}" if why.get(check.id) else "")
         for check in pulls.failed_checks(pull)
     ]
 
