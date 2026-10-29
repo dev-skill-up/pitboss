@@ -29,13 +29,13 @@ the quire text shrinks to a pointer.
 
 | # | Section | Verdict | Lands in, or why it stays |
 |---|---|---|---|
-| 1 | Decisions are made by research, not left to the human | pitboss | `rules.md`, "How decisions are made" (already holds the first rule; the rest of the section is added there) |
+| 1 | Decisions are made by research, not left to the human | split | Moves: every paragraph but the last sentence (research, not the human, settles a design choice; judgement is what is left after the research; "if nothing comparable can be found, say so") to `rules.md`, "How decisions are made" (which holds only the one-line "Research before design" today). Stays: the last sentence, "The quality rules below (the proofs, the static tests, the e2e suite) still hold" (it names quire's own rules) |
 | 2 | A proof is a proof | split | Moves: the first paragraph (a requirement that says proof means a static proof) and "a claim that is only tested is said to be tested, and the proof is still owed", to `engineering.md`. Stays: the paragraph on trusted primitives, `praxi`, `assume`, `$UNSAFE` and the array package (ATS2 proofs) |
 | 3 | Comments name their area by keyword | pitboss | `engineering.md` |
 | 4 | Names are words | split | Moves: the rule that names are words and that terse names collide, and the loop-index exception, to `engineering.md`. Stays: the examples about element ids and numbered-id prefixes of 16 bytes (quire's DOM ids) |
 | 5 | Priorities | split | Moves: p0 to p3 and "Order of work" (worker in progress, open PR, merge, then tickets, blocked tickets, no downgrades without the owner) to `rules.md`, "Agents and slots" and "Tickets" (largely there already). Stays: the paragraph "The Android release is not a priority" (Android release) |
 | 6 | Pipeline and tooling improvements belong in bats or pwa | split | Moves: "We do not write shell scripts (or any non-bats code of our own) unless all other avenues are exhausted" (as "our own language, not shell") and "No mtimes in freshness", to `engineering.md` and `ci.md`. Stays: the first two paragraphs (what belongs to bats and to pwa, quire#623, #635, #637, #646, #731) |
-| 7 | Breaking changes keep at least one published version of overlap (#762) | split | Moves: the whole rule to `rules.md`, "Published APIs" (already there word for word; delete the copy). Stays: the sentences naming `.claude/orchestration.md` and `tests/static/guidelines.py` |
+| 7 | Breaking changes keep at least one published version of overlap (#762) | split | `rules.md`, "Published APIs" paraphrases the rule and lacks these, which move there so nothing is lost when quire's copy is deleted: the p2 ticket for each dependent's move to the new form, with the removal blocked on them (owner, 2026-10-27T15:31:29Z, transcript line 119703); "when it was filed is never a finding" (owner, 2026-10-25T05:27:02Z and 2026-10-25T00:11:51Z); the four dated owner quotes with their transcript lines (46303, 51253, 64376, 64396); the review checklist of both steps. Stays: the pointer to repository-prototype's CLAUDE.md and the sentences naming the brief templates in `.claude/orchestration.md` ("Overlap" and "Overlap check" lines) and `tests/static/guidelines.py` |
 | 8 | CI is pinned | split | Moves: every input pinned in the source, a committed lock, CI never relocks, pins move only through a reviewed PR, the daily relock, no bot opens PRs, to `ci.md`. Stays: the names (`bats.lock`, `.github/bats-version`, `android.yml@<sha>`, Dependabot grouping, #996, the setup action) |
 | 9 | No cache key is relied on for correctness (#622) | split | Moves: the first sentence (a restored cache is judged by the tool, never by the key that found it) to `ci.md`. Stays: the bats stamp, the memo and the key format `quire-<name>@<commit>` |
 | 10 | Check locally before every push | split | Moves: check locally before a push, a run over a population is a random sample with a printed seed and the PR says the sample and why it suffices, the checkout stays, to `ci.md` and `rules.md`, "Checkouts and disk". Stays: `bats check`, 10 to 15 minutes cold, `qsweep clean`, the compiler setup |
@@ -47,7 +47,7 @@ the quire text shrinks to a pointer.
 
 | File | Verdict | Lands in, or why it stays |
 |---|---|---|
-| `backup-errors.md` | split | Moves: the rule of "Every error says what to do (#360)" (a failure is said with a next step, the unexpected is its own outcome) to `engineering.md`. Stays: the banner, `notice.bats`, Reopen Quire, Copy details, the backup section (#362), the protected book section (#427) |
+| `backup-errors.md` | split | Moves: the rule of "Every error says what to do (#360)" (a failure is said with a next step, the unexpected is its own outcome) to `engineering.md`, entry "Failures and outcomes are said" (one entry, shared with the `interface.md` and `sync.md` rows). Stays: the banner, `notice.bats`, Reopen Quire, Copy details, the backup section (#362), the protected book section (#427) |
 | `backup-write-answer.md` | quire | Android Auto Backup file and bridge's `backup_write_answer` |
 | `book-memory.md` | quire | Quire's page arenas and EPUB pathological structure |
 | `book-text.md` | quire | Encodings, series and CSS sizes of EPUB text |
@@ -57,14 +57,14 @@ the quire text shrinks to a pointer.
 | `e2e.md` | split | Moves: the bullet "A test never waits in real time for a moment of the app's own" of "No flaky waits", the first paragraph of "A worker's machine matches CI (#713)" ("This machine lacks X is never a reason for a spec to be skipped"), to `engineering.md` and `rules.md`, "Briefs and workers". Stays: projects and groups, `clickControl`, `rawMouse`, the Playwright pin, the tool list, two books, the stall watch, the flight recorder (Playwright, Chromium and the kernel's tracefs) |
 | `epub-format.md` | quire | EPUB archive, spine and package rules |
 | `epub-media.md` | quire | EPUB narration, media, fonts and MathML |
-| `interface.md` | split | Moves: "Failures are said, never dropped" (the rule, not the `notice.bats` names) to `engineering.md`. Stays: the stylesheet under proofs, `ui.bats`, "Nothing is lost at a click" (reader Undo and Trash), overlays and Back |
+| `interface.md` | split | Moves: "Failures are said, never dropped" (the rule, not the `notice.bats` names) to `engineering.md`, entry "Failures and outcomes are said" (the same entry as the `backup-errors.md` and `sync.md` rows). Stays: the stylesheet under proofs, `ui.bats`, "Nothing is lost at a click" (reader Undo and Trash), overlays and Back |
 | `library-records.md` | quire | Quire's stored records, codec and Replace |
 | `library-screen.md` | quire | The library screen |
 | `platform.md` | quire | Quire's use of bridge's platform atoms |
 | `reader-layout.md` | quire | Reader gestures, spreads and writing modes |
 | `reader.md` | quire | Reader notes, positions and touch selection |
 | `release.md` | split | Moves: the first sentence of "The version is the commit's" (the date of the commit, never of the build) to `engineering.md`. Stays: the rest (`YEAR.MONTH.DAY.SECONDS`, `bats_commit_*` facts, `versionName`, `versionCode`) and "Main goes to Play's internal testing" (Google Play) |
-| `sync.md` | split | Moves: the rule of "Every outcome is said, and the unexpected as such (#334)" (an error is an outcome of its own, never folded into another, and what is not recognised is explicit) to `engineering.md`. Stays: the sync file, the services, the 30 second answer, Google, Dropbox and Nextcloud |
+| `sync.md` | split | Moves: the rule of "Every outcome is said, and the unexpected as such (#334)" (an error is an outcome of its own, never folded into another, and what is not recognised is explicit) to `engineering.md`, entry "Failures and outcomes are said" (the same entry as the `backup-errors.md` and `interface.md` rows). Stays: the sync file, the services, the 30 second answer, Google, Dropbox and Nextcloud |
 | `types.md` | split | Moves: "A choice is a datatype" rule (an int never encodes one of a fixed set of cases; "none" is an option, not -1) to `engineering.md`. Stays: "What allocates is linear" (wasm, ATS2 `datavtype`, `lincloptr1`) and the `case+` lint name |
 | `vocabulary.md` | quire | The words-looked-up feature and its KOReader schedule |
 
@@ -85,7 +85,7 @@ workflow, a fixture or text that stays.
 | 1035 | The Android version code is the commit count plus an offset | `release.md` (split) | stays: the version code is `versionCode` and Play, which stay |
 | 1034 | Reject fixtures name the one constructor they are about, and a lint refuses an expect that lists more (#984) | `ci.md` static fixtures (split) | stays: bats fixtures |
 | 1031 | Place the selection toolbar outside the Android floating menu's band | `e2e.md` projects and groups (split) | stays: Playwright projects |
-| 1023 | Replace the fixed waits of e2e/ with waits for an event (#985) | `e2e.md` new section "Quarantine and race fixes" (split) | shrinks: the section moves to `engineering.md`; stays: `e2e/*.js` helpers, `stall-capture.spec.js`, `guidelines.py` |
+| 1023 | Replace the fixed waits of e2e/ with waits for an event (#985) | `e2e.md` section "Quarantine and race fixes" (split); stacked on 986 (base fix-976), it edits the third bullet of the section 986 adds, so 986 and 1023 are one addition, not two | shrinks: the edited bullet moves to `engineering.md` with the section (whichever of 986 and 1023 lands first, the other follows it); stays: `e2e/*.js` helpers, `stall-capture.spec.js`, `guidelines.py` |
 | 1018 | A capture reads a snapshot of the kernel ring and never stops it (#910) | `e2e.md` flight recorder (split) | stays: kernel tracefs |
 | 1017 | Short jobs run locally, CI runs the rest; briefs may not run in the background or sleep (#911) | `CLAUDE.md` section 10, `ci.md` checking locally (split) | shrinks: the rule on short jobs moves to `ci.md` and `rules.md`; stays: `worker.md`, `guidelines.py`, `phrases.tsv`, the fixture |
 | 1015 | ci.md: why a merge-queue entry is removed (#1026) | `ci.md` merge queue (split) | stays: this repository's merge queue |
@@ -93,7 +93,7 @@ workflow, a fixture or text that stays.
 | 1007 | scripts/ci-groups.py local lists the fixtures a change affects (#1006) | `ci.md` checking locally (split) | stays: `ci-groups.py` and bats#570 |
 | 997 | A watchdog report keeps the whole ring and says where it begins (#993) | `e2e.md` flight recorder (split) | stays: kernel ring |
 | 991 | A draft runs plan and build; a head with no completed check run is not approved (#978) | `CLAUDE.md` section 11, `ci.md` draft bullet (split) | shrinks: "a head with no completed run is never approved" and the draft rule move to `rules.md` and `ci.md`; stays: `check.yml`, `guidelines.py`, `reviewer.md` |
-| 986 | Quarantine a p0 test with its ticket, a race fix shows cause, injection and CI run, no fixed waits in e2e (#976) | `e2e.md` new section "Quarantine and race fixes" (split) | shrinks: the section moves to `engineering.md`; stays: `guidelines.py` and its test |
+| 986 | Quarantine a p0 test with its ticket, a race fix shows cause, injection and CI run, no fixed waits in e2e (#976) | `e2e.md` adds section "Quarantine and race fixes" (split; 1023 is stacked on it) | shrinks: the section moves to `engineering.md`; stays: `guidelines.py` and its test |
 | 982 | A tracked pre-push hook runs CI's first-minute checks and refuses the push when one fails | `ci.md` checking locally and new "pre-push" section (split) | stays: `.githooks/pre-push`, `scripts/pre-push.py`, `qsweep` |
 | 981 | The static groups take the app that build checked and need build (#974) | `ci.md` compiler's cache (split) | stays: bats build cache |
 | 971 | The host-stall record names what the machine was doing (#909) | `e2e.md` flight recorder (split) | stays: the watchdog |
