@@ -148,8 +148,7 @@ def _two(first: str, second: str, kind: str = "review") -> reviews.Sources:
 
 
 def _standing(sources: reviews.Sources) -> reviews.Standing:
-    found = reviews.newest(sources, TWO, "o/x")
-    return reviews.head_standing(found, fakes.HEAD)
+    return reviews.head_standing(reviews.newest(sources, TWO, "o/x"), fakes.HEAD)
 
 
 def _unread(sources: reviews.Sources, review: config.Review = TWO) -> str:
@@ -160,8 +159,7 @@ def _unread(sources: reviews.Sources, review: config.Review = TWO) -> str:
 
 def _line(sources: reviews.Sources) -> str:
     found = reviews.newest(sources, TWO, "o/x")
-    standing = reviews.head_standing(found, fakes.HEAD)
-    return report.pull_line(test_report.facts(standing, found), {})
+    return report.pull_line(test_report.facts(_standing(sources), found), {})
 
 
 class TestTwoReviewLines(unittest.TestCase):
