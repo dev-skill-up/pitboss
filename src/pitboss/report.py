@@ -151,7 +151,8 @@ def pressure_line(waiting: int) -> str:
         return f"{Marker.NO_RUNNER_PRESSURE.text}: push and merge as usual"
     return (
         f"{Marker.RUNNER_PRESSURE.text}: {waiting} queue-run jobs waiting for a"
-        " runner: HOLD pushes, PRs, merges and re-runs (all repositories)"
+        " runner: HOLD pushes to non-draft PRs, undrafts, enqueues, merges and re-runs"
+        " (all repositories; pushes to drafts are free)"
     )
 
 

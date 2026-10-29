@@ -55,8 +55,10 @@ compaction.
    - red (a failed check or status, or a review that asked for changes at this
      head) or in conflict with the base: a fix, by any author (a conflict is
      fixed as a red CI is: merge the base in, resolve, check, push);
-   - behind the base, its checks finished: an update (merge the base in,
-     check, push);
+   - behind the base, its checks finished, in a repository with no merge
+     queue: an update (merge the base in, check, push); where a merge queue
+     builds each entry on the current base, behind is no work (see "Merge
+     conflicts");
    - green on its exact head with no review of that head: a review, by an
      agent that is not its author;
    - reviewed approved at its head and green: a merge;

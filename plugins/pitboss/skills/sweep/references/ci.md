@@ -100,10 +100,9 @@ keeps its work on GitHub through a draft. The lint of the body still runs on a
 draft (`rules.md`, "Pushing and merging").
 - Carried by: the workflow's own condition (the section above), and in the
   sweep `WAIT-FOR-CI` for a draft with no completed check run and `[draft]`
-  in the PR line (`sweep.md`). The hold below still says "push" with no
-  draft exception (`sweep.md`, "The runner-pressure hold"; the hold line that
-  `pitboss pressure` prints says the same), so under a hold a draft push is
-  also held until that text is changed; nothing is keyed on it.
+  in the PR line (`sweep.md`). The hold below leaves draft pushes alone
+  (`sweep.md`, "The runner-pressure hold"; the hold line `pitboss pressure`
+  prints says the same).
 
 **Enqueue is preferred to undraft.** Undraft runs the whole check on the head
 (`ready_for_review`), and the queue then tests the group again, so each spends
@@ -124,9 +123,7 @@ Only a conflict is fixed: merge the base in (never rebase or force-push),
 resolve, check locally, push (`rules.md`, "Merge conflicts").
 - Carried by: `[behind]` in the PR line ("it still queues", `sweep.md`), and
   for a conflict `[dirty]` with `CONFLICT` and, from the queue,
-  `MERGE_CONFLICT` (`sweep.md`, "Leaving the merge queue"). The order of work
-  in `rules.md` lists "behind the base" as an update; that is for a repository
-  with no merge queue.
+  `MERGE_CONFLICT` (`sweep.md`, "Leaving the merge queue").
 
 **When to hold under runner pressure.** While a queue run has a job waiting
 for a runner, take no CI-triggering action in any repository that shares the
