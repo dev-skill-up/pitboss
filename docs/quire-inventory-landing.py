@@ -54,3 +54,57 @@ for name, f, phrase in rows:
     line = text.count("\n", 0, i) + 1
     heads = list(re.finditer(r"^## .*$", text[:m.end()], re.M))
     print(f"{name} -> {f}:{line} under {heads[-1].group(0) if heads else '(title)'}")
+
+# What each inventory row says stays in quire must not be in the pitboss files.
+stays = [
+ ("CLAUDE.md 1", "The quality rules below"),
+ ("CLAUDE.md 1", "the e2e suite"),
+ ("CLAUDE.md 2", "Trusted primitives"),
+ ("CLAUDE.md 2", "$UNSAFE"),
+ ("CLAUDE.md 4", "search-close"),
+ ("CLAUDE.md 4", "toc-row12"),
+ ("CLAUDE.md 4", "numbered-id prefixes"),
+ ("CLAUDE.md 5", "The Android release"),
+ ("CLAUDE.md 6", "quire#623"),
+ ("CLAUDE.md 6", "quire#635"),
+ ("CLAUDE.md 6", "alarm clock"),
+ ("CLAUDE.md 6", "Anything a second app would copy"),
+ ("CLAUDE.md 7", "orchestration.md"),
+ ("CLAUDE.md 7", "guidelines.py"),
+ ("CLAUDE.md 7", "repository-prototype's CLAUDE.md"),
+ ("CLAUDE.md 8", "bats.lock"),
+ ("CLAUDE.md 8", ".github/bats-version"),
+ ("CLAUDE.md 8", "android.yml@"),
+ ("CLAUDE.md 8", "Dependabot"),
+ ("CLAUDE.md 8", "#996"),
+ ("CLAUDE.md 9", "quire-<name>@<commit>"),
+ ("CLAUDE.md 9", "bats stamp"),
+ ("CLAUDE.md 10", "bats check"),
+ ("CLAUDE.md 10", "qsweep"),
+ ("CLAUDE.md 10", "10 to 15 minutes"),
+ ("CLAUDE.md 11", ".claude/agents"),
+ ("CLAUDE.md 12", "release.md"),
+ ("CLAUDE.md 13", "play-internal"),
+ ("CLAUDE.md 13", "Google Play"),
+ ("backup-errors.md", "notice.bats"),
+ ("backup-errors.md", "Reopen Quire"),
+ ("backup-errors.md", "Copy details"),
+ ("e2e.md", "clickControl"),
+ ("e2e.md", "rawMouse"),
+ ("e2e.md", "Playwright"),
+ ("interface.md", "ui.bats"),
+ ("interface.md", "Trash"),
+ ("sync.md", "Nextcloud"),
+ ("sync.md", "GOOGLE_ANSWER_MS"),
+ ("types.md", "lincloptr1"),
+ ("types.md", "datavtype"),
+ ("release.md", "YEAR.MONTH.DAY.SECONDS"),
+ ("release.md", "versionCode"),
+]
+for name, phrase in stays:
+    for f in ("rules.md", "engineering.md", "ci.md"):
+        text = open(R + f).read()
+        if phrase in text:
+            print("STAYS-IN-QUIRE FOUND", name, repr(phrase), f)
+            sys.exit(1)
+    print(f"absent from rules.md, engineering.md, ci.md: {name}: {phrase!r}")

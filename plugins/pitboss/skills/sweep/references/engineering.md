@@ -23,9 +23,8 @@ keyword before changing the code.
 
 ## Names are words
 
-Element ids, numbered-id prefixes, variables, static indices and functions are
-named by what they are, in words: `search-close`, `toc-row12`, `query`,
-`query_len`, not `qsrz`, `qe`, `q`, `qn`. Nothing is short of bytes, and terse
+Variables, static indices and functions are named by what they are, in words:
+`query`, `query_len`, not `qsrz`, `qe`, `q`, `qn`. Nothing is short of bytes, and terse
 names collide (a rename of the id `qn` once also hit a query length of the
 same name). A loop index (`i`, `j`) or a conventional pair (`l` and `n` for an
 array's location and size) may stay short within a few lines.
