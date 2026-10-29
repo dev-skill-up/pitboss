@@ -3,12 +3,12 @@
 import pathlib
 import re
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_not
 
 from .. import phrases
-from . import fakes, world
+from . import fakes
+from .linting import lines, lint, write_text
 
 ATOM_CASES = [
     ("abc", "xxABCxx", True),
@@ -80,21 +80,6 @@ def refusal(pattern: str) -> str:
     with unittest.TestCase().assertRaises(phrases.PhraseError) as raised:
         phrases.compile_pattern(pattern)
     return str(raised.exception)
-
-
-def write_text(name: str, text: str) -> str:
-    """Write a file in a new directory.
-
-    Args:
-        name: the file's name.
-        text: its text.
-
-    Returns:
-        The file's path.
-    """
-    path = fakes.directory() / name
-    fakes.write(path, text)
-    return str(path)
 
 
 class TestPatterns(unittest.TestCase):
@@ -192,30 +177,6 @@ class TestFindings(unittest.TestCase):
         """A text with no phrase has no finding."""
         banned = phrases.parse(PHRASE_FILE, "mine")
         assert_that(phrases.findings("nothing here", "t", banned), equal_to([]))
-
-
-def lint(*argv: str) -> world.Result:
-    """Run ``pitboss lint``.
-
-    Args:
-        *argv: the arguments after ``lint``.
-
-    Returns:
-        What it did.
-    """
-    return world.invoke(world.make_world(), "lint", *argv)
-
-
-def lines(result: world.Result) -> Sequence[str]:
-    """The lines a command printed.
-
-    Args:
-        result: what it did.
-
-    Returns:
-        Its standard output's lines.
-    """
-    return result.out.splitlines()
 
 
 class TestCommand(unittest.TestCase):

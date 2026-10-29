@@ -1,0 +1,12 @@
+# Pairs of sentences no two guideline files may hold together.
+#
+# One line each, fields separated by tabs: a pattern for one side, a pattern for the other
+# side, an example of each (both tested), and what to do instead. A line that starts with #
+# is not a pair. The patterns are those of phrases.tsv, searched without regard to case in a
+# line whose code spans are removed. A pair is found when the files hold one side and the other.
+left to ci and said in the pr	is not reported as a gap	what it cannot run is left to CI and said in the PR	What CI runs is CI's and is not reported as a gap	Say once what a pull request reports about what CI runs.
+a p1 is not started while a p0 is open	p1 or lower only when	a p1 is not started while a p0 is open	takes a p1 or lower only when no p0 exists	State the priority order once and align the slot rules to it.
+you own ci until	not necessarily you	You own CI until it is green	A red CI is fixed by an author, not necessarily you	State who owns CI until it is green once.
+nothing else in this file is the owner'?s	\(owner, \d+-\d+-\d+\)[^.]*\borchestrator\b	Nothing else in this file is the owner's word	(owner, 2026-10-21) The orchestrator removes a worktree only when	A rule of the orchestrator is not the owner's word: mark the provenance of each rule, and quote as the owner's only what the owner said.
+the orchestrator removes a worktree	nobody deletes	The orchestrator removes a worktree only when the disk needs it	Nobody deletes the persistent checkout	State once who may delete the persistent checkout and when.
+the orchestrator removes a finished worktree	nobody deletes	The orchestrator removes a finished worktree only when the disk needs it	Nobody deletes the persistent checkout	State once who may delete the persistent checkout and when.
