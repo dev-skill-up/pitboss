@@ -8,7 +8,7 @@ from typing import Callable, Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, config, ledger, report, slotlog, work
+from . import ENTRY_DATA, config, ledger, report, slotlog, tracefs, work
 from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
@@ -190,6 +190,7 @@ def slots(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     action = Action[args.action.upper()]
+    tracefs.say(args.safe_run)
     found = load_context(args)
     if action in CHANGES:
         report.print_ledger(_changed(action, found))

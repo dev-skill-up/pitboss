@@ -261,6 +261,18 @@ the PR's line says so (``review=... (ignored: the comment of <time> is not in
 the review form)``), so the older review is not taken for the last word
 unseen (#20).
 
+**tracefs.** ``sweep``, ``pressure`` and every ``slots`` action first make
+the mount themselves (keyword: tracefs, pitboss#28): ``grep tracefs
+/proc/mounts``, else ``mount -t tracefs nodev /sys/kernel/tracing``, and say
+one line on stderr: ``tracefs: found mounted``, ``tracefs: mounted`` or
+``tracefs: NOT MOUNTED (mount exit status N)``. Stdout and the exit status of
+the command are not changed. The tool makes the mount, not the environment's
+setup script: that script runs only for a new session, not after a container
+restart, and no agent can see whether it ran. Where there is no
+``/proc/mounts`` (macOS, the BSDs) the check fails like an unmounted tracefs,
+the mount is tried and its failure is the line (127 when ``grep`` or ``mount``
+is not installed); the command goes on. The mount runs in a dry run too.
+
 **Runner pressure.** Under pressure when any ``merge_group`` run, queued or
 in progress, in any ``[runners] repositories``, has a job still ``queued``.
 

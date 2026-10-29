@@ -27,6 +27,7 @@ from . import (
     pulls,
     queue,
     report,
+    tracefs,
     work,
 )
 from .failures import explain
@@ -267,6 +268,7 @@ def sweep(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a PR has a failed check or a merge conflict.
     """
+    tracefs.say(args.safe_run)
     found = load_context(args)
     clock = Clock(started=time.monotonic())
     runs = read_queue_runs(found)
@@ -310,6 +312,7 @@ def pressure(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 under runner pressure.
     """
+    tracefs.say(args.safe_run)
     found = load_context(args)
     runs = _runner_runs(found, read_queue_runs(found))
     waiting = queue.waiting_jobs(found.github, runs)

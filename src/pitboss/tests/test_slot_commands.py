@@ -108,7 +108,7 @@ class TestLedger(unittest.TestCase):
         """A wrong word count or a refused change exits 2 and says why."""
         results = run_all(world.make_world(), REFUSAL_STEPS)
         found = [
-            (result.code, result.err.splitlines()[0][: len(line)])
+            (result.code, result.err.splitlines()[-1][: len(line)])
             for result, (_, line) in zip(results, REFUSALS)
         ]
         assert_that(found, equal_to(REFUSALS))
@@ -188,7 +188,7 @@ class TestLog(unittest.TestCase):
         assert_that(result.out.strip().endswith("none"), equal_to(True))
         refused = world.invoke(here, "slots", "report", here.config, "extra")
         assert_that(
-            (refused.code, refused.err.strip()),
+            (refused.code, refused.err.splitlines()[-1]),
             equal_to((2, "slots report takes no words")),
         )
 

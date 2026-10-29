@@ -20,6 +20,9 @@ from .. import config, ghapi
 
 HEAD = "a" * 40
 OLDER = "b" * 40
+NOT_FOUND = 127
+Answers = Mapping[str, int]
+TRACEFS_FOUND: Answers = {"grep": 0, "mount": 1}
 IDENTITY = ("-c", "user.email=t@example.org", "-c", "user.name=T")
 
 
@@ -58,10 +61,13 @@ class FakeProcesses:
             string is returned as it is, as a job's log is);
             a missing path fails like ``gh`` does on a 404.
         calls: every command line run, in order.
+        answers: the exit status of each program that is not run at all (the
+            machine's tracefs check and mount); 127 is a program not found.
     """
 
     bodies: MutableMapping[str, object]
     calls: MutableSequence[Sequence[str]] = dataclasses.field(default_factory=list)
+    answers: Mapping[str, int] = dataclasses.field(default_factory=dict)
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Output:
         """Run a command.
@@ -78,6 +84,8 @@ class FakeProcesses:
         """
         command = list(cmdargs)
         self.calls.append(command)
+        if command[0] in self.answers:
+            return answer(self.answers[command[0]], command)
         if command[:2] != ["gh", "api"]:
             done = subprocess.run(command, check=True, capture_output=True, text=True)
             return Output(stdout=done.stdout)
@@ -88,6 +96,27 @@ class FakeProcesses:
             )
         body = self.bodies[path]
         return Output(stdout=body if isinstance(body, str) else json.dumps(body))
+
+
+def answer(status: int, command: Sequence[str]) -> Output:
+    """What a program that is not run answers.
+
+    Args:
+        status: its exit status; 127 is a program that is not found.
+        command: the command line.
+
+    Returns:
+        The finished process.
+
+    Raises:
+        FileNotFoundError: for 127.
+        subprocess.CalledProcessError: for any other status but 0.
+    """
+    if status == NOT_FOUND:
+        raise FileNotFoundError(command[0])
+    if status:
+        raise subprocess.CalledProcessError(status, command)
+    return Output(stdout="")
 
 
 def github(bodies: MutableMapping[str, object]) -> ghapi.GitHub:

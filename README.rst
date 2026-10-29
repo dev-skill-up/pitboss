@@ -44,6 +44,12 @@ Commands
                                                 copy ``templates/text-lint.yml``.
 ==============================================  =====================================================
 
+``sweep``, ``pressure`` and ``slots`` first mount tracefs when it is not mounted
+(``mount -t tracefs nodev /sys/kernel/tracing``) and say so on one stderr line
+(``tracefs: found mounted``, ``tracefs: mounted`` or ``tracefs: NOT MOUNTED
+(...)``); the tool makes the mount, not the environment's setup script, which
+does not run after a container restart. Stdout is unchanged.
+
 ``CONFIG`` is a path, or a name looked up as ``.claude/pitboss/<name>.toml`` in
 the current directory or a parent. ``doc/example.toml`` lists every key.
 

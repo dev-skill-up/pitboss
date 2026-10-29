@@ -204,8 +204,26 @@ def bodies() -> MutableMapping[str, object]:
     return found
 
 
-def make_world() -> World:
+def configure(workspace: pathlib.Path) -> pathlib.Path:
+    """Write the configuration of a workspace.
+
+    Args:
+        workspace: the workspace.
+
+    Returns:
+        The slot ledger's path.
+    """
+    ledger = workspace / "ledger.json"
+    fakes.settings(workspace, EXTRA.format(ledger=ledger))
+    return ledger
+
+
+def make_world(answers: fakes.Answers = fakes.TRACEFS_FOUND) -> World:
     """Make a world.
+
+    Args:
+        answers: the exit status of the tracefs check (``grep``) and of the
+            mount; nothing is mounted on the machine.
 
     Returns:
         The world.
@@ -214,9 +232,8 @@ def make_world() -> World:
     clone = fakes.make_repository(workspace)
     worktree = fakes.add_worktree(clone, "merged-work")
     fakes.push(worktree)
-    ledger = workspace / "ledger.json"
-    fakes.settings(workspace, EXTRA.format(ledger=ledger))
-    processes = fakes.FakeProcesses(bodies=bodies())
+    ledger = configure(workspace)
+    processes = fakes.FakeProcesses(bodies=bodies(), answers=answers)
     return World(
         workspace=workspace,
         clone=clone,
