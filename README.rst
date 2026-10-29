@@ -38,6 +38,10 @@ Commands
                                                 (``--head SHA``, ``--config``, ``--gated``,
                                                 ``--ticket FILE``): one finding per line naming its
                                                 check, exit 1 on any.
+``pitboss lint event EVENT STATUS``             The ``text-lint`` commit status of a pull request
+                                                event, written as JSON to STATUS. The reusable
+                                                workflow ``text-lint-check.yml`` posts it; callers
+                                                copy ``templates/text-lint.yml``.
 ==============================================  =====================================================
 
 ``CONFIG`` is a path, or a name looked up as ``.claude/pitboss/<name>.toml`` in

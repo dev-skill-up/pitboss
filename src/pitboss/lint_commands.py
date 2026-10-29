@@ -1,13 +1,15 @@
 """The ``lint`` command: checks of the texts agents write."""
 
 import argparse
+import functools
+import json
 import pathlib
 import sys
 from typing import Callable, Mapping, Sequence, TypeVar
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commands, config, contradictions, forms, phrases
+from . import ENTRY_DATA, commands, config, contradictions, forms, phrases, textlint
 
 USAGE_ERROR = 2
 _Rule = TypeVar("_Rule")
@@ -133,12 +135,51 @@ def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
     return run
 
 
+def _body_findings(
+    rules: tuple[Sequence[phrases.Phrase], Sequence[contradictions.Pair]],
+    footers: Sequence[str],
+    body: str,
+    head: str,
+) -> Sequence[str]:
+    banned, pairs = rules
+    subject = forms.Subject(name="body", body=body, head=head)
+    return [
+        *forms.pr_body(subject, footers),
+        *phrases.findings(body, subject.name, banned),
+        *contradictions.findings([(subject.name, body)], pairs),
+    ]
+
+
+def _event(args: argparse.Namespace) -> None:
+    if len(args.files) != 2:
+        raise _fail("event takes the event's file and the status file to write")
+    event, status_file = args.files
+    try:
+        pull = textlint.parse(_read(event))
+    except textlint.EventError as error:
+        raise _fail(f"{event}: {error}") from error
+    check = functools.partial(
+        _body_findings,
+        (_phrases(args), _pairs(args)),
+        _lint_settings(args).footers,
+    )
+    status, found = textlint.decide(pull, args.url, check)
+    for each in found:
+        print(each)
+    print(f"{textlint.CONTEXT}: {status['state']}: {status['description']}")
+    try:
+        pathlib.Path(status_file).write_text(json.dumps(status), encoding="utf-8")
+    except OSError as error:
+        raise _fail(f"{status_file}: {error}") from error
+
+
 KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "text": _text,
     "contradictions": _contradictions,
     "pr-body": _form_kind(_pr_body_findings),
     "review": _form_kind(_review_findings),
     "brief": _form_kind(_brief_findings),
+    "event": _event,
 }
 
 
@@ -180,6 +221,11 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         default=None,
         help="the project's configuration, for pr-body, review and brief: a path,"
         " or a name in .claude/pitboss/<name>.toml (default: the generic forms)",
+    ),
+    add_argument(
+        "--url",
+        default="",
+        help="event: the run's address, the status's target_url",
     ),
     add_argument(
         "--gated",
