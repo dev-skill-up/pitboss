@@ -59,6 +59,9 @@ idle_hours = 3
 # The ledger: a file outside the repository.
 # Default: <main_clone>/.git/pitboss-slots.json
 ledger = "/home/user/app/.git/pitboss-slots.json"
+# The slot log: a line for each change of a slot's state (`pitboss slots report`).
+# Default: the ledger's name ending in .log
+log = "/home/user/app/.git/pitboss-slots.log"
 # The models workers run on, smallest first. Default: none.
 models = ["small-model", "large-model"]
 # The ticket labels that are offered, highest priority first; a ticket with

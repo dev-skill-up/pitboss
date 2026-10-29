@@ -1,13 +1,14 @@
 """The ``slots`` command: the worker-slot ledger, and what to start next."""
 
 import argparse
+import datetime
 import enum
 import sys
 from typing import Callable, Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, config, ledger, report, work
+from . import ENTRY_DATA, config, ledger, report, slotlog, work
 from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
@@ -31,6 +32,9 @@ class Action(enum.Enum):
         FAILED: record that a model failed a ticket (TICKET MODEL).
         CHECK: list the slots whose agent is gone (--running NAME ...).
         NEXT: print what to start next, and what each empty slot takes.
+        WAIT: say a slot's agent waits (SLOT).
+        RESUME: say a slot's agent runs again (SLOT).
+        REPORT: print the share of slot time in each state (--since, --until).
     """
 
     SHOW = enum.auto()
@@ -41,6 +45,9 @@ class Action(enum.Enum):
     FAILED = enum.auto()
     CHECK = enum.auto()
     NEXT = enum.auto()
+    WAIT = enum.auto()
+    RESUME = enum.auto()
+    REPORT = enum.auto()
 
     @property
     def word(self) -> str:
@@ -84,6 +91,8 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
     Action.ADD: (2, _add),
     Action.REMOVE: (1, lambda book, words, _: ledger.remove(book, words[0])),
     Action.FAILED: (2, _failed),
+    Action.WAIT: (1, lambda book, words, _: ledger.wait(book, words[0], True)),
+    Action.RESUME: (1, lambda book, words, _: ledger.wait(book, words[0], False)),
 }
 
 
@@ -128,7 +137,28 @@ def _changed(action: Action, found: Context) -> ledger.Ledger:
     if isinstance(outcome, ledger.Refusal):
         raise _refuse(f"refused: {outcome.reason}")
     ledger.write(found.settings.slots.ledger, outcome)
+    log = found.settings.slots.log
+    log.parent.mkdir(parents=True, exist_ok=True)
+    slotlog.append(log, slotlog.changes(slotlog.read(log), outcome, found.now))
     return outcome
+
+
+def _report(found: Context) -> None:
+    if found.args.words:
+        raise _refuse("slots report takes no words")
+    entries = slotlog.read(found.settings.slots.log)
+    since = (
+        slotlog.utc(datetime.datetime.fromisoformat(found.args.since))
+        if found.args.since
+        else min((entry.time for entry in entries), default=slotlog.utc(found.now))
+    )
+    until = (
+        slotlog.utc(datetime.datetime.fromisoformat(found.args.until))
+        if found.args.until
+        else slotlog.utc(found.now)
+    )
+    for line in slotlog.lines(entries, since, until):
+        print(line)
 
 
 def _read(found: Context) -> ledger.Ledger:
@@ -142,6 +172,8 @@ def _read(found: Context) -> ledger.Ledger:
     CONFIG_ARGUMENT,
     add_argument("words", nargs="*"),
     add_argument("--running", nargs="*", default=None),
+    add_argument("--since", default=None, help="report window start (ISO, UTC)"),
+    add_argument("--until", default=None, help="report window end (ISO, UTC)"),
     NOW_ARGUMENT,
     name="slots",
 )
@@ -157,6 +189,8 @@ def slots(args: argparse.Namespace) -> None:
         report.print_ledger(_changed(action, found))
     elif action is Action.CHECK:
         _check(found, _read(found))
+    elif action is Action.REPORT:
+        _report(found)
     elif action is Action.NEXT:
         _next(found, _read(found))
     else:

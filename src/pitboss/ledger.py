@@ -31,12 +31,14 @@ class Slot:
         model: the model its worker runs on.
         agent: the agent in it, or empty.
         task: what the agent works on (an ``owner/name#number``), or empty.
+        waiting: the agent waits (on CI, a review or an answer), not runs.
     """
 
     name: str
     model: str
     agent: str = ""
     task: str = ""
+    waiting: bool = False
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -149,7 +151,9 @@ def take(ledger: Ledger, slot_name: str, agent: str, task: str) -> Ledger | Refu
             reason=f"slot {slot_name} holds {slot.agent} on {slot.task}: free it first"
         )
     return _replace(
-        ledger, slot_name, dataclasses.replace(slot, agent=agent, task=task)
+        ledger,
+        slot_name,
+        dataclasses.replace(slot, agent=agent, task=task, waiting=False),
     )
 
 
@@ -166,7 +170,9 @@ def free(ledger: Ledger, slot_name: str) -> Ledger | Refusal:
     slot = find(ledger, slot_name)
     if isinstance(slot, Refusal):
         return slot
-    return _replace(ledger, slot_name, dataclasses.replace(slot, agent="", task=""))
+    return _replace(
+        ledger, slot_name, dataclasses.replace(slot, agent="", task="", waiting=False)
+    )
 
 
 def add(
@@ -239,3 +245,22 @@ def gone(ledger: Ledger, running: Iterable[str]) -> Sequence[Slot]:
     """
     alive = frozenset(running)
     return [slot for slot in ledger.slots if slot.agent and slot.agent not in alive]
+
+
+def wait(ledger: Ledger, slot_name: str, waiting: bool) -> Ledger | Refusal:
+    """Say that a slot's agent waits, or runs again.
+
+    Args:
+        ledger: the ledger.
+        slot_name: the slot.
+        waiting: True when the agent waits, False when it runs.
+
+    Returns:
+        The new ledger, or a refusal when the slot has no agent.
+    """
+    slot = find(ledger, slot_name)
+    if isinstance(slot, Refusal):
+        return slot
+    if not slot.agent:
+        return Refusal(reason=f"slot {slot_name} is empty: set an agent first")
+    return _replace(ledger, slot_name, dataclasses.replace(slot, waiting=waiting))

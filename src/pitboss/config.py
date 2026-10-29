@@ -100,6 +100,7 @@ class Slots:
 
     Attributes:
         ledger: the ledger file.
+        log: the slot log, one line for each change of a slot's state.
         default: the slots a new ledger starts with.
         models: the models, smallest first.
         priority_labels: the ticket labels that are offered, highest first.
@@ -107,6 +108,7 @@ class Slots:
     """
 
     ledger: pathlib.Path
+    log: pathlib.Path
     default: Sequence[SlotSpec]
     models: Sequence[str]
     priority_labels: Sequence[str]
@@ -260,8 +262,10 @@ def _slot_specs(table: Mapping[str, object]) -> Sequence[SlotSpec]:
 def _slots(document: Mapping[str, object], project: Project) -> Slots:
     table = _table(document, "slots")
     ledger = project.main_clone / ".git" / "pitboss-slots.json"
+    book = pathlib.Path(str(table.get("ledger", ledger)))
     return Slots(
-        ledger=pathlib.Path(str(table.get("ledger", ledger))),
+        ledger=book,
+        log=pathlib.Path(str(table.get("log", book.with_suffix(".log")))),
         default=_slot_specs(table),
         models=_strings(table, "models", ()),
         priority_labels=_strings(table, "priority_labels", ()),

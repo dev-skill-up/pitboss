@@ -15,6 +15,7 @@ REPO = config.make_repo("owner", "project")
 GREEN = shapes.CheckRun(id=1, name="build", finished=True, failed=False)
 SLOTS = config.Slots(
     ledger=pathlib.Path("/unused"),
+    log=pathlib.Path("/unused.log"),
     default=(),
     models=("small", "large"),
     priority_labels=("urgent", "later"),

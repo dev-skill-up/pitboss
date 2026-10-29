@@ -52,7 +52,8 @@ What was project-specific, and where it went
      - ``[worktrees] idle_hours``
    * - ``/tmp/claude-0/slots.tsv``
      - ``[slots] ledger`` (default ``<main_clone>/.git/pitboss-slots.json``:
-       per clone, never committed)
+       per clone, never committed); the slot log beside it is ``[slots] log``
+       (default: the ledger's name ending in ``.log``)
    * - ``sonnet1 sonnet2 haiku1``, and "haiku before sonnet"
      - ``[slots] models`` (smallest first) and ``[[slots.default]]`` (the
        name and model of each slot). Neither has a default: how many slots
@@ -212,9 +213,9 @@ the last ``idle_hours`` (by file times, because a new worktree's tip is an
 old commit); and its branch's PR is merged or closed, or its tip is in the
 base branch. A worktree with an open PR is never stale.
 
-**Slots.** The ledger is a JSON file: each slot's name, model, agent and
-task, and the tickets each model has failed. ``set`` refuses an occupied
-slot, ``remove`` an occupied one, ``add`` a model not in ``models``; a
+**Slots.** The ledger is a JSON file: each slot's name, model, agent, task,
+whether the agent waits, and the tickets each model has failed. ``set``
+refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``models``; a
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
@@ -225,6 +226,17 @@ line saying why it is where it is:
    review of that head (the reviewer is never the author);
 3. a new PR: an open ticket of the project or a library, with a priority
    label, not referenced by an open PR.
+
+**Slot log.** The ledger keeps only the present, and a resumed agent
+overwrites its own timestamps, so idle and waiting time could only be
+estimated (dev-skill-up/pitboss#17). Every ``slots`` change therefore also
+appends a JSON line to ``[slots] log`` for each slot whose state (running,
+waiting or empty), agent or task now differs from its last line, or that is
+new to the log or gone from the ledger (state ``removed``, which ends its
+slot time). ``slots report CONFIG [--since T] [--until T]`` replays the log:
+each line lasts until the slot's next line (or the window's end), is cut to
+the window, and the seconds in each state are printed as shares, for each
+slot and for all slots together.
 
 Nothing predicts which files a ticket will touch (an earlier version held
 back a ticket whose backticked paths an open PR changed; the owner dropped

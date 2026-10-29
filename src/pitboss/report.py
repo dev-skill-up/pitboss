@@ -225,7 +225,8 @@ def slot_lines(book: ledger.Ledger) -> Sequence[str]:
 def _slot_line(slot: ledger.Slot) -> str:
     name = f"{slot.name} ({slot.model})"
     if slot.agent:
-        return f"slot {name}: {slot.task} ({slot.agent})"
+        state = ", waiting" if slot.waiting else ""
+        return f"slot {name}: {slot.task} ({slot.agent}{state})"
     return (
         f"{Marker.EMPTY_SLOT.text}: {name}: run 'pitboss slots next' and start its line"
     )
