@@ -503,6 +503,14 @@ compaction.
   sample; the worker also runs every test that reads a file the change touches,
   whole (grep for the changed path and list the greps in the body, haiku-rule
   106 and 180).
+- **A check a worker runs is wrapped in `timeout 598`** (owner, 2026-10-29):
+  `timeout 598 <check command>`. A tool call is cut off at 600 seconds, and
+  what it was running is killed with no exit status and often no output; the
+  wrapper ends the check two seconds before, so the worker sees a status (124)
+  and what the check printed, and picks a smaller action instead of starting a
+  longer wait. A check that ends in 124 is not rerun with a longer limit: it is
+  left to CI. This is the one statement of the wrapper; a project's own rules
+  keep only the check commands that are specific to it.
 - **"This machine lacks X" is never an excuse** (owner, 2026-10-18T22:16:41Z:
   ""This machine lacks" is never an excuse unless physically impossible to
   fix."). If CI has a tool, package, browser, voice, font or setting a test
