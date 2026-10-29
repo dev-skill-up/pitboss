@@ -232,6 +232,21 @@ def _slot_line(slot: ledger.Slot) -> str:
     )
 
 
+def print_free_slots(book: ledger.Ledger, queued: int) -> None:
+    """Print the line that says slots are free while work is queued.
+
+    Args:
+        book: the ledger.
+        queued: how many items are queued.
+    """
+    free = sum(1 for slot in book.slots if not slot.agent)
+    if free and queued:
+        print(
+            f"{Marker.SLOTS_FREE.text} {free}: {queued} queued; a wake-up"
+            " (send_later) is required before this turn ends, or nothing starts them"
+        )
+
+
 def print_ledger(book: ledger.Ledger) -> None:
     """Print the ledger, and on stderr the reminder to check it.
 

@@ -30,6 +30,7 @@ class Marker(enum.Enum):
         COULD_NOT_REMOVE_WORKTREE: one that could not be.
         SWEEP_REMINDER: a question each sweep ends with.
         EMPTY_SLOT: a worker slot with no agent.
+        SLOTS_FREE: slots are free and work is queued; a wake-up is required.
         GONE_AGENT: a slot whose agent is no longer running.
         CHECK_BEFORE_YOU_ANSWER: the ledger is kept by hand; check it.
         NEXT: a line of the sorted list of work.
@@ -53,6 +54,7 @@ class Marker(enum.Enum):
     COULD_NOT_REMOVE_WORKTREE = enum.auto()
     SWEEP_REMINDER = enum.auto()
     EMPTY_SLOT = enum.auto()
+    SLOTS_FREE = enum.auto()
     GONE_AGENT = enum.auto()
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
     NEXT = enum.auto()

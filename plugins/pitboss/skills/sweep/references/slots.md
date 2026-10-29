@@ -42,6 +42,10 @@ estimated.
 - `EMPTY SLOT`: the slot has no agent. In `slots show`, run `slots next`; in
   `slots next`, the line names what the slot starts, or says nothing fits
   it. Start that now, or leave the slot empty when nothing fits.
+- `SLOTS FREE`: `SLOTS FREE n`, printed by `sweep` after the ledger when n slots
+  have no agent and the queue has work. Start work for them, and require a
+  wake-up (`send_later`) before the turn ends: an orchestrator that ends its
+  turn with free slots and queued work sleeps until a GitHub event.
 - `GONE AGENT`: the ledger holds an agent the session no longer runs. Free
   the slot with the command the line gives.
 - `CHECK BEFORE YOU ANSWER`: printed after the ledger, on stderr. The ledger

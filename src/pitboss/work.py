@@ -206,6 +206,30 @@ def smallest_model(
     return None
 
 
+def queued(
+    facts: Sequence[pulls.PullFacts],
+    github: ghapi.GitHub,
+    settings: config.Config,
+    book: ledger.Ledger,
+) -> Sequence[Item]:
+    """The work that is queued: PRs and tickets, in the order to start them.
+
+    Args:
+        facts: the open PRs.
+        github: the API.
+        settings: the configuration.
+        book: the ledger.
+
+    Returns:
+        The ordered items.
+    """
+    items = [
+        *pull_items(facts),
+        *ticket_items(github, settings, taken(facts)),
+    ]
+    return ordered(items, [slot.task for slot in book.slots if slot.agent])
+
+
 Assignment = tuple[ledger.Slot, Item | None]
 
 

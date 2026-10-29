@@ -27,6 +27,7 @@ SWEEP_LINES = (
     "STALE WORKTREE {workspace}/merged-work [merged-work] (its PR merged)",
     "SWEEP REMINDER: Is any ticket closeable?",
     "EMPTY SLOT: tiny (small)",
+    "SLOTS FREE 2: ",
 )
 CANCEL_LINES = (
     "CANCELLED STALE QUEUE RUN owner/project 11 (dry run",
@@ -99,6 +100,43 @@ def failed_line(here: world.World) -> str:
     return [x for x in sweep(here).out.splitlines() if x.startswith("FAILED")][0]
 
 
+def free_lines(result: world.Result) -> Sequence[str]:
+    """The SLOTS FREE lines of a sweep, cut after the count.
+
+    Args:
+        result: what the sweep did.
+
+    Returns:
+        The lines.
+    """
+    lines = [x for x in result.out.splitlines() if x.startswith("SLOTS FREE")]
+    return [line.split(":")[0] + ": " for line in lines]
+
+
+def occupy(here: world.World, slot_names: Sequence[str]) -> None:
+    """Put an agent in each named slot.
+
+    Args:
+        here: the world.
+        slot_names: the slots.
+    """
+    for each in slot_names:
+        task = ("slots", "set", here.config, each, f"agent-{each}", "#9")
+        world.invoke(here, *task)
+
+
+def clear_queue(here: world.World) -> None:
+    """Leave no open PR and no labelled ticket in a world.
+
+    Args:
+        here: the world.
+    """
+    for key in list(here.bodies):
+        if "issues?state=open&labels=" in key:
+            here.bodies[key] = []
+    here.bodies[OPEN_PULLS] = []
+
+
 class TestSweep(unittest.TestCase):
     """The sweep and the pressure check."""
 
@@ -134,6 +172,23 @@ class TestSweep(unittest.TestCase):
         here = world.make_world()
         here.bodies[OPEN_PULLS] = [{"number": 2}]
         assert_that(sweep(here).code, equal_to(0))
+
+    def test_slots_free(self) -> None:
+        """Free slots with work queued print SLOTS FREE n; busy or empty, none."""
+        found = []
+        for taken, empty_queue in (
+            ((), False),
+            (("tiny",), False),
+            (("tiny", "big"), False),
+            (("tiny",), True),
+        ):
+            here = world.make_world()
+            occupy(here, taken)
+            if empty_queue:
+                clear_queue(here)
+            found.append(free_lines(sweep(here)))
+        expected = [["SLOTS FREE 2: "], ["SLOTS FREE 1: "], [], []]
+        assert_that(found, equal_to(expected))
 
     def test_pressure(self) -> None:
         """One line, and exit 1 only under pressure."""
