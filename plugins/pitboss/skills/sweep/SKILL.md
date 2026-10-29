@@ -28,8 +28,8 @@ Other commands, all reading the same file:
 
 | Command | Use |
 | :--- | :--- |
-| `uvx pitboss pressure <config>` | Before any push, PR, merge or re-run: one line, exit 1 under runner pressure. |
-| `uvx pitboss pressure <config> && git push <arguments>` | The pressure check and the push in one command. pitboss has no single push command yet; a project that wraps these two (quire's `qsweep push`) keeps the check from being left out or put in the wrong place. Under pressure it prints the hold line, exits 1 and pushes nothing; the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear. |
+| `uvx pitboss pressure <config>` | Before a push to a non-draft PR, an undraft, an enqueue, a merge or a re-run: one line, exit 1 under runner pressure. |
+| `uvx pitboss pressure <config> && git push <arguments>` | The pressure check and the push in one command. pitboss has no single push command yet; a project that wraps these two (quire's `qsweep push`) keeps the check from being left out or put in the wrong place (for a push to a non-draft PR; a push to a draft needs no check). Under pressure it prints the hold line, exits 1 and pushes nothing; the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear. |
 | `uvx pitboss cancel-stale-runs <config> [--no-dry-run]` | Cancel superseded merge-queue runs. |
 | `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove finished worktrees. |
 | `uvx pitboss review-form <config> <repository>` | The form a review comment in that repository must take. |

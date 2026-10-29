@@ -587,8 +587,10 @@ compaction.
 
 ## Pushing and merging
 
-- **Before any push or merge, check the runner pressure** (`pitboss pressure`;
-  `sweep.md` has the hold). Under pressure, hold; a hold lifts only when the
+- **Before any push to a non-draft PR, undraft, enqueue or merge, check the
+  runner pressure** (`pitboss pressure`; `sweep.md` has the hold). Pushes to a
+  draft PR start no costly job and are not held (`ci.md`). Under pressure,
+  hold; a hold lifts only when the
   pressure printed none at every look for 15 minutes (owner,
   2026-10-26: "New rule: runner pressure should be 0 for 15 minutes before we
   consider the hold off. (the reason is because some things get a minute to

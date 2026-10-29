@@ -127,7 +127,7 @@ resolve, check locally, push (`rules.md`, "Merge conflicts").
 
 **When to hold under runner pressure.** While a queue run has a job waiting
 for a runner, take no CI-triggering action in any repository that shares the
-runners, tell running agents to hold their pushes and work locally, and file,
+runners, tell running agents to hold their pushes to non-draft PRs and work locally, and file,
 comment and read as usual. A hold lifts only when the pressure printed none at
 every look for 15 minutes. Then release held work one push at a time, with a
 pressure look between, re-queueing the PRs dequeued by the time limit first.

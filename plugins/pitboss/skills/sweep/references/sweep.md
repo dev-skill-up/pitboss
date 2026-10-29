@@ -106,7 +106,8 @@ which is reclaimed after a while. Each `STRAGGLER` line is triaged:
 
 - an agent is working in it: leave it;
 - its work merged under another SHA (squashed): remove the checkout;
-- unpushed and unmerged: push it (when there is no runner pressure) so it
+- unpushed and unmerged: push it (when there is no runner pressure, or as a
+  draft) so it
   becomes a PR, and say so; during a hold, write down on its issue where it
   is, so the next session finds it;
 - scratch: read its `git status`, then delete it.
