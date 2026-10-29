@@ -19,12 +19,13 @@ which tickets.
 | `pitboss slots failed <config> TICKET MODEL` | A model failed a ticket (a diff that is off target, or a worker that stopped midway); the ticket goes to a larger model next. |
 | `pitboss slots check <config> --running NAME ...` | Give it the names of the agents the session runs; it prints a `GONE AGENT` line for each agent the ledger holds that is not among them. |
 | `pitboss slots next <config>` | The sorted list of what to start, and what each empty slot takes. |
+| `pitboss slots heard <config> SLOT` | The agent in the slot handed back or sent a notification (it is still there): the sweep stops listing it as `NO HAND-BACK`. |
 | `pitboss slots wait <config> SLOT` | The agent in the slot waits (on CI, a review or an answer) and does no work. |
 | `pitboss slots resume <config> SLOT` | The agent in the slot works again. |
 | `pitboss slots report <config> [--since T] [--until T]` | The share of slot time spent running, waiting and empty, for each slot and for all, in a window (ISO times, UTC when no zone; default: the first log line to now). |
 
 Update the ledger at every spawn (`set`), every time an agent starts or stops
-waiting (`wait`, `resume`) and every hand-back or completion notice (`free`).
+waiting (`wait`, `resume`) and every hand-back or completion notice (`free`, or `heard` when the agent stays).
 
 ## The slot log
 
@@ -49,6 +50,12 @@ estimated.
   the agents the session runs (the session's own agent listing; a process
   listing cannot count them, they share one process), run `slots check`
   with their names, fix the ledger with `free` and `set`, then act or answer.
+- `NO HAND-BACK`: the sweep prints `NO HAND-BACK name (n minutes)` for an
+  agent the ledger holds (`set` records its start time) that has produced
+  no hand-back or notification within 10 minutes. Find out whether it is
+  still running (the session's agent listing); message it, or `free` the
+  slot and restart the work if it ended without a hand-back. An agent that
+  has answered but stays in the slot is marked with `heard`.
 - `NEXT`: one line of the sorted list.
 
 ## The order of work

@@ -55,6 +55,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `GONE AGENT` | The ledger holds an agent the session no longer runs. | See `slots.md`. |
 | `CHECK BEFORE YOU ANSWER` | The ledger is kept by hand. | See `slots.md`. |
 | `NEXT` | A line of the sorted list of what to start. | See `slots.md`. |
+| `NO HAND-BACK` | The ledger holds an agent started more than 10 minutes ago that has produced no hand-back or notification; the line gives its minutes. | See `slots.md`. |
 
 ## The runner-pressure hold
 

@@ -18,6 +18,7 @@ from typing import Sequence
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, config, container, ghapi, ledger, local, pulls, queue, report
+from . import handback
 from .failures import explain
 from .markers import Marker
 from .running import git
@@ -268,7 +269,9 @@ def sweep(args: argparse.Namespace) -> None:
     lap(clock, "checkouts done")
     for line in report.reminder_lines(found.settings):
         print(line)
-    report.print_ledger(read_ledger(found.settings))
+    book = read_ledger(found.settings)
+    report.print_ledger(book)
+    handback.print_lines(book, found.now)
     if broken:
         raise SystemExit(1)
 

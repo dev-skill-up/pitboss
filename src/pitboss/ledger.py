@@ -1,14 +1,27 @@
 """The worker-slot ledger: which slot runs which agent on which task."""
 
 import dataclasses
+import enum
 import json
 import pathlib
 import re
-from typing import Iterable, Mapping, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 from . import config
 
 _REFERENCE = re.compile(r"^(?:(?P<owner>[\w.-]+)/)?(?P<name>[\w.-]+)?#(?P<number>\d+)$")
+
+
+class Mark(enum.Enum):
+    """A time the ledger keeps for an agent.
+
+    Attributes:
+        STARTED: when the agent was put in its slot.
+        HEARD: when it last handed back or notified.
+    """
+
+    STARTED = enum.auto()
+    HEARD = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -32,6 +45,8 @@ class Slot:
         agent: the agent in it, or empty.
         task: what the agent works on (an ``owner/name#number``), or empty.
         waiting: the agent waits (on CI, a review or an answer), not runs.
+        started: when the agent was put in the slot (ISO time), or empty.
+        heard: when the agent last handed back or notified (ISO time), or empty.
     """
 
     name: str
@@ -39,6 +54,8 @@ class Slot:
     agent: str = ""
     task: str = ""
     waiting: bool = False
+    started: str = ""
+    heard: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -153,7 +170,9 @@ def take(ledger: Ledger, slot_name: str, agent: str, task: str) -> Ledger | Refu
     return _replace(
         ledger,
         slot_name,
-        dataclasses.replace(slot, agent=agent, task=task, waiting=False),
+        dataclasses.replace(
+            slot, agent=agent, task=task, waiting=False, started="", heard=""
+        ),
     )
 
 
@@ -171,7 +190,11 @@ def free(ledger: Ledger, slot_name: str) -> Ledger | Refusal:
     if isinstance(slot, Refusal):
         return slot
     return _replace(
-        ledger, slot_name, dataclasses.replace(slot, agent="", task="", waiting=False)
+        ledger,
+        slot_name,
+        dataclasses.replace(
+            slot, agent="", task="", waiting=False, started="", heard=""
+        ),
     )
 
 
@@ -247,6 +270,17 @@ def gone(ledger: Ledger, running: Iterable[str]) -> Sequence[Slot]:
     return [slot for slot in ledger.slots if slot.agent and slot.agent not in alive]
 
 
+def _with_agent(
+    ledger: Ledger, slot_name: str, change: Callable[[Slot], Slot]
+) -> Ledger | Refusal:
+    slot = find(ledger, slot_name)
+    if isinstance(slot, Refusal):
+        return slot
+    if not slot.agent:
+        return Refusal(reason=f"slot {slot_name} is empty: set an agent first")
+    return _replace(ledger, slot_name, change(slot))
+
+
 def wait(ledger: Ledger, slot_name: str, waiting: bool) -> Ledger | Refusal:
     """Say that a slot's agent waits, or runs again.
 
@@ -258,9 +292,27 @@ def wait(ledger: Ledger, slot_name: str, waiting: bool) -> Ledger | Refusal:
     Returns:
         The new ledger, or a refusal when the slot has no agent.
     """
-    slot = find(ledger, slot_name)
-    if isinstance(slot, Refusal):
-        return slot
-    if not slot.agent:
-        return Refusal(reason=f"slot {slot_name} is empty: set an agent first")
-    return _replace(ledger, slot_name, dataclasses.replace(slot, waiting=waiting))
+    return _with_agent(
+        ledger, slot_name, lambda slot: dataclasses.replace(slot, waiting=waiting)
+    )
+
+
+def stamp(ledger: Ledger, slot_name: str, mark: Mark, when: str) -> Ledger | Refusal:
+    """Say when a slot's agent started, or last handed back or notified.
+
+    Args:
+        ledger: the ledger.
+        slot_name: the slot.
+        mark: which time.
+        when: the time (ISO).
+
+    Returns:
+        The new ledger, or a refusal when the slot has no agent.
+    """
+
+    def change(slot: Slot) -> Slot:
+        if mark is Mark.STARTED:
+            return dataclasses.replace(slot, started=when)
+        return dataclasses.replace(slot, heard=when)
+
+    return _with_agent(ledger, slot_name, change)
