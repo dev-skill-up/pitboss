@@ -35,6 +35,7 @@ class Action(enum.Enum):
         WAIT: say a slot's agent waits (SLOT).
         RESUME: say a slot's agent runs again (SLOT).
         REPORT: print the share of slot time in each state (--since, --until).
+        HEARD: say a slot's agent handed back or notified (SLOT).
     """
 
     SHOW = enum.auto()
@@ -48,6 +49,7 @@ class Action(enum.Enum):
     WAIT = enum.auto()
     RESUME = enum.auto()
     REPORT = enum.auto()
+    HEARD = enum.auto()
 
     @property
     def word(self) -> str:
@@ -68,7 +70,10 @@ def _set(
     book: ledger.Ledger, words: Sequence[str], found: Context
 ) -> ledger.Ledger | ledger.Refusal:
     task = ledger.reference(words[2], found.settings.project.repo)
-    return ledger.take(book, words[0], words[1], task)
+    taken = ledger.take(book, words[0], words[1], task)
+    if isinstance(taken, ledger.Refusal):
+        return taken
+    return ledger.stamp(taken, words[0], ledger.Mark.STARTED, found.now.isoformat())
 
 
 def _add(
@@ -85,12 +90,19 @@ def _failed(
     return ledger.record_failure(book, ticket, words[1])
 
 
+def _heard(
+    book: ledger.Ledger, words: Sequence[str], found: Context
+) -> ledger.Ledger | ledger.Refusal:
+    return ledger.stamp(book, words[0], ledger.Mark.HEARD, found.now.isoformat())
+
+
 CHANGES: Mapping[Action, tuple[int, Change]] = {
     Action.SET: (3, _set),
     Action.FREE: (1, lambda book, words, _: ledger.free(book, words[0])),
     Action.ADD: (2, _add),
     Action.REMOVE: (1, lambda book, words, _: ledger.remove(book, words[0])),
     Action.FAILED: (2, _failed),
+    Action.HEARD: (1, _heard),
     Action.WAIT: (1, lambda book, words, _: ledger.wait(book, words[0], True)),
     Action.RESUME: (1, lambda book, words, _: ledger.wait(book, words[0], False)),
 }

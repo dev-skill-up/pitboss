@@ -21,6 +21,7 @@ from . import (
     ENTRY_DATA,
     config,
     ghapi,
+    handback,
     ledger,
     local,
     pulls,
@@ -282,6 +283,7 @@ def sweep(args: argparse.Namespace) -> None:
     report.print_ledger(book)
     queued = work.queued(open_pulls(found), found.github, found.settings, book)
     report.print_free_slots(book, len(queued))
+    handback.print_lines(book, found.now)
     if broken:
         raise SystemExit(1)
 

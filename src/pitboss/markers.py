@@ -34,6 +34,7 @@ class Marker(enum.Enum):
         GONE_AGENT: a slot whose agent is no longer running.
         CHECK_BEFORE_YOU_ANSWER: the ledger is kept by hand; check it.
         NEXT: a line of the sorted list of work.
+        NO_HAND_BACK: an agent started over ten minutes ago that has said nothing.
     """
 
     UNREADABLE = enum.auto()
@@ -58,6 +59,7 @@ class Marker(enum.Enum):
     GONE_AGENT = enum.auto()
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
     NEXT = enum.auto()
+    NO_HAND_BACK = enum.auto()
 
     @property
     def text(self) -> str:
@@ -66,4 +68,7 @@ class Marker(enum.Enum):
         Returns:
             The text.
         """
-        return self.name.replace("_", " ")
+        return SPELLED.get(self, self.name.replace("_", " "))
+
+
+SPELLED = {Marker.NO_HAND_BACK: "NO HAND-BACK"}
