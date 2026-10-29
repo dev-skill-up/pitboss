@@ -188,6 +188,73 @@ compaction.
 
 ## Tickets
 
+- **Priorities.**
+  - **p0:** anything that makes CI faster or more reliable, or makes
+    development faster or more reliable. A wrong cache is p0: it is what makes
+    people run a clean build "just in case". So is a cost of the agent sessions
+    that lowers what the work costs. A speed ticket is p0 only at a better big O
+    or a factor of two or more (owner, 2026-10-23T13:12:21Z, transcript line
+    78273: "For a ticket to count as p0 for Ci speed it should be either big o
+    or a factor of two or more. Otherwise, there's infinite work on p0"); a
+    smaller gain is p2. Correctness is never gated on speed (owner,
+    2026-10-22T10:28:07Z, line 70965: "correctness can never be gated on
+    speed"), so no correctness ticket, brief or review carries a timing
+    measurement, a speed budget or a net-cost clause.
+  - **p1: correctness.** Missing proofs, tests or coverage, wrong behaviour,
+    audit gaps, violations of the safety rules, and a statement that is no
+    longer true (owner, 2026-10-22T13:55:25Z, line 71648: "Stale is
+    correctness").
+  - **p2:** the project's user-visible features, and the developer experience
+    of other developers who build on it. Shell tools count under this rule,
+    since changing them means scripting shell instead of implementing in the
+    project's language. Moving a pin automatically is developer experience
+    (owner, 2026-10-20T13:44:43Z, line 55321: "It's p2, because it's devex
+    (pinning itself is p0, but automatically repinning is devex)"); so is
+    removing an old form kept for compatibility, and a ticket that only
+    comments on a measurement is no ticket (owner, 2026-10-22T22:02:54Z, line
+    73778: "I don't need tickets that comment on something with measurement.").
+  - **p3:** everything else; a session may file p3 issues but does not work on
+    them.
+- **Order of work.** The owner's words (owner, 2026-10-22T11:51:04Z, transcript
+  line 71275): "Worker in progress first", "Open pr second", then "P0", "P1",
+  "P2", and "Within a category, oldest wins." So:
+  1. A worker in progress is never stopped for a new priority, unless it is an
+     emergency (owner, 2026-10-20T00:50:04Z, line 47690: "If a worker works on
+     it, unless it's an emergency, it should be allowed to finish.")
+     "Prioritize" means jump the queue, not interrupt, unless the owner says to
+     stop a worker (owner, 2026-10-22T02:13:24Z, line 68885: "unless I
+     explicitly say to stop a worker, "prioritize" means jump the queue, not
+     interrupt").
+  2. An open pull request is finished, whatever its priority (owner,
+     2026-10-20T00:50:04Z, line 47690: "If a PR is open and no worker is
+     working on it, and it's still relevant, regardless of priority, it should
+     be finished."), oldest first, with nothing else ranking them: a fix does
+     not come before an older review (owner, 2026-10-26T13:57:38Z, line 105684:
+     "No, among them oldest first."). A pull request that is neither green nor
+     red cannot be worked on (owner, 2026-10-26T14:05:11Z, line 105788: "if it
+     is not green and not red, it can't be worked on").
+  3. A pull request that is ready to merge is merged before anything else,
+     still within the pressure rules (owner, 2026-10-26T19:34:21Z, line
+     109484: "merging PRs that are ready to be merged takes priority over
+     everything else"; 2026-10-26T19:37:01Z, line 109557: "first, but still
+     respectful of pressure rules").
+  4. Then tickets: p0, then p1, then p2, oldest opened first. A p1 is not
+     started while a p0 can be worked; a p0 that a worker has in hand, or that
+     is blocked, cannot be, and an agent row is never left empty for the order
+     (owner, 2026-10-26T03:03:00Z, line 100831: "THE RULES SAY SLOTS ARE NEVER
+     EMPTY"; 2026-10-21T10:45:34Z, line 61554: "I said explicitly that PRs in
+     flight trump everything else").
+  5. A blocked ticket has no priority while it is blocked, and its blockers
+     inherit its priority and its age (owner, 2026-10-22T11:52:56Z, line
+     71296: "A blocker inherits age from what it blocks."; 2026-10-26T04:49:16Z,
+     line 103163: "while it's blocked, it has NO priority. Something from 120BCE
+     with priority 0 is not worked on if it has blockers. The blockers inherit
+     the priority."). A blocked ticket is not started, not even for a piece of
+     it (owner, 2026-10-24T04:51:42Z, line 82652: "DON'T START THE AGENT").
+- **No downgrades without the owner's word.** Downgrading a ticket to p3 on
+  judgement (minor impact, high cost), or to any other priority, needs the
+  owner's approval. An issue's priority is the owner's call: a worker that
+  thinks it is wrong says so on the issue, and does not change the label.
 - **A ticket is split only for a reason that justifies it, and then into the
   fewest tickets that reason forces.** The 2026-10-18 rule (owner,
   2026-10-18T20:19:33Z: "close the "umbrella" ticket as "broken into
@@ -441,7 +508,13 @@ compaction.
   fix."). If CI has a tool, package, browser, voice, font or setting a test
   needs, the worker installs it on its machine, runs the real thing, and
   documents the setup. A report that says "did not run: the machine lacks" is
-  sent back.
+  sent back. "This machine lacks X" is never a reason for a spec to be skipped
+  or to pass here and fail in CI; what CI has, the worker's machine has, and
+  the one command each takes here is written down.
+- **The author owns CI until it is green** (push, report the head, finish;
+  never wait on a run); any author may take over a red, or a merge conflict.
+  The Done-when as written is the standard: nobody narrows a ticket in a
+  brief, in a review or in a PR.
 - **`/dev` is not written to by a worker** (owner, 2026-10-21T01:35:13Z: "I
   agree workers shouldn't *trash* /dev/null, but that's different from
   redirection"). Do not create, move, link, delete or truncate anything under
@@ -481,6 +554,16 @@ compaction.
   evidence against the ticket's Done-when, read CI for the head, and post the
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
   output on the PR, else changes needed.
+- **The author posts the evidence for every claim of a PR and every item of
+  the ticket's Done-when in the PR body: the command and its raw output.** A
+  claim is never weakened to match the logs; the code is changed until the
+  output shows it.
+- **A test that went red is root-caused, or the test is made robust against
+  the cause that was found**: "it passed again", "it passes alone" and
+  "contention" are not causes. A class of failure a change says it covers has a
+  case that fails when the class occurs, shown by injecting it. A reviewer runs
+  nothing and starts only when every required check is finished and green on
+  the exact head.
 - **Saying a defect out loud is not fixing it** ("documented", "disclosed",
   "known", "non-blocking" never make an approval): a defect is changes needed,
   or, when the owner has ruled the PR may land, its own ticket at once.
@@ -558,6 +641,42 @@ compaction.
   check: the old form is still there; a test calls it; the deprecation comment
   names the area and the removal ticket; the ticket exists, is p2 and is cited;
   a signature changed in place is changes needed.
+- **The overlap rule, as the owner said it each time.** The standing rule
+  (owner, 2026-10-19T03:28:04Z, transcript line 46303): "OK. I'm not sure where
+  this should be but it is a standing rule for the session: breaking changes
+  must have *at least* one version of overlap." The four, each with its
+  transcript line:
+  - 2026-10-19T03:28:04Z (transcript line 46303): "OK. I'm not sure where this
+    should be but it is a standing rule for the session: breaking changes must
+    have *at least* one version of overlap."
+  - 2026-10-20T05:35:29Z (transcript line 51253), on a pull request that
+    changed the word helpers' public signatures: "THERE ARE RULES ABOUT
+    BREAKING CHANGES"
+  - 2026-10-21T16:56:11Z (transcript line 64376): "NEVER DEPRECATE IN ONE GO WE
+    HAVE THIS DOCUMENTED CHECK THE HISTORY"
+  - 2026-10-21T16:57:11Z (transcript line 64396): "I have said this like five
+    times in the conversation. If it's not somewhere you keep add it NOW."
+- **A breaking change is made in two steps, never one.** A pull request that
+  changes a published signature (of a package, in its repository) adds the new
+  form beside the old one, named by what it adds (as a `_proved` suffix does);
+  the old one is marked deprecated in a one-line comment that names its area by
+  keyword and its removal ticket; a test calls the old form, so an edit cannot
+  drop it. One published version holds both. The ticket that removes the old
+  form is filed with the change, as p2, with a p2 ticket for each dependent's
+  move to the new form, and the removal is blocked on them (owner,
+  2026-10-27T15:31:29Z, transcript line 119703: "File the tickets against the
+  dependents as p2 right now though, and mark it blocked on them"): removing an
+  old form is cleanup, not a correctness defect, and a higher priority would
+  put it ahead of every p2 feature. When it was filed is never a finding
+  (owner, 2026-10-25T05:27:02Z, transcript line 92487: "it wasn't even a rule,
+  it was being "fence around the torah" for no good reason"; 2026-10-25T00:11:51Z,
+  line 91136: "Who cares when it was filed").
+- **The review of such a pull request checks both steps, each one:** the old
+  form is still there, beside the new one; a test calls the old form; the old
+  form has a deprecation comment that names the area by keyword and the removal
+  ticket; the removal ticket exists, is p2, and is cited in the deprecation
+  comment. A pull request that changes a published signature in place gets
+  `Verdict: changes needed`.
 
 ## Checkouts and disk
 
@@ -568,6 +687,10 @@ compaction.
   them to their own branch first, and one with uncommitted work has it committed
   or moved aside before it moves. The orchestrator fast-forwards each to the
   default branch at the start of every session and after every compaction.
+- The check before a push runs in a checkout that stays (the next ticket is a
+  new branch in it, and nobody deletes it or its build output), so it is
+  incremental; a run over a population there is a seeded sample (`ci.md`,
+  "Check locally before every push").
 - Nobody deletes the persistent checkout: the worktree a worker reuses, the one
   whose PR merged last, or the orchestrator's own. Only under disk pressure is
   another worktree removed, and only one whose PR is merged and whose tip is on
@@ -586,8 +709,20 @@ compaction.
 
 ## How decisions are made
 
-- Research before design: what comparable software does, written down where it
-  is decided.
+- **Research before design: what comparable software does, written down where
+  it is decided.** No task is ever "left to the human" unless an agent
+  physically cannot do it (a permission it was denied, access it does not have,
+  a secret it cannot see). Every other question, design choices included (which
+  layout, which wording, which default), is settled by research (what other
+  apps do, what their users and reviewers say, what studies and guidelines say)
+  and best judgement, written down where it is decided (the issue or the PR),
+  and then done. Judgement is what is left after the research, never a
+  substitute for it: a value or a design chosen with no look at what comparable
+  software does (the libraries, frameworks and apps that face the same
+  question, and what they chose and why) is not decided. "The platform
+  documents no value" is where the research goes on, to what others do, not
+  where it stops; if nothing comparable can be found, say so where it is
+  decided, with what was searched.
 - Stop inventing threat models; trust is not a problem the project has. A cache
   that can be wrong is a correctness bug whoever caused the change.
 - **A tool of the process that does not work is fixed, never shimmed**
