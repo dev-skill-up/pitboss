@@ -141,6 +141,18 @@ Commands
        transcript under ``--transcripts``) and a fixed prompt, filled with
        those facts, for what needs judgement. The class list is fixed
        (``redshapes.RedClass``).
+   * - ``lint text FILE... [--phrases FILE]...``
+     - Banned phrases (pitboss#35). Prints one finding per line (file, line,
+       label, the line, the phrase, what to do instead), exits 1 on any,
+       0 on none, 2 on a file or phrase file it cannot use. The phrase file
+       pitboss ships (``phrases.tsv``) is always used; each ``--phrases`` adds
+       a project's file (``--no-default-phrases`` leaves the shipped one out).
+       A phrase file has a line for each phrase: label, pattern, example,
+       what to do instead, tab separated, ``#`` lines skipped. The pattern
+       is a character, ``\s \d \w \b``, ``\<c>``, a class, and ``? + *``
+       on one atom, searched without regard to case; a group or an
+       alternation is refused (an alternative is a line of its own), and an
+       example that its pattern does not match is refused.
    * - ``clean-container``
      - Removes the regular files directly in ``--root`` (default ``/``)
        modified more than ``--hours`` (default 1) after ``--marker``

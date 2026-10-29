@@ -41,6 +41,9 @@ CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFT
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+[tool.setuptools.package-data]
+pitboss = ["phrases.tsv"]
+
 [project.urls]
 Homepage = "https://github.com/dev-skill-up/pitboss"
 
@@ -65,6 +68,7 @@ ignore_missing_imports = true
 module = [
     "pitboss.commands",
     "pitboss.container_commands",
+    "pitboss.lint_commands",
     "pitboss.slot_commands",
     "pitboss.red_commands",
 ]

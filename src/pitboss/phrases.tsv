@@ -1,0 +1,88 @@
+# The phrases a brief, a ticket, a pull request body, a review or a hand-back may not hold.
+#
+# One line each, fields separated by tabs: a label, a pattern, an example the pattern matches
+# (tested), and what to do instead. A line that starts with # is not a phrase.
+# The pattern language is small: a character, \s \d \w, \b (a word edge), \<c> (the
+# character c), a class [...] or [^...] of characters and \s \d \w, and ? + * after an
+# atom other than \b. No group and no alternation: an alternative is a line of its own.
+# Searched without regard to case.
+verdict	provisional verdict	my provisional verdict is approved	A verdict is the posted review; one anywhere else is no review.
+narrowing	instead of fixes	change refs instead of fixes	Nobody offers a way to ship less than the ticket says: the Done-when as written is the standard.
+narrowing	unless narrow	refs unless narrows it	Nobody offers a way to ship less than the ticket says: the Done-when as written is the standard.
+narrowing	unless the narrow	refs unless the narrows it	Nobody offers a way to ship less than the ticket says: the Done-when as written is the standard.
+narrowing	unless owner narrow	refs unless owner narrows it	Nobody offers a way to ship less than the ticket says: the Done-when as written is the standard.
+narrowing	unless the owner narrow	refs unless the owner narrows it	Nobody offers a way to ship less than the ticket says: the Done-when as written is the standard.
+narrowing	or narrow\b	do it or narrow	Narrowing is the owner's, never offered.
+narrowing	or narrowing\b	do it or narrowing	Narrowing is the owner's, never offered.
+refs	fixes\s+#?\d+\s+to\s+refs	change fixes #7 to refs	Do the Done-when as written; the first line stays Fixes.
+refs	fixes\s+#?[nx]\s+to\s+refs	change fixes #n to refs	Do the Done-when as written; the first line stays Fixes.
+refs	fixes\s+#?<[^>\s]*>\s+to\s+refs	change fixes #<ticket> to refs	Do the Done-when as written; the first line stays Fixes.
+refs	\bas refs\b	open it as refs	Do the Done-when as written; the first line stays Fixes.
+refs	\buse refs\b	use refs here	Do the Done-when as written; the first line stays Fixes.
+refs	\bopen it as refs\b	then open it as refs	Do the Done-when as written; the first line stays Fixes.
+refs	\bopened it as refs\b	we opened it as refs	Do the Done-when as written; the first line stays Fixes.
+half-done	\bpartly\b	the ticket is partly done	Half done is not a state: the Done-when is met as written or the work goes on.
+half-done	\bpartially\b	the ticket is partially done	Half done is not a state: the Done-when is met as written or the work goes on.
+half-done	hand-?picked	a hand-picked sample	A local sample is random, with its seed and size named; the whole population is CI's.
+rerun	passed this time	it passed this time	A red test is root-caused; passing again is not a cause.
+rerun	passed alone	it passed alone	A red test is root-caused; passing again is not a cause.
+rerun	passed on re-?run	it passed on rerun	A red test is root-caused; passing again is not a cause.
+rerun	passed on a re-?run	it passed on a re-run	A red test is root-caused; passing again is not a cause.
+rerun	pass alone	it will pass alone	A red test is root-caused; passing again is not a cause.
+rerun	passes alone	it passes alone	A red test is root-caused; passing again is not a cause.
+rerun	pass this time	it will pass this time	A red test is root-caused; passing again is not a cause.
+rerun	passes this time	it passes this time	A red test is root-caused; passing again is not a cause.
+rerun	pass on re-?run	it can pass on rerun	A red test is root-caused; passing again is not a cause.
+rerun	pass on a re-?run	it can pass on a re-run	A red test is root-caused; passing again is not a cause.
+rerun	passes on re-?run	it passes on rerun	A red test is root-caused; passing again is not a cause.
+rerun	passes on a re-?run	it passes on a re-run	A red test is root-caused; passing again is not a cause.
+rerun	nothing touches it	contention, nothing touches it	A red test is root-caused; passing again is not a cause.
+cause	\bcontention\b	failed under contention	A red test is root-caused or made robust; the word is not a cause.
+unverified	honest	honest points	State the fact; the word adds nothing and offers an exit.
+unverified	\bfrank\b	to be frank it works	State the fact; the word adds nothing and offers an exit.
+unverified	\bfrankly\b	frankly it works	State the fact; the word adds nothing and offers an exit.
+unverified	not run locally	not run locally: the e2e	Run what the change needs; what CI runs is CI's and is not a caveat.
+unverified	haven'?t verified	we haven't verified it	Run what the change needs; what CI runs is CI's and is not a caveat.
+alternative	or say what is true	do x or say what is true	A claim is never weakened: the code is changed until it holds.
+alternative	or remove the claim	or remove the claim	A claim is never weakened: the code is changed until it holds.
+alternative	or remove the sentence	or remove the sentence	A claim is never weakened: the code is changed until it holds.
+alternative	or remove the line	or remove the line	A claim is never weakened: the code is changed until it holds.
+waiting	after a day\b	after a day of sessions	A step that waits for time or a recurrence is done now.
+waiting	after a week\b	after a week of sessions	A step that waits for time or a recurrence is done now.
+waiting	after a month\b	after a month of sessions	A step that waits for time or a recurrence is done now.
+waiting	after a sessions?\b	after a session	A step that waits for time or a recurrence is done now.
+waiting	after \d+ sessions?\b	after 3 sessions	A step that waits for time or a recurrence is done now.
+waiting	next capture\b	at the next capture	A step that waits for time or a recurrence is done now.
+waiting	next run\b	at the next run	A step that waits for time or a recurrence is done now.
+waiting	next occurrence\b	at the next occurrence	A step that waits for time or a recurrence is done now.
+waiting	wait and see	wait and see	A step that waits for time or a recurrence is done now.
+slot	holding the slot	holding the slot	Hold nothing: do the work or hand it back.
+evidence-wait	blocked on evidence	blocked on evidence	Evidence is produced, not waited for: produce it.
+evidence-wait	waiting for evidence	waiting for evidence	Evidence is produced, not waited for: produce it.
+waiting-go	waiting for a "?go"?\b	waiting for a go	No step waits for a go: do it as written.
+waiting-go	waiting for the "?go"?\b	waiting for the "go"	No step waits for a go: do it as written.
+measure	stop measuring	stop measuring	Measure as the Done-when says, in full.
+measure	narrow the measurement	narrow the measurement	Measure as the Done-when says, in full.
+unverified	haven'?t checked	I haven't checked at it	Look, and say what was found; a check that was not made is made, not reported.
+unverified	haven'?t looked	I haven't looked at it	Look, and say what was found; a check that was not made is made, not reported.
+unverified	didn'?t check	I didn't check the PR	Look, and say what was found; a check that was not made is made, not reported.
+unverified	didn'?t look	I didn't look the PR	Look, and say what was found; a check that was not made is made, not reported.
+unverified	didn'?t verify	I didn't verify the PR	Look, and say what was found; a check that was not made is made, not reported.
+unverified	i'?ve not checked	I've not checked it	Look, and say what was found; a check that was not made is made, not reported.
+unverified	i have not checked	I have not checked it	Look, and say what was found; a check that was not made is made, not reported.
+unverified	i'?ve not verified	I've not verified it	Look, and say what was found; a check that was not made is made, not reported.
+unverified	i have not verified	I have not verified it	Look, and say what was found; a check that was not made is made, not reported.
+unverified	i'?ve not looked	I've not looked it	Look, and say what was found; a check that was not made is made, not reported.
+unverified	i have not looked	I have not looked it	Look, and say what was found; a check that was not made is made, not reported.
+half-done	\bin part\b	done in part	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bthe part that\b	the part that is left	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bthe part of\b	the part of is left	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bthe part which\b	the part which is left	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? is done\b	two parts is done	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? is left\b	two parts is left	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? is owed\b	two parts is owed	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? is not done\b	two parts is not done	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? are done\b	two parts are done	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? are left\b	two parts are left	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? are owed\b	two parts are owed	The word part is not used: the Done-when is met as written or the work goes on.
+half-done	\bparts? are not done\b	two parts are not done	The word part is not used: the Done-when is met as written or the work goes on.

@@ -31,6 +31,9 @@ Commands
                                                 report: summary, causes, costs, synthesis, a page
                                                 for each red run with a prompt for the judgement
                                                 items, the open p0 tickets.
+``pitboss lint text FILE... --phrases FILE``    Banned phrases: one finding per line, exit 1 on any.
+                                                The shipped list is always used; ``--phrases``
+                                                adds a project's (more than once if need be).
 ==============================================  =====================================================
 
 ``CONFIG`` is a path, or a name looked up as ``.claude/pitboss/<name>.toml`` in
