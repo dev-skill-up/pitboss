@@ -258,7 +258,7 @@ Output
 ------
 
 Every line that calls for an action says the action. The markers
-(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``EMPTY SLOT``,
+(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``EMPTY SLOT``, ``SLOTS FREE``,
 ...) are members of one enum, ``pitboss.markers.Marker``, printed as the
 member's name in words (so ``READY_TO_MERGE`` prints ``READY TO MERGE``,
 and the line with no pressure reads ``NO RUNNER PRESSURE``); a check in CI
