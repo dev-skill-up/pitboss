@@ -41,7 +41,10 @@ runs the workers (slots, tickets, briefs, reviews, pushing and merging), each
 with his dated words. Read `references/sweep.md`: it says what each marker
 means and what to do about it, including the runner-pressure hold, which comes before everything
 else. Read `references/slots.md` before starting, stopping or reporting on
-worker agents. Give `references/adversarial-review.md` to every reviewer you
+worker agents. Read `references/engineering.md` (the owner's rulings on code,
+tests and errors) before briefing or reviewing a change to code, and
+`references/ci.md` (pins, caches, checking before a push, draft PRs) before
+briefing a change to CI, a lock or a cache. Give `references/adversarial-review.md` to every reviewer you
 start; a reviewer reads that file and nothing else about the form.
 
 The commands that change something (`cancel-stale-runs`, `clean-worktrees`)
