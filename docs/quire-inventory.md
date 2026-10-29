@@ -71,8 +71,8 @@ the quire text shrinks to a pointer.
 Count: 20 files: 0 `pitboss`, 7 `split` (`backup-errors`, `ci`, `e2e`, `interface`, `release`,
 `sync`, `types`) and 13 `quire` (`backup-write-answer`, `book-memory`, `book-text`, `cfi`,
 `dictionaries-catalogues`, `epub-format`, `epub-media`, `library-records`, `library-screen`,
-`platform`, `reader-layout`, `reader`, `vocabulary`). CLAUDE.md: 13 sections: 2 `pitboss`
-(rows 1 and 3), 10 `split` and 1 `quire` (row 13).
+`platform`, `reader-layout`, `reader`, `vocabulary`). CLAUDE.md: 13 sections: 1 `pitboss`
+(row 3), 11 `split` and 1 `quire` (row 13).
 
 ## Open quire pull requests that change a `pitboss` or `split` file or section
 
