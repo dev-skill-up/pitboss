@@ -167,15 +167,14 @@ def _line(sources: reviews.Sources) -> str:
 class TestTwoReviewLines(unittest.TestCase):
     """The sweep's line for two review comments on one head."""
 
-    def test_approved_after_changes_needed(self) -> None:
-        """Changes needed, then approved: the line says approved-this-head."""
-        line = _line(_two("changes needed", "approved"))
-        assert_that(line, contains_string("review=approved-this-head"))
-
-    def test_changes_needed_after_approved(self) -> None:
-        """Approved, then changes needed: the line says changes-needed."""
-        line = _line(_two("approved", "changes needed"))
-        assert_that(line, contains_string("review=changes-needed"))
+    def test_newer_review_decides_the_line(self) -> None:
+        """Changes needed then approved says approved-this-head; the reverse not."""
+        lines = [
+            _line(_two("changes needed", "approved")),
+            _line(_two("approved", "changes needed")),
+        ]
+        assert_that(lines[0], contains_string("review=approved-this-head"))
+        assert_that(lines[1], contains_string("review=changes-needed"))
 
 
 class TestUnread(unittest.TestCase):
