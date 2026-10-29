@@ -257,39 +257,27 @@ compaction.
   judgement (minor impact, high cost), or to any other priority, needs the
   owner's approval. An issue's priority is the owner's call: a worker that
   thinks it is wrong says so on the issue, and does not change the label.
-- **A ticket is split only for a reason that justifies it, and then into the
-  fewest tickets that reason forces.** The 2026-10-18 rule (owner,
-  2026-10-18T20:19:33Z: "close the "umbrella" ticket as "broken into
-  <components>". This should be a standing rule") is read with the owner's
-  later words. On size and call sites (owner, 2026-10-20T10:41:03Z): "We don't
-  break t up just because there's a lot of call sites. Just...fix all the call
-  sites unless there's a good reason to break up"; on what a reason is (owner,
-  2026-10-20T10:45:14Z): "No, anyone can write a reason. It must be a reason
-  that justifies it. Either too long to review (which is never true for
-  mechanical change like threading a new argument through call sites) or
-  genuinely several unrelated changes otherwise"; on how many pieces (owner,
-  2026-10-25T00:16:07Z: "Just because we break doesn't mean we shatter";
-  2026-10-25T00:16:55Z: "Record this: break it up into the minimum amount of
-  pieces to satisfy the rule"); and last (owner, 2026-10-28T14:57:01Z): "STOP
-  SPLITTING TICKETS WITHOUT A GOOD REASON, AND A GOOD REASON DOESN'T INCLUDE
-  "IT'S A LOT OF WORK"". The reasons are the owner's, quoted: "genuinely
-  several unrelated changes"; several repositories, where one PR cannot hold
-  the pieces (owner, 2026-10-21T03:57:07Z: "This is exactly the case where
-  brekaing is reasonable"); and a split the owner approved (owner,
-  2026-10-20T14:09:08Z: "If the split is approved split before filing pr"). A
-  dependency owned elsewhere is the several-repositories case. The amount of
-  work, the number of Done-when items, the number of call sites and the time of
-  a review are never reasons, and neither is the length of a ticket (owner,
-  2026-10-25T09:16:55Z: "let's remove all size language"; owner, 2026-10-25:
-  "Bullshit. Size alone should only be the blocker in extreme cases."). The
-  pieces are taken from the steps already in the ticket, inherit its priority
-  and labels, and the original is closed with its body saying what it was
-  broken into (owner, 2026-10-24T13:22:21Z: "No, it's closed and the body says
-  what it was broken into"); it is not kept open as an umbrella. A piece that
-  depends on another says so in its body ("This ticket cannot be worked on
-  until #n is resolved") and is worked after the other merged, each in a PR of
-  its own. An agent that thinks a split is needed says the reason in its report
-  before it splits anything, and does the whole ticket otherwise.
+- **A ticket is one ticket and one PR; it is split only, and always, when one
+  PR is impossible** (owner, 2026-10-29: a ticket is split when one PR cannot
+  satisfy it, after convincing evidence, and never for size; its original is
+  closed as split; the pieces do not reference it; a ticket is never
+  reopened). The statement is in this one place; the briefs only carry the
+  check (the one-PR check in the brief rules below).
+  * *Never a reason:* the amount of work, the number of Done-when items, the
+    number of call sites, the length of the ticket, the time of a review (owner,
+    2026-10-28T14:57:01Z: "STOP SPLITTING TICKETS WITHOUT A GOOD REASON, AND A
+    GOOD REASON DOESN'T INCLUDE "IT'S A LOT OF WORK"").
+  * *Impossible for one PR:* the pieces are in several repositories, a
+    dependency is owned elsewhere, or the changes are genuinely unrelated and
+    cannot land together. The agent that claims impossibility brings the
+    evidence first (below).
+  * *How:* the orchestrator splits, into the fewest pieces that the
+    impossibility forces, taken from the steps already in the ticket, each with
+    the priority and labels of the original and its own `Fixes`. The original
+    is closed with its body saying what it was split into; it is not kept open
+    as an umbrella. A piece that depends on another says so in its body ("This
+    ticket cannot be worked on until #n is resolved") and is worked after that
+    one merged.
 - **A partial fix is never merged, and a ticket is never narrowed or split to
   get a PR through, unless impossibility is verified** (owner,
   2026-10-29T04:50:34Z: "Merging it as a partial fix is your call. <-- it's not
@@ -341,7 +329,7 @@ compaction.
   not enough, the ticket's action is "add the data capture". With a known
   cause, fix it. A ticket whose only content is `wait and see` is closed at
   once; no "watch" ticket stands in for work. If a closure was a misreading,
-  reopen it with the actionable item.
+  file a new ticket with the actionable item (a ticket is never reopened).
 - **Quality of a ticket** (owner, haiku-rule 5, 2026-10-23): correctness is
   never gated on speed, so no timing measurement, speed budget or net-cost
   clause appears in a correctness ticket, brief or review. A ticket is p0 for
@@ -437,15 +425,13 @@ compaction.
   the turn; do not merge; do not write the review. Every reviewer brief says:
   the reviewer rules, and that a reviewer runs nothing. A reviewer brief is sent
   only when the sweep says the PR is ready for review, and names the head SHA.
-- **A worker brief carries the No-split line** as the source has it, typo
-  included: `No split: do the whole ticket in one PR; a ticket is split only for
-  a reason that justifies it (genuinely several unrelated changes, pieces in
-  another repository, a split the owner approved), never for size, never for the
-  number of Done-when items; "it is a lot of work" is not a reason (owner,
-  2026-10-28T14:57:01Z: "STOP SPLITTING TICKETS WITHOUT A GOOD REASON, AND A
-  GOOD REASON DOESN'T INCLUDE "IT'S A LOT OF WORK""). Say the reason in your
-  report before splitting anything.` (owner, 2026-10-28T14:57:41Z: "fix your
-  briefs with this encouragemet WE TALKED ABOUT THIS").
+- **A worker and a reviewer brief begin with the one-PR check.** `One PR: first
+  confirm that the ticket can be satisfied by one PR. If it can, do the whole
+  ticket in one PR. If it cannot, hand back NOT STARTED with the evidence
+  (what you searched, what you tried, why one PR is impossible) and split
+  nothing yourself.` A reviewer brief begins with the same check, and a PR that
+  could not satisfy its ticket in one PR is judged by the evidence of that
+  claim, not by its size.
 - **Design check, Push and Sample lines.** `Design check: push the ticket's
   declarations (types and statements, no proofs or bodies) to the branch before
   building on them and hand back with DESIGN CHECK; a reviewer reads only those
