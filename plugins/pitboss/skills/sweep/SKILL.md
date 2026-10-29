@@ -36,8 +36,10 @@ Other commands, all reading the same file:
 
 ## Before acting on any line
 
-Read `references/sweep.md`: it says what each marker means and what to do
-about it, including the runner-pressure hold, which comes before everything
+Read `references/rules.md`: the owner's standing rules for the session that
+runs the workers (slots, tickets, briefs, reviews, pushing and merging), each
+with his dated words. Read `references/sweep.md`: it says what each marker
+means and what to do about it, including the runner-pressure hold, which comes before everything
 else. Read `references/slots.md` before starting, stopping or reporting on
 worker agents. Give `references/adversarial-review.md` to every reviewer you
 start; a reviewer reads that file and nothing else about the form.
