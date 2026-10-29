@@ -68,9 +68,11 @@ waits past its time limit is dequeued (`CI_TIMEOUT`).
 
 While `RUNNER PRESSURE` is printed:
 
-- do not push, open a PR, merge (by hand or by re-arming auto-merge), or
-  re-run jobs, in any repository the configuration lists under runners;
-- tell every running agent to hold its pushes and keep working locally
+- do not push to a non-draft PR, mark a PR ready, enqueue or merge (by hand
+  or by re-arming auto-merge), or re-run jobs, in any repository the
+  configuration lists under runners; pushes to a draft PR, and opening one,
+  start no costly job and are not held;
+- tell every running agent to hold its pushes to non-draft PRs and keep working locally
   (design, proofs, local checks), committing locally only; unpushed work is
   expected during a hold;
 - reading runs and logs, filing and commenting on issues, and reviews that
@@ -104,7 +106,8 @@ which is reclaimed after a while. Each `STRAGGLER` line is triaged:
 
 - an agent is working in it: leave it;
 - its work merged under another SHA (squashed): remove the checkout;
-- unpushed and unmerged: push it (when there is no runner pressure) so it
+- unpushed and unmerged: push it (when there is no runner pressure, or as a
+  draft) so it
   becomes a PR, and say so; during a hold, write down on its issue where it
   is, so the next session finds it;
 - scratch: read its `git status`, then delete it.

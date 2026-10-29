@@ -196,8 +196,13 @@ class TestSweep(unittest.TestCase):
         under = world.again(here, "pressure")
         here.bodies[PROJECT_JOBS] = {"jobs": []}
         clear = world.again(here, "pressure")
-        found = [last_line(under)[0][:18], last_line(clear)[0][:19]]
-        expected = ["RUNNER PRESSURE: 1", "NO RUNNER PRESSURE:"]
+        found = [last_line(under)[0], last_line(clear)[0]]
+        expected = [
+            "RUNNER PRESSURE: 1 queue-run jobs waiting for a runner: HOLD pushes to"
+            " non-draft PRs, undrafts, enqueues, merges and re-runs"
+            " (all repositories; pushes to drafts are free)",
+            "NO RUNNER PRESSURE: push and merge as usual",
+        ]
         assert_that((found, under.code, clear.code), equal_to((expected, 1, 0)))
 
     def test_unreadable_project(self) -> None:

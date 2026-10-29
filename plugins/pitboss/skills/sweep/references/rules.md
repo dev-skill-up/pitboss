@@ -55,8 +55,10 @@ compaction.
    - red (a failed check or status, or a review that asked for changes at this
      head) or in conflict with the base: a fix, by any author (a conflict is
      fixed as a red CI is: merge the base in, resolve, check, push);
-   - behind the base, its checks finished: an update (merge the base in,
-     check, push);
+   - behind the base, its checks finished, in a repository with no merge
+     queue: an update (merge the base in, check, push); where a merge queue
+     builds each entry on the current base, behind is no work (see "Merge
+     conflicts");
    - green on its exact head with no review of that head: a review, by an
      agent that is not its author;
    - reviewed approved at its head and green: a merge;
@@ -585,8 +587,10 @@ compaction.
 
 ## Pushing and merging
 
-- **Before any push or merge, check the runner pressure** (`pitboss pressure`;
-  `sweep.md` has the hold). Under pressure, hold; a hold lifts only when the
+- **Before any push to a non-draft PR, undraft, enqueue or merge, check the
+  runner pressure** (`pitboss pressure`; `sweep.md` has the hold). Pushes to a
+  draft PR start no costly job and are not held (`ci.md`). Under pressure,
+  hold; a hold lifts only when the
   pressure printed none at every look for 15 minutes (owner,
   2026-10-26: "New rule: runner pressure should be 0 for 15 minutes before we
   consider the hold off. (the reason is because some things get a minute to
