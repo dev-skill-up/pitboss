@@ -22,6 +22,10 @@ trusted_associations = ["OWNER"]
 [review.form]
 lines = ["Review of {sha}: {verdict}"]
 approved = "yes"
+[lint.pr_body]
+footers = ["made by me"]
+[lint.brief]
+required = ["Overlap:"]
 [merge_queue]
 timeout_minutes = 30
 [worktrees]
@@ -54,6 +58,7 @@ def _summary(settings: config.Config) -> dict[str, object]:
             settings.review.form.approved,
             settings.review.gated_form.approved,
         ),
+        "lint": (settings.lint.footers, settings.lint.brief_lines),
         "numbers": (settings.timeout_minutes, settings.idle_hours),
         "reminders": settings.reminders,
         "slots": (
@@ -73,6 +78,7 @@ DEFAULTS: Mapping[str, object] = {
     "gated": frozenset(),
     "trusted": frozenset(config.DEFAULT_ASSOCIATIONS),
     "approved": ("approved", "approved"),
+    "lint": (config.DEFAULT_FOOTERS, ()),
     "numbers": (60, 3.0),
     "reminders": config.DEFAULT_REMINDERS,
     "slots": ((), (), (), {}),
@@ -85,6 +91,7 @@ READ: Mapping[str, object] = {
     "gated": frozenset({"owner/lib"}),
     "trusted": frozenset({"OWNER"}),
     "approved": ("yes", "yes"),
+    "lint": (("made by me",), ("Overlap:",)),
     "numbers": (30, 1.5),
     "reminders": ("one",),
     "slots": (

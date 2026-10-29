@@ -165,6 +165,25 @@ Commands
        leaves the shipped one out). A pairs line is two patterns of the
        phrase language, an example of each and what to do instead, tab
        separated; the text between backticks is not searched.
+   * - ``lint pr-body|review|brief FILE [--head SHA] [--config CONFIG]``
+     - The forms of the texts agents write (pitboss#37), one file each; the
+       phrase check of ``lint text`` runs on the same file. Prints one
+       finding per line ending with its check in parentheses, exits 1 on
+       any, 0 on none (``ok``), 2 on a file or configuration it cannot use.
+       ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket``, ``head``
+       (a ``Head: <40 hex>`` line, the last equal to ``--head``),
+       ``evidence`` (an Evidence heading and a fenced block starting
+       ``$ <command>``) and ``footer`` (one of ``[lint.pr_body] footers`` in
+       the last three lines). ``review``: the lines of ``[review.form]``
+       (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
+       against ``--head`` (``head``); with ``--gated`` the lines of
+       ``[review.gated_form]`` are read as a gate reads them, each once
+       (``exact``), in plain ASCII (``plain``), with the full SHA.
+       ``brief``: every ``[lint.brief] required`` line start begins a line
+       (``required-line``), and with ``--ticket`` each line of the ticket's
+       Done-when section is in the brief word for word (``done-when``).
+       Without ``--config`` the generic forms of ``doc/example.toml`` are
+       used.
    * - ``clean-container``
      - Removes the regular files directly in ``--root`` (default ``/``)
        modified more than ``--hours`` (default 1) after ``--marker``

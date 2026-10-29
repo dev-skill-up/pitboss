@@ -7,10 +7,11 @@ from typing import Callable, Mapping, Sequence, TypeVar
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, contradictions, phrases
+from . import ENTRY_DATA, commands, config, contradictions, forms, phrases
 
 USAGE_ERROR = 2
 _Rule = TypeVar("_Rule")
+FormCheck = Callable[[argparse.Namespace, forms.Subject, config.Lint], Sequence[str]]
 
 
 def _fail(message: str) -> SystemExit:
@@ -50,21 +51,29 @@ def _pairs(args: argparse.Namespace) -> list[contradictions.Pair]:
     return _shipped_and_given(shipped, args.pairs, contradictions.load)
 
 
-def _read_files(args: argparse.Namespace) -> list[tuple[str, str]]:
+def _read(name: str) -> str:
     try:
-        return [(name, phrases.read_text(pathlib.Path(name))) for name in args.files]
+        return phrases.read_text(pathlib.Path(name))
     except phrases.PhraseError as error:
         raise _fail(str(error)) from error
+
+
+def _read_files(args: argparse.Namespace) -> list[tuple[str, str]]:
+    return [(name, _read(name)) for name in args.files]
+
+
+def _finish(refused: Sequence[str], ok: str) -> None:
+    for each in refused:
+        print(each)
+    if refused:
+        raise SystemExit(1)
+    print(ok)
 
 
 def _contradictions(args: argparse.Namespace) -> None:
     pairs = _pairs(args)
     refused = contradictions.findings(_read_files(args), pairs)
-    for each in refused:
-        print(each)
-    if refused:
-        raise SystemExit(1)
-    print(f"ok: {len(pairs)} pairs")
+    _finish(refused, f"ok: {len(pairs)} pairs")
 
 
 def _text(args: argparse.Namespace) -> None:
@@ -72,16 +81,64 @@ def _text(args: argparse.Namespace) -> None:
     refused: list[str] = []
     for name, body in _read_files(args):
         refused.extend(phrases.findings(body, name, banned))
-    for each in refused:
-        print(each)
-    if refused:
-        raise SystemExit(1)
-    print(f"ok: {len(banned)} phrases")
+    _finish(refused, f"ok: {len(banned)} phrases")
+
+
+def _lint_settings(args: argparse.Namespace) -> config.Lint:
+    if args.config is None:
+        return config.default_lint()
+    try:
+        return commands.load_settings(args).lint
+    except (OSError, ValueError, KeyError) as error:
+        raise _fail(f"{args.config}: {error}") from error
+
+
+def _ticket(args: argparse.Namespace) -> str | None:
+    return None if args.ticket is None else _read(args.ticket)
+
+
+def _pr_body_findings(
+    args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
+) -> Sequence[str]:
+    return forms.pr_body(subject, settings.footers)
+
+
+def _review_findings(
+    args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
+) -> Sequence[str]:
+    if args.gated:
+        return forms.gated_review(subject, settings.review.gated_form)
+    return forms.ordinary_review(subject, settings.review.form)
+
+
+def _brief_findings(
+    args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
+) -> Sequence[str]:
+    return forms.brief(subject, settings.brief_lines, _ticket(args))
+
+
+def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
+    def run(args: argparse.Namespace) -> None:
+        texts = _read_files(args)
+        if len(texts) != 1:
+            raise _fail(f"{args.kind} checks one file, not {len(texts)}")
+        name, body = texts[0]
+        subject = forms.Subject(name=name, body=body, head=args.head)
+        refused = [
+            *check(args, subject, _lint_settings(args)),
+            *phrases.findings(body, name, _phrases(args)),
+        ]
+        _finish(refused, "ok")
+
+    return run
 
 
 KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "text": _text,
     "contradictions": _contradictions,
+    "pr-body": _form_kind(_pr_body_findings),
+    "review": _form_kind(_review_findings),
+    "brief": _form_kind(_brief_findings),
 }
 
 
@@ -112,6 +169,28 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         action="store_true",
         default=False,
         help="leave out the pairs file pitboss ships",
+    ),
+    add_argument(
+        "--head",
+        default="",
+        help="the PR's head SHA, for pr-body and review",
+    ),
+    add_argument(
+        "--config",
+        default=None,
+        help="the project's configuration, for pr-body, review and brief: a path,"
+        " or a name in .claude/pitboss/<name>.toml (default: the generic forms)",
+    ),
+    add_argument(
+        "--gated",
+        action="store_true",
+        default=False,
+        help="review: read the configured gated form, strictly, as a gate does",
+    ),
+    add_argument(
+        "--ticket",
+        default=None,
+        help="brief: the ticket's file; its Done-when lines must be in the brief",
     ),
     name="lint",
 )

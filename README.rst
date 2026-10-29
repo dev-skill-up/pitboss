@@ -34,6 +34,10 @@ Commands
 ``pitboss lint text FILE... --phrases FILE``    Banned phrases: one finding per line, exit 1 on any.
                                                 The shipped list is always used; ``--phrases``
                                                 adds a project's (more than once if need be).
+``pitboss lint pr-body|review|brief FILE``      The form of a PR body, a review comment or a brief
+                                                (``--head SHA``, ``--config``, ``--gated``,
+                                                ``--ticket FILE``): one finding per line naming its
+                                                check, exit 1 on any.
 ==============================================  =====================================================
 
 ``CONFIG`` is a path, or a name looked up as ``.claude/pitboss/<name>.toml`` in
