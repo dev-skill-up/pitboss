@@ -73,7 +73,17 @@ def names(found: Found, head: str) -> bool:
     return head.startswith(found.sha)
 
 
-def _pattern(template: str, form: config.ReviewForm) -> re.Pattern[str]:
+def line_pattern(template: str, form: config.ReviewForm) -> re.Pattern[str]:
+    """The pattern a line of a review must match whole.
+
+    Args:
+        template: a line template of the form.
+        form: the form reviews take.
+
+    Returns:
+        The pattern, with the groups ``sha`` and ``verdict`` where the
+        template has them.
+    """
     verdicts = "|".join(map(re.escape, (form.approved, form.changes_needed)))
     escaped = re.escape(template)
     escaped = escaped.replace(re.escape("{sha}"), _SHA)
@@ -81,11 +91,27 @@ def _pattern(template: str, form: config.ReviewForm) -> re.Pattern[str]:
     return re.compile(escaped)
 
 
-def _literal_prefix(template: str) -> str:
+def literal_prefix(template: str) -> str:
+    """The fixed text a template starts with.
+
+    Args:
+        template: a line template of the form.
+
+    Returns:
+        The text before the first ``{sha}`` or ``{verdict}``, stripped.
+    """
     return re.split(r"\{(?:sha|verdict)\}", template)[0].strip()
 
 
-def _is_plain(body: str) -> bool:
+def is_plain(body: str) -> bool:
+    """Whether a comment is plain ASCII with no fence, HTML or link definition.
+
+    Args:
+        body: the comment.
+
+    Returns:
+        True when it is.
+    """
     return (
         body.isascii()
         and _FENCE not in body
@@ -95,7 +121,7 @@ def _is_plain(body: str) -> bool:
 
 
 def _matches_strictly(lines: Sequence[str], template: str, count: int) -> bool:
-    prefix = _literal_prefix(template)
+    prefix = literal_prefix(template)
     containing = sum(1 for line in lines if prefix and prefix in line)
     return count == 1 and (not prefix or containing == 1)
 
@@ -112,13 +138,13 @@ def _matches(
     lines: Sequence[str], form: config.ReviewForm
 ) -> Sequence[Sequence[re.Match[str]]] | None:
     starts = bool(lines and form.lines) and bool(
-        _pattern(form.lines[0], form).fullmatch(lines[0])
+        line_pattern(form.lines[0], form).fullmatch(lines[0])
     )
     if not starts:
         return None
     found = []
     for template in form.lines:
-        pattern = _pattern(template, form)
+        pattern = line_pattern(template, form)
         matches = [match for line in lines if (match := pattern.fullmatch(line))]
         if not matches:
             return None
@@ -169,7 +195,7 @@ def read_gated(body: str, form: config.ReviewForm) -> Reading | None:
     """
     lines = _lines(body)
     matches = _matches(lines, form)
-    if matches is None or not _is_plain(body):
+    if matches is None or not is_plain(body):
         return None
     pairs = zip(form.lines, matches)
     if not all(_matches_strictly(lines, line, len(group)) for line, group in pairs):
