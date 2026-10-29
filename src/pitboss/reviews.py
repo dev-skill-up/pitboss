@@ -234,6 +234,53 @@ def newest(sources: Sources, review: config.Review, slug: str) -> Found | None:
     return max(found, key=lambda item: item.when, default=None)
 
 
+def _rules(review: config.Review, slug: str) -> tuple[Reader, config.ReviewForm]:
+    if slug in review.gated:
+        return read_gated, review.gated_form
+    return read_comment, review.form
+
+
+def _attempts(body: str, form: config.ReviewForm) -> bool:
+    lines = _lines(body)
+    first = lines[0].lower() if lines else ""
+    words = (form.approved.lower(), form.changes_needed.lower())
+    return "review" in first and any(word in first for word in words)
+
+
+def _ignored(item: shapes.Comment, review: config.Review, slug: str) -> bool:
+    read, form = _rules(review, slug)
+    return (
+        item.author_association in review.trusted
+        and read(item.body, form) is None
+        and _attempts(item.body, form)
+    )
+
+
+def unread(
+    sources: Sources, review: config.Review, slug: str, found: Found | None
+) -> str:
+    """Find a newer comment that tries to be a review and is not read as one.
+
+    A comment whose first line says review and a verdict, but which is not
+    in the form (a reviewer wrote ``re-review``), is ignored, so the older
+    review keeps standing; the sweep says so (dev-skill-up/pitboss#20).
+
+    Args:
+        sources: the PR's comments and reviews.
+        review: how reviews are read.
+        slug: the repository's ``owner/name``.
+        found: the newest review that counts.
+
+    Returns:
+        When the newest such comment was written, or the empty string.
+    """
+    since = found.when if found else ""
+    posted = (
+        item.created_at for item in sources.comments if _ignored(item, review, slug)
+    )
+    return max((when for when in posted if when > since), default="")
+
+
 def _gated(sources: Sources, review: config.Review) -> Sequence[Found]:
     trusted, form = review.trusted, review.gated_form
     return list(_from_comments(sources.comments, trusted, read_gated, form))

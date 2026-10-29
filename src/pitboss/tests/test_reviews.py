@@ -2,10 +2,10 @@
 
 import unittest
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, reviews, shapes
-from . import fakes
+from .. import config, report, reviews, shapes
+from . import fakes, test_report
 
 
 def form(*lines: str) -> config.ReviewForm:
@@ -123,6 +123,90 @@ class TestNewest(unittest.TestCase):
         empty = reviews.Sources(comments=[], reviews=[])
         assert_that(found, equal_to(NEWEST))
         assert_that(reviews.newest(empty, REVIEW, "o/x"), equal_to(None))
+
+
+ONE = "Independent review of head {sha}: {verdict}"
+ONE_FORM = form("Independent review of head {sha}: {verdict}")
+TWO = config.Review(
+    trusted=frozenset({"MEMBER"}), gated=frozenset(), form=ONE_FORM, gated_form=ONE_FORM
+)
+
+
+def _body(verdict: str, kind: str = "review") -> str:
+    return f"Independent {kind} of head {fakes.HEAD}: {verdict}\n\nfindings\n"
+
+
+def _two(first: str, second: str, kind: str = "review") -> reviews.Sources:
+    return reviews.Sources(
+        comments=[
+            _comment(_body(first), "04:04", "MEMBER"),
+            _comment("x" * 70000, "04:25", "MEMBER"),
+            _comment(_body(second, kind), "04:27", "MEMBER"),
+        ],
+        reviews=[],
+    )
+
+
+def _standing(sources: reviews.Sources) -> reviews.Standing:
+    return reviews.head_standing(reviews.newest(sources, TWO, "o/x"), fakes.HEAD)
+
+
+def _unread(sources: reviews.Sources, review: config.Review = TWO) -> str:
+    slug = "o/g" if review is not TWO else "o/x"
+    found = reviews.newest(sources, review, slug)
+    return reviews.unread(sources, review, slug, found)
+
+
+def _line(sources: reviews.Sources) -> str:
+    found = reviews.newest(sources, TWO, "o/x")
+    return report.pull_line(test_report.facts(_standing(sources), found), {})
+
+
+class TestTwoReviewLines(unittest.TestCase):
+    """The sweep's line for two review comments on one head."""
+
+    def test_newer_review_decides_the_line(self) -> None:
+        """Changes needed then approved says approved-this-head; the reverse not."""
+        lines = [
+            _line(_two("changes needed", "approved")),
+            _line(_two("approved", "changes needed")),
+        ]
+        assert_that(lines[0], contains_string("review=approved-this-head"))
+        assert_that(lines[1], contains_string("review=changes-needed"))
+
+
+class TestUnread(unittest.TestCase):
+    """A newer comment that tries to be a review but is not in the form."""
+
+    def test_misspelt_form(self) -> None:
+        """A re-review in another form is ignored, and said to be."""
+        sources = _two("changes needed", "approved", kind="re-review")
+        assert_that(_standing(sources), equal_to(reviews.Standing.CHANGES_NEEDED))
+        assert_that(_unread(sources), equal_to("04:27"))
+
+    def test_read_comments_are_not_unread(self) -> None:
+        """A comment read as a review, or no attempt, or a stranger's, is not."""
+        assert_that(_unread(_two("changes needed", "approved")), equal_to(""))
+        strangers = reviews.Sources(
+            comments=[
+                _comment(_body("approved", "re-review"), "1", "NONE"),
+                _comment("", "2", "MEMBER"),
+                _comment("Looks fine, approved", "3", "MEMBER"),
+            ],
+            reviews=[],
+        )
+        assert_that(_unread(strangers), equal_to(""))
+
+    def test_gated_uses_the_gated_form(self) -> None:
+        """In a gated repository the gated form decides what is unread."""
+        gated = config.Review(
+            trusted=frozenset({"MEMBER"}),
+            gated=frozenset({"o/g"}),
+            form=ONE_FORM,
+            gated_form=form("## Adversarial review"),
+        )
+        sources = _two("approved", "approved", kind="re-review")
+        assert_that(_unread(sources, gated), equal_to("04:27"))
 
 
 class TestStanding(unittest.TestCase):

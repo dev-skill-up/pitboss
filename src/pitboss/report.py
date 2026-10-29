@@ -27,6 +27,12 @@ def _queue_word(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> 
     return queue.state(found) if found else "-"
 
 
+def _unread_note(pull: pulls.PullFacts) -> str:
+    if not pull.unread:
+        return ""
+    return f" (ignored: the comment of {pull.unread} is not in the review form)"
+
+
 def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
     """The summary line of one PR.
 
@@ -45,7 +51,7 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
         f" auto-merge={'on' if pull.pull.auto_merge else 'off'}"
         f" pending={pulls.pending(pull)} failed=[{failed}]"
         f" queue={_queue_word(pull, newest)}"
-        f" review={STANDING_WORDS[pull.standing]}"
+        f" review={STANDING_WORDS[pull.standing]}{_unread_note(pull)}"
         f" {pull.pull.title[:55]} ({pull.pull.head.branch})"
     )
 
