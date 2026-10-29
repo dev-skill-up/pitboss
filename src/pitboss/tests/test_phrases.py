@@ -275,3 +275,18 @@ class TestCommand(unittest.TestCase):
         """The files are required."""
         result = lint("text")
         assert_that(result.code, is_not(equal_to(0)))
+
+    def test_files_not_utf8(self) -> None:
+        """A text file or a phrase file that is not UTF-8 is a usage error."""
+        text = fakes.directory() / "bad.md"
+        text.write_bytes(b"caf\xe9\n")
+        table = fakes.directory() / "bad.tsv"
+        table.write_bytes(b"a\tb\tc\xff\td\n")
+        fine = write_text("a.md", "x\n")
+        ran = [
+            (text, lint("text", str(text))),
+            (table, lint("text", fine, "--phrases", str(table))),
+        ]
+        for path, outcome in ran:
+            assert_that((outcome.code, outcome.out), equal_to((2, "")))
+            assert_that(outcome.err, contains_string(f"{path}: not valid UTF-8"))

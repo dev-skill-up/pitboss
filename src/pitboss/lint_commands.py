@@ -34,9 +34,9 @@ def _text(args: argparse.Namespace) -> None:
     refused: list[str] = []
     for name in args.files:
         try:
-            text = pathlib.Path(name).read_text(encoding="utf-8")
-        except OSError as error:
-            raise _fail(f"{name}: {error.strerror}") from error
+            text = phrases.read_text(pathlib.Path(name))
+        except phrases.PhraseError as error:
+            raise _fail(str(error)) from error
         refused.extend(phrases.findings(text, name, banned))
     for each in refused:
         print(each)
