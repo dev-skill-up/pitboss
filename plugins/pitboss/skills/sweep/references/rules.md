@@ -74,7 +74,9 @@ compaction.
      within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
-   review of a PR in progress is never started to fill a slot.
+   review of a PR in progress is never started to fill a slot. A head with no
+   completed check run (a draft that runs no CI) is waiting for CI: a reviewer
+   on it reports NOT STARTED.
 4. **The rows of the ledger are the agents that run, reviewers included**
    (orchestrator, 2026-10-18). The ledger is authoritative on how many; only an
    explicit instruction from the owner ("Add a slot", "Remove", "Change")

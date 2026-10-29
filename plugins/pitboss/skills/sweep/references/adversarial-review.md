@@ -21,6 +21,9 @@ whether the repository is gated.
   first act is to read the checks of the full head SHA the brief names. If one
   has not finished or has not passed, you were started too early: hand back at
   once with `NOT STARTED: <check> is <state> at <sha>`, and review nothing.
+- A head with no completed check run (a draft that runs no CI) is waiting
+  for CI: hand back `NOT STARTED: no completed check run at <sha>`, and never
+  approve it.
 - You are a separate agent from the author. If you wrote any part of the
   change, say so and stop.
 - Report CI by name: each required check and its state at the head SHA, and

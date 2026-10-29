@@ -3,14 +3,32 @@
 import json
 import unittest
 
+from typing import Sequence
+
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, parsing, pulls, report, reviews
+from .. import config, parsing, pulls, report, reviews, shapes
 from . import fakes
 
 
+def run(finished: bool) -> shapes.CheckRun:
+    """A check run that did not fail.
+
+    Args:
+        finished: whether it completed.
+
+    Returns:
+        The check run.
+    """
+    return shapes.CheckRun(id=1, name="check", finished=finished, failed=False)
+
+
 def facts(
-    standing: reviews.Standing, found: reviews.Found | None = None, unread: str = ""
+    standing: reviews.Standing,
+    found: reviews.Found | None = None,
+    unread: str = "",
+    checks: Sequence[shapes.CheckRun] = (),
+    **changes: object,
 ) -> pulls.PullFacts:
     """A PR with a review standing.
 
@@ -18,16 +36,18 @@ def facts(
         standing: where its head stands.
         found: its newest review.
         unread: when a comment not in the form was written.
+        checks: its head's check runs.
+        **changes: fields of the PR's JSON to replace.
 
     Returns:
         The PR.
     """
     repo = config.Repo(owner="o", name="r", slug="o/r")
-    pull = parsing.pull(json.dumps(fakes.pull_body(7)))
+    pull = parsing.pull(json.dumps(fakes.pull_body(7, **changes)))
     return pulls.PullFacts(
         repo=repo,
         pull=pull,
-        checks=(),
+        checks=checks,
         review=found,
         standing=standing,
         unread=unread,
@@ -49,3 +69,40 @@ class TestPullLine(unittest.TestCase):
         """Without one, the line ends as it did."""
         line = report.pull_line(facts(reviews.Standing.CHANGES_NEEDED), {})
         assert_that("ignored" in line, equal_to(False))
+
+
+def lines(pull: pulls.PullFacts) -> str:
+    """The action lines of a PR, as one text.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        The lines, joined.
+    """
+    settings = fakes.settings(fakes.directory())
+    return "\n".join(report.action_lines(pull, settings, False, {}))
+
+
+class TestWaitForCi(unittest.TestCase):
+    """A head with no completed check run waits for CI and is never ready."""
+
+    def test_a_head_with_no_completed_check_run_waits(self) -> None:
+        """No run, a run in progress, and a draft with no run all wait."""
+        approved = reviews.Standing.APPROVED
+        cases = {
+            "no check runs": facts(approved),
+            "check run in progress": facts(approved, checks=[run(False)]),
+            "draft": facts(approved, draft=True),
+        }
+        for name, pull in cases.items():
+            with self.subTest(name):
+                assert_that(lines(pull), contains_string("WAIT-FOR-CI o/r#7"))
+                assert_that("READY" in lines(pull), equal_to(False))
+                assert_that(pulls.green(pull), equal_to(False))
+
+    def test_completed_check_run_is_ready(self) -> None:
+        """A completed green check run ends the wait and the PR is ready."""
+        pull = facts(reviews.Standing.APPROVED, checks=[run(True)])
+        assert_that("WAIT-FOR-CI" in lines(pull), equal_to(False))
+        assert_that(lines(pull), contains_string("READY TO MERGE o/r#7"))

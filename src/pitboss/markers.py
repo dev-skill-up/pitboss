@@ -14,6 +14,7 @@ class Marker(enum.Enum):
         UNREADABLE: a repository the session cannot read.
         RUNNER_PRESSURE: queue runs wait for runners; hold.
         NO_RUNNER_PRESSURE: nothing waits for a runner.
+        WAIT_FOR_CI: a PR's head has no completed check run.
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
@@ -40,6 +41,7 @@ class Marker(enum.Enum):
     UNREADABLE = enum.auto()
     RUNNER_PRESSURE = enum.auto()
     NO_RUNNER_PRESSURE = enum.auto()
+    WAIT_FOR_CI = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
@@ -71,4 +73,7 @@ class Marker(enum.Enum):
         return SPELLED.get(self, self.name.replace("_", " "))
 
 
-SPELLED = {Marker.NO_HAND_BACK: "NO HAND-BACK"}
+SPELLED = {
+    Marker.NO_HAND_BACK: "NO HAND-BACK",
+    Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
+}

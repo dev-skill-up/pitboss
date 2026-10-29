@@ -92,9 +92,19 @@ def action_lines(
     if merge is None and _auto_merge_off(pull, settings, queued):
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
     return [
+        *_wait_lines(pull),
         *_conflict_lines(pull),
         *_failure_lines(pull, why),
         *([merge] if merge else []),
+    ]
+
+
+def _wait_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    if not pulls.waiting_for_ci(pull):
+        return []
+    return [
+        f"{Marker.WAIT_FOR_CI.text} {pulls.reference(pull)}: no check run of the head"
+        " has completed; not ready for review or to merge"
     ]
 
 
