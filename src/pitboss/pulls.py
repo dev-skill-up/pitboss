@@ -65,8 +65,22 @@ def pending(facts: PullFacts) -> int:
     return sum(1 for check in facts.checks if not check.finished)
 
 
+def waiting_for_ci(facts: PullFacts) -> bool:
+    """Whether the head has no completed check run (a draft that runs no CI).
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when no check run of the head has completed.
+    """
+    return not any(check.finished for check in facts.checks)
+
+
 def green(facts: PullFacts) -> bool:
-    """Whether every check of the head finished and none failed.
+    """Whether a check of the head finished, all did, and none failed.
+
+    A head with no completed check run is waiting for CI, never green.
 
     Args:
         facts: the PR.
@@ -74,7 +88,7 @@ def green(facts: PullFacts) -> bool:
     Returns:
         True when green.
     """
-    return not pending(facts) and not failed_checks(facts)
+    return not waiting_for_ci(facts) and not pending(facts) and not failed_checks(facts)
 
 
 def conflicted(facts: PullFacts) -> bool:

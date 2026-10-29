@@ -173,12 +173,13 @@ or superseded run never shows as failed. A line shows ``mergeable_state``, auto-
 pending checks, the failed checks with their job ids, the PR's place in the
 merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
 the newest run's conclusion), and the review's standing. Action lines follow:
-``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
+``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
+ready for review or to merge), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
-sandbox may block), then ``READY TO MERGE`` (checks all finished and
-none failed, state ``clean``, an approving review of this head, or for an
+sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
+finished and none failed, state ``clean``, an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
 base branch) or, in a ``no_auto_merge`` repository, ``MERGE BY HAND``, or
 else ``AUTO MERGE OFF`` for a healthy PR with auto-merge off, not in the
