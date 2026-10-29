@@ -17,8 +17,18 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, config, container, ghapi, ledger, local, pulls, queue, report
-from . import handback
+from . import (
+    ENTRY_DATA,
+    config,
+    ghapi,
+    handback,
+    ledger,
+    local,
+    pulls,
+    queue,
+    report,
+    work,
+)
 from .failures import explain
 from .markers import Marker
 from .running import git
@@ -271,6 +281,8 @@ def sweep(args: argparse.Namespace) -> None:
         print(line)
     book = read_ledger(found.settings)
     report.print_ledger(book)
+    queued = work.queued(open_pulls(found), found.github, found.settings, book)
+    report.print_free_slots(book, len(queued))
     handback.print_lines(book, found.now)
     if broken:
         raise SystemExit(1)
@@ -344,35 +356,6 @@ def clean_worktrees(args: argparse.Namespace) -> None:
             continue
         print(f"{Marker.REMOVED_WORKTREE.text} {worktree.path} ({reason.value}){verb}")
     git(args.run, main_clone, "worktree", "prune")
-
-
-@ENTRY_DATA.register(
-    add_argument("--marker", default="/container_info.json"),
-    add_argument("--root", default="/"),
-    add_argument("--hours", type=float, default=1.0),
-    DRY_RUN_ARGUMENT,
-    name="clean-container",
-)
-def clean_container(args: argparse.Namespace) -> None:
-    """Remove the regular files in the root written well after the start.
-
-    A file counts when it was modified more than ``--hours`` after the
-    marker. Only regular files directly in ``--root`` are removed: no
-    subdirectories, symbolic links or anything else.
-
-    Args:
-        args: the parsed arguments.
-    """
-    marker = pathlib.Path(args.marker)
-    after = container.cutoff(marker, args.hours)
-    verb = "" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
-    found = container.newer_files(pathlib.Path(args.root), after)
-    for each in found:
-        if args.no_dry_run:
-            each.path.unlink(missing_ok=True)
-        print(f"removed {each.path}{verb}")
-    size = sum(each.size for each in found)
-    print(f"container: {len(found)} files, {size / 2**20:.1f} MiB")
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, add_argument("repository"), name="review-form")
