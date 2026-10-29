@@ -1,0 +1,62 @@
+# The text-lint commit status of a pull request, one lint for every repository that
+# calls this workflow (pitboss#38, moved from bats-lang/repository-prototype's
+# text-lint-check.yml). A repository's .github/workflows/text-lint.yml is only a caller
+# of this workflow, by commit, never @main: templates/text-lint.yml.
+#
+# What it does: checks out pitboss at tools-ref (a reusable workflow cannot read its own
+# ref, so the caller repeats its commit), runs `pitboss lint event` on the event's file,
+# and posts the commit status `text-lint` on the pull request's head: success when the
+# body is in form, failure with the first finding as its description, success saying
+# `exempt` for a relock/ branch and for a bot's pull request. Every finding is printed in
+# the log of the run. It is not a required check: it reports.
+#
+# Called on: pull_request_target (a workflow on that event runs the default branch's file,
+# so a change of this file is shown running on a scratch repository's default branch first).
+#
+# Safe on pull_request_target: the job checks out pitboss, never the pull request's
+# repository, and the pull request's text reaches pitboss only in the event's file, never
+# through a shell or an expression in a run: line, so no code of the pull request runs.
+# A newer edit of the same pull request cancels the older run, so the last body decides.
+#
+# The run: steps are one call each of a third-party tool (pipx, gh) with pitboss's own
+# command between them; the status needs the GitHub API, which pitboss's lint does not
+# call (it reads files and writes one), so `gh api` posts the file pitboss wrote.
+name: text-lint-check
+
+on:
+  workflow_call:
+    inputs:
+      tools-ref:
+        description: The full commit SHA of dev-skill-up/pitboss this workflow is called at.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: text-lint-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - name: Check out pitboss
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: dev-skill-up/pitboss
+          ref: ${{ inputs.tools-ref }}
+          path: pitboss
+          persist-credentials: false
+
+      - name: Lint the pull request body
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: pipx run --spec ./pitboss pitboss lint event "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/status.json" --url "$RUN_URL"
+
+      - name: Set the commit status text-lint
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$HEAD_SHA" --input "$RUNNER_TEMP/status.json"

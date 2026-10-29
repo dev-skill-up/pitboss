@@ -184,6 +184,24 @@ Commands
        Done-when section is in the brief word for word (``done-when``).
        Without ``--config`` the generic forms of ``doc/example.toml`` are
        used.
+   * - ``lint event EVENT STATUS [--url URL] [--config CONFIG]``
+     - The ``text-lint`` commit status of a ``pull_request_target`` event
+       (pitboss#38). Reads the pull request's body, head SHA, head branch and
+       author from the event file EVENT, runs the checks of ``lint pr-body``
+       (against the event's head), ``lint text`` and ``lint contradictions``
+       on the body, prints every finding, and writes the JSON body of GitHub's
+       create-a-commit-status call to STATUS: ``success`` with ``ok``,
+       ``failure`` with the first finding as the description (ASCII, at most
+       140 characters), or ``success`` with ``exempt`` for a head branch that
+       starts with ``relock/`` and an author whose login ends with ``[bot]``.
+       The status's ``target_url`` is ``--url``. Exits 0 once the file is
+       written, 2 on an event or a file it cannot use. The reusable workflow
+       ``.github/workflows/text-lint-check.yml`` runs it and posts the file
+       with ``gh api``: it checks out pitboss at its ``tools-ref`` input (the
+       caller repeats its own commit, as a reusable workflow cannot read its
+       ref), never the pull request, and the body reaches pitboss only in the
+       event's file. Callers are made from ``templates/text-lint.yml``, by
+       commit, never ``@main``.
    * - ``clean-container``
      - Removes the regular files directly in ``--root`` (default ``/``)
        modified more than ``--hours`` (default 1) after ``--marker``
