@@ -44,7 +44,7 @@ means and what to do about it, including the runner-pressure hold, which comes b
 else. Read `references/slots.md` before starting, stopping or reporting on
 worker agents. Read `references/engineering.md` (the owner's rulings on code,
 tests and errors) before briefing or reviewing a change to code, and
-`references/ci.md` (pins, caches, checking before a push, draft PRs) before
+`references/ci.md` (pins, caches, checking before a push, draft PRs, spacing CI-triggering actions under a merge queue) before
 briefing a change to CI, a lock or a cache. Give `references/adversarial-review.md` to every reviewer you
 start; a reviewer reads that file and nothing else about the form.
 
