@@ -17,6 +17,8 @@ class PullFacts:
         checks: the check runs of its head.
         review: its newest review that counts.
         standing: where its head stands with that review.
+        unread: when a newer comment that tries to be a review but is not in
+            the form was written (it is ignored), else empty.
     """
 
     repo: config.Repo
@@ -24,6 +26,7 @@ class PullFacts:
     checks: Sequence[shapes.CheckRun]
     review: reviews.Found | None
     standing: reviews.Standing
+    unread: str = ""
 
 
 def reference(facts: PullFacts) -> str:
@@ -137,9 +140,9 @@ def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> 
     )
 
 
-def _review_of(source: Source, repo: config.Repo, number: int) -> reviews.Found | None:
+def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
     prefix = f"repos/{repo.slug}"
-    review_sources = reviews.Sources(
+    return reviews.Sources(
         comments=ghapi.pages(
             source.github, f"{prefix}/issues/{number}/comments", parsing.comments
         ),
@@ -147,7 +150,6 @@ def _review_of(source: Source, repo: config.Repo, number: int) -> reviews.Found 
             source.github, f"{prefix}/pulls/{number}/reviews", parsing.reviews
         ),
     )
-    return reviews.newest(review_sources, source.review, repo.slug)
 
 
 def _standing(
@@ -209,7 +211,8 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     """
     pull = parsing.pull(ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}"))
     head = pull.head.sha
-    found = _review_of(source, repo, number)
+    posted = _sources(source, repo, number)
+    found = reviews.newest(posted, source.review, repo.slug)
     checks = _head_checks(source, repo, head)
     return PullFacts(
         repo=repo,
@@ -217,6 +220,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         checks=checks,
         review=found,
         standing=_standing(source, repo, pull, found),
+        unread=reviews.unread(posted, source.review, repo.slug, found),
     )
 
 

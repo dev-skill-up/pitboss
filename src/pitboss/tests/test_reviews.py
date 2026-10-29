@@ -125,6 +125,87 @@ class TestNewest(unittest.TestCase):
         assert_that(reviews.newest(empty, REVIEW, "o/x"), equal_to(None))
 
 
+ONE = "Independent review of head {sha}: {verdict}"
+ONE_FORM = form("Independent review of head {sha}: {verdict}")
+TWO = config.Review(
+    trusted=frozenset({"MEMBER"}), gated=frozenset(), form=ONE_FORM, gated_form=ONE_FORM
+)
+
+
+def _body(verdict: str, kind: str = "review") -> str:
+    return f"Independent {kind} of head {fakes.HEAD}: {verdict}\n\nfindings\n"
+
+
+def _two(first: str, second: str, kind: str = "review") -> reviews.Sources:
+    return reviews.Sources(
+        comments=[
+            _comment(_body(first), "04:04", "MEMBER"),
+            _comment("x" * 70000, "04:25", "MEMBER"),
+            _comment(_body(second, kind), "04:27", "MEMBER"),
+        ],
+        reviews=[],
+    )
+
+
+def _standing(sources: reviews.Sources) -> reviews.Standing:
+    found = reviews.newest(sources, TWO, "o/x")
+    return reviews.head_standing(found, fakes.HEAD)
+
+
+def _unread(sources: reviews.Sources, review: config.Review = TWO) -> str:
+    slug = "o/g" if review is not TWO else "o/x"
+    found = reviews.newest(sources, review, slug)
+    return reviews.unread(sources, review, slug, found)
+
+
+class TestTwoReviews(unittest.TestCase):
+    """Two review comments on one head: the newer one decides."""
+
+    def test_newer_approval_wins(self) -> None:
+        """Changes needed, then approved: approved on this head."""
+        got = _standing(_two("changes needed", "approved"))
+        assert_that(got, equal_to(reviews.Standing.APPROVED))
+
+    def test_newer_changes_win(self) -> None:
+        """Approved, then changes needed: changes needed."""
+        got = _standing(_two("approved", "changes needed"))
+        assert_that(got, equal_to(reviews.Standing.CHANGES_NEEDED))
+
+
+class TestUnread(unittest.TestCase):
+    """A newer comment that tries to be a review but is not in the form."""
+
+    def test_misspelt_form(self) -> None:
+        """A re-review in another form is ignored, and said to be."""
+        sources = _two("changes needed", "approved", kind="re-review")
+        assert_that(_standing(sources), equal_to(reviews.Standing.CHANGES_NEEDED))
+        assert_that(_unread(sources), equal_to("04:27"))
+
+    def test_read_comments_are_not_unread(self) -> None:
+        """A comment read as a review, or no attempt, or a stranger's, is not."""
+        assert_that(_unread(_two("changes needed", "approved")), equal_to(""))
+        strangers = reviews.Sources(
+            comments=[
+                _comment(_body("approved", "re-review"), "1", "NONE"),
+                _comment("", "2", "MEMBER"),
+                _comment("Looks fine, approved", "3", "MEMBER"),
+            ],
+            reviews=[],
+        )
+        assert_that(_unread(strangers), equal_to(""))
+
+    def test_gated_uses_the_gated_form(self) -> None:
+        """In a gated repository the gated form decides what is unread."""
+        gated = config.Review(
+            trusted=frozenset({"MEMBER"}),
+            gated=frozenset({"o/g"}),
+            form=ONE_FORM,
+            gated_form=form("## Adversarial review"),
+        )
+        sources = _two("approved", "approved", kind="re-review")
+        assert_that(_unread(sources, gated), equal_to("04:27"))
+
+
 class TestStanding(unittest.TestCase):
     """Where a head stands."""
 

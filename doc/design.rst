@@ -193,7 +193,11 @@ definition. A GitHub review (``APPROVED`` or ``CHANGES_REQUESTED`` on a
 repository, where only the comment form does. For an ungated repository an
 approval of an older head carries over when the commits since are all
 merges (the non-merge commits of ``base...head`` are those of
-``base...reviewed``).
+``base...reviewed``). A newer trusted comment whose first line says review and
+a verdict but is not in the form (``Independent re-review``) is not a review;
+the PR's line says so (``review=... (ignored: the comment of <time> is not in
+the review form)``), so the older review is not taken for the last word
+unseen (#20).
 
 **Runner pressure.** Under pressure when any ``merge_group`` run, queued or
 in progress, in any ``[runners] repositories``, has a job still ``queued``.
