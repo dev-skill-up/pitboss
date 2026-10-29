@@ -41,27 +41,37 @@ compaction.
    live agent for every row of the ledger. Count every running agent, workers
    and reviewers, including one that shows as completed but still runs
    background work.
-2. **A free slot is filled the same turn, in this order**, oldest first inside
-   each step (owner, 2026-10-20T04:16:40Z: "priorities are:", then "Fix for a
-   review that asked for changes", "Review for a fix that's ready", "A new
-   PR", and "As always inside each category, go by oldest."). On who takes a
-   fix (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It
-   just has to be an author".
-   1. a fix, by any author, for a review that asked for changes, a red CI or a
-      merge conflict (a conflict is fixed as a red CI is: merge the base in,
-      resolve, check, push);
-   2. a review of a PR green on its exact head, by an agent that is not its
-      author;
-   3. the oldest ticket of the highest priority.
+2. **A free slot is filled the same turn, in this order**: the open pull
+   requests that can be worked on, oldest first by their creation date across
+   every repository of the project, then the oldest ticket of the highest
+   priority. The owner's ruling (owner, 2026-10-26T13:57:38Z, bats-lang/quire
+   transcript line 105684): "No, among them oldest first."; and on which
+   pull request can be worked on (owner, 2026-10-26T14:05:11Z, line 105788):
+   "if it is not green and not red, it can't be worked on". No kind of work
+   ranks a pull request above an older one: the state of a pull request says
+   what it needs, not where it stands in the order. On who takes a fix
+   (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It just
+   has to be an author".
+   - red (a failed check or status, or a review that asked for changes at this
+     head) or in conflict with the base: a fix, by any author (a conflict is
+     fixed as a red CI is: merge the base in, resolve, check, push);
+   - behind the base, its checks finished: an update (merge the base in,
+     check, push);
+   - green on its exact head with no review of that head: a review, by an
+     agent that is not its author;
+   - reviewed approved at its head and green: a merge;
+   - its checks still running: neither green nor red, so skipped until they
+     finish, and not a reason to hold the free slot; so is a pull request on
+     the orchestrator's blocked list.
 
-   Never a new ticket while a changes-needed review, a red CI or a merge
-   conflict waits for its fix, or a green PR waits for its reviewer. The
+   Never a new ticket while a pull request that can be worked on waits. The
    `NEXT` lines of a sweep print this order.
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
-     first: fix a red CI, address a review that asked for changes, review a
-     green PR, merge a PR that is reviewed approved and green. Only then the
-     tickets, by priority, and within a priority by age.
+     first, whatever each needs (a fix of a red CI, an answer to a review that
+     asked for changes, a review of a green PR, a merge of a PR that is
+     reviewed approved and green). Only then the tickets, by priority, and
+     within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
    review of a PR in progress is never started to fill a slot.
