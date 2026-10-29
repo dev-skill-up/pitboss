@@ -2,10 +2,10 @@
 
 import unittest
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, reviews, shapes
-from . import fakes
+from .. import config, report, reviews, shapes
+from . import fakes, test_report
 
 
 def form(*lines: str) -> config.ReviewForm:
@@ -158,18 +158,24 @@ def _unread(sources: reviews.Sources, review: config.Review = TWO) -> str:
     return reviews.unread(sources, review, slug, found)
 
 
-class TestTwoReviews(unittest.TestCase):
-    """Two review comments on one head: the newer one decides."""
+def _line(sources: reviews.Sources) -> str:
+    found = reviews.newest(sources, TWO, "o/x")
+    standing = reviews.head_standing(found, fakes.HEAD)
+    return report.pull_line(test_report.facts(standing, found), {})
 
-    def test_newer_approval_wins(self) -> None:
-        """Changes needed, then approved: approved on this head."""
-        got = _standing(_two("changes needed", "approved"))
-        assert_that(got, equal_to(reviews.Standing.APPROVED))
 
-    def test_newer_changes_win(self) -> None:
-        """Approved, then changes needed: changes needed."""
-        got = _standing(_two("approved", "changes needed"))
-        assert_that(got, equal_to(reviews.Standing.CHANGES_NEEDED))
+class TestTwoReviewLines(unittest.TestCase):
+    """The sweep's line for two review comments on one head."""
+
+    def test_approved_after_changes_needed(self) -> None:
+        """Changes needed, then approved: the line says approved-this-head."""
+        line = _line(_two("changes needed", "approved"))
+        assert_that(line, contains_string("review=approved-this-head"))
+
+    def test_changes_needed_after_approved(self) -> None:
+        """Approved, then changes needed: the line says changes-needed."""
+        line = _line(_two("approved", "changes needed"))
+        assert_that(line, contains_string("review=changes-needed"))
 
 
 class TestUnread(unittest.TestCase):
