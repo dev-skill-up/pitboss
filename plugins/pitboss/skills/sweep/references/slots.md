@@ -19,9 +19,23 @@ which tickets.
 | `pitboss slots failed <config> TICKET MODEL` | A model failed a ticket (a diff that is off target, or a worker that stopped midway); the ticket goes to a larger model next. |
 | `pitboss slots check <config> --running NAME ...` | Give it the names of the agents the session runs; it prints a `GONE AGENT` line for each agent the ledger holds that is not among them. |
 | `pitboss slots next <config>` | The sorted list of what to start, and what each empty slot takes. |
+| `pitboss slots wait <config> SLOT` | The agent in the slot waits (on CI, a review or an answer) and does no work. |
+| `pitboss slots resume <config> SLOT` | The agent in the slot works again. |
+| `pitboss slots report <config> [--since T] [--until T]` | The share of slot time spent running, waiting and empty, for each slot and for all, in a window (ISO times, UTC when no zone; default: the first log line to now). |
 
-Update the ledger at every spawn (`set`) and every hand-back or completion
-notice (`free`).
+Update the ledger at every spawn (`set`), every time an agent starts or stops
+waiting (`wait`, `resume`) and every hand-back or completion notice (`free`).
+
+## The slot log
+
+Every change that leaves a slot in a different state (running, waiting or
+empty), with a different agent or on a different task, is also one JSON line
+in the slot log (`[slots] log`, default: the ledger's name ending in `.log`):
+UTC time, slot, state, agent and task. A slot the log has not seen yet is
+logged in the state it is in, so the time before its first change counts. A
+removed slot is logged as `removed`, after which it has no slot time.
+`slots report` replays the log, so idle and waiting time are measured, not
+estimated.
 
 ## Markers
 

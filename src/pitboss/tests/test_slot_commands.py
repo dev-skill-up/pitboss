@@ -1,5 +1,6 @@
 """End-to-end tests of ``slots``: a fake GitHub, a real ledger file."""
 
+import json
 import unittest
 from typing import Sequence
 
@@ -111,6 +112,85 @@ class TestLedger(unittest.TestCase):
             for result, (_, line) in zip(results, REFUSALS)
         ]
         assert_that(found, equal_to(REFUSALS))
+
+
+WAIT_STEPS = (
+    ("wait", "nosuch"),
+    ("wait", "tiny"),
+    ("set", "tiny", "agent-1", "#9"),
+    ("wait", "tiny"),
+    ("show",),
+    ("resume", "tiny"),
+    ("free", "tiny"),
+)
+LOG_STEPS = (
+    ("set", "tiny", "agent-1", "#9", "--now", "2030-01-01T00:00:00+00:00"),
+    ("wait", "tiny", "--now", "2030-01-01T01:00:00+00:00"),
+    ("free", "tiny", "--now", "2030-01-01T02:00:00+00:00"),
+    ("remove", "big", "--now", "2030-01-01T03:00:00+00:00"),
+)
+LOG_LINES = [
+    ("tiny", "running", "00"),
+    ("big", "empty", "00"),
+    ("tiny", "waiting", "01"),
+    ("tiny", "empty", "02"),
+    ("big", "removed", "03"),
+]
+REPORT_LINES = [
+    "slot time 2030-01-01T00:00:00+00:00 to 2030-01-01T04:00:00+00:00",
+    "slot big: running 0.0%, waiting 0.0%, empty 100.0% of 10800 s",
+    "slot tiny: running 25.0%, waiting 25.0%, empty 50.0% of 14400 s",
+    "all slots: running 14.3%, waiting 14.3%, empty 71.4% of 25200 s",
+]
+
+
+class TestLog(unittest.TestCase):
+    """The slot log, waiting, and the report."""
+
+    def test_wait_and_resume(self) -> None:
+        """An empty slot cannot wait; the show line says a waiting agent waits."""
+        here = world.make_world()
+        results = run_all(here, WAIT_STEPS)
+        assert_that(results[0].code, equal_to(2))
+        assert_that(results[1].code, equal_to(2))
+        assert_that(
+            results[4].out.splitlines()[1],
+            equal_to("slot tiny (small): owner/project#9 (agent-1, waiting)"),
+        )
+        assert_that(results[-1].code, equal_to(0))
+
+    def test_log(self) -> None:
+        """Each change of a slot's state is a log line."""
+        here = world.make_world()
+        run_all(here, LOG_STEPS)
+        log = here.ledger.with_suffix(".log")
+        lines = [json.loads(line) for line in log.read_text().splitlines()]
+        found = [(item["slot"], item["state"], item["time"][11:13]) for item in lines]
+        assert_that(found, equal_to(LOG_LINES))
+
+    def test_report(self) -> None:
+        """The report gives the shares of a window; a window before it has none."""
+        here = world.make_world()
+        run_all(here, LOG_STEPS)
+        until = ("--until", "2030-01-01T04:00:00")
+        report = world.invoke(here, "slots", "report", here.config, *until)
+        assert_that(report.out.splitlines()[1:], equal_to(REPORT_LINES))
+        window = ("--since", "2029-12-30", "--until", "2029-12-31")
+        empty = world.invoke(here, "slots", "report", here.config, *window)
+        assert_that(empty.out.strip().endswith("none"), equal_to(True))
+
+    def test_report_without_log_and_with_words(self) -> None:
+        """No log is no slot time; words are refused."""
+        here = world.make_world()
+        result = world.invoke(
+            here, "slots", "report", here.config, "--now", world.FUTURE
+        )
+        assert_that(result.out.strip().endswith("none"), equal_to(True))
+        refused = world.invoke(here, "slots", "report", here.config, "extra")
+        assert_that(
+            (refused.code, refused.err.strip()),
+            equal_to((2, "slots report takes no words")),
+        )
 
 
 class TestNext(unittest.TestCase):
