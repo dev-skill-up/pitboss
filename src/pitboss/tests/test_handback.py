@@ -111,7 +111,7 @@ class TestHeardRefusal(unittest.TestCase):
         here = world.make_world()
         result = slots(here, "heard", "tiny")
         assert_that(
-            (result.code, result.err.splitlines()[0]),
+            (result.code, result.err.splitlines()[-1]),
             equal_to((2, "refused: slot tiny is empty: set an agent first")),
         )
 
