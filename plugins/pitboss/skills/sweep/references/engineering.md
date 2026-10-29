@@ -40,7 +40,11 @@ other code is what is impossible there, a dependency's own format, or a
 third-party tool used as it is. A workflow `run:` step that does more than
 call one subcommand of the project's tool or one third-party tool is code we
 wrote. A PR that adds code of ours outside the project's language names the
-avenue it exhausted, and the reviewer rejects it without that.
+avenue it exhausted, and the reviewer rejects it without that. Once
+non-bats is decided, the choice among shell, Python and other tools needs no
+justification, and the reviewer does not raise it, nor the amount of non-bats
+code added. What is required is the avenue exhausted: what the project's
+language lacks for that job.
 
 **No mtimes in freshness.** Nothing that decides whether an output is fresh (a
 build, a cache, a memo, a test selection) reads a file's time: it compares

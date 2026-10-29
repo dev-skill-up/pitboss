@@ -17,10 +17,24 @@ whether the repository is gated.
 - Review the exact head. Write the full 40-character SHA of the commit you
   reviewed where the form says `{sha}`; read it from the PR when you start,
   and again before you post: if the head moved, review the new head.
-- Start only when every check has finished and passed on that head.
+- Start only when every check has finished and passed on that head. Your
+  first act is to read the checks of the full head SHA the brief names. If one
+  has not finished or has not passed, you were started too early: hand back at
+  once with `NOT STARTED: <check> is <state> at <sha>`, and review nothing.
+- You are a separate agent from the author. If you wrote any part of the
+  change, say so and stop.
+- Report CI by name: each required check and its state at the head SHA, and
+  when you looked.
 - The verdict is one of the two words, nothing else.
 - Post as a comment on the PR (an issue comment), from an account the
-  repository trusts.
+  repository trusts. You are not done until it is posted: a verdict in your
+  hand-back and not in a comment is no review. Hand back after posting, with
+  the comment's URL and nothing else.
+- Do not push, merge, or edit the PR or its branch.
+- A phrase you object to is paraphrased, or you point at the place ("the
+  second sentence of the third paragraph of the body"); you never reproduce
+  it, in a code span or outside one, and no label makes a reproduced phrase
+  pass.
 
 In a gated repository the form is strict, and a comment that breaks any rule
 does not count as a review at all:
