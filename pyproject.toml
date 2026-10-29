@@ -42,7 +42,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 [tool.setuptools.package-data]
-pitboss = ["phrases.tsv"]
+pitboss = ["phrases.tsv", "contradictions.tsv"]
 
 [project.urls]
 Homepage = "https://github.com/dev-skill-up/pitboss"

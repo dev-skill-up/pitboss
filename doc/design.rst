@@ -153,6 +153,18 @@ Commands
        on one atom, searched without regard to case; a group or an
        alternation is refused (an alternative is a line of its own), and an
        example that its pattern does not match is refused.
+   * - ``lint contradictions FILE... [--pairs FILE]...``
+     - A rule stated two ways (pitboss#36). Prints two lines for each pair
+       whose two sides the files hold (one line for each side, naming the
+       other's place and what to do instead), exits 1 on any, 0 on none, 2
+       on a file or pairs file it cannot use. The pairs pitboss ships
+       (``contradictions.tsv``: who owns CI until it is green, what a pull
+       request reports about what CI runs, the priority order, provenance of
+       the owner's rules, who deletes the persistent checkout) are always
+       used; each ``--pairs`` adds a project's file (``--no-default-pairs``
+       leaves the shipped one out). A pairs line is two patterns of the
+       phrase language, an example of each and what to do instead, tab
+       separated; the text between backticks is not searched.
    * - ``clean-container``
      - Removes the regular files directly in ``--root`` (default ``/``)
        modified more than ``--hours`` (default 1) after ``--marker``

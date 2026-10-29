@@ -3,13 +3,14 @@
 import argparse
 import pathlib
 import sys
-from typing import Callable, Mapping
+from typing import Callable, Mapping, Sequence, TypeVar
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, phrases
+from . import ENTRY_DATA, contradictions, phrases
 
 USAGE_ERROR = 2
+_Rule = TypeVar("_Rule")
 
 
 def _fail(message: str) -> SystemExit:
@@ -17,27 +18,60 @@ def _fail(message: str) -> SystemExit:
     return SystemExit(USAGE_ERROR)
 
 
-def _phrases(args: argparse.Namespace) -> list[phrases.Phrase]:
-    found: list[phrases.Phrase] = []
+def _shipped_and_given(
+    shipped: Sequence[_Rule],
+    given: Sequence[str] | None,
+    load: Callable[[pathlib.Path], Sequence[_Rule]],
+) -> list[_Rule]:
+    found = list(shipped)
     try:
-        if not args.no_default_phrases:
-            found.extend(phrases.parse(phrases.default_text(), "default phrases"))
-        for path in args.phrases or ():
-            found.extend(phrases.load(pathlib.Path(path)))
+        for path in given or ():
+            found.extend(load(pathlib.Path(path)))
     except phrases.PhraseError as error:
         raise _fail(str(error)) from error
     return found
 
 
+def _phrases(args: argparse.Namespace) -> list[phrases.Phrase]:
+    shipped = (
+        []
+        if args.no_default_phrases
+        else phrases.parse(phrases.default_text(), "default phrases")
+    )
+    return _shipped_and_given(shipped, args.phrases, phrases.load)
+
+
+def _pairs(args: argparse.Namespace) -> list[contradictions.Pair]:
+    shipped = (
+        []
+        if args.no_default_pairs
+        else contradictions.parse(contradictions.default_text(), "default pairs")
+    )
+    return _shipped_and_given(shipped, args.pairs, contradictions.load)
+
+
+def _read_files(args: argparse.Namespace) -> list[tuple[str, str]]:
+    try:
+        return [(name, phrases.read_text(pathlib.Path(name))) for name in args.files]
+    except phrases.PhraseError as error:
+        raise _fail(str(error)) from error
+
+
+def _contradictions(args: argparse.Namespace) -> None:
+    pairs = _pairs(args)
+    refused = contradictions.findings(_read_files(args), pairs)
+    for each in refused:
+        print(each)
+    if refused:
+        raise SystemExit(1)
+    print(f"ok: {len(pairs)} pairs")
+
+
 def _text(args: argparse.Namespace) -> None:
     banned = _phrases(args)
     refused: list[str] = []
-    for name in args.files:
-        try:
-            text = phrases.read_text(pathlib.Path(name))
-        except phrases.PhraseError as error:
-            raise _fail(str(error)) from error
-        refused.extend(phrases.findings(text, name, banned))
+    for name, body in _read_files(args):
+        refused.extend(phrases.findings(body, name, banned))
     for each in refused:
         print(each)
     if refused:
@@ -45,7 +79,10 @@ def _text(args: argparse.Namespace) -> None:
     print(f"ok: {len(banned)} phrases")
 
 
-KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {"text": _text}
+KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
+    "text": _text,
+    "contradictions": _contradictions,
+}
 
 
 @ENTRY_DATA.register(
@@ -62,6 +99,19 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {"text": _text}
         action="store_true",
         default=False,
         help="leave out the phrase file pitboss ships",
+    ),
+    add_argument(
+        "--pairs",
+        action="append",
+        default=None,
+        help="a pairs file for contradictions, added to the ones pitboss ships;"
+        " give it more than once",
+    ),
+    add_argument(
+        "--no-default-pairs",
+        action="store_true",
+        default=False,
+        help="leave out the pairs file pitboss ships",
     ),
     name="lint",
 )

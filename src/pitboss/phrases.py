@@ -16,8 +16,9 @@ import dataclasses
 import importlib.resources
 import pathlib
 import re
-from typing import Sequence
+from typing import Callable, Sequence, TypeVar
 
+_Row = TypeVar("_Row")
 FIELDS = 4
 CLASS_ESCAPES = "sdw"
 ATOM_ESCAPES = CLASS_ESCAPES + "b"
@@ -137,6 +138,26 @@ def _phrase(line: str, source: str) -> Phrase:
     )
 
 
+def parse_rows(
+    text: str, source: str, build: Callable[[str, str], _Row]
+) -> Sequence[_Row]:
+    """Read the rows of a tab separated file's text.
+
+    Args:
+        text: the file's text.
+        source: its name, for the errors.
+        build: makes a row from a line and its place, or raises ``PhraseError``.
+
+    Returns:
+        A row for each line that is not blank and does not start with ``#``.
+    """
+    return [
+        build(line, f"{source}:{number}")
+        for number, line in enumerate(text.split("\n"), 1)
+        if line.strip() and not line.startswith("#")
+    ]
+
+
 def parse(text: str, source: str) -> Sequence[Phrase]:
     """Read the phrases of a phrase file's text.
 
@@ -148,11 +169,19 @@ def parse(text: str, source: str) -> Sequence[Phrase]:
         The phrases; a line that is not a phrase, or whose example does not
         match its own pattern, is a ``PhraseError`` naming its line.
     """
-    return [
-        _phrase(line, f"{source}:{number}")
-        for number, line in enumerate(text.split("\n"), 1)
-        if line.strip() and not line.startswith("#")
-    ]
+    return parse_rows(text, source, _phrase)
+
+
+def shipped_text(name: str) -> str:
+    """The text of a file pitboss ships.
+
+    Args:
+        name: the file's name in the package.
+
+    Returns:
+        The text.
+    """
+    return (importlib.resources.files("pitboss") / name).read_text(encoding="utf-8")
 
 
 def default_text() -> str:
@@ -161,9 +190,7 @@ def default_text() -> str:
     Returns:
         The text.
     """
-    return (importlib.resources.files("pitboss") / "phrases.tsv").read_text(
-        encoding="utf-8"
-    )
+    return shipped_text("phrases.tsv")
 
 
 def read_text(path: pathlib.Path) -> str:
