@@ -253,3 +253,15 @@ class WindowRun:
     pulls: Sequence[int]
     event: str
     updated_at: str
+
+
+class Verdict(enum.Enum):
+    """What a review says.
+
+    Attributes:
+        APPROVED: the head may merge.
+        CHANGES_NEEDED: the head needs changes first.
+    """
+
+    APPROVED = enum.auto()
+    CHANGES_NEEDED = enum.auto()

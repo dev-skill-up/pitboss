@@ -4,7 +4,7 @@ import concurrent.futures
 import dataclasses
 from typing import Sequence
 
-from . import config, ghapi, parsing, reviews, shapes
+from . import config, ghapi, parsing, reviews, roundlimit, shapes
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -19,6 +19,8 @@ class PullFacts:
         standing: where its head stands with that review.
         unread: when a newer comment that tries to be a review but is not in
             the form was written (it is ignored), else empty.
+        limit: where its review rounds stand against the changes-needed limit
+            (keyword: round-limit).
     """
 
     repo: config.Repo
@@ -27,6 +29,7 @@ class PullFacts:
     review: reviews.Found | None
     standing: reviews.Standing
     unread: str = ""
+    limit: roundlimit.Limit = roundlimit.Limit.NONE
 
 
 def reference(facts: PullFacts) -> str:
@@ -234,6 +237,28 @@ def _head_checks(
     return current_checks(ghapi.pages(source.github, path, parsing.check_runs), head)
 
 
+def limit_of(
+    source: Source, repo: config.Repo, posted: Sequence[shapes.Comment]
+) -> roundlimit.Limit:
+    """Where a PR's review rounds stand against the changes-needed limit.
+
+    Args:
+        source: where reviews are read from (how they are read).
+        repo: the PR's repository.
+        posted: the PR's issue comments.
+
+    Returns:
+        The limit.
+    """
+    read, form = reviews.rules(source.review, repo.slug)
+
+    def verdict_of(body: str) -> shapes.Verdict | None:
+        reading = read(body, form)
+        return None if reading is None else reading[1]
+
+    return roundlimit.read(posted, source.review.trusted, form, verdict_of)
+
+
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     """Read one PR: its details, its head's checks and its review.
 
@@ -257,6 +282,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         review=found,
         standing=_standing(source, repo, pull, found),
         unread=reviews.unread(posted, source.review, repo.slug, found),
+        limit=limit_of(source, repo, posted.comments),
     )
 
 
