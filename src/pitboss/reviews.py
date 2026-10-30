@@ -5,7 +5,7 @@ import enum
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import config, gradeline, shapes
+from . import config, gradeline, sessionurl, shapes
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -111,11 +111,12 @@ def is_plain(body: str) -> bool:
     Returns:
         True when it is.
     """
+    text = sessionurl.strip(body)
     return (
-        body.isascii()
-        and _FENCE not in body
-        and not _HTML.search(body)
-        and not _LINK_DEFINITION.search(body)
+        text.isascii()
+        and _FENCE not in text
+        and not _HTML.search(text)
+        and not _LINK_DEFINITION.search(text)
     )
 
 
@@ -130,7 +131,7 @@ Reader = Callable[[str, config.ReviewForm], Reading | None]
 
 
 def _lines(body: str) -> Sequence[str]:
-    return [line.rstrip() for line in body.splitlines()]
+    return [line.rstrip() for line in sessionurl.strip(body).splitlines()]
 
 
 def _matches(
@@ -222,8 +223,9 @@ def _from_comments(
 
 
 def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Found:
-    plan = _grade(item.body, gradeline.PLAN_PREFIX, form)
-    execution = _grade(item.body, gradeline.EXECUTION_PREFIX, form)
+    body = sessionurl.strip(item.body)
+    plan = _grade(body, gradeline.PLAN_PREFIX, form)
+    execution = _grade(body, gradeline.EXECUTION_PREFIX, form)
     return Found(
         sha=read[0],
         verdict=read[1],

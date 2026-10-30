@@ -4,7 +4,7 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, shapes
+from . import config, sessionurl, shapes
 
 PatternOf = Callable[[str, config.ReviewForm], re.Pattern[str]]
 
@@ -38,7 +38,7 @@ def first_line_problem(
     Returns:
         The problem, or the empty string when the line is the form's.
     """
-    lines = body.splitlines()
+    lines = sessionurl.strip(body).splitlines()
     first = lines[0].rstrip() if lines else ""
     wanted = form.lines[0] if form.lines else ""
     if not wanted or pattern_of(wanted, form).fullmatch(first):
@@ -47,6 +47,10 @@ def first_line_problem(
         return f"the first line is empty, not {wanted!r}"
     shown = first if len(first) <= _SHOWN else first[:_SHOWN] + "..."
     return f"the first line is {shown!r}, not {wanted!r}"
+
+
+def _grades(body: str) -> bool:
+    return bool(_GRADE_LINE.search(sessionurl.strip(body)))
 
 
 def find(
@@ -74,7 +78,7 @@ def find(
     graded = [
         item
         for item in posted
-        if item.author_association in trusted and _GRADE_LINE.search(item.body)
+        if item.author_association in trusted and _grades(item.body)
     ]
     problems = [
         (item, first_line_problem(item.body, form, pattern_of)) for item in graded

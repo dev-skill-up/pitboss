@@ -12,7 +12,7 @@ import dataclasses
 import enum
 from typing import AbstractSet, Callable, Iterable
 
-from . import config, gradeline, shapes
+from . import config, gradeline, sessionurl, shapes
 
 RULING_FIRST_LINE = "Opus ruling"
 VerdictOf = Callable[[str], shapes.Verdict | None]
@@ -64,7 +64,7 @@ def is_ruling(body: str) -> bool:
     Returns:
         True when its first line is exactly ``Opus ruling``.
     """
-    lines = body.splitlines()
+    lines = sessionurl.strip(body).splitlines()
     return bool(lines) and lines[0].rstrip() == RULING_FIRST_LINE
 
 
@@ -80,7 +80,10 @@ def plan_grade(body: str, form: config.ReviewForm) -> shapes.Verdict | None:
         (the review says nothing of the plan).
     """
     found = gradeline.line_approved(
-        body, gradeline.PLAN_PREFIX, form.approved, form.changes_needed
+        sessionurl.strip(body),
+        gradeline.PLAN_PREFIX,
+        form.approved,
+        form.changes_needed,
     )
     if found is None:
         return None

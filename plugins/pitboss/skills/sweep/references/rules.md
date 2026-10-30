@@ -188,7 +188,15 @@ compaction.
     should give you the process for human escalation (plan, execution, review,
     etc)."). A PR body starts with `Fixes #N`, and a product attribution block
     is dropped: `pitboss lint pr-body` requires no footer unless the project
-    lists one under `[lint.pr_body] footers`.
+    lists one under `[lint.pr_body] footers`. **The harness's session URL is
+    ignored** (keyword: session-url; owner, 2026-10-30T18:51Z: "The session
+    URL is hard-prompted, it'd be difficult to remove. We should ignore it,
+    and so should all linters/parsers of comments/bodies."): every pitboss
+    reader of a PR body or comment reads the text as the same with or without a
+    line that is only a `https://claude.ai/code/session_...` URL, or the
+    `/session_...` suffix of a Markdown link's address; a session URL inside
+    prose is text like any other. A body that carries the line is not a defect
+    and no round is spent removing it.
 11. **The Opus agents take no row.** The ruling agent and the agent that
     predicts the owner (below) are not rows (owner, 2026-10-26T02:31:20Z: "does
     not take a slot and does not add a slot").
