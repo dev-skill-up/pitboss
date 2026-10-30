@@ -89,7 +89,8 @@ this order, and says on each line why it is where it is:
 
 Within a category: by priority label (the order of `priority_labels`), then
 oldest first by the creation time of the PR or the ticket. Items a slot
-already holds are left out.
+already holds are left out. A `STALL` line of the sweep (`rules.md`) is the one
+exception: its fix is taken before every line of this list.
 
 Take the lines in this order and nothing else: nobody guesses which files a
 ticket will touch, and no ticket is skipped or held back because another PR

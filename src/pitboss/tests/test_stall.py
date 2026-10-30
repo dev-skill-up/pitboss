@@ -1,5 +1,6 @@
 """Tests for the STALL line: a relock PR whose check stays red over four hours."""
 
+import dataclasses
 import datetime
 import json
 import unittest
@@ -105,6 +106,16 @@ class TestStall(unittest.TestCase):
         for branch in ("fix-29", "relocking/x", "not/relock/x"):
             with self.subTest(branch):
                 assert_that(printed(facts(branch, [check(86400)])), equal_to([]))
+
+    def test_a_stalled_relock_draft_still_stalls(self) -> None:
+        """A draft is not excluded: a red relock draft over four hours prints STALL."""
+        head = {"sha": fakes.HEAD, "ref": RELOCK}
+        body = fakes.pull_body(7, head=head, draft=True)
+        draft = dataclasses.replace(
+            facts(RELOCK, [check(14401)]), pull=parsing.pull(json.dumps(body))
+        )
+        assert_that(draft.pull.draft, equal_to(True))
+        assert_that(len(printed(draft)), equal_to(1))
 
     def test_a_green_relock_pr_is_quiet(self) -> None:
         """A relock PR whose check passed prints nothing, however old."""

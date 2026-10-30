@@ -362,7 +362,8 @@ starts from the base branch (no stacking), and a conflict is resolved by
 merging the base branch in when it arises.
 
 Inside a category, oldest first by the PR's (or the ticket's) creation
-time; in the third, by ``priority_labels`` first. Each line names the
+time (the one exception is a ``STALL`` line of the sweep, whose fix the skill's
+rules take before every line of this list); in the third, by ``priority_labels`` first. Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty
 slots are filled smallest model first, each with the first line it may take.
