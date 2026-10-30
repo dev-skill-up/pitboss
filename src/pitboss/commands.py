@@ -37,8 +37,7 @@ from . import (
     tracefs,
     worktrees,
 )
-from . import diskline, orphanline, repoarg, roundline, stall, unreadableline
-from . import updateline
+from . import diskline, orphanline, pulllines, repoarg, unreadableline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -231,11 +230,7 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
         read = read_all(found.github, pull)
         why = {check_id: describe(failure) for check_id, failure in read.items()}
         steps = {check_id: failure.steps for check_id, failure in read.items()}
-        for line in stall.lines(pull, found.now, steps):
-            print(line)
-        for line in updateline.lines(pull, found.settings):
-            print(line)
-        for line in roundline.lines(pull):
+        for line in pulllines.lines(pull, found.now, found.settings, steps):
             print(line)
         for line in report.action_lines(pull, found.settings, queued, why):
             print(line)

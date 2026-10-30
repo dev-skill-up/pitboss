@@ -256,7 +256,11 @@ runner count and the pressure line holds, never ``NO RUNNER PRESSURE``, since
 a count that is incomplete cannot tell a free runner (``pressure`` and
 ``push`` refuse instead). While any PR is unreadable no ticket is offered as new
 work (``UNREADABLE tickets: not offered as new work``), because that PR may
-already work on it.
+already work on it. A trusted comment with a ``Verdict:``, ``Plan:`` or
+``Execution:`` line whose first line is not the repository's review first line
+is no review to the sweep, so it is named, not read as no review
+(``UNREADABLE REVIEW owner/name#7: <comment URL> is not in the review form:
+...``); the reviewer is asked to post it again in the form.
 
 How each part decides
 ---------------------

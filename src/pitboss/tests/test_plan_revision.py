@@ -59,6 +59,7 @@ def world_with(posted: shapes.Comment) -> world.World:
             "body": posted.body,
             "author_association": posted.author_association,
             "created_at": posted.created_at,
+            "html_url": posted.url,
         }
     ]
     return here

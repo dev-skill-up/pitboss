@@ -148,11 +148,13 @@ class Comment:
         body: its text.
         author_association: its author's relation to the repository.
         created_at: when it was written (ISO 8601).
+        url: its address (``html_url``), empty when the API gave none.
     """
 
     body: str
     author_association: str
     created_at: str
+    url: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
