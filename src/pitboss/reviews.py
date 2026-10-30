@@ -5,7 +5,7 @@ import enum
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import config, roundlimit, shapes
+from . import config, gradeline, shapes
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -27,10 +27,8 @@ class Standing(enum.Enum):
         APPROVED_BEFORE_MERGES: an older head approved, only merges since.
         CHANGES_NEEDED: this very head needs changes.
         OLDER_HEAD: the review is of an older head (a fix came since).
-        PLAN_CHANGES_NEEDED: this very head's review graded the plan changes
-            needed; the next round revises the plan only.
-        PLAN_APPROVED: this very head's review approved the plan alone (it
-            has no ``Execution:`` line); the execution is not reviewed yet.
+        PLAN_CHANGES_NEEDED: this head's plan needs changes (revise it only).
+        PLAN_APPROVED: this head's review approved the plan alone (no merge).
     """
 
     NONE = enum.auto()
@@ -50,15 +48,14 @@ class Found:
         sha: the head it reviewed (possibly abbreviated).
         verdict: what it says.
         when: when it was written (ISO 8601).
-        plan: what its ``Plan:`` line says, None when it has none.
-        plan_alone: whether it grades the plan and nothing else (a ``Plan:``
-            line and no ``Execution:`` line): the review of a revised plan.
+        plan_approved: what its ``Plan:`` line grades, None with no such line.
+        plan_alone: whether it has a ``Plan:`` line and no ``Execution:`` line.
     """
 
     sha: str
     verdict: Verdict
     when: str
-    plan: Verdict | None = None
+    plan_approved: bool | None = None
     plan_alone: bool = False
 
 
@@ -206,9 +203,8 @@ def read_gated(body: str, form: config.ReviewForm) -> Reading | None:
     return found if found and len(found[0]) == _FULL_SHA else None
 
 
-def _alone(body: str, form: config.ReviewForm) -> bool:
-    graded_plan = roundlimit.plan_grade(body, form) is not None
-    return graded_plan and not roundlimit.execution_graded(body, form)
+def _grade(body: str, prefix: str, form: config.ReviewForm) -> bool | None:
+    return gradeline.line_approved(body, prefix, form.approved, form.changes_needed)
 
 
 def _from_comments(
@@ -222,13 +218,19 @@ def _from_comments(
             continue
         found = read(item.body, form)
         if found is not None:
-            yield Found(
-                sha=found[0],
-                verdict=found[1],
-                when=item.created_at,
-                plan=roundlimit.plan_grade(item.body, form),
-                plan_alone=_alone(item.body, form),
-            )
+            yield _found(item, found, form)
+
+
+def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Found:
+    plan = _grade(item.body, gradeline.PLAN_PREFIX, form)
+    execution = _grade(item.body, gradeline.EXECUTION_PREFIX, form)
+    return Found(
+        sha=read[0],
+        verdict=read[1],
+        when=item.created_at,
+        plan_approved=plan,
+        plan_alone=plan is not None and execution is None,
+    )
 
 
 def _from_reviews(
@@ -371,8 +373,8 @@ def plan_only(found: Found) -> bool:
         True when it is an approval with ``Plan: approved`` and no
         ``Execution:`` line: it is no approval to merge.
     """
-    plan_approved = found.plan is Verdict.APPROVED
-    return found.verdict is Verdict.APPROVED and plan_approved and found.plan_alone
+    approves = found.verdict is Verdict.APPROVED
+    return approves and found.plan_approved is True and found.plan_alone
 
 
 def head_standing(found: Found | None, head: str) -> Standing:
@@ -391,6 +393,6 @@ def head_standing(found: Found | None, head: str) -> Standing:
         return Standing.OLDER_HEAD
     if found.verdict is Verdict.APPROVED:
         return Standing.PLAN_APPROVED if plan_only(found) else Standing.APPROVED
-    if found.plan is Verdict.CHANGES_NEEDED:
+    if found.plan_approved is False:
         return Standing.PLAN_CHANGES_NEEDED
     return Standing.CHANGES_NEEDED

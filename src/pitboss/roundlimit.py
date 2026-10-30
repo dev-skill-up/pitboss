@@ -10,14 +10,11 @@ comment whose first line is ``Opus ruling``.
 
 import dataclasses
 import enum
-import re
 from typing import AbstractSet, Callable, Iterable
 
-from . import config, shapes
+from . import config, gradeline, shapes
 
 RULING_FIRST_LINE = "Opus ruling"
-PLAN_PREFIX = "Plan: "
-EXECUTION_PREFIX = "Execution: "
 VerdictOf = Callable[[str], shapes.Verdict | None]
 
 
@@ -71,29 +68,6 @@ def is_ruling(body: str) -> bool:
     return bool(lines) and lines[0].rstrip() == RULING_FIRST_LINE
 
 
-def line_grade(
-    body: str, prefix: str, form: config.ReviewForm
-) -> shapes.Verdict | None:
-    """The grade a review gives on its first line that starts with ``prefix``.
-
-    Args:
-        body: the review comment.
-        prefix: the start of the line (``Plan: `` or ``Execution: ``).
-        form: the form reviews take (its two verdict words).
-
-    Returns:
-        The grade of the first such line, or None when no line grades it.
-    """
-    words = {
-        form.approved: shapes.Verdict.APPROVED,
-        form.changes_needed: shapes.Verdict.CHANGES_NEEDED,
-    }
-    alternatives = "|".join(map(re.escape, words))
-    pattern = re.compile(re.escape(prefix) + f"({alternatives})")
-    matches = (pattern.fullmatch(line.rstrip()) for line in body.splitlines())
-    return next((words[found.group(1)] for found in matches if found), None)
-
-
 def plan_grade(body: str, form: config.ReviewForm) -> shapes.Verdict | None:
     """The grade of the ``Plan:`` line of a review.
 
@@ -105,20 +79,12 @@ def plan_grade(body: str, form: config.ReviewForm) -> shapes.Verdict | None:
         The grade of the first ``Plan:`` line, or None when no line grades it
         (the review says nothing of the plan).
     """
-    return line_grade(body, PLAN_PREFIX, form)
-
-
-def execution_graded(body: str, form: config.ReviewForm) -> bool:
-    """Whether a review has an ``Execution:`` line that grades the execution.
-
-    Args:
-        body: the review comment.
-        form: the form reviews take (its two verdict words).
-
-    Returns:
-        True when it has one; a review of a revised plan has none.
-    """
-    return line_grade(body, EXECUTION_PREFIX, form) is not None
+    found = gradeline.line_approved(
+        body, gradeline.PLAN_PREFIX, form.approved, form.changes_needed
+    )
+    if found is None:
+        return None
+    return shapes.Verdict.APPROVED if found else shapes.Verdict.CHANGES_NEEDED
 
 
 def after_ruling(state: Rounds) -> Rounds:

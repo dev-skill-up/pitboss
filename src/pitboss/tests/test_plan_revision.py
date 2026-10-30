@@ -1,22 +1,24 @@
 """Tests for the plan revision round (keyword: plan-revision, pitboss#82)."""
 
-import dataclasses
 import unittest
+from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
-from .. import pulls, reviews, roundlimit, shapes, work
-from . import fakes, test_pulls, test_roundlimit, test_work
-from .test_commands import sweep
-from .test_slot_commands import next_output
+from .. import gradeline, pulls, reviews, shapes, work
+from . import fakes, test_pulls, test_work, world
 
 APPROVED = reviews.Verdict.APPROVED
 CHANGES = reviews.Verdict.CHANGES_NEEDED
+STANDING = reviews.Standing
+KINDS = work.Category
 HEAD = "3" * 40
+AFTER = ("--now", world.FUTURE)
+COMMENTS = fakes.page("repos/owner/project/issues/3/comments")
 
 
 def review_comment(
-    verdict: str, plan: str | None, execution: str | None, second: int = 1
+    verdict: str, plan: str | None, execution: str | None
 ) -> shapes.Comment:
     """A review comment in the default form with the lines given.
 
@@ -24,7 +26,6 @@ def review_comment(
         verdict: the verdict word.
         plan: the plan grade, or None for no ``Plan:`` line.
         execution: the execution grade, or None for no ``Execution:`` line.
-        second: the second of the minute it was written.
 
     Returns:
         The comment.
@@ -36,212 +37,180 @@ def review_comment(
         *([f"Execution: {execution}"] if execution else []),
         f"Verdict: {verdict}",
     ]
-    return test_roundlimit.comment("\n".join(lines) + "\n", second)
+    return shapes.Comment(
+        body="\n".join(lines).replace("a" * 40, HEAD) + "\n",
+        author_association="MEMBER",
+        created_at="2026-10-30T00:00:01Z",
+    )
 
 
-def line_of_pr3(*posted: shapes.Comment) -> tuple[str, str]:
-    """The sweep's line of PR 3 and its line of ``slots next``, or none.
+def world_with(posted: shapes.Comment) -> world.World:
+    """A world whose PR 3 has the one comment.
 
     Args:
-        *posted: PR 3's comments.
+        posted: the comment.
 
     Returns:
-        The two lines.
+        The world.
     """
-    here = test_roundlimit.world_with(posted)
-    pull_line = next(
-        line for line in sweep(here).out.splitlines() if "owner/project#3 [" in line
+    here = world.make_world()
+    here.bodies[COMMENTS] = [
+        {
+            "body": posted.body,
+            "author_association": posted.author_association,
+            "created_at": posted.created_at,
+        }
+    ]
+    return here
+
+
+def outputs(posted: shapes.Comment) -> tuple[str, str, str]:
+    """What the sweep and ``slots next`` print for a world with PR 3's comment.
+
+    Args:
+        posted: PR 3's only comment.
+
+    Returns:
+        The sweep, PR 3's line of it, and PR 3's line of ``slots next``.
+    """
+    here = world_with(posted)
+    swept = world.invoke(here, "sweep", here.config, *AFTER).out
+    listed = world.invoke(here, "slots", "next", here.config, *AFTER).out
+    return (
+        swept,
+        next(line for line in swept.splitlines() if "owner/project#3 [" in line),
+        "".join(line for line in listed.splitlines() if "project#3 (" in line),
     )
-    listed = [line for line in next_output(here).splitlines() if "project#3 (" in line]
-    return pull_line, "\n".join(listed)
+
+
+def review_of(
+    verdict: reviews.Verdict, plan: bool | None, alone: bool
+) -> reviews.Standing:
+    """Where the head stands with a review that has the grades given.
+
+    Args:
+        verdict: the review's verdict.
+        plan: its plan grade.
+        alone: whether it grades the plan alone.
+
+    Returns:
+        The standing.
+    """
+    found = reviews.Found(
+        sha=HEAD, verdict=verdict, when="", plan_approved=plan, plan_alone=alone
+    )
+    return reviews.head_standing(found, HEAD)
 
 
 class TestHeadStanding(unittest.TestCase):
     """Where a head stands with a review that grades the plan."""
 
-    def test_standings(self) -> None:
-        """A rejected plan, a plan approved alone and the usual cases."""
+    def test_a_rejected_plan(self) -> None:
+        """Plan changes needed is its own standing, whatever the execution."""
+        found = [review_of(CHANGES, False, alone) for alone in (False, True)]
+        assert_that(found, equal_to([STANDING.PLAN_CHANGES_NEEDED] * 2))
 
-        def found(
-            verdict: reviews.Verdict, plan: reviews.Verdict | None, alone: bool
-        ) -> reviews.Standing:
-            review = reviews.Found(
-                sha=HEAD, verdict=verdict, when="", plan=plan, plan_alone=alone
-            )
-            return reviews.head_standing(review, HEAD)
+    def test_a_plan_approved_alone(self) -> None:
+        """Only an approval of the plan with no execution grade is plan approved."""
+        found = [
+            review_of(APPROVED, True, True),
+            review_of(APPROVED, True, False),
+            review_of(APPROVED, False, True),
+            review_of(APPROVED, None, False),
+        ]
+        expected = [STANDING.PLAN_APPROVED, *[STANDING.APPROVED] * 3]
+        assert_that(found, equal_to(expected))
 
-        cases = [
-            found(CHANGES, CHANGES, False),
-            found(CHANGES, CHANGES, True),
-            found(CHANGES, APPROVED, False),
-            found(CHANGES, None, False),
-            found(APPROVED, APPROVED, True),
-            found(APPROVED, APPROVED, False),
-            found(APPROVED, CHANGES, True),
-            found(APPROVED, None, False),
-        ]
-        plan_rejected = reviews.Standing.PLAN_CHANGES_NEEDED
-        changes = reviews.Standing.CHANGES_NEEDED
-        expected = [
-            plan_rejected,
-            plan_rejected,
-            changes,
-            changes,
-            reviews.Standing.PLAN_APPROVED,
-            reviews.Standing.APPROVED,
-            reviews.Standing.APPROVED,
-            reviews.Standing.APPROVED,
-        ]
-        assert_that(cases, equal_to(expected))
+    def test_changes_needed_with_the_plan_approved_or_unsaid(self) -> None:
+        """The usual standing: a fix of the review."""
+        found = [review_of(CHANGES, True, False), review_of(CHANGES, None, False)]
+        assert_that(found, equal_to([STANDING.CHANGES_NEEDED] * 2))
 
 
 class TestReadingLines(unittest.TestCase):
     """The Plan and Execution lines of a review comment."""
 
-    def test_found_carries_both_lines(self) -> None:
-        """A review comment has a plan grade and says whether it grades the plan alone."""
-        form = test_roundlimit.FORM
-        full = review_comment("approved", "approved", "changes needed").body
-        alone = review_comment("approved", "approved", None).body
-        bare = review_comment("approved", None, None).body
+    def test_grade_lines(self) -> None:
+        """A line grades with the form's two words; another word grades nothing."""
+        body = "Plan: changes needed\nExecution: approved\nVerdict: approved\n"
+        words = ("approved", "changes needed")
         found = [
-            (roundlimit.plan_grade(body, form), roundlimit.execution_graded(body, form))
-            for body in (full, alone, bare)
+            gradeline.line_approved(body, gradeline.PLAN_PREFIX, *words),
+            gradeline.line_approved(body, gradeline.EXECUTION_PREFIX, *words),
+            gradeline.line_approved("Plan: fine\n", gradeline.PLAN_PREFIX, *words),
         ]
-        assert_that(
-            found, equal_to([(APPROVED, True), (APPROVED, False), (None, False)])
-        )
+        assert_that(found, equal_to([False, True, None]))
 
-    def test_newest_reads_them(self) -> None:
-        """The newest review has the plan grade of its comment; a GitHub review has none."""
-        posted = reviews.Sources(
-            comments=[review_comment("changes needed", "changes needed", None)],
-            reviews=[],
+    def test_newest_has_the_grades_of_its_comment(self) -> None:
+        """A review comment has a plan grade; a GitHub review has none."""
+        alone = review_comment("changes needed", "changes needed", None)
+        full = review_comment("approved", "approved", "approved")
+        github = shapes.PullReview(
+            state="CHANGES_REQUESTED",
+            commit_id=HEAD,
+            author_association="MEMBER",
+            submitted_at="1",
         )
-        newest = reviews.newest(posted, test_roundlimit.REVIEW, "owner/project")
-        assert_that(
-            newest and (newest.plan, newest.plan_alone), equal_to((CHANGES, True))
-        )
-        github = reviews.Sources(
-            comments=[],
-            reviews=[
-                shapes.PullReview(
-                    state="CHANGES_REQUESTED",
-                    commit_id=HEAD,
-                    author_association="MEMBER",
-                    submitted_at="1",
-                )
-            ],
-        )
-        newest = reviews.newest(github, test_roundlimit.REVIEW, "owner/project")
-        assert_that(
-            newest and (newest.plan, newest.plan_alone), equal_to((None, False))
-        )
-
-
-def reviewed(
-    number: int, verdict: reviews.Verdict, plan: reviews.Verdict | None, alone: bool
-) -> pulls.PullFacts:
-    """A green PR whose newest review of its head has the grades given.
-
-    Args:
-        number: its number.
-        verdict: the review's verdict.
-        plan: the review's plan grade.
-        alone: whether the review grades the plan alone.
-
-    Returns:
-        The PR.
-    """
-    found = reviews.Found(
-        sha=fakes.HEAD, verdict=verdict, when="", plan=plan, plan_alone=alone
-    )
-    standing = reviews.head_standing(found, fakes.HEAD)
-    return dataclasses.replace(
-        test_work.facts(number, standing), review=found, standing=standing
-    )
+        sources = [
+            reviews.Sources(comments=comments, reviews=submitted)
+            for comments, submitted in [([alone], []), ([full], []), ([], [github])]
+        ]
+        review = fakes.settings(fakes.directory()).review
+        found = [reviews.newest(each, review, "owner/project") for each in sources]
+        read = [(each.plan_approved, each.plan_alone) for each in found if each]
+        expected = [(False, True), (True, False), (None, False)]
+        assert_that(read, equal_to(expected))
 
 
 class TestKinds(unittest.TestCase):
     """The kind of work a PR is listed as."""
 
     def test_newest_review_decides_the_kind(self) -> None:
-        """Plan changes needed: revise the plan; plan approved: fix the review."""
-        settings = fakes.settings(fakes.directory())
-        open_pulls = [
-            reviewed(1, CHANGES, CHANGES, False),
-            reviewed(2, CHANGES, APPROVED, False),
-            reviewed(3, CHANGES, None, False),
-            reviewed(4, APPROVED, APPROVED, True),
-            dataclasses.replace(
-                reviewed(5, APPROVED, APPROVED, True),
-                pull=test_work.facts(5, reviews.Standing.NONE, draft=True).pull,
-            ),
+        """Plan changes needed: revise the plan; otherwise fix the review."""
+        open_pulls: Sequence[pulls.PullFacts] = [
+            test_work.facts(1, review_of(CHANGES, False, False)),
+            test_work.facts(2, review_of(CHANGES, True, False)),
+            test_work.facts(3, review_of(CHANGES, None, False)),
+            test_work.facts(4, review_of(APPROVED, True, True)),
+            test_work.facts(5, review_of(APPROVED, True, True), draft=True),
         ]
         found = [
             (each.reference, each.category)
-            for each in work.pull_items(open_pulls, settings)
+            for each in work.pull_items(open_pulls, fakes.settings(fakes.directory()))
         ]
-        kinds = work.Category
-        assert_that(
-            found,
-            equal_to(
-                [
-                    ("owner/project#1", kinds.REVISE_PLAN),
-                    ("owner/project#2", kinds.FIX_REVIEW),
-                    ("owner/project#3", kinds.FIX_REVIEW),
-                    ("owner/project#4", kinds.REVIEW),
-                ]
-            ),
-        )
+        expected = [KINDS.REVISE_PLAN, KINDS.FIX_REVIEW, KINDS.FIX_REVIEW, KINDS.REVIEW]
+        names = [f"owner/project#{number}" for number in range(1, 5)]
+        assert_that(found, equal_to(list(zip(names, expected))))
+
+
+NEEDED = "changes needed"
+OUTPUT_CASES = [
+    # (verdict, plan, execution), the PR line, the kind listed, ready to merge
+    ((NEEDED, NEEDED, NEEDED), "review=plan-changes-needed", "(revise the plan,", 0),
+    ((NEEDED, None, NEEDED), "review=changes-needed", "(fix the review,", 0),
+    ((NEEDED, "approved", NEEDED), "review=changes-needed", "", 0),
+    (("approved", "approved", None), "review=plan-approved", "(review it", 0),
+    (("approved", "approved", "approved"), "review=approved-this-head", "", 1),
+]
 
 
 class TestSweepAndNext(unittest.TestCase):
     """The sweep's PR line and ``slots next``, from the comments."""
 
-    def test_newest_review_with_plan_changes_needed(self) -> None:
-        """Plan changes needed: revise the plan, whatever the execution grade."""
-        pull_line, listed = line_of_pr3(
-            review_comment("changes needed", "changes needed", "changes needed")
-        )
-        assert_that(pull_line, contains_string("review=plan-changes-needed"))
-        assert_that(listed, contains_string("owner/project#3 (revise the plan,"))
+    def test_each_review_has_its_line_and_kind(self) -> None:
+        """A rejected plan is revised, a plan approved alone is no approval to merge.
 
-    def test_newest_review_that_says_nothing_of_the_plan(self) -> None:
-        """No Plan line and execution changes needed: fix the review."""
-        pull_line, listed = line_of_pr3(
-            review_comment("changes needed", None, "changes needed")
-        )
-        assert_that(pull_line, contains_string("review=changes-needed"))
-        assert_that(listed, contains_string("owner/project#3 (fix the review,"))
-
-    def test_plan_approved_alone_is_no_approval_to_merge(self) -> None:
-        """The execution is reviewed next: the PR is offered for a review, never merged."""
-        pull_line, listed = line_of_pr3(review_comment("approved", "approved", None))
-        assert_that(pull_line, contains_string("review=plan-approved"))
-        assert_that(listed, contains_string("owner/project#3 (review it"))
-        here = test_roundlimit.world_with(
-            [review_comment("approved", "approved", None)]
-        )
-        assert_that(
-            "READY TO MERGE owner/project#3" in sweep(here).out, equal_to(False)
-        )
-
-    def test_plan_approved_with_changes_needed_is_a_ruling_due(self) -> None:
-        """The limit still holds the PR: the review that approves the plan counts."""
-        posted = review_comment("changes needed", "approved", "changes needed")
-        pull_line, listed = line_of_pr3(posted)
-        assert_that(pull_line, contains_string("review=changes-needed"))
-        assert_that(listed, equal_to(""))
-
-    def test_both_approved_is_ready_to_merge(self) -> None:
-        """The control: a review of the plan and the execution that approves merges."""
-        here = test_roundlimit.world_with(
-            [review_comment("approved", "approved", "approved")]
-        )
-        swept = sweep(here).out
-        assert_that(swept, contains_string("review=approved-this-head"))
-        assert_that(swept, contains_string("READY TO MERGE owner/project#3"))
+        A review that approves the plan and asks for changes is held by the
+        limit (RULING DUE), so it is listed as no kind.
+        """
+        for grades, line, kind, ready in OUTPUT_CASES:
+            swept, pull_line, listed = outputs(review_comment(*grades))
+            merges = "READY TO MERGE owner/project#3" in swept
+            assert_that(
+                (line in pull_line, kind in listed and bool(listed) == bool(kind)),
+                equal_to((True, True)),
+            )
+            assert_that(merges, equal_to(bool(ready)))
 
 
 class TestCarryOver(unittest.TestCase):
@@ -250,8 +219,8 @@ class TestCarryOver(unittest.TestCase):
     def test_older_plan_approval_is_not_an_approval(self) -> None:
         """Only merges since the head it named: the standing is the older head's."""
         for plan_line, expected in [
-            ("", reviews.Standing.APPROVED_BEFORE_MERGES),
-            ("Plan: approved\n", reviews.Standing.OLDER_HEAD),
+            ("", STANDING.APPROVED_BEFORE_MERGES),
+            ("Plan: approved\n", STANDING.OLDER_HEAD),
         ]:
             found = test_pulls.bodies([test_pulls.AUTHORED, test_pulls.MERGE])
             comment = dict(test_pulls.OLD_GATED_APPROVAL)
