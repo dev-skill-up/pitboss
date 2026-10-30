@@ -14,7 +14,10 @@ from .test_slot_commands import next_output
 SETTINGS = fakes.settings(fakes.directory())
 FORM = SETTINGS.review.form
 REVIEW = dataclasses.replace(
-    SETTINGS.review, gated=frozenset({"owner/gated"}), trusted=frozenset({"MEMBER"})
+    SETTINGS.review,
+    gated=frozenset({"owner/gated"}),
+    trusted=frozenset({"MEMBER"}),
+    gated_form=dataclasses.replace(FORM, lines=("## Gated review", *FORM.lines[1:])),
 )
 NONE = roundlimit.Limit.NONE
 DUE = roundlimit.Limit.RULING_DUE
@@ -175,9 +178,29 @@ class TestReading(unittest.TestCase):
         assert_that(limit_after(REACHED[1], comment("thanks", 3)), equal_to(DUE))
 
     def test_a_gated_repository_reads_the_strict_form(self) -> None:
-        """The same rounds are read in a gated repository."""
-        found = limit_after(REACHED[1], slug="owner/gated")
-        assert_that(found, equal_to(DUE))
+        """Where gated, only the gated form read strictly counts."""
+        rejected = REACHED[1]
+        gated = dataclasses.replace(
+            rejected, body=rejected.body.replace("## Review", "## Gated review")
+        )
+        short_sha = "a" * 7
+        found = [
+            limit_after(gated, slug="owner/gated"),
+            limit_after(
+                dataclasses.replace(
+                    gated, body=gated.body.replace("a" * 40, short_sha)
+                ),
+                slug="owner/gated",
+            ),
+            limit_after(rejected, slug="owner/gated"),
+            limit_after(gated),
+            limit_after(
+                dataclasses.replace(
+                    rejected, body=rejected.body.replace("a" * 40, short_sha)
+                )
+            ),
+        ]
+        assert_that(found, equal_to([DUE, NONE, NONE, NONE, DUE]))
 
 
 class TestForms(unittest.TestCase):
@@ -262,6 +285,19 @@ class TestSweepAndNext(unittest.TestCase):
         """No marker is printed for it."""
         swept, _ = sweep_and_next([graded(*ALL_APPROVED, 1)])
         assert_that("RULING DUE" in swept or "PAUSE" in swept, equal_to(False))
+
+    def test_a_newer_github_approval_prints_neither(self) -> None:
+        """A trusted GitHub approval after the rounds is the newest review."""
+        here = world_with(REACHED)
+        approval = {
+            **world.APPROVAL,
+            "commit_id": "3" * 40,
+            "submitted_at": "2026-10-30T00:01:00Z",
+        }
+        here.bodies[fakes.page("repos/owner/project/pulls/3/reviews")] = [approval]
+        swept = sweep(here).out
+        assert_that("RULING DUE" in swept, equal_to(False))
+        assert_that(swept, contains_string("READY TO MERGE owner/project#3"))
 
     def test_a_pr_without_rounds_is_still_offered_for_review(self) -> None:
         """The control: with no review comment, PR 3 is listed."""

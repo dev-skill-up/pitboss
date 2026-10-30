@@ -69,7 +69,7 @@ estimated.
 2. Then pull requests in progress: an open PR with no worker that is still
    relevant is finished (fixed, reviewed, brought up to date, merged),
    whatever its priority, so open PRs do not pile up. A `STALL` fix comes
-   before every other pull request but the merge of a ready one (`rules.md`).
+   before every other pull request but the merge of a ready one (`rules.md`), unless the stalled PR has `RULING DUE` or `PAUSE`.
    A pull request whose review rounds hit the changes-needed limit
    (`RULING DUE` or `PAUSE` in the sweep) is not offered for any round until
    the ruling is recorded or the owner decides.
@@ -106,7 +106,7 @@ title, body or branch); a ticket with none of the labels is never offered.
 The tickets are ordered by priority label (the order of `priority_labels`),
 then oldest first by the creation time of the ticket. Items a slot already
 holds are left out. A `STALL` line of the sweep (`rules.md`) is the one
-exception to the order: its fix is taken before every line of this list.
+exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE` or `PAUSE` (then it has no line and waits).
 
 Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a
 ticket will touch, and no ticket is skipped or held back because another PR

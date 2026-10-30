@@ -296,11 +296,14 @@ line says nothing of the plan), and its verdict. The plan rejections are the pla
 grades of changes needed before any grade of approved. The limit is reached at the
 second plan rejection, or at a review that asks for changes once a review (that
 one included) graded the plan approved. A ruling is a comment whose first line is
-exactly ``Opus ruling``. Judged by the newest review: if it does not ask for
-changes, nothing is printed; if it asks for changes after a recorded ruling, the
-line is ``PAUSE``; if the limit is reached and no ruling is recorded,
-``RULING DUE``; a ruling after the newest review leaves nothing printed until the
-next review. GitHub's own reviews have no ``Plan:`` line and are not read. A PR
+exactly ``Opus ruling``. When the newest review that counts (**Reviews**, above:
+a trusted GitHub review too, outside a gated repository) does not ask for
+changes, nothing is printed. Otherwise the rounds are judged by the newest
+review comment: if it does not ask for changes, nothing is printed; if it asks
+for changes after a recorded ruling, the line is ``PAUSE``; if the limit is
+reached and no ruling is recorded, ``RULING DUE``; a ruling after the newest
+review leaves nothing printed until the next review. GitHub's own reviews have
+no ``Plan:`` line and count in no round. A PR
 with either marker is offered for no fix, update or review round in ``slots
 next``, and its ticket stays taken.
 

@@ -275,6 +275,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     posted = _sources(source, repo, number)
     found = reviews.newest(posted, source.review, repo.slug)
     checks = _head_checks(source, repo, head)
+    asks = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
     return PullFacts(
         repo=repo,
         pull=pull,
@@ -282,7 +283,9 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         review=found,
         standing=_standing(source, repo, pull, found),
         unread=reviews.unread(posted, source.review, repo.slug, found),
-        limit=limit_of(source, repo, posted.comments),
+        limit=(
+            limit_of(source, repo, posted.comments) if asks else roundlimit.Limit.NONE
+        ),
     )
 
 
