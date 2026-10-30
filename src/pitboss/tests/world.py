@@ -261,7 +261,7 @@ def parser() -> argparse.ArgumentParser:
     return cli_parser.make_parser()
 
 
-def shell_env(world: World, directory: pathlib.Path | None) -> dict[str, str]:
+def shell_env(world: World, directory: pathlib.Path | None) -> Mapping[str, str]:
     """The environment a command runs with.
 
     Args:
@@ -287,18 +287,32 @@ def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> R
         What it did.
     """
     out, err = io.StringIO(), io.StringIO()
-    code: object = 0
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            gather_commands.run_maybe_dry(
-                parser=parser(),
-                argv=["pitboss", *argv],
-                env=shell_env(world, directory),
-                sp_run=world.processes,
-            )
-        except SystemExit as exit_error:
-            code = exit_error.code
+        code = exit_code(world, ["pitboss", *argv], shell_env(world, directory))
     return Result(out=out.getvalue(), err=err.getvalue(), code=code)
+
+
+def exit_code(world: World, argv: Sequence[str], env: Mapping[str, str]) -> object:
+    """Run the command line and say how it exited.
+
+    Args:
+        world: the world.
+        argv: the whole command line.
+        env: the environment it runs with.
+
+    Returns:
+        The code it exited with; 0 when it returned.
+    """
+    try:
+        gather_commands.run_maybe_dry(
+            parser=parser(),
+            argv=list(argv),
+            env=env,
+            sp_run=world.processes,
+        )
+    except SystemExit as exit_error:
+        return exit_error.code
+    return 0
 
 
 def again(here: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
