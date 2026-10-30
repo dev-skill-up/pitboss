@@ -108,11 +108,16 @@ def removals(
 def prune(run: Run, gone: Sequence[dead.Candidate]) -> None:
     """Prune the worktree lists that a removed linked worktree was in.
 
+    A git directory that is itself gone (the checkout holding it was removed
+    in the same run) has no list left to prune, so it is skipped.
+
     Args:
         run: the runner for changes.
         gone: the removed candidates.
     """
     for directory in sorted({each.prune for each in gone if each.prune}, key=str):
+        if not directory.exists():
+            continue
         git(run, directory, "worktree", "prune")
 
 

@@ -154,6 +154,23 @@ class TestCommandPieces(unittest.TestCase):
             {("rm", "-rf", "--one-file-system")},
         )
 
+    def test_prune_skips_a_git_directory_that_is_gone(self) -> None:
+        """A prune of a missing directory runs no git; an existing one does."""
+        top = fakes.directory()
+        repository = fakes.make_repository(top)
+        gone = top / "removed" / ".git"
+        run = fakes.FakeProcesses(bodies={})
+        each = candidates(top, "a", "b")
+        listed = [
+            dataclasses.replace(each[0], prune=gone),
+            dataclasses.replace(each[1], prune=repository),
+        ]
+        cleaning.prune(run, listed)
+        same(
+            [call[:3] for call in run.calls],
+            [["git", "-C", str(repository)]],
+        )
+
     def test_each_part_is_looked_at_again_just_before_its_rm(self) -> None:
         """A path that is not removable now is not given to rm; the others are."""
         _, found = directories("a", "b", "c")
