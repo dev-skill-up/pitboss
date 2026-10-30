@@ -183,6 +183,21 @@ class TestSweep(unittest.TestCase):
         found = (expected in result.out, "Traceback" in result.err, result.code)
         assert_that(found, equal_to((True, False, 0)))
 
+    def test_sweep_goes_on_when_one_call_fails(self) -> None:
+        """One PR's failed API call is a line naming it; the others are swept (#101)."""
+        here = world.make_world()
+        here.bodies[OPEN_PULLS] = [{"number": 1}, {"number": 2}]
+        del here.bodies[fakes.page(f"{world.PROJECT}/commits/{'1' * 40}/check-runs")]
+        result = sweep(here)
+        expected = "UNREADABLE owner/project#1: check-runs answered HTTP 404"
+        found = (
+            expected in result.out,
+            "READY TO MERGE owner/project#2" in result.out,
+            "Traceback" in result.err,
+            result.code,
+        )
+        assert_that(found, equal_to((True, True, False, 0)))
+
     def test_sweep_says_why(self) -> None:
         """A failed check's line says its failed step, output and annotations."""
         expected = (
