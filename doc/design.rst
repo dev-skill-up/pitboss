@@ -264,7 +264,8 @@ current base), then ``RULING DUE`` or ``PAUSE`` (``pitboss.roundlimit`` reads
 the PR's comments, ``pitboss.roundline`` prints; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
-Execution, is started by its author's hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
+Execution, and the review of a revised plan are started by its author's
+hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
@@ -273,7 +274,7 @@ finished and none failed, state ``clean``, an approving review of this head, or 
 ungated repository of an older head when everything since is merges of the
 base branch) or, in a ``no_auto_merge`` repository, ``MERGE BY HAND``, or
 else ``AUTO MERGE OFF`` for a healthy PR with auto-merge off, not in the
-queue and not asked for changes.
+queue, not asked for changes and not standing ``plan-approved``.
 
 **Reviews.** A review is the newest comment by a trusted author whose lines
 match the repository's form. In a gated repository the form is strict: the
@@ -288,7 +289,14 @@ merges (the non-merge commits of ``base...head`` are those of
 a verdict but is not in the form (``Independent re-review``) is not a review;
 the PR's line says so (``review=... (ignored: the comment of <time> is not in
 the review form)``), so the older review is not taken for the last word
-unseen (#20).
+unseen (#20). A review comment also carries what its ``Plan:`` line grades and
+whether it has an ``Execution:`` line (keyword: plan-revision, pitboss#82). A
+head whose newest review asks for changes and grades the plan changes needed
+stands ``plan-changes-needed``; one whose newest review approves and has a
+``Plan: approved`` line but no ``Execution:`` line (a review of a revised plan,
+which grades the plan alone) stands ``plan-approved``, is no approval to merge,
+is not carried over merges of the base, and gets no ``AUTO MERGE OFF`` line
+(auto-merge is never armed on it). Both words are on the PR's line.
 
 **Review rounds** (keyword: round-limit, pitboss#76). The skill's rules call for an
 Opus ruling when the plan is not approved after two reviews, or when a review asks
@@ -416,19 +424,25 @@ slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
 line saying why it is where it is. The open PRs that need a fix of a review, an
 update or a review come first, in one list ordered oldest first, whatever each
-needs; each line says which of the three kinds it is, and a PR is listed once,
+needs; each line says which of the four kinds it is, and a PR is listed once,
 as the first of these kinds that fits:
 
+* ``revise the plan``: a review that asked for changes on an unmoved head
+  graded the plan changes needed (keyword: plan-revision, pitboss#82); the
+  author edits the ``## Plan`` section of the body and touches no code, doc or
+  test until the plan is approved, and the review of the revised plan grades
+  the plan alone;
 * ``fix the review``: the author's fix for a review that asked for changes, on
-  an unmoved head;
+  an unmoved head, that did not reject the plan;
 * ``update``: a PR whose ``mergeable_state`` is ``behind`` and whose checks
   have all finished (a behind PR whose checks still run is not listed; one in
   a repository under ``[merge_queue] repositories`` is never an update).
   ``pitboss sweep`` prints it as an ``UPDATE`` line;
 * ``review it``: a review of a PR whose checks are all green on its head and
-  which has no review of that head (the reviewer is never the author).
+  which has no review of that head, or only one that approved the plan alone
+  (the reviewer is never the author).
 
-A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of the three.
+A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of the four.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR.

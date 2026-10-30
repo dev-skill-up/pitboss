@@ -18,7 +18,7 @@ whether the repository is gated.
   reviewed where the form says `{sha}`; read it from the PR when you start,
   and again before you post: if the head moved, review the new head.
 - Start only when every check has finished and passed on that head, except
-  for the first review of a draft PR (below), which has no check run. Your
+  for a review of a draft PR at its Plan stage (below), which has no check run. Your
   first act is to read the checks of the full head SHA the brief names. If one
   has not finished or has not passed, you were started too early: hand back at
   once with `NOT STARTED: <check> is <state> at <sha>`, and review nothing.
@@ -60,7 +60,8 @@ a new review.
 
 A fix is a draft PR whose body has a Plan section and an Execution section
 (`rules.md`, "Plan first"). You are a new reviewer, never a continued one, and
-you grade both in one review, besides the form's single verdict line:
+you grade both in one review, besides the form's single verdict line (for a
+review of a revised plan, see the last bullet):
 
 - a line `Plan: approved` or `Plan: changes needed`, and a line
   `Execution: approved` or `Execution: changes needed`; neither line contains
@@ -74,7 +75,13 @@ you grade both in one review, besides the form's single verdict line:
 - a statement the change makes false or contradictory anywhere in the tree is
   changes needed (the author greps the tree for them before asking for review);
 - an objection to a phrase no claim depends on is withdrawn when the author
-  removes the phrase: do not defend a phrase.
+  removes the phrase: do not defend a phrase;
+- if your brief says the Plan was revised after a rejection, you grade the
+  Plan alone: a `Plan:` line and the form's one verdict line, which is the
+  Plan's verdict, no `Execution:` line and no defect of the Execution (the
+  author did not touch it in that round, and it is measured against the Plan
+  once the Plan is approved). An approval of the Plan alone is no approval to
+  merge.
 
 ## What to review
 
@@ -82,7 +89,9 @@ Read the diff against its ticket. Try to break it: a realistic input or
 caller that makes it fail, a test that passes without testing the claim, a
 case the ticket names and the diff does not cover. Say what you checked and
 how. A verdict that asks for changes names each change, small enough that
-the author can make it without asking.
+the author can make it without asking. In a review of the Plan alone (a
+revised Plan, above), read the Plan against its ticket instead: the diff is
+not graded in that round.
 
 ## No exit clauses
 
@@ -95,6 +104,11 @@ not you, and not by asking the owner.
   for changes, and the finding is "do the done-when as written": name the
   part that is not met, what to run or build to meet it, and what evidence to
   attribute to it in the PR.
+- In a review of the Plan alone, the done-when is the standard of the Plan:
+  the verdict approves when the Plan meets each done-when line as written,
+  and asks for changes, naming the line, when it does not. The Execution is
+  not graded there; it is measured against the done-when once the Plan is
+  approved.
 - Never offer a way to ship less than the ticket says. That includes
   changing a closing reference ("Fixes") to a non-closing one ("Refs") so the
   ticket stays open, asking the owner to narrow the done-when, splitting the

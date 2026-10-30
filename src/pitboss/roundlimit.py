@@ -10,13 +10,11 @@ comment whose first line is ``Opus ruling``.
 
 import dataclasses
 import enum
-import re
 from typing import AbstractSet, Callable, Iterable
 
-from . import config, shapes
+from . import config, gradeline, shapes
 
 RULING_FIRST_LINE = "Opus ruling"
-PLAN_PREFIX = "Plan: "
 VerdictOf = Callable[[str], shapes.Verdict | None]
 
 
@@ -81,14 +79,12 @@ def plan_grade(body: str, form: config.ReviewForm) -> shapes.Verdict | None:
         The grade of the first ``Plan:`` line, or None when no line grades it
         (the review says nothing of the plan).
     """
-    words = {
-        form.approved: shapes.Verdict.APPROVED,
-        form.changes_needed: shapes.Verdict.CHANGES_NEEDED,
-    }
-    alternatives = "|".join(map(re.escape, words))
-    pattern = re.compile(re.escape(PLAN_PREFIX) + f"({alternatives})")
-    matches = (pattern.fullmatch(line.rstrip()) for line in body.splitlines())
-    return next((words[found.group(1)] for found in matches if found), None)
+    found = gradeline.line_approved(
+        body, gradeline.PLAN_PREFIX, form.approved, form.changes_needed
+    )
+    if found is None:
+        return None
+    return shapes.Verdict.APPROVED if found else shapes.Verdict.CHANGES_NEEDED
 
 
 def after_ruling(state: Rounds) -> Rounds:
