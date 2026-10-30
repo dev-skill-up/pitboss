@@ -305,7 +305,8 @@ glued to the next; a record that cannot be read or written stops the command.
 ``push`` records only a push that went out; if that record write fails it says
 the push went out and exits 2 (git's own status when git fails, 1 when refused).
 ``sweep`` reads the record without writing it and prints the same line, so its
-``NO RUNNER PRESSURE`` means the quiet period is over.
+``NO RUNNER PRESSURE`` means the quiet period is over; a record it cannot
+read is its own ``RUNNER PRESSURE`` line (a hold) and the sweep goes on.
 
 **Queue runs.** The unfinished ``merge_group`` runs of every repository
 read; a run is stale when its merge group (its ``gh-readonly-queue`` branch)

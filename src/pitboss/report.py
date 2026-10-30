@@ -177,6 +177,19 @@ def queued_line(now: datetime.datetime, quiet_minutes: int) -> str:
     )
 
 
+def unreadable_record_line(reason: object) -> str:
+    """The pressure line when the record cannot be read, so the quiet is unknown.
+
+    Args:
+        reason: why it cannot be read.
+
+    Returns:
+        The line.
+    """
+    head = f"{Marker.RUNNER_PRESSURE.text}: the quiet period cannot be told"
+    return "; ".join([f"{head} ({reason})", HOLD_ACTIONS])
+
+
 def quiet_line(waiting: int, owed: int) -> str:
     """The runner-pressure line of a look that counts the quiet period.
 

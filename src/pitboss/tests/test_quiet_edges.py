@@ -19,6 +19,20 @@ def configure_runners(here: world.World, text: str) -> None:
         stream.write(f"\n[runners]\n{text}\n")
 
 
+def at_zero(here: world.World, command: str, *options: str) -> world.Result:
+    """Run a command at minute 0.
+
+    Args:
+        here: the world.
+        command: the command.
+        *options: arguments after the config.
+
+    Returns:
+        What it did.
+    """
+    return world.again(here, command, "--now", helpers.at(0), *options)
+
+
 def pressure_line(here: world.World) -> str:
     """The pressure line a sweep of a world prints at minute 0.
 
@@ -28,8 +42,11 @@ def pressure_line(here: world.World) -> str:
     Returns:
         The line.
     """
-    out = world.again(here, "sweep", "--now", helpers.at(0)).out
+    out = at_zero(here, "sweep").out
     return [x for x in out.splitlines() if "RUNNER PRESSURE" in x][0]
+
+
+CANNOT = "RUNNER PRESSURE: the quiet period cannot be told"
 
 
 class TestSweep(unittest.TestCase):
@@ -61,7 +78,7 @@ class TestEdges(unittest.TestCase):
         here = helpers.clear_world()
         missing = here.workspace / "missing" / "log"
         configure_runners(here, f"quiet_minutes = 0\nrecord = '{missing}'")
-        result = world.again(here, "push", "--now", helpers.at(0), "--no-dry-run")
+        result = at_zero(here, "push", "--no-dry-run")
         said = ("push WENT OUT" in result.out, "run `pitboss queued`" in result.out)
         assert_that(
             (result.code, helpers.pushes(here), said), equal_to((2, 1, (True, True)))
@@ -72,8 +89,17 @@ class TestEdges(unittest.TestCase):
         here = world.make_world(helpers.GIT_ANSWERS)
         here.bodies[helpers.PROJECT_JOBS] = {"jobs": [{"status": "queued"}] * 3}
         configure_runners(here, "quiet_minutes = 0")
-        result = world.again(here, "pressure", "--now", helpers.at(0))
+        result = at_zero(here, "pressure")
         line = result.out.splitlines()[-1]
         head = "RUNNER PRESSURE: 3 queue-run jobs waiting for a runner"
         wanted = f"{head}: {helpers.HOLD}; 0 quiet minutes remain"
         assert_that((result.code, line), equal_to((1, wanted)))
+
+    def test_sweep_goes_on_when_the_record_cannot_be_read(self) -> None:
+        """A record that is a directory is its own hold line; the rest is printed."""
+        here = helpers.clear_world()
+        helpers.record_path(here).mkdir()
+        out = at_zero(here, "sweep").out
+        kept = [x.split(" (")[0].split(":")[0] for x in out.splitlines()]
+        assert_that(kept.count("worktrees"), equal_to(1))
+        assert_that(pressure_line(here).split(" (")[0], equal_to(CANNOT))
