@@ -9,10 +9,11 @@ import concurrent.futures
 import dataclasses
 import datetime
 import logging
+import os
 import pathlib
 import subprocess
 import time
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from gather.commands import add_argument
 
@@ -33,11 +34,11 @@ from . import (
     timing,
     tracefs,
     work,
+    worktrees,
 )
 from . import diskline, repoarg, roundline, stall, updateline
 from .failures import describe, read_all
 from .markers import Marker
-from .running import git
 
 CONFIG_ARGUMENT = add_argument(
     "config", help="a path, or a name in .claude/pitboss/<name>.toml"
@@ -76,6 +77,21 @@ def working_directory(args: argparse.Namespace) -> pathlib.Path:
         ``PWD`` of the environment, else the current directory.
     """
     return pathlib.Path(args.env.get("PWD", "."))
+
+
+def running_in(args: argparse.Namespace) -> AbstractSet[pathlib.Path]:
+    """The directories a command runs in, which no removal may take.
+
+    ``PWD`` (the shell's) and the process's own: a sweep or a cleaning keeps a
+    path that is or holds either (keyword: clean-worktrees).
+
+    Args:
+        args: the parsed arguments.
+
+    Returns:
+        The directories.
+    """
+    return frozenset({working_directory(args), pathlib.Path(os.getcwd())})
 
 
 def load_settings(args: argparse.Namespace) -> config.Config:
@@ -241,38 +257,31 @@ def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
         print(line)
 
 
-def _worktrees(found: Context) -> Sequence[tuple[local.Worktree, local.Reason]]:
-    project = found.settings.project
-    run = found.args.safe_run
-    git(run, project.main_clone, "fetch", "-q", "origin", project.base_branch)
-    sweeper = local.Sweeper(
-        run=run,
+def _look(found: Context) -> dead.Look:
+    return dead.Look(
+        run=found.args.safe_run,
+        github=found.github,
         settings=found.settings,
-        outcomes=local.read_outcomes(found.github, project.repo),
-        cutoff=found.now.timestamp() - found.settings.idle_hours * 3600,
+        clean=found.clean,
+        working=running_in(found.args),
     )
-    listed = git(run, project.main_clone, "worktree", "list", "--porcelain")
-    decided = (
-        (worktree, local.stale_reason(sweeper, worktree))
-        for worktree in local.parse_worktrees(listed)
-    )
-    return [(worktree, reason) for worktree, reason in decided if reason is not None]
 
 
 def _worktree_section(found: Context) -> None:
-    stale = _worktrees(found)
-    for worktree, reason in stale:
-        print(
-            f"{Marker.STALE_WORKTREE.text} {worktree.path} [{worktree.branch}]"
-            f" ({reason.value}): clean-worktrees removes it"
+    look = _look(found)
+    if found.clean.worktrees is cleanconfig.Worktrees.AUTO:
+        # A sweep that removes: safe_run really runs (keyword: clean-worktrees).
+        lines = worktrees.remove_lines(
+            look, worktrees.Action(run=found.args.safe_run, dry=False), found.now
         )
-    print(f"worktrees: {len(stale)} stale")
+    else:
+        lines = worktrees.stale_lines(look, found.now)
+    for text in lines:
+        print(text)
 
 
 def _disk_section(found: Context) -> None:
-    run, github = found.args.safe_run, found.github
-    look = dead.Look(run=run, github=github, settings=found.settings, clean=found.clean)
-    for text in diskline.lines(look, found.now):
+    for text in diskline.lines(_look(found), found.now):
         print(text)
 
 
@@ -343,22 +352,15 @@ def cancel_stale_runs(args: argparse.Namespace) -> None:
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")
 def clean_worktrees(args: argparse.Namespace) -> None:
-    """Remove the stale worktrees (their branches are kept).
+    """Remove the finished worktrees that pass the safety test (branches are kept).
 
     Args:
         args: the parsed arguments.
     """
     found = load_context(args)
-    main_clone = found.settings.project.main_clone
-    verb = "" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
-    for worktree, reason in _worktrees(found):
-        try:
-            git(args.run, main_clone, "worktree", "remove", str(worktree.path))
-        except subprocess.CalledProcessError:
-            print(f"{Marker.COULD_NOT_REMOVE_WORKTREE.text} {worktree.path}")
-            continue
-        print(f"{Marker.REMOVED_WORKTREE.text} {worktree.path} ({reason.value}){verb}")
-    git(args.run, main_clone, "worktree", "prune")
+    how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
+    for text in worktrees.remove_lines(_look(found), how, found.now):
+        print(text)
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, add_argument("repository"), name="review-form")

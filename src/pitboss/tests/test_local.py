@@ -14,7 +14,7 @@ from . import fakes
 
 OLD = time.time() - 10 * 3600
 CUTOFF = OLD + 3600
-PUSHED = ("merged", "closed", "open", "dirty", "fresh", "no-pull")
+PUSHED = ("merged", "closed", "open", "no-pull")
 DETACHED = ("in-base", "gone")
 OUTCOMES = {
     "merged": shapes.Outcome(branch="merged", still_open=False, merged=True),
@@ -31,21 +31,6 @@ TWO_PULLS = [
     {"head": {"ref": "b"}, "state": "open"},
     {"head": {"ref": "b"}, "state": "closed", "merged_at": "x"},
 ]
-
-
-UNCOMMITTED = {"dirty/scratch": "x"}
-TOUCHED = {"fresh/fresh": "touched"}
-
-
-def write_all(directory: pathlib.Path, files: Mapping[str, str]) -> None:
-    """Write files under a directory.
-
-    Args:
-        directory: the directory.
-        files: each file's path under it, and its content.
-    """
-    for name, text in files.items():
-        fakes.write(directory / name, text)
 
 
 def age(path: pathlib.Path) -> None:
@@ -101,10 +86,8 @@ def scene() -> tuple[pathlib.Path, pathlib.Path]:
     outside = fakes.directory() / "outside"
     add_detached(clone, outside)
     shutil.rmtree(workspace / "gone")
-    write_all(workspace, UNCOMMITTED)
     for path in [workspace, outside]:
         age(path)
-    write_all(workspace, TOUCHED)
     return workspace, clone
 
 
@@ -124,11 +107,10 @@ def reasons(
         run=fakes.FakeProcesses(bodies={}),
         settings=fakes.settings(workspace),
         outcomes=OUTCOMES,
-        cutoff=CUTOFF,
     )
     listed = fakes.run_git(clone, "worktree", "list", "--porcelain")
     return {
-        worktree.path.name: local.stale_reason(sweeper, worktree)
+        worktree.path.name: local.finished_reason(sweeper, worktree)
         for worktree in local.parse_worktrees(listed)
     }
 
@@ -178,26 +160,13 @@ class TestStragglers(unittest.TestCase):
 
 
 class TestWorktrees(unittest.TestCase):
-    """Which worktrees are stale."""
+    """Which worktrees are finished."""
 
     def test_reasons(self) -> None:
         """Each rule keeps or marks its worktree."""
         found = reasons(*scene())
         stale = {name: reason for name, reason in found.items() if reason is not None}
-        assert_that((stale, len(found)), equal_to((STALE, 11)))
-
-    def test_touched_only_near_the_top(self) -> None:
-        """Changes deeper than three levels, or in .git, do not count."""
-        top = fakes.directory()
-        deep = top / "a/b/c/d"
-        deep.mkdir(parents=True)
-        (top / ".git").mkdir()
-        age(top)
-        for path in [deep / "new", top / ".git/index"]:
-            fakes.write(path, "new")
-        before = local.touched_since(top, CUTOFF)
-        fakes.write(top / "a/new", "new")
-        assert_that((before, local.touched_since(top, CUTOFF)), equal_to((False, True)))
+        assert_that((stale, len(found)), equal_to((STALE, 9)))
 
     def test_listing(self) -> None:
         """An empty listing has no worktrees; a branch keeps its newest PR."""

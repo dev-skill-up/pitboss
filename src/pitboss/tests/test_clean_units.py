@@ -74,6 +74,9 @@ class TestSettings(unittest.TestCase):
         given = cleanconfig.from_document({"clean": table})
         found = (absent.scratch, absent.min_free_gib, given.scratch, given.live)
         same(found, ((), 5.0, (pathlib.Path("/a"),), (pathlib.Path("/b"),)))
+        listed = cleanconfig.from_document({"clean": {"worktrees": "list"}})
+        auto, only = cleanconfig.Worktrees.AUTO, cleanconfig.Worktrees.LIST
+        same((absent.worktrees, given.worktrees, listed.worktrees), (auto, auto, only))
 
     def test_errors(self) -> None:
         """A table, a list of absolute paths and a non-negative minimum are required."""
@@ -83,9 +86,17 @@ class TestSettings(unittest.TestCase):
             {"clean": {"min_free_gib": -1}},
             {"clean": {"live": ["relative/path"]}},
             {"clean": {"scratch": ["/"]}},
+            {"clean": {"worktrees": "sometimes"}},
         ]
         found = [message(document) for document in bad]
-        expected = ("a table", "a list", "negative", "absolute", "root of the file")
+        expected = (
+            "a table",
+            "a list",
+            "negative",
+            "absolute",
+            "root of the file",
+            "auto",
+        )
         for text, wanted in zip(found, expected):
             assert_that(text, contains_string(wanted))
         fine = cleanconfig.from_document({"clean": {"live": ["/"]}})

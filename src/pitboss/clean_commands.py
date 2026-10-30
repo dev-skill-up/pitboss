@@ -8,7 +8,7 @@ from typing import AbstractSet, Sequence
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, cleaning, container, dead, deadscan, disk
-from .commands import CHANGING_ARGUMENTS, Context, load_context
+from .commands import CHANGING_ARGUMENTS, Context, load_context, running_in
 
 
 def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
@@ -32,6 +32,7 @@ def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
         settings=found.settings,
         clean=found.clean,
         watch=watch,
+        working=running_in(args),
     )
 
 

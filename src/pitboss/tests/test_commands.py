@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import fakes, world
+from . import cleanworld, fakes, world
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -130,6 +130,7 @@ class TestSweep(unittest.TestCase):
     def test_sweep(self) -> None:
         """The sweep reports every section and exits 1 on a red or conflicted PR."""
         here = world.make_world()
+        cleanworld.only_list_worktrees(here)
         fakes.write(here.clone / "scratch", "unsaved")
         fakes.make_unfetchable(here.workspace, "broken")
         result = sweep(here)

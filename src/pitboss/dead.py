@@ -48,6 +48,8 @@ class Look:
         clean: what ``clean-container`` looks at and keeps.
         watch: where the session's own files in the root are.
         mount_points: reads the mount points of the machine.
+        working: the directories the command runs in; a path that is or holds
+            one is in use (keyword: clean-worktrees).
     """
 
     run: Run
@@ -56,6 +58,7 @@ class Look:
     clean: cleanconfig.Clean
     watch: container.Watch = container.WATCH
     mount_points: Callable[[], AbstractSet[pathlib.Path]] = mounts.current
+    working: AbstractSet[pathlib.Path] = frozenset()
 
 
 def marked_above(path: pathlib.Path) -> bool:
@@ -111,6 +114,20 @@ def live_reason(path: pathlib.Path, look: Look, found: survey.Survey) -> str:
     return ""
 
 
+def runs_in(path: pathlib.Path, look: Look) -> bool:
+    """Whether a path is, or lies above, a directory the command runs in.
+
+    Args:
+        path: the path.
+        look: what to keep.
+
+    Returns:
+        True when removing it would remove the command's own directory.
+    """
+    here = path.resolve()
+    return any(each.resolve().is_relative_to(here) for each in look.working)
+
+
 def hold(look: Look, path: pathlib.Path, cutoff: float) -> tuple[str, survey.Survey]:
     """Look at a path and say whether it must be left alone: live or in use.
 
@@ -126,9 +143,33 @@ def hold(look: Look, path: pathlib.Path, cutoff: float) -> tuple[str, survey.Sur
     reasons = (
         "is a symbolic link" if path.is_symlink() else "",
         live_reason(path, look, found),
+        "is or holds the directory this command runs in" if runs_in(path, look) else "",
         "changed within the idle hours" if found.newest > cutoff else "",
     )
     return next((reason for reason in reasons if reason), ""), found
+
+
+def verdict(
+    look: Look, path: pathlib.Path, cutoff: float
+) -> tuple[str, str, survey.Survey]:
+    """The one safety test: is a path live or in use, and is work only in it.
+
+    ``consider``, ``recheck`` and the removal of finished worktrees all ask this
+    (keyword: clean-container, clean-worktrees).
+
+    Args:
+        look: what to look at and keep.
+        path: the path.
+        cutoff: anything changed after this time is in use.
+
+    Returns:
+        Why the path is live or in use (empty when it is not), why it is not
+        safe to remove (empty when it is; not asked of a held path), and what a
+        walk of it found.
+    """
+    held, found = hold(look, path, cutoff)
+    kept = "" if held else repocheck.trouble(look.run, path, found)
+    return held, kept, found
 
 
 def consider(
@@ -145,10 +186,9 @@ def consider(
     Returns:
         The candidate, or None when the path is live or in use.
     """
-    held, found = hold(look, path, cutoff)
+    held, kept, found = verdict(look, path, cutoff)
     if held:
         return None
-    kept = repocheck.trouble(look.run, path, found)
     return Candidate(path=path, size=found.size, reason=reason, kept=kept)
 
 
@@ -166,8 +206,8 @@ def recheck(look: Look, cutoff: float, each: Candidate) -> str:
     """
     if not os.path.lexists(each.path):
         return ""
-    held, found = hold(look, each.path, cutoff)
-    return held or repocheck.trouble(look.run, each.path, found)
+    held, kept, _ = verdict(look, each.path, cutoff)
+    return held or kept
 
 
 def present(made: Iterable[Candidate | None]) -> Sequence[Candidate]:

@@ -2,16 +2,12 @@
 
 import dataclasses
 import enum
-import os
 import pathlib
 import subprocess
-from typing import Iterable, Iterator, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from . import config, ghapi, parsing, shapes
 from .running import Run, changed_files, git
-
-_SKIPPED_DIRECTORIES = frozenset({".git", "node_modules"})
-_DEPTH = 3
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -180,67 +176,8 @@ def parse_worktrees(porcelain: str) -> Sequence[Worktree]:
     return found
 
 
-def shallow_walk(
-    path: pathlib.Path,
-) -> Iterator[tuple[pathlib.Path, Sequence[str], Sequence[str]]]:
-    """Walk three levels down, skipping ``.git`` and ``node_modules``.
-
-    Args:
-        path: the directory.
-
-    Yields:
-        Each directory, the names of its subdirectories and of its files.
-    """
-    base_depth = len(path.parts)
-    for directory, subdirectories, files in os.walk(path):
-        current = pathlib.Path(directory)
-        yield current, tuple(subdirectories), tuple(files)
-        deep = len(current.parts) - base_depth >= _DEPTH
-        subdirectories[:] = (
-            []
-            if deep
-            else [name for name in subdirectories if name not in _SKIPPED_DIRECTORIES]
-        )
-
-
-def modified(entry: pathlib.Path) -> float:
-    """When an entry changed; a link is itself, not what it points at.
-
-    Args:
-        entry: the file, directory or link.
-
-    Returns:
-        Seconds since the epoch; 0 for an entry that is gone.
-    """
-    try:
-        return entry.lstat().st_mtime
-    except FileNotFoundError:
-        return 0.0
-
-
-def touched_since(path: pathlib.Path, cutoff: float) -> bool:
-    """Whether anything in a checkout changed after ``cutoff``.
-
-    File times, not the last commit: a new worktree's tip is an old commit.
-    ``.git`` and ``node_modules`` are skipped; the walk stops three levels
-    down.
-
-    Args:
-        path: the checkout.
-        cutoff: a time, in seconds since the epoch.
-
-    Returns:
-        True when something is newer than ``cutoff``.
-    """
-    for current, _, files in shallow_walk(path):
-        entries = [current, *(current / name for name in files)]
-        if any(modified(entry) > cutoff for entry in entries):
-            return True
-    return False
-
-
 class Reason(enum.Enum):
-    """Why a worktree is stale.
+    """Why a worktree is finished.
 
     Attributes:
         MERGED: its PR merged.
@@ -261,13 +198,11 @@ class Sweeper:
         run: the runner for reads.
         settings: the configuration.
         outcomes: each branch's PR outcome, newest PR first.
-        cutoff: anything touched after this time is in use.
     """
 
     run: Run
     settings: config.Config
     outcomes: Mapping[str, shapes.Outcome]
-    cutoff: float
 
 
 def read_outcomes(
@@ -289,15 +224,12 @@ def read_outcomes(
     return found
 
 
-def _in_use(sweeper: Sweeper, worktree: Worktree) -> bool:
+def _outside(sweeper: Sweeper, worktree: Worktree) -> bool:
     project = sweeper.settings.project
     return (
         worktree.path == project.main_clone
         or not worktree.path.is_relative_to(project.workspace)
         or not worktree.path.is_dir()
-        or bool(uncommitted(sweeper.run, worktree.path))
-        or bool(unpushed(sweeper.run, worktree.path))
-        or touched_since(worktree.path, sweeper.cutoff)
     )
 
 
@@ -326,23 +258,24 @@ def in_base(run: Run, directory: pathlib.Path, revision: str, base: str) -> bool
     return bool(contains.strip())
 
 
-def stale_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
-    """Decide whether a worktree is stale.
+def finished_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
+    """Decide whether a worktree's work is finished and on GitHub.
 
-    It is stale only when all hold: it is not the main clone and is under
-    the workspace; nothing is uncommitted; every commit is on a remote
-    branch; nothing in it was touched since the cutoff; and its PR merged
-    or was closed, or (with no PR) its tip is in the base branch. A
-    worktree with an open PR is never stale.
+    It is finished only when it is not the main clone, lies under the
+    workspace, and its PR merged or was closed, or (with no PR) its tip is in
+    the base branch. A worktree with an open PR is never finished. Whether it
+    may be removed is a second question, the one safety test of
+    ``dead.verdict`` (keyword: clean-worktrees, ``rules.md``, "Checkouts and
+    disk").
 
     Args:
         sweeper: what the decision needs.
         worktree: the worktree.
 
     Returns:
-        Why it is stale, or None when it is kept.
+        Why it is finished, or None when it is not.
     """
-    if _in_use(sweeper, worktree):
+    if _outside(sweeper, worktree):
         return None
     outcome = sweeper.outcomes.get(worktree.branch) if worktree.branch else None
     if outcome is not None and not outcome.still_open:
