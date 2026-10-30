@@ -34,6 +34,12 @@ class Marker(enum.Enum):
         STALE_WORKTREE: a finished worktree still on disk.
         REMOVED_WORKTREE: one removed.
         COULD_NOT_REMOVE_WORKTREE: one that could not be.
+        DISK_PRESSURE: free space is under the configured minimum.
+        REMOVED_PATH: a dead path removed by ``clean-container`` (or, in a dry
+            run, one that would be).
+        KEPT_PATH: a dead path that is not safe to remove.
+        COULD_NOT_REMOVE_PATH: a path that is still there, or is not a safe
+            dead path.
         SWEEP_REMINDER: a question each sweep ends with.
         EMPTY_SLOT: a worker slot with no agent.
         SLOTS_FREE: slots are free and work is queued; a wake-up is required.
@@ -64,6 +70,10 @@ class Marker(enum.Enum):
     STALE_WORKTREE = enum.auto()
     REMOVED_WORKTREE = enum.auto()
     COULD_NOT_REMOVE_WORKTREE = enum.auto()
+    DISK_PRESSURE = enum.auto()
+    REMOVED_PATH = enum.auto()
+    KEPT_PATH = enum.auto()
+    COULD_NOT_REMOVE_PATH = enum.auto()
     SWEEP_REMINDER = enum.auto()
     EMPTY_SLOT = enum.auto()
     SLOTS_FREE = enum.auto()

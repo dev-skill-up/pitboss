@@ -52,7 +52,9 @@ What was project-specific, and where it went
      - ``[merge_queue] repositories`` (default none: a behind PR with finished
        checks is an update)
    * - three hours of idleness before a worktree is stale
-     - ``[worktrees] idle_hours``
+     - ``[worktrees] idle_hours`` (it is the idleness of a scratch entry too)
+   * - ``/tmp/claude-0``, shared caches, the 5 GiB of free space
+     - ``[clean] scratch``, ``[clean] live``, ``[clean] min_free_gib``
    * - ``/tmp/claude-0/slots.tsv``
      - ``[slots] ledger`` (default ``<main_clone>/.git/pitboss-slots.json``:
        per clone, never committed); the slot log beside it is ``[slots] log``
@@ -115,8 +117,8 @@ Commands
      - What it does
    * - ``sweep CONFIG``
      - The read-only report, in order: the project's PRs, the libraries'
-       PRs, runner pressure, queue runs, stragglers, worktrees, the
-       reminders, the slots. Exits 1 when a PR has a failed check or a
+       PRs, runner pressure, queue runs, stragglers, worktrees, disk
+       pressure, the reminders, the slots. Exits 1 when a PR has a failed check or a
        merge conflict.
    * - ``pressure CONFIG``
      - Appends a look (``none`` or ``hold``) to the record and prints the
@@ -215,13 +217,15 @@ Commands
        ref), never the pull request, and the body reaches pitboss only in the
        event's file. Callers are made from ``templates/text-lint.yml``, by
        commit, never ``@main``.
-   * - ``clean-container``
-     - Removes the regular files directly in ``--root`` (default ``/``)
-       modified more than ``--hours`` (default 1) after ``--marker``
-       (default ``/container_info.json``, the one file a Claude Code on
-       the web container starts with there). Subdirectories are not
-       searched; symbolic links, directories and other entries are left
-       alone. Needs no configuration. Dry run unless ``--no-dry-run``.
+   * - ``clean-container CONFIG [--approved FILE] [--batch N]``
+     - Lists, and with ``--no-dry-run`` removes, the dead paths (keyword:
+       clean-container, pitboss#7; see **Dead paths** below). Also the
+       regular files directly in ``--root`` (default ``/``) modified more than
+       ``--hours`` (default 1) after ``--marker`` (default
+       ``/container_info.json``, the one file a Claude Code on the web
+       container starts with there; none when it is absent); subdirectories,
+       symbolic links and other entries there are left alone. A root file
+       obeys the same liveness, idle and safety rules as any dead path.
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
    * - ``slots show|set|free|add|remove|failed|check|next CONFIG ...``
@@ -361,6 +365,49 @@ the last ``idle_hours`` (by file times, because a new worktree's tip is an
 old commit); and its branch's PR is merged or closed, or its tip is in the
 base branch. A worktree with an open PR is never stale.
 
+**Dead paths** (keyword: clean-container, pitboss#7). The comparable tools
+decide the same way: systemd-tmpfiles removes by age and has entries that
+exclude a path (``x``, ``X``), ``git clean -n`` lists before it removes, and the kubelet evicts on a free-space threshold of
+the filesystem (``nodefs.available<10%``). A path is *dead* when its work is
+finished or nobody uses it, and *live* when it is marked; a dead path is *safe*
+when nothing in it exists only on this machine. Sources of dead paths:
+``dead_checkouts`` (git checkouts directly under ``workspace``: the branch's
+newest PR in the checkout's own repository merged or closed, found from the
+common git directory of ``main_clone`` or from ``remote.origin.url``, else the
+tip is in the base branch with no PR; a checkout on the base branch, on no
+branch, or whose repository could not be fetched is not judged), ``dead_scratch``
+(entries of ``[clean] scratch`` directories that are not symbolic links) and
+the root files above; the pressure scan lists the same three sources. A path
+is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
+depth or in a directory above it, a path of ``[clean] live``, the main clone, or
+one that holds or lies in such a path), when it is a symbolic link, or when
+anything in it changed in the last ``idle_hours`` (the walk of **Worktrees**;
+this also holds for the root files; ``.git`` contents do not count, as a fetch
+changes them). One whole-tree walk (``survey``) measures a path and finds, at
+any depth, its git checkouts, bare repositories, live markers and mount points.
+It never follows a link (a link counts as itself, so a link to a big directory
+adds nothing) and does not enter a mount point, which is named. A dead path is
+safe when each git checkout in it has every commit on a remote branch and no
+changed tracked file. A standalone clone counts every ref (other local
+branches and the stash included, ``rev-list --all --not --remotes=origin``); a
+linked worktree, or a repository outside the path, counts its HEAD only; a
+repository whose git directory is inside the path (a submodule) goes with it.
+Else it is kept, with the reason, and never removed: a commit or change that
+exists only here, a checkout git cannot read, a bare repository, a mount point
+inside, or a path that cannot be looked at. Sizes are the blocks on disk.
+``--no-dry-run`` removes at most ``--batch`` paths at a time with ``rm -rf
+--one-file-system`` and, just before each part, looks at every path again
+(liveness, idle, safety): a path that became live, busy or unsafe in between is
+left in place and reported as ``COULD NOT REMOVE PATH``. Only paths directly
+inside the workspace, a ``[clean] scratch`` directory or ``--root`` can be
+removed; the ``[clean]`` paths must be absolute. It then prunes the worktree
+lists of the repositories a removed linked worktree belonged to. ``--approved
+FILE`` limits the removal to the paths in it; an entry that is not among the
+current safe candidates is refused, whatever it is. The sweep warns with
+``DISK PRESSURE`` when the free space of a filesystem of ``workspace`` or of a
+scratch directory is under ``[clean] min_free_gib`` (default 5; 0 never) and
+then names the five largest safe dead paths; it scans for them only then.
+
 **Slots.** The ledger is a JSON file: each slot's name, model, agent, task,
 whether the agent waits, and the tickets each model has failed. ``set``
 refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``models``; a
@@ -416,7 +463,7 @@ Output
 ------
 
 Every line that calls for an action says the action. The markers
-(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``EMPTY SLOT``, ``SLOTS FREE``,
+(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``DISK PRESSURE``, ``EMPTY SLOT``, ``SLOTS FREE``,
 ``RULING DUE``, ``PAUSE``, ``NO HAND-BACK``, ...) are members of one enum, ``pitboss.markers.Marker``, printed as the
 member's name in words (so ``READY_TO_MERGE`` prints ``READY TO MERGE``,
 and the line with no pressure reads ``NO RUNNER PRESSURE``); a check in CI

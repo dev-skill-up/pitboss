@@ -33,6 +33,7 @@ Other commands, all reading the same file:
 | `uvx pitboss push <config> [--draft] [--no-dry-run] [-- <git push arguments>]` | The pressure check and `git push` in one command, so the check is not left out or put in the wrong place. Under pressure or in the quiet period it prints the hold line, exits 1, pushes and records nothing; the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear. A push that goes out is recorded as a queued job. `--draft` is for a push to a draft PR: no check, nothing recorded. |
 | `uvx pitboss cancel-stale-runs <config> [--no-dry-run]` | Cancel superseded merge-queue runs. |
 | `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove finished worktrees. |
+| `uvx pitboss clean-container <config> [--no-dry-run] [--approved FILE] [--batch N]` | List, then remove, the dead paths that fill the disk: finished checkouts, idle scratch, files the session wrote in `/`. Work that exists only here, links, mount points and anything marked live are kept; each path is checked again just before its removal. |
 | `uvx pitboss review-form <config> <repository>` | The form a review comment in that repository must take. |
 | `uvx pitboss slots <action> <config> ...` | The worker-slot ledger and what to start next. |
 
@@ -49,6 +50,6 @@ tests and errors) before briefing or reviewing a change to code, and
 briefing a change to CI, a lock or a cache. Give `references/adversarial-review.md` to every reviewer you
 start; a reviewer reads that file and nothing else about the form.
 
-The commands that change something (`cancel-stale-runs`, `clean-worktrees`)
+The commands that change something (`cancel-stale-runs`, `clean-worktrees`, `clean-container`)
 are dry runs unless given `--no-dry-run`: run the dry run first and read
 all of it.

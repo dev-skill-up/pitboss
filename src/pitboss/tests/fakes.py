@@ -267,6 +267,8 @@ def directory() -> pathlib.Path:
     Returns:
         Its path.
     """
+    ceiling = os.path.realpath(tempfile.gettempdir())
+    os.environ["GIT_CEILING_DIRECTORIES"] = ceiling  # no git repository above a test's
     return pathlib.Path(tempfile.mkdtemp())
 
 

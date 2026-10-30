@@ -2,8 +2,8 @@
 
 `pitboss sweep` prints, in order: one line per open PR of the project and its
 libraries, each followed by its action lines (in this order: `STALL`, `UPDATE`, `RULING DUE` or `PAUSE`, `WAIT-FOR-CI`, `CONFLICT`, one `FAILED` for each failed check, then `READY TO MERGE`, `MERGE BY HAND` or `AUTO MERGE OFF`); the runner-pressure line; the
-merge-queue runs; the stragglers; the stale worktrees; the reminders; the
-slot ledger. It exits 1 when any PR has a failed check or a merge conflict,
+merge-queue runs; the stragglers; the stale worktrees; the disk pressure; the
+reminders; the slot ledger. It exits 1 when any PR has a failed check or a merge conflict,
 so a loop can act on it.
 
 ## The PR line
@@ -55,6 +55,10 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `STALE WORKTREE` | A worktree whose work is finished and on GitHub. | `pitboss clean-worktrees <config>`, read the dry run, then `--no-dry-run`. |
 | `REMOVED WORKTREE` | A stale worktree was removed (or, with "dry run", would be); its branch is kept. | Nothing. |
 | `COULD NOT REMOVE WORKTREE` | git refused (a locked worktree, for one). | Look at it: someone may still be using it. |
+| `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). The line says how much is free; indented lines under it name the largest safe dead paths (at most five), or say that none was found. A sweep scans for them only under pressure. | `pitboss clean-container <config>`, read the dry run, then `--no-dry-run` ("Disk", below). |
+| `REMOVED PATH` | A dead path was removed by `clean-container` (or, with "dry run", would be): its size and why it is dead. | Nothing. |
+| `KEPT PATH` | A dead path with work that exists only here (commits on no remote branch, in any branch or the stash of a standalone clone; changed tracked files), or that git cannot read, a bare repository, a mount point inside it or a path that cannot be looked at; never removed. | Triage it like a `STRAGGLER`. |
+| `COULD NOT REMOVE PATH` | `rm` left the path in place, the path was looked at again just before its removal and was live, busy or unsafe, or a path of the `--approved` file is not a safe dead path directly in a configured root now. | Look at it: someone may still be using it. |
 | `SWEEP REMINDER` | A question each sweep ends with (the project's configuration may set its own). | Answer it before ending the sweep (below). |
 | `EMPTY SLOT` | A worker slot has no agent. | See `slots.md`. |
 | `SLOTS FREE` | `SLOTS FREE n`: fewer workers run than the slots configured (n of them free) and the queue has work. | Start work with `slots next`, and before the turn ends set a wake-up (`send_later`): nothing else wakes an idle orchestrator until a GitHub event. |
@@ -132,6 +136,46 @@ merged or was closed, or, with no PR, its tip is in the base branch. A
 worktree with an open PR is never stale. An agent that finishes removes its
 own worktree; `clean-worktrees` is the net under that. Do not clean while an
 agent is being started.
+
+## Disk
+
+`pitboss clean-container <config>` lists the dead paths of the machine and
+`--no-dry-run` removes them. A path is dead when it is one of:
+
+- a git checkout directly under the workspace whose PR merged or closed, or
+  whose tip is in the base branch with no PR (a checkout on the base branch or
+  on no branch is never dead: it is a persistent checkout);
+- an entry of a `[clean] scratch` directory (not a symbolic link) with nothing
+  in it changed in the idle hours (`[worktrees] idle_hours`);
+- a regular file directly in `--root` (default `/`) written over `--hours`
+  (default 1) after `--marker` (default `/container_info.json`, skipped when
+  absent), which is judged like the others and is in the disk pressure scan.
+
+It is never listed when it is marked live: a file named `.pitboss-live` is in
+it at any depth or in a directory above it, it is, holds or lies in a path of
+`[clean] live`, it is the main clone, or its tree changed in the idle hours (a
+running agent's checkout; `.git` contents do not count). The tool walks a path
+once, never follows a symbolic link (a link is neither judged by what it
+points at nor sized through) and never enters a mount point. A dead path is
+safe when every git checkout in it, at any depth, has all its commits on a
+remote branch and no changed tracked file; untracked files are scratch. A
+standalone clone counts every ref (other local branches and the stash); a
+worktree of another repository counts its HEAD. The others, and a path with a
+checkout git cannot read, a bare repository or a mount point in it, are
+`KEPT PATH` lines and are never removed. The dry run prints each safe path as `REMOVED PATH ... (dry run)`,
+largest first, with its size and reason, and a last line with the total.
+
+To approve a subset, write its paths one to a line in a file and pass
+`--approved FILE`: only those paths are removed, and a path of the file that is
+not among the safe dead paths now, or not directly in the workspace, a scratch
+directory or `--root`, is `COULD NOT REMOVE PATH`. Removal runs
+`rm -rf --one-file-system` on at most `--batch` paths at a time (default 5), so a
+sandbox that refuses one large delete still completes; each part is looked at
+again just before its `rm`, and a path that is live, busy or unsafe by then is
+left in place;
+the last lines give the space freed and the free space before and after.
+`clean-container` fetches each repository first and does not judge the
+checkouts of one that cannot be fetched (it says so).
 
 ## The reminders
 

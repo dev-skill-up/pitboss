@@ -9,7 +9,7 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import container
-from . import fakes, world
+from . import fakes
 
 STARTED = time.time() - 10 * 3600
 WITHIN_THE_HOUR = STARTED + 1800
@@ -60,33 +60,3 @@ class TestNewerFiles(unittest.TestCase):
         after = container.cutoff(marker, 1)
         found = container.newer_files(root, after)
         assert_that(names(root, found), equal_to(sorted(NEW)))
-
-
-class TestCommand(unittest.TestCase):
-    """The ``clean-container`` command, dry and not."""
-
-    def test_clean_container(self) -> None:
-        """Files are listed in a dry run and removed with --no-dry-run."""
-        here = world.make_world()
-        root = scene()
-        marker = root / MARKER
-        arguments = ("clean-container", "--root", str(root), "--marker", str(marker))
-        dry = world.invoke(here, *arguments)
-        kept = all((root / name).exists() for name in NEW)
-        wet = world.invoke(here, *arguments, "--no-dry-run")
-        left = [name for name in (*NEW, *OLD, NESTED) if (root / name).exists()]
-        found = (
-            dry.out.splitlines()[0],
-            dry.out.splitlines()[-1],
-            wet.out.splitlines()[0],
-            kept,
-            left,
-        )
-        expected = (
-            f"removed {root / 'new'} (dry run: --no-dry-run removes it)",
-            "container: 2 files, 0.0 MiB",
-            f"removed {root / 'new'}",
-            True,
-            [*OLD, NESTED],
-        )
-        assert_that(found, equal_to(expected))

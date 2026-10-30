@@ -25,6 +25,9 @@ no_auto_merge = ["lib"]
 [review]
 gated = ["gated"]
 
+[clean]
+min_free_gib = 0
+
 [slots]
 ledger = "{ledger}"
 models = ["small", "large"]
@@ -111,6 +114,7 @@ REPOSITORY_BODIES: MutableMapping[str, object] = {
     fakes.page(f"{PROJECT}/pulls?state=all"): [
         {"head": {"ref": "merged-work"}, "state": "closed", "merged_at": "x"}
     ],
+    fakes.page(f"{LIBRARY}/pulls?state=all"): [],
     fakes.page(f"{PROJECT}/issues?state=open&labels=urgent"): [TICKET],
     fakes.page(f"{LIBRARY}/issues?state=open&labels=urgent"): [],
 }

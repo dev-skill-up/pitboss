@@ -10,6 +10,10 @@ import pathlib
 import stat
 from typing import Sequence
 
+DEFAULT_MARKER = "/container_info.json"
+DEFAULT_ROOT = "/"
+DEFAULT_HOURS = 1.0
+
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Found:
@@ -22,6 +26,28 @@ class Found:
 
     path: pathlib.Path
     size: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Watch:
+    """Where a session's own files in the root are looked for.
+
+    Attributes:
+        marker: the file the container started with; absent, there are none.
+        root: the directory.
+        hours: how long after the marker a file must be written.
+    """
+
+    marker: pathlib.Path
+    root: pathlib.Path
+    hours: float
+
+
+WATCH = Watch(
+    marker=pathlib.Path(DEFAULT_MARKER),
+    root=pathlib.Path(DEFAULT_ROOT),
+    hours=DEFAULT_HOURS,
+)
 
 
 def cutoff(marker: pathlib.Path, hours: float) -> float:

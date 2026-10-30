@@ -16,7 +16,7 @@ Commands
 
 ==============================================  =====================================================
 ``pitboss sweep CONFIG``                        PRs, runner pressure, queue runs, stragglers,
-                                                worktrees, reminders, slots. Exits 1 on a red or
+                                                worktrees, disk pressure, reminders, slots. Exits 1 on a red or
                                                 conflicted PR.
 ``pitboss pressure CONFIG``                     Records a look; one line; exits 1 under runner pressure
                                                 and until the quiet period is over.
@@ -24,8 +24,12 @@ Commands
 ``pitboss push CONFIG [-- GIT_ARGUMENTS]``      Pressure check, ``git push``, record (``--no-dry-run``).
 ``pitboss cancel-stale-runs CONFIG``            Cancel superseded merge-queue runs (``--no-dry-run``).
 ``pitboss clean-worktrees CONFIG``              Remove finished worktrees (``--no-dry-run``).
-``pitboss clean-container``                     Remove files in ``/`` written over an hour after
-                                                the container started (``--no-dry-run``).
+``pitboss clean-container CONFIG``              List, then remove (``--no-dry-run``, in parts), the dead
+                                                paths: finished checkouts, idle scratch, files in ``/``
+                                                written over an hour after the container started. Work
+                                                only on this machine, links, mount points and anything
+                                                marked live are kept; each path is checked again just
+                                                before its removal.
 ``pitboss review-form CONFIG REPOSITORY``       The form a review comment there must take.
 ``pitboss slots ACTION CONFIG ...``             The worker-slot ledger, and what to start next.
 ``pitboss analyze-red CONFIG ...``              Read-only: the red runs of a workflow in a window
