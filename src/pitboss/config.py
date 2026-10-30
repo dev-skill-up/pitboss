@@ -166,6 +166,19 @@ class Runners:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class MergeQueue:
+    """The merge queue: its run limit, and where a PR that is behind needs no update.
+
+    Attributes:
+        timeout_minutes: how long a merge-queue run may take.
+        repositories: slugs of the repositories that have a merge queue.
+    """
+
+    timeout_minutes: int
+    repositories: AbstractSet[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Config:
     """Everything about one project.
 
@@ -176,7 +189,7 @@ class Config:
         runners: the repositories that share the runners, and the pressure record.
         review: how reviews are read.
         lint: the form checks of ``pitboss lint``.
-        timeout_minutes: how long a merge-queue run may take.
+        merge_queue: the merge queue's limit, and which repositories have one.
         idle_hours: how long a worktree is untouched before it may be stale.
         slots: the worker slots.
         reminders: the questions each sweep ends with.
@@ -188,7 +201,7 @@ class Config:
     runners: Runners
     review: Review
     lint: Lint
-    timeout_minutes: int
+    merge_queue: MergeQueue
     idle_hours: float
     slots: Slots
     reminders: Sequence[str]
@@ -218,19 +231,6 @@ def parse_repo(text: str, owner: str) -> Repo:
     """
     found_owner, _, name = text.rpartition("/")
     return make_repo(found_owner or owner, name)
-
-
-def named_repo(text: str, settings: Config) -> Repo:
-    """Read a repository named on the command line.
-
-    Args:
-        text: ``name`` or ``owner/name``.
-        settings: the configuration (its owner is a bare name's).
-
-    Returns:
-        The repository.
-    """
-    return parse_repo(text, settings.project.repo.owner)
 
 
 def _form(table: Mapping[str, object], fallback: ReviewForm) -> ReviewForm:
@@ -355,6 +355,14 @@ def _runners(
     )
 
 
+def _merge_queue(document: Mapping[str, object], owner: str) -> MergeQueue:
+    named = _repos(document, "merge_queue", "repositories", owner)
+    minutes = int(_setting(document, "merge_queue", "timeout_minutes", 60))
+    return MergeQueue(
+        timeout_minutes=minutes, repositories=frozenset(each.slug for each in named)
+    )
+
+
 def from_document(document: Mapping[str, object]) -> Config:
     """Build the configuration from a parsed TOML document.
 
@@ -376,7 +384,7 @@ def from_document(document: Mapping[str, object]) -> Config:
         runners=_runners(document, project, libraries),
         review=lint.review,
         lint=lint,
-        timeout_minutes=int(_setting(document, "merge_queue", "timeout_minutes", 60)),
+        merge_queue=_merge_queue(document, owner),
         idle_hours=float(_setting(document, "worktrees", "idle_hours", 3)),
         slots=_slots(document, project),
         reminders=_strings(_table(document, "sweep"), "reminders", DEFAULT_REMINDERS),

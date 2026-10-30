@@ -121,7 +121,8 @@ queue builds each entry on the current base, so a PR behind the base needs no
 update push, which would spend an action and re-run the check for nothing.
 Only a conflict is fixed: merge the base in (never rebase or force-push),
 resolve, check locally, push (`rules.md`, "Merge conflicts").
-- Carried by: `[behind]` in the PR line ("it still queues", `sweep.md`), and
+- Carried by: `[behind]` in the PR line (no `UPDATE` line for a repository
+  under `[merge_queue] repositories`, `sweep.md`), and
   for a conflict `[dirty]` with `CONFLICT` and, from the queue,
   `MERGE_CONFLICT` (`sweep.md`, "Leaving the merge queue").
 

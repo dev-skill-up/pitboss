@@ -66,9 +66,10 @@ compaction.
      (Order of work, 3: a merge is not a fix), and its pushes keep the
      runner-pressure hold;
    - behind the base, its checks finished, in a repository with no merge
-     queue: an update (merge the base in, check, push); where a merge queue
-     builds each entry on the current base, behind is no work (see "Merge
-     conflicts");
+     queue: an update (merge the base in, check, push; the `UPDATE` line of a
+     sweep, kind `update` in `slots next`); where a merge queue builds each
+     entry on the current base (`[merge_queue] repositories`), behind is no
+     work (see "Merge conflicts");
    - green on its exact head with no review of that head: a review, by an
      agent that is not its author;
    - reviewed approved at its head and green: a merge;
@@ -199,7 +200,9 @@ compaction.
 - Behind the base is not a conflict. Where the repository has a merge queue
   that builds each entry on the current base, a PR that is only behind gets no
   merge push (owner, 2026-10-29T00:35Z: "NO THEY DON'T. Quire has a merge
-  queue.").
+  queue."); the repository is named under `[merge_queue] repositories` in
+  the pitboss configuration, and a repository not named there gets an `UPDATE`
+  when a PR is behind with its checks finished.
 - After any branch update of a PR whose body has a `Head:` line, patch the
   line to the new head in the same step, before a review is requested: a
   review judged the stale line (orchestrator, 2026-10-27).

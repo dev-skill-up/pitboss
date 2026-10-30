@@ -103,6 +103,28 @@ def conflicted(facts: PullFacts) -> bool:
     return facts.pull.mergeable_state is shapes.MergeState.DIRTY
 
 
+def needs_update(facts: PullFacts, settings: config.Config) -> bool:
+    """Whether the PR is behind the base with every check finished.
+
+    A PR behind the base whose checks still run is not named, and where the
+    repository has a merge queue (``[merge_queue] repositories``) the queue
+    builds each entry on the current base, so behind is no work.
+
+    Args:
+        facts: the PR.
+        settings: the configuration.
+
+    Returns:
+        True when the PR needs the base merged in.
+    """
+    return (
+        facts.pull.mergeable_state is shapes.MergeState.BEHIND
+        and not waiting_for_ci(facts)
+        and not pending(facts)
+        and facts.repo.slug not in settings.merge_queue.repositories
+    )
+
+
 def changes_needed(facts: PullFacts) -> bool:
     """Whether the newest review asks for changes to this very head.
 

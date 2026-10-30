@@ -72,19 +72,24 @@ estimated.
    first among the fixes (`rules.md`).
 3. Then new work, in the order the project requires.
 
-`slots next` sorts what it can see from GitHub into three categories, in
+`slots next` sorts what it can see from GitHub into four categories, in
 this order, and says on each line why it is where it is:
 
 1. **Fix the review**: an open PR whose newest review asks for changes on
    its current head. Its author fixes it.
-2. **Review it**: an open PR whose checks all finished and passed on its
+2. **Update**: an open PR whose mergeable state is `behind` and whose checks
+   have all finished. Its author merges the base in, checks, and pushes (never
+   a rebase or force-push). A behind PR whose checks still run is not listed.
+   A repository listed under `[merge_queue] repositories` is never offered
+   an update: its queue builds each entry on the current base.
+3. **Review it**: an open PR whose checks all finished and passed on its
    head, with no conflict, not a draft, and no review of that head (a draft's
    first review is started by its author's hand-back, `rules.md`, "Plan
    first"). A
    reviewer that is not its author reviews it, and only once every check
    finished green on that exact head; the author never waits on CI, but
    pushes, reports the head and finishes.
-3. **Start a PR**: an open ticket with one of the configured priority
+4. **Start a PR**: an open ticket with one of the configured priority
    labels that no open PR names (in its title, body or branch); a ticket
    with none of the labels is never offered.
 

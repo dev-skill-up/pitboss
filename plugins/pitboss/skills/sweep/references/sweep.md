@@ -13,7 +13,7 @@ owner/name#12 [clean] auto-merge=off pending=0 failed=[test (job 345)] queue=- r
 ```
 
 - `[state]` is GitHub's `mergeable_state`: `clean` (mergeable, every
-  requirement met), `behind` (the base moved on; it still queues), `blocked`
+  requirement met), `behind` (the base moved on; in a repository with a merge queue it still queues, elsewhere see `UPDATE`), `blocked`
   (checks pending or red, or a required review missing), `dirty` (a merge
   conflict), `unstable` (non-required checks failing), `draft`, `has_hooks`,
   `unknown` (GitHub is still computing it: look again later).
@@ -37,6 +37,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `UNREADABLE` | The session cannot read a repository the configuration names; it is left out of this sweep. | Give the session access, or take the repository out of the configuration. |
 | `WAIT-FOR-CI` | No check run of the PR's head has completed (a draft that runs no CI, or checks not yet started or still running). It is never reviewed, approved or merged on this head, except the first review of a draft at its Plan stage, which its author's hand-back starts (`rules.md`, "Plan first"). | Wait for CI; a reviewer started on it, other than that first draft review, reports NOT STARTED. |
 | `STALL` | A relock PR (head branch starting `relock/`) whose required `check` run has been red for more than four hours (14400 seconds from the run's `completed_at`; exactly four hours is not yet one). The line says how long it has been red and, for each failing job, the names of its failed steps. A non-relock PR and a green relock PR print none. | A fix, taken before the other fixes (`rules.md`, "A free slot is filled the same turn"): root-cause the failing steps now, since the next relock fails on the same errors until the fix lands. The `FAILED` line of the same PR says more of each failed check. |
+| `UPDATE` | The PR is `behind` the base and every check of its head has finished (a behind PR whose checks still run prints none, and neither does a repository under `[merge_queue] repositories`, whose queue builds each entry on the current base). | Merge the base branch into the PR's branch (never rebase or force-push), check, push. It is kind `update` in the `NEXT` list of `slots next`. |
 | `CONFLICT` | The PR has a merge conflict. | Merge the base branch into the PR's branch (never rebase or force-push someone's branch) and regenerate generated files with the project's own tooling. |
 | `FAILED` | The latest run of a check on the head failed (a cancelled, skipped or superseded run is not one); the line says what api.github.com gives of it: the failed step names, the check output and its annotations (job logs are not downloaded, as the sandbox blocks them). | Find the root cause from that, and from the code it names. A flake is a bug, not a reason. Re-run failed jobs at most once, and only after the whole run finished. |
 | `AUTO MERGE OFF` | A PR with nothing failing, no conflict and no changes-needed review has auto-merge off and is not in the queue. | Arm auto-merge again (a push clears it). |

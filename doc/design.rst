@@ -48,6 +48,9 @@ What was project-specific, and where it went
      - ``[runners] repositories`` (default: the project and its libraries)
    * - a queue run's 60 minute limit
      - ``[merge_queue] timeout_minutes``
+   * - quire has a merge queue, so a PR that is behind needs no update
+     - ``[merge_queue] repositories`` (default none: a behind PR with finished
+       checks is an update)
    * - three hours of idleness before a worktree is stale
      - ``[worktrees] idle_hours``
    * - ``/tmp/claude-0/slots.tsv``
@@ -80,7 +83,7 @@ and changed:
   ``pitboss review-form CONFIG REPOSITORY``, which prints the form that
   repository's reviews must take, filled in from the config.
 * The order work is taken in (``slots next``) said "p0 before p1 before p2".
-  The order inside the third category is ``priority_labels``; nothing in the
+  The order inside the last category is ``priority_labels``; nothing in the
   code or the references names a label.
 * ``slots check`` was to list agents "the session no longer runs". Only the
   session can see its agents (``ListAgents``; subagents share one process,
@@ -339,9 +342,13 @@ agent listing shows). ``next`` reads GitHub and prints one sorted list, each
 line saying why it is where it is:
 
 1. the author's fix for a review that asked for changes, on an unmoved head;
-2. a review of a PR whose checks are all green on its head and which has no
+2. an update (``update``): a PR whose ``mergeable_state`` is ``behind`` and
+   whose checks have all finished (a behind PR whose checks still run is not
+   listed; one in a repository under ``[merge_queue] repositories`` is never
+   an update). ``pitboss sweep`` prints it as an ``UPDATE`` line;
+3. a review of a PR whose checks are all green on its head and which has no
    review of that head (the reviewer is never the author);
-3. a new PR: an open ticket of the project or a library, with a priority
+4. a new PR: an open ticket of the project or a library, with a priority
    label, not referenced by an open PR.
 
 **Slot log.** The ledger keeps only the present, and a resumed agent
@@ -363,7 +370,7 @@ merging the base branch in when it arises.
 
 Inside a category, oldest first by the PR's (or the ticket's) creation
 time (the one exception is a ``STALL`` line of the sweep, whose fix the skill's
-rules take before every line of this list); in the third, by ``priority_labels`` first. Each line names the
+rules take before every line of this list); in the last, by ``priority_labels`` first. Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty
 slots are filled smallest model first, each with the first line it may take.

@@ -30,6 +30,7 @@ footers = ["made by me"]
 required = ["Overlap:"]
 [merge_queue]
 timeout_minutes = 30
+repositories = ["lib"]
 [worktrees]
 idle_hours = 1.5
 [sweep]
@@ -61,7 +62,7 @@ def _summary(settings: config.Config) -> dict[str, object]:
             settings.review.gated_form.approved,
         ),
         "lint": (settings.lint.footers, settings.lint.brief_lines),
-        "numbers": (settings.timeout_minutes, settings.idle_hours),
+        "numbers": (settings.merge_queue.timeout_minutes, settings.idle_hours),
         "reminders": settings.reminders,
         "slots": (
             settings.slots.models,
@@ -139,8 +140,9 @@ class TestLoad(unittest.TestCase):
             _summary(settings),
             settings.slots.ledger,
             settings.project.base_branch,
+            settings.merge_queue.repositories,
         )
-        assert_that(found, equal_to((DEFAULTS, ledger, "main")))
+        assert_that(found, equal_to((DEFAULTS, ledger, "main", frozenset())))
 
     def test_everything(self) -> None:
         """Every key is read."""
@@ -148,6 +150,7 @@ class TestLoad(unittest.TestCase):
         found = (_summary(settings), settings.slots.ledger)
         ledger = pathlib.Path("/somewhere/ledger.json")
         assert_that(found, equal_to((READ, ledger)))
+        assert_that(settings.merge_queue.repositories, equal_to({"owner/lib"}))
 
     def test_wrong_types(self) -> None:
         """A key of the wrong type is an error that names it."""
