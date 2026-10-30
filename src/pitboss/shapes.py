@@ -111,6 +111,7 @@ class CheckRun:
         failed: whether it completed and failed.
         head_sha: the commit it ran on ("" when GitHub does not say).
         started_at: when it started (ISO 8601, "" when it has not).
+        completed_at: when it completed (ISO 8601, "" when it has not).
     """
 
     id: int
@@ -119,6 +120,7 @@ class CheckRun:
     failed: bool
     head_sha: str = ""
     started_at: str = ""
+    completed_at: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

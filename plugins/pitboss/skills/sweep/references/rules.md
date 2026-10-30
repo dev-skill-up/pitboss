@@ -48,13 +48,23 @@ compaction.
    transcript line 105684): "No, among them oldest first."; and on which
    pull request can be worked on (owner, 2026-10-26T14:05:11Z, line 105788):
    "if it is not green and not red, it can't be worked on". No kind of work
-   ranks a pull request above an older one: the state of a pull request says
-   what it needs, not where it stands in the order. On who takes a fix
+   ranks a pull request above an older one, except a `STALL` (below), whose
+   fix comes before every other pull request: otherwise the state of a pull
+   request says what it needs, not where it stands in the order. On who takes a fix
    (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It just
    has to be an author".
    - red (a failed check or status, or a review that asked for changes at this
      head) or in conflict with the base: a fix, by any author (a conflict is
      fixed as a red CI is: merge the base in, resolve, check, push);
+   - **a `STALL` is a fix taken before the other fixes.** A relock pull request
+     (head branch starting `relock/`) whose required `check` has been red for
+     more than four hours (14400 seconds from the run's `completed_at`) is
+     fixed before any other red or conflicted pull request, because the next
+     relock fails on the same errors until the fix lands. Among several
+     stalled, oldest first. It jumps the queue and interrupts no worker
+     (Order of work, 1), a merge of a ready pull request still comes before it
+     (Order of work, 3: a merge is not a fix), and its pushes keep the
+     runner-pressure hold;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push); where a merge queue
      builds each entry on the current base, behind is no work (see "Merge
@@ -67,12 +77,14 @@ compaction.
      the orchestrator's blocked list.
 
    Never a new ticket while a pull request that can be worked on waits. The
-   `NEXT` lines of a sweep print this order.
+   `NEXT` lines of a sweep print this order; a `STALL` line comes
+   before them and is taken first.
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
      first, whatever each needs (a fix of a red CI, an answer to a review that
      asked for changes, a review of a green PR, a merge of a PR that is
-     reviewed approved and green). Only then the tickets, by priority, and
+     reviewed approved and green), except that a `STALL` fix comes before the
+     other fixes. Only then the tickets, by priority, and
      within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
@@ -234,12 +246,14 @@ compaction.
   2. An open pull request is finished, whatever its priority (owner,
      2026-10-20T00:50:04Z, line 47690: "If a PR is open and no worker is
      working on it, and it's still relevant, regardless of priority, it should
-     be finished."), oldest first, with nothing else ranking them: a fix does
+     be finished."), oldest first, with nothing else ranking them except a
+     `STALL` (a fix taken before the other fixes, above): a fix does
      not come before an older review (owner, 2026-10-26T13:57:38Z, line 105684:
      "No, among them oldest first."). A pull request that is neither green nor
      red cannot be worked on (owner, 2026-10-26T14:05:11Z, line 105788: "if it
      is not green and not red, it can't be worked on").
-  3. A pull request that is ready to merge is merged before anything else,
+  3. A pull request that is ready to merge is merged before anything else
+     (a `STALL` fix included: a merge is not a fix),
      still within the pressure rules (owner, 2026-10-26T19:34:21Z, line
      109484: "merging PRs that are ready to be merged takes priority over
      everything else"; 2026-10-26T19:37:01Z, line 109557: "first, but still

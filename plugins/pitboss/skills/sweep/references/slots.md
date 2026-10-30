@@ -68,7 +68,8 @@ estimated.
    an emergency.
 2. Then pull requests in progress: an open PR with no worker that is still
    relevant is finished (fixed, reviewed, brought up to date, merged),
-   whatever its priority, so open PRs do not pile up.
+   whatever its priority, so open PRs do not pile up. A `STALL` fix comes
+   first among the fixes (`rules.md`).
 3. Then new work, in the order the project requires.
 
 `slots next` sorts what it can see from GitHub into three categories, in
@@ -89,9 +90,10 @@ this order, and says on each line why it is where it is:
 
 Within a category: by priority label (the order of `priority_labels`), then
 oldest first by the creation time of the PR or the ticket. Items a slot
-already holds are left out.
+already holds are left out. A `STALL` line of the sweep (`rules.md`) is the one
+exception: its fix is taken before every line of this list.
 
-Take the lines in this order and nothing else: nobody guesses which files a
+Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a
 ticket will touch, and no ticket is skipped or held back because another PR
 might touch the same files. No stacking: every PR starts from the base
 branch, never from another PR's branch. When a PR that merged first makes

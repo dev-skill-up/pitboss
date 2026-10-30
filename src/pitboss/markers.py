@@ -17,6 +17,7 @@ class Marker(enum.Enum):
         WAIT_FOR_CI: a PR's head has no completed check run.
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
+        STALL: a relock PR whose check has been red for over four hours.
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
         READY_TO_MERGE: green, clean and approved; arm auto-merge.
         MERGE_BY_HAND: green, clean and approved, in a repository without
@@ -44,6 +45,7 @@ class Marker(enum.Enum):
     WAIT_FOR_CI = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
+    STALL = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
     MERGE_BY_HAND = enum.auto()

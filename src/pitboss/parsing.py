@@ -88,6 +88,7 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
             failed=item.get("conclusion") in shapes.FAILED_CONCLUSIONS,
             head_sha=item.get("head_sha") or "",
             started_at=item.get("started_at") or "",
+            completed_at=item.get("completed_at") or "",
         )
         for item in json.loads(text)["check_runs"]
     ]
