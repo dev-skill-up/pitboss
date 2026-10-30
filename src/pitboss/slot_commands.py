@@ -8,7 +8,16 @@ from typing import Callable, Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, config, ledger, report, slotlog, tracefs, work
+from . import (
+    ENTRY_DATA,
+    config,
+    ledger,
+    report,
+    slotlog,
+    tracefs,
+    unreadableline,
+    work,
+)
 from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
@@ -138,7 +147,9 @@ def _check(found: Context, book: ledger.Ledger) -> None:
 
 
 def _next(found: Context, book: ledger.Ledger) -> None:
-    ordered = work.queued(open_pulls(found), found.github, found.settings, book)
+    open_now = open_pulls(found)
+    unreadableline.print_withheld(open_now)
+    ordered = work.queued(open_now, found.github, found.settings, book)
     view = report.NextView(
         items=ordered,
         assignments=work.assign(ordered, book, found.settings.slots),

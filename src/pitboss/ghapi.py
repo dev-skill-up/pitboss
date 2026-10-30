@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import dataclasses
+import re
 import subprocess
 import urllib.parse
 from typing import Callable, Iterable, Mapping, Sequence, TypeVar
@@ -96,6 +97,32 @@ def pages(
         if len(page) < PAGE_SIZE:
             break
     return found
+
+
+def call_of(error: subprocess.CalledProcessError) -> str:
+    """Name the API call that failed.
+
+    Args:
+        error: the failed ``gh api`` run.
+
+    Returns:
+        The last segment of its path, without the query (``check-runs``).
+    """
+    path = str(error.cmd[-1]).split("?", 1)[0]
+    return path.rsplit("/", 1)[-1]
+
+
+def status_of(error: subprocess.CalledProcessError) -> str:
+    """Say how a ``gh api`` run failed.
+
+    Args:
+        error: the failed run.
+
+    Returns:
+        ``HTTP 500`` when ``gh`` printed a status, else ``gh exited N``.
+    """
+    found = re.search(r"HTTP \d{3}", str(error.stderr or ""))
+    return found.group(0) if found else f"gh exited {error.returncode}"
 
 
 def _why_unreadable(github: GitHub, slug: str) -> str:

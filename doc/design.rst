@@ -247,7 +247,16 @@ through ``args.safe_run``, since it takes no ``--no-dry-run``.
 
 Every command first reads each configured repository once; one the session
 cannot read is reported as ``UNREADABLE`` and left out, so one missing grant
-does not stop a sweep. Only the project's own repository is required.
+does not stop a sweep. Only the project's own repository is required. A PR
+one of whose API calls fails is reported the same way
+(``UNREADABLE owner/name#7: check-runs answered HTTP 500``) and the sweep
+goes on with the others. So is a merge-queue run whose jobs call fails
+(``UNREADABLE owner/name#7: jobs answered HTTP 500``): it is left out of the
+runner count and the pressure line holds, never ``NO RUNNER PRESSURE``, since
+a count that is incomplete cannot tell a free runner (``pressure`` and
+``push`` refuse instead). While any PR is unreadable no ticket is offered as new
+work (``UNREADABLE tickets: not offered as new work``), because that PR may
+already work on it.
 
 How each part decides
 ---------------------

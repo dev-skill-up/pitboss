@@ -59,6 +59,23 @@ class TestUnreadable(unittest.TestCase):
         assert_that(found, equal_to(expected))
 
 
+class TestFailedCall(unittest.TestCase):
+    """Naming a failed call and how it failed (#101)."""
+
+    def test_call_and_status(self) -> None:
+        """The call is the path's last segment; the status is gh's HTTP one."""
+        path = "repos/o/r/commits/abc/check-runs?per_page=100&page=1"
+        server = subprocess.CalledProcessError(
+            1, ["gh", "api", path], stderr="gh: Server Error (HTTP 500)\n"
+        )
+        silent = subprocess.CalledProcessError(4, ["gh", "api", path], stderr=None)
+        found = [
+            (ghapi.call_of(error), ghapi.status_of(error)) for error in (server, silent)
+        ]
+        expected = [("check-runs", "HTTP 500"), ("check-runs", "gh exited 4")]
+        assert_that(found, equal_to(expected))
+
+
 ISSUES = """[
   {"number": 1, "title": "t", "created_at": "c", "labels": [{"name": "p"}]},
   {"number": 2, "title": "t", "created_at": "c", "labels": [], "pull_request": {}}

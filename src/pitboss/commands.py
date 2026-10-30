@@ -33,10 +33,10 @@ from . import (
     sweepline,
     timing,
     tracefs,
-    work,
     worktrees,
 )
-from . import diskline, orphanline, repoarg, roundline, stall, updateline
+from . import diskline, orphanline, repoarg, roundline, stall, unreadableline
+from . import updateline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -106,16 +106,16 @@ def load_settings(args: argparse.Namespace) -> config.Config:
     return configfile.load(args.config, working_directory(args))
 
 
-def open_pulls(found: Context) -> Sequence[pulls.PullFacts]:
+def open_pulls(found: Context) -> Sequence[pulls.Read]:
     """Read every open PR the configuration names.
 
     Args:
         found: the context.
 
     Returns:
-        The PRs.
+        The PRs, a PR whose API call failed as an ``Unreadable``.
     """
-    return pulls.read_open(found.github, found.settings)
+    return pulls.read_each(found.github, found.settings)
 
 
 def load_context(args: argparse.Namespace) -> Context:
@@ -220,6 +220,9 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
     newest = queue.newest_by_reference(runs)
     broken = False
     for pull in open_pulls(found):
+        if isinstance(pull, pulls.Unreadable):
+            print(unreadableline.unreadable_line(pull))
+            continue
         print(report.pull_line(pull, newest))
         latest = newest.get(pulls.reference(pull))
         queued = latest is not None and not latest.run.finished
@@ -314,8 +317,7 @@ def sweep(args: argparse.Namespace) -> None:
         print(line)
     book = read_ledger(found.settings)
     report.print_ledger(book)
-    queued = work.queued(open_pulls(found), found.github, found.settings, book)
-    report.print_free_slots(book, len(queued))
+    sweepline.slots(found.github, found.settings, book, open_pulls(found))
     handback.print_lines(book, found.now)
     if broken:
         raise SystemExit(1)

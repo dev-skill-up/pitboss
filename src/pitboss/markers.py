@@ -11,7 +11,8 @@ class Marker(enum.Enum):
     """A marker at the start of an output line that calls for an action.
 
     Attributes:
-        UNREADABLE: a repository the session cannot read.
+        UNREADABLE: a repository the session cannot read, or a PR one of
+            whose API calls failed.
         RUNNER_PRESSURE: queue runs wait for runners; hold.
         NO_RUNNER_PRESSURE: nothing waits for a runner.
         WAIT_FOR_CI: a PR's head has no completed check run.

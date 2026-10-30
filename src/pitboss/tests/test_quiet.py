@@ -351,3 +351,17 @@ class TestRecord(unittest.TestCase):
         entries = [record.Entry(time=START, look=record.Look.HOLD)]
         now = START + datetime.timedelta(minutes=14, seconds=1)
         assert_that(record.minutes_remaining(entries, 15, now), equal_to(1))
+
+
+class TestPartialPressure(unittest.TestCase):
+    """A queue run that was not counted is no free runner (#101)."""
+
+    def test_uncounted_run_is_no_go(self) -> None:
+        """With a quiet record and a failed jobs call, the line does not say go."""
+        here = clear_world()
+        write(here, hold_at(-60))
+        del here.bodies[PROJECT_JOBS]
+        swept = world.invoke(here, "sweep", here.config, "--now", at(0))
+        found = [each for each in swept.out.splitlines() if "PRESSURE" in each]
+        assert_that(len(found), equal_to(1))
+        assert_that(found[0], starts_with("RUNNER PRESSURE: partial: 1 queue run"))
