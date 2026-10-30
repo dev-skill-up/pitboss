@@ -67,6 +67,18 @@ class TestLines(unittest.TestCase):
         line = f"OUTDATED pitboss {NEWEST}.dev1 < {NEWEST}"
         assert_that(outdated.lines(f"{NEWEST}.dev1", NEWEST), equal_to([line]))
 
+    def test_pre_releases_of_ci_builds(self) -> None:
+        """Every pre-release form autocalver gives is older than its release (#103)."""
+        found = [
+            outdated.lines(f"{NEWEST}{suffix}", NEWEST)
+            for suffix in ("rc1", ".dev1", "a1", "b2")
+        ]
+        expected = [
+            [f"OUTDATED pitboss {NEWEST}{each} < {NEWEST}"]
+            for each in ("rc1", ".dev1", "a1", "b2")
+        ]
+        assert_that(found, equal_to(expected))
+
     def test_versions_that_are_not_dates(self) -> None:
         """A version this does not understand is never reported."""
         assert_that(outdated.lines("local", NEWEST), equal_to([]))

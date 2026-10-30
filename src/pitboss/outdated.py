@@ -9,7 +9,7 @@ from .markers import Marker
 from .running import Run
 
 INDEX = "https://pypi.org/pypi/pitboss/json"
-VERSION = re.compile(r"\d+(\.\d+)*(\.dev\d+)?")
+VERSION = re.compile(r"(\d+(?:\.\d+)*)(?:\.?(?:dev|a|b|rc)\d+)?")
 READ_SECONDS = "10"
 
 
@@ -32,7 +32,7 @@ def newest(run: Run) -> str | None:
 
 
 def order(version: str) -> tuple[Sequence[int], int] | None:
-    """Where a version sorts: its numbers, and a dev build before its release.
+    """Where a version sorts: its numbers, then a pre-release before its release.
 
     Args:
         version: a version such as ``2026.10.30.50353`` or ``...50353.dev1``.
@@ -40,10 +40,11 @@ def order(version: str) -> tuple[Sequence[int], int] | None:
     Returns:
         The key, None for a version of another form.
     """
-    if not VERSION.fullmatch(version):
+    found = VERSION.fullmatch(version)
+    if not found:
         return None
-    release = version.split(".dev")[0]
-    return [int(part) for part in release.split(".")], int(".dev" not in version)
+    release = found.group(1)
+    return [int(part) for part in release.split(".")], int(release == version)
 
 
 def lines(running: str, latest: str | None) -> Sequence[str]:
