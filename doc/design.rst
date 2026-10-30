@@ -475,21 +475,28 @@ refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``m
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
-line saying why it is where it is. The open PRs that need a fix of a review, a
-revision of the plan or a review come first, in one list ordered oldest first,
-whatever each needs; each line says which kind it is, the kind being the flow's
-step alone (``pitboss next`` prints the same step), and a PR is listed once:
+line saying why it is where it is. The open PRs that the flow's step gives a
+round come first, in one list ordered oldest first, whatever each needs; each
+line says which kind it is, the kind being the flow's step alone
+(``pitboss next`` prints the same step). A PR has exactly one step, so it is
+listed at most once. The six kinds:
 
-* ``revise the plan``: a review that asked for changes on an unmoved head
-  graded the plan changes needed (keyword: plan-revision, pitboss#82); the
-  author edits the ``## Plan`` section of the body and touches no code, doc or
-  test until the plan is approved, and the review of the revised plan grades
-  the plan alone;
-* ``fix the review``: the author's fix for a review that asked for changes, on
-  an unmoved head, that did not reject the plan;
-* ``review it``: a review of a PR whose checks are all green on its head and
-  which has no review of that head, or only one that approved the plan alone
-  (the reviewer is never the author).
+* ``revise the plan``: step ``WORKER``, task ``REVISE_PLAN`` (keyword:
+  plan-revision, pitboss#82); the author edits the ``## Plan`` section of the
+  body and touches no code, doc or test until the plan is approved, and the
+  review of the revised plan grades the plan alone;
+* ``fix the review``: step ``WORKER``, any other task (``FIX_EXECUTION``): the
+  author's fix for a review that asked for changes to the execution;
+* ``fix the CI``: step ``WORKER``, task ``FIX_CI``: a red CI, which is no
+  rejection;
+* ``write the Plan and Execution body``: step ``WORKER``, task
+  ``FIRST_ROUND``: the PR has no such body;
+* ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
+  approved head that conflicts with the base;
+* ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
+  PR that is not a draft it comes once every required check finished green on
+  the head. On a draft it is the plan-only review, listed with no CI, since a
+  draft runs none.
 
 A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then

@@ -1,14 +1,15 @@
 """What to start next: one sorted list, and which empty slot takes what.
 
 The order (work-order): the open PRs that need work come first, in one list,
-oldest first, whatever each needs. What a PR needs is the step ``steps.next_step``
-gives it (keyword: review-flow): a worker's round (a revision of the plan and
-nothing else, or any other fix), or a review by a new reviewer; an update of a
-PR that is behind the base with its checks finished (never where the
-repository has a merge queue) comes between them. The kind is a label on the
-line, not a rank. A PR whose step is to wait (for CI, an undraft or the owner),
-to ask Opus for a ruling, to pause for the owner, to undraft or to merge is
-none of them: it is offered for no round. After them come the
+oldest first, whatever each needs. What a PR needs is the step ``flow.next_step``
+gives it (keyword: review-flow): a worker's round, whose kind is its task (a
+revision of the plan and nothing else, a fix of the CI, the Plan and Execution
+body, the resolution of a conflict, or any other fix of a review), or a review
+by a new reviewer (a draft's plan-only review included). There is no update
+kind. The kind is a label on the line, not a rank. A PR whose step is to wait
+(for CI, an undraft or the owner), to ask Opus for a ruling, to pause for the
+owner, to undraft or to merge is none of them: it is offered for no round.
+After them come the
 new PRs, one for each open ticket with a priority label that no open PR names,
 by priority label, then oldest first. Nothing predicts which files a ticket
 will touch: work is taken in this order, every PR starts from the base branch,
@@ -33,7 +34,8 @@ class Category(enum.IntEnum):
         FIX_REVIEW: an author fixes what a review asked for (a PR).
         REVISE_PLAN: an author revises the plan a review did not approve, and
             touches nothing else (a PR).
-        REVIEW: a reviewer (never the author) reviews a green head (a PR).
+        REVIEW: a reviewer (never the author) reviews a green head, or a
+            draft's plan alone (a PR).
         NEW_PR: a worker starts a ticket (after every PR).
         FIX_CI: an author fixes a red CI, which is no rejection (a PR).
         FIRST_ROUND: an author writes the Plan and Execution body of a PR that

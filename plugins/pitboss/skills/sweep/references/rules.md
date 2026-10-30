@@ -89,11 +89,18 @@ compaction.
 
    Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE` or `PAUSE` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
-   that need a fix of a review, a revision of the plan or a review (the kind
-   is the flow's step), oldest first with the kind shown on each line, and then the tickets by
-   priority label and age. A
-   red CI, a conflict and a merge are not `NEXT` lines but the `FAILED`,
-   `CONFLICT`, `READY TO MERGE` and `MERGE BY HAND` lines of the sweep. A
+   that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
+   with the kind shown on each line, and then the tickets by priority label
+   and age. The kind is the step alone. A WORKER step is listed with its
+   task's kind: `revise the plan` (`REVISE_PLAN`), `fix the CI` (`FIX_CI`),
+   `write the Plan and Execution body` (`FIRST_ROUND`), `resolve the conflict`
+   (`RESOLVE_CONFLICT`), and `fix the review` for any other task
+   (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
+   stage, a draft's plan-only review included. Every other step is offered for
+   no round. A red CI and a conflict are printed by the sweep as `FAILED` and
+   `CONFLICT`, and `slots next` also offers them as the worker's round (`fix
+   the CI`, `resolve the conflict`). A merge is only a `READY TO MERGE` or
+   `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
    merge of a ready pull request comes first (Order of work, 3), then a
    `STALL` fix, before every `NEXT` line and every other pull request. A pull
    request with `RULING DUE` or `PAUSE` has no `NEXT` line: `slots next` leaves
@@ -440,7 +447,7 @@ compaction.
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
   and what follows it (`pitboss.rulings.after_opus_ruling`) is carried out as
   ruled, a split, a reshape or an abandon included. A PR at `OPUS_RULING` or
-  `PAUSE_FOR_OWNER` is offered for no fix, update or review round in `slots
+  `PAUSE_FOR_OWNER` is offered for no round in `slots
   next`, and its ticket stays taken.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
