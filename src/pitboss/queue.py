@@ -4,9 +4,10 @@ import concurrent.futures
 import dataclasses
 import datetime
 import re
+import subprocess
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ghapi, parsing, record, shapes
+from . import config, ghapi, parsing, pulls, record, shapes
 
 QUEUE_PAGES = 3
 _PULL_NUMBER = re.compile(r"/pr-(\d+)-")
@@ -129,6 +130,49 @@ def _queued_jobs(github: ghapi.GitHub, queue_run: QueueRun) -> int:
     return sum(waiting)
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Jobs:
+    """The jobs of unfinished queue runs that wait for a runner.
+
+    Attributes:
+        waiting: how many jobs wait, over the runs that could be read.
+        unread: the runs whose jobs call failed, as unreadable PRs.
+    """
+
+    waiting: int
+    unread: Sequence[pulls.Unreadable]
+
+
+def _read_jobs(github: ghapi.GitHub, queue_run: QueueRun) -> int | pulls.Unreadable:
+    try:
+        return _queued_jobs(github, queue_run)
+    except subprocess.CalledProcessError as error:
+        return pulls.Unreadable(
+            reference=f"{queue_run.repo.slug}#{queue_run.number}",
+            call=ghapi.call_of(error),
+            status=ghapi.status_of(error),
+        )
+
+
+def count_jobs(github: ghapi.GitHub, runs: Iterable[QueueRun]) -> Jobs:
+    """Count the waiting jobs, leaving out a run whose jobs call failed.
+
+    Args:
+        github: the API.
+        runs: the runs of every repository that shares the runners.
+
+    Returns:
+        The count, and the runs left out of it.
+    """
+    unfinished = [candidate for candidate in runs if not candidate.run.finished]
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        read = list(pool.map(lambda each: _read_jobs(github, each), unfinished))
+    return Jobs(
+        waiting=sum(each for each in read if isinstance(each, int)),
+        unread=[each for each in read if isinstance(each, pulls.Unreadable)],
+    )
+
+
 def waiting_jobs(github: ghapi.GitHub, runs: Iterable[QueueRun]) -> int:
     """Count the jobs of unfinished queue runs that have no runner yet.
 
@@ -138,10 +182,15 @@ def waiting_jobs(github: ghapi.GitHub, runs: Iterable[QueueRun]) -> int:
 
     Returns:
         The number of queued jobs; more than none is runner pressure.
+
+    Raises:
+        SystemExit: naming the run whose jobs call failed.
     """
-    unfinished = [candidate for candidate in runs if not candidate.run.finished]
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        return sum(pool.map(lambda each: _queued_jobs(github, each), unfinished))
+    jobs = count_jobs(github, runs)
+    for each in jobs.unread:
+        # pressure and push must not read a call that failed as a free runner.
+        raise SystemExit(f"{each.reference}: {each.call} answered {each.status}")
+    return jobs.waiting
 
 
 def age_minutes(queue_run: QueueRun, now: datetime.datetime) -> int:
@@ -176,5 +225,19 @@ def look(
         The jobs waiting now, and the quiet minutes still owed.
     """
     waiting = waiting_jobs(github, runs)
-    shown = record.Look.HOLD if waiting else record.Look.NONE
-    return waiting, record.remaining(runners.record, shown, runners.quiet_minutes, now)
+    return waiting, owed(Jobs(waiting=waiting, unread=()), runners, now)
+
+
+def owed(jobs: Jobs, runners: config.Runners, now: datetime.datetime) -> int:
+    """Count a look at ``jobs`` in the quiet period; nothing is written.
+
+    Args:
+        jobs: what the look saw.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+
+    Returns:
+        The quiet minutes still owed.
+    """
+    shown = record.Look.HOLD if jobs.waiting else record.Look.NONE
+    return record.remaining(runners.record, shown, runners.quiet_minutes, now)

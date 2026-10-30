@@ -323,9 +323,10 @@ class Unreadable:
     status: str
 
 
-def fetch_or_unreadable(
-    source: Source, repo: config.Repo, number: int
-) -> PullFacts | Unreadable:
+Read = PullFacts | Unreadable
+
+
+def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:
     """Read one PR, or say which of its API calls failed.
 
     Args:
@@ -362,9 +363,7 @@ def read_open(github: ghapi.GitHub, settings: config.Config) -> Sequence[PullFac
     ]
 
 
-def read_each(
-    github: ghapi.GitHub, settings: config.Config
-) -> Sequence[PullFacts | Unreadable]:
+def read_each(github: ghapi.GitHub, settings: config.Config) -> Sequence[Read]:
     """Read every open PR, keeping a PR whose API call failed as a record.
 
     Args:

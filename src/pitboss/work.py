@@ -238,15 +238,18 @@ def smallest_model(
 
 
 def queued(
-    facts: Sequence[pulls.PullFacts],
+    found: Sequence[pulls.Read],
     github: ghapi.GitHub,
     settings: config.Config,
     book: ledger.Ledger,
 ) -> Sequence[Item]:
     """The work that is queued: PRs and tickets, in the order to start them.
 
+    A PR that could not be read may work on any ticket, so while one exists no
+    ticket is offered as new work (keyword: unreadable-pull).
+
     Args:
-        facts: the open PRs.
+        found: the open PRs, read or not.
         github: the API.
         settings: the configuration.
         book: the ledger.
@@ -254,9 +257,11 @@ def queued(
     Returns:
         The ordered items.
     """
+    facts = [each for each in found if isinstance(each, pulls.PullFacts)]
+    tickets = ticket_items(github, settings, taken(facts))
     items = [
         *pull_items(facts, settings),
-        *ticket_items(github, settings, taken(facts)),
+        *(tickets if len(facts) == len(found) else ()),
     ]
     return ordered(items, [slot.task for slot in book.slots if slot.agent])
 

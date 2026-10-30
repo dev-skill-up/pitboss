@@ -8,6 +8,11 @@ from hamcrest import assert_that, equal_to
 
 from . import world
 
+UNREAD_TICKETS_LINE = (
+    "UNREADABLE tickets: not offered as new work, 1 open PR(s) could not be read"
+    " and may already work on them; sweep again"
+)
+
 LEDGER_STEPS = (
     ("set", "tiny", "agent-1", "#9"),
     ("add", "spare", "large"),
@@ -215,6 +220,14 @@ class TestNext(unittest.TestCase):
             here = world.make_world()
             run_all(here, steps)
             assert_that(next_lines(here), equal_to(expected))
+
+    def test_an_unread_pull_keeps_tickets_back(self) -> None:
+        """Ticket 9 is not offered while PR 1, which may take it, is unread (#101)."""
+        here = world.make_world()
+        world.unread_first(here, "Fixes #9")
+        shown = next_output(here).splitlines()
+        offered = [x for x in shown if x.startswith("UNREADABLE tickets") or "#9" in x]
+        assert_that(offered, equal_to([UNREAD_TICKETS_LINE]))
 
 
 MISSING_STEPS = (

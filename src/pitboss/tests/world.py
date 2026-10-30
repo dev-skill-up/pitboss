@@ -197,6 +197,19 @@ def pull_bodies(
     return found
 
 
+def unread_first(here: World, body: str = "") -> None:
+    """Make PR 1 unreadable: its check-runs call fails (#101).
+
+    Args:
+        here: the world.
+        body: the text of PR 1's body.
+    """
+    head = "1" * 40
+    branch = {"sha": head, "ref": "branch-1"}
+    here.bodies[f"{PROJECT}/pulls/1"] = fakes.pull_body(1, body=body, head=branch)
+    del here.bodies[fakes.page(f"{PROJECT}/commits/{head}/check-runs")]
+
+
 def bodies() -> MutableMapping[str, object]:
     """The fake GitHub of the tests.
 

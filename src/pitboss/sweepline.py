@@ -1,9 +1,37 @@
 """The runner-pressure line of the sweep: it reads the record and writes nothing."""
 
 import datetime
-from typing import Iterable
+from typing import Iterable, Sequence
 
-from . import config, ghapi, queue, report
+from . import (
+    config,
+    ghapi,
+    ledger,
+    pulls,
+    queue,
+    report,
+    unreadableline,
+    work,
+)
+
+
+def slots(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    book: ledger.Ledger,
+    open_now: Sequence[pulls.Read],
+) -> None:
+    """Print the withheld-tickets line and the free-slots line.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        book: the ledger.
+        open_now: the open PRs, read or not.
+    """
+    unreadableline.print_withheld(open_now)
+    queued = work.queued(open_now, github, settings, book)
+    report.print_free_slots(book, len(queued))
 
 
 def pressure(
@@ -27,7 +55,13 @@ def pressure(
         The line.
     """
     try:
-        waiting, owed = queue.look(github, runs, runners, now)
+        jobs = queue.count_jobs(github, runs)
+        line = report.quiet_line(jobs.waiting, queue.owed(jobs, runners, now))
     except SystemExit as unreadable:
         return report.unreadable_record_line(unreadable.code)
-    return report.quiet_line(waiting, owed)
+    if not jobs.unread:
+        return line
+    # A queue run whose jobs call failed is not counted (keyword: unreadable-pull).
+    named = [unreadableline.unreadable_line(each) for each in jobs.unread]
+    partial = f"{line}; partial: {len(jobs.unread)} queue run(s) not counted"
+    return "\n".join([*named, partial])

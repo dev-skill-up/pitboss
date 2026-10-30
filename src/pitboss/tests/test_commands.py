@@ -9,6 +9,16 @@ from . import cleanworld, fakes, orphans, world
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
+JOBS_FAILED = "owner/project#2: jobs answered HTTP 404"
+QUEUE_CALL_FAILS = (
+    [
+        "partial: 1 queue run(s) not counted",
+        "READY TO MERGE owner/project#2: arm auto-merge or merge",
+        f"UNREADABLE {JOBS_FAILED}",
+    ],
+    0,
+    JOBS_FAILED,
+)
 SWEEP_LINES = (
     "UNREADABLE owner/gone: gh: not found",
     "owner/project#1 [dirty] auto-merge=off pending=0 failed=[test (job 8)]",
@@ -187,7 +197,7 @@ class TestSweep(unittest.TestCase):
         """One PR's failed API call is a line naming it; the others are swept (#101)."""
         here = world.make_world()
         here.bodies[OPEN_PULLS] = [{"number": 1}, {"number": 2}]
-        del here.bodies[fakes.page(f"{world.PROJECT}/commits/{'1' * 40}/check-runs")]
+        world.unread_first(here)
         result = sweep(here)
         expected = "UNREADABLE owner/project#1: check-runs answered HTTP 404"
         found = (
@@ -198,33 +208,17 @@ class TestSweep(unittest.TestCase):
         )
         assert_that(found, equal_to((True, True, False, 0)))
 
-    def test_unreadable_pull_still_takes_its_ticket(self) -> None:
-        """No NEXT line offers a ticket while a PR that may take it is unread (#101)."""
-        here = world.make_world()
-        here.bodies[f"{world.PROJECT}/pulls/1"] = fakes.pull_body(
-            1, body="Fixes #9", head={"sha": "1" * 40, "ref": "branch-1"}
-        )
-        del here.bodies[fakes.page(f"{world.PROJECT}/commits/{'1' * 40}/check-runs")]
-        result = world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE)
-        offered = [x for x in result.out.splitlines() if x.startswith("NEXT")]
-        found = ([x for x in offered if "owner/project#9" in x], result.code)
-        assert_that(found, equal_to(([], 0)))
-
     def test_sweep_goes_on_when_a_queue_run_call_fails(self) -> None:
         """A queue run whose jobs call fails is named and the sweep goes on (#101)."""
         here = world.make_world()
         here.bodies[OPEN_PULLS] = [{"number": 2}]
-        del here.bodies[fakes.page(f"{world.PROJECT}/actions/runs/11/jobs")]
+        del here.bodies[world.project_page("actions/runs/11/jobs")]
         result = sweep(here)
-        expected = "UNREADABLE owner/project#2: jobs answered HTTP 404"
-        found = (
-            expected in result.out,
-            "partial" in result.out,
-            "READY TO MERGE owner/project#2" in result.out,
-            "Traceback" in result.err,
-            result.code,
-        )
-        assert_that(found, equal_to((True, True, True, False, 0)))
+        lines = result.out.splitlines()
+        pressure = world.again(here, "pressure").code  # a failed call is no free runner
+        found = [x.rsplit("; ", 1)[-1] for x in lines if "partial" in x]
+        found += [x for x in lines if "jobs answered" in x or "READY" in x]
+        assert_that((found, result.code, pressure), equal_to(QUEUE_CALL_FAILS))
 
     def test_sweep_says_why(self) -> None:
         """A failed check's line says its failed step, output and annotations."""
