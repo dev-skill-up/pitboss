@@ -8,11 +8,12 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, ledger, parsing, pulls, reviews, shapes, work, steps
-from . import fakes
+from .. import config, ledger, parsing, pulls, reviews, steps, work
+from . import fakes, test_flow
 
 REPO = config.make_repo("owner", "project")
-GREEN = shapes.CheckRun(id=1, name="build", finished=True, failed=False)
+GREEN = test_flow.GREEN
+SETTINGS = test_flow.SETTINGS
 SLOTS = config.Slots(
     ledger=pathlib.Path("/unused"),
     log=pathlib.Path("/unused.log"),
@@ -106,11 +107,10 @@ class TestPullItems(unittest.TestCase):
 
     def test_categories(self) -> None:
         """A PR is listed as the kind of work its step is, or as none."""
-        settings = fakes.settings(fakes.directory())
         found = [
             [
                 each.category
-                for each in work.pull_items([facts(1, NONE, step)], settings)
+                for each in work.pull_items([facts(1, NONE, step)], SETTINGS)
             ]
             for step, _ in STEP_CASES
         ]
@@ -119,10 +119,9 @@ class TestPullItems(unittest.TestCase):
 
     def test_a_held_pr_is_not_updated_either(self) -> None:
         """A ruling, a pause or the owner holds a PR that is behind the base."""
-        settings = fakes.settings(fakes.directory())
         held = [steps.opus_ruling(), steps.pause_for_owner(), steps.wait_for_owner()]
         behind = [facts(1, NONE, step, mergeable_state="behind") for step in held]
-        found = [work.pull_items([each], settings) for each in behind]
+        found = [work.pull_items([each], SETTINGS) for each in behind]
         assert_that(found, equal_to([[], [], []]))
 
 
@@ -166,10 +165,9 @@ class TestTickets(unittest.TestCase):
         named = facts(10, NONE, **NAMING)
         plain = facts(11, NONE, head={"sha": fakes.HEAD, "ref": "feature"})
         api = fakes.github(dict(TICKET_BODIES))
-        settings = fakes.settings(fakes.directory())
         in_progress = work.taken([named, plain])
         offered = work.ticket_items(
-            api, dataclasses.replace(settings, slots=SLOTS), in_progress
+            api, dataclasses.replace(SETTINGS, slots=SLOTS), in_progress
         )
         found = ("owner/lib#3" in in_progress, [each.reference for each in offered])
         assert_that(found, equal_to((True, ["owner/project#5", "owner/project#6"])))

@@ -11,7 +11,7 @@ from . import fakes, world
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
 AFTER = ("--now", world.FUTURE)
 THIRD = f"{world.PROJECT}/pulls/3"
-JOBS = fakes.page(f"{world.PROJECT}/actions/runs/11/jobs")
+JOBS = fakes.page(world.PROJECT + "/actions/runs/11/jobs")
 
 
 def next_for(here: world.World, ticket: str) -> world.Result:
@@ -51,6 +51,16 @@ def third(here: world.World, **changes: object) -> None:
     here.bodies[THIRD] = fakes.pull_body(3, **changes)
 
 
+def fixing(here: world.World, ticket: str) -> None:
+    """Make PR 3 fix a ticket.
+
+    Args:
+        here: the world.
+        ticket: the ticket it says ``Fixes`` for.
+    """
+    third(here, body=BODY.replace("Fixes #7", f"Fixes {ticket}"))
+
+
 def line(step: steps.Next, ticket: str, pull: str) -> str:
     """The line ``pitboss next`` prints.
 
@@ -65,6 +75,33 @@ def line(step: steps.Next, ticket: str, pull: str) -> str:
     return f"{step.step.name}: {ticket} ({pull}): {steps.describe(step)}\n"
 
 
+def says(found: world.Result, want: steps.Next, ticket: str, pull: str) -> None:
+    """Check that a run printed one step's line and exited 0.
+
+    Args:
+        found: what the command did.
+        want: the step.
+        ticket: the ticket.
+        pull: the PR.
+    """
+    assert_that((said(found), found.code), equal_to((line(want, ticket, pull), 0)))
+
+
+def starts(found: world.Result, prefix: str) -> None:
+    """Check that a run's output starts as given.
+
+    Args:
+        found: what the command did.
+        prefix: how its output starts.
+    """
+    assert_that(said(found).startswith(prefix), equal_to(True))
+
+
+FIRST = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+PLAN_ONLY = steps.regular_review(steps.Stage.PLAN_ONLY)
+PROJECT_3 = ("owner/project#7", "owner/project#3")
+
+
 class TestNext(unittest.TestCase):
     """The one step a ticket is at."""
 
@@ -72,76 +109,51 @@ class TestNext(unittest.TestCase):
         """PR 3 is green with no review: a regular review of both."""
         here = world.make_world()
         third(here)
-        found = next_for(here, "#7")
-        step = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
-        expected = line(step, "owner/project#7", "owner/project#3")
-        assert_that((said(found), found.code), equal_to((expected, 0)))
+        says(next_for(here, "#7"), FIRST, *PROJECT_3)
 
     def test_the_ticket_can_be_spelled_in_full_or_by_repository_name(self) -> None:
         """``owner/repo#N`` and ``repo#N`` name the same ticket."""
         here = world.make_world()
         third(here)
-        found = [
-            said(next_for(here, each)) for each in ("owner/project#7", "project#7")
-        ]
-        assert_that(found[0], equal_to(found[1]))
+        for spelled in ("owner/project#7", "project#7"):
+            says(next_for(here, spelled), FIRST, *PROJECT_3)
 
     def test_fixes_with_a_full_reference_in_another_repository(self) -> None:
         """A PR of the project can fix a ticket of a library."""
         here = world.make_world()
-        third(here, body=BODY.replace("Fixes #7", "Fixes owner/lib#6"))
-        found = next_for(here, "owner/lib#6")
-        step = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
-        expected = line(step, "owner/lib#6", "owner/project#3")
-        assert_that(said(found), equal_to(expected))
+        fixing(here, "owner/lib#6")
+        says(next_for(here, "owner/lib#6"), FIRST, "owner/lib#6", "owner/project#3")
 
     def test_a_bare_number_means_the_ticket_of_the_pr_repository(self) -> None:
         """``Fixes #7`` in the library's PR is ``owner/lib#7``."""
         here = world.make_world()
         here.bodies["repos/owner/lib/pulls/4"] = fakes.pull_body(4, body=BODY)
-        found = [
-            said(next_for(here, each)) for each in ("owner/lib#7", "owner/project#7")
-        ]
-        assert_that(
-            found[0].startswith("MERGE: owner/lib#7 (owner/lib#4)"), equal_to(True)
-        )
-        assert_that(found[1].startswith("WORKER: owner/project#7: "), equal_to(True))
+        starts(next_for(here, "owner/lib#7"), "MERGE: owner/lib#7 (owner/lib#4)")
+        starts(next_for(here, "owner/project#7"), "WORKER: owner/project#7: ")
 
     def test_a_longer_number_is_another_ticket(self) -> None:
         """``Fixes #70`` does not fix ticket 7."""
         here = world.make_world()
-        third(here, body=BODY.replace("Fixes #7", "Fixes #70"))
-        found = next_for(here, "#7")
-        assert_that(
-            said(found), equal_to(f"WORKER: owner/project#7: {steps.FIRST_STEP}\n")
-        )
+        fixing(here, "#70")
+        starts(next_for(here, "#7"), f"WORKER: owner/project#7: {steps.FIRST_STEP}")
 
     def test_a_ticket_no_pr_fixes_starts_with_a_worker(self) -> None:
         """The first step is to write the code and the Plan and Execution body."""
         found = next_for(world.make_world(), "#99")
-        assert_that(
-            said(found), equal_to(f"WORKER: owner/project#99: {steps.FIRST_STEP}\n")
-        )
-        assert_that(found.code, equal_to(0))
+        first = f"WORKER: owner/project#99: {steps.FIRST_STEP}\n"
+        assert_that((said(found), found.code), equal_to((first, 0)))
 
     def test_a_pr_without_the_body_is_the_workers(self) -> None:
         """The worker writes the Plan and Execution body."""
         here = world.make_world()
         third(here, body="Fixes #7\n")
-        found = next_for(here, "#7")
-        step = steps.worker(steps.Task.FIRST_ROUND)
-        assert_that(
-            said(found), equal_to(line(step, "owner/project#7", "owner/project#3"))
-        )
+        says(next_for(here, "#7"), steps.worker(steps.Task.FIRST_ROUND), *PROJECT_3)
 
     def test_a_paused_pr_waits_for_the_owner(self) -> None:
         """The pause label is read from the PR."""
         here = world.make_world()
         third(here, labels=[{"name": "paused-owner"}])
-        found = next_for(here, "#7")
-        assert_that(
-            said(found).startswith("WAIT_FOR_OWNER: owner/project#7"), equal_to(True)
-        )
+        starts(next_for(here, "#7"), "WAIT_FOR_OWNER: owner/project#7")
 
     def test_a_draft_is_undrafted_when_the_runners_are_quiet(self) -> None:
         """No job waits and the record shows the quiet period passed."""
@@ -150,8 +162,7 @@ class TestNext(unittest.TestCase):
         here.bodies[JOBS] = {"jobs": []}
         record = here.clone / ".git" / "pitboss-pressure.log"
         record.write_text("2029-12-01T00:00:00+00:00 none\n")
-        found = next_for(here, "#7")
-        assert_that(said(found).startswith("UNDRAFT: owner/project#7"), equal_to(True))
+        starts(next_for(here, "#7"), "UNDRAFT: owner/project#7")
 
     def test_a_draft_whose_record_cannot_be_read_is_not_undrafted(self) -> None:
         """A quiet period nobody could read is not one that was seen."""
@@ -159,21 +170,13 @@ class TestNext(unittest.TestCase):
         third(here, draft=True)
         here.bodies[JOBS] = {"jobs": []}
         (here.clone / ".git" / "pitboss-pressure.log").mkdir()
-        found = next_for(here, "#7")
-        step = steps.regular_review(steps.Stage.PLAN_ONLY)
-        assert_that(
-            said(found), equal_to(line(step, "owner/project#7", "owner/project#3"))
-        )
+        says(next_for(here, "#7"), PLAN_ONLY, *PROJECT_3)
 
     def test_a_draft_under_pressure_gets_a_plan_review(self) -> None:
         """A queue job waits, so the draft stays one."""
         here = world.make_world()
         third(here, draft=True)
-        found = next_for(here, "#7")
-        step = steps.regular_review(steps.Stage.PLAN_ONLY)
-        assert_that(
-            said(found), equal_to(line(step, "owner/project#7", "owner/project#3"))
-        )
+        says(next_for(here, "#7"), PLAN_ONLY, *PROJECT_3)
 
     def test_a_pr_with_an_unreadable_neighbour_is_not_a_ticket_without_a_pr(
         self,
@@ -181,23 +184,16 @@ class TestNext(unittest.TestCase):
         """A PR that could not be read may be the ticket's: no first step is printed."""
         here = world.make_world()
         world.unread_first(here)
-        found = next_for(here, "#99")
-        assert_that(found.code, equal_to(1))
-        assert_that(
-            said(found), contains_string("UNREADABLE owner/project#1: check-runs")
-        )
-        assert_that("WORKER" in said(found), equal_to(False))
+        printed = next_for(here, "#99")
+        starts(printed, "UNREADABLE owner/project#1: check-runs")
+        assert_that((printed.code, "WORKER" in said(printed)), equal_to((1, False)))
 
     def test_a_pr_found_is_answered_whatever_else_is_unreadable(self) -> None:
         """The match decides, even with another PR unreadable."""
         here = world.make_world()
         world.unread_first(here)
         third(here)
-        found = next_for(here, "#7")
-        assert_that(found.code, equal_to(0))
-        assert_that(
-            said(found).startswith("REGULAR_REVIEW: owner/project#7"), equal_to(True)
-        )
+        starts(next_for(here, "#7"), "REGULAR_REVIEW: owner/project#7")
 
     def test_a_ticket_that_is_not_a_reference_is_refused(self) -> None:
         """Exit 2, and nothing is read."""

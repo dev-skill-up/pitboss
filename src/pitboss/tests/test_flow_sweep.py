@@ -72,6 +72,18 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     return here
 
 
+def listed_for_third(here: world.World) -> Sequence[str]:
+    """PR 3's lines of ``slots next``.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The lines, none when PR 3 is offered for nothing.
+    """
+    return [line for line in next_output(here).splitlines() if "project#3 (" in line]
+
+
 def sweep_and_next(rounds: Sequence[shapes.Comment]) -> tuple[str, str]:
     """What the sweep prints, and PR 3's line of ``slots next``.
 
@@ -82,8 +94,7 @@ def sweep_and_next(rounds: Sequence[shapes.Comment]) -> tuple[str, str]:
         The sweep's output, and PR 3's line in the list (empty when none).
     """
     here = world_with(rounds)
-    listed = [line for line in next_output(here).splitlines() if "project#3 (" in line]
-    return sweep(here).out, "".join(listed)
+    return sweep(here).out, "".join(listed_for_third(here))
 
 
 TWO_PLAN_REJECTIONS = [
@@ -154,10 +165,7 @@ class TestSweepAndNext(unittest.TestCase):
     def test_a_paused_pr_is_listed_for_nothing(self) -> None:
         """The label holds it, and it prints no line of the limit."""
         here = world_with([], labels=[{"name": "paused-owner"}])
-        listed = [
-            line for line in next_output(here).splitlines() if "project#3 (" in line
-        ]
-        assert_that(listed, equal_to([]))
+        assert_that(listed_for_third(here), equal_to([]))
         assert_that("RULING DUE" in sweep(here).out, equal_to(False))
 
     def test_the_ticket_of_a_held_pr_stays_taken(self) -> None:

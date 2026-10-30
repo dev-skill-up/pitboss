@@ -9,7 +9,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, parsing, pulls, reviews, shapes, stall, steps
-from . import fakes, world
+from . import fakes, test_flow, world
 from .test_commands import sweep
 
 NOW = datetime.datetime(2026, 10, 30, 12, 0, 0, tzinfo=datetime.timezone.utc)
@@ -142,7 +142,7 @@ class TestStall(unittest.TestCase):
 
     def test_a_run_with_no_completion_time_is_quiet(self) -> None:
         """Without a completed_at there is nothing to count from."""
-        run = shapes.CheckRun(id=8, name="check", finished=True, failed=True)
+        run = test_flow.RED
         assert_that(printed(facts(RELOCK, [run])), equal_to([]))
 
     def test_the_longest_red_required_run_counts(self) -> None:

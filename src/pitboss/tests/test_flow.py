@@ -60,6 +60,10 @@ def graded(
     return shapes.Graded(sha=sha, when=when, plan=plan, execution=execution)
 
 
+FIRST_REJECTION = graded(*PLAN_REJECTED, 1, sha=OLDER)
+SECOND_REJECTION = graded(*PLAN_REJECTED, 2)
+
+
 def ruling(second: int, author: str = "MEMBER") -> shapes.Comment:
     """A recorded Opus ruling.
 
@@ -149,13 +153,13 @@ class TestTable(unittest.TestCase):
 
     def test_plan_rejected_the_second_time(self) -> None:
         """Opus rules."""
-        older = graded(*PLAN_REJECTED, 1, sha=OLDER)
-        expect(steps.opus_ruling(), state(older, graded(*PLAN_REJECTED, 2)))
+        expect(steps.opus_ruling(), state(FIRST_REJECTION, SECOND_REJECTION))
 
     def test_plan_rejected_after_an_opus_ruling(self) -> None:
         """The owner decides."""
-        older = graded(*PLAN_REJECTED, 1, sha=OLDER)
-        rejected = state(older, graded(*PLAN_REJECTED, 4), comments=[ruling(3)])
+        rejected = state(
+            FIRST_REJECTION, graded(*PLAN_REJECTED, 4), comments=[ruling(3)]
+        )
         expect(steps.pause_for_owner(), rejected)
 
     def test_plan_approved_execution_not_graded(self) -> None:
@@ -229,11 +233,11 @@ class TestBranches(unittest.TestCase):
 
     def test_red_ci_is_never_a_rejection(self) -> None:
         """It is not counted, and it does not move a plan to Opus."""
-        older = graded(*PLAN_REJECTED, 1, sha=OLDER)
-        red = state(older, checks=(RED,))
+        red = state(FIRST_REJECTION, checks=(RED,))
         found = [flow.get_plan_rejections(red), flow.next_step(red)]
         assert_that(found, equal_to([1, steps.worker(Task.FIX_CI)]))
-        expect(steps.opus_ruling(), state(older, graded(*PLAN_REJECTED, 2)))
+        twice = state(FIRST_REJECTION, SECOND_REJECTION, checks=(RED,))
+        expect(steps.worker(Task.FIX_CI), twice)
 
     def test_a_plan_approved_in_a_draft_is_carried_to_the_execution_review(
         self,
