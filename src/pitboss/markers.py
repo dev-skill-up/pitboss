@@ -31,6 +31,7 @@ class Marker(enum.Enum):
         CANCELLED_STALE_QUEUE_RUN: one cancelled.
         COULD_NOT_CANCEL_STALE_QUEUE_RUN: one that could not be.
         STRAGGLER: work that exists only on this machine.
+        ORPHANED_CHECKOUT: a directory whose git directory is gone.
         STALE_WORKTREE: a finished worktree still on disk.
         REMOVED_WORKTREE: one removed.
         KEPT_WORKTREE: a finished worktree that is not removed, and why.
@@ -68,6 +69,7 @@ class Marker(enum.Enum):
     CANCELLED_STALE_QUEUE_RUN = enum.auto()
     COULD_NOT_CANCEL_STALE_QUEUE_RUN = enum.auto()
     STRAGGLER = enum.auto()
+    ORPHANED_CHECKOUT = enum.auto()
     STALE_WORKTREE = enum.auto()
     REMOVED_WORKTREE = enum.auto()
     KEPT_WORKTREE = enum.auto()

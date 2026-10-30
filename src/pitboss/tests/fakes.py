@@ -261,21 +261,6 @@ def make_unfetchable(workspace: pathlib.Path, name: str) -> pathlib.Path:
     return checkout
 
 
-def make_orphaned(workspace: pathlib.Path, name: str) -> pathlib.Path:
-    """Make a worktree directory whose ``.git`` file points at a missing gitdir.
-
-    Args:
-        workspace: where.
-        name: its directory's name.
-
-    Returns:
-        The directory.
-    """
-    orphan = workspace / name
-    write(orphan / ".git", f"gitdir: {workspace}/gone/.git/worktrees/{name}\n")
-    return orphan
-
-
 def directory() -> pathlib.Path:
     """A new temporary directory.
 

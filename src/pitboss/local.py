@@ -53,6 +53,23 @@ def _repository_of(run: Run, checkout: pathlib.Path) -> str:
     return found.strip()
 
 
+def orphaned(run: Run, checkout: pathlib.Path) -> bool:
+    """Whether git cannot read a checkout (keyword: orphaned-checkout).
+
+    A worktree whose main checkout was removed keeps its directory and a
+    ``.git`` file that points at a gitdir that is gone; every git command in it
+    exits 128.
+
+    Args:
+        run: the runner.
+        checkout: the checkout.
+
+    Returns:
+        True when git cannot read it.
+    """
+    return not _repository_of(run, checkout)
+
+
 def fetch_each_repository(run: Run, paths: Iterable[pathlib.Path]) -> Sequence[str]:
     """Fetch ``origin`` once per repository (worktrees share their refs).
 

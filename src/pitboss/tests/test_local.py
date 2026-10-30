@@ -10,7 +10,7 @@ from typing import Mapping
 from hamcrest import assert_that, equal_to
 
 from .. import config, local, shapes
-from . import fakes
+from . import fakes, orphans
 
 OLD = time.time() - 10 * 3600
 CUTOFF = OLD + 3600
@@ -149,7 +149,7 @@ class TestStragglers(unittest.TestCase):
         """A .git file pointing at a missing gitdir is orphaned (#98)."""
         workspace = fakes.directory()
         clone = fakes.make_repository(workspace)
-        orphan = fakes.make_orphaned(workspace, "orphan")
+        orphan = orphans.make_orphaned(workspace, "orphan")
         runner = fakes.FakeProcesses(bodies={})
         found = (local.orphaned(runner, clone), local.orphaned(runner, orphan))
         assert_that(found, equal_to((False, True)))
