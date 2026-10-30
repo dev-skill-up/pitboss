@@ -10,7 +10,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 from gather import commands as gather_commands
 
-from .. import ENTRY_DATA
+from .. import cli_parser
 from . import fakes
 
 FUTURE = "2030-01-01T00:00:00+00:00"
@@ -254,10 +254,7 @@ def parser() -> argparse.ArgumentParser:
     Returns:
         The parser.
     """
-    found: argparse.ArgumentParser = gather_commands.set_parser(
-        collected=ENTRY_DATA.collector.collect()
-    )
-    return found
+    return cli_parser.make_parser()
 
 
 def invoke(world: World, *argv: str) -> Result:
