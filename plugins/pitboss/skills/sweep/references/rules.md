@@ -797,9 +797,14 @@ compaction.
   "Check locally before every push").
 - Nobody deletes the persistent checkout: the worktree a worker reuses, the one
   whose PR merged last, or the orchestrator's own. Only under disk pressure is
-  another worktree removed, and only one whose PR is merged and whose tip is on
-  the default branch; a worktree of a ticket in flight is never removed
-  (`pitboss clean-worktrees`). The threshold is the orchestrator's own.
+  another worktree removed, and only one whose work is finished and on
+  GitHub (its PR merged or closed, or its tip in the default branch); a
+  worktree of a ticket in flight is never removed (`pitboss clean-worktrees`,
+  `pitboss clean-container`). The persistent checkout, a running agent's
+  checkout and a shared cache are marked live (a file named `.pitboss-live` in
+  the directory, or a path under `[clean] live`), and nothing marked is ever
+  listed for removal. The threshold is the orchestrator's own; a sweep warns
+  under `[clean] min_free_gib` (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look
   for stragglers"; 2026-10-24T13:23:09Z: "Aggressively clean. Qsweep clean is
@@ -808,8 +813,12 @@ compaction.
   2026-10-28T11:10:26Z: "Why are you quibbling semantics when you should be
   cleaning"). The cleaning covers the temporary directories, the caches and the
   old worktrees, and does not wait for a threshold when the disk is the reason
-  a container restarts. Never remove a dirty or unpushed checkout, a held
-  directory, the shared build cache or a live agent's checkout.
+  a container restarts. `pitboss clean-container <config>` is the dry run that
+  lists each dead path with its size, why it is dead and whether it is safe,
+  and `--no-dry-run` removes the safe ones in parts. Never remove a checkout
+  with commits on no remote branch or changed tracked files (it is listed
+  apart, `KEPT PATH`), a held directory, the shared build cache or a live
+  agent's checkout.
 
 ## How decisions are made
 

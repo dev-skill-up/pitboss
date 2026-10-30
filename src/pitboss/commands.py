@@ -11,7 +11,6 @@ import datetime
 import logging
 import pathlib
 import subprocess
-import sys
 import time
 from typing import Mapping, Sequence
 
@@ -19,8 +18,10 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    cleanconfig,
     config,
     configfile,
+    dead,
     ghapi,
     handback,
     ledger,
@@ -29,10 +30,11 @@ from . import (
     queue,
     report,
     sweepline,
+    timing,
     tracefs,
     work,
 )
-from . import repoarg, roundline, stall, updateline
+from . import diskline, repoarg, roundline, stall, updateline
 from .failures import describe, read_all
 from .markers import Marker
 from .running import git
@@ -51,15 +53,29 @@ class Context:
 
     Attributes:
         settings: the configuration.
+        clean: what ``clean-container`` looks at and keeps.
         github: the API.
         now: the time now.
         args: the parsed arguments.
     """
 
     settings: config.Config
+    clean: cleanconfig.Clean
     github: ghapi.GitHub
     now: datetime.datetime
     args: argparse.Namespace
+
+
+def working_directory(args: argparse.Namespace) -> pathlib.Path:
+    """The directory a configuration name is looked up from.
+
+    Args:
+        args: the parsed arguments.
+
+    Returns:
+        ``PWD`` of the environment, else the current directory.
+    """
+    return pathlib.Path(args.env.get("PWD", "."))
 
 
 def load_settings(args: argparse.Namespace) -> config.Config:
@@ -71,7 +87,7 @@ def load_settings(args: argparse.Namespace) -> config.Config:
     Returns:
         The configuration.
     """
-    return configfile.load(args.config, pathlib.Path(args.env.get("PWD", ".")))
+    return configfile.load(args.config, working_directory(args))
 
 
 def open_pulls(found: Context) -> Sequence[pulls.PullFacts]:
@@ -86,20 +102,6 @@ def open_pulls(found: Context) -> Sequence[pulls.PullFacts]:
     return pulls.read_open(found.github, found.settings)
 
 
-def current_time(args: argparse.Namespace) -> datetime.datetime:
-    """The time now, or the time ``--now`` gives.
-
-    Args:
-        args: the parsed arguments.
-
-    Returns:
-        The time.
-    """
-    if args.now:
-        return datetime.datetime.fromisoformat(args.now)
-    return datetime.datetime.now(datetime.timezone.utc)
-
-
 def load_context(args: argparse.Namespace) -> Context:
     """Load the configuration and set up the API.
 
@@ -110,10 +112,11 @@ def load_context(args: argparse.Namespace) -> Context:
         The context.
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
-    now = current_time(args)
+    now = timing.current_time(args)
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
     return Context(
         settings=readable(github, load_settings(args)),
+        clean=configfile.load_clean(args.config, working_directory(args)),
         github=github,
         now=now,
         args=args,
@@ -158,29 +161,6 @@ def readable(github: ghapi.GitHub, settings: config.Config) -> config.Config:
     if settings.project.repo.slug in failures:
         raise SystemExit(f"cannot read {settings.project.repo.slug}")
     return _without(settings, failures)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Clock:
-    """Per-section timing, on stderr.
-
-    Attributes:
-        started: when the command started (monotonic seconds).
-    """
-
-    started: float
-
-
-def lap(clock: Clock, section: str) -> None:
-    """Say on stderr how long the command has run.
-
-    Args:
-        clock: the clock.
-        section: the section that just finished.
-    """
-    print(
-        f"[pitboss {time.monotonic() - clock.started:.0f}s] {section}", file=sys.stderr
-    )
 
 
 def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
@@ -289,6 +269,13 @@ def _worktree_section(found: Context) -> None:
     print(f"worktrees: {len(stale)} stale")
 
 
+def _disk_section(found: Context) -> None:
+    run, github = found.args.safe_run, found.github
+    look = dead.Look(run=run, github=github, settings=found.settings, clean=found.clean)
+    for text in diskline.lines(look, found.now):
+        print(text)
+
+
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sweep")
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots.
@@ -301,15 +288,16 @@ def sweep(args: argparse.Namespace) -> None:
     """
     tracefs.say(args.safe_run)
     found = load_context(args)
-    clock = Clock(started=time.monotonic())
+    clock = timing.Clock(started=time.monotonic())
     runs = read_queue_runs(found)
     broken = _pull_section(found, runs)
-    lap(clock, "pull requests done")
+    timing.lap(clock, "pull requests done")
     _queue_section(found, runs)
-    lap(clock, "merge queue done")
+    timing.lap(clock, "merge queue done")
     _straggler_section(found)
     _worktree_section(found)
-    lap(clock, "checkouts done")
+    _disk_section(found)
+    timing.lap(clock, "checkouts done")
     for line in report.reminder_lines(found.settings):
         print(line)
     book = read_ledger(found.settings)

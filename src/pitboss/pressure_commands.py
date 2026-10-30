@@ -9,7 +9,7 @@ import subprocess
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commands, queue, record, report, tracefs
+from . import ENTRY_DATA, commands, queue, record, report, timing, tracefs
 
 TIMED_CONFIG = (commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT)
 
@@ -53,7 +53,7 @@ def put_on_queue(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     runners = commands.load_settings(args).runners
-    now = commands.current_time(args)
+    now = timing.current_time(args)
     record.note(runners.record, record.Look.HOLD, now)
     print(report.queued_line(now, runners.quiet_minutes))
 

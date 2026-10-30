@@ -5,7 +5,7 @@ import enum
 import os
 import pathlib
 import subprocess
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Iterator, Mapping, Sequence
 
 from . import config, ghapi, parsing, shapes
 from .running import Run, git
@@ -104,6 +104,20 @@ def uncommitted(run: Run, path: pathlib.Path) -> int:
     return len(git(run, path, "status", "--porcelain").splitlines())
 
 
+def tracked_changes(run: Run, path: pathlib.Path) -> int:
+    """Count the changed tracked files (untracked files are not counted).
+
+    Args:
+        run: the runner.
+        path: the checkout.
+
+    Returns:
+        The count.
+    """
+    status = git(run, path, "status", "--porcelain", "--untracked-files=no")
+    return len(status.splitlines())
+
+
 def read_straggler(run: Run, path: pathlib.Path) -> Straggler | None:
     """Look at one checkout.
 
@@ -169,6 +183,29 @@ def parse_worktrees(porcelain: str) -> Sequence[Worktree]:
     return found
 
 
+def shallow_walk(
+    path: pathlib.Path,
+) -> Iterator[tuple[pathlib.Path, Sequence[str], Sequence[str]]]:
+    """Walk three levels down, skipping ``.git`` and ``node_modules``.
+
+    Args:
+        path: the directory.
+
+    Yields:
+        Each directory, the names of its subdirectories and of its files.
+    """
+    base_depth = len(path.parts)
+    for directory, subdirectories, files in os.walk(path):
+        current = pathlib.Path(directory)
+        yield current, tuple(subdirectories), tuple(files)
+        deep = len(current.parts) - base_depth >= _DEPTH
+        subdirectories[:] = (
+            []
+            if deep
+            else [name for name in subdirectories if name not in _SKIPPED_DIRECTORIES]
+        )
+
+
 def touched_since(path: pathlib.Path, cutoff: float) -> bool:
     """Whether anything in a checkout changed after ``cutoff``.
 
@@ -183,14 +220,7 @@ def touched_since(path: pathlib.Path, cutoff: float) -> bool:
     Returns:
         True when something is newer than ``cutoff``.
     """
-    base_depth = len(path.parts)
-    for directory, subdirectories, files in os.walk(path):
-        current = pathlib.Path(directory)
-        subdirectories[:] = [
-            name for name in subdirectories if name not in _SKIPPED_DIRECTORIES
-        ]
-        if len(current.parts) - base_depth >= _DEPTH:
-            subdirectories[:] = []
+    for current, _, files in shallow_walk(path):
         entries = [current, *(current / name for name in files)]
         if any(entry.stat().st_mtime > cutoff for entry in entries):
             return True
@@ -259,17 +289,27 @@ def _in_use(sweeper: Sweeper, worktree: Worktree) -> bool:
     )
 
 
-def _in_base(sweeper: Sweeper, worktree: Worktree) -> bool:
-    project = sweeper.settings.project
+def in_base(run: Run, directory: pathlib.Path, revision: str, base: str) -> bool:
+    """Whether a commit is in ``origin/<base>`` (as of the last fetch).
+
+    Args:
+        run: the runner.
+        directory: a checkout of the repository.
+        revision: the commit.
+        base: the base branch.
+
+    Returns:
+        True when the base branch contains it.
+    """
     contains = git(
-        sweeper.run,
-        project.main_clone,
+        run,
+        directory,
         "branch",
         "-r",
         "--contains",
-        worktree.head,
+        revision,
         "--list",
-        f"origin/{project.base_branch}",
+        f"origin/{base}",
     )
     return bool(contains.strip())
 
@@ -295,6 +335,11 @@ def stale_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
     outcome = sweeper.outcomes.get(worktree.branch) if worktree.branch else None
     if outcome is not None and not outcome.still_open:
         return Reason.MERGED if outcome.merged else Reason.CLOSED
-    if outcome is None and _in_base(sweeper, worktree):
+    if outcome is None and in_base(
+        sweeper.run,
+        sweeper.settings.project.main_clone,
+        worktree.head,
+        sweeper.settings.project.base_branch,
+    ):
         return Reason.IN_BASE
     return None

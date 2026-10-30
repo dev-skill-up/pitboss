@@ -3,7 +3,7 @@
 import pathlib
 import tomllib
 
-from . import config
+from . import cleanconfig, config
 
 CONFIG_DIRECTORY = (".claude", "pitboss")
 
@@ -46,3 +46,17 @@ def load(name: str, start: pathlib.Path) -> config.Config:
     """
     with locate(name, start).open("rb") as stream:
         return config.from_document(tomllib.load(stream))
+
+
+def load_clean(name: str, start: pathlib.Path) -> cleanconfig.Clean:
+    """Locate, read and parse the ``[clean]`` table of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+
+    Returns:
+        The settings of ``clean-container``.
+    """
+    with locate(name, start).open("rb") as stream:
+        return cleanconfig.from_document(tomllib.load(stream))

@@ -67,7 +67,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "pitboss.commands",
-    "pitboss.container_commands",
+    "pitboss.clean_commands",
     "pitboss.lint_commands",
     "pitboss.slot_commands",
     "pitboss.red_commands",
