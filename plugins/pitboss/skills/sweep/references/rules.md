@@ -51,12 +51,17 @@ compaction.
    ranks a pull request above an older one, except the merge of a ready one
    (Order of work, 3) and then a `STALL` (below), whose fix comes before every
    other pull request but that merge: otherwise the state of a pull
-   request says what it needs, not where it stands in the order. On who takes a fix
+   request says what it needs, not where it stands in the order. A pull
+   request whose review rounds hit the changes-needed limit (`RULING DUE` or
+   `PAUSE`, "Plan first", below) is outside this order: it is offered for no
+   fix, update or review round until the ruling is recorded or the owner
+   decides. On who takes a fix
    (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It just
    has to be an author".
    - red (a failed check or status, or a review that asked for changes at this
      head) or in conflict with the base: a fix, by any author (a conflict is
-     fixed as a red CI is: merge the base in, resolve, check, push);
+     fixed as a red CI is: merge the base in, resolve, check, push); not when
+     the pull request has `RULING DUE` or `PAUSE`;
    - **a `STALL` is a fix taken before every other pull request but the merge of a ready one.** A relock pull request
      (head branch starting `relock/`) whose required `check` has been red for
      more than four hours (14400 seconds from the run's `completed_at`) is
@@ -65,7 +70,8 @@ compaction.
      stalled, oldest first. It jumps the queue and interrupts no worker
      (Order of work, 1), a merge of a ready pull request still comes before it
      (Order of work, 3: a merge is not a fix), and its pushes keep the
-     runner-pressure hold;
+     runner-pressure hold; a stalled pull request that also has `RULING DUE`
+     or `PAUSE` waits for the ruling or the owner first;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push; the `UPDATE` line of a
      sweep, kind `update` in `slots next` unless a review asks for changes on
@@ -79,22 +85,25 @@ compaction.
      finish, and not a reason to hold the free slot; so is a pull request on
      the orchestrator's blocked list.
 
-   Never a new ticket while a pull request that can be worked on waits. The
+   Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE` or `PAUSE` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
    that need a fix of a review, an update or a review, oldest first with the
    kind shown on each line, and then the tickets by priority label and age. A
    red CI, a conflict and a merge are not `NEXT` lines but the `FAILED`,
    `CONFLICT`, `READY TO MERGE` and `MERGE BY HAND` lines of the sweep. A
    merge of a ready pull request comes first (Order of work, 3), then a
-   `STALL` fix, before every `NEXT` line and every other pull request.
+   `STALL` fix, before every `NEXT` line and every other pull request. A pull
+   request with `RULING DUE` or `PAUSE` has no `NEXT` line: `slots next` leaves
+   it out, and its ticket stays taken.
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
      first, whatever each needs (a fix of a red CI, an answer to a review that
      asked for changes, an update of a PR that is behind, a review of a green
      PR, a merge of a PR that is reviewed approved and green), except that a
      merge of a ready pull request comes first (Order of work, 3) and a `STALL`
-     fix next, before every other pull request. Only then the tickets, by priority, and
-     within a priority by age.
+     fix next, before every other pull request, and except a pull request with
+     `RULING DUE` or `PAUSE`, which is offered for no round. Only then the
+     tickets, by priority, and within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
    review of a PR in progress is never started to fill a slot. A head with no
@@ -121,7 +130,7 @@ compaction.
 5. **A slot is never held idle** (owner, 2026-10-19T02:00:17Z: "Never, under
    any circumstances, is an empty slot acceptable. This is a hard rule"). Not
    for a fix that is coming, not for a better fit, not for a hold on pushes.
-   "Nothing fits" is not an answer: take a conflicted PR, or the next ticket
+   "Nothing fits" is not an answer: take a conflicted PR (not one with `RULING DUE` or `PAUSE`, which waits for the ruling or the owner), or the next ticket
    that can be worked in the project's order, which is the next one down when
    every ticket above it is in a worker's hand or blocked (owner,
    2026-10-26T03:03:00Z: "THE RULES SAY SLOTS ARE NEVER EMPTY";
@@ -199,7 +208,8 @@ compaction.
   stop a worker, but it should be next in line for work."). It is a fix among
   the open pull requests of Agents and slots 2, in their one list oldest first:
   it does not stop a worker that is running, but it waits for the next free
-  slot in that order.
+  slot in that order. A conflicted pull request with `RULING DUE` or `PAUSE` is
+  offered for no round: its conflict waits for the ruling or the owner.
 - Most conflicts are small: merge the base in, resolve, regenerate lockfiles
   and generated files with the repository's own tooling, check, push. Merge,
   never rebase or force-push. A conflict where both sides changed the same
@@ -260,7 +270,8 @@ compaction.
      working on it, and it's still relevant, regardless of priority, it should
      be finished."), oldest first, with nothing else ranking them except a merge of a ready
      one (3, below) and a `STALL` (a fix taken before every other pull request
-     but that merge, above): a fix does
+     but that merge, above), and with no round offered for a pull request held
+     by `RULING DUE` or `PAUSE` until the ruling or the owner: a fix does
      not come before an older review (owner, 2026-10-26T13:57:38Z, line 105684:
      "No, among them oldest first."). A pull request that is neither green nor
      red cannot be worked on (owner, 2026-10-26T14:05:11Z, line 105788: "if it
@@ -396,9 +407,9 @@ compaction.
   plan is approved, the "paused-owner" thing should take effect. That will stop
   6 hours of wasted time on too many iterations. Report the paused number if it
   does happen. I have a lot of options to solve those that you don't, so let me
-  know about them instead of burning time on endless cycles." So the PR and its
-  ticket get a pause label and a comment that says what the rounds disagreed
-  about and the options; the orchestrator stops listing both and its row moves
+  know about them instead of burning time on endless cycles." So, after the
+  Opus ruling (the next bullet), the PR and its ticket get a pause label and a
+  comment that says what the rounds disagreed about and the options; the orchestrator stops listing both and its row moves
   on; it reports the number and the options to the owner in the same message. A
   pause carries the question whether the finding is about the PR or about the
   brief or rule that produced it (owner, 2026-10-25T05:28:32Z: "By definition,
@@ -409,7 +420,18 @@ compaction.
   make a ruling*. It's ruling is to be taken as given. If after that, the
   implementation is reviewed with needs changes, that's when it's paused
   owner"; 2026-10-26T03:08:51Z: "Opus never gets another shot. If after opus,
-  we still get a needs changes, that's paused owner").
+  we still get a needs changes, that's paused owner"). The sweep applies this
+  (keyword: round-limit; `sweep.md`, `RULING DUE` and `PAUSE`). It reads each
+  review comment of a trusted author in the repository's review form by its
+  `Plan:` line and its verdict, newest last. `RULING DUE` is printed for a PR
+  whose newest review asks for changes (the newest review that counts, a GitHub review too outside a gated repository, and the newest review comment), when no ruling is recorded and the plan
+  was graded changes needed in two reviews with no review grading it approved,
+  or a review asked for changes once the plan had been graded approved (the
+  review that approves the plan included). A ruling is recorded by a PR comment
+  whose first line is exactly `Opus ruling`, which the orchestrator posts with
+  the ruling agent's ruling; once one exists, a review that asks for changes
+  after it prints `PAUSE`. A PR with `RULING DUE` or `PAUSE` is offered for no
+  fix, update or review round in `slots next`, and its ticket stays taken.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
   creates a draft PR, splits the body into Plan and Execution" ... "the PR
@@ -442,9 +464,9 @@ compaction.
     first needs changes counts as the first plan rejection"); rejections are
     counted from the Plan grade alone, so the next review grades the Plan again
     and the author revises it. After the second Plan rejection an Opus ruling
-    agent rules on what the rounds disagree about (the next bullet), and when a
+    agent rules on what the rounds disagree about ("An Opus ruling comes before the pause", above; the sweep prints `RULING DUE`), and when a
     review then still asks for changes, the PR is paused and the owner is told
-    (the first bullet).
+    (the first bullet; the sweep prints `PAUSE`).
   - **Before asking for review the author greps the whole tree** (the docs, the
     README, the design notes, the skill files, the example configuration, the
     tests) for every statement the change makes false or contradictory, and

@@ -32,7 +32,7 @@ from . import (
     tracefs,
     work,
 )
-from . import repoarg, stall, updateline
+from . import repoarg, roundline, stall, updateline
 from .failures import describe, read_all
 from .markers import Marker
 from .running import git
@@ -233,6 +233,8 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
         for line in stall.lines(pull, found.now, steps):
             print(line)
         for line in updateline.lines(pull, found.settings):
+            print(line)
+        for line in roundline.lines(pull):
             print(line)
         for line in report.action_lines(pull, found.settings, queued, why):
             print(line)

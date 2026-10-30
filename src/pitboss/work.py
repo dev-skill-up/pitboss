@@ -5,11 +5,13 @@ oldest first, whatever each needs: the author's fix for a review that asked
 for changes on the PR's current head, an update of a PR that is behind the
 base with its checks finished (never where the repository has a merge queue),
 or a review of a PR that is green on its head and has no review of it. The kind
-is a label on the line, not a rank. After them come the new PRs, one for each
-open ticket with a priority label that no open PR names, by priority label,
-then oldest first. Nothing predicts which files a ticket will touch: work is
-taken in this order, every PR starts from the base branch, and a conflict is
-resolved by merging the base branch in.
+is a label on the line, not a rank. A PR with RULING DUE or PAUSE (its review
+rounds hit the changes-needed limit) is none of them: it is offered for no
+round until the ruling is recorded or the owner decides. After them come the
+new PRs, one for each open ticket with a priority label that no open PR names,
+by priority label, then oldest first. Nothing predicts which files a ticket
+will touch: work is taken in this order, every PR starts from the base branch,
+and a conflict is resolved by merging the base branch in.
 """
 
 import dataclasses
@@ -17,7 +19,8 @@ import enum
 import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, ghapi, ledger, parsing, pulls, reviews, shapes
+from . import config, ghapi, ledger, parsing, pulls, reviews, roundlimit
+from . import shapes
 
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
@@ -85,6 +88,8 @@ def pull_items(
 
 
 def _category(pull: pulls.PullFacts, settings: config.Config) -> Category | None:
+    if pull.limit is not roundlimit.Limit.NONE:
+        return None
     if pulls.changes_needed(pull):
         return Category.FIX_REVIEW
     if pulls.needs_update(pull, settings):

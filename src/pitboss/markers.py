@@ -19,6 +19,9 @@ class Marker(enum.Enum):
         FAILED: a check failed on a PR's head.
         UPDATE: a PR is behind the base with every check finished.
         STALL: a relock PR whose check has been red for over four hours.
+        RULING_DUE: a PR whose review rounds hit the changes-needed limit and
+            has no Opus ruling.
+        PAUSE: a PR that needed changes again after its Opus ruling.
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
         READY_TO_MERGE: green, clean and approved; arm auto-merge.
         MERGE_BY_HAND: green, clean and approved, in a repository without
@@ -48,6 +51,8 @@ class Marker(enum.Enum):
     FAILED = enum.auto()
     UPDATE = enum.auto()
     STALL = enum.auto()
+    RULING_DUE = enum.auto()
+    PAUSE = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
     MERGE_BY_HAND = enum.auto()

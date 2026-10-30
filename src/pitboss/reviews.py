@@ -15,16 +15,7 @@ _FENCE = "```"
 _GITHUB_STATES = {"APPROVED": True, "CHANGES_REQUESTED": False}
 
 
-class Verdict(enum.Enum):
-    """What a review says.
-
-    Attributes:
-        APPROVED: the head may merge.
-        CHANGES_NEEDED: the head needs changes first.
-    """
-
-    APPROVED = enum.auto()
-    CHANGES_NEEDED = enum.auto()
+Verdict = shapes.Verdict
 
 
 class Standing(enum.Enum):
@@ -260,7 +251,16 @@ def newest(sources: Sources, review: config.Review, slug: str) -> Found | None:
     return max(found, key=lambda item: item.when, default=None)
 
 
-def _rules(review: config.Review, slug: str) -> tuple[Reader, config.ReviewForm]:
+def rules(review: config.Review, slug: str) -> tuple[Reader, config.ReviewForm]:
+    """How a repository's review comments are read.
+
+    Args:
+        review: how reviews are read.
+        slug: the repository's ``owner/name``.
+
+    Returns:
+        The reader (strict where gated) and the form it reads.
+    """
     if slug in review.gated:
         return read_gated, review.gated_form
     return read_comment, review.form
@@ -274,7 +274,7 @@ def _attempts(body: str, form: config.ReviewForm) -> bool:
 
 
 def _ignored(item: shapes.Comment, review: config.Review, slug: str) -> bool:
-    read, form = _rules(review, slug)
+    read, form = rules(review, slug)
     return (
         item.author_association in review.trusted
         and read(item.body, form) is None

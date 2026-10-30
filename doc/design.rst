@@ -251,11 +251,12 @@ First ``STALL`` (``pitboss.stall``; a PR whose head branch starts with
 been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
-a stall before every other pull request but the merge of a ready one), then
+a stall before every other pull request but the merge of a ready one, unless the PR also has ``RULING DUE`` or ``PAUSE``), then
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
-current base), then
+current base), then ``RULING DUE`` or ``PAUSE`` (``pitboss.roundlimit`` reads
+the PR's comments, ``pitboss.roundline`` prints; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, is started by its author's hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
@@ -283,6 +284,28 @@ a verdict but is not in the form (``Independent re-review``) is not a review;
 the PR's line says so (``review=... (ignored: the comment of <time> is not in
 the review form)``), so the older review is not taken for the last word
 unseen (#20).
+
+**Review rounds** (keyword: round-limit, pitboss#76). The skill's rules call for an
+Opus ruling when the plan is not approved after two reviews, or when a review asks
+for changes after the plan was approved, and for a pause when a review asks for
+changes again after the ruling. The sweep reads that from the PR's comments, with
+the reader of the repository's review form (strict where gated), only comments by
+trusted authors, in the order written. A review has a plan grade, its ``Plan:
+approved`` or ``Plan: changes needed`` line (the form's two verdict words; no such
+line says nothing of the plan), and its verdict. The plan rejections are the plan
+grades of changes needed before any grade of approved. The limit is reached at the
+second plan rejection, or at a review that asks for changes once a review (that
+one included) graded the plan approved. A ruling is a comment whose first line is
+exactly ``Opus ruling``. When the newest review that counts (**Reviews**, above:
+a trusted GitHub review too, outside a gated repository) does not ask for
+changes, nothing is printed. Otherwise the rounds are judged by the newest
+review comment: if it does not ask for changes, nothing is printed; if it asks
+for changes after a recorded ruling, the line is ``PAUSE``; if the limit is
+reached and no ruling is recorded, ``RULING DUE``; a ruling after the newest
+review leaves nothing printed until the next review. GitHub's own reviews have
+no ``Plan:`` line and count in no round. A PR
+with either marker is offered for no fix, update or review round in ``slots
+next``, and its ticket stays taken.
 
 **tracefs.** ``sweep``, ``pressure`` and every ``slots`` action first make
 the mount themselves (keyword: tracefs, pitboss#28): ``grep tracefs
@@ -357,6 +380,7 @@ as the first of these kinds that fits:
 * ``review it``: a review of a PR whose checks are all green on its head and
   which has no review of that head (the reviewer is never the author).
 
+A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of the three.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR.
@@ -381,7 +405,8 @@ merging the base branch in when it arises.
 The open PRs are ordered oldest first by creation time, and the tickets by
 ``priority_labels`` first and then oldest first by creation time (the one
 exception is a ``STALL`` line of the sweep, whose fix the skill's rules take
-before every line of this list). Each line names the
+before every line of this list; a PR with ``RULING DUE`` or ``PAUSE`` has no line
+in it). Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty
 slots are filled smallest model first, each with the first line it may take.
@@ -391,7 +416,7 @@ Output
 
 Every line that calls for an action says the action. The markers
 (``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``EMPTY SLOT``, ``SLOTS FREE``,
-``NO HAND-BACK``, ...) are members of one enum, ``pitboss.markers.Marker``, printed as the
+``RULING DUE``, ``PAUSE``, ``NO HAND-BACK``, ...) are members of one enum, ``pitboss.markers.Marker``, printed as the
 member's name in words (so ``READY_TO_MERGE`` prints ``READY TO MERGE``,
 and the line with no pressure reads ``NO RUNNER PRESSURE``); a check in CI
 fails when one is not explained in the skill's references, or the
