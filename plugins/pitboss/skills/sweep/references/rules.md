@@ -561,6 +561,17 @@ compaction.
   `Grep: look for a statement the change makes false or contradictory anywhere
   in the tree; one is changes needed. An objection to a phrase no claim depends
   on is answered by removing the phrase.`
+- **An existing comment or body is edited only with its full text in hand**
+  (orchestrator, 2026-10-30: a stand-in text sent to an update-comment tool on
+  a comment that had not been read overwrote the closing comment on
+  bats-lang/quire#1020, rebuilt from a report). An edit of a comment or a PR
+  body is made only after reading its current text in full and with the
+  complete replacement text written out; a placeholder is never sent. When the
+  full original is not at hand, the comment is corrected by a new comment. A
+  worker brief says: `Edit: change an existing comment or PR body only after
+  reading its current text in full, and send the complete replacement text,
+  never a placeholder; when the full original is not at hand, correct it with
+  a new comment.`
 - **A worker and a reviewer brief begin with the one-PR check.** `One PR: first
   confirm that the ticket can be satisfied by one PR. If it can, do the whole
   ticket in one PR. If it cannot, hand back NOT STARTED with the evidence
