@@ -131,5 +131,5 @@ class TestFinding(unittest.TestCase):
         """A form with no lines expects nothing of a first line."""
         empty = dataclasses.replace(REVIEW.form, lines=())
         posted = [comment(OFF_FORM)]
-        found = unreadableform.find(posted, REVIEW.trusted, empty, reviews.line_pattern)
-        assert_that(found, equal_to([]))
+        named = unreadableform.find(posted, REVIEW.trusted, empty, reviews.line_pattern)
+        assert_that(named, equal_to([]))
