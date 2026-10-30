@@ -20,9 +20,11 @@ STANDING_WORDS = {
 CATEGORY_WORDS = {
     work.Category.FIX_REVIEW: "fix the review",
     work.Category.REVISE_PLAN: "revise the plan",
-    work.Category.UPDATE: "update",
     work.Category.REVIEW: "review it (a reviewer that is not its author)",
     work.Category.NEW_PR: "start a PR",
+    work.Category.FIX_CI: "fix the CI (a red CI is no rejection)",
+    work.Category.FIRST_ROUND: "write the Plan and Execution body",
+    work.Category.RESOLVE_CONFLICT: "resolve the conflict",
 }
 
 

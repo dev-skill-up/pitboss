@@ -7,6 +7,7 @@ from typing import AbstractSet, Callable, Sequence
 from . import config, shapes
 
 PatternOf = Callable[[str, config.ReviewForm], re.Pattern[str]]
+Reader = Callable[[str, config.ReviewForm], tuple[str, shapes.Verdict] | None]
 
 _GRADE_LINE = re.compile(r"^\s*(?:Verdict|Plan|Execution):", re.MULTILINE)
 _SHOWN = 80
@@ -84,3 +85,42 @@ def find(
         for item, problem in problems
         if problem
     ]
+
+
+def _attempts(body: str, form: config.ReviewForm) -> bool:
+    lines = body.splitlines()
+    first = lines[0].lower() if lines else ""
+    words = (form.approved.lower(), form.changes_needed.lower())
+    return "review" in first and any(word in first for word in words)
+
+
+def unread(
+    posted: Sequence[shapes.Comment],
+    trusted: AbstractSet[str],
+    rules: tuple[Reader, config.ReviewForm],
+    since: str,
+) -> str:
+    """Find a newer comment that tries to be a review and is not read as one.
+
+    A comment whose first line says review and a verdict, but which is not
+    in the form (a reviewer wrote ``re-review``), is ignored, so the older
+    review keeps standing; the sweep says so (dev-skill-up/pitboss#20).
+
+    Args:
+        posted: the PR's issue comments.
+        trusted: the author associations whose reviews count.
+        rules: the reader and the form of the PR's repository.
+        since: when the newest review that counts was written, or empty.
+
+    Returns:
+        When the newest such comment was written, or the empty string.
+    """
+    read, form = rules
+    ignored = (
+        item.created_at
+        for item in posted
+        if item.author_association in trusted
+        and read(item.body, form) is None
+        and _attempts(item.body, form)
+    )
+    return max((when for when in ignored if when > since), default="")

@@ -76,8 +76,8 @@ compaction.
      or `PAUSE` waits for the ruling or the owner first;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push; the `UPDATE` line of a
-     sweep, kind `update` in `slots next` unless a review asks for changes on
-     its head); where a merge queue builds each
+     sweep; `slots next` lists the PR by the flow's step alone, which has no
+     update step); where a merge queue builds each
      entry on the current base (`[merge_queue] repositories`), behind is no
      work (see "Merge conflicts");
    - green on its exact head with no review of that head, or only one that
@@ -89,11 +89,18 @@ compaction.
 
    Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE` or `PAUSE` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
-   that need a fix of a review, a revision of the plan, an update or a review,
-   oldest first with the kind shown on each line, and then the tickets by
-   priority label and age. A
-   red CI, a conflict and a merge are not `NEXT` lines but the `FAILED`,
-   `CONFLICT`, `READY TO MERGE` and `MERGE BY HAND` lines of the sweep. A
+   that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
+   with the kind shown on each line, and then the tickets by priority label
+   and age. The kind is the step alone. A WORKER step is listed with its
+   task's kind: `revise the plan` (`REVISE_PLAN`), `fix the CI` (`FIX_CI`),
+   `write the Plan and Execution body` (`FIRST_ROUND`), `resolve the conflict`
+   (`RESOLVE_CONFLICT`), and `fix the review` for any other task
+   (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
+   stage, a draft's plan-only review included. Every other step is offered for
+   no round. A red CI and a conflict are printed by the sweep as `FAILED` and
+   `CONFLICT`, and `slots next` also offers them as the worker's round (`fix
+   the CI`, `resolve the conflict`). A merge is only a `READY TO MERGE` or
+   `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
    merge of a ready pull request comes first (Order of work, 3), then a
    `STALL` fix, before every `NEXT` line and every other pull request. A pull
    request with `RULING DUE` or `PAUSE` has no `NEXT` line: `slots next` leaves
@@ -424,18 +431,24 @@ compaction.
   make a ruling*. It's ruling is to be taken as given. If after that, the
   implementation is reviewed with needs changes, that's when it's paused
   owner"; 2026-10-26T03:08:51Z: "Opus never gets another shot. If after opus,
-  we still get a needs changes, that's paused owner"). The sweep applies this
-  (keyword: round-limit; `sweep.md`, `RULING DUE` and `PAUSE`). It reads each
-  review comment of a trusted author in the repository's review form by its
-  `Plan:` line and its verdict, newest last. `RULING DUE` is printed for a PR
-  whose newest review asks for changes (the newest review that counts, a GitHub review too outside a gated repository, and the newest review comment), when no ruling is recorded and the plan
-  was graded changes needed in two reviews with no review grading it approved,
-  or a review asked for changes once the plan had been graded approved (the
-  review that approves the plan included). A ruling is recorded by a PR comment
-  whose first line is exactly `Opus ruling`, which the orchestrator posts with
-  the ruling agent's ruling; once one exists, a review that asks for changes
-  after it prints `PAUSE`. A PR with `RULING DUE` or `PAUSE` is offered for no
-  fix, update or review round in `slots next`, and its ticket stays taken.
+  we still get a needs changes, that's paused owner"). The flow is stated once, as code
+  (keyword: review-flow): `pitboss.flow.next_step` is the owner's pseudo code of
+  2026-10-30 (pitboss#107), branch for branch, and `pitboss next CONFIG TICKET`
+  prints the one step a ticket is at. The sweep's `RULING DUE`, `PAUSE`,
+  `revise the plan`, `fix the review` and `review it` lines and `slots next` take
+  that step, and this file does not state it a second time. The steps are
+  `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
+  its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`
+  and MERGE. Two clauses are by the owner's ruling: a review that approves the
+  plan and asks for execution changes is a worker round (`fix the review`), not
+  `RULING DUE`; and a draft is undrafted when `can_undraft` (the runners are
+  quiet, `pitboss pressure`), before any CI wait. A red CI is never a plan
+  rejection. A ruling is recorded by a PR comment whose first line is exactly
+  `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
+  and what follows it (`pitboss.rulings.after_opus_ruling`) is carried out as
+  ruled, a split, a reshape or an abandon included. A PR at `OPUS_RULING` or
+  `PAUSE_FOR_OWNER` is offered for no round in `slots
+  next`, and its ticket stays taken.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
   creates a draft PR, splits the body into Plan and Execution" ... "the PR
@@ -456,8 +469,10 @@ compaction.
     that grade rests on the diff and the evidence in the body. The review has a
     `Plan:` line and an `Execution:` line (`approved` or `changes needed`,
     neither line containing the word verdict followed by a colon) beside the
-    one `Verdict:` line of the form (`adversarial-review.md`). The PR leaves
-    draft only when the Plan is approved.
+    one `Verdict:` line of the form (`adversarial-review.md`). A draft is undrafted
+    when `can_undraft` holds, before any CI wait (`pitboss.flow.next_step`); until
+    then a draft whose Plan is not approved gets a review of the Plan alone, and
+    one whose Plan is approved waits for the window (`WAIT_FOR_UNDRAFT`).
   - **After an approved Plan, every later review grades only the Execution**;
     the Plan line is carried over (`Plan: approved`, not reassessed, not
     discussed) (owner, 2026-10-26T23:54:21Z: "Once the plan is approved, YOU DO
@@ -500,10 +515,9 @@ compaction.
     first needs changes counts as the first plan rejection"); rejections are
     counted from the Plan grade alone, so the next round is a revision of the
     Plan alone (the bullet above), the next review grades the Plan alone, and
-    the Execution waits for the approved Plan. After the second Plan rejection an Opus ruling
-    agent rules on what the rounds disagree about ("An Opus ruling comes before the pause", above; the sweep prints `RULING DUE`), and when a
-    review then still asks for changes, the PR is paused and the owner is told
-    (the first bullet; the sweep prints `PAUSE`).
+    the Execution waits for the approved Plan. What follows the first, the
+    second and a rejection after the ruling is `pitboss.flow.next_step` ("An Opus
+    ruling comes before the pause", above), not restated here.
   - **Before asking for review the author greps the whole tree** (the docs, the
     README, the design notes, the skill files, the example configuration, the
     tests) for every statement the change makes false or contradictory, and

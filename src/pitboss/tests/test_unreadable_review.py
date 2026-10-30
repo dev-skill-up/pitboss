@@ -7,11 +7,11 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import reviews, shapes, unreadableform
-from . import test_plan_revision, test_roundlimit
+from . import test_flow, test_plan_revision
 
 HEAD = test_plan_revision.HEAD
 URL = "https://github.com/owner/project/pull/3#issuecomment-6529013244"
-REVIEW = test_roundlimit.REVIEW
+REVIEW = test_flow.REVIEW
 IN_FORM = f"## Review\nReviewed: {HEAD}\nPlan: approved\nVerdict: approved\n"
 OFF_FORM = "Plan: approved\nVerdict: changes needed\nExecution: wrong\n"
 WRONG = "is not in the review form: the first line is 'Plan: approved', not '## Review'"

@@ -1,7 +1,7 @@
 """Parsing GitHub's response bodies into ``shapes``."""
 
 import json
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import shapes
 
@@ -38,6 +38,19 @@ def pull(text: str) -> shapes.Pull:
         ),
         auto_merge=data.get("auto_merge") is not None,
     )
+
+
+def labels(text: str) -> AbstractSet[str]:
+    """Parse the labels of a pull request.
+
+    Args:
+        text: the response body of ``pulls/<number>``.
+
+    Returns:
+        The names of its labels.
+    """
+    listed = json.loads(text).get("labels", ())
+    return frozenset(str(label["name"]) for label in listed)
 
 
 def pull_numbers(text: str) -> Sequence[int]:

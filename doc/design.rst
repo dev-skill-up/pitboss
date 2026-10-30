@@ -283,8 +283,8 @@ a stall before every other pull request but the merge of a ready one, unless the
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
-current base), then ``RULING DUE`` or ``PAUSE`` (``pitboss.roundlimit`` reads
-the PR's comments, ``pitboss.roundline`` prints; see **Review rounds** below), then
+current base), then ``RULING DUE`` or ``PAUSE`` (``pitboss.flow.next_step`` gives the step,
+``pitboss.roundline`` prints; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, and the review of a revised plan are started by its author's
@@ -324,26 +324,25 @@ which grades the plan alone) stands ``plan-approved``, is no approval to merge,
 is not carried over merges of the base, and gets no ``AUTO MERGE OFF`` line
 (auto-merge is never armed on it, as on any head without an approving review). Both words are on the PR's line.
 
-**Review rounds** (keyword: round-limit, pitboss#76). The skill's rules call for an
-Opus ruling when the plan is not approved after two reviews, or when a review asks
-for changes after the plan was approved, and for a pause when a review asks for
-changes again after the ruling. The sweep reads that from the PR's comments, with
-the reader of the repository's review form (strict where gated), only comments by
-trusted authors, in the order written. A review has a plan grade, its ``Plan:
-approved`` or ``Plan: changes needed`` line (the form's two verdict words; no such
-line says nothing of the plan), and its verdict. The plan rejections are the plan
-grades of changes needed before any grade of approved. The limit is reached at the
-second plan rejection, or at a review that asks for changes once a review (that
-one included) graded the plan approved. A ruling is a comment whose first line is
-exactly ``Opus ruling``. When the newest review that counts (**Reviews**, above:
-a trusted GitHub review too, outside a gated repository) does not ask for
-changes, nothing is printed. Otherwise the rounds are judged by the newest
-review comment: if it does not ask for changes, nothing is printed; if it asks
-for changes after a recorded ruling, the line is ``PAUSE``; if the limit is
-reached and no ruling is recorded, ``RULING DUE``; a ruling after the newest
-review leaves nothing printed until the next review. GitHub's own reviews have
-no ``Plan:`` line and count in no round. A PR
-with either marker is offered for no fix, update or review round in ``slots
+**Review flow** (keyword: review-flow, pitboss#107). The step a PR is at is one
+function, ``pitboss.flow.next_step``, the owner's pseudo code branch for branch
+(the lint cuts it at its own section comments, each ending in a call to the
+next). Every question it asks is a function of its own in ``pitboss.flow``,
+answered from what is recorded of the PR in a ``PullState`` (its body, labels,
+comments, reviews as ``Graded`` and checks): ``is_paused_for_owner``,
+``newest_counting_review``, ``has_plan_execution_body``, ``is_draft``,
+``can_undraft``, ``plan_approved``, ``get_plan_rejections``, ``opus_used``,
+``execution_fixed_since_plan_approval``, ``ci_result`` and ``has_conflict``.
+The steps are in ``pitboss.steps`` and what follows an Opus ruling is
+``pitboss.rulings.after_opus_ruling``. Only comments by trusted authors count,
+read with the reader of the repository's review form (strict where gated); a
+ruling is a comment whose first line is exactly ``Opus ruling``. ``pitboss next
+CONFIG TICKET`` scans the open PRs of the configuration once, picks the PR whose
+body says ``Fixes`` the ticket and prints its step, and for a ticket no PR fixes
+the first step. The sweep's ``RULING DUE``, ``PAUSE``, ``revise the plan``,
+``fix the review`` and ``review it`` lines and ``slots next`` take that step.
+GitHub's own reviews are no regular review and count nowhere in the flow. A PR
+with either marker is offered for no fix or review round in ``slots
 next``, and its ticket stays taken.
 
 **tracefs.** ``sweep``, ``pressure`` and every ``slots`` action first make
@@ -476,27 +475,30 @@ refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``m
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
-line saying why it is where it is. The open PRs that need a fix of a review, an
-update or a review come first, in one list ordered oldest first, whatever each
-needs; each line says which of the four kinds it is, and a PR is listed once,
-as the first of these kinds that fits:
+line saying why it is where it is. The open PRs that the flow's step gives a
+round come first, in one list ordered oldest first, whatever each needs; each
+line says which kind it is, the kind being the flow's step alone
+(``pitboss next`` prints the same step). A PR has exactly one step, so it is
+listed at most once. The six kinds:
 
-* ``revise the plan``: a review that asked for changes on an unmoved head
-  graded the plan changes needed (keyword: plan-revision, pitboss#82); the
-  author edits the ``## Plan`` section of the body and touches no code, doc or
-  test until the plan is approved, and the review of the revised plan grades
-  the plan alone;
-* ``fix the review``: the author's fix for a review that asked for changes, on
-  an unmoved head, that did not reject the plan;
-* ``update``: a PR whose ``mergeable_state`` is ``behind`` and whose checks
-  have all finished (a behind PR whose checks still run is not listed; one in
-  a repository under ``[merge_queue] repositories`` is never an update).
-  ``pitboss sweep`` prints it as an ``UPDATE`` line;
-* ``review it``: a review of a PR whose checks are all green on its head and
-  which has no review of that head, or only one that approved the plan alone
-  (the reviewer is never the author).
+* ``revise the plan``: step ``WORKER``, task ``REVISE_PLAN`` (keyword:
+  plan-revision, pitboss#82); the author edits the ``## Plan`` section of the
+  body and touches no code, doc or test until the plan is approved, and the
+  review of the revised plan grades the plan alone;
+* ``fix the review``: step ``WORKER``, any other task (``FIX_EXECUTION``): the
+  author's fix for a review that asked for changes to the execution;
+* ``fix the CI``: step ``WORKER``, task ``FIX_CI``: a red CI, which is no
+  rejection;
+* ``write the Plan and Execution body``: step ``WORKER``, task
+  ``FIRST_ROUND``: the PR has no such body;
+* ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
+  approved head that conflicts with the base;
+* ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
+  PR that is not a draft it comes once every required check finished green on
+  the head. On a draft it is the plan-only review, listed with no CI, since a
+  draft runs none.
 
-A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of the four.
+A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR.

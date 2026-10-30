@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import pulls, reviews, shapes, updateline, work
+from .. import pulls, reviews, shapes, steps, updateline
 from . import fakes, test_work, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
@@ -30,22 +30,10 @@ def facts(state: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
     Returns:
         The PR.
     """
+    done = bool(checks) and all(each.finished for each in checks)
     green = test_work.facts(3, reviews.Standing.NONE, mergeable_state=state)
-    return dataclasses.replace(green, checks=checks)
-
-
-def categories(pull: pulls.PullFacts, extra: str = "") -> Sequence[work.Category]:
-    """The kinds of work a PR is listed as.
-
-    Args:
-        pull: the PR.
-        extra: more TOML for the configuration.
-
-    Returns:
-        The kinds, none when it is not listed.
-    """
-    settings = fakes.settings(fakes.directory(), extra)
-    return [each.category for each in work.pull_items([pull], settings)]
+    step = test_work.DEFAULT_STEP if done else steps.wait_for_ci()
+    return dataclasses.replace(green, checks=checks, step=step)
 
 
 def behind_world(extra: str = "") -> world.World:
@@ -67,46 +55,26 @@ def behind_world(extra: str = "") -> world.World:
 
 
 CASES = [
-    ("behind", (DONE,), "", [work.Category.UPDATE]),
+    ("behind", (DONE,), "", [UPDATE_LINE]),
     ("behind", (DONE, RUNNING), "", []),
     ("behind", (), "", []),
-    ("clean", (DONE,), "", [work.Category.REVIEW]),
-    ("behind", (DONE,), QUEUE, [work.Category.REVIEW]),
-    (
-        "behind",
-        (DONE,),
-        "\n[merge_queue]\nrepositories = ['other']\n",
-        [work.Category.UPDATE],
-    ),
+    ("clean", (DONE,), "", []),
+    ("behind", (DONE,), QUEUE, []),
+    ("behind", (DONE,), "\n[merge_queue]\nrepositories = ['other']\n", [UPDATE_LINE]),
 ]
-
-
-class TestUnit(unittest.TestCase):
-    """Which PRs are updates."""
-
-    def test_kinds(self) -> None:
-        """Behind with finished checks is an update; running or none is not listed.
-
-        A merge-queue repository is never an update, and the setting is per
-        repository.
-        """
-        found = [
-            categories(facts(state, checks), extra) for state, checks, extra, _ in CASES
-        ]
-        assert_that(found, equal_to([kinds for *_, kinds in CASES]))
 
 
 class TestSweepAndNext(unittest.TestCase):
     """``pitboss sweep`` and ``pitboss slots next``."""
 
-    def test_sweep_and_next_list_it(self) -> None:
-        """Both name it, with the kind update, in the list."""
+    def test_sweep_lists_it_and_next_lists_the_step(self) -> None:
+        """The sweep names the update; ``slots next`` lists what the step says."""
         here = behind_world()
         found = (
             UPDATE_LINE in sweep(here).out.splitlines(),
-            "(update, opened 2026-10-01" in next_output(here),
+            "(update" in next_output(here),
         )
-        assert_that(found, equal_to((True, True)))
+        assert_that(found, equal_to((True, False)))
 
     def test_a_merge_queue_repository_lists_no_update(self) -> None:
         """Configured as merge-queue, nothing is named update."""
@@ -119,11 +87,11 @@ class TestLine(unittest.TestCase):
     """The sweep line alone."""
 
     def test_line_only_for_an_update(self) -> None:
-        """A PR gets the line exactly when it is listed as an update."""
+        """A PR gets the line exactly when it is behind with its checks finished."""
         lines = [
             updateline.lines(
                 facts(state, checks), fakes.settings(fakes.directory(), extra)
             )
             for state, checks, extra, _ in CASES
         ]
-        assert_that(lines, equal_to([[UPDATE_LINE], [], [], [], [], [UPDATE_LINE]]))
+        assert_that(lines, equal_to([expected for *_, expected in CASES]))

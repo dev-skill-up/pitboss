@@ -1,20 +1,20 @@
-"""The sweep's RULING DUE and PAUSE lines (keyword: round-limit)."""
+"""The sweep's RULING DUE and PAUSE lines, from the flow (keyword: review-flow)."""
 
 from typing import Sequence
 
-from . import pulls, roundlimit
+from . import pulls, steps
 from .markers import Marker
 
 LINES = {
-    roundlimit.Limit.RULING_DUE: (
+    steps.Step.OPUS_RULING: (
         Marker.RULING_DUE,
         "the review rounds hit the changes-needed limit and no ruling is"
         " recorded; start an Opus agent whose only brief is to make a ruling,"
         " record it as a PR comment whose first line is"
-        f" {roundlimit.RULING_FIRST_LINE!r}; the PR is offered for no fix,"
+        f" {steps.RULING_FIRST_LINE!r}; the PR is offered for no fix,"
         " update or review round until then, and its other action lines wait",
     ),
-    roundlimit.Limit.PAUSE: (
+    steps.Step.PAUSE_FOR_OWNER: (
         Marker.PAUSE,
         "changes needed again after the Opus ruling; label the PR and its"
         " ticket paused-owner with a comment of what the rounds disagreed"
@@ -26,15 +26,15 @@ LINES = {
 
 
 def lines(pull: pulls.PullFacts) -> Sequence[str]:
-    """The line of a PR whose review rounds hit the changes-needed limit.
+    """The line of a PR whose step asks for an Opus ruling or pauses it.
 
     Args:
         pull: the PR.
 
     Returns:
-        One line, RULING DUE or PAUSE, or none when the limit holds nothing.
+        One line, RULING DUE or PAUSE, or none for any other step.
     """
-    found = LINES.get(pull.limit)
+    found = LINES.get(pull.step.step)
     if found is None:
         return []
     marker, action = found
