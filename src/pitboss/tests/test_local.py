@@ -10,7 +10,7 @@ from typing import Mapping
 from hamcrest import assert_that, equal_to
 
 from .. import config, local, shapes
-from . import fakes
+from . import fakes, orphans
 
 OLD = time.time() - 10 * 3600
 CUTOFF = OLD + 3600
@@ -144,6 +144,15 @@ class TestStragglers(unittest.TestCase):
         runner = fakes.FakeProcesses(bodies={})
         failed = local.fetch_each_repository(runner, [broken])
         assert_that(failed, equal_to([str(broken)]))
+
+    def test_an_orphaned_checkout_is_told_from_a_readable_one(self) -> None:
+        """A .git file pointing at a missing gitdir is orphaned (#98)."""
+        workspace = fakes.directory()
+        clone = fakes.make_repository(workspace)
+        orphan = orphans.make_orphaned(workspace, "orphan")
+        runner = fakes.FakeProcesses(bodies={})
+        found = (local.orphaned(runner, clone), local.orphaned(runner, orphan))
+        assert_that(found, equal_to((False, True)))
 
     def test_fetch_once_per_repository(self) -> None:
         """Worktrees of one repository are fetched once; a failure is named."""

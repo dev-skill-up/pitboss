@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import cleanworld, fakes, world
+from . import cleanworld, fakes, orphans, world
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -172,6 +172,16 @@ class TestSweep(unittest.TestCase):
             missing(result.err, SWEEP_ERRORS, here),
         )
         assert_that((found, result.code), equal_to((([], []), 1)))
+
+    def test_sweep_names_an_orphaned_checkout(self) -> None:
+        """A worktree whose main checkout is gone is named, not a traceback (#98)."""
+        here = world.make_world()
+        here.bodies[OPEN_PULLS] = [{"number": 2}]
+        orphans.make_orphaned(here.workspace, "orphan-98")
+        result = sweep(here)
+        expected = f"ORPHANED CHECKOUT {here.workspace}/orphan-98"
+        found = (expected in result.out, "Traceback" in result.err, result.code)
+        assert_that(found, equal_to((True, False, 0)))
 
     def test_sweep_says_why(self) -> None:
         """A failed check's line says its failed step, output and annotations."""

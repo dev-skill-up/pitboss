@@ -36,7 +36,7 @@ from . import (
     work,
     worktrees,
 )
-from . import diskline, repoarg, roundline, stall, updateline
+from . import diskline, orphanline, repoarg, roundline, stall, updateline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -244,6 +244,9 @@ def _straggler_section(found: Context) -> None:
     for failed in local.fetch_each_repository(run, found_checkouts):
         print(f"fetch failed in {failed}: its stragglers may be out of date")
     for checkout in found_checkouts:
+        if local.orphaned(run, checkout):
+            print(orphanline.orphan_line(checkout))
+            continue
         straggler = local.read_straggler(run, checkout)
         if straggler is not None:
             print(report.straggler_line(straggler))
