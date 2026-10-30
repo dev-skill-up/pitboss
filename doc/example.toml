@@ -61,9 +61,10 @@ required = ["Overlap:"]
 [merge_queue]
 # How long a merge-queue run may take before GitHub dequeues it. Default: 60.
 timeout_minutes = 60
-# Repositories with a merge queue. A PR there that is behind the base needs
-# no update (the queue builds each entry on the current base), so `pitboss
-# sweep` and `pitboss slots next` never name it `update`. Default: none.
+# Repositories with a merge queue. A PR there that is behind the base needs no
+# merge of the base (the queue builds each entry on the current base), so
+# `pitboss sweep` offers it no such step. `pitboss slots next` has no update
+# kind at all, for any repository. Default: none.
 repositories = ["app"]
 
 [worktrees]
