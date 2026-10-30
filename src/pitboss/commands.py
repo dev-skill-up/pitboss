@@ -36,7 +36,8 @@ from . import (
     work,
     worktrees,
 )
-from . import diskline, orphanline, repoarg, roundline, stall, updateline
+from . import diskline, orphanline, repoarg, roundline, stall, unreadableline
+from . import updateline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -219,7 +220,10 @@ def runner_runs(
 def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
     newest = queue.newest_by_reference(runs)
     broken = False
-    for pull in open_pulls(found):
+    for pull in pulls.read_each(found.github, found.settings):
+        if isinstance(pull, pulls.Unreadable):
+            print(unreadableline.unreadable_line(pull))
+            continue
         print(report.pull_line(pull, newest))
         latest = newest.get(pulls.reference(pull))
         queued = latest is not None and not latest.run.finished

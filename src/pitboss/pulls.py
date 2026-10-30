@@ -2,6 +2,7 @@
 
 import concurrent.futures
 import dataclasses
+import subprocess
 from typing import Sequence
 
 from . import config, ghapi, parsing, reviews, roundlimit, shapes
@@ -307,6 +308,44 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     )
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Unreadable:
+    """An open PR one of whose API calls failed.
+
+    Attributes:
+        reference: its ``owner/name#number``.
+        call: the call that failed (``check-runs``).
+        status: how it failed (``HTTP 500``).
+    """
+
+    reference: str
+    call: str
+    status: str
+
+
+def fetch_or_unreadable(
+    source: Source, repo: config.Repo, number: int
+) -> PullFacts | Unreadable:
+    """Read one PR, or say which of its API calls failed.
+
+    Args:
+        source: where to read from.
+        repo: its repository.
+        number: its number.
+
+    Returns:
+        The PR's facts, or the failed call.
+    """
+    try:
+        return fetch(source, repo, number)
+    except subprocess.CalledProcessError as error:
+        return Unreadable(
+            reference=f"{repo.slug}#{number}",
+            call=ghapi.call_of(error),
+            status=ghapi.status_of(error),
+        )
+
+
 def read_open(github: ghapi.GitHub, settings: config.Config) -> Sequence[PullFacts]:
     """Read every open PR of the project and its libraries, concurrently.
 
@@ -315,7 +354,25 @@ def read_open(github: ghapi.GitHub, settings: config.Config) -> Sequence[PullFac
         settings: the configuration.
 
     Returns:
-        The PRs, by repository in configured order, then as GitHub lists them.
+        The PRs, by repository in configured order, then as GitHub lists them,
+        without the ones an API call failed for.
+    """
+    return [
+        each for each in read_each(github, settings) if not isinstance(each, Unreadable)
+    ]
+
+
+def read_each(
+    github: ghapi.GitHub, settings: config.Config
+) -> Sequence[PullFacts | Unreadable]:
+    """Read every open PR, keeping a PR whose API call failed as a record.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+
+    Returns:
+        Each PR, in the order ``read_open`` gives.
     """
     wanted = [
         (repo, number)
@@ -326,4 +383,4 @@ def read_open(github: ghapi.GitHub, settings: config.Config) -> Sequence[PullFac
     ]
     source = Source(github=github, review=settings.review)
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        return list(pool.map(lambda item: fetch(source, *item), wanted))
+        return list(pool.map(lambda item: fetch_or_unreadable(source, *item), wanted))
