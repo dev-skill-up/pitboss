@@ -114,7 +114,8 @@ def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
 
     Args:
         subject: the body.
-        footers: the lines a body may end with; none turns the check off.
+        footers: the lines a body must end with one of (in its last three
+            lines); none requires no footer.
 
     Returns:
         The findings.

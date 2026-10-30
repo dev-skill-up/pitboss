@@ -25,8 +25,8 @@ OK
 ```
 
 ---
-{FOOTER}
 """
+WITH_FOOTER = BODY + FOOTER + "\n"
 FORM = review_form("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 ONE_LINE = review_form("Independent review of head {sha}: {verdict}")
 BARE = review_form("Hello", "world")
@@ -46,7 +46,6 @@ required = ["Overlap:"]
 TICKET = (
     "Title\n\nDone when:\n\n## Done when\n- it works\n- it is tested\n\n## Notes\nx\n"
 )
-NO_FOOTER = BODY.replace(FOOTER, "thanks")
 
 
 def checks(found: Sequence[str]) -> Sequence[str]:
@@ -75,14 +74,14 @@ def subject(body: str, head: str = HEAD) -> forms.Subject:
 
 
 def body_checks(
-    body: str, head: str = HEAD, footers: Sequence[str] = (FOOTER,)
+    body: str, head: str = HEAD, footers: Sequence[str] = ()
 ) -> Sequence[str]:
     """The checks a PR body fails.
 
     Args:
         body: the body.
         head: the head given.
-        footers: the footers accepted.
+        footers: the footers required (none by default).
 
     Returns:
         The failed checks' names.
@@ -123,7 +122,7 @@ class TestPrBody(unittest.TestCase):
     """The form of a PR body."""
 
     def test_a_good_body_is_accepted(self) -> None:
-        """First line, one ticket, the head, evidence and footer: no finding."""
+        """First line, one ticket, the head and evidence: no finding, no footer."""
         tildes = BODY.replace("```", "~~~").replace("#12", "o/r#12")
         found = [body_checks(BODY), body_checks(BODY, head=""), body_checks(tildes)]
         assert_that(found, equal_to([[], [], []]))
@@ -132,7 +131,7 @@ class TestPrBody(unittest.TestCase):
         """A body whose first line is not Fixes, or an empty one, is refused."""
         refs = BODY.replace("Fixes #12", "Refs #12")
         found = [body_checks(refs), body_checks("")]
-        every = ["first-line", "head", "evidence", "footer"]
+        every = ["first-line", "head", "evidence"]
         assert_that(found, equal_to([["first-line"], every]))
 
     def test_one_ticket(self) -> None:
@@ -141,7 +140,7 @@ class TestPrBody(unittest.TestCase):
         same = BODY.replace("---\n", "fixes #12\n---\n")
         assert_that(body_checks(two), equal_to(["one-ticket"]))
         assert_that(body_checks(same), equal_to([]))
-        message = forms.pr_body(subject(two), (FOOTER,))[0]
+        message = forms.pr_body(subject(two), ())[0]
         assert_that(message, contains_string("(#12, #13)"))
 
     def test_head(self) -> None:
@@ -163,15 +162,19 @@ class TestPrBody(unittest.TestCase):
         assert_that(found, equal_to([["evidence"], ["evidence"]]))
 
     def test_footer(self) -> None:
-        """The body must end with a configured footer; none configured is no check."""
-        far = BODY.replace(FOOTER, "x\ny\nz").replace("Head:", f"{FOOTER}\nHead:", 1)
+        """No footer is required by default; a configured one must end the body."""
+        far = WITH_FOOTER.replace(FOOTER, "x\ny\nz").replace(
+            "Head:", f"{FOOTER}\nHead:", 1
+        )
+        default = config.default_lint().footers
         found = [
-            body_checks(NO_FOOTER),
-            body_checks(NO_FOOTER, footers=()),
-            body_checks(NO_FOOTER, footers=("thanks",)),
-            body_checks(far),
+            checks(forms.pr_body(subject(BODY), default)),
+            body_checks(BODY, footers=(FOOTER,)),
+            body_checks(WITH_FOOTER, footers=(FOOTER,)),
+            body_checks(BODY, footers=("thanks",)),
+            body_checks(far, footers=(FOOTER,)),
         ]
-        assert_that(found, equal_to([["footer"], [], [], ["footer"]]))
+        assert_that(found, equal_to([[], ["footer"], [], ["footer"], ["footer"]]))
 
     def test_finding_names_its_check_last(self) -> None:
         """A finding is the file, the message and the check in parentheses."""

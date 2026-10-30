@@ -1,6 +1,6 @@
 # The form of every pull request body, one lint for the repositories that call pitboss
-# (pitboss#38): the first line is Fixes #N, one ticket, a Head line that is the head, one
-# footer. The result is the commit status text-lint on the head, set again on every edit
+# (pitboss#38): the first line is Fixes #N, one ticket, a Head line that is the head, an
+# Evidence section. The result is the commit status text-lint on the head, set again on every edit
 # of the body. The work is pitboss's text-lint-check.yml, called by commit (never @main);
 # tools-ref is the same commit (a reusable workflow cannot read its own).
 # Fill COMMIT with a full 40-character commit SHA of dev-skill-up/pitboss and VERSION with

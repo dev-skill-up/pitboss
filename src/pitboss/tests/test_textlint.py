@@ -30,7 +30,6 @@ OK
 ```
 
 ---
-{FOOTER}
 """
 
 URL = "https://example.test/run/1"
@@ -162,14 +161,18 @@ class TestStatus(unittest.TestCase):
         assert_that(found, equal_to(["exempt", "exempt", "failure"]))
 
     def test_configured_footers(self) -> None:
-        """The project's configuration is read with ``--config``."""
+        """No footer is required by default; ``--config`` can list one."""
         config = write_text(
             "p.toml",
             "[project]\nowner = 'o'\nrepository = 'r'\nmain_clone = '/c'\n"
-            "[lint.pr_body]\nfooters = ['-- me']\n",
+            f"[lint.pr_body]\nfooters = ['{FOOTER}']\n",
         )
-        _, status, _ = posted(event(), "--config", config)
-        assert_that(status["description"], contains_string("(footer)"))
+        _, plain, _ = posted(event())
+        _, missing, _ = posted(event(), "--config", config)
+        _, present, _ = posted(event(BODY + FOOTER + "\n"), "--config", config)
+        assert_that(plain["description"], equal_to("ok"))
+        assert_that(missing["description"], contains_string("(footer)"))
+        assert_that(present["description"], equal_to("ok"))
 
 
 class TestRefusals(unittest.TestCase):
