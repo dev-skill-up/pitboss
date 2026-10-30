@@ -105,8 +105,9 @@ draft (`rules.md`, "Pushing and merging").
 **Enqueue is preferred to undraft.** Undraft runs the whole check on the head
 (`ready_for_review`), and the queue then tests the group again, so each spends
 one of the spaced actions. When a PR could take either next, spend it on the
-enqueue, the run that gates the base branch. Undraft is for a PR that needs a
-green head to be reviewed (a draft has none); a PR is not sent back to draft
+enqueue, the run that gates the base branch. Undraft is for a PR whose Plan is approved
+and that needs a green head for the review of its Execution (a draft has
+none); a PR is not sent back to draft
 to be undrafted again.
 - Carried by: `READY TO MERGE` and `AUTO MERGE OFF` (arm auto-merge, which
   enqueues), `MERGE BY HAND` (repositories in `[libraries] no_auto_merge`),

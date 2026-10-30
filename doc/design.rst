@@ -244,7 +244,8 @@ pending checks, the failed checks with their job ids, the PR's place in the
 merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
 the newest run's conclusion), and the review's standing. Action lines follow:
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
-ready for review or to merge), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
+ready for review or to merge, though a draft's first review, Plan and
+Execution, is started by its author's hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
