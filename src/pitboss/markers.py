@@ -11,6 +11,7 @@ class Marker(enum.Enum):
     """A marker at the start of an output line that calls for an action.
 
     Attributes:
+        OUTDATED: the running pitboss is older than PyPI's newest release.
         UNREADABLE: a repository the session cannot read, or a PR one of
             whose API calls failed.
         RUNNER_PRESSURE: queue runs wait for runners; hold.
@@ -52,6 +53,7 @@ class Marker(enum.Enum):
         NO_HAND_BACK: an agent started over ten minutes ago that has said nothing.
     """
 
+    OUTDATED = enum.auto()
     UNREADABLE = enum.auto()
     RUNNER_PRESSURE = enum.auto()
     NO_RUNNER_PRESSURE = enum.auto()

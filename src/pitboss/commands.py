@@ -19,6 +19,7 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    __version__,
     cleanconfig,
     config,
     configfile,
@@ -27,6 +28,7 @@ from . import (
     handback,
     ledger,
     local,
+    outdated,
     pulls,
     queue,
     report,
@@ -302,6 +304,8 @@ def sweep(args: argparse.Namespace) -> None:
         SystemExit: 1 when a PR has a failed check or a merge conflict.
     """
     tracefs.say(args.safe_run)
+    for line in outdated.lines(__version__, outdated.newest(args.safe_run)):
+        print(line)
     found = load_context(args)
     clock = timing.Clock(started=time.monotonic())
     runs = read_queue_runs(found)

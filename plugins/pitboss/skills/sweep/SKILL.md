@@ -15,6 +15,16 @@ calls for an action starts with a marker in capitals and says the action.
 uvx pitboss sweep <config>
 ```
 
+Run pitboss as `uvx pitboss <command>` and never as `python -m pitboss` or from
+an installed copy or a checkout: `uvx` resolves the newest PyPI release, which
+`release.yml` publishes on every push to main, so the bugs main fixed are fixed
+in what runs. (Do not copy the package into scratch space and run that; it
+goes stale.) When the permission classifier denies that form, look in the
+repository's Claude Code settings file's allow list for an equivalent allowed
+form and run that exact string (`rules.md`, "A denied command is retried as the
+allow list's equivalent"). A sweep that prints `OUTDATED` is running an older
+release than PyPI's: see `references/sweep.md`.
+
 `<config>` is the project's file: a name looks up
 `.claude/pitboss/<name>.toml` in the current directory or a parent, or give a
 path. It needs `gh` authenticated for every repository the file names, and
