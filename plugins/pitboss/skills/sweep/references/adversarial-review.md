@@ -35,7 +35,9 @@ whether the repository is gated.
   the Evidence is real output (a command and what it printed) run on that
   head, and the checks. The orchestrator that started you read none of them;
   they are yours. A Head line that is not the head, or Evidence that is not
-  real output on that head, is changes needed.
+  real output on that head, is changes needed. In a review of the Plan alone
+  (below) only the Head line is checked: the Evidence and the checks belong to
+  the Execution.
 - The verdict is one of the two words, nothing else.
 - Post as a comment on the PR (an issue comment), from an account the
   repository trusts. You are not done until it is posted: a verdict in your

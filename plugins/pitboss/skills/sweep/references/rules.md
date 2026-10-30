@@ -572,7 +572,8 @@ compaction.
   body is the full SHA of the PR's head, the one this brief names; the Evidence
   is real output (a command and what it printed) run on that head; every
   required check finished and passed at that head (a draft at its Plan stage has
-  no check run, and you say that none was read).` The brief names the PR and
+  no check run, and you say that none was read); in a review of the Plan alone
+  only the Head line is checked.` The brief names the PR and
   the head SHA and says nothing of the body, the diff or the evidence: the
   orchestrator read none of them (Reviews, above).
 - **Design check, Push and Sample lines.** `Design check: push the ticket's
@@ -696,7 +697,8 @@ compaction.
   Head line (the last `Head:` line of the body is the full SHA of the PR's
   head), that the Evidence is real output (a command and what it printed) run
   on that head, and the checks (every required check finished and passed at
-  that head). The only reads the orchestrator makes of a PR are the sweep's
+  that head); in a review of the Plan alone the Evidence and the checks are not
+  graded, the Head line still is. The only reads the orchestrator makes of a PR are the sweep's
   markers and the review's verdict line; the ruling agent, not the
   orchestrator, reads the PR and its reviews for an Opus ruling and for the
   account of what the rounds disagreed about that a pause comment carries.
