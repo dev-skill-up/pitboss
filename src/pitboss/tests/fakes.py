@@ -86,7 +86,7 @@ class FakeProcesses:
         self.calls.append(command)
         if command[0] in self.answers:
             return answer(self.answers[command[0]], command)
-        if command[:2] != ["gh", "api"]:
+        if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
             done = subprocess.run(command, check=True, capture_output=True, text=True)
             return Output(stdout=done.stdout)
         path = command[-1] if command[2] != "-X" else "POST " + command[-1]
