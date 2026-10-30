@@ -69,6 +69,13 @@ def _worktrees(table: Mapping[str, object]) -> Worktrees:
         ) from None
 
 
+def _free(table: Mapping[str, object]) -> float:
+    free = float(str(table.get("min_free_gib", DEFAULT_MIN_FREE_GIB)))
+    if free < 0:
+        raise ValueError(f"[clean] min_free_gib must not be negative, not {free}")
+    return free
+
+
 def _lists(table: Mapping[str, object]) -> Mapping[str, Sequence[pathlib.Path]]:
     lists = {}
     for key in ("scratch", "live"):
@@ -99,12 +106,9 @@ def from_document(document: Mapping[str, object]) -> Clean:
     if not isinstance(table, dict):
         raise ValueError(f"[clean] must be a table, not {table!r}")
     lists = _lists(table)
-    free = float(table.get("min_free_gib", DEFAULT_MIN_FREE_GIB))
-    if free < 0:
-        raise ValueError(f"[clean] min_free_gib must not be negative, not {free}")
     return Clean(
         scratch=lists["scratch"],
         live=lists["live"],
-        min_free_gib=free,
+        min_free_gib=_free(table),
         worktrees=_worktrees(table),
     )

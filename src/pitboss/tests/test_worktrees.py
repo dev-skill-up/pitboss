@@ -59,43 +59,72 @@ def left(here: world.World, cleaned: bool) -> None:
     cleanworld.same(present(here, "merged-work", *UNSAFE), expected)
 
 
+def sweep_shows(here: world.World, pieces: Sequence[str], *argv: str) -> None:
+    """Assert that a sweep's output holds every piece.
+
+    Args:
+        here: the world.
+        pieces: what it should print.
+        *argv: more arguments of the sweep.
+    """
+    out = world.again(here, "sweep", *argv).out
+    cleanworld.same(cleanworld.absent(out, pieces), [])
+
+
 class TestAuto(unittest.TestCase):
     """The default: a sweep removes what the safety test passes."""
 
     def test_a_sweep_removes_the_clean_one_and_keeps_the_rest(self) -> None:
         """Nothing unpushed, no tracked change and no live marker is removed."""
         here = scene()
-        out = world.again(here, "sweep", *AFTER).out
         root = here.workspace
-        pieces = [
-            f"REMOVED WORKTREE {root}/merged-work (its PR merged)\n",
-            f"KEPT WORKTREE {root}/unpushed-work (1 commits on no remote branch",
-            f"KEPT WORKTREE {root}/changed-work (1 changed tracked files",
-            f"KEPT WORKTREE {root}/live-work (holds a file named .pitboss-live)",
-            "worktrees: 1 removed,",
-            " freed; 3 kept",
-        ]
-        cleanworld.same(cleanworld.absent(out, pieces), [])
-        cleanworld.same("STALE WORKTREE" in out, False)
+        sweep_shows(
+            here,
+            [
+                f"REMOVED WORKTREE {root}/merged-work (its PR merged)\n",
+                f"KEPT WORKTREE {root}/unpushed-work (1 commits on no remote branch",
+                f"KEPT WORKTREE {root}/changed-work (1 changed tracked files",
+                f"KEPT WORKTREE {root}/live-work (holds a file named .pitboss-live)",
+                "worktrees: 1 removed,",
+                " freed; 3 kept",
+            ],
+            *AFTER,
+        )
         left(here, True)
 
     def test_a_recent_change_keeps_a_finished_worktree(self) -> None:
         """Work done within the idle hours is in use: kept, with that reason."""
         here = scene()
-        out = world.again(here, "sweep").out
         said = f"KEPT WORKTREE {here.workspace}/merged-work (changed within"
-        cleanworld.same(f"{said} the idle hours)" in out, True)
-        cleanworld.same(present(here, "merged-work"), [True])
+        sweep_shows(here, [f"{said} the idle hours)"])
+        left(here, False)
 
     def test_clean_worktrees_is_judged_by_the_same_test(self) -> None:
         """The command keeps the same ones; a dry run removes none."""
         here = scene()
         dry = world.again(here, "clean-worktrees", *AFTER).out
-        left(here, False)
+        before = present(here, "merged-work", *UNSAFE)
         out = world.again(here, "clean-worktrees", *AFTER, "--no-dry-run").out
-        cleanworld.same("(its PR merged) (dry run" in dry, True)
-        cleanworld.same("worktrees: 1 removed," in out, True)
+        said = ("(its PR merged) (dry run" in dry, "worktrees: 1 removed," in out)
+        cleanworld.same((said, before), ((True, True), [True] * 4))
         left(here, True)
+
+
+def listing(here: world.World) -> Sequence[object]:
+    """What a sweep under ``list`` printed and left on disk.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The missing wanted pieces, the missing unwanted ones, the worktree.
+    """
+    said = world.again(here, "sweep", *AFTER).out
+    stale = f"STALE WORKTREE {here.workspace}/merged-work [merged-work]"
+    wanted = [f"{stale} (its PR merged)", "worktrees: 1 stale"]
+    unwanted = ["KEPT WORKTREE", "REMOVED WORKTREE"]
+    absent = (cleanworld.absent(said, wanted), cleanworld.absent(said, unwanted))
+    return [*absent, *present(here, "merged-work")]
 
 
 class TestList(unittest.TestCase):
@@ -103,14 +132,7 @@ class TestList(unittest.TestCase):
 
     def test_a_sweep_lists_and_removes_nothing(self) -> None:
         """Only the worktree that passes the test is listed as stale."""
+        unwanted = ["KEPT WORKTREE", "REMOVED WORKTREE"]
         here = scene()
         cleanworld.only_list_worktrees(here)
-        out = world.again(here, "sweep", *AFTER).out
-        pieces = [
-            f"STALE WORKTREE {here.workspace}/merged-work [merged-work]"
-            " (its PR merged): clean-worktrees removes it",
-            "worktrees: 1 stale",
-        ]
-        cleanworld.same(cleanworld.absent(out, pieces), [])
-        cleanworld.same("KEPT WORKTREE" in out or "REMOVED WORKTREE" in out, False)
-        left(here, False)
+        cleanworld.same(listing(here), [[], unwanted, True])
