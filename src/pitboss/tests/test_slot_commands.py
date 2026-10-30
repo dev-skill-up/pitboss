@@ -215,3 +215,72 @@ class TestNext(unittest.TestCase):
             here = world.make_world()
             run_all(here, steps)
             assert_that(next_lines(here), equal_to(expected))
+
+
+MISSING_STEPS = (
+    ("show",),
+    ("set", "tiny", "agent-1", "#9"),
+    ("free", "tiny"),
+    ("check",),
+    ("check", "1"),
+    ("next",),
+    ("add", "spare", "large"),
+    ("remove", "tiny"),
+    ("failed", "#9", "small"),
+    ("wait", "tiny"),
+    ("resume", "tiny"),
+    ("heard", "tiny"),
+)
+CHECK_SIZES = ((2, ()), (3, (("add", "spare", "large"),)))
+
+
+class TestMissingLedger(unittest.TestCase):
+    """The ledger file is authoritative on the slots; the owner creates it."""
+
+    def test_absent(self) -> None:
+        """Every action exits 1, says the ledger is missing and writes no file."""
+        here = world.make_world()
+        here.ledger.unlink()
+        results = run_all(here, MISSING_STEPS)
+        expected = (
+            f"LEDGER MISSING: {here.ledger} does not exist. It is authoritative"
+            " on the slots and the owner creates it"
+        )
+        last_lines = {result.err.rstrip().rsplit("\n", 1)[-1] for result in results}
+        codes = {result.code for result in results}
+        written = list(here.ledger.parent.glob("ledger*"))
+        assert_that((codes, last_lines, written), equal_to(({1}, {expected}, [])))
+
+    def test_report_needs_no_ledger(self) -> None:
+        """The report reads the log, so an absent ledger does not stop it."""
+        here = world.make_world()
+        here.ledger.unlink()
+        result = world.invoke(here, "slots", "report", here.config)
+        assert_that(result.code, equal_to(0))
+
+    def test_check_rows(self) -> None:
+        """``check N`` passes at N rows and refuses at one more."""
+        for rows, setup in CHECK_SIZES:
+            here = world.make_world()
+            run_all(here, setup)
+            equal, above = run_all(
+                here, (("check", str(rows)), ("check", str(rows + 1)))
+            )
+            assert_that(
+                (equal.code, above.code, "fewer rows" in above.err),
+                equal_to((0, 1, True)),
+            )
+
+    def test_check_words(self) -> None:
+        """``check`` takes one number, or none."""
+        here = world.make_world()
+        results = run_all(
+            here,
+            (
+                ("check", "1", "2"),
+                ("check", "x"),
+                ("check", "²"),
+                ("check", "9" * 5000),
+            ),
+        )
+        assert_that([r.code for r in results], equal_to([2, 2, 2, 2]))

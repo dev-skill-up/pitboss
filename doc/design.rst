@@ -233,7 +233,11 @@ Commands
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
    * - ``slots show|set|free|add|remove|failed|check|next CONFIG ...``
-     - The worker-slot ledger, and the sorted list of what to start next.
+     - The worker-slot ledger, and the sorted list of what to start next. Every
+       one but ``report`` exits 1 with ``LEDGER MISSING`` and writes nothing when
+       the ledger file does not exist (the owner creates it; only ``sweep`` starts
+       one from the configured defaults). ``check`` takes ``--running NAME ...``
+       and an optional number N: it exits 1 when the ledger has fewer than N rows.
 
 Reads go through gather's ``args.safe_run``; every change on GitHub or to
 git (cancelling a run, removing a worktree) goes through ``args.run``, so it
