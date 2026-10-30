@@ -97,8 +97,9 @@ draft starts no costly job, so the interval does not apply to it and a worker
 keeps its work on GitHub through a draft. The lint of the body still runs on a
 draft (`rules.md`, "Pushing and merging").
 - Carried by: the workflow's own condition (the section above), and in the
-  sweep `WAIT-FOR-CI` for a draft with no completed check run and `[draft]`
-  in the PR line (`sweep.md`). The hold below leaves draft pushes alone
+  sweep `WAIT-FOR-CI` for a draft with no completed check run (its first
+  review, at the Plan stage, is the exception: `rules.md`, "Plan first") and
+  `[draft]` in the PR line (`sweep.md`). The hold below leaves draft pushes alone
   (`sweep.md`, "The runner-pressure hold"; the hold line `pitboss pressure`
   prints says the same).
 

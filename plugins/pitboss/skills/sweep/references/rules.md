@@ -78,7 +78,9 @@ compaction.
    on the exact head.** A PR whose CI is still running is not reviewed, and a
    review of a PR in progress is never started to fill a slot. A head with no
    completed check run (a draft that runs no CI) is waiting for CI: a reviewer
-   on it reports NOT STARTED.
+   on it reports NOT STARTED, except the first review of a draft at its Plan
+   stage, which its author's hand-back starts and which has no check to wait
+   for ("Plan first").
 4. **The rows of the ledger are the agents that run, reviewers included**
    (orchestrator, 2026-10-18). The ledger is authoritative on how many; only an
    explicit instruction from the owner ("Add a slot", "Remove", "Change")
