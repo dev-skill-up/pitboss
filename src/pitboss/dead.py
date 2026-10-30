@@ -48,6 +48,8 @@ class Look:
         clean: what ``clean-container`` looks at and keeps.
         watch: where the session's own files in the root are.
         mount_points: reads the mount points of the machine.
+        working: the directories the command runs in; a path that is or holds
+            one is in use (keyword: clean-worktrees).
     """
 
     run: Run
@@ -56,6 +58,7 @@ class Look:
     clean: cleanconfig.Clean
     watch: container.Watch = container.WATCH
     mount_points: Callable[[], AbstractSet[pathlib.Path]] = mounts.current
+    working: AbstractSet[pathlib.Path] = frozenset()
 
 
 def marked_above(path: pathlib.Path) -> bool:
@@ -111,6 +114,20 @@ def live_reason(path: pathlib.Path, look: Look, found: survey.Survey) -> str:
     return ""
 
 
+def runs_in(path: pathlib.Path, look: Look) -> bool:
+    """Whether a path is, or lies above, a directory the command runs in.
+
+    Args:
+        path: the path.
+        look: what to keep.
+
+    Returns:
+        True when removing it would remove the command's own directory.
+    """
+    here = path.resolve()
+    return any(each.resolve().is_relative_to(here) for each in look.working)
+
+
 def hold(look: Look, path: pathlib.Path, cutoff: float) -> tuple[str, survey.Survey]:
     """Look at a path and say whether it must be left alone: live or in use.
 
@@ -126,6 +143,7 @@ def hold(look: Look, path: pathlib.Path, cutoff: float) -> tuple[str, survey.Sur
     reasons = (
         "is a symbolic link" if path.is_symlink() else "",
         live_reason(path, look, found),
+        "is or holds the directory this command runs in" if runs_in(path, look) else "",
         "changed within the idle hours" if found.newest > cutoff else "",
     )
     return next((reason for reason in reasons if reason), ""), found

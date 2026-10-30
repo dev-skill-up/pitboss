@@ -58,7 +58,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `STRAGGLER` | A checkout on this machine with uncommitted files or commits on no remote branch. | Triage it (below). |
 | `STALE WORKTREE` | Printed only under `[clean] worktrees = "list"`: a worktree whose work is finished and on GitHub and that passes the safety test ("Stale worktrees", below). | `pitboss clean-worktrees <config>`, read the dry run, then `--no-dry-run`. |
 | `REMOVED WORKTREE` | A finished worktree was removed (or, under `clean-worktrees` without `--no-dry-run`, would be); its branch is kept. A sweep prints it under `[clean] worktrees = "auto"` (the default), with the space freed on the last line of the section. | Nothing. |
-| `KEPT WORKTREE` | A finished worktree that is not removed, with the reason: commits on no remote branch, changed tracked files, a `.pitboss-live` marker or live path, a change within the idle hours, a link, a mount point or a checkout git cannot read. | Triage it like a `STRAGGLER` when the reason is work that exists only here; otherwise nothing: it is removed by a later sweep once the reason is gone. |
+| `KEPT WORKTREE` | A finished worktree that is not removed, with the reason: commits on no remote branch, changed tracked files, a `.pitboss-live` marker or live path, the directory the command runs in or one above it, a change within the idle hours, a link, a mount point, a checkout git cannot read, or untracked files (`git worktree remove` refuses them). | Triage it like a `STRAGGLER` when the reason is work that exists only here; otherwise nothing: it is removed by a later sweep once the reason is gone. |
 | `COULD NOT REMOVE WORKTREE` | git refused (a locked worktree, for one). | Look at it: someone may still be using it. |
 | `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). The line says how much is free; indented lines under it name the largest safe dead paths (at most five), or say that none was found. A sweep scans for them only under pressure. | `pitboss clean-container <config>`, read the dry run, then `--no-dry-run` ("Disk", below). |
 | `REMOVED PATH` | A dead path was removed by `clean-container` (or, with "dry run", would be): its size and why it is dead. | Nothing. |
@@ -143,13 +143,18 @@ included: unpushed work can be lost, and a fix waits).
 
 A worktree is finished when it is not the main clone, lies under the workspace,
 and its branch's PR merged or was closed, or, with no PR, its tip is in the base
-branch. A worktree with an open PR is never finished. A finished worktree is
+branch. A worktree on no branch, or on the base branch, is finished once its tip
+is in the base branch (unlike a checkout of "Disk" below), so a persistent one
+carries `.pitboss-live`. A worktree with an open PR is never finished. A finished worktree is
 removed only when it passes the safety test, the one `clean-container` and the
 `DISK PRESSURE` line use: every commit in it is on a remote branch, no tracked
 file in it is changed (untracked files are scratch), nothing in it changed in the
 configured idle hours (by file times, because a new worktree's tip is an old
-commit), it holds no `.pitboss-live` marker and is not a live path, and it is no
-link or mount point. By default (`[clean] worktrees = "auto"`) the sweep removes
+commit), it holds no `.pitboss-live` marker and is not a live path, it is no
+link or mount point, and it is not the directory the command runs in or a
+directory above it. A finished worktree that passes but holds untracked files is
+kept too, with their count, because `git worktree remove` refuses it. By default
+(`[clean] worktrees = "auto"`) the sweep removes
 every finished worktree that passes, printing `REMOVED WORKTREE`, and prints
 `KEPT WORKTREE` with the reason for each that fails; the section ends with a
 line giving the count removed, the space freed and the count kept. With
@@ -165,8 +170,10 @@ an agent is starting in has files changed within the idle hours, so it is kept.
 
 - a git checkout directly under the workspace whose PR merged or closed, or
   whose tip is in the base branch with no PR (a checkout on the base branch or
-  on no branch is never dead: it is a persistent checkout; under `auto` a sweep
-  has already removed the worktrees of the main clone that pass the same test);
+  on no branch is never dead: it is a persistent checkout; a sweep under `auto`
+  has already removed the finished worktrees of the main clone, judged as in
+  "Stale worktrees" above, where a worktree on no branch or on the base branch
+  can be finished);
 - an entry of a `[clean] scratch` directory (not a symbolic link) with nothing
   in it changed in the idle hours (`[worktrees] idle_hours`);
 - a regular file directly in `--root` (default `/`) written over `--hours`
@@ -175,8 +182,9 @@ an agent is starting in has files changed within the idle hours, so it is kept.
 
 It is never listed when it is marked live: a file named `.pitboss-live` is in
 it at any depth or in a directory above it, it is, holds or lies in a path of
-`[clean] live`, it is the main clone, or its tree changed in the idle hours (a
-running agent's checkout; `.git` contents do not count). The tool walks a path
+`[clean] live`, it is the main clone, it is or holds the directory the command
+runs in, or its tree changed in the idle hours (a running agent's checkout;
+`.git` contents do not count). The tool walks a path
 once, never follows a symbolic link (a link is neither judged by what it
 points at nor sized through) and never enters a mount point. A dead path is
 safe when every git checkout in it, at any depth, has all its commits on a

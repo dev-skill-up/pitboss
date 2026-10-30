@@ -261,12 +261,14 @@ def parser() -> argparse.ArgumentParser:
     return cli_parser.make_parser()
 
 
-def invoke(world: World, *argv: str) -> Result:
+def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
     """Run ``pitboss`` with arguments.
 
     Args:
         world: the world.
         *argv: the arguments.
+        directory: the directory it runs in (its ``PWD``); the workspace when
+            None.
 
     Returns:
         What it did.
@@ -278,7 +280,7 @@ def invoke(world: World, *argv: str) -> Result:
             gather_commands.run_maybe_dry(
                 parser=parser(),
                 argv=["pitboss", *argv],
-                env={"PWD": str(world.workspace)},
+                env={"PWD": str(directory or world.workspace)},
                 sp_run=world.processes,
             )
         except SystemExit as exit_error:
@@ -286,17 +288,18 @@ def invoke(world: World, *argv: str) -> Result:
     return Result(out=out.getvalue(), err=err.getvalue(), code=code)
 
 
-def again(here: World, *argv: str) -> Result:
+def again(here: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
     """Run ``pitboss`` in a world, with the config after the command.
 
     Args:
         here: the world.
         *argv: the command, then the arguments after the config.
+        directory: the directory it runs in; the workspace when None.
 
     Returns:
         What the command did.
     """
-    return invoke(here, argv[0], here.config, *argv[1:])
+    return invoke(here, argv[0], here.config, *argv[1:], directory=directory)
 
 
 def project_page(path: str) -> str:

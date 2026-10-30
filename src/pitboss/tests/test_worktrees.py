@@ -1,21 +1,25 @@
 """End-to-end tests of finished worktrees: ``auto`` removes, ``list`` lists."""
 
+import dataclasses
 import pathlib
+import time
 import unittest
 from typing import Sequence
 
+from .. import dead
 from . import cleanworld, fakes, world
 
 AFTER = ("--now", world.FUTURE)
-UNSAFE = ("unpushed-work", "changed-work", "live-work")
+UNSAFE = ("unpushed-work", "changed-work", "live-work", "untracked-work")
+HOLDS = "is or holds the directory this command runs in"
 
 
 def scene() -> world.World:
     """A world with a finished worktree of every kind, all with a merged PR.
 
     ``merged-work`` is clean; ``unpushed-work`` has a commit on no remote
-    branch, ``changed-work`` a changed tracked file and ``live-work`` a live
-    marker.
+    branch, ``changed-work`` a changed tracked file, ``live-work`` a live
+    marker and ``untracked-work`` an untracked file.
 
     Returns:
         The world.
@@ -27,6 +31,7 @@ def scene() -> world.World:
         if name != "unpushed-work":
             fakes.push(path)
     (here.workspace / "changed-work" / "changed-work").write_text("edited")
+    (here.workspace / "untracked-work" / "notes").write_text("mine")
     cleanworld.mark_live(here.workspace / "live-work")
     done = {"state": "closed", "merged_at": "x"}
     branches = ("merged-work", *UNSAFE)
@@ -55,7 +60,7 @@ def left(here: world.World, cleaned: bool) -> None:
         here: the world.
         cleaned: whether the clean worktree should be gone.
     """
-    expected = [not cleaned, True, True, True]
+    expected = [not cleaned, *(True for _ in UNSAFE)]
     cleanworld.same(present(here, "merged-work", *UNSAFE), expected)
 
 
@@ -85,8 +90,10 @@ class TestAuto(unittest.TestCase):
                 f"KEPT WORKTREE {root}/unpushed-work (1 commits on no remote branch",
                 f"KEPT WORKTREE {root}/changed-work (1 changed tracked files",
                 f"KEPT WORKTREE {root}/live-work (holds a file named .pitboss-live)",
+                f"KEPT WORKTREE {root}/untracked-work (1 untracked files: git"
+                " worktree remove refuses them)",
                 "worktrees: 1 removed,",
-                " freed; 3 kept",
+                " freed; 4 kept",
             ],
             *AFTER,
         )
@@ -106,8 +113,22 @@ class TestAuto(unittest.TestCase):
         before = present(here, "merged-work", *UNSAFE)
         out = world.again(here, "clean-worktrees", *AFTER, "--no-dry-run").out
         said = ("(its PR merged) (dry run" in dry, "worktrees: 1 removed," in out)
-        cleanworld.same((said, before), ((True, True), [True] * 4))
+        cleanworld.same((said, before), ((True, True), [True] * 5))
         left(here, True)
+
+    def test_a_sweep_keeps_the_worktree_it_runs_in(self) -> None:
+        """Its own directory, and a worktree above it, are never removed."""
+        here = scene()
+        own = here.workspace / "merged-work"
+        inside = own / "deeper"
+        inside.mkdir()
+        outs = [
+            world.again(here, "sweep", *AFTER, directory=each).out
+            for each in (own, inside)
+        ]
+        wanted = f"KEPT WORKTREE {own} ({HOLDS})"
+        cleanworld.same([wanted in out for out in outs], [True, True])
+        left(here, False)
 
 
 def listing(here: world.World) -> Sequence[object]:
@@ -136,3 +157,19 @@ class TestList(unittest.TestCase):
         here = scene()
         cleanworld.only_list_worktrees(here)
         cleanworld.same(listing(here), [[], unwanted, True])
+
+
+class TestWorkingDirectory(unittest.TestCase):
+    """The one safety test holds the directory a command runs in."""
+
+    def test_the_directory_and_what_holds_it_are_held(self) -> None:
+        """So ``clean-container`` and the disk scan keep them too."""
+        top = fakes.directory()
+        inside = top / "a" / "b"
+        inside.mkdir(parents=True)
+        (top / "other").mkdir()
+        look = dataclasses.replace(cleanworld.look_in(top), working=frozenset({inside}))
+        later = time.time() + 3600
+        names = ("a", "a/b", "other")
+        found = [dead.hold(look, top / name, later)[0] for name in names]
+        cleanworld.same(found, [HOLDS, HOLDS, ""])

@@ -4,11 +4,13 @@ A worktree is finished when its PR merged or closed, or its tip is in the base
 branch (``local.finished_reason``). Whether it may go is ``dead.verdict``, the
 test ``clean-container`` and the ``DISK PRESSURE`` line use: not live, not in
 use, and no commit on no remote branch and no changed tracked file in it
-(keyword: clean-worktrees, ``rules.md``, "Checkouts and disk").
+(keyword: clean-worktrees, ``rules.md``, "Checkouts and disk"). One that passes
+but holds untracked files is kept too, since ``git worktree remove`` refuses it.
 """
 
 import dataclasses
 import datetime
+import pathlib
 import subprocess
 from typing import Sequence
 
@@ -86,6 +88,25 @@ def find(look: dead.Look) -> Sequence[Finished]:
     ]
 
 
+def untracked(run: Run, path: pathlib.Path) -> str:
+    """Why ``git worktree remove`` would refuse a worktree that passed the test.
+
+    The test, shared with ``clean-container``, treats untracked files as
+    scratch; git keeps them, so the worktree stays (keyword: clean-worktrees).
+    Asked only when the test passed, so no tracked file is changed and every
+    file ``git status`` lists is untracked.
+
+    Args:
+        run: the runner for reads.
+        path: the worktree.
+
+    Returns:
+        The reason, or empty when nothing is untracked.
+    """
+    count = local.uncommitted(run, path)
+    return f"{count} untracked files: git worktree remove refuses them" if count else ""
+
+
 def judge(look: dead.Look, now: datetime.datetime, each: Finished) -> Judged:
     """Apply the safety test to one finished worktree.
 
@@ -99,7 +120,8 @@ def judge(look: dead.Look, now: datetime.datetime, each: Finished) -> Judged:
     """
     cutoff = now.timestamp() - look.settings.idle_hours * 3600
     held, kept, found = dead.verdict(look, each.worktree.path, cutoff)
-    return Judged(found=each, size=found.size, why=held or kept)
+    why = held or kept or untracked(look.run, each.worktree.path)
+    return Judged(found=each, size=found.size, why=why)
 
 
 def stale_lines(look: dead.Look, now: datetime.datetime) -> Sequence[str]:

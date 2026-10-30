@@ -383,8 +383,14 @@ PRESSURE`` line and the removal of worktrees (``worktrees.py``) all call it. So 
 finished worktree is kept when anything in it changed in the last ``idle_hours``
 (by file times, because a new worktree's tip is an old commit), when it holds a
 ``.pitboss-live`` marker or is a live path, when it is a link or holds a mount
-point, when a commit in it is on no remote branch, or when a tracked file in it
-is changed (untracked files are scratch). ``[clean] worktrees`` chooses what a
+point, when it is or holds the directory the command runs in (``PWD`` or the
+process's own), when a commit in it is on no remote branch, or when a tracked
+file in it is changed (untracked files are scratch to the test). A finished
+worktree that passes the test but holds untracked files is kept too, with their
+count, because ``git worktree remove`` refuses it without ``--force``, which
+pitboss never passes. A worktree on no branch or on the base branch is finished
+when its tip is in the base branch, unlike a checkout of **Dead paths**, so a
+persistent one carries ``.pitboss-live``. ``[clean] worktrees`` chooses what a
 sweep does with the finished worktrees: ``auto`` (the default) removes each that
 passes, one at a time, judging it right before its ``git worktree remove``,
 and prints ``REMOVED WORKTREE <dir> (<reason>)`` or, for one that fails,
@@ -414,7 +420,9 @@ branch, or whose repository could not be fetched is not judged), ``dead_scratch`
 the root files above; the pressure scan lists the same three sources. A path
 is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
 depth or in a directory above it, a path of ``[clean] live``, the main clone, or
-one that holds or lies in such a path), when it is a symbolic link, or when
+one that holds or lies in such a path), when it is a symbolic link, when it is
+or holds the directory the command runs in (``PWD`` or the process's own, so a
+sweep never removes the worktree it runs from), or when
 anything in it changed in the last ``idle_hours`` (by file times, in the whole-tree
 walk below; this also holds for the root files; ``.git`` contents do not count, as a fetch
 changes them). One whole-tree walk (``survey``) measures a path and finds, at

@@ -9,6 +9,7 @@ import concurrent.futures
 import dataclasses
 import datetime
 import logging
+import os
 import pathlib
 import subprocess
 import time
@@ -76,6 +77,21 @@ def working_directory(args: argparse.Namespace) -> pathlib.Path:
         ``PWD`` of the environment, else the current directory.
     """
     return pathlib.Path(args.env.get("PWD", "."))
+
+
+def running_in(args: argparse.Namespace) -> frozenset[pathlib.Path]:
+    """The directories a command runs in, which no removal may take.
+
+    ``PWD`` (the shell's) and the process's own: a sweep or a cleaning keeps a
+    path that is or holds either (keyword: clean-worktrees).
+
+    Args:
+        args: the parsed arguments.
+
+    Returns:
+        The directories.
+    """
+    return frozenset({working_directory(args), pathlib.Path(os.getcwd())})
 
 
 def load_settings(args: argparse.Namespace) -> config.Config:
@@ -247,6 +263,7 @@ def _look(found: Context) -> dead.Look:
         github=found.github,
         settings=found.settings,
         clean=found.clean,
+        working=running_in(found.args),
     )
 
 

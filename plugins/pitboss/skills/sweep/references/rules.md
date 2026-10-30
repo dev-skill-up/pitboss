@@ -857,7 +857,9 @@ compaction.
   incremental; a run over a population there is a seeded sample (`ci.md`,
   "Check locally before every push").
 - Nobody deletes the persistent checkout: the worktree a worker reuses, the one
-  whose PR merged last, or the orchestrator's own. Another worktree is removed
+  whose PR merged last, or the orchestrator's own; each carries a `.pitboss-live`
+  marker, because a sweep removes a finished worktree that has none (below).
+  Another worktree is removed
   only when its work is finished and on GitHub (its PR merged or closed, or its
   tip in the default branch) and it passes the safety test below; a worktree of
   a ticket in flight is never removed. A sweep removes such a worktree itself
@@ -867,7 +869,10 @@ compaction.
   with the reason, so no line is left for the orchestrator to act on
   (`pitboss clean-worktrees`, `pitboss clean-container`). The test is one: no
   commit on no remote branch, no changed tracked file, nothing changed in the
-  idle hours, and nothing marked live. The persistent checkout, a running agent's
+  idle hours, nothing marked live, no symbolic link or mount point, and not the
+  directory the command runs in or a directory above it. A finished worktree
+  with untracked files is kept too, because `git worktree remove` refuses it.
+  The persistent checkout, a running agent's
   checkout and a shared cache are marked live (a file named `.pitboss-live` in
   the directory or anywhere in it, or in a directory above it, or a path under
   `[clean] live`), and nothing marked is ever listed for removal: a persistent
