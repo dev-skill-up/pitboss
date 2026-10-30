@@ -22,10 +22,6 @@ from typing import AbstractSet, Iterable, Mapping, Sequence
 
 from . import config, ghapi, ledger, parsing, pulls, shapes, steps
 
-# The steps that hold a PR: it is offered for no round, not even an update.
-HELD = frozenset(
-    {steps.Step.WAIT_FOR_OWNER, steps.Step.OPUS_RULING, steps.Step.PAUSE_FOR_OWNER}
-)
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
 
@@ -37,7 +33,6 @@ class Category(enum.IntEnum):
         FIX_REVIEW: an author fixes what a review asked for (a PR).
         REVISE_PLAN: an author revises the plan a review did not approve, and
             touches nothing else (a PR).
-        UPDATE: an author merges the base into a PR that is behind it (a PR).
         REVIEW: a reviewer (never the author) reviews a green head (a PR).
         NEW_PR: a worker starts a ticket (after every PR).
         FIX_CI: an author fixes a red CI, which is no rejection (a PR).
@@ -49,7 +44,6 @@ class Category(enum.IntEnum):
 
     FIX_REVIEW = 1
     REVISE_PLAN = 2
-    UPDATE = 3
     REVIEW = 4
     NEW_PR = 5
     FIX_CI = 6
@@ -78,14 +72,11 @@ class Item:
     labels: AbstractSet[str] = frozenset()
 
 
-def pull_items(
-    facts: Iterable[pulls.PullFacts], settings: config.Config
-) -> Sequence[Item]:
-    """The fixes, updates and reviews the open PRs need.
+def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
+    """The fixes and reviews the open PRs need, as their steps say.
 
     Args:
         facts: the open PRs.
-        settings: the configuration.
 
     Returns:
         The items.
@@ -98,7 +89,7 @@ def pull_items(
             title=pull.pull.title,
         )
         for pull in facts
-        if (category := _category(pull, settings)) is not None
+        if (category := _category(pull)) is not None
     ]
 
 
@@ -110,14 +101,11 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
 }
 
 
-def _category(pull: pulls.PullFacts, settings: config.Config) -> Category | None:
+def _category(pull: pulls.PullFacts) -> Category | None:
     step = pull.step
     if step.step is steps.Step.WORKER:
         return CATEGORY_OF_TASK.get(step.task, Category.FIX_REVIEW)
-    if step.step in HELD:
-        return None
-    if pulls.needs_update(pull, settings):
-        return Category.UPDATE
+    # review-flow: the step alone decides, so ``next`` and ``slots next`` agree
     return Category.REVIEW if step.step is steps.Step.REGULAR_REVIEW else None
 
 
@@ -261,7 +249,7 @@ def queued(
     facts = pulls.readable(found)
     tickets = ticket_items(github, settings, taken(facts))
     items = [
-        *pull_items(facts, settings),
+        *pull_items(facts),
         *(tickets if len(facts) == len(found) else ()),
     ]
     return ordered(items, [slot.task for slot in book.slots if slot.agent])

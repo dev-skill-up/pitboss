@@ -69,6 +69,11 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     ]
     head = {"sha": HEAD, "ref": "branch-3"}
     here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, head=head, **changes)
+    compare = f"{world.PROJECT}/compare/main..."
+    authored = {"sha": "1", "parents": [{"sha": "0"}]}
+    fix = {"sha": "2", "parents": [{"sha": "1"}]}
+    here.bodies[compare + HEAD] = {"commits": [authored, fix]}
+    here.bodies[compare + OLDER] = {"commits": [authored]}
     return here
 
 

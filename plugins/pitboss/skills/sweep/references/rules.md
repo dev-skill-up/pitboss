@@ -76,8 +76,8 @@ compaction.
      or `PAUSE` waits for the ruling or the owner first;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push; the `UPDATE` line of a
-     sweep, kind `update` in `slots next` unless a review asks for changes on
-     its head); where a merge queue builds each
+     sweep; `slots next` lists the PR by the flow's step alone, which has no
+     update step); where a merge queue builds each
      entry on the current base (`[merge_queue] repositories`), behind is no
      work (see "Merge conflicts");
    - green on its exact head with no review of that head, or only one that
@@ -89,8 +89,8 @@ compaction.
 
    Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE` or `PAUSE` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
-   that need a fix of a review, a revision of the plan, an update or a review,
-   oldest first with the kind shown on each line, and then the tickets by
+   that need a fix of a review, a revision of the plan or a review (the kind
+   is the flow's step), oldest first with the kind shown on each line, and then the tickets by
    priority label and age. A
    red CI, a conflict and a merge are not `NEXT` lines but the `FAILED`,
    `CONFLICT`, `READY TO MERGE` and `MERGE BY HAND` lines of the sweep. A

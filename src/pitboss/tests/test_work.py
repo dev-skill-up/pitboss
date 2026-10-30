@@ -122,10 +122,7 @@ class TestPullItems(unittest.TestCase):
     def test_categories(self) -> None:
         """A PR is listed as the kind of work its step is, or as none."""
         found = [
-            [
-                each.category
-                for each in work.pull_items([stepped(facts(1, NONE), step)], SETTINGS)
-            ]
+            [each.category for each in work.pull_items([stepped(facts(1, NONE), step)])]
             for step, _ in STEP_CASES
         ]
         expected = [[kind] if kind else [] for _, kind in STEP_CASES]
@@ -137,22 +134,13 @@ class TestPullItems(unittest.TestCase):
             [
                 each.category
                 for each in work.pull_items(
-                    [stepped(facts(1, NONE, mergeable_state="behind"), step)], SETTINGS
+                    [stepped(facts(1, NONE, mergeable_state="behind"), step)]
                 )
             ]
             for step, _ in STEP_CASES
         ]
         expected = [[kind] if kind else [] for _, kind in STEP_CASES]
         assert_that(found, equal_to(expected))
-
-    def test_a_held_pr_is_not_updated_either(self) -> None:
-        """A ruling, a pause or the owner holds a PR that is behind the base."""
-        held = [steps.opus_ruling(), steps.pause_for_owner(), steps.wait_for_owner()]
-        behind = [
-            stepped(facts(1, NONE, mergeable_state="behind"), step) for step in held
-        ]
-        found = [work.pull_items([each], SETTINGS) for each in behind]
-        assert_that(found, equal_to([[], [], []]))
 
 
 def _issue(number: int, body: str) -> dict[str, object]:
@@ -216,29 +204,25 @@ class TestOrderAndAssign(unittest.TestCase):
             newer,
             item("a", work.Category.NEW_PR),
             item("x", work.Category.REVIEW),
-            item("u", work.Category.UPDATE),
             item("held", work.Category.FIX_REVIEW),
         ]
         found = work.ordered(items, ["held"])
-        assert_that(
-            [each.reference for each in found], equal_to(["x", "u", "a", "b", "c"])
-        )
+        assert_that([each.reference for each in found], equal_to(["x", "a", "b", "c"]))
 
     def test_order_across_kinds(self) -> None:
-        """An older review comes before a newer update, an older update before a fix."""
+        """A review comes before a fix and a fix before a ticket, whatever the age."""
         items = [
             dataclasses.replace(item(name, category), created_at=created)
             for name, category, created in [
                 ("ticket", work.Category.NEW_PR, "2020"),
                 ("fix", work.Category.FIX_REVIEW, "2026-03"),
-                ("update", work.Category.UPDATE, "2026-02"),
                 ("review", work.Category.REVIEW, "2026-01"),
             ]
         ]
         found = work.ordered(items, [])
         assert_that(
             [each.reference for each in found],
-            equal_to(["review", "update", "fix", "ticket"]),
+            equal_to(["review", "fix", "ticket"]),
         )
 
     def test_smallest_model(self) -> None:

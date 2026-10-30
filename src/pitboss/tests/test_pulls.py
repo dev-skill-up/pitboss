@@ -158,22 +158,15 @@ def step_after_two_rejections(since_head: Sequence[object]) -> steps.Next:
     Returns:
         The step of the project PR.
     """
+    rejections = [rejection(fakes.OLDER, "approved", 1), rejection(fakes.HEAD, None, 2)]
+    green = {"check_runs": [check(1, "success", "2026-10-01T00:00:00Z")]}
     found = bodies(since_head)
     found.update(
         fakes.bodies_under(
             "repos/owner/project",
             [
-                (
-                    "issues/1/comments",
-                    [
-                        rejection(fakes.OLDER, "approved", 1),
-                        rejection(fakes.HEAD, None, 2),
-                    ],
-                ),
-                (
-                    f"commits/{fakes.HEAD}/check-runs",
-                    {"check_runs": [check(1, "success", "2026-10-01T00:00:00Z")]},
-                ),
+                ("issues/1/comments", rejections),
+                (f"commits/{fakes.HEAD}/check-runs", green),
             ],
         )
     )

@@ -341,8 +341,8 @@ CONFIG TICKET`` scans the open PRs of the configuration once, picks the PR whose
 body says ``Fixes`` the ticket and prints its step, and for a ticket no PR fixes
 the first step. The sweep's ``RULING DUE``, ``PAUSE``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
-GitHub's own reviews have no ``Plan:`` line and count in no plan rejection. A PR
-with either marker is offered for no fix, update or review round in ``slots
+GitHub's own reviews are no regular review and count nowhere in the flow. A PR
+with either marker is offered for no fix or review round in ``slots
 next``, and its ticket stays taken.
 
 **tracefs.** ``sweep``, ``pressure`` and every ``slots`` action first make
@@ -475,10 +475,10 @@ refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``m
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
-line saying why it is where it is. The open PRs that need a fix of a review, an
-update or a review come first, in one list ordered oldest first, whatever each
-needs; each line says which of the four kinds it is, and a PR is listed once,
-as the first of these kinds that fits:
+line saying why it is where it is. The open PRs that need a fix of a review, a
+revision of the plan or a review come first, in one list ordered oldest first,
+whatever each needs; each line says which kind it is, the kind being the flow's
+step alone (``pitboss next`` prints the same step), and a PR is listed once:
 
 * ``revise the plan``: a review that asked for changes on an unmoved head
   graded the plan changes needed (keyword: plan-revision, pitboss#82); the
@@ -487,15 +487,11 @@ as the first of these kinds that fits:
   the plan alone;
 * ``fix the review``: the author's fix for a review that asked for changes, on
   an unmoved head, that did not reject the plan;
-* ``update``: a PR whose ``mergeable_state`` is ``behind`` and whose checks
-  have all finished (a behind PR whose checks still run is not listed; one in
-  a repository under ``[merge_queue] repositories`` is never an update).
-  ``pitboss sweep`` prints it as an ``UPDATE`` line;
 * ``review it``: a review of a PR whose checks are all green on its head and
   which has no review of that head, or only one that approved the plan alone
   (the reviewer is never the author).
 
-A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of the four.
+A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR.

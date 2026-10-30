@@ -188,7 +188,7 @@ def pull_bodies(
     branch = {"sha": head, "ref": f"branch-{number}"}
     details = fakes.pull_body(number, head=branch, mergeable_state=state)
     pages = [
-        (f"issues/{number}/comments", [COMMENT] if library else []),
+        (f"issues/{number}/comments", [COMMENT] if library or number == 2 else []),
         (f"pulls/{number}/reviews", [APPROVAL] if number == 2 else []),
         (f"commits/{head}/check-runs", {"check_runs": checks}),
     ]

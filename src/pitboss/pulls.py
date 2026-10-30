@@ -174,8 +174,6 @@ class Source:
 
 
 def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
-    if repo.slug in source.review.gated:
-        return False
     compare = f"repos/{repo.slug}/compare/{pull.base}..."
     since_base = ghapi.get(source.github, compare + pull.head.sha)
     reviewed = ghapi.get(source.github, compare + sha)
@@ -205,6 +203,7 @@ def _standing(
         and standing is reviews.Standing.OLDER_HEAD
         and found.verdict is reviews.Verdict.APPROVED
         and not reviews.plan_only(found)
+        and repo.slug not in source.review.gated
     )
     if older_approval and found and _carries(source, repo, pull, found.sha):
         return reviews.Standing.APPROVED_BEFORE_MERGES
@@ -256,6 +255,7 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         comments=got.posted.comments,
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
+        merges_only_since=lambda sha: _carries(source, repo, got.pull, sha),
     )
 
 

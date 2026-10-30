@@ -149,8 +149,8 @@ class TestQuestions(unittest.TestCase):
             (state(graded(CHANGES, None, 1)), False),
             (state(short, again), False),
             (state(), False),
-            (state(first, again, merged_heads={OLDER}), False),
-            (state(first, again, merged_heads={"1" * 40}), True),
+            (test_flow.merged(state(first, again), OLDER), False),
+            (test_flow.merged(state(first, again), "1" * 40), True),
         ]
         check(flow.execution_fixed_since_plan_approval, cases)
 

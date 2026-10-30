@@ -100,7 +100,6 @@ def state(
     checks: Sequence[shapes.CheckRun] = (GREEN,),
     labels: AbstractSet[str] = frozenset(),
     undraft_clear: bool = False,
-    merged_heads: AbstractSet[str] = frozenset(),
     **changes: object,
 ) -> flow.PullState:
     """The recorded data of one PR.
@@ -111,8 +110,6 @@ def state(
         checks: the check runs of its head.
         labels: its labels.
         undraft_clear: whether the runners allow an undraft.
-        merged_heads: the reviewed heads the current head differs from by
-            merge commits only.
         **changes: changes to the PR's JSON.
 
     Returns:
@@ -126,8 +123,20 @@ def state(
         comments=comments,
         trusted=frozenset({"MEMBER"}),
         undraft_clear=undraft_clear,
-        merged_heads=merged_heads,
     )
+
+
+def merged(pr: flow.PullState, *heads: str) -> flow.PullState:
+    """A PR whose current head differs from reviewed heads by merges only.
+
+    Args:
+        pr: the PR.
+        *heads: the reviewed heads a merge of the base alone moved on from.
+
+    Returns:
+        The PR with that recorded.
+    """
+    return dataclasses.replace(pr, merges_only_since=lambda sha: sha in heads)
 
 
 def github_review(
@@ -292,5 +301,5 @@ class TestBranches(unittest.TestCase):
     def test_a_base_merge_is_no_fix(self) -> None:
         """A rejected execution, a merge of the base, rejected again: the worker."""
         first = graded(*EXECUTION_REJECTED, 1, sha=OLDER)
-        merged = state(first, graded(None, CHANGES, 2), merged_heads={OLDER})
-        expect(steps.worker(Task.FIX_EXECUTION), merged)
+        rejected = state(first, graded(None, CHANGES, 2))
+        expect(steps.worker(Task.FIX_EXECUTION), merged(rejected, OLDER))

@@ -48,9 +48,8 @@ class PullState:
         trusted: the author associations whose comments count.
         undraft_clear: whether the runner pressure and the quiet period allow
             an undraft now (read by the caller; the flow does not look).
-        merged_heads: the reviewed heads (possibly abbreviated) that the
-            current head differs from by merge commits only (read by the
-            caller from the comparison with the base).
+        merges_only_since: says whether the current head differs from a
+            reviewed head by merge commits only (the caller reads the base).
     """
 
     pull: shapes.Pull
@@ -60,7 +59,7 @@ class PullState:
     comments: Sequence[shapes.Comment]
     trusted: AbstractSet[str]
     undraft_clear: bool = False
-    merged_heads: AbstractSet[str] = frozenset()
+    merges_only_since: Callable[[str], bool] = lambda sha: False
 
 
 def _regular_reviews(pr: PullState) -> Sequence[Graded]:
@@ -85,19 +84,20 @@ def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
 
 
 def newest_counting_review(pr: PullState) -> Graded | None:
-    """The newest review of the current head.
+    """The newest regular review of the current head.
 
-    A revision of the plan ends with an empty commit, so the review of a
-    plan that was revised names an older head and does not count; the plan's
-    approval is carried by ``plan_approved``.
+    A GitHub review is no regular review (the pseudo code reads regular
+    reviews only, as every other question here does). A revision of the plan
+    ends with an empty commit, so the review of a plan that was revised names
+    an older head and does not count; ``plan_approved`` carries its approval.
 
     Args:
         pr: the PR.
 
     Returns:
-        The review, or None when no review names the current head.
+        The review, or None when no regular review names the current head.
     """
-    found = _of_head(pr, pr.graded)
+    found = _of_head(pr, _regular_reviews(pr))
     return max(found, key=lambda each: each.when, default=None)
 
 
@@ -199,22 +199,22 @@ def execution_fixed_since_plan_approval(pr: PullState) -> bool:
     """Whether a worker pushed an execution fix after the plan was approved.
 
     Read from the reviews: the execution was graded changes needed on the
-    approved plan at a head other than the current one, so the head moved
-    since (a merge of the base moves it too).
+    approved plan at a head that more than merge commits separate from the
+    current one (a merge of the base is no fix: ``merges_only_since``).
 
     Args:
         pr: the PR.
 
     Returns:
-        True when an earlier execution rejection names another head.
+        True when an earlier execution rejection names such a head.
     """
     approved = False
-    rejected: list[Graded] = []
     for each in _regular_reviews(pr):
         approved = approved or each.plan is Verdict.APPROVED
-        if approved and each.execution is Verdict.CHANGES_NEEDED:
-            rejected.append(each)
-    return len(_of_head(pr, rejected)) < len(rejected)
+        rejecting = approved and each.execution is Verdict.CHANGES_NEEDED
+        if rejecting and not (_of_head(pr, [each]) or pr.merges_only_since(each.sha)):
+            return True
+    return False
 
 
 def ci_result(pr: PullState) -> Ci | None:
@@ -267,7 +267,7 @@ def plan_rejected_again(pr: PullState) -> bool:
     Returns:
         True from the second rejection on.
     """
-    return get_plan_rejections(pr) != 1
+    return get_plan_rejections(pr) >= 2
 
 
 def rejected(
