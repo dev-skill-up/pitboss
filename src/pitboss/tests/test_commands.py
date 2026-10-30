@@ -173,6 +173,16 @@ class TestSweep(unittest.TestCase):
         )
         assert_that((found, result.code), equal_to((([], []), 1)))
 
+    def test_sweep_names_an_orphaned_checkout(self) -> None:
+        """A worktree whose main checkout is gone is named, not a traceback (#98)."""
+        here = world.make_world()
+        here.bodies[OPEN_PULLS] = [{"number": 2}]
+        fakes.make_orphaned(here.workspace, "orphan-98")
+        result = sweep(here)
+        expected = f"ORPHANED CHECKOUT {here.workspace}/orphan-98"
+        found = (expected in result.out, "Traceback" in result.err, result.code)
+        assert_that(found, equal_to((True, False, 0)))
+
     def test_sweep_says_why(self) -> None:
         """A failed check's line says its failed step, output and annotations."""
         expected = (
