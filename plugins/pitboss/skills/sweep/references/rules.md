@@ -572,6 +572,17 @@ compaction.
   reading its current text in full, and send the complete replacement text,
   never a placeholder; when the full original is not at hand, correct it with
   a new comment.`
+- **A denied command is retried as the allow list's equivalent** (owner,
+  2026-10-30: it holds for any command and any repository). When the
+  permission classifier denies a command, the agent then looks in the
+  repository's Claude Code settings file, in its allow list, for an equivalent allowed
+  form and runs that exact string. The lookup is after the denial, never before
+  running (the classifier's verdict cannot be known in advance), and it is not
+  pitboss output (pitboss cannot see the allow list). Only when no entry fits
+  does the agent ask the owner to widen the list. A worker brief says:
+  `Denied: when the classifier denies a command, look in the repository's
+  Claude Code settings file's allow list for an equivalent allowed form and run that
+  exact string; ask the owner to widen the list only when no entry fits.`
 - **A worker and a reviewer brief begin with the one-PR check.** `One PR: first
   confirm that the ticket can be satisfied by one PR. If it can, do the whole
   ticket in one PR. If it cannot, hand back NOT STARTED with the evidence
