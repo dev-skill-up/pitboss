@@ -107,6 +107,20 @@ def limits_as_posted(comments: Sequence[shapes.Comment]) -> Sequence[roundlimit.
     return [limit_after(*comments[: count + 1]) for count in range(len(comments))]
 
 
+def reworded(posted: shapes.Comment, old: str, new: str) -> shapes.Comment:
+    """A comment with one phrase of its body replaced.
+
+    Args:
+        posted: the comment.
+        old: the text to replace.
+        new: its replacement.
+
+    Returns:
+        The changed comment.
+    """
+    return dataclasses.replace(posted, body=posted.body.replace(old, new))
+
+
 REACHED = [graded(*PLAN_REJECTED, 1), graded(*PLAN_APPROVED_EXECUTION_REJECTED, 2)]
 
 
@@ -180,25 +194,14 @@ class TestReading(unittest.TestCase):
     def test_a_gated_repository_reads_the_strict_form(self) -> None:
         """Where gated, only the gated form read strictly counts."""
         rejected = REACHED[1]
-        gated = dataclasses.replace(
-            rejected, body=rejected.body.replace("## Review", "## Gated review")
-        )
-        short_sha = "a" * 7
+        gated = reworded(rejected, "## Review", "## Gated review")
+        shortened = ("a" * 40, "a" * 7)
         found = [
             limit_after(gated, slug="owner/gated"),
-            limit_after(
-                dataclasses.replace(
-                    gated, body=gated.body.replace("a" * 40, short_sha)
-                ),
-                slug="owner/gated",
-            ),
+            limit_after(reworded(gated, *shortened), slug="owner/gated"),
             limit_after(rejected, slug="owner/gated"),
             limit_after(gated),
-            limit_after(
-                dataclasses.replace(
-                    rejected, body=rejected.body.replace("a" * 40, short_sha)
-                )
-            ),
+            limit_after(reworded(rejected, *shortened)),
         ]
         assert_that(found, equal_to([DUE, NONE, NONE, NONE, DUE]))
 
