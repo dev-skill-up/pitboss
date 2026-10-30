@@ -8,7 +8,7 @@ Each row of the owner's table goes through ``next_step`` on recorded PR data
 import dataclasses
 import json
 import unittest
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -98,6 +98,8 @@ def state(
     *recorded: shapes.Graded,
     comments: Sequence[shapes.Comment] = (),
     checks: Sequence[shapes.CheckRun] = (GREEN,),
+    labels: AbstractSet[str] = frozenset(),
+    undraft_clear: bool = False,
     **changes: object,
 ) -> flow.PullState:
     """The recorded data of one PR.
@@ -106,6 +108,8 @@ def state(
         *recorded: the reviews that count.
         comments: its issue comments.
         checks: the check runs of its head.
+        labels: its labels.
+        undraft_clear: whether the runners allow an undraft.
         **changes: changes to the PR's JSON.
 
     Returns:
@@ -113,25 +117,13 @@ def state(
     """
     return flow.PullState(
         pull=pull_of(**changes),
-        labels=frozenset(),
+        labels=labels,
         checks=checks,
         graded=recorded,
         comments=comments,
         trusted=frozenset({"MEMBER"}),
+        undraft_clear=undraft_clear,
     )
-
-
-def altered(pr: flow.PullState, **fields: object) -> flow.PullState:
-    """A state with fields of its own changed.
-
-    Args:
-        pr: the state.
-        **fields: the fields to change.
-
-    Returns:
-        The state.
-    """
-    return dataclasses.replace(pr, **fields)
 
 
 def expect(want: steps.Next, pr: flow.PullState) -> None:
@@ -198,7 +190,7 @@ class TestBranches(unittest.TestCase):
     def test_a_paused_pr_waits_for_the_owner(self) -> None:
         """Before anything else, whatever the body is."""
         labels = frozenset({steps.PAUSED_LABEL})
-        expect(steps.wait_for_owner(), altered(state(body=""), labels=labels))
+        expect(steps.wait_for_owner(), state(body="", labels=labels))
 
     def test_no_plan_and_execution_body_is_the_first_work(self) -> None:
         """The worker writes the body, before any review or gate."""
@@ -207,8 +199,8 @@ class TestBranches(unittest.TestCase):
 
     def test_a_draft_is_undrafted_when_it_can_be(self) -> None:
         """Before any CI wait or review."""
-        draft = state(checks=(), draft=True)
-        expect(steps.undraft(), altered(draft, undraft_clear=True))
+        draft = state(checks=(), draft=True, undraft_clear=True)
+        expect(steps.undraft(), draft)
 
     def test_a_draft_whose_plan_is_not_approved_gets_a_plan_review(self) -> None:
         """No CI gate on a draft; the Plan only."""

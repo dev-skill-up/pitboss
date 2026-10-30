@@ -14,7 +14,6 @@ GREEN = test_flow.GREEN
 OLDER = test_flow.OLDER
 RED = test_flow.RED
 RUNNING = test_flow.RUNNING
-altered = test_flow.altered
 graded = test_flow.graded
 state = test_flow.state
 
@@ -52,7 +51,7 @@ class TestQuestions(unittest.TestCase):
 
     def test_is_paused_for_owner(self) -> None:
         """The paused-owner label pauses a PR."""
-        labelled = altered(state(), labels=frozenset({"paused-owner", "x"}))
+        labelled = state(labels=frozenset({"paused-owner", "x"}))
         check(flow.is_paused_for_owner, [(labelled, True), (state(), False)])
 
     def test_has_plan_execution_body(self) -> None:
@@ -69,7 +68,7 @@ class TestQuestions(unittest.TestCase):
 
     def test_can_undraft(self) -> None:
         """Undrafting is the runners' say, read by the caller."""
-        clear = altered(state(), undraft_clear=True)
+        clear = state(undraft_clear=True)
         check(flow.can_undraft, [(clear, True), (state(), False)])
 
     def test_has_conflict(self) -> None:

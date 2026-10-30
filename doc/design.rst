@@ -283,8 +283,8 @@ a stall before every other pull request but the merge of a ready one, unless the
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
-current base), then ``RULING DUE`` or ``PAUSE`` (``pitboss.roundlimit`` reads
-the PR's comments, ``pitboss.roundline`` prints; see **Review rounds** below), then
+current base), then ``RULING DUE`` or ``PAUSE`` (``pitboss.flow.next_step`` gives the step,
+``pitboss.roundline`` prints; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, and the review of a revised plan are started by its author's
@@ -324,25 +324,24 @@ which grades the plan alone) stands ``plan-approved``, is no approval to merge,
 is not carried over merges of the base, and gets no ``AUTO MERGE OFF`` line
 (auto-merge is never armed on it, as on any head without an approving review). Both words are on the PR's line.
 
-**Review rounds** (keyword: round-limit, pitboss#76). The skill's rules call for an
-Opus ruling when the plan is not approved after two reviews, or when a review asks
-for changes after the plan was approved, and for a pause when a review asks for
-changes again after the ruling. The sweep reads that from the PR's comments, with
-the reader of the repository's review form (strict where gated), only comments by
-trusted authors, in the order written. A review has a plan grade, its ``Plan:
-approved`` or ``Plan: changes needed`` line (the form's two verdict words; no such
-line says nothing of the plan), and its verdict. The plan rejections are the plan
-grades of changes needed before any grade of approved. The limit is reached at the
-second plan rejection, or at a review that asks for changes once a review (that
-one included) graded the plan approved. A ruling is a comment whose first line is
-exactly ``Opus ruling``. When the newest review that counts (**Reviews**, above:
-a trusted GitHub review too, outside a gated repository) does not ask for
-changes, nothing is printed. Otherwise the rounds are judged by the newest
-review comment: if it does not ask for changes, nothing is printed; if it asks
-for changes after a recorded ruling, the line is ``PAUSE``; if the limit is
-reached and no ruling is recorded, ``RULING DUE``; a ruling after the newest
-review leaves nothing printed until the next review. GitHub's own reviews have
-no ``Plan:`` line and count in no round. A PR
+**Review flow** (keyword: review-flow, pitboss#107). The step a PR is at is one
+function, ``pitboss.flow.next_step``, the owner's pseudo code branch for branch
+(the lint cuts it at its own section comments, each ending in a call to the
+next). Every question it asks is a function of its own in ``pitboss.flow``,
+answered from what is recorded of the PR in a ``PullState`` (its body, labels,
+comments, reviews as ``Graded`` and checks): ``is_paused_for_owner``,
+``newest_counting_review``, ``has_plan_execution_body``, ``is_draft``,
+``can_undraft``, ``plan_approved``, ``get_plan_rejections``, ``opus_used``,
+``execution_fixed_since_plan_approval``, ``ci_result`` and ``has_conflict``.
+The steps are in ``pitboss.steps`` and what follows an Opus ruling is
+``pitboss.rulings.after_opus_ruling``. Only comments by trusted authors count,
+read with the reader of the repository's review form (strict where gated); a
+ruling is a comment whose first line is exactly ``Opus ruling``. ``pitboss next
+CONFIG TICKET`` scans the open PRs of the configuration once, picks the PR whose
+body says ``Fixes`` the ticket and prints its step, and for a ticket no PR fixes
+the first step. The sweep's ``RULING DUE``, ``PAUSE``, ``revise the plan``,
+``fix the review`` and ``review it`` lines and ``slots next`` take that step.
+GitHub's own reviews have no ``Plan:`` line and count in no plan rejection. A PR
 with either marker is offered for no fix, update or review round in ``slots
 next``, and its ticket stays taken.
 

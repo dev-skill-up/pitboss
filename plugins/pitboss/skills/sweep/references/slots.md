@@ -74,8 +74,8 @@ estimated.
    relevant is finished (fixed, reviewed, brought up to date, merged),
    whatever its priority, so open PRs do not pile up. A `STALL` fix comes
    before every other pull request but the merge of a ready one (`rules.md`), unless the stalled PR has `RULING DUE` or `PAUSE`.
-   A pull request whose review rounds hit the changes-needed limit
-   (`RULING DUE` or `PAUSE` in the sweep) is not offered for any round until
+   A pull request whose flow step is `OPUS_RULING` or `PAUSE_FOR_OWNER`
+   (`RULING DUE` or `PAUSE` in the sweep; `pitboss.flow.next_step`) is not offered for any round until
    the ruling is recorded or the owner decides.
 3. Then new work, in the order the project requires.
 

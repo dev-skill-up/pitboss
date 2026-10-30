@@ -25,10 +25,25 @@ SLOTS = config.Slots(
 NONE = reviews.Standing.NONE
 
 
+DEFAULT_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+
+
+def stepped(facts: pulls.PullFacts, step: steps.Next) -> pulls.PullFacts:
+    """A PR at another step.
+
+    Args:
+        facts: the PR.
+        step: the step the flow gives it.
+
+    Returns:
+        The PR at that step.
+    """
+    return dataclasses.replace(facts, step=step)
+
+
 def facts(
     number: int,
     standing: reviews.Standing,
-    step: steps.Next = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION),
     **changes: object,
 ) -> pulls.PullFacts:
     """An open, green PR of the project.
@@ -36,7 +51,6 @@ def facts(
     Args:
         number: its number.
         standing: where its head stands.
-        step: the step the flow gives it.
         **changes: changes to its JSON.
 
     Returns:
@@ -49,7 +63,7 @@ def facts(
         checks=(GREEN,),
         review=None,
         standing=standing,
-        step=step,
+        step=DEFAULT_STEP,
     )
 
 
@@ -110,7 +124,7 @@ class TestPullItems(unittest.TestCase):
         found = [
             [
                 each.category
-                for each in work.pull_items([facts(1, NONE, step)], SETTINGS)
+                for each in work.pull_items([stepped(facts(1, NONE), step)], SETTINGS)
             ]
             for step, _ in STEP_CASES
         ]
@@ -120,7 +134,9 @@ class TestPullItems(unittest.TestCase):
     def test_a_held_pr_is_not_updated_either(self) -> None:
         """A ruling, a pause or the owner holds a PR that is behind the base."""
         held = [steps.opus_ruling(), steps.pause_for_owner(), steps.wait_for_owner()]
-        behind = [facts(1, NONE, step, mergeable_state="behind") for step in held]
+        behind = [
+            stepped(facts(1, NONE, mergeable_state="behind"), step) for step in held
+        ]
         found = [work.pull_items([each], SETTINGS) for each in behind]
         assert_that(found, equal_to([[], [], []]))
 

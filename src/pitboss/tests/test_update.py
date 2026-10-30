@@ -31,14 +31,9 @@ def facts(state: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
         The PR.
     """
     done = bool(checks) and all(each.finished for each in checks)
-    step = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
-    green = test_work.facts(
-        3,
-        reviews.Standing.NONE,
-        step if done else steps.wait_for_ci(),
-        mergeable_state=state,
-    )
-    return dataclasses.replace(green, checks=checks)
+    green = test_work.facts(3, reviews.Standing.NONE, mergeable_state=state)
+    step = test_work.DEFAULT_STEP if done else steps.wait_for_ci()
+    return dataclasses.replace(green, checks=checks, step=step)
 
 
 def categories(pull: pulls.PullFacts, extra: str = "") -> Sequence[work.Category]:
