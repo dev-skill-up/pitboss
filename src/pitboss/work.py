@@ -2,10 +2,12 @@
 
 The order (work-order): the open PRs that need work come first, in one list,
 oldest first, whatever each needs: the author's fix for a review that asked
-for changes on the PR's current head, an update of a PR that is behind the
-base with its checks finished (never where the repository has a merge queue),
-or a review of a PR that is green on its head and has no review of it. The kind
-is a label on the line, not a rank. A PR with RULING DUE or PAUSE (its review
+for changes on the PR's current head, or, while that review did not approve the
+plan, a revision of the plan and nothing else; an update of a PR that is behind
+the base with its checks finished (never where the repository has a merge
+queue); or a review of a PR that is green on its head and has no review of it
+(a review that approved the plan alone is none of the Execution). The kind is
+a label on the line, not a rank. A PR with RULING DUE or PAUSE (its review
 rounds hit the changes-needed limit) is none of them: it is offered for no
 round until the ruling is recorded or the owner decides. After them come the
 new PRs, one for each open ticket with a priority label that no open PR names,
@@ -31,15 +33,18 @@ class Category(enum.IntEnum):
 
     Attributes:
         FIX_REVIEW: an author fixes what a review asked for (a PR).
+        REVISE_PLAN: an author revises the plan a review did not approve, and
+            touches nothing else (a PR).
         UPDATE: an author merges the base into a PR that is behind it (a PR).
         REVIEW: a reviewer (never the author) reviews a green head (a PR).
         NEW_PR: a worker starts a ticket (after every PR).
     """
 
     FIX_REVIEW = 1
-    UPDATE = 2
-    REVIEW = 3
-    NEW_PR = 4
+    REVISE_PLAN = 2
+    UPDATE = 3
+    REVIEW = 4
+    NEW_PR = 5
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -90,6 +95,8 @@ def pull_items(
 def _category(pull: pulls.PullFacts, settings: config.Config) -> Category | None:
     if pull.limit is not roundlimit.Limit.NONE:
         return None
+    if pulls.plan_rejected(pull):
+        return Category.REVISE_PLAN
     if pulls.changes_needed(pull):
         return Category.FIX_REVIEW
     if pulls.needs_update(pull, settings):
@@ -100,7 +107,11 @@ def _category(pull: pulls.PullFacts, settings: config.Config) -> Category | None
 
 
 def _awaits_review(pull: pulls.PullFacts) -> bool:
-    unreviewed = pull.standing in (reviews.Standing.NONE, reviews.Standing.OLDER_HEAD)
+    unreviewed = pull.standing in (
+        reviews.Standing.NONE,
+        reviews.Standing.OLDER_HEAD,
+        reviews.Standing.PLAN_APPROVED,
+    )
     return (
         unreviewed
         and pulls.green(pull)
