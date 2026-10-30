@@ -221,6 +221,7 @@ def configure(workspace: pathlib.Path) -> pathlib.Path:
     """
     ledger = workspace / "ledger.json"
     fakes.settings(workspace, EXTRA.format(ledger=ledger))
+    fakes.seed_ledger(ledger, ("tiny", "big"))
     return ledger
 
 

@@ -5,7 +5,10 @@ project's configuration names the models (smallest first, under
 `[slots] models`) and the slots a new ledger starts with
 (`[[slots.default]]`). The ledger, a file outside the repository, records
 which agent is in which slot on which task, and which models have failed
-which tickets.
+which tickets. The owner creates the ledger file and it is authoritative on
+how many slots there are: when it does not exist, every `pitboss slots`
+command except `report` exits 1 with `LEDGER MISSING: <path> does not exist.
+It is authoritative on the slots and the owner creates it`, and writes no file.
 
 ## Commands
 
@@ -18,6 +21,7 @@ which tickets.
 | `pitboss slots remove <config> SLOT` | Remove an empty slot, when the owner lowers the limit. |
 | `pitboss slots failed <config> TICKET MODEL` | A model failed a ticket (a diff that is off target, or a worker that stopped midway); the ticket goes to a larger model next. |
 | `pitboss slots check <config> --running NAME ...` | Give it the names of the agents the session runs; it prints a `GONE AGENT` line for each agent the ledger holds that is not among them. |
+| `pitboss slots check <config> N` | Exits 1 and says the ledger has fewer rows when the ledger has fewer than N rows. |
 | `pitboss slots next <config>` | The sorted list of what to start, and what each empty slot takes. |
 | `pitboss slots heard <config> SLOT` | The agent in the slot handed back or sent a notification (it is still there): the sweep stops listing it as `NO HAND-BACK`. |
 | `pitboss slots wait <config> SLOT` | The agent in the slot waits (on CI, a review or an answer) and does no work. |

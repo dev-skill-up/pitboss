@@ -108,7 +108,22 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
 }
 
 
+def _fewer(found: Context, book: ledger.Ledger) -> None:
+    # A ledger with fewer rows than 'slots check N' expects is refused.
+    words = found.args.words
+    if len(words) > 1 or (words and not words[0].isdigit()):
+        raise _refuse("slots check takes one number of rows, or none")
+    if words and int(words[0]) > len(book.slots):
+        print(
+            f"LEDGER TOO SHORT: the ledger has fewer rows ({len(book.slots)})"
+            f" than the {words[0]} expected",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+
 def _check(found: Context, book: ledger.Ledger) -> None:
+    _fewer(found, book)
     for slot in ledger.gone(book, found.args.running or ()):
         print(
             f"{Marker.GONE_AGENT.text}: slot {slot.name} holds {slot.agent}, which"
@@ -167,6 +182,18 @@ def _report(found: Context) -> None:
         print(line)
 
 
+def _present(found: Context) -> None:
+    # The ledger file is authoritative on the slots: absent, exit 1.
+    path = found.settings.slots.ledger
+    if not path.exists():
+        print(
+            f"LEDGER MISSING: {path} does not exist. It is authoritative on"
+            " the slots and the owner creates it",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+
+
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
@@ -192,10 +219,12 @@ def slots(args: argparse.Namespace) -> None:
     action = Action[args.action.upper()]
     tracefs.say(args.safe_run)
     found = load_context(args)
+    if action is not Action.REPORT:
+        _present(found)
     if action in CHANGES:
         report.print_ledger(_changed(action, found))
     elif action is Action.CHECK:
-        _check(found, _read(found))
+        _check(found, read_ledger(found.settings))
     elif action is Action.REPORT:
         _report(found)
     elif action is Action.NEXT:
