@@ -857,15 +857,22 @@ compaction.
   incremental; a run over a population there is a seeded sample (`ci.md`,
   "Check locally before every push").
 - Nobody deletes the persistent checkout: the worktree a worker reuses, the one
-  whose PR merged last, or the orchestrator's own. Only under disk pressure is
-  another worktree removed, and only one whose work is finished and on
-  GitHub (its PR merged or closed, or its tip in the default branch); a
-  worktree of a ticket in flight is never removed (`pitboss clean-worktrees`,
-  `pitboss clean-container`). The persistent checkout, a running agent's
+  whose PR merged last, or the orchestrator's own. Another worktree is removed
+  only when its work is finished and on GitHub (its PR merged or closed, or its
+  tip in the default branch) and it passes the safety test below; a worktree of
+  a ticket in flight is never removed. A sweep removes such a worktree itself
+  and prints `REMOVED WORKTREE` (`[clean] worktrees = "auto"`, the default; with
+  `"list"` it prints `STALE WORKTREE` and `pitboss clean-worktrees` removes it),
+  and a finished worktree that fails the test stays and prints `KEPT WORKTREE`
+  with the reason, so no line is left for the orchestrator to act on
+  (`pitboss clean-worktrees`, `pitboss clean-container`). The test is one: no
+  commit on no remote branch, no changed tracked file, nothing changed in the
+  idle hours, and nothing marked live. The persistent checkout, a running agent's
   checkout and a shared cache are marked live (a file named `.pitboss-live` in
   the directory or anywhere in it, or in a directory above it, or a path under
-  `[clean] live`), and nothing marked is ever listed for removal; a symbolic
-  link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
+  `[clean] live`), and nothing marked is ever listed for removal: a persistent
+  checkout that is not marked is removed by the next sweep once its PR has
+  merged. A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
   under `[clean] min_free_gib` (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look

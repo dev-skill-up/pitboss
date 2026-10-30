@@ -359,13 +359,22 @@ def mark_live(folder: pathlib.Path) -> None:
 
 
 def crowd(here: world.World, minimum: str) -> None:
-    """Set the free space a sweep wants, in GiB.
+    """Set the free space a sweep wants, in GiB, and have it only list worktrees.
 
     Args:
         here: the world.
         minimum: the TOML number.
     """
-    rewrite(here, f"min_free_gib = {minimum}\n")
+    rewrite(here, f'min_free_gib = {minimum}\nworktrees = "list"\n')
+
+
+def only_list_worktrees(here: world.World) -> None:
+    """Have a sweep list the stale worktrees and not remove them.
+
+    Args:
+        here: the world.
+    """
+    rewrite(here, f'{SETTINGS}worktrees = "list"\n')
 
 
 def bare_mirror(top: pathlib.Path) -> None:

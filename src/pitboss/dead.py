@@ -131,6 +131,29 @@ def hold(look: Look, path: pathlib.Path, cutoff: float) -> tuple[str, survey.Sur
     return next((reason for reason in reasons if reason), ""), found
 
 
+def verdict(
+    look: Look, path: pathlib.Path, cutoff: float
+) -> tuple[str, str, survey.Survey]:
+    """The one safety test: is a path live or in use, and is work only in it.
+
+    ``consider``, ``recheck`` and the removal of finished worktrees all ask this
+    (keyword: clean-container, clean-worktrees).
+
+    Args:
+        look: what to look at and keep.
+        path: the path.
+        cutoff: anything changed after this time is in use.
+
+    Returns:
+        Why the path is live or in use (empty when it is not), why it is not
+        safe to remove (empty when it is; not asked of a held path), and what a
+        walk of it found.
+    """
+    held, found = hold(look, path, cutoff)
+    kept = "" if held else repocheck.trouble(look.run, path, found)
+    return held, kept, found
+
+
 def consider(
     look: Look, path: pathlib.Path, reason: str, cutoff: float
 ) -> Candidate | None:
@@ -145,10 +168,9 @@ def consider(
     Returns:
         The candidate, or None when the path is live or in use.
     """
-    held, found = hold(look, path, cutoff)
+    held, kept, found = verdict(look, path, cutoff)
     if held:
         return None
-    kept = repocheck.trouble(look.run, path, found)
     return Candidate(path=path, size=found.size, reason=reason, kept=kept)
 
 
@@ -166,8 +188,8 @@ def recheck(look: Look, cutoff: float, each: Candidate) -> str:
     """
     if not os.path.lexists(each.path):
         return ""
-    held, found = hold(look, each.path, cutoff)
-    return held or repocheck.trouble(look.run, each.path, found)
+    held, kept, _ = verdict(look, each.path, cutoff)
+    return held or kept
 
 
 def present(made: Iterable[Candidate | None]) -> Sequence[Candidate]:
