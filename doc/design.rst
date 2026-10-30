@@ -48,6 +48,9 @@ What was project-specific, and where it went
      - ``[runners] repositories`` (default: the project and its libraries)
    * - a queue run's 60 minute limit
      - ``[merge_queue] timeout_minutes``
+   * - quire has a merge queue, so a PR that is behind needs no update
+     - ``[merge_queue] repositories`` (default none: a behind PR with finished
+       checks is an update)
    * - three hours of idleness before a worktree is stale
      - ``[worktrees] idle_hours``
    * - ``/tmp/claude-0/slots.tsv``
@@ -80,8 +83,8 @@ and changed:
   ``pitboss review-form CONFIG REPOSITORY``, which prints the form that
   repository's reviews must take, filled in from the config.
 * The order work is taken in (``slots next``) said "p0 before p1 before p2".
-  The order inside the third category is ``priority_labels``; nothing in the
-  code or the references names a label.
+  The order of the tickets, which come after the open PRs, is
+  ``priority_labels``; nothing in the code or the references names a label.
 * ``slots check`` was to list agents "the session no longer runs". Only the
   session can see its agents (``ListAgents``; subagents share one process,
   so ``ps`` cannot count them), so the session passes the names it sees:
@@ -248,7 +251,11 @@ First ``STALL`` (``pitboss.stall``; a PR whose head branch starts with
 been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
-a stall before the other fixes), then
+a stall before every other pull request but the merge of a ready one), then
+``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
+check run of the head has completed and none is pending, and the repository is
+not under ``[merge_queue] repositories``, whose queue builds each entry on the
+current base), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, is started by its author's hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
@@ -336,13 +343,23 @@ refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``m
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
-line saying why it is where it is:
+line saying why it is where it is. The open PRs that need a fix of a review, an
+update or a review come first, in one list ordered oldest first, whatever each
+needs; each line says which of the three kinds it is, and a PR is listed once,
+as the first of these kinds that fits:
 
-1. the author's fix for a review that asked for changes, on an unmoved head;
-2. a review of a PR whose checks are all green on its head and which has no
-   review of that head (the reviewer is never the author);
-3. a new PR: an open ticket of the project or a library, with a priority
-   label, not referenced by an open PR.
+* ``fix the review``: the author's fix for a review that asked for changes, on
+  an unmoved head;
+* ``update``: a PR whose ``mergeable_state`` is ``behind`` and whose checks
+  have all finished (a behind PR whose checks still run is not listed; one in
+  a repository under ``[merge_queue] repositories`` is never an update).
+  ``pitboss sweep`` prints it as an ``UPDATE`` line;
+* ``review it``: a review of a PR whose checks are all green on its head and
+  which has no review of that head (the reviewer is never the author).
+
+After them come the new PRs, ordered by ``priority_labels`` first and then
+oldest first: an open ticket of the project or a library, with a priority
+label, not referenced by an open PR.
 
 **Slot log.** The ledger keeps only the present, and a resumed agent
 overwrites its own timestamps, so idle and waiting time could only be
@@ -361,9 +378,10 @@ that guess on 2026-10-22). Tickets are taken in strict order, every PR
 starts from the base branch (no stacking), and a conflict is resolved by
 merging the base branch in when it arises.
 
-Inside a category, oldest first by the PR's (or the ticket's) creation
-time (the one exception is a ``STALL`` line of the sweep, whose fix the skill's
-rules take before every line of this list); in the third, by ``priority_labels`` first. Each line names the
+The open PRs are ordered oldest first by creation time, and the tickets by
+``priority_labels`` first and then oldest first by creation time (the one
+exception is a ``STALL`` line of the sweep, whose fix the skill's rules take
+before every line of this list). Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty
 slots are filled smallest model first, each with the first line it may take.

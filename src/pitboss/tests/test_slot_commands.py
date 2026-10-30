@@ -78,6 +78,18 @@ def run_all(
     ]
 
 
+def next_output(here: world.World) -> str:
+    """What ``slots next`` prints.
+
+    Args:
+        here: the world.
+
+    Returns:
+        Its output.
+    """
+    return world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE).out
+
+
 def next_lines(here: world.World) -> Sequence[str]:
     """The lines of ``slots next`` that start with a marker, a NEXT line cut short.
 
@@ -87,8 +99,9 @@ def next_lines(here: world.World) -> Sequence[str]:
     Returns:
         The lines.
     """
-    result = world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE)
-    lines = [line for line in result.out.splitlines() if line.startswith(MARKERS)]
+    lines = [
+        line for line in next_output(here).splitlines() if line.startswith(MARKERS)
+    ]
     return [line.split(" (")[0] if line.startswith("NEXT") else line for line in lines]
 
 

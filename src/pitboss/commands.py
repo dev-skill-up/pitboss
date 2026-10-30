@@ -32,7 +32,7 @@ from . import (
     tracefs,
     work,
 )
-from . import stall
+from . import repoarg, stall, updateline
 from .failures import describe, read_all
 from .markers import Marker
 from .running import git
@@ -232,6 +232,8 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
         steps = {check_id: failure.steps for check_id, failure in read.items()}
         for line in stall.lines(pull, found.now, steps):
             print(line)
+        for line in updateline.lines(pull, found.settings):
+            print(line)
         for line in report.action_lines(pull, found.settings, queued, why):
             print(line)
         broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
@@ -377,7 +379,7 @@ def review_form(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     settings = load_settings(args)
-    repo = config.named_repo(args.repository, settings)
+    repo = repoarg.named_repo(args.repository, settings)
     gated = repo.slug in settings.review.gated
     form = settings.review.gated_form if gated else settings.review.form
     print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")

@@ -1,12 +1,15 @@
 """What to start next: one sorted list, and which empty slot takes what.
 
-The order (work-order): (1) the author's fix for a review that asked for
-changes on the PR's current head; (2) a review of a PR that is green on
-its head and has no review of it; (3) a new PR for an open ticket with a
-priority label that no open PR names. Within a category, by priority label,
-then oldest first. Nothing predicts which files a ticket will touch: tickets
-are taken in this order, every PR starts from the base branch, and a conflict
-is resolved by merging the base branch in.
+The order (work-order): the open PRs that need work come first, in one list,
+oldest first, whatever each needs: the author's fix for a review that asked
+for changes on the PR's current head, an update of a PR that is behind the
+base with its checks finished (never where the repository has a merge queue),
+or a review of a PR that is green on its head and has no review of it. The kind
+is a label on the line, not a rank. After them come the new PRs, one for each
+open ticket with a priority label that no open PR names, by priority label,
+then oldest first. Nothing predicts which files a ticket will touch: work is
+taken in this order, every PR starts from the base branch, and a conflict is
+resolved by merging the base branch in.
 """
 
 import dataclasses
@@ -21,17 +24,19 @@ _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
 
 
 class Category(enum.IntEnum):
-    """The kinds of work, in the order they are taken.
+    """The kinds of work: a label on a line, never a rank among the open PRs.
 
     Attributes:
-        FIX_REVIEW: an author fixes what a review asked for.
-        REVIEW: a reviewer (never the author) reviews a green head.
-        NEW_PR: a worker starts a ticket.
+        FIX_REVIEW: an author fixes what a review asked for (a PR).
+        UPDATE: an author merges the base into a PR that is behind it (a PR).
+        REVIEW: a reviewer (never the author) reviews a green head (a PR).
+        NEW_PR: a worker starts a ticket (after every PR).
     """
 
     FIX_REVIEW = 1
-    REVIEW = 2
-    NEW_PR = 3
+    UPDATE = 2
+    REVIEW = 3
+    NEW_PR = 4
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -55,11 +60,14 @@ class Item:
     labels: AbstractSet[str] = frozenset()
 
 
-def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
-    """The fixes and reviews the open PRs need.
+def pull_items(
+    facts: Iterable[pulls.PullFacts], settings: config.Config
+) -> Sequence[Item]:
+    """The fixes, updates and reviews the open PRs need.
 
     Args:
         facts: the open PRs.
+        settings: the configuration.
 
     Returns:
         The items.
@@ -72,13 +80,15 @@ def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
             title=pull.pull.title,
         )
         for pull in facts
-        if (category := _category(pull)) is not None
+        if (category := _category(pull, settings)) is not None
     ]
 
 
-def _category(pull: pulls.PullFacts) -> Category | None:
+def _category(pull: pulls.PullFacts, settings: config.Config) -> Category | None:
     if pulls.changes_needed(pull):
         return Category.FIX_REVIEW
+    if pulls.needs_update(pull, settings):
+        return Category.UPDATE
     if _awaits_review(pull):
         return Category.REVIEW
     return None
@@ -172,12 +182,17 @@ def ordered(items: Iterable[Item], held: Iterable[str]) -> Sequence[Item]:
         held: the references slots hold.
 
     Returns:
-        The items, first to take first.
+        The items, first to take first: every open PR, oldest first, then
+        the tickets by priority label, oldest first.
     """
     holding = frozenset(held)
     return sorted(
         (item for item in items if item.reference not in holding),
-        key=lambda item: (item.category, item.priority, item.created_at),
+        key=lambda item: (
+            item.category is Category.NEW_PR,
+            item.priority,
+            item.created_at,
+        ),
     )
 
 
@@ -224,7 +239,7 @@ def queued(
         The ordered items.
     """
     items = [
-        *pull_items(facts),
+        *pull_items(facts, settings),
         *ticket_items(github, settings, taken(facts)),
     ]
     return ordered(items, [slot.task for slot in book.slots if slot.agent])

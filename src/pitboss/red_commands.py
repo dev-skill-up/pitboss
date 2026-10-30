@@ -7,7 +7,16 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, config, ghapi, red, redrender, redreport, redtranscripts
+from . import (
+    ENTRY_DATA,
+    config,
+    ghapi,
+    red,
+    redrender,
+    redreport,
+    repoarg,
+    redtranscripts,
+)
 from .commands import CONFIG_ARGUMENT, NOW_ARGUMENT, load_settings
 
 TRANSCRIPTS = pathlib.Path.home() / ".claude" / "projects"
@@ -67,7 +76,7 @@ def analyze_red(args: argparse.Namespace) -> None:
     """
     settings = load_settings(args)
     window = red.window_of(args.last, args.since, args.until)
-    repo = config.named_repo(args.repository, settings)
+    repo = repoarg.named_repo(args.repository, settings)
     sources = _sources(args, settings, repo)
     found = red.analyze(sources.github, repo, args.workflow, window)
     report = redreport.build(sources, found, _now(args))

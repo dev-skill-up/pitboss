@@ -94,8 +94,10 @@ class TestPullItems(unittest.TestCase):
             facts(number, standing, **changes)
             for number, (standing, changes) in enumerate(PULL_CASES, start=1)
         ]
+        settings = fakes.settings(fakes.directory())
         found = [
-            (each.reference, each.category) for each in work.pull_items(open_pulls)
+            (each.reference, each.category)
+            for each in work.pull_items(open_pulls, settings)
         ]
         assert_that(found, equal_to(CATEGORIES))
 
@@ -153,7 +155,7 @@ class TestOrderAndAssign(unittest.TestCase):
     """Sorting and filling empty slots."""
 
     def test_order(self) -> None:
-        """Category, then priority, then age; held items are left out."""
+        """PRs oldest first, then tickets by priority and age; held are left out."""
         newer = work.Item(
             category=work.Category.NEW_PR, reference="b", created_at="2027", title="t"
         )
@@ -162,10 +164,30 @@ class TestOrderAndAssign(unittest.TestCase):
             newer,
             item("a", work.Category.NEW_PR),
             item("x", work.Category.REVIEW),
+            item("u", work.Category.UPDATE),
             item("held", work.Category.FIX_REVIEW),
         ]
         found = work.ordered(items, ["held"])
-        assert_that([each.reference for each in found], equal_to(["x", "a", "b", "c"]))
+        assert_that(
+            [each.reference for each in found], equal_to(["x", "u", "a", "b", "c"])
+        )
+
+    def test_order_across_kinds(self) -> None:
+        """An older review comes before a newer update, an older update before a fix."""
+        items = [
+            dataclasses.replace(item(name, category), created_at=created)
+            for name, category, created in [
+                ("ticket", work.Category.NEW_PR, "2020"),
+                ("fix", work.Category.FIX_REVIEW, "2026-03"),
+                ("update", work.Category.UPDATE, "2026-02"),
+                ("review", work.Category.REVIEW, "2026-01"),
+            ]
+        ]
+        found = work.ordered(items, [])
+        assert_that(
+            [each.reference for each in found],
+            equal_to(["review", "update", "fix", "ticket"]),
+        )
 
     def test_smallest_model(self) -> None:
         """Labels raise the floor; failures move up; all failed is none."""

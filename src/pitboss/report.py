@@ -17,6 +17,7 @@ STANDING_WORDS = {
 }
 CATEGORY_WORDS = {
     work.Category.FIX_REVIEW: "fix the review",
+    work.Category.UPDATE: "update",
     work.Category.REVIEW: "review it (a reviewer that is not its author)",
     work.Category.NEW_PR: "start a PR",
 }
@@ -227,7 +228,7 @@ def queue_lines(
     stale = queue.stale_runs(runs)
     stale_ids = {each.run.id for each in stale}
     live = [each for each in runs if not each.run.finished]
-    limit = settings.timeout_minutes
+    limit = settings.merge_queue.timeout_minutes
     stale_lines = [
         f"{Marker.STALE_QUEUE_RUN.text} {_run_name(each)}: cancel-stale-runs cancels it"
         for each in stale
