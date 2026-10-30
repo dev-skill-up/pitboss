@@ -83,6 +83,15 @@ live = ["/home/user/.cache/build"]
 # A sweep prints DISK PRESSURE when a filesystem of the workspace or of a scratch
 # directory has less free than this many GiB; 0 never warns. Default: 5.
 min_free_gib = 5
+# What a sweep does with the worktrees whose work is finished (PR merged or
+# closed, or tip in the base branch): "auto" removes each that passes the safety
+# test (every commit on a remote branch, no changed tracked file, nothing
+# changed in the idle hours, no .pitboss-live marker, not the directory the
+# sweep runs in or one above it; one with untracked files is kept too, since
+# git worktree remove refuses it) and prints REMOVED
+# WORKTREE, or KEPT WORKTREE and why; "list" only prints STALE WORKTREE for
+# them (pitboss clean-worktrees removes those). Default: "auto".
+worktrees = "auto"
 
 [sweep]
 # The questions each sweep ends with. Default: whether any ticket can be

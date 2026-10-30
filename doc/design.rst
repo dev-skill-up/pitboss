@@ -51,7 +51,7 @@ What was project-specific, and where it went
    * - quire has a merge queue, so a PR that is behind needs no update
      - ``[merge_queue] repositories`` (default none: a behind PR with finished
        checks is an update)
-   * - three hours of idleness before a worktree is stale
+   * - three hours of idleness before a finished worktree may be removed
      - ``[worktrees] idle_hours`` (it is the idleness of a scratch entry too)
    * - ``/tmp/claude-0``, shared caches, the 5 GiB of free space
      - ``[clean] scratch``, ``[clean] live``, ``[clean] min_free_gib``
@@ -116,10 +116,13 @@ Commands
    * - Command
      - What it does
    * - ``sweep CONFIG``
-     - The read-only report, in order: the project's PRs, the libraries'
+     - The report, in order: the project's PRs, the libraries'
        PRs, runner pressure, queue runs, stragglers, worktrees, disk
        pressure, the reminders, the slots. Exits 1 when a PR has a failed check or a
-       merge conflict.
+       merge conflict. It reads, except that under ``[clean] worktrees =
+       "auto"`` (the default) it removes the finished worktrees that pass the
+       safety test (see **Worktrees**), through ``args.safe_run``, with no
+       dry run.
    * - ``pressure CONFIG``
      - Appends a look (``none`` or ``hold``) to the record and prints the
        runner-pressure line; exits 0 only after ``[runners] quiet_minutes``
@@ -135,8 +138,9 @@ Commands
      - Cancels the queue runs that are not the newest of their PR. Dry run
        unless ``--no-dry-run``.
    * - ``clean-worktrees CONFIG``
-     - Removes stale worktrees, then ``git worktree prune``; branches are
-       kept. Dry run unless ``--no-dry-run``.
+     - Removes the finished worktrees that pass the safety test, then
+       ``git worktree prune``; branches are kept. Prints ``REMOVED WORKTREE``
+       or ``KEPT WORKTREE`` for each. Dry run unless ``--no-dry-run``.
    * - ``analyze-red CONFIG REPOSITORY WORKFLOW``
      - Read-only on GitHub (pitboss#8). Writes ``--output``, one Markdown
        file: the summary table of the red runs (failure, timed_out,
@@ -233,7 +237,9 @@ Commands
 
 Reads go through gather's ``args.safe_run``; every change on GitHub or to
 git (cancelling a run, removing a worktree) goes through ``args.run``, so it
-happens only with ``--no-dry-run``. ``slots`` writes its own ledger.
+happens only with ``--no-dry-run``. Two things are not so: ``slots`` writes its
+own ledger, and ``sweep`` under ``[clean] worktrees = "auto"`` removes worktrees
+through ``args.safe_run``, since it takes no ``--no-dry-run``.
 
 Every command first reads each configured repository once; one the session
 cannot read is reported as ``UNREADABLE`` and left out, so one missing grant
@@ -366,12 +372,38 @@ workflow. A live run is reported with its age against ``timeout_minutes``.
 **Stragglers.** Every git checkout directly under ``workspace``: uncommitted
 files, and commits on no remote branch. Each repository is fetched once.
 
-**Worktrees.** A worktree of ``main_clone`` is stale when all of these
-hold: it is not the main clone and is under ``workspace``; nothing is
-uncommitted; every commit is on a remote branch; nothing in it changed in
-the last ``idle_hours`` (by file times, because a new worktree's tip is an
-old commit); and its branch's PR is merged or closed, or its tip is in the
-base branch. A worktree with an open PR is never stale.
+**Worktrees** (keyword: clean-worktrees, pitboss#81). A worktree of
+``main_clone`` is *finished* when it is not the main clone, is under
+``workspace``, and its branch's PR is merged or closed, or (with no PR) its tip
+is in the base branch (``local.finished_reason``); a worktree with an open PR
+never is. Whether a finished worktree may go is the one safety test of **Dead
+paths** (``dead.verdict``): not live, not in use, and safe. It is written once:
+``clean-container`` (``dead.consider`` and ``dead.recheck``), the ``DISK
+PRESSURE`` line and the removal of worktrees (``worktrees.py``) all call it. So a
+finished worktree is kept when anything in it changed in the last ``idle_hours``
+(by file times, because a new worktree's tip is an old commit), when it holds a
+``.pitboss-live`` marker or is a live path, when it is a link or holds a mount
+point, when it is or holds the directory the command runs in (``PWD`` or the
+process's own), when a commit in it is on no remote branch, or when a tracked
+file in it is changed (untracked files are scratch to the test). A finished
+worktree that passes the test but holds untracked files is kept too, with their
+count, because ``git worktree remove`` refuses it without ``--force``, which
+pitboss never passes. A worktree on no branch or on the base branch is finished
+when its tip is in the base branch, unlike a checkout of **Dead paths**, so a
+persistent one carries ``.pitboss-live``. ``[clean] worktrees`` chooses what a
+sweep does with the finished worktrees: ``auto`` (the default) removes each that
+passes, one at a time, judging it right before its ``git worktree remove``,
+and prints ``REMOVED WORKTREE <dir> (<reason>)`` or, for one that fails,
+``KEPT WORKTREE <dir> (<why>)``, then runs ``git worktree prune`` and prints a
+line with the count removed, the space freed (the sizes ``survey`` measured) and
+the count kept; ``list`` removes nothing and prints ``STALE WORKTREE`` for each
+that passes, and ``clean-worktrees`` removes those. ``clean-worktrees`` always
+removes, whatever the key says, and prints the same lines (with "dry run" and
+"would be freed" unless ``--no-dry-run``). A worktree git refuses to remove (a
+locked one) is ``COULD NOT REMOVE WORKTREE``. Research: ``git clean -n`` lists
+before it removes and ``systemd-tmpfiles`` removes by age with exclusions (the
+comparison of **Dead paths**), and a sweep that only listed left twenty stale
+worktrees on disk for hours while the disk filled (pitboss#81).
 
 **Dead paths** (keyword: clean-container, pitboss#7). The comparable tools
 decide the same way: systemd-tmpfiles removes by age and has entries that
@@ -388,9 +420,11 @@ branch, or whose repository could not be fetched is not judged), ``dead_scratch`
 the root files above; the pressure scan lists the same three sources. A path
 is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
 depth or in a directory above it, a path of ``[clean] live``, the main clone, or
-one that holds or lies in such a path), when it is a symbolic link, or when
-anything in it changed in the last ``idle_hours`` (the walk of **Worktrees**;
-this also holds for the root files; ``.git`` contents do not count, as a fetch
+one that holds or lies in such a path), when it is a symbolic link, when it is
+or holds the directory the command runs in (``PWD`` or the process's own, so a
+sweep never removes the worktree it runs from), or when
+anything in it changed in the last ``idle_hours`` (by file times, in the whole-tree
+walk below; this also holds for the root files; ``.git`` contents do not count, as a fetch
 changes them). One whole-tree walk (``survey``) measures a path and finds, at
 any depth, its git checkouts, bare repositories, live markers and mount points.
 It never follows a link (a link counts as itself, so a link to a big directory

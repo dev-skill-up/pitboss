@@ -33,6 +33,7 @@ class Marker(enum.Enum):
         STRAGGLER: work that exists only on this machine.
         STALE_WORKTREE: a finished worktree still on disk.
         REMOVED_WORKTREE: one removed.
+        KEPT_WORKTREE: a finished worktree that is not removed, and why.
         COULD_NOT_REMOVE_WORKTREE: one that could not be.
         DISK_PRESSURE: free space is under the configured minimum.
         REMOVED_PATH: a dead path removed by ``clean-container`` (or, in a dry
@@ -69,6 +70,7 @@ class Marker(enum.Enum):
     STRAGGLER = enum.auto()
     STALE_WORKTREE = enum.auto()
     REMOVED_WORKTREE = enum.auto()
+    KEPT_WORKTREE = enum.auto()
     COULD_NOT_REMOVE_WORKTREE = enum.auto()
     DISK_PRESSURE = enum.auto()
     REMOVED_PATH = enum.auto()

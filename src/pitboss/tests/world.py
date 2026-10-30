@@ -261,42 +261,72 @@ def parser() -> argparse.ArgumentParser:
     return cli_parser.make_parser()
 
 
-def invoke(world: World, *argv: str) -> Result:
+def shell_env(world: World, directory: pathlib.Path | None) -> Mapping[str, str]:
+    """The environment a command runs with.
+
+    Args:
+        world: the world.
+        directory: the directory it runs in; the workspace when None.
+
+    Returns:
+        The environment, whose ``PWD`` is that directory.
+    """
+    return {"PWD": str(directory or world.workspace)}
+
+
+def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
     """Run ``pitboss`` with arguments.
 
     Args:
         world: the world.
         *argv: the arguments.
+        directory: the directory it runs in (its ``PWD``); the workspace when
+            None.
 
     Returns:
         What it did.
     """
     out, err = io.StringIO(), io.StringIO()
-    code: object = 0
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        try:
-            gather_commands.run_maybe_dry(
-                parser=parser(),
-                argv=["pitboss", *argv],
-                env={"PWD": str(world.workspace)},
-                sp_run=world.processes,
-            )
-        except SystemExit as exit_error:
-            code = exit_error.code
+        code = exit_code(world, ["pitboss", *argv], shell_env(world, directory))
     return Result(out=out.getvalue(), err=err.getvalue(), code=code)
 
 
-def again(here: World, *argv: str) -> Result:
+def exit_code(world: World, argv: Sequence[str], env: Mapping[str, str]) -> object:
+    """Run the command line and say how it exited.
+
+    Args:
+        world: the world.
+        argv: the whole command line.
+        env: the environment it runs with.
+
+    Returns:
+        The code it exited with; 0 when it returned.
+    """
+    try:
+        gather_commands.run_maybe_dry(
+            parser=parser(),
+            argv=list(argv),
+            env=env,
+            sp_run=world.processes,
+        )
+    except SystemExit as exit_error:
+        return exit_error.code
+    return 0
+
+
+def again(here: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
     """Run ``pitboss`` in a world, with the config after the command.
 
     Args:
         here: the world.
         *argv: the command, then the arguments after the config.
+        directory: the directory it runs in; the workspace when None.
 
     Returns:
         What the command did.
     """
-    return invoke(here, argv[0], here.config, *argv[1:])
+    return invoke(here, argv[0], here.config, *argv[1:], directory=directory)
 
 
 def project_page(path: str) -> str:

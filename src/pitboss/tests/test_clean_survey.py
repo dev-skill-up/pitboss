@@ -5,7 +5,7 @@ import pathlib
 import unittest
 from typing import AbstractSet, Sequence
 
-from .. import local, mounts, survey
+from .. import mounts, survey
 from . import cleanworld, fakes
 from .cleanworld import dangle, make_directories, mark_live, put, same
 from .test_local import CUTOFF, age
@@ -135,7 +135,6 @@ class TestLinks(unittest.TestCase):
         put(top, "d/file")
         dangle(top / "d/dangling")
         same(walked(top).unreadable, ())
-        same(local.touched_since(top, CUTOFF), True)
 
     def test_a_link_to_a_big_directory_is_measured_as_itself(self) -> None:
         """The path being a link, or holding one, never adds what it points at."""
@@ -145,13 +144,6 @@ class TestLinks(unittest.TestCase):
         alone = walked(top / "link")
         same([weighs(each, -1, 100000) for each in (inside, alone)], [True, True])
         same((inside.repositories, alone.repositories), ((), ()))
-
-    def test_modified_of_a_gone_entry_is_the_beginning_of_time(self) -> None:
-        """A name that vanished since the listing is not new."""
-        top = fakes.directory()
-        dangle(top / "dangling")
-        same(local.modified(top / "missing"), 0.0)
-        same(local.modified(top / "dangling") > 0, True)
 
 
 class TestMarkers(unittest.TestCase):

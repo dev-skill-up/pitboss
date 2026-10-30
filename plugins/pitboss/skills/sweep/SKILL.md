@@ -23,6 +23,9 @@ it prints is hidden. Timings go to stderr.
 
 Run it at a scheduled check-in, when a CI or merge-queue event arrives, and
 after a push. It does not change by the minute; do not run it on every turn.
+It reads, with one exception: it removes the finished worktrees that pass the
+safety test (`[clean] worktrees = "auto"`, the default; `"list"` only lists
+them), so no `STALE WORKTREE` line is left to act on.
 
 Other commands, all reading the same file:
 
@@ -32,7 +35,7 @@ Other commands, all reading the same file:
 | `uvx pitboss queued <config>` | After a merge, an enqueue or auto-merge armed: records that a job was put on the queue, which restarts the quiet period. |
 | `uvx pitboss push <config> [--draft] [--no-dry-run] [-- <git push arguments>]` | The pressure check and `git push` in one command, so the check is not left out or put in the wrong place. Under pressure or in the quiet period it prints the hold line, exits 1, pushes and records nothing; the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear. A push that goes out is recorded as a queued job. `--draft` is for a push to a draft PR: no check, nothing recorded. |
 | `uvx pitboss cancel-stale-runs <config> [--no-dry-run]` | Cancel superseded merge-queue runs. |
-| `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove finished worktrees. |
+| `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove the finished worktrees that pass the safety test (a sweep does the same by itself under `[clean] worktrees = "auto"`, the default). |
 | `uvx pitboss clean-container <config> [--no-dry-run] [--approved FILE] [--batch N]` | List, then remove, the dead paths that fill the disk: finished checkouts, idle scratch, files the session wrote in `/`. Work that exists only here, links, mount points and anything marked live are kept; each path is checked again just before its removal. |
 | `uvx pitboss review-form <config> <repository>` | The form a review comment in that repository must take. |
 | `uvx pitboss slots <action> <config> ...` | The worker-slot ledger and what to start next. |
@@ -52,4 +55,4 @@ start; a reviewer reads that file and nothing else about the form.
 
 The commands that change something (`cancel-stale-runs`, `clean-worktrees`, `clean-container`)
 are dry runs unless given `--no-dry-run`: run the dry run first and read
-all of it.
+all of it. The sweep is the exception, for the worktrees alone: it has no dry run.
