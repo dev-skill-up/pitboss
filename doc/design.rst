@@ -251,7 +251,7 @@ First ``STALL`` (``pitboss.stall``; a PR whose head branch starts with
 been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
-a stall before every other pull request), then
+a stall before every other pull request but the merge of a ready one), then
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
@@ -343,9 +343,10 @@ refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``m
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
-line saying why it is where it is. The open PRs that need work come first, in
-one list ordered oldest first, whatever each needs; each line says which of
-three kinds it is:
+line saying why it is where it is. The open PRs that need a fix of a review, an
+update or a review come first, in one list ordered oldest first, whatever each
+needs; each line says which of the three kinds it is, and a PR is listed once,
+as the first of these kinds that fits:
 
 * ``fix the review``: the author's fix for a review that asked for changes, on
   an unmoved head;

@@ -69,13 +69,14 @@ estimated.
 2. Then pull requests in progress: an open PR with no worker that is still
    relevant is finished (fixed, reviewed, brought up to date, merged),
    whatever its priority, so open PRs do not pile up. A `STALL` fix comes
-   before every other pull request (`rules.md`).
+   before every other pull request but the merge of a ready one (`rules.md`).
 3. Then new work, in the order the project requires.
 
 `slots next` sorts what it can see from GitHub into one list and says on each
-line why it is where it is. The open pull requests that need work come first,
-in one list, oldest first by creation time, whatever each needs; a line says
-which of three kinds it is:
+line why it is where it is. The open pull requests that need a fix of a review,
+an update or a review come first, in one list, oldest first by creation time,
+whatever each needs; a line says which of the three kinds it is, and a PR is
+listed once, as the first of these kinds that fits:
 
 1. **Fix the review**: an open PR whose newest review asks for changes on
    its current head. Its author fixes it.
