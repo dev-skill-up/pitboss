@@ -155,6 +155,7 @@ def comments(text: str) -> Sequence[shapes.Comment]:
             body=item.get("body") or "",
             author_association=item["author_association"],
             created_at=item["created_at"],
+            url=item.get("html_url") or "",
         )
         for item in json.loads(text)
     ]

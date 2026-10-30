@@ -14,6 +14,8 @@ class Marker(enum.Enum):
         OUTDATED: the running pitboss is older than PyPI's newest release.
         UNREADABLE: a repository the session cannot read, or a PR one of
             whose API calls failed.
+        UNREADABLE_REVIEW: a trusted comment with a Verdict, Plan or Execution
+            line whose first line is not the repository's review first line.
         RUNNER_PRESSURE: queue runs wait for runners; hold.
         NO_RUNNER_PRESSURE: nothing waits for a runner.
         WAIT_FOR_CI: a PR's head has no completed check run.
@@ -55,6 +57,7 @@ class Marker(enum.Enum):
 
     OUTDATED = enum.auto()
     UNREADABLE = enum.auto()
+    UNREADABLE_REVIEW = enum.auto()
     RUNNER_PRESSURE = enum.auto()
     NO_RUNNER_PRESSURE = enum.auto()
     WAIT_FOR_CI = enum.auto()

@@ -5,7 +5,7 @@ import dataclasses
 import subprocess
 from typing import Sequence
 
-from . import config, ghapi, parsing, reviews, roundlimit, shapes
+from . import config, ghapi, parsing, reviews, roundlimit, shapes, unreadableform
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -20,6 +20,8 @@ class PullFacts:
         standing: where its head stands with that review.
         unread: when a newer comment that tries to be a review but is not in
             the form was written (it is ignored), else empty.
+        unreadable_reviews: the trusted comments that grade a review but are
+            not in the review form (keyword: unreadable-review).
         limit: where its review rounds stand against the changes-needed limit
             (keyword: round-limit).
     """
@@ -30,6 +32,7 @@ class PullFacts:
     review: reviews.Found | None
     standing: reviews.Standing
     unread: str = ""
+    unreadable_reviews: Sequence[unreadableform.UnreadableReview] = ()
     limit: roundlimit.Limit = roundlimit.Limit.NONE
 
 
@@ -278,6 +281,19 @@ def limit_of(
     return roundlimit.read(posted, source.review.trusted, form, verdict_of)
 
 
+def _rounds(
+    found: reviews.Found | None,
+    posted: Sequence[shapes.Comment],
+    source: Source,
+    repo: config.Repo,
+) -> tuple[roundlimit.Limit, Sequence[unreadableform.UnreadableReview]]:
+    asks = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
+    limit = limit_of(source, repo, posted) if asks else roundlimit.Limit.NONE
+    _, form = reviews.rules(source.review, repo.slug)
+    trusted = source.review.trusted
+    return limit, unreadableform.find(posted, trusted, form, reviews.line_pattern)
+
+
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     """Read one PR: its details, its head's checks and its review.
 
@@ -294,7 +310,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     posted = _sources(source, repo, number)
     found = reviews.newest(posted, source.review, repo.slug)
     checks = _head_checks(source, repo, head)
-    asks = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
+    limit, unreadable = _rounds(found, posted.comments, source, repo)
     return PullFacts(
         repo=repo,
         pull=pull,
@@ -302,9 +318,8 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         review=found,
         standing=_standing(source, repo, pull, found),
         unread=reviews.unread(posted, source.review, repo.slug, found),
-        limit=(
-            limit_of(source, repo, posted.comments) if asks else roundlimit.Limit.NONE
-        ),
+        unreadable_reviews=unreadable,
+        limit=limit,
     )
 
 
