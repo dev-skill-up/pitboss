@@ -1,13 +1,12 @@
 """Tests for the plan revision round (keyword: plan-revision, pitboss#82)."""
 
-import dataclasses
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import gradeline, pulls, reviews, shapes, work
-from . import fakes, test_pulls, test_work, world
+from . import fakes, test_commands, test_pulls, test_work, world
 
 APPROVED = reviews.Verdict.APPROVED
 CHANGES = reviews.Verdict.CHANGES_NEEDED
@@ -216,15 +215,19 @@ class TestSweepAndNext(unittest.TestCase):
     def test_a_plan_approved_alone_gets_no_auto_merge_line(self) -> None:
         """Auto-merge is never armed on an approval of the plan alone.
 
-        The control is the same review naming an older head: that PR is told
-        to arm auto-merge again, so the line is not missing for another reason.
+        The control is a review that also grades the execution: that head is
+        told to arm auto-merge again (it is not clean, so it is not ready), so
+        the line is not missing for another reason.
         """
-        posted = review_comment("approved", "approved", None)
-        older = dataclasses.replace(posted, body=posted.body.replace(HEAD, "4" * 40))
-        armed = [
-            "AUTO MERGE OFF owner/project#3" in outputs(each)[0]
-            for each in (posted, older)
-        ]
+        armed = []
+        for posted in (
+            review_comment("approved", "approved", None),
+            review_comment("approved", "approved", "approved"),
+        ):
+            here = world_with(posted)
+            test_commands.unclean_third(here)
+            swept = world.invoke(here, "sweep", here.config, *AFTER).out
+            armed.append("AUTO MERGE OFF owner/project#3" in swept)
         assert_that(armed, equal_to([False, True]))
 
 

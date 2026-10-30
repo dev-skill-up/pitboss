@@ -487,7 +487,8 @@ compaction.
     the form's `Verdict:` line (the Plan's verdict), no `Execution:` line and no
     Execution defect. A review that approves the Plan alone is no approval to
     merge: the sweep's PR line says `review=plan-approved` and the sweep prints
-    no `AUTO MERGE OFF` for it, so auto-merge is never armed on it. The
+    no `AUTO MERGE OFF` for it (that line is for a head whose review approved
+    it, `review=approved-this-head`), so auto-merge is never armed on it. The
     orchestrator undrafts the PR when a sweep shows that line with `[draft]`
     (after `pitboss pressure` passes, "Pushing and merging"), and once its
     checks are green it is offered (`review it`) for a review of the Execution,

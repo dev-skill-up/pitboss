@@ -283,8 +283,11 @@ sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
 finished and none failed, state ``clean``, an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
 base branch) or, in a ``no_auto_merge`` repository, ``MERGE BY HAND``, or
-else ``AUTO MERGE OFF`` for a healthy PR with auto-merge off, not in the
-queue, not asked for changes and not standing ``plan-approved``.
+else ``AUTO MERGE OFF`` for a PR with auto-merge off, not in the queue, nothing
+failed, no conflict and not a draft, whose newest review approved this exact head
+(``review=approved-this-head``; pitboss#85: with no review, a review of an older
+head, one asking for changes or one standing ``plan-approved``, arming auto-merge
+could merge a head nobody approved, so there is no line).
 
 **Reviews.** A review is the newest comment by a trusted author whose lines
 match the repository's form. In a gated repository the form is strict: the
@@ -306,7 +309,7 @@ stands ``plan-changes-needed``; one whose newest review approves and has a
 ``Plan: approved`` line but no ``Execution:`` line (a review of a revised plan,
 which grades the plan alone) stands ``plan-approved``, is no approval to merge,
 is not carried over merges of the base, and gets no ``AUTO MERGE OFF`` line
-(auto-merge is never armed on it). Both words are on the PR's line.
+(auto-merge is never armed on it, as on any head without an approving review). Both words are on the PR's line.
 
 **Review rounds** (keyword: round-limit, pitboss#76). The skill's rules call for an
 Opus ruling when the plan is not approved after two reviews, or when a review asks

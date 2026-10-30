@@ -16,7 +16,6 @@ SWEEP_LINES = (
     "FAILED owner/project#1: test: failed step",
     "READY TO MERGE owner/project#2",
     "queue=in_progress",
-    "AUTO MERGE OFF owner/project#3",
     "MERGE BY HAND owner/lib#4",
     "RUNNER PRESSURE: 1 queue-run jobs",
     "STALE QUEUE RUN owner/project 11 (pr-2, queued)",
@@ -73,6 +72,40 @@ def sweep(here: world.World) -> world.Result:
         What the sweep did.
     """
     return world.again(here, "sweep", "--now", world.FUTURE)
+
+
+def unclean_third(here: world.World) -> None:
+    """Make PR 3 healthy but not clean, so only an approved head is told to arm.
+
+    Args:
+        here: the world.
+    """
+    here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(
+        3, head={"sha": "3" * 40, "ref": "branch-3"}, mergeable_state="has_hooks"
+    )
+
+
+def reviewed_third(reviewed: str | None) -> world.World:
+    """A world whose PR 3 is healthy, not clean, with a review of a head.
+
+    Args:
+        reviewed: the head the review names, None for no review.
+
+    Returns:
+        The world; PR 3's head is a fix on top of the commit of ``4`` * 40.
+    """
+    head = "3" * 40
+    fix = {"sha": "3", "parents": [{"sha": "2"}]}
+    here = world.make_world()
+    unclean_third(here)
+    compare = f"{world.PROJECT}/compare/main..."
+    here.bodies[compare + head] = {"commits": [fix]}
+    here.bodies[compare + "4" * 40] = {"commits": []}
+    if reviewed:
+        body = f"## Review\nReviewed: {reviewed}\nVerdict: approved\n"
+        comments = fakes.page(f"{world.PROJECT}/issues/3/comments")
+        here.bodies[comments] = [dict(world.COMMENT, body=body)]
+    return here
 
 
 def failed_line(here: world.World) -> str:
@@ -160,6 +193,14 @@ class TestSweep(unittest.TestCase):
         here = world.make_world()
         here.bodies[OPEN_PULLS] = [{"number": 2}]
         assert_that(sweep(here).code, equal_to(0))
+
+    def test_auto_merge_off_needs_an_approved_head(self) -> None:
+        """No review and an older head's get no AUTO MERGE OFF; approval does (#85)."""
+        found = [
+            "AUTO MERGE OFF owner/project#3" in sweep(reviewed_third(each)).out
+            for each in (None, "4" * 40, "3" * 40)
+        ]
+        assert_that(found, equal_to([False, False, True]))
 
     def test_slots_free(self) -> None:
         """Free slots with work queued print SLOTS FREE n; busy or empty, none."""

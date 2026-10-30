@@ -133,12 +133,9 @@ def _auto_merge_off(
     pull: pulls.PullFacts, settings: config.Config, queued: bool
 ) -> bool:
     manual = _by_hand(pull, settings)
-    healthy = not (
-        pulls.failed_checks(pull)
-        or pulls.conflicted(pull)
-        or pull.pull.draft
-        or pulls.changes_needed(pull)
-        or pull.standing is reviews.Standing.PLAN_APPROVED
+    # keyword: auto-merge-approved (pitboss#85): only a head a review approved is armed.
+    healthy = pull.standing is reviews.Standing.APPROVED and not (
+        pulls.failed_checks(pull) or pulls.conflicted(pull) or pull.pull.draft
     )
     return healthy and not manual and not queued and not pull.pull.auto_merge
 

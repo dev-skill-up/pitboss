@@ -106,3 +106,22 @@ class TestWaitForCi(unittest.TestCase):
         pull = facts(reviews.Standing.APPROVED, checks=[run(True)])
         assert_that("WAIT-FOR-CI" in lines(pull), equal_to(False))
         assert_that(lines(pull), contains_string("READY TO MERGE o/r#7"))
+
+
+class TestAutoMergeOff(unittest.TestCase):
+    """``AUTO MERGE OFF`` is for a head whose newest review approved it (#85)."""
+
+    def test_only_an_approved_head_is_told_to_arm_again(self) -> None:
+        """No review and an older head's review print no line; approval does."""
+        for standing, printed in [
+            (reviews.Standing.NONE, False),
+            (reviews.Standing.OLDER_HEAD, False),
+            (reviews.Standing.APPROVED_BEFORE_MERGES, False),
+            (reviews.Standing.CHANGES_NEEDED, False),
+            (reviews.Standing.PLAN_CHANGES_NEEDED, False),
+            (reviews.Standing.PLAN_APPROVED, False),
+            (reviews.Standing.APPROVED, True),
+        ]:
+            with self.subTest(standing.name):
+                pull = facts(standing, checks=[run(True)], mergeable_state="has_hooks")
+                assert_that("AUTO MERGE OFF" in lines(pull), equal_to(printed))
