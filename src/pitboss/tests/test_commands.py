@@ -198,6 +198,34 @@ class TestSweep(unittest.TestCase):
         )
         assert_that(found, equal_to((True, True, False, 0)))
 
+    def test_unreadable_pull_still_takes_its_ticket(self) -> None:
+        """No NEXT line offers a ticket while a PR that may take it is unread (#101)."""
+        here = world.make_world()
+        here.bodies[f"{world.PROJECT}/pulls/1"] = fakes.pull_body(
+            1, body="Fixes #9", head={"sha": "1" * 40, "ref": "branch-1"}
+        )
+        del here.bodies[fakes.page(f"{world.PROJECT}/commits/{'1' * 40}/check-runs")]
+        result = world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE)
+        offered = [x for x in result.out.splitlines() if x.startswith("NEXT")]
+        found = ([x for x in offered if "owner/project#9" in x], result.code)
+        assert_that(found, equal_to(([], 0)))
+
+    def test_sweep_goes_on_when_a_queue_run_call_fails(self) -> None:
+        """A queue run whose jobs call fails is named and the sweep goes on (#101)."""
+        here = world.make_world()
+        here.bodies[OPEN_PULLS] = [{"number": 2}]
+        del here.bodies[fakes.page(f"{world.PROJECT}/actions/runs/11/jobs")]
+        result = sweep(here)
+        expected = "UNREADABLE owner/project#2: jobs answered HTTP 404"
+        found = (
+            expected in result.out,
+            "partial" in result.out,
+            "READY TO MERGE owner/project#2" in result.out,
+            "Traceback" in result.err,
+            result.code,
+        )
+        assert_that(found, equal_to((True, True, True, False, 0)))
+
     def test_sweep_says_why(self) -> None:
         """A failed check's line says its failed step, output and annotations."""
         expected = (
