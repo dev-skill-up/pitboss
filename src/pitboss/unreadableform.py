@@ -50,7 +50,7 @@ def first_line_problem(
 
 
 def _grades(body: str) -> bool:
-    return bool(_GRADE_LINE.search(sessionurl.strip(body)))
+    return bool(_GRADE_LINE.search(body))
 
 
 def find(
