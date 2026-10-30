@@ -108,7 +108,9 @@ class TestReadingLines(unittest.TestCase):
             (roundlimit.plan_grade(body, form), roundlimit.execution_graded(body, form))
             for body in (full, alone, bare)
         ]
-        assert_that(found, equal_to([(APPROVED, True), (APPROVED, False), (None, False)]))
+        assert_that(
+            found, equal_to([(APPROVED, True), (APPROVED, False), (None, False)])
+        )
 
     def test_newest_reads_them(self) -> None:
         """The newest review has the plan grade of its comment; a GitHub review has none."""
@@ -117,7 +119,9 @@ class TestReadingLines(unittest.TestCase):
             reviews=[],
         )
         newest = reviews.newest(posted, test_roundlimit.REVIEW, "owner/project")
-        assert_that(newest and (newest.plan, newest.plan_alone), equal_to((CHANGES, True)))
+        assert_that(
+            newest and (newest.plan, newest.plan_alone), equal_to((CHANGES, True))
+        )
         github = reviews.Sources(
             comments=[],
             reviews=[
@@ -130,7 +134,9 @@ class TestReadingLines(unittest.TestCase):
             ],
         )
         newest = reviews.newest(github, test_roundlimit.REVIEW, "owner/project")
-        assert_that(newest and (newest.plan, newest.plan_alone), equal_to((None, False)))
+        assert_that(
+            newest and (newest.plan, newest.plan_alone), equal_to((None, False))
+        )
 
 
 def reviewed(
@@ -217,7 +223,9 @@ class TestSweepAndNext(unittest.TestCase):
         here = test_roundlimit.world_with(
             [review_comment("approved", "approved", None)]
         )
-        assert_that("READY TO MERGE owner/project#3" in sweep(here).out, equal_to(False))
+        assert_that(
+            "READY TO MERGE owner/project#3" in sweep(here).out, equal_to(False)
+        )
 
     def test_plan_approved_with_changes_needed_is_a_ruling_due(self) -> None:
         """The limit still holds the PR: the review that approves the plan counts."""
