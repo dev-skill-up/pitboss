@@ -18,7 +18,7 @@ whether the repository is gated.
   reviewed where the form says `{sha}`; read it from the PR when you start,
   and again before you post: if the head moved, review the new head.
 - Start only when every check has finished and passed on that head, except
-  for the first review of a draft PR (below), which has no check run. Your
+  for a review of a draft PR at its Plan stage (below), which has no check run. Your
   first act is to read the checks of the full head SHA the brief names. If one
   has not finished or has not passed, you were started too early: hand back at
   once with `NOT STARTED: <check> is <state> at <sha>`, and review nothing.
@@ -60,7 +60,8 @@ a new review.
 
 A fix is a draft PR whose body has a Plan section and an Execution section
 (`rules.md`, "Plan first"). You are a new reviewer, never a continued one, and
-you grade both in one review, besides the form's single verdict line:
+you grade both in one review, besides the form's single verdict line (for a
+review of a revised plan, see the last bullet):
 
 - a line `Plan: approved` or `Plan: changes needed`, and a line
   `Execution: approved` or `Execution: changes needed`; neither line contains
@@ -74,7 +75,13 @@ you grade both in one review, besides the form's single verdict line:
 - a statement the change makes false or contradictory anywhere in the tree is
   changes needed (the author greps the tree for them before asking for review);
 - an objection to a phrase no claim depends on is withdrawn when the author
-  removes the phrase: do not defend a phrase.
+  removes the phrase: do not defend a phrase;
+- if your brief says the Plan was revised after a rejection, you grade the
+  Plan alone: a `Plan:` line and the form's one verdict line, which is the
+  Plan's verdict, no `Execution:` line and no defect of the Execution (the
+  author did not touch it in that round, and it is measured against the Plan
+  once the Plan is approved). An approval of the Plan alone is no approval to
+  merge.
 
 ## What to review
 

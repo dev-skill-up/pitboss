@@ -5,7 +5,7 @@ import enum
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import config, shapes
+from . import config, roundlimit, shapes
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -27,6 +27,10 @@ class Standing(enum.Enum):
         APPROVED_BEFORE_MERGES: an older head approved, only merges since.
         CHANGES_NEEDED: this very head needs changes.
         OLDER_HEAD: the review is of an older head (a fix came since).
+        PLAN_CHANGES_NEEDED: this very head's review graded the plan changes
+            needed; the next round revises the plan only.
+        PLAN_APPROVED: this very head's review approved the plan alone (it
+            has no ``Execution:`` line); the execution is not reviewed yet.
     """
 
     NONE = enum.auto()
@@ -34,6 +38,8 @@ class Standing(enum.Enum):
     APPROVED_BEFORE_MERGES = enum.auto()
     CHANGES_NEEDED = enum.auto()
     OLDER_HEAD = enum.auto()
+    PLAN_CHANGES_NEEDED = enum.auto()
+    PLAN_APPROVED = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -44,11 +50,16 @@ class Found:
         sha: the head it reviewed (possibly abbreviated).
         verdict: what it says.
         when: when it was written (ISO 8601).
+        plan: what its ``Plan:`` line says, None when it has none.
+        plan_alone: whether it grades the plan and nothing else (a ``Plan:``
+            line and no ``Execution:`` line): the review of a revised plan.
     """
 
     sha: str
     verdict: Verdict
     when: str
+    plan: Verdict | None = None
+    plan_alone: bool = False
 
 
 def names(found: Found, head: str) -> bool:
@@ -195,6 +206,11 @@ def read_gated(body: str, form: config.ReviewForm) -> Reading | None:
     return found if found and len(found[0]) == _FULL_SHA else None
 
 
+def _alone(body: str, form: config.ReviewForm) -> bool:
+    graded_plan = roundlimit.plan_grade(body, form) is not None
+    return graded_plan and not roundlimit.execution_graded(body, form)
+
+
 def _from_comments(
     posted: Iterable[shapes.Comment],
     trusted: AbstractSet[str],
@@ -206,7 +222,13 @@ def _from_comments(
             continue
         found = read(item.body, form)
         if found is not None:
-            yield Found(sha=found[0], verdict=found[1], when=item.created_at)
+            yield Found(
+                sha=found[0],
+                verdict=found[1],
+                when=item.created_at,
+                plan=roundlimit.plan_grade(item.body, form),
+                plan_alone=_alone(item.body, form),
+            )
 
 
 def _from_reviews(
@@ -339,6 +361,20 @@ def only_merges(
     return authored(since_base) == authored(reviewed_since_base)
 
 
+def plan_only(found: Found) -> bool:
+    """Whether a review approves the plan and grades nothing else.
+
+    Args:
+        found: the review.
+
+    Returns:
+        True when it is an approval with ``Plan: approved`` and no
+        ``Execution:`` line: it is no approval to merge.
+    """
+    plan_approved = found.plan is Verdict.APPROVED
+    return found.verdict is Verdict.APPROVED and plan_approved and found.plan_alone
+
+
 def head_standing(found: Found | None, head: str) -> Standing:
     """Where the head stands, before any carry-over of an older approval.
 
@@ -354,5 +390,7 @@ def head_standing(found: Found | None, head: str) -> Standing:
     if not names(found, head):
         return Standing.OLDER_HEAD
     if found.verdict is Verdict.APPROVED:
-        return Standing.APPROVED
+        return Standing.PLAN_APPROVED if plan_only(found) else Standing.APPROVED
+    if found.plan is Verdict.CHANGES_NEEDED:
+        return Standing.PLAN_CHANGES_NEEDED
     return Standing.CHANGES_NEEDED

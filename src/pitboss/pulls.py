@@ -137,7 +137,24 @@ def changes_needed(facts: PullFacts) -> bool:
     Returns:
         True when the head needs changes.
     """
-    return facts.standing is reviews.Standing.CHANGES_NEEDED
+    return facts.standing in (
+        reviews.Standing.CHANGES_NEEDED,
+        reviews.Standing.PLAN_CHANGES_NEEDED,
+    )
+
+
+def plan_rejected(facts: PullFacts) -> bool:
+    """Whether the newest review graded the plan of this very head changes needed.
+
+    Until the plan is approved the only work on the PR is a plan revision.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when the plan needs changes.
+    """
+    return facts.standing is reviews.Standing.PLAN_CHANGES_NEEDED
 
 
 def approved(facts: PullFacts) -> bool:
@@ -199,6 +216,7 @@ def _standing(
         found is not None
         and standing is reviews.Standing.OLDER_HEAD
         and found.verdict is reviews.Verdict.APPROVED
+        and not reviews.plan_only(found)
     )
     if older_approval and found and _carries(source, repo, pull, found.sha):
         return reviews.Standing.APPROVED_BEFORE_MERGES

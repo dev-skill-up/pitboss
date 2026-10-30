@@ -60,8 +60,10 @@ compaction.
    has to be an author".
    - red (a failed check or status, or a review that asked for changes at this
      head) or in conflict with the base: a fix, by any author (a conflict is
-     fixed as a red CI is: merge the base in, resolve, check, push); not when
-     the pull request has `RULING DUE` or `PAUSE`;
+     fixed as a red CI is: merge the base in, resolve, check, push); where the
+     review did not approve the plan, the fix is a revision of the plan and
+     nothing else ("Plan first", below; kind `revise the plan` in `slots
+     next`); not when the pull request has `RULING DUE` or `PAUSE`;
    - **a `STALL` is a fix taken before every other pull request but the merge of a ready one.** A relock pull request
      (head branch starting `relock/`) whose required `check` has been red for
      more than four hours (14400 seconds from the run's `completed_at`) is
@@ -87,8 +89,9 @@ compaction.
 
    Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE` or `PAUSE` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
-   that need a fix of a review, an update or a review, oldest first with the
-   kind shown on each line, and then the tickets by priority label and age. A
+   that need a fix of a review, a revision of the plan, an update or a review,
+   oldest first with the kind shown on each line, and then the tickets by
+   priority label and age. A
    red CI, a conflict and a merge are not `NEXT` lines but the `FAILED`,
    `CONFLICT`, `READY TO MERGE` and `MERGE BY HAND` lines of the sweep. A
    merge of a ready pull request comes first (Order of work, 3), then a
@@ -98,7 +101,7 @@ compaction.
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
      first, whatever each needs (a fix of a red CI, an answer to a review that
-     asked for changes, an update of a PR that is behind, a review of a green
+     asked for changes, or a revision of a plan it did not approve, an update of a PR that is behind, a review of a green
      PR, a merge of a PR that is reviewed approved and green), except that a
      merge of a ready pull request comes first (Order of work, 3) and a `STALL`
      fix next, before every other pull request, and except a pull request with
@@ -108,9 +111,9 @@ compaction.
    on the exact head.** A PR whose CI is still running is not reviewed, and a
    review of a PR in progress is never started to fill a slot. A head with no
    completed check run (a draft that runs no CI) is waiting for CI: a reviewer
-   on it reports NOT STARTED, except the first review of a draft at its Plan
-   stage, which its author's hand-back starts and which has no check to wait
-   for ("Plan first").
+   on it reports NOT STARTED, except a review of a draft at its Plan stage (its
+   first review, or the review of a revised Plan), which its author's
+   hand-back starts and which has no check to wait for ("Plan first").
 4. **The rows of the ledger are the agents that run, reviewers included**
    (orchestrator, 2026-10-18). The ledger is authoritative on how many; only an
    explicit instruction from the owner ("Add a slot", "Remove", "Change")
@@ -444,8 +447,9 @@ compaction.
     change, and why that satisfies each Done-when line) and an **Execution**
     section (what was done, with the evidence: each command and its raw
     output). A draft runs no costly CI (`ci.md`), so a push to it is free.
-  - **One new reviewer agent grades the Plan and the Execution together**, in
-    one review, and it is never a reviewer continued from an earlier round
+  - **The first review of a PR is by one new reviewer agent, which grades the
+    Plan and the Execution together**, in one review, and it is never a reviewer
+    continued from an earlier round
     (orchestrator, 2026-10-26, from the owner's corrections of that date; owner,
     2026-10-26T23:14:17Z: "It can grade the execution as well."). It may grade
     the Execution while the PR is still a draft: a draft has no check run, so
@@ -460,11 +464,38 @@ compaction.
     NOT GRADE IT. It's approved"). A brief for a re-review says which stage the
     PR is at, and a reviewer is never told that the Execution is reviewed later
     or by someone else.
+  - **While the newest review does not approve the Plan, the only round is a
+    revision of the Plan, and the review of it grades the Plan alone**
+    (orchestrator, 2026-10-30, pitboss#82: on a PR whose review graded the Plan
+    and the Execution changes needed, with 13 defects, the fix round was told to
+    fix the Execution too, and Execution fixed against a Plan that is then
+    rejected is thrown away). When the newest review of a PR has `Plan: changes
+    needed`, the only work offered for it is a revision of the Plan: `slots
+    next` prints the kind `revise the plan`, not `fix the review`, and the
+    sweep's PR line says `review=plan-changes-needed`. The author edits the
+    `## Plan` section of the body and nothing else: the code, the docs and the
+    tests are not touched, the Execution section stays as it is, and the
+    Execution defects the review listed are not fixed in this round. A revision
+    of the Plan is a fix: what these rules say of a fix holds for it, and a PR
+    with `RULING DUE` or `PAUSE` is offered for none. A conflict
+    with the base is merged in as usual. The revision ends with an empty commit
+    pushed to the draft (`git commit --allow-empty`; a push to a draft is free),
+    so that the head moves and the rejection no longer stands on it, and the
+    `Head:` line is patched to the new head; the author's hand-back then starts
+    the review of the revised Plan, as it starts a draft's first review. That
+    review is by a new reviewer and grades the Plan alone: a `Plan:` line and
+    the form's `Verdict:` line (the Plan's verdict), no `Execution:` line and no
+    Execution defect. A review that approves the Plan alone is no approval to
+    merge: the sweep's PR line says `review=plan-approved`, the PR leaves draft,
+    and it is offered for a review of the Execution, which is measured against
+    the approved Plan. Only a review that grades the Execution approves a head
+    to merge.
   - **A Plan graded changes needed is a Plan rejection** (owner,
     2026-10-26T22:45:16Z: "there's no rejected outright. It's just that the
     first needs changes counts as the first plan rejection"); rejections are
-    counted from the Plan grade alone, so the next review grades the Plan again
-    and the author revises it. After the second Plan rejection an Opus ruling
+    counted from the Plan grade alone, so the next round is a revision of the
+    Plan alone (the bullet above), the next review grades the Plan alone, and
+    the Execution waits for the approved Plan. After the second Plan rejection an Opus ruling
     agent rules on what the rounds disagree about ("An Opus ruling comes before the pause", above; the sweep prints `RULING DUE`), and when a
     review then still asks for changes, the PR is paused and the owner is told
     (the first bullet; the sweep prints `PAUSE`).
@@ -503,20 +534,25 @@ compaction.
 - Every worker brief says: the worker rules of the repository; finish inside
   the turn; do not merge; do not write the review. Every reviewer brief says:
   the reviewer rules, and that a reviewer runs nothing. A reviewer brief is sent
-  only when the sweep says the PR is ready for review (or, for the first review
-  of a draft, when its author hands back), and names the head SHA.
+  only when the sweep says the PR is ready for review (or, for a review of a draft at its Plan stage,
+  when its author hands back), and names the head SHA.
 - **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
   says: `Plan: open the PR as a draft whose body has a Plan section (what you
   will change, and why that satisfies each Done-when line) and an Execution
   section (what you did, with each command and its raw output); never mark it
-  ready.` `Grep: before asking for review, grep the whole tree (docs, README,
+  ready.` `Plan revision: when the newest review did not approve the plan, edit
+  the ## Plan section of the PR body only; touch no code, doc or test, fix none
+  of the Execution defects, and end with an empty commit pushed to the draft.`
+  `Grep: before asking for review, grep the whole tree (docs, README,
   design notes, skill files, example configuration, tests) for any statement
   your change makes false or contradictory and fix each one; a contradiction is
   fixed, never documented.` A reviewer brief says: `Plan: you are a new
   reviewer; grade the Plan and the Execution in one review, with a Plan line
   and an Execution line beside the one Verdict line; the PR is at its first
-  review (or at a Plan rejection)` or `the Plan is approved: grade only the
-  Execution and write the Plan line as approved, carried over.` It also says:
+  review`, or `the Plan was revised after a rejection: grade only the Plan,
+  with a Plan line and the one Verdict line, no Execution line and no
+  Execution defect`, or `the Plan is approved: grade only the Execution and
+  write the Plan line as approved, carried over.` It also says:
   `Grep: look for a statement the change makes false or contradictory anywhere
   in the tree; one is changes needed. An objection to a phrase no claim depends
   on is answered by removing the phrase.`
@@ -654,7 +690,7 @@ compaction.
   "contention" are not causes. A class of failure a change says it covers has a
   case that fails when the class occurs, shown by injecting it. A reviewer runs
   nothing and starts only when every required check is finished and green on
-  the exact head (the first review of a draft has no check run to wait for).
+  the exact head (a review of a draft at its Plan stage has no check run to wait for).
 - **Saying a defect out loud is not fixing it** ("documented", "disclosed",
   "known", "non-blocking" never make an approval): a defect is changes needed,
   or, when the owner has ruled the PR may land, its own ticket at once.

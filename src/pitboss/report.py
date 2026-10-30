@@ -14,9 +14,12 @@ STANDING_WORDS = {
     reviews.Standing.APPROVED_BEFORE_MERGES: "approved-before-merges",
     reviews.Standing.CHANGES_NEEDED: "changes-needed",
     reviews.Standing.OLDER_HEAD: "older-head",
+    reviews.Standing.PLAN_CHANGES_NEEDED: "plan-changes-needed",
+    reviews.Standing.PLAN_APPROVED: "plan-approved",
 }
 CATEGORY_WORDS = {
     work.Category.FIX_REVIEW: "fix the review",
+    work.Category.REVISE_PLAN: "revise the plan",
     work.Category.UPDATE: "update",
     work.Category.REVIEW: "review it (a reviewer that is not its author)",
     work.Category.NEW_PR: "start a PR",

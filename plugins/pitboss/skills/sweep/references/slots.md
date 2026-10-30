@@ -77,26 +77,31 @@ estimated.
 
 `slots next` sorts what it can see from GitHub into one list and says on each
 line why it is where it is. The open pull requests that need a fix of a review,
-an update or a review come first, in one list, oldest first by creation time,
-whatever each needs; a line says which of the three kinds it is, and a PR is
-listed once, as the first of these kinds that fits:
+a revision of the plan, an update or a review come first, in one list, oldest
+first by creation time, whatever each needs; a line says which of the four
+kinds it is, and a PR is listed once, as the first of these kinds that fits:
 
-1. **Fix the review**: an open PR whose newest review asks for changes on
-   its current head. Its author fixes it.
-2. **Update**: an open PR whose mergeable state is `behind` and whose checks
+1. **Revise the plan**: an open PR whose newest review asks for changes on its
+   current head and has a `Plan: changes needed` line. Its author edits the
+   `## Plan` section of the body and nothing else (`rules.md`, "Plan first"):
+   the code, docs and tests are not touched until the plan is approved.
+2. **Fix the review**: an open PR whose newest review asks for changes on
+   its current head and does not reject the plan. Its author fixes it.
+3. **Update**: an open PR whose mergeable state is `behind` and whose checks
    have all finished. Its author merges the base in, checks, and pushes (never
    a rebase or force-push). A behind PR whose checks still run is not listed.
    A repository listed under `[merge_queue] repositories` is never offered
    an update: its queue builds each entry on the current base.
-3. **Review it**: an open PR whose checks all finished and passed on its
-   head, with no conflict, not a draft, and no review of that head (a draft's
-   first review is started by its author's hand-back, `rules.md`, "Plan
+4. **Review it**: an open PR whose checks all finished and passed on its
+   head, with no conflict, not a draft, and no review of that head or only a
+   review that approved the plan alone (a draft's first review, and the review
+   of a revised plan, are started by its author's hand-back, `rules.md`, "Plan
    first"). A
    reviewer that is not its author reviews it, and only once every check
    finished green on that exact head; the author never waits on CI, but
    pushes, reports the head and finishes.
 
-A PR with `RULING DUE` or `PAUSE` (`sweep.md`) is none of the three: it has no
+A PR with `RULING DUE` or `PAUSE` (`sweep.md`) is none of the four: it has no
 line in this list, whatever its state, and an update, a fix or a review of it
 waits for the ruling or the owner.
 
