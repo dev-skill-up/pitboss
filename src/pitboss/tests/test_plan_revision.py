@@ -1,5 +1,6 @@
 """Tests for the plan revision round (keyword: plan-revision, pitboss#82)."""
 
+import dataclasses
 import unittest
 from typing import Sequence
 
@@ -211,6 +212,20 @@ class TestSweepAndNext(unittest.TestCase):
                 equal_to((True, True)),
             )
             assert_that(merges, equal_to(bool(ready)))
+
+    def test_a_plan_approved_alone_gets_no_auto_merge_line(self) -> None:
+        """Auto-merge is never armed on an approval of the plan alone.
+
+        The control is the same review naming an older head: that PR is told
+        to arm auto-merge again, so the line is not missing for another reason.
+        """
+        posted = review_comment("approved", "approved", None)
+        older = dataclasses.replace(posted, body=posted.body.replace(HEAD, "4" * 40))
+        armed = [
+            "AUTO MERGE OFF owner/project#3" in outputs(each)[0]
+            for each in (posted, older)
+        ]
+        assert_that(armed, equal_to([False, True]))
 
 
 class TestCarryOver(unittest.TestCase):

@@ -80,8 +80,8 @@ compaction.
      its head); where a merge queue builds each
      entry on the current base (`[merge_queue] repositories`), behind is no
      work (see "Merge conflicts");
-   - green on its exact head with no review of that head: a review, by an
-     agent that is not its author;
+   - green on its exact head with no review of that head, or only one that
+     approved the Plan alone: a review, by an agent that is not its author;
    - reviewed approved at its head and green: a merge;
    - its checks still running: neither green nor red, so skipped until they
      finish, and not a reason to hold the free slot; so is a pull request on
@@ -473,7 +473,7 @@ compaction.
     needed`, the only work offered for it is a revision of the Plan: `slots
     next` prints the kind `revise the plan`, not `fix the review`, and the
     sweep's PR line says `review=plan-changes-needed`. The author edits the
-    `## Plan` section of the body and nothing else: the code, the docs and the
+    `## Plan` section of the body (and, at the end, its `Head:` line) and nothing else: the code, the docs and the
     tests are not touched, the Execution section stays as it is, and the
     Execution defects the review listed are not fixed in this round. A revision
     of the Plan is a fix: what these rules say of a fix holds for it, and a PR
@@ -486,8 +486,12 @@ compaction.
     review is by a new reviewer and grades the Plan alone: a `Plan:` line and
     the form's `Verdict:` line (the Plan's verdict), no `Execution:` line and no
     Execution defect. A review that approves the Plan alone is no approval to
-    merge: the sweep's PR line says `review=plan-approved`, the PR leaves draft,
-    and it is offered for a review of the Execution, which is measured against
+    merge: the sweep's PR line says `review=plan-approved` and the sweep prints
+    no `AUTO MERGE OFF` for it, so auto-merge is never armed on it. The
+    orchestrator undrafts the PR when a sweep shows that line with `[draft]`
+    (after `pitboss pressure` passes, "Pushing and merging"), and once its
+    checks are green it is offered (`review it`) for a review of the Execution,
+    which is measured against
     the approved Plan. Only a review that grades the Execution approves a head
     to merge.
   - **A Plan graded changes needed is a Plan rejection** (owner,
@@ -541,8 +545,9 @@ compaction.
   will change, and why that satisfies each Done-when line) and an Execution
   section (what you did, with each command and its raw output); never mark it
   ready.` `Plan revision: when the newest review did not approve the plan, edit
-  the ## Plan section of the PR body only; touch no code, doc or test, fix none
-  of the Execution defects, and end with an empty commit pushed to the draft.`
+  the ## Plan section of the PR body only; touch no code, doc or test (a merge
+  of the base for a conflict excepted), fix none of the Execution defects, end
+  with an empty commit pushed to the draft, and patch the Head: line to it.`
   `Grep: before asking for review, grep the whole tree (docs, README,
   design notes, skill files, example configuration, tests) for any statement
   your change makes false or contradictory and fix each one; a contradiction is

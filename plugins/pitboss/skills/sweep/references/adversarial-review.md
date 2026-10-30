@@ -89,7 +89,9 @@ Read the diff against its ticket. Try to break it: a realistic input or
 caller that makes it fail, a test that passes without testing the claim, a
 case the ticket names and the diff does not cover. Say what you checked and
 how. A verdict that asks for changes names each change, small enough that
-the author can make it without asking.
+the author can make it without asking. In a review of the Plan alone (a
+revised Plan, above), read the Plan against its ticket instead: the diff is
+not graded in that round.
 
 ## No exit clauses
 
@@ -102,6 +104,11 @@ not you, and not by asking the owner.
   for changes, and the finding is "do the done-when as written": name the
   part that is not met, what to run or build to meet it, and what evidence to
   attribute to it in the PR.
+- In a review of the Plan alone, the done-when is the standard of the Plan:
+  the verdict approves when the Plan meets each done-when line as written,
+  and asks for changes, naming the line, when it does not. The Execution is
+  not graded there; it is measured against the done-when once the Plan is
+  approved.
 - Never offer a way to ship less than the ticket says. That includes
   changing a closing reference ("Fixes") to a non-closing one ("Refs") so the
   ticket stays open, asking the owner to narrow the done-when, splitting the

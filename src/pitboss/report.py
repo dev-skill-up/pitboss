@@ -138,6 +138,7 @@ def _auto_merge_off(
         or pulls.conflicted(pull)
         or pull.pull.draft
         or pulls.changes_needed(pull)
+        or pull.standing is reviews.Standing.PLAN_APPROVED
     )
     return healthy and not manual and not queued and not pull.pull.auto_merge
 

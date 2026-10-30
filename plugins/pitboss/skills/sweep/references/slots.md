@@ -83,7 +83,7 @@ kinds it is, and a PR is listed once, as the first of these kinds that fits:
 
 1. **Revise the plan**: an open PR whose newest review asks for changes on its
    current head and has a `Plan: changes needed` line. Its author edits the
-   `## Plan` section of the body and nothing else (`rules.md`, "Plan first"):
+   `## Plan` section of the body (and, at the end, its `Head:` line) and nothing else (`rules.md`, "Plan first"):
    the code, docs and tests are not touched until the plan is approved.
 2. **Fix the review**: an open PR whose newest review asks for changes on
    its current head and does not reject the plan. Its author fixes it.
