@@ -48,6 +48,9 @@ class PullState:
         trusted: the author associations whose comments count.
         undraft_clear: whether the runner pressure and the quiet period allow
             an undraft now (read by the caller; the flow does not look).
+        merged_heads: the reviewed heads (possibly abbreviated) that the
+            current head differs from by merge commits only (read by the
+            caller from the comparison with the base).
     """
 
     pull: shapes.Pull
@@ -57,6 +60,7 @@ class PullState:
     comments: Sequence[shapes.Comment]
     trusted: AbstractSet[str]
     undraft_clear: bool = False
+    merged_heads: AbstractSet[str] = frozenset()
 
 
 def _regular_reviews(pr: PullState) -> Sequence[Graded]:

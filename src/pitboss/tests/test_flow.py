@@ -100,6 +100,7 @@ def state(
     checks: Sequence[shapes.CheckRun] = (GREEN,),
     labels: AbstractSet[str] = frozenset(),
     undraft_clear: bool = False,
+    merged_heads: AbstractSet[str] = frozenset(),
     **changes: object,
 ) -> flow.PullState:
     """The recorded data of one PR.
@@ -110,6 +111,8 @@ def state(
         checks: the check runs of its head.
         labels: its labels.
         undraft_clear: whether the runners allow an undraft.
+        merged_heads: the reviewed heads the current head differs from by
+            merge commits only.
         **changes: changes to the PR's JSON.
 
     Returns:
@@ -123,6 +126,26 @@ def state(
         comments=comments,
         trusted=frozenset({"MEMBER"}),
         undraft_clear=undraft_clear,
+        merged_heads=merged_heads,
+    )
+
+
+def github_review(
+    execution: shapes.Verdict, second: int, sha: str = HEAD
+) -> shapes.Graded:
+    """A GitHub review (not a regular one) as the flow would read it.
+
+    Args:
+        execution: its verdict.
+        second: the second of the minute it was submitted.
+        sha: the head it reviewed.
+
+    Returns:
+        The review.
+    """
+    when = f"2026-10-30T00:00:{second:02d}Z"
+    return shapes.Graded(
+        sha=sha, when=when, plan=None, execution=execution, comment=False
     )
 
 
@@ -258,3 +281,16 @@ class TestBranches(unittest.TestCase):
         """A rejected plan after a ruling pauses, even the first one."""
         rejected = state(graded(*PLAN_REJECTED, 2), comments=[ruling(1)])
         expect(steps.pause_for_owner(), rejected)
+
+    def test_a_github_review_is_no_regular_review(self) -> None:
+        """The pseudo code reads regular reviews only, gated repository or not."""
+        for review in (github_review(APPROVED, 1), github_review(CHANGES, 1)):
+            expect(steps.regular_review(Stage.PLAN_AND_EXECUTION), state(review))
+        twice = state(github_review(CHANGES, 1, sha=OLDER), github_review(CHANGES, 2))
+        expect(steps.regular_review(Stage.PLAN_AND_EXECUTION), twice)
+
+    def test_a_base_merge_is_no_fix(self) -> None:
+        """A rejected execution, a merge of the base, rejected again: the worker."""
+        first = graded(*EXECUTION_REJECTED, 1, sha=OLDER)
+        merged = state(first, graded(None, CHANGES, 2), merged_heads={OLDER})
+        expect(steps.worker(Task.FIX_EXECUTION), merged)

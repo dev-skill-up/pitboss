@@ -149,11 +149,19 @@ class TestQuestions(unittest.TestCase):
             (state(graded(CHANGES, None, 1)), False),
             (state(short, again), False),
             (state(), False),
+            (state(first, again, merged_heads={OLDER}), False),
+            (state(first, again, merged_heads={"1" * 40}), True),
         ]
         check(flow.execution_fixed_since_plan_approval, cases)
 
+    def test_plan_rejected_again(self) -> None:
+        """From the second rejection on; none and one are not again."""
+        rejecting = [graded(CHANGES, None, second) for second in (1, 2, 3)]
+        cases = [(state(*rejecting[:count]), count >= 2) for count in range(4)]
+        check(flow.plan_rejected_again, cases)
+
     def test_newest_counting_review(self) -> None:
-        """The newest review of the current head, GitHub's included."""
+        """The newest regular review of the current head; GitHub's is none."""
         full = graded(APPROVED, CHANGES, 1)
         plain = graded(None, APPROVED, 2)
         older = graded(APPROVED, APPROVED, 3, sha=OLDER)
@@ -170,6 +178,7 @@ class TestQuestions(unittest.TestCase):
             (state(full, older), full),
             (state(older), None),
             (state(), None),
-            (state(full, github), github),
+            (state(full, github), full),
+            (state(github), None),
         ]
         check(flow.newest_counting_review, cases)

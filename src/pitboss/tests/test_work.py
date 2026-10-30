@@ -131,6 +131,20 @@ class TestPullItems(unittest.TestCase):
         expected = [[kind] if kind else [] for _, kind in STEP_CASES]
         assert_that(found, equal_to(expected))
 
+    def test_the_category_comes_from_the_step_alone(self) -> None:
+        """A PR behind the base is listed as its step says, not as an update."""
+        found = [
+            [
+                each.category
+                for each in work.pull_items(
+                    [stepped(facts(1, NONE, mergeable_state="behind"), step)], SETTINGS
+                )
+            ]
+            for step, _ in STEP_CASES
+        ]
+        expected = [[kind] if kind else [] for _, kind in STEP_CASES]
+        assert_that(found, equal_to(expected))
+
     def test_a_held_pr_is_not_updated_either(self) -> None:
         """A ruling, a pause or the owner holds a PR that is behind the base."""
         held = [steps.opus_ruling(), steps.pause_for_owner(), steps.wait_for_owner()]

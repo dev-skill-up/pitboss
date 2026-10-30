@@ -7,7 +7,7 @@ from typing import Mapping, MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import failures, pulls, reviews, shapes
+from .. import failures, pulls, reviews, shapes, steps
 from . import fakes
 
 GATED = "[review]\ngated = ['gated']\n[libraries]\nrepositories = ['gated']\n"
@@ -126,6 +126,80 @@ class TestReadOpen(unittest.TestCase):
             project, gated = read(bodies(since_head, mergeable_state=state))
             found = (summary(project), gated.standing)
             assert_that(found, equal_to((expected, reviews.Standing.OLDER_HEAD)))
+
+
+def rejection(sha: str, plan: str | None, second: int) -> Mapping[str, object]:
+    """A review comment that grades the execution changes needed.
+
+    Args:
+        sha: the head it reviewed.
+        plan: its ``Plan:`` grade, None for no such line.
+        second: the second of the minute it was written.
+
+    Returns:
+        The canned comment.
+    """
+    lines = ["## Review", f"Reviewed: {sha}"]
+    lines += [f"Plan: {plan}"] if plan else []
+    lines += ["Execution: changes needed", "Verdict: changes needed"]
+    return {
+        "body": "\n".join(lines) + "\n",
+        "author_association": "MEMBER",
+        "created_at": f"2026-10-30T00:00:{second:02d}Z",
+    }
+
+
+def step_after_two_rejections(since_head: Sequence[object]) -> steps.Next:
+    """The step of a PR whose execution was rejected at two heads.
+
+    Args:
+        since_head: the commits of ``main...head``.
+
+    Returns:
+        The step of the project PR.
+    """
+    found = bodies(since_head)
+    found.update(
+        fakes.bodies_under(
+            "repos/owner/project",
+            [
+                (
+                    "issues/1/comments",
+                    [
+                        rejection(fakes.OLDER, "approved", 1),
+                        rejection(fakes.HEAD, None, 2),
+                    ],
+                ),
+                (
+                    f"commits/{fakes.HEAD}/check-runs",
+                    {"check_runs": [check(1, "success", "2026-10-01T00:00:00Z")]},
+                ),
+            ],
+        )
+    )
+    found["repos/owner/project/pulls/1"] = fakes.pull_body(1, body=PLAN_BODY)
+    project, _ = read(found)
+    return project.step
+
+
+PLAN_BODY = "## Plan\nthe plan\n\n## Execution\nthe work\n"
+
+
+class TestFixSincePlanApproval(unittest.TestCase):
+    """A merge of the base is no fix; an authored commit is."""
+
+    def test_the_head_that_differs_by_a_merge_is_the_workers_round(self) -> None:
+        """Rejected, the base merged, rejected again: the worker's round first."""
+        assert_that(
+            step_after_two_rejections([AUTHORED, MERGE]),
+            equal_to(steps.worker(steps.Task.FIX_EXECUTION)),
+        )
+
+    def test_the_head_that_differs_by_a_fix_asks_for_a_ruling(self) -> None:
+        """Rejected, fixed, rejected again: Opus."""
+        assert_that(
+            step_after_two_rejections([AUTHORED, FIX]), equal_to(steps.opus_ruling())
+        )
 
 
 def check(
