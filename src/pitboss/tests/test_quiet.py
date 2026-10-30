@@ -116,17 +116,17 @@ def exit_code(here: world.World, command: str, minute: int, *more: str) -> objec
     return world.again(here, command, "--now", at(minute), *more).code
 
 
-HOLD_TAIL = (
+HOLD = (
     "HOLD pushes to non-draft PRs, undrafts, enqueues, merges and re-runs"
     " (all repositories; pushes to drafts are free)"
 )
 WAITING = (
     "RUNNER PRESSURE: 1 queue-run jobs waiting for a runner: "
-    f"{HOLD_TAIL}; 15 quiet minutes remain"
+    f"{HOLD}; 15 quiet minutes remain"
 )
 QUIET = (
     "RUNNER PRESSURE: nothing waits now, but a job waited or was put on the queue"
-    f" within the quiet period; 15 quiet minutes remain: {HOLD_TAIL}"
+    f" within the quiet period; 15 quiet minutes remain: {HOLD}"
 )
 CLEAR = "NO RUNNER PRESSURE: push and merge as usual"
 

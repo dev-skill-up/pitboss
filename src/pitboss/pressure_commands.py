@@ -14,20 +14,14 @@ from . import ENTRY_DATA, commands, queue, record, report, tracefs
 TIMED_CONFIG = (commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT)
 
 
-def _look(found: commands.Context) -> tuple[record.Look, int]:
-    waiting = queue.waiting_jobs(
-        found.github, commands.runner_runs(found, commands.read_queue_runs(found))
-    )
-    runners = found.settings.runners
-    look = record.Look.HOLD if waiting else record.Look.NONE
-    owed = record.remaining(runners.record, look, runners.quiet_minutes, found.now)
-    return look, max(owed, waiting)
+def _look(found: commands.Context) -> tuple[int, int]:
+    runs = commands.runner_runs(found, commands.read_queue_runs(found))
+    return queue.look(found.github, runs, found.settings.runners, found.now)
 
 
-def _say(look: record.Look, owed: int) -> int:
-    waiting = int(look is record.Look.HOLD)
+def _say(waiting: int, owed: int) -> bool:
     print(report.quiet_line(waiting, owed))
-    return owed
+    return bool(waiting or owed)
 
 
 @ENTRY_DATA.register(commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT, name="pressure")
@@ -42,9 +36,10 @@ def pressure(args: argparse.Namespace) -> None:
     """
     tracefs.say(args.safe_run)
     found = commands.load_context(args)
-    look, owed = _look(found)
-    record.note(found.settings.runners.record, look, found.now)
-    if _say(look, owed):
+    waiting, owed = _look(found)
+    shown = record.Look.HOLD if waiting else record.Look.NONE
+    record.note(found.settings.runners.record, shown, found.now)
+    if _say(waiting, owed):
         raise SystemExit(1)
 
 
@@ -61,6 +56,18 @@ def put_on_queue(args: argparse.Namespace) -> None:
     now = commands.current_time(args)
     record.note(runners.record, record.Look.HOLD, now)
     print(report.queued_line(now, runners.quiet_minutes))
+
+
+def _record_push(found: commands.Context) -> None:
+    try:
+        record.note(found.settings.runners.record, record.Look.HOLD, found.now)
+    except SystemExit as stopped:
+        print(
+            "push WENT OUT, but its hold was not recorded"
+            f" ({stopped.code}); do not push again, run `pitboss queued` once the"
+            " record can be written"
+        )
+        raise SystemExit(2)
 
 
 def _git_push(args: argparse.Namespace) -> None:
@@ -90,7 +97,8 @@ def push(args: argparse.Namespace) -> None:
 
     Raises:
         SystemExit: 1 while the quiet period is not over; git's status when
-            the push fails.
+            the push fails; 2 when the push went out but its hold could not be
+            recorded.
     """
     tracefs.say(args.safe_run)
     found = commands.load_context(args)
@@ -102,5 +110,5 @@ def push(args: argparse.Namespace) -> None:
         return
     _git_push(args)
     if not args.draft:
-        record.note(found.settings.runners.record, record.Look.HOLD, found.now)
+        _record_push(found)
     print("pushed")

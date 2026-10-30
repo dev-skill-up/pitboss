@@ -256,8 +256,9 @@ def _straggler_section(found: Context) -> None:
 
 
 def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
-    waiting = queue.waiting_jobs(found.github, runner_runs(found, runs))
-    print(report.pressure_line(waiting))
+    shared = runner_runs(found, runs)
+    waiting, owed = queue.look(found.github, shared, found.settings.runners, found.now)
+    print(report.quiet_line(waiting, owed))
     for line in report.queue_lines(runs, found.settings, found.now):
         print(line)
 

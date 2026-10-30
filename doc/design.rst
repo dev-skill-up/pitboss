@@ -302,8 +302,10 @@ has seen no quiet yet (the first look starts it); a line that cannot be read
 good line, or of the look being made when it is the last, so it never makes a
 quiet period that was not seen and ages out; a last line cut short is not
 glued to the next; a record that cannot be read or written stops the command.
-``push`` records only a push that went out. ``sweep`` stays read-only and does
-not read the record.
+``push`` records only a push that went out; if that record write fails it says
+the push went out and exits 2 (git's own status when git fails, 1 when refused).
+``sweep`` reads the record without writing it and prints the same line, so its
+``NO RUNNER PRESSURE`` means the quiet period is over.
 
 **Queue runs.** The unfinished ``merge_group`` runs of every repository
 read; a run is stale when its merge group (its ``gh-readonly-queue`` branch)
