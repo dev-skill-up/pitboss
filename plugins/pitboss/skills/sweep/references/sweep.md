@@ -58,7 +58,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `SLOTS FREE` | `SLOTS FREE n`: fewer workers run than the slots configured (n of them free) and the queue has work. | Start work with `slots next`, and before the turn ends set a wake-up (`send_later`): nothing else wakes an idle orchestrator until a GitHub event. |
 | `GONE AGENT` | The ledger holds an agent the session no longer runs. | See `slots.md`. |
 | `CHECK BEFORE YOU ANSWER` | The ledger is kept by hand. | See `slots.md`. |
-| `NEXT` | A line of the sorted list of what to start. | See `slots.md`. |
+| `NEXT` | A line of the sorted list of what to start, printed by `pitboss slots next` (a sweep prints none). | See `slots.md`. |
 | `NO HAND-BACK` | The ledger holds an agent started more than 10 minutes ago that has produced no hand-back or notification; the line gives its minutes. | See `slots.md`. |
 
 ## The runner-pressure hold
