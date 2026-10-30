@@ -13,7 +13,7 @@ import os
 import pathlib
 import subprocess
 import time
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from gather.commands import add_argument
 
@@ -79,7 +79,7 @@ def working_directory(args: argparse.Namespace) -> pathlib.Path:
     return pathlib.Path(args.env.get("PWD", "."))
 
 
-def running_in(args: argparse.Namespace) -> frozenset[pathlib.Path]:
+def running_in(args: argparse.Namespace) -> AbstractSet[pathlib.Path]:
     """The directories a command runs in, which no removal may take.
 
     ``PWD`` (the shell's) and the process's own: a sweep or a cleaning keeps a

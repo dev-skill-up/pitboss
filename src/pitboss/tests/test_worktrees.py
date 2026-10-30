@@ -30,8 +30,12 @@ def scene() -> world.World:
         fakes.commit_file(path, name)
         if name != "unpushed-work":
             fakes.push(path)
-    (here.workspace / "changed-work" / "changed-work").write_text("edited")
-    (here.workspace / "untracked-work" / "notes").write_text("mine")
+    files = (
+        ("changed-work", "changed-work", "edited"),
+        ("untracked-work", "notes", "mine"),
+    )
+    for name, leaf, text in files:
+        (here.workspace / name / leaf).write_text(text)
     cleanworld.mark_live(here.workspace / "live-work")
     done = {"state": "closed", "merged_at": "x"}
     branches = ("merged-work", *UNSAFE)

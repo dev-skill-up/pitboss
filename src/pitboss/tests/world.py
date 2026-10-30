@@ -261,6 +261,19 @@ def parser() -> argparse.ArgumentParser:
     return cli_parser.make_parser()
 
 
+def shell_env(world: World, directory: pathlib.Path | None) -> dict[str, str]:
+    """The environment a command runs with.
+
+    Args:
+        world: the world.
+        directory: the directory it runs in; the workspace when None.
+
+    Returns:
+        The environment, whose ``PWD`` is that directory.
+    """
+    return {"PWD": str(directory or world.workspace)}
+
+
 def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
     """Run ``pitboss`` with arguments.
 
@@ -280,7 +293,7 @@ def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> R
             gather_commands.run_maybe_dry(
                 parser=parser(),
                 argv=["pitboss", *argv],
-                env={"PWD": str(directory or world.workspace)},
+                env=shell_env(world, directory),
                 sp_run=world.processes,
             )
         except SystemExit as exit_error:
