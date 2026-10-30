@@ -1,7 +1,9 @@
 """A relock PR whose check stays red: the sweep's STALL line (keyword: stall).
 
-The owner's case: PR 811 sat red from 10:15 to 02:09 the next day, and the next
-relock failed on the same errors because the fix had not landed.
+A relock PR (head branch starting ``relock/``) whose required check has been red
+for over four hours, counted from the run's completion, is a stall: the next
+relock fails on the same errors until the fix lands, so the skill's rules take
+its fix before the other fixes.
 """
 
 import datetime

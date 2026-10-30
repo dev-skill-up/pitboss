@@ -116,7 +116,8 @@ which is reclaimed after a while. Each `STRAGGLER` line is triaged:
 - scratch: read its `git status`, then delete it.
 
 A straggler older than a day with `branch-on-origin=no` and commits not on
-origin is the dangerous kind: deal with it before anything else.
+origin is the dangerous kind: deal with it before anything else (a `STALL` fix
+included: unpushed work can be lost, and a fix waits).
 
 ## Stale worktrees
 

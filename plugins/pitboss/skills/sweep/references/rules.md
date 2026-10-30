@@ -61,7 +61,10 @@ compaction.
      more than four hours (14400 seconds from the run's `completed_at`) is
      fixed before any other red or conflicted pull request, because the next
      relock fails on the same errors until the fix lands. Among several
-     stalled, oldest first;
+     stalled, oldest first. It jumps the queue and interrupts no worker
+     (Order of work, 1), a merge of a ready pull request still comes before it
+     (Order of work, 3: a merge is not a fix), and its pushes keep the
+     runner-pressure hold;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push); where a merge queue
      builds each entry on the current base, behind is no work (see "Merge
@@ -80,7 +83,8 @@ compaction.
      owner's ruling of that date): open pull requests come first, oldest
      first, whatever each needs (a fix of a red CI, an answer to a review that
      asked for changes, a review of a green PR, a merge of a PR that is
-     reviewed approved and green). Only then the tickets, by priority, and
+     reviewed approved and green), except that a `STALL` fix comes before the
+     other fixes. Only then the tickets, by priority, and
      within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
@@ -248,7 +252,8 @@ compaction.
      "No, among them oldest first."). A pull request that is neither green nor
      red cannot be worked on (owner, 2026-10-26T14:05:11Z, line 105788: "if it
      is not green and not red, it can't be worked on").
-  3. A pull request that is ready to merge is merged before anything else,
+  3. A pull request that is ready to merge is merged before anything else
+     (a `STALL` fix included: a merge is not a fix),
      still within the pressure rules (owner, 2026-10-26T19:34:21Z, line
      109484: "merging PRs that are ready to be merged takes priority over
      everything else"; 2026-10-26T19:37:01Z, line 109557: "first, but still
