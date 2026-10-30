@@ -242,7 +242,13 @@ name the one that started later (then the higher id) stands, so a cancelled
 or superseded run never shows as failed. A line shows ``mergeable_state``, auto-merge,
 pending checks, the failed checks with their job ids, the PR's place in the
 merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
-the newest run's conclusion), and the review's standing. Action lines follow:
+the newest run's conclusion), and the review's standing. Action lines follow.
+First ``STALL`` (``pitboss.stall``; a PR whose head branch starts with
+``relock/`` and whose required check, named ``check`` or ``<caller> / check``, has
+been red for more than 14400 seconds from the run's ``completed_at``, counted
+against the injected clock: exactly 14400 is not yet one; the line says how long
+and, for each failed check, the names of its failed steps; the skill's rules take
+a stall before the other fixes), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, is started by its author's hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from

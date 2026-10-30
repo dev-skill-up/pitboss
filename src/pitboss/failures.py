@@ -50,19 +50,20 @@ def read(
     return shapes.Failure(steps=steps, title=title, summary=summary, annotations=notes)
 
 
-def explain(github: ghapi.GitHub, pull: pulls.PullFacts) -> Mapping[int, str]:
-    """Say, for each failed check of a PR, what api.github.com gives of it.
+def read_all(
+    github: ghapi.GitHub, pull: pulls.PullFacts
+) -> Mapping[int, shapes.Failure]:
+    """Read, for each failed check of a PR, what api.github.com gives of it.
 
     Args:
         github: the API.
         pull: the PR.
 
     Returns:
-        Each failed check's id and its one-line description.
+        Each failed check's id and what was read of it.
     """
     return {
-        check.id: describe(read(github, pull.repo, check))
-        for check in pulls.failed_checks(pull)
+        check.id: read(github, pull.repo, check) for check in pulls.failed_checks(pull)
     }
 
 

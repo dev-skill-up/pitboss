@@ -79,6 +79,25 @@ def newest_groups(runs: Iterable[QueueRun]) -> Mapping[int, QueueRun]:
     return newest
 
 
+def newest_by_reference(runs: Sequence[QueueRun]) -> Mapping[str, QueueRun]:
+    """Each PR reference's newest merge group.
+
+    Args:
+        runs: the merge-queue runs of the repositories.
+
+    Returns:
+        The newest run of each ``owner/name#number``.
+    """
+    by_repo: dict[str, list[QueueRun]] = {}
+    for queue_run in runs:
+        by_repo.setdefault(queue_run.repo.slug, []).append(queue_run)
+    return {
+        f"{slug}#{number}": newest
+        for slug, repo_runs in by_repo.items()
+        for number, newest in newest_groups(repo_runs).items()
+    }
+
+
 def stale_runs(runs: Sequence[QueueRun]) -> Sequence[QueueRun]:
     """The unfinished runs of a group that is no longer its PR's newest.
 

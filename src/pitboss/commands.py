@@ -32,7 +32,8 @@ from . import (
     tracefs,
     work,
 )
-from .failures import explain
+from . import stall
+from .failures import describe, read_all
 from .markers import Marker
 from .running import git
 
@@ -219,25 +220,18 @@ def runner_runs(
     return [each for each in runs if each.repo.slug in sharing]
 
 
-def _newest_by_reference(runs: Sequence[queue.QueueRun]) -> dict[str, queue.QueueRun]:
-    by_repo: dict[str, list[queue.QueueRun]] = {}
-    for queue_run in runs:
-        by_repo.setdefault(queue_run.repo.slug, []).append(queue_run)
-    return {
-        f"{slug}#{number}": newest
-        for slug, repo_runs in by_repo.items()
-        for number, newest in queue.newest_groups(repo_runs).items()
-    }
-
-
 def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
-    newest = _newest_by_reference(runs)
+    newest = queue.newest_by_reference(runs)
     broken = False
     for pull in open_pulls(found):
         print(report.pull_line(pull, newest))
         latest = newest.get(pulls.reference(pull))
         queued = latest is not None and not latest.run.finished
-        why = explain(found.github, pull)
+        read = read_all(found.github, pull)
+        why = {check_id: describe(failure) for check_id, failure in read.items()}
+        steps = {check_id: failure.steps for check_id, failure in read.items()}
+        for line in stall.lines(pull, found.now, steps):
+            print(line)
         for line in report.action_lines(pull, found.settings, queued, why):
             print(line)
         broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))

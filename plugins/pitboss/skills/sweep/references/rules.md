@@ -55,6 +55,12 @@ compaction.
    - red (a failed check or status, or a review that asked for changes at this
      head) or in conflict with the base: a fix, by any author (a conflict is
      fixed as a red CI is: merge the base in, resolve, check, push);
+   - **a `STALL` is a fix taken before the other fixes.** A relock pull request
+     (head branch starting `relock/`) whose required `check` has been red for
+     more than four hours (14400 seconds from the run's `completed_at`) is
+     fixed before any other red or conflicted pull request, because the next
+     day's relock fails on the same errors until the fix lands (PR 811 sat red
+     from 10:15 to 02:09 the next day). Among several, oldest first;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push); where a merge queue
      builds each entry on the current base, behind is no work (see "Merge
