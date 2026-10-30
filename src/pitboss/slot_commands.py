@@ -30,7 +30,8 @@ class Action(enum.Enum):
         ADD: add a slot (SLOT MODEL).
         REMOVE: remove an empty slot (SLOT).
         FAILED: record that a model failed a ticket (TICKET MODEL).
-        CHECK: list the slots whose agent is gone (--running NAME ...).
+        CHECK: list the slots whose agent is gone (--running NAME ...); an
+            optional number N exits 1 when the ledger has fewer than N rows.
         NEXT: print what to start next, and what each empty slot takes.
         WAIT: say a slot's agent waits (SLOT).
         RESUME: say a slot's agent runs again (SLOT).
@@ -111,7 +112,11 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
 def _fewer(found: Context, book: ledger.Ledger) -> None:
     # A ledger with fewer rows than 'slots check N' expects is refused.
     words = found.args.words
-    if len(words) > 1 or (words and not words[0].isdigit()):
+    # int() takes only ASCII digits here, and refuses more than 4300 of them.
+    if len(words) > 1 or (
+        words
+        and not (words[0].isascii() and words[0].isdigit() and len(words[0]) < 1000)
+    ):
         raise _refuse("slots check takes one number of rows, or none")
     if words and int(words[0]) > len(book.slots):
         print(

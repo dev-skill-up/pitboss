@@ -2,8 +2,8 @@
 
 A slot is a place for one worker agent, with the model it runs on. The
 project's configuration names the models (smallest first, under
-`[slots] models`) and the slots a new ledger starts with
-(`[[slots.default]]`). The ledger, a file outside the repository, records
+`[slots] models`) and the slots `pitboss sweep` starts a ledger with when the
+file does not exist (`[[slots.default]]`; `pitboss slots` never starts one). The ledger, a file outside the repository, records
 which agent is in which slot on which task, and which models have failed
 which tickets. The owner creates the ledger file and it is authoritative on
 how many slots there are: when it does not exist, every `pitboss slots`

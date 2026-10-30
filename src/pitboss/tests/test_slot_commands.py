@@ -274,8 +274,13 @@ class TestMissingLedger(unittest.TestCase):
     def test_check_words(self) -> None:
         """``check`` takes one number, or none."""
         here = world.make_world()
-        two, text = run_all(here, (("check", "1", "2"), ("check", "x")))
-        assert_that(
-            (two.code, text.code),
-            equal_to((2, 2)),
+        results = run_all(
+            here,
+            (
+                ("check", "1", "2"),
+                ("check", "x"),
+                ("check", "²"),
+                ("check", "9" * 5000),
+            ),
         )
+        assert_that([r.code for r in results], equal_to([2, 2, 2, 2]))

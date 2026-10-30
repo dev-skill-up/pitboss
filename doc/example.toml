@@ -110,8 +110,9 @@ models = ["small-model", "large-model"]
 # The ticket labels that are offered, highest priority first; a ticket with
 # none of them is never offered. Default: none.
 priority_labels = ["urgent", "soon", "later"]
-# The slots a new ledger starts with. Default: none (add them with
-# `pitboss slots add`).
+# The slots `pitboss sweep` starts a ledger with when the ledger file does not
+# exist. Default: none. `pitboss slots` never creates the ledger: it exits 1 with
+# LEDGER MISSING, and the owner creates the file.
 default = [
     { name = "large-1", model = "large-model" },
     { name = "small-1", model = "small-model" },
