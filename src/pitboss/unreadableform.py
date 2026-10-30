@@ -49,10 +49,6 @@ def first_line_problem(
     return f"the first line is {shown!r}, not {wanted!r}"
 
 
-def _grades(body: str) -> bool:
-    return bool(_GRADE_LINE.search(body))
-
-
 def find(
     posted: Sequence[shapes.Comment],
     trusted: AbstractSet[str],
@@ -78,7 +74,7 @@ def find(
     graded = [
         item
         for item in posted
-        if item.author_association in trusted and _grades(item.body)
+        if item.author_association in trusted and _GRADE_LINE.search(item.body)
     ]
     problems = [
         (item, first_line_problem(item.body, form, pattern_of)) for item in graded

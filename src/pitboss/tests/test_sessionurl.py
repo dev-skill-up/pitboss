@@ -187,6 +187,25 @@ class TestReviews(unittest.TestCase):
                     equal_to(check(subject_of(text), GATED)),
                 )
 
+    def test_review_forms_read_the_first_and_ending_lines_without_the_url(
+        self,
+    ) -> None:
+        """The URL first line and the footer link do not change either form check."""
+        ended = dataclasses.replace(GATED, lines=(*GATED.lines, "---", FOOTER))
+        head = f"## Adversarial review\nReviewed: {HEAD}\nVerdict: approved\n"
+        ending = f"---\n{FOOTER}\n"
+        ending_link = f"---\n{FOOTER_LINK}\n"
+        for check in (forms.ordinary_review, forms.gated_review):
+            assert_that(check(subject_of(head + ending), ended), equal_to([]))
+            assert_that(
+                check(subject_of(f"{SESSION}\n{head}"), GATED),
+                equal_to(check(subject_of(head), GATED)),
+            )
+            assert_that(
+                check(subject_of(head + ending_link), ended),
+                equal_to(check(subject_of(head + ending), ended)),
+            )
+
     def test_readers(self) -> None:
         """Both readers find a review with the URL line first, or in brackets."""
         for read in (reviews.read_comment, reviews.read_gated):

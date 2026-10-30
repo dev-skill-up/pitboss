@@ -342,6 +342,5 @@ def brief(
     Returns:
         The findings.
     """
-    clean = _clean(subject)
-    found = _required(clean, required)
-    return found if ticket is None else [*found, *_done_when(clean, ticket)]
+    found = _required(subject, required)
+    return found if ticket is None else [*found, *_done_when(subject, ticket)]
