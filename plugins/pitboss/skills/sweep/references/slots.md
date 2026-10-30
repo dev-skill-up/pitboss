@@ -77,7 +77,9 @@ this order, and says on each line why it is where it is:
 1. **Fix the review**: an open PR whose newest review asks for changes on
    its current head. Its author fixes it.
 2. **Review it**: an open PR whose checks all finished and passed on its
-   head, with no conflict, not a draft, and no review of that head. A
+   head, with no conflict, not a draft, and no review of that head (a draft's
+   first review is started by its author's hand-back, `rules.md`, "Plan
+   first"). A
    reviewer that is not its author reviews it, and only once every check
    finished green on that exact head; the author never waits on CI, but
    pushes, reports the head and finishes.

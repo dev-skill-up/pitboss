@@ -78,7 +78,9 @@ compaction.
    on the exact head.** A PR whose CI is still running is not reviewed, and a
    review of a PR in progress is never started to fill a slot. A head with no
    completed check run (a draft that runs no CI) is waiting for CI: a reviewer
-   on it reports NOT STARTED.
+   on it reports NOT STARTED, except the first review of a draft at its Plan
+   stage, which its author's hand-back starts and which has no check to wait
+   for ("Plan first").
 4. **The rows of the ledger are the agents that run, reviewers included**
    (orchestrator, 2026-10-18). The ledger is authoritative on how many; only an
    explicit instruction from the owner ("Add a slot", "Remove", "Change")
@@ -358,9 +360,10 @@ compaction.
   is usually "write a plan first, approve the plan, and then the review *judges
   against the plan*""). The worker writes a plan in the PR body (the invariant
   or goal, every input or case to handle, the research, the one approach
-  chosen and why) and hands back without code; a reviewer approves or sends
-  back the plan; then the worker implements and the next review judges the PR
-  against the approved plan. The strict form (owner, 2026-10-25T05:18:27Z):
+  chosen and why, and how each Done-when line is met) and a reviewer approves
+  or sends back the plan; then the next review judges the PR against the
+  approved plan. The plan is a section of the draft PR's body (below), not a
+  hand-back without code. The strict form (owner, 2026-10-25T05:18:27Z):
   "too "needs changes" means plan approval and judgement against the plan, if
   plan approval doesn't converge in two cycles *or* needs changes appears after
   plan is approved, the "paused-owner" thing should take effect. That will stop
@@ -382,23 +385,47 @@ compaction.
   we still get a needs changes, that's paused owner").
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
-  creates a draft PR, splits the body into Plan and Execution, and asks for
-  review on the plan and execution separately. The review is done by the same
-  subagent, but if the *plan* comes back with changes needed, the PR stays as
-  draft for another cycle until the plan is approved ... Only once the plan is
-  approved does it move the PR out of draft mode."). The first changes-needed
-  of a plan counts as the first plan rejection (owner, 2026-10-26T22:45:16Z:
-  "there's no rejected outright. It's just that the first needs changes counts
-  as the first plan rejection"); a reviewer grades the plan and the execution
-  in one review, each on its own line, and writes the plan's verdict in a way
-  that keeps the review's form (same message: "the reviewer still writes a
-  field about the plan verdict, and this carries as always. It should do it in
-  a way that does not break the form"; 2026-10-26T23:14:17Z: "It can grade the
-  execution as well."). Once the plan is approved a later review does not grade
-  it again (owner, 2026-10-26T23:54:21Z: "Once the plan is approved, YOU DO NOT
-  GRADE IT. It's approved"). The lint of the body and of a review runs on a
-  draft too (owner, 2026-10-27T01:08:10Z: "I just want lint to be running *even
-  on draft PRs*").
+  creates a draft PR, splits the body into Plan and Execution" ... "the PR
+  stays as draft for another cycle until the plan is approved ... Only once the
+  plan is approved does it move the PR out of draft mode."). The process, in
+  any project:
+  - The author writes the code, then opens the PR as a draft (it stays a draft
+    until its Plan is approved). The body has a **Plan** section (what will
+    change, and why that satisfies each Done-when line) and an **Execution**
+    section (what was done, with the evidence: each command and its raw
+    output). A draft runs no costly CI (`ci.md`), so a push to it is free.
+  - **One new reviewer agent grades the Plan and the Execution together**, in
+    one review, and it is never a reviewer continued from an earlier round
+    (orchestrator, 2026-10-26, from the owner's corrections of that date; owner,
+    2026-10-26T23:14:17Z: "It can grade the execution as well."). It may grade
+    the Execution while the PR is still a draft: a draft has no check run, so
+    that grade rests on the diff and the evidence in the body. The review has a
+    `Plan:` line and an `Execution:` line (`approved` or `changes needed`,
+    neither line containing the word verdict followed by a colon) beside the
+    one `Verdict:` line of the form (`adversarial-review.md`). The PR leaves
+    draft only when the Plan is approved.
+  - **After an approved Plan, every later review grades only the Execution**;
+    the Plan line is carried over (`Plan: approved`, not reassessed, not
+    discussed) (owner, 2026-10-26T23:54:21Z: "Once the plan is approved, YOU DO
+    NOT GRADE IT. It's approved"). A brief for a re-review says which stage the
+    PR is at, and a reviewer is never told that the Execution is reviewed later
+    or by someone else.
+  - **A Plan graded changes needed is a Plan rejection** (owner,
+    2026-10-26T22:45:16Z: "there's no rejected outright. It's just that the
+    first needs changes counts as the first plan rejection"); rejections are
+    counted from the Plan grade alone, so the next review grades the Plan again
+    and the author revises it. After the second Plan rejection an Opus ruling
+    agent rules on what the rounds disagree about (the next bullet), and when a
+    review then still asks for changes, the PR is paused and the owner is told
+    (the first bullet).
+  - **Before asking for review the author greps the whole tree** (the docs, the
+    README, the design notes, the skill files, the example configuration, the
+    tests) for every statement the change makes false or contradictory, and
+    fixes each one: a contradiction is fixed, never documented.
+  - **A reviewer's objection to a phrase no claim depends on is answered by
+    removing the phrase**, not by defending it.
+  The lint of the body and of a review runs on a draft too (owner,
+  2026-10-27T01:08:10Z: "I just want lint to be running *even on draft PRs*").
 - **A plan that needs a long run for its evidence is invalid** (owner,
   2026-10-26T04:23:05Z: "Any plan that demands evidence that can only be
   satisfied by a long run (not a combinatio of short runs and CI) is
@@ -426,7 +453,23 @@ compaction.
 - Every worker brief says: the worker rules of the repository; finish inside
   the turn; do not merge; do not write the review. Every reviewer brief says:
   the reviewer rules, and that a reviewer runs nothing. A reviewer brief is sent
-  only when the sweep says the PR is ready for review, and names the head SHA.
+  only when the sweep says the PR is ready for review (or, for the first review
+  of a draft, when its author hands back), and names the head SHA.
+- **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
+  says: `Plan: open the PR as a draft whose body has a Plan section (what you
+  will change, and why that satisfies each Done-when line) and an Execution
+  section (what you did, with each command and its raw output); never mark it
+  ready.` `Grep: before asking for review, grep the whole tree (docs, README,
+  design notes, skill files, example configuration, tests) for any statement
+  your change makes false or contradictory and fix each one; a contradiction is
+  fixed, never documented.` A reviewer brief says: `Plan: you are a new
+  reviewer; grade the Plan and the Execution in one review, with a Plan line
+  and an Execution line beside the one Verdict line; the PR is at its first
+  review (or at a Plan rejection)` or `the Plan is approved: grade only the
+  Execution and write the Plan line as approved, carried over.` It also says:
+  `Grep: look for a statement the change makes false or contradictory anywhere
+  in the tree; one is changes needed. An objection to a phrase no claim depends
+  on is answered by removing the phrase.`
 - **A worker and a reviewer brief begin with the one-PR check.** `One PR: first
   confirm that the ticket can be satisfied by one PR. If it can, do the whole
   ticket in one PR. If it cannot, hand back NOT STARTED with the evidence
@@ -561,7 +604,7 @@ compaction.
   "contention" are not causes. A class of failure a change says it covers has a
   case that fails when the class occurs, shown by injecting it. A reviewer runs
   nothing and starts only when every required check is finished and green on
-  the exact head.
+  the exact head (the first review of a draft has no check run to wait for).
 - **Saying a defect out loud is not fixing it** ("documented", "disclosed",
   "known", "non-blocking" never make an approval): a defect is changes needed,
   or, when the owner has ruled the PR may land, its own ticket at once.

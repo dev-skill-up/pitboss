@@ -17,13 +17,15 @@ whether the repository is gated.
 - Review the exact head. Write the full 40-character SHA of the commit you
   reviewed where the form says `{sha}`; read it from the PR when you start,
   and again before you post: if the head moved, review the new head.
-- Start only when every check has finished and passed on that head. Your
+- Start only when every check has finished and passed on that head, except
+  for the first review of a draft PR (below), which has no check run. Your
   first act is to read the checks of the full head SHA the brief names. If one
   has not finished or has not passed, you were started too early: hand back at
   once with `NOT STARTED: <check> is <state> at <sha>`, and review nothing.
 - A head with no completed check run (a draft that runs no CI) is waiting
   for CI: hand back `NOT STARTED: no completed check run at <sha>`, and never
-  approve it.
+  approve it, unless your brief says the PR is a draft at its Plan stage: then
+  you grade it as the next section says.
 - You are a separate agent from the author. If you wrote any part of the
   change, say so and stop.
 - Report CI by name: each required check and its state at the head SHA, and
@@ -53,6 +55,26 @@ does not count as a review at all:
 Outside a gated repository, an approval also stands when the only commits
 since are merges of the base branch; in a gated repository a new head needs
 a new review.
+
+## A draft PR: Plan, Execution and the Plan line
+
+A fix is a draft PR whose body has a Plan section and an Execution section
+(`rules.md`, "Plan first"). You are a new reviewer, never a continued one, and
+you grade both in one review, besides the form's single verdict line:
+
+- a line `Plan: approved` or `Plan: changes needed`, and a line
+  `Execution: approved` or `Execution: changes needed`; neither line contains
+  the word verdict followed by a colon, so the form's one verdict line stays
+  the only one;
+- a draft has no check run, so you grade its Execution from the diff and the
+  evidence in the body, and say that no check was read;
+- if your brief says the Plan was already approved, you grade only the
+  Execution and write `Plan: approved` as carried over: you do not reassess or
+  discuss the Plan;
+- a statement the change makes false or contradictory anywhere in the tree is
+  changes needed (the author greps the tree for them before asking for review);
+- an objection to a phrase no claim depends on is withdrawn when the author
+  removes the phrase: do not defend a phrase.
 
 ## What to review
 

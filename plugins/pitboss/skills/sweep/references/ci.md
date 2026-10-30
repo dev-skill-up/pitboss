@@ -97,16 +97,18 @@ draft starts no costly job, so the interval does not apply to it and a worker
 keeps its work on GitHub through a draft. The lint of the body still runs on a
 draft (`rules.md`, "Pushing and merging").
 - Carried by: the workflow's own condition (the section above), and in the
-  sweep `WAIT-FOR-CI` for a draft with no completed check run and `[draft]`
-  in the PR line (`sweep.md`). The hold below leaves draft pushes alone
+  sweep `WAIT-FOR-CI` for a draft with no completed check run (its first
+  review, at the Plan stage, is the exception: `rules.md`, "Plan first") and
+  `[draft]` in the PR line (`sweep.md`). The hold below leaves draft pushes alone
   (`sweep.md`, "The runner-pressure hold"; the hold line `pitboss pressure`
   prints says the same).
 
 **Enqueue is preferred to undraft.** Undraft runs the whole check on the head
 (`ready_for_review`), and the queue then tests the group again, so each spends
 one of the spaced actions. When a PR could take either next, spend it on the
-enqueue, the run that gates the base branch. Undraft is for a PR that needs a
-green head to be reviewed (a draft has none); a PR is not sent back to draft
+enqueue, the run that gates the base branch. Undraft is for a PR whose Plan is approved
+and that needs a green head for the review of its Execution (a draft has
+none); a PR is not sent back to draft
 to be undrafted again.
 - Carried by: `READY TO MERGE` and `AUTO MERGE OFF` (arm auto-merge, which
   enqueues), `MERGE BY HAND` (repositories in `[libraries] no_auto_merge`),
