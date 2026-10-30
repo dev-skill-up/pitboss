@@ -9,7 +9,7 @@ from hamcrest import assert_that, equal_to
 from .. import handback, ledger
 from . import world
 
-START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
+START = world.START
 MARKER = "NO HAND-BACK"
 CASES: Sequence[tuple[str, int, bool, Sequence[str]]] = (
     ("eleven minutes", 11, False, [f"{MARKER} agent-1 (11 minutes)"]),

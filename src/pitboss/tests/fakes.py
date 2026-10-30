@@ -16,7 +16,7 @@ from typing import (
     Sequence,
 )
 
-from .. import config, ghapi
+from .. import config, configfile, ghapi
 
 HEAD = "a" * 40
 OLDER = "b" * 40
@@ -192,7 +192,7 @@ def settings(directory: pathlib.Path, extra: str = "") -> config.Config:
         f'main_clone = "{directory / "project"}"\n'
         f'workspace = "{directory}"\n' + extra
     )
-    return config.load(str(path), directory)
+    return configfile.load(str(path), directory)
 
 
 def run_git(directory: pathlib.Path, *arguments: str) -> str:

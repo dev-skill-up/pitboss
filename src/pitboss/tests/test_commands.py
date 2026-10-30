@@ -7,7 +7,6 @@ from hamcrest import assert_that, equal_to
 
 from . import fakes, world
 
-PROJECT_JOBS = world.project_page("actions/runs/11/jobs")
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
 SWEEP_LINES = (
@@ -54,18 +53,6 @@ def missing(text: str, expected: Sequence[str], here: world.World) -> Sequence[s
     """
     pieces = [piece.format(workspace=here.workspace) for piece in expected]
     return [piece for piece in pieces if piece not in text]
-
-
-def last_line(result: world.Result) -> tuple[str, object]:
-    """The last line of a command's output, and its exit code.
-
-    Args:
-        result: what the command did.
-
-    Returns:
-        The line and the code.
-    """
-    return result.out.splitlines()[-1], result.code
 
 
 REVIEW_FORMS = [
@@ -189,21 +176,6 @@ class TestSweep(unittest.TestCase):
             found.append(free_lines(sweep(here)))
         expected = [["SLOTS FREE 2: "], ["SLOTS FREE 1: "], [], []]
         assert_that(found, equal_to(expected))
-
-    def test_pressure(self) -> None:
-        """One line, and exit 1 only under pressure."""
-        here = world.make_world()
-        under = world.again(here, "pressure")
-        here.bodies[PROJECT_JOBS] = {"jobs": []}
-        clear = world.again(here, "pressure")
-        found = [last_line(under)[0], last_line(clear)[0]]
-        expected = [
-            "RUNNER PRESSURE: 1 queue-run jobs waiting for a runner: HOLD pushes to"
-            " non-draft PRs, undrafts, enqueues, merges and re-runs"
-            " (all repositories; pushes to drafts are free)",
-            "NO RUNNER PRESSURE: push and merge as usual",
-        ]
-        assert_that((found, under.code, clear.code), equal_to((expected, 1, 0)))
 
     def test_unreadable_project(self) -> None:
         """A project the session cannot read stops the command."""

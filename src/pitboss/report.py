@@ -138,8 +138,14 @@ def _auto_merge_off(
     return healthy and not manual and not queued and not pull.pull.auto_merge
 
 
+HOLD_ACTIONS = (
+    "HOLD pushes to non-draft PRs, undrafts, enqueues, merges and re-runs"
+    " (all repositories; pushes to drafts are free)"
+)
+
+
 def pressure_line(waiting: int) -> str:
-    """The runner-pressure line.
+    """The runner-pressure line of what waits now.
 
     Args:
         waiting: queue-run jobs waiting for a runner.
@@ -151,9 +157,45 @@ def pressure_line(waiting: int) -> str:
         return f"{Marker.NO_RUNNER_PRESSURE.text}: push and merge as usual"
     return (
         f"{Marker.RUNNER_PRESSURE.text}: {waiting} queue-run jobs waiting for a"
-        " runner: HOLD pushes to non-draft PRs, undrafts, enqueues, merges and re-runs"
-        " (all repositories; pushes to drafts are free)"
+        f" runner: {HOLD_ACTIONS}"
     )
+
+
+def queued_line(now: datetime.datetime, quiet_minutes: int) -> str:
+    """The line that says a queued job was recorded.
+
+    Args:
+        now: when.
+        quiet_minutes: the length of the quiet period that restarts.
+
+    Returns:
+        The line.
+    """
+    return (
+        f"recorded a queued job at {now.isoformat(timespec='seconds')}: the quiet"
+        f" period of {quiet_minutes} minutes restarts"
+    )
+
+
+def quiet_line(waiting: int, owed: int) -> str:
+    """The runner-pressure line of a look that counts the quiet period.
+
+    Args:
+        waiting: queue-run jobs waiting for a runner.
+        owed: the quiet minutes still owed; 0 when the quiet period is over.
+
+    Returns:
+        The line.
+    """
+    if waiting:
+        return f"{pressure_line(waiting)}; {owed} quiet minutes remain"
+    if owed:
+        return (
+            f"{Marker.RUNNER_PRESSURE.text}: nothing waits now, but a job waited or"
+            f" was put on the queue within the quiet period; {owed} quiet minutes"
+            f" remain: {HOLD_ACTIONS}"
+        )
+    return pressure_line(0)
 
 
 def queue_lines(

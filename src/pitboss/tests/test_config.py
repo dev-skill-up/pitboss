@@ -7,7 +7,7 @@ from typing import Iterable, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config
+from .. import config, configfile
 from . import fakes
 
 EVERYTHING = """
@@ -16,6 +16,8 @@ repositories = ["lib", "other/elsewhere"]
 no_auto_merge = ["lib"]
 [runners]
 repositories = ["project"]
+record = "/somewhere/pressure.log"
+quiet_minutes = 7
 [review]
 gated = ["lib"]
 trusted_associations = ["OWNER"]
@@ -49,7 +51,7 @@ def _slugs(repos: Iterable[config.Repo]) -> Sequence[str]:
 def _summary(settings: config.Config) -> dict[str, object]:
     return {
         "libraries": _slugs(settings.libraries),
-        "runners": _slugs(settings.runners),
+        "runners": _slugs(settings.runners.repositories),
         "repositories": _slugs(config.repositories(settings)),
         "no_auto_merge": settings.no_auto_merge,
         "gated": settings.review.gated,
@@ -106,6 +108,7 @@ WRONG = [
     ('libraries = "lib"\n', "[libraries]"),
     ('[libraries]\nrepositories = "lib"\n', "repositories"),
     ('[slots]\ndefault = "slot"\n', "slots.default"),
+    ("[runners]\nquiet_minutes = -1\n", "quiet_minutes"),
 ]
 
 
@@ -121,7 +124,7 @@ def error_with(extra: str) -> str:
     directory = fakes.directory()
     path = directory / "wrong.toml"
     path.write_text(extra + PROJECT)
-    return fakes.error_of(lambda: config.load(str(path), directory))
+    return fakes.error_of(lambda: configfile.load(str(path), directory))
 
 
 class TestLoad(unittest.TestCase):
@@ -160,7 +163,7 @@ class TestExample(unittest.TestCase):
 
     def test_example_loads(self) -> None:
         """It parses, and what it gates and merges by hand are its libraries."""
-        settings = config.load(str(EXAMPLE), EXAMPLE.parent)
+        settings = configfile.load(str(EXAMPLE), EXAMPLE.parent)
         libraries = set(_slugs(settings.libraries))
         found = (
             settings.review.gated <= libraries,
@@ -181,14 +184,14 @@ class TestLocate(unittest.TestCase):
         inner = directory / "a" / "b"
         inner.mkdir(parents=True)
         found = [
-            config.locate("mine", inner),
-            config.locate("x/y.toml", inner),
-            config.locate("y.toml", inner),
+            configfile.locate("mine", inner),
+            configfile.locate("x/y.toml", inner),
+            configfile.locate("y.toml", inner),
         ]
         expected = [target, pathlib.Path("x/y.toml"), pathlib.Path("y.toml")]
         assert_that(found, equal_to(expected))
         errors = [
-            fakes.error_of(functools.partial(config.locate, name, inner))
+            fakes.error_of(functools.partial(configfile.locate, name, inner))
             for name in ("absent", "mine")
         ]
         absent = f"no absent.toml in .claude/pitboss of {inner} or its parents"

@@ -590,12 +590,23 @@ compaction.
 - **Before any push to a non-draft PR, undraft, enqueue or merge, check the
   runner pressure** (`pitboss pressure`; `sweep.md` has the hold). Pushes to a
   draft PR start no costly job and are not held (`ci.md`). Under pressure,
-  hold; a hold lifts only when the
-  pressure printed none at every look for 15 minutes (owner,
+  hold. **A hold lifts only after the quiet period:** `pitboss pressure` exits 0
+  only when its record (`[runners] record`) shows no hold at any look, and no
+  job put on the queue, for the last `[runners] quiet_minutes` minutes in a row
+  (default 15), and otherwise exits 1 saying how many minutes remain (owner,
   2026-10-26: "New rule: runner pressure should be 0 for 15 minutes before we
   consider the hold off. (the reason is because some things get a minute to
-  trigger in a serial queue)"). If the pressure check fails a worker hands back;
-  it does not loop, retry or sleep for it (owner, haiku-rule 47, 2026-10-25).
+  trigger in a serial queue)"; amended the same day: "once you put a job on the
+  queue, treat it as immediate pressure for the purposes of resetting the 15
+  minute timer. The reason is that some of the later jobs take time to start,
+  and if we stuff the queue, we get the ejection stuff that causes infinite
+  holds (stuff gets dequeued, and then the MQ start from scratch)"). A job put
+  on the queue is recorded at once: `pitboss push` records the push that went
+  out (a refused push records nothing, so a retried push does not keep
+  restarting the wait), and the orchestrator runs `pitboss queued <config>`
+  after a merge, an enqueue or auto-merge armed. If the pressure check fails a
+  worker hands back; it does not loop, retry or sleep for it (owner,
+  haiku-rule 47, 2026-10-25).
 - **A PR merges only after an independent review comment for its head.** In a
   gated repository a push, an update-branch or a merge of the base voids the
   gate's approval and a new head needs a new review (the form is
