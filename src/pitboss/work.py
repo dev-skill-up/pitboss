@@ -1,13 +1,15 @@
 """What to start next: one sorted list, and which empty slot takes what.
 
-The order (work-order): (1) the author's fix for a review that asked for
-changes on the PR's current head; (2) an update of a PR that is behind the
-base with its checks finished (never where the repository has a merge queue);
-(3) a review of a PR that is green on its head and has no review of it; (4) a
-new PR for an open ticket with a priority label that no open PR names. Within a
-category, by priority label, then oldest first. Nothing predicts which files a
-ticket will touch: tickets are taken in this order, every PR starts from the
-base branch, and a conflict is resolved by merging the base branch in.
+The order (work-order): the open PRs that need work come first, in one list,
+oldest first, whatever each needs: the author's fix for a review that asked
+for changes on the PR's current head, an update of a PR that is behind the
+base with its checks finished (never where the repository has a merge queue),
+or a review of a PR that is green on its head and has no review of it. The kind
+is a label on the line, not a rank. After them come the new PRs, one for each
+open ticket with a priority label that no open PR names, by priority label,
+then oldest first. Nothing predicts which files a ticket will touch: work is
+taken in this order, every PR starts from the base branch, and a conflict is
+resolved by merging the base branch in.
 """
 
 import dataclasses
@@ -22,13 +24,13 @@ _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
 
 
 class Category(enum.IntEnum):
-    """The kinds of work, in the order they are taken.
+    """The kinds of work: a label on a line, never a rank among the open PRs.
 
     Attributes:
-        FIX_REVIEW: an author fixes what a review asked for.
-        UPDATE: an author merges the base into a PR that is behind it.
-        REVIEW: a reviewer (never the author) reviews a green head.
-        NEW_PR: a worker starts a ticket.
+        FIX_REVIEW: an author fixes what a review asked for (a PR).
+        UPDATE: an author merges the base into a PR that is behind it (a PR).
+        REVIEW: a reviewer (never the author) reviews a green head (a PR).
+        NEW_PR: a worker starts a ticket (after every PR).
     """
 
     FIX_REVIEW = 1
@@ -180,12 +182,17 @@ def ordered(items: Iterable[Item], held: Iterable[str]) -> Sequence[Item]:
         held: the references slots hold.
 
     Returns:
-        The items, first to take first.
+        The items, first to take first: every open PR, oldest first, then
+        the tickets by priority label, oldest first.
     """
     holding = frozenset(held)
     return sorted(
         (item for item in items if item.reference not in holding),
-        key=lambda item: (item.category, item.priority, item.created_at),
+        key=lambda item: (
+            item.category is Category.NEW_PR,
+            item.priority,
+            item.created_at,
+        ),
     )
 
 

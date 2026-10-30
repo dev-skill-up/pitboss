@@ -69,11 +69,13 @@ estimated.
 2. Then pull requests in progress: an open PR with no worker that is still
    relevant is finished (fixed, reviewed, brought up to date, merged),
    whatever its priority, so open PRs do not pile up. A `STALL` fix comes
-   first among the fixes (`rules.md`).
+   before every other pull request (`rules.md`).
 3. Then new work, in the order the project requires.
 
-`slots next` sorts what it can see from GitHub into four categories, in
-this order, and says on each line why it is where it is:
+`slots next` sorts what it can see from GitHub into one list and says on each
+line why it is where it is. The open pull requests that need work come first,
+in one list, oldest first by creation time, whatever each needs; a line says
+which of three kinds it is:
 
 1. **Fix the review**: an open PR whose newest review asks for changes on
    its current head. Its author fixes it.
@@ -89,13 +91,13 @@ this order, and says on each line why it is where it is:
    reviewer that is not its author reviews it, and only once every check
    finished green on that exact head; the author never waits on CI, but
    pushes, reports the head and finishes.
-4. **Start a PR**: an open ticket with one of the configured priority
-   labels that no open PR names (in its title, body or branch); a ticket
-   with none of the labels is never offered.
 
-Within a category: by priority label (the order of `priority_labels`), then
-oldest first by the creation time of the PR or the ticket. Items a slot
-already holds are left out. A `STALL` line of the sweep (`rules.md`) is the one
+After the pull requests come the new PRs: **Start a PR** is an open ticket
+with one of the configured priority labels that no open PR names (in its
+title, body or branch); a ticket with none of the labels is never offered.
+The tickets are ordered by priority label (the order of `priority_labels`),
+then oldest first by the creation time of the ticket. Items a slot already
+holds are left out. A `STALL` line of the sweep (`rules.md`) is the one
 exception: its fix is taken before every line of this list.
 
 Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a

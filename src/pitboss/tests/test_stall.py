@@ -93,7 +93,7 @@ class TestStall(unittest.TestCase):
         assert_that(line, contains_string("STALL o/r#7: relock check red for 4h00m01s"))
         assert_that(line, contains_string("(14401 seconds, over 14400)"))
         assert_that(line, contains_string("check (job 8): Run bats check, Run tests;"))
-        assert_that(line, contains_string("fix it before the other fixes"))
+        assert_that(line, contains_string("fix it before every other pull request"))
 
     def test_red_for_four_hours_or_less_is_quiet(self) -> None:
         """One second short of four hours, and exactly 14400 seconds, print nothing."""

@@ -3,7 +3,7 @@
 A relock PR (head branch starting ``relock/``) whose required check has been red
 for over four hours, counted from the run's completion, is a stall: the next
 relock fails on the same errors until the fix lands, so the skill's rules take
-its fix before the other fixes.
+its fix before every other pull request.
 """
 
 import datetime
@@ -77,5 +77,5 @@ def lines(
     return [
         f"{Marker.STALL.text} {pulls.reference(pull)}: relock check red for"
         f" {_seconds_text(red)} ({red} seconds, over {STALL_SECONDS}); failing"
-        f" steps: {jobs}; fix it before the other fixes"
+        f" steps: {jobs}; fix it before every other pull request"
     ]
