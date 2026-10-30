@@ -19,6 +19,7 @@ from typing import (
 from .. import config, configfile, ghapi
 
 HEAD = "a" * 40
+PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
 OLDER = "b" * 40
 NOT_FOUND = 127
 Answers = Mapping[str, int]
@@ -162,7 +163,7 @@ def pull_body(number: int, **changes: object) -> MutableMapping[str, object]:
         "created_at": "2026-10-01T00:00:00+00:00",
         "draft": False,
         "user": {"login": "author"},
-        "body": "",
+        "body": PLAN_AND_EXECUTION,
         "head": {"sha": HEAD, "ref": f"branch-{number}"},
         "base": {"ref": "main"},
         "mergeable_state": "clean",

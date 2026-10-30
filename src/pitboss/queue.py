@@ -7,7 +7,7 @@ import re
 import subprocess
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ghapi, parsing, pulls, record, shapes
+from . import config, ghapi, parsing, record, shapes
 
 QUEUE_PAGES = 3
 _PULL_NUMBER = re.compile(r"/pr-(\d+)-")
@@ -140,14 +140,14 @@ class Jobs:
     """
 
     waiting: int
-    unread: Sequence[pulls.Unreadable]
+    unread: Sequence[shapes.Unreadable]
 
 
-def _read_jobs(github: ghapi.GitHub, queue_run: QueueRun) -> int | pulls.Unreadable:
+def _read_jobs(github: ghapi.GitHub, queue_run: QueueRun) -> int | shapes.Unreadable:
     try:
         return _queued_jobs(github, queue_run)
     except subprocess.CalledProcessError as error:
-        return pulls.Unreadable(
+        return shapes.Unreadable(
             reference=f"{queue_run.repo.slug}#{queue_run.number}",
             call=ghapi.call_of(error),
             status=ghapi.status_of(error),
@@ -169,7 +169,7 @@ def count_jobs(github: ghapi.GitHub, runs: Iterable[QueueRun]) -> Jobs:
         read = list(pool.map(lambda each: _read_jobs(github, each), unfinished))
     return Jobs(
         waiting=sum(each for each in read if isinstance(each, int)),
-        unread=[each for each in read if isinstance(each, pulls.Unreadable)],
+        unread=[each for each in read if isinstance(each, shapes.Unreadable)],
     )
 
 

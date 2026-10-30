@@ -7,6 +7,7 @@ such a suffix are absent for every parser (keyword: session-url).
 """
 
 import re
+from typing import Sequence
 
 _URL = r"https://claude\.ai/code/session_[\w-]+"
 # the whole line is the URL, bare or in a pair of angle brackets
@@ -31,3 +32,15 @@ def strip(text: str) -> str:
         URL in prose, and any other link, is kept.
     """
     return URL_SUFFIX.sub(r"\1", URL_LINE.sub("", text))
+
+
+def lines(text: str) -> Sequence[str]:
+    """Split a PR body or a comment into lines, without the session URL.
+
+    Args:
+        text: the body or comment.
+
+    Returns:
+        Its lines, none of them only the harness's session URL.
+    """
+    return strip(text).splitlines()

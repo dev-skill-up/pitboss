@@ -16,6 +16,7 @@ from . import (
     contradictions,
     forms,
     phrases,
+    repoarg,
     sessionurl,
     textlint,
 )
@@ -258,3 +259,30 @@ def lint(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     KINDS[args.kind](args)
+
+
+@ENTRY_DATA.register(
+    commands.CONFIG_ARGUMENT, add_argument("repository"), name="review-form"
+)
+def review_form(args: argparse.Namespace) -> None:
+    """Print the form a review comment in a repository must take.
+
+    Args:
+        args: the parsed arguments.
+    """
+    settings = commands.load_settings(args)
+    repo = repoarg.named_repo(args.repository, settings)
+    gated = repo.slug in settings.review.gated
+    form = settings.review.gated_form if gated else settings.review.form
+    print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")
+    print(
+        f"# {{sha}}: the full head SHA; {{verdict}}: {form.approved!r} or"
+        f" {form.changes_needed!r}"
+    )
+    if gated:
+        print(
+            "# first line exactly as below; each line below once; ASCII only;"
+            " no code fences, HTML or link definitions"
+        )
+    for line in form.lines:
+        print(line)

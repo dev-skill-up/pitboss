@@ -1,7 +1,7 @@
 """The runner-pressure line of the sweep: it reads the record and writes nothing."""
 
 import datetime
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from .markers import Marker
 from . import (
@@ -55,14 +55,37 @@ def pressure(
     Returns:
         The line.
     """
-    try:
-        jobs = queue.count_jobs(github, runs)
-        owed = queue.owed(jobs, runners, now)
-    except SystemExit as unreadable:
-        return report.unreadable_record_line(unreadable.code)
+    measured = measure(github, runs, runners, now)
+    if not isinstance(measured, tuple):
+        return report.unreadable_record_line(measured)
+    jobs, owed = measured
     if not jobs.unread:
         return report.quiet_line(jobs.waiting, owed)
     return partial_pressure(jobs, owed)
+
+
+def measure(
+    github: ghapi.GitHub,
+    runs: Iterable[queue.QueueRun],
+    runners: config.Runners,
+    now: datetime.datetime,
+) -> tuple[queue.Jobs, int] | str | int | None:
+    """Count the jobs waiting and what the quiet period owes.
+
+    Args:
+        github: the API.
+        runs: the runs of the repositories that share the runners.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+
+    Returns:
+        The jobs and the seconds owed, or the exit code of an unreadable record.
+    """
+    try:
+        jobs = queue.count_jobs(github, runs)
+        return jobs, queue.owed(jobs, runners, now)
+    except SystemExit as unreadable:
+        return unreadable.code
 
 
 def partial_pressure(jobs: queue.Jobs, owed: int) -> str:
@@ -85,3 +108,31 @@ def partial_pressure(jobs: queue.Jobs, owed: int) -> str:
         return "\n".join([*named, f"{report.quiet_line(jobs.waiting, owed)}; {tail}"])
     head = f"{Marker.RUNNER_PRESSURE.text}: {tail}, so a free runner cannot be told"
     return "\n".join([*named, f"{head}; {report.HOLD_ACTIONS}"])
+
+
+def clear(
+    github: ghapi.GitHub,
+    runs: Callable[[], Sequence[queue.QueueRun]],
+    runners: config.Runners,
+    now: datetime.datetime,
+) -> bool:
+    """Whether the runners allow a CI-triggering action now; nothing is written.
+
+    No job waits for a runner and the quiet period is over, as ``pitboss
+    pressure`` would say. A look that cannot be read (the record, a queue
+    run's jobs) is a hold (keyword: quiet-period).
+
+    Args:
+        github: the API.
+        runs: reads the runs of the repositories that share the runners.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+
+    Returns:
+        True when an undraft may be done now.
+    """
+    measured = measure(github, runs(), runners, now)
+    if not isinstance(measured, tuple):
+        return False
+    jobs, owed = measured
+    return not (jobs.waiting or jobs.unread or owed)

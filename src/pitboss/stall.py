@@ -4,7 +4,7 @@ A relock PR (head branch starting ``relock/``) whose required check has been red
 for over four hours, counted from the run's completion, is a stall: the next
 relock fails on the same errors until the fix lands, so the skill's rules take
 its fix before every other pull request but the merge of a ready one, unless
-the PR also has RULING DUE or PAUSE (keyword: round-limit), when it waits for
+the PR also has RULING DUE or PAUSE (keyword: review-flow), when it waits for
 the ruling or the owner first.
 """
 

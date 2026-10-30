@@ -9,9 +9,10 @@ from hamcrest import assert_that, contains_string, equal_to, not_
 
 from .. import (
     config,
+    flow,
     forms,
     reviews,
-    roundlimit,
+    rulings,
     sessionurl,
     shapes,
     unreadableform,
@@ -227,21 +228,33 @@ class TestReviews(unittest.TestCase):
             created_at="2",
             url="u",
         )
-        sources = reviews.Sources(comments=[attempt], reviews=[])
-        unread = reviews.unread(sources, REVIEW_CONFIG, "o/x", None)
+        rules = reviews.rules(REVIEW_CONFIG, "o/x")
+        unread = unreadableform.unread([attempt], REVIEW_CONFIG.trusted, rules, "")
         assert_that(unread, equal_to("2"))
 
     def test_grade_lines_need_no_stripping(self) -> None:
         """A grade is a line of its own, so the URL line changes none."""
-        text = f"{SESSION}\nPlan: approved\nExecution: changes needed\n"
-        grade = roundlimit.plan_grade(text, REVIEW_FORM)
-        assert_that(grade, equal_to(shapes.Verdict.APPROVED))
+        text = f"{SESSION}\n{REVIEW_TEXT}Plan: approved\nExecution: changes needed\n"
+        comment = shapes.Comment(
+            body=text, author_association="MEMBER", created_at="2", url="u"
+        )
+        (found,) = reviews.from_comments(
+            [comment], REVIEW_CONFIG.trusted, reviews.read_comment, REVIEW_FORM
+        )
+        assert_that(found.plan_approved, equal_to(True))
 
     def test_ruling_first_line(self) -> None:
         """The first line of a ruling is the first line that is not the URL."""
         ruling = f"{SESSION}\nOpus ruling\nx\n"
-        assert_that(roundlimit.is_ruling(ruling), equal_to(True))
-        assert_that(roundlimit.is_ruling(f"{PROSE}\nOpus ruling\n"), equal_to(False))
+        assert_that(flow.is_ruling(ruling), equal_to(True))
+        assert_that(flow.is_ruling(f"{PROSE}\nOpus ruling\n"), equal_to(False))
+
+    def test_ruling_second_line(self) -> None:
+        """The ruling word is on the line after ``Opus ruling``, URL line or not."""
+        plain = "Opus ruling\nRuling: split\n"
+        for text in (f"{SESSION}\n{plain}", f"Opus ruling\n{SESSION}\nRuling: split\n"):
+            assert_that(rulings.read_ruling(text), equal_to(rulings.Ruling.SPLIT))
+        assert_that(rulings.read_ruling(plain), equal_to(rulings.Ruling.SPLIT))
 
 
 def lint_with_phrase(*argv: str) -> tuple[object, str]:

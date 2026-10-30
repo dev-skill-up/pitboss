@@ -267,3 +267,60 @@ class Verdict(enum.Enum):
 
     APPROVED = enum.auto()
     CHANGES_NEEDED = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Unreadable:
+    """An open PR one of whose API calls failed.
+
+    Attributes:
+        reference: its ``owner/name#number``.
+        call: the call that failed (``check-runs``).
+        status: how it failed (``HTTP 500``).
+    """
+
+    reference: str
+    call: str
+    status: str
+
+
+class Standing(enum.Enum):
+    """Where a PR's head stands with its newest review.
+
+    Attributes:
+        NONE: no review counts.
+        APPROVED: approved, this very head.
+        APPROVED_BEFORE_MERGES: an older head approved, only merges since.
+        CHANGES_NEEDED: this very head needs changes.
+        OLDER_HEAD: the review is of an older head (a fix came since).
+        PLAN_CHANGES_NEEDED: this head's plan needs changes (revise it only).
+        PLAN_APPROVED: this head's review approved the plan alone (no merge).
+    """
+
+    NONE = enum.auto()
+    APPROVED = enum.auto()
+    APPROVED_BEFORE_MERGES = enum.auto()
+    CHANGES_NEEDED = enum.auto()
+    OLDER_HEAD = enum.auto()
+    PLAN_CHANGES_NEEDED = enum.auto()
+    PLAN_APPROVED = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Graded:
+    """A review as the flow reads it.
+
+    Attributes:
+        sha: the head it reviewed (possibly abbreviated).
+        when: when it was written (ISO 8601).
+        plan: what its ``Plan:`` line grades, None with no such line.
+        execution: its verdict, None for a review of the plan alone.
+        comment: whether it is a regular review (a comment in the form, not a
+            GitHub review).
+    """
+
+    sha: str
+    when: str
+    plan: Verdict | None
+    execution: Verdict | None
+    comment: bool = True
