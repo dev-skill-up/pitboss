@@ -78,21 +78,19 @@ a queue run that waits past the queue's time limit is dequeued.
 
 **Spacing.**
 - Leave an interval between two CI-triggering actions on the project (the
-  project picks it; the example here is 15 minutes, as in the pressure rule
-  below). Why: runs do not start the moment the action is taken, so a second
+  project picks it: `[runners] quiet_minutes`, the quiet period of the
+  pressure rule below). Why: runs do not start the moment the action is taken, so a second
   action taken too soon is not seen by the pressure check that was meant to
   guard it (owner, 2026-10-26: "some things get a minute to trigger in a
   serial queue"), and a burst of small PRs overloads the pool for the one run
   that gates the base branch (`rules.md`, "Pushing and merging": "avoid
   bursts: CI capacity is the constraint").
-- Carried by: nothing in pitboss. `pitboss pressure` reads the queue once and
-  keeps no time of the last action, so the interval is kept by the
-  orchestrator by hand (orchestrator, 2026-10-28, the owner's ruling of that
-  date), and a worker never sleeps to wait it out: it commits locally and
-  hands back (`rules.md`, "A worker never waits for CI checks"; owner,
-  2026-10-28T23:18Z: "Workers never wait on Ci. They hand back."). Missing key,
-  if it is ever wanted: an interval in minutes under `[runners]` plus the
-  time of the last action recorded beside the slot ledger. Not added here.
+- Carried by: the quiet period (`rules.md`, "Pushing and merging"):
+  `pitboss queued` and `pitboss push` record each action that goes out, and
+  `pitboss pressure` exits 1 until `[runners] quiet_minutes` have passed. A
+  worker never sleeps to wait it out: it commits locally and hands back
+  (`rules.md`, "A worker never waits for CI checks"; owner,
+  2026-10-28T23:18Z: "Workers never wait on Ci. They hand back.").
 
 **Pushes to a draft PR are free.** With the draft condition above, a push to a
 draft starts no costly job, so the interval does not apply to it and a worker
@@ -128,19 +126,20 @@ resolve, check locally, push (`rules.md`, "Merge conflicts").
 **When to hold under runner pressure.** While a queue run has a job waiting
 for a runner, take no CI-triggering action in any repository that shares the
 runners, tell running agents to hold their pushes to non-draft PRs and work locally, and file,
-comment and read as usual. A hold lifts only when the pressure printed none at
-every look for 15 minutes. Then release held work one push at a time, with a
+comment and read as usual. A hold lifts only after the quiet period
+(`rules.md`, "Pushing and merging"). Then release held work one push at a time, with a
 pressure look between, re-queueing the PRs dequeued by the time limit first.
 Hold early too when a queue run nears the limit while runners are short, and
 keep the queue short (a few entries at a time: more entries want more runners
 than the pool has) with the stale runs of removed entries cancelled.
-- Carried by: `pitboss pressure <config>` (exit 1 under pressure), `RUNNER
+- Carried by: `pitboss pressure <config>` (exit 1 under pressure and until the
+  quiet period is over), `pitboss queued <config>` and `pitboss push`, `RUNNER
   PRESSURE` and `NO RUNNER PRESSURE`, `QUEUE RUN` (age against the limit),
   `STALE QUEUE RUN` with `pitboss cancel-stale-runs`, and the keys
   `[runners] repositories` (whose queue runs count and whose actions are held;
-  default the project and its libraries) and `[merge_queue] timeout_minutes`
-  (the limit the age is shown against; default 60). The 15 minutes of
-  quiet and the limit on queue entries are kept by hand: pitboss keeps no
-  history of looks and has no key for the entry count. Missing keys, if wanted:
-  a quiet period in minutes (with a recorded time of the last look) and a
-  maximum of queue entries.
+  default the project and its libraries), `[runners] record` and `[runners]
+  quiet_minutes` (the record the looks and queued jobs are written to, and the
+  quiet period), and `[merge_queue] timeout_minutes` (the limit the age is shown
+  against; default 60). The limit on queue entries is kept by hand: pitboss has
+  no key for the entry count. Missing key, if wanted: a maximum of queue
+  entries.

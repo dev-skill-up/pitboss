@@ -21,6 +21,13 @@ no_auto_merge = ["other-org/parser"]
 # The repositories that share the runners, so whose merge-queue runs count
 # for runner pressure. Default: the project and its libraries.
 repositories = ["app", "widgets"]
+# The file `pitboss pressure`, `pitboss queued` and `pitboss push` append to:
+# a line (time, none or hold) for each look at the runners and each queued job.
+# Default: pitboss-pressure.log in the main clone's .git directory.
+record = "/home/user/app/.git/pitboss-pressure.log"
+# Minutes in a row with no hold in the record before a hold lifts: a queued
+# job (pitboss queued, a push that went out) restarts them. Default: 15.
+quiet_minutes = 15
 
 [review]
 # Author associations whose reviews count.

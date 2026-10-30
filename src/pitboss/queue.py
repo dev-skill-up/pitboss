@@ -6,7 +6,7 @@ import datetime
 import re
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ghapi, parsing, shapes
+from . import config, ghapi, parsing, record, shapes
 
 QUEUE_PAGES = 3
 _PULL_NUMBER = re.compile(r"/pr-(\d+)-")
@@ -137,3 +137,25 @@ def age_minutes(queue_run: QueueRun, now: datetime.datetime) -> int:
     """
     created = datetime.datetime.fromisoformat(queue_run.run.created_at)
     return int((now - created).total_seconds() // 60)
+
+
+def look(
+    github: ghapi.GitHub,
+    runs: Iterable[QueueRun],
+    runners: config.Runners,
+    now: datetime.datetime,
+) -> tuple[int, int]:
+    """Look at the runners and count the look in the quiet period; nothing is written.
+
+    Args:
+        github: the API.
+        runs: the runs of the repositories that share the runners.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+
+    Returns:
+        The jobs waiting now, and the quiet minutes still owed.
+    """
+    waiting = waiting_jobs(github, runs)
+    shown = record.Look.HOLD if waiting else record.Look.NONE
+    return waiting, record.remaining(runners.record, shown, runners.quiet_minutes, now)

@@ -41,8 +41,8 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `AUTO MERGE OFF` | A PR with nothing failing, no conflict and no changes-needed review has auto-merge off and is not in the queue. | Arm auto-merge again (a push clears it). |
 | `READY TO MERGE` | Green, `clean`, and its review approves this head; auto-merge is off. | Arm auto-merge, or merge. |
 | `MERGE BY HAND` | The same, in a repository without auto-merge. | Merge it now, by hand: no event will arrive to say it is ready. |
-| `RUNNER PRESSURE` | A merge-queue run in a repository that shares the runners has a job waiting for a runner. | Hold (below). |
-| `NO RUNNER PRESSURE` | Nothing waits for a runner. | Push and merge as usual. |
+| `RUNNER PRESSURE` | A merge-queue run in a repository that shares the runners has a job waiting for a runner, or the quiet period is not over (the line says the minutes remaining). | Hold (below). |
+| `NO RUNNER PRESSURE` | Nothing waits for a runner and the quiet period of `rules.md` is over (the sweep reads the record and writes nothing). | Push and merge as usual. |
 | `QUEUE RUN` | An unfinished merge-queue run, with its age against the queue's time limit. | Nothing, unless it nears the limit while runners are short: then hold. |
 | `STALE QUEUE RUN` | An unfinished run of a merge group that is no longer its PR's newest (GitHub rebuilds the groups behind a removed entry and leaves the old runs waiting). | `pitboss cancel-stale-runs <config>`, read the dry run, then again with `--no-dry-run`. If the cancel is refused, list the run ids for the owner. Never cancel a PR's newest group. |
 | `CANCELLED STALE QUEUE RUN` | A stale run was cancelled (or, with "dry run", would be). | Nothing. |
@@ -78,8 +78,10 @@ While `RUNNER PRESSURE` is printed:
 - reading runs and logs, filing and commenting on issues, and reviews that
   start no runs are fine.
 
-When the line reads `NO RUNNER PRESSURE`, release held work one push at a
-time, running `pitboss pressure <config>` between pushes. Re-queue PRs that
+When `pitboss pressure <config>` exits 0 and reads `NO RUNNER PRESSURE` (the
+quiet period of `rules.md` is over; `RUNNER PRESSURE` with minutes remaining
+is still a hold), release held work one push at a time, running it
+between pushes. Re-queue PRs that
 were dequeued with `CI_TIMEOUT` first, since they were already paid for once;
 then the rest in the order of `slots.md`. Say in your report whether the
 sweep ran under pressure and what it held back. When the pressure comes

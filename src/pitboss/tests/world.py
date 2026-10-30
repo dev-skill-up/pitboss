@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import dataclasses
+import datetime
 import io
 import pathlib
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
@@ -13,6 +14,7 @@ from .. import ENTRY_DATA
 from . import fakes
 
 FUTURE = "2030-01-01T00:00:00+00:00"
+START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
 PROJECT = "repos/owner/project"
 LIBRARY = "repos/owner/lib"
 EXTRA = """

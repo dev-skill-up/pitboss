@@ -13,13 +13,14 @@ import pathlib
 import subprocess
 import sys
 import time
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
     config,
+    configfile,
     ghapi,
     handback,
     ledger,
@@ -27,6 +28,7 @@ from . import (
     pulls,
     queue,
     report,
+    sweepline,
     tracefs,
     work,
 )
@@ -68,7 +70,7 @@ def load_settings(args: argparse.Namespace) -> config.Config:
     Returns:
         The configuration.
     """
-    return config.load(args.config, pathlib.Path(args.env.get("PWD", ".")))
+    return configfile.load(args.config, pathlib.Path(args.env.get("PWD", ".")))
 
 
 def open_pulls(found: Context) -> Sequence[pulls.PullFacts]:
@@ -83,6 +85,20 @@ def open_pulls(found: Context) -> Sequence[pulls.PullFacts]:
     return pulls.read_open(found.github, found.settings)
 
 
+def current_time(args: argparse.Namespace) -> datetime.datetime:
+    """The time now, or the time ``--now`` gives.
+
+    Args:
+        args: the parsed arguments.
+
+    Returns:
+        The time.
+    """
+    if args.now:
+        return datetime.datetime.fromisoformat(args.now)
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
 def load_context(args: argparse.Namespace) -> Context:
     """Load the configuration and set up the API.
 
@@ -93,17 +109,27 @@ def load_context(args: argparse.Namespace) -> Context:
         The context.
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
-    now = (
-        datetime.datetime.fromisoformat(args.now)
-        if args.now
-        else datetime.datetime.now(datetime.timezone.utc)
-    )
+    now = current_time(args)
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
     return Context(
         settings=readable(github, load_settings(args)),
         github=github,
         now=now,
         args=args,
+    )
+
+
+def _without(settings: config.Config, failures: Mapping[str, str]) -> config.Config:
+    runners = settings.runners
+    return dataclasses.replace(
+        settings,
+        libraries=[repo for repo in settings.libraries if repo.slug not in failures],
+        runners=dataclasses.replace(
+            runners,
+            repositories=[
+                repo for repo in runners.repositories if repo.slug not in failures
+            ],
+        ),
     )
 
 
@@ -120,7 +146,8 @@ def readable(github: ghapi.GitHub, settings: config.Config) -> config.Config:
     Raises:
         SystemExit: when the project's own repository cannot be read.
     """
-    wanted = [repo.slug for repo in (*config.repositories(settings), *settings.runners)]
+    shared = settings.runners.repositories
+    wanted = [repo.slug for repo in (*config.repositories(settings), *shared)]
     failures = ghapi.unreadable(github, wanted)
     for slug, reason in failures.items():
         print(
@@ -129,11 +156,7 @@ def readable(github: ghapi.GitHub, settings: config.Config) -> config.Config:
         )
     if settings.project.repo.slug in failures:
         raise SystemExit(f"cannot read {settings.project.repo.slug}")
-    return dataclasses.replace(
-        settings,
-        libraries=[repo for repo in settings.libraries if repo.slug not in failures],
-        runners=[repo for repo in settings.runners if repo.slug not in failures],
-    )
+    return _without(settings, failures)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -170,7 +193,8 @@ def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
     """
     settings = found.settings
     repos = {
-        repo.slug: repo for repo in (*settings.runners, *config.repositories(settings))
+        repo.slug: repo
+        for repo in (*settings.runners.repositories, *config.repositories(settings))
     }
     with concurrent.futures.ThreadPoolExecutor() as pool:
         batches = pool.map(
@@ -179,10 +203,19 @@ def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
         return [each for batch in batches for each in batch]
 
 
-def _runner_runs(
+def runner_runs(
     found: Context, runs: Sequence[queue.QueueRun]
 ) -> Sequence[queue.QueueRun]:
-    sharing = {repo.slug for repo in found.settings.runners}
+    """Keep the queue runs of the repositories that share the runners.
+
+    Args:
+        found: the context.
+        runs: the runs of every repository read.
+
+    Returns:
+        The runs of the repositories under ``[runners]``.
+    """
+    sharing = {repo.slug for repo in found.settings.runners.repositories}
     return [each for each in runs if each.repo.slug in sharing]
 
 
@@ -224,8 +257,8 @@ def _straggler_section(found: Context) -> None:
 
 
 def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
-    waiting = queue.waiting_jobs(found.github, _runner_runs(found, runs))
-    print(report.pressure_line(waiting))
+    shared = runner_runs(found, runs)
+    print(sweepline.pressure(found.github, shared, found.settings.runners, found.now))
     for line in report.queue_lines(runs, found.settings, found.now):
         print(line)
 
@@ -300,25 +333,6 @@ def read_ledger(settings: config.Config) -> ledger.Ledger:
         The ledger.
     """
     return ledger.read(settings.slots.ledger, settings.slots.default)
-
-
-@ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="pressure")
-def pressure(args: argparse.Namespace) -> None:
-    """Print only the runner-pressure line.
-
-    Args:
-        args: the parsed arguments.
-
-    Raises:
-        SystemExit: 1 under runner pressure.
-    """
-    tracefs.say(args.safe_run)
-    found = load_context(args)
-    runs = _runner_runs(found, read_queue_runs(found))
-    waiting = queue.waiting_jobs(found.github, runs)
-    print(report.pressure_line(waiting))
-    if waiting:
-        raise SystemExit(1)
 
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="cancel-stale-runs")

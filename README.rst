@@ -18,7 +18,10 @@ Commands
 ``pitboss sweep CONFIG``                        PRs, runner pressure, queue runs, stragglers,
                                                 worktrees, reminders, slots. Exits 1 on a red or
                                                 conflicted PR.
-``pitboss pressure CONFIG``                     One line; exits 1 under runner pressure.
+``pitboss pressure CONFIG``                     Records a look; one line; exits 1 under runner pressure
+                                                and until the quiet period is over.
+``pitboss queued CONFIG``                       Records a queued job (restarts the quiet period).
+``pitboss push CONFIG [-- GIT_ARGUMENTS]``      Pressure check, ``git push``, record (``--no-dry-run``).
 ``pitboss cancel-stale-runs CONFIG``            Cancel superseded merge-queue runs (``--no-dry-run``).
 ``pitboss clean-worktrees CONFIG``              Remove finished worktrees (``--no-dry-run``).
 ``pitboss clean-container``                     Remove files in ``/`` written over an hour after
