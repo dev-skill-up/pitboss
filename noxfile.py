@@ -158,6 +158,8 @@ def skills(session):
     session.install("-e", ".")
     session.run("python", "scripts/check_skills.py")
     session.run("python", "scripts/check_markers.py")
+    # Every rule the inventory lists has a landing place in the references.
+    session.run("python", "docs/quire-inventory-landing.py", silent=True)
     session.run("python", "scripts/build_dist.py")
     session.run("git", "diff", "--exit-code", "--", "skill-zips/", external=True)
     untracked = session.run(

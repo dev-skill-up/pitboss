@@ -1,5 +1,10 @@
+import os
+import re
 import sys
-R = "plugins/pitboss/skills/sweep/references/"
+
+# The tree to check: the first argument, else the repository this file is in.
+ROOT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+R = os.path.join(ROOT, "plugins/pitboss/skills/sweep/references/")
 rows = [
  ("CLAUDE.md 1 research, not the human (split)", "rules.md", "No task is ever \"left to the human\""),
  ("CLAUDE.md 1 judgement after research", "rules.md", "Judgement is what is left after the research"),
@@ -63,7 +68,7 @@ rows = [
  ("orchestration.md Merge conflicts next in line (pitboss)", "rules.md", "A PR with a merge conflict is next in line for work"),
  ("orchestration.md Merge conflicts merge main in", "rules.md", "Most conflicts are small"),
  ("orchestration.md Merge conflicts sweep lists them", "rules.md", "Every sweep lists the open PRs whose mergeable state is dirty or"),
- ("orchestration.md Tickets split only for a reason (split)", "rules.md", "**A ticket is split only for a reason that justifies it"),
+ ("orchestration.md Tickets one ticket, one PR, split only when impossible (split)", "rules.md", "**A ticket is one ticket and one PR; it is split only, and always, when one PR is impossible**"),
  ("orchestration.md Tickets blocked is not started", "rules.md", "**A blocked ticket is not started**"),
  ("orchestration.md Tickets Fixes and Refs", "rules.md", "**A pull request says `Fixes` for its ticket"),
  ("orchestration.md Tickets agent that stops is not given it again", "rules.md", "**An agent that stops before the ticket is done is not given that ticket"),
@@ -74,7 +79,7 @@ rows = [
  ("orchestration.md Plan first long run is invalid", "rules.md", "**A plan that needs a long run for its evidence is invalid**"),
  ("orchestration.md Briefs Done-when word for word (split)", "rules.md", "**It copies the ticket's Done-when word for word**"),
  ("orchestration.md Briefs what each brief says", "rules.md", "Every worker brief says: the worker rules of the repository"),
- ("orchestration.md Briefs No split line", "rules.md", "**A worker brief carries the No-split line**"),
+ ("orchestration.md Briefs One PR line (replaced the No split line)", "rules.md", "**A worker and a reviewer brief begin with the one-PR check.**"),
  ("orchestration.md Briefs Design check, Push and Sample", "rules.md", "**Design check, Push and Sample lines.**"),
  ("orchestration.md Briefs Compiler line", "rules.md", "**A brief tells the worker where the compiler is**"),
  ("orchestration.md Briefs hand-back form", "rules.md", "**A hand-back has one form**"),
@@ -83,7 +88,7 @@ rows = [
  ("orchestration.md Briefs sed", "rules.md", "**Checked-in code and YAML do not depend on sed**"),
  ("orchestration.md Briefs disk", "rules.md", "**Disk is a shared allowance, and cleaning it is the orchestrator's job**"),
  ("orchestration.md Briefs checkouts persist", "rules.md", "A worker keeps its checkout and its build output between tickets"),
- ("orchestration.md Pushing pressure before a push (split)", "rules.md", "**Before any push or merge, check the runner pressure**"),
+ ("orchestration.md Pushing pressure before a push (split)", "rules.md", "**Before any push to a non-draft PR, undraft, enqueue or merge, check the runner pressure**"),
  ("orchestration.md Pushing Fixes first line", "rules.md", "A PR body starts with `Fixes #N`"),
  ("orchestration.md Pushing never wait for CI", "rules.md", "**A worker never waits for CI checks**"),
  ("orchestration.md Pushing merge needs a review of the head", "rules.md", "**A PR merges only after an independent review comment for its head.**"),
@@ -120,13 +125,13 @@ rows = [
  ("worker.md Head line after a push", "rules.md", "patch the\n  line to the new head"),
  ("reviewer.md runs nothing (split)", "rules.md", "**Reviewers never run anything**"),
  ("reviewer.md exact head and green checks", "adversarial-review.md", "Review the exact head."),
- ("reviewer.md start only on green", "adversarial-review.md", "Start only when every check has finished and passed on that head."),
+ ("reviewer.md start only on green", "adversarial-review.md", "Start only when every check has finished and passed on that head"),
  ("reviewer.md two verdict words", "adversarial-review.md", "The verdict is one of the two words"),
  ("reviewer.md no way out", "adversarial-review.md", "## No exit clauses"),
  ("reviewer.md review form", "adversarial-review.md", "uvx pitboss review-form"),
  ("reviewer.md harmless phrases", "rules.md", "**Reviewers do not object to what does not harm**"),
  ("reviewer.md relock quick check", "rules.md", "**A mechanical relock**"),
- ("reviewer.md plan and execution lines", "rules.md", "each\n  on its own line"),
+ ("reviewer.md plan and execution lines", "rules.md", "`Plan:` line and an `Execution:` line"),
  ("qsweep PR line and readiness (split)", "sweep.md", "## The PR line"),
  ("qsweep conflict marker", "sweep.md", "The PR has a merge conflict."),
  ("qsweep pressure", "sweep.md", "## The runner-pressure hold"),
@@ -134,28 +139,36 @@ rows = [
  ("qsweep stale worktrees", "sweep.md", "## Stale worktrees"),
  ("qsweep reminders", "sweep.md", "## The reminders"),
  ("qsweep order of the next item", "slots.md", "## The order of work"),
- ("reviewer.md owed: NOT STARTED hand-back", "adversarial-review.md", "hand back at\n  once with `NOT STARTED: <check> is <state> at <sha>`"),
- ("reviewer.md owed: wrote any part, say so and stop", "adversarial-review.md", "If you wrote any part of the\n  change, say so and stop."),
- ("reviewer.md owed: report CI by name", "adversarial-review.md", "Report CI by name"),
- ("reviewer.md owed: do not push, merge or edit", "adversarial-review.md", "Do not push, merge, or edit the PR or its branch."),
- ("reviewer.md owed: hand back after posting with the URL", "adversarial-review.md", "Hand back after posting, with\n  the comment's URL and nothing else."),
- ("reviewer.md owed: paraphrase an objected phrase", "adversarial-review.md", "you never reproduce\n  it"),
- ("reviewer.md owed: non-bats decided, no justification", "engineering.md", "needs no\njustification"),
- ("qsweep push owed: check and push in one command", "../SKILL.md", "The pressure check and the push in one command."),
+ ("reviewer.md NOT STARTED hand-back", "adversarial-review.md", '`NOT STARTED: <check> is <state> at <sha>`'),
+ ("reviewer.md wrote any part, say so and stop", "adversarial-review.md", 'If you wrote any part of the\n  change, say so and stop.'),
+ ("reviewer.md report CI by name", "adversarial-review.md", 'Report CI by name:'),
+ ("reviewer.md do not push, merge or edit", "adversarial-review.md", 'Do not push, merge, or edit the PR or its branch.'),
+ ("reviewer.md hand back after posting with the URL", "adversarial-review.md", 'Hand back after posting, with'),
+ ("reviewer.md paraphrase an objected phrase", "adversarial-review.md", 'A phrase you object to is paraphrased'),
+ ("reviewer.md non-bats decided, no justification", "engineering.md", "needs no\njustification"),
+ ("qsweep push: check and push in one command", "../SKILL.md", "The pressure check and `git push` in one command"),
  ("slots set and free (split)", "slots.md", "`pitboss slots set <config> SLOT AGENT TASK`"),
  ("slots check", "slots.md", "`pitboss slots check <config> --running NAME ...`"),
  ("slots check before you answer", "slots.md", "`CHECK BEFORE YOU ANSWER`"),
 ]
-import re
+missing = False
 for name, f, phrase in rows:
-    text = open(R + f).read()
+    try:
+        text = open(R + f).read()
+    except OSError:
+        text = ""
     m = re.search(r"\s+".join(re.escape(w) for w in phrase.split()), text)
     if not m:
-        print("MISSING", name); sys.exit(1)
+        print("MISSING", name)
+        missing = True
+        continue
     i = m.start()
     line = text.count("\n", 0, i) + 1
     heads = list(re.finditer(r"^## .*$", text[:m.end()], re.M))
     print(f"{name} -> {f}:{line} under {heads[-1].group(0) if heads else '(title)'}")
+
+if missing:
+    sys.exit(1)
 
 # What each inventory row says stays in quire must not be in the pitboss files.
 stays = [
@@ -249,7 +262,6 @@ stays = [
  ('worker.md', '4-core'),
  ('reviewer.md', 'Independent review (a separate reviewer agent'),
  ('reviewer.md', 'mcp__github__'),
- ('reviewer.md', 'WAIT-FOR-CI'),
  ('reviewer.md', 'text-lint'),
  ('qsweep and slots', 'quire#956'),
  ('qsweep and slots', 'queue-run jobs waiting for a runner'),
@@ -263,21 +275,3 @@ for name, phrase in stays:
             print("STAYS-IN-QUIRE FOUND", name, repr(phrase), f)
             sys.exit(1)
     print(f"absent from rules.md, engineering.md, ci.md: {name}: {phrase!r}")
-
-# What the rows call owed is in no pitboss file yet: the phrase must be absent from the file named.
-owed = [
- ("reviewer.md: the NOT STARTED hand-back", "adversarial-review.md", "NOT STARTED"),
- ("reviewer.md: if you wrote any part of the change, say so and stop", "adversarial-review.md", "say so and stop"),
- ("reviewer.md: report CI by name", "adversarial-review.md", "Report CI by name"),
- ("reviewer.md: once non-bats is decided the tool needs no justification", "engineering.md", "needs no justification"),
- ("reviewer.md: do not push, merge or edit the PR", "adversarial-review.md", "Do not push, merge"),
- ("reviewer.md: hand back after posting, with the comment's URL", "adversarial-review.md", "hand back after posting"),
- ("reviewer.md: paraphrase a phrase you object to, never reproduce it", "adversarial-review.md", "paraphrased"),
- ("qsweep push: the pressure check and the push in one command", "../SKILL.md", "pitboss push"),
-]
-for name, f, phrase in owed:
-    text = open(R + f).read()
-    if re.search(r"\s+".join(re.escape(w) for w in phrase.split()), text):
-        print("OWED BUT FOUND", name, f, repr(phrase))
-        sys.exit(1)
-    print(f"owed, absent from {f}: {name}")
