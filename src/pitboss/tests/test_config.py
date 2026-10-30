@@ -81,7 +81,7 @@ DEFAULTS: Mapping[str, object] = {
     "gated": frozenset(),
     "trusted": frozenset(config.DEFAULT_ASSOCIATIONS),
     "approved": ("approved", "approved"),
-    "lint": (config.DEFAULT_FOOTERS, ()),
+    "lint": ((), ()),
     "numbers": (60, 3.0),
     "reminders": config.DEFAULT_REMINDERS,
     "slots": ((), (), (), {}),

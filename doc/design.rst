@@ -185,8 +185,9 @@ Commands
        ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket``, ``head``
        (a ``Head: <40 hex>`` line, the last equal to ``--head``),
        ``evidence`` (an Evidence heading and a fenced block starting
-       ``$ <command>``) and ``footer`` (one of ``[lint.pr_body] footers`` in
-       the last three lines). ``review``: the lines of ``[review.form]``
+       ``$ <command>``) and ``footer`` (only when ``[lint.pr_body] footers``
+       lists lines: one of them in the last three lines; by default none is
+       listed, so no footer is required). ``review``: the lines of ``[review.form]``
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
        against ``--head`` (``head``); with ``--gated`` the lines of
        ``[review.gated_form]`` are read as a gate reads them, each once

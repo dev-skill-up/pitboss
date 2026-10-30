@@ -184,7 +184,8 @@ compaction.
     "You can drop the block, and never refer reviews to me. The notes you got
     should give you the process for human escalation (plan, execution, review,
     etc)."). A PR body starts with `Fixes #N`, and a product attribution block
-    is dropped.
+    is dropped: `pitboss lint pr-body` requires no footer unless the project
+    lists one under `[lint.pr_body] footers`.
 11. **The Opus agents take no row.** The ruling agent and the agent that
     predicts the owner (below) are not rows (owner, 2026-10-26T02:31:20Z: "does
     not take a slot and does not add a slot").
