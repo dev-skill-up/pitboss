@@ -123,12 +123,11 @@ class TestLanding(unittest.TestCase):
         assert_that(found, equal_to(expected))
 
     def test_planted_rows_are_named(self) -> None:
-        """The rows a change breaks are the ones named in the output."""
+        """The rows a change breaks are exactly the ones named in the output."""
         two = replacing("rules.md", (TICKET_RULE, "x"), (BLOCKED_RULE, "y"))
-        slots = [x for _, x in [planted(removing("slots.md"))]]
-        found = [planted(two)[1], slots[0]]
-        expected = [[TICKET_ROW, BLOCKED_ROW], SLOTS_ROWS]
-        assert_that(
-            [[x[: len(y)] for x, y in zip(f, e)] for f, e in zip(found, expected)],
-            equal_to(expected),
-        )
+        _, ticket_lines = planted(two)
+        _, slots_lines = planted(removing("slots.md"))
+        assert_that(len(ticket_lines), equal_to(2))
+        assert_that(ticket_lines[0].startswith(TICKET_ROW), equal_to(True))
+        assert_that(ticket_lines[1], equal_to(BLOCKED_ROW))
+        assert_that(list(slots_lines), equal_to(SLOTS_ROWS))
