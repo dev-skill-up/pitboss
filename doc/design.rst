@@ -252,6 +252,10 @@ been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
 a stall before every other pull request), then
+``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
+check run of the head has completed and none is pending, and the repository is
+not under ``[merge_queue] repositories``, whose queue builds each entry on the
+current base), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, is started by its author's hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from

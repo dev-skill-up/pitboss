@@ -78,8 +78,10 @@ compaction.
      the orchestrator's blocked list.
 
    Never a new ticket while a pull request that can be worked on waits. The
-   `NEXT` lines of a sweep print this order; a `STALL` line comes
-   before them and is taken first.
+   `NEXT` lines of a sweep print the fixes for a review, the updates, the
+   reviews and then the tickets, in this order (a red CI, a conflict and a
+   merge are the `FAILED`, `CONFLICT` and `READY TO MERGE` lines of the PR's
+   own sweep lines); a `STALL` line comes before them and is taken first.
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
      first, whatever each needs (a fix of a red CI, an answer to a review that
