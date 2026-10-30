@@ -13,7 +13,9 @@ from . import fakes, test_config, world
 PROJECT_JOBS = world.project_page("actions/runs/11/jobs")
 START = world.START
 GIT_ANSWERS = {"grep": 0, "mount": 1, "git": 0}
-PUSH = ("push", "--no-dry-run", "origin", "branch-1")
+# Git's arguments come before the options: argparse in Python 3.12.3 rejects
+# a positional list that follows an option (keyword: argparse-order).
+PUSH = ("push", "origin", "branch-1", "--no-dry-run")
 
 
 def at(minute: int) -> str:
@@ -274,7 +276,7 @@ class TestQueued(unittest.TestCase):
         here = clear_world()
         exit_code(here, "queued", 0)
         before = record_path(here).read_text()
-        result = world.again(here, *PUSH[:1], "--now", at(10), *PUSH[1:])
+        result = world.again(here, *PUSH, "--now", at(10))
         found = (result.code, record_path(here).read_text() == before, pushes(here))
         assert_that(found, equal_to((1, True, 0)))
         assert_that(exit_code(here, "pressure", 15), equal_to(0))
@@ -283,7 +285,7 @@ class TestQueued(unittest.TestCase):
         """A push at minute 16 goes out, records a hold and holds until minute 31."""
         here = clear_world()
         exit_code(here, "queued", 0)
-        pushed = world.again(here, "push", "--now", at(16), "--no-dry-run", "origin")
+        pushed = world.again(here, "push", "origin", "--now", at(16), "--no-dry-run")
         found = [
             pushed.code,
             pushes(here),
