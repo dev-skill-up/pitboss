@@ -67,6 +67,14 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `NEXT` | A line of the sorted list of what to start, printed by `pitboss slots next` (a sweep prints none). | See `slots.md`. |
 | `NO HAND-BACK` | The ledger holds an agent started more than 10 minutes ago that has produced no hand-back or notification; the line gives its minutes. | See `slots.md`. |
 
+## What the orchestrator reads of a PR
+
+The orchestrator dispatches a new reviewer when the sweep shows a review is
+due, and reads no PR body, diff or evidence first. The reviewer checks the Head
+line, that the Evidence is real output on the head, and the checks (`rules.md`,
+"Reviews"). The only reads the orchestrator makes of a PR are the sweep's
+markers and the review's verdict line.
+
 ## The runner-pressure hold
 
 Runners are shared between the merge queue and everything else. While a

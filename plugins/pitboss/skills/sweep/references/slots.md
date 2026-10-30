@@ -125,3 +125,8 @@ from the PR's author. When every slot is full, start nothing.
 
 A worker's brief has no exit clause. The only acceptable "not done" is "the
 brief as written is impossible, because ...". Reports carry no hedges.
+
+A reviewer brief for a line of `slots next` of the kind review it is sent as
+the line stands: the orchestrator reads no PR body, diff or evidence first, and
+the reviewer checks the Head line, the Evidence and the checks (`rules.md`,
+"Reviews").

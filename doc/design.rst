@@ -496,5 +496,12 @@ the ledger and the order of work; ``references/adversarial-review.md`` how
 reviews are read and written. None of them names a project, a label or a
 model.
 
+The skill divides the reading of a pull request (pitboss#83). The orchestrator
+dispatches a new reviewer when the sweep shows a review is due, and reads no
+body, diff or evidence first; its only reads of a pull request are the sweep's
+markers and the review's verdict line. The reviewer checks the ``Head:`` line,
+that the Evidence is real output on the head, and the checks, and its brief
+names those three checks.
+
 The deterministic skill zips go to ``skill-zips/``, not ``dist/``, because
 ``dist/`` is where ``python -m build`` writes.

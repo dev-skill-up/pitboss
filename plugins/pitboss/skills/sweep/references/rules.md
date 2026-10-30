@@ -527,6 +527,13 @@ compaction.
   nothing yourself.` A reviewer brief begins with the same check, and a PR that
   could not satisfy its ticket in one PR is judged by the evidence of that
   claim, not by its size.
+- **Check line.** A reviewer brief says: `Check: the last Head line of the PR
+  body is the full SHA of the PR's head, the one this brief names; the Evidence
+  is real output (a command and what it printed) run on that head; every
+  required check finished and passed at that head (a draft at its Plan stage has
+  no check run, and you say that none was read).` The brief names the PR and
+  the head SHA and says nothing of the body, the diff or the evidence: the
+  orchestrator read none of them (Reviews, above).
 - **Design check, Push and Sample lines.** `Design check: push the ticket's
   declarations (types and statements, no proofs or bodies) to the branch before
   building on them and hand back with DESIGN CHECK; a reviewer reads only those
@@ -641,6 +648,17 @@ compaction.
 
 ## Reviews
 
+- **The orchestrator dispatches; the reviewer checks** (orchestrator,
+  2026-10-30, from pitboss#83). The orchestrator dispatches a new reviewer when
+  the sweep shows a review is due, and reads no PR body, diff or evidence first:
+  that would be a second, unrequested look at the work. The reviewer checks the
+  Head line (the last `Head:` line of the body is the full SHA of the PR's
+  head), that the Evidence is real output (a command and what it printed) run
+  on that head, and the checks (every required check finished and passed at
+  that head). The only reads the orchestrator makes of a PR are the sweep's
+  markers and the review's verdict line; the ruling agent, not the
+  orchestrator, reads the PR and its reviews for an Opus ruling and for the
+  account of what the rounds disagreed about that a pause comment carries.
 - **Reviewers never run anything**: they read the diff, check the author's
   evidence against the ticket's Done-when, read CI for the head, and post the
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
