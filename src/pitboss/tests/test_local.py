@@ -56,7 +56,8 @@ def age(path: pathlib.Path) -> None:
     """
     for directory, _, files in os.walk(path):
         for name in [*files, "."]:
-            os.utime(pathlib.Path(directory) / name, (OLD, OLD))
+            there = pathlib.Path(directory) / name
+            os.utime(there, (OLD, OLD), follow_symlinks=False)
 
 
 def add_worktree(clone: pathlib.Path, name: str) -> pathlib.Path:
@@ -139,7 +140,7 @@ class TestStragglers(unittest.TestCase):
         """A clean checkout is not one; changes and unpushed commits are."""
         workspace = fakes.directory()
         clone = fakes.make_repository(workspace)
-        fakes.write(workspace / "not-a-checkout" / "file", "")
+        fakes.write(workspace / "not-a-checkout/file", "")
         runner = fakes.FakeProcesses(bodies={})
         before = (local.checkouts(workspace), local.read_straggler(runner, clone))
         fakes.run_git(clone, "checkout", "-q", "-b", "work")
@@ -152,6 +153,15 @@ class TestStragglers(unittest.TestCase):
             equal_to((1, 1, False)),
         )
         assert_that(found and found.last.endswith("local-work"), equal_to(True))
+
+    def test_a_checkout_git_cannot_read_is_named_not_raised(self) -> None:
+        """A broken .git is one more checkout whose fetch failed."""
+        workspace = fakes.directory()
+        broken = workspace / "broken"
+        (broken / ".git").mkdir(parents=True)
+        runner = fakes.FakeProcesses(bodies={})
+        failed = local.fetch_each_repository(runner, [broken])
+        assert_that(failed, equal_to([str(broken)]))
 
     def test_fetch_once_per_repository(self) -> None:
         """Worktrees of one repository are fetched once; a failure is named."""
@@ -179,14 +189,14 @@ class TestWorktrees(unittest.TestCase):
     def test_touched_only_near_the_top(self) -> None:
         """Changes deeper than three levels, or in .git, do not count."""
         top = fakes.directory()
-        deep = top / "a" / "b" / "c" / "d"
+        deep = top / "a/b/c/d"
         deep.mkdir(parents=True)
         (top / ".git").mkdir()
         age(top)
-        for path in [deep / "new", top / ".git" / "index"]:
+        for path in [deep / "new", top / ".git/index"]:
             fakes.write(path, "new")
         before = local.touched_since(top, CUTOFF)
-        fakes.write(top / "a" / "new", "new")
+        fakes.write(top / "a/new", "new")
         assert_that((before, local.touched_since(top, CUTOFF)), equal_to((False, True)))
 
     def test_listing(self) -> None:

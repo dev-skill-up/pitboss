@@ -2,22 +2,20 @@
 
 A path is dead when its work is finished (a checkout whose PR merged or closed,
 or whose tip is in the base branch) or nobody uses it (scratch untouched for the
-idle hours), and it is not live. A dead path is safe to remove when every git
-checkout in it has its commits on a remote branch and no changed tracked file;
-a dead path that is not safe is listed apart and never removed (keyword:
-clean-container; the rule is in ``rules.md``, "Checkouts and disk").
+idle hours), and it is not live. A dead path is safe to remove when everything
+in it exists elsewhere (``repocheck``); a dead path that is not safe is listed
+apart and never removed (keyword: clean-container; the rule is in ``rules.md``,
+"Checkouts and disk"). Every check looks at the whole tree of the path
+(``survey``) and is made again just before the removal.
 """
 
 import dataclasses
 import os
 import pathlib
-import subprocess
-from typing import Iterable, Sequence
+from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import cleanconfig, config, container, ghapi, local
-from .running import Run, git
-
-_BLOCK = 512
+from . import cleanconfig, config, container, ghapi, mounts, repocheck, survey
+from .running import Run
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -48,137 +46,159 @@ class Look:
         github: the API.
         settings: the configuration.
         clean: what ``clean-container`` looks at and keeps.
+        watch: where the session's own files in the root are.
+        mount_points: reads the mount points of the machine.
     """
 
     run: Run
     github: ghapi.GitHub
     settings: config.Config
     clean: cleanconfig.Clean
+    watch: container.Watch = container.WATCH
+    mount_points: Callable[[], AbstractSet[pathlib.Path]] = mounts.current
 
 
-def _blocks(path: pathlib.Path) -> int:
-    try:
-        return path.lstat().st_blocks * _BLOCK
-    except FileNotFoundError:
-        return 0
-
-
-def tree_size(path: pathlib.Path) -> int:
-    """The bytes a path holds on disk (links are not followed).
-
-    Args:
-        path: a file or a directory.
-
-    Returns:
-        The size; 0 for a path that is gone.
-    """
-    total = _blocks(path)
-    for directory, subdirectories, files in os.walk(path):
-        total += sum(
-            _blocks(pathlib.Path(directory) / name)
-            for name in (*subdirectories, *files)
-        )
-    return total
-
-
-def git_roots(path: pathlib.Path) -> Sequence[pathlib.Path]:
-    """The git checkouts in a path: itself and those up to three levels down.
-
-    Args:
-        path: a directory.
-
-    Returns:
-        The directories that hold a ``.git``.
-    """
-    return [
-        here
-        for here, subdirectories, files in local.shallow_walk(path)
-        if ".git" in subdirectories or ".git" in files
-    ]
-
-
-def trouble(run: Run, path: pathlib.Path) -> str:
-    """Why a path is not safe to remove: work that exists only here.
-
-    Args:
-        run: the runner.
-        path: the path.
-
-    Returns:
-        The reason, or empty when every checkout in it is on a remote branch
-        with no changed tracked file.
-    """
-    for root in git_roots(path):
-        try:
-            top = git(run, root, "rev-parse", "--show-toplevel").strip()
-            ahead = local.unpushed(run, root)
-            changed = local.tracked_changes(run, root)
-        except subprocess.CalledProcessError:
-            top = ""
-        if top == "" or pathlib.Path(top).resolve() != root.resolve():
-            return f"git cannot read {root}"
-        if ahead:
-            return f"{ahead} commits on no remote branch in {root}"
-        if changed:
-            return f"{changed} changed tracked files in {root}"
-    return ""
-
-
-def is_live(path: pathlib.Path, look: Look) -> bool:
-    """Whether a path is marked live, holds a live path or lies in one.
+def marked_above(path: pathlib.Path) -> bool:
+    """Whether a directory above a path holds a live marker.
 
     Args:
         path: the path.
-        look: what to keep: the main clone is always live.
+
+    Returns:
+        True when any of its parents does.
+    """
+    return any(
+        os.path.lexists(above / cleanconfig.LIVE_MARKER)
+        for above in path.resolve().parents
+    )
+
+
+def on_live_path(path: pathlib.Path, look: Look) -> bool:
+    """Whether a path is the main clone or a live path, or holds or lies in one.
+
+    Args:
+        path: the path.
+        look: what to keep.
 
     Returns:
         True when it must not be removed.
     """
     here = path.resolve()
-    held = [here / cleanconfig.LIVE_MARKER, look.settings.project.main_clone.resolve()]
-    held.extend(each.resolve() for each in look.clean.live)
-    return held[0].exists() or any(
+    held = [look.settings.project.main_clone, *look.clean.live]
+    return any(
         here == each or here in each.parents or each in here.parents
-        for each in held[1:]
+        for each in (one.resolve() for one in held)
     )
 
 
-def touched(path: pathlib.Path, cutoff: float) -> bool:
-    """Whether a file, or anything near the top of a directory, is newer than a time.
+def live_reason(path: pathlib.Path, look: Look, found: survey.Survey) -> str:
+    """Why a path is live: marked, holding or lying in a marked or kept path.
 
     Args:
         path: the path.
-        cutoff: seconds since the epoch.
+        look: what to keep.
+        found: what a walk of the path found.
 
     Returns:
-        True when it was touched after the cutoff.
+        The reason, or empty when it is not live.
     """
-    if path.is_dir():
-        return local.touched_since(path, cutoff)
-    return path.lstat().st_mtime > cutoff
+    if found.marked:
+        return "holds a file named .pitboss-live"
+    if marked_above(path):
+        return "lies under a directory that holds a .pitboss-live file"
+    if on_live_path(path, look):
+        return "is, holds or lies in a live path"
+    return ""
 
 
-def dead_root_files(
-    marker: pathlib.Path, root: pathlib.Path, hours: float
-) -> Sequence[Candidate]:
-    """The files in a container's root written well after it started.
+def hold(look: Look, path: pathlib.Path, cutoff: float) -> tuple[str, survey.Survey]:
+    """Look at a path and say whether it must be left alone: live or in use.
 
     Args:
-        marker: the file the container started with; absent, there are none.
-        root: the directory.
-        hours: how long after the marker a file must be written.
+        look: what to look at and keep.
+        path: the path.
+        cutoff: anything changed after this time is in use.
+
+    Returns:
+        The reason to leave it alone, or empty, and what a walk of it found.
+    """
+    found = survey.walk(path, look.mount_points())
+    reasons = (
+        "is a symbolic link" if path.is_symlink() else "",
+        live_reason(path, look, found),
+        "changed within the idle hours" if found.newest > cutoff else "",
+    )
+    return next((reason for reason in reasons if reason), ""), found
+
+
+def consider(
+    look: Look, path: pathlib.Path, reason: str, cutoff: float
+) -> Candidate | None:
+    """Measure a dead path and check that it is safe.
+
+    Args:
+        look: what to look at and keep.
+        path: the path.
+        reason: why it is dead.
+        cutoff: anything changed after this time is in use.
+
+    Returns:
+        The candidate, or None when the path is live or in use.
+    """
+    held, found = hold(look, path, cutoff)
+    if held:
+        return None
+    kept = repocheck.trouble(look.run, path, found)
+    return Candidate(path=path, size=found.size, reason=reason, kept=kept)
+
+
+def recheck(look: Look, cutoff: float, each: Candidate) -> str:
+    """Look again, just before the removal, at a path that was listed.
+
+    Args:
+        look: what to look at and keep.
+        cutoff: anything changed after this time is in use.
+        each: the candidate.
+
+    Returns:
+        Why the path must not be removed now, or empty when it may (a path
+        that is already gone may).
+    """
+    if not os.path.lexists(each.path):
+        return ""
+    held, found = hold(look, each.path, cutoff)
+    return held or repocheck.trouble(look.run, each.path, found)
+
+
+def present(made: Iterable[Candidate | None]) -> Sequence[Candidate]:
+    """The candidates among what was considered.
+
+    Args:
+        made: each path considered, as a candidate or None.
 
     Returns:
         The candidates.
     """
-    if not marker.exists():
+    return [each for each in made if each is not None]
+
+
+def dead_root_files(look: Look, cutoff: float) -> Sequence[Candidate]:
+    """The files in a container's root written well after it started.
+
+    Args:
+        look: what to look at and keep.
+        cutoff: anything changed after this time is in use.
+
+    Returns:
+        The candidates; none when the marker file is absent.
+    """
+    watch = look.watch
+    if not watch.marker.exists():
         return []
-    after = container.cutoff(marker, hours)
-    reason = f"written over {hours:g} hours after the container started"
-    return [
-        Candidate(path=each.path, size=each.size, reason=reason)
-        for each in container.newer_files(root, after)
-    ]
+    after = container.cutoff(watch.marker, watch.hours)
+    reason = f"written over {watch.hours:g} hours after the container started"
+    files = container.newer_files(watch.root, after)
+    return present(consider(look, each.path, reason, cutoff) for each in files)
 
 
 def safe(found: Iterable[Candidate]) -> Sequence[Candidate]:
@@ -218,35 +238,12 @@ def ordered(found: Iterable[Candidate]) -> Sequence[Candidate]:
     return sorted(unique.values(), key=lambda each: (-each.size, str(each.path)))
 
 
-def make(
-    run: Run, path: pathlib.Path, reason: str, prune: pathlib.Path | None = None
-) -> Candidate:
-    """Measure a dead path and check that it is safe.
-
-    Args:
-        run: the runner for reads.
-        path: the path.
-        reason: why it is dead.
-        prune: the git directory to prune after a linked worktree goes.
-
-    Returns:
-        The candidate.
-    """
-    return Candidate(
-        path=path,
-        size=tree_size(path),
-        reason=reason,
-        kept=trouble(run, path),
-        prune=prune,
-    )
-
-
 def dead_scratch(look: Look, cutoff: float) -> Sequence[Candidate]:
     """The entries of the scratch directories that nobody uses.
 
     Args:
         look: what to look at and keep.
-        cutoff: anything touched after this time is in use.
+        cutoff: anything changed after this time is in use.
 
     Returns:
         The candidates.
@@ -258,10 +255,5 @@ def dead_scratch(look: Look, cutoff: float) -> Sequence[Candidate]:
         for root in look.clean.scratch
         if root.is_dir()
         for entry in sorted(root.iterdir())
-        if not entry.is_symlink()
     )
-    return [
-        make(look.run, entry, reason)
-        for entry in entries
-        if not is_live(entry, look) and not touched(entry, cutoff)
-    ]
+    return present(consider(look, entry, reason, cutoff) for entry in entries)

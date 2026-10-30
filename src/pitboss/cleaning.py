@@ -4,9 +4,10 @@ import argparse
 import contextlib
 import dataclasses
 import itertools
+import os
 import pathlib
 import subprocess
-from typing import AbstractSet, Iterator, Sequence
+from typing import AbstractSet, Callable, Iterator, Sequence
 
 from . import dead, disk
 from .markers import Marker
@@ -48,25 +49,60 @@ def read_approved(path: str | None) -> AbstractSet[pathlib.Path] | None:
     return {pathlib.Path(line) for line in lines if line and not line.startswith("#")}
 
 
-def removals(
-    run: Run, paths: Sequence[dead.Candidate], batch: int, dry: bool
-) -> Iterator[tuple[dead.Candidate, bool]]:
-    """Remove paths with one ``rm -rf`` for each part of at most ``batch``.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Removal:
+    """How paths are removed.
 
-    Args:
+    Attributes:
         run: the runner for changes.
-        paths: the candidates.
+        recheck: why a path must not be removed now, or empty.
         batch: the most paths in one call.
         dry: whether the runner does nothing.
+    """
+
+    run: Run
+    recheck: Callable[[dead.Candidate], str]
+    batch: int
+    dry: bool
+
+
+def left_behind(each: dead.Candidate) -> str:
+    """Why a path is still there after its ``rm``.
+
+    Args:
+        each: the candidate.
+
+    Returns:
+        Empty when it is gone.
+    """
+    return "rm left it in place" if os.path.lexists(each.path) else ""
+
+
+def removals(
+    how: Removal, paths: Sequence[dead.Candidate]
+) -> Iterator[tuple[dead.Candidate, str]]:
+    """Remove paths with one ``rm -rf`` for each part of at most ``batch``.
+
+    Each part is looked at again just before its ``rm`` (an agent may have
+    started in a path since the listing, or a commit been made in it), and
+    ``rm`` stays on one file system: a mount point in a path is not emptied.
+
+    Args:
+        how: how to remove them.
+        paths: the candidates.
 
     Yields:
-        Each candidate, and whether it is gone (as a dry run would leave it).
+        Each candidate, and why it is still there (empty when it is gone, as
+        a dry run would leave it).
     """
-    for part in itertools.batched(paths, batch):
-        with contextlib.suppress(subprocess.CalledProcessError):
-            run(["rm", "-rf", "--", *(str(each.path) for each in part)])
-        for each in part:
-            yield each, dry or not each.path.exists()
+    for part in itertools.batched(paths, how.batch):
+        checked = [(each, "" if how.dry else how.recheck(each)) for each in part]
+        going = [str(each.path) for each, why in checked if not why]
+        if going:
+            with contextlib.suppress(subprocess.CalledProcessError):
+                how.run(["rm", "-rf", "--one-file-system", "--", *going])
+        for each, why in checked:
+            yield each, why or ("" if how.dry else left_behind(each))
 
 
 def prune(run: Run, gone: Sequence[dead.Candidate]) -> None:
@@ -81,23 +117,46 @@ def prune(run: Run, gone: Sequence[dead.Candidate]) -> None:
 
 
 def choose(
-    listed: Sequence[dead.Candidate], approved: AbstractSet[pathlib.Path] | None
+    listed: Sequence[dead.Candidate],
+    approved: AbstractSet[pathlib.Path] | None,
+    roots: AbstractSet[pathlib.Path],
 ) -> tuple[Sequence[dead.Candidate], Sequence[pathlib.Path]]:
-    """The safe candidates to remove, and the approved paths that are not.
+    """The safe candidates to remove, and the paths named that are not.
+
+    Only a path directly in a configured root is ever removed, and an approved
+    path is removed only when it is one of the safe candidates now: any other
+    path of the file is refused, whatever it is.
 
     Args:
         listed: the dead paths.
         approved: the paths approved, or None for every safe one.
+        roots: the directories whose entries may be removed.
 
     Returns:
-        The candidates to remove and the approved paths that are no safe
-        dead path now.
+        The candidates to remove, and the approved paths (or, with no list,
+        the safe candidates) that are not removed because they are no safe
+        dead path directly in a root.
     """
     safe = dead.safe(listed)
-    if approved is None:
-        return safe, []
-    chosen = [each for each in safe if each.path in approved]
-    return chosen, sorted(approved - {each.path for each in chosen})
+    placed = [each for each in safe if each.path.parent in roots]
+    chosen = placed if approved is None else [e for e in placed if e.path in approved]
+    named = {each.path for each in safe} if approved is None else approved
+    return chosen, sorted(named - {each.path for each in chosen})
+
+
+def path_line(marker: Marker, each: dead.Candidate, tail: str) -> str:
+    """The line about a path: marker, path, size, why it is dead, then a tail.
+
+    Args:
+        marker: the marker the line starts with.
+        each: the candidate.
+        tail: what follows the reason.
+
+    Returns:
+        The line.
+    """
+    size = disk.size_text(each.size)
+    return f"{marker.text} {each.path} {size} ({each.reason}){tail}"
 
 
 def kept_line(each: dead.Candidate) -> str:
@@ -109,10 +168,7 @@ def kept_line(each: dead.Candidate) -> str:
     Returns:
         The line.
     """
-    return (
-        f"{Marker.KEPT_PATH.text} {each.path} {disk.size_text(each.size)}"
-        f" ({each.reason}): {each.kept}"
-    )
+    return path_line(Marker.KEPT_PATH, each, f": {each.kept}")
 
 
 def removed_line(each: dead.Candidate, verb: str) -> str:
@@ -125,30 +181,32 @@ def removed_line(each: dead.Candidate, verb: str) -> str:
     Returns:
         The line.
     """
-    size = disk.size_text(each.size)
-    return f"{Marker.REMOVED_PATH.text} {each.path} {size} ({each.reason}){verb}"
+    return path_line(Marker.REMOVED_PATH, each, verb)
 
 
-def stuck_line(each: dead.Candidate) -> str:
-    """The line for a path that is still there after its ``rm``.
+def stuck_line(each: dead.Candidate, why: str) -> str:
+    """The line for a path that is still there.
 
     Args:
         each: the candidate.
+        why: why it was not removed, or why ``rm`` left it.
 
     Returns:
         The line.
     """
-    size = disk.size_text(each.size)
-    return f"{Marker.COULD_NOT_REMOVE_PATH.text} {each.path} {size} ({each.reason})"
+    return path_line(Marker.COULD_NOT_REMOVE_PATH, each, f": {why}")
 
 
 def remove_all(
-    args: argparse.Namespace, chosen: Sequence[dead.Candidate]
+    args: argparse.Namespace,
+    recheck: Callable[[dead.Candidate], str],
+    chosen: Sequence[dead.Candidate],
 ) -> Sequence[dead.Candidate]:
     """Remove the chosen paths in parts, saying what happened to each.
 
     Args:
         args: the parsed arguments.
+        recheck: why a path must not be removed now, or empty.
         chosen: the safe paths to remove.
 
     Returns:
@@ -156,9 +214,12 @@ def remove_all(
     """
     verb = "" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
     gone = []
-    for each, removed in removals(args.run, chosen, args.batch, not args.no_dry_run):
-        gone.extend([each] if removed else [])
-        print(removed_line(each, verb) if removed else stuck_line(each))
+    how = Removal(
+        run=args.run, recheck=recheck, batch=args.batch, dry=not args.no_dry_run
+    )
+    for each, why in removals(how, chosen):
+        gone.extend([] if why else [each])
+        print(stuck_line(each, why) if why else removed_line(each, verb))
     return gone
 
 
@@ -169,7 +230,7 @@ class Outcome:
     Attributes:
         gone: the paths removed (or, in a dry run, that would be).
         kept: the dead paths that are not safe.
-        refused: the approved paths that are no safe dead path now.
+        refused: the paths named that are no safe dead path now.
         removing: whether this was not a dry run.
         before: the bytes free before.
         after: the bytes free after.
@@ -192,7 +253,7 @@ def closing_lines(done: Outcome) -> Sequence[str]:
     Returns:
         The lines.
     """
-    note = "(not a safe dead path now)"
+    note = "(not a safe dead path directly in a configured root)"
     total = disk.size_text(sum(each.size for each in done.gone))
     held = disk.size_text(sum(each.size for each in done.kept))
     verb = "freed" if done.removing else "would be freed"

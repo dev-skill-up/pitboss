@@ -26,6 +26,23 @@ class Clean:
     min_free_gib: float
 
 
+def absolute(key: str, path: pathlib.Path) -> None:
+    """Refuse a path that could name more than was meant.
+
+    Args:
+        key: the setting.
+        path: the path.
+
+    Raises:
+        ValueError: when it is relative (it would follow the working directory)
+            or, in ``scratch``, the root of the file system.
+    """
+    if not path.is_absolute():
+        raise ValueError(f"[clean] {key} must be absolute paths, not {str(path)!r}")
+    if key == "scratch" and path == pathlib.Path(path.anchor):
+        raise ValueError(f"[clean] {key} must not be the root of the file system")
+
+
 def from_document(document: Mapping[str, object]) -> Clean:
     """Read the table.
 
@@ -36,7 +53,8 @@ def from_document(document: Mapping[str, object]) -> Clean:
         The settings, empty when the table is absent.
 
     Raises:
-        ValueError: when a list is not a list or the threshold is negative.
+        ValueError: when a list is not a list of absolute paths (a scratch
+            directory is not the file system's root) or the threshold is negative.
     """
     table = document.get("clean", {})
     if not isinstance(table, dict):
@@ -47,6 +65,8 @@ def from_document(document: Mapping[str, object]) -> Clean:
         if not isinstance(found, list):
             raise ValueError(f"[clean] {key} must be a list of paths, not {found!r}")
         lists[key] = tuple(pathlib.Path(str(item)) for item in found)
+        for each in lists[key]:
+            absolute(key, each)
     free = float(table.get("min_free_gib", DEFAULT_MIN_FREE_GIB))
     if free < 0:
         raise ValueError(f"[clean] min_free_gib must not be negative, not {free}")

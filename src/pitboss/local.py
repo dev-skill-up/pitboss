@@ -8,7 +8,7 @@ import subprocess
 from typing import Iterable, Iterator, Mapping, Sequence
 
 from . import config, ghapi, parsing, shapes
-from .running import Run, git
+from .running import Run, changed_files, git
 
 _SKIPPED_DIRECTORIES = frozenset({".git", "node_modules"})
 _DEPTH = 3
@@ -47,6 +47,16 @@ def checkouts(workspace: pathlib.Path) -> Sequence[pathlib.Path]:
     return sorted(path for path in workspace.iterdir() if (path / ".git").exists())
 
 
+def _repository_of(run: Run, checkout: pathlib.Path) -> str:
+    try:
+        found = git(
+            run, checkout, "rev-parse", "--path-format=absolute", "--git-common-dir"
+        )
+    except subprocess.CalledProcessError:
+        return ""
+    return found.strip()
+
+
 def fetch_each_repository(run: Run, paths: Iterable[pathlib.Path]) -> Sequence[str]:
     """Fetch ``origin`` once per repository (worktrees share their refs).
 
@@ -55,15 +65,16 @@ def fetch_each_repository(run: Run, paths: Iterable[pathlib.Path]) -> Sequence[s
         paths: the checkouts.
 
     Returns:
-        The checkouts whose fetch failed.
+        The checkouts whose fetch failed, or whose repository git cannot read.
     """
     by_repository: dict[str, pathlib.Path] = {}
-    for checkout in paths:
-        common = git(
-            run, checkout, "rev-parse", "--path-format=absolute", "--git-common-dir"
-        )
-        by_repository.setdefault(common.strip(), checkout)
     failed = []
+    for checkout in paths:
+        common = _repository_of(run, checkout)
+        if common:
+            by_repository.setdefault(common, checkout)
+        else:
+            failed.append(str(checkout))
     for checkout in by_repository.values():
         try:
             git(run, checkout, "fetch", "-q", "origin")
@@ -101,21 +112,7 @@ def uncommitted(run: Run, path: pathlib.Path) -> int:
     Returns:
         The count.
     """
-    return len(git(run, path, "status", "--porcelain").splitlines())
-
-
-def tracked_changes(run: Run, path: pathlib.Path) -> int:
-    """Count the changed tracked files (untracked files are not counted).
-
-    Args:
-        run: the runner.
-        path: the checkout.
-
-    Returns:
-        The count.
-    """
-    status = git(run, path, "status", "--porcelain", "--untracked-files=no")
-    return len(status.splitlines())
+    return changed_files(run, path)
 
 
 def read_straggler(run: Run, path: pathlib.Path) -> Straggler | None:
@@ -206,6 +203,21 @@ def shallow_walk(
         )
 
 
+def modified(entry: pathlib.Path) -> float:
+    """When an entry changed; a link is itself, not what it points at.
+
+    Args:
+        entry: the file, directory or link.
+
+    Returns:
+        Seconds since the epoch; 0 for an entry that is gone.
+    """
+    try:
+        return entry.lstat().st_mtime
+    except FileNotFoundError:
+        return 0.0
+
+
 def touched_since(path: pathlib.Path, cutoff: float) -> bool:
     """Whether anything in a checkout changed after ``cutoff``.
 
@@ -222,7 +234,7 @@ def touched_since(path: pathlib.Path, cutoff: float) -> bool:
     """
     for current, _, files in shallow_walk(path):
         entries = [current, *(current / name for name in files)]
-        if any(entry.stat().st_mtime > cutoff for entry in entries):
+        if any(modified(entry) > cutoff for entry in entries):
             return True
     return False
 

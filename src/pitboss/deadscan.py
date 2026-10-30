@@ -109,6 +109,19 @@ def _linked(each: Checkout) -> pathlib.Path | None:
     return None if each.common == own else each.common
 
 
+def _judged(
+    look: dead.Look,
+    outcomes: Mapping[str, Mapping[str, shapes.Outcome]],
+    cutoff: float,
+    each: Checkout,
+) -> dead.Candidate | None:
+    reason = checkout_reason(look, outcomes, each)
+    if reason is None:
+        return None
+    made = dead.consider(look, each.path, reason.value, cutoff)
+    return made and dataclasses.replace(made, prune=_linked(each))
+
+
 def _fetched(
     look: dead.Look, read: Sequence[Checkout]
 ) -> tuple[Sequence[Checkout], Sequence[str]]:
@@ -117,31 +130,64 @@ def _fetched(
     return [e for e in read if str(firsts[e.common]) not in failed], sorted(failed)
 
 
+def _read(
+    look: dead.Look, paths: Iterable[pathlib.Path]
+) -> tuple[Sequence[Checkout], Sequence[pathlib.Path]]:
+    read: list[Checkout] = []
+    unreadable: list[pathlib.Path] = []
+    for each in paths:
+        try:
+            read.append(read_checkout(look, each))
+        except subprocess.CalledProcessError:
+            unreadable.append(each)
+    return read, unreadable
+
+
+def unreadable_checkouts(
+    look: dead.Look, cutoff: float, paths: Iterable[pathlib.Path]
+) -> Sequence[dead.Candidate]:
+    """The checkouts whose git directory git cannot read: kept, never removed.
+
+    Args:
+        look: what to look at and keep.
+        cutoff: anything changed after this time is in use.
+        paths: the checkouts.
+
+    Returns:
+        A kept candidate for each that is not live or in use.
+    """
+    reason = "a checkout git cannot read"
+    made = dead.present(dead.consider(look, each, reason, cutoff) for each in paths)
+    return [
+        dataclasses.replace(each, kept=each.kept or f"git cannot read {each.path}")
+        for each in made
+    ]
+
+
 def dead_checkouts(
     look: dead.Look, cutoff: float
 ) -> tuple[Sequence[dead.Candidate], Sequence[str]]:
     """The checkouts under the workspace that are dead.
 
+    A link is never a checkout: it is not judged by what it points at.
+
     Args:
         look: what to look at and keep.
-        cutoff: anything touched after this time is in use.
+        cutoff: anything changed after this time is in use.
 
     Returns:
         The candidates and the checkouts whose fetch failed.
     """
-    read = [
-        read_checkout(look, path)
+    paths = [
+        path
         for path in local.checkouts(look.settings.project.workspace)
+        if not path.is_symlink()
     ]
+    read, unreadable = _read(look, paths)
     fetched, failed = _fetched(look, read)
     outcomes = _outcomes(look, {each.slug for each in fetched})
-    found = []
-    for each in fetched:
-        reason = checkout_reason(look, outcomes, each)
-        if reason is None or dead.is_live(each.path, look):
-            continue
-        if not dead.touched(each.path, cutoff):
-            found.append(dead.make(look.run, each.path, reason.value, _linked(each)))
+    judged = dead.present(_judged(look, outcomes, cutoff, each) for each in fetched)
+    found = [*unreadable_checkouts(look, cutoff, unreadable), *judged]
     return found, failed
 
 
@@ -160,18 +206,21 @@ class Findings:
 
 
 def scan(look: dead.Look, now: float) -> Findings:
-    """Look at the workspace and the scratch directories.
+    """Look at the workspace, the scratch directories and the root files.
 
     Args:
         look: what to look at and keep.
         now: seconds since the epoch.
 
     Returns:
-        The dead paths and the checkouts that could not be fetched.
+        The dead paths (checkouts, scratch and the root files) and the
+        checkouts that could not be fetched.
     """
     cutoff = now - look.settings.idle_hours * 3600
     checkouts, unfetched = dead_checkouts(look, cutoff)
     scratch = dead.dead_scratch(look, cutoff)
+    files = dead.dead_root_files(look, cutoff)
     return Findings(
-        candidates=dead.ordered([*checkouts, *scratch]), unfetched=unfetched
+        candidates=dead.ordered([*checkouts, *scratch, *files]),
+        unfetched=unfetched,
     )

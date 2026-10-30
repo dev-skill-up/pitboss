@@ -802,8 +802,9 @@ compaction.
   worktree of a ticket in flight is never removed (`pitboss clean-worktrees`,
   `pitboss clean-container`). The persistent checkout, a running agent's
   checkout and a shared cache are marked live (a file named `.pitboss-live` in
-  the directory, or a path under `[clean] live`), and nothing marked is ever
-  listed for removal. The threshold is the orchestrator's own; a sweep warns
+  the directory or anywhere in it, or in a directory above it, or a path under
+  `[clean] live`), and nothing marked is ever listed for removal; a symbolic
+  link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
   under `[clean] min_free_gib` (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look

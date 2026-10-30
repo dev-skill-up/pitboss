@@ -27,7 +27,9 @@ Commands
 ``pitboss clean-container CONFIG``              List, then remove (``--no-dry-run``, in parts), the dead
                                                 paths: finished checkouts, idle scratch, files in ``/``
                                                 written over an hour after the container started. Work
-                                                only on this machine is listed apart and kept.
+                                                only on this machine, links, mount points and anything
+                                                marked live are kept; each path is checked again just
+                                                before its removal.
 ``pitboss review-form CONFIG REPOSITORY``       The form a review comment there must take.
 ``pitboss slots ACTION CONFIG ...``             The worker-slot ledger, and what to start next.
 ``pitboss analyze-red CONFIG ...``              Read-only: the red runs of a workflow in a window

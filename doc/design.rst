@@ -224,7 +224,8 @@ Commands
        ``--hours`` (default 1) after ``--marker`` (default
        ``/container_info.json``, the one file a Claude Code on the web
        container starts with there; none when it is absent); subdirectories,
-       symbolic links and other entries there are left alone.
+       symbolic links and other entries there are left alone. A root file
+       obeys the same liveness, idle and safety rules as any dead path.
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
    * - ``slots show|set|free|add|remove|failed|check|next CONFIG ...``
@@ -376,20 +377,36 @@ common git directory of ``main_clone`` or from ``remote.origin.url``, else the
 tip is in the base branch with no PR; a checkout on the base branch, on no
 branch, or whose repository could not be fetched is not judged), ``dead_scratch``
 (entries of ``[clean] scratch`` directories that are not symbolic links) and
-the root files above. A path is skipped, never listed, when it is live (a file
-``.pitboss-live`` in it, a path of ``[clean] live``, the main clone, or one that
-holds or lies in such a path) or when anything in it changed in the last
-``idle_hours`` (the walk of **Worktrees**). A dead path is safe when each git
-checkout in it, found three levels down, has no commit on no remote branch and
-no changed tracked file; else it is kept, with the reason, and never removed.
-Sizes are the blocks on disk. ``--no-dry-run`` runs ``rm -rf`` on at most
-``--batch`` paths at a time and prunes the worktree lists of the repositories a
-removed linked worktree belonged to; a path still there afterwards is
-``COULD NOT REMOVE PATH``. ``--approved FILE`` limits the removal to the paths
-in it, each checked safe again. The sweep warns with ``DISK PRESSURE`` when the
-free space of a filesystem of ``workspace`` or of a scratch directory is under
-``[clean] min_free_gib`` (default 5; 0 never) and then names the five largest
-safe dead paths; it scans for them only then.
+the root files above; the pressure scan lists the same three sources. A path
+is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
+depth or in a directory above it, a path of ``[clean] live``, the main clone, or
+one that holds or lies in such a path), when it is a symbolic link, or when
+anything in it changed in the last ``idle_hours`` (the walk of **Worktrees**;
+this also holds for the root files; ``.git`` contents do not count, as a fetch
+changes them). One whole-tree walk (``survey``) measures a path and finds, at
+any depth, its git checkouts, bare repositories, live markers and mount points.
+It never follows a link (a link counts as itself, so a link to a big directory
+adds nothing) and does not enter a mount point, which is named. A dead path is
+safe when each git checkout in it has every commit on a remote branch and no
+changed tracked file. A standalone clone counts every ref (other local
+branches and the stash included, ``rev-list --all --not --remotes=origin``); a
+linked worktree, or a repository outside the path, counts its HEAD only; a
+repository whose git directory is inside the path (a submodule) goes with it.
+Else it is kept, with the reason, and never removed: a commit or change that
+exists only here, a checkout git cannot read, a bare repository, a mount point
+inside, or a path that cannot be looked at. Sizes are the blocks on disk.
+``--no-dry-run`` removes at most ``--batch`` paths at a time with ``rm -rf
+--one-file-system`` and, just before each part, looks at every path again
+(liveness, idle, safety): a path that became live, busy or unsafe in between is
+left in place and reported as ``COULD NOT REMOVE PATH``. Only paths directly
+inside the workspace, a ``[clean] scratch`` directory or ``--root`` can be
+removed; the ``[clean]`` paths must be absolute. It then prunes the worktree
+lists of the repositories a removed linked worktree belonged to. ``--approved
+FILE`` limits the removal to the paths in it; an entry that is not among the
+current safe candidates is refused, whatever it is. The sweep warns with
+``DISK PRESSURE`` when the free space of a filesystem of ``workspace`` or of a
+scratch directory is under ``[clean] min_free_gib`` (default 5; 0 never) and
+then names the five largest safe dead paths; it scans for them only then.
 
 **Slots.** The ledger is a JSON file: each slot's name, model, agent, task,
 whether the agent waits, and the tickets each model has failed. ``set``

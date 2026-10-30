@@ -1,32 +1,78 @@
 """The ``clean-container`` command: remove what is dead, in parts."""
 
 import argparse
+import functools
 import pathlib
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, cleaning, dead, deadscan, disk
-from .commands import CHANGING_ARGUMENTS, load_context
+from . import ENTRY_DATA, cleaning, container, dead, deadscan, disk
+from .commands import CHANGING_ARGUMENTS, Context, load_context
+
+
+def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
+    """What looking at the machine needs, from the arguments.
+
+    Args:
+        args: the parsed arguments.
+        found: the configuration and the API.
+
+    Returns:
+        The look.
+    """
+    watch = container.Watch(
+        marker=pathlib.Path(args.marker),
+        root=pathlib.Path(args.root),
+        hours=args.hours,
+    )
+    return dead.Look(
+        run=args.safe_run,
+        github=found.github,
+        settings=found.settings,
+        clean=found.clean,
+        watch=watch,
+    )
+
+
+def roots_of(look: dead.Look) -> AbstractSet[pathlib.Path]:
+    """The directories whose entries ``clean-container`` may remove.
+
+    Args:
+        look: what to look at and keep.
+
+    Returns:
+        The workspace, the scratch directories and the root of the files.
+    """
+    return {look.settings.project.workspace, *look.clean.scratch, look.watch.root}
 
 
 def remove_listed(
-    args: argparse.Namespace, look: dead.Look, listed: Sequence[dead.Candidate]
+    args: argparse.Namespace,
+    look: dead.Look,
+    listed: Sequence[dead.Candidate],
+    now: float,
 ) -> cleaning.Outcome:
     """Remove the safe (and approved) dead paths, saying what happened to each.
+
+    Each is looked at again just before its removal.
 
     Args:
         args: the parsed arguments.
         look: what to look at and keep.
         listed: the dead paths.
+        now: seconds since the epoch.
 
     Returns:
         What was done.
     """
-    chosen, refused = cleaning.choose(listed, cleaning.read_approved(args.approved))
+    approved = cleaning.read_approved(args.approved)
+    chosen, refused = cleaning.choose(listed, approved, roots_of(look))
+    cutoff = now - look.settings.idle_hours * 3600
     workspace = look.settings.project.workspace
     before = disk.free_space(workspace)
-    gone = cleaning.remove_all(args, chosen)
+    recheck = functools.partial(dead.recheck, look, cutoff)
+    gone = cleaning.remove_all(args, recheck, chosen)
     cleaning.prune(args.run, gone)
     return cleaning.Outcome(
         gone=gone,
@@ -38,30 +84,11 @@ def remove_listed(
     )
 
 
-def list_dead(
-    args: argparse.Namespace, look: dead.Look, now: float
-) -> tuple[Sequence[str], Sequence[dead.Candidate]]:
-    """Find the dead paths: checkouts, scratch and files in the root.
-
-    Args:
-        args: the parsed arguments.
-        look: what to look at and keep.
-        now: seconds since the epoch.
-
-    Returns:
-        The checkouts that could not be fetched, and the dead paths.
-    """
-    scan = deadscan.scan(look, now)
-    root, marker = pathlib.Path(args.root), pathlib.Path(args.marker)
-    files = dead.dead_root_files(marker, root, args.hours)
-    return scan.unfetched, dead.ordered([*scan.candidates, *files])
-
-
 ARGUMENTS = (
     *CHANGING_ARGUMENTS,
-    add_argument("--marker", default="/container_info.json"),
-    add_argument("--root", default="/"),
-    add_argument("--hours", type=float, default=1.0),
+    add_argument("--marker", default=container.DEFAULT_MARKER),
+    add_argument("--root", default=container.DEFAULT_ROOT),
+    add_argument("--hours", type=float, default=container.DEFAULT_HOURS),
     add_argument("--batch", type=cleaning.positive, default=cleaning.DEFAULT_BATCH),
     add_argument("--approved", default=None),
 )
@@ -75,21 +102,19 @@ def clean_container(args: argparse.Namespace) -> None:
     lists apart the dead paths that are not safe (commits on no remote
     branch, changed tracked files) which are never removed. With
     ``--no-dry-run`` the safe ones are removed, at most ``--batch`` paths for
-    each ``rm``. ``--approved FILE`` limits the removal to the paths listed in
-    the file, each again checked safe.
+    each ``rm``; each path is looked at again just before its ``rm``.
+    ``--approved FILE`` limits the removal to the paths listed in the file
+    that are among the safe dead paths now.
 
     Args:
         args: the parsed arguments.
     """
     found = load_context(args)
-    look = dead.Look(
-        run=args.safe_run,
-        github=found.github,
-        settings=found.settings,
-        clean=found.clean,
-    )
-    unfetched, listed = list_dead(args, look, found.now.timestamp())
-    for name in unfetched:
+    look = look_of(args, found)
+    now = found.now.timestamp()
+    scan = deadscan.scan(look, now)
+    for name in scan.unfetched:
         print(f"fetch failed in {name}: its repository's checkouts are not judged")
-    for text in cleaning.closing_lines(remove_listed(args, look, listed)):
+    done = remove_listed(args, look, scan.candidates, now)
+    for text in cleaning.closing_lines(done):
         print(text)

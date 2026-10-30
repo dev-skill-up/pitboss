@@ -45,3 +45,17 @@ def git(run: Run, directory: object, *arguments: str) -> str:
         git's output.
     """
     return run(["git", "-C", str(directory), *arguments]).stdout
+
+
+def changed_files(run: Run, directory: object, *options: str) -> int:
+    """Count the files ``git status`` lists in a checkout.
+
+    Args:
+        run: the runner.
+        directory: the checkout.
+        *options: more options of ``git status``.
+
+    Returns:
+        The count.
+    """
+    return len(git(run, directory, "status", "--porcelain", *options).splitlines())
