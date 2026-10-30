@@ -1,7 +1,6 @@
 """Reading reviews: comments in the project's form, and GitHub reviews."""
 
 import dataclasses
-import enum
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
@@ -16,28 +15,7 @@ _GITHUB_STATES = {"APPROVED": True, "CHANGES_REQUESTED": False}
 
 
 Verdict = shapes.Verdict
-
-
-class Standing(enum.Enum):
-    """Where a PR's head stands with its newest review.
-
-    Attributes:
-        NONE: no review counts.
-        APPROVED: approved, this very head.
-        APPROVED_BEFORE_MERGES: an older head approved, only merges since.
-        CHANGES_NEEDED: this very head needs changes.
-        OLDER_HEAD: the review is of an older head (a fix came since).
-        PLAN_CHANGES_NEEDED: this head's plan needs changes (revise it only).
-        PLAN_APPROVED: this head's review approved the plan alone (no merge).
-    """
-
-    NONE = enum.auto()
-    APPROVED = enum.auto()
-    APPROVED_BEFORE_MERGES = enum.auto()
-    CHANGES_NEEDED = enum.auto()
-    OLDER_HEAD = enum.auto()
-    PLAN_CHANGES_NEEDED = enum.auto()
-    PLAN_APPROVED = enum.auto()
+Standing = shapes.Standing
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -213,6 +191,17 @@ def from_comments(
     read: Reader,
     form: config.ReviewForm,
 ) -> Iterable[Found]:
+    """Read the comments that are reviews in the repository's form.
+
+    Args:
+        posted: the PR's issue comments.
+        trusted: the author associations whose reviews count.
+        read: reads a comment as a review in the repository's rules.
+        form: the form reviews take in the PR's repository.
+
+    Yields:
+        Each review, in the order of the comments.
+    """
     for item in posted:
         if item.author_association not in trusted:
             continue
@@ -236,6 +225,15 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
 def from_reviews(
     submitted: Iterable[shapes.PullReview], review: config.Review
 ) -> Iterable[Found]:
+    """Read the GitHub reviews that approve or ask for changes.
+
+    Args:
+        submitted: the PR's GitHub reviews.
+        review: how reviews are read.
+
+    Yields:
+        Each such review by a trusted author.
+    """
     for item in submitted:
         approved = _GITHUB_STATES.get(item.state)
         if approved is None or item.author_association not in review.trusted:
@@ -255,6 +253,46 @@ class Sources:
 
     comments: Sequence[shapes.Comment]
     reviews: Sequence[shapes.PullReview]
+
+
+_GRADES = {
+    True: shapes.Verdict.APPROVED,
+    False: shapes.Verdict.CHANGES_NEEDED,
+    None: None,
+}
+
+
+def _as_graded(found: Found, comment: bool) -> shapes.Graded:
+    return shapes.Graded(
+        sha=found.sha,
+        when=found.when,
+        plan=_GRADES[found.plan_approved],
+        execution=None if found.plan_alone else found.verdict,
+        comment=comment,
+    )
+
+
+def recorded(
+    review: config.Review, slug: str, posted: Sources
+) -> Sequence[shapes.Graded]:
+    """The reviews that count, as the flow reads them.
+
+    Args:
+        review: how reviews are read.
+        slug: the PR's ``owner/name``.
+        posted: the PR's comments and GitHub reviews.
+
+    Returns:
+        The regular reviews (comments in the repository's form, by trusted
+        authors), then the GitHub reviews where the repository is not gated.
+    """
+    read, form = rules(review, slug)
+    written = from_comments(posted.comments, review.trusted, read, form)
+    submitted = [] if slug in review.gated else posted.reviews
+    return [
+        *(_as_graded(each, True) for each in written),
+        *(_as_graded(each, False) for each in from_reviews(submitted, review)),
+    ]
 
 
 def newest(sources: Sources, review: config.Review, slug: str) -> Found | None:

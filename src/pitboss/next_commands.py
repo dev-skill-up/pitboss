@@ -7,7 +7,7 @@ from typing import AbstractSet, NoReturn, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, ledger, pulls, steps, tracefs, unreadableline
+from . import ENTRY_DATA, ledger, pulls, shapes, steps, tracefs, unreadableline
 from .commands import CONFIG_ARGUMENT, NOW_ARGUMENT, load_context, open_pulls
 
 _FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
@@ -30,7 +30,7 @@ def fixed_tickets(pull: pulls.PullFacts) -> AbstractSet[str]:
 
 def fixing(
     found: Sequence[pulls.Read], ticket: str
-) -> tuple[pulls.PullFacts | None, Sequence[pulls.Unreadable]]:
+) -> tuple[pulls.PullFacts | None, Sequence[shapes.Unreadable]]:
     """Pick the open PR that says it fixes a ticket.
 
     Args:
@@ -41,10 +41,8 @@ def fixing(
         The first PR whose body says ``Fixes`` the ticket, or None, and the
         PRs that could not be read (one of them may be the ticket's).
     """
-    readable = [each for each in found if isinstance(each, pulls.PullFacts)]
-    unread = [each for each in found if isinstance(each, pulls.Unreadable)]
-    named = (each for each in readable if ticket in fixed_tickets(each))
-    return next(named, None), unread
+    named = (each for each in pulls.readable(found) if ticket in fixed_tickets(each))
+    return next(named, None), pulls.failed_reads(found)
 
 
 def _refuse(message: str) -> NoReturn:

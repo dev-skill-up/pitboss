@@ -97,8 +97,7 @@ def _attempts(body: str, form: config.ReviewForm) -> bool:
 def unread(
     posted: Sequence[shapes.Comment],
     trusted: AbstractSet[str],
-    read: Reader,
-    form: config.ReviewForm,
+    rules: tuple[Reader, config.ReviewForm],
     since: str,
 ) -> str:
     """Find a newer comment that tries to be a review and is not read as one.
@@ -110,13 +109,13 @@ def unread(
     Args:
         posted: the PR's issue comments.
         trusted: the author associations whose reviews count.
-        read: reads a comment as a review in the repository's rules.
-        form: the form reviews take in the PR's repository.
+        rules: the reader and the form of the PR's repository.
         since: when the newest review that counts was written, or empty.
 
     Returns:
         When the newest such comment was written, or the empty string.
     """
+    read, form = rules
     ignored = (
         item.created_at
         for item in posted

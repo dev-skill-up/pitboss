@@ -4,9 +4,19 @@ import concurrent.futures
 import dataclasses
 import functools
 import subprocess
-from typing import Callable, Sequence
+from typing import AbstractSet, Callable, Sequence
 
-from . import config, flow, ghapi, parsing, reviews, shapes, steps, unreadableform
+from . import (
+    checkruns,
+    config,
+    flow,
+    ghapi,
+    parsing,
+    reviews,
+    shapes,
+    steps,
+    unreadableform,
+)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -107,7 +117,7 @@ def conflicted(facts: PullFacts) -> bool:
     Returns:
         True on a conflict.
     """
-    return facts.pull.mergeable_state is shapes.MergeState.DIRTY
+    return flow.is_dirty(facts.pull)
 
 
 def needs_update(facts: PullFacts, settings: config.Config) -> bool:
@@ -201,77 +211,66 @@ def _standing(
     return standing
 
 
-def current_checks(
-    checks: Sequence[shapes.CheckRun], head: str
-) -> Sequence[shapes.CheckRun]:
-    """Keep the latest run of each check name on the current head.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Fetched:
+    """What the API gave for one PR.
 
-    A later run of the same check (a re-run, or a run that cancelled this
-    one) supersedes it, and a run of an older head says nothing of this one.
-
-    Args:
-        checks: the check runs read.
-        head: the PR's current head.
-
-    Returns:
-        The latest run of each name, in the order first seen.
+    Attributes:
+        pull: its details.
+        labels: its labels.
+        posted: its comments and GitHub reviews.
+        checks: the check runs of its head.
     """
-    latest: dict[str, shapes.CheckRun] = {}
-    for run in checks:
-        if run.head_sha not in ("", head):
-            continue
-        seen = latest.get(run.name)
-        if seen is None or (run.started_at, run.id) > (seen.started_at, seen.id):
-            latest[run.name] = run
-    return list(latest.values())
+
+    pull: shapes.Pull
+    labels: AbstractSet[str]
+    posted: reviews.Sources
+    checks: Sequence[shapes.CheckRun]
 
 
 def _head_checks(
     source: Source, repo: config.Repo, head: str
 ) -> Sequence[shapes.CheckRun]:
     path = f"repos/{repo.slug}/commits/{head}/check-runs"
-    return current_checks(ghapi.pages(source.github, path, parsing.check_runs), head)
+    found = ghapi.pages(source.github, path, parsing.check_runs)
+    return checkruns.current_checks(found, head)
 
 
-_GRADES = {
-    True: shapes.Verdict.APPROVED,
-    False: shapes.Verdict.CHANGES_NEEDED,
-    None: None,
-}
-
-
-def _graded(found: reviews.Found, comment: bool) -> flow.Graded:
-    return flow.Graded(
-        sha=found.sha,
-        when=found.when,
-        plan=_GRADES[found.plan_approved],
-        execution=None if found.plan_alone else found.verdict,
-        comment=comment,
+def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
+    text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
+    pull = parsing.pull(text)
+    return Fetched(
+        pull=pull,
+        labels=parsing.labels(text),
+        posted=_sources(source, repo, number),
+        checks=_head_checks(source, repo, pull.head.sha),
     )
 
 
-def recorded(
-    source: Source, repo: config.Repo, posted: reviews.Sources
-) -> Sequence[flow.Graded]:
-    """The reviews that count, as the flow reads them.
+def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
+    return flow.PullState(
+        pull=got.pull,
+        labels=got.labels,
+        checks=got.checks,
+        graded=reviews.recorded(source.review, repo.slug, got.posted),
+        comments=got.posted.comments,
+        trusted=source.review.trusted,
+        undraft_clear=got.pull.draft and source.undraft(),
+    )
 
-    Args:
-        source: where reviews are read from (how they are read).
-        repo: the PR's repository.
-        posted: the PR's comments and GitHub reviews.
 
-    Returns:
-        The regular reviews (comments in the repository's form, by trusted
-        authors), then the GitHub reviews where the repository is not gated.
-    """
-    review = source.review
-    read, form = reviews.rules(review, repo.slug)
-    written = reviews.from_comments(posted.comments, review.trusted, read, form)
-    submitted = [] if repo.slug in review.gated else posted.reviews
-    return [
-        *(_graded(each, True) for each in written),
-        *(_graded(each, False) for each in reviews.from_reviews(submitted, review)),
-    ]
+def _unreadable(
+    source: Source, repo: config.Repo, got: Fetched, found: reviews.Found | None
+) -> tuple[str, Sequence[unreadableform.UnreadableReview]]:
+    rules = reviews.rules(source.review, repo.slug)
+    trusted = source.review.trusted
+    since = found.when if found else ""
+    return (
+        unreadableform.unread(got.posted.comments, trusted, rules, since),
+        unreadableform.find(
+            got.posted.comments, trusted, rules[1], reviews.line_pattern
+        ),
+    )
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -285,57 +284,46 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     Returns:
         The PR's facts.
     """
-    text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
-    pull = parsing.pull(text)
-    posted = _sources(source, repo, number)
-    found = reviews.newest(posted, source.review, repo.slug)
-    checks = _head_checks(source, repo, pull.head.sha)
-    state = flow.PullState(
-        pull=pull,
-        labels=parsing.labels(text),
-        checks=checks,
-        graded=recorded(source, repo, posted),
-        comments=posted.comments,
-        trusted=source.review.trusted,
-        undraft_clear=pull.draft and source.undraft(),
-    )
-    read, form = reviews.rules(source.review, repo.slug)
+    got = _fetched(source, repo, number)
+    found = reviews.newest(got.posted, source.review, repo.slug)
+    unread, unreadable_reviews = _unreadable(source, repo, got, found)
     return PullFacts(
         repo=repo,
-        pull=pull,
-        checks=checks,
+        pull=got.pull,
+        checks=got.checks,
         review=found,
-        standing=_standing(source, repo, pull, found),
-        unread=unreadableform.unread(
-            posted.comments,
-            source.review.trusted,
-            read,
-            form,
-            found.when if found else "",
-        ),
-        unreadable_reviews=unreadableform.find(
-            posted.comments, source.review.trusted, form, reviews.line_pattern
-        ),
-        step=flow.next_step(state),
+        standing=_standing(source, repo, got.pull, found),
+        unread=unread,
+        unreadable_reviews=unreadable_reviews,
+        step=flow.next_step(_state(source, repo, got)),
     )
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Unreadable:
-    """An open PR one of whose API calls failed.
+Read = PullFacts | shapes.Unreadable
 
-    Attributes:
-        reference: its ``owner/name#number``.
-        call: the call that failed (``check-runs``).
-        status: how it failed (``HTTP 500``).
+
+def readable(found: Sequence[Read]) -> Sequence[PullFacts]:
+    """The PRs that were read.
+
+    Args:
+        found: each open PR, read or not.
+
+    Returns:
+        The ones that were read.
     """
-
-    reference: str
-    call: str
-    status: str
+    return [each for each in found if isinstance(each, PullFacts)]
 
 
-Read = PullFacts | Unreadable
+def failed_reads(found: Sequence[Read]) -> Sequence[shapes.Unreadable]:
+    """The PRs an API call failed for.
+
+    Args:
+        found: each open PR, read or not.
+
+    Returns:
+        The ones that could not be read.
+    """
+    return [each for each in found if isinstance(each, shapes.Unreadable)]
 
 
 def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:
@@ -352,7 +340,7 @@ def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:
     try:
         return fetch(source, repo, number)
     except subprocess.CalledProcessError as error:
-        return Unreadable(
+        return shapes.Unreadable(
             reference=f"{repo.slug}#{number}",
             call=ghapi.call_of(error),
             status=ghapi.status_of(error),
@@ -378,7 +366,7 @@ def read_open(
     return [
         each
         for each in read_each(github, settings, undraft)
-        if not isinstance(each, Unreadable)
+        if not isinstance(each, shapes.Unreadable)
     ]
 
 

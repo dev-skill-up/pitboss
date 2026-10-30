@@ -5,8 +5,14 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import rulings, steps
-from .test_flow import GREEN, RED, RUNNING, ruling, state
-from .test_flow import PLAN_REJECTED, graded
+from . import test_flow
+
+GREEN = test_flow.GREEN
+RED = test_flow.RED
+RUNNING = test_flow.RUNNING
+PLAN_REJECTED = test_flow.PLAN_REJECTED
+graded = test_flow.graded
+state = test_flow.state
 
 Task = steps.Task
 Stage = steps.Stage
@@ -89,7 +95,9 @@ class TestAfter(unittest.TestCase):
         any_state = [
             state(),
             state(draft=True, body=""),
-            state(graded(*PLAN_REJECTED, 1), comments=[ruling(2)], checks=(RED,)),
+            state(
+                graded(*PLAN_REJECTED, 1), comments=[test_flow.ruling(2)], checks=(RED,)
+            ),
         ]
         ruled = (rulings.Ruling.SPLIT, rulings.Ruling.RESHAPE, rulings.Ruling.ABANDON)
         found = {

@@ -258,7 +258,7 @@ def queued(
     Returns:
         The ordered items.
     """
-    facts = [each for each in found if isinstance(each, pulls.PullFacts)]
+    facts = pulls.readable(found)
     tickets = ticket_items(github, settings, taken(facts))
     items = [
         *pull_items(facts, settings),

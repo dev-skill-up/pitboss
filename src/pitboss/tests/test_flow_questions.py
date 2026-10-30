@@ -6,18 +6,17 @@ from typing import Callable, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import flow, shapes
-from .test_flow import (
-    APPROVED,
-    CHANGES,
-    GREEN,
-    OLDER,
-    RED,
-    RUNNING,
-    altered,
-    graded,
-    ruling,
-    state,
-)
+from . import test_flow
+
+APPROVED = test_flow.APPROVED
+CHANGES = test_flow.CHANGES
+GREEN = test_flow.GREEN
+OLDER = test_flow.OLDER
+RED = test_flow.RED
+RUNNING = test_flow.RUNNING
+altered = test_flow.altered
+graded = test_flow.graded
+state = test_flow.state
 
 Case = tuple[flow.PullState, object]
 
@@ -99,7 +98,7 @@ class TestQuestions(unittest.TestCase):
         """Some regular review graded the plan approved, at any head."""
         approving = graded(APPROVED, None, 1, sha=OLDER)
         rejecting = graded(CHANGES, None, 2)
-        github = flow.Graded(
+        github = shapes.Graded(
             sha=OLDER, when="x", plan=APPROVED, execution=None, comment=False
         )
         cases = [
@@ -114,7 +113,7 @@ class TestQuestions(unittest.TestCase):
     def test_get_plan_rejections(self) -> None:
         """Each regular review that graded the plan changes needed counts."""
         rejecting = [graded(CHANGES, None, second) for second in (1, 2)]
-        github = flow.Graded(
+        github = shapes.Graded(
             sha=OLDER, when="x", plan=CHANGES, execution=None, comment=False
         )
         cases = [
@@ -130,8 +129,8 @@ class TestQuestions(unittest.TestCase):
         """A trusted comment whose first line is exactly ``Opus ruling``."""
         quoting = comment("I think the Opus ruling is", 2)
         cases = [
-            (state(comments=[ruling(1)]), True),
-            (state(comments=[ruling(1, author="NONE")]), False),
+            (state(comments=[test_flow.ruling(1)]), True),
+            (state(comments=[test_flow.ruling(1, author="NONE")]), False),
             (state(comments=[quoting]), False),
             (state(), False),
         ]
@@ -159,7 +158,7 @@ class TestQuestions(unittest.TestCase):
         full = graded(APPROVED, CHANGES, 1)
         plain = graded(None, APPROVED, 2)
         older = graded(APPROVED, APPROVED, 3, sha=OLDER)
-        github = flow.Graded(
+        github = shapes.Graded(
             sha=full.sha,
             when="2026-10-30T00:01:00Z",
             plan=None,

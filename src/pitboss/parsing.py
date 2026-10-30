@@ -49,8 +49,8 @@ def labels(text: str) -> AbstractSet[str]:
     Returns:
         The names of its labels.
     """
-    found = json.loads(text).get("labels") or []
-    return frozenset(str(label["name"]) for label in found)
+    listed = json.loads(text).get("labels", ())
+    return frozenset(str(label["name"]) for label in listed)
 
 
 def pull_numbers(text: str) -> Sequence[int]:

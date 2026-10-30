@@ -33,6 +33,7 @@ from . import (
     pulls,
     queue,
     report,
+    shapes,
     sweepline,
     timing,
     tracefs,
@@ -238,7 +239,7 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
     newest = queue.newest_by_reference(runs)
     broken = False
     for pull in open_pulls(found):
-        if isinstance(pull, pulls.Unreadable):
+        if isinstance(pull, shapes.Unreadable):
             print(unreadableline.unreadable_line(pull))
             continue
         print(report.pull_line(pull, newest))

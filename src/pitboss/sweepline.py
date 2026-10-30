@@ -55,14 +55,37 @@ def pressure(
     Returns:
         The line.
     """
-    try:
-        jobs = queue.count_jobs(github, runs)
-        owed = queue.owed(jobs, runners, now)
-    except SystemExit as unreadable:
-        return report.unreadable_record_line(unreadable.code)
+    measured = measure(github, runs, runners, now)
+    if not isinstance(measured, tuple):
+        return report.unreadable_record_line(measured)
+    jobs, owed = measured
     if not jobs.unread:
         return report.quiet_line(jobs.waiting, owed)
     return partial_pressure(jobs, owed)
+
+
+def measure(
+    github: ghapi.GitHub,
+    runs: Iterable[queue.QueueRun],
+    runners: config.Runners,
+    now: datetime.datetime,
+) -> tuple[queue.Jobs, int] | str | int | None:
+    """Count the jobs waiting and what the quiet period owes.
+
+    Args:
+        github: the API.
+        runs: the runs of the repositories that share the runners.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+
+    Returns:
+        The jobs and the seconds owed, or the exit code of an unreadable record.
+    """
+    try:
+        jobs = queue.count_jobs(github, runs)
+        return jobs, queue.owed(jobs, runners, now)
+    except SystemExit as unreadable:
+        return unreadable.code
 
 
 def partial_pressure(jobs: queue.Jobs, owed: int) -> str:
@@ -108,9 +131,8 @@ def clear(
     Returns:
         True when an undraft may be done now.
     """
-    try:
-        jobs = queue.count_jobs(github, runs())
-        owed = queue.owed(jobs, runners, now)
-    except SystemExit:
+    measured = measure(github, runs(), runners, now)
+    if not isinstance(measured, tuple):
         return False
+    jobs, owed = measured
     return not (jobs.waiting or jobs.unread or owed)

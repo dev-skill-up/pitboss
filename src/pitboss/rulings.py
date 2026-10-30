@@ -56,6 +56,7 @@ def read_ruling(body: str) -> Ruling | None:
     return _RULINGS.get(second[len(RULING_LINE_PREFIX) :])
 
 
+AS_RULED = (Ruling.SPLIT, Ruling.RESHAPE, Ruling.ABANDON)
 AFTER: Mapping[Ruling, Sequence[steps.Next]] = {
     Ruling.DO_THESE_STEPS: (
         steps.worker(steps.Task.RULING_STEPS),
@@ -66,9 +67,7 @@ AFTER: Mapping[Ruling, Sequence[steps.Next]] = {
         steps.regular_review(steps.Stage.PLAN_ONLY),
     ),
     Ruling.ESCALATE: (steps.pause_for_owner(),),
-    Ruling.SPLIT: (steps.worker(steps.Task.RULING_AS_GIVEN),),
-    Ruling.RESHAPE: (steps.worker(steps.Task.RULING_AS_GIVEN),),
-    Ruling.ABANDON: (steps.worker(steps.Task.RULING_AS_GIVEN),),
+    **dict.fromkeys(AS_RULED, (steps.worker(steps.Task.RULING_AS_GIVEN),)),
 }
 
 

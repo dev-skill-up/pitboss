@@ -44,7 +44,7 @@ def graded(
     execution: shapes.Verdict | None,
     second: int,
     sha: str = HEAD,
-) -> flow.Graded:
+) -> shapes.Graded:
     """A regular review as the flow reads it.
 
     Args:
@@ -57,7 +57,7 @@ def graded(
         The review.
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return flow.Graded(sha=sha, when=when, plan=plan, execution=execution)
+    return shapes.Graded(sha=sha, when=when, plan=plan, execution=execution)
 
 
 def ruling(second: int, author: str = "MEMBER") -> shapes.Comment:
@@ -91,7 +91,7 @@ def pull_of(**changes: object) -> shapes.Pull:
 
 
 def state(
-    *recorded: flow.Graded,
+    *recorded: shapes.Graded,
     comments: Sequence[shapes.Comment] = (),
     checks: Sequence[shapes.CheckRun] = (GREEN,),
     **changes: object,

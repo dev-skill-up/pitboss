@@ -4,7 +4,7 @@ import dataclasses
 import json
 import pathlib
 import unittest
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 

@@ -1,12 +1,11 @@
 """Tests for the plan revision round (keyword: plan-revision, pitboss#82)."""
 
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import gradeline, pulls, reviews, shapes, work
-from . import fakes, test_commands, test_pulls, test_work, world
+from .. import gradeline, reviews, shapes, work
+from . import fakes, test_commands, test_pulls, world
 
 APPROVED = reviews.Verdict.APPROVED
 CHANGES = reviews.Verdict.CHANGES_NEEDED

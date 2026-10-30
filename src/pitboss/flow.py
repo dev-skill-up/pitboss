@@ -13,13 +13,14 @@ of them and never in the flow. The pseudo code's second function is
 import dataclasses
 import enum
 import re
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Callable, Sequence
 
 from . import shapes, steps
 
 _PLAN_HEADING = re.compile(r"^## Plan\s*$", re.MULTILINE)
 _EXECUTION_HEADING = re.compile(r"^## Execution\s*$", re.MULTILINE)
 Verdict = shapes.Verdict
+Graded = shapes.Graded
 
 
 class Ci(enum.Enum):
@@ -32,26 +33,6 @@ class Ci(enum.Enum):
 
     GREEN = enum.auto()
     RED = enum.auto()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Graded:
-    """A review as the flow reads it.
-
-    Attributes:
-        sha: the head it reviewed (possibly abbreviated).
-        when: when it was written (ISO 8601).
-        plan: what its ``Plan:`` line grades, None with no such line.
-        execution: its verdict, None for a review of the plan alone.
-        comment: whether it is a regular review (a comment in the form, not a
-            GitHub review).
-    """
-
-    sha: str
-    when: str
-    plan: Verdict | None
-    execution: Verdict | None
-    comment: bool = True
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -95,8 +76,8 @@ def is_paused_for_owner(pr: PullState) -> bool:
     return steps.PAUSED_LABEL in pr.labels
 
 
-def _names(review: Graded, head: str) -> bool:
-    return head.startswith(review.sha)
+def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
+    return [each for each in reviews if pr.pull.head.sha.startswith(each.sha)]
 
 
 def newest_counting_review(pr: PullState) -> Graded | None:
@@ -112,7 +93,7 @@ def newest_counting_review(pr: PullState) -> Graded | None:
     Returns:
         The review, or None when no review names the current head.
     """
-    found = [each for each in pr.graded if _names(each, pr.pull.head.sha)]
+    found = _of_head(pr, pr.graded)
     return max(found, key=lambda each: each.when, default=None)
 
 
@@ -229,7 +210,7 @@ def execution_fixed_since_plan_approval(pr: PullState) -> bool:
         approved = approved or each.plan is Verdict.APPROVED
         if approved and each.execution is Verdict.CHANGES_NEEDED:
             rejected.append(each)
-    return any(not _names(each, pr.pull.head.sha) for each in rejected)
+    return len(_of_head(pr, rejected)) < len(rejected)
 
 
 def ci_result(pr: PullState) -> Ci | None:
@@ -244,9 +225,21 @@ def ci_result(pr: PullState) -> Ci | None:
     """
     if any(each.failed for each in pr.checks):
         return Ci.RED
-    if not pr.checks or not all(each.finished for each in pr.checks):
+    if not pr.checks or any(not each.finished for each in pr.checks):
         return None
     return Ci.GREEN
+
+
+def is_dirty(pull: shapes.Pull) -> bool:
+    """Whether a PR's merge state is a conflict with its base.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        True on a merge conflict.
+    """
+    return pull.mergeable_state is shapes.MergeState.DIRTY
 
 
 def has_conflict(pr: PullState) -> bool:
@@ -258,7 +251,39 @@ def has_conflict(pr: PullState) -> bool:
     Returns:
         True on a merge conflict.
     """
-    return pr.pull.mergeable_state is shapes.MergeState.DIRTY
+    return is_dirty(pr.pull)
+
+
+def plan_rejected_again(pr: PullState) -> bool:
+    """Whether the plan was rejected more than once.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        True from the second rejection on.
+    """
+    return get_plan_rejections(pr) != 1
+
+
+def rejected(
+    pr: PullState, task: steps.Task, again: Callable[[PullState], bool]
+) -> steps.Next:
+    """The step after a rejection: pause, the worker's round, or Opus.
+
+    Args:
+        pr: the PR.
+        task: what the worker does on the first rejection.
+        again: says whether the rejected part was already given its round.
+
+    Returns:
+        The owner after a ruling, else the worker, else Opus.
+    """
+    if opus_used(pr):  # the ruling was used, still rejected
+        return steps.pause_for_owner()
+    if not again(pr):  # first rejection
+        return steps.worker(task)
+    return steps.opus_ruling()  # not converging
 
 
 def next_step(pr: PullState) -> steps.Next:
@@ -340,11 +365,9 @@ def plan_gate(pr: PullState, review: Graded) -> steps.Next:
         The step.
     """
     if review.plan is Verdict.CHANGES_NEEDED:  # a Plan rejection
-        if opus_used(pr):  # the ruling was used, still rejected
-            return steps.pause_for_owner()
-        if get_plan_rejections(pr) == 1:  # first rejection
-            return steps.worker(steps.Task.REVISE_PLAN)
-        return steps.opus_ruling()  # second rejection (>= 2): not converging
+        # the ruling used and still rejected pauses; a first rejection is the
+        # worker's; a second (>= 2) is not converging: Opus rules
+        return rejected(pr, steps.Task.REVISE_PLAN, plan_rejected_again)
 
     return execution_gate(pr, review)
 
@@ -368,8 +391,6 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
         return steps.worker(steps.Task.RESOLVE_CONFLICT)
 
     # review.execution is changes needed: execution rejected on an approved plan
-    if opus_used(pr):  # a reviewer rejected the fix after the ruling
-        return steps.pause_for_owner()
-    if not execution_fixed_since_plan_approval(pr):  # first execution grade
-        return steps.worker(steps.Task.FIX_EXECUTION)
-    return steps.opus_ruling()  # this execution is rejected
+    # a rejection after the ruling pauses; the first execution grade is the
+    # worker's; once the fix was pushed, this execution is rejected: Opus rules
+    return rejected(pr, steps.Task.FIX_EXECUTION, execution_fixed_since_plan_approval)

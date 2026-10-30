@@ -154,9 +154,9 @@ def _standing(sources: reviews.Sources) -> reviews.Standing:
 def _unread(sources: reviews.Sources, review: config.Review = TWO) -> str:
     slug = "o/g" if review is not TWO else "o/x"
     found = reviews.newest(sources, review, slug)
-    read, rule = reviews.rules(review, slug)
     since = found.when if found else ""
-    return unreadableform.unread(sources.comments, review.trusted, read, rule, since)
+    rules = reviews.rules(review, slug)
+    return unreadableform.unread(sources.comments, review.trusted, rules, since)
 
 
 def _line(sources: reviews.Sources) -> str:
