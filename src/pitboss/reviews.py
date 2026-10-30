@@ -223,9 +223,8 @@ def _from_comments(
 
 
 def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Found:
-    body = sessionurl.strip(item.body)
-    plan = _grade(body, gradeline.PLAN_PREFIX, form)
-    execution = _grade(body, gradeline.EXECUTION_PREFIX, form)
+    plan = _grade(item.body, gradeline.PLAN_PREFIX, form)
+    execution = _grade(item.body, gradeline.EXECUTION_PREFIX, form)
     return Found(
         sha=read[0],
         verdict=read[1],

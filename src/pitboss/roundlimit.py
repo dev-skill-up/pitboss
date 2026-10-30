@@ -80,10 +80,7 @@ def plan_grade(body: str, form: config.ReviewForm) -> shapes.Verdict | None:
         (the review says nothing of the plan).
     """
     found = gradeline.line_approved(
-        sessionurl.strip(body),
-        gradeline.PLAN_PREFIX,
-        form.approved,
-        form.changes_needed,
+        body, gradeline.PLAN_PREFIX, form.approved, form.changes_needed
     )
     if found is None:
         return None
