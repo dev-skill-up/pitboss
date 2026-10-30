@@ -8,7 +8,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, ledger, parsing, pulls, reviews, shapes, work
+from .. import config, ledger, parsing, pulls, reviews, shapes, work, steps
 from . import fakes
 
 REPO = config.make_repo("owner", "project")
@@ -25,13 +25,17 @@ NONE = reviews.Standing.NONE
 
 
 def facts(
-    number: int, standing: reviews.Standing, **changes: object
+    number: int,
+    standing: reviews.Standing,
+    step: steps.Next = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION),
+    **changes: object,
 ) -> pulls.PullFacts:
     """An open, green PR of the project.
 
     Args:
         number: its number.
         standing: where its head stands.
+        step: the step the flow gives it.
         **changes: changes to its JSON.
 
     Returns:
@@ -39,7 +43,12 @@ def facts(
     """
     pull = parsing.pull(json.dumps(fakes.pull_body(number, **changes)))
     return pulls.PullFacts(
-        repo=REPO, pull=pull, checks=(GREEN,), review=None, standing=standing
+        repo=REPO,
+        pull=pull,
+        checks=(GREEN,),
+        review=None,
+        standing=standing,
+        step=step,
     )
 
 
@@ -70,18 +79,25 @@ def item(
     )
 
 
-CATEGORIES = [
-    ("owner/project#1", work.Category.FIX_REVIEW),
-    ("owner/project#2", work.Category.REVIEW),
-    ("owner/project#3", work.Category.REVIEW),
-]
-PULL_CASES: Sequence[tuple[reviews.Standing, Mapping[str, object]]] = [
-    (reviews.Standing.CHANGES_NEEDED, {}),
-    (NONE, {}),
-    (reviews.Standing.OLDER_HEAD, {}),
-    (reviews.Standing.APPROVED, {}),
-    (NONE, {"draft": True}),
-    (NONE, {"mergeable_state": "dirty"}),
+Kind = work.Category
+REVIEW_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+STEP_CASES: Sequence[tuple[steps.Next, Kind | None]] = [
+    (steps.worker(steps.Task.REVISE_PLAN), Kind.REVISE_PLAN),
+    (steps.worker(steps.Task.FIX_EXECUTION), Kind.FIX_REVIEW),
+    (steps.worker(steps.Task.RULING_STEPS), Kind.FIX_REVIEW),
+    (steps.worker(steps.Task.RULING_AS_GIVEN), Kind.FIX_REVIEW),
+    (steps.worker(steps.Task.FIX_CI), Kind.FIX_CI),
+    (steps.worker(steps.Task.FIRST_ROUND), Kind.FIRST_ROUND),
+    (steps.worker(steps.Task.RESOLVE_CONFLICT), Kind.RESOLVE_CONFLICT),
+    (REVIEW_STEP, Kind.REVIEW),
+    (steps.regular_review(steps.Stage.PLAN_ONLY), Kind.REVIEW),
+    (steps.merge(), None),
+    (steps.undraft(), None),
+    (steps.wait_for_ci(), None),
+    (steps.wait_for_undraft(), None),
+    (steps.wait_for_owner(), None),
+    (steps.opus_ruling(), None),
+    (steps.pause_for_owner(), None),
 ]
 
 
@@ -89,17 +105,25 @@ class TestPullItems(unittest.TestCase):
     """The fixes and reviews open PRs need."""
 
     def test_categories(self) -> None:
-        """Changes-needed is a fix; green with no review of the head is a review."""
-        open_pulls = [
-            facts(number, standing, **changes)
-            for number, (standing, changes) in enumerate(PULL_CASES, start=1)
-        ]
+        """A PR is listed as the kind of work its step is, or as none."""
         settings = fakes.settings(fakes.directory())
         found = [
-            (each.reference, each.category)
-            for each in work.pull_items(open_pulls, settings)
+            [
+                each.category
+                for each in work.pull_items([facts(1, NONE, step)], settings)
+            ]
+            for step, _ in STEP_CASES
         ]
-        assert_that(found, equal_to(CATEGORIES))
+        expected = [[kind] if kind else [] for _, kind in STEP_CASES]
+        assert_that(found, equal_to(expected))
+
+    def test_a_held_pr_is_not_updated_either(self) -> None:
+        """A ruling, a pause or the owner holds a PR that is behind the base."""
+        settings = fakes.settings(fakes.directory())
+        held = [steps.opus_ruling(), steps.pause_for_owner(), steps.wait_for_owner()]
+        behind = [facts(1, NONE, step, mergeable_state="behind") for step in held]
+        found = [work.pull_items([each], settings) for each in behind]
+        assert_that(found, equal_to([[], [], []]))
 
 
 def _issue(number: int, body: str) -> dict[str, object]:

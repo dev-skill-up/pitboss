@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import pulls, reviews, shapes, updateline, work
+from .. import pulls, reviews, shapes, updateline, work, steps
 from . import fakes, test_work, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
@@ -30,7 +30,14 @@ def facts(state: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
     Returns:
         The PR.
     """
-    green = test_work.facts(3, reviews.Standing.NONE, mergeable_state=state)
+    done = bool(checks) and all(each.finished for each in checks)
+    step = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+    green = test_work.facts(
+        3,
+        reviews.Standing.NONE,
+        step if done else steps.wait_for_ci(),
+        mergeable_state=state,
+    )
     return dataclasses.replace(green, checks=checks)
 
 

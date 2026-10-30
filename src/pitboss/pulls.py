@@ -2,10 +2,11 @@
 
 import concurrent.futures
 import dataclasses
+import functools
 import subprocess
-from typing import Sequence
+from typing import Callable, Sequence
 
-from . import config, ghapi, parsing, reviews, roundlimit, shapes, unreadableform
+from . import config, flow, ghapi, parsing, reviews, shapes, steps, unreadableform
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -22,8 +23,7 @@ class PullFacts:
             the form was written (it is ignored), else empty.
         unreadable_reviews: the trusted comments that grade a review but are
             not in the review form (keyword: unreadable-review).
-        limit: where its review rounds stand against the changes-needed limit
-            (keyword: round-limit).
+        step: the one step the PR is at (keyword: review-flow).
     """
 
     repo: config.Repo
@@ -33,7 +33,7 @@ class PullFacts:
     standing: reviews.Standing
     unread: str = ""
     unreadable_reviews: Sequence[unreadableform.UnreadableReview] = ()
-    limit: roundlimit.Limit = roundlimit.Limit.NONE
+    step: steps.Next
 
 
 def reference(facts: PullFacts) -> str:
@@ -132,35 +132,6 @@ def needs_update(facts: PullFacts, settings: config.Config) -> bool:
     )
 
 
-def changes_needed(facts: PullFacts) -> bool:
-    """Whether the newest review asks for changes to this very head.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when the head needs changes.
-    """
-    return facts.standing in (
-        reviews.Standing.CHANGES_NEEDED,
-        reviews.Standing.PLAN_CHANGES_NEEDED,
-    )
-
-
-def plan_rejected(facts: PullFacts) -> bool:
-    """Whether the newest review graded the plan of this very head changes needed.
-
-    Until the plan is approved the only work on the PR is a plan revision.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when the plan needs changes.
-    """
-    return facts.standing is reviews.Standing.PLAN_CHANGES_NEEDED
-
-
 def approved(facts: PullFacts) -> bool:
     """Whether the head's review approves it.
 
@@ -183,10 +154,13 @@ class Source:
     Attributes:
         github: the API.
         review: how reviews are read.
+        undraft: says whether the runners allow an undraft now; it is asked
+            only for a draft.
     """
 
     github: ghapi.GitHub
     review: config.Review
+    undraft: Callable[[], bool]
 
 
 def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
@@ -259,39 +233,45 @@ def _head_checks(
     return current_checks(ghapi.pages(source.github, path, parsing.check_runs), head)
 
 
-def limit_of(
-    source: Source, repo: config.Repo, posted: Sequence[shapes.Comment]
-) -> roundlimit.Limit:
-    """Where a PR's review rounds stand against the changes-needed limit.
+_GRADES = {
+    True: shapes.Verdict.APPROVED,
+    False: shapes.Verdict.CHANGES_NEEDED,
+    None: None,
+}
+
+
+def _graded(found: reviews.Found, comment: bool) -> flow.Graded:
+    return flow.Graded(
+        sha=found.sha,
+        when=found.when,
+        plan=_GRADES[found.plan_approved],
+        execution=None if found.plan_alone else found.verdict,
+        comment=comment,
+    )
+
+
+def recorded(
+    source: Source, repo: config.Repo, posted: reviews.Sources
+) -> Sequence[flow.Graded]:
+    """The reviews that count, as the flow reads them.
 
     Args:
         source: where reviews are read from (how they are read).
         repo: the PR's repository.
-        posted: the PR's issue comments.
+        posted: the PR's comments and GitHub reviews.
 
     Returns:
-        The limit.
+        The regular reviews (comments in the repository's form, by trusted
+        authors), then the GitHub reviews where the repository is not gated.
     """
-    read, form = reviews.rules(source.review, repo.slug)
-
-    def verdict_of(body: str) -> shapes.Verdict | None:
-        reading = read(body, form)
-        return None if reading is None else reading[1]
-
-    return roundlimit.read(posted, source.review.trusted, form, verdict_of)
-
-
-def _rounds(
-    found: reviews.Found | None,
-    posted: Sequence[shapes.Comment],
-    source: Source,
-    repo: config.Repo,
-) -> tuple[roundlimit.Limit, Sequence[unreadableform.UnreadableReview]]:
-    asks = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
-    limit = limit_of(source, repo, posted) if asks else roundlimit.Limit.NONE
-    _, form = reviews.rules(source.review, repo.slug)
-    trusted = source.review.trusted
-    return limit, unreadableform.find(posted, trusted, form, reviews.line_pattern)
+    review = source.review
+    read, form = reviews.rules(review, repo.slug)
+    written = reviews.from_comments(posted.comments, review.trusted, read, form)
+    submitted = [] if repo.slug in review.gated else posted.reviews
+    return [
+        *(_graded(each, True) for each in written),
+        *(_graded(each, False) for each in reviews.from_reviews(submitted, review)),
+    ]
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -305,21 +285,38 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     Returns:
         The PR's facts.
     """
-    pull = parsing.pull(ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}"))
-    head = pull.head.sha
+    text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
+    pull = parsing.pull(text)
     posted = _sources(source, repo, number)
     found = reviews.newest(posted, source.review, repo.slug)
-    checks = _head_checks(source, repo, head)
-    limit, unreadable = _rounds(found, posted.comments, source, repo)
+    checks = _head_checks(source, repo, pull.head.sha)
+    state = flow.PullState(
+        pull=pull,
+        labels=parsing.labels(text),
+        checks=checks,
+        graded=recorded(source, repo, posted),
+        comments=posted.comments,
+        trusted=source.review.trusted,
+        undraft_clear=pull.draft and source.undraft(),
+    )
+    read, form = reviews.rules(source.review, repo.slug)
     return PullFacts(
         repo=repo,
         pull=pull,
         checks=checks,
         review=found,
         standing=_standing(source, repo, pull, found),
-        unread=reviews.unread(posted, source.review, repo.slug, found),
-        unreadable_reviews=unreadable,
-        limit=limit,
+        unread=unreadableform.unread(
+            posted.comments,
+            source.review.trusted,
+            read,
+            form,
+            found.when if found else "",
+        ),
+        unreadable_reviews=unreadableform.find(
+            posted.comments, source.review.trusted, form, reviews.line_pattern
+        ),
+        step=flow.next_step(state),
     )
 
 
@@ -362,28 +359,41 @@ def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:
         )
 
 
-def read_open(github: ghapi.GitHub, settings: config.Config) -> Sequence[PullFacts]:
+def read_open(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    undraft: Callable[[], bool],
+) -> Sequence[PullFacts]:
     """Read every open PR of the project and its libraries, concurrently.
 
     Args:
         github: the API.
         settings: the configuration.
+        undraft: says whether the runners allow an undraft now.
 
     Returns:
         The PRs, by repository in configured order, then as GitHub lists them,
         without the ones an API call failed for.
     """
     return [
-        each for each in read_each(github, settings) if not isinstance(each, Unreadable)
+        each
+        for each in read_each(github, settings, undraft)
+        if not isinstance(each, Unreadable)
     ]
 
 
-def read_each(github: ghapi.GitHub, settings: config.Config) -> Sequence[Read]:
+def read_each(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    undraft: Callable[[], bool],
+) -> Sequence[Read]:
     """Read every open PR, keeping a PR whose API call failed as a record.
 
     Args:
         github: the API.
         settings: the configuration.
+        undraft: says whether the runners allow an undraft now; it is asked
+            at most once for the run.
 
     Returns:
         Each PR, in the order ``read_open`` gives.
@@ -395,6 +405,8 @@ def read_each(github: ghapi.GitHub, settings: config.Config) -> Sequence[Read]:
             github, f"repos/{repo.slug}/pulls?state=open", parsing.pull_numbers
         )
     ]
-    source = Source(github=github, review=settings.review)
+    source = Source(
+        github=github, review=settings.review, undraft=functools.cache(undraft)
+    )
     with concurrent.futures.ThreadPoolExecutor() as pool:
         return list(pool.map(lambda item: fetch_or_unreadable(source, *item), wanted))

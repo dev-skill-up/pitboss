@@ -163,33 +163,12 @@ class TestReadingLines(unittest.TestCase):
         assert_that(read, equal_to(expected))
 
 
-class TestKinds(unittest.TestCase):
-    """The kind of work a PR is listed as."""
-
-    def test_newest_review_decides_the_kind(self) -> None:
-        """Plan changes needed: revise the plan; otherwise fix the review."""
-        open_pulls: Sequence[pulls.PullFacts] = [
-            test_work.facts(1, review_of(CHANGES, False, False)),
-            test_work.facts(2, review_of(CHANGES, True, False)),
-            test_work.facts(3, review_of(CHANGES, None, False)),
-            test_work.facts(4, review_of(APPROVED, True, True)),
-            test_work.facts(5, review_of(APPROVED, True, True), draft=True),
-        ]
-        found = [
-            (each.reference, each.category)
-            for each in work.pull_items(open_pulls, fakes.settings(fakes.directory()))
-        ]
-        expected = [KINDS.REVISE_PLAN, KINDS.FIX_REVIEW, KINDS.FIX_REVIEW, KINDS.REVIEW]
-        names = [f"owner/project#{number}" for number in range(1, 5)]
-        assert_that(found, equal_to(list(zip(names, expected))))
-
-
 NEEDED = "changes needed"
 OUTPUT_CASES = [
     # (verdict, plan, execution), the PR line, the kind listed, ready to merge
     ((NEEDED, NEEDED, NEEDED), "review=plan-changes-needed", "(revise the plan,", 0),
     ((NEEDED, None, NEEDED), "review=changes-needed", "(fix the review,", 0),
-    ((NEEDED, "approved", NEEDED), "review=changes-needed", "", 0),
+    ((NEEDED, "approved", NEEDED), "review=changes-needed", "(fix the review,", 0),
     (("approved", "approved", None), "review=plan-approved", "(review it", 0),
     (("approved", "approved", "approved"), "review=approved-this-head", "", 1),
 ]
@@ -201,8 +180,8 @@ class TestSweepAndNext(unittest.TestCase):
     def test_each_review_has_its_line_and_kind(self) -> None:
         """A rejected plan is revised, a plan approved alone is no approval to merge.
 
-        A review that approves the plan and asks for changes is held by the
-        limit (RULING DUE), so it is listed as no kind.
+        A review that approves the plan and asks for changes is a worker's
+        round (the flow, pitboss#107), not RULING DUE.
         """
         for grades, line, kind, ready in OUTPUT_CASES:
             swept, pull_line, listed = outputs(review_comment(*grades))

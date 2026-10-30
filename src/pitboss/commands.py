@@ -8,6 +8,7 @@ import argparse
 import concurrent.futures
 import dataclasses
 import datetime
+import functools
 import logging
 import os
 import pathlib
@@ -37,7 +38,7 @@ from . import (
     tracefs,
     worktrees,
 )
-from . import diskline, orphanline, pulllines, repoarg, unreadableline
+from . import diskline, orphanline, pulllines, unreadableline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -116,7 +117,11 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
     Returns:
         The PRs, a PR whose API call failed as an ``Unreadable``.
     """
-    return pulls.read_each(found.github, found.settings)
+    runs = functools.partial(read_runner_runs, found)
+    clear = functools.partial(
+        sweepline.clear, found.github, runs, found.settings.runners, found.now
+    )
+    return pulls.read_each(found.github, found.settings, clear)
 
 
 def load_context(args: argparse.Namespace) -> Context:
@@ -215,6 +220,18 @@ def runner_runs(
     """
     sharing = {repo.slug for repo in found.settings.runners.repositories}
     return [each for each in runs if each.repo.slug in sharing]
+
+
+def read_runner_runs(found: Context) -> Sequence[queue.QueueRun]:
+    """Read the queue runs of the repositories that share the runners.
+
+    Args:
+        found: the context.
+
+    Returns:
+        The runs.
+    """
+    return runner_runs(found, read_queue_runs(found))
 
 
 def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
@@ -365,28 +382,3 @@ def clean_worktrees(args: argparse.Namespace) -> None:
     how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
     for text in worktrees.remove_lines(_look(found), how, found.now):
         print(text)
-
-
-@ENTRY_DATA.register(CONFIG_ARGUMENT, add_argument("repository"), name="review-form")
-def review_form(args: argparse.Namespace) -> None:
-    """Print the form a review comment in a repository must take.
-
-    Args:
-        args: the parsed arguments.
-    """
-    settings = load_settings(args)
-    repo = repoarg.named_repo(args.repository, settings)
-    gated = repo.slug in settings.review.gated
-    form = settings.review.gated_form if gated else settings.review.form
-    print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")
-    print(
-        f"# {{sha}}: the full head SHA; {{verdict}}: {form.approved!r} or"
-        f" {form.changes_needed!r}"
-    )
-    if gated:
-        print(
-            "# first line exactly as below; each line below once; ASCII only;"
-            " no code fences, HTML or link definitions"
-        )
-    for line in form.lines:
-        print(line)

@@ -207,7 +207,7 @@ def _grade(body: str, prefix: str, form: config.ReviewForm) -> bool | None:
     return gradeline.line_approved(body, prefix, form.approved, form.changes_needed)
 
 
-def _from_comments(
+def from_comments(
     posted: Iterable[shapes.Comment],
     trusted: AbstractSet[str],
     read: Reader,
@@ -233,7 +233,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
     )
 
 
-def _from_reviews(
+def from_reviews(
     submitted: Iterable[shapes.PullReview], review: config.Review
 ) -> Iterable[Found]:
     for item in submitted:
@@ -290,57 +290,16 @@ def rules(review: config.Review, slug: str) -> tuple[Reader, config.ReviewForm]:
     return read_comment, review.form
 
 
-def _attempts(body: str, form: config.ReviewForm) -> bool:
-    lines = _lines(body)
-    first = lines[0].lower() if lines else ""
-    words = (form.approved.lower(), form.changes_needed.lower())
-    return "review" in first and any(word in first for word in words)
-
-
-def _ignored(item: shapes.Comment, review: config.Review, slug: str) -> bool:
-    read, form = rules(review, slug)
-    return (
-        item.author_association in review.trusted
-        and read(item.body, form) is None
-        and _attempts(item.body, form)
-    )
-
-
-def unread(
-    sources: Sources, review: config.Review, slug: str, found: Found | None
-) -> str:
-    """Find a newer comment that tries to be a review and is not read as one.
-
-    A comment whose first line says review and a verdict, but which is not
-    in the form (a reviewer wrote ``re-review``), is ignored, so the older
-    review keeps standing; the sweep says so (dev-skill-up/pitboss#20).
-
-    Args:
-        sources: the PR's comments and reviews.
-        review: how reviews are read.
-        slug: the repository's ``owner/name``.
-        found: the newest review that counts.
-
-    Returns:
-        When the newest such comment was written, or the empty string.
-    """
-    since = found.when if found else ""
-    posted = (
-        item.created_at for item in sources.comments if _ignored(item, review, slug)
-    )
-    return max((when for when in posted if when > since), default="")
-
-
 def _gated(sources: Sources, review: config.Review) -> Sequence[Found]:
     trusted, form = review.trusted, review.gated_form
-    return list(_from_comments(sources.comments, trusted, read_gated, form))
+    return list(from_comments(sources.comments, trusted, read_gated, form))
 
 
 def _open(sources: Sources, review: config.Review) -> Sequence[Found]:
     trusted, form = review.trusted, review.form
     return [
-        *_from_comments(sources.comments, trusted, read_comment, form),
-        *_from_reviews(sources.reviews, review),
+        *from_comments(sources.comments, trusted, read_comment, form),
+        *from_reviews(sources.reviews, review),
     ]
 
 

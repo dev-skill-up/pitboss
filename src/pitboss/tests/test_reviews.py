@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, report, reviews, shapes
+from .. import config, report, reviews, shapes, unreadableform
 from . import fakes, test_report
 
 
@@ -154,7 +154,9 @@ def _standing(sources: reviews.Sources) -> reviews.Standing:
 def _unread(sources: reviews.Sources, review: config.Review = TWO) -> str:
     slug = "o/g" if review is not TWO else "o/x"
     found = reviews.newest(sources, review, slug)
-    return reviews.unread(sources, review, slug, found)
+    read, rule = reviews.rules(review, slug)
+    since = found.when if found else ""
+    return unreadableform.unread(sources.comments, review.trusted, read, rule, since)
 
 
 def _line(sources: reviews.Sources) -> str:

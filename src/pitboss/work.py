@@ -1,15 +1,14 @@
 """What to start next: one sorted list, and which empty slot takes what.
 
 The order (work-order): the open PRs that need work come first, in one list,
-oldest first, whatever each needs: the author's fix for a review that asked
-for changes on the PR's current head, or, while that review did not approve the
-plan, a revision of the plan and nothing else; an update of a PR that is behind
-the base with its checks finished (never where the repository has a merge
-queue); or a review of a PR that is green on its head and has no review of it
-(a review that approved the plan alone is none of the Execution). The kind is
-a label on the line, not a rank. A PR with RULING DUE or PAUSE (its review
-rounds hit the changes-needed limit) is none of them: it is offered for no
-round until the ruling is recorded or the owner decides. After them come the
+oldest first, whatever each needs. What a PR needs is the step ``steps.next_step``
+gives it (keyword: review-flow): a worker's round (a revision of the plan and
+nothing else, or any other fix), or a review by a new reviewer; an update of a
+PR that is behind the base with its checks finished (never where the
+repository has a merge queue) comes between them. The kind is a label on the
+line, not a rank. A PR whose step is to wait (for CI, an undraft or the owner),
+to ask Opus for a ruling, to pause for the owner, to undraft or to merge is
+none of them: it is offered for no round. After them come the
 new PRs, one for each open ticket with a priority label that no open PR names,
 by priority label, then oldest first. Nothing predicts which files a ticket
 will touch: work is taken in this order, every PR starts from the base branch,
@@ -21,9 +20,12 @@ import enum
 import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, ghapi, ledger, parsing, pulls, reviews, roundlimit
-from . import shapes
+from . import config, ghapi, ledger, parsing, pulls, shapes, steps
 
+# The steps that hold a PR: it is offered for no round, not even an update.
+HELD = frozenset(
+    {steps.Step.WAIT_FOR_OWNER, steps.Step.OPUS_RULING, steps.Step.PAUSE_FOR_OWNER}
+)
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
 
@@ -38,6 +40,11 @@ class Category(enum.IntEnum):
         UPDATE: an author merges the base into a PR that is behind it (a PR).
         REVIEW: a reviewer (never the author) reviews a green head (a PR).
         NEW_PR: a worker starts a ticket (after every PR).
+        FIX_CI: an author fixes a red CI, which is no rejection (a PR).
+        FIRST_ROUND: an author writes the Plan and Execution body of a PR that
+            has none (a PR).
+        RESOLVE_CONFLICT: an author resolves the conflict of an approved head
+            (a PR).
     """
 
     FIX_REVIEW = 1
@@ -45,6 +52,9 @@ class Category(enum.IntEnum):
     UPDATE = 3
     REVIEW = 4
     NEW_PR = 5
+    FIX_CI = 6
+    FIRST_ROUND = 7
+    RESOLVE_CONFLICT = 8
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -92,32 +102,23 @@ def pull_items(
     ]
 
 
+CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
+    steps.Task.REVISE_PLAN: Category.REVISE_PLAN,
+    steps.Task.FIX_CI: Category.FIX_CI,
+    steps.Task.FIRST_ROUND: Category.FIRST_ROUND,
+    steps.Task.RESOLVE_CONFLICT: Category.RESOLVE_CONFLICT,
+}
+
+
 def _category(pull: pulls.PullFacts, settings: config.Config) -> Category | None:
-    if pull.limit is not roundlimit.Limit.NONE:
+    step = pull.step
+    if step.step is steps.Step.WORKER:
+        return CATEGORY_OF_TASK.get(step.task, Category.FIX_REVIEW)
+    if step.step in HELD:
         return None
-    if pulls.plan_rejected(pull):
-        return Category.REVISE_PLAN
-    if pulls.changes_needed(pull):
-        return Category.FIX_REVIEW
     if pulls.needs_update(pull, settings):
         return Category.UPDATE
-    if _awaits_review(pull):
-        return Category.REVIEW
-    return None
-
-
-def _awaits_review(pull: pulls.PullFacts) -> bool:
-    unreviewed = pull.standing in (
-        reviews.Standing.NONE,
-        reviews.Standing.OLDER_HEAD,
-        reviews.Standing.PLAN_APPROVED,
-    )
-    return (
-        unreviewed
-        and pulls.green(pull)
-        and not pulls.conflicted(pull)
-        and not pull.pull.draft
-    )
+    return Category.REVIEW if step.step is steps.Step.REGULAR_REVIEW else None
 
 
 def _references(pull: pulls.PullFacts) -> frozenset[str]:

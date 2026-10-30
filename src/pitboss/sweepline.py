@@ -1,7 +1,7 @@
 """The runner-pressure line of the sweep: it reads the record and writes nothing."""
 
 import datetime
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 from .markers import Marker
 from . import (
@@ -85,3 +85,32 @@ def partial_pressure(jobs: queue.Jobs, owed: int) -> str:
         return "\n".join([*named, f"{report.quiet_line(jobs.waiting, owed)}; {tail}"])
     head = f"{Marker.RUNNER_PRESSURE.text}: {tail}, so a free runner cannot be told"
     return "\n".join([*named, f"{head}; {report.HOLD_ACTIONS}"])
+
+
+def clear(
+    github: ghapi.GitHub,
+    runs: Callable[[], Sequence[queue.QueueRun]],
+    runners: config.Runners,
+    now: datetime.datetime,
+) -> bool:
+    """Whether the runners allow a CI-triggering action now; nothing is written.
+
+    No job waits for a runner and the quiet period is over, as ``pitboss
+    pressure`` would say. A look that cannot be read (the record, a queue
+    run's jobs) is a hold (keyword: quiet-period).
+
+    Args:
+        github: the API.
+        runs: reads the runs of the repositories that share the runners.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+
+    Returns:
+        True when an undraft may be done now.
+    """
+    try:
+        jobs = queue.count_jobs(github, runs())
+        owed = queue.owed(jobs, runners, now)
+    except SystemExit:
+        return False
+    return not (jobs.waiting or jobs.unread or owed)

@@ -71,7 +71,7 @@ def read(found: MutableMapping[str, object]) -> Sequence[pulls.PullFacts]:
         The PRs.
     """
     settings = fakes.settings(pathlib.Path(tempfile.mkdtemp()), GATED)
-    return pulls.read_open(fakes.github(found), settings)
+    return pulls.read_open(fakes.github(found), settings, lambda: False)
 
 
 def summary(facts: pulls.PullFacts) -> Mapping[str, object]:

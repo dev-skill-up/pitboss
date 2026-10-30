@@ -42,24 +42,52 @@ REFUSALS = [
     (0, "CHECK BEFORE YOU ANSWER"),
     (2, "refused: slot tiny holds agent-1 on owner/project#9: free it first"),
 ]
-NEXT_TWO = ["NEXT 1. owner/project#3", "NEXT 2. owner/project#9"]
+NEXT_THREE = [
+    "NEXT 1. owner/project#1",
+    "NEXT 2. owner/project#3",
+    "NEXT 3. owner/project#9",
+]
 TICKET_LINE = (
     "EMPTY SLOT: tiny (small): start owner/project#9 (start a PR urgent,"
     " opened 2026-09-01, 1218 days, smallest model small): A ticket"
 )
+FIX_LINE = (
+    "EMPTY SLOT: {slot}: start owner/project#1 (fix the CI (a red CI is no"
+    " rejection), opened 2026-10-01, 1188 days, smallest model {model}): PR 1"
+)
 REVIEW_LINE = (
-    "EMPTY SLOT: big (large): start owner/project#3 (review it (a reviewer that"
-    " is not its author), opened 2026-10-01, 1188 days, smallest model large): PR 3"
+    "EMPTY SLOT: {slot}: start owner/project#3 (review it (a reviewer that"
+    " is not its author), opened 2026-10-01, 1188 days, smallest model {model}): PR 3"
 )
 NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
-    ([("failed", "#3", "small")], [*NEXT_TWO, TICKET_LINE, REVIEW_LINE]),
     (
-        [("set", "tiny", "a", "x"), ("set", "big", "b", "y")],
-        [*NEXT_TWO, "slots: the ledger says all full: start nothing"],
+        [],
+        [
+            *NEXT_THREE,
+            FIX_LINE.format(slot="tiny (small)", model="small"),
+            REVIEW_LINE.format(slot="big (large)", model="small"),
+        ],
     ),
     (
-        [("remove", "big"), ("failed", "#9", "small"), ("failed", "#3", "small")],
-        [*NEXT_TWO, "EMPTY SLOT: tiny (small): nothing fits it: leave it empty"],
+        [("failed", "#1", "small"), ("failed", "#3", "small")],
+        [
+            *NEXT_THREE,
+            TICKET_LINE,
+            FIX_LINE.format(slot="big (large)", model="large"),
+        ],
+    ),
+    (
+        [("set", "tiny", "a", "x"), ("set", "big", "b", "y")],
+        [*NEXT_THREE, "slots: the ledger says all full: start nothing"],
+    ),
+    (
+        [
+            ("remove", "big"),
+            ("failed", "#9", "small"),
+            ("failed", "#3", "small"),
+            ("failed", "#1", "small"),
+        ],
+        [*NEXT_THREE, "EMPTY SLOT: tiny (small): nothing fits it: leave it empty"],
     ),
 ]
 MARKERS = ("NEXT", "EMPTY SLOT", "slots:")

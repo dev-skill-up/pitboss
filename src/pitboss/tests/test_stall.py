@@ -8,7 +8,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, parsing, pulls, reviews, shapes, stall
+from .. import config, parsing, pulls, reviews, shapes, stall, steps
 from . import fakes, world
 from .test_commands import sweep
 
@@ -69,6 +69,7 @@ def facts(branch: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
         checks=checks,
         review=None,
         standing=reviews.Standing.NONE,
+        step=steps.wait_for_ci(),
     )
 
 
