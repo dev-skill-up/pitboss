@@ -3,6 +3,7 @@
 import datetime
 from typing import Iterable, Sequence
 
+from .markers import Marker
 from . import (
     config,
     ghapi,
@@ -56,12 +57,31 @@ def pressure(
     """
     try:
         jobs = queue.count_jobs(github, runs)
-        line = report.quiet_line(jobs.waiting, queue.owed(jobs, runners, now))
+        owed = queue.owed(jobs, runners, now)
     except SystemExit as unreadable:
         return report.unreadable_record_line(unreadable.code)
     if not jobs.unread:
-        return line
-    # A queue run whose jobs call failed is not counted (keyword: unreadable-pull).
+        return report.quiet_line(jobs.waiting, owed)
+    return partial_pressure(jobs, owed)
+
+
+def partial_pressure(jobs: queue.Jobs, owed: int) -> str:
+    """The pressure lines when a queue run's jobs call failed.
+
+    A count known to be incomplete is no free runner (keyword:
+    unreadable-pull): the line holds, as a record that cannot be read does.
+
+    Args:
+        jobs: what the look saw, with the runs it could not read.
+        owed: the quiet minutes still owed.
+
+    Returns:
+        The lines: each unreadable run, then the pressure line.
+    """
+    count = len(jobs.unread)
     named = [unreadableline.unreadable_line(each) for each in jobs.unread]
-    partial = f"{line}; partial: {len(jobs.unread)} queue run(s) not counted"
-    return "\n".join([*named, partial])
+    tail = f"partial: {count} queue run(s) not counted"
+    if jobs.waiting or owed:
+        return "\n".join([*named, f"{report.quiet_line(jobs.waiting, owed)}; {tail}"])
+    head = f"{Marker.RUNNER_PRESSURE.text}: {tail}, so a free runner cannot be told"
+    return "\n".join([*named, f"{head}; {report.HOLD_ACTIONS}"])

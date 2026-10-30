@@ -361,9 +361,7 @@ class TestPartialPressure(unittest.TestCase):
         here = clear_world()
         write(here, hold_at(-60))
         del here.bodies[PROJECT_JOBS]
-        out = world.again(here, "sweep", "--now", at(0)).out
-        found = [x for x in out.splitlines() if "RUNNER PRESSURE" in x]
-        assert_that(
-            [x.startswith("RUNNER PRESSURE") and "partial" in x for x in found],
-            equal_to([True]),
-        )
+        swept = world.invoke(here, "sweep", here.config, "--now", at(0))
+        found = [each for each in swept.out.splitlines() if "PRESSURE" in each]
+        assert_that(len(found), equal_to(1))
+        assert_that(found[0], starts_with("RUNNER PRESSURE: partial: 1 queue run"))
