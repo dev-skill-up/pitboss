@@ -109,7 +109,7 @@ def show(
     source = suggest.Source(
         github=found.github,
         settings=found.settings,
-        config=found.args.config,
+        given=found.args.config,
         brief=project,
         facts=pulls.readable(opened),
         items=ordered,

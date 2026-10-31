@@ -80,7 +80,7 @@ class Source:
     Attributes:
         github: the API.
         settings: the configuration.
-        config: the configuration as the command was given it.
+        given: the configuration as the command was given it.
         brief: what the project's briefs say beyond the process.
         facts: the open PRs that were read.
         items: the queued work, in order.
@@ -89,7 +89,7 @@ class Source:
 
     github: ghapi.GitHub
     settings: config.Config
-    config: str
+    given: str
     brief: briefconfig.Brief
     facts: Sequence[pulls.PullFacts]
     items: Sequence[work.Item]
@@ -232,7 +232,7 @@ def _heads(source: Source, pull: pulls.PullFacts | None) -> brief.Heads:
 def _rules(source: Source, slug: str, head: str) -> brief.Rules:
     footers = source.settings.lint.footers
     return brief.Rules(
-        config=source.config,
+        config=source.given,
         form=_form(source, slug, head),
         footer=footers[0] if footers else "",
         project=source.brief,
