@@ -4,7 +4,7 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, shapes
+from . import config, sessionurl, shapes
 
 PatternOf = Callable[[str, config.ReviewForm], re.Pattern[str]]
 Reader = Callable[[str, config.ReviewForm], tuple[str, shapes.Verdict] | None]
@@ -39,7 +39,7 @@ def first_line_problem(
     Returns:
         The problem, or the empty string when the line is the form's.
     """
-    lines = body.splitlines()
+    lines = sessionurl.strip(body).splitlines()
     first = lines[0].rstrip() if lines else ""
     wanted = form.lines[0] if form.lines else ""
     if not wanted or pattern_of(wanted, form).fullmatch(first):
@@ -88,7 +88,7 @@ def find(
 
 
 def _attempts(body: str, form: config.ReviewForm) -> bool:
-    lines = body.splitlines()
+    lines = sessionurl.strip(body).splitlines()
     first = lines[0].lower() if lines else ""
     words = (form.approved.lower(), form.changes_needed.lower())
     return "review" in first and any(word in first for word in words)

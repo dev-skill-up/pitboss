@@ -2,9 +2,10 @@
 
 Each check returns findings, one line each, ending with the check's name in
 parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
-``footer`` for a PR body; ``first-line``, ``verdict``, ``reviewed``,
-``exact``, ``plain`` and ``head`` for a review, and ``hand-typed`` for a PR body; ``required-line`` and
-``done-when`` for a brief). The wording a project chooses (a review's lines,
+``footer`` for a PR body;``first-line``, ``verdict``, ``reviewed``,
+``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
+``done-when`` for a brief). A PR body also gets ``hand-typed`` for an
+Evidence block that ``pitboss expand`` did not produce. The wording a project chooses (a review's lines,
 a PR body's footers, a brief's required lines) is read from its
 configuration (``config.Lint`` and ``config.ReviewForm``).
 """
@@ -13,7 +14,7 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, evidence, reviews
+from . import config, evidence, reviews, sessionurl
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
@@ -41,6 +42,11 @@ class Subject:
     name: str
     body: str
     head: str
+
+
+def _clean(subject: Subject) -> Subject:
+    # session-url: the harness's session URL is absent for every reader
+    return dataclasses.replace(subject, body=sessionurl.strip(subject.body))
 
 
 def _found(subject: Subject, check: str, message: str, failed: bool) -> list[str]:
@@ -135,13 +141,14 @@ def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
     Returns:
         The findings.
     """
+    clean = _clean(subject)
     return [
-        *_first_row(subject),
-        *_one_ticket(subject),
-        *_described_head(subject),
-        *_evidence(subject),
-        *_typed_by_hand(subject),
-        *_footer(subject, footers),
+        *_first_row(clean),
+        *_one_ticket(clean),
+        *_described_head(clean),
+        *_evidence(clean),
+        *_typed_by_hand(clean),
+        *_footer(clean, footers),
     ]
 
 
@@ -274,8 +281,9 @@ def ordinary_review(subject: Subject, form: config.ReviewForm) -> Sequence[str]:
         reviewed head, read as a person reads them (trailing space and an
         abbreviated SHA do not matter).
     """
-    rows = [row.rstrip() for row in _rows(subject.body)]
-    return _review_findings(subject, rows, form)
+    clean = _clean(subject)
+    rows = [row.rstrip() for row in _rows(clean.body)]
+    return _review_findings(clean, rows, form)
 
 
 def gated_review(subject: Subject, form: config.ReviewForm) -> Sequence[str]:
@@ -291,16 +299,17 @@ def gated_review(subject: Subject, form: config.ReviewForm) -> Sequence[str]:
         full SHA, and plain ASCII with no code fence, HTML tag or link
         definition.
     """
-    rows = _rows(subject.body)
+    clean = _clean(subject)
+    rows = _rows(clean.body)
     return [
-        *_review_findings(subject, rows, form),
-        *_exact(subject, rows, form),
-        *_full_shas(subject, rows, form),
+        *_review_findings(clean, rows, form),
+        *_exact(clean, rows, form),
+        *_full_shas(clean, rows, form),
         *_found(
-            subject,
+            clean,
             "plain",
             "plain ASCII only: no code fence, HTML tag or link definition",
-            not reviews.is_plain(subject.body),
+            not reviews.is_plain(clean.body),
         ),
     ]
 
