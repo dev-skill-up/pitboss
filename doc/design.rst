@@ -190,8 +190,11 @@ Commands
        any, 0 on none (``ok``), 2 on a file or configuration it cannot use.
        ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket``, ``head``
        (a ``Head: <40 hex>`` line, the last equal to ``--head``),
-       ``evidence`` (an Evidence heading and a fenced block starting
-       ``$ <command>``) and ``footer`` (only when ``[lint.pr_body] footers``
+       ``evidence`` (an Evidence heading and, in its section, a block that
+       ``pitboss expand`` produced), ``hand-typed`` (a ``$ `` row anywhere in
+       the body, in a quote, a list or an indented block too, that is not
+       inside a block ``pitboss expand`` produced, one finding for each,
+       naming its line) and ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). ``review``: the lines of ``[review.form]``
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
@@ -225,6 +228,12 @@ Commands
      - The cleaning a sweep does first, on its own (keyword: auto-clean,
        pitboss#120; see **Automatic cleaning** below): removes at once, with no
        dry run unless ``--dry-run``. The answer to a denied ``rm``.
+   * - ``expand TEMPLATE [--cwd DIR]``
+     - A PR body whose evidence is produced, never typed (pitboss#117; see
+       **Expanding a template** below). Prints TEMPLATE with each directive
+       run in DIR (default: the current directory). Exits 0 whatever the
+       commands' statuses, 2 on a template or directory it cannot use (and
+       prints nothing: every directive is read before any runs).
    * - ``clean-container CONFIG [--approved FILE] [--batch N]``
      - Lists, and with ``--no-dry-run`` removes, the dead paths (keyword:
        clean-container, pitboss#7; see **Dead paths** below). Also the
@@ -471,6 +480,80 @@ removed, X freed; disk free A before, B after``. The disk reader, the clock, the
 user id, the home directory and the file system are injected
 (``autoclean.Machine``, ``autoclean.Filesystem``), so the tests play the ages,
 the 90% switch, the never-touch list and the report on a fake.
+
+**Expanding a template** (keyword: expand, pitboss#117). Workers typed
+evidence from inference and got it wrong (a count of five for six commits, a
+mutation run described in prose, a block that dropped a line of output). The
+worker writes a template and ``pitboss expand`` runs it, so the body's
+evidence is only ever a command and what it printed.
+
+*Syntax.* A line of the template that starts with ``$ `` (a dollar sign and a
+space, at the start of the line) is a directive: the rest of the line is a
+command line for ``sh -c``. Every other line is kept as it is; a line that
+starts with ``\$ `` is kept as ``$ `` and is not run. A directive is one line
+(a longer command is a committed script the line calls) and has a command.
+There are no other directives and nothing built in: the head is
+``$ git rev-parse HEAD``, a count of commits is
+``$ git log origin/main..HEAD --oneline | wc -l`` and a file is
+``$ cat < path``. Each directive becomes a fenced block: the opening line is
+the fence, ``pitboss-expand`` and ``sha256=`` followed by 16 hex digits of the
+SHA-256 of the lines inside; inside are ``$ `` and the command exactly as
+written, the output exactly as it came (standard output and standard error
+together, invalid UTF-8 bytes as backslash escapes, no trimming, no filter),
+a line ``\ No newline at end of output`` when the output ends without a
+newline, and ``exit status: N`` when the status is not zero. The fence is
+longer than any run of backticks inside. ``expand`` exits 0 whatever the
+statuses (a red run is evidence too); a template it cannot read, a directive
+with no command or a missing ``--cwd`` is exit 2 before any command runs.
+
+*Mutation runs.* A run that edits, runs and restores is a script committed in
+the PR (for example ``scripts/mutate.sh``, restoring with ``git checkout``
+or ``trap``), and a directive calls it: ``$ sh scripts/mutate.sh src/a.py``.
+The reviewer reads the script in the diff and the output under the command, so
+neither is described in prose.
+
+*The mark.* ``lint pr-body`` refuses rather than parses containers. A
+command row is a line that, after any ``>``, list markers (``-``, ``+``, ``*``,
+``1.``, ``1)``), spaces and tabs, starts with ``$`` and a space, a tab or the
+end of the line. It is accepted only inside a fenced block whose opening line
+is the mark with the digest of the block's own contents; every other command
+row, anywhere in the body, is ``hand-typed``: a row in a fence inside a quote
+or a list, an indented row, ``$`` and a tab, a row of a four-space code block,
+and a row under a heading lint cannot see (a setext heading is a heading on
+GitHub). A block produced by ``expand`` elsewhere in the body is fine. Fences
+follow CommonMark: an opening fence is indented at most 3 spaces, a closing
+fence is indented at most 3 spaces, holds only fence characters and is at
+least as long as the opening one, so a line indented 4 spaces or by a tab does
+not close a block. The ``evidence`` check and this one share one definition of
+the section: an ATX heading (one to six ``#``, a space or a tab, up to 3
+spaces of indentation) whose title starts with Evidence, to the next heading of
+the same or a higher level, fences respected; ``evidence`` requires a produced
+block inside it. A block edited after ``expand`` (one changed character breaks
+the digest) is refused. The digest is not a secret: it detects a block that
+is typed or edited by mistake, and a person who computes it has gone round the rule on purpose.
+
+*Trust boundary.* The commands run with ``sh -c`` in ``--cwd`` with the
+permissions and environment of whoever runs ``pitboss expand``: no sandbox, no
+filtering. A template is therefore the worker's own file in the worker's own
+checkout, and ``expand`` is never run on a template taken from a pull
+request's text, a comment, or a branch that is not the worker's (for a
+workflow, never on ``pull_request_target``). ``lint`` only reads text and runs
+nothing.
+
+*Research.* knitr runs the code of a chunk (a fence with ``{r}`` and options)
+and writes the output under it, prefixing each line (``##`` by default) and
+carrying on after an error by default; we keep the idea that the document runs
+its own commands but prefix nothing, since the output has to stay raw.
+cog (``[[[cog`` ... ``]]]`` with the generated text up to ``[[[end]]]``) and
+mdsh (a block ``$`` command, re-run in place, ``--frozen`` to fail in CI)
+mark generated text with markers; we mark with the fence's opening line so
+that the lint can tell the generated from the typed, and put a digest in it so
+an edit is seen. embedme (``<!-- embedme path -->``) and rustdoc doctests
+(``no_run``, ``should_panic`` as attributes of the fence) put the directive in
+the fence or a comment; we use a bare ``$`` prompt line, the form a reader already
+knows from a terminal and the form the existing Evidence check looks for, so a
+template reads like the body it makes. None of the five has a way to say
+"edit, run, restore": each calls out to a program, as ours does.
 
 **Dead paths** (keyword: clean-container, pitboss#7). The comparable tools
 decide the same way: systemd-tmpfiles removes by age and has entries that

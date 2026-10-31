@@ -23,14 +23,15 @@ class Filesystem:
         children: lists a directory (sorted; none when it is not there).
         exists: says whether something is at a path (a link counts as itself).
         is_link: says whether a path is a symbolic link.
-        owner: says who owns a path (a link is not followed).
+        owner: says who owns a path (a link is not followed); None when it cannot
+            be read, as when it just went.
         inspect: walks a path once: size, newest change, marker, mount points.
     """
 
     children: Callable[[pathlib.Path], Sequence[pathlib.Path]]
     exists: Callable[[pathlib.Path], bool]
     is_link: Callable[[pathlib.Path], bool]
-    owner: Callable[[pathlib.Path], int]
+    owner: Callable[[pathlib.Path], int | None]
     inspect: Callable[[pathlib.Path], survey.Survey]
 
 
@@ -41,8 +42,12 @@ def _children(directory: pathlib.Path) -> Sequence[pathlib.Path]:
         return []
 
 
-def _owner(path: pathlib.Path) -> int:
-    return path.lstat().st_uid
+def _owner(path: pathlib.Path) -> int | None:
+    # A path that went between the listing and now has no owner: not mine.
+    try:
+        return path.lstat().st_uid
+    except OSError:
+        return None
 
 
 def _inspect(path: pathlib.Path) -> survey.Survey:

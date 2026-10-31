@@ -91,6 +91,18 @@ def put(
     tree.owners[path] = traits.owner
 
 
+def put_ownerless(tree: Tree, path: pathlib.Path, age_hours: float) -> None:
+    """Put a path whose owner cannot be read, as one that just went.
+
+    Args:
+        tree: the tree.
+        path: the path.
+        age_hours: hours since its newest change.
+    """
+    put(tree, path, age_hours)
+    del tree.owners[path]
+
+
 def put_link(tree: Tree, path: pathlib.Path, age_hours: float) -> None:
     """Put a symbolic link that was last changed some hours ago.
 
@@ -142,7 +154,7 @@ def is_link(tree: Tree, path: pathlib.Path) -> bool:
     return path in tree.links
 
 
-def owner(tree: Tree, path: pathlib.Path) -> int:
+def owner(tree: Tree, path: pathlib.Path) -> int | None:
     """Who owns a path of the tree.
 
     Args:
@@ -150,9 +162,9 @@ def owner(tree: Tree, path: pathlib.Path) -> int:
         path: the path.
 
     Returns:
-        The user.
+        The user; None for a path that has none.
     """
-    return tree.owners[path]
+    return tree.owners.get(path)
 
 
 def survey_of(tree: Tree, path: pathlib.Path) -> survey.Survey:

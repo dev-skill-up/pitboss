@@ -70,6 +70,7 @@ module = [
     "pitboss.clean_commands",
     "pitboss.autoclean_commands",
     "pitboss.lint_commands",
+    "pitboss.expand_commands",
     "pitboss.slot_commands",
     "pitboss.red_commands",
     "pitboss.pressure_commands",

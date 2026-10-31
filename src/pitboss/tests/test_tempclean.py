@@ -32,6 +32,7 @@ def temp_tree() -> fx.Tree:
     others = fx.TMP / "tmpothers00"
     fx.put(tree, others, 99, fx.Traits(owner=0))
     fx.put_link(tree, fx.TMP / "tmplink0000", 99)
+    fx.put_ownerless(tree, fx.TMP / "tmpgone00000", 99)
     fx.put(tree, fx.TMP / "tmpmarked00", 99, fx.Traits(marked=True))
     inside = fx.TMP / "tmpmounted0"
     fx.put(tree, inside, 99, fx.Traits(mounts=(inside / "m",)))
@@ -94,6 +95,7 @@ def cache_tree() -> tuple[fx.Tree, pathlib.Path, pathlib.Path]:
     fx.put(tree, pip, 0)
     fx.put(tree, fx.HOME / ".npm/_cacache", 0, fx.Traits(owner=0))
     fx.put_link(tree, fx.HOME / ".cache/uv", 0)
+    fx.put_ownerless(tree, fx.HOME / ".cache/gone", 0)
     fx.put(tree, fx.HOME / ".cache/pre-commit", 0, fx.Traits(marked=True))
     fx.put(
         tree, fx.HOME / ".cargo/registry/cache", 0, fx.Traits(mounts=(fx.HOME / "m",))
@@ -115,7 +117,9 @@ def caches(
     Returns:
         Their paths.
     """
-    settings = cleanconfig.Clean(scratch=[], live=[], min_free_gib=0, caches=[extra])
+    settings = cleanconfig.Clean(
+        scratch=[], live=[], min_free_gib=0, caches=[extra, fx.HOME / ".cache/gone"]
+    )
     got = tempclean.regenerable_caches(fx.machine_of(tree, working=working), settings)
     return [each.path for each in got]
 

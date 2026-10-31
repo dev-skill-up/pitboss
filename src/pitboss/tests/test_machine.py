@@ -88,6 +88,12 @@ class TestReal(unittest.TestCase):
         same(fs.owner(top), top.stat().st_uid)
         same(fs.inspect(top / "a").unreadable, ())
 
+    def test_a_path_that_went_has_no_owner(self) -> None:
+        """An entry deleted after it was listed is nobody's, not an error."""
+        top = real_root()
+        fs = machine.real()
+        same([fs.owner(top / "gone"), fs.owner(top / "a")], [None, top.stat().st_uid])
+
     def test_the_disk_reader_reads_a_path(self) -> None:
         """It reads a real path."""
         top = real_root()
