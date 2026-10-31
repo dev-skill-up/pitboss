@@ -200,11 +200,15 @@ class Reason(enum.Enum):
         MERGED: its PR merged.
         CLOSED: its PR was closed without merging.
         IN_BASE: it has no PR and its tip is in the base branch.
+        NO_OPEN_PR: under disk pressure, it has no open PR.
+        QUIET_REPOSITORY: under disk pressure, its repository has no open PR.
     """
 
     MERGED = "its PR merged"
     CLOSED = "its PR was closed"
     IN_BASE = "its tip is in the base branch"
+    NO_OPEN_PR = "disk pressure: it has no open PR"
+    QUIET_REPOSITORY = "disk pressure: its repository has no open PR"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -275,7 +279,9 @@ def in_base(run: Run, directory: pathlib.Path, revision: str, base: str) -> bool
     return bool(contains.strip())
 
 
-def finished_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
+def finished_reason(
+    sweeper: Sweeper, worktree: Worktree, aggressive: bool = False
+) -> Reason | None:
     """Decide whether a worktree's work is finished and on GitHub.
 
     It is finished only when it is not the main clone, lies under the
@@ -283,11 +289,13 @@ def finished_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
     the base branch. A worktree with an open PR is never finished. Whether it
     may be removed is a second question, the one safety test of
     ``dead.verdict`` (keyword: clean-worktrees, ``rules.md``, "Checkouts and
-    disk").
+    disk"). Under disk pressure (``aggressive``, keyword: auto-clean) every
+    worktree without an open PR is finished.
 
     Args:
         sweeper: what the decision needs.
         worktree: the worktree.
+        aggressive: whether the disk is under pressure.
 
     Returns:
         Why it is finished, or None when it is not.
@@ -304,4 +312,4 @@ def finished_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
         sweeper.settings.project.base_branch,
     ):
         return Reason.IN_BASE
-    return None
+    return Reason.NO_OPEN_PR if aggressive and outcome is None else None

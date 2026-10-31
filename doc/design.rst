@@ -221,6 +221,10 @@ Commands
        ref), never the pull request, and the body reaches pitboss only in the
        event's file. Callers are made from ``templates/text-lint.yml``, by
        commit, never ``@main``.
+   * - ``clean CONFIG [--dry-run]``
+     - The cleaning a sweep does first, on its own (keyword: auto-clean,
+       pitboss#120; see **Automatic cleaning** below): removes at once, with no
+       dry run unless ``--dry-run``. The answer to a denied ``rm``.
    * - ``clean-container CONFIG [--approved FILE] [--batch N]``
      - Lists, and with ``--no-dry-run`` removes, the dead paths (keyword:
        clean-container, pitboss#7; see **Dead paths** below). Also the
@@ -423,6 +427,50 @@ locked one) is ``COULD NOT REMOVE WORKTREE``. Research: ``git clean -n`` lists
 before it removes and ``systemd-tmpfiles`` removes by age with exclusions (the
 comparison of **Dead paths**), and a sweep that only listed left twenty stale
 worktrees on disk for hours while the disk filled (pitboss#81).
+
+**Automatic cleaning** (keyword: auto-clean, pitboss#120). The owner, 2026-10-31:
+"Pitboss sweep should *automatically* be cleaning things that can be cleaned, and
+we can enable more aggressive cleaning if the disk is over 90%. Better to delete
+something that someone needed than to halt and wait for me" and "NEVER ASK ME
+AGAIN". The disk had filled with about 2,750 ``/tmp/tmpXXXXXXXX`` directories
+from worker test runs, a fix round stopped, and the orchestrator asked before
+deleting. So cleaning is a command (``autoclean.clean_lines``, called first by
+``sweep`` and on its own by ``clean``), not a step an agent decides, and it has
+no prompt and no dry-run default. Research: ``systemd-tmpfiles`` removes by age
+with exclusions (the tmp.conf ``D``/``q`` lines age out ``/tmp`` after 10 days,
+``/var/tmp`` after 30), ``tmpreaper`` and ``tmpwatch`` are the same by atime or
+mtime, and the kubelet's image and container garbage collection has a low
+threshold that cleans the oldest unused first and a high one (85%, 80%) that
+cleans down to a target; here the one switch is the file system's use, 90% by
+default, as the owner said. A normal run removes (1) the finished worktrees and
+the dead checkouts, judged by the one safety test (``dead.verdict``; a linked
+worktree with untracked files is left to its own section, since git keeps it);
+(2) the test tempdirs of ``[clean] tmp_roots`` (default ``/tmp``) whose name
+matches ``tmp_patterns`` (default ``tmp????????``, ``tmp.??????????``,
+``pytest-of-*``, ``pip-*``), owned by the user running (``os.getuid``), not a
+link, not marked ``.pitboss-live``, with no mount point in it, not the
+directory the command runs in or above it, and with nothing in it changed for
+``tmp_hours`` (default 24). At or over ``pressure_percent`` (default 90) of the
+used space of any file system of the workspace, a tempdir root or a scratch
+directory the run is aggressive: tempdirs of ``pressure_tmp_hours`` (default 1),
+every worktree whose branch has no open PR (``Reason.NO_OPEN_PR``) and every
+checkout of a repository with no open PR (``Reason.QUIET_REPOSITORY``), and the
+package caches that regenerate (``~/.cache/pip``, ``~/.cache/uv``,
+``~/.cache/pre-commit``, ``~/.npm/_cacache``, ``~/.cargo/registry/cache`` and
+``[clean] caches``). It never touches, in either mode, a worktree with an open
+PR, a running worker's directory (anything changed within ``idle_hours``, or
+marked ``.pitboss-live``), the main clone, a live path or the directory it runs
+in, and it says so (``clean: never touched``, and under pressure ``clean: kept
+<path> (open PR)`` for each such worktree). A commit on no remote branch and a
+changed tracked file still keep a worktree (the safety test is one): losing
+that is not "something someone needed" but work that exists nowhere else. Under
+``[clean] worktrees = "list"`` a normal run only lists the worktrees and leaves
+the checkouts; pressure overrides it. The output is the mode line, a
+``REMOVED``/``COULD NOT REMOVE`` line for each path, and ``clean: N paths
+removed, X freed; disk free A before, B after``. The disk reader, the clock, the
+user id, the home directory and the file system are injected
+(``autoclean.Machine``, ``autoclean.Filesystem``), so the tests play the ages,
+the 90% switch, the never-touch list and the report on a fake.
 
 **Dead paths** (keyword: clean-container, pitboss#7). The comparable tools
 decide the same way: systemd-tmpfiles removes by age and has entries that

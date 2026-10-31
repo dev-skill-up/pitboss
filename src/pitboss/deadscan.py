@@ -68,20 +68,36 @@ def checkout_reason(
     look: dead.Look,
     outcomes: Mapping[str, Mapping[str, shapes.Outcome]],
     each: Checkout,
+    aggressive: bool = False,
 ) -> local.Reason | None:
     """Why a checkout is dead.
 
     A checkout on the base branch, or detached, is never dead: it is a
-    persistent checkout.
+    persistent checkout. Under disk pressure (``aggressive``, keyword:
+    auto-clean) a checkout of a repository with no open PR is dead too.
 
     Args:
         look: what to look at.
         outcomes: each repository's branch outcomes.
         each: the checkout.
+        aggressive: whether the disk is under pressure.
 
     Returns:
         The reason, or None when the checkout is kept.
     """
+    reason = _finished(look, outcomes, each)
+    known = outcomes.get(each.slug)
+    if reason is None and aggressive and known is not None:
+        quiet = not any(one.still_open for one in known.values())
+        return local.Reason.QUIET_REPOSITORY if quiet else None
+    return reason
+
+
+def _finished(
+    look: dead.Look,
+    outcomes: Mapping[str, Mapping[str, shapes.Outcome]],
+    each: Checkout,
+) -> local.Reason | None:
     base = look.settings.project.base_branch
     if not each.branch or each.branch == base:
         return None
@@ -113,9 +129,10 @@ def _judged(
     look: dead.Look,
     outcomes: Mapping[str, Mapping[str, shapes.Outcome]],
     cutoff: float,
+    aggressive: bool,
     each: Checkout,
 ) -> dead.Candidate | None:
-    reason = checkout_reason(look, outcomes, each)
+    reason = checkout_reason(look, outcomes, each, aggressive)
     if reason is None:
         return None
     made = dead.consider(look, each.path, reason.value, cutoff)
@@ -165,7 +182,7 @@ def unreadable_checkouts(
 
 
 def dead_checkouts(
-    look: dead.Look, cutoff: float
+    look: dead.Look, cutoff: float, aggressive: bool = False
 ) -> tuple[Sequence[dead.Candidate], Sequence[str]]:
     """The checkouts under the workspace that are dead.
 
@@ -174,6 +191,7 @@ def dead_checkouts(
     Args:
         look: what to look at and keep.
         cutoff: anything changed after this time is in use.
+        aggressive: whether the disk is under pressure.
 
     Returns:
         The candidates and the checkouts whose fetch failed.
@@ -186,7 +204,9 @@ def dead_checkouts(
     read, unreadable = _read(look, paths)
     fetched, failed = _fetched(look, read)
     outcomes = _outcomes(look, {each.slug for each in fetched})
-    judged = dead.present(_judged(look, outcomes, cutoff, each) for each in fetched)
+    judged = dead.present(
+        _judged(look, outcomes, cutoff, aggressive, each) for each in fetched
+    )
     found = [*unreadable_checkouts(look, cutoff, unreadable), *judged]
     return found, failed
 
@@ -205,19 +225,20 @@ class Findings:
     unfetched: Sequence[str]
 
 
-def scan(look: dead.Look, now: float) -> Findings:
+def scan(look: dead.Look, now: float, aggressive: bool = False) -> Findings:
     """Look at the workspace, the scratch directories and the root files.
 
     Args:
         look: what to look at and keep.
         now: seconds since the epoch.
+        aggressive: whether the disk is under pressure.
 
     Returns:
         The dead paths (checkouts, scratch and the root files) and the
         checkouts that could not be fetched.
     """
     cutoff = now - look.settings.idle_hours * 3600
-    checkouts, unfetched = dead_checkouts(look, cutoff)
+    checkouts, unfetched = dead_checkouts(look, cutoff, aggressive)
     scratch = dead.dead_scratch(look, cutoff)
     files = dead.dead_root_files(look, cutoff)
     return Findings(

@@ -33,9 +33,14 @@ it prints is hidden. Timings go to stderr.
 
 Run it at a scheduled check-in, when a CI or merge-queue event arrives, and
 after a push. It does not change by the minute; do not run it on every turn.
-It reads, with one exception: it removes the finished worktrees that pass the
-safety test (`[clean] worktrees = "auto"`, the default; `"list"` only lists
-them), so no `STALE WORKTREE` line is left to act on.
+It reads, with one exception: it cleans first, by itself, with no prompt and no
+dry run (the finished worktrees that pass the safety test, the dead checkouts
+and the test tempdirs of `/tmp`; at 90% disk use also every worktree and
+checkout with no open PR and the package caches), and prints what it removed and
+the space freed. It never touches a worktree with an open PR or a running
+worker's directory. The agent never asks the owner about cleanup: when the
+classifier denies an `rm`, run `uvx pitboss clean <config>` (the allow list
+covers it) and go on.
 
 Other commands, all reading the same file:
 
@@ -45,6 +50,7 @@ Other commands, all reading the same file:
 | `uvx pitboss queued <config>` | After a merge, an enqueue or auto-merge armed: records that a job was put on the queue, which restarts the quiet period. |
 | `uvx pitboss push <config> [--draft] [--no-dry-run] [-- <git push arguments>]` | The pressure check and `git push` in one command, so the check is not left out or put in the wrong place. Under pressure or in the quiet period it prints the hold line, exits 1, pushes and records nothing; the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear. A push that goes out is recorded as a queued job. `--draft` is for a push to a draft PR: no check, nothing recorded. |
 | `uvx pitboss cancel-stale-runs <config> [--no-dry-run]` | Cancel superseded merge-queue runs. |
+| `uvx pitboss clean <config> [--dry-run]` | The cleaning a sweep does first, on its own: removes at once. Run it when the disk is tight or an `rm` is denied; never ask the owner. |
 | `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove the finished worktrees that pass the safety test (a sweep does the same by itself under `[clean] worktrees = "auto"`, the default). |
 | `uvx pitboss clean-container <config> [--no-dry-run] [--approved FILE] [--batch N]` | List, then remove, the dead paths that fill the disk: finished checkouts, idle scratch, files the session wrote in `/`. Work that exists only here, links, mount points and anything marked live are kept; each path is checked again just before its removal. |
 | `uvx pitboss review-form <config> <repository>` | The form a review comment in that repository must take. |
@@ -66,4 +72,4 @@ start; a reviewer reads that file and nothing else about the form.
 
 The commands that change something (`cancel-stale-runs`, `clean-worktrees`, `clean-container`)
 are dry runs unless given `--no-dry-run`: run the dry run first and read
-all of it. The sweep is the exception, for the worktrees alone: it has no dry run.
+all of it. The sweep and `clean` are the exception: they have no dry run (`clean --dry-run` is the opt-in).

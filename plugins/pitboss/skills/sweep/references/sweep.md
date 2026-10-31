@@ -63,6 +63,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `REMOVED WORKTREE` | A finished worktree was removed (or, under `clean-worktrees` without `--no-dry-run`, would be); its branch is kept. A sweep prints it under `[clean] worktrees = "auto"` (the default), with the space freed on the last line of the section. | Nothing. |
 | `KEPT WORKTREE` | A finished worktree that is not removed, with the reason: commits on no remote branch, changed tracked files, a `.pitboss-live` marker or live path, the directory the command runs in or one above it, a change within the idle hours, a link, a mount point, a checkout git cannot read, or untracked files (`git worktree remove` refuses them). | Triage it like a `STRAGGLER` when the reason is work that exists only here; otherwise nothing: it is removed by a later sweep once the reason is gone. |
 | `COULD NOT REMOVE WORKTREE` | git refused (a locked worktree, for one). | Look at it: someone may still be using it. |
+| `clean:` | The first lines of a sweep (keyword: auto-clean): the mode (`disk under 90% used`, or `DISK OVER 90% (...)`: aggressive), what was removed and the space freed, what is never touched (a worktree with an open PR, a running worker's directory, the main clone, the directory the sweep runs in; under pressure each open-PR worktree is named), and a total. The sweep has removed it already. | Nothing. Never ask the owner about it ("Automatic cleaning", below). |
 | `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). The line says how much is free; indented lines under it name the largest safe dead paths (at most five), or say that none was found. A sweep scans for them only under pressure. | `pitboss clean-container <config>`, read the dry run, then `--no-dry-run` ("Disk", below). |
 | `REMOVED PATH` | A dead path was removed by `clean-container` (or, with "dry run", would be): its size and why it is dead. | Nothing. |
 | `KEPT PATH` | A dead path with work that exists only here (commits on no remote branch, in any branch or the stash of a standalone clone; changed tracked files), or that git cannot read, a bare repository, a mount point inside it or a path that cannot be looked at; never removed. | Triage it like a `STRAGGLER`. |
@@ -165,6 +166,22 @@ line giving the count removed, the space freed and the count kept. With
 worktree that passes; `clean-worktrees` then removes them. An agent that
 finishes removes its own worktree; the sweep is the net under that. A worktree
 an agent is starting in has files changed within the idle hours, so it is kept.
+
+## Automatic cleaning
+
+A sweep starts by cleaning (`pitboss clean <config>` is the same on its own;
+`--dry-run` removes nothing), with no prompt and no dry run: the finished
+worktrees and dead checkouts, and the test tempdirs (`/tmp/tmp????????`, the
+session user's, untouched for `[clean] tmp_hours`, default 24 hours). At 90% or
+more of a file system used (`[clean] pressure_percent`) it is aggressive: tempdirs
+untouched for an hour, every worktree and checkout with no open PR, and the
+package caches that regenerate. A worktree with an open PR, a running worker's
+directory (changed within the idle hours, or marked `.pitboss-live`), the main
+clone and the sweep's own directory are never touched, and a worktree with
+commits on no remote branch or a changed tracked file is kept (`KEPT WORKTREE`).
+The agent never asks the owner whether to clean, and when the classifier denies
+an `rm` it runs `uvx pitboss clean <config>` (which the allow list covers) and
+does not stop.
 
 ## Disk
 

@@ -598,6 +598,18 @@ compaction.
   reading its current text in full, and send the complete replacement text,
   never a placeholder; when the full original is not at hand, correct it with
   a new comment.`
+- **Cleaning is automatic and never asked about** (owner, 2026-10-31: "Pitboss
+  sweep should *automatically* be cleaning things that can be cleaned, and we can
+  enable more aggressive cleaning if the disk is over 90%. Better to delete
+  something that someone needed than to halt and wait for me" and "NEVER ASK ME
+  AGAIN"; pitboss#120). A sweep cleans first by itself (`pitboss clean`, "Stale
+  worktrees" and "Automatic cleaning" in `sweep.md`), more aggressively at 90%
+  of a file system used, and never touches a worktree with an open PR or a
+  running worker's directory. The agent never asks the owner about cleanup, and
+  a classifier denial of `rm` is answered by running `uvx pitboss clean
+  <config>`, never by stopping. A worker brief says: `Disk: never ask the owner
+  about cleanup; when the disk is tight run uvx pitboss clean <config>, and
+  when the classifier denies an rm run that command instead of stopping.`
 - **A denied command is retried as the allow list's equivalent** (owner,
   2026-10-30: it holds for any command and any repository). When the
   permission classifier denies a command, the agent then looks in the
