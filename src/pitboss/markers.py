@@ -52,6 +52,8 @@ class Marker(enum.Enum):
         GONE_AGENT: a slot whose agent is no longer running.
         CHECK_BEFORE_YOU_ANSWER: the ledger is kept by hand; check it.
         NEXT: a line of the sorted list of work.
+        SUGGESTION: one of the top suggestions of ``next`` and ``slots next``,
+            with the brief to paste.
         NO_HAND_BACK: an agent started over ten minutes ago that has said nothing.
     """
 
@@ -90,6 +92,7 @@ class Marker(enum.Enum):
     GONE_AGENT = enum.auto()
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
     NEXT = enum.auto()
+    SUGGESTION = enum.auto()
     NO_HAND_BACK = enum.auto()
 
     @property

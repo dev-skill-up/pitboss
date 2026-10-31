@@ -54,6 +54,7 @@ Other commands, all reading the same file:
 | `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove the finished worktrees that pass the safety test (a sweep does the same by itself under `[clean] worktrees = "auto"`, the default). |
 | `uvx pitboss clean-container <config> [--no-dry-run] [--approved FILE] [--batch N]` | List, then remove, the dead paths that fill the disk: finished checkouts, idle scratch, files the session wrote in `/`. Work that exists only here, links, mount points and anything marked live are kept; each path is checked again just before its removal. |
 | `uvx pitboss review-form <config> <repository>` | The form a review comment in that repository must take. |
+| `uvx pitboss next <config>` | With no ticket, what `slots next` prints: up to five ranked suggestions, each with the kind, the PR or ticket, the model class and the complete brief to paste unchanged (`rules.md`, "Briefs come from pitboss"). |
 | `uvx pitboss next <config> <owner/repo#N>` | The one step the ticket's PR is at (`WAIT_FOR_OWNER`, WORKER with its task, UNDRAFT, `REGULAR_REVIEW` with its stage, `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER` or MERGE), from the open PR whose body says `Fixes` it; for a ticket no PR fixes, its first step. The flow is `pitboss.flow.next_step` (`rules.md`, "Plan first"). |
 | `uvx pitboss slots <action> <config> ...` | The worker-slot ledger and what to start next. |
 

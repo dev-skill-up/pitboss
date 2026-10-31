@@ -74,6 +74,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `GONE AGENT` | The ledger holds an agent the session no longer runs. | See `slots.md`. |
 | `CHECK BEFORE YOU ANSWER` | The ledger is kept by hand. | See `slots.md`. |
 | `NEXT` | A line of the sorted list of what to start, printed by `pitboss slots next` (a sweep prints none). | See `slots.md`. |
+| `SUGGESTION` | One of the top five suggestions printed by `pitboss next CONFIG` and `pitboss slots next`: `SUGGESTION n of m: <kind>: <PR or ticket>: <model class>`, then the complete brief, then `--- end of suggestion n ---`; or `SUGGESTION: none` when nothing could start, or `SUGGESTION: n more queued, not shown`. The first is the one the process requires (a PR at `RULING DUE` first, with an Opus agent and no slot), the others are the next ones that could start. | Paste the brief of the first suggestion you can start, unchanged (`rules.md`, "Briefs come from pitboss"). If the first cannot start (the slot cap, a missing checkout), take the next one. |
 | `NO HAND-BACK` | The ledger holds an agent started more than 10 minutes ago that has produced no hand-back or notification; the line gives its minutes. | See `slots.md`. |
 
 ## What the orchestrator reads of a PR

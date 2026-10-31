@@ -3,7 +3,7 @@
 import pathlib
 import tomllib
 
-from . import cleanconfig, config
+from . import briefconfig, cleanconfig, config
 
 CONFIG_DIRECTORY = (".claude", "pitboss")
 
@@ -46,6 +46,20 @@ def load(name: str, start: pathlib.Path) -> config.Config:
     """
     with locate(name, start).open("rb") as stream:
         return config.from_document(tomllib.load(stream))
+
+
+def load_brief(name: str, start: pathlib.Path) -> briefconfig.Brief:
+    """Locate, read and parse the ``[slots.brief]`` table of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+
+    Returns:
+        What the project's briefs say beyond the process.
+    """
+    with locate(name, start).open("rb") as stream:
+        return briefconfig.from_document(tomllib.load(stream))
 
 
 def load_clean(name: str, start: pathlib.Path) -> cleanconfig.Clean:

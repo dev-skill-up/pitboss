@@ -28,6 +28,7 @@ class Found:
         when: when it was written (ISO 8601).
         plan_approved: what its ``Plan:`` line grades, None with no such line.
         plan_alone: whether it has a ``Plan:`` line and no ``Execution:`` line.
+        url: the comment's address, empty for a GitHub review.
     """
 
     sha: str
@@ -35,6 +36,7 @@ class Found:
     when: str
     plan_approved: bool | None = None
     plan_alone: bool = False
+    url: str = ""
 
 
 def names(found: Found, head: str) -> bool:
@@ -220,6 +222,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         when=item.created_at,
         plan_approved=plan,
         plan_alone=plan is not None and execution is None,
+        url=item.url,
     )
 
 

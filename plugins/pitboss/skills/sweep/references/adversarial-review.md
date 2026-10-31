@@ -97,11 +97,21 @@ review of a revised plan, see the last bullet):
   once the Plan is approved). An approval of the Plan alone is no approval to
   merge.
 
+## A scope in the brief is exclusive
+
+When your brief states a scope (a merge of the base into an approved head, the
+findings of a fix round, the Plan alone), that scope is all you review. Where
+this file asks for more, the brief's scope decides, and a finding outside it
+is not a ground for "changes needed".
+
 ## What to review
 
-Read the diff against its ticket. Try to break it: a realistic input or
-caller that makes it fail, a test that passes without testing the claim, a
-case the ticket names and the diff does not cover. Say what you checked and
+Read the diff against its ticket and its original goal. Look for a realistic
+input or caller that makes it fail, a test that passes without testing the
+claim, a case the ticket names and the diff does not cover. A finding that
+needs deliberate evasion (obfuscation, a script that fakes output) is a note:
+a "changes needed" names a failure an honest worker could hit. Attacks,
+bypasses and adversarial inputs the goal does not name are not asked for. Say what you checked and
 how. A verdict that asks for changes names each change, small enough that
 the author can make it without asking. In a review of the Plan alone (a
 revised Plan, above), read the Plan against its ticket instead: the diff is

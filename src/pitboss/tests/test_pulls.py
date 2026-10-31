@@ -33,6 +33,22 @@ CHECKS = {
 }
 
 
+def compared(prefix: str, since_head: Sequence[object]) -> Mapping[str, object]:
+    """The comparisons of a PR's head and of the older reviewed head with main.
+
+    Args:
+        prefix: the repository's API path.
+        since_head: the commits of ``main...head``.
+
+    Returns:
+        The canned bodies.
+    """
+    return {
+        f"{prefix}/compare/main..." + fakes.HEAD: {"commits": since_head},
+        f"{prefix}/compare/main..." + fakes.OLDER: {"commits": [AUTHORED]},
+    }
+
+
 def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, object]:
     """A project PR approved on an older head, and a gated PR the same.
 
@@ -46,11 +62,10 @@ def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, 
     found: dict[str, object] = {
         fakes.page("repos/owner/project/pulls?state=open"): [{"number": 1}],
         fakes.page("repos/owner/gated/pulls?state=open"): [{"number": 2}],
-        "repos/owner/project/compare/main..." + fakes.HEAD: {"commits": since_head},
-        "repos/owner/project/compare/main..." + fakes.OLDER: {"commits": [AUTHORED]},
     }
     for slug, number, changes in [("owner/project", 1, pull), ("owner/gated", 2, {})]:
         prefix = f"repos/{slug}"
+        found.update(compared(prefix, since_head))
         found[f"{prefix}/pulls/{number}"] = fakes.pull_body(number, **changes)
         pages = [
             (f"issues/{number}/comments", [OLD_GATED_APPROVAL]),

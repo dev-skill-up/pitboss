@@ -34,6 +34,7 @@ class PullFacts:
         unreadable_reviews: the trusted comments that grade a review but are
             not in the review form (keyword: unreadable-review).
         step: the one step the PR is at (keyword: review-flow).
+        merges_only: only merges of the base since an older full approval.
     """
 
     repo: config.Repo
@@ -44,6 +45,7 @@ class PullFacts:
     unread: str = ""
     unreadable_reviews: Sequence[unreadableform.UnreadableReview] = ()
     step: steps.Next
+    merges_only: bool = False
 
 
 def reference(facts: PullFacts) -> str:
@@ -175,10 +177,9 @@ class Source:
 
 def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
     compare = f"repos/{repo.slug}/compare/{pull.base}..."
-    since_base = ghapi.get(source.github, compare + pull.head.sha)
-    reviewed = ghapi.get(source.github, compare + sha)
+    heads = (pull.head.sha, sha)
     return reviews.only_merges(
-        parsing.comparison(since_base), parsing.comparison(reviewed)
+        *(parsing.comparison(ghapi.get(source.github, compare + h)) for h in heads)
     )
 
 
@@ -196,18 +197,18 @@ def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
 
 def _standing(
     source: Source, repo: config.Repo, pull: shapes.Pull, found: reviews.Found | None
-) -> reviews.Standing:
+) -> tuple[reviews.Standing, bool]:
     standing = reviews.head_standing(found, pull.head.sha)
-    older_approval = (
+    merged = (
         found is not None
         and standing is reviews.Standing.OLDER_HEAD
         and found.verdict is reviews.Verdict.APPROVED
         and not reviews.plan_only(found)
-        and repo.slug not in source.review.gated
+        and _carries(source, repo, pull, found.sha)
     )
-    if older_approval and found and _carries(source, repo, pull, found.sha):
-        return reviews.Standing.APPROVED_BEFORE_MERGES
-    return standing
+    if merged and repo.slug not in source.review.gated:
+        return reviews.Standing.APPROVED_BEFORE_MERGES, True
+    return standing, merged
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -263,13 +264,10 @@ def _unreadable(
     source: Source, repo: config.Repo, got: Fetched, found: reviews.Found | None
 ) -> tuple[str, Sequence[unreadableform.UnreadableReview]]:
     rules = reviews.rules(source.review, repo.slug)
-    trusted = source.review.trusted
-    since = found.when if found else ""
+    seen = (got.posted.comments, source.review.trusted)
     return (
-        unreadableform.unread(got.posted.comments, trusted, rules, since),
-        unreadableform.find(
-            got.posted.comments, trusted, rules[1], reviews.line_pattern
-        ),
+        unreadableform.unread(*seen, rules, found.when if found else ""),
+        unreadableform.find(*seen, rules[1], reviews.line_pattern),
     )
 
 
@@ -287,15 +285,17 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     got = _fetched(source, repo, number)
     found = reviews.newest(got.posted, source.review, repo.slug)
     unread, unreadable_reviews = _unreadable(source, repo, got, found)
+    standing, merged = _standing(source, repo, got.pull, found)
     return PullFacts(
         repo=repo,
         pull=got.pull,
         checks=got.checks,
         review=found,
-        standing=_standing(source, repo, got.pull, found),
+        standing=standing,
         unread=unread,
         unreadable_reviews=unreadable_reviews,
         step=flow.next_step(_state(source, repo, got)),
+        merges_only=merged,
     )
 
 

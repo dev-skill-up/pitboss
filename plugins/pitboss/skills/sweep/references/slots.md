@@ -65,6 +65,7 @@ estimated.
   slot and restart the work if it ended without a hand-back. An agent that
   has answered but stays in the slot is marked with `heard`.
 - `NEXT`: one line of the sorted list.
+- `SUGGESTION`: after the list and the empty slots, `slots next` (and `next` with no ticket) prints the top five of the list as suggestions, each with its complete brief (`rules.md`, "Briefs come from pitboss"). A PR at `RULING DUE` comes before the list, as an Opus agent that takes no slot. Start the first one that can start, with the brief pasted unchanged.
 
 ## The order of work
 
@@ -137,7 +138,8 @@ from the PR's author. When every slot is full, start nothing.
 A worker's brief has no exit clause. The only acceptable "not done" is "the
 brief as written is impossible, because ...". Reports carry no hedges.
 
-A reviewer brief for a line of `slots next` of the kind review it is sent as
-the line stands: the orchestrator reads no PR body, diff or evidence first, and
+Briefs come from `pitboss next` and `pitboss slots next` and are pasted
+unchanged (`rules.md`, "Briefs come from pitboss"). A reviewer brief for a
+line of `slots next` of the kind review it is sent as the suggestion prints it: the orchestrator reads no PR body, diff or evidence first, and
 the reviewer checks the Head line, the Evidence and the checks (`rules.md`,
 "Reviews").
