@@ -3,7 +3,7 @@
 Each check returns findings, one line each, ending with the check's name in
 parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 ``footer`` for a PR body; ``first-line``, ``verdict``, ``reviewed``,
-``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
+``exact``, ``plain`` and ``head`` for a review, and ``hand-typed`` for a PR body; ``required-line`` and
 ``done-when`` for a brief). The wording a project chooses (a review's lines,
 a PR body's footers, a brief's required lines) is read from its
 configuration (``config.Lint`` and ``config.ReviewForm``).
@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, reviews
+from . import config, evidence, reviews
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
@@ -100,6 +100,21 @@ def _evidence(subject: Subject) -> list[str]:
     )
 
 
+def _typed_by_hand(subject: Subject) -> list[str]:
+    # keyword: expand (pitboss#117)
+    return [
+        found
+        for line in evidence.hand_typed(subject.body)
+        for found in _found(
+            subject,
+            "hand-typed",
+            f'line {line}: a "$ " block in Evidence that pitboss expand did not'
+            " produce: put the command in a template and run pitboss expand",
+            True,
+        )
+    ]
+
+
 def _footer(subject: Subject, footers: Sequence[str]) -> list[str]:
     ends = {row.strip() for row in _rows(subject.body)[-FOOTER_ROWS:]}
     message = (
@@ -125,6 +140,7 @@ def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
         *_one_ticket(subject),
         *_described_head(subject),
         *_evidence(subject),
+        *_typed_by_hand(subject),
         *_footer(subject, footers),
     ]
 
