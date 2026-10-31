@@ -1,12 +1,12 @@
 """Tests for the form checks and ``lint pr-body|review|brief``."""
 
-import re
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import config, forms
+from .formchecks import body_checks, checks, subject
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
 from .test_reviews import form as review_form
 
@@ -31,47 +31,6 @@ required = ["Overlap:"]
 TICKET = (
     "Title\n\nDone when:\n\n## Done when\n- it works\n- it is tested\n\n## Notes\nx\n"
 )
-
-
-def checks(found: Sequence[str]) -> Sequence[str]:
-    """The names of the checks that found something.
-
-    Args:
-        found: the findings.
-
-    Returns:
-        Each finding's check name, in order.
-    """
-    return [re.findall(r"\(([a-z-]+)\)$", each)[0] for each in found]
-
-
-def subject(body: str, head: str = HEAD) -> forms.Subject:
-    """A text to check.
-
-    Args:
-        body: its text.
-        head: the head given.
-
-    Returns:
-        The subject.
-    """
-    return forms.Subject(name="text", body=body, head=head)
-
-
-def body_checks(
-    body: str, head: str = HEAD, footers: Sequence[str] = ()
-) -> Sequence[str]:
-    """The checks a PR body fails.
-
-    Args:
-        body: the body.
-        head: the head given.
-        footers: the footers required (none by default).
-
-    Returns:
-        The failed checks' names.
-    """
-    return checks(forms.pr_body(subject(body, head), footers))
 
 
 def review_checks(

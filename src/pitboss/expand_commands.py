@@ -9,6 +9,7 @@ request's text, another person's branch).
 import argparse
 import functools
 import pathlib
+import subprocess
 import sys
 
 from gather.commands import add_argument
@@ -45,8 +46,8 @@ def run_in(
         cwd=directory,
         check=False,
         capture_output=False,
-        stdout=-1,
-        stderr=-2,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=False,
     )
     return expansion.Outcome(

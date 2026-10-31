@@ -596,10 +596,11 @@ compaction.
   a file is "$ cat < path", a mutation run is "$ sh scripts/<script>" of a
   script committed in the PR); run pitboss expand TEMPLATE and send its output
   as the body; never retype or abbreviate output; lint pr-body refuses a
-  hand-typed "$ " block in Evidence.` A reviewer brief says: `Evidence: every
-  "$ " block in the Evidence is one pitboss expand marked (lint pr-body checks
-  the mark); a command that is not the one the claim needs, or a claim with no
-  command, is changes needed.` The commands run with the permissions of whoever
+  hand-typed "$ " row anywhere in the body (in a quote, a list or an indented
+  block too) that is not inside a block expand produced.` A reviewer brief
+  says: `Evidence: every "$ " block in the Evidence is one pitboss expand
+  marked (lint pr-body checks the mark); a command that is not the one the
+  claim needs, or a claim with no command, is changes needed.` The commands run with the permissions of whoever
   runs expand, so a template is only ever the worker's own (`design.rst`,
   "Expanding a template").
 - **An existing comment or body is edited only with its full text in hand**

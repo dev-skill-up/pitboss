@@ -190,10 +190,11 @@ Commands
        any, 0 on none (``ok``), 2 on a file or configuration it cannot use.
        ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket``, ``head``
        (a ``Head: <40 hex>`` line, the last equal to ``--head``),
-       ``evidence`` (an Evidence heading and a fenced block starting
-       ``$ <command>``), ``hand-typed`` (a fenced block in the Evidence
-       section with a ``$ `` line that ``pitboss expand`` did not produce,
-       one finding for each, naming its line) and ``footer`` (only when ``[lint.pr_body] footers``
+       ``evidence`` (an Evidence heading and, in its section, a block that
+       ``pitboss expand`` produced), ``hand-typed`` (a ``$ `` row anywhere in
+       the body, in a quote, a list or an indented block too, that is not
+       inside a block ``pitboss expand`` produced, one finding for each,
+       naming its line) and ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). ``review``: the lines of ``[review.form]``
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
@@ -463,12 +464,24 @@ or ``trap``), and a directive calls it: ``$ sh scripts/mutate.sh src/a.py``.
 The reviewer reads the script in the diff and the output under the command, so
 neither is described in prose.
 
-*The mark.* ``lint pr-body`` reads the fenced blocks of the Evidence section
-(from an Evidence heading to the next heading of the same or a higher level,
-fences respected) and refuses, as ``hand-typed``, a block with a ``$ `` line
-whose opening line is not the mark with the digest of its own contents. A
-block typed by hand, or edited after ``expand`` (one changed character breaks
-the digest), is refused. The digest is not a secret: it detects a block that
+*The mark.* ``lint pr-body`` refuses rather than parses containers. A
+command row is a line that, after any ``>``, list markers (``-``, ``+``, ``*``,
+``1.``, ``1)``), spaces and tabs, starts with ``$`` and a space, a tab or the
+end of the line. It is accepted only inside a fenced block whose opening line
+is the mark with the digest of the block's own contents; every other command
+row, anywhere in the body, is ``hand-typed``: a row in a fence inside a quote
+or a list, an indented row, ``$`` and a tab, a row of a four-space code block,
+and a row under a heading lint cannot see (a setext heading is a heading on
+GitHub). A block produced by ``expand`` elsewhere in the body is fine. Fences
+follow CommonMark: an opening fence is indented at most 3 spaces, a closing
+fence is indented at most 3 spaces, holds only fence characters and is at
+least as long as the opening one, so a line indented 4 spaces or by a tab does
+not close a block. The ``evidence`` check and this one share one definition of
+the section: an ATX heading (one to six ``#``, a space or a tab, up to 3
+spaces of indentation) whose title starts with Evidence, to the next heading of
+the same or a higher level, fences respected; ``evidence`` requires a produced
+block inside it. A block edited after ``expand`` (one changed character breaks
+the digest) is refused. The digest is not a secret: it detects a block that
 is typed or edited by mistake, and a person who computes it has gone round the rule on purpose.
 
 *Trust boundary.* The commands run with ``sh -c`` in ``--cwd`` with the

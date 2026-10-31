@@ -125,5 +125,6 @@ class TestExpandThenLint(unittest.TestCase):
         """The same Evidence typed by hand is refused as hand-typed."""
         checked = check("```\n$ echo hi\nhi\n```\n")
         assert_that(checked.code, equal_to(1))
-        assert_that(lines(checked)[0], contains_string("line 7"))
-        assert_that(lines(checked)[0].endswith("(hand-typed)"), equal_to(True))
+        assert_that(lines(checked)[0].endswith("(evidence)"), equal_to(True))
+        assert_that(lines(checked)[1], contains_string("line 8"))
+        assert_that(lines(checked)[1].endswith("(hand-typed)"), equal_to(True))
