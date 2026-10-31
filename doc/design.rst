@@ -297,7 +297,7 @@ pending checks, the failed checks with their job ids, the PR's place in the
 merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
 the newest run's conclusion), and the review's standing. Action lines follow.
 First ``STALL`` (``pitboss.stall``; a PR whose head branch starts with
-``relock/`` and whose required check, named ``check`` or ``<caller> / check``, has
+the relock prefix (``relock/`` by default) and whose required check, named ``check`` or ``<caller> / check``, has
 been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
