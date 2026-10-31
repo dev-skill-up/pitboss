@@ -27,6 +27,8 @@ gated = ["gated"]
 
 [clean]
 min_free_gib = 0
+tmp_roots = []
+pressure_percent = 100
 
 [slots]
 ledger = "{ledger}"
@@ -283,9 +285,13 @@ def shell_env(world: World, directory: pathlib.Path | None) -> Mapping[str, str]
         directory: the directory it runs in; the workspace when None.
 
     Returns:
-        The environment, whose ``PWD`` is that directory.
+        The environment, whose ``PWD`` is that directory and whose ``HOME`` is
+        a directory of the world (a cleaning never reaches the real caches).
     """
-    return {"PWD": str(directory or world.workspace)}
+    return {
+        "PWD": str(directory or world.workspace),
+        "HOME": str(world.workspace / "home"),
+    }
 
 
 def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> Result:

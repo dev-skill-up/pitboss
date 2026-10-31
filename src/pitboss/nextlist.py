@@ -12,8 +12,8 @@ import sys
 from typing import Protocol, Sequence
 
 from . import (
-    briefconfig,
     config,
+    configfile,
     ghapi,
     ledger,
     pulls,
@@ -94,7 +94,6 @@ def show(
     found: Found,
     opened: Sequence[pulls.Read],
     book: ledger.Ledger,
-    project: briefconfig.Brief,
 ) -> None:
     """Print what to start next: the list, the empty slots and the briefs.
 
@@ -102,7 +101,6 @@ def show(
         found: the context.
         opened: the open PRs, read or not.
         book: the slot ledger.
-        project: what the project's briefs say beyond the process.
     """
     unreadableline.print_withheld(opened)
     ordered = work.queued(opened, found.github, found.settings, book)
@@ -110,7 +108,9 @@ def show(
         github=found.github,
         settings=found.settings,
         given=found.args.config,
-        brief=project,
+        brief=configfile.load_brief(
+            found.args.config, pathlib.Path(found.args.env.get("PWD", "."))
+        ),
         facts=pulls.readable(opened),
         items=ordered,
         failed=book.failed,

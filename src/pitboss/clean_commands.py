@@ -7,7 +7,7 @@ from typing import AbstractSet, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, cleaning, container, dead, deadscan, disk
+from . import ENTRY_DATA, autoclean, cleaning, container, dead, deadscan, disk
 from .commands import CHANGING_ARGUMENTS, Context, load_context, running_in
 
 
@@ -45,7 +45,7 @@ def roots_of(look: dead.Look) -> AbstractSet[pathlib.Path]:
     Returns:
         The workspace, the scratch directories and the root of the files.
     """
-    return {look.settings.project.workspace, *look.clean.scratch, look.watch.root}
+    return autoclean.roots(look)
 
 
 def remove_listed(

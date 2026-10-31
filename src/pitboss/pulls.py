@@ -11,7 +11,6 @@ from . import (
     config,
     flow,
     ghapi,
-    mergecarry,
     parsing,
     reviews,
     shapes,
@@ -35,9 +34,7 @@ class PullFacts:
         unreadable_reviews: the trusted comments that grade a review but are
             not in the review form (keyword: unreadable-review).
         step: the one step the PR is at (keyword: review-flow).
-        merges_only: whether the head differs from an older approved head only
-            by merges of the base, gated or not (a gate still wants a review
-            of this head, but of the merge alone: keyword: merge-scope).
+        merges_only: only merges of the base since an older full approval.
     """
 
     repo: config.Repo
@@ -178,6 +175,14 @@ class Source:
     undraft: Callable[[], bool]
 
 
+def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
+    compare = f"repos/{repo.slug}/compare/{pull.base}..."
+    heads = (pull.head.sha, sha)
+    return reviews.only_merges(
+        *(parsing.comparison(ghapi.get(source.github, compare + h)) for h in heads)
+    )
+
+
 def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
     prefix = f"repos/{repo.slug}"
     return reviews.Sources(
@@ -191,11 +196,19 @@ def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
 
 
 def _standing(
-    gated: bool, merged: bool, pull: shapes.Pull, found: reviews.Found | None
-) -> reviews.Standing:
-    if merged and not gated:
-        return reviews.Standing.APPROVED_BEFORE_MERGES
-    return reviews.head_standing(found, pull.head.sha)
+    source: Source, repo: config.Repo, pull: shapes.Pull, found: reviews.Found | None
+) -> tuple[reviews.Standing, bool]:
+    standing = reviews.head_standing(found, pull.head.sha)
+    merged = (
+        found is not None
+        and standing is reviews.Standing.OLDER_HEAD
+        and found.verdict is reviews.Verdict.APPROVED
+        and not reviews.plan_only(found)
+        and _carries(source, repo, pull, found.sha)
+    )
+    if merged and repo.slug not in source.review.gated:
+        return reviews.Standing.APPROVED_BEFORE_MERGES, True
+    return standing, merged
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -243,9 +256,7 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         comments=got.posted.comments,
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
-        merges_only_since=lambda sha: mergecarry.carries(
-            source.github, repo.slug, got.pull, sha
-        ),
+        merges_only_since=lambda sha: _carries(source, repo, got.pull, sha),
     )
 
 
@@ -253,13 +264,10 @@ def _unreadable(
     source: Source, repo: config.Repo, got: Fetched, found: reviews.Found | None
 ) -> tuple[str, Sequence[unreadableform.UnreadableReview]]:
     rules = reviews.rules(source.review, repo.slug)
-    trusted = source.review.trusted
-    since = found.when if found else ""
+    seen = (got.posted.comments, source.review.trusted)
     return (
-        unreadableform.unread(got.posted.comments, trusted, rules, since),
-        unreadableform.find(
-            got.posted.comments, trusted, rules[1], reviews.line_pattern
-        ),
+        unreadableform.unread(*seen, rules, found.when if found else ""),
+        unreadableform.find(*seen, rules[1], reviews.line_pattern),
     )
 
 
@@ -277,13 +285,13 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     got = _fetched(source, repo, number)
     found = reviews.newest(got.posted, source.review, repo.slug)
     unread, unreadable_reviews = _unreadable(source, repo, got, found)
-    merged = mergecarry.merged_since(source.github, repo.slug, got.pull, found)
+    standing, merged = _standing(source, repo, got.pull, found)
     return PullFacts(
         repo=repo,
         pull=got.pull,
         checks=got.checks,
         review=found,
-        standing=_standing(repo.slug in source.review.gated, merged, got.pull, found),
+        standing=standing,
         unread=unread,
         unreadable_reviews=unreadable_reviews,
         step=flow.next_step(_state(source, repo, got)),

@@ -22,7 +22,6 @@ from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
     Context,
-    load_brief,
     load_context,
     open_pulls,
     read_ledger,
@@ -90,7 +89,7 @@ def show_next(args: argparse.Namespace) -> None:
     if args.ticket is None:
         nextlist.require_ledger(found.settings.slots.ledger)
         book = read_ledger(found.settings)
-        nextlist.show(found, open_pulls(found), book, load_brief(found))
+        nextlist.show(found, open_pulls(found), book)
     else:
         _step_of(found, args.ticket)
 

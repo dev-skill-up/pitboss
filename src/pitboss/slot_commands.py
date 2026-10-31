@@ -21,7 +21,6 @@ from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
     Context,
-    load_brief,
     load_context,
     open_pulls,
     read_ledger,
@@ -217,6 +216,6 @@ def slots(args: argparse.Namespace) -> None:
     elif action is Action.REPORT:
         _report(found)
     elif action is Action.NEXT:
-        nextlist.show(found, open_pulls(found), _read(found), load_brief(found))
+        nextlist.show(found, open_pulls(found), _read(found))
     else:
         report.print_ledger(_read(found))

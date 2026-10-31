@@ -1,12 +1,18 @@
 """One look at the dead checkouts and scratch: finished work still on disk."""
 
 import dataclasses
+import functools
 import pathlib
 import subprocess
-from typing import Iterable, Mapping, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 from . import config, dead, local, shapes
 from .running import git
+
+Decide = Callable[
+    [dead.Look, Mapping[str, Mapping[str, shapes.Outcome]], "Checkout"],
+    local.Reason | None,
+]
 
 
 def slug_of(url: str) -> str:
@@ -64,6 +70,31 @@ def read_checkout(look: dead.Look, path: pathlib.Path) -> Checkout:
     return Checkout(path=path, branch=branch, slug=slug, common=common)
 
 
+def pressure_reason(
+    look: dead.Look,
+    outcomes: Mapping[str, Mapping[str, shapes.Outcome]],
+    each: Checkout,
+) -> local.Reason | None:
+    """Why a checkout is dead under disk pressure (keyword: auto-clean).
+
+    A checkout of a repository with no open PR is dead too, whatever its branch.
+
+    Args:
+        look: what to look at.
+        outcomes: each repository's branch outcomes.
+        each: the checkout.
+
+    Returns:
+        The reason, or None when the checkout is kept.
+    """
+    reason = checkout_reason(look, outcomes, each)
+    known = outcomes.get(each.slug)
+    if reason is None and known is not None:
+        quiet = not any(one.still_open for one in known.values())
+        return local.Reason.QUIET_REPOSITORY if quiet else None
+    return reason
+
+
 def checkout_reason(
     look: dead.Look,
     outcomes: Mapping[str, Mapping[str, shapes.Outcome]],
@@ -110,12 +141,12 @@ def _linked(each: Checkout) -> pathlib.Path | None:
 
 
 def _judged(
+    decided: Callable[[Checkout], local.Reason | None],
     look: dead.Look,
-    outcomes: Mapping[str, Mapping[str, shapes.Outcome]],
     cutoff: float,
     each: Checkout,
 ) -> dead.Candidate | None:
-    reason = checkout_reason(look, outcomes, each)
+    reason = decided(each)
     if reason is None:
         return None
     made = dead.consider(look, each.path, reason.value, cutoff)
@@ -165,7 +196,7 @@ def unreadable_checkouts(
 
 
 def dead_checkouts(
-    look: dead.Look, cutoff: float
+    look: dead.Look, cutoff: float, decide: Decide = checkout_reason
 ) -> tuple[Sequence[dead.Candidate], Sequence[str]]:
     """The checkouts under the workspace that are dead.
 
@@ -174,6 +205,8 @@ def dead_checkouts(
     Args:
         look: what to look at and keep.
         cutoff: anything changed after this time is in use.
+        decide: why a checkout is dead: ``checkout_reason``, or
+            ``pressure_reason`` under disk pressure (keyword: auto-clean).
 
     Returns:
         The candidates and the checkouts whose fetch failed.
@@ -186,7 +219,8 @@ def dead_checkouts(
     read, unreadable = _read(look, paths)
     fetched, failed = _fetched(look, read)
     outcomes = _outcomes(look, {each.slug for each in fetched})
-    judged = dead.present(_judged(look, outcomes, cutoff, each) for each in fetched)
+    judging = functools.partial(decide, look, outcomes)
+    judged = dead.present(_judged(judging, look, cutoff, each) for each in fetched)
     found = [*unreadable_checkouts(look, cutoff, unreadable), *judged]
     return found, failed
 
@@ -205,19 +239,20 @@ class Findings:
     unfetched: Sequence[str]
 
 
-def scan(look: dead.Look, now: float) -> Findings:
+def scan(look: dead.Look, now: float, decide: Decide = checkout_reason) -> Findings:
     """Look at the workspace, the scratch directories and the root files.
 
     Args:
         look: what to look at and keep.
         now: seconds since the epoch.
+        decide: why a checkout is dead.
 
     Returns:
         The dead paths (checkouts, scratch and the root files) and the
         checkouts that could not be fetched.
     """
     cutoff = now - look.settings.idle_hours * 3600
-    checkouts, unfetched = dead_checkouts(look, cutoff)
+    checkouts, unfetched = dead_checkouts(look, cutoff, decide)
     scratch = dead.dead_scratch(look, cutoff)
     files = dead.dead_root_files(look, cutoff)
     return Findings(
