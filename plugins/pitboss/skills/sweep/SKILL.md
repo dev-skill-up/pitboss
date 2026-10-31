@@ -33,7 +33,9 @@ it prints is hidden. Timings go to stderr.
 
 Run it at a scheduled check-in, when a CI or merge-queue event arrives, and
 after a push. It does not change by the minute; do not run it on every turn.
-It reads, with one exception: it cleans first, by itself, with no prompt and no
+It reads, with two exceptions: it ends by syncing the working files to the
+`[sync]` repository's main when the configuration has the table (below), and it
+cleans first, by itself, with no prompt and no
 dry run (the finished worktrees that pass the safety test, the dead checkouts
 and the test tempdirs of `/tmp`; at 90% disk use also every worktree and
 checkout with no open PR and the package caches), and prints what it removed and
@@ -57,6 +59,7 @@ Other commands, all reading the same file:
 | `uvx pitboss next <config>` | With no ticket, what `slots next` prints: up to five ranked suggestions, each with the kind, the PR or ticket, the model class and the complete brief to paste unchanged (`rules.md`, "Briefs come from pitboss"). |
 | `uvx pitboss next <config> <owner/repo#N>` | The one step the ticket's PR is at (`WAIT_FOR_OWNER`, WORKER with its task, UNDRAFT, `REGULAR_REVIEW` with its stage, `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER` or MERGE), from the open PR whose body says `Fixes` it; for a ticket no PR fixes, its first step. The flow is `pitboss.flow.next_step` (`rules.md`, "Plan first"). |
 | `uvx pitboss slots <action> <config> ...` | The worker-slot ledger and what to start next. |
+| `uvx pitboss sync <config>` | Copy the working files outside any repository (configurations, ledger, log, pressure record, `[sync] paths`) to main of the `[sync]` repository; a sweep does it last. A file you create is added to `[sync] paths` in the same turn; a configuration missing at session start is restored from `notes-current` (`references/sweep.md`, "The orchestrator's working files"). |
 
 ## Before acting on any line
 

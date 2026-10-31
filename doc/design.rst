@@ -46,6 +46,11 @@ What was project-specific, and where it went
      - built in: it is what "gated" means
    * - the 20 shared runners, and which repositories share them
      - ``[runners] repositories`` (default: the project and its libraries)
+   * - the working files outside any repository (sweep configurations, the
+       ledger and log, the pressure record, notes) are lost with the container
+     - ``[sync]``: ``pitboss sync`` copies them to ``directory`` of
+       ``repository``'s main (default ``moshez/claude-jsonl``,
+       ``notes-current``), and a sweep does it last
    * - a queue run's 60 minute limit
      - ``[merge_queue] timeout_minutes``
    * - quire has a merge queue, so a PR that is behind needs no update

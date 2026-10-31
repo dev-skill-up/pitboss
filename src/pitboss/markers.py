@@ -55,6 +55,10 @@ class Marker(enum.Enum):
         SUGGESTION: one of the top suggestions of ``next`` and ``slots next``,
             with the brief to paste.
         NO_HAND_BACK: an agent started over ten minutes ago that has said nothing.
+        SYNCED: a working file copied to the sync repository's main.
+        SYNC_SOURCE_MISSING: a file the sync is told to keep is not there.
+        COULD_NOT_SYNC: git failed to bring the sync repository up to date or
+            to push to it.
     """
 
     OUTDATED = enum.auto()
@@ -94,6 +98,9 @@ class Marker(enum.Enum):
     NEXT = enum.auto()
     SUGGESTION = enum.auto()
     NO_HAND_BACK = enum.auto()
+    SYNCED = enum.auto()
+    SYNC_SOURCE_MISSING = enum.auto()
+    COULD_NOT_SYNC = enum.auto()
 
     @property
     def text(self) -> str:

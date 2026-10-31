@@ -1,11 +1,24 @@
 """Finding, reading and parsing the configuration file a command was given."""
 
+import argparse
 import pathlib
 import tomllib
 
-from . import briefconfig, cleanconfig, config
+from . import briefconfig, cleanconfig, config, syncconfig
 
 CONFIG_DIRECTORY = (".claude", "pitboss")
+
+
+def working_directory(args: argparse.Namespace) -> pathlib.Path:
+    """The directory a configuration name is looked up from.
+
+    Args:
+        args: the parsed arguments.
+
+    Returns:
+        ``PWD`` of the environment, else the current directory.
+    """
+    return pathlib.Path(args.env.get("PWD", "."))
 
 
 def locate(name: str, start: pathlib.Path) -> pathlib.Path:
@@ -74,3 +87,20 @@ def load_clean(name: str, start: pathlib.Path) -> cleanconfig.Clean:
     """
     with locate(name, start).open("rb") as stream:
         return cleanconfig.from_document(tomllib.load(stream))
+
+
+def load_sync(
+    name: str, start: pathlib.Path, default_checkout: pathlib.Path
+) -> syncconfig.Sync | None:
+    """Locate, read and parse the ``[sync]`` table of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+        default_checkout: the clone's place when the table does not set one.
+
+    Returns:
+        The settings of ``sync``, or None when the configuration has no table.
+    """
+    with locate(name, start).open("rb") as stream:
+        return syncconfig.from_document(tomllib.load(stream), default_checkout)

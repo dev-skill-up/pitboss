@@ -349,6 +349,18 @@ def again(here: World, *argv: str, directory: pathlib.Path | None = None) -> Res
     return invoke(here, argv[0], here.config, *argv[1:], directory=directory)
 
 
+def origin_of(clone: pathlib.Path) -> pathlib.Path:
+    """The path of a clone's ``origin``.
+
+    Args:
+        clone: the clone.
+
+    Returns:
+        The path of the repository it came from.
+    """
+    return pathlib.Path(fakes.run_git(clone, "remote", "get-url", "origin").strip())
+
+
 def project_page(path: str) -> str:
     """The first page of a list of the project's.
 

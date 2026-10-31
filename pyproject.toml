@@ -75,5 +75,6 @@ module = [
     "pitboss.red_commands",
     "pitboss.pressure_commands",
     "pitboss.next_commands",
+    "pitboss.sync_commands",
 ]
 disallow_untyped_decorators = false

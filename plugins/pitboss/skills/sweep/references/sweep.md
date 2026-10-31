@@ -76,6 +76,29 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `NEXT` | A line of the sorted list of what to start, printed by `pitboss slots next` (a sweep prints none). | See `slots.md`. |
 | `SUGGESTION` | One of the top five suggestions printed by `pitboss next CONFIG` and `pitboss slots next`: `SUGGESTION n of m: <kind>: <PR or ticket>: <model class>`, then the complete brief, then `--- end of suggestion n ---`; or `SUGGESTION: none` when nothing could start, or `SUGGESTION: n more queued, not shown`. The first is the one the process requires (a PR at `RULING DUE` first, with an Opus agent and no slot), the others are the next ones that could start. | Paste the brief of the first suggestion you can start, unchanged (`rules.md`, "Briefs come from pitboss"). If the first cannot start (the slot cap, a missing checkout), take the next one. |
 | `NO HAND-BACK` | The ledger holds an agent started more than 10 minutes ago that has produced no hand-back or notification; the line gives its minutes. | See `slots.md`. |
+| `SYNCED` | A sweep (or `pitboss sync`) copied a working file that changed to `notes-current` of the `[sync]` repository's main (`SYNCED <path>`). A sweep that changed nothing prints no sync line. | Nothing. |
+| `SYNC SOURCE MISSING` | A file the sync is told to keep (the configuration or a `[sync] paths` entry) is not there. | Restore it from `notes-current` of the repository (below), or take it out of `[sync] paths`. |
+| `COULD NOT SYNC` | git could not bring the sync clone up to date or push to main; the line says why. Nothing was lost: the next sync sends the same files. | Fix what the line says (access, network) and run `uvx pitboss sync <config>`. |
+
+## The orchestrator's working files (keyword: sync)
+
+A container restart loses what is outside a repository: the sweep
+configurations, the slot ledger and log, the pressure record, the notes and the
+memory files. The `[sync]` table of the configuration (`repository`, default
+`moshez/claude-jsonl`; `directory`, default `notes-current`; `paths`, the
+files to keep) names them, and `pitboss sync <config>` copies the configuration,
+the ledger, the log, the record and every `paths` entry into `directory`, each
+under its own absolute path, commits and pushes straight to main. A sweep runs
+it last, so a restart loses at most one sweep's changes.
+
+- A file the orchestrator creates (a configuration, a note, a memory file) is
+  added to `[sync] paths` in the same turn, and `uvx pitboss sync <config>` is
+  run.
+- At session start, a configuration or working file that is missing is
+  restored from `notes-current` of that repository: the file at
+  `notes-current/<absolute path>` is copied back to `/<absolute path>`.
+  The `[sync]` table itself is in the configuration, so the configuration is
+  the first file to restore.
 
 ## What the orchestrator reads of a PR
 

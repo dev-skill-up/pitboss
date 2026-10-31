@@ -134,3 +134,19 @@ default = [
 [slots.model_labels]
 # A label, and the smallest model a ticket with it may go to. Default: none.
 "needs-large-model" = "large-model"
+
+[sync]
+# Where `pitboss sync` (and the end of every sweep) keeps the files that live
+# outside any repository: this configuration, the slot ledger and log, the
+# pressure record and `paths`. Without the table nothing is synced.
+# The repository and the directory of it the files are copied into. Defaults:
+repository = "moshez/claude-jsonl"
+directory = "notes-current"
+# More files to keep (absolute): the other sweep configurations, notes, memory.
+# Default: none. Add a file here in the turn that creates it.
+paths = ["/home/user/.claude/pitboss/other.toml", "/home/user/notes.md"]
+# The clone the copies are committed in. Default: <main_clone>/.git/pitboss-sync
+# checkout = "/home/user/.cache/pitboss-sync"
+# Where it is cloned from and pushed to (main, no branch, no PR).
+# Default: https://github.com/<repository>.git
+# url = "https://github.com/moshez/claude-jsonl.git"
