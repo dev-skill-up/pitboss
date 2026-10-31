@@ -9,8 +9,17 @@ from typing import Callable, Mapping, Sequence, TypeVar
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commands, config, contradictions, forms, phrases
-from . import repoarg, textlint
+from . import (
+    ENTRY_DATA,
+    commands,
+    config,
+    contradictions,
+    forms,
+    phrases,
+    repoarg,
+    sessionurl,
+    textlint,
+)
 
 USAGE_ERROR = 2
 _Rule = TypeVar("_Rule")
@@ -125,7 +134,8 @@ def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
         texts = _read_files(args)
         if len(texts) != 1:
             raise _fail(f"{args.kind} checks one file, not {len(texts)}")
-        name, body = texts[0]
+        name, raw = texts[0]
+        body = sessionurl.strip(raw)
         subject = forms.Subject(name=name, body=body, head=args.head)
         refused = [
             *check(args, subject, _lint_settings(args)),
@@ -143,6 +153,7 @@ def _body_findings(
     head: str,
 ) -> Sequence[str]:
     banned, pairs = rules
+    body = sessionurl.strip(body)
     subject = forms.Subject(name="body", body=body, head=head)
     return [
         *forms.pr_body(subject, footers),

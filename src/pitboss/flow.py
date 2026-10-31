@@ -15,7 +15,7 @@ import enum
 import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import shapes, steps
+from . import sessionurl, shapes, steps
 
 _PLAN_HEADING = re.compile(r"^## Plan\s*$", re.MULTILINE)
 _EXECUTION_HEADING = re.compile(r"^## Execution\s*$", re.MULTILINE)
@@ -176,7 +176,7 @@ def is_ruling(body: str) -> bool:
     Returns:
         True when its first line is exactly ``Opus ruling``.
     """
-    lines = body.splitlines()
+    lines = sessionurl.lines(body)
     return bool(lines) and lines[0].rstrip() == steps.RULING_FIRST_LINE
 
 

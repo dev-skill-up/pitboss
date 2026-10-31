@@ -7,7 +7,7 @@ is ``Ruling:`` and one of the words of ``Ruling``. It is taken as given.
 import enum
 from typing import Mapping, Sequence
 
-from . import flow, steps
+from . import flow, sessionurl, steps
 
 RULING_LINE_PREFIX = "Ruling: "
 
@@ -47,7 +47,7 @@ def read_ruling(body: str) -> Ruling | None:
     Returns:
         The ruling, or None when the comment is none or says no known word.
     """
-    lines = body.splitlines()
+    lines = sessionurl.lines(body)
     if not flow.is_ruling(body) or len(lines) < 2:
         return None
     second = lines[1].rstrip()
