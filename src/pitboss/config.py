@@ -14,6 +14,7 @@ DEFAULT_REMINDERS = (
     " X is done, say so on the ticket.",
 )
 DEFAULT_FORM = ("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
+DEFAULT_RELOCK_PREFIX = "relock/"
 DEFAULT_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
 DEFAULT_FOOTERS: Sequence[str] = ()  # a PR body needs no footer unless configured
 
@@ -89,11 +90,15 @@ class Lint:
         footers: the lines a PR body must end with one of (in its last three
             lines); none, the default, requires no footer.
         brief_lines: the line starts every brief must have.
+        relock_prefix: the head branch prefix of a relock PR (``[relock]
+            prefix``; keyword: relock), whose body is checked for its head and
+            footer alone.
     """
 
     review: Review
     footers: Sequence[str]
     brief_lines: Sequence[str]
+    relock_prefix: str = DEFAULT_RELOCK_PREFIX
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -281,6 +286,9 @@ def _lint(document: Mapping[str, object], owner: str) -> Lint:
         review=_review(document, owner),
         footers=_strings(_table(table, "pr_body"), "footers", DEFAULT_FOOTERS),
         brief_lines=_strings(_table(table, "brief"), "required", ()),
+        relock_prefix=str(
+            _table(document, "relock").get("prefix", DEFAULT_RELOCK_PREFIX)
+        ),
     )
 
 

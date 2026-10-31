@@ -13,6 +13,7 @@ from . import fakes, test_flow, world
 from .test_commands import sweep
 
 NOW = datetime.datetime(2026, 10, 30, 12, 0, 0, tzinfo=datetime.timezone.utc)
+RELOCK_PREFIX = "relock/"
 RELOCK = "relock/2026-10-30"
 
 
@@ -66,6 +67,7 @@ def facts(branch: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
     return pulls.PullFacts(
         repo=config.Repo(owner="o", name="r", slug="o/r"),
         pull=parsing.pull(json.dumps(body)),
+        relock=branch.startswith(RELOCK_PREFIX),
         checks=checks,
         review=None,
         standing=reviews.Standing.NONE,

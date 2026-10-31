@@ -188,7 +188,7 @@ Commands
        leaves the shipped one out). A pairs line is two patterns of the
        phrase language, an example of each and what to do instead, tab
        separated; the text between backticks is not searched.
-   * - ``lint pr-body|review|brief FILE [--head SHA] [--config CONFIG]``
+   * - ``lint pr-body|review|brief FILE [--head SHA] [--branch BRANCH] [--config CONFIG]``
      - The forms of the texts agents write (pitboss#37), one file each; the
        phrase check of ``lint text`` runs on the same file. Prints one
        finding per line ending with its check in parentheses, exits 1 on
@@ -201,7 +201,11 @@ Commands
        inside a block ``pitboss expand`` produced, one finding for each,
        naming its line) and ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
-       listed, so no footer is required). ``review``: the lines of ``[review.form]``
+       listed, so no footer is required). With ``--branch`` starting with the
+       ``[relock] prefix`` (default ``relock/``; pitboss#126) the PR is a relock
+       PR, which fixes no ticket and has no Plan, Execution or hand-run
+       evidence: only ``head``, ``hand-typed`` and ``footer`` are checked.
+       ``review``: the lines of ``[review.form]``
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
        against ``--head`` (``head``); with ``--gated`` the lines of
        ``[review.gated_form]`` are read as a gate reads them, each once
@@ -348,7 +352,7 @@ function, ``pitboss.flow.next_step``, the owner's pseudo code branch for branch
 next). Every question it asks is a function of its own in ``pitboss.flow``,
 answered from what is recorded of the PR in a ``PullState`` (its body, labels,
 comments, reviews as ``Graded`` and checks): ``is_paused_for_owner``,
-``newest_counting_review``, ``has_plan_execution_body``, ``is_draft``,
+``newest_counting_review``, ``is_draft``,
 ``can_undraft``, ``plan_approved``, ``get_plan_rejections``, ``opus_used``,
 ``execution_fixed_since_plan_approval``, ``ci_result`` and ``has_conflict``.
 The steps are in ``pitboss.steps`` and what follows an Opus ruling is

@@ -207,6 +207,26 @@ SCOPE_FIX_ROUND = (
     " not a ground for changes needed; do not write it." + EXCLUSIVE
 )
 
+SCOPE_RELOCK = (
+    "Scope (exclusive): the relock {reference} at head {head}, which fixes no"
+    " ticket and has no Plan or Execution of its own. The goal above is its"
+    " goal: moves of pins are safe when the lock matches and CI is green. It"
+    " changes nothing but pins (the compiler, the package repository, the"
+    " locked package versions, the workflow pins); it is not judged against a"
+    " Done-when, and its body needs no Plan, Execution or Evidence." + EXCLUSIVE
+)
+RELOCK_CHECKS = (
+    "Relock checks: (1) the diff of the head touches only pins and locks"
+    " (`bats.lock`, `.github/bats-version`, `.github/repository-version` and the"
+    " workflow pins the relock names): a source, test or doc change is changes"
+    " needed; (2) every pin moves forward to a version that exists, and the PR"
+    " body lists the old and new versions it moves; (3) the lock matches"
+    " `bats.toml` and the committed pins (the build fetches exactly the locked"
+    " versions); (4) every required check finished and passed at that head; (5)"
+    " the last `Head:` line of the body, when it has one, is the full SHA of the"
+    " head."
+)
+
 RULING_WHO = (
     "Ruling: you are an Opus agent whose only brief is to make a ruling on PR"
     " {reference}. Read the PR, its ticket, its reviews and its comments. Write no"

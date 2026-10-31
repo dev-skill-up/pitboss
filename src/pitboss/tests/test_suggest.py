@@ -10,6 +10,7 @@ from . import fakes, test_flow_sweep, world
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
 from .suggestions import (
     default_suggestions,
+    kind_of_third,
     next_output,
     parsed,
     run_command,
@@ -33,18 +34,6 @@ def with_more_tickets(here: world.World, count: int) -> None:
     """
     more = [dict(world.TICKET, number=number) for number in range(10, 10 + count)]
     here.bodies[fakes.page(SUGGESTIONS)] = [world.TICKET, *more]
-
-
-def kind_of_third(here: world.World) -> str:
-    """The kind of PR 3's suggestion.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The kind, as the header says it.
-    """
-    return third(here)[0].split(": ")[1]
 
 
 class TestOrderAndTruncation(unittest.TestCase):

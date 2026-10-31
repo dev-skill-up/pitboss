@@ -7,7 +7,7 @@ from typing import Mapping, MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import failures, pulls, reviews, shapes, steps
+from .. import failures, pullread, pulls, reviews, shapes, steps
 from . import fakes
 
 GATED = "[review]\ngated = ['gated']\n[libraries]\nrepositories = ['gated']\n"
@@ -86,7 +86,7 @@ def read(found: MutableMapping[str, object]) -> Sequence[pulls.PullFacts]:
         The PRs.
     """
     settings = fakes.settings(pathlib.Path(tempfile.mkdtemp()), GATED)
-    return pulls.read_open(fakes.github(found), settings, lambda: False)
+    return pullread.read_open(fakes.github(found), settings, lambda: False)
 
 
 def summary(facts: pulls.PullFacts) -> Mapping[str, object]:

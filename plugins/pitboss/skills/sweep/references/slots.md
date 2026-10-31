@@ -95,7 +95,11 @@ exactly one step and at most one kind. There are six:
 3. **Fix the CI**: step WORKER, task `FIX_CI`: the checks of the head are
    red, which is no rejection. Its author fixes them.
 4. **Write the Plan and Execution body**: step WORKER, task `FIRST_ROUND`:
-   the PR has no such body. Its author writes it.
+   the PR has no such body. Its author writes it. A relock PR (head branch
+   starting with `[relock] prefix`, default `relock/`) fixes no ticket and is
+   never asked for this body: it goes straight to its review, whose kind is
+   `review the relock` (`pitboss#126`; the brief states the goal, that moves of
+   pins are safe when the lock matches and CI is green, and the check list).
 5. **Resolve the conflict**: step WORKER, task `RESOLVE_CONFLICT`: the head
    is approved and conflicts with the base. Its author resolves it.
 6. **Review it**: step `REGULAR_REVIEW`. On a PR that is not a draft it comes
