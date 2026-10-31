@@ -200,11 +200,15 @@ class Reason(enum.Enum):
         MERGED: its PR merged.
         CLOSED: its PR was closed without merging.
         IN_BASE: it has no PR and its tip is in the base branch.
+        NO_OPEN_PR: under disk pressure, it has no open PR.
+        QUIET_REPOSITORY: under disk pressure, its repository has no open PR.
     """
 
     MERGED = "its PR merged"
     CLOSED = "its PR was closed"
     IN_BASE = "its tip is in the base branch"
+    NO_OPEN_PR = "disk pressure: it has no open PR"
+    QUIET_REPOSITORY = "disk pressure: its repository has no open PR"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -305,3 +309,24 @@ def finished_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
     ):
         return Reason.IN_BASE
     return None
+
+
+def pressure_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
+    """Decide whether a worktree may go under disk pressure.
+
+    Every worktree of the main clone, under the workspace, whose branch has no
+    open PR is finished then (keyword: auto-clean); a worktree with an open PR
+    never is.
+
+    Args:
+        sweeper: what the decision needs.
+        worktree: the worktree.
+
+    Returns:
+        Why it is finished, or None when it is not.
+    """
+    reason = finished_reason(sweeper, worktree)
+    unclaimed = worktree.branch not in sweeper.outcomes
+    if reason is None and unclaimed and not _outside(sweeper, worktree):
+        return Reason.NO_OPEN_PR
+    return reason

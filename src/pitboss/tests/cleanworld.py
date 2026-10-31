@@ -13,7 +13,7 @@ from .. import cleanconfig, container, dead
 from . import fakes, world
 from .test_local import age
 
-SETTINGS = "min_free_gib = 0\n"
+SETTINGS = "min_free_gib = 0\ntmp_roots = []\npressure_percent = 100\n"
 NO_MARKER = ("--marker", "/nonexistent-marker")
 
 
@@ -257,18 +257,31 @@ def scratch_scene() -> pathlib.Path:
     return root
 
 
+def library_clone(here: world.World, name: str) -> pathlib.Path:
+    """A clone of the library, on its base branch, in the workspace.
+
+    Args:
+        here: the world.
+        name: the checkout's name.
+
+    Returns:
+        The clone.
+    """
+    library = clone_of(here.workspace, here, name)
+    url = "https://github.com/owner/lib.git"
+    origin = fakes.run_git(library, "config", "remote.origin.url").strip()
+    for key, value in (("remote.origin.url", url), (f"url.{origin}.insteadOf", url)):
+        fakes.run_git(library, "config", key, value)
+    return library
+
+
 def library_checkout(here: world.World) -> None:
     """A checkout of the library, on a branch whose PR was closed.
 
     Args:
         here: the world.
     """
-    library = clone_of(here.workspace, here, "lib")
-    fakes.run_git(library, "checkout", "-qb", "lib-work")
-    url = "https://github.com/owner/lib.git"
-    origin = fakes.run_git(library, "remote", "get-url", "origin").strip()
-    for key, value in (("remote.origin.url", url), (f"url.{origin}.insteadOf", url)):
-        fakes.run_git(library, "config", key, value)
+    fakes.run_git(library_clone(here, "lib"), "checkout", "-qb", "lib-work")
 
 
 def workspace_scene(here: world.World) -> None:
@@ -365,7 +378,8 @@ def crowd(here: world.World, minimum: str) -> None:
         here: the world.
         minimum: the TOML number.
     """
-    rewrite(here, f'min_free_gib = {minimum}\nworktrees = "list"\n')
+    settings = f"min_free_gib = {minimum}\ntmp_roots = []\npressure_percent = 100\n"
+    rewrite(here, settings + 'worktrees = "list"\n')
 
 
 def only_list_worktrees(here: world.World) -> None:

@@ -21,6 +21,7 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     __version__,
+    autoclean,
     cleanconfig,
     config,
     configfile,
@@ -29,6 +30,7 @@ from . import (
     handback,
     ledger,
     local,
+    machine as machines,
     outdated,
     pulls,
     queue,
@@ -278,7 +280,15 @@ def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
         print(line)
 
 
-def _look(found: Context) -> dead.Look:
+def sweep_look(found: Context) -> dead.Look:
+    """What looking at the checkouts needs, from the context.
+
+    Args:
+        found: the context.
+
+    Returns:
+        The look.
+    """
     return dead.Look(
         run=found.args.safe_run,
         github=found.github,
@@ -288,22 +298,25 @@ def _look(found: Context) -> dead.Look:
     )
 
 
-def _worktree_section(found: Context) -> None:
-    look = _look(found)
-    if found.clean.worktrees is cleanconfig.Worktrees.AUTO:
-        # A sweep that removes: safe_run really runs (keyword: clean-worktrees).
-        lines = worktrees.remove_lines(
-            look, worktrees.Action(run=found.args.safe_run, dry=False), found.now
-        )
-    else:
-        lines = worktrees.stale_lines(look, found.now)
-    for text in lines:
+def _clean_section(found: Context) -> None:
+    # A sweep that removes: safe_run really runs (keyword: auto-clean).
+    listed = found.clean.worktrees is cleanconfig.Worktrees.LIST
+    option = autoclean.Option(run=found.args.safe_run, dry=False, list_only=listed)
+    look = sweep_look(found)
+    machine = machines.real_machine(found.args.env, found.now, running_in(found.args))
+    for text in autoclean.clean_lines(look, machine, option):
         print(text)
 
 
 def _disk_section(found: Context) -> None:
-    for text in diskline.lines(_look(found), found.now):
+    for text in diskline.lines(sweep_look(found), found.now):
         print(text)
+
+
+def _outdated_section(args: argparse.Namespace) -> None:
+    tracefs.say(args.safe_run)
+    for line in outdated.lines(__version__, outdated.newest(args.safe_run)):
+        print(line)
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sweep")
@@ -316,10 +329,9 @@ def sweep(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a PR has a failed check or a merge conflict.
     """
-    tracefs.say(args.safe_run)
-    for line in outdated.lines(__version__, outdated.newest(args.safe_run)):
-        print(line)
+    _outdated_section(args)
     found = load_context(args)
+    _clean_section(found)
     clock = timing.Clock(started=time.monotonic())
     runs = read_queue_runs(found)
     broken = _pull_section(found, runs)
@@ -327,7 +339,6 @@ def sweep(args: argparse.Namespace) -> None:
     _queue_section(found, runs)
     timing.lap(clock, "merge queue done")
     _straggler_section(found)
-    _worktree_section(found)
     _disk_section(found)
     timing.lap(clock, "checkouts done")
     for line in report.reminder_lines(found.settings):
@@ -381,5 +392,5 @@ def clean_worktrees(args: argparse.Namespace) -> None:
     """
     found = load_context(args)
     how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
-    for text in worktrees.remove_lines(_look(found), how, found.now):
+    for text in worktrees.remove_lines(sweep_look(found), how, found.now):
         print(text)

@@ -12,11 +12,13 @@ import dataclasses
 import datetime
 import pathlib
 import subprocess
-from typing import Sequence
+from typing import Callable, Sequence
 
 from . import dead, disk, local
 from .markers import Marker
 from .running import Run, git
+
+Decide = Callable[[local.Sweeper, local.Worktree], local.Reason | None]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -60,30 +62,54 @@ class Action:
     dry: bool
 
 
-def find(look: dead.Look) -> Sequence[Finished]:
-    """Find the worktrees of the main clone whose work is finished.
-
-    Args:
-        look: what to look at and keep.
-
-    Returns:
-        The finished worktrees; whether each may go is ``judge``'s.
-    """
+def _listed(look: dead.Look) -> tuple[local.Sweeper, Sequence[local.Worktree]]:
     project = look.settings.project
-    git(look.run, project.main_clone, "fetch", "-q", "origin", project.base_branch)
     sweeper = local.Sweeper(
         run=look.run,
         settings=look.settings,
         outcomes=local.read_outcomes(look.github, project.repo),
     )
     listed = git(look.run, project.main_clone, "worktree", "list", "--porcelain")
-    decided = [
-        (each, local.finished_reason(sweeper, each))
-        for each in local.parse_worktrees(listed)
+    return sweeper, local.parse_worktrees(listed)
+
+
+def tied_to_open_pr(look: dead.Look) -> Sequence[local.Worktree]:
+    """The worktrees of the main clone whose branch has an open PR.
+
+    Cleaning never touches them, whatever the disk (keyword: auto-clean).
+
+    Args:
+        look: what to look at and keep.
+
+    Returns:
+        The worktrees.
+    """
+    sweeper, listed = _listed(look)
+    return [
+        each
+        for each in listed
+        if each.branch in sweeper.outcomes and sweeper.outcomes[each.branch].still_open
     ]
+
+
+def find(look: dead.Look, decide: Decide = local.finished_reason) -> Sequence[Finished]:
+    """Find the worktrees of the main clone whose work is finished.
+
+    Args:
+        look: what to look at and keep.
+        decide: whether a worktree is finished: ``local.finished_reason``, or
+            ``local.pressure_reason`` under disk pressure (keyword: auto-clean).
+
+    Returns:
+        The finished worktrees; whether each may go is ``judge``'s.
+    """
+    project = look.settings.project
+    git(look.run, project.main_clone, "fetch", "-q", "origin", project.base_branch)
+    sweeper, listed = _listed(look)
+    pairs = [(each, decide(sweeper, each)) for each in listed]
     return [
         Finished(worktree=each, reason=reason)
-        for each, reason in decided
+        for each, reason in pairs
         if reason is not None
     ]
 
@@ -124,17 +150,20 @@ def judge(look: dead.Look, now: datetime.datetime, each: Finished) -> Judged:
     return Judged(found=each, size=found.size, why=why)
 
 
-def stale_lines(look: dead.Look, now: datetime.datetime) -> Sequence[str]:
+def stale_lines(
+    look: dead.Look, now: datetime.datetime, decide: Decide = local.finished_reason
+) -> Sequence[str]:
     """The lines of a sweep under ``list``: the worktrees that may be removed.
 
     Args:
         look: what to look at and keep.
         now: the time now.
+        decide: whether a worktree is finished.
 
     Returns:
         A ``STALE WORKTREE`` line for each that passed the test, then the count.
     """
-    done = [judge(look, now, each) for each in find(look)]
+    done = [judge(look, now, each) for each in find(look, decide)]
     safe = [each.found for each in done if not each.why]
     return [
         *(
@@ -220,7 +249,10 @@ def act(
 
 
 def remove_lines(
-    look: dead.Look, action: Action, moment: datetime.datetime
+    look: dead.Look,
+    action: Action,
+    moment: datetime.datetime,
+    decide: Decide = local.finished_reason,
 ) -> Sequence[str]:
     """Remove the finished worktrees that pass the safety test, saying what happened.
 
@@ -231,11 +263,12 @@ def remove_lines(
         look: what to look at and keep.
         action: how to remove them.
         moment: the time now.
+        decide: whether a worktree is finished.
 
     Returns:
         A line for each worktree, then the totals.
     """
-    steps = [act(look, action, moment, each) for each in find(look)]
+    steps = [act(look, action, moment, each) for each in find(look, decide)]
     git(action.run, look.settings.project.main_clone, "worktree", "prune")
     freed = disk.size_text(sum(each.freed for each in steps))
     verb = "would be freed" if action.dry else "freed"
