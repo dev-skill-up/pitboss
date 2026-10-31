@@ -1,380 +1,36 @@
 """The cleaning a sweep does first, by itself, and harder when the disk is full.
 
-Keyword: auto-clean (pitboss#120; the rule is in ``rules.md``, "Checkouts and
-disk"). No prompt and no dry-run default: a sweep removes the test tempdirs
-older than ``[clean] tmp_hours`` that the session user owns, the finished
-worktrees and the dead checkouts, and prints what it removed and the space
-freed. At or over ``[clean] pressure_percent`` of a filesystem used (90 by
-default) it also removes tempdirs of a shorter age, every worktree and every
+This is the auto-clean rule (pitboss#120; the rule is in ``rules.md``,
+"Checkouts and disk"). No prompt and no dry-run default: a sweep removes the
+test tempdirs older than ``[clean] tmp_hours`` that the session user owns, the
+finished worktrees and the dead checkouts, and prints what it removed and the
+space freed. At or over ``[clean] pressure_percent`` of a filesystem used (90
+by default) it also removes tempdirs of a shorter age, every worktree and every
 checkout of a repository without an open PR, and the package caches that
 regenerate. It never touches a worktree with an open PR, a running worker's
 directory (changed within ``idle_hours``, or marked ``.pitboss-live``), the
 main clone or the directory it runs in, and it says so.
 """
 
-import contextlib
 import dataclasses
-import datetime
-import fnmatch
 import functools
 import operator
-import os
 import pathlib
-import shutil
-import subprocess
-from typing import AbstractSet, Callable, Protocol, Sequence
+from typing import AbstractSet, Sequence
 
-from . import cleaning, cleanconfig, dead, deadscan, disk, mounts, survey, worktrees
-from .running import Run
-
-CACHES_IN_HOME = (
-    ".cache/pip",
-    ".cache/uv",
-    ".cache/pre-commit",
-    ".npm/_cacache",
-    ".cargo/registry/cache",
+from . import (
+    cleaning,
+    cleanconfig,
+    dead,
+    deadscan,
+    disk,
+    local,
+    machine as machines,
+    tempclean,
+    worktrees,
 )
-BATCH = cleaning.DEFAULT_BATCH
-
-
-class Filesystem(Protocol):
-    """What the cleaning asks of the file system; tests pass a fake."""
-
-    def children(self, directory: pathlib.Path) -> Sequence[pathlib.Path]:
-        """List a directory.
-
-        Args:
-            directory: the directory.
-
-        Returns:
-            Its entries, sorted; none when it is not there.
-        """
-
-    def exists(self, path: pathlib.Path) -> bool:
-        """Say whether something is at a path (a link counts as itself).
-
-        Args:
-            path: the path.
-
-        Returns:
-            True when there is.
-        """
-
-    def is_link(self, path: pathlib.Path) -> bool:
-        """Say whether a path is a symbolic link.
-
-        Args:
-            path: the path.
-
-        Returns:
-            True when it is.
-        """
-
-    def owner(self, path: pathlib.Path) -> int:
-        """Say who owns a path (a link is not followed).
-
-        Args:
-            path: the path.
-
-        Returns:
-            The user id.
-        """
-
-    def inspect(self, path: pathlib.Path) -> survey.Survey:
-        """Walk a path once.
-
-        Args:
-            path: the path.
-
-        Returns:
-            Its size, its newest change, its marker and its mount points.
-        """
-
-    def remove(self, paths: Sequence[pathlib.Path]) -> None:
-        """Remove paths, staying on one file system; a failure leaves them.
-
-        Args:
-            paths: the paths.
-        """
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Real:
-    """The file system of this machine; ``rm`` goes through the runner.
-
-    Attributes:
-        run: the runner for changes.
-    """
-
-    run: Run
-
-    def children(self, directory: pathlib.Path) -> Sequence[pathlib.Path]:
-        """List a directory.
-
-        Args:
-            directory: the directory.
-
-        Returns:
-            Its entries, sorted; none when it is not there.
-        """
-        try:
-            return sorted(directory.iterdir())
-        except OSError:
-            return []
-
-    def exists(self, path: pathlib.Path) -> bool:
-        """Say whether something is at a path.
-
-        Args:
-            path: the path.
-
-        Returns:
-            True when there is.
-        """
-        return os.path.lexists(path)
-
-    def is_link(self, path: pathlib.Path) -> bool:
-        """Say whether a path is a symbolic link.
-
-        Args:
-            path: the path.
-
-        Returns:
-            True when it is.
-        """
-        return path.is_symlink()
-
-    def owner(self, path: pathlib.Path) -> int:
-        """Say who owns a path.
-
-        Args:
-            path: the path.
-
-        Returns:
-            The user id.
-        """
-        return path.lstat().st_uid
-
-    def inspect(self, path: pathlib.Path) -> survey.Survey:
-        """Walk a path once.
-
-        Args:
-            path: the path.
-
-        Returns:
-            What is in it.
-        """
-        return survey.walk(path, mounts.current())
-
-    def remove(self, paths: Sequence[pathlib.Path]) -> None:
-        """Remove paths with ``rm -rf --one-file-system``.
-
-        Args:
-            paths: the paths.
-        """
-        with contextlib.suppress(subprocess.CalledProcessError):
-            self.run(["rm", "-rf", "--one-file-system", "--", *map(str, paths)])
-
-
-def read_usage(path: pathlib.Path) -> disk.Usage | None:
-    """Read the use of the file system of a path.
-
-    Args:
-        path: a path on it.
-
-    Returns:
-        The use, or None when the path is not there.
-    """
-    try:
-        return disk.Usage(*shutil.disk_usage(path))
-    except OSError:
-        return None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Machine:
-    """What the cleaning reads from the machine, all of it injected.
-
-    Attributes:
-        fs: the file system.
-        usage: reads the use of a path's file system, None when absent.
-        now: the time now.
-        uid: the user whose tempdirs are removed.
-        home: the home directory, where the package caches are.
-        working: the directories the command runs in; never removed.
-    """
-
-    fs: Filesystem
-    usage: Callable[[pathlib.Path], disk.Usage | None]
-    now: datetime.datetime
-    uid: int
-    home: pathlib.Path
-    working: AbstractSet[pathlib.Path] = frozenset()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Crowded:
-    """A file system used up to the pressure.
-
-    Attributes:
-        path: a configured path on it.
-        percent: how much of it is used.
-    """
-
-    path: pathlib.Path
-    percent: float
-
-
-def percent_used(usage: disk.Usage) -> float:
-    """How much of a file system is used, as ``df`` counts it.
-
-    Args:
-        usage: its use.
-
-    Returns:
-        The percent; 0 for a file system of no size.
-    """
-    return 100 * (usage.total - usage.free) / usage.total if usage.total else 0.0
-
-
-def crowded(
-    machine: Machine, paths: Sequence[pathlib.Path], limit: float
-) -> Sequence[Crowded]:
-    """The file systems used up to the limit, each once.
-
-    Args:
-        machine: the machine.
-        paths: the configured paths; one that is not there is left out.
-        limit: the percent from which a file system is crowded.
-
-    Returns:
-        One entry for each, named by its first path.
-    """
-    seen: set[disk.Usage] = set()
-    found = []
-    for path in paths:
-        usage = machine.usage(path)
-        if usage is None or usage in seen:
-            continue
-        seen.add(usage)
-        if percent_used(usage) >= limit:
-            found.append(Crowded(path=path, percent=percent_used(usage)))
-    return found
-
-
-def holds_working(machine: Machine, path: pathlib.Path) -> bool:
-    """Whether a path is, or lies above, a directory the command runs in.
-
-    Args:
-        machine: the machine.
-        path: the path.
-
-    Returns:
-        True when removing it would remove the command's own directory.
-    """
-    return any(each == path or each.is_relative_to(path) for each in machine.working)
-
-
-def stale_tempdirs(
-    machine: Machine, clean: cleanconfig.Clean, hours: float
-) -> Sequence[dead.Candidate]:
-    """The tempdirs of the session user that nobody has touched for a while.
-
-    A symbolic link, a path of another user, a path marked ``.pitboss-live``,
-    one with a mount point in it and one that holds the directory the command
-    runs in are left alone.
-
-    Args:
-        machine: the machine.
-        clean: the settings.
-        hours: how long a tempdir must be untouched.
-
-    Returns:
-        The candidates, largest first.
-    """
-    cutoff = machine.now.timestamp() - hours * 3600
-    reason = f"test tempdir untouched for {hours:g} hours"
-    found = []
-    for root in clean.tmp_roots:
-        for path in machine.fs.children(root):
-            named = any(
-                fnmatch.fnmatchcase(path.name, one) for one in clean.tmp_patterns
-            )
-            mine = named and not machine.fs.is_link(path)
-            if not mine or machine.fs.owner(path) != machine.uid:
-                continue
-            if holds_working(machine, path):
-                continue
-            seen = machine.fs.inspect(path)
-            if seen.marked or seen.mounts or seen.newest > cutoff:
-                continue
-            found.append(dead.Candidate(path=path, size=seen.size, reason=reason))
-    return dead.ordered(found)
-
-
-def regenerable_caches(
-    machine: Machine, clean: cleanconfig.Clean
-) -> Sequence[dead.Candidate]:
-    """The package caches that regenerate: pip's, uv's, npm's and the configured.
-
-    Args:
-        machine: the machine.
-        clean: the settings.
-
-    Returns:
-        The candidates, largest first; a cache that is a link, another user's,
-        marked live or holding a mount point or the command's directory is left.
-    """
-    paths = [*(machine.home / name for name in CACHES_IN_HOME), *clean.caches]
-    found = []
-    for path in paths:
-        if not machine.fs.exists(path) or machine.fs.is_link(path):
-            continue
-        seen = machine.fs.inspect(path)
-        if machine.fs.owner(path) != machine.uid or seen.marked or seen.mounts:
-            continue
-        if holds_working(machine, path):
-            continue
-        found.append(
-            dead.Candidate(
-                path=path, size=seen.size, reason="package cache, regenerates"
-            )
-        )
-    return dead.ordered(found)
-
-
-def remove_found(
-    machine: Machine, found: Sequence[dead.Candidate], dry: bool
-) -> tuple[Sequence[str], Sequence[dead.Candidate]]:
-    """Remove paths in parts, saying what happened to each.
-
-    Args:
-        machine: the machine.
-        found: the paths.
-        dry: whether to remove nothing.
-
-    Returns:
-        The lines, and the paths that are gone (all of them in a dry run).
-    """
-    note = " (dry run)" if dry else ""
-    lines = []
-    gone = []
-    for part in _parts(found):
-        if not dry:
-            machine.fs.remove([each.path for each in part])
-        for each in part:
-            left = not dry and machine.fs.exists(each.path)
-            gone.extend([] if left else [each])
-            lines.append(
-                cleaning.stuck_line(each, "rm left it in place")
-                if left
-                else cleaning.removed_line(each, note)
-            )
-    return lines, gone
-
-
-def _parts(found: Sequence[dead.Candidate]) -> Sequence[Sequence[dead.Candidate]]:
-    return [found[at : at + BATCH] for at in range(0, len(found), BATCH)]
+from .machine import Crowded, Machine
+from .running import Run
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -391,6 +47,45 @@ class Option:
     run: Run
     dry: bool
     list_only: bool = False
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Job:
+    """One job: what it looks at, on what machine, and how hard.
+
+    Attributes:
+        look: what to look at and keep.
+        machine: the machine.
+        option: how to clean.
+        hot: the crowded file systems; any makes the cleaning aggressive.
+    """
+
+    look: dead.Look
+    machine: Machine
+    option: Option
+    hot: Sequence[Crowded]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Part:
+    """What one kind of cleaning did.
+
+    Attributes:
+        lines: what to print.
+        gone: the paths removed, or that would be in a dry run.
+    """
+
+    lines: Sequence[str]
+    gone: Sequence[dead.Candidate]
+
+
+def nothing() -> Part:
+    """A part that did nothing.
+
+    Returns:
+        The part.
+    """
+    return Part(lines=[], gone=[])
 
 
 def paths_watched(look: dead.Look) -> Sequence[pathlib.Path]:
@@ -434,7 +129,7 @@ def header(hot: Sequence[Crowded], clean: cleanconfig.Clean) -> str:
             f"clean: disk under {limit} used: test tempdirs untouched for {age},"
             " finished worktrees and checkouts"
         )
-    where = ", ".join(f"{each.path} {each.percent:.0f}%" for each in hot)
+    where = ", ".join(f"{each.place} {each.percent:.0f}%" for each in hot)
     age = f"{clean.pressure_tmp_hours:g} hours"
     return (
         f"clean: DISK OVER {limit} ({where}): aggressive: test tempdirs untouched"
@@ -442,69 +137,176 @@ def header(hot: Sequence[Crowded], clean: cleanconfig.Clean) -> str:
     )
 
 
-def never_lines(look: dead.Look, aggressive: bool) -> Sequence[str]:
-    """Say what the cleaning never touches; under pressure, name the worktrees.
+def never_line(look: dead.Look) -> str:
+    """Say what the cleaning never touches.
 
     Args:
         look: what to look at and keep.
-        aggressive: whether the disk is under pressure.
 
     Returns:
-        The lines.
+        The line.
     """
     hours = look.settings.idle_hours
-    kept = (
+    return (
         "clean: never touched: a worktree with an open PR, a running worker's"
         f" directory (changed within {hours:g} hours or marked .pitboss-live),"
         " the main clone, the directory this command runs in"
     )
-    named = [
+
+
+def kept_lines(job: Job) -> Sequence[str]:
+    """Name the worktrees with an open PR that pressure left alone.
+
+    Args:
+        job: the cleaning.
+
+    Returns:
+        A line for each; none unless the disk is under pressure.
+    """
+    if not job.hot:
+        return []
+    return [
         f"clean: kept {each.path} [{each.branch}] (open PR)"
-        for each in (worktrees.tied_to_open_pr(look) if aggressive else [])
+        for each in worktrees.tied_to_open_pr(job.look)
     ]
-    return [*named, kept]
 
 
-def checkouts_part(
-    look: dead.Look, machine: Machine, option: Option, aggressive: bool
-) -> tuple[Sequence[str], Sequence[dead.Candidate]]:
+def removal_for(job: Job) -> tempclean.Removing:
+    """How this cleaning removes plain paths.
+
+    Args:
+        job: the cleaning.
+
+    Returns:
+        Nothing in a dry run, else through the machine's file system.
+    """
+    if job.option.dry:
+        return tempclean.removing_nothing()
+    return tempclean.removing_for_real(job.machine)
+
+
+def worktrees_part(job: Job) -> Part:
+    """Remove the finished worktrees, or only list them.
+
+    Args:
+        job: the cleaning.
+
+    Returns:
+        The worktrees' own lines; they report their space themselves.
+    """
+    look, option = job.look, job.option
+    decide = local.pressure_reason if job.hot else local.finished_reason
+    if option.list_only and not job.hot:
+        return Part(lines=worktrees.stale_lines(look, job.machine.now, decide), gone=[])
+    action = worktrees.Action(run=option.run, dry=option.dry)
+    lines = worktrees.remove_lines(look, action, job.machine.now, decide)
+    return Part(lines=lines, gone=[])
+
+
+def scan_checkouts(
+    job: Job,
+) -> tuple[deadscan.Findings, Sequence[dead.Candidate]]:
+    """Find the dead checkouts, scratch and root files that are safe.
+
+    Args:
+        job: the cleaning.
+
+    Returns:
+        What the scan found, and the paths chosen for removal. The linked
+        worktrees were judged by ``worktrees_part`` (git keeps one with
+        untracked files); only pressure takes them as dead paths too.
+    """
+    look = job.look
+    decide = deadscan.pressure_reason if job.hot else deadscan.checkout_reason
+    found = deadscan.scan(look, job.machine.now.timestamp(), decide)
+    chosen, _ = cleaning.choose(found.candidates, None, roots(look))
+    return found, [each for each in chosen if job.hot or each.prune is None]
+
+
+def checkout_lines(
+    found: deadscan.Findings,
+    results: Sequence[tuple[dead.Candidate, str]],
+    note: str,
+) -> Sequence[str]:
+    """Say what happened to each checkout.
+
+    Args:
+        found: what the scan found.
+        results: each path with the reason it stayed, empty when it went.
+        note: what follows the line of a path removed.
+
+    Returns:
+        The lines: the fetches that failed, then a line for each path.
+    """
+    return [
+        *(
+            f"fetch failed in {name}: its checkouts are not judged"
+            for name in found.unfetched
+        ),
+        *(
+            cleaning.stuck_line(each, why) if why else cleaning.removed_line(each, note)
+            for each, why in results
+        ),
+    ]
+
+
+def checkouts_part(job: Job) -> Part:
     """Remove the dead checkouts, scratch and root files that are safe.
 
     Args:
-        look: what to look at and keep.
-        machine: the machine.
-        option: how to clean.
-        aggressive: whether the disk is under pressure.
+        job: the cleaning.
 
     Returns:
-        The lines, and the paths that are gone.
+        The lines, and the paths that are gone; nothing when the worktrees are
+        only listed and the disk is not under pressure.
     """
-    now = machine.now.timestamp()
-    found = deadscan.scan(look, now, aggressive)
-    chosen, _ = cleaning.choose(found.candidates, None, roots(look))
-    # The linked worktrees were judged above (git keeps one with untracked files);
-    # only pressure takes them as dead paths too.
-    chosen = [each for each in chosen if aggressive or each.prune is None]
-    cutoff = now - look.settings.idle_hours * 3600
+    if job.option.list_only and not job.hot:
+        return nothing()
+    look, option = job.look, job.option
+    found, chosen = scan_checkouts(job)
+    cutoff = job.machine.now.timestamp() - look.settings.idle_hours * 3600
     how = cleaning.Removal(
         run=option.run,
         recheck=functools.partial(dead.recheck, look, cutoff),
-        batch=BATCH,
+        batch=tempclean.BATCH,
         dry=option.dry,
     )
-    note = " (dry run)" if option.dry else ""
-    lines = [
-        f"fetch failed in {name}: its checkouts are not judged"
-        for name in found.unfetched
-    ]
-    gone = []
-    for each, why in cleaning.removals(how, chosen):
-        gone.extend([] if why else [each])
-        lines.append(
-            cleaning.stuck_line(each, why) if why else cleaning.removed_line(each, note)
-        )
+    results = list(cleaning.removals(how, chosen))
+    gone = [each for each, why in results if not why]
     cleaning.prune(option.run, gone)
-    return lines, gone
+    return Part(lines=checkout_lines(found, results, removal_for(job).note), gone=gone)
+
+
+def tempdirs_part(job: Job) -> Part:
+    """Remove the session user's test tempdirs that nobody has touched.
+
+    Args:
+        job: the cleaning.
+
+    Returns:
+        The lines and the paths gone; the age is shorter under pressure.
+    """
+    clean = job.look.clean
+    hours = clean.pressure_tmp_hours if job.hot else clean.tmp_hours
+    found = tempclean.stale_tempdirs(job.machine, clean, hours)
+    lines, gone = tempclean.remove_found(removal_for(job), found)
+    return Part(lines=lines, gone=gone)
+
+
+def caches_part(job: Job) -> Part:
+    """Remove the package caches that regenerate, under pressure only.
+
+    Args:
+        job: the cleaning.
+
+    Returns:
+        The lines and the paths gone; nothing when the disk is not crowded.
+    """
+    if not job.hot:
+        return nothing()
+    found = tempclean.regenerable_caches(job.machine, job.look.clean)
+    lines, gone = tempclean.remove_found(removal_for(job), found)
+    return Part(lines=lines, gone=gone)
 
 
 def clean_lines(look: dead.Look, machine: Machine, option: Option) -> Sequence[str]:
@@ -520,41 +322,26 @@ def clean_lines(look: dead.Look, machine: Machine, option: Option) -> Sequence[s
         touched, and the totals.
     """
     clean = look.clean
-    hot = crowded(machine, paths_watched(look), clean.pressure_percent)
-    aggressive = bool(hot)
-    workspace = look.settings.project.workspace
-    before = machine.usage(workspace)
-    lines = [header(hot, clean)]
-    action = worktrees.Action(run=option.run, dry=option.dry)
-    if option.list_only and not aggressive:
-        lines += worktrees.stale_lines(look, machine.now)
-    else:
-        lines += worktrees.remove_lines(look, action, machine.now, aggressive)
-    gone: list[dead.Candidate] = []
-    if aggressive or not option.list_only:
-        more, taken = checkouts_part(look, machine, option, aggressive)
-        lines += more
-        gone += taken
-    hours = clean.pressure_tmp_hours if aggressive else clean.tmp_hours
-    more, taken = remove_found(
-        machine, stale_tempdirs(machine, clean, hours), option.dry
-    )
-    lines += more
-    gone += taken
-    if aggressive:
-        more, taken = remove_found(
-            machine, regenerable_caches(machine, clean), option.dry
-        )
-        lines += more
-        gone += taken
-    lines += never_lines(look, aggressive)
-    lines.append(totals(gone, option.dry, before, machine.usage(workspace)))
-    return lines
+    hot = machines.find_crowded(machine, paths_watched(look), clean.pressure_percent)
+    job = Job(look=look, machine=machine, option=option, hot=hot)
+    before = machine.usage(look.settings.project.workspace)
+    parts = [worktrees_part(job), checkouts_part(job), tempdirs_part(job)]
+    parts.append(caches_part(job))
+    after = machine.usage(look.settings.project.workspace)
+    gone = [each for part in parts for each in part.gone]
+    verb = "would be freed" if option.dry else "freed"
+    return [
+        header(hot, clean),
+        *(text for part in parts for text in part.lines),
+        *kept_lines(job),
+        never_line(look),
+        totals(gone, verb, before, after),
+    ]
 
 
 def totals(
     gone: Sequence[dead.Candidate],
-    dry: bool,
+    verb: str,
     before: disk.Usage | None,
     after: disk.Usage | None,
 ) -> str:
@@ -562,7 +349,7 @@ def totals(
 
     Args:
         gone: the paths removed (or, in a dry run, that would be).
-        dry: whether nothing was removed.
+        verb: what happens to the space: ``freed`` or ``would be freed``.
         before: the use before.
         after: the use after.
 
@@ -570,7 +357,6 @@ def totals(
         The line.
     """
     size = disk.size_text(sum(map(operator.attrgetter("size"), gone)))
-    verb = "would be freed" if dry else "freed"
     return (
         f"clean: {len(gone)} paths removed, {size} {verb}; disk free"
         f" {free_text(before)} before, {free_text(after)} after"

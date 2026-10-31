@@ -68,6 +68,7 @@ ignore_missing_imports = true
 module = [
     "pitboss.commands",
     "pitboss.clean_commands",
+    "pitboss.autoclean_commands",
     "pitboss.lint_commands",
     "pitboss.slot_commands",
     "pitboss.red_commands",

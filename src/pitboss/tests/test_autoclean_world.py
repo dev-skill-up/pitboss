@@ -39,7 +39,7 @@ def touch_all(top: pathlib.Path, hours_ago: float) -> None:
         os.utime(place, (stamp, stamp))
 
 
-def tmp_of(here: world.World) -> pathlib.Path:
+def temps_of(here: world.World) -> pathlib.Path:
     """The scene's tempdir root.
 
     Args:
@@ -60,13 +60,13 @@ def places(here: world.World) -> Mapping[str, pathlib.Path]:
     Returns:
         The paths.
     """
-    top, tmp = here.workspace, tmp_of(here)
+    top, temps = here.workspace, temps_of(here)
     return {
         **{name: top / name for name in EVERYTHING if name.endswith(("work", "clone"))},
         "pip": top / "home/.cache/pip",
-        "young-tmp": tmp / "tmpAAAAAAAA",
-        "old-tmp": tmp / "tmpBBBBBBBB",
-        "keep-me": tmp / "keep-me",
+        "young-tmp": temps / "tmpAAAAAAAA",
+        "old-tmp": temps / "tmpBBBBBBBB",
+        "keep-me": temps / "keep-me",
     }
 
 
@@ -82,20 +82,12 @@ def remaining(here: world.World) -> AbstractSet[str]:
     return {name for name, path in places(here).items() if path.exists()}
 
 
-def scene(percent: str, extra: str = "") -> world.World:
-    """A world with a finished worktree, one with no PR, one with an open PR and more.
+def populate(here: world.World) -> None:
+    """Put the worktrees, the clone, the tempdirs and the cache of the scene.
 
     Args:
-        percent: the TOML number of ``pressure_percent``.
-        extra: more settings for ``[clean]``.
-
-    Returns:
-        The world; ``merged-work`` is finished, ``quiet-work`` has no PR,
-        ``open-work`` an open one, ``running-work`` was changed within the idle
-        hours; ``tmp`` holds a tempdir 2 hours old and one 50 hours old, and the
-        home holds a pip cache.
+        here: the world.
     """
-    here = world.make_world()
     for name in ("quiet-work", "open-work", "running-work"):
         path = fakes.add_worktree(here.clone, name)
         fakes.commit_file(path, name)
@@ -106,24 +98,51 @@ def scene(percent: str, extra: str = "") -> world.World:
         {"head": {"ref": "open-work"}, "state": "open"},
     ]
     cleanworld.library_clone(here, "quiet-clone")
-    tmp = tmp_of(here)
+    temps = temps_of(here)
     files = {
-        tmp / "tmpAAAAAAAA/file": "young",
-        tmp / "tmpBBBBBBBB/file": "old",
-        tmp / "keep-me/file": "not a tempdir",
+        temps / "tmpAAAAAAAA/file": "young",
+        temps / "tmpBBBBBBBB/file": "old",
+        temps / "keep-me/file": "not a tempdir",
         here.workspace / "home/.cache/pip/wheel": "w",
     }
     for path, text in files.items():
         fakes.write(path, text)
-    settings = (
-        f'min_free_gib = 0\ntmp_roots = ["{tmp}"]\npressure_percent = {percent}\n'
-    )
-    cleanworld.rewrite(here, settings + extra)
+
+
+def age_scene(here: world.World) -> None:
+    """Give each path of the scene its age.
+
+    Args:
+        here: the world.
+    """
     for name, path in places(here).items():
         touch_all(path, 0.5 if name == "running-work" else 99)
     touch_all(places(here)["young-tmp"], 2)
     touch_all(places(here)["old-tmp"], 50)
     touch_all(here.workspace / "home", 99)
+
+
+def scene(percent: str, extra: str = "") -> world.World:
+    """A world with a finished worktree, one with no PR, one with an open PR and more.
+
+    Args:
+        percent: the TOML number of ``pressure_percent``.
+        extra: more settings for ``[clean]``.
+
+    Returns:
+        The world; ``merged-work`` is finished, ``quiet-work`` has no PR,
+        ``open-work`` an open one, ``running-work`` was changed within the idle
+        hours; the tempdir root holds a tempdir 2 hours old and one 50 hours
+        old, and the home holds a pip cache.
+    """
+    here = world.make_world()
+    populate(here)
+    settings = (
+        f'min_free_gib = 0\ntmp_roots = ["{temps_of(here)}"]\n'
+        f"pressure_percent = {percent}\n"
+    )
+    cleanworld.rewrite(here, settings + extra)
+    age_scene(here)
     return here
 
 
@@ -164,7 +183,7 @@ class TestSweepCleansFirst(unittest.TestCase):
             [
                 "clean: disk under 99.9% used",
                 f"REMOVED WORKTREE {here.workspace}/merged-work (its PR merged)",
-                f"REMOVED PATH {tmp_of(here)}/tmpBBBBBBBB",
+                f"REMOVED PATH {temps_of(here)}/tmpBBBBBBBB",
                 "test tempdir untouched for 24 hours",
                 "clean: 1 paths removed,",
                 "never touched: a worktree with an open PR, a running worker's",
@@ -177,8 +196,11 @@ class TestSweepCleansFirst(unittest.TestCase):
         same(out.index("clean: disk") < out.index("stragglers:"), True)
 
     def test_over_the_pressure_everything_not_in_use_goes(self) -> None:
-        """Over the limit the no-PR worktree and clone, the young tempdir and
-        the cache go; the open PR's worktree and the running worker stay."""
+        """Over the limit everything not in use goes.
+
+        The no-PR worktree and clone, the young tempdir and the cache go; the
+        open PR's worktree and the running worker stay.
+        """
         here = scene("0.001")
         out = swept(here, "sweep")
         same(remaining(here), AGGRESSIVE)
@@ -189,7 +211,7 @@ class TestSweepCleansFirst(unittest.TestCase):
                 "(disk pressure: it has no open PR)",
                 f"REMOVED PATH {here.workspace}/quiet-clone",
                 "(disk pressure: its repository has no open PR)",
-                f"REMOVED PATH {tmp_of(here)}/tmpAAAAAAAA",
+                f"REMOVED PATH {temps_of(here)}/tmpAAAAAAAA",
                 f"REMOVED PATH {here.workspace}/home/.cache/pip",
                 "package cache, regenerates",
             ],

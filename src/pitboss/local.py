@@ -279,9 +279,7 @@ def in_base(run: Run, directory: pathlib.Path, revision: str, base: str) -> bool
     return bool(contains.strip())
 
 
-def finished_reason(
-    sweeper: Sweeper, worktree: Worktree, aggressive: bool = False
-) -> Reason | None:
+def finished_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
     """Decide whether a worktree's work is finished and on GitHub.
 
     It is finished only when it is not the main clone, lies under the
@@ -289,13 +287,11 @@ def finished_reason(
     the base branch. A worktree with an open PR is never finished. Whether it
     may be removed is a second question, the one safety test of
     ``dead.verdict`` (keyword: clean-worktrees, ``rules.md``, "Checkouts and
-    disk"). Under disk pressure (``aggressive``, keyword: auto-clean) every
-    worktree without an open PR is finished.
+    disk").
 
     Args:
         sweeper: what the decision needs.
         worktree: the worktree.
-        aggressive: whether the disk is under pressure.
 
     Returns:
         Why it is finished, or None when it is not.
@@ -312,4 +308,25 @@ def finished_reason(
         sweeper.settings.project.base_branch,
     ):
         return Reason.IN_BASE
-    return Reason.NO_OPEN_PR if aggressive and outcome is None else None
+    return None
+
+
+def pressure_reason(sweeper: Sweeper, worktree: Worktree) -> Reason | None:
+    """Decide whether a worktree may go under disk pressure.
+
+    Every worktree of the main clone, under the workspace, whose branch has no
+    open PR is finished then (keyword: auto-clean); a worktree with an open PR
+    never is.
+
+    Args:
+        sweeper: what the decision needs.
+        worktree: the worktree.
+
+    Returns:
+        Why it is finished, or None when it is not.
+    """
+    reason = finished_reason(sweeper, worktree)
+    unclaimed = worktree.branch not in sweeper.outcomes
+    if reason is None and unclaimed and not _outside(sweeper, worktree):
+        return Reason.NO_OPEN_PR
+    return reason

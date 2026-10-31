@@ -30,6 +30,7 @@ from . import (
     handback,
     ledger,
     local,
+    machine as machines,
     outdated,
     pulls,
     queue,
@@ -279,7 +280,15 @@ def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
         print(line)
 
 
-def _look(found: Context) -> dead.Look:
+def sweep_look(found: Context) -> dead.Look:
+    """What looking at the checkouts needs, from the context.
+
+    Args:
+        found: the context.
+
+    Returns:
+        The look.
+    """
     return dead.Look(
         run=found.args.safe_run,
         github=found.github,
@@ -289,36 +298,27 @@ def _look(found: Context) -> dead.Look:
     )
 
 
-def machine_of(found: Context) -> autoclean.Machine:
-    """What the cleaning reads from this machine.
-
-    Args:
-        found: the context.
-
-    Returns:
-        The machine: the real file system, the disk, the clock and the user.
-    """
-    return autoclean.Machine(
-        fs=autoclean.Real(run=found.args.safe_run),
-        usage=autoclean.read_usage,
-        now=found.now,
-        uid=os.getuid(),
-        home=pathlib.Path(found.args.env.get("HOME", str(pathlib.Path.home()))),
-        working=running_in(found.args),
-    )
-
-
 def _clean_section(found: Context) -> None:
     # A sweep that removes: safe_run really runs (keyword: auto-clean).
     listed = found.clean.worktrees is cleanconfig.Worktrees.LIST
     option = autoclean.Option(run=found.args.safe_run, dry=False, list_only=listed)
-    for text in autoclean.clean_lines(_look(found), machine_of(found), option):
+    look = sweep_look(found)
+    machine = machines.real_machine(
+        found.args.safe_run, found.args.env, found.now, running_in(found.args)
+    )
+    for text in autoclean.clean_lines(look, machine, option):
         print(text)
 
 
 def _disk_section(found: Context) -> None:
-    for text in diskline.lines(_look(found), found.now):
+    for text in diskline.lines(sweep_look(found), found.now):
         print(text)
+
+
+def _outdated_section(args: argparse.Namespace) -> None:
+    tracefs.say(args.safe_run)
+    for line in outdated.lines(__version__, outdated.newest(args.safe_run)):
+        print(line)
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sweep")
@@ -331,9 +331,7 @@ def sweep(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a PR has a failed check or a merge conflict.
     """
-    tracefs.say(args.safe_run)
-    for line in outdated.lines(__version__, outdated.newest(args.safe_run)):
-        print(line)
+    _outdated_section(args)
     found = load_context(args)
     _clean_section(found)
     clock = timing.Clock(started=time.monotonic())
@@ -396,33 +394,5 @@ def clean_worktrees(args: argparse.Namespace) -> None:
     """
     found = load_context(args)
     how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
-    for text in worktrees.remove_lines(_look(found), how, found.now):
-        print(text)
-
-
-@ENTRY_DATA.register(
-    CONFIG_ARGUMENT,
-    NOW_ARGUMENT,
-    add_argument("--dry-run", action="store_true", default=False),
-    name="clean",
-)
-def clean(args: argparse.Namespace) -> None:
-    """Clean the disk now, as a sweep does first; nothing to confirm.
-
-    It removes the test tempdirs older than ``[clean] tmp_hours``, the finished
-    worktrees and the dead checkouts, and, with the disk at ``[clean]
-    pressure_percent`` used or more, every worktree and checkout without an open
-    PR and the package caches that regenerate. It never touches a worktree with
-    an open PR or a running worker's directory. ``--dry-run`` removes nothing.
-    This is the answer to a denied ``rm``: run it, do not stop (keyword:
-    auto-clean).
-
-    Args:
-        args: the parsed arguments.
-    """
-    found = load_context(args)
-    option = autoclean.Option(
-        run=args.run if args.dry_run else args.safe_run, dry=args.dry_run
-    )
-    for text in autoclean.clean_lines(_look(found), machine_of(found), option):
+    for text in worktrees.remove_lines(sweep_look(found), how, found.now):
         print(text)

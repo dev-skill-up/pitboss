@@ -153,11 +153,22 @@ def from_document(document: Mapping[str, object]) -> Clean:
     if not isinstance(table, dict):
         raise ValueError(f"[clean] must be a table, not {table!r}")
     lists = _lists(table)
-    return Clean(
+    base = Clean(
         scratch=lists["scratch"],
         live=lists["live"],
         min_free_gib=_free(table),
         worktrees=_worktrees(table),
+    )
+    return _with_auto_clean(base, table, lists)
+
+
+def _with_auto_clean(
+    base: Clean,
+    table: Mapping[str, object],
+    lists: Mapping[str, Sequence[pathlib.Path]],
+) -> Clean:
+    return dataclasses.replace(
+        base,
         tmp_roots=lists["tmp_roots"],
         tmp_patterns=_patterns(table),
         tmp_hours=_hours(table, "tmp_hours", DEFAULT_TMP_HOURS),
