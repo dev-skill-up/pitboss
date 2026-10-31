@@ -141,8 +141,9 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
 
     A head that differs from the approved one only by a merge of the base is
     checked for the merge alone; a head after a review that asked for changes
-    for those findings alone; the Plan stage for the Plan alone; any other head
-    for the full review of that head.
+    for those findings alone, but only once the Plan is approved (a revised Plan is
+    graded with the Execution as a first review is); the Plan stage for the Plan
+    alone; any other head for the full review of that head.
 
     Args:
         pull: the PR, at a review step.
@@ -153,14 +154,15 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
     found = pull.review
     asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
     older = pull.standing is reviews.Standing.OLDER_HEAD
-    if pull.standing is reviews.Standing.APPROVED_BEFORE_MERGES:
+    resolved = pull.standing is reviews.Standing.APPROVED_BEFORE_MERGES
+    if resolved or pull.merges_only:
         return brief.Kind.REVIEW_RESOLUTION
     if pull.step.stage is steps.Stage.PLAN_ONLY:
         return brief.Kind.REVIEW_PLAN
+    if pull.step.stage is steps.Stage.PLAN_AND_EXECUTION:
+        return brief.Kind.REVIEW_FULL  # the Plan was never approved: graded alone
     if older and asked:
         return brief.Kind.REVIEW_FIX_ROUND
-    if pull.step.stage is steps.Stage.PLAN_AND_EXECUTION:
-        return brief.Kind.REVIEW_FULL
     return brief.Kind.REVIEW_EXECUTION
 
 

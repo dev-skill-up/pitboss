@@ -11,6 +11,7 @@ from . import (
     config,
     flow,
     ghapi,
+    mergecarry,
     parsing,
     reviews,
     shapes,
@@ -34,6 +35,9 @@ class PullFacts:
         unreadable_reviews: the trusted comments that grade a review but are
             not in the review form (keyword: unreadable-review).
         step: the one step the PR is at (keyword: review-flow).
+        merges_only: whether the head differs from an older approved head only
+            by merges of the base, gated or not (a gate still wants a review
+            of this head, but of the merge alone: keyword: merge-scope).
     """
 
     repo: config.Repo
@@ -44,6 +48,7 @@ class PullFacts:
     unread: str = ""
     unreadable_reviews: Sequence[unreadableform.UnreadableReview] = ()
     step: steps.Next
+    merges_only: bool = False
 
 
 def reference(facts: PullFacts) -> str:
@@ -173,15 +178,6 @@ class Source:
     undraft: Callable[[], bool]
 
 
-def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
-    compare = f"repos/{repo.slug}/compare/{pull.base}..."
-    since_base = ghapi.get(source.github, compare + pull.head.sha)
-    reviewed = ghapi.get(source.github, compare + sha)
-    return reviews.only_merges(
-        parsing.comparison(since_base), parsing.comparison(reviewed)
-    )
-
-
 def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
     prefix = f"repos/{repo.slug}"
     return reviews.Sources(
@@ -195,19 +191,11 @@ def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
 
 
 def _standing(
-    source: Source, repo: config.Repo, pull: shapes.Pull, found: reviews.Found | None
+    gated: bool, merged: bool, pull: shapes.Pull, found: reviews.Found | None
 ) -> reviews.Standing:
-    standing = reviews.head_standing(found, pull.head.sha)
-    older_approval = (
-        found is not None
-        and standing is reviews.Standing.OLDER_HEAD
-        and found.verdict is reviews.Verdict.APPROVED
-        and not reviews.plan_only(found)
-        and repo.slug not in source.review.gated
-    )
-    if older_approval and found and _carries(source, repo, pull, found.sha):
+    if merged and not gated:
         return reviews.Standing.APPROVED_BEFORE_MERGES
-    return standing
+    return reviews.head_standing(found, pull.head.sha)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -255,7 +243,9 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         comments=got.posted.comments,
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
-        merges_only_since=lambda sha: _carries(source, repo, got.pull, sha),
+        merges_only_since=lambda sha: mergecarry.carries(
+            source.github, repo.slug, got.pull, sha
+        ),
     )
 
 
@@ -287,15 +277,17 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     got = _fetched(source, repo, number)
     found = reviews.newest(got.posted, source.review, repo.slug)
     unread, unreadable_reviews = _unreadable(source, repo, got, found)
+    merged = mergecarry.merged_since(source.github, repo.slug, got.pull, found)
     return PullFacts(
         repo=repo,
         pull=got.pull,
         checks=got.checks,
         review=found,
-        standing=_standing(source, repo, got.pull, found),
+        standing=_standing(repo.slug in source.review.gated, merged, got.pull, found),
         unread=unread,
         unreadable_reviews=unreadable_reviews,
         step=flow.next_step(_state(source, repo, got)),
+        merges_only=merged,
     )
 
 

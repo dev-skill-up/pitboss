@@ -1,5 +1,6 @@
 """The top suggestions of ``next`` and ``slots next``, with their briefs (#118)."""
 
+import pathlib
 import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
@@ -176,6 +177,16 @@ def scope_is(here: world.World, kind: str, scope: str) -> None:
     assert_that(found, equal_to((kind, scope)))
 
 
+def gate_project(here: world.World) -> None:
+    """Make the project a gated repository.
+
+    Args:
+        here: the world.
+    """
+    path = pathlib.Path(here.config)
+    path.write_text(path.read_text().replace('["gated"]', '["gated", "project"]'))
+
+
 class TestKindsOfReview(unittest.TestCase):
     """The scope of a review follows the head and the review before it."""
 
@@ -207,6 +218,31 @@ class TestKindsOfReview(unittest.TestCase):
             f" those of the newest review, of head {OLDER}."
         )
         scope_is(here, "review the fix round's findings only", scope)
+
+    def test_a_revised_plan_is_graded_with_the_execution_not_as_a_fix(self) -> None:
+        """A rejected Plan, revised: the head moved, but the Plan was never approved."""
+        here = world_with([graded(CHANGES, None, 1, sha=OLDER)])
+        scope = f"Scope: the full review of head {HEAD}"
+        scope_is(here, "review the Plan and the Execution", scope)
+
+    def test_a_gated_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
+        """2a has no gated exception: the gate wants a review of this head."""
+        here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
+        merge_only(here)
+        gate_project(here)
+        scope = (
+            f"Scope (exclusive): this head {HEAD} differs from the approved"
+            f" head {OLDER} only by a merge of main."
+        )
+        scope_is(here, "review the merge resolution only", scope)
+
+    def test_a_gated_head_changed_by_more_than_a_merge_is_reviewed_in_full(
+        self,
+    ) -> None:
+        """The gated repository is not special when the author changed the code."""
+        here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
+        gate_project(here)
+        scope_is(here, "review the Execution", f"Scope: the Execution of head {HEAD}")
 
     def test_a_draft_gets_the_plan_alone(self) -> None:
         """The Plan stage."""

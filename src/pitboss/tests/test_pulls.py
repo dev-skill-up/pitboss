@@ -48,6 +48,8 @@ def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, 
         fakes.page("repos/owner/gated/pulls?state=open"): [{"number": 2}],
         "repos/owner/project/compare/main..." + fakes.HEAD: {"commits": since_head},
         "repos/owner/project/compare/main..." + fakes.OLDER: {"commits": [AUTHORED]},
+        "repos/owner/gated/compare/main..." + fakes.HEAD: {"commits": since_head},
+        "repos/owner/gated/compare/main..." + fakes.OLDER: {"commits": [AUTHORED]},
     }
     for slug, number, changes in [("owner/project", 1, pull), ("owner/gated", 2, {})]:
         prefix = f"repos/{slug}"
