@@ -7,10 +7,19 @@ only inside a fenced block that ``pitboss expand`` produced: its opening line
 carries the mark and the digest of its contents (keyword: expand,
 pitboss#117). Every other command row is refused rather than parsed, so no
 container GitHub shows a block in can hide a typed one.
+
+The match is on the canonical form of a line (``canonical``): HTML entities
+decoded, then NFKC normalisation, then every format character (category Cf)
+dropped, then leading HTML tags removed. A fullwidth ``$``, a no-break space,
+a zero-width character, ``&#36;`` or a ``<pre>`` before the row therefore do
+not hide it. A produced block is exempt on its raw lines, so its digest still
+covers exactly what ``expand`` printed.
 """
 
 import dataclasses
+import html
 import re
+import unicodedata
 from typing import Sequence
 
 from . import expansion
@@ -21,6 +30,24 @@ CLOSING = re.compile(r"^ {0,3}(?P<ticks>`+|~+)[ \t]*$")
 HEADING = re.compile(r"^ {0,3}(?P<hashes>#{1,6})(?:[ \t]+(?P<title>.*))?$")
 EVIDENCE = re.compile(r"Evidence\b", re.IGNORECASE)
 COMMAND = re.compile(r"^(?:[ \t>]|[-+*](?=[ \t])|\d{1,9}[.)](?=[ \t]))*\$(?:[ \t]|$)")
+LEADING_TAGS = re.compile(r"^(?:\s*<[^>]*>)*")
+
+
+def canonical(line: str) -> str:
+    """The form of a line that a reader sees, for the command match.
+
+    The keyword is expand (pitboss#117).
+
+    Args:
+        line: a raw line of a body.
+
+    Returns:
+        The line with HTML entities decoded, NFKC normalised, format
+        characters (category Cf) removed and leading HTML tags removed.
+    """
+    normal = unicodedata.normalize("NFKC", html.unescape(line))
+    visible = "".join(c for c in normal if unicodedata.category(c) != "Cf")
+    return LEADING_TAGS.sub("", visible)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -188,7 +215,7 @@ def hand_typed(body: str) -> Sequence[int]:
 
     The whole body is read, not only its Evidence section: a heading that
     lint does not see can still be shown as one. A produced block elsewhere is
-    fine.
+    fine. A row is matched in its canonical form (``canonical``).
 
     Args:
         body: the text.
@@ -205,5 +232,5 @@ def hand_typed(body: str) -> Sequence[int]:
     return [
         number
         for number, line in enumerate(body.splitlines(), 1)
-        if COMMAND.match(line) and number not in inside
+        if COMMAND.match(canonical(line)) and number not in inside
     ]

@@ -90,6 +90,36 @@ CASES: Mapping[str, tuple[str, Sequence[int]]] = {
     "typed before Evidence": (f"## Plan\n\n{TYPED}\n## Evidence\n\n{GENERATED}", [4]),
     "typed after Evidence": (f"## Evidence\n\n{GENERATED}\n## Notes\n\n{TYPED}", [11]),
     "typed under a heading of another section": (f"## Execution\n\n{TYPED}", [4]),
+    "a pre block with an entity dollar": (
+        "## Evidence\n\n<pre>\n&#36; nox -s tests\nOK\n</pre>\n",
+        [4],
+    ),
+    "a pre tag on the row": ("## Evidence\n\n<pre>$ nox -s tests\nOK\n</pre>\n", [3]),
+    "a no-break space after the dollar": (
+        "## Evidence\n\n```\n$\u00a0nox -s tests\nOK\n```\n",
+        [4],
+    ),
+    "a zero-width space before the dollar": (
+        "## Evidence\n\n```\n\u200b$ nox -s tests\nOK\n```\n",
+        [4],
+    ),
+    "a byte order mark before the dollar": (
+        "## Evidence\n\n```\n\ufeff$ nox -s tests\nOK\n```\n",
+        [4],
+    ),
+    "a no-break space before the dollar": (
+        "## Evidence\n\n```\n\u00a0$ nox -s tests\nOK\n```\n",
+        [4],
+    ),
+    "a fullwidth dollar": (
+        "## Evidence\n\n```\n\uff04 nox -s tests\nOK\n```\n",
+        [4],
+    ),
+    "a no-break space in produced output": (
+        "## Evidence\n\n"
+        + expansion.block("cat f", expansion.Outcome(status=0, output="$\u00a0x\n")),
+        [],
+    ),
 }
 # each text, whether it has an Evidence section and whether expand produced a
 # block in it
