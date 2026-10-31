@@ -21,7 +21,7 @@ MIN_FENCE = 3
 TICKS = re.compile(r"`+")
 
 
-class TemplateError(ValueError):
+class TemplateError(ValueError):  # noqa: SLD504,SLD401
     """A template that cannot be expanded."""
 
 
@@ -130,9 +130,6 @@ def commands(template: str) -> Sequence[str]:
 
     Returns:
         Each directive's command line.
-
-    Raises:
-        TemplateError: for a directive with no command.
     """
     return [
         _command_of(line, number)

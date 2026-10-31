@@ -33,7 +33,8 @@ whether the repository is gated.
 - Check three things from the PR itself, before the diff: the Head line (the
   last `Head:` line of the body is the full SHA of the head you review), that
   the Evidence is real output (a command and what it printed) run on that
-  head, and the checks. The orchestrator that started you read none of them;
+  head (every `$ ` block of the Evidence carries the mark of `pitboss expand`,
+  which `pitboss lint pr-body` checks), and the checks. The orchestrator that started you read none of them;
   they are yours. A Head line that is not the head, or Evidence that is not
   real output on that head, is changes needed. In a review of the Plan alone
   (below) only the Head line is checked: the Evidence and the checks belong to

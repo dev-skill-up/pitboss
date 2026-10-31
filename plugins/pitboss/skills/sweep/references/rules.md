@@ -587,6 +587,21 @@ compaction.
   `Grep: look for a statement the change makes false or contradictory anywhere
   in the tree; one is changes needed. An objection to a phrase no claim depends
   on is answered by removing the phrase.`
+- **Evidence line** (keyword: expand, pitboss#117; workers typed evidence from
+  inference and got counts, mutation runs and output wrong). Evidence, counts
+  and file contents in a PR body come only from `pitboss expand`, never from
+  the worker's hand. A worker brief says: `Evidence: write the body as a
+  template in which every fact is a line "$ <command>" (the head is "$ git
+  rev-parse HEAD", a count is "$ git log origin/main..HEAD --oneline | wc -l",
+  a file is "$ cat < path", a mutation run is "$ sh scripts/<script>" of a
+  script committed in the PR); run pitboss expand TEMPLATE and send its output
+  as the body; never retype or abbreviate output; lint pr-body refuses a
+  hand-typed "$ " block in Evidence.` A reviewer brief says: `Evidence: every
+  "$ " block in the Evidence is one pitboss expand marked (lint pr-body checks
+  the mark); a command that is not the one the claim needs, or a claim with no
+  command, is changes needed.` The commands run with the permissions of whoever
+  runs expand, so a template is only ever the worker's own (`design.rst`,
+  "Expanding a template").
 - **An existing comment or body is edited only with its full text in hand**
   (orchestrator, 2026-10-30: a stand-in text sent to an update-comment tool on
   a comment that had not been read overwrote the closing comment on
@@ -757,7 +772,8 @@ compaction.
 - **The author posts the evidence for every claim of a PR and every item of
   the ticket's Done-when in the PR body: the command and its raw output.** A
   claim is never weakened to match the logs; the code is changed until the
-  output shows it.
+  output shows it. The command and its output come from `pitboss expand`,
+  never from the author's hand (`Evidence line`, above).
 - **A test that went red is root-caused, or the test is made robust against
   the cause that was found**: "it passed again", "it passes alone" and
   "contention" are not causes. A class of failure a change says it covers has a

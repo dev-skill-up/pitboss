@@ -1,9 +1,9 @@
 """The ``expand`` command: a template of shell commands becomes a body.
 
-keyword: expand (pitboss#117). Trust boundary: each directive runs with
-``sh -c`` in the given checkout, with the permissions of whoever runs
-``pitboss expand``, so the template is the worker's own and is never read from
-somewhere else (a pull request's text, another person's branch).
+This is the expand area (pitboss#117). Each directive runs with ``sh -c`` in the
+given checkout, with the permissions of whoever runs ``pitboss expand``, so the
+template is the worker's own and is never read from somewhere else (a pull
+request's text, another person's branch).
 """
 
 import argparse
@@ -16,6 +16,11 @@ from gather.commands import add_argument
 from . import ENTRY_DATA, expansion
 
 USAGE_ERROR = 2
+
+
+def _fail(message: str) -> SystemExit:
+    print(message, file=sys.stderr)
+    return SystemExit(USAGE_ERROR)
 
 
 def run_in(
@@ -50,6 +55,17 @@ def run_in(
     )
 
 
+def _body(args: argparse.Namespace) -> str:
+    directory = pathlib.Path(args.cwd)
+    if not directory.is_dir():
+        raise _fail(f"{args.cwd}: not a directory")
+    try:
+        template = pathlib.Path(args.template).read_text(encoding="utf-8")
+        return expansion.expand(template, functools.partial(run_in, args, directory))
+    except (OSError, UnicodeError, expansion.TemplateError) as error:
+        raise _fail(f"{args.template}: {error}") from error
+
+
 @ENTRY_DATA.register(
     add_argument("template", help="the template file: text with `$ command` lines"),
     add_argument(
@@ -68,16 +84,7 @@ def expand(args: argparse.Namespace) -> None:
     supplies a fact.
 
     Args:
-        args: the parsed arguments.
+        args: the parsed arguments (a template or directory it cannot use
+            exits with status 2).
     """
-    try:
-        template = pathlib.Path(args.template).read_text(encoding="utf-8")
-        directory = pathlib.Path(args.cwd)
-        if not directory.is_dir():
-            raise NotADirectoryError(f"{args.cwd}: not a directory")
-        shell = functools.partial(run_in, args, directory)
-        body = expansion.expand(template, shell)
-    except (OSError, UnicodeError, expansion.TemplateError) as error:
-        print(f"{args.template}: {error}", file=sys.stderr)
-        raise SystemExit(USAGE_ERROR) from error
-    sys.stdout.write(body)
+    sys.stdout.write(_body(args))

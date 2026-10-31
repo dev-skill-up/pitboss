@@ -5,9 +5,9 @@ parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 ``footer`` for a PR body;``first-line``, ``verdict``, ``reviewed``,
 ``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
 ``done-when`` for a brief). A PR body also gets ``hand-typed`` for an
-Evidence block that ``pitboss expand`` did not produce. The wording a project chooses (a review's lines,
-a PR body's footers, a brief's required lines) is read from its
-configuration (``config.Lint`` and ``config.ReviewForm``).
+Evidence block that ``pitboss expand`` did not produce. The wording a project
+chooses (a review's lines, a PR body's footers, a brief's required lines) is
+read from its configuration (``config.Lint`` and ``config.ReviewForm``).
 """
 
 import dataclasses

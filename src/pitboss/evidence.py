@@ -53,7 +53,7 @@ class Reading:
     fence: str = ""
     info: str = ""
     opened: int = 0
-    kept: tuple[str, ...] = ()
+    kept: Sequence[str] = ()
 
 
 def _closes(fence: str, line: str) -> bool:
@@ -62,11 +62,11 @@ def _closes(fence: str, line: str) -> bool:
 
 
 def _level_after(reading: Reading, line: str) -> int:
-    heading = HEADING.match(line)
-    if heading is None:
+    title_line = HEADING.match(line)
+    if title_line is None:
         return reading.evidence_level
-    level = len(heading.group("hashes"))
-    if EVIDENCE.match(heading.group("title") or ""):
+    level = len(title_line.group("hashes"))
+    if EVIDENCE.match(title_line.group("title") or ""):
         return level
     return 0 if level <= reading.evidence_level else reading.evidence_level
 
@@ -151,7 +151,5 @@ def hand_typed(body: str) -> Sequence[int]:
     return [
         each.line
         for each in blocks(body)
-        if each.in_evidence
-        and _holds_command(each)
-        and not produced(each)
+        if each.in_evidence and _holds_command(each) and not produced(each)
     ]
