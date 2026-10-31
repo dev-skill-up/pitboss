@@ -37,6 +37,7 @@ from . import (
     report,
     shapes,
     sweepline,
+    syncing,
     timing,
     tracefs,
     worktrees,
@@ -72,16 +73,7 @@ class Context:
     args: argparse.Namespace
 
 
-def working_directory(args: argparse.Namespace) -> pathlib.Path:
-    """The directory a configuration name is looked up from.
-
-    Args:
-        args: the parsed arguments.
-
-    Returns:
-        ``PWD`` of the environment, else the current directory.
-    """
-    return pathlib.Path(args.env.get("PWD", "."))
+working_directory = configfile.working_directory
 
 
 def running_in(args: argparse.Namespace) -> AbstractSet[pathlib.Path]:
@@ -347,7 +339,7 @@ def sweep(args: argparse.Namespace) -> None:
     report.print_ledger(book)
     sweepline.slots(found.github, found.settings, book, open_pulls(found))
     handback.print_lines(book, found.now)
-    if broken:
+    if syncing.section(args, found.settings) or broken:
         raise SystemExit(1)
 
 

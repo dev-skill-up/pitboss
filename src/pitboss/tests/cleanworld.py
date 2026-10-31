@@ -197,8 +197,8 @@ def clone_of(workspace: pathlib.Path, here: world.World, name: str) -> pathlib.P
     Returns:
         The clone.
     """
-    origin = fakes.run_git(here.clone, "remote", "get-url", "origin").strip()
-    fakes.run_git(workspace, "clone", "-q", origin, str(workspace / name))
+    origin = world.origin_of(here.clone)
+    fakes.run_git(workspace, "clone", "-q", str(origin), str(workspace / name))
     return workspace / name
 
 
