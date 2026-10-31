@@ -1,11 +1,12 @@
 """A relock PR whose check stays red: the sweep's STALL line (keyword: stall).
 
-A relock PR (head branch starting ``relock/``) whose required check has been red
-for over four hours, counted from the run's completion, is a stall: the next
-relock fails on the same errors until the fix lands, so the skill's rules take
-its fix before every other pull request but the merge of a ready one, unless
-the PR also has RULING DUE or PAUSE (keyword: review-flow), when it waits for
-the ruling or the owner first.
+A relock PR (head branch starting with the configured ``[relock] prefix``,
+default ``relock/``) whose required check has been red for over four hours,
+counted from the run's completion, is a stall: the next relock fails on the
+same errors until the fix lands, so the skill's rules take its fix before every
+other pull request but the merge of a ready one, unless the PR also has RULING
+DUE or PAUSE (keyword: review-flow), when it waits for the ruling or the owner
+first.
 """
 
 import datetime
@@ -14,7 +15,6 @@ from typing import Mapping, Sequence
 from . import pulls, shapes
 from .markers import Marker
 
-RELOCK_PREFIX = "relock/"
 STALL_SECONDS = 4 * 3600
 REQUIRED = "check"
 NO_STEP = "no failed step read"
@@ -36,7 +36,7 @@ def red_seconds(pull: pulls.PullFacts, now: datetime.datetime) -> int | None:
         check run, or None for a PR that is not a relock PR or has no red
         required check run that completed.
     """
-    if not pull.pull.head.branch.startswith(RELOCK_PREFIX):
+    if not pull.relock:
         return None
     times = [
         datetime.datetime.fromisoformat(check.completed_at)

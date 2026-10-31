@@ -12,13 +12,10 @@ of them and never in the flow. The pseudo code's second function is
 
 import dataclasses
 import enum
-import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import sessionurl, shapes, steps
+from . import planbody, sessionurl, shapes, steps
 
-_PLAN_HEADING = re.compile(r"^## Plan\s*$", re.MULTILINE)
-_EXECUTION_HEADING = re.compile(r"^## Execution\s*$", re.MULTILINE)
 Verdict = shapes.Verdict
 Graded = shapes.Graded
 
@@ -50,6 +47,8 @@ class PullState:
             an undraft now (read by the caller; the flow does not look).
         merges_only_since: says whether the current head differs from a
             reviewed head by merge commits only (the caller reads the base).
+        relock: whether the head branch starts with the relock prefix (the
+            caller reads the configuration; keyword: relock).
     """
 
     pull: shapes.Pull
@@ -60,6 +59,7 @@ class PullState:
     trusted: AbstractSet[str]
     undraft_clear: bool = False
     merges_only_since: Callable[[str], bool] = lambda sha: False
+    relock: bool = False
 
 
 def _regular_reviews(pr: PullState) -> Sequence[Graded]:
@@ -99,19 +99,6 @@ def newest_counting_review(pr: PullState) -> Graded | None:
     """
     found = _of_head(pr, _regular_reviews(pr))
     return max(found, key=lambda each: each.when, default=None)
-
-
-def has_plan_execution_body(pr: PullState) -> bool:
-    """Whether the PR's body has a Plan section and an Execution section.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when both headings (``## Plan``, ``## Execution``) are there.
-    """
-    body = pr.pull.body
-    return bool(_PLAN_HEADING.search(body) and _EXECUTION_HEADING.search(body))
 
 
 def is_draft(pr: PullState) -> bool:
@@ -304,8 +291,9 @@ def next_step(pr: PullState) -> steps.Next:
 
     review = newest_counting_review(pr)
 
-    # ---- before any review: the first work on a PR
-    if not has_plan_execution_body(pr):  # first time on this PR
+    # ---- before any review: the first work on a PR; a relock PR fixes no ticket
+    # and has no body to write, it goes straight to its review (pitboss#126)
+    if not (pr.relock or planbody.has_plan_execution_body(pr.pull.body)):
         return steps.worker(steps.Task.FIRST_ROUND)
 
     return draft_gate(pr, review)

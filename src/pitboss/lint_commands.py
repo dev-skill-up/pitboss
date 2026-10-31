@@ -16,6 +16,7 @@ from . import (
     contradictions,
     forms,
     phrases,
+    relock,
     repoarg,
     sessionurl,
     textlint,
@@ -112,6 +113,8 @@ def _ticket(args: argparse.Namespace) -> str | None:
 def _pr_body_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
+    if relock.is_relock(args.branch, settings.relock_prefix):
+        return forms.relock_pr_body(subject, settings.footers)  # keyword: relock
     return forms.pr_body(subject, settings.footers)
 
 
@@ -227,6 +230,12 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         "--head",
         default="",
         help="the PR's head SHA, for pr-body and review",
+    ),
+    add_argument(
+        "--branch",
+        default="",
+        help="the PR's head branch, for pr-body: a relock branch (see [relock]"
+        " prefix) is checked for its head and footer alone",
     ),
     add_argument(
         "--config",

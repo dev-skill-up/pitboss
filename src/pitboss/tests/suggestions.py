@@ -75,3 +75,15 @@ def default_suggestions() -> Sequence[tuple[str, Sequence[str]]]:
         Each header and the lines of its brief.
     """
     return parsed(next_output(world.make_world()))
+
+
+def kind_of_third(here: world.World) -> str:
+    """The kind of PR 3's suggestion.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The kind, as the header says it.
+    """
+    return third(here)[0].split(": ")[1]

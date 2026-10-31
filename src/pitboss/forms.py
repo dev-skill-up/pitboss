@@ -150,6 +150,29 @@ def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
     ]
 
 
+def relock_pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
+    """Check the form of the body of a relock PR (keyword: relock).
+
+    A relock PR fixes no ticket and has no Plan, Execution or hand-run
+    evidence, so ``first-line``, ``one-ticket`` and ``evidence`` are not asked;
+    its head and footer are, and a ``$ `` row typed by hand still is not.
+
+    Args:
+        subject: the body.
+        footers: the lines a body must end with one of (in its last three
+            lines); none requires no footer.
+
+    Returns:
+        The findings.
+    """
+    clean = _clean(subject)
+    return [
+        *_described_head(clean),
+        *_typed_by_hand(clean),
+        *_footer(clean, footers),
+    ]
+
+
 def _role(template: str) -> str:
     if "{verdict}" in template:
         return "verdict"

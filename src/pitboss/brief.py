@@ -32,6 +32,7 @@ class Kind(enum.Enum):
             approved head, and nothing else.
         REVIEW_FIX_ROUND: a reviewer checks that the findings of the last
             review are fixed, and nothing else.
+        REVIEW_RELOCK: a reviewer checks a relock PR (keyword: relock).
         RULING: an Opus agent makes a ruling.
     """
 
@@ -46,6 +47,7 @@ class Kind(enum.Enum):
     REVIEW_PLAN = "review the Plan alone"
     REVIEW_RESOLUTION = "review the merge resolution only"
     REVIEW_FIX_ROUND = "review the fix round's findings only"
+    REVIEW_RELOCK = "review the relock"
     RULING = "make an Opus ruling"
 
 
@@ -56,9 +58,10 @@ REVIEWS = frozenset(
         Kind.REVIEW_PLAN,
         Kind.REVIEW_RESOLUTION,
         Kind.REVIEW_FIX_ROUND,
+        Kind.REVIEW_RELOCK,
     }
 )
-SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND})
+SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND, Kind.REVIEW_RELOCK})
 
 TASKS: Mapping[Kind, str] = {
     Kind.NEW_PR: text.TASK_NEW_PR,
@@ -74,6 +77,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_PLAN: [text.SCOPE_PLAN, text.GREP],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
     Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.CARRIED],
+    Kind.REVIEW_RELOCK: [text.SCOPE_RELOCK, text.RELOCK_CHECKS, text.CARRIED],
 }
 DRAFTS = {True: text.DRAFT, False: text.READY}
 PUSHES = {True: text.PUSH_HELD, False: text.PUSH_FREE}

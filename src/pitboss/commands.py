@@ -33,6 +33,7 @@ from . import (
     machine as machines,
     outdated,
     pulls,
+    pullread,
     queue,
     report,
     shapes,
@@ -116,7 +117,7 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
     clear = functools.partial(
         sweepline.clear, found.github, runs, found.settings.runners, found.now
     )
-    return pulls.read_each(found.github, found.settings, clear)
+    return pullread.read_each(found.github, found.settings, clear)
 
 
 def load_context(args: argparse.Namespace) -> Context:

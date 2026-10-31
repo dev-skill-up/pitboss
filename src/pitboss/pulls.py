@@ -1,8 +1,6 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
-import concurrent.futures
 import dataclasses
-import functools
 import subprocess
 from typing import AbstractSet, Callable, Sequence
 
@@ -12,6 +10,7 @@ from . import (
     flow,
     ghapi,
     parsing,
+    relock,
     reviews,
     shapes,
     steps,
@@ -35,6 +34,8 @@ class PullFacts:
             not in the review form (keyword: unreadable-review).
         step: the one step the PR is at (keyword: review-flow).
         merges_only: only merges of the base since an older full approval.
+        relock: whether its head branch starts with the relock prefix
+            (keyword: relock).
     """
 
     repo: config.Repo
@@ -46,6 +47,7 @@ class PullFacts:
     unreadable_reviews: Sequence[unreadableform.UnreadableReview] = ()
     step: steps.Next
     merges_only: bool = False
+    relock: bool = False
 
 
 def reference(facts: PullFacts) -> str:
@@ -168,11 +170,13 @@ class Source:
         review: how reviews are read.
         undraft: says whether the runners allow an undraft now; it is asked
             only for a draft.
+        relock_prefix: the head branch prefix of a relock PR.
     """
 
     github: ghapi.GitHub
     review: config.Review
     undraft: Callable[[], bool]
+    relock_prefix: str = config.DEFAULT_RELOCK_PREFIX
 
 
 def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
@@ -247,6 +251,10 @@ def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     )
 
 
+def _is_relock(source: Source, pull: shapes.Pull) -> bool:
+    return relock.is_relock(pull.head.branch, source.relock_prefix)
+
+
 def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
     return flow.PullState(
         pull=got.pull,
@@ -257,6 +265,7 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
         merges_only_since=lambda sha: _carries(source, repo, got.pull, sha),
+        relock=_is_relock(source, got.pull),
     )
 
 
@@ -296,6 +305,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         unreadable_reviews=unreadable_reviews,
         step=flow.next_step(_state(source, repo, got)),
         merges_only=merged,
+        relock=_is_relock(source, got.pull),
     )
 
 
@@ -345,56 +355,3 @@ def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:
             call=ghapi.call_of(error),
             status=ghapi.status_of(error),
         )
-
-
-def read_open(
-    github: ghapi.GitHub,
-    settings: config.Config,
-    undraft: Callable[[], bool],
-) -> Sequence[PullFacts]:
-    """Read every open PR of the project and its libraries, concurrently.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-        undraft: says whether the runners allow an undraft now.
-
-    Returns:
-        The PRs, by repository in configured order, then as GitHub lists them,
-        without the ones an API call failed for.
-    """
-    return [
-        each
-        for each in read_each(github, settings, undraft)
-        if not isinstance(each, shapes.Unreadable)
-    ]
-
-
-def read_each(
-    github: ghapi.GitHub,
-    settings: config.Config,
-    undraft: Callable[[], bool],
-) -> Sequence[Read]:
-    """Read every open PR, keeping a PR whose API call failed as a record.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-        undraft: says whether the runners allow an undraft now; it is asked
-            at most once for the run.
-
-    Returns:
-        Each PR, in the order ``read_open`` gives.
-    """
-    wanted = [
-        (repo, number)
-        for repo in config.repositories(settings)
-        for number in ghapi.pages(
-            github, f"repos/{repo.slug}/pulls?state=open", parsing.pull_numbers
-        )
-    ]
-    source = Source(
-        github=github, review=settings.review, undraft=functools.cache(undraft)
-    )
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        return list(pool.map(lambda item: fetch_or_unreadable(source, *item), wanted))

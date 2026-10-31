@@ -27,6 +27,10 @@ from .markers import Marker
 
 TOP = 5
 OPUS_MODEL = "Opus agent, no slot"
+RELOCK_GOAL = (
+    "relock PR {reference} ({title}): move the pins; moves of pins are safe when"
+    " the lock matches and CI is green"
+)
 KIND_OF_CATEGORY = {
     work.Category.NEW_PR: brief.Kind.NEW_PR,
     work.Category.FIRST_ROUND: brief.Kind.FIRST_ROUND,
@@ -136,6 +140,12 @@ def picks(source: Source) -> Sequence[Pick]:
     ]
 
 
+def _fix_round(pull: pulls.PullFacts) -> bool:
+    found = pull.review
+    asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
+    return asked and pull.standing is reviews.Standing.OLDER_HEAD
+
+
 def review_kind(pull: pulls.PullFacts) -> brief.Kind:
     """The kind of review a PR is due, and so its scope.
 
@@ -143,7 +153,9 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
     checked for the merge alone; a head after a review that asked for changes
     for those findings alone, but only once the Plan is approved (a revised Plan is
     graded with the Execution as a first review is); the Plan stage for the Plan
-    alone; any other head for the full review of that head.
+    alone; any other head for the full review of that head. A relock PR
+    (keyword: relock) is reviewed for the relock itself, at any head but a
+    merge of the base or a fix round.
 
     Args:
         pull: the PR, at a review step.
@@ -151,17 +163,16 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
     Returns:
         The kind.
     """
-    found = pull.review
-    asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
-    older = pull.standing is reviews.Standing.OLDER_HEAD
     resolved = pull.standing is reviews.Standing.APPROVED_BEFORE_MERGES
     if resolved or pull.merges_only:
         return brief.Kind.REVIEW_RESOLUTION
+    if pull.relock and not _fix_round(pull):
+        return brief.Kind.REVIEW_RELOCK  # keyword: relock (pitboss#126)
     if pull.step.stage is steps.Stage.PLAN_ONLY:
         return brief.Kind.REVIEW_PLAN
     if pull.step.stage is steps.Stage.PLAN_AND_EXECUTION:
         return brief.Kind.REVIEW_FULL  # the Plan was never approved: graded alone
-    if older and asked:
+    if _fix_round(pull):
         return brief.Kind.REVIEW_FIX_ROUND
     return brief.Kind.REVIEW_EXECUTION
 
@@ -203,6 +214,8 @@ def goal(source: Source, pick: Pick) -> tuple[str, str]:
         The ticket (empty when none is known) and the goal: the title of the
         ticket, else the title of the PR.
     """
+    if pick.pull is not None and pick.pull.relock:
+        return "", RELOCK_GOAL.format(reference=pick.reference, title=pick.title)
     named = sorted(fixes.fixed_tickets(pick.pull)) if pick.pull else [pick.reference]
     if not named:
         return "", f"PR {pick.reference}, which names no ticket: {pick.title}"

@@ -52,7 +52,7 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
 
     Args:
         rounds: the comments, as the API gives them.
-        **changes: changes to PR 3's JSON.
+        **changes: changes to PR 3's JSON (``head`` replaces the whole head).
 
     Returns:
         The world.
@@ -67,8 +67,8 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
         }
         for each in rounds
     ]
-    head = {"sha": HEAD, "ref": "branch-3"}
-    here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, head=head, **changes)
+    changes.setdefault("head", {"sha": HEAD, "ref": "branch-3"})
+    here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, **changes)
     compare = f"{world.PROJECT}/compare/main..."
     authored = {"sha": "1", "parents": [{"sha": "0"}]}
     fix = {"sha": "2", "parents": [{"sha": "1"}]}

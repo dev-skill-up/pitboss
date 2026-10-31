@@ -5,7 +5,7 @@ from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, shapes
+from .. import flow, planbody, shapes
 from . import test_flow
 
 APPROVED = test_flow.APPROVED
@@ -60,7 +60,7 @@ class TestQuestions(unittest.TestCase):
         cases = [
             (state(body=each), want) for each, want in zip(bodies, [True] + [False] * 3)
         ]
-        check(flow.has_plan_execution_body, cases)
+        check(lambda each: planbody.has_plan_execution_body(each.pull.body), cases)
 
     def test_is_draft(self) -> None:
         """A draft is the PR's flag."""
