@@ -98,8 +98,11 @@ compaction.
    (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
    stage, a draft's plan-only review included. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
-   `CONFLICT`, and `slots next` also offers them as the worker's round (`fix
-   the CI`, `resolve the conflict`). A merge is only a `READY TO MERGE` or
+   `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
+   CI`) whatever the stage, but a conflict as `resolve the conflict` only once
+   the execution is approved (`flow.next_step` returns `RESOLVE_CONFLICT` only
+   there, as `slots.md` says); before that the step is the review's or the
+   fix's, whatever the conflict. A merge is only a `READY TO MERGE` or
    `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
    merge of a ready pull request comes first (Order of work, 3), then a
    `STALL` fix, before every `NEXT` line and every other pull request. A pull
