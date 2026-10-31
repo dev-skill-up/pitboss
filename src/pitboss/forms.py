@@ -4,21 +4,20 @@ Each check returns findings, one line each, ending with the check's name in
 parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 ``footer`` for a PR body; ``first-line``, ``verdict``, ``reviewed``,
 ``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
-``done-when`` for a brief). The wording a project chooses (a review's lines,
-a PR body's footers, a brief's required lines) is read from its
-configuration (``config.Lint`` and ``config.ReviewForm``).
+``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
+``$ `` row that ``pitboss expand`` did not produce. The wording a project
+chooses (a review's lines, a PR body's footers, a brief's required lines) is
+read from its configuration (``config.Lint`` and ``config.ReviewForm``).
 """
 
 import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, reviews, sessionurl
+from . import config, evidence, reviews, sessionurl
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
-EVIDENCE_HEADING = re.compile(r"^#+\s*Evidence\b", re.MULTILINE | re.IGNORECASE)
-EVIDENCE_BLOCK = re.compile(r"^(```|~~~)[^\n]*\n\$ ", re.MULTILINE)
 DONE_WHEN = re.compile(
     r"^#+\s*Done when\b[^\n]*\n(.*?)(?=^#+\s|\Z)",
     re.MULTILINE | re.DOTALL | re.IGNORECASE,
@@ -90,19 +89,34 @@ def _described_head(subject: Subject) -> list[str]:
 
 
 def _evidence(subject: Subject) -> list[str]:
-    heading = EVIDENCE_HEADING.search(subject.body)
-    block = EVIDENCE_BLOCK.search(subject.body)
+    # one definition of the section, shared with hand-typed (pitboss#117)
     return _found(
         subject,
         "evidence",
         'no "Evidence" heading: every claim has its command and raw output',
-        not heading,
+        not evidence.has_section(subject.body),
     ) or _found(
         subject,
         "evidence",
-        'no fenced block that starts with "$ <command>" and holds its raw output',
-        not block,
+        "no block in the Evidence section that pitboss expand produced: every"
+        " claim has its command and raw output",
+        not evidence.has_produced(subject.body),
     )
+
+
+def _typed_by_hand(subject: Subject) -> list[str]:
+    # keyword: expand (pitboss#117)
+    return [
+        found
+        for line in evidence.hand_typed(subject.body)
+        for found in _found(
+            subject,
+            "hand-typed",
+            f'line {line}: a "$ " row that pitboss expand did not produce: put'
+            " the command in a template and run pitboss expand",
+            True,
+        )
+    ]
 
 
 def _footer(subject: Subject, footers: Sequence[str]) -> list[str]:
@@ -131,6 +145,7 @@ def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
         *_one_ticket(clean),
         *_described_head(clean),
         *_evidence(clean),
+        *_typed_by_hand(clean),
         *_footer(clean, footers),
     ]
 
