@@ -28,6 +28,7 @@ gated = ["gated"]
 [clean]
 min_free_gib = 0
 tmp_roots = []
+pressure_percent = 100
 
 [slots]
 ledger = "{ledger}"

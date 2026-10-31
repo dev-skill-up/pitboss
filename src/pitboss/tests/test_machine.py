@@ -1,16 +1,13 @@
 """The machine of the automatic cleaning: the pressure switch and the real parts."""
 
 import pathlib
-import subprocess
 import unittest
-from typing import Callable, Sequence
 
 from .. import disk, machine
 from . import cleanworld, world
 from .autocleanworld import Tree, machine_of, used
 
 same = cleanworld.same
-Execute = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 
 
 def crowded_count(percent: int, limit: float) -> int:
@@ -56,48 +53,13 @@ class TestPressureSwitch(unittest.TestCase):
         same([each.place for each in found], [first])
 
 
-def real_root() -> tuple[pathlib.Path, pathlib.Path, list[Sequence[str]]]:
-    """A directory of two entries and a link, and the commands run on it.
+def real_root() -> pathlib.Path:
+    """A directory of two entries.
 
     Returns:
-        The directory, the link, and the (still empty) list of commands run.
+        The directory.
     """
-    top = cleanworld.session_root("a", "b")
-    link = top / "link"
-    link.symlink_to(top / "a")
-    return top, link, []
-
-
-def executing(calls: list[Sequence[str]]) -> Execute:
-    """A runner that really runs, and notes each command.
-
-    Args:
-        calls: where to note them.
-
-    Returns:
-        The runner.
-    """
-
-    def execute(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
-        calls.append(command)
-        return subprocess.run(command, check=True, text=True, capture_output=True)
-
-    return execute
-
-
-def failing(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    """A runner that fails.
-
-    Args:
-        command: the command line.
-
-    Returns:
-        Never; it raises.
-
-    Raises:
-        subprocess.CalledProcessError: always.
-    """
-    raise subprocess.CalledProcessError(1, command)
+    return cleanworld.session_root("a", "b")
 
 
 class TestReal(unittest.TestCase):
@@ -105,53 +67,40 @@ class TestReal(unittest.TestCase):
 
     def test_it_lists_a_directory(self) -> None:
         """It lists the entries, sorted, and none for a missing directory."""
-        top, _, calls = real_root()
-        fs = machine.real(executing(calls))
-        same([each.name for each in fs.children(top)][:3], ["a", "b", "link"])
+        top = real_root()
+        fs = machine.real()
+        same([each.name for each in fs.children(top)][:3], ["a", "b", "marker"])
         same(fs.children(top / "missing"), [])
 
     def test_it_tells_what_is_there(self) -> None:
         """It tells a path from none, and a link from the rest."""
-        top, link, calls = real_root()
-        fs = machine.real(executing(calls))
+        top = real_root()
+        link = top / "link"
+        link.symlink_to(top / "a")
+        fs = machine.real()
         same([fs.exists(top / "a"), fs.exists(top / "none")], [True, False])
         same([fs.is_link(link), fs.is_link(top)], [True, False])
 
     def test_it_reads_owners_and_walks(self) -> None:
         """It reads the owner of a path and walks it."""
-        top, _, calls = real_root()
-        fs = machine.real(executing(calls))
+        top = real_root()
+        fs = machine.real()
         same(fs.owner(top), top.stat().st_uid)
         same(fs.inspect(top / "a").unreadable, ())
 
-    def test_it_removes_through_the_runner(self) -> None:
-        """A path is removed by one ``rm``; a path that is not there is no error."""
-        top, _, calls = real_root()
-        fs = machine.real(executing(calls))
-        fs.remove([top / "a"])
-        fs.remove([top / "missing"])
-        same([fs.exists(top / "a"), len(calls)], [False, 2])
-
-    def test_a_failing_rm_is_not_an_error(self) -> None:
-        """The path is left; the caller sees it is still there."""
-        top, _, _ = real_root()
-        fs = machine.real(failing)
-        fs.remove([top / "b"])
-        same(fs.exists(top / "b"), True)
-
     def test_the_disk_reader_reads_a_path(self) -> None:
         """It reads a real path."""
-        top, _, _ = real_root()
+        top = real_root()
         found = machine.read_usage(top)
         same(found is not None and found.total > 0, True)
 
     def test_the_disk_reader_answers_none_for_a_missing_path(self) -> None:
         """A path that is not there has no use."""
-        top, _, _ = real_root()
+        top = real_root()
         same(machine.read_usage(top / "no"), None)
 
     def test_the_real_machine_is_the_user_running(self) -> None:
         """It reads the home from the environment and keeps the working set."""
         working = {pathlib.Path("/w")}
-        found = machine.real_machine(failing, {"HOME": "/h"}, world.START, working)
+        found = machine.real_machine({"HOME": "/h"}, world.START, working)
         same([found.home, found.working], [pathlib.Path("/h"), working])

@@ -1,5 +1,6 @@
 """End-to-end tests of the automatic cleaning: a sweep first, and ``clean``."""
 
+import functools
 import os
 import pathlib
 import unittest
@@ -8,6 +9,8 @@ from typing import AbstractSet, Mapping, Sequence
 from . import cleanworld, fakes, world
 
 same = cleanworld.same
+MERGED = {"state": "closed", "merged_at": "x"}
+OPEN = {"state": "open"}
 AFTER = ("--now", world.FUTURE)
 HOUR = 3600
 EVERYTHING = {
@@ -82,21 +85,34 @@ def remaining(here: world.World) -> AbstractSet[str]:
     return {name for name, path in places(here).items() if path.exists()}
 
 
+def pull(ref: str, extra: Mapping[str, str]) -> Mapping[str, object]:
+    """A pull request of the fake GitHub.
+
+    Args:
+        ref: its head branch.
+        extra: its state and merge time.
+
+    Returns:
+        The page entry.
+    """
+    return {"head": {"ref": ref}, **extra}
+
+
 def populate(here: world.World) -> None:
     """Put the worktrees, the clone, the tempdirs and the cache of the scene.
 
     Args:
         here: the world.
     """
-    for name in ("quiet-work", "open-work", "running-work"):
-        path = fakes.add_worktree(here.clone, name)
-        fakes.commit_file(path, name)
+    added = map(
+        functools.partial(fakes.add_worktree, here.clone),
+        ("quiet-work", "open-work", "running-work"),
+    )
+    for path in added:
+        fakes.commit_file(path, path.name)
         fakes.push(path)
-    done = {"state": "closed", "merged_at": "x"}
-    here.bodies[world.project_page("pulls?state=all")] = [
-        {"head": {"ref": "merged-work"}, **done},
-        {"head": {"ref": "open-work"}, "state": "open"},
-    ]
+    pulls = [pull("merged-work", MERGED), pull("open-work", OPEN)]
+    here.bodies.update({world.project_page("pulls?state=all"): pulls})
     cleanworld.library_clone(here, "quiet-clone")
     temps = temps_of(here)
     files = {

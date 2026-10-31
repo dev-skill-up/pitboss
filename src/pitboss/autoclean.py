@@ -16,7 +16,7 @@ import dataclasses
 import functools
 import operator
 import pathlib
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Callable, Sequence
 
 from . import (
     cleaning,
@@ -171,20 +171,6 @@ def kept_lines(job: Job) -> Sequence[str]:
     ]
 
 
-def removal_for(job: Job) -> tempclean.Removing:
-    """How this cleaning removes plain paths.
-
-    Args:
-        job: the cleaning.
-
-    Returns:
-        Nothing in a dry run, else through the machine's file system.
-    """
-    if job.option.dry:
-        return tempclean.removing_nothing()
-    return tempclean.removing_for_real(job.machine)
-
-
 def worktrees_part(job: Job) -> Part:
     """Remove the finished worktrees, or only list them.
 
@@ -223,38 +209,51 @@ def scan_checkouts(
     return found, [each for each in chosen if job.hot or each.prune is None]
 
 
-def checkout_lines(
-    found: deadscan.Findings,
-    results: Sequence[tuple[dead.Candidate, str]],
-    note: str,
-) -> Sequence[str]:
-    """Say what happened to each checkout.
+def keep_going(each: dead.Candidate) -> str:
+    """Never hold a path back from its removal.
 
     Args:
-        found: what the scan found.
-        results: each path with the reason it stayed, empty when it went.
-        note: what follows the line of a path removed.
+        each: the candidate.
 
     Returns:
-        The lines: the fetches that failed, then a line for each path.
+        Empty: it may go.
     """
-    return [
-        *(
-            f"fetch failed in {name}: its checkouts are not judged"
-            for name in found.unfetched
-        ),
-        *(
-            cleaning.stuck_line(each, why) if why else cleaning.removed_line(each, note)
-            for each, why in results
-        ),
+    return ""
+
+
+def removal_part(
+    job: Job,
+    found: Sequence[dead.Candidate],
+    recheck: Callable[[dead.Candidate], str],
+) -> Part:
+    """Remove paths, saying what happened to each.
+
+    Args:
+        job: the job.
+        found: the paths.
+        recheck: why a path must not go now, looked at just before its removal.
+
+    Returns:
+        The lines and the paths gone (all of them in a dry run).
+    """
+    option = job.option
+    how = cleaning.Removal(
+        run=option.run, recheck=recheck, batch=cleaning.DEFAULT_BATCH, dry=option.dry
+    )
+    results = list(cleaning.removals(how, found))
+    note = " (dry run)" if option.dry else ""
+    lines = [
+        cleaning.stuck_line(each, why) if why else cleaning.removed_line(each, note)
+        for each, why in results
     ]
+    return Part(lines=lines, gone=[each for each, why in results if not why])
 
 
 def checkouts_part(job: Job) -> Part:
     """Remove the dead checkouts, scratch and root files that are safe.
 
     Args:
-        job: the cleaning.
+        job: the job.
 
     Returns:
         The lines, and the paths that are gone; nothing when the worktrees are
@@ -262,42 +261,39 @@ def checkouts_part(job: Job) -> Part:
     """
     if job.option.list_only and not job.hot:
         return nothing()
-    look, option = job.look, job.option
     found, chosen = scan_checkouts(job)
-    cutoff = job.machine.now.timestamp() - look.settings.idle_hours * 3600
-    how = cleaning.Removal(
-        run=option.run,
-        recheck=functools.partial(dead.recheck, look, cutoff),
-        batch=tempclean.BATCH,
-        dry=option.dry,
-    )
-    results = list(cleaning.removals(how, chosen))
-    gone = [each for each, why in results if not why]
-    cleaning.prune(option.run, gone)
-    return Part(lines=checkout_lines(found, results, removal_for(job).note), gone=gone)
+    cutoff = job.machine.now.timestamp() - job.look.settings.idle_hours * 3600
+    recheck = functools.partial(dead.recheck, job.look, cutoff)
+    part = removal_part(job, chosen, recheck)
+    cleaning.prune(job.option.run, part.gone)
+    failed = [
+        f"fetch failed in {name}: its checkouts are not judged"
+        for name in found.unfetched
+    ]
+    return Part(lines=[*failed, *part.lines], gone=part.gone)
 
 
 def tempdirs_part(job: Job) -> Part:
     """Remove the session user's test tempdirs that nobody has touched.
 
     Args:
-        job: the cleaning.
+        job: the job.
 
     Returns:
         The lines and the paths gone; the age is shorter under pressure.
     """
     clean = job.look.clean
     hours = clean.pressure_tmp_hours if job.hot else clean.tmp_hours
-    found = tempclean.stale_tempdirs(job.machine, clean, hours)
-    lines, gone = tempclean.remove_found(removal_for(job), found)
-    return Part(lines=lines, gone=gone)
+    return removal_part(
+        job, tempclean.stale_tempdirs(job.machine, clean, hours), keep_going
+    )
 
 
 def caches_part(job: Job) -> Part:
     """Remove the package caches that regenerate, under pressure only.
 
     Args:
-        job: the cleaning.
+        job: the job.
 
     Returns:
         The lines and the paths gone; nothing when the disk is not crowded.
@@ -305,8 +301,24 @@ def caches_part(job: Job) -> Part:
     if not job.hot:
         return nothing()
     found = tempclean.regenerable_caches(job.machine, job.look.clean)
-    lines, gone = tempclean.remove_found(removal_for(job), found)
-    return Part(lines=lines, gone=gone)
+    return removal_part(job, found, keep_going)
+
+
+def all_parts(job: Job) -> Sequence[Part]:
+    """Do each kind of cleaning, in order.
+
+    Args:
+        job: the job.
+
+    Returns:
+        What each did: the worktrees, the checkouts, the tempdirs, the caches.
+    """
+    return [
+        worktrees_part(job),
+        checkouts_part(job),
+        tempdirs_part(job),
+        caches_part(job),
+    ]
 
 
 def clean_lines(look: dead.Look, machine: Machine, option: Option) -> Sequence[str]:
@@ -324,10 +336,10 @@ def clean_lines(look: dead.Look, machine: Machine, option: Option) -> Sequence[s
     clean = look.clean
     hot = machines.find_crowded(machine, paths_watched(look), clean.pressure_percent)
     job = Job(look=look, machine=machine, option=option, hot=hot)
-    before = machine.usage(look.settings.project.workspace)
-    parts = [worktrees_part(job), checkouts_part(job), tempdirs_part(job)]
-    parts.append(caches_part(job))
-    after = machine.usage(look.settings.project.workspace)
+    workspace_use = functools.partial(machine.usage, look.settings.project.workspace)
+    before = workspace_use()
+    parts = all_parts(job)
+    after = workspace_use()
     gone = [each for part in parts for each in part.gone]
     verb = "would be freed" if option.dry else "freed"
     return [

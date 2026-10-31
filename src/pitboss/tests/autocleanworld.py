@@ -3,7 +3,7 @@
 import dataclasses
 import functools
 import pathlib
-from typing import Mapping, Sequence
+from typing import MutableMapping, MutableSet, Sequence, Mapping
 
 from hamcrest import assert_that, contains_string
 
@@ -49,15 +49,13 @@ class Tree:
         found: what is in each path.
         owners: the user of each path.
         links: the paths that are symbolic links.
-        stuck: the paths that ``rm`` leaves in place.
-        removals: each call of ``remove``.
     """
 
-    found: dict[pathlib.Path, survey.Survey] = dataclasses.field(default_factory=dict)
-    owners: dict[pathlib.Path, int] = dataclasses.field(default_factory=dict)
-    links: set[pathlib.Path] = dataclasses.field(default_factory=set)
-    stuck: set[pathlib.Path] = dataclasses.field(default_factory=set)
-    removals: list[Sequence[pathlib.Path]] = dataclasses.field(default_factory=list)
+    found: MutableMapping[pathlib.Path, survey.Survey] = dataclasses.field(
+        default_factory=dict
+    )
+    owners: MutableMapping[pathlib.Path, int] = dataclasses.field(default_factory=dict)
+    links: MutableSet[pathlib.Path] = dataclasses.field(default_factory=set)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -72,7 +70,7 @@ class Traits:
 
     owner: int = ME
     marked: bool = False
-    mounts: tuple[pathlib.Path, ...] = ()
+    mounts: Sequence[pathlib.Path] = ()
 
 
 def put(
@@ -88,7 +86,7 @@ def put(
     """
     newest = NOW.timestamp() - age_hours * HOUR
     tree.found[path] = survey.Survey(
-        size=1024, newest=newest, marked=traits.marked, mounts=traits.mounts
+        size=1024, newest=newest, marked=traits.marked, mounts=tuple(traits.mounts)
     )
     tree.owners[path] = traits.owner
 
@@ -170,19 +168,6 @@ def survey_of(tree: Tree, path: pathlib.Path) -> survey.Survey:
     return tree.found[path]
 
 
-def remove(tree: Tree, paths: Sequence[pathlib.Path]) -> None:
-    """Remove paths from the tree, bar the stuck ones.
-
-    Args:
-        tree: the tree.
-        paths: the paths.
-    """
-    tree.removals.append(list(paths))
-    for each in paths:
-        if each not in tree.stuck:
-            del tree.found[each]
-
-
 def filesystem(tree: Tree) -> machine.Filesystem:
     """The file system of a tree.
 
@@ -198,7 +183,6 @@ def filesystem(tree: Tree) -> machine.Filesystem:
         is_link=functools.partial(is_link, tree),
         owner=functools.partial(owner, tree),
         inspect=functools.partial(survey_of, tree),
-        remove=functools.partial(remove, tree),
     )
 
 

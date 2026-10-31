@@ -5,18 +5,14 @@ values of a ``Machine``, so the tests play a fake one (keyword: auto-clean,
 pitboss#120; the rule is in ``rules.md``, "Checkouts and disk").
 """
 
-import contextlib
 import dataclasses
 import datetime
-import functools
 import os
 import pathlib
 import shutil
-import subprocess
 from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import disk, mounts, survey
-from .running import Run
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -29,7 +25,6 @@ class Filesystem:
         is_link: says whether a path is a symbolic link.
         owner: says who owns a path (a link is not followed).
         inspect: walks a path once: size, newest change, marker, mount points.
-        remove: removes paths on one file system; a failure leaves them.
     """
 
     children: Callable[[pathlib.Path], Sequence[pathlib.Path]]
@@ -37,7 +32,6 @@ class Filesystem:
     is_link: Callable[[pathlib.Path], bool]
     owner: Callable[[pathlib.Path], int]
     inspect: Callable[[pathlib.Path], survey.Survey]
-    remove: Callable[[Sequence[pathlib.Path]], None]
 
 
 def _children(directory: pathlib.Path) -> Sequence[pathlib.Path]:
@@ -55,16 +49,8 @@ def _inspect(path: pathlib.Path) -> survey.Survey:
     return survey.walk(path, mounts.current())
 
 
-def _remove(run: Run, paths: Sequence[pathlib.Path]) -> None:
-    with contextlib.suppress(subprocess.CalledProcessError):
-        run(["rm", "-rf", "--one-file-system", "--", *map(str, paths)])
-
-
-def real(run: Run) -> Filesystem:
-    """The file system of this machine; ``rm`` goes through the runner.
-
-    Args:
-        run: the runner for changes.
+def real() -> Filesystem:
+    """The file system of this machine.
 
     Returns:
         The file system.
@@ -75,7 +61,6 @@ def real(run: Run) -> Filesystem:
         is_link=pathlib.Path.is_symlink,
         owner=_owner,
         inspect=_inspect,
-        remove=functools.partial(_remove, run),
     )
 
 
@@ -116,7 +101,6 @@ class Machine:
 
 
 def real_machine(
-    run: Run,
     env: Mapping[str, str],
     now: datetime.datetime,
     working: AbstractSet[pathlib.Path],
@@ -124,7 +108,6 @@ def real_machine(
     """This machine.
 
     Args:
-        run: the runner for changes.
         env: the environment of the command.
         now: the time now.
         working: the directories the command runs in.
@@ -133,7 +116,7 @@ def real_machine(
         The machine: the real file system and disk, the user running.
     """
     return Machine(
-        fs=real(run),
+        fs=real(),
         usage=read_usage,
         now=now,
         uid=os.getuid(),
@@ -164,7 +147,8 @@ def percent_used(usage: disk.Usage) -> float:
     Returns:
         The percent; 0 for a file system of no size.
     """
-    return 100 * (usage.total - usage.free) / usage.total if usage.total else 0.0
+    shown = usage.used + usage.free
+    return 100 * usage.used / shown if shown else 0.0
 
 
 def find_crowded(

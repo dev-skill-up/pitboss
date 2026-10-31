@@ -4,7 +4,7 @@ import pathlib
 import unittest
 from typing import Sequence
 
-from .. import cleanconfig, dead, tempclean
+from .. import cleanconfig, tempclean
 from . import cleanworld
 from . import autocleanworld as fx
 
@@ -19,21 +19,22 @@ def temp_tree() -> fx.Tree:
         The tree.
     """
     tree = fx.Tree()
-    fx.put(tree, fx.TMP / "tmpold00000", 25)
-    fx.put(tree, fx.TMP / "tmpyoung000", 23)
-    fx.put(tree, fx.TMP / "tmpothers00", 99, fx.Traits(owner=0))
+    aged = {
+        "tmpold00000": 25,
+        "tmpyoung000": 23,
+        "tmp1234": 99,
+        "pytest-of-me": 30,
+        "unrelated": 99,
+        WORKING.name: 99,
+    }
+    for name, hours in aged.items():
+        fx.put(tree, fx.TMP / name, hours)
+    others = fx.TMP / "tmpothers00"
+    fx.put(tree, others, 99, fx.Traits(owner=0))
     fx.put_link(tree, fx.TMP / "tmplink0000", 99)
     fx.put(tree, fx.TMP / "tmpmarked00", 99, fx.Traits(marked=True))
-    fx.put(
-        tree,
-        fx.TMP / "tmpmounted0",
-        99,
-        fx.Traits(mounts=(fx.TMP / "tmpmounted0" / "m",)),
-    )
-    fx.put(tree, WORKING, 99)
-    fx.put(tree, fx.TMP / "tmp1234", 99)
-    fx.put(tree, fx.TMP / "pytest-of-me", 30)
-    fx.put(tree, fx.TMP / "unrelated", 99)
+    inside = fx.TMP / "tmpmounted0"
+    fx.put(tree, inside, 99, fx.Traits(mounts=(inside / "m",)))
     return tree
 
 
@@ -131,51 +132,3 @@ class TestCaches(unittest.TestCase):
         """A cache the command runs in is not removed."""
         tree, pip, extra = cache_tree()
         same(caches(tree, extra, [pip]), [extra])
-
-
-def seven() -> tuple[fx.Tree, Sequence[dead.Candidate]]:
-    """A tree with seven old tempdirs.
-
-    Returns:
-        The tree and the seven as candidates.
-    """
-    tree = fx.Tree()
-    paths = [fx.TMP / f"tmp{at:08d}" for at in range(7)]
-    for each in paths:
-        fx.put(tree, each, 99)
-    return tree, [dead.Candidate(path=each, size=1024, reason="old") for each in paths]
-
-
-class TestRemoval(unittest.TestCase):
-    """What was removed is printed, with the space freed."""
-
-    def test_paths_go_in_parts(self) -> None:
-        """Seven paths are two removals."""
-        tree, found = seven()
-        tempclean.remove_found(tempclean.removing_for_real(fx.machine_of(tree)), found)
-        same([len(part) for part in tree.removals], [5, 2])
-
-    def test_each_path_is_reported(self) -> None:
-        """Each path has its line, and all are gone."""
-        tree, found = seven()
-        how = tempclean.removing_for_real(fx.machine_of(tree))
-        lines, gone = tempclean.remove_found(how, found)
-        same(lines[0].split()[0], "REMOVED")
-        same(len(gone), 7)
-
-    def test_a_path_that_stays_is_said_so(self) -> None:
-        """When rm leaves a path it is not counted as gone."""
-        tree, found = seven()
-        tree.stuck.add(found[0].path)
-        how = tempclean.removing_for_real(fx.machine_of(tree))
-        lines, gone = tempclean.remove_found(how, found)
-        fx.has(lines[0], "rm left it in place")
-        same(len(gone), 6)
-
-    def test_a_dry_run_removes_nothing(self) -> None:
-        """Dry, nothing is removed and the lines say so."""
-        tree, found = seven()
-        lines, gone = tempclean.remove_found(tempclean.removing_nothing(), found)
-        same(tree.removals, [])
-        fx.has(lines[0], "(dry run)")
-        same(len(gone), 7)

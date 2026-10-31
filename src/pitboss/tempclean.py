@@ -5,12 +5,11 @@ under disk pressure (keyword: auto-clean, pitboss#120; the rule is in
 ``rules.md``, "Checkouts and disk").
 """
 
-import dataclasses
 import fnmatch
 import pathlib
-from typing import Callable, Sequence
+from typing import Sequence
 
-from . import cleaning, cleanconfig, dead
+from . import cleanconfig, dead
 from .machine import Machine
 
 CACHES_IN_HOME = (
@@ -20,7 +19,6 @@ CACHES_IN_HOME = (
     ".npm/_cacache",
     ".cargo/registry/cache",
 )
-BATCH = cleaning.DEFAULT_BATCH
 
 
 def holds_working(machine: Machine, path: pathlib.Path) -> bool:
@@ -132,84 +130,3 @@ def regenerable_caches(
     """
     places = [*(machine.home / name for name in CACHES_IN_HOME), *clean.caches]
     return dead.ordered(dead.present(cache_candidate(machine, each) for each in places))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Removing:
-    """How paths are removed, or, in a dry run, not.
-
-    Attributes:
-        remove: removes paths.
-        left: whether a path is still there after its removal.
-        note: what follows the line of a path removed.
-    """
-
-    remove: Callable[[Sequence[pathlib.Path]], None]
-    left: Callable[[pathlib.Path], bool]
-    note: str
-
-
-def removing_for_real(machine: Machine) -> Removing:
-    """Remove through the machine's file system.
-
-    Args:
-        machine: the machine.
-
-    Returns:
-        The way.
-    """
-    return Removing(remove=machine.fs.remove, left=machine.fs.exists, note="")
-
-
-def removing_nothing() -> Removing:
-    """A dry run: nothing is removed and everything is gone.
-
-    Returns:
-        The way.
-    """
-    return Removing(remove=lambda _: None, left=lambda _: False, note=" (dry run)")
-
-
-def remove_part(
-    how: Removing, part: Sequence[dead.Candidate]
-) -> tuple[Sequence[str], Sequence[dead.Candidate]]:
-    """Remove some paths with one call, saying what happened to each.
-
-    Args:
-        how: how to remove them.
-        part: the paths.
-
-    Returns:
-        The lines, and the paths that are gone.
-    """
-    how.remove([each.path for each in part])
-    stuck = [each for each in part if how.left(each.path)]
-    lines = [
-        (
-            cleaning.stuck_line(each, "rm left it in place")
-            if each in stuck
-            else cleaning.removed_line(each, how.note)
-        )
-        for each in part
-    ]
-    return lines, [each for each in part if each not in stuck]
-
-
-def remove_found(
-    how: Removing, found: Sequence[dead.Candidate]
-) -> tuple[Sequence[str], Sequence[dead.Candidate]]:
-    """Remove paths in parts, saying what happened to each.
-
-    Args:
-        how: how to remove them.
-        found: the paths.
-
-    Returns:
-        The lines, and the paths that are gone (all of them in a dry run).
-    """
-    parts = [found[at : at + BATCH] for at in range(0, len(found), BATCH)]
-    done = [remove_part(how, part) for part in parts]
-    return (
-        [text for lines, _ in done for text in lines],
-        [each for _, gone in done for each in gone],
-    )

@@ -13,7 +13,7 @@ from .. import cleanconfig, container, dead
 from . import fakes, world
 from .test_local import age
 
-SETTINGS = "min_free_gib = 0\ntmp_roots = []\n"
+SETTINGS = "min_free_gib = 0\ntmp_roots = []\npressure_percent = 100\n"
 NO_MARKER = ("--marker", "/nonexistent-marker")
 
 
@@ -378,7 +378,8 @@ def crowd(here: world.World, minimum: str) -> None:
         here: the world.
         minimum: the TOML number.
     """
-    rewrite(here, f'min_free_gib = {minimum}\ntmp_roots = []\nworktrees = "list"\n')
+    settings = f"min_free_gib = {minimum}\ntmp_roots = []\npressure_percent = 100\n"
+    rewrite(here, settings + 'worktrees = "list"\n')
 
 
 def only_list_worktrees(here: world.World) -> None:
