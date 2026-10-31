@@ -12,16 +12,16 @@ from . import (
     ENTRY_DATA,
     config,
     ledger,
+    nextlist,
     report,
     slotlog,
     tracefs,
-    unreadableline,
-    work,
 )
 from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
     Context,
+    load_brief,
     load_context,
     open_pulls,
     read_ledger,
@@ -146,21 +146,6 @@ def _check(found: Context, book: ledger.Ledger) -> None:
     report.print_ledger(book)
 
 
-def _next(found: Context, book: ledger.Ledger) -> None:
-    open_now = open_pulls(found)
-    unreadableline.print_withheld(open_now)
-    ordered = work.queued(open_now, found.github, found.settings, book)
-    view = report.NextView(
-        items=ordered,
-        assignments=work.assign(ordered, book, found.settings.slots),
-        slots=found.settings.slots,
-        failed=book.failed,
-        now=found.now,
-    )
-    for line in report.next_lines(view):
-        print(line)
-
-
 def _refuse(message: str) -> SystemExit:
     print(message, file=sys.stderr)
     return SystemExit(2)
@@ -198,18 +183,6 @@ def _report(found: Context) -> None:
         print(line)
 
 
-def _present(found: Context) -> None:
-    # The ledger file is authoritative on the slots: absent, exit 1.
-    path = found.settings.slots.ledger
-    if not path.exists():
-        print(
-            f"LEDGER MISSING: {path} does not exist. It is authoritative on"
-            " the slots and the owner creates it",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-
-
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
@@ -236,7 +209,7 @@ def slots(args: argparse.Namespace) -> None:
     tracefs.say(args.safe_run)
     found = load_context(args)
     if action is not Action.REPORT:
-        _present(found)
+        nextlist.require_ledger(found.settings.slots.ledger)
     if action in CHANGES:
         report.print_ledger(_changed(action, found))
     elif action is Action.CHECK:
@@ -244,6 +217,6 @@ def slots(args: argparse.Namespace) -> None:
     elif action is Action.REPORT:
         _report(found)
     elif action is Action.NEXT:
-        _next(found, _read(found))
+        nextlist.show(found, open_pulls(found), _read(found), load_brief(found))
     else:
         report.print_ledger(_read(found))

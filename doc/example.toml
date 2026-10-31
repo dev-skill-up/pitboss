@@ -67,6 +67,18 @@ timeout_minutes = 60
 # kind at all, for any repository. Default: none.
 repositories = ["app"]
 
+[slots.brief]
+# What the briefs of `pitboss next` and `pitboss slots next` say beyond the process.
+# Whether a PR starts as a draft (false: it is opened ready). Default: true.
+# drafts = true
+# Whether pushes wait for the runners (`pitboss push`); false pushes with
+# `git push`. Default: true.
+# holds = true
+# Facts of the project every worker brief states, such as the compiler's path,
+# and every review brief states. Default: none.
+# worker_lines = ["Compiler: /home/user/app/dist/debug/bats"]
+# review_lines = []
+
 [worktrees]
 # How long a worktree must be untouched before it may be stale. Default: 3.
 idle_hours = 3

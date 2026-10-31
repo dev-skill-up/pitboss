@@ -551,9 +551,40 @@ compaction.
 
 ## Briefs and workers
 
+- **Briefs come from pitboss** (keyword: brief, pitboss#118; owner,
+  2026-10-31, after a review brief for a resolution-only review also asked for
+  body checks and the reviewer rejected on the body's last line: "If you only
+  review the conflict resolution, you only review it"). `pitboss next CONFIG`
+  and `pitboss slots next CONFIG` print the top five suggestions in the order
+  the process ranks them (a PR at `RULING DUE` first, then the list of `slots
+  next`), each with its kind, its PR or ticket, its model class and its
+  complete brief, built from the repository's own rules (`[review.form]`,
+  `[lint.pr_body] footers`, `[slots.brief]`). The orchestrator pastes the brief of
+  the first suggestion it can start, unchanged; it does not write one. Adding
+  to a brief is allowed only for a fact the tool cannot know, and never widens
+  a review's scope. The text is `pitboss.brief`, and a test pins it, so a
+  change to a brief is a reviewed code change. Every brief starts with the
+  ticket's original goal in one line, from the ticket. The scope of a review
+  brief is exclusive: a head that differs from the approved head only by a
+  merge of the base is checked for the merge commit's resolution against both
+  parents, the files regenerated from the merge and the CI on the head, and
+  nothing else (not the body, not the approved change); a first review, or a
+  head changed by anything else, is the full review of that head; the review
+  after a fix round checks that round's findings. A finding outside the scope
+  is not a ground for changes needed. A review brief says that a changes
+  needed names a failure an honest worker could hit; a finding that needs
+  deliberate evasion is a note, never a ground for changes needed and never a
+  ruling (owner, 2026-10-31, after two reviews and an Opus ruling were spent on
+  a non-problem). It asks for no attack, bypass or adversarial input that the
+  goal does not name, and for a PR that adds a guard or a lint it asks that
+  honest mistakes (an accidental paste included) are caught, and not that
+  deliberate obfuscation is hunted: those gaps are not findings and get no
+  ticket. The Done-when is read from the ticket by the worker, and copied word
+  for word, as the next bullet says.
 - A brief names the ticket, the files and docs to read, the repository's own
   rules, the kind of change, the check before pushing, and the rules here that
-  apply. **It copies the ticket's Done-when word for word** and adds nothing to
+  apply (pitboss prints it, above; it points the worker at the ticket's own
+  Done-when, which the worker copies). **It copies the ticket's Done-when word for word** and adds nothing to
   it, takes nothing from it (the brief neither narrows it nor tells the worker
   to measure less or more than it says), and offers no alternative to it (owner,
   2026-10-21T19:17:20Z: "NO. MORE. OR."): nothing like "or say what is true",

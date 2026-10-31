@@ -21,6 +21,7 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     __version__,
+    briefconfig,
     cleanconfig,
     config,
     configfile,
@@ -107,6 +108,18 @@ def load_settings(args: argparse.Namespace) -> config.Config:
         The configuration.
     """
     return configfile.load(args.config, working_directory(args))
+
+
+def load_brief(found: Context) -> briefconfig.Brief:
+    """Load what the project's briefs say beyond the process (keyword: brief).
+
+    Args:
+        found: the context.
+
+    Returns:
+        The ``[slots.brief]`` table of the configuration the command was given.
+    """
+    return configfile.load_brief(found.args.config, working_directory(found.args))
 
 
 def open_pulls(found: Context) -> Sequence[pulls.Read]:
