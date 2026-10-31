@@ -196,7 +196,7 @@ class TestSweepCleansFirst(unittest.TestCase):
         )
 
     def test_over_the_pressure_the_output_says_what_it_never_touches(self) -> None:
-        """The open PR's worktree is named, the running worker is kept with its reason."""
+        """The open PR's worktree is named; the running worker is kept, with why."""
         here = scene("0.001")
         out = swept(here, "sweep")
         shows(
