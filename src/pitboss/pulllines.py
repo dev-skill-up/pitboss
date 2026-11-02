@@ -12,7 +12,9 @@ def lines(
     settings: config.Config,
     steps: Mapping[int, Sequence[str]],
 ) -> Sequence[str]:
-    """The STALL, UPDATE, RULING DUE or PAUSE and UNREADABLE REVIEW lines.
+    """The STALL, UPDATE, waiting-for-ruling and UNREADABLE REVIEW lines.
+
+    The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES and PAUSE.
 
     Args:
         pull: the PR.

@@ -456,7 +456,7 @@ compaction.
   quiet, `pitboss pressure`), before any CI wait. A red CI is never a plan
   rejection. A ruling is recorded by a PR comment whose first line is exactly
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
-  and what follows it (`pitboss.rulings.after_opus_ruling`) is carried out as
+  and what follows it (the table `pitboss.flowstate.AFTER`, which the flow reads) is carried out as
   ruled, a split, a reshape or an abandon included. Only a ruling that can be
   read (its second line is `Ruling: <word>`) counts: the newest ruling comment
   decides, and one that cannot be read is `FIX_RULING` (`RULING UNREADABLE`;
