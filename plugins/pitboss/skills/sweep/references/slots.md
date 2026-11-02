@@ -74,9 +74,9 @@ estimated.
 2. Then pull requests in progress: an open PR with no worker that is still
    relevant is finished (fixed, reviewed, brought up to date, merged),
    whatever its priority, so open PRs do not pile up. A `STALL` fix comes
-   before every other pull request but the merge of a ready one (`rules.md`), unless the stalled PR has `RULING DUE` or `PAUSE`.
-   A pull request whose flow step is `OPUS_RULING` or `PAUSE_FOR_OWNER`
-   (`RULING DUE` or `PAUSE` in the sweep; `pitboss.flow.next_step`) is not offered for any round until
+   before every other pull request but the merge of a ready one (`rules.md`), unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`.
+   A pull request whose flow step is `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING` or `RULING_ESCALATES`
+   (`RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` in the sweep; `pitboss.flow.next_step`) is not offered for any round until
    the ruling is recorded or the owner decides.
 3. Then new work, in the order the project requires.
 
@@ -85,7 +85,7 @@ line why it is where it is. The open pull requests that the flow's step gives a
 round come first, in one list, oldest first by creation time, whatever each
 needs; a line says which kind it is. The kind is the step alone
 (`pitboss.flow.next_step`; `pitboss next` prints the same step), so a PR has
-exactly one step and at most one kind. There are six:
+exactly one step and at most one kind. There are eight:
 
 1. **Revise the plan**: step WORKER, task `REVISE_PLAN`. Its author edits the
    `## Plan` section of the body (and, at the end, its `Head:` line) and nothing else (`rules.md`, "Plan first"):
@@ -102,7 +102,13 @@ exactly one step and at most one kind. There are six:
    pins are safe when the lock matches and CI is green, and the check list).
 5. **Resolve the conflict**: step WORKER, task `RESOLVE_CONFLICT`: the head
    is approved and conflicts with the base. Its author resolves it.
-6. **Review it**: step `REGULAR_REVIEW`. On a PR that is not a draft it comes
+6. **Do the ruling's steps**: step WORKER, task `RULING_STEPS`: the newest
+   readable Opus ruling says `do these steps` and no review follows it. Its
+   author does exactly those steps (the ruling is taken as given).
+7. **Carry out the ruling**: step WORKER, task `RULING_AS_GIVEN`: the ruling
+   says `split`, `reshape` or `abandon`. Its author does what it says to the
+   ticket and the PR. (`revise the plan` is the first kind above.)
+8. **Review it**: step `REGULAR_REVIEW`. On a PR that is not a draft it comes
    only once every required check finished green on the head (the CI gate). On
    a draft it is the plan-only review (stage `grade the Plan ONLY`), listed
    with no CI, since a draft runs none. A reviewer that is not its author
@@ -112,7 +118,7 @@ exactly one step and at most one kind. There are six:
 Every other step (waiting, undraft, Opus ruling, pause, merge) is offered for
 no round.
 
-A PR with `RULING DUE` or `PAUSE` (`sweep.md`) is none of these: it has no
+A PR with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` (`sweep.md`) is none of these: it has no
 line in this list, whatever its state, and a fix or a review of it
 waits for the ruling or the owner.
 
@@ -122,7 +128,7 @@ title, body or branch); a ticket with none of the labels is never offered.
 The tickets are ordered by priority label (the order of `priority_labels`),
 then oldest first by the creation time of the ticket. Items a slot already
 holds are left out. A `STALL` line of the sweep (`rules.md`) is the one
-exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE` or `PAUSE` (then it has no line and waits).
+exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` (then it has no line and waits).
 
 Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a
 ticket will touch, and no ticket is skipped or held back because another PR

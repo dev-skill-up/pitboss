@@ -113,7 +113,8 @@ to be undrafted again.
 - Carried by: `READY TO MERGE` and `AUTO MERGE OFF` (arm auto-merge, which
   enqueues), `MERGE BY HAND` (repositories in `[libraries] no_auto_merge`),
   and the order of work in `rules.md` ("Agents and slots": approved at its head
-  and green is a merge). No line tells an undraft from an enqueue; the choice
+  and green is a merge, as is a head the newest readable Opus ruling approved
+  with `execution is approved` and no review after it). No line tells an undraft from an enqueue; the choice
   is the orchestrator's.
 
 **A PR that is only behind is not pushed; a real conflict gets a merge.** A

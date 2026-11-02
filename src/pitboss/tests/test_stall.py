@@ -98,6 +98,17 @@ class TestStall(unittest.TestCase):
         assert_that(line, contains_string("check (job 8): Run bats check, Run tests;"))
         assert_that(line, contains_string("fix it before every other pull request"))
 
+    def test_the_line_names_every_waiting_marker(self) -> None:
+        """The line names the markers that make a stalled PR wait for the owner."""
+        [line] = printed(facts(RELOCK, [check(14401)]))
+        assert_that(
+            line,
+            contains_string(
+                "unless it has RULING DUE, RULING UNREADABLE, RULING ESCALATES or PAUSE"
+                " (then it waits for the ruling or the owner)"
+            ),
+        )
+
     def test_red_for_four_hours_or_less_is_quiet(self) -> None:
         """One second short of four hours, and exactly 14400 seconds, print nothing."""
         for seconds in (14399, 14400):

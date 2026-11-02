@@ -1,11 +1,11 @@
 """``pitboss sweep`` and ``slots next`` take their lines from the flow's step."""
 
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import shapes
+from .. import rulingwords, shapes
 from . import fakes, test_flow, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
@@ -59,14 +59,7 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     """
     here = world.make_world()
     path = fakes.page("repos/owner/project/issues/3/comments")
-    here.bodies[path] = [
-        {
-            "body": each.body,
-            "author_association": each.author_association,
-            "created_at": each.created_at,
-        }
-        for each in rounds
-    ]
+    here.bodies[path] = [world.comment_json(each) for each in rounds]
     changes.setdefault("head", {"sha": HEAD, "ref": "branch-3"})
     here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, **changes)
     compare = f"{world.PROJECT}/compare/main..."
@@ -178,3 +171,112 @@ class TestSweepAndNext(unittest.TestCase):
         here = world_with(TWO_PLAN_REJECTIONS, title="Fixes #9")
         out = next_output(here)
         assert_that("owner/project#9" in out, equal_to(False))
+
+
+def ruled_by(line: str, second: int = 3) -> shapes.Comment:
+    """A recorded Opus ruling of PR 3.
+
+    Args:
+        line: its second line.
+        second: the second of the minute it was written.
+
+    Returns:
+        The comment.
+    """
+    return test_flow.ruling(second, line=line)
+
+
+UNREADABLE_LINE = "RULING UNREADABLE owner/project#3: https://example.org/ruling/"
+DIRTY: Mapping[str, object] = {"mergeable_state": "dirty"}
+UNREADABLE = ruled_by("no ruling line")
+EXECUTION_APPROVED = ruled_by("Ruling: execution is approved")
+
+
+class TestRulingNotInForm(unittest.TestCase):
+    """An unreadable ruling is fixed, never paused (pitboss#129)."""
+
+    def test_an_unreadable_ruling_is_named_not_paused(self) -> None:
+        """The comment and the words are named; the PR is offered for nothing."""
+        unknown = ruled_by("Ruling: whatever")
+        worlds = {
+            "no ruling line": world_with([*TWO_PLAN_REJECTIONS, UNREADABLE]),
+            "unknown word": world_with([*TWO_PLAN_REJECTIONS, unknown]),
+            "a review after it": world_with(
+                [*RULED[:2], UNREADABLE, graded(CHANGES, None, 4)]
+            ),
+            "a draft at its plan stage": world_with([UNREADABLE], draft=True),
+        }
+        for name, here in worlds.items():
+            with self.subTest(name):
+                swept = sweep(here).out
+                assert_that(swept, contains_string(UNREADABLE_LINE))
+                assert_that(swept, contains_string(f"one of: {rulingwords.WORDS};"))
+                shown = ("PAUSE owner" in swept, "RULING DUE" in swept)
+                assert_that(shown, equal_to((False, False)))
+                assert_that(listed_for_third(here), equal_to([]))
+
+    def test_the_newer_of_two_rulings_decides(self) -> None:
+        """Unreadable after readable is unreadable; readable after unreadable is not."""
+        readable = ruled_by("Ruling: split", 5)
+        newer_bad, _ = sweep_and_next(
+            [*TWO_PLAN_REJECTIONS, readable, ruled_by("x", 6)]
+        )
+        newer_ok, _ = sweep_and_next([*TWO_PLAN_REJECTIONS, ruled_by("x", 4), readable])
+        assert_that(newer_bad, contains_string(UNREADABLE_LINE))
+        assert_that("RULING UNREADABLE" in newer_ok, equal_to(False))
+
+
+class TestRulingNoReviewFollows(unittest.TestCase):
+    """PAUSE needs a review after a readable ruling (pitboss#129)."""
+
+    def test_the_ruling_steps_are_offered_and_nothing_is_paused(self) -> None:
+        """Each word is offered as the work it is, with no PAUSE or RULING DUE."""
+        cases = [
+            ("do these steps", "(do the ruling's steps,"),
+            ("revise the plan", "(revise the plan,"),
+            ("split", "(carry out the ruling,"),
+            ("reshape", "(carry out the ruling,"),
+            ("abandon", "(carry out the ruling,"),
+        ]
+        for word, kind in cases:
+            with self.subTest(word=word):
+                swept, listed = sweep_and_next(
+                    [*TWO_PLAN_REJECTIONS, ruled_by(f"Ruling: {word}", 3)]
+                )
+                assert_that("PAUSE owner" in swept, equal_to(False))
+                assert_that("RULING DUE" in swept, equal_to(False))
+                assert_that(listed, contains_string(kind))
+
+    def test_escalating_prints_its_own_line_not_pause(self) -> None:
+        """The owner is told, with a line that does not say a review failed."""
+        rounds = [*TWO_PLAN_REJECTIONS, ruled_by("Ruling: escalate to the owner")]
+        swept, listed = sweep_and_next(rounds)
+        assert_that(
+            swept,
+            contains_string("RULING ESCALATES owner/project#3: the Opus ruling esc"),
+        )
+        assert_that("PAUSE owner" in swept, equal_to(False))
+        assert_that(listed, equal_to(""))
+
+    def test_an_approved_execution_is_told_to_merge_or_resolve(self) -> None:
+        """READY TO MERGE while auto-merge is off; none when armed; the conflict."""
+        armed: Mapping[str, object] = {"auto_merge": {"merge_method": "merge"}}
+        cases: Sequence[tuple[Mapping[str, object], str, bool]] = [
+            ({}, "READY TO MERGE owner/project#3", True),
+            (armed, "READY TO MERGE owner/project#3", False),
+            (armed, "AUTO MERGE OFF owner/project#3", False),
+            (DIRTY, "CONFLICT owner/project#3", True),
+        ]
+        for changes, line, printed in cases:
+            with self.subTest(line=line, changes=changes):
+                here = world_with([*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED], **changes)
+                swept = sweep(here).out
+                assert_that(line in swept, equal_to(printed))
+                assert_that("PAUSE owner" in swept, equal_to(False))
+
+    def test_an_approved_execution_with_a_conflict_is_the_workers(self) -> None:
+        """Listed as the conflict resolution, and not as a merge."""
+        here = world_with([*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED], **DIRTY)
+        assert_that(
+            "".join(listed_for_third(here)), contains_string("(resolve the conflict,")
+        )

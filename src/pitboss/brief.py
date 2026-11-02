@@ -11,7 +11,7 @@ import dataclasses
 import enum
 from typing import Mapping, Sequence
 
-from . import briefconfig, brieftext as text, rulings
+from . import briefconfig, brieftext as text, rulingwords
 
 
 class Kind(enum.Enum):
@@ -24,6 +24,9 @@ class Kind(enum.Enum):
         FIX_REVIEW: a worker fixes the findings of a review.
         FIX_CI: a worker fixes a red CI.
         RESOLVE_CONFLICT: a worker merges the base into a conflicted PR.
+        RULING_STEPS: a worker does exactly the steps of an Opus ruling.
+        RULING_AS_GIVEN: a worker carries out an Opus ruling to split, reshape
+            or abandon.
         REVIEW_FULL: a reviewer grades the Plan and the Execution of a head.
         REVIEW_EXECUTION: a reviewer grades the Execution of a head whose
             Plan is approved.
@@ -42,6 +45,8 @@ class Kind(enum.Enum):
     FIX_REVIEW = "fix the review"
     FIX_CI = "fix the CI"
     RESOLVE_CONFLICT = "resolve the conflict"
+    RULING_STEPS = "do the steps of the Opus ruling"
+    RULING_AS_GIVEN = "carry out the Opus ruling"
     REVIEW_FULL = "review the Plan and the Execution"
     REVIEW_EXECUTION = "review the Execution"
     REVIEW_PLAN = "review the Plan alone"
@@ -70,6 +75,8 @@ TASKS: Mapping[Kind, str] = {
     Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
     Kind.FIX_CI: text.TASK_FIX_CI,
     Kind.RESOLVE_CONFLICT: text.TASK_RESOLVE_CONFLICT,
+    Kind.RULING_STEPS: text.TASK_RULING_STEPS,
+    Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
 }
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [text.SCOPE_FULL, text.CHECK, text.GREP],
@@ -241,7 +248,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
 
 
 def _ruling(values: Mapping[str, str]) -> list[str]:
-    words = ", ".join(f"`{each.value}`" for each in rulings.Ruling)
+    words = ", ".join(f"`{each.value}`" for each in rulingwords.Ruling)
     return [
         text.RULING_WHO.format_map(values),
         text.RULING_RECORD.format(words=words),

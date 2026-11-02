@@ -1,74 +1,20 @@
 """What follows an Opus ruling (keyword: review-flow).
 
 The ruling is a PR comment whose first line is ``Opus ruling`` and whose second
-is ``Ruling:`` and one of the words of ``Ruling``. It is taken as given.
+is ``Ruling:`` and one of the words of ``Ruling`` (``rulingwords``). It is taken
+as given. The flow reads the table ``AFTER`` (``flow.AFTER``);
+``after_opus_ruling`` follows it.
 """
 
-import enum
-from typing import Mapping, Sequence
+from typing import Sequence
 
-from . import flow, sessionurl, steps
+from . import flow, rulingwords, steps
 
-RULING_LINE_PREFIX = "Ruling: "
-
-
-class Ruling(enum.Enum):
-    """What an Opus ruling rules; the value is the word on its ``Ruling:`` line.
-
-    Attributes:
-        DO_THESE_STEPS: a worker does exactly the steps it lists.
-        REVISE_THE_PLAN: the plan is revised.
-        EXECUTION_IS_APPROVED: the execution is approved.
-        SPLIT: the ticket and PR are split.
-        RESHAPE: the ticket and PR are reshaped.
-        ABANDON: the ticket and PR are abandoned.
-        ESCALATE: the owner decides.
-    """
-
-    DO_THESE_STEPS = "do these steps"
-    REVISE_THE_PLAN = "revise the plan"
-    EXECUTION_IS_APPROVED = "execution is approved"
-    SPLIT = "split"
-    RESHAPE = "reshape"
-    ABANDON = "abandon"
-    ESCALATE = "escalate to the owner"
-
-
-_RULINGS = {each.value: each for each in Ruling}
-
-
-def read_ruling(body: str) -> Ruling | None:
-    """Read what a ruling comment rules from its second line.
-
-    Args:
-        body: the comment (first line ``Opus ruling``, second line
-            ``Ruling:`` and one of the words of ``Ruling``).
-
-    Returns:
-        The ruling, or None when the comment is none or says no known word.
-    """
-    lines = sessionurl.lines(body)
-    if not flow.is_ruling(body) or len(lines) < 2:
-        return None
-    second = lines[1].rstrip()
-    if not second.startswith(RULING_LINE_PREFIX):
-        return None
-    return _RULINGS.get(second[len(RULING_LINE_PREFIX) :])
-
-
-AS_RULED = (Ruling.SPLIT, Ruling.RESHAPE, Ruling.ABANDON)
-AFTER: Mapping[Ruling, Sequence[steps.Next]] = {
-    Ruling.DO_THESE_STEPS: (
-        steps.worker(steps.Task.RULING_STEPS),
-        steps.regular_review(steps.Stage.RULING_STEPS),
-    ),
-    Ruling.REVISE_THE_PLAN: (
-        steps.worker(steps.Task.REVISE_PLAN),
-        steps.regular_review(steps.Stage.PLAN_ONLY),
-    ),
-    Ruling.ESCALATE: (steps.pause_for_owner(),),
-    **dict.fromkeys(AS_RULED, (steps.worker(steps.Task.RULING_AS_GIVEN),)),
-}
+RULING_LINE_PREFIX = rulingwords.RULING_LINE_PREFIX
+Ruling = rulingwords.Ruling
+read_ruling = flow.read_ruling
+AS_RULED = flow.AS_RULED
+AFTER = flow.AFTER
 
 
 def after_opus_ruling(pr: flow.PullState, ruling: Ruling) -> Sequence[steps.Next]:
@@ -90,7 +36,9 @@ def after_opus_ruling(pr: flow.PullState, ruling: Ruling) -> Sequence[steps.Next
 
 
 def merge_when_green(pr: flow.PullState) -> steps.Next:
-    """Merge when the checks of the head are green; else what the gate says.
+    """Merge when the checks of the head are green and there is no conflict.
+
+    Else what the gate says: wait for CI, fix a red CI, resolve the conflict.
 
     Args:
         pr: the PR.
@@ -101,4 +49,5 @@ def merge_when_green(pr: flow.PullState) -> steps.Next:
     ci = flow.ci_result(pr)
     if ci is None:
         return steps.wait_for_ci()
-    return steps.merge() if ci is flow.Ci.GREEN else steps.worker(steps.Task.FIX_CI)
+    green = ci is flow.Ci.GREEN
+    return flow.merge_unless_conflict(pr) if green else steps.worker(steps.Task.FIX_CI)

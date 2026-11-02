@@ -33,6 +33,7 @@ CHANGES = shapes.Verdict.CHANGES_NEEDED
 APPROVED = shapes.Verdict.APPROVED
 Task = steps.Task
 Stage = steps.Stage
+RULING_URL = "https://example.org/ruling/5"
 PLAN_REJECTED = (CHANGES, None)
 PLAN_APPROVED_ALONE = (APPROVED, None)
 EXECUTION_REJECTED = (APPROVED, CHANGES)
@@ -64,20 +65,25 @@ FIRST_REJECTION = graded(*PLAN_REJECTED, 1, sha=OLDER)
 SECOND_REJECTION = graded(*PLAN_REJECTED, 2)
 
 
-def ruling(second: int, author: str = "MEMBER") -> shapes.Comment:
+def ruling(
+    second: int, author: str = "MEMBER", line: str = "Ruling: do these steps"
+) -> shapes.Comment:
     """A recorded Opus ruling.
 
     Args:
         second: the second of the minute it was written.
         author: its author's association.
+        line: its second line (``Ruling:`` and a word; any other text makes the
+            ruling unreadable).
 
     Returns:
         The comment.
     """
     return shapes.Comment(
-        body="Opus ruling\nRuling: do these steps\n",
+        body=f"Opus ruling\n{line}\n",
         author_association=author,
         created_at=f"2026-10-30T00:00:{second:02d}Z",
+        url=f"https://example.org/ruling/{second}",
     )
 
 
@@ -303,3 +309,49 @@ class TestBranches(unittest.TestCase):
         first = graded(*EXECUTION_REJECTED, 1, sha=OLDER)
         rejected = state(first, graded(None, CHANGES, 2))
         expect(steps.worker(Task.FIX_EXECUTION), merged(rejected, OLDER))
+
+
+class TestRulingBranches(unittest.TestCase):
+    """What a ruling that no review follows, or that cannot be read, gives."""
+
+    def test_a_ruling_no_review_follows_gives_the_rulings_own_step(self) -> None:
+        """Never the owner's pause, and never a second Opus ruling."""
+        rejected = (FIRST_REJECTION, SECOND_REJECTION)
+        worker = steps.worker
+        cases = [
+            ("do these steps", "clean", worker(Task.RULING_STEPS)),
+            ("revise the plan", "clean", worker(Task.REVISE_PLAN)),
+            ("split", "clean", worker(Task.RULING_AS_GIVEN)),
+            ("reshape", "clean", worker(Task.RULING_AS_GIVEN)),
+            ("abandon", "clean", worker(Task.RULING_AS_GIVEN)),
+            ("escalate to the owner", "clean", steps.ruling_escalates()),
+            ("execution is approved", "clean", steps.merge()),
+            ("execution is approved", "dirty", worker(Task.RESOLVE_CONFLICT)),
+        ]
+        for word, merge_state, want in cases:
+            with self.subTest(word=word, merge_state=merge_state):
+                comments = [ruling(5, line=f"Ruling: {word}")]
+                expect(
+                    want,
+                    state(*rejected, comments=comments, mergeable_state=merge_state),
+                )
+
+    def test_an_unreadable_ruling_is_fixed_not_paused_or_ruled_again(self) -> None:
+        """A new step, whatever the reviews and the draft say."""
+        rejected = (FIRST_REJECTION, SECOND_REJECTION)
+        for line in ("no ruling line", "Ruling: whatever"):
+            comments = [ruling(5, line=line)]
+            for pr in (
+                state(*rejected, comments=comments),
+                state(*rejected, graded(*PLAN_REJECTED, 6), comments=comments),
+                state(*rejected, comments=comments, draft=True),
+                state(comments=comments, body=""),
+            ):
+                with self.subTest(line=line):
+                    expect(steps.fix_ruling(RULING_URL), pr)
+
+    def test_a_paused_pr_with_an_unreadable_ruling_waits_for_the_owner(self) -> None:
+        """The pause label is checked first."""
+        labels = frozenset({steps.PAUSED_LABEL})
+        comments = [ruling(5, line="no ruling line")]
+        expect(steps.wait_for_owner(), state(comments=comments, labels=labels))

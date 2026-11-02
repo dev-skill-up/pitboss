@@ -7,59 +7,25 @@ comments, each section ending in a call to the next. Every question it asks is
 a function of its own below, answered from what is recorded of the PR (its
 body, labels, comments, reviews and checks), so a wrong step is a bug in one
 of them and never in the flow. The pseudo code's second function is
-``rulings.after_opus_ruling``. ``rules.md``, "Plan first", points here.
+``rulings.after_opus_ruling``, whose table (``flowstate.AFTER``) the flow reads
+when a ruling is not yet followed by a review. ``rules.md``, "Plan first",
+points here.
 """
 
-import dataclasses
-import enum
-from typing import AbstractSet, Callable, Sequence
+from typing import Callable, Sequence
 
-from . import planbody, sessionurl, shapes, steps
+from . import flowstate, planbody, rulingwords, shapes, steps
 
 Verdict = shapes.Verdict
 Graded = shapes.Graded
-
-
-class Ci(enum.Enum):
-    """The result of the checks on the current head, once finished.
-
-    Attributes:
-        GREEN: every check finished and none failed.
-        RED: a check failed.
-    """
-
-    GREEN = enum.auto()
-    RED = enum.auto()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class PullState:
-    """What is recorded of one PR; every question reads only this.
-
-    Attributes:
-        pull: the PR.
-        labels: its labels.
-        checks: the check runs of its current head.
-        graded: every review that counts, in no particular order.
-        comments: its issue comments.
-        trusted: the author associations whose comments count.
-        undraft_clear: whether the runner pressure and the quiet period allow
-            an undraft now (read by the caller; the flow does not look).
-        merges_only_since: says whether the current head differs from a
-            reviewed head by merge commits only (the caller reads the base).
-        relock: whether the head branch starts with the relock prefix (the
-            caller reads the configuration; keyword: relock).
-    """
-
-    pull: shapes.Pull
-    labels: AbstractSet[str]
-    checks: Sequence[shapes.CheckRun]
-    graded: Sequence[Graded]
-    comments: Sequence[shapes.Comment]
-    trusted: AbstractSet[str]
-    undraft_clear: bool = False
-    merges_only_since: Callable[[str], bool] = lambda sha: False
-    relock: bool = False
+Ci = flowstate.Ci
+PullState = flowstate.PullState
+is_ruling = flowstate.is_ruling
+read_ruling = flowstate.read_ruling
+newest_ruling = flowstate.newest_ruling
+readable_ruling = flowstate.readable_ruling
+AFTER = flowstate.AFTER
+AS_RULED = flowstate.AS_RULED
 
 
 def _regular_reviews(pr: PullState) -> Sequence[Graded]:
@@ -154,34 +120,6 @@ def get_plan_rejections(pr: PullState) -> int:
     return len(rejected)
 
 
-def is_ruling(body: str) -> bool:
-    """Whether a comment is a recorded Opus ruling.
-
-    Args:
-        body: the comment.
-
-    Returns:
-        True when its first line is exactly ``Opus ruling``.
-    """
-    lines = sessionurl.lines(body)
-    return bool(lines) and lines[0].rstrip() == steps.RULING_FIRST_LINE
-
-
-def opus_used(pr: PullState) -> bool:
-    """Whether a trusted comment records an Opus ruling.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when one does.
-    """
-    return any(
-        is_ruling(each.body) and each.author_association in pr.trusted
-        for each in pr.comments
-    )
-
-
 def execution_fixed_since_plan_approval(pr: PullState) -> bool:
     """Whether a worker pushed an execution fix after the plan was approved.
 
@@ -258,23 +196,49 @@ def plan_rejected_again(pr: PullState) -> bool:
 
 
 def rejected(
-    pr: PullState, task: steps.Task, again: Callable[[PullState], bool]
+    pr: PullState,
+    review: Graded,
+    task: steps.Task,
+    again: Callable[[PullState], bool],
 ) -> steps.Next:
-    """The step after a rejection: pause, the worker's round, or Opus.
+    """The step after a rejection: the ruling's, the owner, the worker or Opus.
 
     Args:
         pr: the PR.
+        review: the newest review that counts, which rejects.
         task: what the worker does on the first rejection.
         again: says whether the rejected part was already given its round.
 
     Returns:
-        The owner after a ruling, else the worker, else Opus.
+        With a readable ruling: the owner when the review was posted after the
+        ruling, else the ruling's own step (no review has followed it yet, and
+        the table's later steps stay unwired: a worker's push moves the head
+        and the ordinary review gate takes over); with none: the worker's
+        round, else Opus.
     """
-    if opus_used(pr):  # the ruling was used, still rejected
+    answered = flowstate.readable_comment(pr)
+    if answered is None:
+        return steps.opus_ruling() if again(pr) else steps.worker(task)
+    posted, ruled = answered
+    if review.when > posted.created_at:  # the ruling was used, still rejected
         return steps.pause_for_owner()
-    if not again(pr):  # first rejection
-        return steps.worker(task)
-    return steps.opus_ruling()  # not converging
+    if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
+        return merge_unless_conflict(pr)  # CI is green, the gate above passed
+    return AFTER[ruled][0]
+
+
+def merge_unless_conflict(pr: PullState) -> steps.Next:
+    """Merge, or resolve the conflict of the head first.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The merge step, or the worker's conflict resolution.
+    """
+    if not has_conflict(pr):
+        return steps.merge()
+    return steps.worker(steps.Task.RESOLVE_CONFLICT)
 
 
 def next_step(pr: PullState) -> steps.Next:
@@ -288,6 +252,10 @@ def next_step(pr: PullState) -> steps.Next:
     """
     if is_paused_for_owner(pr):
         return steps.wait_for_owner()
+
+    # the newest Opus ruling must be readable, a draft's Plan stage included
+    if flowstate.has_unreadable_ruling(pr):
+        return steps.fix_ruling(flowstate.unreadable_ruling_comment(pr))
 
     review = newest_counting_review(pr)
 
@@ -359,7 +327,7 @@ def plan_gate(pr: PullState, review: Graded) -> steps.Next:
     if review.plan is Verdict.CHANGES_NEEDED:  # a Plan rejection
         # the ruling used and still rejected pauses; a first rejection is the
         # worker's; a second (>= 2) is not converging: Opus rules
-        return rejected(pr, steps.Task.REVISE_PLAN, plan_rejected_again)
+        return rejected(pr, review, steps.Task.REVISE_PLAN, plan_rejected_again)
 
     return execution_gate(pr, review)
 
@@ -378,11 +346,11 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
         return steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
 
     if review.execution is Verdict.APPROVED:
-        if not has_conflict(pr):
-            return steps.merge()  # CI is green, the gate above passed
-        return steps.worker(steps.Task.RESOLVE_CONFLICT)
+        return merge_unless_conflict(pr)  # CI is green, the gate above passed
 
     # review.execution is changes needed: execution rejected on an approved plan
     # a rejection after the ruling pauses; the first execution grade is the
     # worker's; once the fix was pushed, this execution is rejected: Opus rules
-    return rejected(pr, steps.Task.FIX_EXECUTION, execution_fixed_since_plan_approval)
+    return rejected(
+        pr, review, steps.Task.FIX_EXECUTION, execution_fixed_since_plan_approval
+    )

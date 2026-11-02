@@ -301,11 +301,11 @@ the relock prefix (``relock/`` by default) and whose required check, named ``che
 been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
-a stall before every other pull request but the merge of a ready one, unless the PR also has ``RULING DUE`` or ``PAUSE``), then
+a stall before every other pull request but the merge of a ready one, unless the PR also has ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE``), then
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
-current base), then ``RULING DUE`` or ``PAUSE`` (``pitboss.flow.next_step`` gives the step,
+current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (``pitboss.flow.next_step`` gives the step,
 ``pitboss.roundline`` prints; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
@@ -317,12 +317,15 @@ no job log is downloaded, because the log is a redirect to blob storage that a
 sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
 finished and none failed, state ``clean``, an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
-base branch) or, in a ``no_auto_merge`` repository, ``MERGE BY HAND``, or
+base branch, or the flow's step is the merge because the newest readable Opus
+ruling says ``execution is approved`` and no review follows it) or, in a
+``no_auto_merge`` repository, ``MERGE BY HAND``, or
 else ``AUTO MERGE OFF`` for a PR with auto-merge off, not in the queue, nothing
 failed, no conflict and not a draft, whose newest review approved this exact head
 (``review=approved-this-head``; pitboss#85: with no review, a review of an older
 head, one asking for changes or one standing ``plan-approved``, arming auto-merge
-could merge a head nobody approved, so there is no line).
+could merge a head nobody approved, so there is no line; a head the Opus ruling
+approved gets ``READY TO MERGE`` instead).
 
 **Reviews.** A review is the newest comment by a trusted author whose lines
 match the repository's form. In a gated repository the form is strict: the
@@ -350,22 +353,34 @@ is not carried over merges of the base, and gets no ``AUTO MERGE OFF`` line
 function, ``pitboss.flow.next_step``, the owner's pseudo code branch for branch
 (the lint cuts it at its own section comments, each ending in a call to the
 next). Every question it asks is a function of its own in ``pitboss.flow``,
-answered from what is recorded of the PR in a ``PullState`` (its body, labels,
+answered from what is recorded of the PR in a ``PullState`` (``pitboss.flowstate``; its body, labels,
 comments, reviews as ``Graded`` and checks): ``is_paused_for_owner``,
 ``newest_counting_review``, ``is_draft``,
-``can_undraft``, ``plan_approved``, ``get_plan_rejections``, ``opus_used``,
+``can_undraft``, ``plan_approved``, ``get_plan_rejections``,
+``newest_ruling``, ``readable_ruling``,
 ``execution_fixed_since_plan_approval``, ``ci_result`` and ``has_conflict``.
-The steps are in ``pitboss.steps`` and what follows an Opus ruling is
-``pitboss.rulings.after_opus_ruling``. Only comments by trusted authors count,
+The steps are in ``pitboss.steps``; what follows an Opus ruling is the table
+``pitboss.flowstate.AFTER`` (``pitboss.rulings.after_opus_ruling`` follows it too).
+Only comments by trusted authors count,
 read with the reader of the repository's review form (strict where gated); a
-ruling is a comment whose first line is exactly ``Opus ruling``. ``pitboss next
+ruling is a comment whose first line is exactly ``Opus ruling`` and whose second
+line is ``Ruling: <word>`` (``pitboss.rulingwords.Ruling``); the newest such
+comment decides. One that cannot be read is the step ``FIX_RULING`` (checked
+right after the pause label, so a draft gets it too), never a pause. A rejection
+pauses (``PAUSE_FOR_OWNER``) only when its review was posted after a readable
+ruling; a readable ruling that no review follows gives its own first step from
+the table (the later steps are not wired: a worker's push moves the head and the
+ordinary review gate takes over), ``RULING_ESCALATES`` for ``escalate to the
+owner`` and the merge (or the conflict's resolution) for ``execution is
+approved``. ``pitboss next
 CONFIG TICKET`` scans the open PRs of the configuration once, picks the PR whose
 body says ``Fixes`` the ticket and prints its step, and for a ticket no PR fixes
-the first step. The sweep's ``RULING DUE``, ``PAUSE``, ``revise the plan``,
+the first step. The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
+``RULING ESCALATES``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
 GitHub's own reviews are no regular review and count nowhere in the flow. A PR
-with either marker is offered for no fix or review round in ``slots
-next``, and its ticket stays taken.
+at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING`` or ``RULING_ESCALATES`` is
+offered for no fix or review round in ``slots next``, and its ticket stays taken.
 
 **tracefs.** ``sweep``, ``pressure`` and every ``slots`` action first make
 the mount themselves (keyword: tracefs, pitboss#28): ``grep tracefs
@@ -619,7 +634,7 @@ line saying why it is where it is. The open PRs that the flow's step gives a
 round come first, in one list ordered oldest first, whatever each needs; each
 line says which kind it is, the kind being the flow's step alone
 (``pitboss next`` prints the same step). A PR has exactly one step, so it is
-listed at most once. The six kinds:
+listed at most once. The eight kinds:
 
 * ``revise the plan``: step ``WORKER``, task ``REVISE_PLAN`` (keyword:
   plan-revision, pitboss#82); the author edits the ``## Plan`` section of the
@@ -633,12 +648,17 @@ listed at most once. The six kinds:
   ``FIRST_ROUND``: the PR has no such body;
 * ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
   approved head that conflicts with the base;
+* ``do the ruling's steps``: step ``WORKER``, task ``RULING_STEPS``: the
+  newest readable Opus ruling says ``do these steps`` and no review follows it;
+* ``carry out the ruling``: step ``WORKER``, task ``RULING_AS_GIVEN``: the
+  ruling says ``split``, ``reshape`` or ``abandon`` (``revise the plan`` is
+  ``revise the plan`` above);
 * ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
   PR that is not a draft it comes once every required check finished green on
   the head. On a draft it is the plan-only review, listed with no CI, since a
   draft runs none.
 
-A PR with ``RULING DUE`` or ``PAUSE`` (above) is listed as none of these.
+A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR.
@@ -663,7 +683,7 @@ merging the base branch in when it arises.
 The open PRs are ordered oldest first by creation time, and the tickets by
 ``priority_labels`` first and then oldest first by creation time (the one
 exception is a ``STALL`` line of the sweep, whose fix the skill's rules take
-before every line of this list; a PR with ``RULING DUE`` or ``PAUSE`` has no line
+before every line of this list; a PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` has no line
 in it). Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty

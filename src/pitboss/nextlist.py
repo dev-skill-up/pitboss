@@ -16,8 +16,8 @@ from . import (
     configfile,
     ghapi,
     ledger,
+    nextview,
     pulls,
-    report,
     suggest,
     unreadableline,
     work,
@@ -80,8 +80,8 @@ def require_ledger(path: pathlib.Path) -> None:
 
 def _view(
     found: Found, ordered: Sequence[work.Item], book: ledger.Ledger
-) -> report.NextView:
-    return report.NextView(
+) -> nextview.NextView:
+    return nextview.NextView(
         items=ordered,
         assignments=work.assign(ordered, book, found.settings.slots),
         slots=found.settings.slots,
@@ -116,6 +116,6 @@ def show(
         failed=book.failed,
     )
     for line in itertools.chain(
-        report.next_lines(_view(found, ordered, book)), suggest.lines(source)
+        nextview.next_lines(_view(found, ordered, book)), suggest.lines(source)
     ):
         print(line)

@@ -42,6 +42,9 @@ class Category(enum.IntEnum):
             has none (a PR).
         RESOLVE_CONFLICT: an author resolves the conflict of an approved head
             (a PR).
+        RULING_STEPS: an author does exactly the steps of an Opus ruling (a PR).
+        RULING_AS_GIVEN: an author carries out an Opus ruling that splits,
+            reshapes or abandons (a PR).
     """
 
     FIX_REVIEW = 1
@@ -51,6 +54,8 @@ class Category(enum.IntEnum):
     FIX_CI = 6
     FIRST_ROUND = 7
     RESOLVE_CONFLICT = 8
+    RULING_STEPS = 9
+    RULING_AS_GIVEN = 10
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -100,6 +105,8 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.FIX_CI: Category.FIX_CI,
     steps.Task.FIRST_ROUND: Category.FIRST_ROUND,
     steps.Task.RESOLVE_CONFLICT: Category.RESOLVE_CONFLICT,
+    steps.Task.RULING_STEPS: Category.RULING_STEPS,
+    steps.Task.RULING_AS_GIVEN: Category.RULING_AS_GIVEN,
 }
 
 

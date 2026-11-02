@@ -26,6 +26,9 @@ class Marker(enum.Enum):
         RULING_DUE: a PR whose review rounds hit the changes-needed limit and
             has no Opus ruling.
         PAUSE: a PR that needed changes again after its Opus ruling.
+        RULING_UNREADABLE: a PR whose newest Opus ruling comment has no
+            readable ``Ruling: <word>`` second line.
+        RULING_ESCALATES: a PR whose Opus ruling escalated to the owner.
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
         READY_TO_MERGE: green, clean and approved; arm auto-merge.
         MERGE_BY_HAND: green, clean and approved, in a repository without
@@ -73,6 +76,8 @@ class Marker(enum.Enum):
     STALL = enum.auto()
     RULING_DUE = enum.auto()
     PAUSE = enum.auto()
+    RULING_UNREADABLE = enum.auto()
+    RULING_ESCALATES = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
     MERGE_BY_HAND = enum.auto()

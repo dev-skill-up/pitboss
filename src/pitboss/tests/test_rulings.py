@@ -105,10 +105,17 @@ class TestAfter(unittest.TestCase):
         }
         assert_that(found, equal_to({(steps.worker(Task.RULING_AS_GIVEN),)}))
 
-    def test_escalating_pauses_for_the_owner(self) -> None:
-        """The owner is told."""
+    def test_escalating_tells_the_owner_without_a_pause_line(self) -> None:
+        """The owner is told, and no review has failed after the ruling."""
         found = rulings.after_opus_ruling(state(), rulings.Ruling.ESCALATE)
-        assert_that(found, equal_to((steps.pause_for_owner(),)))
+        assert_that(found, equal_to((steps.ruling_escalates(),)))
+
+    def test_an_approved_execution_with_a_conflict_resolves_it(self) -> None:
+        """A ruling-approved head that conflicts is not merged."""
+        approved = rulings.Ruling.EXECUTION_IS_APPROVED
+        dirty = state(checks=(GREEN,), mergeable_state="dirty")
+        found = rulings.after_opus_ruling(dirty, approved)
+        assert_that(found, equal_to((steps.worker(Task.RESOLVE_CONFLICT),)))
 
 
 class TestDescribe(unittest.TestCase):

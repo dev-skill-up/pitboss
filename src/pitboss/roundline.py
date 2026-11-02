@@ -1,8 +1,11 @@
-"""The sweep's RULING DUE and PAUSE lines, from the flow (keyword: review-flow)."""
+"""The sweep's lines of the steps about an Opus ruling (keyword: review-flow).
+
+RULING DUE, PAUSE, RULING UNREADABLE and RULING ESCALATES, from the flow.
+"""
 
 from typing import Sequence
 
-from . import pulls, steps
+from . import pulls, rulingwords, steps
 from .markers import Marker
 
 LINES = {
@@ -22,6 +25,13 @@ LINES = {
         " the options to the owner; the PR is offered for no fix, update or"
         " review round, and its other action lines wait",
     ),
+    steps.Step.RULING_ESCALATES: (
+        Marker.RULING_ESCALATES,
+        "the Opus ruling escalated to the owner; label the PR and its ticket"
+        " paused-owner with a comment of the options, stop listing both, and"
+        " report the number and the options to the owner; the PR is offered for"
+        " no round",
+    ),
 }
 
 
@@ -32,10 +42,23 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         pull: the PR.
 
     Returns:
-        One line, RULING DUE or PAUSE, or none for any other step.
+        One line, RULING DUE, PAUSE, RULING UNREADABLE or RULING
+        ESCALATES, or none for any other step.
     """
+    if pull.step.step is steps.Step.FIX_RULING:
+        return [_unreadable(pull)]
     found = LINES.get(pull.step.step)
     if found is None:
         return []
     marker, action = found
     return [f"{marker.text} {pulls.reference(pull)}: {action}"]
+
+
+def _unreadable(pull: pulls.PullFacts) -> str:
+    where = pull.step.comment or "its newest Opus ruling comment"
+    return (
+        f"{Marker.RULING_UNREADABLE.text} {pulls.reference(pull)}: {where} is not"
+        " in the ruling form: the second line must be 'Ruling: <word>', <word>"
+        f" one of: {rulingwords.WORDS}; ask an agent to fix the comment (edit or"
+        " repost); the PR is offered for no fix, update or review round until then"
+    )
