@@ -99,8 +99,8 @@ REVIEW_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
 STEP_CASES: Sequence[tuple[steps.Next, Kind | None]] = [
     (steps.worker(steps.Task.REVISE_PLAN), Kind.REVISE_PLAN),
     (steps.worker(steps.Task.FIX_EXECUTION), Kind.FIX_REVIEW),
-    (steps.worker(steps.Task.RULING_STEPS), Kind.FIX_REVIEW),
-    (steps.worker(steps.Task.RULING_AS_GIVEN), Kind.FIX_REVIEW),
+    (steps.worker(steps.Task.RULING_STEPS), Kind.RULING_STEPS),
+    (steps.worker(steps.Task.RULING_AS_GIVEN), Kind.RULING_AS_GIVEN),
     (steps.worker(steps.Task.FIX_CI), Kind.FIX_CI),
     (steps.worker(steps.Task.FIRST_ROUND), Kind.FIRST_ROUND),
     (steps.worker(steps.Task.RESOLVE_CONFLICT), Kind.RESOLVE_CONFLICT),
@@ -113,6 +113,8 @@ STEP_CASES: Sequence[tuple[steps.Next, Kind | None]] = [
     (steps.wait_for_owner(), None),
     (steps.opus_ruling(), None),
     (steps.pause_for_owner(), None),
+    (steps.fix_ruling(""), None),
+    (steps.ruling_escalates(), None),
 ]
 
 

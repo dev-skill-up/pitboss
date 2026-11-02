@@ -1,5 +1,6 @@
 """Tests for the sweep's PR line."""
 
+import dataclasses
 import json
 import unittest
 
@@ -126,3 +127,68 @@ class TestAutoMergeOff(unittest.TestCase):
             with self.subTest(standing.name):
                 pull = facts(standing, checks=[run(True)], mergeable_state="has_hooks")
                 assert_that("AUTO MERGE OFF" in lines(pull), equal_to(printed))
+
+
+class TestMergeByTheRuling(unittest.TestCase):
+    """A head the Opus ruling approved is told to merge (pitboss#129)."""
+
+    def test_the_lines_of_a_head_the_ruling_approved(self) -> None:
+        """Merge by hand names the ruling; a review's approval keeps its text."""
+        cases = [
+            (reviews.Standing.CHANGES_NEEDED, "execution approved by the Opus ruling"),
+            (reviews.Standing.APPROVED, "approved"),
+        ]
+        for standing, tail in cases:
+            with self.subTest(tail):
+                pull = by_hand(facts(standing, checks=[run(True)]))
+                found = report.action_lines(pull, by_hand_settings(), False, {})
+                expected = f"MERGE BY HAND owner/lib#7: green, clean, {tail}"
+                assert_that("\n".join(found), contains_string(expected))
+
+    def test_ready_to_merge_for_the_ruling_and_no_other_merge_line(self) -> None:
+        """READY TO MERGE says to arm it; a head not green and clean has none."""
+        standing = reviews.Standing.CHANGES_NEEDED
+        shown = [
+            lines(at_merge(facts(standing, checks=[run(done)])))
+            for done in (True, False)
+        ]
+        assert_that(shown[0], contains_string("READY TO MERGE o/r#7"))
+        merges = ("AUTO MERGE OFF" in shown[0], "MERGE" in shown[1])
+        assert_that(merges, equal_to((False, False)))
+
+
+def at_merge(pull: pulls.PullFacts) -> pulls.PullFacts:
+    """A PR at the MERGE step.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        The PR.
+    """
+    return dataclasses.replace(pull, step=steps.merge())
+
+
+def by_hand(pull: pulls.PullFacts) -> pulls.PullFacts:
+    """A PR of a library without auto-merge, at the MERGE step.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        The PR.
+    """
+    repo = config.Repo(owner="owner", name="lib", slug="owner/lib")
+    return dataclasses.replace(pull, step=steps.merge(), repo=repo)
+
+
+NO_AUTO_MERGE_LIB = '[libraries]\nrepositories = ["lib"]\nno_auto_merge = ["lib"]\n'
+
+
+def by_hand_settings() -> config.Config:
+    """A configuration whose library ``lib`` has no auto-merge.
+
+    Returns:
+        The configuration.
+    """
+    return fakes.settings(fakes.directory(), NO_AUTO_MERGE_LIB)

@@ -10,7 +10,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 from gather import commands as gather_commands
 
-from .. import cli_parser
+from .. import cli_parser, shapes
 from . import fakes
 
 FUTURE = "2030-01-01T00:00:00+00:00"
@@ -371,3 +371,20 @@ def project_page(path: str) -> str:
         The paged path.
     """
     return fakes.page(f"{PROJECT}/{path}")
+
+
+def comment_json(posted: shapes.Comment) -> Mapping[str, str]:
+    """An issue comment as the API gives it.
+
+    Args:
+        posted: the comment.
+
+    Returns:
+        Its JSON.
+    """
+    return {
+        "body": posted.body,
+        "author_association": posted.author_association,
+        "created_at": posted.created_at,
+        "html_url": posted.url,
+    }

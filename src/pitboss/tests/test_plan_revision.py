@@ -53,14 +53,7 @@ def world_with(posted: shapes.Comment) -> world.World:
         The world.
     """
     here = world.make_world()
-    here.bodies[COMMENTS] = [
-        {
-            "body": posted.body,
-            "author_association": posted.author_association,
-            "created_at": posted.created_at,
-            "html_url": posted.url,
-        }
-    ]
+    here.bodies[COMMENTS] = [world.comment_json(posted)]
     return here
 
 

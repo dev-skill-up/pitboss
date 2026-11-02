@@ -65,11 +65,21 @@ RULING = [
     "Ruling: you are an Opus agent whose only brief is to make a ruling on PR"
     " o/r#3.",
     "whose first line is exactly `Opus ruling` and whose second line is"
-    " `Ruling: ` and one of these words: `do these steps`, `revise the plan`,"
-    " `execution is approved`, `split`, `reshape`, `abandon`, `escalate to the"
-    " owner`;",
+    " exactly `Ruling: <word>`, where <word> is one of these words: `do these"
+    " steps`, `revise the plan`, `execution is approved`, `split`, `reshape`,"
+    " `abandon`, `escalate to the owner`;",
     HONEST,
     "Hand back the comment's URL and nothing else.",
+]
+RULING_STEPS = [
+    "Task: PR o/r#3: its newest `Opus ruling` comment rules `do these steps`. Do"
+    " exactly the steps of that ruling, in order, and nothing else; the ruling is"
+    " taken as given.",
+]
+RULING_AS_GIVEN = [
+    "Task: PR o/r#3: its newest `Opus ruling` comment rules to split, reshape or"
+    " abandon. Do exactly what that ruling says to the ticket and the PR; it is"
+    " not checked against the one-ticket-one-PR rules.",
 ]
 PLAIN = briefconfig.Brief(
     drafts=False, holds=False, worker_lines=("Compiler: /x",), review_lines=()
@@ -135,6 +145,11 @@ class TestWorkerBriefs(unittest.TestCase):
             ["fix the findings of the newest review, each one"],
             findings="",
         )
+
+    def test_a_ruling_round_names_the_ruling_comment(self) -> None:
+        """The steps of the ruling, or what it says to the ticket and the PR."""
+        pinned(brief.Kind.RULING_STEPS, RULING_STEPS)
+        pinned(brief.Kind.RULING_AS_GIVEN, RULING_AS_GIVEN)
 
     def test_a_red_ci_is_no_rejection(self) -> None:
         """The head is named; only what makes it red changes."""

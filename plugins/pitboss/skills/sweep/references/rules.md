@@ -52,8 +52,7 @@ compaction.
    (Order of work, 3) and then a `STALL` (below), whose fix comes before every
    other pull request but that merge: otherwise the state of a pull
    request says what it needs, not where it stands in the order. A pull
-   request whose review rounds hit the changes-needed limit (`RULING DUE` or
-   `PAUSE`, "Plan first", below) is outside this order: it is offered for no
+   request whose review rounds hit the changes-needed limit (`RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`, "Plan first", below) is outside this order: it is offered for no
    fix, update or review round until the ruling is recorded or the owner
    decides. On who takes a fix
    (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It just
@@ -63,7 +62,7 @@ compaction.
      fixed as a red CI is: merge the base in, resolve, check, push); where the
      review did not approve the plan, the fix is a revision of the plan and
      nothing else ("Plan first", below; kind `revise the plan` in `slots
-     next`); not when the pull request has `RULING DUE` or `PAUSE`;
+     next`); not when the pull request has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`;
    - **a `STALL` is a fix taken before every other pull request but the merge of a ready one.** A relock pull request
      (head branch starting `relock/`) whose required `check` has been red for
      more than four hours (14400 seconds from the run's `completed_at`) is
@@ -72,8 +71,7 @@ compaction.
      stalled, oldest first. It jumps the queue and interrupts no worker
      (Order of work, 1), a merge of a ready pull request still comes before it
      (Order of work, 3: a merge is not a fix), and its pushes keep the
-     runner-pressure hold; a stalled pull request that also has `RULING DUE`
-     or `PAUSE` waits for the ruling or the owner first;
+     runner-pressure hold; a stalled pull request that also has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` waits for the ruling or the owner first;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push; the `UPDATE` line of a
      sweep; `slots next` lists the PR by the flow's step alone, which has no
@@ -87,14 +85,15 @@ compaction.
      finish, and not a reason to hold the free slot; so is a pull request on
      the orchestrator's blocked list.
 
-   Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE` or `PAUSE` cannot be). The
+   Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
    that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
    with the kind shown on each line, and then the tickets by priority label
    and age. The kind is the step alone. A WORKER step is listed with its
    task's kind: `revise the plan` (`REVISE_PLAN`), `fix the CI` (`FIX_CI`),
    `write the Plan and Execution body` (`FIRST_ROUND`), `resolve the conflict`
-   (`RESOLVE_CONFLICT`), and `fix the review` for any other task
+   (`RESOLVE_CONFLICT`), `do the ruling's steps` (`RULING_STEPS`), `carry out
+   the ruling` (`RULING_AS_GIVEN`), and `fix the review` for any other task
    (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
    stage, a draft's plan-only review included. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
@@ -106,7 +105,7 @@ compaction.
    `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
    merge of a ready pull request comes first (Order of work, 3), then a
    `STALL` fix, before every `NEXT` line and every other pull request. A pull
-   request with `RULING DUE` or `PAUSE` has no `NEXT` line: `slots next` leaves
+   request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` has no `NEXT` line: `slots next` leaves
    it out, and its ticket stays taken.
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
@@ -115,7 +114,7 @@ compaction.
      PR, a merge of a PR that is reviewed approved and green), except that a
      merge of a ready pull request comes first (Order of work, 3) and a `STALL`
      fix next, before every other pull request, and except a pull request with
-     `RULING DUE` or `PAUSE`, which is offered for no round. Only then the
+     `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`, which is offered for no round. Only then the
      tickets, by priority, and within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
@@ -143,7 +142,7 @@ compaction.
 5. **A slot is never held idle** (owner, 2026-10-19T02:00:17Z: "Never, under
    any circumstances, is an empty slot acceptable. This is a hard rule"). Not
    for a fix that is coming, not for a better fit, not for a hold on pushes.
-   "Nothing fits" is not an answer: take a conflicted PR (not one with `RULING DUE` or `PAUSE`, which waits for the ruling or the owner), or the next ticket
+   "Nothing fits" is not an answer: take a conflicted PR (not one with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`, which waits for the ruling or the owner), or the next ticket
    that can be worked in the project's order, which is the next one down when
    every ticket above it is in a worker's hand or blocked (owner,
    2026-10-26T03:03:00Z: "THE RULES SAY SLOTS ARE NEVER EMPTY";
@@ -230,7 +229,7 @@ compaction.
   stop a worker, but it should be next in line for work."). It is a fix among
   the open pull requests of Agents and slots 2, in their one list oldest first:
   it does not stop a worker that is running, but it waits for the next free
-  slot in that order. A conflicted pull request with `RULING DUE` or `PAUSE` is
+  slot in that order. A conflicted pull request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` is
   offered for no round: its conflict waits for the ruling or the owner.
 - Most conflicts are small: merge the base in, resolve, regenerate lockfiles
   and generated files with the repository's own tooling, check, push. Merge,
@@ -293,7 +292,7 @@ compaction.
      be finished."), oldest first, with nothing else ranking them except a merge of a ready
      one (3, below) and a `STALL` (a fix taken before every other pull request
      but that merge, above), and with no round offered for a pull request held
-     by `RULING DUE` or `PAUSE` until the ruling or the owner: a fix does
+     by `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` until the ruling or the owner: a fix does
      not come before an older review (owner, 2026-10-26T13:57:38Z, line 105684:
      "No, among them oldest first."). A pull request that is neither green nor
      red cannot be worked on (owner, 2026-10-26T14:05:11Z, line 105788: "if it
@@ -446,19 +445,28 @@ compaction.
   (keyword: review-flow): `pitboss.flow.next_step` is the owner's pseudo code of
   2026-10-30 (pitboss#107), branch for branch, and `pitboss next CONFIG TICKET`
   prints the one step a ticket is at. The sweep's `RULING DUE`, `PAUSE`,
+  `RULING UNREADABLE`, `RULING ESCALATES`,
   `revise the plan`, `fix the review` and `review it` lines and `slots next` take
   that step, and this file does not state it a second time. The steps are
   `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
-  its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`
-  and MERGE. Two clauses are by the owner's ruling: a review that approves the
+  its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`,
+  `FIX_RULING`, `RULING_ESCALATES` and MERGE. Two clauses are by the owner's ruling: a review that approves the
   plan and asks for execution changes is a worker round (`fix the review`), not
   `RULING DUE`; and a draft is undrafted when `can_undraft` (the runners are
   quiet, `pitboss pressure`), before any CI wait. A red CI is never a plan
   rejection. A ruling is recorded by a PR comment whose first line is exactly
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
   and what follows it (`pitboss.rulings.after_opus_ruling`) is carried out as
-  ruled, a split, a reshape or an abandon included. A PR at `OPUS_RULING` or
-  `PAUSE_FOR_OWNER` is offered for no round in `slots
+  ruled, a split, a reshape or an abandon included. Only a ruling that can be
+  read (its second line is `Ruling: <word>`) counts: the newest ruling comment
+  decides, and one that cannot be read is `FIX_RULING` (`RULING UNREADABLE`;
+  an agent fixes the comment, and no second Opus agent starts). `PAUSE` is for
+  a review of changes needed posted after a readable ruling; a readable ruling
+  that no review follows gives its own step (the work it names as a worker
+  round, `RULING_ESCALATES` for `escalate to the owner`, the merge for
+  `execution is approved`), and a worker's push hands the PR back to the
+  ordinary review gate. A PR at `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`
+  or `RULING_ESCALATES` is offered for no round in `slots
   next`, and its ticket stays taken.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
@@ -503,7 +511,7 @@ compaction.
     tests are not touched, the Execution section stays as it is, and the
     Execution defects the review listed are not fixed in this round. A revision
     of the Plan is a fix: what these rules say of a fix holds for it, and a PR
-    with `RULING DUE` or `PAUSE` is offered for none. A conflict
+    with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` is offered for none. A conflict
     with the base is merged in as usual. The revision ends with an empty commit
     pushed to the draft (`git commit --allow-empty`; a push to a draft is free),
     so that the head moves and the rejection no longer stands on it, and the

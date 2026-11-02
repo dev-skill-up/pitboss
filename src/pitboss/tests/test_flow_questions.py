@@ -5,7 +5,7 @@ from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, planbody, shapes
+from .. import flow, planbody, rulingwords, shapes
 from . import test_flow
 
 APPROVED = test_flow.APPROVED
@@ -124,16 +124,33 @@ class TestQuestions(unittest.TestCase):
         ]
         check(flow.get_plan_rejections, cases)
 
-    def test_opus_used(self) -> None:
-        """A trusted comment whose first line is exactly ``Opus ruling``."""
-        quoting = comment("I think the Opus ruling is", 2)
+    def test_newest_ruling(self) -> None:
+        """The newest trusted comment whose first line is exactly ``Opus ruling``."""
+        quoting = comment("I think the Opus ruling is", 9)
+        first, second = test_flow.ruling(1), test_flow.ruling(2)
         cases = [
-            (state(comments=[test_flow.ruling(1)]), True),
-            (state(comments=[test_flow.ruling(1, author="NONE")]), False),
-            (state(comments=[quoting]), False),
-            (state(), False),
+            (state(comments=[first]), first),
+            (state(comments=[second, first]), second),
+            (state(comments=[first, test_flow.ruling(3, author="NONE")]), first),
+            (state(comments=[test_flow.ruling(1, author="NONE")]), None),
+            (state(comments=[quoting]), None),
+            (state(), None),
         ]
-        check(flow.opus_used, cases)
+        check(flow.newest_ruling, cases)
+
+    def test_readable_ruling(self) -> None:
+        """What the newest ruling rules; a newer unreadable one hides an older."""
+        bad = test_flow.ruling(2, line="no ruling line")
+        unknown = test_flow.ruling(3, line="Ruling: whatever")
+        split = test_flow.ruling(4, line="Ruling: split")
+        cases = [
+            (state(comments=[test_flow.ruling(1)]), rulingwords.Ruling.DO_THESE_STEPS),
+            (state(comments=[test_flow.ruling(1), bad]), None),
+            (state(comments=[bad, unknown]), None),
+            (state(comments=[bad, split]), rulingwords.Ruling.SPLIT),
+            (state(), None),
+        ]
+        check(flow.readable_ruling, cases)
 
     def test_execution_fixed_since_plan_approval(self) -> None:
         """An execution rejection on the approved plan at another head."""

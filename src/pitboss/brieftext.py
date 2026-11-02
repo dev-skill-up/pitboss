@@ -104,6 +104,17 @@ TASK_RESOLVE_CONFLICT = (
     " tree), and change nothing else."
 )
 
+TASK_RULING_STEPS = (
+    "Task: PR {reference}: its newest `Opus ruling` comment rules `do these steps`."
+    " Do exactly the steps of that ruling, in order, and nothing else; the ruling"
+    " is taken as given."
+)
+TASK_RULING_AS_GIVEN = (
+    "Task: PR {reference}: its newest `Opus ruling` comment rules to split, reshape"
+    " or abandon. Do exactly what that ruling says to the ticket and the PR; it is"
+    " not checked against the one-ticket-one-PR rules."
+)
+
 REVIEW = (
     "Review: {reference} at head {head}. Read the head from the PR when you start"
     " and again before you post; if it moved, review the new head."
@@ -234,7 +245,8 @@ RULING_WHO = (
 )
 RULING_RECORD = (
     "Record: post a comment on the PR whose first line is exactly `Opus ruling`"
-    " and whose second line is `Ruling: ` and one of these words: {words}; then"
+    " and whose second line is exactly `Ruling: <word>`, where <word> is one of these"
+    " words: {words}; then"
     " the steps or the reasons. The ruling is taken as given."
 )
 RULING_END = "Hand back the comment's URL and nothing else."

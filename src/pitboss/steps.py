@@ -28,6 +28,8 @@ class Step(enum.Enum):
         WAIT_FOR_CI: CI on the head has not finished; nobody works meanwhile.
         OPUS_RULING: one Opus agent makes a binding ruling.
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
+        FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
+        RULING_ESCALATES: the Opus ruling escalated to the owner.
         MERGE: the PR merges.
     """
 
@@ -39,6 +41,8 @@ class Step(enum.Enum):
     WAIT_FOR_CI = enum.auto()
     OPUS_RULING = enum.auto()
     PAUSE_FOR_OWNER = enum.auto()
+    FIX_RULING = enum.auto()
+    RULING_ESCALATES = enum.auto()
     MERGE = enum.auto()
 
 
@@ -96,11 +100,14 @@ class Next:
         step: what happens.
         task: what the worker does (a WORKER step).
         stage: what the reviewer grades (a REGULAR_REVIEW step).
+        comment: the address of the Opus ruling comment that cannot be read (a
+            FIX_RULING step), empty when the API gave none.
     """
 
     step: Step
     task: Task | None = None
     stage: Stage | None = None
+    comment: str = ""
 
 
 TEXTS: Mapping[Step, str] = {
@@ -126,6 +133,15 @@ TEXTS: Mapping[Step, str] = {
         f"label the PR and its ticket {PAUSED_LABEL}, comment what the rounds"
         " disagreed about and the options, and report the number and the options"
         " to the owner"
+    ),
+    Step.FIX_RULING: (
+        "the newest Opus ruling has no readable `Ruling:` second line; an agent"
+        " edits or reposts the comment; no Opus agent is asked for"
+    ),
+    Step.RULING_ESCALATES: (
+        "the Opus ruling escalated to the owner: label the PR and its ticket"
+        f" {PAUSED_LABEL}, comment the options, and report the number and the"
+        " options to the owner"
     ),
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
@@ -223,6 +239,27 @@ def pause_for_owner() -> Next:
         The step.
     """
     return Next(step=Step.PAUSE_FOR_OWNER)
+
+
+def fix_ruling(comment: str) -> Next:
+    """The step of a PR whose newest Opus ruling cannot be read.
+
+    Args:
+        comment: the address of that comment.
+
+    Returns:
+        The step.
+    """
+    return Next(step=Step.FIX_RULING, comment=comment)
+
+
+def ruling_escalates() -> Next:
+    """The step of a PR whose Opus ruling escalated to the owner.
+
+    Returns:
+        The step.
+    """
+    return Next(step=Step.RULING_ESCALATES)
 
 
 def merge() -> Next:
