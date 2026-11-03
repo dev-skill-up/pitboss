@@ -20,7 +20,6 @@ ADDED_AGAIN = {"event": "added_to_merge_queue", "created_at": "2029-12-31T23:40:
 LABELED = {"event": "labeled", "created_at": "2029-12-31T20:00:00Z"}
 COMMITTED = {"event": "committed"}
 QUEUE_BRANCH = "gh-readonly-queue/main/pr-2-"
-TIMELINE = fakes.page(f"{world.PROJECT}/issues/2/timeline")
 MERGE_QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 REMOVED_LINE = "REMOVED FROM QUEUE owner/project#2: 2029-12-31T23:28:52Z, "
 FAILED_TEXT = (
@@ -41,6 +40,19 @@ CANCELLED_JOB = {"name": "android / build-android", "conclusion": "cancelled"}
 BARE_FAILED_JOB = {"name": "check / test", "conclusion": "failure"}
 
 
+def project_page(path: str, number: int = 1) -> str:
+    """The paged path of a list under the project.
+
+    Args:
+        path: the list's path under the project.
+        number: the page.
+
+    Returns:
+        The path ``ghapi.pages`` asks for.
+    """
+    return fakes.page(f"{world.PROJECT}/{path}", number)
+
+
 def _run(identifier: int, branch: str, minute: int) -> dict[str, object]:
     return {
         "id": identifier,
@@ -49,6 +61,32 @@ def _run(identifier: int, branch: str, minute: int) -> dict[str, object]:
         "created_at": f"2029-12-31T23:{minute:02d}:00+00:00",
         "head_branch": QUEUE_BRANCH + branch,
     }
+
+
+def queue_bodies(
+    events: Sequence[object], jobs: Sequence[object]
+) -> Mapping[str, object]:
+    """The timelines, queue runs and jobs of the world.
+
+    Args:
+        events: the timeline of PR 2.
+        jobs: the jobs of its last group's first run.
+
+    Returns:
+        The canned bodies.
+    """
+    runs = {
+        "workflow_runs": [_run(11, "old", 10), _run(12, "new", 28), _run(13, "new", 29)]
+    }
+    pages = [
+        ("issues/1/timeline", []),
+        ("issues/2/timeline", list(events)),
+        ("issues/3/timeline", []),
+        ("actions/runs?event=merge_group", runs),
+        ("actions/runs/12/jobs", {"jobs": jobs}),
+        ("actions/runs/13/jobs", {"jobs": [PASSED_JOB]}),
+    ]
+    return fakes.bodies_under(world.PROJECT, pages)
 
 
 def removed_world(
@@ -67,20 +105,7 @@ def removed_world(
         The world.
     """
     here = world.make_world()
-    here.bodies[TIMELINE] = list(events)
-    here.bodies[fakes.page(f"{world.PROJECT}/issues/1/timeline")] = []
-    here.bodies[fakes.page(f"{world.PROJECT}/issues/3/timeline")] = []
-    here.bodies[fakes.page(f"{world.PROJECT}/actions/runs?event=merge_group")] = {
-        "workflow_runs": [
-            _run(11, "old", 10),
-            _run(12, "new", 28),
-            _run(13, "new", 29),
-        ]
-    }
-    here.bodies[fakes.page(f"{world.PROJECT}/actions/runs/12/jobs")] = {"jobs": jobs}
-    here.bodies[fakes.page(f"{world.PROJECT}/actions/runs/13/jobs")] = {
-        "jobs": [PASSED_JOB]
-    }
+    here.bodies.update(queue_bodies(events, jobs))
     fakes.settings(here.workspace, world.EXTRA.format(ledger=here.ledger) + extra)
     return here
 
@@ -130,7 +155,7 @@ class TestSweep(unittest.TestCase):
         """A timeline of more than a page is read to its end."""
         first = [LABELED] * 99 + [ADDED]
         here = removed_world(first, [FAILED_JOB])
-        here.bodies[fakes.page(f"{world.PROJECT}/issues/2/timeline", 2)] = [REMOVED]
+        here.bodies[project_page("issues/2/timeline", 2)] = [REMOVED]
         assert_that(lines_of(here)[0], equal_to(REMOVED_LINE + FAILED_TEXT))
 
     def test_queued_again_prints_no_removal(self) -> None:
@@ -163,14 +188,14 @@ class TestSweep(unittest.TestCase):
     def test_an_unreadable_timeline_is_said(self) -> None:
         """A failing timeline call is an UNREADABLE line, not silence."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
-        del here.bodies[TIMELINE]
+        del here.bodies[project_page("issues/2/timeline")]
         expected = "UNREADABLE owner/project#2: timeline answered HTTP 404"
         assert_that(expected in lines_of(here), equal_to(True))
 
     def test_an_unreadable_job_list_is_said(self) -> None:
         """A failing jobs call is an UNREADABLE line naming the call."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
-        del here.bodies[fakes.page(f"{world.PROJECT}/actions/runs/12/jobs")]
+        del here.bodies[project_page("actions/runs/12/jobs")]
         expected = "UNREADABLE owner/project#2: jobs answered HTTP 404"
         assert_that(lines_of(here), equal_to([expected, STANDARD_LINE]))
 

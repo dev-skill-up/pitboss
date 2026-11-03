@@ -245,14 +245,9 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
         steps = {check_id: failure.steps for check_id, failure in read.items()}
         for line in pulllines.lines(pull, found.now, found.settings, steps):
             print(line)
-        gone = removedline.read(found.github, found.settings, pull, runs)
-        if isinstance(gone, shapes.Unreadable):
-            print(unreadableline.unreadable_line(gone))
-        if isinstance(gone, removedline.Removal):
-            for line in removedline.lines(pull, gone):
-                print(line)
-        removed = isinstance(gone, removedline.Removal)
-        for line in report.action_lines(pull, found.settings, queued, why, removed):
+        said = removedline.tell(found.github, found.settings, pull, runs)
+        acts = report.action_lines(pull, found.settings, queued, why)
+        for line in removedline.settle(said, acts):
             print(line)
         broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
     return broken

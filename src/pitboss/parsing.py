@@ -6,6 +6,8 @@ from typing import AbstractSet, Sequence
 
 from . import shapes
 
+FAILURE = "failure"
+
 
 def _each(text: str, key: str) -> Sequence[str]:
     return [str(item[key]) for item in json.loads(text)]
@@ -164,7 +166,7 @@ def failed_steps(text: str) -> Sequence[str]:
         The names of its steps that failed.
     """
     steps = json.loads(text).get("steps") or []
-    return [step["name"] for step in steps if step.get("conclusion") == "failure"]
+    return [step["name"] for step in steps if step.get("conclusion") == FAILURE]
 
 
 def output_text(text: str) -> tuple[str, str]:
@@ -192,7 +194,7 @@ def annotations(text: str) -> Sequence[str]:
         Each as ``path:line: message``.
     """
     failures = [
-        item for item in json.loads(text) if item.get("annotation_level") == "failure"
+        item for item in json.loads(text) if item.get("annotation_level") == FAILURE
     ]
     return [
         f"{item.get('path') or ''}:{item.get('start_line') or 0}:"
@@ -350,7 +352,7 @@ def job_results(text: str) -> Sequence[shapes.JobResult]:
             failed_steps=[
                 step["name"]
                 for step in item.get("steps") or []
-                if step.get("conclusion") == "failure"
+                if step.get("conclusion") == FAILURE
             ],
         )
         for item in json.loads(text)["jobs"]

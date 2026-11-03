@@ -74,7 +74,6 @@ def action_lines(
     settings: config.Config,
     queued: bool,
     why: Mapping[int, str],
-    removed: bool = False,
 ) -> Sequence[str]:
     """The actions one PR calls for.
 
@@ -83,14 +82,12 @@ def action_lines(
         settings: the configuration.
         queued: whether the PR's newest queue run is unfinished.
         why: what was read of each failed check (by id), for its line.
-        removed: whether the REMOVED FROM QUEUE lines were printed, which
-            say how to merge it (keyword: removed-from-queue).
 
     Returns:
         The lines.
     """
-    merge = None if removed else _ready_line(pull, settings)
-    if merge is None and not removed and _auto_merge_off(pull, settings, queued):
+    merge = _ready_line(pull, settings)
+    if merge is None and _auto_merge_off(pull, settings, queued):
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
     return [
         *_wait_lines(pull),
@@ -133,9 +130,7 @@ def _auto_merge_off(
     # keyword: auto-merge-approved (pitboss#85): AUTO MERGE OFF is printed only for
     # a head a review approved; a head the Opus ruling approved gets READY TO MERGE
     # while auto-merge is off.
-    healthy = pull.standing is reviews.Standing.APPROVED and not (
-        pulls.failed_checks(pull) or pulls.conflicted(pull) or pull.pull.draft
-    )
+    healthy = pull.standing is reviews.Standing.APPROVED and not pulls.unhealthy(pull)
     return healthy and not manual and not queued and not pull.pull.auto_merge
 
 

@@ -1,23 +1,40 @@
 """A PR the merge queue removed: the sweep's REMOVED FROM QUEUE line.
 
-Keyword: removed-from-queue (pitboss#138). A PR whose timeline has an
+(keyword: removed-from-queue, pitboss#138.) A PR whose timeline has an
 ``added_to_merge_queue`` event and a later ``removed_from_merge_queue`` event,
 that is not merged and has auto-merge off, is told with the time of the removal
 and the failed job of its last queue run, then told to arm auto-merge.
 """
 
 import dataclasses
+import enum
 import subprocess
 from typing import Sequence
 
-from . import config, ghapi, parsing, pulls, queue, shapes
+from . import config, ghapi, parsing, pulls, queue, shapes, unreadableline
 from .markers import Marker
 
-ADDED = "added_to_merge_queue"
-REMOVED = "removed_from_merge_queue"
 NO_STEP = "no failed step read"
 CANCELLED = "no failed job in its last queue run: cancelled by the queue"
 NOT_READ = "no queue run of the PR was read (older than the newest runs listed)"
+
+
+class Event(enum.Enum):
+    """The timeline events of the merge queue.
+
+    Attributes:
+        ADDED: the PR entered the queue.
+        REMOVED: the queue removed it.
+    """
+
+    ADDED = enum.auto()
+    REMOVED = enum.auto()
+
+
+EVENTS = {
+    "added_to_merge_queue": Event.ADDED,
+    "removed_from_merge_queue": Event.REMOVED,
+}
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -26,13 +43,26 @@ class Removal:
 
     Attributes:
         at: when it was removed (ISO 8601).
-        runs: how many runs the PR's last queue group had that were read.
+        runs: how many runs of the PR's last queue group were read.
         failed: the failed jobs of those runs.
     """
 
     at: str
     runs: int
     failed: Sequence[shapes.JobResult]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Said:
+    """What the sweep says of a PR's removal from the queue.
+
+    Attributes:
+        lines: the lines to print (the removal and its action, or UNREADABLE).
+        removed: whether the lines are a removal, which says how to merge.
+    """
+
+    lines: Sequence[str]
+    removed: bool
 
 
 def removed_at(events: Sequence[shapes.TimelineEvent]) -> str | None:
@@ -46,12 +76,11 @@ def removed_at(events: Sequence[shapes.TimelineEvent]) -> str | None:
         an addition came before it; None otherwise (never queued, queued now
         or queued again after a removal).
     """
-    kinds = [each for each in events if each.kind in (ADDED, REMOVED)]
-    if not kinds or kinds[-1].kind != REMOVED:
+    queued = [(EVENTS[each.kind], each.at) for each in events if each.kind in EVENTS]
+    kinds = [kind for kind, _ in queued]
+    if kinds[-1:] != [Event.REMOVED] or Event.ADDED not in kinds:
         return None
-    if not any(each.kind == ADDED for each in kinds[:-1]):
-        return None
-    return kinds[-1].at
+    return queued[-1][1]
 
 
 def last_group(
@@ -88,47 +117,27 @@ def _failed_jobs(
             f"repos/{each.repo.slug}/actions/runs/{each.run.id}/jobs",
             parsing.job_results,
         )
-        if job.conclusion == "failure"
+        if job.conclusion == parsing.FAILURE
     ]
 
 
-def read(
-    github: ghapi.GitHub,
-    settings: config.Config,
-    pull: pulls.PullFacts,
-    runs: Sequence[queue.QueueRun],
-) -> Removal | shapes.Unreadable | None:
-    """Read whether the merge queue removed a PR, and the failed job why.
+def _removed_when(github: ghapi.GitHub, pull: pulls.PullFacts) -> str | None:
+    events = ghapi.pages(
+        github,
+        f"repos/{pull.repo.slug}/issues/{pull.pull.number}/timeline",
+        parsing.timeline_events,
+    )
+    return None if pull.pull.auto_merge else removed_at(events)
 
-    Args:
-        github: the API.
-        settings: the configuration.
-        pull: the PR.
-        runs: the queue runs read.
 
-    Returns:
-        The removal; None for a repository with no merge queue, a PR that is
-        not removed or has auto-merge on; or the API call that failed.
-    """
-    if pull.repo.slug not in settings.merge_queue.repositories:
+def _removal(
+    github: ghapi.GitHub, pull: pulls.PullFacts, runs: Sequence[queue.QueueRun]
+) -> Removal | None:
+    when = _removed_when(github, pull)
+    if when is None:
         return None
-    try:
-        events = ghapi.pages(
-            github,
-            f"repos/{pull.repo.slug}/issues/{pull.pull.number}/timeline",
-            parsing.timeline_events,
-        )
-        when = removed_at(events)
-        if when is None or pull.pull.auto_merge:
-            return None
-        group = last_group(runs, pull)
-        return Removal(at=when, runs=len(group), failed=_failed_jobs(github, group))
-    except subprocess.CalledProcessError as error:
-        return shapes.Unreadable(
-            reference=pulls.reference(pull),
-            call=ghapi.call_of(error),
-            status=ghapi.status_of(error),
-        )
+    group = last_group(runs, pull)
+    return Removal(at=when, runs=len(group), failed=_failed_jobs(github, group))
 
 
 def _job_text(job: shapes.JobResult) -> str:
@@ -155,8 +164,62 @@ def lines(pull: pulls.PullFacts, removal: Removal) -> Sequence[str]:
     """
     name = pulls.reference(pull)
     told = f"{Marker.REMOVED_FROM_QUEUE.text} {name}: {removal.at}, {_why(removal)}"
-    healthy = not (
-        pulls.failed_checks(pull) or pulls.conflicted(pull) or pull.pull.draft
-    )
     act = f"{Marker.READY_TO_MERGE.text} {name}: arm auto-merge"
-    return [told, act] if healthy else [told]
+    return [told] if pulls.unhealthy(pull) else [told, act]
+
+
+def _unreadable(pull: pulls.PullFacts, error: subprocess.CalledProcessError) -> Said:
+    failed = shapes.Unreadable(
+        reference=pulls.reference(pull),
+        call=ghapi.call_of(error),
+        status=ghapi.status_of(error),
+    )
+    return Said(lines=[unreadableline.unreadable_line(failed)], removed=False)
+
+
+def tell(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    pull: pulls.PullFacts,
+    runs: Sequence[queue.QueueRun],
+) -> Said:
+    """Read whether the merge queue removed a PR, and say it.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        pull: the PR.
+        runs: the queue runs read.
+
+    Returns:
+        The lines: none for a repository with no merge queue, a PR that is
+        not removed or has auto-merge on; UNREADABLE for an API call that
+        failed; else the removal and its action.
+    """
+    if pull.repo.slug not in settings.merge_queue.repositories:
+        return Said(lines=[], removed=False)
+    try:
+        removal = _removal(github, pull, runs)
+    except subprocess.CalledProcessError as error:
+        return _unreadable(pull, error)
+    if removal is None:
+        return Said(lines=[], removed=False)
+    return Said(lines=lines(pull, removal), removed=True)
+
+
+def settle(said: Said, acts: Sequence[str]) -> Sequence[str]:
+    """The lines of a PR's removal, then its actions.
+
+    A removal says how to merge, so the READY TO MERGE and AUTO MERGE OFF
+    lines of the PR's other actions are left out.
+
+    Args:
+        said: what ``tell`` returned.
+        acts: the actions the PR calls for otherwise.
+
+    Returns:
+        The lines to print.
+    """
+    merging = (Marker.READY_TO_MERGE.text, Marker.AUTO_MERGE_OFF.text)
+    kept = [each for each in acts if not (said.removed and each.startswith(merging))]
+    return [*said.lines, *kept]
