@@ -66,6 +66,39 @@ def post(github: GitHub, path: str) -> str:
     return github.mutate(["gh", "api", "-X", "POST", path]).stdout
 
 
+def close_pull(github: GitHub, slug: str, number: int) -> str:
+    """Close a pull request (only when not a dry run).
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        number: the pull request's number.
+
+    Returns:
+        The response body (empty in a dry run).
+    """
+    path = f"repos/{slug}/pulls/{number}"
+    return github.mutate(
+        ["gh", "api", "-X", "PATCH", "-f", "state=closed", path]
+    ).stdout
+
+
+def delete_branch(github: GitHub, slug: str, branch: str) -> str:
+    """Delete a branch (only when not a dry run).
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        branch: the branch's name.
+
+    Returns:
+        The response body (empty in a dry run).
+    """
+    name = urllib.parse.quote(branch, safe="/")
+    path = f"repos/{slug}/git/refs/heads/{name}"
+    return github.mutate(["gh", "api", "-X", "DELETE", path]).stdout
+
+
 def pages(
     github: GitHub,
     path: str,

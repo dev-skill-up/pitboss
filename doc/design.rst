@@ -131,7 +131,10 @@ Commands
        merge conflict. It reads, except that under ``[clean] worktrees =
        "auto"`` (the default) it removes the finished worktrees that pass the
        safety test (see **Worktrees**), through ``args.safe_run``, with no
-       dry run.
+       dry run, and, in the same mode, closes the open PRs of the ``[scratch]``
+       repositories whose workflow runs finished and deletes their branches
+       (keyword: scratch, pitboss#142; a kept fixture is never touched; in
+       ``"list"`` mode it prints ``SCRATCH PR`` for them).
    * - ``pressure CONFIG``
      - Appends a look (``none`` or ``hold``) to the record and prints the
        runner-pressure line; exits 0 only after ``[runners] quiet_minutes``
@@ -240,7 +243,8 @@ Commands
    * - ``clean CONFIG [--dry-run]``
      - The cleaning a sweep does first, on its own (keyword: auto-clean,
        pitboss#120; see **Automatic cleaning** below): removes at once, with no
-       dry run unless ``--dry-run``. The answer to a denied ``rm``.
+       dry run unless ``--dry-run``. The answer to a denied ``rm``. It also
+       closes the finished scratch PRs (see ``sweep``); ``--dry-run`` lists them.
    * - ``expand TEMPLATE [--cwd DIR]``
      - A PR body whose evidence is produced, never typed (pitboss#117; see
        **Expanding a template** below). Prints TEMPLATE with each directive

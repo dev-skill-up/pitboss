@@ -66,6 +66,11 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `REMOVED WORKTREE` | A finished worktree was removed (or, under `clean-worktrees` without `--no-dry-run`, would be); its branch is kept. A sweep prints it under `[clean] worktrees = "auto"` (the default), with the space freed on the last line of the section. | Nothing. |
 | `KEPT WORKTREE` | A finished worktree that is not removed, with the reason: commits on no remote branch, changed tracked files, a `.pitboss-live` marker or live path, the directory the command runs in or one above it, a change within the idle hours, a link, a mount point, a checkout git cannot read, or untracked files (`git worktree remove` refuses them). | Triage it like a `STRAGGLER` when the reason is work that exists only here; otherwise nothing: it is removed by a later sweep once the reason is gone. |
 | `COULD NOT REMOVE WORKTREE` | git refused (a locked worktree, for one). | Look at it: someone may still be using it. |
+| `SCRATCH PR` | An open PR of a `[scratch]` repository that is not a kept fixture, in one of two forms (keyword: scratch). `SCRATCH PR owner/repo#N: run finished, close the PR and delete its branch`: every workflow run of its head has finished (a head with no run yet counts as finished once the PR is ten minutes old); printed only under `[clean] worktrees = "list"`, since the default closes it ("Scratch PRs", below). `SCRATCH PR owner/repo#N: head branch B is not one of ...; reuse one of them for the next run`: its head branch is not in `[scratch] branches`, whether its run has finished or not. A PR whose runs are still going and whose branch is a run branch prints no line, and a fixture named in `[scratch] keep` never does. | Close the PR and delete its branch, or run `pitboss clean <config>`; next time reuse a run branch. |
+| `CLOSED SCRATCH PR` | A sweep (under `[clean] worktrees = "auto"`) or `pitboss clean` closed a scratch PR whose run finished. | Nothing. |
+| `DELETED SCRATCH BRANCH` | The head branch of a scratch PR it closed was deleted. | Nothing. |
+| `COULD NOT CLOSE SCRATCH PR` | GitHub refused to close a scratch PR; the line gives the HTTP status. | Close it by hand, or give the session the access; the next sweep tries again. |
+| `COULD NOT DELETE SCRATCH BRANCH` | A branch of a closed scratch PR is still there, with the reason: another open PR has it as its head (a run branch is reused), its head is in another repository, or GitHub refused (a session may not be allowed to delete a branch). | Nothing for the first two. For a refusal, leave it: the run branches are reused, and the next run force-pushes into one ("Scratch PRs", below). |
 | `clean:` | The first lines of a sweep (keyword: auto-clean): the mode (`disk under 90% used`, or `DISK OVER 90% (...)`: aggressive), what was removed and the space freed, what is never touched (a worktree with an open PR, a running worker's directory, the main clone, the directory the sweep runs in; under pressure each open-PR worktree is named), and a total. The sweep has removed it already. | Nothing. Never ask the owner about it ("Automatic cleaning", below). |
 | `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). The line says how much is free; indented lines under it name the largest safe dead paths (at most five), or say that none was found. A sweep scans for them only under pressure. | `pitboss clean-container <config>`, read the dry run, then `--no-dry-run` ("Disk", below). |
 | `REMOVED PATH` | A dead path was removed by `clean-container` (or, with "dry run", would be): its size and why it is dead. | Nothing. |
@@ -197,6 +202,24 @@ line giving the count removed, the space freed and the count kept. With
 worktree that passes; `clean-worktrees` then removes them. An agent that
 finishes removes its own worktree; the sweep is the net under that. A worktree
 an agent is starting in has files changed within the idle hours, so it is kept.
+
+## Scratch PRs
+
+A scratch repository (the `[scratch]` table, keyword: scratch) is a repository
+whose only use is a run on a real GitHub that a feature branch cannot show (a
+workflow that runs from the default branch, a fixture). Its table lists the
+repositories (`repositories`), the fixture PRs that stay open (`keep`, as
+`owner/name#N`, for example the fixture of a hold test) and the fixed branch
+names a run reuses (`branches`, for example `scratch-run-1` and
+`scratch-run-2`). The sweep reads every open PR of those repositories except the
+kept fixtures, and reads the workflow runs of each head: when all have
+finished the run is done and the PR is junk (`SCRATCH PR`, or `CLOSED SCRATCH
+PR` and `DELETED SCRATCH BRANCH` under the default `"auto"`, which closes the PR
+and deletes its branch, `pitboss clean` too; `clean --dry-run` and `"list"` only
+list). A fixture is never closed, its branch never deleted. A branch another
+open PR still has as its head, or one in a fork, is kept, with the reason. A PR
+whose runs are still going prints no line. How a run uses the table is in
+`rules.md`, "Scratch repositories".
 
 ## Automatic cleaning
 

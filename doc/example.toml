@@ -113,6 +113,19 @@ min_free_gib = 5
 # them (pitboss clean-worktrees removes those). Default: "auto".
 worktrees = "auto"
 
+[scratch]
+# Scratch repositories: where a run tries something on a real GitHub. A sweep
+# (under `worktrees = "auto"`) and `pitboss clean` close their open PRs whose
+# workflow runs finished and delete the PRs' branches; `worktrees = "list"` and
+# `clean --dry-run` print SCRATCH PR for each instead. Default: none.
+repositories = ["example-org/app-scratch"]
+# The fixture PRs that stay open, as name#number or owner/name#number; each is
+# in a listed repository and is never touched. Default: none.
+keep = ["example-org/app-scratch#29"]
+# The fixed branch names a scratch run reuses; a scratch PR from another branch
+# is flagged. Default: none, so no branch is flagged.
+branches = ["scratch-run-1", "scratch-run-2"]
+
 [sweep]
 # The questions each sweep ends with. Default: whether any ticket can be
 # closed, and whether any blocked ticket is unblocked.

@@ -174,6 +174,11 @@ class TestExample(unittest.TestCase):
         )
         assert_that(found, equal_to((True, True)))
 
+    def test_example_scratch(self) -> None:
+        """Its scratch table names a repository and the fixture PR it keeps."""
+        found = configfile.load_scratch(str(EXAMPLE), EXAMPLE.parent, "example-org")
+        assert_that(sorted(found.keep), equal_to(["example-org/app-scratch#29"]))
+
 
 class TestLocate(unittest.TestCase):
     """Finding the file a name stands for."""
