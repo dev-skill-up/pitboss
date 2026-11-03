@@ -9,6 +9,7 @@ from . import cleanworld, syncworld, test_commands, world
 
 NOT_RUN = subprocess.CalledProcessError(1, ["git"])
 FAILED = (1, "COULD NOT SYNC")
+NOTHING = "sync: nothing to commit"
 
 
 def kept(synced: syncworld.Synced) -> tuple[str, int]:
@@ -67,20 +68,23 @@ class TestSync(unittest.TestCase):
         )
         cleanworld.same(kept(synced), ("first notes\n", before + 1))
 
-    def test_nothing_changed_says_nothing(self) -> None:
-        """A second sync with the same files prints nothing and makes no commit."""
+    def test_files_identical_to_the_remote_say_nothing_to_commit(self) -> None:
+        """A second sync with the same files: the line, exit 0, no new commit."""
         synced = syncworld.after_first_sync()
         before = kept(synced)
-        cleanworld.same((syncworld.sync(synced), kept(synced)), ((0, []), before))
+        cleanworld.same(
+            (syncworld.sync(synced), kept(synced)),
+            ((0, [NOTHING]), before),
+        )
 
     def test_a_copy_that_stages_nothing_is_not_an_error(self) -> None:
-        """Files that stage nothing: no commit, no push, the line, exit 0."""
-        synced = syncworld.make_synced()
-        before = syncworld.commits(synced)
-        result = world.again(syncworld.with_nothing_staged(synced.here), "sync")
+        """Real git: bytes differ from the clone, the add stages nothing, exit 0."""
+        synced = syncworld.after_first_sync()
+        syncworld.normalize_on_origin(synced)
+        before = kept(synced)
         cleanworld.same(
-            (result.code, result.out.splitlines(), syncworld.commits(synced)),
-            (0, ["sync: nothing to commit"], before),
+            (syncworld.sync(synced), kept(synced)),
+            ((0, [NOTHING]), before),
         )
 
     def test_a_failing_diff_is_still_reported(self) -> None:

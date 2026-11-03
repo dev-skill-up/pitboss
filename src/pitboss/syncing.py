@@ -137,9 +137,10 @@ def _missing(found: Sequence[Source]) -> list[str]:
 def sync_lines(run: Run, sync: syncconfig.Sync, found: Sequence[Source]) -> Outcome:
     """Copy the files into the clone, commit and push when any changed.
 
-    A copy that stages nothing (the remote already holds the files, or ignores
-    them) is not an error: the commit is skipped and ``sync: nothing to commit``
-    is said (keyword: sync-empty).
+    Nothing to commit is not an error: files identical to the remote, or a copy
+    that stages nothing (the remote's attributes normalize the file back to the
+    blob it holds), skip the commit and say ``sync: nothing to commit``
+    (keyword: sync-empty).
 
     A clone that is behind or has an unpushed commit is reset to main first, so
     a failed push is retried whole by the next sync.
@@ -150,13 +151,13 @@ def sync_lines(run: Run, sync: syncconfig.Sync, found: Sequence[Source]) -> Outc
         found: the files to keep.
 
     Returns:
-        What it did: a line for each file copied and each required file that is
-        missing, or the failure when git failed; nothing when nothing changed.
+        What it did: a line for each file copied, or ``sync: nothing to commit``, and
+        each required file that is missing, or the failure when git failed.
     """
     try:
         _update(run, sync)
         changed = _copy(sync, found)
-        lines = _publish(run, sync, changed) if changed else []
+        lines = _publish(run, sync, changed) if changed else [NOTHING_TO_COMMIT]
     except (subprocess.CalledProcessError, OSError) as error:
         failure = f"{Marker.COULD_NOT_SYNC.text} {sync.repository}: {error}"
         return Outcome(lines=[failure], failed=True)
