@@ -101,7 +101,11 @@ Nothing else in the code is a choice: the merge-queue branch shape
 (``gh-readonly-queue/<base>/pr-<n>-<sha>``), the check-run conclusions that
 count as failed (``failure``, ``timed_out``, ``action_required``,
 ``startup_failure``; a ``cancelled``, ``skipped`` or ``neutral`` run is not
-one, since a concurrency group cancels the run it supersedes), the dequeue reasons and
+one, since a concurrency group cancels the run it supersedes; a failed run is
+also not one when a passing commit status posted after it completed is the
+same check's: the status context is the run's name, or the status's
+``target_url`` names the run or another run of the same workflow file, since
+a job ``lint`` posts the status ``text-lint``), the dequeue reasons and
 ``mergeable_state`` values are GitHub's.
 
 The configuration file
@@ -292,10 +296,20 @@ How each part decides
 
 **Pull requests.** One request for the PR list, then, per PR, its details,
 its comments and reviews, and one request for its head's check runs, all PRs
-at once in a thread pool. Only the latest run of each check name on the PR's
+at once in a thread pool. Only when one of those runs has failed (the latest
+run of its name) are two more reads made: the head's commit statuses (the
+newest of each context) and, for a status that does not carry the check's
+name, the workflow file of the Actions run of the status and of the check
+(``actions/runs/<id>``). Only the latest run of each check name on the PR's
 current head counts: a run of another head is dropped, and of two runs of one
 name the one that started later (then the higher id) stands, so a cancelled
-or superseded run never shows as failed. A line shows ``mergeable_state``, auto-merge,
+or superseded run never shows as failed. A failed run is also not failed
+(``pitboss.supersede``) when a passing commit status posted after it
+completed is the check's: the status context is the run's name, or the run
+its ``target_url`` names is the check's run or a run of the same workflow
+file (a job ``lint`` posts the context ``text-lint``); a status that is
+older, or not ``success``, leaves the failure, so the newest of the two
+decides. A line shows ``mergeable_state``, auto-merge,
 pending checks, the failed checks with their job ids, the PR's place in the
 merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
 the newest run's conclusion), and the review's standing. Action lines follow.

@@ -112,6 +112,8 @@ class CheckRun:
         head_sha: the commit it ran on ("" when GitHub does not say).
         started_at: when it started (ISO 8601, "" when it has not).
         completed_at: when it completed (ISO 8601, "" when it has not).
+        run: the id of the Actions workflow run it belongs to (0 when it is
+            not an Actions check).
     """
 
     id: int
@@ -121,6 +123,24 @@ class CheckRun:
     head_sha: str = ""
     started_at: str = ""
     completed_at: str = ""
+    run: int = 0
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CommitStatus:
+    """The newest commit status of one context on a commit.
+
+    Attributes:
+        context: its context (``text-lint``).
+        succeeded: whether its state is ``success``.
+        created_at: when it was posted (ISO 8601).
+        run: the id of the Actions run its target URL names (0 when none).
+    """
+
+    context: str
+    succeeded: bool
+    created_at: str
+    run: int = 0
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

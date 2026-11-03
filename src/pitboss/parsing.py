@@ -1,6 +1,7 @@
 """Parsing GitHub's response bodies into ``shapes``."""
 
 import json
+import re
 from typing import AbstractSet, Sequence
 
 from . import shapes
@@ -102,9 +103,55 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
             head_sha=item.get("head_sha") or "",
             started_at=item.get("started_at") or "",
             completed_at=item.get("completed_at") or "",
+            run=run_of(item.get("details_url")),
         )
         for item in json.loads(text)["check_runs"]
     ]
+
+
+def run_of(url: str | None) -> int:
+    """The Actions run id in a check run's or a status's URL.
+
+    Args:
+        url: ``.../actions/runs/<id>`` with or without a job (or None).
+
+    Returns:
+        The id, or 0 when the URL names no run.
+    """
+    found = re.search(r"/actions/runs/(\d+)", url or "")
+    return int(found.group(1)) if found else 0
+
+
+def statuses(text: str) -> Sequence[shapes.CommitStatus]:
+    """Parse a page of a commit's combined status (the newest of each context).
+
+    Args:
+        text: the response body of ``commits/<sha>/status``.
+
+    Returns:
+        The statuses.
+    """
+    return [
+        shapes.CommitStatus(
+            context=item["context"],
+            succeeded=item["state"] == "success",
+            created_at=item.get("created_at") or "",
+            run=run_of(item.get("target_url")),
+        )
+        for item in json.loads(text)["statuses"]
+    ]
+
+
+def run_path(text: str) -> str:
+    """Parse the workflow file a run belongs to.
+
+    Args:
+        text: the response body of ``actions/runs/<id>``.
+
+    Returns:
+        Its ``path`` (``.github/workflows/text-lint.yml``).
+    """
+    return str(json.loads(text).get("path") or "")
 
 
 def failed_steps(text: str) -> Sequence[str]:

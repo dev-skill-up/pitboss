@@ -71,6 +71,7 @@ def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, 
             (f"issues/{number}/comments", [OLD_GATED_APPROVAL]),
             (f"pulls/{number}/reviews", [GITHUB_APPROVAL]),
             (f"commits/{fakes.HEAD}/check-runs", CHECKS),
+            (f"commits/{fakes.HEAD}/status", fakes.NO_STATUS),
         ]
         found.update(fakes.bodies_under(prefix, pages))
     return found
