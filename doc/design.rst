@@ -349,8 +349,9 @@ ruling says ``execution is approved`` and no review follows it) or, in a
 else ``AUTO MERGE OFF`` for a PR with auto-merge off, not in the queue, nothing
 failed, no conflict and not a draft, whose newest review approved this exact head
 (``review=approved-this-head``; pitboss#85: with no review, a review of an older
-head, one asking for changes, one standing ``plan-approved`` or ``older-body``, arming auto-merge
-could merge a head nobody approved, so there is no line; a head the Opus ruling
+head, one asking for changes, one standing ``plan-approved`` or
+``older-body``, arming auto-merge could merge a head nobody approved, so there
+is no line; a head the Opus ruling
 approved gets ``READY TO MERGE`` instead).
 
 **Body fixes** (pitboss#147). A review may record the PR body it read in a

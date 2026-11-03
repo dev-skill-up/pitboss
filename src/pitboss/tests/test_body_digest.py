@@ -8,7 +8,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import bodydigest, shapes
 from . import fakes, world
 from .test_commands import sweep
-from .test_flow_sweep import CHANGES, HEAD, OLDER, world_with
+from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, world_with
 from .test_slot_commands import next_output
 
 EDITED = fakes.PLAN_AND_EXECUTION + "\nEvidence added after the review.\n"
@@ -16,13 +16,16 @@ OLD_LINE = f"Body: {bodydigest.digest(fakes.PLAN_AND_EXECUTION)}"
 NEW_LINE = f"Body: {bodydigest.digest(EDITED)}"
 
 
-def review(second: int, body_line: str | None, sha: str = HEAD) -> shapes.Comment:
-    """A review of PR 3 that asks for changes.
+def review(
+    second: int, body_line: str | None, sha: str = HEAD, verdict: str = CHANGES
+) -> shapes.Comment:
+    """A review of PR 3.
 
     Args:
         second: the second of the minute it was written.
         body_line: its ``Body:`` line, None for a review that records none.
         sha: the head it reviewed.
+        verdict: its verdict (``Plan:`` approved, the Execution graded so).
 
     Returns:
         The comment.
@@ -31,9 +34,9 @@ def review(second: int, body_line: str | None, sha: str = HEAD) -> shapes.Commen
         "## Review",
         f"Reviewed: {sha}",
         "Plan: approved",
-        f"Execution: {CHANGES}",
+        f"Execution: {verdict}",
         *([body_line] if body_line else []),
-        f"Verdict: {CHANGES}",
+        f"Verdict: {verdict}",
     ]
     return shapes.Comment(
         body="\n".join(lines) + "\n",
@@ -72,6 +75,23 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         swept, listed = looked_at([review(1, OLD_LINE)], EDITED)
         assert_that(swept, contains_string("review=older-body"))
         assert_that(listed, contains_string("(review the fix round's findings only"))
+
+    def test_an_approval_is_answered_the_same_way(self) -> None:
+        """An approving review and an edited body: older-body, a fix-round line."""
+        approving = review(1, OLD_LINE, verdict=APPROVED)
+        swept, listed = looked_at([approving], EDITED)
+        assert_that(swept, contains_string("review=older-body"))
+        assert_that(listed, contains_string("(review the fix round's findings only"))
+
+    def test_an_older_body_pr_is_neither_armed_nor_merged(self) -> None:
+        """No AUTO MERGE OFF and no READY TO MERGE line while the body is newer."""
+        approving = review(1, OLD_LINE, verdict=APPROVED)
+        here = world_with([approving], body=EDITED)
+        lines = sweep(here).out.splitlines()
+        third = [line for line in lines if "project#3" in line]
+        assert_that(len(third), equal_to(1))
+        assert_that(third[0], contains_string("review=older-body"))
+        assert_that(len(lines) > 1, equal_to(True))
 
     def test_a_review_of_the_edited_body_makes_the_line_go_away(self) -> None:
         """The newer review records the new digest: the line is the ordinary one."""
@@ -132,6 +152,17 @@ class TestTheDigest(unittest.TestCase):
         for text, expected in cases.items():
             with self.subTest(text):
                 assert_that(bodydigest.recorded(text), equal_to(expected))
+
+
+class TestTheForm(unittest.TestCase):
+    """The form a reviewer reads shows the Body line."""
+
+    def test_review_form_shows_the_body_line_and_its_limit(self) -> None:
+        """The command that makes the line, and the head-alone limit."""
+        out = world.again(world.make_world(), "review-form", "project").out
+        assert_that(out, contains_string("Body: <digest>"))
+        assert_that(out, contains_string("pitboss body-digest FILE"))
+        assert_that(out, contains_string("keys a review with no such line"))
 
 
 class TestTheCommand(unittest.TestCase):

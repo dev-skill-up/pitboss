@@ -146,8 +146,9 @@ def picks(source: Source) -> Sequence[Pick]:
 def _fix_round(pull: pulls.PullFacts) -> bool:
     found = pull.review
     asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
-    older = pull.standing in (reviews.Standing.OLDER_HEAD, reviews.Standing.OLDER_BODY)
-    return asked and older
+    # keyword: body-digest: a body fixed after any verdict is a fix round
+    body = pull.standing is reviews.Standing.OLDER_BODY
+    return body or (asked and pull.standing is reviews.Standing.OLDER_HEAD)
 
 
 def review_kind(pull: pulls.PullFacts) -> brief.Kind:

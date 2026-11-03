@@ -134,12 +134,9 @@ def _category(pull: pulls.PullFacts) -> Category | None:
 
 
 def _body_fixed(pull: pulls.PullFacts) -> bool:
-    # keyword: body-digest (pitboss#147): the body changed after a review that asked
-    # for changes, the head did not move
-    asked = (
-        pull.review is not None and pull.review.verdict is shapes.Verdict.CHANGES_NEEDED
-    )
-    return asked and pull.standing is reviews.Standing.OLDER_BODY
+    # keyword: body-digest (pitboss#147): the body changed after the newest review
+    # of the head (whatever its verdict), the head did not move
+    return pull.standing is reviews.Standing.OLDER_BODY
 
 
 def _references(pull: pulls.PullFacts) -> frozenset[str]:

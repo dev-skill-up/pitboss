@@ -295,3 +295,8 @@ def review_form(args: argparse.Namespace) -> None:
         )
     for line in form.lines:
         print(line)
+    print(
+        "# also one line of its own: Body: <digest> (uvx pitboss body-digest FILE,"
+        " the PR body saved to a file); the sweep keys a review with no such line"
+        " to the head alone"
+    )
