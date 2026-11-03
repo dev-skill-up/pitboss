@@ -23,6 +23,10 @@ class Usage(NamedTuple):
     free: int
 
 
+Reader = Callable[[pathlib.Path], Usage | None]
+"""Reads the use of a path's file system, None when the path is not there."""
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Low:
     """A filesystem with little free space.

@@ -14,7 +14,7 @@ from collections.abc import Iterator, Sequence
 
 from gather import commands as gather_commands
 
-from . import ENTRY_DATA
+from . import ENTRY_DATA, disk
 
 
 @contextlib.contextmanager
@@ -68,8 +68,12 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
             return self.parse_known_intermixed_args(args, namespace)
 
 
-def make_parser() -> argparse.ArgumentParser:
+def make_parser(usage: disk.Reader) -> argparse.ArgumentParser:
     """The command line parser of every pitboss command.
+
+    Args:
+        usage: reads the use of a path's file system; every command's
+            ``args.usage`` (keyword: disk-injected). A test gives a figure.
 
     Returns:
         The parser.
@@ -77,4 +81,5 @@ def make_parser() -> argparse.ArgumentParser:
     made: argparse.ArgumentParser = gather_commands.set_parser(
         collected=ENTRY_DATA.collector.collect(), parser=IntermixedParser()
     )
+    made.set_defaults(usage=usage)
     return made

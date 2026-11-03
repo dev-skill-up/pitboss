@@ -5,7 +5,7 @@ import sys
 
 from gather import commands as gather_commands
 
-from . import ENTRY_DATA, cli_parser
+from . import ENTRY_DATA, cli_parser, machine
 
 if __name__ == "__main__":
     # gather's ``entry.dunder_main`` builds its own parser, so its steps are here.
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(handler)
     logging.getLogger().setLevel(logging.INFO)
     gather_commands.run_maybe_dry(
-        parser=cli_parser.make_parser(),
+        parser=cli_parser.make_parser(machine.read_usage),
         is_subcommand=False,
         prefix=ENTRY_DATA.prefix,
         argv=sys.argv,
