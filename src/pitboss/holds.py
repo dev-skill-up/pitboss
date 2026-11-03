@@ -1,7 +1,8 @@
 """The owner's hold on new pull requests (keyword: pr-hold).
 
-The owner's standing order (2026-10-30, pitboss#151) is to open no new pull
-request in a repository until its existing ones are finished. The hold is
+The owner's order (2026-10-30T00:32Z, "Why are you opening more in quire.
+Finish existing"; pitboss#151) is to open no new pull request in a repository
+until its existing ones are finished. The hold is
 read from the open PRs of the run and the configuration's ``[holds]`` table;
 it changes which tickets are offered as new work and nothing else.
 """

@@ -15,7 +15,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import holdconfig, holds
 from . import fakes, world
 from .test_commands import sweep
-from .test_slot_commands import next_output, run_all
+from .test_slot_commands import freed_world, next_output, run_all
 
 PROJECT_OPEN = f"{world.PROJECT}/pulls?state=open"
 LIBRARY_LIST = f"{world.LIBRARY}/issues?state=open&labels=urgent"
@@ -155,6 +155,17 @@ class TestSlotsNext(unittest.TestCase):
         assert_that(
             SLOT_LINE.findall(output), equal_to(["owner/lib#5", "owner/project#1"])
         )
+
+    def test_the_refill_and_the_suggestions_skip_a_held_ticket(self) -> None:
+        """``slots free`` and ``next`` take the work from the same offer."""
+        here, lines = freed_world([], held_world(PROJECT_TABLE, library_ticket))
+        refill = "\n".join(lines)
+        suggested = world.invoke(here, "next", here.config, "--now", world.FUTURE).out
+        assert_that(refill, contains_string("start owner/lib#5 "))
+        assert_that("owner/project#9" in refill, equal_to(False))
+        assert_that(suggested, contains_string("start a PR: owner/lib#5:"))
+        briefs = [each for each in suggested.splitlines() if "SUGGESTION" in each]
+        assert_that("owner/project#9" in "\n".join(briefs), equal_to(False))
 
     def test_the_pull_requests_of_a_held_repository_go_on(self) -> None:
         """The hold stops new pull requests; the open ones are still finished."""
