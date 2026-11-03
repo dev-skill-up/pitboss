@@ -12,7 +12,7 @@ from typing import AbstractSet, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, parsing, shapes, steps
+from .. import bodydigest, flow, parsing, shapes, steps
 from . import fakes
 
 HEAD = fakes.HEAD
@@ -59,6 +59,19 @@ def graded(
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
     return shapes.Graded(sha=sha, when=when, plan=plan, execution=execution)
+
+
+def reading(review: shapes.Graded, body: str) -> shapes.Graded:
+    """A review that records the digest of the PR body it read.
+
+    Args:
+        review: the review.
+        body: the PR body it read.
+
+    Returns:
+        The review with its body digest.
+    """
+    return dataclasses.replace(review, body=bodydigest.digest(body))
 
 
 FIRST_REJECTION = graded(*PLAN_REJECTED, 1, sha=OLDER)
@@ -355,3 +368,28 @@ class TestRulingBranches(unittest.TestCase):
         labels = frozenset({steps.PAUSED_LABEL})
         comments = [ruling(5, line="no ruling line")]
         expect(steps.wait_for_owner(), state(comments=comments, labels=labels))
+
+
+class TestBodyFixRound(unittest.TestCase):
+    """A body fix between two rejections at one head is a fix round (#149)."""
+
+    def test_a_body_fix_between_two_rejections_at_one_head_is_a_round(self) -> None:
+        """Two rejections at one head, the body edited between: Opus rules."""
+        first = reading(graded(*EXECUTION_REJECTED, 1), "the body before the fix")
+        second = reading(graded(None, CHANGES, 2), BODY)
+        expect(steps.opus_ruling(), state(first, second))
+
+    def test_a_body_that_was_not_fixed_since_the_approval_is_one_round(self) -> None:
+        """Re-run review of one body, or a body edit before the plan's approval."""
+        approved = reading(graded(*EXECUTION_REJECTED, 1), BODY)
+        revised = reading(graded(CHANGES, CHANGES, 1), "the body before")
+        for first in (approved, revised):
+            second = reading(graded(APPROVED, CHANGES, 2), BODY)
+            expect(steps.worker(Task.FIX_EXECUTION), state(first, second))
+
+    def test_a_base_merge_with_the_recorded_body_is_no_fix(self) -> None:
+        """The body is still the recorded one and only the base was merged."""
+        first = reading(graded(*EXECUTION_REJECTED, 1, sha=OLDER), BODY)
+        second = reading(graded(None, CHANGES, 2), BODY)
+        rejected = merged(state(first, second), OLDER)
+        expect(steps.worker(Task.FIX_EXECUTION), rejected)

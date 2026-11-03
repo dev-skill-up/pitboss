@@ -394,6 +394,11 @@ comments, reviews as ``Graded`` and checks): ``is_paused_for_owner``,
 ``can_undraft``, ``plan_approved``, ``get_plan_rejections``,
 ``newest_ruling``, ``readable_ruling``,
 ``execution_fixed_since_plan_approval``, ``ci_result`` and ``has_conflict``.
+``execution_fixed_since_plan_approval`` is the count of the execution (keyword:
+ruling-count, pitboss#149): an execution rejection on the approved plan is
+followed by a fix round when the head moved by more than merge commits or the
+body is no longer the one that review recorded (``bodydigest``), and the next
+rejection is then ``OPUS_RULING``.
 The steps are in ``pitboss.steps``; what follows an Opus ruling is the table
 ``pitboss.flowstate.AFTER`` (``pitboss.rulings.after_opus_ruling`` follows it too).
 Only comments by trusted authors count,

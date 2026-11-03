@@ -93,12 +93,21 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         assert_that(third[0], contains_string("review=older-body"))
         assert_that(len(lines) > 1, equal_to(True))
 
-    def test_a_review_of_the_edited_body_makes_the_line_go_away(self) -> None:
-        """The newer review records the new digest: the line is the ordinary one."""
+    def test_a_review_of_the_edited_body_that_rejects_again_is_a_ruling(self) -> None:
+        """The newer review records the new digest: the second rejection rules.
+
+        The history of pitboss#146 (keyword: ruling-count, pitboss#149): two
+        rejections of the approved plan's execution at one head, the body
+        edited between them, is a fix round and then a second rejection.
+        """
         rounds = [review(1, OLD_LINE), review(2, NEW_LINE)]
         swept, listed = looked_at(rounds, EDITED)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, contains_string("(fix the review,"))
+        assert_that(listed, equal_to(""))
+        assert_that(
+            sweep(world_with(rounds, body=EDITED)).out,
+            contains_string("RULING DUE owner/project#3"),
+        )
 
     def test_body_unchanged(self) -> None:
         """The same body: the review still stands, the worker's fix is next."""
