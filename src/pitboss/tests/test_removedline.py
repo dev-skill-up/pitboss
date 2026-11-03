@@ -11,7 +11,17 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, parsing, pulls, queue, removedline, report, reviews, shapes, steps
+from .. import (
+    config,
+    parsing,
+    pulls,
+    queue,
+    removedline,
+    report,
+    reviews,
+    shapes,
+    steps,
+)
 from . import fakes, test_work, world
 from .test_commands import sweep
 
@@ -220,13 +230,15 @@ class TestStanding(unittest.TestCase):
         """Arming auto-merge could merge a head nobody approved."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
         old = dict(world.APPROVAL, commit_id="9" * 40)
-        here.bodies.update(fakes.bodies_under(world.PROJECT, [("pulls/2/reviews", [old])]))
+        reviewed = [("pulls/2/reviews", [old]), ("issues/2/comments", [])]
+        here.bodies.update(fakes.bodies_under(world.PROJECT, reviewed))
         assert_that(lines_of(here), equal_to([REMOVED_LINE + FAILED_TEXT]))
 
     def test_no_review_gets_the_removal_alone(self) -> None:
         """A PR nobody reviewed is not told to arm auto-merge."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
-        here.bodies.update(fakes.bodies_under(world.PROJECT, [("pulls/2/reviews", [])]))
+        reviewed = [("pulls/2/reviews", []), ("issues/2/comments", [])]
+        here.bodies.update(fakes.bodies_under(world.PROJECT, reviewed))
         assert_that(lines_of(here), equal_to([REMOVED_LINE + FAILED_TEXT]))
 
 
