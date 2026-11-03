@@ -1,4 +1,4 @@
-"""A failed check run that a newer passing commit status answers (keyword: status-supersedes)."""
+"""A failed check run that a newer passing status answers (status-supersedes)."""
 
 import dataclasses
 from typing import Callable, Sequence
