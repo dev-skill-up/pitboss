@@ -112,8 +112,47 @@ def check_skill(skill_dir):
                 err(f"{arel}: invalid JSON: {e}")
 
 
+SWEEP_FIRST = [
+    "Run `pitboss sweep` at the start of every turn and after every handback,"
+    " before any other decision (model, task, order, slot, hold).",
+    "For every line it prints, read the ticket or PR it names and check its"
+    " real state.",
+    "Follow the line.",
+    "Override a line only when it is a pitboss bug, always override when it is"
+    " one, and file the bug as a pitboss ticket in the same turn.",
+    "2026-11-02T23:47:19Z): \"Doesn't pitboss just tell you what to do? Run it"
+    " and you won't make mistakes instead of guessing\"",
+    "2026-11-03T00:29:17Z): \"To be clear, it's still your responsibility to"
+    " do the right thing based on pitboss data. Check the ticket/pr it talks"
+    " about and see what the state is. That does not excuse you from running it"
+    " first. Only override for bugs, but do override for bugs (and then file"
+    " them)\"",
+]
+
+
+def check_sweep_first():
+    """The sweep skill states the four steps in order, and the owner's words."""
+    skill = ROOT / "plugins" / "pitboss" / "skills" / "sweep"
+    for path in [skill / "SKILL.md", skill / "references" / "rules.md"]:
+        text = " ".join(path.read_text().split())
+        position = 0
+        for phrase in SWEEP_FIRST[:4]:
+            found = text.find(phrase, position)
+            if found < 0:
+                err(
+                    f"{path.relative_to(ROOT)}: sweep-first step missing"
+                    f" or out of order: {phrase!r}"
+                )
+                break
+            position = found
+        for phrase in SWEEP_FIRST[4:]:
+            if phrase not in text:
+                err(f"{path.relative_to(ROOT)}: owner's words missing: {phrase!r}")
+
+
 def main():
     check_manifests()
+    check_sweep_first()
     skills = sorted(ROOT.glob("plugins/*/skills/*/"))
     if not skills:
         err("no skills found under plugins/*/skills/")

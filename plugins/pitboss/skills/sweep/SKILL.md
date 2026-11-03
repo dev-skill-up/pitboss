@@ -31,8 +31,23 @@ path. It needs `gh` authenticated for every repository the file names, and
 `git`. Run it bare: no `grep`, `tail` or `timeout` in front of it, so nothing
 it prints is hidden. Timings go to stderr.
 
-Run it at a scheduled check-in, when a CI or merge-queue event arrives, and
-after a push. It does not change by the minute; do not run it on every turn.
+The rule, in this order (`references/rules.md`, "Agents and slots"):
+
+1. Run `pitboss sweep` at the start of every turn and after every handback,
+   before any other decision (model, task, order, slot, hold).
+2. For every line it prints, read the ticket or PR it names and check its real
+   state.
+3. Follow the line.
+4. Override a line only when it is a pitboss bug, always override when it is
+   one, and file the bug as a pitboss ticket in the same turn.
+
+The owner (2026-11-02T23:47:19Z): "Doesn't pitboss just tell you what to do?
+Run it and you won't make mistakes instead of guessing". The owner
+(2026-11-03T00:29:17Z): "To be clear, it's still your responsibility to do the
+right thing based on pitboss data. Check the ticket/pr it talks about and see
+what the state is. That does not excuse you from running it first. Only
+override for bugs, but do override for bugs (and then file them)".
+
 It reads, with two exceptions: it ends by syncing the working files to the
 `[sync]` repository's main when the configuration has the table (below), and it
 cleans first, by itself, with no prompt and no
