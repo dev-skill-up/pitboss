@@ -234,6 +234,29 @@ def rejected(
     return AFTER[ruled][0]
 
 
+def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
+    """The step after a review that rejects the Plan or the Execution.
+
+    Args:
+        pr: the PR.
+        review: the newest review that counts.
+
+    Returns:
+        With the Plan rejected: the step of ``rejected`` for the Plan (the
+        ruling used and still rejected pauses; a first rejection is the
+        worker's; a second is not converging: Opus rules). With the Execution
+        rejected, that of the Execution (once the fix was pushed and rejected
+        again, Opus rules). None when the review rejects neither.
+    """
+    if review.plan is Verdict.CHANGES_NEEDED:
+        return rejected(pr, review, steps.Task.REVISE_PLAN, plan_rejected_again)
+    if review.execution is Verdict.CHANGES_NEEDED:
+        return rejected(
+            pr, review, steps.Task.FIX_EXECUTION, execution_fixed_since_plan_approval
+        )
+    return None
+
+
 def merge_unless_conflict(pr: PullState) -> steps.Next:
     """Merge, or resolve the conflict of the head first.
 
@@ -274,14 +297,14 @@ def next_step(pr: PullState) -> steps.Next:
     if flowstate.has_unreadable_ruling(pr):
         return steps.fix_ruling(flowstate.unreadable_ruling_comment(pr))
 
-    # keyword: conflict-first (pitboss#148): a conflict is a fix, by any author, at
-    # any stage: a dirty head runs no CI and a draft waits, so the CI and draft
-    # gates below would never reach the worker. The sweep prints CONFLICT for it.
-    conflict = conflict_step(pr)
-    if conflict is not None:
-        return conflict
-
+    # keyword: conflict-first (pitboss#148, Opus ruling on #181): a conflict is a
+    # fix at every stage but while a ruling or the owner is awaited (steps.WAITS)
     review = newest_counting_review(pr)
+    if has_conflict(pr):
+        held = rejection_step(pr, review) if review else None
+        if held is not None and held.step in steps.WAITS:
+            return held
+        return steps.worker(steps.Task.RESOLVE_CONFLICT)
 
     # ---- before any review: the first work on a PR; a relock PR fixes no ticket
     # and has no body to write, it goes straight to its review (pitboss#126)
@@ -348,12 +371,7 @@ def plan_gate(pr: PullState, review: Graded) -> steps.Next:
     Returns:
         The step.
     """
-    if review.plan is Verdict.CHANGES_NEEDED:  # a Plan rejection
-        # the ruling used and still rejected pauses; a first rejection is the
-        # worker's; a second (>= 2) is not converging: Opus rules
-        return rejected(pr, review, steps.Task.REVISE_PLAN, plan_rejected_again)
-
-    return execution_gate(pr, review)
+    return rejection_step(pr, review) or execution_gate(pr, review)
 
 
 def execution_gate(pr: PullState, review: Graded) -> steps.Next:
@@ -369,12 +387,5 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
     if review.execution is None:  # plan approved by a plan-only review
         return steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
 
-    if review.execution is Verdict.APPROVED:
-        return merge_unless_conflict(pr)  # CI is green, the gate above passed
-
-    # review.execution is changes needed: execution rejected on an approved plan
-    # a rejection after the ruling pauses; the first execution grade is the
-    # worker's; once the fix was pushed, this execution is rejected: Opus rules
-    return rejected(
-        pr, review, steps.Task.FIX_EXECUTION, execution_fixed_since_plan_approval
-    )
+    # approved: ``rejection_step`` took the Execution that needs changes
+    return merge_unless_conflict(pr)  # CI is green, the gate above passed

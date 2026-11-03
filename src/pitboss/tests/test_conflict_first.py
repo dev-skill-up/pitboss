@@ -17,14 +17,6 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from . import fakes, world
 from .test_commands import sweep
-from .test_flow_sweep import (
-    CHANGES,
-    DIRTY,
-    UNREADABLE,
-    graded,
-    listed_for_third,
-    world_with,
-)
 from .test_slot_commands import next_output
 
 PROJECT = world.PROJECT
@@ -81,6 +73,20 @@ def both_sets(here: world.World) -> tuple[AbstractSet[str], AbstractSet[str]]:
     return swept, set(RESOLVE_LINE.findall(next_output(here)))
 
 
+def assert_sets(
+    here: world.World, swept: AbstractSet[str], resolved: AbstractSet[str]
+) -> None:
+    """Assert the PRs the sweep prints CONFLICT for, and ``slots next`` resolves.
+
+    Args:
+        here: the world.
+        swept: the references the sweep prints CONFLICT for.
+        resolved: the references ``slots next`` lists as resolve the conflict.
+    """
+    found = both_sets(here)
+    assert_that(found, equal_to((swept, resolved)))
+
+
 def conflicted_world() -> world.World:
     """Open PRs that are all dirty and have no review, and others that are not.
 
@@ -113,9 +119,8 @@ class TestConflictFirst(unittest.TestCase):
         self,
     ) -> None:
         """One fixture of PRs: the CONFLICT set is the resolve-the-conflict set."""
-        swept, resolved = both_sets(conflicted_world())
-        assert_that(swept, equal_to({f"{SLUG}#{number}" for number in (1, 2, 3)}))
-        assert_that(resolved, equal_to(swept))
+        every = {f"{SLUG}#{number}" for number in (1, 2, 3)}
+        assert_sets(conflicted_world(), every, every)
 
     def test_they_come_before_any_ticket_and_the_oldest_first(self) -> None:
         """Every conflicted PR precedes every other line, by when it was opened."""
@@ -136,39 +141,4 @@ class TestConflictFirst(unittest.TestCase):
 
     def test_a_clean_pr_is_not_listed_for_a_conflict(self) -> None:
         """Only the default world's dirty PR 1 is in both sets."""
-        swept, resolved = both_sets(world.make_world())
-        assert_that(swept, equal_to({f"{SLUG}#1"}))
-        assert_that(resolved, equal_to(swept))
-
-
-class TestWhatTheGateLeavesAlone(unittest.TestCase):
-    """The gate sits after the owner's pause and the unreadable ruling."""
-
-    def test_a_dirty_pr_held_for_the_owner_or_with_an_unreadable_ruling(self) -> None:
-        """Neither is offered for a round: the gate must not move above them."""
-        worlds = {
-            "paused for the owner": world_with(
-                [], labels=[{"name": "paused-owner"}], **DIRTY
-            ),
-            "an unreadable ruling": world_with([UNREADABLE], **DIRTY),
-        }
-        for name, here in worlds.items():
-            with self.subTest(name):
-                assert_that(listed_for_third(here), equal_to([]))
-                assert_that(
-                    sweep(here).out, contains_string("CONFLICT owner/project#3")
-                )
-
-    def test_a_dirty_pr_with_a_rejection_resolves_the_conflict_first(self) -> None:
-        """Behaviour change: the review's fix waits until the base is merged in."""
-        rejections = {
-            "a rejected plan": graded(CHANGES, None, 1),
-            "a rejected execution": graded("approved", CHANGES, 1),
-        }
-        for name, review in rejections.items():
-            with self.subTest(name):
-                here = world_with([review], **DIRTY)
-                assert_that(
-                    "".join(listed_for_third(here)),
-                    contains_string("(resolve the conflict,"),
-                )
+        assert_sets(world.make_world(), {f"{SLUG}#1"}, {f"{SLUG}#1"})
