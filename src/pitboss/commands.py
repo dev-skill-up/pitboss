@@ -29,6 +29,7 @@ from . import (
     ledger,
     ledgerowner,
     localsections,
+    offering,
     machine as machines,
     pulls,
     queue,
@@ -316,7 +317,7 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
         print(line)
     book = read_ledger(found.settings)
     report.print_ledger(book)
-    sweepline.slots(found.github, found.settings, book, read)
+    sweepline.slots(book, read, offering.offered(found, read, book))
     handback.print_lines(book, found.now)
 
 

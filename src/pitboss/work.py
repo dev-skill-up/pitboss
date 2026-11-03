@@ -273,6 +273,43 @@ def smallest_model(
     return None
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Offered:
+    """The work that is queued, and the tickets the owner's hold keeps back.
+
+    Attributes:
+        items: the ordered items to start.
+        held: the tickets of held repositories, in the same order.
+        standing: each held repository and its open count (keyword: pr-hold).
+    """
+
+    items: Sequence[Item]
+    held: Sequence[Item]
+    standing: Mapping[str, int]
+
+
+def apart(items: Sequence[Item], standing: Mapping[str, int]) -> Offered:
+    """Keep apart the tickets of the repositories the owner holds.
+
+    Args:
+        items: the ordered items (``queued``).
+        standing: the held repositories and their open counts (``holds``).
+
+    Returns:
+        The items to start, and the tickets held back.
+    """
+    return Offered(
+        items=[each for each in items if not _is_held(each, standing)],
+        held=[each for each in items if _is_held(each, standing)],
+        standing=standing,
+    )
+
+
+def _is_held(item: Item, standing: Mapping[str, int]) -> bool:
+    slug = item.reference.rpartition("#")[0]
+    return item.category is Category.NEW_PR and slug in standing
+
+
 def queued(
     found: Sequence[pulls.Read],
     github: ghapi.GitHub,
@@ -282,7 +319,8 @@ def queued(
     """The work that is queued: PRs and tickets, in the order to start them.
 
     A PR that could not be read may work on any ticket, so while one exists no
-    ticket is offered as new work (keyword: unreadable-pull).
+    ticket is offered as new work (keyword: unreadable-pull). The owner's hold
+    is applied after it (``apart``; keyword: pr-hold).
 
     Args:
         found: the open PRs, read or not.

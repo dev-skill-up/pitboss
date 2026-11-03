@@ -8,6 +8,7 @@ from .markers import Marker
 from . import (
     config,
     ghapi,
+    holds,
     ledger,
     pulls,
     pullread,
@@ -19,22 +20,21 @@ from . import (
 
 
 def slots(
-    github: ghapi.GitHub,
-    settings: config.Config,
     book: ledger.Ledger,
     open_now: Sequence[pulls.Read],
+    offer: work.Offered,
 ) -> None:
-    """Print the withheld-tickets line and the free-slots line.
+    """Print the withheld-tickets line, the hold line and the free-slots line.
 
     Args:
-        github: the API.
-        settings: the configuration.
         book: the ledger.
         open_now: the open PRs, read or not.
+        offer: the queued work and the tickets held back (``offering.offered``).
     """
     unreadableline.print_withheld(open_now)
-    queued = work.queued(open_now, github, settings, book)
-    report.print_free_slots(book, len(queued))
+    for line in holds.sweep_lines(offer.standing):
+        print(line)
+    report.print_free_slots(book, len(offer.items))
 
 
 def pressure(
