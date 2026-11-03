@@ -4,7 +4,7 @@ import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, autoclean, machine as machines
+from . import ENTRY_DATA, autoclean, machine as machines, scratch
 from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
@@ -27,7 +27,10 @@ def clean(args: argparse.Namespace) -> None:
     worktrees and the dead checkouts, and, with the disk at ``[clean]
     pressure_percent`` used or more, every worktree and checkout without an open
     PR and the package caches that regenerate. It never touches a worktree with
-    an open PR or a running worker's directory. ``--dry-run`` removes nothing.
+    an open PR or a running worker's directory. It also closes the open PRs of the
+    ``[scratch]`` repositories whose workflow runs finished, except the kept
+    fixtures, and deletes their branches. ``--dry-run`` removes and closes
+    nothing, and lists those PRs instead.
     This is the answer to a denied ``rm``: run it, do not stop (keyword:
     auto-clean).
 
@@ -39,4 +42,7 @@ def clean(args: argparse.Namespace) -> None:
     option = autoclean.Option(run=run, dry=args.dry_run)
     machine = machines.real_machine(args.env, found.now, running_in(args))
     for text in autoclean.clean_lines(sweep_look(found), machine, option):
+        print(text)
+    source = scratch.source_of(args.safe_run, found.scratch, found.now)
+    for text in (scratch.listing if args.dry_run else scratch.cleaning)(source):
         print(text)

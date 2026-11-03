@@ -50,10 +50,13 @@ class Head:
     Attributes:
         sha: its tip.
         branch: its name.
+        repo: the ``owner/name`` of the repository it lives in ("" when
+            GitHub does not say, as for a deleted fork).
     """
 
     sha: str
     branch: str
+    repo: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

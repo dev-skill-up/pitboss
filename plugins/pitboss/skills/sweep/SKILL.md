@@ -55,7 +55,10 @@ dry run (the finished worktrees that pass the safety test, the dead checkouts
 and the test tempdirs of `/tmp`; at 90% disk use also every worktree and
 checkout with no open PR and the package caches), and prints what it removed and
 the space freed. It never touches a worktree with an open PR or a running
-worker's directory. The agent never asks the owner about cleanup: when the
+worker's directory. The same cleaning closes the open PRs of the `[scratch]`
+repositories whose workflow runs have finished, and deletes their branches
+(`rules.md`, "Scratch repositories"); a fixture the table keeps is never
+touched. The agent never asks the owner about cleanup: when the
 classifier denies an `rm`, run `uvx pitboss clean <config>` (the allow list
 covers it) and go on.
 

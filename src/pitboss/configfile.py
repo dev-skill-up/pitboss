@@ -5,7 +5,7 @@ import pathlib
 import tomllib
 from typing import Mapping
 
-from . import briefconfig, cleanconfig, config, syncconfig
+from . import briefconfig, cleanconfig, config, scratchconfig, syncconfig
 
 CONFIG_DIRECTORY = (".claude", "pitboss")
 
@@ -88,6 +88,21 @@ def load_clean(name: str, start: pathlib.Path) -> cleanconfig.Clean:
     """
     with locate(name, start).open("rb") as stream:
         return cleanconfig.from_document(tomllib.load(stream))
+
+
+def load_scratch(name: str, start: pathlib.Path, owner: str) -> scratchconfig.Scratch:
+    """Locate, read and parse the ``[scratch]`` table of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+        owner: the project's owner, the owner of a bare repository name.
+
+    Returns:
+        The scratch repositories; none when the configuration has no table.
+    """
+    with locate(name, start).open("rb") as stream:
+        return scratchconfig.from_document(tomllib.load(stream), owner)
 
 
 def load_sync(

@@ -91,7 +91,7 @@ class FakeProcesses:
         if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
             done = subprocess.run(command, check=True, capture_output=True, text=True)
             return Output(stdout=done.stdout)
-        path = command[-1] if command[2] != "-X" else "POST " + command[-1]
+        path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
         if path not in self.bodies:
             raise subprocess.CalledProcessError(
                 1, command, output="", stderr=f"gh: not found: {path} (HTTP 404)\n"

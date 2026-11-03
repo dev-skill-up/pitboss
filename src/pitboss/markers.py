@@ -50,6 +50,14 @@ class Marker(enum.Enum):
         KEPT_PATH: a dead path that is not safe to remove.
         COULD_NOT_REMOVE_PATH: a path that is still there, or is not a safe
             dead path.
+        SCRATCH_PR: an open PR of a scratch repository that is not a kept
+            fixture: its run finished, or its head branch is not a run branch.
+        CLOSED_SCRATCH_PR: a scratch PR closed (or, in a dry run, one that would
+            be).
+        DELETED_SCRATCH_BRANCH: the head branch of a closed scratch PR deleted.
+        COULD_NOT_CLOSE_SCRATCH_PR: a scratch PR that could not be closed.
+        COULD_NOT_DELETE_SCRATCH_BRANCH: a branch of a closed scratch PR that
+            is not deleted, and why.
         SWEEP_REMINDER: a question each sweep ends with.
         EMPTY_SLOT: a worker slot with no agent.
         SLOTS_FREE: slots are free and work is queued; a wake-up is required.
@@ -100,6 +108,11 @@ class Marker(enum.Enum):
     REMOVED_PATH = enum.auto()
     KEPT_PATH = enum.auto()
     COULD_NOT_REMOVE_PATH = enum.auto()
+    SCRATCH_PR = enum.auto()
+    CLOSED_SCRATCH_PR = enum.auto()
+    DELETED_SCRATCH_BRANCH = enum.auto()
+    COULD_NOT_CLOSE_SCRATCH_PR = enum.auto()
+    COULD_NOT_DELETE_SCRATCH_BRANCH = enum.auto()
     SWEEP_REMINDER = enum.auto()
     EMPTY_SLOT = enum.auto()
     SLOTS_FREE = enum.auto()

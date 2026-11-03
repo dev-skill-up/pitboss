@@ -1028,6 +1028,30 @@ Only override for bugs, but do override for bugs (and then file them)".
   apart, `KEPT PATH`), a held directory, the shared build cache or a live
   agent's checkout.
 
+## Scratch repositories
+
+- **When a scratch run is done, close its PR and delete its branch; leave no
+  junk behind** (orchestrator, 2026-11-03, drawn from the owner's correction on
+  bats-lang/relock-scratch#34, pitboss#142: a scratch repository held 14 open
+  PRs from finished runs). A scratch repository (the `[scratch]` table of the
+  sweep's configuration, `sweep.md`, "Scratch PRs") is for runs that need a real
+  GitHub; the PRs it keeps open on purpose are the fixtures named in `[scratch]
+  keep` and nothing else. A worker closes the PR of its own run at hand-back. The
+  sweep flags what is left (`SCRATCH PR`) and, by default, closes the PRs whose
+  workflow runs have finished and deletes their branches (`pitboss clean` does
+  the same on its own); a fixture is never touched, and a PR whose runs are
+  still going is left.
+- **A scratch run reuses a small fixed set of branch names** (orchestrator,
+  2026-11-03, the coordinator's relay on pitboss#142: a branch delete is blocked
+  as destructive in an agent session, so a run must not make a new branch each
+  time). The names are listed per configuration in `[scratch] branches` (for
+  example `scratch-run-1` and `scratch-run-2`); a run takes one that no open PR
+  uses and force-pushes into it with a lease (`git push --force-with-lease`),
+  (an exception to "never force-push", for a branch that only scratch runs
+  use); and the sweep flags a scratch
+  PR whose head branch is not in the set (`SCRATCH PR ... reuse one of them`).
+  A fixture keeps the branch it was made on.
+
 ## How decisions are made
 
 - **Research before design: what comparable software does, written down where

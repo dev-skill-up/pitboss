@@ -36,6 +36,8 @@ from . import (
     pullread,
     queue,
     report,
+    scratch,
+    scratchconfig,
     shapes,
     sweepline,
     syncguard,
@@ -63,6 +65,7 @@ class Context:
     Attributes:
         settings: the configuration.
         clean: what ``clean-container`` looks at and keeps.
+        scratch: the scratch repositories (``[scratch]``).
         github: the API.
         now: the time now.
         args: the parsed arguments.
@@ -70,6 +73,7 @@ class Context:
 
     settings: config.Config
     clean: cleanconfig.Clean
+    scratch: scratchconfig.Scratch
     github: ghapi.GitHub
     now: datetime.datetime
     args: argparse.Namespace
@@ -133,9 +137,13 @@ def load_context(args: argparse.Namespace) -> Context:
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
+    settings = readable(github, load_settings(args))
+    start = working_directory(args)
+    owner = settings.project.repo.owner
     return Context(
-        settings=readable(github, load_settings(args)),
-        clean=configfile.load_clean(args.config, working_directory(args)),
+        settings=settings,
+        clean=configfile.load_clean(args.config, start),
+        scratch=configfile.load_scratch(args.config, start, owner),
         github=github,
         now=now,
         args=args,
@@ -302,10 +310,8 @@ def _clean_section(found: Context) -> None:
     machine = machines.real_machine(found.args.env, found.now, running_in(found.args))
     for text in autoclean.clean_lines(look, machine, option):
         print(text)
-
-
-def _disk_section(found: Context) -> None:
-    for text in diskline.lines(sweep_look(found), found.now):
+    source = scratch.source_of(found.args.safe_run, found.scratch, found.now)
+    for text in (scratch.listing if listed else scratch.cleaning)(source):
         print(text)
 
 
@@ -335,7 +341,8 @@ def sweep(args: argparse.Namespace) -> None:
     _queue_section(found, runs)
     timing.lap(clock, "merge queue done")
     _straggler_section(found)
-    _disk_section(found)
+    for line in diskline.lines(sweep_look(found), found.now):
+        print(line)
     timing.lap(clock, "checkouts done")
     for line in report.reminder_lines(found.settings):
         print(line)
