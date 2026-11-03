@@ -53,7 +53,7 @@ class Task(enum.Enum):
         FIRST_ROUND: the first work on a PR with no Plan and Execution body.
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
-        RESOLVE_CONFLICT: the approved head conflicts with the base.
+        RESOLVE_CONFLICT: the head conflicts with the base, at any stage.
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.

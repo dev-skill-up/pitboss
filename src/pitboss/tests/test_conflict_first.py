@@ -17,6 +17,14 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from . import fakes, world
 from .test_commands import sweep
+from .test_flow_sweep import (
+    CHANGES,
+    DIRTY,
+    UNREADABLE,
+    graded,
+    listed_for_third,
+    world_with,
+)
 from .test_slot_commands import next_output
 
 PROJECT = world.PROJECT
@@ -131,3 +139,36 @@ class TestConflictFirst(unittest.TestCase):
         swept, resolved = both_sets(world.make_world())
         assert_that(swept, equal_to({f"{SLUG}#1"}))
         assert_that(resolved, equal_to(swept))
+
+
+class TestWhatTheGateLeavesAlone(unittest.TestCase):
+    """The gate sits after the owner's pause and the unreadable ruling."""
+
+    def test_a_dirty_pr_held_for_the_owner_or_with_an_unreadable_ruling(self) -> None:
+        """Neither is offered for a round: the gate must not move above them."""
+        worlds = {
+            "paused for the owner": world_with(
+                [], labels=[{"name": "paused-owner"}], **DIRTY
+            ),
+            "an unreadable ruling": world_with([UNREADABLE], **DIRTY),
+        }
+        for name, here in worlds.items():
+            with self.subTest(name):
+                assert_that(listed_for_third(here), equal_to([]))
+                assert_that(
+                    sweep(here).out, contains_string("CONFLICT owner/project#3")
+                )
+
+    def test_a_dirty_pr_with_a_rejection_resolves_the_conflict_first(self) -> None:
+        """Behaviour change: the review's fix waits until the base is merged in."""
+        rejections = {
+            "a rejected plan": graded(CHANGES, None, 1),
+            "a rejected execution": graded("approved", CHANGES, 1),
+        }
+        for name, review in rejections.items():
+            with self.subTest(name):
+                here = world_with([review], **DIRTY)
+                assert_that(
+                    "".join(listed_for_third(here)),
+                    contains_string("(resolve the conflict,"),
+                )

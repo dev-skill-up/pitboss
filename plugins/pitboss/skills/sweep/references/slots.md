@@ -130,7 +130,8 @@ exactly one step and at most one kind. There are eight:
    `review the relock` (`pitboss#126`; the brief states the goal, that moves of
    pins are safe when the lock matches and CI is green, and the check list).
 5. **Resolve the conflict**: step WORKER, task `RESOLVE_CONFLICT`: the head
-   is approved and conflicts with the base. Its author resolves it.
+   conflicts with the base, at any stage (it comes before the draft, CI and
+   review gates, after the owner's pause and an unreadable ruling). Its author resolves it.
 6. **Do the ruling's steps**: step WORKER, task `RULING_STEPS`: the newest
    readable Opus ruling says `do these steps` and no review follows it. Its
    author does exactly those steps (the ruling is taken as given).
