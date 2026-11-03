@@ -57,12 +57,15 @@ class Said:
     """What the sweep says of a PR's removal from the queue.
 
     Attributes:
-        lines: the lines to print (the removal and its action, or UNREADABLE).
+        lines: the lines to print (the removal, or UNREADABLE).
         removed: whether the lines are a removal, which says how to merge.
+        act: the action a removal asks for, printed only when the PR's other
+            actions hold a READY TO MERGE or AUTO MERGE OFF line.
     """
 
     lines: Sequence[str]
     removed: bool
+    act: str = ""
 
 
 def removed_at(events: Sequence[shapes.TimelineEvent]) -> str | None:
@@ -151,21 +154,18 @@ def _why(removal: Removal) -> str:
     return CANCELLED if removal.runs else NOT_READ
 
 
-def lines(pull: pulls.PullFacts, removal: Removal) -> Sequence[str]:
-    """The REMOVED FROM QUEUE line, then the action it asks for.
+def line(pull: pulls.PullFacts, removal: Removal) -> str:
+    """The REMOVED FROM QUEUE line.
 
     Args:
         pull: the PR.
         removal: what was read.
 
     Returns:
-        The removal line; and READY TO MERGE when the PR has no failed check,
-        no conflict and is not a draft (a removal clears auto-merge).
+        The line.
     """
     name = pulls.reference(pull)
-    told = f"{Marker.REMOVED_FROM_QUEUE.text} {name}: {removal.at}, {_why(removal)}"
-    act = f"{Marker.READY_TO_MERGE.text} {name}: arm auto-merge"
-    return [told] if pulls.unhealthy(pull) else [told, act]
+    return f"{Marker.REMOVED_FROM_QUEUE.text} {name}: {removal.at}, {_why(removal)}"
 
 
 def _unreadable(pull: pulls.PullFacts, error: subprocess.CalledProcessError) -> Said:
@@ -204,14 +204,17 @@ def tell(
         return _unreadable(pull, error)
     if removal is None:
         return Said(lines=[], removed=False)
-    return Said(lines=lines(pull, removal), removed=True)
+    act = f"{Marker.READY_TO_MERGE.text} {pulls.reference(pull)}: arm auto-merge"
+    return Said(lines=[line(pull, removal)], removed=True, act=act)
 
 
 def settle(said: Said, acts: Sequence[str]) -> Sequence[str]:
-    """The lines of a PR's removal, then its actions.
+    """The lines of a PR's removal, its action, then its other actions.
 
-    A removal says how to merge, so the READY TO MERGE and AUTO MERGE OFF
-    lines of the PR's other actions are left out.
+    The READY TO MERGE and AUTO MERGE OFF lines of ``report.action_lines`` are
+    the standing check (a review of this exact head, or the Opus ruling, and
+    nothing failing): they are replaced by the removal's action, and when the
+    PR has neither, the removal line is printed alone.
 
     Args:
         said: what ``tell`` returned.
@@ -221,5 +224,8 @@ def settle(said: Said, acts: Sequence[str]) -> Sequence[str]:
         The lines to print.
     """
     merging = (Marker.READY_TO_MERGE.text, Marker.AUTO_MERGE_OFF.text)
-    kept = [each for each in acts if not (said.removed and each.startswith(merging))]
-    return [*said.lines, *kept]
+    if not said.removed:
+        return [*said.lines, *acts]
+    kept = [each for each in acts if not each.startswith(merging)]
+    ready = len(kept) < len(acts)
+    return [*said.lines, *([said.act] if ready else []), *kept]

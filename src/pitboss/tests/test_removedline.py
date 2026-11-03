@@ -4,13 +4,14 @@ The fixtures are the case of bats-lang/quire#1032: the queue added the PR at
 22:44:11 and removed it at 23:28:52, and a job of the group's run had failed.
 """
 
+import dataclasses
 import json
 import unittest
 from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, parsing, pulls, queue, removedline, reviews, shapes
+from .. import config, parsing, pulls, queue, removedline, report, reviews, shapes, steps
 from . import fakes, test_work, world
 from .test_commands import sweep
 
@@ -212,18 +213,31 @@ def facts(**changes: object) -> pulls.PullFacts:
     return test_work.facts(2, reviews.Standing.APPROVED, **changes)
 
 
+class TestStanding(unittest.TestCase):
+    """The action is told only for the standing READY TO MERGE needs."""
+
+    def test_a_review_of_an_older_head_gets_the_removal_alone(self) -> None:
+        """Arming auto-merge could merge a head nobody approved."""
+        here = removed_world([ADDED, REMOVED], [FAILED_JOB])
+        old = dict(world.APPROVAL, commit_id="9" * 40)
+        here.bodies.update(fakes.bodies_under(world.PROJECT, [("pulls/2/reviews", [old])]))
+        assert_that(lines_of(here), equal_to([REMOVED_LINE + FAILED_TEXT]))
+
+    def test_no_review_gets_the_removal_alone(self) -> None:
+        """A PR nobody reviewed is not told to arm auto-merge."""
+        here = removed_world([ADDED, REMOVED], [FAILED_JOB])
+        here.bodies.update(fakes.bodies_under(world.PROJECT, [("pulls/2/reviews", [])]))
+        assert_that(lines_of(here), equal_to([REMOVED_LINE + FAILED_TEXT]))
+
+
 class TestUnits(unittest.TestCase):
     """The pieces alone."""
 
     def test_no_queue_run_read(self) -> None:
         """With no run of the PR among those read, the line says so."""
-        pull = facts()
         removal = removedline.Removal(at="T", runs=0, failed=[])
-        found = removedline.lines(pull, removal)
-        expected = [
-            f"REMOVED FROM QUEUE owner/project#2: T, {removedline.NOT_READ}",
-            READY_LINE,
-        ]
+        found = removedline.line(facts(), removal)
+        expected = f"REMOVED FROM QUEUE owner/project#2: T, {removedline.NOT_READ}"
         assert_that(found, equal_to(expected))
 
     def test_no_group_without_runs(self) -> None:
@@ -242,14 +256,31 @@ class TestUnits(unittest.TestCase):
         )
         assert_that(removedline.last_group([other], facts()), equal_to([]))
 
-    def test_a_draft_or_a_conflict_gets_only_the_removal(self) -> None:
-        """READY TO MERGE is not asked of a draft or a dirty PR."""
-        removal = removedline.Removal(at="T", runs=1, failed=[])
+    def test_the_action_follows_the_standing_lines(self) -> None:
+        """The action is printed with a READY TO MERGE or AUTO MERGE OFF line."""
+        said = removedline.Said(lines=["R"], removed=True, act="A")
+        other = "FAILED x"
         found = [
-            len(removedline.lines(facts(**change), removal))
-            for change in ({"draft": True}, {"mergeable_state": "dirty"}, {})
+            removedline.settle(said, acts)
+            for acts in (
+                [READY_LINE + " or merge"],
+                ["AUTO MERGE OFF x: arm it again", other],
+                [other],
+                [],
+            )
         ]
-        assert_that(found, equal_to([1, 1, 2]))
+        expected = [["R", "A"], ["R", "A", other], ["R", other], ["R"]]
+        assert_that(found, equal_to(expected))
+
+    def test_a_ruling_approved_head_gets_the_action(self) -> None:
+        """The report's own check says READY TO MERGE for the Opus ruling."""
+        pull = dataclasses.replace(
+            facts(), standing=reviews.Standing.CHANGES_NEEDED, step=steps.merge()
+        )
+        settings = fakes.settings(fakes.directory())
+        acts = report.action_lines(pull, settings, False, {})
+        said = removedline.Said(lines=["R"], removed=True, act="A")
+        assert_that(removedline.settle(said, acts), equal_to(["R", "A"]))
 
     def test_events_of_other_kinds_are_kept_for_paging(self) -> None:
         """The parser keeps every event, so a full page of them pages on."""
