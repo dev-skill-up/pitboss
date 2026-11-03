@@ -126,7 +126,7 @@ SWEEP_FIRST = [
     " do the right thing based on pitboss data. Check the ticket/pr it talks"
     " about and see what the state is. That does not excuse you from running it"
     " first. Only override for bugs, but do override for bugs (and then file"
-    " them)\"",
+    ' them)"',
 ]
 
 
