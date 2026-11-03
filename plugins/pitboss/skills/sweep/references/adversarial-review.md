@@ -70,6 +70,25 @@ Outside a gated repository, an approval also stands when the only commits
 since are merges of the base branch; in a gated repository a new head needs
 a new review.
 
+## The Plan's precise commands
+
+The order is: write a precise Plan, review the Plan, execute it as written.
+
+- Plan review: for each Done-when row, if the Plan's evidence mentions a
+  command, the Plan must give the precise command (the exact string to run on
+  the head, a cut or a pipe included when the Plan wants one); a row that
+  mentions a command without it is a changes-needed finding of the Plan.
+  Evidence that is not a command (a file read, a diff, a CI run) is accepted
+  when the Plan says exactly what will be shown.
+- Execution review: grade the Execution against the Plan as written; each
+  precise command of the Plan must have been run as written; a command run in
+  another form, or left out, is a changes-needed finding.
+- Worker: run each precise command of the Plan as written; if the Plan's
+  command cannot show its row, change the Plan first and ask for its review.
+
+The briefs `pitboss next` prints carry these sentences. No lint checks them:
+the review does.
+
 ## A draft PR: Plan, Execution and the Plan line
 
 A fix is a draft PR whose body has a Plan section and an Execution section
