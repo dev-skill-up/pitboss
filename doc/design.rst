@@ -342,7 +342,8 @@ current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` 
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, and the review of a revised plan are started by its author's
-hand-back), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
+hand-back; a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
+same words as ``slots next``, pitboss#156), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
@@ -706,7 +707,8 @@ listed at most once. The eight kinds:
 * ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
   PR that is not a draft it comes once every required check finished green on
   the head. On a draft it is the plan-only review, listed with no CI, since a
-  draft runs none.
+  draft runs none, before every new ticket (pitboss#156); a draft is undrafted
+  only once its Plan is approved.
 
 A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then

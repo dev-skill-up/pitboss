@@ -250,7 +250,12 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
-    head = [text.REVIEW, *SCOPE_LINES[spec.kind], text.SEPARATE, text.CI, text.FORM]
+    # keyword: draft-review (pitboss#156): the Plan stage is a draft's, with no CI
+    draft = spec.kind is Kind.REVIEW_PLAN
+    separate, ci = (
+        (text.SEPARATE_DRAFT, text.CI_DRAFT) if draft else (text.SEPARATE, text.CI)
+    )
+    head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, text.FORM]
     return [
         *_filled(head, values),
         *(f"    {line}" for line in spec.rules.form),

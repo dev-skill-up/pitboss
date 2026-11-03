@@ -19,6 +19,7 @@ class Marker(enum.Enum):
         RUNNER_PRESSURE: queue runs wait for runners; hold.
         NO_RUNNER_PRESSURE: nothing waits for a runner.
         WAIT_FOR_CI: a PR's head has no completed check run.
+        DRAFT_ROUND: a draft that needs a review or a fix (it has no check run).
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
         UPDATE: a PR is behind the base with every check finished.
@@ -87,6 +88,7 @@ class Marker(enum.Enum):
     RUNNER_PRESSURE = enum.auto()
     NO_RUNNER_PRESSURE = enum.auto()
     WAIT_FOR_CI = enum.auto()
+    DRAFT_ROUND = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
     UPDATE = enum.auto()

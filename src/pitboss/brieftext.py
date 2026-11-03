@@ -133,6 +133,15 @@ CI = (
     " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
     " review nothing (a draft at its Plan stage has no check run)."
 )
+SEPARATE_DRAFT = (
+    "Separate agent: you are not the author; if you wrote any part of the change,"
+    " say so and stop. You run nothing: you read the diff and the PR body."
+)
+CI_DRAFT = (
+    "Draft: this PR is a draft, and a draft has no check run, so there is no CI to"
+    " read and none to wait for. You read the diff and the PR body only; never"
+    " hand back `NOT STARTED` for a missing check run of a draft."
+)
 FORM = (
     "Form: read `references/adversarial-review.md` of the sweep skill, then post"
     " one comment on the PR in the form of the repository, from `uvx pitboss"

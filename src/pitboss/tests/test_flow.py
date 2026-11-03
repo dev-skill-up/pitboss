@@ -249,8 +249,9 @@ class TestBranches(unittest.TestCase):
         expect(steps.worker(Task.FIRST_ROUND), bodiless)
 
     def test_a_draft_is_undrafted_when_it_can_be(self) -> None:
-        """Before any CI wait or review."""
-        draft = state(checks=(), draft=True, undraft_clear=True)
+        """Before any CI wait, once the Plan is approved (pitboss#156)."""
+        approved = graded(*PLAN_APPROVED_ALONE, 1)
+        draft = state(approved, checks=(), draft=True, undraft_clear=True)
         expect(steps.undraft(), draft)
 
     def test_a_draft_whose_plan_is_not_approved_gets_a_plan_review(self) -> None:
