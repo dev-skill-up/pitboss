@@ -19,6 +19,8 @@ from .running import Run, git
 BRANCH = "main"
 COMMITTER = ("-c", "user.name=pitboss", "-c", "user.email=pitboss@localhost")
 NO_SIGNING = ("-c", "commit.gpgsign=false")
+DIFFERS = 1
+NOTHING_TO_COMMIT = "sync: nothing to commit"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -104,20 +106,40 @@ def _copy(sync: syncconfig.Sync, found: Sequence[Source]) -> Sequence[pathlib.Pa
     return changed
 
 
-def _publish(run: Run, sync: syncconfig.Sync, count: int) -> None:
-    message = f"pitboss sync: {count} file(s) changed"
+def _staged(run: Run, sync: syncconfig.Sync) -> bool:
+    # ``diff --cached --quiet`` exits 1 when the index differs from HEAD
+    try:
+        git(run, sync.checkout, "diff", "--cached", "--quiet")
+    except subprocess.CalledProcessError as error:
+        if error.returncode != DIFFERS:
+            raise
+        return True
+    return False
+
+
+def _publish(
+    run: Run, sync: syncconfig.Sync, changed: Sequence[pathlib.Path]
+) -> list[str]:
+    _git(run, sync, ("add", "--all", "--", sync.directory))
+    if not _staged(run, sync):
+        return [NOTHING_TO_COMMIT]
+    message = f"pitboss sync: {len(changed)} file(s) changed"
     commit = (*COMMITTER, *NO_SIGNING, "commit", "--quiet", "-m", message)
-    _git(
-        run,
-        sync,
-        ("add", "--all", "--", sync.directory),
-        commit,
-        ("push", "--quiet", "origin", f"HEAD:{BRANCH}"),
-    )
+    _git(run, sync, commit, ("push", "--quiet", "origin", f"HEAD:{BRANCH}"))
+    return [f"{Marker.SYNCED.text} {path}" for path in changed]
+
+
+def _missing(found: Sequence[Source]) -> list[str]:
+    gone = [each.path for each in found if each.required and not each.path.is_file()]
+    return [f"{Marker.SYNC_SOURCE_MISSING.text} {path}" for path in gone]
 
 
 def sync_lines(run: Run, sync: syncconfig.Sync, found: Sequence[Source]) -> Outcome:
     """Copy the files into the clone, commit and push when any changed.
+
+    A copy that stages nothing (the remote already holds the files, or ignores
+    them) is not an error: the commit is skipped and ``sync: nothing to commit``
+    is said (keyword: sync-empty).
 
     A clone that is behind or has an unpushed commit is reset to main first, so
     a failed push is retried whole by the next sync.
@@ -134,17 +156,12 @@ def sync_lines(run: Run, sync: syncconfig.Sync, found: Sequence[Source]) -> Outc
     try:
         _update(run, sync)
         changed = _copy(sync, found)
-        if changed:
-            _publish(run, sync, len(changed))
+        lines = _publish(run, sync, changed) if changed else []
     except (subprocess.CalledProcessError, OSError) as error:
         failure = f"{Marker.COULD_NOT_SYNC.text} {sync.repository}: {error}"
         return Outcome(lines=[failure], failed=True)
-    missing = [
-        source.path for source in found if source.required and not source.path.is_file()
-    ]
-    lines = [f"{Marker.SYNCED.text} {path}" for path in changed]
-    lines += [f"{Marker.SYNC_SOURCE_MISSING.text} {path}" for path in missing]
-    return Outcome(lines=lines, failed=bool(missing))
+    missing = _missing(found)
+    return Outcome(lines=[*lines, *missing], failed=bool(missing))
 
 
 def section(args: argparse.Namespace, settings: config.Config) -> bool:

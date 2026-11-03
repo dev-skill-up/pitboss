@@ -73,6 +73,21 @@ class TestSync(unittest.TestCase):
         before = kept(synced)
         cleanworld.same((syncworld.sync(synced), kept(synced)), ((0, []), before))
 
+    def test_a_copy_that_stages_nothing_is_not_an_error(self) -> None:
+        """Files that stage nothing: no commit, no push, the line, exit 0."""
+        synced = syncworld.make_synced()
+        before = syncworld.commits(synced)
+        result = world.again(syncworld.with_nothing_staged(synced.here), "sync")
+        cleanworld.same(
+            (result.code, result.out.splitlines(), syncworld.commits(synced)),
+            (0, ["sync: nothing to commit"], before),
+        )
+
+    def test_a_failing_diff_is_still_reported(self) -> None:
+        """A git that fails to diff (status 128, not 1) is COULD NOT SYNC."""
+        broken = subprocess.CalledProcessError(128, ["git"])
+        cleanworld.same(failing_sync("diff", broken)[1], FAILED)
+
     def test_only_the_file_that_changed_is_copied(self) -> None:
         """A later sync updates the changed file in a new commit."""
         synced = syncworld.after_first_sync()
