@@ -260,6 +260,9 @@ Commands
        the ledger file does not exist (the owner creates it; only ``sweep`` starts
        one from the configured defaults). ``check`` takes ``--running NAME ...``
        and an optional number N: it exits 1 when the ledger has fewer than N rows.
+       ``free`` prints the ledger, then the ``EMPTY SLOT`` line that ``next``
+       gives the freed slot (one function, ``nextview.refill_line``), or
+       ``no task is waiting``.
 
 Reads go through gather's ``args.safe_run``; every change on GitHub or to
 git (cancelling a run, removing a worktree) goes through ``args.run``, so it

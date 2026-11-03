@@ -16,7 +16,7 @@ It is authoritative on the slots and the owner creates it`, and writes no file.
 | :--- | :--- |
 | `pitboss slots show <config>` | Print the ledger. |
 | `pitboss slots set <config> SLOT AGENT TASK` | An agent took an empty slot. TASK is `#12`, `name#12` or `owner/name#12`. Refused when the slot is occupied: free it first. |
-| `pitboss slots free <config> SLOT` | The agent finished or was stopped. |
+| `pitboss slots free <config> SLOT` | The agent finished or was stopped. After it empties the slot it prints the `slots next` line for that slot (what to start, with its smallest model), or `no task is waiting`. |
 | `pitboss slots add <config> SLOT MODEL` | Add a slot, when the owner raises the limit. |
 | `pitboss slots remove <config> SLOT` | Remove an empty slot, when the owner lowers the limit. |
 | `pitboss slots failed <config> TICKET MODEL` | A model failed a ticket (a diff that is off target, or a worker that stopped midway); the ticket goes to a larger model next. |
@@ -30,6 +30,14 @@ It is authoritative on the slots and the owner creates it`, and writes no file.
 
 Update the ledger at every spawn (`set`), every time an agent starts or stops
 waiting (`wait`, `resume`) and every hand-back or completion notice (`free`, or `heard` when the agent stays).
+
+## When a worker hands back
+
+Run `pitboss sweep`, do what its lines say, `slots free` prints the refill.
+`slots free <config> SLOT` empties the slot and prints the line `slots next`
+gives that slot (the task, its step and the smallest model), or `no task is
+waiting`. Start what the line says, with the brief from `slots next`, and the
+model it names; do not choose the next task or its model from your own list.
 
 ## The slot log
 

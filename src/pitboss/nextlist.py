@@ -78,6 +78,13 @@ def require_ledger(path: pathlib.Path) -> None:
         raise SystemExit(1)
 
 
+def _ordered(
+    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
+) -> Sequence[work.Item]:
+    unreadableline.print_withheld(opened)
+    return work.queued(opened, found.github, found.settings, book)
+
+
 def _view(
     found: Found, ordered: Sequence[work.Item], book: ledger.Ledger
 ) -> nextview.NextView:
@@ -102,8 +109,7 @@ def show(
         opened: the open PRs, read or not.
         book: the slot ledger.
     """
-    unreadableline.print_withheld(opened)
-    ordered = work.queued(opened, found.github, found.settings, book)
+    ordered = _ordered(found, opened, book)
     source = suggest.Source(
         github=found.github,
         settings=found.settings,
@@ -119,3 +125,21 @@ def show(
         nextview.next_lines(_view(found, ordered, book)), suggest.lines(source)
     ):
         print(line)
+
+
+def refill(
+    found: Found,
+    opened: Sequence[pulls.Read],
+    book: ledger.Ledger,
+    name: str,
+) -> None:
+    """Print the ``slots next`` line of one empty slot (``slots free`` prints it).
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        book: the slot ledger, in which the slot is empty.
+        name: the slot.
+    """
+    ordered = _ordered(found, opened, book)
+    print(nextview.refill_line(_view(found, ordered, book), name))
