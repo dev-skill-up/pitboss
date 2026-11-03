@@ -138,6 +138,14 @@ FORM = (
     " one comment on the PR in the form of the repository, from `uvx pitboss"
     " review-form {config} {repo}`:"
 )
+BODY_DIGEST = (
+    "Body: the PR body is part of what you read. Before posting, save it with `gh"
+    " api repos/{repo}/pulls/{number} --jq .body > <scratchpad>/body.txt`, run"
+    " `uvx pitboss body-digest <scratchpad>/body.txt`, and add the one line it"
+    " prints (`Body: <digest>`) to the comment, beside the `Verdict:` line. The"
+    " sweep shows `review=older-body` for a body edited after the review of an"
+    " unmoved head, and a review that records the new digest answers it."
+)
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
     " an honest worker could hit (a mistake, a forgotten step, an accidental"

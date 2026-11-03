@@ -195,6 +195,7 @@ def _about(subject: Subject) -> Mapping[str, str]:
         "ticket": subject.ticket or "<ticket>",
         "read": subject.ticket or subject.reference,
         "repo": subject.repo,
+        "number": subject.reference.rpartition("#")[2],
     }
 
 
@@ -253,6 +254,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     return [
         *_filled(head, values),
         *(f"    {line}" for line in spec.rules.form),
+        *_filled([text.BODY_DIGEST], values),
         text.HONEST,
         *tail,
         text.REVIEW_END,

@@ -5,10 +5,12 @@ import subprocess
 from typing import AbstractSet, Callable, Sequence
 
 from . import (
+    bodydigest,
     checkruns,
     config,
     flow,
     ghapi,
+    mergesonly,
     parsing,
     relock,
     reviews,
@@ -195,7 +197,7 @@ class Source:
 def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
     compare = f"repos/{repo.slug}/compare/{pull.base}..."
     heads = (pull.head.sha, sha)
-    return reviews.only_merges(
+    return mergesonly.only_merges(
         *(parsing.comparison(ghapi.get(source.github, compare + h)) for h in heads)
     )
 
@@ -216,6 +218,9 @@ def _standing(
     source: Source, repo: config.Repo, pull: shapes.Pull, found: reviews.Found | None
 ) -> tuple[reviews.Standing, bool]:
     standing = reviews.head_standing(found, pull.head.sha)
+    if found and standing is not reviews.Standing.OLDER_HEAD:
+        if bodydigest.changed(found.body, bodydigest.digest(pull.body)):
+            standing = reviews.Standing.OLDER_BODY  # keyword: body-digest
     merged = (
         found is not None
         and standing is reviews.Standing.OLDER_HEAD

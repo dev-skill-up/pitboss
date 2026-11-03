@@ -113,7 +113,8 @@ Only override for bugs, but do override for bugs (and then file them)".
    (`RESOLVE_CONFLICT`), `do the ruling's steps` (`RULING_STEPS`), `carry out
    the ruling` (`RULING_AS_GIVEN`), and `fix the review` for any other task
    (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
-   stage, a draft's plan-only review included. Every other step is offered for
+   stage, a draft's plan-only review included, except after a body fix (below):
+   `review the fix round's findings only`. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
    CI`) whatever the stage, but a conflict as `resolve the conflict` only once
@@ -607,6 +608,18 @@ Only override for bugs, but do override for bugs (and then file them)".
   deliberate obfuscation is hunted: those gaps are not findings and get no
   ticket. The Done-when is read from the ticket by the worker, and copied word
   for word, as the next bullet says.
+- A body fix is answered by a re-review of the findings (keyword: body-digest,
+  pitboss#147). A review records the PR body it read in one line, `Body:
+  <digest>` (`uvx pitboss body-digest FILE` prints it for the body saved to a
+  file; the brief says how). GitHub's REST API gives a PR body no edit time
+  (`updated_at` moves with every label, push and comment), so the digest is
+  the record. When the digest in the newest review of the head is not the
+  body's now and the head did not move, the sweep prints `review=older-body`
+  and `slots next` offers the PR as `review the fix round's findings only`:
+  the worker who fixed only the body is not sent to fix the review again, and
+  the orchestrator does not guess the next step. A review of the same head that
+  records the new digest ends it. A review that records no `Body:` line is
+  keyed to the head alone, as before.
 - A brief names the ticket, the files and docs to read, the repository's own
   rules, the kind of change, the check before pushing, and the rules here that
   apply (pitboss prints it, above; it points the worker at the ticket's own

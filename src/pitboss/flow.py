@@ -14,7 +14,7 @@ points here.
 
 from typing import Callable, Sequence
 
-from . import flowstate, planbody, rulingwords, shapes, steps
+from . import bodydigest, flowstate, planbody, rulingwords, shapes, steps
 
 Verdict = shapes.Verdict
 Graded = shapes.Graded
@@ -56,15 +56,22 @@ def newest_counting_review(pr: PullState) -> Graded | None:
     reviews only, as every other question here does). A revision of the plan
     ends with an empty commit, so the review of a plan that was revised names
     an older head and does not count; ``plan_approved`` carries its approval.
+    The newest review of the head that records a body digest other than the
+    PR body's now does not count either (keyword: body-digest, pitboss#147):
+    a body fix is answered by a re-review, as a pushed fix is.
 
     Args:
         pr: the PR.
 
     Returns:
-        The review, or None when no regular review names the current head.
+        The review, or None when no regular review names the current head or
+        the newest one read another body.
     """
     found = _of_head(pr, _regular_reviews(pr))
-    return max(found, key=lambda each: each.when, default=None)
+    newest = max(found, key=lambda each: each.when, default=None)
+    if newest and bodydigest.changed(newest.body, bodydigest.digest(pr.pull.body)):
+        return None
+    return newest
 
 
 def is_draft(pr: PullState) -> bool:

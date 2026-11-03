@@ -21,7 +21,17 @@ import enum
 import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import concurrently, config, ghapi, ledger, parsing, pulls, shapes, steps
+from . import (
+    concurrently,
+    config,
+    ghapi,
+    ledger,
+    parsing,
+    pulls,
+    reviews,
+    shapes,
+    steps,
+)
 
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
@@ -45,6 +55,8 @@ class Category(enum.IntEnum):
         RULING_STEPS: an author does exactly the steps of an Opus ruling (a PR).
         RULING_AS_GIVEN: an author carries out an Opus ruling that splits,
             reshapes or abandons (a PR).
+        REVIEW_FIX_ROUND: a reviewer checks the findings of a review whose PR
+            body was fixed at the same head (a PR; keyword: body-digest).
     """
 
     FIX_REVIEW = 1
@@ -56,6 +68,7 @@ class Category(enum.IntEnum):
     RESOLVE_CONFLICT = 8
     RULING_STEPS = 9
     RULING_AS_GIVEN = 10
+    REVIEW_FIX_ROUND = 11
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -115,7 +128,18 @@ def _category(pull: pulls.PullFacts) -> Category | None:
     if step.step is steps.Step.WORKER:
         return CATEGORY_OF_TASK.get(step.task, Category.FIX_REVIEW)
     # review-flow: the step alone decides, so ``next`` and ``slots next`` agree
-    return Category.REVIEW if step.step is steps.Step.REGULAR_REVIEW else None
+    if step.step is not steps.Step.REGULAR_REVIEW:
+        return None
+    return Category.REVIEW_FIX_ROUND if _body_fixed(pull) else Category.REVIEW
+
+
+def _body_fixed(pull: pulls.PullFacts) -> bool:
+    # keyword: body-digest (pitboss#147): the body changed after a review that asked
+    # for changes, the head did not move
+    asked = (
+        pull.review is not None and pull.review.verdict is shapes.Verdict.CHANGES_NEEDED
+    )
+    return asked and pull.standing is reviews.Standing.OLDER_BODY
 
 
 def _references(pull: pulls.PullFacts) -> frozenset[str]:
