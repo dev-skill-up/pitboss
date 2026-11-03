@@ -61,6 +61,9 @@ class Marker(enum.Enum):
         NO_HAND_BACK: an agent started over ten minutes ago that has said nothing.
         SYNCED: a working file copied to the sync repository's main.
         SYNC_SOURCE_MISSING: a file the sync is told to keep is not there.
+        SYNC_NOT_CONFIGURED: the configuration has no ``[sync]`` table.
+        NOT_SYNCED: a working file beside the configuration, or named by it, that
+            ``[sync] paths`` does not keep.
         COULD_NOT_SYNC: git failed to bring the sync repository up to date or
             to push to it.
     """
@@ -107,6 +110,8 @@ class Marker(enum.Enum):
     NO_HAND_BACK = enum.auto()
     SYNCED = enum.auto()
     SYNC_SOURCE_MISSING = enum.auto()
+    SYNC_NOT_CONFIGURED = enum.auto()
+    NOT_SYNCED = enum.auto()
     COULD_NOT_SYNC = enum.auto()
 
     @property

@@ -3,6 +3,7 @@
 import argparse
 import pathlib
 import tomllib
+from typing import Mapping
 
 from . import briefconfig, cleanconfig, config, syncconfig
 
@@ -104,3 +105,17 @@ def load_sync(
     """
     with locate(name, start).open("rb") as stream:
         return syncconfig.from_document(tomllib.load(stream), default_checkout)
+
+
+def load_document(name: str, start: pathlib.Path) -> Mapping[str, object]:
+    """Locate and parse a configuration file.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+
+    Returns:
+        The parsed document.
+    """
+    with locate(name, start).open("rb") as stream:
+        return tomllib.load(stream)

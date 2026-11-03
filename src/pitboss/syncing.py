@@ -12,7 +12,7 @@ import pathlib
 import subprocess
 from typing import Sequence
 
-from . import config, configfile, syncconfig
+from . import config, configfile, syncconfig, syncguard
 from .markers import Marker
 from .running import Run, git
 
@@ -155,7 +155,9 @@ def section(args: argparse.Namespace, settings: config.Config) -> bool:
         settings: the configuration.
 
     Returns:
-        Whether something is wrong; false too when there is no ``[sync]`` table.
+        Whether something is wrong, a working file that is not kept included.
+        A configuration with no ``[sync]`` table is not wrong here: ``sync``
+        refuses it, and the sweep says so (``syncguard.section``).
     """
     start = configfile.working_directory(args)
     checkout = settings.project.main_clone / ".git" / "pitboss-sync"
@@ -163,7 +165,12 @@ def section(args: argparse.Namespace, settings: config.Config) -> bool:
     if sync is None:
         return False
     given = configfile.locate(args.config, start).absolute()
-    done = sync_lines(args.safe_run, sync, sources(settings, sync, given))
+    found = sources(settings, sync, given)
+    document = configfile.load_document(args.config, start)
+    unkept = syncguard.not_synced(given, document, [each.path for each in found])
+    for line in unkept:
+        print(line)
+    done = sync_lines(args.safe_run, sync, found)
     for line in done.lines:
         print(line)
-    return done.failed
+    return done.failed or bool(unkept)

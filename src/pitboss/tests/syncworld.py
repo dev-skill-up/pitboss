@@ -76,6 +76,73 @@ def make_synced(table: str = "") -> Synced:
     return Synced(here=here, origin=origin, notes=notes)
 
 
+def make_healthy(table: str = "") -> Synced:
+    """A synced world whose sweep is clean but for sync lines.
+
+    Args:
+        table: more lines of the table.
+
+    Returns:
+        The world.
+    """
+    synced = make_synced(table)
+    synced.here.bodies[world.project_page("pulls?state=open")] = [{"number": 2}]
+    return synced
+
+
+def add_to_config(synced: Synced, lines: str) -> None:
+    """Append lines to the world's configuration.
+
+    Args:
+        synced: the world.
+        lines: the text.
+    """
+    with open(synced.here.config, "a", encoding="utf-8") as stream:
+        stream.write(lines)
+
+
+def guard(synced: Synced) -> tuple[object, Sequence[str]]:
+    """Sweep a world: its exit code, and the lines about files not kept.
+
+    Args:
+        synced: the world.
+
+    Returns:
+        The code, and each line that says a file or the table is not synced.
+    """
+    out = world.again(synced.here, "sweep", "--now", world.FUTURE)
+    words = ("NOT SYNCED", "NOT CONFIGURED")
+    return out.code, [x for x in out.out.splitlines() if any(w in x for w in words)]
+
+
+def beside(synced: Synced, *names: str) -> Sequence[pathlib.Path]:
+    """Make files beside the world's configuration.
+
+    Args:
+        synced: the world.
+        *names: the file names.
+
+    Returns:
+        The paths.
+    """
+    made = [synced.here.workspace / name for name in names]
+    for each in made:
+        each.write_text("x\n")
+    return made
+
+
+def unkept_lines(found: Sequence[pathlib.Path]) -> tuple[int, Sequence[str]]:
+    """What a sweep says of files nothing keeps.
+
+    Args:
+        found: the files.
+
+    Returns:
+        Exit status 1 and a line for each, in path order.
+    """
+    return 1, [f"NOT SYNCED {each}" for each in sorted(found)]
+
+
 def kept(synced: Synced, path: pathlib.Path) -> str:
     """What main of the origin holds for a file.
 
