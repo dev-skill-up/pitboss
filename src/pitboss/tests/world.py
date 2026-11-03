@@ -32,6 +32,7 @@ pressure_percent = 100
 
 [slots]
 ledger = "{ledger}"
+ledger-owner = true
 models = ["small", "large"]
 priority_labels = ["urgent"]
 default = [{{name = "tiny", model = "small"}}, {{name = "big", model = "large"}}]

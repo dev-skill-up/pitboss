@@ -11,7 +11,9 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     config,
+    configfile,
     ledger,
+    ledgerowner,
     nextlist,
     report,
     slotlog,
@@ -182,6 +184,28 @@ def _report(found: Context) -> None:
         print(line)
 
 
+REFILLS = frozenset({Action.SET, Action.FREE, Action.NEXT})
+
+
+def _require_owner(found: Context) -> None:
+    # The ledger is neither read nor changed by a configuration that is not
+    # the orchestrator's (keyword: ledger-owner).
+    path = configfile.locate(
+        found.args.config, configfile.working_directory(found.args)
+    )
+    use = ledgerowner.owner(found.settings, path)
+    if use is not None:
+        print(ledgerowner.refusal(use), file=sys.stderr)
+        raise SystemExit(1)
+
+
+def _require_ledger(found: Context, action: Action) -> None:
+    if action in REFILLS:
+        _require_owner(found)
+    if action is not Action.REPORT:
+        nextlist.require_ledger(found.settings.slots.ledger)
+
+
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
@@ -207,8 +231,7 @@ def slots(args: argparse.Namespace) -> None:
     action = Action[args.action.upper()]
     tracefs.say(args.safe_run)
     found = load_context(args)
-    if action is not Action.REPORT:
-        nextlist.require_ledger(found.settings.slots.ledger)
+    _require_ledger(found, action)
     if action in CHANGES:
         changed = _changed(action, found)
         report.print_ledger(changed)

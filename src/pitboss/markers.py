@@ -74,6 +74,8 @@ class Marker(enum.Enum):
             ``[sync] paths`` does not keep.
         COULD_NOT_SYNC: git failed to bring the sync repository up to date or
             to push to it.
+        NOT_THE_ORCHESTRATOR_CONFIG: the first line of a sweep of a configuration
+            that does not own the slot ledger.
     """
 
     OUTDATED = enum.auto()
@@ -126,6 +128,7 @@ class Marker(enum.Enum):
     SYNC_NOT_CONFIGURED = enum.auto()
     NOT_SYNCED = enum.auto()
     COULD_NOT_SYNC = enum.auto()
+    NOT_THE_ORCHESTRATOR_CONFIG = enum.auto()
 
     @property
     def text(self) -> str:

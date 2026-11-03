@@ -10,6 +10,27 @@ how many slots there are: when it does not exist, every `pitboss slots`
 command except `report` exits 1 with `LEDGER MISSING: <path> does not exist.
 It is authoritative on the slots and the owner creates it`, and writes no file.
 
+## Which configuration refills the slot (keyword: ledger-owner)
+
+Only the orchestrator's configuration refills a slot: the one that owns the
+ledger. A configuration owns it when its `[slots]` table says
+`ledger-owner = true`, or when the ledger file records its path (a `"config"`
+key at the top of the JSON, next to `"slots"`, which `set` and `free` keep).
+Nothing writes that key when the file is made: it is put in the file by hand.
+A ledger made before this check records no path, so the orchestrator's
+configuration adds `ledger-owner = true` to its `[slots]` table once; until it
+does, `slots next`, `free` and `set` refuse even that configuration.
+`pitboss slots next`, `slots free` and `slots set` from any other
+configuration exit 1 and print `not the orchestrator config: use <path>` (the
+path the ledger records; `the configuration with ledger-owner = true` when it
+records none), and neither read nor change the ledger. Another configuration may name the same ledger
+file and print a plausible `NEXT` list from its own repositories, but its list
+leaves out what the orchestrator's puts first (a red CI, a review), so a
+refill from it starts the wrong work. `pitboss sweep` from a configuration that
+does not own the ledger starts with a first line `NOT THE ORCHESTRATOR CONFIG`:
+its slots and `NEXT` lines are not the orchestrator list; run the sweep again
+with the configuration it names before acting on them.
+
 ## Commands
 
 | Command | Use |

@@ -27,6 +27,7 @@ from . import (
     ghapi,
     handback,
     ledger,
+    ledgerowner,
     localsections,
     machine as machines,
     pulls,
@@ -317,6 +318,14 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     handback.print_lines(book, found.now)
 
 
+def _say_not_orchestrator(args: argparse.Namespace) -> None:
+    # The first line of a sweep of a configuration that does not own the ledger.
+    path = configfile.locate(args.config, working_directory(args))
+    use = ledgerowner.owner(load_settings(args), path)
+    if use is not None:
+        print(ledgerowner.sweep_line(use))
+
+
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sweep")
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots.
@@ -329,6 +338,7 @@ def sweep(args: argparse.Namespace) -> None:
     """
     clock = timing.start()
     args = timing.logged_args(args, clock)
+    _say_not_orchestrator(args)
     localsections.print_update_check(args.safe_run)
     found = load_context(args)
     timing.lap(clock, "update check and configuration read")

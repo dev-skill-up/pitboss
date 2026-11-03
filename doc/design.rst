@@ -270,7 +270,12 @@ Commands
        and an optional number N: it exits 1 when the ledger has fewer than N rows.
        ``free`` prints the ledger, then the ``EMPTY SLOT`` line that ``next``
        gives the freed slot (one function, ``nextview.refill_line``), or
-       ``no task is waiting``.
+       ``no task is waiting``. ``next``, ``free`` and ``set`` exit 1 with
+       ``not the orchestrator config: use PATH`` and leave the ledger alone
+       when the configuration does not own it (``[slots] ledger-owner = true``,
+       or the ledger's ``"config"`` key is the configuration's path;
+       ``ledgerowner.owner``); a sweep of such a configuration starts with
+       ``NOT THE ORCHESTRATOR CONFIG``.
 
 Reads go through gather's ``args.safe_run``; every change on GitHub or to
 git (cancelling a run, removing a worktree) goes through ``args.run``, so it

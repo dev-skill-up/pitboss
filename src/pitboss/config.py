@@ -125,6 +125,8 @@ class Slots:
         models: the models, smallest first.
         priority_labels: the ticket labels that are offered, highest first.
         model_labels: a label, and the smallest model a ticket with it goes to.
+        ledger_owner: ``ledger-owner = true``: this configuration owns the
+            ledger, whatever path the ledger records.
     """
 
     ledger: pathlib.Path
@@ -133,6 +135,7 @@ class Slots:
     models: Sequence[str]
     priority_labels: Sequence[str]
     model_labels: Mapping[str, str]
+    ledger_owner: bool = False
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -334,6 +337,7 @@ def _slots(document: Mapping[str, object], project: Project) -> Slots:
         model_labels={
             str(key): str(value) for key, value in _table(table, "model_labels").items()
         },
+        ledger_owner=table.get("ledger-owner") is True,
     )
 
 
