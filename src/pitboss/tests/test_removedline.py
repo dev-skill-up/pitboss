@@ -232,4 +232,6 @@ class TestUnits(unittest.TestCase):
         found: Mapping[str, str] = {
             event.kind: event.at for event in parsing.timeline_events(text)
         }
-        assert_that(found, equal_to({"labeled": LABELED["created_at"], "committed": ""}))
+        assert_that(
+            found, equal_to({"labeled": LABELED["created_at"], "committed": ""})
+        )
