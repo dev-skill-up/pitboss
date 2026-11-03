@@ -40,13 +40,13 @@ class TestOrderAndTruncation(unittest.TestCase):
     """Up to five, in the order the process ranks them."""
 
     def test_the_default_world_has_three_in_order(self) -> None:
-        """A red CI, a review and a new ticket, each with its model class."""
+        """A conflict, a review and a new ticket, each with its model class."""
         headers = [header for header, _ in default_suggestions()]
         assert_that(
             headers,
             equal_to(
                 [
-                    "SUGGESTION 1 of 3: fix the CI: owner/project#1:"
+                    "SUGGESTION 1 of 3: resolve the conflict: owner/project#1:"
                     " slot, smallest model small",
                     "SUGGESTION 2 of 3: review the Plan and the Execution:"
                     " owner/project#3: slot, smallest model small",
@@ -279,14 +279,12 @@ class TestKindsOfWork(unittest.TestCase):
         here = world_with([graded(APPROVED, APPROVED, 1)], mergeable_state="dirty")
         assert_that(kind_of_third(here), equal_to("resolve the conflict"))
 
-    def test_a_red_ci_is_fixed_and_a_ticket_is_started(self) -> None:
-        """PR 1 and ticket 9 of the default world."""
+    def test_a_conflict_is_resolved_and_a_ticket_is_started(self) -> None:
+        """PR 1 (dirty, and red: the conflict first) and ticket 9 of the world."""
         found = default_suggestions()
         assert_that(
             found[0][1][1],
-            contains_string(
-                f"Task: PR owner/project#1: CI on the head {'1' * 40} is red."
-            ),
+            contains_string("Task: PR owner/project#1 conflicts with main."),
         )
         assert_that(
             found[2][1][:2],

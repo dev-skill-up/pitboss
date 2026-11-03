@@ -117,10 +117,13 @@ Only override for bugs, but do override for bugs (and then file them)".
    `review the fix round's findings only`. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
-   CI`) whatever the stage, but a conflict as `resolve the conflict` only once
-   the execution is approved (`flow.next_step` returns `RESOLVE_CONFLICT` only
-   there, as `slots.md` says); before that the step is the review's or the
-   fix's, whatever the conflict. A merge is only a `READY TO MERGE` or
+   CI`) whatever the stage, and a conflict as `resolve the conflict` at any
+   stage, a draft's too (`flow.next_step` returns `RESOLVE_CONFLICT` right after
+   the pause and the unreadable ruling, before the draft, CI and review gates:
+   a dirty head runs no CI, pitboss#148), so the pull requests the sweep prints
+   `CONFLICT` for are the ones `slots next` lists as `resolve the conflict`,
+   before any ticket, oldest first, except a pull request paused for the owner or
+   with an unreadable ruling. A merge is only a `READY TO MERGE` or
    `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
    merge of a ready pull request comes first (Order of work, 3), then a
    `STALL` fix, before every `NEXT` line and every other pull request. A pull

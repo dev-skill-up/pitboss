@@ -243,9 +243,19 @@ def merge_unless_conflict(pr: PullState) -> steps.Next:
     Returns:
         The merge step, or the worker's conflict resolution.
     """
-    if not has_conflict(pr):
-        return steps.merge()
-    return steps.worker(steps.Task.RESOLVE_CONFLICT)
+    return conflict_step(pr) or steps.merge()
+
+
+def conflict_step(pr: PullState) -> steps.Next | None:
+    """The worker's resolution of a conflict, when the PR has one.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The step, or None when the PR does not conflict with its base.
+    """
+    return steps.worker(steps.Task.RESOLVE_CONFLICT) if has_conflict(pr) else None
 
 
 def next_step(pr: PullState) -> steps.Next:
@@ -263,6 +273,13 @@ def next_step(pr: PullState) -> steps.Next:
     # the newest Opus ruling must be readable, a draft's Plan stage included
     if flowstate.has_unreadable_ruling(pr):
         return steps.fix_ruling(flowstate.unreadable_ruling_comment(pr))
+
+    # keyword: conflict-first (pitboss#148): a conflict is a fix, by any author, at
+    # any stage: a dirty head runs no CI and a draft waits, so the CI and draft
+    # gates below would never reach the worker. The sweep prints CONFLICT for it.
+    conflict = conflict_step(pr)
+    if conflict is not None:
+        return conflict
 
     review = newest_counting_review(pr)
 
