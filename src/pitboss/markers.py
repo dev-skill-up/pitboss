@@ -29,6 +29,7 @@ class Marker(enum.Enum):
         RULING_UNREADABLE: a PR whose newest Opus ruling comment has no
             readable ``Ruling: <word>`` second line.
         RULING_ESCALATES: a PR whose Opus ruling escalated to the owner.
+        REMOVED_FROM_QUEUE: the merge queue removed a PR, and why.
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
         READY_TO_MERGE: green, clean and approved; arm auto-merge.
         MERGE_BY_HAND: green, clean and approved, in a repository without
@@ -78,6 +79,7 @@ class Marker(enum.Enum):
     PAUSE = enum.auto()
     RULING_UNREADABLE = enum.auto()
     RULING_ESCALATES = enum.auto()
+    REMOVED_FROM_QUEUE = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
     MERGE_BY_HAND = enum.auto()

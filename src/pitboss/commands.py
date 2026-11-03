@@ -43,7 +43,7 @@ from . import (
     tracefs,
     worktrees,
 )
-from . import diskline, orphanline, pulllines, unreadableline
+from . import diskline, orphanline, pulllines, removedline, unreadableline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -245,7 +245,9 @@ def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
         steps = {check_id: failure.steps for check_id, failure in read.items()}
         for line in pulllines.lines(pull, found.now, found.settings, steps):
             print(line)
-        for line in report.action_lines(pull, found.settings, queued, why):
+        said = removedline.tell(found.github, found.settings, pull, runs)
+        acts = report.action_lines(pull, found.settings, queued, why)
+        for line in removedline.settle(said, acts):
             print(line)
         broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
     return broken

@@ -51,6 +51,18 @@ class PullFacts:
     relock: bool = False
 
 
+def unhealthy(facts: PullFacts) -> bool:
+    """Whether the PR has a failed check, a conflict or is a draft.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when it is any of them.
+    """
+    return bool(failed_checks(facts)) or conflicted(facts) or facts.pull.draft
+
+
 def reference(facts: PullFacts) -> str:
     """The PR's ``owner/name#number``.
 
