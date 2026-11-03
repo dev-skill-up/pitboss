@@ -63,6 +63,11 @@ PUSH_HELD = (
     " unpushed; never loop or sleep for the hold to clear."
 )
 PUSH_FREE = "Push: push the branch with `git push` after every commit."
+PLAN_COMMANDS_WORKER = (
+    "Plan commands: run each precise command of the Plan as written; if the"
+    " Plan's command cannot show its row, change the Plan first and ask for its"
+    " review."
+)
 NO_WAITING = "No waiting: never wait for CI. Push, then hand back at once."
 FINISH = "Finish inside the turn. Do not merge. Do not write the review."
 HAND_BACK = (
@@ -174,6 +179,19 @@ GREP = (
     "Grep: look for a statement the change makes false or contradictory anywhere"
     " in the tree; one is changes needed. An objection to a phrase no claim"
     " depends on is answered by removing the phrase."
+)
+PLAN_COMMANDS_PLAN = (
+    "Plan commands: for each Done-when row, if the Plan's evidence mentions a"
+    " command, the Plan must give the precise command (the exact string to run on"
+    " the head, a cut or a pipe included when the Plan wants one); a row that"
+    " mentions a command without it is a changes-needed finding of the Plan."
+    " Evidence that is not a command (a file read, a diff, a CI run) is accepted"
+    " when the Plan says exactly what will be shown."
+)
+PLAN_COMMANDS_EXECUTION = (
+    "Plan commands: grade the Execution against the Plan as written; each precise"
+    " command of the Plan must have been run as written; a command run in another"
+    " form, or left out, is a changes-needed finding."
 )
 CARRIED = (
     "Write `Plan: approved` as carried over, and an `Execution:` line with your"

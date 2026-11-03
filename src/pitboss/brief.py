@@ -79,13 +79,25 @@ TASKS: Mapping[Kind, str] = {
     Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
 }
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
-    Kind.REVIEW_FULL: [text.SCOPE_FULL, text.CHECK, text.GREP],
-    Kind.REVIEW_EXECUTION: [text.SCOPE_EXECUTION, text.CHECK, text.GREP],
-    Kind.REVIEW_PLAN: [text.SCOPE_PLAN, text.GREP],
+    Kind.REVIEW_FULL: [
+        text.SCOPE_FULL,
+        text.CHECK,
+        text.GREP,
+        text.PLAN_COMMANDS_PLAN,
+        text.PLAN_COMMANDS_EXECUTION,
+    ],
+    Kind.REVIEW_EXECUTION: [
+        text.SCOPE_EXECUTION,
+        text.CHECK,
+        text.GREP,
+        text.PLAN_COMMANDS_EXECUTION,
+    ],
+    Kind.REVIEW_PLAN: [text.SCOPE_PLAN, text.GREP, text.PLAN_COMMANDS_PLAN],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
     Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.CARRIED],
     Kind.REVIEW_RELOCK: [text.SCOPE_RELOCK, text.RELOCK_CHECKS, text.CARRIED],
 }
+PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
 DRAFTS = {True: text.DRAFT, False: text.READY}
 PUSHES = {True: text.PUSH_HELD, False: text.PUSH_FREE}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
@@ -225,6 +237,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.EDIT,
         text.DENIED,
         text.LOCAL,
+        *([text.PLAN_COMMANDS_WORKER] if spec.kind in PLAN_RUNNERS else []),
         PUSHES[project.holds],
         text.NO_WAITING,
         text.FINISH,
