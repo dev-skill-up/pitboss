@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ledger, work
+from . import config, holds, ledger, work
 from .markers import Marker
 
 CATEGORY_WORDS = {
@@ -31,6 +31,8 @@ class NextView:
         slots: the slot configuration.
         failed: each reference's failed models.
         now: the time now.
+        held: the tickets the owner's hold keeps back (keyword: pr-hold).
+        standing: each held repository and its open count.
     """
 
     items: Sequence[work.Item]
@@ -38,6 +40,8 @@ class NextView:
     slots: config.Slots
     failed: Mapping[str, Sequence[str]]
     now: datetime.datetime
+    held: Sequence[work.Item] = ()
+    standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
 
 
 def _age_days(created_at: str, now: datetime.datetime) -> int:
@@ -59,7 +63,7 @@ def _item_text(item: work.Item, view: NextView) -> str:
 
 
 def next_lines(view: NextView) -> Iterable[str]:
-    """The sorted list, then what each empty slot takes.
+    """The sorted list, the held tickets, then what each empty slot takes.
 
     Args:
         view: what to print from.
@@ -69,6 +73,8 @@ def next_lines(view: NextView) -> Iterable[str]:
     """
     for index, item in enumerate(view.items, start=1):
         yield f"{Marker.NEXT.text} {index}. {_item_text(item, view)}"
+    for item in view.held:
+        yield holds.held_line(item.reference, view.standing)
     if not view.assignments:
         yield "slots: the ledger says all full: start nothing"
     for slot, chosen in view.assignments:

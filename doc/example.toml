@@ -131,6 +131,14 @@ branches = ["scratch-run-1", "scratch-run-2"]
 # closed, and whether any blocked ticket is unblocked.
 # reminders = ["..."]
 
+[holds]
+# The owner's hold on new pull requests: in these repositories no ticket is
+# offered as new work while more than max_open of their PRs are open (`slots
+# next` prints it as HELD; the sweep prints one HOLD line). Default: none.
+new_pull_requests = ["widgets"]
+# Hold only while more than this many are open. Default: 0.
+max_open = 0
+
 [slots]
 # The ledger: a file outside the repository.
 # Default: <main_clone>/.git/pitboss-slots.json

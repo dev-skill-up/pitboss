@@ -75,6 +75,12 @@ What was project-specific, and where it went
    * - "a ticket marked as needing a Sonnet"
      - ``[slots] model_labels``: a label that names the smallest model a
        ticket may go to
+   * - "stop opening new quire pull requests until the existing ones are
+       finished" (the owner, 2026-10-30)
+     - ``[holds] new_pull_requests`` (repositories, default none) and
+       ``max_open`` (default 0: hold while more than that many of the
+       repository's PRs are open). ``slots next`` prints its tickets as
+       ``HELD`` and offers none; the sweep prints one ``HOLD`` line
    * - the two ``SWEEP REMINDER`` questions
      - ``[sweep] reminders`` (the two questions are the default)
    * - ``.claude/pitboss/quire.toml``
@@ -705,7 +711,9 @@ listed at most once. The eight kinds:
 A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
-label, not referenced by an open PR.
+label, not referenced by an open PR, except a ticket of a repository under
+the owner's hold (``[holds] new_pull_requests``; keyword: pr-hold), which is
+printed as ``HELD`` and offered to no slot.
 
 **Slot log.** The ledger keeps only the present, and a resumed agent
 overwrites its own timestamps, so idle and waiting time could only be
@@ -737,7 +745,7 @@ Output
 ------
 
 Every line that calls for an action says the action. The markers
-(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``DISK PRESSURE``, ``EMPTY SLOT``, ``SLOTS FREE``,
+(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``DISK PRESSURE``, ``EMPTY SLOT``, ``SLOTS FREE``, ``HOLD``, ``HELD``,
 ``RULING DUE``, ``PAUSE``, ``NO HAND-BACK``, ...) are members of one enum, ``pitboss.markers.Marker``, printed as the
 member's name in words (so ``READY_TO_MERGE`` prints ``READY TO MERGE``,
 and the line with no pressure reads ``NO RUNNER PRESSURE``); a check in CI

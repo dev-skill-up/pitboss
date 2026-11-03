@@ -17,6 +17,7 @@ from . import (
     ghapi,
     ledger,
     nextview,
+    offering,
     pulls,
     suggest,
     unreadableline,
@@ -80,20 +81,22 @@ def require_ledger(path: pathlib.Path) -> None:
 
 def _ordered(
     found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
-) -> Sequence[work.Item]:
+) -> work.Offered:
     unreadableline.print_withheld(opened)
-    return work.queued(opened, found.github, found.settings, book)
+    return offering.offered(found, opened, book)
 
 
 def _view(
-    found: Found, ordered: Sequence[work.Item], book: ledger.Ledger
+    found: Found, ordered: work.Offered, book: ledger.Ledger
 ) -> nextview.NextView:
     return nextview.NextView(
-        items=ordered,
-        assignments=work.assign(ordered, book, found.settings.slots),
+        items=ordered.items,
+        assignments=work.assign(ordered.items, book, found.settings.slots),
         slots=found.settings.slots,
         failed=book.failed,
         now=found.now,
+        held=ordered.held,
+        standing=ordered.standing,
     )
 
 
@@ -118,7 +121,7 @@ def show(
             found.args.config, pathlib.Path(found.args.env.get("PWD", "."))
         ),
         facts=pulls.readable(opened),
-        items=ordered,
+        items=ordered.items,
         failed=book.failed,
     )
     for line in itertools.chain(

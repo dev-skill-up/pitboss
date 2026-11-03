@@ -66,6 +66,9 @@ class Marker(enum.Enum):
         NEXT: a line of the sorted list of work.
         SUGGESTION: one of the top suggestions of ``next`` and ``slots next``,
             with the brief to paste.
+        HOLD: the owner's hold on new pull requests applies to
+            a repository (``[holds] new_pull_requests``), with its open count.
+        HELD_TICKET: a ticket of a held repository, which ``slots next`` does not offer.
         NO_HAND_BACK: an agent started over ten minutes ago that has said nothing.
         SYNCED: a working file copied to the sync repository's main.
         SYNC_SOURCE_MISSING: a file the sync is told to keep is not there.
@@ -122,6 +125,8 @@ class Marker(enum.Enum):
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
     NEXT = enum.auto()
     SUGGESTION = enum.auto()
+    HOLD = enum.auto()
+    HELD_TICKET = enum.auto()
     NO_HAND_BACK = enum.auto()
     SYNCED = enum.auto()
     SYNC_SOURCE_MISSING = enum.auto()
@@ -141,6 +146,7 @@ class Marker(enum.Enum):
 
 
 SPELLED = {
+    Marker.HELD_TICKET: "HELD",
     Marker.NO_HAND_BACK: "NO HAND-BACK",
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
 }

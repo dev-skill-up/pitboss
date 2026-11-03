@@ -342,6 +342,19 @@ Only override for bugs, but do override for bugs (and then file them)".
      with priority 0 is not worked on if it has blockers. The blockers inherit
      the priority."). A blocked ticket is not started, not even for a piece of
      it (owner, 2026-10-24T04:51:42Z, line 82652: "DON'T START THE AGENT").
+  6. **A hold on new pull requests** (keyword: pr-hold). The owner's standing
+     order of 2026-10-30, recorded in dev-skill-up/pitboss#151 (the ticket
+     gives the order in its own words, "stop opening new quire pull requests
+     until the existing ones are finished"; the timestamp and the verbatim
+     message are in the transcript, not here): in a repository the project's
+     configuration lists under `[holds] new_pull_requests`, no new pull request
+     is started while more than `max_open` (default 0) of its pull requests are
+     open. `slots next` prints each ticket of such a repository as `HELD`, with
+     no `NEXT` number, so the next ticket takes the slot, and the sweep prints
+     one `HOLD` line. The hold changes only which tickets are offered: the open
+     pull requests of the repository are finished as in 2 and 3, and the order
+     of everything else is unchanged. It is the owner's to set and to lift, in
+     the configuration; a priority does not override it.
 - **No downgrades without the owner's word.** Downgrading a ticket to p3 on
   judgement (minor impact, high cost), or to any other priority, needs the
   owner's approval. An issue's priority is the owner's call: a worker that
