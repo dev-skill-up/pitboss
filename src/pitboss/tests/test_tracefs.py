@@ -1,11 +1,12 @@
 """The tracefs mount: three cases, with the mount command injected."""
 
+import dataclasses
 import unittest
 from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import tracefs
+from .. import disk, tracefs
 from . import fakes, world
 
 FOUND = "tracefs: found mounted"
@@ -67,6 +68,36 @@ class TestEnsure(unittest.TestCase):
         assert_that(machine.calls, equal_to(expected))
 
 
+GIB = 2**30
+
+
+def free(gibibytes: int) -> disk.Reader:
+    """A disk with a fixed figure free, whatever the host has.
+
+    Args:
+        gibibytes: the free space.
+
+    Returns:
+        The reader of the use of a path, for every path.
+    """
+    return lambda _: disk.Usage(100 * GIB, (100 - gibibytes) * GIB, gibibytes * GIB)
+
+
+def with_free(
+    gibibytes: int, answers: fakes.Answers = fakes.TRACEFS_FOUND
+) -> world.World:
+    """A world whose disk has a fixed figure free.
+
+    Args:
+        gibibytes: the free space.
+        answers: the exit status of the tracefs check and of the mount.
+
+    Returns:
+        The world.
+    """
+    return dataclasses.replace(world.make_world(answers), usage=free(gibibytes))
+
+
 CASES = (
     (fakes.TRACEFS_FOUND, FOUND, False),
     ({"grep": 1, "mount": 0}, MOUNTED, True),
@@ -101,7 +132,7 @@ def play(command: str) -> tuple[Sequence[tuple[str, bool]], int]:
     """
     played = []
     for answers, _, _ in CASES:
-        here = world.make_world(answers)
+        here = with_free(7, answers)
         result = run(here, command)
         mount = any(call[0] == "mount" for call in here.calls)
         out = result.out.replace(str(here.workspace), "WORKSPACE")
@@ -119,3 +150,18 @@ class TestCommands(unittest.TestCase):
         expected = [(said, mounts) for _, said, mounts in CASES]
         found = [play(command) for command in ("sweep", "pressure", "slots")]
         assert_that(found, equal_to([(expected, 1)] * 3))
+
+    def test_disk_figure_is_the_injected_one(self) -> None:
+        """The clean line says the injected free space, not the host's."""
+        lines = []
+        for gibibytes in (7, 9):
+            here = with_free(gibibytes)
+            lines.append(run(here, "sweep").out)
+        said = [
+            "disk free 7.0 GiB before, 7.0 GiB after",
+            "disk free 9.0 GiB before, 9.0 GiB after",
+        ]
+        assert_that(
+            [said[i] in out for i, out in enumerate(lines)], equal_to([True] * 2)
+        )
+        assert_that(said[0] in lines[1], equal_to(False))

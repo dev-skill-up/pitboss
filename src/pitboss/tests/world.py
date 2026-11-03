@@ -10,7 +10,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 from gather import commands as gather_commands
 
-from .. import cli_parser, shapes
+from .. import cli_parser, disk, machine, shapes
 from . import fakes
 
 FUTURE = "2030-01-01T00:00:00+00:00"
@@ -142,6 +142,7 @@ class World:
         bodies: the fake GitHub's bodies (change them to change GitHub).
         calls: every command line the commands ran.
         processes: what the commands run processes with.
+        usage: reads the use of a disk; the real disk unless a test gives a figure.
     """
 
     workspace: pathlib.Path
@@ -152,6 +153,7 @@ class World:
     bodies: MutableMapping[str, object]
     calls: MutableSequence[Sequence[str]]
     processes: fakes.Processes
+    usage: disk.Reader = machine.read_usage
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -270,13 +272,16 @@ def make_world(answers: fakes.Answers = fakes.TRACEFS_FOUND) -> World:
     )
 
 
-def parser() -> argparse.ArgumentParser:
+def parser(here: World) -> argparse.ArgumentParser:
     """The command line parser of every pitboss command.
+
+    Args:
+        here: the world, whose disk reader the commands get.
 
     Returns:
         The parser.
     """
-    return cli_parser.make_parser()
+    return cli_parser.make_parser(here.usage)
 
 
 def shell_env(world: World, directory: pathlib.Path | None) -> Mapping[str, str]:
@@ -327,7 +332,7 @@ def exit_code(world: World, argv: Sequence[str], env: Mapping[str, str]) -> obje
     """
     try:
         gather_commands.run_maybe_dry(
-            parser=parser(),
+            parser=parser(world),
             argv=list(argv),
             env=env,
             sp_run=world.processes,

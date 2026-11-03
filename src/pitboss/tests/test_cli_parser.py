@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import world
+from .. import cli_parser, machine
 
 
 def parsed(*argv: str) -> tuple[str, bool, bool, Sequence[str]]:
@@ -20,7 +20,7 @@ def parsed(*argv: str) -> tuple[str, bool, bool, Sequence[str]]:
     Returns:
         The config, ``--no-dry-run``, ``--draft`` and git's arguments.
     """
-    found = world.parser().parse_args(["push", *argv])
+    found = cli_parser.make_parser(machine.read_usage).parse_args(["push", *argv])
     return (found.config, found.no_dry_run, found.draft, found.git_arguments)
 
 
