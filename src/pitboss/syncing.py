@@ -157,7 +157,7 @@ def section(args: argparse.Namespace, settings: config.Config) -> bool:
     Returns:
         Whether something is wrong, a working file that is not kept included.
         A configuration with no ``[sync]`` table is not wrong here: ``sync``
-        refuses it, and the sweep says so (``syncguard.section``).
+        refuses it, and the sweep says so (``syncguard.unconfigured``).
     """
     start = configfile.working_directory(args)
     checkout = settings.project.main_clone / ".git" / "pitboss-sync"
