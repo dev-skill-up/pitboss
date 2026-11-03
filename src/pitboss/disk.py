@@ -3,6 +3,7 @@
 import dataclasses
 import pathlib
 import shutil
+import sys
 from typing import Callable, Iterable, NamedTuple, Sequence
 
 BYTES_IN_GIBIBYTE = 2**30
@@ -77,6 +78,29 @@ def low_space(
         if free < minimum_gib * BYTES_IN_GIBIBYTE:
             found.append(Low(path=each, free=free))
     return found
+
+
+def low_space_read(
+    paths: Iterable[pathlib.Path], minimum_gib: float, reader: Reader
+) -> Sequence[Low]:
+    """``low_space`` for a reader of the use of a path (keyword: disk-injected).
+
+    The old form, ``low_space`` with its free-bytes callable, stays beside it.
+
+    Args:
+        paths: the paths; one that is not there is left out.
+        minimum_gib: the minimum, in GiB; 0 is never low.
+        reader: reads the use of a path's file system.
+
+    Returns:
+        One entry for each filesystem, named by its first path.
+    """
+
+    def free(path: pathlib.Path) -> int:
+        found = reader(path)
+        return found.free if found else sys.maxsize
+
+    return low_space(paths, minimum_gib, free)
 
 
 def size_text(size: int) -> str:

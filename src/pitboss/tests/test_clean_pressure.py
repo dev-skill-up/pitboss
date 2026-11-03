@@ -4,8 +4,8 @@ import dataclasses
 import datetime
 import unittest
 
-from .. import cleanconfig, diskline
-from . import cleanworld, world
+from .. import cleanconfig, diskline, machine
+from . import cleanworld, test_tracefs, world
 
 LATER = ("--now", world.FUTURE)
 
@@ -47,7 +47,11 @@ class TestPressure(unittest.TestCase):
             cleanworld.look_in(root), clean=settings, watch=cleanworld.watching(root)
         )
         now = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
-        text = "\n".join(diskline.lines(look, now + datetime.timedelta(days=99999)))
+        text = "\n".join(
+            diskline.lines(
+                look, now + datetime.timedelta(days=99999), machine.read_usage
+            )
+        )
         cleanworld.same(
             cleanworld.absent(
                 text, ["DISK PRESSURE", f"{root / 'written'} (written over 1 hours"]
@@ -59,3 +63,16 @@ class TestPressure(unittest.TestCase):
         """With room there is no line and nothing is scanned."""
         out = world.again(world.make_world(), "sweep", *LATER).out
         cleanworld.same("DISK PRESSURE" in out, False)
+
+    def test_the_pressure_line_says_the_injected_figure(self) -> None:
+        """Under the minimum the line has the injected figure; over it, none."""
+        said = []
+        for gibibytes in (1, 9):
+            here = test_tracefs.with_free(gibibytes)
+            cleanworld.crowd(here, "5")
+            said.append(world.again(here, "sweep", *LATER).out)
+        line = "free, under 5 GiB"
+        cleanworld.same(
+            ("1.0 GiB " + line in said[0], "DISK PRESSURE" in said[1]),
+            (True, False),
+        )

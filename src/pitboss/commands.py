@@ -305,7 +305,7 @@ def _repository_sections(
     localsections.print_stragglers(
         found.args.safe_run, found.settings.project.workspace
     )
-    for line in diskline.lines(sweep_look(found), found.now):
+    for line in diskline.lines(sweep_look(found), found.now, found.args.usage):
         print(line)
     timing.lap(clock, "checkouts done")
     return broken, read
