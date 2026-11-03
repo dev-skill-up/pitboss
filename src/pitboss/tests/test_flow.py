@@ -60,9 +60,7 @@ def graded(
         The review.
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return shapes.Graded(
-        sha=sha, when=when, plan=plan, execution=execution, body=body
-    )
+    return shapes.Graded(sha=sha, when=when, plan=plan, execution=execution, body=body)
 
 
 FIRST_REJECTION = graded(*PLAN_REJECTED, 1, sha=OLDER)
