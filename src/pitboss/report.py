@@ -74,6 +74,7 @@ def action_lines(
     settings: config.Config,
     queued: bool,
     why: Mapping[int, str],
+    removed: bool = False,
 ) -> Sequence[str]:
     """The actions one PR calls for.
 
@@ -82,12 +83,14 @@ def action_lines(
         settings: the configuration.
         queued: whether the PR's newest queue run is unfinished.
         why: what was read of each failed check (by id), for its line.
+        removed: whether the REMOVED FROM QUEUE lines were printed, which
+            say how to merge it (keyword: removed-from-queue).
 
     Returns:
         The lines.
     """
-    merge = _ready_line(pull, settings)
-    if merge is None and _auto_merge_off(pull, settings, queued):
+    merge = None if removed else _ready_line(pull, settings)
+    if merge is None and not removed and _auto_merge_off(pull, settings, queued):
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
     return [
         *_wait_lines(pull),

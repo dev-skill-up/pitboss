@@ -317,6 +317,46 @@ def jobs_waiting(text: str) -> Sequence[bool]:
     ]
 
 
+def timeline_events(text: str) -> Sequence[shapes.TimelineEvent]:
+    """Parse a page of a PR's timeline, every event, so a page's length pages.
+
+    Args:
+        text: the response body of ``issues/<number>/timeline``.
+
+    Returns:
+        The events in the order GitHub gives them (oldest first).
+    """
+    return [
+        shapes.TimelineEvent(
+            kind=item.get("event") or "", at=item.get("created_at") or ""
+        )
+        for item in json.loads(text)
+    ]
+
+
+def job_results(text: str) -> Sequence[shapes.JobResult]:
+    """Parse a page of the jobs of a run, with the failed steps of each.
+
+    Args:
+        text: the response body of ``actions/runs/<id>/jobs``.
+
+    Returns:
+        Every job.
+    """
+    return [
+        shapes.JobResult(
+            name=item["name"],
+            conclusion=item.get("conclusion") or "",
+            failed_steps=[
+                step["name"]
+                for step in item.get("steps") or []
+                if step.get("conclusion") == "failure"
+            ],
+        )
+        for item in json.loads(text)["jobs"]
+    ]
+
+
 def issue_of(text: str) -> Sequence[shapes.Issue]:
     """Parse one issue (the response body of ``issues/<number>``).
 

@@ -208,6 +208,34 @@ class Commit:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class TimelineEvent:
+    """One event of a PR's timeline.
+
+    Attributes:
+        kind: GitHub's event name (``added_to_merge_queue``).
+        at: when it happened (ISO 8601), empty for an event with no time.
+    """
+
+    kind: str
+    at: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class JobResult:
+    """A job of a workflow run.
+
+    Attributes:
+        name: its name (``android / build-android``).
+        conclusion: how it ended, empty while it runs.
+        failed_steps: the names of its steps that failed.
+    """
+
+    name: str
+    conclusion: str
+    failed_steps: Sequence[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WorkflowRun:
     """A workflow run.
 
