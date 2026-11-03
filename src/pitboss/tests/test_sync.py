@@ -36,6 +36,17 @@ def pushes(here: world.World) -> Sequence[Sequence[str]]:
     return [call for call in here.calls if "push" in call]
 
 
+def nothing_to_commit(synced: syncworld.Synced) -> None:
+    """Sync a world: the line, exit 0, and the origin as it was.
+
+    Args:
+        synced: the world, synced once.
+    """
+    before = kept(synced)
+    code_and_lines = syncworld.sync(synced)
+    cleanworld.same((code_and_lines, kept(synced)), ((0, [NOTHING]), before))
+
+
 def failing_sync(
     word: str, error: Exception
 ) -> tuple[syncworld.Synced, tuple[object, str]]:
@@ -71,21 +82,13 @@ class TestSync(unittest.TestCase):
     def test_files_identical_to_the_remote_say_nothing_to_commit(self) -> None:
         """A second sync with the same files: the line, exit 0, no new commit."""
         synced = syncworld.after_first_sync()
-        before = kept(synced)
-        cleanworld.same(
-            (syncworld.sync(synced), kept(synced)),
-            ((0, [NOTHING]), before),
-        )
+        nothing_to_commit(synced)
 
     def test_a_copy_that_stages_nothing_is_not_an_error(self) -> None:
         """Real git: bytes differ from the clone, the add stages nothing, exit 0."""
         synced = syncworld.after_first_sync()
         syncworld.normalize_on_origin(synced)
-        before = kept(synced)
-        cleanworld.same(
-            (syncworld.sync(synced), kept(synced)),
-            ((0, [NOTHING]), before),
-        )
+        nothing_to_commit(synced)
 
     def test_a_failing_diff_is_still_reported(self) -> None:
         """A git that fails to diff (status 128, not 1) is COULD NOT SYNC."""

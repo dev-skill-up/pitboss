@@ -200,10 +200,13 @@ def normalize_on_origin(synced: Synced) -> None:
     work = fakes.directory() / "by-hand"
     fakes.run_git(work.parent, "clone", "--quiet", str(synced.origin), str(work))
     (work / ".gitattributes").write_text("notes-current/** text eol=crlf\n")
-    identity = ("-c", "user.name=t", "-c", "user.email=t@localhost")
-    fakes.run_git(work, "add", ".gitattributes")
-    fakes.run_git(work, *identity, "commit", "--quiet", "-m", "attributes")
-    fakes.run_git(work, "push", "--quiet", "origin", "HEAD:main")
+    steps = (
+        ("add", ".gitattributes"),
+        (*fakes.IDENTITY, "commit", "--quiet", "-m", "attributes"),
+        ("push", "--quiet", "origin", "HEAD:main"),
+    )
+    for words in steps:
+        fakes.run_git(work, *words)
     shutil.rmtree(synced.checkout)
 
 
