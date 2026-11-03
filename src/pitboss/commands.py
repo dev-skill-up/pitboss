@@ -280,7 +280,9 @@ def _clean_section(found: Context) -> None:
     listed = found.clean.worktrees is cleanconfig.Worktrees.LIST
     option = autoclean.Option(run=found.args.safe_run, dry=False, list_only=listed)
     look = sweep_look(found)
-    machine = machines.real_machine(found.args.env, found.now, running_in(found.args))
+    machine = machines.real_machine(
+        found.args.env, found.now, running_in(found.args), found.args.usage
+    )
     for text in autoclean.clean_lines(look, machine, option):
         print(text)
     source = scratch.source_of(found.args.safe_run, found.scratch, found.now)
@@ -303,7 +305,7 @@ def _repository_sections(
     localsections.print_stragglers(
         found.args.safe_run, found.settings.project.workspace
     )
-    for line in diskline.lines(sweep_look(found), found.now):
+    for line in diskline.lines(sweep_look(found), found.now, found.args.usage):
         print(line)
     timing.lap(clock, "checkouts done")
     return broken, read

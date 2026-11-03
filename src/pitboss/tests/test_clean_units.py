@@ -46,6 +46,18 @@ class TestDisk(unittest.TestCase):
         same(disk.low_space(names, 0, small), [])
         assert_that(disk.free_space(here), greater_than(0))
 
+    def test_low_space_read(self) -> None:
+        """The reader form names a low filesystem with the reader's figure."""
+        here = fakes.directory()
+
+        def reader(path: pathlib.Path) -> disk.Usage | None:
+            return disk.Usage(10 * 2**30, 9 * 2**30, 2**30)
+
+        low = disk.low_space_read([here, here / "missing"], 2.0, reader)
+        same([(each.path, each.free) for each in low], [(here, 2**30)])
+        same(disk.low_space_read([here], 0.5, reader), [])
+        same(disk.low_space_read([here], 2.0, lambda path: None), [])
+
     def test_size_text(self) -> None:
         """Sizes are in MiB under a GiB, else GiB."""
         sizes = {3 * 2**20: "3.0 MiB", 3 * 2**30: "3.0 GiB"}

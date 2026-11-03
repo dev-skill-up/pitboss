@@ -108,7 +108,7 @@ class Machine:
     """
 
     fs: Filesystem
-    usage: Callable[[pathlib.Path], disk.Usage | None]
+    usage: disk.Reader
     now: datetime.datetime
     uid: int
     home: pathlib.Path
@@ -119,6 +119,7 @@ def real_machine(
     env: Mapping[str, str],
     now: datetime.datetime,
     working: AbstractSet[pathlib.Path],
+    usage: disk.Reader = read_usage,
 ) -> Machine:
     """This machine.
 
@@ -126,13 +127,14 @@ def real_machine(
         env: the environment of the command.
         now: the time now.
         working: the directories the command runs in.
+        usage: reads the use of a path's file system.
 
     Returns:
         The machine: the real file system and disk, the user running.
     """
     return Machine(
         fs=real(),
-        usage=read_usage,
+        usage=usage,
         now=now,
         uid=os.getuid(),
         home=pathlib.Path(env.get("HOME", str(pathlib.Path.home()))),
