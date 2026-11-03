@@ -1,13 +1,12 @@
 """The merge queue: its runs, the stale ones, and runner pressure."""
 
-import concurrent.futures
 import dataclasses
 import datetime
 import re
 import subprocess
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ghapi, parsing, record, shapes
+from . import concurrently, config, ghapi, parsing, record, shapes
 
 QUEUE_PAGES = 3
 _PULL_NUMBER = re.compile(r"/pr-(\d+)-")
@@ -165,8 +164,7 @@ def count_jobs(github: ghapi.GitHub, runs: Iterable[QueueRun]) -> Jobs:
         The count, and the runs left out of it.
     """
     unfinished = [candidate for candidate in runs if not candidate.run.finished]
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        read = list(pool.map(lambda each: _read_jobs(github, each), unfinished))
+    read = concurrently.each(lambda each: _read_jobs(github, each), unfinished)
     return Jobs(
         waiting=sum(each for each in read if isinstance(each, int)),
         unread=[each for each in read if isinstance(each, shapes.Unreadable)],

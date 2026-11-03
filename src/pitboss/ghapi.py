@@ -1,12 +1,12 @@
 """Reading GitHub through ``gh api``, with the session's own auth and proxy."""
 
-import concurrent.futures
 import dataclasses
 import re
 import subprocess
 import urllib.parse
 from typing import Callable, Iterable, Mapping, Sequence, TypeVar
 
+from . import concurrently
 from .running import Run
 
 PAGE_SIZE = 100
@@ -178,6 +178,5 @@ def unreadable(github: GitHub, slugs: Iterable[str]) -> Mapping[str, str]:
         Each unreadable repository, with the first line of ``gh``'s error.
     """
     wanted = sorted(set(slugs))
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        reasons = pool.map(lambda slug: _why_unreadable(github, slug), wanted)
-        return {slug: reason for slug, reason in zip(wanted, reasons) if reason}
+    reasons = concurrently.each(lambda slug: _why_unreadable(github, slug), wanted)
+    return {slug: reason for slug, reason in zip(wanted, reasons) if reason}

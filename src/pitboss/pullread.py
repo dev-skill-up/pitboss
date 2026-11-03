@@ -1,10 +1,9 @@
 """Reading every open PR of the project and its libraries (keyword: pull-read)."""
 
-import concurrent.futures
 import functools
 from typing import Callable, Sequence
 
-from . import config, ghapi, parsing, pulls, shapes
+from . import concurrently, config, ghapi, parsing, pulls, shapes
 
 
 def read_open(
@@ -33,13 +32,14 @@ def read_open(
 def _open_numbers(
     github: ghapi.GitHub, settings: config.Config
 ) -> Sequence[tuple[config.Repo, int]]:
-    return [
-        (repo, number)
-        for repo in config.repositories(settings)
-        for number in ghapi.pages(
+    repos = config.repositories(settings)
+    listed = concurrently.each(
+        lambda repo: ghapi.pages(
             github, f"repos/{repo.slug}/pulls?state=open", parsing.pull_numbers
-        )
-    ]
+        ),
+        repos,
+    )
+    return [(repo, each) for repo, found in zip(repos, listed) for each in found]
 
 
 def read_each(
@@ -65,7 +65,6 @@ def read_each(
         undraft=functools.cache(undraft),
         relock_prefix=settings.lint.relock_prefix,
     )
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        return list(
-            pool.map(lambda item: pulls.fetch_or_unreadable(source, *item), wanted)
-        )
+    return concurrently.each(
+        lambda item: pulls.fetch_or_unreadable(source, *item), wanted
+    )

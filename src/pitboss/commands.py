@@ -5,7 +5,6 @@ a dry run unless ``--no-dry-run`` is given.
 """
 
 import argparse
-import concurrent.futures
 import dataclasses
 import datetime
 import functools
@@ -13,28 +12,27 @@ import logging
 import os
 import pathlib
 import subprocess
-import time
 from typing import AbstractSet, Mapping, Sequence
 
 from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
-    __version__,
     autoclean,
     cleanconfig,
+    concurrently,
     config,
     configfile,
     dead,
     ghapi,
     handback,
     ledger,
-    local,
+    localsections,
     machine as machines,
-    outdated,
     pulls,
-    pullread,
     queue,
+    removedline,
+    repoaccess,
     report,
     scratch,
     scratchconfig,
@@ -43,10 +41,9 @@ from . import (
     syncguard,
     syncing,
     timing,
-    tracefs,
     worktrees,
 )
-from . import diskline, orphanline, pulllines, removedline, unreadableline
+from . import diskline, pulllines, unreadableline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -119,10 +116,7 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
         The PRs, a PR whose API call failed as an ``Unreadable``.
     """
     runs = functools.partial(read_runner_runs, found)
-    clear = functools.partial(
-        sweepline.clear, found.github, runs, found.settings.runners, found.now
-    )
-    return pullread.read_each(found.github, found.settings, clear)
+    return sweepline.open_pulls(found.github, found.settings, found.now, runs)
 
 
 def load_context(args: argparse.Namespace) -> Context:
@@ -137,7 +131,7 @@ def load_context(args: argparse.Namespace) -> Context:
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
-    settings = readable(github, load_settings(args))
+    settings = repoaccess.readable(github, load_settings(args))
     start = working_directory(args)
     owner = settings.project.repo.owner
     return Context(
@@ -148,46 +142,6 @@ def load_context(args: argparse.Namespace) -> Context:
         now=now,
         args=args,
     )
-
-
-def _without(settings: config.Config, failures: Mapping[str, str]) -> config.Config:
-    runners = settings.runners
-    return dataclasses.replace(
-        settings,
-        libraries=[repo for repo in settings.libraries if repo.slug not in failures],
-        runners=dataclasses.replace(
-            runners,
-            repositories=[
-                repo for repo in runners.repositories if repo.slug not in failures
-            ],
-        ),
-    )
-
-
-def readable(github: ghapi.GitHub, settings: config.Config) -> config.Config:
-    """Leave out, and report, the libraries this session cannot read.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-
-    Returns:
-        The configuration without them.
-
-    Raises:
-        SystemExit: when the project's own repository cannot be read.
-    """
-    shared = settings.runners.repositories
-    wanted = [repo.slug for repo in (*config.repositories(settings), *shared)]
-    failures = ghapi.unreadable(github, wanted)
-    for slug, reason in failures.items():
-        print(
-            f"{Marker.UNREADABLE.text} {slug}: {reason}: give the session access"
-            " or take it out of the configuration; swept without it"
-        )
-    if settings.project.repo.slug in failures:
-        raise SystemExit(f"cannot read {settings.project.repo.slug}")
-    return _without(settings, failures)
 
 
 def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
@@ -204,11 +158,10 @@ def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
         repo.slug: repo
         for repo in (*settings.runners.repositories, *config.repositories(settings))
     }
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        batches = pool.map(
-            lambda repo: queue.read_runs(found.github, repo), repos.values()
-        )
-        return [each for batch in batches for each in batch]
+    batches = concurrently.each(
+        lambda repo: queue.read_runs(found.github, repo), repos.values()
+    )
+    return [each for batch in batches for each in batch]
 
 
 def runner_runs(
@@ -239,42 +192,61 @@ def read_runner_runs(found: Context) -> Sequence[queue.QueueRun]:
     return runner_runs(found, read_queue_runs(found))
 
 
-def _pull_section(found: Context, runs: Sequence[queue.QueueRun]) -> bool:
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Detail:
+    """What the sweep reads of one PR beyond its facts.
+
+    Attributes:
+        pull: the PR.
+        failures: each failed check's id and what was read of it.
+        said: what is said of the PR's removal from the merge queue.
+    """
+
+    pull: pulls.PullFacts
+    failures: Mapping[int, shapes.Failure]
+    said: removedline.Said
+
+
+def _detail(
+    found: Context, runs: Sequence[queue.QueueRun], pull: pulls.Read
+) -> Detail | shapes.Unreadable:
+    if isinstance(pull, shapes.Unreadable):
+        return pull
+    return Detail(
+        pull=pull,
+        failures=read_all(found.github, pull),
+        said=removedline.tell(found.github, found.settings, pull, runs),
+    )
+
+
+def _pull_lines(
+    found: Context, newest: Mapping[str, queue.QueueRun], got: Detail
+) -> bool:
+    pull = got.pull
+    print(report.pull_line(pull, newest), flush=True)
+    latest = newest.get(pulls.reference(pull))
+    queued = latest is not None and not latest.run.finished
+    why = {check_id: describe(each) for check_id, each in got.failures.items()}
+    steps = {check_id: each.steps for check_id, each in got.failures.items()}
+    for line in pulllines.lines(pull, found.now, found.settings, steps):
+        print(line)
+    acts = report.action_lines(pull, found.settings, queued, why)
+    for line in removedline.settle(got.said, acts):
+        print(line)
+    return pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
+
+
+def _pull_section(
+    found: Context, runs: Sequence[queue.QueueRun], read: Sequence[pulls.Read]
+) -> bool:
     newest = queue.newest_by_reference(runs)
     broken = False
-    for pull in open_pulls(found):
-        if isinstance(pull, shapes.Unreadable):
-            print(unreadableline.unreadable_line(pull))
-            continue
-        print(report.pull_line(pull, newest))
-        latest = newest.get(pulls.reference(pull))
-        queued = latest is not None and not latest.run.finished
-        read = read_all(found.github, pull)
-        why = {check_id: describe(failure) for check_id, failure in read.items()}
-        steps = {check_id: failure.steps for check_id, failure in read.items()}
-        for line in pulllines.lines(pull, found.now, found.settings, steps):
-            print(line)
-        said = removedline.tell(found.github, found.settings, pull, runs)
-        acts = report.action_lines(pull, found.settings, queued, why)
-        for line in removedline.settle(said, acts):
-            print(line)
-        broken = broken or pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
+    for got in concurrently.as_ready(lambda pull: _detail(found, runs, pull), read):
+        if isinstance(got, shapes.Unreadable):
+            print(unreadableline.unreadable_line(got))
+        else:
+            broken = _pull_lines(found, newest, got) or broken
     return broken
-
-
-def _straggler_section(found: Context) -> None:
-    run = found.args.safe_run
-    found_checkouts = local.checkouts(found.settings.project.workspace)
-    for failed in local.fetch_each_repository(run, found_checkouts):
-        print(f"fetch failed in {failed}: its stragglers may be out of date")
-    for checkout in found_checkouts:
-        if local.orphaned(run, checkout):
-            print(orphanline.orphan_line(checkout))
-            continue
-        straggler = local.read_straggler(run, checkout)
-        if straggler is not None:
-            print(report.straggler_line(straggler))
-    print("stragglers: sweep done")
 
 
 def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
@@ -315,10 +287,34 @@ def _clean_section(found: Context) -> None:
         print(text)
 
 
-def _outdated_section(args: argparse.Namespace) -> None:
-    tracefs.say(args.safe_run)
-    for line in outdated.lines(__version__, outdated.newest(args.safe_run)):
+def _repository_sections(
+    found: Context, clock: timing.Clock
+) -> tuple[bool, Sequence[pulls.Read]]:
+    runs = read_queue_runs(found)
+    timing.lap(clock, "merge queue runs read")
+    shared = functools.partial(runner_runs, found, runs)
+    read = sweepline.open_pulls(found.github, found.settings, found.now, shared)
+    timing.lap(clock, "pull requests read")
+    broken = _pull_section(found, runs, read)
+    timing.lap(clock, "pull requests done")
+    _queue_section(found, runs)
+    timing.lap(clock, "merge queue done")
+    localsections.print_stragglers(
+        found.args.safe_run, found.settings.project.workspace
+    )
+    for line in diskline.lines(sweep_look(found), found.now):
         print(line)
+    timing.lap(clock, "checkouts done")
+    return broken, read
+
+
+def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
+    for line in report.reminder_lines(found.settings):
+        print(line)
+    book = read_ledger(found.settings)
+    report.print_ledger(book)
+    sweepline.slots(found.github, found.settings, book, read)
+    handback.print_lines(book, found.now)
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sweep")
@@ -331,25 +327,16 @@ def sweep(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a PR has a failed check or a merge conflict.
     """
-    _outdated_section(args)
+    clock = timing.start()
+    args = timing.logged_args(args, clock)
+    localsections.print_update_check(args.safe_run)
     found = load_context(args)
+    timing.lap(clock, "update check and configuration read")
     _clean_section(found)
-    clock = timing.Clock(started=time.monotonic())
-    runs = read_queue_runs(found)
-    broken = _pull_section(found, runs)
-    timing.lap(clock, "pull requests done")
-    _queue_section(found, runs)
-    timing.lap(clock, "merge queue done")
-    _straggler_section(found)
-    for line in diskline.lines(sweep_look(found), found.now):
-        print(line)
-    timing.lap(clock, "checkouts done")
-    for line in report.reminder_lines(found.settings):
-        print(line)
-    book = read_ledger(found.settings)
-    report.print_ledger(book)
-    sweepline.slots(found.github, found.settings, book, open_pulls(found))
-    handback.print_lines(book, found.now)
+    timing.lap(clock, "cleaning done")
+    broken, read = _repository_sections(found, clock)
+    _slot_section(found, read)
+    timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     if syncing.section(args, found.settings) or broken or unconfigured:
         raise SystemExit(1)

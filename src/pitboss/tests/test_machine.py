@@ -94,6 +94,15 @@ class TestReal(unittest.TestCase):
         fs = machine.real()
         same([fs.owner(top / "gone"), fs.owner(top / "a")], [None, top.stat().st_uid])
 
+    def test_it_reads_when_a_path_changed_without_a_walk(self) -> None:
+        """It reads a path's own time; a path that went has none."""
+        top = real_root()
+        fs = machine.real()
+        same(
+            [fs.changed(top / "a"), fs.changed(top / "gone")],
+            [(top / "a").stat().st_mtime, None],
+        )
+
     def test_the_disk_reader_reads_a_path(self) -> None:
         """It reads a real path."""
         top = real_root()

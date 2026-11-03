@@ -1,10 +1,11 @@
 """The tempdirs and caches a sweep removes by itself: ages, kinds, removal."""
 
+import dataclasses
 import pathlib
 import unittest
-from typing import Sequence
+from typing import Callable, Mapping, Sequence
 
-from .. import cleanconfig, tempclean
+from .. import cleanconfig, machine, survey, tempclean
 from . import cleanworld
 from . import autocleanworld as fx
 
@@ -136,3 +137,65 @@ class TestCaches(unittest.TestCase):
         """A cache the command runs in is not removed."""
         tree, pip, extra = cache_tree()
         same(caches(tree, extra, [pip]), [extra])
+
+
+def aged_tmp(ages: Mapping[str, float]) -> fx.Tree:
+    """A /tmp whose tempdirs were last changed some hours ago.
+
+    Args:
+        ages: each name and the hours since its newest change.
+
+    Returns:
+        The tree.
+    """
+    tree = fx.Tree()
+    for name, hours in ages.items():
+        fx.put(tree, fx.TMP / name, hours)
+    return tree
+
+
+def with_file_system(
+    tree: fx.Tree, change: Callable[[machine.Filesystem], machine.Filesystem]
+) -> machine.Machine:
+    """A machine whose file system does some things differently.
+
+    Args:
+        tree: the tree.
+        change: makes the file system from the tree's.
+
+    Returns:
+        The machine.
+    """
+    base = fx.machine_of(tree)
+    return dataclasses.replace(base, fs=change(base.fs))
+
+
+class TestNoWalkForAYoungTempdir(unittest.TestCase):
+    """A tempdir that itself changed after the cutoff is not walked (pitboss#144)."""
+
+    def test_only_the_old_ones_are_walked(self) -> None:
+        """The young tempdir is kept without a walk; the old one is walked."""
+        tree = aged_tmp({"tmpold00000": 25, "tmpyoung000": 23})
+        walks: list[str] = []
+
+        def inspect(path: pathlib.Path) -> survey.Survey:
+            walks.append(path.name)
+            return fx.survey_of(tree, path)
+
+        def watching(fs: machine.Filesystem) -> machine.Filesystem:
+            return dataclasses.replace(fs, inspect=inspect)
+
+        mine = with_file_system(tree, watching)
+        found = fx.names(tempclean.stale_tempdirs(mine, fx.plain(), 24))
+        same([walks, found], [["tmpold00000"], ["tmpold00000"]])
+
+    def test_a_path_whose_time_cannot_be_read_is_walked(self) -> None:
+        """A path that has no time of its own is walked, as it was."""
+        tree = aged_tmp({"tmpnotime00": 25})
+
+        def blind(fs: machine.Filesystem) -> machine.Filesystem:
+            return dataclasses.replace(fs, changed=lambda path: None)
+
+        mine = with_file_system(tree, blind)
+        found = fx.names(tempclean.stale_tempdirs(mine, fx.plain(), 24))
+        same(found, ["tmpnotime00"])

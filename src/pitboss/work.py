@@ -21,7 +21,7 @@ import enum
 import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, ghapi, ledger, parsing, pulls, shapes, steps
+from . import concurrently, config, ghapi, ledger, parsing, pulls, shapes, steps
 
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
@@ -170,11 +170,20 @@ def ticket_items(
 
 def _labelled(github: ghapi.GitHub, settings: config.Config) -> Iterable[Item]:
     ranked = list(enumerate(settings.slots.priority_labels))
-    for repo in config.repositories(settings):
-        for priority, label in ranked:
-            path = f"repos/{repo.slug}/issues?state=open&labels={label}"
-            for issue in ghapi.pages(github, path, parsing.issues):
-                yield _ticket_item(f"{repo.slug}#{issue.number}", issue, priority)
+    asked = [
+        (repo, priority, label)
+        for repo in config.repositories(settings)
+        for priority, label in ranked
+    ]
+
+    def read(look: tuple[config.Repo, int, str]) -> Sequence[shapes.Issue]:
+        repo, _, label = look
+        path = f"repos/{repo.slug}/issues?state=open&labels={label}"
+        return ghapi.pages(github, path, parsing.issues)
+
+    for (repo, priority, _), found in zip(asked, concurrently.each(read, asked)):
+        for issue in found:
+            yield _ticket_item(f"{repo.slug}#{issue.number}", issue, priority)
 
 
 def _ticket_item(reference: str, issue: shapes.Issue, priority: int) -> Item:
