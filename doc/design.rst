@@ -264,6 +264,9 @@ Commands
        the ledger file does not exist (the owner creates it; only ``sweep`` starts
        one from the configured defaults). ``check`` takes ``--running NAME ...``
        and an optional number N: it exits 1 when the ledger has fewer than N rows.
+       ``free`` prints the ledger, then the ``EMPTY SLOT`` line that ``next``
+       gives the freed slot (one function, ``nextview.refill_line``), or
+       ``no task is waiting``.
 
 Reads go through gather's ``args.safe_run``; every change on GitHub or to
 git (cancelling a run, removing a worktree) goes through ``args.run``, so it
@@ -293,10 +296,20 @@ How each part decides
 
 **Pull requests.** One request for the PR list, then, per PR, its details,
 its comments and reviews, and one request for its head's check runs, all PRs
-at once in a thread pool. Only the latest run of each check name on the PR's
+at once in a thread pool. Only when one of those runs has failed (the latest
+run of its name) are two more reads made: the head's commit statuses (the
+newest of each context) and, for a status that does not carry the check's
+name, the workflow file of the Actions run of the status and of the check
+(``actions/runs/<id>``). Only the latest run of each check name on the PR's
 current head counts: a run of another head is dropped, and of two runs of one
 name the one that started later (then the higher id) stands, so a cancelled
-or superseded run never shows as failed. A line shows ``mergeable_state``, auto-merge,
+or superseded run never shows as failed. A failed run is also not failed
+(``pitboss.supersede``) when a passing commit status posted after it
+completed is the check's: the status context is the run's name, or the run
+its ``target_url`` names is the check's run or a run of the same workflow
+file (a job ``lint`` posts the context ``text-lint``); a status that is
+older, or not ``success``, leaves the failure, so the newest of the two
+decides. A line shows ``mergeable_state``, auto-merge,
 pending checks, the failed checks with their job ids, the PR's place in the
 merge queue (from the ``merge_group`` runs: ``queued``, ``in_progress``, or
 the newest run's conclusion), and the review's standing. Action lines follow.
