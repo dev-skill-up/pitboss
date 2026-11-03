@@ -65,10 +65,13 @@ class Ledger:
     Attributes:
         slots: the slots, in order.
         failed: each ticket's failed models.
+        config: the path of the configuration that created the ledger, or
+            empty when the file records none.
     """
 
     slots: Sequence[Slot]
     failed: Mapping[str, Sequence[str]]
+    config: str = ""
 
 
 def reference(text: str, project: config.Repo) -> str:
@@ -108,7 +111,20 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
     return Ledger(
         slots=tuple(Slot(**item) for item in data["slots"]),
         failed={key: tuple(value) for key, value in data["failed"].items()},
+        config=data.get("config", ""),
     )
+
+
+def recorded_config(path: pathlib.Path) -> str:
+    """Read only the configuration path a ledger file records.
+
+    Args:
+        path: the ledger file.
+
+    Returns:
+        The path the file records, or empty when it records none.
+    """
+    return str(json.loads(path.read_text()).get("config", ""))
 
 
 def write(path: pathlib.Path, ledger: Ledger) -> None:
@@ -123,6 +139,8 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
         "slots": [dataclasses.asdict(slot) for slot in ledger.slots],
         "failed": {key: list(value) for key, value in sorted(ledger.failed.items())},
     }
+    if ledger.config:
+        data["config"] = ledger.config
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 

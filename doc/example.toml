@@ -138,6 +138,11 @@ ledger = "/home/user/app/.git/pitboss-slots.json"
 # The slot log: a line for each change of a slot's state (`pitboss slots report`).
 # Default: the ledger's name ending in .log
 log = "/home/user/app/.git/pitboss-slots.log"
+# The orchestrator's configuration says it owns the ledger. `pitboss slots next`,
+# `free` and `set` refuse any other configuration (exit 1, `not the orchestrator
+# config: use <path>`), unless the ledger file's "config" key is its path.
+# Default: false
+ledger-owner = true
 # The models workers run on, smallest first. Default: none.
 models = ["small-model", "large-model"]
 # The ticket labels that are offered, highest priority first; a ticket with
