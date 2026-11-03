@@ -193,6 +193,7 @@ def pull_bodies(
         (f"issues/{number}/comments", [COMMENT] if library or number == 2 else []),
         (f"pulls/{number}/reviews", [APPROVAL] if number == 2 else []),
         (f"commits/{head}/check-runs", {"check_runs": checks}),
+        (f"commits/{head}/status", fakes.NO_STATUS),
     ]
     found = fakes.bodies_under(prefix, pages)
     found[f"{prefix}/pulls/{number}"] = details

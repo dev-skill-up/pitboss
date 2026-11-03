@@ -101,7 +101,11 @@ Nothing else in the code is a choice: the merge-queue branch shape
 (``gh-readonly-queue/<base>/pr-<n>-<sha>``), the check-run conclusions that
 count as failed (``failure``, ``timed_out``, ``action_required``,
 ``startup_failure``; a ``cancelled``, ``skipped`` or ``neutral`` run is not
-one, since a concurrency group cancels the run it supersedes), the dequeue reasons and
+one, since a concurrency group cancels the run it supersedes; a failed run is
+also not one when a passing commit status posted after it completed is the
+same check's: the status context is the run's name, or the status's
+``target_url`` names the run or another run of the same workflow file, since
+a job ``lint`` posts the status ``text-lint``), the dequeue reasons and
 ``mergeable_state`` values are GitHub's.
 
 The configuration file

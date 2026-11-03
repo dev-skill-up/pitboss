@@ -14,6 +14,7 @@ from . import (
     reviews,
     shapes,
     steps,
+    supersede,
     unreadableform,
 )
 
@@ -237,7 +238,18 @@ def _head_checks(
 ) -> Sequence[shapes.CheckRun]:
     path = f"repos/{repo.slug}/commits/{head}/check-runs"
     found = ghapi.pages(source.github, path, parsing.check_runs)
-    return checkruns.current_checks(found, head)
+    current = checkruns.current_checks(found, head)
+    if not any(check.failed for check in current):
+        return current
+    posted = ghapi.pages(
+        source.github, f"repos/{repo.slug}/commits/{head}/status", parsing.statuses
+    )
+
+    def workflow_of(run: int) -> str:
+        text = ghapi.get(source.github, f"repos/{repo.slug}/actions/runs/{run}")
+        return parsing.run_path(text)
+
+    return supersede.settle(current, posted, workflow_of)
 
 
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:

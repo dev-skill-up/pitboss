@@ -23,6 +23,7 @@ PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
 OLDER = "b" * 40
 NOT_FOUND = 127
 Answers = Mapping[str, int]
+NO_STATUS: Mapping[str, object] = {"statuses": []}
 TRACEFS_FOUND: Answers = {"grep": 0, "mount": 1}
 IDENTITY = ("-c", "user.email=t@example.org", "-c", "user.name=T")
 
