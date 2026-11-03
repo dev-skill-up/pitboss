@@ -223,23 +223,43 @@ def facts(**changes: object) -> pulls.PullFacts:
     return test_work.facts(2, reviews.Standing.APPROVED, **changes)
 
 
+ALONE = REMOVED_LINE + FAILED_TEXT
+SAID = removedline.Said(lines=["R"], removed=True, act="A")
+
+
+def reviewed(here: world.World, reviews_of_pr: Sequence[object]) -> world.World:
+    """Give PR 2 these reviews and no review comment.
+
+    Args:
+        here: the world.
+        reviews_of_pr: the PR's GitHub reviews.
+
+    Returns:
+        The world.
+    """
+    pages = [("pulls/2/reviews", list(reviews_of_pr)), ("issues/2/comments", [])]
+    here.bodies.update(fakes.bodies_under(world.PROJECT, pages))
+    return here
+
+
 class TestStanding(unittest.TestCase):
     """The action is told only for the standing READY TO MERGE needs."""
 
     def test_a_review_of_an_older_head_gets_the_removal_alone(self) -> None:
         """Arming auto-merge could merge a head nobody approved."""
+        old = dict(world.APPROVAL, commit_id=fakes.OLDER)
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
-        old = dict(world.APPROVAL, commit_id="9" * 40)
-        reviewed = [("pulls/2/reviews", [old]), ("issues/2/comments", [])]
-        here.bodies.update(fakes.bodies_under(world.PROJECT, reviewed))
-        assert_that(lines_of(here), equal_to([REMOVED_LINE + FAILED_TEXT]))
+        compare = f"{world.PROJECT}/compare/main..."
+        authored = {"sha": "1", "parents": [{"sha": "0"}]}
+        fix = {"sha": "2", "parents": [{"sha": "1"}]}
+        here.bodies[compare + fakes.HEAD] = {"commits": [authored, fix]}
+        here.bodies[compare + fakes.OLDER] = {"commits": [authored]}
+        assert_that(lines_of(reviewed(here, [old])), equal_to([ALONE]))
 
     def test_no_review_gets_the_removal_alone(self) -> None:
         """A PR nobody reviewed is not told to arm auto-merge."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
-        reviewed = [("pulls/2/reviews", []), ("issues/2/comments", [])]
-        here.bodies.update(fakes.bodies_under(world.PROJECT, reviewed))
-        assert_that(lines_of(here), equal_to([REMOVED_LINE + FAILED_TEXT]))
+        assert_that(lines_of(reviewed(here, [])), equal_to([ALONE]))
 
 
 class TestUnits(unittest.TestCase):
@@ -270,10 +290,9 @@ class TestUnits(unittest.TestCase):
 
     def test_the_action_follows_the_standing_lines(self) -> None:
         """The action is printed with a READY TO MERGE or AUTO MERGE OFF line."""
-        said = removedline.Said(lines=["R"], removed=True, act="A")
         other = "FAILED x"
         found = [
-            removedline.settle(said, acts)
+            removedline.settle(SAID, acts)
             for acts in (
                 [READY_LINE + " or merge"],
                 ["AUTO MERGE OFF x: arm it again", other],
@@ -291,8 +310,7 @@ class TestUnits(unittest.TestCase):
         )
         settings = fakes.settings(fakes.directory())
         acts = report.action_lines(pull, settings, False, {})
-        said = removedline.Said(lines=["R"], removed=True, act="A")
-        assert_that(removedline.settle(said, acts), equal_to(["R", "A"]))
+        assert_that(removedline.settle(SAID, acts), equal_to(["R", "A"]))
 
     def test_events_of_other_kinds_are_kept_for_paging(self) -> None:
         """The parser keeps every event, so a full page of them pages on."""
