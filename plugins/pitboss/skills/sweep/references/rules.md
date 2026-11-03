@@ -33,6 +33,24 @@ compaction.
 
 ## Agents and slots
 
+**Run the sweep first, check each line, follow it, override only a bug.** In
+this order:
+
+1. Run `pitboss sweep` at the start of every turn and after every handback,
+   before any other decision (model, task, order, slot, hold).
+2. For every line it prints, read the ticket or PR it names and check its real
+   state.
+3. Follow the line.
+4. Override a line only when it is a pitboss bug, always override when it is
+   one, and file the bug as a pitboss ticket in the same turn.
+
+The owner's rulings (owner, 2026-11-02T23:47:19Z): "Doesn't pitboss just tell
+you what to do? Run it and you won't make mistakes instead of guessing"; and
+(owner, 2026-11-03T00:29:17Z): "To be clear, it's still your responsibility to
+do the right thing based on pitboss data. Check the ticket/pr it talks about
+and see what the state is. That does not excuse you from running it first.
+Only override for bugs, but do override for bugs (and then file them)".
+
 1. **List the agents first.** The session's agent listing is the only truth
    about what runs: run it before any statement about what is running, which
    slot is free or whether a worker is alive. The ledger is kept by hand and
