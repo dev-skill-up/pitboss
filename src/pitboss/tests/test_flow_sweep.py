@@ -5,7 +5,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import rulingwords, shapes
+from .. import bodydigest, rulingwords, shapes
 from . import fakes, test_flow, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
@@ -19,7 +19,11 @@ PAUSE_LINE = "PAUSE owner/project#3: changes needed again after the Opus ruling"
 
 
 def graded(
-    plan: str | None, execution: str | None, second: int, sha: str = HEAD
+    plan: str | None,
+    execution: str | None,
+    second: int,
+    sha: str = HEAD,
+    body: str | None = None,
 ) -> shapes.Comment:
     """A review comment of PR 3.
 
@@ -28,6 +32,7 @@ def graded(
         execution: the execution grade, or None for no ``Execution:`` line.
         second: the second of the minute it was written.
         sha: the head it reviewed.
+        body: the PR body the review read (its ``Body:`` line), None for no line.
 
     Returns:
         The comment.
@@ -37,6 +42,7 @@ def graded(
     lines = [
         "## Review",
         f"Reviewed: {sha}",
+        *([f"Body: {bodydigest.digest(body)}"] if body is not None else []),
         *([f"Plan: {plan}"] if plan else []),
         *([f"Execution: {execution}"] if execution else []),
         f"Verdict: {verdict}",
@@ -121,6 +127,31 @@ class TestSweepAndNext(unittest.TestCase):
         swept, listed = sweep_and_next(EXECUTION_TWICE)
         assert_that(swept, contains_string(RULING_LINE))
         assert_that(listed, equal_to(""))
+
+    def test_ruling_due_after_a_body_fix_between_two_rejections_at_one_head(
+        self,
+    ) -> None:
+        """The #146 history: two reviews of one head, the body edited between."""
+        now = "Fixes #1\n\n## Plan\nthe plan\n\n## Execution\nthe fixed work\n"
+        before = "Fixes #1\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
+        rounds = [
+            graded(APPROVED, CHANGES, 1, body=before),
+            graded(APPROVED, CHANGES, 2, body=now),
+        ]
+        here = world_with(rounds, body=now)
+        assert_that(sweep(here).out, contains_string(RULING_LINE))
+        assert_that(listed_for_third(here), equal_to([]))
+
+    def test_two_rejections_at_one_head_and_one_body_are_a_worker_round(self) -> None:
+        """No body edit between the two: nothing was fixed, the worker's round."""
+        body = "Fixes #1\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
+        rounds = [
+            graded(APPROVED, CHANGES, 1, body=body),
+            graded(APPROVED, CHANGES, 2, body=body),
+        ]
+        here = world_with(rounds, body=body)
+        assert_that("RULING DUE" in sweep(here).out, equal_to(False))
+        assert_that("".join(listed_for_third(here)), contains_string("fix the review"))
 
     def test_pause_after_the_ruling_and_another_plan_rejection(self) -> None:
         """PAUSE is printed, and PR 3 is offered for nothing."""

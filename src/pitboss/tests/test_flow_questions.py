@@ -5,7 +5,7 @@ from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, planbody, rulingwords, shapes
+from .. import bodydigest, flow, planbody, rulingwords, shapes
 from . import test_flow
 
 APPROVED = test_flow.APPROVED
@@ -158,8 +158,12 @@ class TestQuestions(unittest.TestCase):
         again = graded(None, CHANGES, 2)
         before = graded(CHANGES, CHANGES, 1, sha=OLDER)
         short = graded(APPROVED, CHANGES, 1, sha=state().pull.head.sha[:7])
+        edited = graded(APPROVED, CHANGES, 1, body=bodydigest.digest("before"))
+        kept = graded(APPROVED, CHANGES, 1, body=bodydigest.digest(test_flow.BODY))
         cases = [
             (state(graded(APPROVED, CHANGES, 1)), False),
+            (state(edited, again), True),
+            (state(kept, again), False),
             (state(first, again), True),
             (state(first), True),
             (state(before, again), False),

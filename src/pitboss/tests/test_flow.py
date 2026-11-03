@@ -12,7 +12,7 @@ from typing import AbstractSet, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, parsing, shapes, steps
+from .. import bodydigest, flow, parsing, shapes, steps
 from . import fakes
 
 HEAD = fakes.HEAD
@@ -45,6 +45,7 @@ def graded(
     execution: shapes.Verdict | None,
     second: int,
     sha: str = HEAD,
+    body: str = "",
 ) -> shapes.Graded:
     """A regular review as the flow reads it.
 
@@ -53,12 +54,15 @@ def graded(
         execution: its execution grade, None for a review of the plan alone.
         second: the second of the minute it was written.
         sha: the head it reviewed.
+        body: the digest of the PR body it records, empty for none.
 
     Returns:
         The review.
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return shapes.Graded(sha=sha, when=when, plan=plan, execution=execution)
+    return shapes.Graded(
+        sha=sha, when=when, plan=plan, execution=execution, body=body
+    )
 
 
 FIRST_REJECTION = graded(*PLAN_REJECTED, 1, sha=OLDER)
@@ -309,6 +313,22 @@ class TestBranches(unittest.TestCase):
         first = graded(*EXECUTION_REJECTED, 1, sha=OLDER)
         rejected = state(first, graded(None, CHANGES, 2))
         expect(steps.worker(Task.FIX_EXECUTION), merged(rejected, OLDER))
+
+    def test_a_body_fix_between_two_rejections_at_one_head_is_a_round(self) -> None:
+        """Two rejections at one head, the body edited between: Opus rules."""
+        old = bodydigest.digest("the body before the fix")
+        first = graded(*EXECUTION_REJECTED, 1, body=old)
+        second = graded(None, CHANGES, 2, body=bodydigest.digest(BODY))
+        expect(steps.opus_ruling(), state(first, second))
+
+    def test_two_rejections_at_one_head_and_one_body_are_one_round(self) -> None:
+        """Nothing was fixed between them (a re-run review): still the worker."""
+        same = bodydigest.digest(BODY)
+        first = graded(*EXECUTION_REJECTED, 1, body=same)
+        expect(
+            steps.worker(Task.FIX_EXECUTION),
+            state(first, graded(None, CHANGES, 2, body=same)),
+        )
 
 
 class TestRulingBranches(unittest.TestCase):

@@ -128,23 +128,27 @@ def get_plan_rejections(pr: PullState) -> int:
 
 
 def execution_fixed_since_plan_approval(pr: PullState) -> bool:
-    """Whether a worker pushed an execution fix after the plan was approved.
+    """Whether a fix round followed an execution rejection on the approved plan.
 
     Read from the reviews: the execution was graded changes needed on the
-    approved plan at a head that more than merge commits separate from the
-    current one (a merge of the base is no fix: ``merges_only_since``).
+    approved plan, and since then the code moved by more than merge commits (a
+    merge of the base is no fix: ``merges_only_since``) or the PR body no
+    longer is the one that review recorded (a body fix: keyword: body-digest,
+    pitboss#149, whose head did not move between its two rejections).
 
     Args:
         pr: the PR.
 
     Returns:
-        True when an earlier execution rejection names such a head.
+        True when an earlier execution rejection names such a round.
     """
     approved = False
+    now = bodydigest.digest(pr.pull.body)
     for each in _regular_reviews(pr):
         approved = approved or each.plan is Verdict.APPROVED
         rejecting = approved and each.execution is Verdict.CHANGES_NEEDED
-        if rejecting and not (_of_head(pr, [each]) or pr.merges_only_since(each.sha)):
+        moved = not (_of_head(pr, [each]) or pr.merges_only_since(each.sha))
+        if rejecting and (moved or bodydigest.changed(each.body, now)):
             return True
     return False
 
@@ -245,8 +249,8 @@ def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
         With the Plan rejected: the step of ``rejected`` for the Plan (the
         ruling used and still rejected pauses; a first rejection is the
         worker's; a second is not converging: Opus rules). With the Execution
-        rejected, that of the Execution (once the fix was pushed and rejected
-        again, Opus rules). None when the review rejects neither.
+        rejected, that of the Execution (once the fix was pushed or the body fixed,
+        and rejected again, Opus rules). None when the review rejects neither.
     """
     if review.plan is Verdict.CHANGES_NEEDED:
         return rejected(pr, review, steps.Task.REVISE_PLAN, plan_rejected_again)

@@ -478,7 +478,12 @@ Only override for bugs, but do override for bugs (and then file them)".
   its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`,
   `FIX_RULING`, `RULING_ESCALATES` and MERGE. Two clauses are by the owner's ruling: a review that approves the
   plan and asks for execution changes is a worker round (`fix the review`), not
-  `RULING DUE`; and a draft is undrafted when `can_undraft` (the runners are
+  `RULING DUE` (the count, pitboss#149: the first rejection of the execution on
+  an approved plan is that worker round, and the second, once a fix round came
+  between them, is `RULING DUE`; a fix round is a push of more than a merge of
+  the base, or an edit of the PR body, which a review records as its `Body:`
+  digest, so a body-only fix round at one head counts, and two rejections with
+  nothing changed between them are one round); and a draft is undrafted when `can_undraft` (the runners are
   quiet, `pitboss pressure`), before any CI wait. A red CI is never a plan
   rejection. A ruling is recorded by a PR comment whose first line is exactly
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
