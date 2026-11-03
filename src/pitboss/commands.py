@@ -13,7 +13,6 @@ import logging
 import os
 import pathlib
 import subprocess
-import time
 from typing import AbstractSet, Mapping, Sequence
 
 from gather.commands import add_argument
@@ -22,6 +21,7 @@ from . import (
     ENTRY_DATA,
     __version__,
     autoclean,
+    calllog,
     cleanconfig,
     config,
     configfile,
@@ -321,6 +321,20 @@ def _outdated_section(args: argparse.Namespace) -> None:
         print(line)
 
 
+def timed_args(args: argparse.Namespace, clock: timing.Clock) -> argparse.Namespace:
+    """The arguments with a reading runner that logs every command it runs.
+
+    Args:
+        args: the parsed arguments.
+        clock: the clock whose log takes the commands.
+
+    Returns:
+        A copy of the arguments whose ``safe_run`` logs.
+    """
+    logged = calllog.timed(args.safe_run, clock.log)
+    return argparse.Namespace(**{**vars(args), "safe_run": logged})
+
+
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sweep")
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots.
@@ -331,10 +345,14 @@ def sweep(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a PR has a failed check or a merge conflict.
     """
+    clock = timing.start()
+    args = timed_args(args, clock)
     _outdated_section(args)
+    timing.lap(clock, "update check done")
     found = load_context(args)
+    timing.lap(clock, "configuration and repositories read")
     _clean_section(found)
-    clock = timing.Clock(started=time.monotonic())
+    timing.lap(clock, "cleaning done")
     runs = read_queue_runs(found)
     broken = _pull_section(found, runs)
     timing.lap(clock, "pull requests done")
@@ -350,6 +368,7 @@ def sweep(args: argparse.Namespace) -> None:
     report.print_ledger(book)
     sweepline.slots(found.github, found.settings, book, open_pulls(found))
     handback.print_lines(book, found.now)
+    timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     if syncing.section(args, found.settings) or broken or unconfigured:
         raise SystemExit(1)
