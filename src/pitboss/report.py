@@ -13,6 +13,7 @@ STANDING_WORDS = {
     reviews.Standing.APPROVED_BEFORE_MERGES: "approved-before-merges",
     reviews.Standing.CHANGES_NEEDED: "changes-needed",
     reviews.Standing.OLDER_HEAD: "older-head",
+    reviews.Standing.OLDER_BODY: "older-body",
     reviews.Standing.PLAN_CHANGES_NEEDED: "plan-changes-needed",
     reviews.Standing.PLAN_APPROVED: "plan-approved",
 }

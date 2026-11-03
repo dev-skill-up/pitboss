@@ -344,6 +344,8 @@ class Standing(enum.Enum):
         APPROVED_BEFORE_MERGES: an older head approved, only merges since.
         CHANGES_NEEDED: this very head needs changes.
         OLDER_HEAD: the review is of an older head (a fix came since).
+        OLDER_BODY: the review is of this head, but the PR body is not the one
+            it recorded (a body fix came since; keyword: body-digest).
         PLAN_CHANGES_NEEDED: this head's plan needs changes (revise it only).
         PLAN_APPROVED: this head's review approved the plan alone (no merge).
     """
@@ -353,6 +355,7 @@ class Standing(enum.Enum):
     APPROVED_BEFORE_MERGES = enum.auto()
     CHANGES_NEEDED = enum.auto()
     OLDER_HEAD = enum.auto()
+    OLDER_BODY = enum.auto()
     PLAN_CHANGES_NEEDED = enum.auto()
     PLAN_APPROVED = enum.auto()
 
@@ -368,6 +371,7 @@ class Graded:
         execution: its verdict, None for a review of the plan alone.
         comment: whether it is a regular review (a comment in the form, not a
             GitHub review).
+        body: the digest of the PR body it records, empty when it records none.
     """
 
     sha: str
@@ -375,3 +379,4 @@ class Graded:
     plan: Verdict | None
     execution: Verdict | None
     comment: bool = True
+    body: str = ""

@@ -39,6 +39,7 @@ RESOLUTION = "\n".join(
         "    ## Review",
         f"    Reviewed: {HEAD}",
         "    Verdict: <approved or changes needed>",
+        briefmake.BODY,
         HONEST,
         "Ask for no attack, bypass or adversarial input that the goal above does"
         " not name.",
@@ -163,6 +164,11 @@ class TestReviewRules(unittest.TestCase):
         """A finding that needs deliberate evasion is a note, never a ruling."""
         for kind in brief.REVIEWS:
             pinned(kind, [HONEST, NO_ATTACKS])
+
+    def test_every_review_records_the_body_it_read(self) -> None:
+        """The Body: line, the command that makes it, and the sweep word."""
+        for kind in brief.REVIEWS:
+            pinned(kind, [briefmake.BODY])
 
     def test_a_guard_review_checks_honest_mistakes_only(self) -> None:
         """Obfuscation and faked output are not hunted and get no ticket."""

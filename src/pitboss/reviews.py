@@ -4,7 +4,7 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import config, gradeline, sessionurl, shapes
+from . import bodydigest, config, gradeline, sessionurl, shapes
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -29,6 +29,8 @@ class Found:
         plan_approved: what its ``Plan:`` line grades, None with no such line.
         plan_alone: whether it has a ``Plan:`` line and no ``Execution:`` line.
         url: the comment's address, empty for a GitHub review.
+        body: the digest of the PR body its ``Body:`` line records, empty
+            with no such line (keyword: body-digest).
     """
 
     sha: str
@@ -37,6 +39,7 @@ class Found:
     plan_approved: bool | None = None
     plan_alone: bool = False
     url: str = ""
+    body: str = ""
 
 
 def names(found: Found, head: str) -> bool:
@@ -223,6 +226,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         plan_approved=plan,
         plan_alone=plan is not None and execution is None,
         url=item.url,
+        body=bodydigest.recorded(item.body),
     )
 
 
@@ -273,6 +277,7 @@ def _as_graded(found: Found, comment: bool) -> shapes.Graded:
         plan=_GRADES[found.plan_approved],
         execution=None if found.plan_alone else found.verdict,
         comment=comment,
+        body=found.body,
     )
 
 
@@ -343,25 +348,6 @@ def _open(sources: Sources, review: config.Review) -> Sequence[Found]:
         *from_comments(sources.comments, trusted, read_comment, form),
         *from_reviews(sources.reviews, review),
     ]
-
-
-def only_merges(
-    since_base: Iterable[shapes.Commit], reviewed_since_base: Iterable[shapes.Commit]
-) -> bool:
-    """Whether a head differs from a reviewed head only by merge commits.
-
-    Args:
-        since_base: the commits of ``base...head``.
-        reviewed_since_base: the commits of ``base...reviewed``.
-
-    Returns:
-        True when both have the same non-merge commits.
-    """
-
-    def authored(commits: Iterable[shapes.Commit]) -> frozenset[str]:
-        return frozenset(commit.sha for commit in commits if commit.parents < 2)
-
-    return authored(since_base) == authored(reviewed_since_base)
 
 
 def plan_only(found: Found) -> bool:

@@ -28,6 +28,13 @@ whether the repository is gated.
   you grade it as the next section says.
 - You are a separate agent from the author. If you wrote any part of the
   change, say so and stop.
+- Record the PR body you read (keyword: body-digest). Save the body with
+  `gh api repos/<repository>/pulls/<number> --jq .body > <scratchpad>/body.txt`,
+  run `uvx pitboss body-digest <scratchpad>/body.txt`, and add the one line it
+  prints (`Body: <digest>`) to the comment beside the verdict line. The sweep
+  compares it with the body now: a body fixed after your review, the head not
+  having moved, is `review=older-body` and is answered by a review of the fix
+  round's findings.
 - Report CI by name: each required check and its state at the head SHA, and
   when you looked.
 - Check three things from the PR itself, before the diff: the Head line (the

@@ -33,6 +33,7 @@ RELOCK_GOAL = (
 )
 KIND_OF_CATEGORY = {
     work.Category.NEW_PR: brief.Kind.NEW_PR,
+    work.Category.REVIEW_FIX_ROUND: brief.Kind.REVIEW_FIX_ROUND,
     work.Category.FIRST_ROUND: brief.Kind.FIRST_ROUND,
     work.Category.REVISE_PLAN: brief.Kind.REVISE_PLAN,
     work.Category.FIX_REVIEW: brief.Kind.FIX_REVIEW,
@@ -145,7 +146,8 @@ def picks(source: Source) -> Sequence[Pick]:
 def _fix_round(pull: pulls.PullFacts) -> bool:
     found = pull.review
     asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
-    return asked and pull.standing is reviews.Standing.OLDER_HEAD
+    older = asked and pull.standing is reviews.Standing.OLDER_HEAD
+    return work.body_fixed(pull) or older  # keyword: body-digest
 
 
 def review_kind(pull: pulls.PullFacts) -> brief.Kind:
@@ -190,7 +192,8 @@ def kind_of(pick: Pick) -> brief.Kind:
     """
     if pick.category is None:
         return brief.Kind.RULING
-    if pick.category is work.Category.REVIEW and pick.pull is not None:
+    reviewed = (work.Category.REVIEW, work.Category.REVIEW_FIX_ROUND)
+    if pick.category in reviewed and pick.pull is not None:
         return review_kind(pick.pull)
     return KIND_OF_CATEGORY[pick.category]
 

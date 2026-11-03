@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, report, reviews, shapes, unreadableform
+from .. import config, mergesonly, report, reviews, shapes, unreadableform
 from . import fakes, test_report
 
 
@@ -238,7 +238,7 @@ class TestStanding(unittest.TestCase):
         merge = shapes.Commit(sha="2", parents=2)
         other = shapes.Commit(sha="3", parents=1)
         found = [
-            reviews.only_merges([authored, merge], [authored]),
-            reviews.only_merges([authored, other], [authored]),
+            mergesonly.only_merges([authored, merge], [authored]),
+            mergesonly.only_merges([authored, other], [authored]),
         ]
         assert_that(found, equal_to([True, False]))
