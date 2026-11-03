@@ -167,6 +167,19 @@ def owner(tree: Tree, path: pathlib.Path) -> int | None:
     return tree.owners.get(path)
 
 
+def changed(tree: Tree, path: pathlib.Path) -> float | None:
+    """When a path of the tree last changed, as a walk of it would find.
+
+    Args:
+        tree: the tree.
+        path: the path.
+
+    Returns:
+        The time; None for a path that is not in the tree.
+    """
+    return tree.found[path].newest if path in tree.found else None
+
+
 def survey_of(tree: Tree, path: pathlib.Path) -> survey.Survey:
     """What is in a path of the tree.
 
@@ -195,6 +208,7 @@ def filesystem(tree: Tree) -> machine.Filesystem:
         is_link=functools.partial(is_link, tree),
         owner=functools.partial(owner, tree),
         inspect=functools.partial(survey_of, tree),
+        changed=functools.partial(changed, tree),
     )
 
 

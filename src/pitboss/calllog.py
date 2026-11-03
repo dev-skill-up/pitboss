@@ -6,11 +6,12 @@ say how many calls it made and, when it is slow, which ones it waited for.
 """
 
 import collections
+import contextlib
 import dataclasses
 import re
 import threading
 import time
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping, MutableSequence, Sequence
 
 from .running import Output, Run
 
@@ -45,42 +46,59 @@ class Phase:
     calls: Sequence[Call]
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Log:
-    """The commands run since the last phase ended; calls may come from threads."""
+    """The commands run since the last phase ended; calls may come from threads.
 
-    def __init__(self, started: float) -> None:
-        """Start a log.
+    Attributes:
+        lock: held while the log changes.
+        calls: the commands of the phase that is running.
+        began: the start of that phase (monotonic seconds), as the one item.
+    """
 
-        Args:
-            started: when the first phase began (monotonic seconds).
-        """
-        self.lock = threading.Lock()
-        self.calls: list[Call] = []
-        self.phase_started = started
+    lock: threading.Lock
+    calls: MutableSequence[Call]
+    began: MutableSequence[float]
 
-    def add(self, call: Call) -> None:
-        """Record a finished command.
 
-        Args:
-            call: the command.
-        """
-        with self.lock:
-            self.calls.append(call)
+def new_log(started: float) -> Log:
+    """A log whose first phase begins now.
 
-    def end_phase(self, now: float) -> Phase:
-        """Hand over the commands of the phase that ends now, and start the next.
+    Args:
+        started: when the first phase began (monotonic seconds).
 
-        Args:
-            now: the time now (monotonic seconds).
+    Returns:
+        The log.
+    """
+    return Log(lock=threading.Lock(), calls=[], began=[started])
 
-        Returns:
-            The phase.
-        """
-        with self.lock:
-            phase = Phase(seconds=now - self.phase_started, calls=tuple(self.calls))
-            self.calls.clear()
-            self.phase_started = now
-            return phase
+
+def add(log: Log, call: Call) -> None:
+    """Record a finished command.
+
+    Args:
+        log: the log.
+        call: the command.
+    """
+    with log.lock:
+        log.calls.append(call)
+
+
+def end_phase(log: Log, now: float) -> Phase:
+    """Hand over the commands of the phase that ends now, and start the next.
+
+    Args:
+        log: the log.
+        now: the time now (monotonic seconds).
+
+    Returns:
+        The phase.
+    """
+    with log.lock:
+        phase = Phase(seconds=now - log.began[0], calls=tuple(log.calls))
+        log.calls.clear()
+        log.began[0] = now
+        return phase
 
 
 def name_of(command: Sequence[str]) -> str:
@@ -116,7 +134,7 @@ def kind_of(command: Sequence[str]) -> str:
         for each in path.split("/")[3:]
         if not each.isdigit() and not re.fullmatch(r"[0-9a-f]{40}", each)
     ]
-    return "gh api " + "/".join(words)
+    return "gh api " + ("/".join(words) or "repository")
 
 
 def tally(phase: Phase) -> Mapping[str, int]:
@@ -132,9 +150,20 @@ def tally(phase: Phase) -> Mapping[str, int]:
     return dict(counts.most_common())
 
 
-def timed(
-    run: Run, log: Log, clock: Callable[[], float] = time.monotonic
-) -> Run:
+def record(log: Log, command: Sequence[str], began: float, now: float) -> None:
+    """Record a command that ended.
+
+    Args:
+        log: the log.
+        command: the command line.
+        began: when it began (monotonic seconds).
+        now: when it ended (monotonic seconds).
+    """
+    call = Call(name=name_of(command), kind=kind_of(command), seconds=now - began)
+    add(log, call)
+
+
+def logging_run(run: Run, log: Log, clock: Callable[[], float] = time.monotonic) -> Run:
     """Wrap a runner so that every command it runs is logged.
 
     A command that raises is logged too: the time it took is the time waited.
@@ -148,18 +177,11 @@ def timed(
         The runner that logs.
     """
 
-    def logged(cmdargs: Sequence[str], /) -> Output:
-        began = clock()
-        try:
-            return run(cmdargs)
-        finally:
-            log.add(
-                Call(
-                    name=name_of(cmdargs),
-                    kind=kind_of(cmdargs),
-                    seconds=clock() - began,
-                )
-            )
+    def logged(command: Sequence[str], /) -> Output:
+        with contextlib.ExitStack() as stack:
+            stack.callback(lambda: record(log, command, began, clock()))
+            began = clock()
+            return run(command)
 
     return logged
 

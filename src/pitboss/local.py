@@ -6,7 +6,7 @@ import pathlib
 import subprocess
 from typing import Iterable, Mapping, Sequence
 
-from . import config, ghapi, parsing, shapes
+from . import concurrently, config, ghapi, parsing, shapes
 from .running import Run, changed_files, git
 
 
@@ -80,20 +80,25 @@ def fetch_each_repository(run: Run, paths: Iterable[pathlib.Path]) -> Sequence[s
     Returns:
         The checkouts whose fetch failed, or whose repository git cannot read.
     """
+    wanted = list(paths)
+    shared = concurrently.each(lambda each: _repository_of(run, each), wanted)
     by_repository: dict[str, pathlib.Path] = {}
     failed = []
-    for checkout in paths:
-        common = _repository_of(run, checkout)
-        if common:
-            by_repository.setdefault(common, checkout)
+    for checkout, repository in zip(wanted, shared):
+        if repository:
+            by_repository.setdefault(repository, checkout)
         else:
             failed.append(str(checkout))
-    for checkout in by_repository.values():
+
+    def fetch(checkout: pathlib.Path) -> str:
         try:
             git(run, checkout, "fetch", "-q", "origin")
         except subprocess.CalledProcessError:
-            failed.append(str(checkout))
-    return failed
+            return str(checkout)
+        return ""
+
+    fetched = concurrently.each(fetch, by_repository.values())
+    return [*failed, *(each for each in fetched if each)]
 
 
 def unpushed(run: Run, path: pathlib.Path) -> int:

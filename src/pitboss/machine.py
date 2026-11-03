@@ -26,6 +26,9 @@ class Filesystem:
         owner: says who owns a path (a link is not followed); None when it cannot
             be read, as when it just went.
         inspect: walks a path once: size, newest change, marker, mount points.
+        changed: when a path itself last changed (seconds since the epoch, a link
+            not followed), without a walk; None when it cannot be read. A
+            directory's walk is never older than this.
     """
 
     children: Callable[[pathlib.Path], Sequence[pathlib.Path]]
@@ -33,6 +36,7 @@ class Filesystem:
     is_link: Callable[[pathlib.Path], bool]
     owner: Callable[[pathlib.Path], int | None]
     inspect: Callable[[pathlib.Path], survey.Survey]
+    changed: Callable[[pathlib.Path], float | None]
 
 
 def _children(directory: pathlib.Path) -> Sequence[pathlib.Path]:
@@ -54,6 +58,11 @@ def _inspect(path: pathlib.Path) -> survey.Survey:
     return survey.walk(path, mounts.current())
 
 
+def _changed(path: pathlib.Path) -> float | None:
+    found = survey.status(path)
+    return None if found is None else found.st_mtime
+
+
 def real() -> Filesystem:
     """The file system of this machine.
 
@@ -66,6 +75,7 @@ def real() -> Filesystem:
         is_link=pathlib.Path.is_symlink,
         owner=_owner,
         inspect=_inspect,
+        changed=_changed,
     )
 
 

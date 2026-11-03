@@ -1,6 +1,7 @@
 """The runner-pressure line of the sweep: it reads the record and writes nothing."""
 
 import datetime
+import functools
 from typing import Callable, Iterable, Sequence
 
 from .markers import Marker
@@ -9,6 +10,7 @@ from . import (
     ghapi,
     ledger,
     pulls,
+    pullread,
     queue,
     report,
     unreadableline,
@@ -108,6 +110,28 @@ def partial_pressure(jobs: queue.Jobs, owed: int) -> str:
         return "\n".join([*named, f"{report.quiet_line(jobs.waiting, owed)}; {tail}"])
     head = f"{Marker.RUNNER_PRESSURE.text}: {tail}, so a free runner cannot be told"
     return "\n".join([*named, f"{head}; {report.HOLD_ACTIONS}"])
+
+
+def open_pulls(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    now: datetime.datetime,
+    runs: Callable[[], Sequence[queue.QueueRun]],
+) -> Sequence[pulls.Read]:
+    """Read every open PR the configuration names.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        now: the time now.
+        runs: reads the queue runs of the repositories that share the runners,
+            when an undraft needs them.
+
+    Returns:
+        The PRs, a PR whose API call failed as an ``Unreadable``.
+    """
+    undraft = functools.partial(clear, github, runs, settings.runners, now)
+    return pullread.read_each(github, settings, undraft)
 
 
 def clear(

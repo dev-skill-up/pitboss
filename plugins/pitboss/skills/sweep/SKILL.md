@@ -29,7 +29,25 @@ release than PyPI's: see `references/sweep.md`.
 `.claude/pitboss/<name>.toml` in the current directory or a parent, or give a
 path. It needs `gh` authenticated for every repository the file names, and
 `git`. Run it bare: no `grep`, `tail` or `timeout` in front of it, so nothing
-it prints is hidden. Timings go to stderr.
+it prints is hidden. Timings go to stderr: each section ends with
+`[pitboss Ns] <section>: <seconds> s, <count> commands` and the kinds of command
+it ran, and a section over 30 s names the commands it waited longest for.
+
+On the reference machine (about 9 open PRs, 3 other repositories) it ends in
+under 30 s and prints its first lines (the cleaning, then each PR) within
+12 s, inside the 120 s limit of an agent's foreground shell call. When the
+shell tool reports `Terminated`, or the machine is slower (a slow GitHub, a very
+large `/tmp`), run it in the background with the output in a file, never with
+`timeout` in front, and read the file as it grows:
+
+```
+uvx pitboss sweep <config> > <scratchpad>/sweep.out 2>&1   # run_in_background: true
+```
+
+The file holds stdout and the timings together; the run is done when the shell
+tool reports its exit (1 means a line to act on, not a failure to run). Do not
+decide anything from a partial file, and do not start a second sweep while one
+runs.
 
 The rule, in this order (`references/rules.md`, "Agents and slots"):
 

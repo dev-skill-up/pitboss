@@ -6,7 +6,7 @@ import pathlib
 import subprocess
 from typing import Callable, Iterable, Mapping, Sequence
 
-from . import config, dead, local, shapes
+from . import concurrently, config, dead, local, shapes
 from .running import git
 
 Decide = Callable[
@@ -128,11 +128,11 @@ def _outcomes(
     look: dead.Look, slugs: Iterable[str]
 ) -> Mapping[str, Mapping[str, shapes.Outcome]]:
     repos = {repo.slug: repo for repo in config.repositories(look.settings)}
-    return {
-        slug: local.read_outcomes(look.github, repos[slug])
-        for slug in slugs
-        if slug in repos
-    }
+    wanted = [slug for slug in slugs if slug in repos]
+    read = concurrently.each(
+        lambda slug: local.read_outcomes(look.github, repos[slug]), wanted
+    )
+    return dict(zip(wanted, read))
 
 
 def _linked(each: Checkout) -> pathlib.Path | None:
@@ -164,13 +164,17 @@ def _fetched(
 def _read(
     look: dead.Look, paths: Iterable[pathlib.Path]
 ) -> tuple[Sequence[Checkout], Sequence[pathlib.Path]]:
-    read: list[Checkout] = []
-    unreadable: list[pathlib.Path] = []
-    for each in paths:
+    wanted = list(paths)
+
+    def attempt(path: pathlib.Path) -> Checkout | None:
         try:
-            read.append(read_checkout(look, each))
+            return read_checkout(look, path)
         except subprocess.CalledProcessError:
-            unreadable.append(each)
+            return None
+
+    attempted = concurrently.each(attempt, wanted)
+    read = [each for each in attempted if each is not None]
+    unreadable = [path for path, each in zip(wanted, attempted) if each is None]
     return read, unreadable
 
 
@@ -220,7 +224,9 @@ def dead_checkouts(
     fetched, failed = _fetched(look, read)
     outcomes = _outcomes(look, {each.slug for each in fetched})
     judging = functools.partial(decide, look, outcomes)
-    judged = dead.present(_judged(judging, look, cutoff, each) for each in fetched)
+    judged = dead.present(
+        concurrently.each(lambda each: _judged(judging, look, cutoff, each), fetched)
+    )
     found = [*unreadable_checkouts(look, cutoff, unreadable), *judged]
     return found, failed
 

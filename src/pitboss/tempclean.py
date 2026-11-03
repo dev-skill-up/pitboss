@@ -64,8 +64,13 @@ def idle_tempdir(
 
     Returns:
         The candidate; None when it holds the command's directory, a live
-        marker or a mount point, or was changed after the cutoff.
+        marker or a mount point, or was changed after the cutoff. A tempdir
+        that itself changed after the cutoff is not walked: nothing in it can
+        make it older.
     """
+    touched = machine.fs.changed(path)
+    if touched is not None and touched > cutoff:
+        return None
     seen = machine.fs.inspect(path)
     kept = seen.marked or seen.mounts or seen.newest > cutoff
     if kept or holds_working(machine, path):
