@@ -130,7 +130,12 @@ exactly one step and at most one kind. There are eight:
    `review the relock` (`pitboss#126`; the brief states the goal, that moves of
    pins are safe when the lock matches and CI is green, and the check list).
 5. **Resolve the conflict**: step WORKER, task `RESOLVE_CONFLICT`: the head
-   is approved and conflicts with the base. Its author resolves it.
+   conflicts with the base, at every stage (a draft and a red CI included; it
+   comes before the draft, CI and review gates). Not while the PR waits: the
+   `paused-owner` label, `RULING UNREADABLE`, `RULING DUE`, `PAUSE` and
+   `RULING ESCALATES` come first, and the conflict waits for the ruling or the
+   owner. A ruling's own work step comes after the conflict. Its author resolves
+   it.
 6. **Do the ruling's steps**: step WORKER, task `RULING_STEPS`: the newest
    readable Opus ruling says `do these steps` and no review follows it. Its
    author does exactly those steps (the ruling is taken as given).

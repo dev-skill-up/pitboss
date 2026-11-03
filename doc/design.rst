@@ -684,7 +684,9 @@ listed at most once. The eight kinds:
 * ``write the Plan and Execution body``: step ``WORKER``, task
   ``FIRST_ROUND``: the PR has no such body;
 * ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
-  approved head that conflicts with the base;
+  head that conflicts with the base, at any stage but while the PR waits for
+  a ruling or the owner (``steps.WAITS``, the ``paused-owner`` label and
+  ``RULING UNREADABLE``);
 * ``do the ruling's steps``: step ``WORKER``, task ``RULING_STEPS``: the
   newest readable Opus ruling says ``do these steps`` and no review follows it;
 * ``carry out the ruling``: step ``WORKER``, task ``RULING_AS_GIVEN``: the

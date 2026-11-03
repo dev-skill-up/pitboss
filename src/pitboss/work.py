@@ -50,8 +50,8 @@ class Category(enum.IntEnum):
         FIX_CI: an author fixes a red CI, which is no rejection (a PR).
         FIRST_ROUND: an author writes the Plan and Execution body of a PR that
             has none (a PR).
-        RESOLVE_CONFLICT: an author resolves the conflict of an approved head
-            (a PR).
+        RESOLVE_CONFLICT: an author resolves the conflict of a head, at any
+            stage except while it waits for a ruling or the owner (a PR).
         RULING_STEPS: an author does exactly the steps of an Opus ruling (a PR).
         RULING_AS_GIVEN: an author carries out an Opus ruling that splits,
             reshapes or abandons (a PR).

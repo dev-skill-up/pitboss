@@ -52,8 +52,8 @@ TICKET_LINE = (
     " opened 2026-09-01, 1218 days, smallest model small): A ticket"
 )
 FIX_LINE = (
-    "EMPTY SLOT: {slot}: start owner/project#1 (fix the CI (a red CI is no"
-    " rejection), opened 2026-10-01, 1188 days, smallest model {model}): PR 1"
+    "EMPTY SLOT: {slot}: start owner/project#1 (resolve the"
+    " conflict, opened 2026-10-01, 1188 days, smallest model {model}): PR 1"
 )
 REVIEW_LINE = (
     "EMPTY SLOT: {slot}: start owner/project#3 (review it (a reviewer that"

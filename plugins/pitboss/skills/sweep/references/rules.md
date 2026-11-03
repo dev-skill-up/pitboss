@@ -103,7 +103,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      finish, and not a reason to hold the free slot; so is a pull request on
      the orchestrator's blocked list.
 
-   Never a new ticket while a pull request that can be worked on waits (a pull request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` cannot be). The
+   Never a new ticket while a pull request that can be worked on waits (a pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
    that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
    with the kind shown on each line, and then the tickets by priority label
@@ -117,10 +117,17 @@ Only override for bugs, but do override for bugs (and then file them)".
    `review the fix round's findings only`. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
-   CI`) whatever the stage, but a conflict as `resolve the conflict` only once
-   the execution is approved (`flow.next_step` returns `RESOLVE_CONFLICT` only
-   there, as `slots.md` says); before that the step is the review's or the
-   fix's, whatever the conflict. A merge is only a `READY TO MERGE` or
+   CI`) whatever the stage, and a conflict as `resolve the conflict` at every
+   stage, a draft's and a red CI's too, before the draft, CI and review gates (a
+   dirty head runs no CI, pitboss#148). The exceptions are the waits: a pull
+   request with the paused-owner label, `RULING UNREADABLE`, `RULING DUE`,
+   `PAUSE` or `RULING ESCALATES` is offered for no round, and its conflict waits
+   for the ruling or the owner (`flow.next_step`, `steps.WAITS`; the Opus ruling
+   on pitboss#181). A ruling's own work step (`do these steps`, `revise the
+   plan`, `split`, `reshape`, `abandon`) comes after the conflict: the conflict
+   is pushed first and the ruling's step comes back. So the pull requests the
+   sweep prints `CONFLICT` for, less those waits, are the ones `slots next` lists
+   as `resolve the conflict`, before any ticket, oldest first. A merge is only a `READY TO MERGE` or
    `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
    merge of a ready pull request comes first (Order of work, 3), then a
    `STALL` fix, before every `NEXT` line and every other pull request. A pull
@@ -248,7 +255,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   stop a worker, but it should be next in line for work."). It is a fix among
   the open pull requests of Agents and slots 2, in their one list oldest first:
   it does not stop a worker that is running, but it waits for the next free
-  slot in that order. A conflicted pull request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` is
+  slot in that order. A conflicted pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` is
   offered for no round: its conflict waits for the ruling or the owner.
 - Most conflicts are small: merge the base in, resolve, regenerate lockfiles
   and generated files with the repository's own tooling, check, push. Merge,
