@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import cleanworld, fakes, orphans, world
+from . import cleanworld, fakes, orphans, syncworld, world
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -185,7 +185,7 @@ class TestSweep(unittest.TestCase):
 
     def test_sweep_names_an_orphaned_checkout(self) -> None:
         """A worktree whose main checkout is gone is named, not a traceback (#98)."""
-        here = world.make_world()
+        here = syncworld.make_synced().here
         here.bodies[OPEN_PULLS] = [{"number": 2}]
         orphans.make_orphaned(here.workspace, "orphan-98")
         result = sweep(here)
@@ -195,7 +195,7 @@ class TestSweep(unittest.TestCase):
 
     def test_sweep_goes_on_when_one_call_fails(self) -> None:
         """One PR's failed API call is a line naming it; the others are swept (#101)."""
-        here = world.make_world()
+        here = syncworld.make_synced().here
         here.bodies[OPEN_PULLS] = [{"number": 1}, {"number": 2}]
         world.unread_first(here)
         result = sweep(here)
@@ -210,7 +210,7 @@ class TestSweep(unittest.TestCase):
 
     def test_sweep_goes_on_when_a_queue_run_call_fails(self) -> None:
         """A queue run whose jobs call fails is named and the sweep goes on (#101)."""
-        here = world.make_world()
+        here = syncworld.make_synced().here
         here.bodies[OPEN_PULLS] = [{"number": 2}]
         del here.bodies[world.project_page("actions/runs/11/jobs")]
         result = sweep(here)
@@ -237,7 +237,7 @@ class TestSweep(unittest.TestCase):
 
     def test_sweep_healthy(self) -> None:
         """With no red or conflicted PR the sweep exits 0."""
-        here = world.make_world()
+        here = syncworld.make_synced().here
         here.bodies[OPEN_PULLS] = [{"number": 2}]
         assert_that(sweep(here).code, equal_to(0))
 

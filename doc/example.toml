@@ -150,7 +150,10 @@ default = [
 repository = "moshez/claude-jsonl"
 directory = "notes-current"
 # More files to keep (absolute): the other sweep configurations, notes, memory.
-# Default: none. Add a file here in the turn that creates it.
+# Default: none. Add a file here in the turn that creates it: a sweep prints
+# `NOT SYNCED <path>` and exits 1 for a *.toml, *.tsv or *.md beside the
+# configuration (or a file it names) that is not here, and
+# `SYNC NOT CONFIGURED` when there is no [sync] table at all.
 paths = ["/home/user/.claude/pitboss/other.toml", "/home/user/notes.md"]
 # The clone the copies are committed in. Default: <main_clone>/.git/pitboss-sync
 # checkout = "/home/user/.cache/pitboss-sync"

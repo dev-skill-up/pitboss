@@ -38,6 +38,7 @@ from . import (
     report,
     shapes,
     sweepline,
+    syncguard,
     syncing,
     timing,
     tracefs,
@@ -342,7 +343,8 @@ def sweep(args: argparse.Namespace) -> None:
     report.print_ledger(book)
     sweepline.slots(found.github, found.settings, book, open_pulls(found))
     handback.print_lines(book, found.now)
-    if syncing.section(args, found.settings) or broken:
+    unconfigured = syncguard.unconfigured(args)
+    if syncing.section(args, found.settings) or broken or unconfigured:
         raise SystemExit(1)
 
 

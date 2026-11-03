@@ -1,5 +1,6 @@
 """``pitboss sync`` and the sweep's last step: the working files go to main."""
 
+import pathlib
 import subprocess
 import unittest
 from typing import Sequence
@@ -127,11 +128,53 @@ class TestSweep(unittest.TestCase):
         cleanworld.same(kept(synced)[0], "first notes\n")
 
     def test_a_sweep_with_no_table_syncs_nothing(self) -> None:
-        """No ``[sync]`` table: no line, no push."""
+        """No ``[sync]`` table: no push."""
         here = world.make_world()
-        out = test_commands.sweep(here).out
-        cleanworld.same("SYNC" in out, False)
+        test_commands.sweep(here)
         cleanworld.same(pushes(here), [])
+
+    def test_a_complete_configuration_has_no_guard_line_and_exits_0(self) -> None:
+        """Every file beside the configuration is kept: no line, status 0."""
+        cleanworld.same(syncworld.guard(syncworld.make_healthy()), (0, []))
+
+    def test_a_sweep_with_no_table_fails_loudly(self) -> None:
+        """No table: the line is printed, and the status is 1 for it alone."""
+        synced = syncworld.make_healthy()
+        config = pathlib.Path(synced.here.config)
+        config.write_text(config.read_text().split("\n[sync]")[0])
+        line = (
+            "SYNC NOT CONFIGURED: add a [sync] table "
+            '(reference: sweep.md, "The orchestrator\'s working files")'
+        )
+        cleanworld.same(syncworld.guard(synced), (1, [line]))
+
+    def test_a_file_beside_the_configuration_that_is_not_kept_fails(self) -> None:
+        """A tsv, a md and a toml beside the configuration are each named."""
+        synced = syncworld.make_healthy()
+        found = syncworld.beside(synced, "slots.tsv", "o.toml", "plan.md")
+        cleanworld.same(syncworld.guard(synced), syncworld.unkept_lines(found))
+
+    def test_a_named_file_that_is_not_kept_fails(self) -> None:
+        """A file the configuration names, outside its directory, is not kept."""
+        synced = syncworld.make_healthy()
+        named = synced.here.workspace / "named.txt"
+        named.write_text("x\n")
+        syncworld.add_to_config(
+            synced,
+            f'\n[extra]\nfiles = ["{named}", "relative.txt", 3]\n'
+            'table = {file = "/nonexistent/x"}\n',
+        )
+        cleanworld.same(syncworld.guard(synced), (1, [f"NOT SYNCED {named}"]))
+
+    def test_a_file_in_paths_is_not_reported(self) -> None:
+        """Adding the file to ``[sync] paths`` ends the line."""
+        synced = syncworld.make_healthy()
+        extra = syncworld.beside(synced, "slots.tsv")[0]
+        failing = syncworld.guard(synced)[0]
+        config = pathlib.Path(synced.here.config)
+        old = f'paths = ["{synced.notes}"]'
+        config.write_text(config.read_text().replace(old, old[:-1] + f', "{extra}"]'))
+        cleanworld.same((failing, syncworld.guard(synced)), (1, (0, [])))
 
     def test_a_failed_sync_is_reported_by_the_sweep(self) -> None:
         """A sweep whose sync fails says so, and exits 1."""
