@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 from typing import Iterable, Mapping, Sequence
 
-from . import config, work
+from . import config, ledger, work
 from .markers import Marker
 
 CATEGORY_WORDS = {
@@ -71,7 +71,38 @@ def next_lines(view: NextView) -> Iterable[str]:
     if not view.assignments:
         yield "slots: the ledger says all full: start nothing"
     for slot, chosen in view.assignments:
-        target = "nothing fits it: leave it empty"
-        if chosen is not None:
-            target = "start " + _item_text(chosen, view)
-        yield f"{Marker.EMPTY_SLOT.text}: {slot.name} ({slot.model}): {target}"
+        yield empty_slot_line(slot, chosen, view)
+
+
+def empty_slot_line(slot: ledger.Slot, chosen: work.Item | None, view: NextView) -> str:
+    """The line that says what one empty slot starts.
+
+    Args:
+        slot: the empty slot.
+        chosen: the item it takes, or None when nothing fits it.
+        view: what to print from.
+
+    Returns:
+        The ``EMPTY SLOT`` line.
+    """
+    target = "nothing fits it: leave it empty"
+    if chosen is not None:
+        target = "start " + _item_text(chosen, view)
+    return f"{Marker.EMPTY_SLOT.text}: {slot.name} ({slot.model}): {target}"
+
+
+def refill_line(view: NextView, name: str) -> str:
+    """The ``slots next`` line of one empty slot, or that no task is waiting.
+
+    Args:
+        view: what to print from.
+        name: the slot, which the ledger says is empty.
+
+    Returns:
+        The slot's ``EMPTY SLOT`` line when an item fits it, else
+        ``no task is waiting``.
+    """
+    slot, chosen = next(pair for pair in view.assignments if pair[0].name == name)
+    if chosen is None:
+        return "no task is waiting"
+    return empty_slot_line(slot, chosen, view)

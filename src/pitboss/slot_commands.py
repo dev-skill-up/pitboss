@@ -34,7 +34,7 @@ class Action(enum.Enum):
     Attributes:
         SHOW: print the ledger.
         SET: put an agent in an empty slot (SLOT AGENT TASK).
-        FREE: empty a slot (SLOT).
+        FREE: empty a slot (SLOT), then print the line ``NEXT`` gives it.
         ADD: add a slot (SLOT MODEL).
         REMOVE: remove an empty slot (SLOT).
         FAILED: record that a model failed a ticket (TICKET MODEL).
@@ -210,7 +210,10 @@ def slots(args: argparse.Namespace) -> None:
     if action is not Action.REPORT:
         nextlist.require_ledger(found.settings.slots.ledger)
     if action in CHANGES:
-        report.print_ledger(_changed(action, found))
+        changed = _changed(action, found)
+        report.print_ledger(changed)
+        if action is Action.FREE:
+            nextlist.refill(found, open_pulls(found), changed, found.args.words[0])
     elif action is Action.CHECK:
         _check(found, read_ledger(found.settings))
     elif action is Action.REPORT:

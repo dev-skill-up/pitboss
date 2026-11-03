@@ -90,6 +90,23 @@ NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
         [*NEXT_THREE, "EMPTY SLOT: tiny (small): nothing fits it: leave it empty"],
     ),
 ]
+FREE_CASES: Sequence[tuple[str, Sequence[Sequence[str]], str]] = [
+    (
+        "a ticket waits",
+        [("remove", "big"), ("failed", "#1", "small"), ("failed", "#3", "small")],
+        TICKET_LINE,
+    ),
+    (
+        "none waits",
+        [
+            ("remove", "big"),
+            ("failed", "#9", "small"),
+            ("failed", "#3", "small"),
+            ("failed", "#1", "small"),
+        ],
+        "no task is waiting",
+    ),
+]
 MARKERS = ("NEXT", "EMPTY SLOT", "slots:")
 
 
@@ -109,6 +126,21 @@ def run_all(
         world.invoke(here, "slots", words[0], here.config, *words[1:])
         for words in steps
     ]
+
+
+def freed_world(setup: Sequence[Sequence[str]]) -> tuple[world.World, Sequence[str]]:
+    """Run ``setup``, fill ``tiny``, free it.
+
+    Args:
+        setup: the ledger commands to run first.
+
+    Returns:
+        The world and the output lines of ``slots free tiny``.
+    """
+    here = world.make_world()
+    run_all(here, [*setup, ("set", "tiny", "agent-1", "x")])
+    args = ("slots", "free", here.config, "tiny", "--now", world.FUTURE)
+    return here, tuple(world.invoke(here, *args).out.splitlines())
 
 
 def next_output(here: world.World) -> str:
@@ -256,6 +288,21 @@ class TestNext(unittest.TestCase):
         shown = next_output(here).splitlines()
         offered = [x for x in shown if x.startswith("UNREADABLE tickets") or "#9" in x]
         assert_that(offered, equal_to([UNREAD_TICKETS_LINE]))
+
+
+class TestFreeRefill(unittest.TestCase):
+    """``slots free`` prints the ``slots next`` line of the slot it emptied."""
+
+    def test_cases(self) -> None:
+        """The last line is the slot's line of ``slots next``, or none waits."""
+        for name, setup, expected in FREE_CASES:
+            with self.subTest(name):
+                assert_that(freed_world(setup)[1][-1], equal_to(expected))
+
+    def test_is_the_line_next_prints(self) -> None:
+        """The refill line is one of the lines ``slots next`` prints."""
+        here, lines = freed_world([("remove", "big")])
+        assert_that(lines[-1] in next_output(here), equal_to(True))
 
 
 MISSING_STEPS = (
