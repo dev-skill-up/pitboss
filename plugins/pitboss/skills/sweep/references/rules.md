@@ -107,7 +107,8 @@ Only override for bugs, but do override for bugs (and then file them)".
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
    that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
    with the kind shown on each line, and then the tickets by priority label
-   and age. The kind is the step alone. A WORKER step is listed with its
+   and age (a ticket of a repository under the owner's hold is printed `HELD`
+   instead, not numbered and not offered). The kind is the step alone. A WORKER step is listed with its
    task's kind: `revise the plan` (`REVISE_PLAN`), `fix the CI` (`FIX_CI`),
    `write the Plan and Execution body` (`FIRST_ROUND`), `resolve the conflict`
    (`RESOLVE_CONFLICT`), `do the ruling's steps` (`RULING_STEPS`), `carry out
@@ -170,7 +171,7 @@ Only override for bugs, but do override for bugs (and then file them)".
    for a fix that is coming, not for a better fit, not for a hold on pushes.
    "Nothing fits" is not an answer: take a conflicted PR (not one with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`, which waits for the ruling or the owner), or the next ticket
    that can be worked in the project's order, which is the next one down when
-   every ticket above it is in a worker's hand or blocked (owner,
+   every ticket above it is in a worker's hand, blocked or held (item 6 of the order of work; owner,
    2026-10-26T03:03:00Z: "THE RULES SAY SLOTS ARE NEVER EMPTY";
    2026-10-26T04:32:05Z: "IT SAT EMPTY BECAUSE YOU DIDN'T FILL IT"). Record
    each spawn in the ledger.
@@ -330,8 +331,8 @@ Only override for bugs, but do override for bugs (and then file them)".
      everything else"; 2026-10-26T19:37:01Z, line 109557: "first, but still
      respectful of pressure rules").
   4. Then tickets: p0, then p1, then p2, oldest opened first. A p1 is not
-     started while a p0 can be worked; a p0 that a worker has in hand, or that
-     is blocked, cannot be, and an agent row is never left empty for the order
+     started while a p0 can be worked; a p0 that a worker has in hand, that
+     is blocked, or that is held (6, below), cannot be, and an agent row is never left empty for the order
      (owner, 2026-10-26T03:03:00Z, line 100831: "THE RULES SAY SLOTS ARE NEVER
      EMPTY"; 2026-10-21T10:45:34Z, line 61554: "I said explicitly that PRs in
      flight trump everything else").
@@ -342,6 +343,24 @@ Only override for bugs, but do override for bugs (and then file them)".
      with priority 0 is not worked on if it has blockers. The blockers inherit
      the priority."). A blocked ticket is not started, not even for a piece of
      it (owner, 2026-10-24T04:51:42Z, line 82652: "DON'T START THE AGENT").
+  6. **A hold on new pull requests** (keyword: pr-hold). The owner, on seeing
+     24 open quire pull requests (owner, 2026-10-30T00:32Z: "Why are you
+     opening more in quire. Finish existing"); the sentence of
+     dev-skill-up/pitboss#151, "stop opening new quire pull requests until the
+     existing ones are finished", is the ticket's paraphrase of it and is not
+     the owner's. In a repository the project's configuration lists under
+     `[holds] new_pull_requests`, no new pull request is started while more
+     than `max_open` (default 0) of its pull requests are open. `slots next`
+     prints each ticket of such a repository as `HELD`, with no `NEXT` number;
+     `slots free`, `next` (the suggestions) and the sweep's `SLOTS FREE` count
+     leave it out too, and the sweep prints one `HOLD` line. A held ticket is
+     not a ticket that "can be worked": it does not block a lower priority and
+     does not leave the slot idle, the next ticket takes it. The open pull
+     requests of the repository are finished as in 2 and 3, and the order of
+     everything else is unchanged. `pitboss next <config> <ticket>` with a held
+     ticket as its argument is not covered: it still prints the ticket's first
+     step, so do not start the ticket by hand. The hold is the owner's to set
+     and to lift, in the configuration; a priority does not override it.
 - **No downgrades without the owner's word.** Downgrading a ticket to p3 on
   judgement (minor impact, high cost), or to any other priority, needs the
   owner's approval. An issue's priority is the owner's call: a worker that

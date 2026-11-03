@@ -5,7 +5,14 @@ import pathlib
 import tomllib
 from typing import Mapping
 
-from . import briefconfig, cleanconfig, config, scratchconfig, syncconfig
+from . import (
+    briefconfig,
+    cleanconfig,
+    config,
+    holdconfig,
+    scratchconfig,
+    syncconfig,
+)
 
 CONFIG_DIRECTORY = (".claude", "pitboss")
 
@@ -103,6 +110,21 @@ def load_scratch(name: str, start: pathlib.Path, owner: str) -> scratchconfig.Sc
     """
     with locate(name, start).open("rb") as stream:
         return scratchconfig.from_document(tomllib.load(stream), owner)
+
+
+def load_holds(name: str, start: pathlib.Path, owner: str) -> holdconfig.Holds:
+    """Locate, read and parse the ``[holds]`` table of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+        owner: the project's owner, the owner of a bare repository name.
+
+    Returns:
+        The holds on new pull requests; none when the configuration has no table.
+    """
+    with locate(name, start).open("rb") as stream:
+        return holdconfig.from_document(tomllib.load(stream), owner)
 
 
 def load_sync(

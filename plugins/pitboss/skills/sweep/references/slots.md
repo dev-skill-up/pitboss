@@ -161,12 +161,20 @@ with one of the configured priority labels that no open PR names (in its
 title, body or branch); a ticket with none of the labels is never offered.
 The tickets are ordered by priority label (the order of `priority_labels`),
 then oldest first by the creation time of the ticket. Items a slot already
-holds are left out. A `STALL` line of the sweep (`rules.md`) is the one
+holds are left out, and so is a ticket of a repository under the owner's hold (printed `HELD`, below): it is not a ticket that can be worked, and the next ticket takes the slot. A `STALL` line of the sweep (`rules.md`) is the one
 exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` (then it has no line and waits).
 
 Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a
 ticket will touch, and no ticket is skipped or held back because another PR
-might touch the same files. No stacking: every PR starts from the base
+might touch the same files. The one thing that keeps a ticket back is the
+owner's hold on a repository (`rules.md`, "Order of work", 6): the configuration
+lists it under `[holds] new_pull_requests` (with `max_open = N` to hold only
+while more than N of its pull requests are open), and `slots next` prints each
+of its tickets as `HELD (no new pull requests in <repository>: <n> open)
+<ticket>` instead of a `NEXT` line. A `HELD` line is not numbered and is
+offered to no slot; the next ticket takes the slot. The pull requests of the
+repository are listed as always. The sweep prints one `HOLD` line while a
+hold applies (`HOLD new pull requests: <repository> (<n> open)`). No stacking: every PR starts from the base
 branch, never from another PR's branch. When a PR that merged first makes
 another conflict, the conflicted PR merges the base branch in when it needs
 to (see `CONFLICT` in `sweep.md`).

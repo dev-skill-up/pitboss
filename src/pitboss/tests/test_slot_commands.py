@@ -128,16 +128,19 @@ def run_all(
     ]
 
 
-def freed_world(setup: Sequence[Sequence[str]]) -> tuple[world.World, Sequence[str]]:
+def freed_world(
+    setup: Sequence[Sequence[str]], here: world.World | None = None
+) -> tuple[world.World, Sequence[str]]:
     """Run ``setup``, fill ``tiny``, free it.
 
     Args:
         setup: the ledger commands to run first.
+        here: the world; a new one when None.
 
     Returns:
         The world and the output lines of ``slots free tiny``.
     """
-    here = world.make_world()
+    here = here or world.make_world()
     run_all(here, [*setup, ("set", "tiny", "agent-1", "x")])
     args = ("slots", "free", here.config, "tiny", "--now", world.FUTURE)
     return here, tuple(world.invoke(here, *args).out.splitlines())
