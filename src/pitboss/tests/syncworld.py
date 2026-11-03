@@ -2,6 +2,7 @@
 
 import dataclasses
 import pathlib
+import shutil
 from typing import Sequence
 
 from . import fakes, world
@@ -15,11 +16,13 @@ class Synced:
         here: the world.
         origin: the bare repository whose main is pushed to.
         notes: a file the table names.
+        checkout: the sync clone.
     """
 
     here: world.World
     origin: pathlib.Path
     notes: pathlib.Path
+    checkout: pathlib.Path
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -73,7 +76,7 @@ def make_synced(table: str = "") -> Synced:
             f'\n[sync]\nurl = "{origin}"\ncheckout = "{checkout}"\n'
             f'paths = ["{notes}"]\n{table}'
         )
-    return Synced(here=here, origin=origin, notes=notes)
+    return Synced(here=here, origin=origin, notes=notes, checkout=checkout)
 
 
 def make_healthy(table: str = "") -> Synced:
@@ -182,6 +185,29 @@ def with_failing(here: world.World, word: str, error: Exception) -> world.World:
     """
     broken = Breaking(inner=here.processes, word=word, error=error)
     return dataclasses.replace(here, processes=broken)
+
+
+def normalize_on_origin(synced: Synced) -> None:
+    """Make main of the origin store the kept files as a fresh clone shows them.
+
+    Main gets an attributes file that checks the kept files out with CRLF line
+    ends (stored as LF), and the sync clone is removed, so the next sync clones
+    files that differ in bytes from the sources yet add back to the same blobs.
+
+    Args:
+        synced: the world.
+    """
+    work = fakes.directory() / "by-hand"
+    fakes.run_git(work.parent, "clone", "--quiet", str(synced.origin), str(work))
+    (work / ".gitattributes").write_text("notes-current/** text eol=crlf\n")
+    steps = (
+        ("add", ".gitattributes"),
+        (*fakes.IDENTITY, "commit", "--quiet", "-m", "attributes"),
+        ("push", "--quiet", "origin", "HEAD:main"),
+    )
+    for words in steps:
+        fakes.run_git(work, *words)
+    shutil.rmtree(synced.checkout)
 
 
 def sync(synced: Synced) -> tuple[object, Sequence[str]]:
