@@ -9,6 +9,7 @@ from . import cleanworld, syncworld, test_commands, world
 
 NOT_RUN = subprocess.CalledProcessError(1, ["git"])
 FAILED = (1, "COULD NOT SYNC")
+NOTHING = "sync: nothing to commit"
 
 
 def kept(synced: syncworld.Synced) -> tuple[str, int]:
@@ -33,6 +34,17 @@ def pushes(here: world.World) -> Sequence[Sequence[str]]:
         The command lines.
     """
     return [call for call in here.calls if "push" in call]
+
+
+def nothing_to_commit(synced: syncworld.Synced) -> None:
+    """Sync a world: the line, exit 0, and the origin as it was.
+
+    Args:
+        synced: the world, synced once.
+    """
+    before = kept(synced)
+    code_and_lines = syncworld.sync(synced)
+    cleanworld.same((code_and_lines, kept(synced)), ((0, [NOTHING]), before))
 
 
 def failing_sync(
@@ -67,11 +79,21 @@ class TestSync(unittest.TestCase):
         )
         cleanworld.same(kept(synced), ("first notes\n", before + 1))
 
-    def test_nothing_changed_says_nothing(self) -> None:
-        """A second sync with the same files prints nothing and makes no commit."""
+    def test_files_identical_to_the_remote_say_nothing_to_commit(self) -> None:
+        """A second sync with the same files: the line, exit 0, no new commit."""
         synced = syncworld.after_first_sync()
-        before = kept(synced)
-        cleanworld.same((syncworld.sync(synced), kept(synced)), ((0, []), before))
+        nothing_to_commit(synced)
+
+    def test_a_copy_that_stages_nothing_is_not_an_error(self) -> None:
+        """Real git: bytes differ from the clone, the add stages nothing, exit 0."""
+        synced = syncworld.after_first_sync()
+        syncworld.normalize_on_origin(synced)
+        nothing_to_commit(synced)
+
+    def test_a_failing_diff_is_still_reported(self) -> None:
+        """A git that fails to diff (status 128, not 1) is COULD NOT SYNC."""
+        broken = subprocess.CalledProcessError(128, ["git"])
+        cleanworld.same(failing_sync("diff", broken)[1], FAILED)
 
     def test_only_the_file_that_changed_is_copied(self) -> None:
         """A later sync updates the changed file in a new commit."""
