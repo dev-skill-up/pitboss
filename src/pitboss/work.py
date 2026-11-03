@@ -130,10 +130,18 @@ def _category(pull: pulls.PullFacts) -> Category | None:
     # review-flow: the step alone decides, so ``next`` and ``slots next`` agree
     if step.step is not steps.Step.REGULAR_REVIEW:
         return None
-    return Category.REVIEW_FIX_ROUND if _body_fixed(pull) else Category.REVIEW
+    return Category.REVIEW_FIX_ROUND if body_fixed(pull) else Category.REVIEW
 
 
-def _body_fixed(pull: pulls.PullFacts) -> bool:
+def body_fixed(pull: pulls.PullFacts) -> bool:
+    """Whether the PR body changed after the newest review of its head.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        True when the standing is ``older-body``, whatever the verdict.
+    """
     # keyword: body-digest (pitboss#147): the body changed after the newest review
     # of the head (whatever its verdict), the head did not move
     return pull.standing is reviews.Standing.OLDER_BODY

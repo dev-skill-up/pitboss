@@ -270,6 +270,13 @@ def lint(args: argparse.Namespace) -> None:
     KINDS[args.kind](args)
 
 
+BODY_NOTE = (
+    "# also one line of its own: Body: <digest> (uvx pitboss body-digest FILE, the"
+    " PR body saved to a file); the sweep keys a review with no such line to the"
+    " head alone"
+)
+
+
 @ENTRY_DATA.register(
     commands.CONFIG_ARGUMENT, add_argument("repository"), name="review-form"
 )
@@ -295,8 +302,4 @@ def review_form(args: argparse.Namespace) -> None:
         )
     for line in form.lines:
         print(line)
-    print(
-        "# also one line of its own: Body: <digest> (uvx pitboss body-digest FILE,"
-        " the PR body saved to a file); the sweep keys a review with no such line"
-        " to the head alone"
-    )
+    print(BODY_NOTE)
