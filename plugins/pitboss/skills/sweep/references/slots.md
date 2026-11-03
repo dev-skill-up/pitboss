@@ -16,6 +16,10 @@ Only the orchestrator's configuration refills a slot: the one that owns the
 ledger. A configuration owns it when its `[slots]` table says
 `ledger-owner = true`, or when the ledger file records its path (a `"config"`
 key at the top of the JSON, next to `"slots"`, which `set` and `free` keep).
+Nothing writes that key when the file is made: it is put in the file by hand.
+A ledger made before this check records no path, so the orchestrator's
+configuration adds `ledger-owner = true` to its `[slots]` table once; until it
+does, `slots next`, `free` and `set` refuse even that configuration.
 `pitboss slots next`, `slots free` and `slots set` from any other
 configuration exit 1 and print `not the orchestrator config: use <path>` (the
 path the ledger records; `the configuration with ledger-owner = true` when it

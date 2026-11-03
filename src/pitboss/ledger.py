@@ -65,7 +65,8 @@ class Ledger:
     Attributes:
         slots: the slots, in order.
         failed: each ticket's failed models.
-        config: the path of the configuration that created the ledger, or
+        config: the path of the configuration that owns the ledger, a key put
+            in the file by hand (nothing writes it when the file is made), or
             empty when the file records none.
     """
 
