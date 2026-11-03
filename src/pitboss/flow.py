@@ -147,8 +147,10 @@ def execution_fixed_since_plan_approval(pr: PullState) -> bool:
     for each in _regular_reviews(pr):
         approved = approved or each.plan is Verdict.APPROVED
         rejecting = approved and each.execution is Verdict.CHANGES_NEEDED
-        moved = not (_of_head(pr, [each]) or pr.merges_only_since(each.sha))
-        if rejecting and (moved or bodydigest.changed(each.body, now)):
+        if rejecting and (
+            bodydigest.changed(each.body, now)
+            or not (_of_head(pr, [each]) or pr.merges_only_since(each.sha))
+        ):
             return True
     return False
 

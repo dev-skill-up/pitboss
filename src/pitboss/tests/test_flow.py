@@ -379,8 +379,17 @@ class TestBodyFixRound(unittest.TestCase):
         second = reading(graded(None, CHANGES, 2), BODY)
         expect(steps.opus_ruling(), state(first, second))
 
-    def test_two_rejections_at_one_head_and_one_body_are_one_round(self) -> None:
-        """Nothing was fixed between them (a re-run review): still the worker."""
-        first = reading(graded(*EXECUTION_REJECTED, 1), BODY)
+    def test_a_body_that_was_not_fixed_since_the_approval_is_one_round(self) -> None:
+        """Re-run review of one body, or a body edit before the plan's approval."""
+        approved = reading(graded(*EXECUTION_REJECTED, 1), BODY)
+        revised = reading(graded(CHANGES, CHANGES, 1), "the body before")
+        for first in (approved, revised):
+            second = reading(graded(APPROVED, CHANGES, 2), BODY)
+            expect(steps.worker(Task.FIX_EXECUTION), state(first, second))
+
+    def test_a_base_merge_with_the_recorded_body_is_no_fix(self) -> None:
+        """The body is still the recorded one and only the base was merged."""
+        first = reading(graded(*EXECUTION_REJECTED, 1, sha=OLDER), BODY)
         second = reading(graded(None, CHANGES, 2), BODY)
-        expect(steps.worker(Task.FIX_EXECUTION), state(first, second))
+        rejected = merged(state(first, second), OLDER)
+        expect(steps.worker(Task.FIX_EXECUTION), rejected)

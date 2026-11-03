@@ -20,10 +20,7 @@ PAUSE_LINE = "PAUSE owner/project#3: changes needed again after the Opus ruling"
 
 
 def graded(
-    plan: str | None,
-    execution: str | None,
-    second: int,
-    sha: str = HEAD,
+    plan: str | None, execution: str | None, second: int, sha: str = HEAD
 ) -> shapes.Comment:
     """A review comment of PR 3.
 
@@ -318,6 +315,24 @@ class TestBodyFix(unittest.TestCase):
         here = world_with(rounds, body=now)
         assert_that(sweep(here).out, contains_string(RULING_LINE))
         assert_that(listed_for_third(here), equal_to([]))
+        assert_that(
+            next_output(here),
+            contains_string("make an Opus ruling: owner/project#3: Opus agent"),
+        )
+
+    def test_a_body_edit_before_the_plan_was_approved_is_no_execution_round(
+        self,
+    ) -> None:
+        """A plan revision: the worker's round, not RULING DUE."""
+        now = "Fixes #1\n\n## Plan\nthe revised plan\n\n## Execution\nthe work\n"
+        before = "Fixes #1\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
+        rounds = [
+            reading(graded(CHANGES, CHANGES, 1), before),
+            reading(graded(APPROVED, CHANGES, 2), now),
+        ]
+        here = world_with(rounds, body=now)
+        assert_that("RULING DUE" in sweep(here).out, equal_to(False))
+        assert_that("".join(listed_for_third(here)), contains_string("fix the review"))
 
     def test_two_rejections_at_one_head_and_one_body_are_a_worker_round(self) -> None:
         """No body edit between the two: nothing was fixed, the worker's round."""

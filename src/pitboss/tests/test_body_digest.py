@@ -93,7 +93,7 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         assert_that(third[0], contains_string("review=older-body"))
         assert_that(len(lines) > 1, equal_to(True))
 
-    def test_a_review_of_the_edited_body_makes_the_line_go_away(self) -> None:
+    def test_a_review_of_the_edited_body_that_rejects_again_is_a_ruling(self) -> None:
         """The newer review records the new digest: the second rejection rules.
 
         The history of pitboss#146 (keyword: ruling-count, pitboss#149): two
