@@ -6,6 +6,7 @@ from typing import Mapping, Sequence
 from . import (
     analysisline,
     config,
+    foldline,
     gateline,
     pulls,
     reviewline,
@@ -42,6 +43,7 @@ def lines(
         *updateline.lines(pull, settings),
         *roundline.lines(pull),
         *_draft_lines(pull),
+        *foldline.lines(pull),
         *reviewline.lines(pull),
         *analysisline.lines(pull),
         *gateline.lines(pull),
