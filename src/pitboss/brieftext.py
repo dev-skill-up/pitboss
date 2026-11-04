@@ -70,8 +70,8 @@ PLAN_COMMANDS_WORKER = (
     " Plan's command cannot show its row, change the Plan first and ask for its"
     " review."
 )
-DRY_RUN = (
-    "Dry run: run each command read-only before you write it into the Plan, when"
+TRY_COMMANDS = (
+    "Try commands: run each command read-only before you write it into the Plan, when"
     " it can be run, and see that it shows its row (a test command needs the"
     " build it depends on; a filter must keep what the row needs, line numbers"
     " included); for a command that cannot be run before the change exists, say"
@@ -85,7 +85,9 @@ NO_APPEND = (
 SEARCH = (
     "Search: before handing back, search the tree for the words of every"
     " comment, rule bullet and doc the change touches, and fix each statement"
-    " the change makes false or list it in the Execution."
+    " the change makes false or contradictory (a contradiction is fixed, never"
+    " documented); list in the Execution only a false statement outside this"
+    " tree, which you cannot edit."
 )
 NO_WAITING = "No waiting: never wait for CI. Push, then hand back at once."
 FINISH = "Finish inside the turn. Do not merge. Do not write the review."

@@ -12,7 +12,7 @@ from .linting import BODY, OK, RAN
 from .test_evidence_rules import read, words
 
 SENTENCES = {
-    "Dry run: ": (
+    "Try commands: ": (
         "run each command read-only before you write it into the Plan, when it"
         " can be run, and see that it shows its row (a test command needs the"
         " build it depends on; a filter must keep what the row needs, line"
@@ -27,16 +27,18 @@ SENTENCES = {
     "Search: ": (
         "before handing back, search the tree for the words of every comment,"
         " rule bullet and doc the change touches, and fix each statement the"
-        " change makes false or list it in the Execution."
+        " change makes false or contradictory (a contradiction is fixed, never"
+        " documented); list in the Execution only a false statement outside this"
+        " tree, which you cannot edit."
     ),
 }
-CONSTANTS = (brieftext.DRY_RUN, brieftext.NO_APPEND, brieftext.SEARCH)
+CONSTANTS = (brieftext.TRY_COMMANDS, brieftext.NO_APPEND, brieftext.SEARCH)
 # each kind of brief and the lines it carries
 CARRIED = {
     brief.Kind.NEW_PR: list(SENTENCES),
     brief.Kind.FIRST_ROUND: list(SENTENCES),
     brief.Kind.FIX_REVIEW: list(SENTENCES),
-    brief.Kind.REVISE_PLAN: ["Dry run: "],
+    brief.Kind.REVISE_PLAN: ["Try commands: "],
     brief.Kind.FIX_CI: [],
     brief.Kind.RESOLVE_CONFLICT: [],
     brief.Kind.REVIEW_FULL: [],
