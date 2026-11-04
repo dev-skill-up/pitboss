@@ -16,8 +16,8 @@ SENTENCES = {
         "run each command read-only before you write it into the Plan, when it"
         " can be run, and see that it shows its row (a test command needs the"
         " build it depends on; a filter must keep what the row needs, line"
-        " numbers included); for a command that cannot be run before the change"
-        " exists, say so in the Plan."
+        " numbers included); for a command that cannot be run (it needs the"
+        " change, CI, a service or a long build), say so in the Plan."
     ),
     "Expand rows: ": (
         "never append anything to a row of the template (no `; echo $?`, no `||"
