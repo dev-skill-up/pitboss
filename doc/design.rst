@@ -220,6 +220,10 @@ Commands
        ``pitboss expand`` produced), ``hand-typed`` (a ``$ `` row anywhere in
        the body, in a quote, a list or an indented block too, that is not
        inside a block ``pitboss expand`` produced, one finding for each,
+       naming its line), ``appended`` (an Evidence row, in a block ``pitboss
+       expand`` produced, whose command ends in ``; echo $?``, ``&& echo $?``
+       or ``|| echo``: ``expand`` prints ``exit status: N`` itself, so the row
+       was changed from the Plan's command; pitboss#170, one finding for each,
        naming its line) and ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). With ``--branch`` starting with the
