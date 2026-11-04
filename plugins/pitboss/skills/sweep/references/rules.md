@@ -114,8 +114,11 @@ Only override for bugs, but do override for bugs (and then file them)".
    (`RESOLVE_CONFLICT`), `do the ruling's steps` (`RULING_STEPS`), `carry out
    the ruling` (`RULING_AS_GIVEN`), and `fix the review` for any other task
    (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
-   stage, a draft's plan-only review included, except after a body fix (below):
-   `review the fix round's findings only`. Every other step is offered for
+   stage, a plan-only review included (a draft's, or that of a Plan revised
+   after its rejection on a PR that is not a draft), except that after a body
+   fix (below) it is `review the fix round's findings only`, unless the review
+   rejected the Plan, in which case it is `review it` with the Plan alone
+   graded. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
    CI`) whatever the stage, and a conflict as `resolve the conflict` at every
@@ -148,8 +151,10 @@ Only override for bugs, but do override for bugs (and then file them)".
    review of a PR in progress is never started to fill a slot. A head with no
    completed check run (a draft that runs no CI) is waiting for CI: a reviewer
    on it reports NOT STARTED, except a review of a draft at its Plan stage (its
-   first review, or the review of a revised Plan), which its author's
-   hand-back starts and which has no check to wait for ("Plan first").
+   first review, or the review of a Plan revised on a draft), which its author's
+   hand-back starts and which has no check to wait for ("Plan first"). A Plan
+   revised on a PR that is not a draft waits for CI like any review, and is then
+   graded alone (pitboss#167).
 4. **The rows of the ledger are the agents that run, reviewers included**
    (orchestrator, 2026-10-18). The ledger is authoritative on how many; only an
    explicit instruction from the owner ("Add a slot", "Remove", "Change")
@@ -697,8 +702,10 @@ Only override for bugs, but do override for bugs (and then file them)".
   (`updated_at` moves with every label, push and comment), so the digest is
   the record. When the digest in the newest review of the head is not the
   body's now and the head did not move, the sweep prints `review=older-body`
-  and `slots next` offers the PR as `review the fix round's findings only`:
-  the worker who fixed only the body is not sent to fix the review again, and
+  and `slots next` offers the PR as `review the fix round's findings only`,
+  unless the review rejected the Plan, in which case it is offered as `review
+  it` with the Plan alone graded (pitboss#167): the worker who fixed
+  only the body is not sent to fix the review again, and
   the orchestrator does not guess the next step. A review of the same head that
   records the new digest ends it. A review that records no `Body:` line is
   keyed to the head alone, as before.
