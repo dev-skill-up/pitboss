@@ -30,6 +30,8 @@ CLOSING = re.compile(r"^ {0,3}(?P<ticks>`+|~+)[ \t]*$")
 HEADING = re.compile(r"^ {0,3}(?P<hashes>#{1,6})(?:[ \t]+(?P<title>.*))?$")
 EVIDENCE = re.compile(r"Evidence\b", re.IGNORECASE)
 COMMAND = re.compile(r"^(?:[ \t>]|[-+*](?=[ \t])|\d{1,9}[.)](?=[ \t]))*\$(?:[ \t]|$)")
+# a row ending in `; echo $?`, `&& echo $?` or `|| echo ...` (pitboss#170)
+ECHOED = re.compile(r"(?:[;&]\s*echo\s+[^|;&]*\$\?[^|;&]*|\|\|\s*echo\b.*)\s*$")
 LEADING_TAGS = re.compile(r"^(?:\s*<[^>]*>)*")
 
 
@@ -210,6 +212,39 @@ def has_produced(body: str) -> bool:
         same or a higher level, holds such a block.
     """
     return any(produced(each) and each.in_evidence for each in blocks(body))
+
+
+def appended(body: str) -> Sequence[int]:
+    """The command rows of produced blocks that end in an exit-status echo.
+
+    The keyword is appended (pitboss#170). ``expand`` prints ``exit status: N`` for
+    a status that is not zero, so a row that ends in ``; echo $?`` or
+    ``|| echo`` was changed from the Plan's command by hand.
+
+    Args:
+        body: the text.
+
+    Returns:
+        The numbers of the command rows' lines, from 1, in the Evidence
+        section.
+    """
+    return [
+        each.line + 1
+        for each in blocks(body)
+        if produced(each) and each.in_evidence and ECHOED.search(first_row(each))
+    ]
+
+
+def first_row(block: Block) -> str:
+    """The command row of a block ``expand`` produced.
+
+    Args:
+        block: the block.
+
+    Returns:
+        Its first line, without the newline.
+    """
+    return block.contents.partition("\n")[0]
 
 
 def hand_typed(body: str) -> Sequence[int]:

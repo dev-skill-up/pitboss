@@ -391,6 +391,26 @@ Only override for bugs, but do override for bugs (and then file them)".
     as an umbrella. A piece that depends on another says so in the
     form of "A blocked ticket is not started" below (keyword: ticket-blocked)
     and is worked after that one merged.
+- **A cap on open PRs is met by finishing or closing PRs, never by folding
+  tickets into one PR** (keyword: fold, pitboss#171; quire#1038 closed six
+  tickets in one PR after the owner's rule of 2026-10-30 to stop opening PRs
+  and finish the open ones; the six had to be graded together, which made a
+  79-file diff and a Plan that two reviews and an Opus ruling could not
+  settle). A rule that caps the open PRs is a rule about the count: the PRs
+  already open are finished or closed, and no ticket's work is moved into
+  another PR to lower the count. A PR whose body closes more than one ticket
+  (`Fixes` or `Closes` for each) needs an Opus ruling comment on that PR
+  (`Ruling: do these steps`; `Ruling: split` is refused) recorded before its
+  first push, and its body cites that comment's address. The first line stays
+  `Fixes #N`; each other ticket has a `Fixes` or `Closes` line, and
+  `pitboss next` reads both as the tickets the PR fixes, so no second PR is
+  started for one of them. `pitboss lint pr-body` refuses a body with several
+  such tickets unless it cites the address of a ruling comment of the PR
+  (given with `--ruling URL FILE` or found in `--comments FILE`), and so does
+  `pitboss lint event`, which posts the body-form status of every PR and
+  reads the PR's comments the same way, so a cited ruling makes that status
+  success. The sweep prints a `FOLDED PR` line for an open PR whose body names
+  several tickets and cites no ruling comment of the PR.
 - **A partial fix is never merged, and a ticket is never narrowed or split to
   get a PR through, unless impossibility is verified** (owner,
   2026-10-29T04:50:34Z: "Merging it as a partial fix is your call. <-- it's not
@@ -648,7 +668,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   - **Before asking for review the author greps the whole tree** (the docs, the
     README, the design notes, the skill files, the example configuration, the
     tests) for every statement the change makes false or contradictory, and
-    fixes each one: a contradiction is fixed, never documented.
+    fixes each one: a contradiction is fixed, never documented. Only a false
+    statement outside the tree, which the author cannot edit, is listed in the
+    Execution (the worker's `Search:` line).
   - **A reviewer's objection to a phrase no claim depends on is answered by
     removing the phrase**, not by defending it.
   The lint of the body and of a review runs on a draft too (owner,
@@ -752,10 +774,13 @@ Only override for bugs, but do override for bugs (and then file them)".
   the ## Plan section of the PR body only; touch no code, doc or test (a merge
   of the base for a conflict excepted), fix none of the Execution defects, end
   with an empty commit pushed to the draft, and patch the Head: line to it.`
-  `Grep: before asking for review, grep the whole tree (docs, README,
-  design notes, skill files, example configuration, tests) for any statement
-  your change makes false or contradictory and fix each one; a contradiction is
-  fixed, never documented.` A reviewer brief says: `Plan: you are a new
+  `Search: before handing back, search the tree for the words of every
+  comment, rule bullet and doc the change touches, and fix each statement the
+  change makes false or contradictory (a contradiction is fixed, never
+  documented); list in the Execution only a false statement outside this tree,
+  which you cannot edit.` (pitboss#170 replaced the worker's `Grep:` line with
+  this one; the whole tree is the docs, README, design notes, skill files,
+  example configuration and tests.) A reviewer brief says: `Plan: you are a new
   reviewer; grade the Plan and the Execution in one review, with a Plan line
   and an Execution line beside the one Verdict line; the PR is at its first
   review`, or `the Plan was revised after a rejection: grade only the Plan,
@@ -781,6 +806,23 @@ Only override for bugs, but do override for bugs (and then file them)".
   claim needs, or a claim with no command, is changes needed.` The commands run with the permissions of whoever
   runs expand, so a template is only ever the worker's own (`design.rst`,
   "Expanding a template").
+- **Try-commands, expand-rows and search lines** (keyword: dry-run, pitboss#170;
+  reviewers of pwa#277 and quire#1038 found a Plan command that did not work as
+  written, an expand row with `; echo $?` appended, and a statement left false
+  elsewhere in the tree, each costing rounds). A worker brief says:
+  `Try commands:` run each command read-only before it goes into the Plan, when
+  it can be run, and say so in the Plan for one that cannot; `Expand rows:` never append
+  anything to a row of the template, because `pitboss expand` prints
+  `exit status: N` for a status that is not zero, and `pitboss lint pr-body`
+  refuses an Evidence row that ends in `; echo $?`, `&& echo $?` or `|| echo`
+  (`appended`); `Search:` before handing back, search the tree for the words of
+  every comment, rule bullet and doc the change touches, and fix each statement
+  the change makes false or contradictory, listing in the Execution only one
+  outside this tree that cannot be edited (a contradiction is fixed, never
+  documented, above). The reviewers' `Dry run:` line (a Plan review tries the
+  Plan's commands) is another line; the worker's is `Try commands:` so no brief
+  carries two lines with one label. The wording is in
+  `adversarial-review.md`, "The Plan's precise commands".
 - **An existing comment or body is edited only with its full text in hand**
   (orchestrator, 2026-10-30: a stand-in text sent to an update-comment tool on
   a comment that had not been read overwrote the closing comment on

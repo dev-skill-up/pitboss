@@ -48,7 +48,8 @@ Commands
                                                 (``review``), a brief (``brief``) or an owner decision
                                                 card (``owner-card``: it needs a ``How we got here``
                                                 section) (``--head SHA``, ``--config``, ``--gated``,
-                                                ``--ticket FILE``): one finding per line naming its
+                                                ``--ticket FILE``, ``--ruling URL FILE``,
+                                                ``--comments FILE``): one finding per line naming its
                                                 check, exit 1 on any.
 ``pitboss lint event EVENT STATUS``             The ``text-lint`` commit status of a pull request
                                                 event, written as JSON to STATUS. The reusable

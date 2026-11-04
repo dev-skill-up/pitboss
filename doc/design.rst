@@ -209,17 +209,32 @@ Commands
        leaves the shipped one out). A pairs line is two patterns of the
        phrase language, an example of each and what to do instead, tab
        separated; the text between backticks is not searched.
-   * - ``lint pr-body|review|brief|owner-card FILE [--head SHA] [--branch BRANCH] [--config CONFIG]``
+   * - ``lint pr-body|review|brief|owner-card FILE [--head SHA] [--branch BRANCH] [--config CONFIG] [--ruling URL FILE]... [--comments FILE]``
      - The forms of the texts agents write (pitboss#37), one file each; the
        phrase check of ``lint text`` runs on the same file. Prints one
        finding per line ending with its check in parentheses, exits 1 on
        any, 0 on none (``ok``), 2 on a file or configuration it cannot use.
-       ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket``, ``head``
+       ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket`` (``Fixes`` or
+       ``Closes`` lines for more than one ticket, unless the body cites the
+       address of an Opus ruling comment of the PR whose ruling is ``do these
+       steps``; the comments come from ``--ruling URL FILE`` (repeatable: a
+       comment's address and the file holding its text) and from ``--comments
+       FILE`` (the API's list of the PR's comments, all its pages, of which
+       the ``Opus ruling`` comments of the ``[review] trusted_associations``
+       count; a file that is not there is no comments); ``lint event`` takes
+       the same two, so the ``text-lint`` status of a PR with a cited ruling
+       is success; ``pitboss next`` and the blockers read a ``Closes #N``
+       line as a ticket the PR fixes; the sweep prints ``FOLDED PR`` for an
+       open PR that cites no such ruling; pitboss#171), ``head``
        (a ``Head: <40 hex>`` line, the last equal to ``--head``),
        ``evidence`` (an Evidence heading and, in its section, a block that
        ``pitboss expand`` produced), ``hand-typed`` (a ``$ `` row anywhere in
        the body, in a quote, a list or an indented block too, that is not
        inside a block ``pitboss expand`` produced, one finding for each,
+       naming its line), ``appended`` (an Evidence row, in a block ``pitboss
+       expand`` produced, whose command ends in ``; echo $?``, ``&& echo $?``
+       or ``|| echo``: ``expand`` prints ``exit status: N`` itself, so the row
+       was changed from the Plan's command; pitboss#170, one finding for each,
        naming its line) and ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). With ``--branch`` starting with the
@@ -244,20 +259,27 @@ Commands
        (``how-we-got-here``; ``pitboss.analysis``).
        Without ``--config`` the generic forms of ``doc/example.toml`` are
        used.
-   * - ``lint event EVENT STATUS [--url URL] [--config CONFIG]``
+   * - ``lint event EVENT STATUS [--url URL] [--config CONFIG] [--ruling URL FILE]... [--comments FILE]``
      - The ``text-lint`` commit status of a ``pull_request_target`` event
        (pitboss#38). Reads the pull request's body, head SHA, head branch and
        author from the event file EVENT, runs the checks of ``lint pr-body``
-       (against the event's head), ``lint text`` and ``lint contradictions``
-       on the body, prints every finding, and writes the JSON body of GitHub's
+       (against the event's head, with the PR's ruling comments from
+       ``--comments``, so a body that closes several tickets and cites an Opus
+       ruling comment of ``do these steps`` is in form; pitboss#171),
+       ``lint text`` and ``lint contradictions`` on the body, prints every finding, and writes the JSON body of GitHub's
        create-a-commit-status call to STATUS: ``success`` with ``ok``,
        ``failure`` with the first finding as the description (ASCII, at most
        140 characters), or ``success`` with ``exempt`` for a head branch that
        starts with ``relock/`` and an author whose login ends with ``[bot]``.
        The status's ``target_url`` is ``--url``. Exits 0 once the file is
        written, 2 on an event or a file it cannot use. The reusable workflow
-       ``.github/workflows/text-lint-check.yml`` runs it and posts the file
-       with ``gh api``: it checks out pitboss at its ``tools-ref`` input (the
+       ``.github/workflows/text-lint-check.yml`` fetches the PR's comments
+       with ``gh api`` into the file ``--comments`` reads (a caller grants
+       ``pull-requests: read`` in the same change that moves its pin to this
+       commit: GitHub lets a called workflow keep or lower the caller's
+       ``GITHUB_TOKEN`` permissions, never raise them, so a caller without it
+       fails at startup and posts no status; a caller on an older pin is
+       unaffected), runs it and posts the file with ``gh api``: it checks out pitboss at its ``tools-ref`` input (the
        caller repeats its own commit, as a reusable workflow cannot read its
        ref), never the pull request, and the body reaches pitboss only in the
        event's file. Callers are made from ``templates/text-lint.yml``, by
@@ -439,7 +461,7 @@ ordinary review gate takes over), ``RULING_ESCALATES`` for ``escalate to the
 owner`` and the merge (or the conflict's resolution) for ``execution is
 approved``. ``pitboss next
 CONFIG TICKET`` scans the open PRs of the configuration once, picks the PR whose
-body says ``Fixes`` the ticket and prints its step, and for a ticket no PR fixes
+body says ``Fixes`` or ``Closes`` the ticket and prints its step, and for a ticket no PR fixes
 the first step. A ruling comment without a ``How we got here`` section (an
 analysis of each rejection before the ruling: ``pitboss.analysis``, pitboss#168)
 is read and followed all the same; the sweep says so with ``RULING NO ANALYSIS``

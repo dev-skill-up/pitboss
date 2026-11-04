@@ -35,8 +35,10 @@ BODY_CAUSE = (
 )
 PIN_CAUSE = (
     "the lint's finding is about the PIN, not the body: pitboss's lint of this body"
-    " finds nothing, so the text-lint tool that the workflow runs is at fault; fix"
-    " the pin, and edit no body"
+    " finds nothing, so the text-lint tool that the workflow runs is at fault (a pin"
+    " from before pitboss#171 reads no ruling comments); move the pin to a commit"
+    " from pitboss#171 or later and grant pull-requests: read with it, and edit no"
+    " body"
 )
 
 
@@ -81,7 +83,7 @@ def body_findings(settings: config.Config, pull: pulls.PullFacts) -> Sequence[st
     banned = phrases.parse(phrases.default_text(), "default phrases")
     pairs = contradictions.parse(contradictions.default_text(), "default pairs")
     return [
-        *forms.pr_body(subject, lint.footers),
+        *forms.pr_body(subject, lint.footers, pull.signals.rulings),
         *phrases.findings(body, subject.name, banned),
         *contradictions.findings([(subject.name, body)], pairs),
     ]

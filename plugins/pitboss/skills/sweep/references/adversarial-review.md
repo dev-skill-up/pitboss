@@ -110,8 +110,30 @@ The order is: write a precise Plan, review the Plan, execute it as written.
 - Worker: run each precise command of the Plan as written; if the Plan's
   command cannot show its row, change the Plan first and ask for its review.
 
-The briefs `pitboss next` prints carry these sentences. No lint checks them:
-the review does.
+The briefs `pitboss next` prints carry these sentences. No lint checks these
+three sentences: the review does. (The reviewers' own `Dry run:` line, in the
+Plan reviews' briefs, is another line; the worker's is named `Try commands:` so
+that no brief carries two lines with one label.)
+
+Three more lines of the worker briefs (keyword: dry-run, pitboss#170). The
+second is backed by a lint (`appended`, below); the other two are checked by
+the review:
+
+- Try commands: run each command read-only before you write it into the Plan,
+  when it can be run, and see that it shows its row (a test command needs the
+  build it depends on; a filter must keep what the row needs, line numbers
+  included); for a command that cannot be run (it needs the change, CI, a
+  service or a long build), say so in the Plan.
+- Expand rows: never append anything to a row of the template (no `; echo $?`,
+  no `|| echo`): `pitboss expand` prints `exit status: N` for a status that is
+  not zero, and a row not run as the Plan wrote it is rejected.
+  `pitboss lint pr-body` refuses an Evidence row that ends in `; echo $?`,
+  `&& echo $?` or `|| echo` (`appended`).
+- Search: before handing back, search the tree for the words of every comment,
+  rule bullet and doc the change touches, and fix each statement the change
+  makes false or contradictory (a contradiction is fixed, never documented);
+  list in the Execution only a false statement outside this tree, which you
+  cannot edit.
 
 ## A draft PR: Plan, Execution and the Plan line
 

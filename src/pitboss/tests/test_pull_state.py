@@ -178,6 +178,8 @@ class TestTheCauseOfATextLintFailure(unittest.TestCase):
         blocked = blocked_failure(user=BOT)
         assert_that(blocked, contains_string("is about the PIN, not the body"))
         assert_that(blocked, contains_string("edit no body"))
+        assert_that(blocked, contains_string("before pitboss#171"))
+        assert_that(blocked, contains_string("grant pull-requests: read"))
 
     def test_a_relock_branch_failure_is_the_pins(self) -> None:
         """The lint makes a relock branch exempt, as it does a bot."""
