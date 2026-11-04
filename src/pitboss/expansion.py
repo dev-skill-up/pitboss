@@ -75,13 +75,16 @@ Shell = Callable[[str], Outcome]
 def digest(contents: str) -> str:
     """The digest a block's opening line carries.
 
+    It is taken over ``stored_form`` of the lines, so a block and the block a
+    store rewrote (keyword: store-form, pitboss#164) carry the same digest.
+
     Args:
         contents: the lines between the fences.
 
     Returns:
         The first characters of the contents' SHA-256, in hex.
     """
-    return hashlib.sha256(contents.encode("utf-8")).hexdigest()[:DIGEST_LENGTH]
+    return hashlib.sha256(stored_form(contents).encode()).hexdigest()[:DIGEST_LENGTH]
 
 
 def info(contents: str) -> str:

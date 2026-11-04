@@ -179,14 +179,11 @@ def produced(block: Block) -> bool:
 
     Returns:
         True when it is closed and its opening line carries the mark and the
-        digest of its contents, or of the form a store keeps of them
+        digest of its contents; the digest is over the form a store keeps
         (``expansion.stored_form``: no BOM, no carriage return, a wrapped URL
-        unwrapped; pitboss#164).
+        unwrapped; pitboss#164), so a stored block verifies as the file's.
     """
-    return block.closed and block.info in (
-        expansion.info(block.contents),
-        expansion.info(expansion.stored_form(block.contents)),
-    )
+    return block.closed and block.info == expansion.info(block.contents)
 
 
 def has_section(body: str) -> bool:

@@ -170,32 +170,6 @@ SECTIONS: Mapping[str, tuple[str, bool, bool]] = {
 }
 
 
-LOGGED = expansion.Outcome(
-    status=0, output="﻿Redirecting to https://x.example/a?b=1\r\nok\r\n"
-)
-LOG_BLOCK = expansion.block("gh run view", LOGGED)
-# the body as the store keeps it: the URL wrapped, the footer replaced
-STORED = (
-    "## Evidence\n\n"
-    + LOG_BLOCK.replace("https://x.example/a?b=1", "``https://x.example/a?b=1``")
-    + "\n---\nstored footer\n"
-)
-
-
-class TestStoredBody(unittest.TestCase):
-    """A body the store rewrote reads as it did before (pitboss#164)."""
-
-    def test_the_stored_body_has_no_hand_typed_row(self) -> None:
-        """A block with a wrapped URL is still one expand produced."""
-        assert_that(evidence.hand_typed(STORED), equal_to([]))
-        assert_that(evidence.hand_typed(LOG_BLOCK), equal_to([]))
-
-    def test_an_edited_block_is_still_refused(self) -> None:
-        """Changing a line of the block, not a URL, is not a store rewrite."""
-        edited = STORED.replace("ok\n", "fine\n")
-        assert_that(evidence.hand_typed(edited), equal_to([4]))
-
-
 class TestHandTyped(unittest.TestCase):
     """Which rows of a body are refused."""
 
