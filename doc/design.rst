@@ -230,7 +230,11 @@ Commands
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
        against ``--head`` (``head``); with ``--gated`` the lines of
        ``[review.gated_form]`` are read as a gate reads them, each once
-       (``exact``), in plain ASCII (``plain``), with the full SHA.
+       (``exact``), in plain ASCII (``plain``), with the full SHA. With
+       ``--gated --repository NAME`` the form is the one ``review-form`` prints
+       for that repository (its ``review-gate.yml`` read through the default
+       branch, else the configured form), not ``[review.gated_form]``, which
+       may differ from the gate's.
        ``brief``: every ``[lint.brief] required`` line start begins a line
        (``required-line``), and with ``--ticket`` each line of the ticket's
        Done-when section is in the brief word for word (``done-when``).

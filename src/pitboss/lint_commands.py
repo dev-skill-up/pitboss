@@ -126,8 +126,21 @@ def _review_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
     if args.gated:
-        return forms.gated_review(subject, settings.review.gated_form)
+        return forms.gated_review(subject, _gated_form(args, settings))
     return forms.ordinary_review(subject, settings.review.form)
+
+
+def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.ReviewForm:
+    # keyword: review-gate (pitboss#166): --repository is the form review-form prints
+    if not args.repository:
+        return settings.review.gated_form
+    if args.config is None:
+        raise _fail("--repository needs --config")
+    full = commands.load_settings(args)
+    repo = repoarg.named_repo(args.repository, full)
+    workflow = _read_gate(args, repo)
+    review = gates.with_gates(full.review, {repo.slug: workflow} if workflow else {})
+    return reviews.rules(review, repo.slug)[1]
 
 
 def _brief_findings(
@@ -256,7 +269,13 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         "--gated",
         action="store_true",
         default=False,
-        help="review: read the configured gated form, strictly, as a gate does",
+        help="review: read the configured gated form, strictly, as a gate does"
+        " (with --repository, the form review-form prints for it)",
+    ),
+    add_argument(
+        "--repository",
+        default="",
+        help="review --gated: the repository, whose review-gate.yml gives the form",
     ),
     add_argument(
         "--ticket",

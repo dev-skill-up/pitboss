@@ -250,6 +250,42 @@ class TestReviewForm(unittest.TestCase):
         assert_that((found.out, found.code), equal_to(("", message)))
 
 
+def gated_lint(*options: str) -> tuple[object, str]:
+    """Lint a gate-form review of the library's head with ``--gated``.
+
+    Args:
+        *options: the options after the file; ``--config`` is the world's unless
+            ``--no-config`` leads.
+
+    Returns:
+        The exit code and the last word printed.
+    """
+    here = with_gate(world.make_world(), LIBRARY_GATE)
+    path = fakes.directory() / "review.md"
+    head = fakes.HEAD
+    path.write_text(f"## Adversarial review\nVerdict: approved\nReviewed: {head}\n")
+    bare = options[:1] == ("--no-config",)
+    config_options = [] if bare else ["--config", here.config]
+    words = ["--gated", "--head", head, *options[bare:]]
+    ran = world.invoke(here, "lint", "review", str(path), *config_options, *words)
+    return ran.code, (ran.out or ran.err).split()[-1]
+
+
+class TestLintGated(unittest.TestCase):
+    """``lint review --gated`` reads the form the gate accepts."""
+
+    def test_the_repository_gives_its_workflows_form(self) -> None:
+        """The configured gated form differs from the workflow's."""
+        found = [gated_lint(), gated_lint("--repository", "lib")]
+        assert_that(found[0][0], equal_to(1))
+        assert_that(found[1], equal_to((0, "ok")))
+
+    def test_a_repository_needs_a_configuration(self) -> None:
+        """Without one there is no repository to name."""
+        found = gated_lint("--no-config", "--repository", "lib")
+        assert_that(found[0], equal_to(2))
+
+
 class TestSettled(unittest.TestCase):
     """The commands that sweep and brief know the gates."""
 
