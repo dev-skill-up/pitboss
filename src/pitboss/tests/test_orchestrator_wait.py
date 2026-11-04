@@ -10,7 +10,8 @@ from .test_evidence_rules import read, words
 FILE = "rules.md"
 PHRASES = (
     "The orchestrator never sits in a long wait",
-    "never holds a blocking wait (`sleep`, `Monitor`, a wait on a task) for a worker or a CI run",
+    "never holds a blocking wait (`sleep`, `Monitor`, a wait on a task) "
+    "for a worker or a CI run",
     "a worker's long run is the worker's own, started in the background with a log",
 )
 
