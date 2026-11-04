@@ -588,7 +588,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     until its Plan is approved). The body has a **Plan** section (what will
     change, and why that satisfies each Done-when line) and an **Execution**
     section (what was done, with the evidence: each command and its raw
-    output). A draft runs no costly CI (`ci.md`), so a push to it is free.
+    output, for what CI does not show; a row the Plan points to CI has the
+    pointer instead, pitboss#179). A draft runs no costly CI (`ci.md`), so a push to it is free.
   - **The first review of a PR is by one new reviewer agent, which grades the
     Plan and the Execution together**, in one review, and it is never a reviewer
     continued from an earlier round
@@ -779,7 +780,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
   says: `Plan: open the PR as a draft whose body has a Plan section (what you
   will change, and why that satisfies each Done-when line) and an Execution
-  section (what you did, with each command and its raw output); never mark it
+  section (what you did, with each command and its raw output for what CI does
+  not show); never mark it
   ready.` `Plan revision: when the newest review did not approve the plan, edit
   the ## Plan section of the PR body only; touch no code, doc or test (a merge
   of the base for a conflict excepted), fix none of the Execution defects, end
@@ -803,7 +805,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - **Evidence line** (keyword: expand, pitboss#117; workers typed evidence from
   inference and got counts, mutation runs and output wrong). Evidence, counts
   and file contents in a PR body come only from `pitboss expand`, never from
-  the worker's hand. A worker brief says: `Evidence: write the body as a
+  the worker's hand (a row the Plan points to CI has the pointer in the Plan
+  and no row in the body, pitboss#179). A worker brief says: `Evidence: write the body as a
   template in which every fact is a line "$ <command>" (the head is "$ git
   rev-parse HEAD", a count is "$ git log origin/main..HEAD --oneline | wc -l",
   a file is "$ cat < path", a mutation run is "$ sh scripts/<script>" of a
@@ -817,7 +820,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   block too) that is not inside a block expand produced.` A reviewer brief
   says: `Evidence: every "$ " block in the Evidence is one pitboss expand
   marked (lint pr-body checks the mark); a command that is not the one the
-  claim needs, or a claim with no command, is changes needed.` The commands run with the permissions of whoever
+  claim needs, or a claim with no command (one CI shows has its pointer in the
+  Plan instead), is changes needed.` The commands run with the permissions of whoever
   runs expand, so a template is only ever the worker's own (`design.rst`,
   "Expanding a template").
 - **Try-commands, expand-rows and search lines** (keyword: dry-run, pitboss#170;
@@ -880,7 +884,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   claim, not by its size.
 - **Check line.** A reviewer brief says: `Check: the last Head line of the PR
   body is the full SHA of the PR's head, the one this brief names; the Evidence
-  is real output (a command and what it printed) run on that head; every
+  is real output (a command and what it printed) run on that head (a row the
+  Plan points to CI has the pointer instead); every
   required check finished and passed at that head (a draft at its Plan stage has
   no check run, and you say that none was read); in a review of the Plan alone
   only the Head line is checked.` The brief names the PR and
@@ -917,7 +922,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   word `haven't checked verified looked` is never OK. You already have a
   rule").
 - **A hand-back has one form**: the PR, the head, one piece of evidence
-  (command and raw output) per Done-when item. One with narration, hedging or a
+  (command and raw output) per Done-when item that CI does not show, and for
+  one that CI shows its pointer (workflow, step, greppable string, the run and
+  job URL of the head, pitboss#179). One with narration, hedging or a
   flagged "slip" that is no rule is sent back. Evidence is the command and what
   it printed; a claim is never larger than its evidence, and never made smaller
   to fit it: the work is made to match the claim.
@@ -979,7 +986,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   whole suite (every Python version, docs, dry_release) is CI's `Run Nox` step,
   so a Plan never names `pitboss nox` or any nox run as its evidence (it is
   evidence available from CI, pitboss#179), and a Plan that names one is changes
-  needed. The PR body points to CI's `Run Nox` step for the suite.
+  needed. The Plan points to CI's `Run Nox` step for the suite as the CI pointer
+  rule says (the workflow, the step, a greppable string and how the run is found
+  for the commit), and the PR body gives no evidence for it.
 - **"This machine lacks X" is never an excuse** (owner, 2026-10-18T22:16:41Z:
   ""This machine lacks" is never an excuse unless physically impossible to
   fix."). If CI has a tool, package, browser, voice, font or setting a test
@@ -1033,7 +1042,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   that would be a second, unrequested look at the work. The reviewer checks the
   Head line (the last `Head:` line of the body is the full SHA of the PR's
   head), that the Evidence is real output (a command and what it printed) run
-  on that head, and the checks (every required check finished and passed at
+  on that head (a row the Plan points to CI has the pointer instead), and the
+  checks (every required check finished and passed at
   that head); in a review of the Plan alone the Evidence and the checks are not
   graded, the Head line still is. The only reads the orchestrator makes of a PR are the sweep's
   markers and the review's verdict line; the ruling agent, not the
@@ -1045,7 +1055,10 @@ Only override for bugs, but do override for bugs (and then file them)".
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
   output on the PR, else changes needed.
 - **The author posts the evidence for every claim of a PR and every item of
-  the ticket's Done-when in the PR body: the command and its raw output**
+  the ticket's Done-when that CI does not show, in the PR body: the command and
+  its raw output; for what CI shows, the body holds only a pointer to the
+  workflow, the step, a greppable string and the run for the head
+  (pitboss#179)**
   (past the store's limit, in the comments `pitboss expand --pr` posts, which
   the section "## Evidence in comments" of the body cites by URL). A
   claim is never weakened to match the logs; the code is changed until the
@@ -1284,7 +1297,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - Never cheat a lint: a lint that rejects a phrase rejects the missing work
   behind it; the work is done and its real output reported (owner,
   haiku-rule 3, 2026-10-23).
-- Report outcomes by their evidence: the command and what it printed.
+- Report outcomes by their evidence: the command and what it printed (for what
+  CI shows, its pointer).
 - The owner's preferences in the system prompt apply to every message (no
   analogies unless they help, no "makes you wonder", search before factual
   claims).

@@ -647,7 +647,11 @@ run ``virtue`` by hand, to start nothing in the background that needs polling
 (one foreground command under ``timeout 598``, or one ``Monitor`` with an
 ``until`` loop), and that throwing away a first design is acceptable
 (pitboss#175). The Plan never names it or any nox run as its evidence
-(pitboss#179): the suite is CI's. The sweep prints ``POLLING`` for a running
+(pitboss#179): the suite is CI's. The Plan brief, the Plan review brief and the
+worker brief carry the CI pointer rule (pitboss#179): a Plan row whose result a
+CI run shows asks for no long local command and points to CI by workflow, step,
+a greppable string and the run for the head, the Plan review rejects a row that
+does not, and the PR body holds evidence only for what CI does not show. The sweep prints ``POLLING`` for a running
 worker with over 40 tool calls whose last 20 are ``Monitor`` calls or ``sleep``
 commands (keyword: polling), read from the transcripts in ``[slots]
 transcripts``, matching the slot's agent to the ``name`` in the transcript's
@@ -722,7 +726,8 @@ not close a block. The ``evidence`` check and this one share one definition of
 the section: an ATX heading (one to six ``#``, a space or a tab, up to 3
 spaces of indentation) whose title starts with Evidence, to the next heading of
 the same or a higher level, fences respected; ``evidence`` requires a produced
-block inside it. A block edited after ``expand`` (one changed character breaks
+block inside it (a row the Plan points to CI needs none: the Plan holds its
+pointer, pitboss#179). A block edited after ``expand`` (one changed character breaks
 the digest) is refused. The digest is not a secret: it detects a block that
 is typed or edited by mistake, and a person who computes it has gone round the rule on purpose.
 
@@ -924,7 +929,8 @@ The skill divides the reading of a pull request (pitboss#83). The orchestrator
 dispatches a new reviewer when the sweep shows a review is due, and reads no
 body, diff or evidence first; its only reads of a pull request are the sweep's
 markers and the review's verdict line. The reviewer checks the ``Head:`` line,
-that the Evidence is real output on the head, and the checks, and its brief
+that the Evidence is real output on the head (a row the Plan points to CI has
+the pointer instead), and the checks, and its brief
 names those three checks.
 
 The deterministic skill zips go to ``skill-zips/``, not ``dist/``, because

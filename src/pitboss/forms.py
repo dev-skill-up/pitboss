@@ -95,13 +95,14 @@ def _evidence(subject: Subject) -> list[str]:
     return _found(
         subject,
         "evidence",
-        'no "Evidence" heading: every claim has its command and raw output',
+        'no "Evidence" heading: every claim CI does not show has its command and'
+        " raw output",
         not evidence.has_section(subject.body),
     ) or _found(
         subject,
         "evidence",
         "no block in the Evidence section that pitboss expand produced: every"
-        " claim has its command and raw output",
+        " claim CI does not show has its command and raw output",
         not evidence.has_produced(subject.body),
     )
 

@@ -22,6 +22,7 @@ NEW_PR_BODY = [
     "`uvx pitboss lint pr-body BODYFILE --config proj --head <the head>`, which"
     " must print ok; after every PATCH of the body, fetch the stored body back"
     " (parsed with python3 json) and lint that file the same way."
+    " A row the Plan points to CI has no row in the body."
     " It ends with only this line: THE FOOTER",
 ]
 NEW_PR_RULES = [
