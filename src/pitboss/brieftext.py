@@ -58,6 +58,23 @@ LOCAL = (
     " with a longer limit. Never leave a command running, and never write under"
     " /dev."
 )
+NOX = (
+    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
+    " each edit (the skills, the tests of one Python version, lint and mypy, each"
+    " with `-r`, stopping at the first failure; module names after `--` run only"
+    " those tests), and never the full `nox -r`: CI's `Run Nox` step runs the"
+    " whole suite."
+)
+PLAN_NO_NOX = (
+    "CI evidence: the Plan never names `pitboss nox` or any nox run as its"
+    " evidence (pitboss#179: a Plan asks for no evidence that CI shows); the whole"
+    " suite is CI's `Run Nox` step, and the PR body points to it."
+)
+PLAN_NO_NOX_REVIEW = (
+    "CI evidence: a Plan that names `pitboss nox` or any nox run as its evidence"
+    " is changes needed (pitboss#179: a Plan asks for no evidence that CI shows);"
+    " the whole suite is CI's `Run Nox` step."
+)
 PUSH_HELD = (
     "Push: push with `uvx pitboss push {config} --no-dry-run` (add `--draft` for a"
     " draft PR), after every commit. Under a hold it exits 1 and pushes nothing:"

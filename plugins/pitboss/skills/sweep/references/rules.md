@@ -948,6 +948,15 @@ Only override for bugs, but do override for bugs (and then file them)".
   longer wait. A check that ends in 124 is not rerun with a longer limit: it is
   left to CI. This is the one statement of the wrapper; a project's own rules
   keep only the check commands that are specific to it.
+- **A worker's local check is `pitboss nox`** (owner, 2026-11-04, pitboss#210):
+  where the checks are nox sessions, the worker runs `timeout 598 pitboss nox`
+  after each edit, never the full `nox -r`. It runs the `skills` session, the
+  tests of one Python version, `lint` and `mypy`, each with `-r`, and stops at
+  the first failure; `pitboss nox -- <test modules>` runs only those tests. The
+  whole suite (every Python version, docs, dry_release) is CI's `Run Nox` step,
+  so a Plan never names `pitboss nox` or any nox run as its evidence (it is
+  evidence available from CI, pitboss#179), and a Plan that names one is changes
+  needed. The PR body points to CI's `Run Nox` step for the suite.
 - **"This machine lacks X" is never an excuse** (owner, 2026-10-18T22:16:41Z:
   ""This machine lacks" is never an excuse unless physically impossible to
   fix."). If CI has a tool, package, browser, voice, font or setting a test

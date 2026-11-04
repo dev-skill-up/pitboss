@@ -8,10 +8,12 @@ Use `nox` to run all checks. If nox is not installed:
 pip install nox
 ```
 
-Run all checks:
+Run all checks (this is CI's `Run Nox` step; a worker does not run it locally):
 ```bash
 nox
 ```
+
+A worker's local check is `pitboss nox` (pitboss#210): the `skills` session, the tests of one Python version, `lint` and `mypy`, each with `-r`, stopping at the first failure. `pitboss nox -- pitboss.tests.test_gates` runs only those test modules.
 
 Run specific sessions:
 ```bash

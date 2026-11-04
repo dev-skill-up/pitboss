@@ -289,6 +289,16 @@ Commands
        pitboss#120; see **Automatic cleaning** below): removes at once, with no
        dry run unless ``--dry-run``. The answer to a denied ``rm``. It also
        closes the finished scratch PRs (see ``sweep``); ``--dry-run`` lists them.
+   * - ``nox [-- MODULE...]``
+     - The worker's local check (keyword: nox-runner, pitboss#210; see
+       **The local check** below). Runs ``nox -r -s`` for ``skills``,
+       ``tests-3.13``, ``lint`` and ``mypy``, in that order, and stops at the
+       first that fails: exit 1 with that session's output. Words after ``--``
+       are test modules, passed to the tests session only. Prints one line for
+       each session that ran (name, ``success`` or ``failed``, seconds) and, on
+       success, that CI's ``Run Nox`` step is the proof of the whole suite.
+       Runs no other session: docs, dry_release and the other Python versions
+       are CI's.
    * - ``expand TEMPLATE [--cwd DIR]``
      - A PR body whose evidence is produced, never typed (pitboss#117; see
        **Expanding a template** below). Prints TEMPLATE with each directive
@@ -613,6 +623,18 @@ removed, X freed; disk free A before, B after``. The disk reader (the parser's `
 user id, the home directory and the file system are injected
 (``autoclean.Machine``, ``autoclean.Filesystem``), so the tests play the ages,
 the 90% switch, the never-touch list and the report on a fake.
+
+**The local check** (keyword: nox-runner, pitboss#210). The full ``nox -r``
+takes about seven minutes and CI's ``Run Nox`` step runs it on every push, so a
+worker running it only duplicates CI (the workers of #166 and #167 spent about
+half their time on it). ``pitboss nox`` is the one command that does the right
+thing: the ``skills`` session, the tests of one Python version, ``lint`` and
+``mypy``, each with ``-r``, stopping at the first failure; ``pitboss nox --
+pitboss.tests.test_gates`` runs only those test modules. The worker briefs tell
+the worker to run it after each edit and never the full ``nox -r``, and the Plan
+never names it or any nox run as its evidence (pitboss#179): the suite is CI's.
+The runner and the clock are injected (``noxcheck.Runner``, ``noxcheck.Clock``),
+so the tests play the order, the stop and the flags on a fake.
 
 **Expanding a template** (keyword: expand, pitboss#117). Workers typed
 evidence from inference and got it wrong (a count of five for six commits, a
