@@ -184,14 +184,6 @@ GATED = (
     " waits for it: {note}. A comment that breaks any of it leaves the status"
     " `adversarial-review` pending."
 )
-BODY_DIGEST = (
-    "Body: the PR body is part of what you read. Before posting, save it with `gh"
-    " api repos/{repo}/pulls/{number} --jq .body > <scratchpad>/body.txt`, run"
-    " `uvx pitboss body-digest <scratchpad>/body.txt`, and add the one line it"
-    " prints (`Body: <digest>`) to the comment, beside the `Verdict:` line. The"
-    " sweep shows `review=older-body` for a body edited after the review of an"
-    " unmoved head, and a review that records the new digest answers it."
-)
 PLAN_DIGEST = (
     "Plan digest: you grade the Plan, so run `uvx pitboss plan-digest"
     " <scratchpad>/body.txt` on the PR body you saved for the `Body:` line, and"
@@ -210,6 +202,14 @@ NO_PLAN_FINDING = (
     " Execution: do not post it as one and never ground changes needed on it;"
     " write it as a note for an Opus ruling, and judge the Execution against the"
     " Plan as written."
+)
+BODY_DIGEST = (
+    "Body: the PR body is part of what you read. Before posting, save it with `gh"
+    " api repos/{repo}/pulls/{number} --jq .body > <scratchpad>/body.txt`, run"
+    " `uvx pitboss body-digest <scratchpad>/body.txt`, and add the one line it"
+    " prints (`Body: <digest>`) to the comment, beside the `Verdict:` line. The"
+    " sweep shows `review=older-body` for a body edited after the review of an"
+    " unmoved head, and a review that records the new digest answers it."
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
