@@ -13,7 +13,14 @@ import dataclasses
 import enum
 from typing import Mapping, Sequence
 
-from . import briefconfig, brieftext as text, brieftextci, brieftextwork, rulingwords
+from . import (
+    briefconfig,
+    brieftext as text,
+    brieftextci,
+    brieftextlint,
+    brieftextwork,
+    rulingwords,
+)
 
 
 class Kind(enum.Enum):
@@ -92,6 +99,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_COMMANDS_EXECUTION,
+        brieftextlint.LINT_TEST_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
@@ -102,6 +110,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.CHECK,
         text.GREP,
         text.PLAN_COMMANDS_EXECUTION,
+        brieftextlint.LINT_TEST_REVIEW,
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,
@@ -293,6 +302,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.LOCAL,
         text.NOX,
         *brieftextwork.SENTENCES,
+        brieftextlint.LINT_TEST,
         *_plan_lines(spec.kind),
         PUSHES[project.holds],
         text.NO_WAITING,
