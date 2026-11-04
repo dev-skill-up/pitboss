@@ -282,6 +282,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         ),
         heads=heads,
         rules=_rules(source, slug, heads.head),
+        ready=pick.pull is not None and not pick.pull.pull.draft,
     )
 
 

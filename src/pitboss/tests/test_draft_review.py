@@ -7,6 +7,7 @@ head had a changes-needed review the gate asked for another Plan review instead
 of the fix the review asked for.
 """
 
+import dataclasses
 import pathlib
 import re
 import unittest
@@ -16,7 +17,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, shapes, steps
 from . import fakes, test_flow, world
-from .briefmake import has_none, text
+from .briefmake import has_none, make, text
 from .test_commands import sweep
 from .test_flow import CHANGES as FLOW_CHANGES, expect, state
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
@@ -190,6 +191,14 @@ class TestTheBrief(unittest.TestCase):
         has_none(
             found, ["CI: first read the checks", "the diff and the CI of the head"]
         )
+
+    def test_a_plan_review_of_a_ready_pr_reads_the_checks(self) -> None:
+        """A revised Plan of a PR that is not a draft has checks (pitboss#167)."""
+        spec = dataclasses.replace(make(brief.Kind.REVIEW_PLAN), ready=True)
+        found = brief.build(spec)
+        assert_that(found.count(CI_LINE), equal_to(1))
+        assert_that(found, contains_string("Scope (exclusive): the Plan of head"))
+        has_none(found, ["a draft has no check run, so there is no CI"])
 
     def test_every_other_review_still_reads_the_checks(self) -> None:
         """A review of a head with a check run is refused without a finished one."""

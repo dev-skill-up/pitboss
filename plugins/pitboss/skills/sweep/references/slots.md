@@ -143,8 +143,10 @@ exactly one step and at most one kind. There are eight:
    says `split`, `reshape` or `abandon`. Its author does what it says to the
    ticket and the PR. (`revise the plan` is the first kind above.)
 8. **Review it**: step `REGULAR_REVIEW`. On a PR that is not a draft it comes
-   only once every required check finished green on the head (the CI gate). On
-   a draft it is the plan-only review (stage `grade the Plan ONLY`), listed
+   only once every required check finished green on the head (the CI gate); it
+   is the plan-only review too when the newest review rejected the Plan and no
+   review names this head or body (pitboss#167), and its brief then reads the
+   checks. On a draft it is the plan-only review (stage `grade the Plan ONLY`), listed
    with no CI, since a draft runs none, for a draft with no review, or one of an older head,
    and before every `start a PR` line (pitboss#156; a draft whose Plan a review at its head
    rejects is `revise the plan` or `fix the review`, a draft whose Plan is approved waits for
