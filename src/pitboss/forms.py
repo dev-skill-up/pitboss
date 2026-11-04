@@ -1,10 +1,10 @@
-"""The forms of the texts agents write: a PR body, a review, a brief and a card.
+"""The forms of the texts agents write: a PR body, a review and a brief.
 
 Each check returns findings, one line each, ending with the check's name in
 parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 ``footer`` for a PR body; ``first-line``, ``verdict``, ``reviewed``,
 ``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
-``done-when`` for a brief; ``how-we-got-here`` for an owner card). A PR body also gets ``hand-typed`` for a
+``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
 ``$ `` row that ``pitboss expand`` did not produce. The wording a project
 chooses (a review's lines, a PR body's footers, a brief's required lines) is
 read from its configuration (``config.Lint`` and ``config.ReviewForm``).
@@ -14,7 +14,7 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import analysis, config, evidence, reviews, sessionurl
+from . import config, evidence, reviews, sessionurl
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
@@ -395,25 +395,3 @@ def brief(
     """
     found = _required(subject, required)
     return found if ticket is None else [*found, *_done_when(subject, ticket)]
-
-
-def owner_card(subject: Subject) -> Sequence[str]:
-    """Check the text of an owner decision card (keyword: how-we-got-here).
-
-    Args:
-        subject: the card's question and reason, as one text.
-
-    Returns:
-        The finding ``how-we-got-here`` when the text has no
-        ``How we got here`` section with the analysis in it, else none.
-    """
-    clean = _clean(subject)
-    return _found(
-        clean,
-        "how-we-got-here",
-        f"no '{analysis.SECTION}' section: an escalation to the owner names, for"
-        " each rejection before it, the finding, the rule or brief line that"
-        " should have prevented it, and the prevention filed (a pitboss ticket"
-        " number)",
-        not analysis.has_section(clean.body),
-    )

@@ -11,7 +11,7 @@ the section; the ruling brief, the sweep's ``RULING NO ANALYSIS`` line and
 import re
 from typing import AbstractSet, Sequence
 
-from . import flowstate, shapes
+from . import sessionurl, shapes, steps
 
 SECTION = "How we got here"
 _SECTION = re.compile(
@@ -37,6 +37,12 @@ def has_section(body: str) -> bool:
     return bool(found and found.group(1).strip())
 
 
+def _first_line(body: str) -> str:
+    # the same test as flowstate.is_ruling, without its imports (module depth)
+    lines = sessionurl.lines(body)
+    return lines[0].rstrip() if lines else ""
+
+
 def unanalysed(
     posted: Sequence[shapes.Comment], trusted: AbstractSet[str]
 ) -> Sequence[str]:
@@ -53,7 +59,8 @@ def unanalysed(
     rulings = [
         each
         for each in posted
-        if flowstate.is_ruling(each.body) and each.author_association in trusted
+        if _first_line(each.body) == steps.RULING_FIRST_LINE
+        and each.author_association in trusted
     ]
     newest = max(rulings, key=lambda each: each.created_at, default=None)
     if newest is None or has_section(newest.body):

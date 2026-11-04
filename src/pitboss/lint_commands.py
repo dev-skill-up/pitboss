@@ -12,6 +12,7 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    cardform,
     commands,
     config,
     contradictions,
@@ -153,7 +154,7 @@ def _card_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
     # keyword: how-we-got-here (pitboss#168): an owner card carries its analysis
-    return forms.owner_card(subject)
+    return cardform.findings(subject.name, subject.body)
 
 
 def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
