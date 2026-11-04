@@ -588,7 +588,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     until its Plan is approved). The body has a **Plan** section (what will
     change, and why that satisfies each Done-when line) and an **Execution**
     section (what was done, with the evidence: each command and its raw
-    output). A draft runs no costly CI (`ci.md`), so a push to it is free.
+    output, for what CI does not show; a row the Plan points to CI has the
+    pointer instead, pitboss#179). A draft runs no costly CI (`ci.md`), so a push to it is free.
   - **The first review of a PR is by one new reviewer agent, which grades the
     Plan and the Execution together**, in one review, and it is never a reviewer
     continued from an earlier round
@@ -1033,7 +1034,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   that would be a second, unrequested look at the work. The reviewer checks the
   Head line (the last `Head:` line of the body is the full SHA of the PR's
   head), that the Evidence is real output (a command and what it printed) run
-  on that head, and the checks (every required check finished and passed at
+  on that head (a row the Plan points to CI has the pointer instead), and the
+  checks (every required check finished and passed at
   that head); in a review of the Plan alone the Evidence and the checks are not
   graded, the Head line still is. The only reads the orchestrator makes of a PR are the sweep's
   markers and the review's verdict line; the ruling agent, not the
@@ -1045,7 +1047,10 @@ Only override for bugs, but do override for bugs (and then file them)".
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
   output on the PR, else changes needed.
 - **The author posts the evidence for every claim of a PR and every item of
-  the ticket's Done-when in the PR body: the command and its raw output**
+  the ticket's Done-when that CI does not show, in the PR body: the command and
+  its raw output; for what CI shows, the body holds only a pointer to the
+  workflow, the step, a greppable string and the run for the head
+  (pitboss#179)**
   (past the store's limit, in the comments `pitboss expand --pr` posts, which
   the section "## Evidence in comments" of the body cites by URL). A
   claim is never weakened to match the logs; the code is changed until the

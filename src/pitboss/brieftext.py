@@ -24,7 +24,8 @@ DONE_WHEN = (
 DRAFT = (
     "Draft: open the PR as a draft whose body has a Plan section (what you will"
     " change, and why that satisfies each Done-when line) and an Execution section"
-    " (what you did, with the evidence); never mark it ready."
+    " (what you did, with the evidence for what CI does not show); never mark it"
+    " ready."
 )
 READY = (
     "Ready: this project's PRs are not drafts; open the PR ready for review, its"
@@ -261,7 +262,8 @@ REVIEW_END = (
 CHECK = (
     "Check: the last `Head:` line of the PR body is the full SHA of the head; the"
     " Evidence is real output (a command and what it printed) run on that head,"
-    " and every `$ ` block in it is one `pitboss expand` marked; every required"
+    " and every `$ ` block in it is one `pitboss expand` marked (a row the Plan"
+    " points to CI has the pointer instead); every required"
     " check finished and passed at that head (a draft has no check run: say that"
     " none was read)."
 )
@@ -275,8 +277,9 @@ PLAN_COMMANDS_PLAN = (
     " command, the Plan must give the precise command (the exact string to run on"
     " the head, a cut or a pipe included when the Plan wants one); a row that"
     " mentions a command without it is a changes-needed finding of the Plan."
-    " Evidence that is not a command (a file read, a diff, a CI run) is accepted"
-    " when the Plan says exactly what will be shown."
+    " Evidence that is not a command (a file read, a diff) is accepted when the"
+    " Plan says exactly what will be shown; a CI run is accepted only as a CI"
+    " pointer (the CI pointer rule)."
 )
 PLAN_COMMANDS_EXECUTION = (
     "Plan commands: grade the Execution against the Plan as written; each precise"

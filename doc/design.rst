@@ -647,7 +647,11 @@ run ``virtue`` by hand, to start nothing in the background that needs polling
 (one foreground command under ``timeout 598``, or one ``Monitor`` with an
 ``until`` loop), and that throwing away a first design is acceptable
 (pitboss#175). The Plan never names it or any nox run as its evidence
-(pitboss#179): the suite is CI's. The sweep prints ``POLLING`` for a running
+(pitboss#179): the suite is CI's. The Plan brief, the Plan review brief and the
+worker brief carry the CI pointer rule (pitboss#179): a Plan row whose result a
+CI run shows asks for no long local command and points to CI by workflow, step,
+a greppable string and the run for the head, the Plan review rejects a row that
+does not, and the PR body holds evidence only for what CI does not show. The sweep prints ``POLLING`` for a running
 worker with over 40 tool calls whose last 20 are ``Monitor`` calls or ``sleep``
 commands (keyword: polling), read from the transcripts in ``[slots]
 transcripts``, matching the slot's agent to the ``name`` in the transcript's

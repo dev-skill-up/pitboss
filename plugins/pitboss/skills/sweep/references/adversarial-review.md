@@ -57,7 +57,7 @@ Post exactly that form: a gate that cannot read the comment keeps the status
 - Check three things from the PR itself, before the diff: the Head line (the
   last `Head:` line of the body is the full SHA of the head you review), that
   the Evidence is real output (a command and what it printed) run on that
-  head, and the checks. The orchestrator that started you read none of them;
+  head (a row the Plan points to CI has the pointer instead), and the checks. The orchestrator that started you read none of them;
   they are yours. A Head line that is not the head, or Evidence that is not
   real output on that head, is changes needed. In a review of the Plan alone
   (below) only the Head line is checked: the Evidence and the checks belong to
@@ -102,8 +102,21 @@ The order is: write a precise Plan, review the Plan, execute it as written.
   command, the Plan must give the precise command (the exact string to run on
   the head, a cut or a pipe included when the Plan wants one); a row that
   mentions a command without it is a changes-needed finding of the Plan.
-  Evidence that is not a command (a file read, a diff, a CI run) is accepted
-  when the Plan says exactly what will be shown.
+  Evidence that is not a command (a file read, a diff) is accepted when the
+  Plan says exactly what will be shown; a CI run is accepted only as a CI
+  pointer (the CI pointer rule).
+- CI pointer (pitboss#179): a Plan row whose result a CI run of the commit
+  shows asks for no long local command (a whole suite or build, or anything
+  over `timeout 598`); it points to CI and names the workflow, the step of the
+  run's log, a greppable string that step prints (a test name or a line), and
+  how the run is found for the commit (the run and job URL `actions` gives for
+  the head). Evidence in the PR body is only for what CI does not show. The
+  worker's PR body gives no evidence for a row the Plan points to CI and holds
+  only the pointer. A Plan row that asks for a long local command (a whole
+  suite or build, or anything over `timeout 598`) whose result a CI run of the
+  commit shows is changes needed; so is a row that points to CI without the
+  workflow, the step, a greppable string and how the run is found for the
+  commit.
 - Execution review: grade the Execution against the Plan as written; each
   precise command of the Plan must have been run as written; a command run in
   another form, or left out, is a changes-needed finding.

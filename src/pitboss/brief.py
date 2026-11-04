@@ -13,7 +13,7 @@ import dataclasses
 import enum
 from typing import Mapping, Sequence
 
-from . import briefconfig, brieftext as text, brieftextwork, rulingwords
+from . import briefconfig, brieftext as text, brieftextci, brieftextwork, rulingwords
 
 
 class Kind(enum.Enum):
@@ -89,6 +89,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
         text.PLAN_NO_NOX_REVIEW,
+        brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_COMMANDS_EXECUTION,
         text.PLAN_DIGEST,
@@ -109,6 +110,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
         text.PLAN_NO_NOX_REVIEW,
+        brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_DIGEST,
     ],
@@ -262,6 +264,19 @@ def _opening(spec: Spec) -> Sequence[str]:
     return [text.BODY] if shown else []
 
 
+# keyword: ci-pointer (pitboss#179): the sentences of the Plan a worker writes
+def _plan_lines(kind: Kind) -> list[str]:
+    writes = kind in PLAN_WRITERS
+    runs = kind in PLAN_RUNNERS
+    return [
+        *([text.TRY_COMMANDS, text.PLAN_NO_NOX] if writes else []),
+        *([brieftextci.PLAN_CI_POINTER] if writes else []),
+        *([brieftextci.BODY_CI_POINTER] if runs else []),
+        *([text.PLAN_COMMANDS_WORKER] if runs else []),
+        *([text.NO_APPEND, text.SEARCH] if runs else []),
+    ]
+
+
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
     new = spec.kind is Kind.NEW_PR
@@ -278,9 +293,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.LOCAL,
         text.NOX,
         *brieftextwork.SENTENCES,
-        *([text.TRY_COMMANDS, text.PLAN_NO_NOX] if spec.kind in PLAN_WRITERS else []),
-        *([text.PLAN_COMMANDS_WORKER] if spec.kind in PLAN_RUNNERS else []),
-        *([text.NO_APPEND, text.SEARCH] if spec.kind in PLAN_RUNNERS else []),
+        *_plan_lines(spec.kind),
         PUSHES[project.holds],
         text.NO_WAITING,
         text.FINISH,
