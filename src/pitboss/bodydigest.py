@@ -11,8 +11,8 @@ import hashlib
 import re
 
 PREFIX = "Body: "
+PLAN_PREFIX = "Plan digest: "  # the line of the Plan section (``plandigest``)
 LENGTH = 16
-_LINE = re.compile(re.escape(PREFIX) + rf"(?P<digest>[0-9a-f]{{{LENGTH}}})")
 
 
 def digest(body: str) -> str:
@@ -32,6 +32,35 @@ def digest(body: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:LENGTH]
 
 
+def of_section(text: str) -> str:
+    """The digest of a section of a PR body (keyword: plan-digest).
+
+    Args:
+        text: the section, empty when the body has none.
+
+    Returns:
+        Its digest, empty for no section.
+    """
+    return digest(text) if text else ""
+
+
+def recorded_after(review: str, prefix: str) -> str:
+    """The digest a review comment records on its first line with a prefix.
+
+    Args:
+        review: the review comment.
+        prefix: what the line starts with (``Body: ``, ``Plan digest: ``).
+
+    Returns:
+        The digest of its first such line (the prefix and exactly 16 hex
+        digits), empty when it has none.
+    """
+    line = re.compile(re.escape(prefix) + rf"(?P<digest>[0-9a-f]{{{LENGTH}}})")
+    matches = (line.fullmatch(each.rstrip()) for each in review.splitlines())
+    found = next((match for match in matches if match), None)
+    return found.group("digest") if found else ""
+
+
 def recorded(review: str) -> str:
     """The body digest a review comment records.
 
@@ -42,9 +71,7 @@ def recorded(review: str) -> str:
         The digest of its first ``Body:`` line, empty when it has none (a
         review that records no body is checked against the head alone).
     """
-    matches = (_LINE.fullmatch(line.rstrip()) for line in review.splitlines())
-    found = next((match for match in matches if match), None)
-    return found.group("digest") if found else ""
+    return recorded_after(review, PREFIX)
 
 
 def changed(recorded_digest: str, now: str) -> bool:

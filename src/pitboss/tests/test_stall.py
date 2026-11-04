@@ -104,8 +104,8 @@ class TestStall(unittest.TestCase):
         assert_that(
             line,
             contains_string(
-                "unless it has RULING DUE, RULING UNREADABLE, RULING ESCALATES or PAUSE"
-                " (then it waits for the ruling or the owner)"
+                "unless it has RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE"
+                " or PLAN EDITED (then it waits for the ruling or the owner)"
             ),
         )
 

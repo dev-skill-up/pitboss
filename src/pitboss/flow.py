@@ -299,12 +299,12 @@ def next_step(pr: PullState) -> steps.Next:
     if is_paused_for_owner(pr):
         return steps.wait_for_owner()
 
-    # the newest Opus ruling must be readable, a draft's Plan stage included
-    if flowstate.has_unreadable_ruling(pr):
-        return steps.fix_ruling(flowstate.unreadable_ruling_comment(pr))
+    # the newest Opus ruling must be readable, and an approved Plan stays as it is
+    if held := flowstate.ruling_hold(pr):  # keyword: plan-digest (pitboss#172)
+        return held
 
     # keyword: conflict-first (pitboss#148, Opus ruling on #181): a conflict is a
-    # fix at every stage but while a ruling or the owner is awaited (steps.WAITS)
+    # fix at every stage but while steps.WAITS holds it (PLAN_EDITED included)
     review = newest_counting_review(pr)
     if has_conflict(pr):
         held = rejection_step(pr, review) if review else None

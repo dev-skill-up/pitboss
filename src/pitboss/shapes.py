@@ -383,6 +383,8 @@ class Graded:
         body: the digest of the PR body it records, empty when it records none.
         missed: how many of its findings it marks ``Missed earlier:`` (keyword:
             all-findings).
+        plan_digest: the digest of the Plan section it records, empty when it
+            records none (keyword: plan-digest).
     """
 
     sha: str
@@ -392,3 +394,4 @@ class Graded:
     comment: bool = True
     body: str = ""
     missed: int = 0
+    plan_digest: str = ""

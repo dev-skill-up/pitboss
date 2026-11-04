@@ -90,9 +90,11 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.PLAN_COMMANDS_PLAN,
         text.PLAN_DRY_RUN,
         text.PLAN_COMMANDS_EXECUTION,
+        text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
         text.SCOPE_EXECUTION,
+        text.NO_PLAN_FINDING,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
         text.CHECK,
@@ -106,9 +108,10 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
         text.PLAN_DRY_RUN,
+        text.PLAN_DIGEST,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
-    Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.CARRIED],
+    Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.NO_PLAN_FINDING, text.CARRIED],
     Kind.REVIEW_RELOCK: [text.SCOPE_RELOCK, text.RELOCK_CHECKS, text.CARRIED],
 }
 # keyword: all-findings (pitboss#169): the reviews of a Plan try its commands
@@ -117,6 +120,10 @@ DRY_RUNNERS: Mapping[Kind, str] = {
     Kind.REVIEW_PLAN: text.SEPARATE_DRAFT_DRY,
 }
 PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
+# keyword: plan-digest (pitboss#172): the Plan of these PRs is approved
+APPROVED_PLAN_WORKERS = frozenset(
+    {Kind.FIX_REVIEW, Kind.FIX_CI, Kind.RESOLVE_CONFLICT, Kind.RULING_STEPS}
+)
 # keyword: dry-run (pitboss#170): the briefs that write a Plan's commands (the
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
@@ -263,6 +270,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.DONE_WHEN,
         *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
+        *([text.NO_PLAN_EDIT] if spec.kind in APPROVED_PLAN_WORKERS else []),
         text.EDIT,
         text.DENIED,
         text.LOCAL,
