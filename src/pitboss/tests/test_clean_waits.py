@@ -54,6 +54,28 @@ def red(name: str) -> tuple[world.World, str]:
     return here, line
 
 
+STATED = {
+    "a clean draft at RULING DUE": ("draft ", steps.opus_ruling()),
+    "a clean draft at PAUSE": ("draft ", steps.pause_for_owner()),
+    "red CI at RULING ESCALATES": ("", steps.ruling_escalates()),
+    "red CI at RULING DUE": ("", steps.opus_ruling()),
+    "red CI at PAUSE": ("", steps.pause_for_owner()),
+}
+
+
+def state_line(label: str) -> str:
+    """The ``PR STATE`` line that ``slots next`` prints for PR 3 at the wait.
+
+    Args:
+        label: the fixture, a key of ``STATED``.
+
+    Returns:
+        The line: the wait step in words, after ``draft`` for a draft.
+    """
+    prefix, step = STATED[label]
+    return f"PR STATE owner/project#3: {prefix}next step: {steps.describe(step)}"
+
+
 class TestCleanWaits(unittest.TestCase):
     """The gates above the rejection step do not hide a wait."""
 
@@ -66,19 +88,10 @@ class TestCleanWaits(unittest.TestCase):
             "red CI at RULING DUE": red(DUE),
             "red CI at PAUSE": red(OWNER),
         }
-        stated = {
-            "a clean draft at RULING DUE": ("draft ", steps.opus_ruling()),
-            "a clean draft at PAUSE": ("draft ", steps.pause_for_owner()),
-            "red CI at RULING ESCALATES": ("", steps.ruling_escalates()),
-            "red CI at RULING DUE": ("", steps.opus_ruling()),
-            "red CI at PAUSE": ("", steps.pause_for_owner()),
-        }
         shown = {
             label: (
                 line in sweep(here).out,
-                f"PR STATE owner/project#3: {stated[label][0]}next step: "
-                + steps.describe(stated[label][1])
-                in next_output(here).splitlines(),
+                state_line(label) in next_output(here).splitlines(),
                 flows.listed_for_third(here),
                 "fix the CI" in next_output(here),
             )
