@@ -35,7 +35,9 @@ BODY = (
     " `Head: <40 hex>` line, and an Evidence section built by `uvx pitboss expand"
     ' TEMPLATE` from a template of plain `$ <command>` rows (the head is "$ git'
     ' rev-parse HEAD"), never retyped; check it with `uvx pitboss lint pr-body'
-    " BODYFILE --config {config} --head <the head>`, which must print ok."
+    " BODYFILE --config {config} --head <the head>`, which must print ok; after"
+    " every PATCH of the body, fetch the stored body back (parsed with python3"
+    " json) and lint that file the same way."
     "{footer_note}"
 )
 FOOTER_NOTE = " It ends with only this line: {footer}"

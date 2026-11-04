@@ -20,7 +20,9 @@ NEW_PR_BODY = [
     "built by `uvx pitboss expand TEMPLATE` from a template of plain"
     " `$ <command>` rows",
     "`uvx pitboss lint pr-body BODYFILE --config proj --head <the head>`, which"
-    " must print ok. It ends with only this line: THE FOOTER",
+    " must print ok; after every PATCH of the body, fetch the stored body back"
+    " (parsed with python3 json) and lint that file the same way."
+    " It ends with only this line: THE FOOTER",
 ]
 NEW_PR_RULES = [
     "Edit: change files with the Edit tool only (no sed, no shell redirection, no"
