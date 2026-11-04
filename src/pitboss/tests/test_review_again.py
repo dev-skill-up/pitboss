@@ -43,8 +43,9 @@ class TestReviewedHead(unittest.TestCase):
             for (plan, execution), kind in CASES:
                 posted = test_plan_revision.review_comment(NEEDED, plan, execution)
                 line = listed_for(posted, draft)
-                # a draft whose Plan is approved is undrafted first (pitboss#156)
-                fixed = kind in line or (draft and plan == "approved" and not line)
+                # a review of the head that asks for changes is fixed, a draft
+                # whose Plan is approved included (pitboss#176)
+                fixed = kind in line
                 assert_that(
                     (draft, plan, execution, fixed),
                     equal_to((draft, plan, execution, True)),
