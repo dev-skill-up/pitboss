@@ -6,10 +6,11 @@ name more than one ticket is refused unless it cites an Opus ruling comment of
 that PR (its address) whose ``Ruling:`` line is ``do these steps``.
 """
 
+import json
 import re
 from typing import AbstractSet, Sequence
 
-from . import flowstate, rulingwords, shapes
+from . import flowstate, parsing, rulingwords, shapes
 
 CLOSING = re.compile(r"\b(?:Fixes|Closes)\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 # the comment's address, then its text
@@ -28,6 +29,20 @@ def tickets(body: str) -> Sequence[str]:
     return sorted({each.upper() for each in CLOSING.findall(body)})
 
 
+def cites(body: str, url: str) -> bool:
+    """Whether a body holds a comment's address, whole.
+
+    Args:
+        body: the PR body.
+        url: the comment's address.
+
+    Returns:
+        True when the address is in the body and no word character follows
+        it (``#issuecomment-1`` is not cited by ``#issuecomment-12``).
+    """
+    return re.search(re.escape(url) + r"(?!\w)", body) is not None
+
+
 def allows(body: str, rulings: Sequence[Recorded]) -> bool:
     """Whether the body cites an Opus ruling that allows several tickets.
 
@@ -40,7 +55,8 @@ def allows(body: str, rulings: Sequence[Recorded]) -> bool:
         ruling whose ruling is ``do these steps``.
     """
     return any(
-        url in body and flowstate.read_ruling(text) is rulingwords.Ruling.DO_THESE_STEPS
+        cites(body, url)
+        and flowstate.read_ruling(text) is rulingwords.Ruling.DO_THESE_STEPS
         for url, text in rulings
         if url
     )
@@ -63,6 +79,43 @@ def ruling_comments(
         for each in comments
         if flowstate.is_ruling(each.body) and each.author_association in trusted
     ]
+
+
+def _comment_objects(value: object) -> list[object]:
+    if isinstance(value, list):
+        return [each for item in value for each in _comment_objects(item)]
+    return [value]
+
+
+def read_comments(text: str, trusted: AbstractSet[str]) -> Sequence[Recorded]:
+    """The Opus ruling comments in the API's list of a PR's comments.
+
+    ``gh api --paginate`` prints one JSON list for each page, one after
+    another, and ``--slurp`` wraps the pages in one more list; both are read.
+
+    Args:
+        text: the response of ``issues/<number>/comments``, all its pages.
+        trusted: the author associations whose comments count.
+
+    Returns:
+        The address and text of each ruling comment of a trusted author.
+
+    Raises:
+        ValueError: the text is not the comments of a PR.
+    """
+    decoder = json.JSONDecoder()
+    rest = text.strip()
+    objects: list[object] = []
+    while rest:
+        page, end = decoder.raw_decode(rest)
+        objects.extend(_comment_objects(page))
+        rest = rest[end:].lstrip()
+    if not all(isinstance(each, dict) for each in objects):
+        raise ValueError("a comment is not an object")
+    try:
+        return ruling_comments(parsing.comments(json.dumps(objects)), trusted)
+    except KeyError as error:
+        raise ValueError(f"a comment has no {error}") from error
 
 
 def message(named: Sequence[str]) -> str:

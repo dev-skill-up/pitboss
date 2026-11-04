@@ -396,11 +396,16 @@ Only override for bugs, but do override for bugs (and then file them)".
   another PR to lower the count. A PR whose body closes more than one ticket
   (`Fixes` or `Closes` for each) needs an Opus ruling comment on that PR
   (`Ruling: do these steps`; `Ruling: split` is refused) recorded before its
-  first push, and its body cites that comment's address. `pitboss lint
-  pr-body` refuses a body with several such tickets unless it cites the
-  address of a ruling comment given with `--ruling URL FILE`, and the sweep
-  prints a `FOLDED PR` line for an open PR whose body does and cites no
-  ruling comment of the PR.
+  first push, and its body cites that comment's address. The first line stays
+  `Fixes #N`; each other ticket has a `Fixes` or `Closes` line, and
+  `pitboss next` reads both as the tickets the PR fixes, so no second PR is
+  started for one of them. `pitboss lint pr-body` refuses a body with several
+  such tickets unless it cites the address of a ruling comment of the PR
+  (given with `--ruling URL FILE` or found in `--comments FILE`), and so does
+  `pitboss lint event`, which posts the body-form status of every PR and
+  reads the PR's comments the same way, so a cited ruling makes that status
+  success. The sweep prints a `FOLDED PR` line for an open PR whose body names
+  several tickets and cites no ruling comment of the PR.
 - **A partial fix is never merged, and a ticket is never narrowed or split to
   get a PR through, unless impossibility is verified** (owner,
   2026-10-29T04:50:34Z: "Merging it as a partial fix is your call. <-- it's not

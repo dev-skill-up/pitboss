@@ -20,7 +20,13 @@
 #
 # The run: steps are one call each of a third-party tool (pipx, gh) with pitboss's own
 # command between them; the status needs the GitHub API, which pitboss's lint does not
-# call (it reads files and writes one), so `gh api` posts the file pitboss wrote.
+# call (it reads files and writes one), so `gh api` fetches the pull request's comments into
+# a file before the lint (a body that closes several tickets is in form only when it cites an
+# Opus ruling comment of the pull request that rules `do these steps`, pitboss#171; the lint
+# reads the comments' file and trusts the ruling comments of the configured associations) and
+# posts the file pitboss wrote after it. The caller grants pull-requests: read for the fetch;
+# without it the fetch step fails (continue-on-error), the lint reads no comments, and a body
+# that closes several tickets stays out of form.
 name: text-lint-check
 
 on:
@@ -33,6 +39,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   statuses: write
 
 jobs:
@@ -50,10 +57,17 @@ jobs:
           path: pitboss
           persist-credentials: false
 
+      - name: Fetch the comments of the pull request
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PULL_NUMBER/comments" > "$RUNNER_TEMP/comments.json"
+
       - name: Lint the pull request body
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: pipx run --spec ./pitboss pitboss lint event "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/status.json" --url "$RUN_URL"
+        run: pipx run --spec ./pitboss pitboss lint event "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/status.json" --url "$RUN_URL" --comments "$RUNNER_TEMP/comments.json"
 
       - name: Set the commit status text-lint
         env:

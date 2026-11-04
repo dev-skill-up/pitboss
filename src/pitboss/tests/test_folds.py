@@ -1,15 +1,17 @@
 """Tests for a PR that closes several tickets (keyword: fold, pitboss#171)."""
 
 import dataclasses
+import json
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import foldline, folds, forms, headchecks, pulls, shapes
+from .. import fixes, foldline, folds, forms, headchecks, pulls, shapes
 from . import test_stall
 from .formchecks import body_checks, subject
 from .linting import BODY, lines, lint, write_text
+from .test_textlint import event, posted, run
 
 URL = "https://github.com/o/r/pull/7#issuecomment-1"
 OTHER_URL = "https://github.com/o/r/pull/7#issuecomment-2"
@@ -17,6 +19,38 @@ STEPS = "Opus ruling\nRuling: do these steps\n"
 SPLIT = "Opus ruling\nRuling: split\n"
 TWO = BODY.replace("Fixes #12", "Fixes #12\nCloses #13")
 CITED = TWO.replace("Head:", f"Ruling: {URL}\n\nHead:")
+
+
+def comment(text: str, url: str = URL, who: str = "MEMBER") -> Mapping[str, str]:
+    """A comment as the API lists it.
+
+    Args:
+        text: its body.
+        url: its address.
+        who: its author's association.
+
+    Returns:
+        The comment's JSON object.
+    """
+    return {
+        "body": text,
+        "author_association": who,
+        "created_at": "2026-11-04T00:00:00Z",
+        "html_url": url,
+    }
+
+
+def listed(text: str, who: str = "MEMBER") -> str:
+    """Write the API's list of one comment in a file.
+
+    Args:
+        text: the comment's text.
+        who: its author's association.
+
+    Returns:
+        The file's path.
+    """
+    return write_text("comments.json", json.dumps([comment(text, URL, who)]))
 
 
 def facts(body: str, rulings: Sequence[folds.Recorded]) -> pulls.PullFacts:
@@ -66,6 +100,44 @@ class TestFolds(unittest.TestCase):
         ]
         assert_that(found, equal_to([True, False, False, False, False, False]))
 
+    def test_whole_address(self) -> None:
+        """An address is cited whole: a longer one does not cite a shorter."""
+        longer = CITED.replace(URL, URL + "2")
+        found = [folds.cites(CITED, URL), folds.cites(longer, URL)]
+        assert_that(found, equal_to([True, False]))
+        assert_that(folds.allows(longer, [(URL, STEPS)]), equal_to(False))
+
+    def test_read_comments(self) -> None:
+        """Pages are read one after another or slurped; only trusted rulings count."""
+        page = [
+            comment(STEPS),
+            comment("hello", OTHER_URL),
+            comment(STEPS, "u", "NONE"),
+        ]
+        more = [comment(SPLIT, OTHER_URL)]
+        listed = json.dumps(page) + "\n" + json.dumps(more) + "\n"
+        slurped = json.dumps([page, more])
+        trusted = {"MEMBER"}
+        want = [(URL, STEPS), (OTHER_URL, SPLIT)]
+        assert_that(folds.read_comments(listed, trusted), equal_to(want))
+        assert_that(folds.read_comments(slurped, trusted), equal_to(want))
+        assert_that(folds.read_comments("", trusted), equal_to([]))
+
+    def test_unreadable_comments(self) -> None:
+        """Text that is not a list of comments is a ValueError."""
+        for text in ["not json", "[1]", '[{"body": "x"}]']:
+            with self.assertRaises(ValueError):
+                folds.read_comments(text, {"MEMBER"})
+
+
+class TestTickets(unittest.TestCase):
+    """The tickets a PR fixes are the ones it closes too."""
+
+    def test_closes_is_fixed(self) -> None:
+        """A Closes line is a ticket the PR fixes, as a Fixes line is."""
+        found = fixes.fixed_tickets(facts(TWO, []))
+        assert_that(found, equal_to({"o/r#12", "o/r#13"}))
+
 
 class TestLintBody(unittest.TestCase):
     """``lint pr-body`` and several tickets."""
@@ -104,6 +176,51 @@ class TestLintBody(unittest.TestCase):
         codes = [each.code for each in given]
         assert_that(codes, equal_to([0, 1, 1]))
         assert_that(lines(given[0]), equal_to(["ok"]))
+
+    def test_comments(self) -> None:
+        """The PR's comments as the API gives them hold the rulings."""
+        body = write_text("body.md", CITED)
+        broken = write_text("broken.json", "not json")
+        files = [listed(STEPS), listed(SPLIT), listed(STEPS, "NONE")]
+        files += ["/no/such/comments.json", broken]
+        given = [lint("pr-body", body, "--comments", each) for each in files]
+        assert_that([each.code for each in given], equal_to([0, 1, 1, 1, 2]))
+        assert_that(given[4].err, contains_string("broken.json"))
+
+    def test_comments_with_ruling(self) -> None:
+        """A ruling given by hand and the comments are both read."""
+        body = write_text("body.md", CITED)
+        ruling = write_text("r.md", STEPS)
+        given = lint(
+            "pr-body", body, "--comments", listed(SPLIT), "--ruling", URL, ruling
+        )
+        assert_that(given.code, equal_to(0))
+
+
+class TestEvent(unittest.TestCase):
+    """``lint event``, which posts the ``text-lint`` status, reads the rulings."""
+
+    def test_status_follows_the_ruling(self) -> None:
+        """A cited ruling of do these steps makes the status success."""
+        cited = event(CITED)
+        asked = [
+            (cited, ("--comments", listed(STEPS))),
+            (cited, ("--comments", listed(SPLIT))),
+            (cited, ("--comments", "/no/such/comments.json")),
+            (cited, ()),
+            (event(TWO), ("--comments", listed(STEPS))),
+        ]
+        found = [posted(text, *options)[1] for text, options in asked]
+        states = [each["state"] for each in found]
+        assert_that(states, equal_to(["success"] + ["failure"] * 4))
+        assert_that(found[4]["description"], contains_string("name 2 tickets"))
+
+    def test_unreadable_comments(self) -> None:
+        """A comments file that is not the API's list is exit 2."""
+        broken = write_text("broken.json", "[1]")
+        code, err, written, _ = run(event(CITED), "--comments", broken)
+        assert_that((code, written), equal_to((2, "")))
+        assert_that(err, contains_string("broken.json"))
 
 
 class TestFoldedLine(unittest.TestCase):

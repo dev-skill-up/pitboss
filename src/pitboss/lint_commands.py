@@ -15,6 +15,7 @@ from . import (
     commands,
     config,
     contradictions,
+    folds,
     forms,
     gates,
     ghapi,
@@ -114,13 +115,27 @@ def _ticket(args: argparse.Namespace) -> str | None:
     return None if args.ticket is None else _read(args.ticket)
 
 
+def _rulings(
+    args: argparse.Namespace, settings: config.Lint
+) -> Sequence[folds.Recorded]:
+    # keyword: fold (pitboss#171): the PR's Opus ruling comments, which a body
+    # with several tickets may cite; a --comments file that is not there is none
+    given = [(url, _read(name)) for url, name in args.ruling or ()]
+    if args.comments is None or not pathlib.Path(args.comments).exists():
+        return given
+    try:
+        found = folds.read_comments(_read(args.comments), settings.review.trusted)
+    except ValueError as error:
+        raise _fail(f"{args.comments}: {error}") from error
+    return [*given, *found]
+
+
 def _pr_body_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
     if relock.is_relock(args.branch, settings.relock_prefix):
         return forms.relock_pr_body(subject, settings.footers)  # keyword: relock
-    rulings = [(url, _read(name)) for url, name in args.ruling or ()]
-    return forms.pr_body(subject, settings.footers, rulings)
+    return forms.pr_body(subject, settings.footers, _rulings(args, settings))
 
 
 def _review_findings(
@@ -169,7 +184,7 @@ def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
 
 def _body_findings(
     rules: tuple[Sequence[phrases.Phrase], Sequence[contradictions.Pair]],
-    footers: Sequence[str],
+    form: Callable[[forms.Subject], Sequence[str]],
     body: str,
     head: str,
 ) -> Sequence[str]:
@@ -177,7 +192,7 @@ def _body_findings(
     body = sessionurl.strip(body)
     subject = forms.Subject(name="body", body=body, head=head)
     return [
-        *forms.pr_body(subject, footers),
+        *form(subject),
         *phrases.findings(body, subject.name, banned),
         *contradictions.findings([(subject.name, body)], pairs),
     ]
@@ -191,10 +206,13 @@ def _event(args: argparse.Namespace) -> None:
         pull = textlint.parse(_read(event))
     except textlint.EventError as error:
         raise _fail(f"{event}: {error}") from error
+    settings = _lint_settings(args)
     check = functools.partial(
         _body_findings,
         (_phrases(args), _pairs(args)),
-        _lint_settings(args).footers,
+        functools.partial(
+            forms.pr_body, footers=settings.footers, rulings=_rulings(args, settings)
+        ),
     )
     status, found = textlint.decide(pull, args.url, check)
     for each in found:
@@ -284,10 +302,19 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         nargs=2,
         metavar=("URL", "FILE"),
         default=None,
-        help="pr-body: an Opus ruling comment of the PR, its address and the file"
-        " holding its text; a body with several Fixes or Closes tickets is"
-        " refused unless it cites the address of a comment ruling `do these"
+        help="pr-body, event: an Opus ruling comment of the PR, its address and"
+        " the file holding its text; a body with several Fixes or Closes tickets"
+        " is refused unless it cites the address of a comment ruling `do these"
         " steps`; give it more than once",
+    ),
+    add_argument(
+        "--comments",
+        default=None,
+        help="pr-body, event: the PR's comments as the API gives them"
+        " (`gh api repos/OWNER/REPO/issues/N/comments --paginate`, all its"
+        " pages); the Opus ruling comments of the configured trusted"
+        " associations are rulings a body may cite, as with --ruling; a file"
+        " that is not there is no comments",
     ),
     add_argument(
         "--ticket",
