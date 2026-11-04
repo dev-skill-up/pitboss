@@ -129,12 +129,41 @@ review of a revised plan, see the last bullet):
   once the Plan is approved). An approval of the Plan alone is no approval to
   merge.
 
+## One round lists every finding
+
+A round that finds three matters and leaves two for the next costs a round and,
+after an Opus ruling, an escalation to the owner. So:
+
+- In the first round of a stage (the Plan, the Execution, or both), read the
+  whole PR body, the whole diff and every command of the Plan against the
+  repository, and list every finding in that one review, not the first few.
+- In a Plan review, try each command of the Plan as a read-only dry run where it
+  can be tried (it changes nothing in the repository, the PR or the machine), and
+  report each that cannot run as written as a finding of the Plan. This is the
+  one thing a reviewer runs.
+- A later round on the same stage (an earlier review of the PR graded it) checks
+  the earlier findings and the findings caused by the changes made since the head
+  that review read.
+- A later round that raises a finding present in the unchanged text of an earlier
+  head says so: one line for each such finding, starting with `Missed earlier:`
+  and saying what the finding is. The sweep counts those lines, before and after
+  the newest Opus ruling, on the `PAUSE` line. A finding the changes since caused
+  has no such line.
+
 ## A scope in the brief is exclusive
 
 When your brief states a scope (a merge of the base into an approved head, the
 findings of a fix round, the Plan alone), that scope is all you review. Where
 this file asks for more, the brief's scope decides, and a finding outside it
 is not a ground for "changes needed".
+
+The review after a fix round (the previous review said changes needed and a
+worker pushed) is scoped to the diff since the reviewed head, `git diff
+<reviewed head>..<head>`, and to the earlier findings: was each fixed as asked,
+and do the fixes invalidate the approved Plan. You may raise nothing outside that
+diff or those findings. If every finding is fixed as asked and the fixes do not
+invalidate the Plan, the verdict is approved, and the PR is mergeable. You do not
+walk the whole Execution again.
 
 ## What to review
 
