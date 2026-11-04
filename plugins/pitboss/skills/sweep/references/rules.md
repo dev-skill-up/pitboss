@@ -501,7 +501,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   (keyword: review-flow): `pitboss.flow.next_step` is the owner's pseudo code of
   2026-10-30 (pitboss#107), branch for branch, and `pitboss next CONFIG TICKET`
   prints the one step a ticket is at. The sweep's `RULING DUE`, `PAUSE`,
-  `RULING UNREADABLE`, `RULING ESCALATES`, `RULING NO ANALYSIS`,
+  `RULING UNREADABLE`, `RULING ESCALATES`,
   `revise the plan`, `fix the review` and `review it` lines and `slots next` take
   that step, and this file does not state it a second time. The steps are
   `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
