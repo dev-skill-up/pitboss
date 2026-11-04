@@ -159,7 +159,9 @@ def category_of(pull: pulls.PullFacts) -> Category | None:
     # review-flow: the step alone decides, so ``next`` and ``slots next`` agree
     if step.step is not steps.Step.REGULAR_REVIEW:
         return None
-    return Category.REVIEW_FIX_ROUND if body_fixed(pull) else Category.REVIEW
+    alone = step.stage is steps.Stage.PLAN_ONLY  # keyword: plan-review-listed
+    fix_round = body_fixed(pull) and not alone
+    return Category.REVIEW_FIX_ROUND if fix_round else Category.REVIEW
 
 
 def body_fixed(pull: pulls.PullFacts) -> bool:

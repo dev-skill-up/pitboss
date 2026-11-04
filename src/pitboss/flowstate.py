@@ -54,6 +54,24 @@ class PullState:
     relock: bool = False
 
 
+def plan_rejected_last(pr: PullState) -> bool:
+    """Whether the newest regular review graded the Plan changes needed.
+
+    With no review of the current head, this is a Plan written after its
+    rejection, and it is graded alone, as a draft's is (keyword:
+    plan-review-listed, pitboss#167).
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        True when the newest regular review of any head rejected the Plan.
+    """
+    regular = (each for each in pr.graded if each.comment)
+    newest = max(regular, key=lambda each: each.when, default=None)
+    return newest is not None and newest.plan is shapes.Verdict.CHANGES_NEEDED
+
+
 def is_ruling(body: str) -> bool:
     """Whether a comment is a recorded Opus ruling.
 

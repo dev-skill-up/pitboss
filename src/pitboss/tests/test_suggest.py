@@ -208,11 +208,11 @@ class TestKindsOfReview(unittest.TestCase):
         )
         scope_is(here, "review the fix round's findings only", scope)
 
-    def test_a_revised_plan_is_graded_with_the_execution_not_as_a_fix(self) -> None:
-        """A rejected Plan, revised: the head moved, but the Plan was never approved."""
+    def test_a_revised_plan_is_graded_alone_not_as_a_fix(self) -> None:
+        """A rejected Plan, revised: the head moved, the Plan was never approved."""
         here = world_with([graded(CHANGES, None, 1, sha=OLDER)])
-        scope = f"Scope: the full review of head {HEAD}"
-        scope_is(here, "review the Plan and the Execution", scope)
+        scope = f"Scope (exclusive): the Plan of head {HEAD}, alone,"
+        scope_is(here, PLAN_ALONE, scope)
 
     def test_a_gated_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
         """2a has no gated exception: the gate wants a review of this head."""
