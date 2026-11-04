@@ -650,7 +650,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   - **Before asking for review the author greps the whole tree** (the docs, the
     README, the design notes, the skill files, the example configuration, the
     tests) for every statement the change makes false or contradictory, and
-    fixes each one: a contradiction is fixed, never documented.
+    fixes each one: a contradiction is fixed, never documented. Only a false
+    statement outside the tree, which the author cannot edit, is listed in the
+    Execution (the worker's `Search:` line).
   - **A reviewer's objection to a phrase no claim depends on is answered by
     removing the phrase**, not by defending it.
   The lint of the body and of a review runs on a draft too (owner,
@@ -754,10 +756,13 @@ Only override for bugs, but do override for bugs (and then file them)".
   the ## Plan section of the PR body only; touch no code, doc or test (a merge
   of the base for a conflict excepted), fix none of the Execution defects, end
   with an empty commit pushed to the draft, and patch the Head: line to it.`
-  `Grep: before asking for review, grep the whole tree (docs, README,
-  design notes, skill files, example configuration, tests) for any statement
-  your change makes false or contradictory and fix each one; a contradiction is
-  fixed, never documented.` A reviewer brief says: `Plan: you are a new
+  `Search: before handing back, search the tree for the words of every
+  comment, rule bullet and doc the change touches, and fix each statement the
+  change makes false or contradictory (a contradiction is fixed, never
+  documented); list in the Execution only a false statement outside this tree,
+  which you cannot edit.` (pitboss#170 replaced the worker's `Grep:` line with
+  this one; the whole tree is the docs, README, design notes, skill files,
+  example configuration and tests.) A reviewer brief says: `Plan: you are a new
   reviewer; grade the Plan and the Execution in one review, with a Plan line
   and an Execution line beside the one Verdict line; the PR is at its first
   review`, or `the Plan was revised after a rejection: grade only the Plan,
@@ -783,6 +788,23 @@ Only override for bugs, but do override for bugs (and then file them)".
   claim needs, or a claim with no command, is changes needed.` The commands run with the permissions of whoever
   runs expand, so a template is only ever the worker's own (`design.rst`,
   "Expanding a template").
+- **Try-commands, expand-rows and search lines** (keyword: dry-run, pitboss#170;
+  reviewers of pwa#277 and quire#1038 found a Plan command that did not work as
+  written, an expand row with `; echo $?` appended, and a statement left false
+  elsewhere in the tree, each costing rounds). A worker brief says:
+  `Try commands:` run each command read-only before it goes into the Plan, when
+  it can be run, and say so in the Plan for one that cannot; `Expand rows:` never append
+  anything to a row of the template, because `pitboss expand` prints
+  `exit status: N` for a status that is not zero, and `pitboss lint pr-body`
+  refuses an Evidence row that ends in `; echo $?`, `&& echo $?` or `|| echo`
+  (`appended`); `Search:` before handing back, search the tree for the words of
+  every comment, rule bullet and doc the change touches, and fix each statement
+  the change makes false or contradictory, listing in the Execution only one
+  outside this tree that cannot be edited (a contradiction is fixed, never
+  documented, above). The reviewers' `Dry run:` line (a Plan review tries the
+  Plan's commands) is another line; the worker's is `Try commands:` so no brief
+  carries two lines with one label. The wording is in
+  `adversarial-review.md`, "The Plan's precise commands".
 - **An existing comment or body is edited only with its full text in hand**
   (orchestrator, 2026-10-30: a stand-in text sent to an update-comment tool on
   a comment that had not been read overwrote the closing comment on
