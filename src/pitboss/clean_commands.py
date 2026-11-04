@@ -7,8 +7,23 @@ from typing import AbstractSet, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, autoclean, cleaning, container, dead, deadscan, disk
-from .commands import CHANGING_ARGUMENTS, Context, load_context, running_in
+from . import (
+    ENTRY_DATA,
+    autoclean,
+    cleaning,
+    container,
+    dead,
+    deadscan,
+    disk,
+    worktrees,
+)
+from .commands import (
+    CHANGING_ARGUMENTS,
+    Context,
+    load_context,
+    running_in,
+    sweep_look,
+)
 
 
 def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
@@ -118,4 +133,17 @@ def clean_container(args: argparse.Namespace) -> None:
         print(f"fetch failed in {name}: its repository's checkouts are not judged")
     done = remove_listed(args, look, scan.candidates, now)
     for text in cleaning.closing_lines(done):
+        print(text)
+
+
+@ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")
+def clean_worktrees(args: argparse.Namespace) -> None:
+    """Remove the finished worktrees that pass the safety test (branches are kept).
+
+    Args:
+        args: the parsed arguments.
+    """
+    found = load_context(args)
+    how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
+    for text in worktrees.remove_lines(sweep_look(found), how, found.now):
         print(text)

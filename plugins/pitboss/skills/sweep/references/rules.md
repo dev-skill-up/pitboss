@@ -590,6 +590,25 @@ Only override for bugs, but do override for bugs (and then file them)".
   post no card it refuses. The sweep prints `RULING NO ANALYSIS` for the newest
   trusted Opus ruling comment without the section, which an agent adds by editing
   or reposting the comment; the PR is not held for it.
+- **A question that reaches the owner comes with a markdown artifact, and the
+  Opus rulings are summarized once a day** (keyword: owner-artifact; owner,
+  2026-11-04, pitboss#237: "any question that gets to me must be accompanied by a
+  markdown artifact that explains what happened, the recommendation, and
+  suggested mitigation. Once a day, all opus rulings must be summarized and have
+  suggested mitigations."). Two halves:
+  1. A question that reaches the owner (a decision card, an escalation, a
+     message that asks for a decision) comes with a markdown artifact with the
+     sections `What happened`, `Recommendation` and `Suggested mitigation`; a
+     card without it is not posted. The `How we got here` section of an
+     escalation belongs in `What happened`.
+  2. Once a day the orchestrator summarizes every Opus ruling of the day, each
+     with a suggested mitigation, as a markdown artifact for the owner. The
+     sweep prints `OPUS RULINGS DAILY` when an Opus ruling comment (first line
+     `Opus ruling`) of a trusted author is dated since the last summary and no
+     summary is recorded for the Pacific day (`America/Los_Angeles`); the
+     orchestrator writes the summary and records it with `uvx pitboss
+     ruling-summary <config>`, which appends the time to
+     `.git/pitboss-ruling-summaries.log` of the main clone.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
   creates a draft PR, splits the body into Plan and Execution" ... "the PR

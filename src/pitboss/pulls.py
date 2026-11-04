@@ -1,6 +1,7 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
 import dataclasses
+import datetime
 import subprocess
 from typing import AbstractSet, Callable, Sequence
 
@@ -17,6 +18,7 @@ from . import (
     relock,
     reviews,
     rounds,
+    rulingsummary,
     shapes,
     steps,
     unreadableform,
@@ -34,11 +36,14 @@ class StrayComments:
             review form.
         unanalysed: the address of the newest trusted Opus ruling comment when
             it has no ``How we got here`` section (keyword: how-we-got-here).
+        rulings: when its trusted Opus ruling comments were written (keyword:
+            ruling-summary).
     """
 
     newer: str = ""
     graded: Sequence[unreadableform.UnreadableReview] = ()
     unanalysed: Sequence[str] = ()
+    rulings: Sequence[datetime.datetime] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -313,6 +318,7 @@ def _unreadable(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
         unanalysed=analysis.unanalysed(*seen),
+        rulings=rulingsummary.ruled_at(*seen),
     )
 
 
@@ -365,18 +371,6 @@ def readable(found: Sequence[Read]) -> Sequence[PullFacts]:
         The ones that were read.
     """
     return [each for each in found if isinstance(each, PullFacts)]
-
-
-def failed_reads(found: Sequence[Read]) -> Sequence[shapes.Unreadable]:
-    """The PRs an API call failed for.
-
-    Args:
-        found: each open PR, read or not.
-
-    Returns:
-        The ones that could not be read.
-    """
-    return [each for each in found if isinstance(each, shapes.Unreadable)]
 
 
 def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:

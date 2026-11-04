@@ -156,6 +156,12 @@ Commands
    * - ``queued CONFIG``
      - Appends a hold to the record: a job was put on the queue (after a
        merge, an enqueue or auto-merge armed), so the quiet period restarts.
+   * - ``ruling-summary CONFIG``
+     - Appends the time to ``.git/pitboss-ruling-summaries.log`` of the main
+       clone: the daily summary of the Opus rulings was written (pitboss#237,
+       keyword: ruling-summary). The Pacific day (``America/Los_Angeles``) of
+       a recorded time ends the sweep's ``OPUS RULINGS DAILY`` line for that
+       day.
    * - ``push CONFIG [--draft] [--no-dry-run] [GIT_ARGUMENTS]``
      - The pressure check, then ``git push``; a push that goes out appends a
        hold, a refused or failed one appends nothing. ``--draft`` skips both.
@@ -489,7 +495,15 @@ body says ``Fixes`` or ``Closes`` the ticket and prints its step, and for a tick
 the first step. A ruling comment without a ``How we got here`` section (an
 analysis of each rejection before the ruling: ``pitboss.analysis``, pitboss#168)
 is read and followed all the same; the sweep says so with ``RULING NO ANALYSIS``
-(``pitboss.analysisline``). The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
+(``pitboss.analysisline``). The sweep prints one ``OPUS RULINGS DAILY`` line
+(``pitboss.summaryline``, ``pitboss.rulingsummary``, pitboss#237) after the slots when a trusted Opus
+ruling comment of an open PR is dated after the last recorded summary and none
+is recorded for the Pacific day; the orchestrator writes the summary of every
+Opus ruling of the day, each with a suggested mitigation, as a markdown
+artifact and records it with ``ruling-summary``. The ``RULING ESCALATES`` and
+``PAUSE`` lines and steps say the owner's card carries a markdown artifact with
+the sections ``What happened``, ``Recommendation`` and ``Suggested
+mitigation`` (``pitboss.steps.OWNER_ARTIFACT``). The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
 ``RULING ESCALATES``, ``PLAN EDITED``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
 GitHub's own reviews are no regular review and count nowhere in the flow. A PR

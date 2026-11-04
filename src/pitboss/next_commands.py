@@ -47,7 +47,8 @@ def fixing(
     named = (
         each for each in pulls.readable(found) if ticket in fixes.fixed_tickets(each)
     )
-    return next(named, None), pulls.failed_reads(found)
+    failed = [each for each in found if isinstance(each, shapes.Unreadable)]
+    return next(named, None), failed
 
 
 def _refuse(message: str) -> NoReturn:

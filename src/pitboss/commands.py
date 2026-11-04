@@ -36,6 +36,7 @@ from . import (
     repoaccess,
     report,
     scratch,
+    summaryline,
     scratchconfig,
     shapes,
     sweepline,
@@ -43,7 +44,6 @@ from . import (
     syncing,
     timing,
     workerlines,
-    worktrees,
 )
 from . import diskline, pulllines, pullstate, unreadableline
 from .failures import describe, read_all
@@ -349,6 +349,8 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "cleaning done")
     broken, read = _repository_sections(found, clock)
     _slot_section(found, read)
+    for text in summaryline.lines(found.settings, args.config, read, found.now):
+        print(text)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     if syncing.section(args, found.settings) or broken or unconfigured:
@@ -385,16 +387,3 @@ def cancel_stale_runs(args: argparse.Namespace) -> None:
             print(f"{Marker.COULD_NOT_CANCEL_STALE_QUEUE_RUN.text} {name}")
             continue
         print(f"{Marker.CANCELLED_STALE_QUEUE_RUN.text} {name}{verb}")
-
-
-@ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")
-def clean_worktrees(args: argparse.Namespace) -> None:
-    """Remove the finished worktrees that pass the safety test (branches are kept).
-
-    Args:
-        args: the parsed arguments.
-    """
-    found = load_context(args)
-    how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
-    for text in worktrees.remove_lines(sweep_look(found), how, found.now):
-        print(text)
