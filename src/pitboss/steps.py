@@ -30,6 +30,9 @@ class Step(enum.Enum):
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
         FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
         RULING_ESCALATES: the Opus ruling escalated to the owner.
+        PLAN_EDITED: the Plan section differs from the Plan an approving review
+            read, and no Opus ruling authorises the edit (keyword: plan-digest,
+            pitboss#172).
         MERGE: the PR merges.
     """
 
@@ -43,6 +46,7 @@ class Step(enum.Enum):
     PAUSE_FOR_OWNER = enum.auto()
     FIX_RULING = enum.auto()
     RULING_ESCALATES = enum.auto()
+    PLAN_EDITED = enum.auto()
     MERGE = enum.auto()
 
 
@@ -147,6 +151,11 @@ TEXTS: Mapping[Step, str] = {
         "the Opus ruling escalated to the owner: label the PR and its ticket"
         f" {PAUSED_LABEL}, comment the options, and report the number and the"
         " options to the owner"
+    ),
+    Step.PLAN_EDITED: (
+        "the Plan was edited after its approval: restore the approved Plan, or"
+        " ask an Opus agent for a ruling that says `revise the plan`; no review"
+        " or fix is offered meanwhile"
     ),
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
@@ -265,6 +274,15 @@ def ruling_escalates() -> Next:
         The step.
     """
     return Next(step=Step.RULING_ESCALATES)
+
+
+def plan_edited() -> Next:
+    """The step of a PR whose approved Plan was edited with no ruling.
+
+    Returns:
+        The step.
+    """
+    return Next(step=Step.PLAN_EDITED)
 
 
 def merge() -> Next:

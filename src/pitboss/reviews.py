@@ -33,6 +33,8 @@ class Found:
             with no such line (keyword: body-digest).
         missed: how many findings it marks ``Missed earlier:`` (keyword:
             all-findings).
+        plan_digest: the digest of the Plan section its ``Plan digest:`` line
+            records, empty with no such line (keyword: plan-digest).
     """
 
     sha: str
@@ -43,6 +45,7 @@ class Found:
     url: str = ""
     body: str = ""
     missed: int = 0
+    plan_digest: str = ""
 
 
 def names(found: Found, head: str) -> bool:
@@ -231,6 +234,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         url=item.url,
         body=bodydigest.recorded(item.body),
         missed=missed.count(item.body),
+        plan_digest=bodydigest.recorded_after(item.body, bodydigest.PLAN_PREFIX),
     )
 
 
@@ -283,6 +287,7 @@ def _as_graded(found: Found, comment: bool) -> shapes.Graded:
         comment=comment,
         body=found.body,
         missed=found.missed,
+        plan_digest=found.plan_digest,
     )
 
 

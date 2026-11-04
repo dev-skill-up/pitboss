@@ -173,6 +173,25 @@ BODY_DIGEST = (
     " sweep shows `review=older-body` for a body edited after the review of an"
     " unmoved head, and a review that records the new digest answers it."
 )
+PLAN_DIGEST = (
+    "Plan digest: you grade the Plan, so run `uvx pitboss plan-digest"
+    " <scratchpad>/body.txt` on the PR body you saved for the `Body:` line, and"
+    " add the one line it prints (`Plan digest: <digest>`) to the comment, beside"
+    " the `Plan:` line. The sweep prints `PLAN EDITED` when the Plan section of"
+    " the body later differs from it, and offers the PR for no round until an Opus"
+    " ruling allows the edit."
+)
+NO_PLAN_EDIT = (
+    "Approved Plan: do not edit the Plan section of an approved PR; hand back a"
+    " Plan problem as NOT PROCEEDING with the evidence."
+)
+NO_PLAN_FINDING = (
+    "Approved Plan: it is never reopened. A finding that asks for an edit of the"
+    " Plan (a row, a test or a command added to it) is no finding of the"
+    " Execution: do not post it as one and never ground changes needed on it;"
+    " write it as a note for an Opus ruling, and judge the Execution against the"
+    " Plan as written."
+)
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
     " an honest worker could hit (a mistake, a forgotten step, an accidental"

@@ -42,6 +42,16 @@ Post exactly that form: a gate that cannot read the comment keeps the status
   having moved, is `review=older-body` and is answered by a review of the fix
   round's findings, unless your review rejected the Plan: then it is answered
   by a review of the Plan alone.
+- When you grade the Plan (a review of the Plan alone, or of the Plan and the
+  Execution), also run `uvx pitboss plan-digest <scratchpad>/body.txt` on the
+  same saved body and add the line it prints (`Plan digest: <digest>`) to the
+  comment beside the `Plan:` line (keyword: plan-digest, pitboss#172). The
+  sweep prints `PLAN EDITED` when the Plan section later differs from it. A
+  review of the Execution alone records none.
+- An approved Plan is never reopened. In a review of the Execution, a finding
+  that asks to edit the Plan (a row, a test or a command added to it) is not a
+  finding: write it as a note for an Opus ruling, and judge the Execution
+  against the Plan as written.
 - Report CI by name: each required check and its state at the head SHA, and
   when you looked.
 - Check three things from the PR itself, before the diff: the Head line (the

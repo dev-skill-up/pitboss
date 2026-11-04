@@ -564,6 +564,24 @@ Only override for bugs, but do override for bugs (and then file them)".
     NOT GRADE IT. It's approved"). A brief for a re-review says which stage the
     PR is at, and a reviewer is never told that the Execution is reviewed later
     or by someone else.
+  - **An approved Plan is never reopened** (owner, 2026-11-03, pitboss#172: "we
+    do not second guess an approved Plan"; keyword: plan-digest). Once a Plan is
+    approved, a weak or incomplete Execution (cut output, a missing diff, a
+    command not run) is fixed against the approved Plan as written; the Plan
+    text is not edited after its approval except by an Opus ruling that says to
+    (`Ruling: revise the plan`, recorded after the approval). An Execution
+    review may not ask for a Plan change (a row, a test or a command added to
+    the Plan): that finding is a note for an Opus ruling, never a ground for
+    changes needed. A worker who finds a Plan problem after the approval does
+    not edit the Plan section; it hands back NOT PROCEEDING with the
+    evidence. A review that grades the Plan records the Plan section it read as
+    a `Plan digest: <digest>` line (`uvx pitboss plan-digest FILE` prints it for
+    the body saved to a file; the digest is of the `## Plan` section without its
+    `Head:` lines). The sweep prints `PLAN EDITED` when the Plan section of the
+    body differs from the digest of the newest review that approves the Plan and
+    records one, and `slots next` offers the PR for no round (no fix, no review,
+    no Plan revision) until a ruling `revise the plan` is recorded after that
+    review. A review with no `Plan digest:` line is not checked.
   - **While the newest review does not approve the Plan, the only round is a
     revision of the Plan, and the review of it grades the Plan alone**
     (orchestrator, 2026-10-30, pitboss#82: on a PR whose review graded the Plan
