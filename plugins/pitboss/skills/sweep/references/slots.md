@@ -151,7 +151,8 @@ exactly one step and at most one kind. There are eight:
    and before every `start a PR` line (pitboss#156; a draft whose Plan a review at its head
    rejects is `revise the plan` or `fix the review`, a draft whose Plan is approved waits for
    its undraft and is offered for no round). Its brief says a draft has no check run and the
-   reviewer reads the diff and the PR body only. A reviewer that is not its author
+   reviewer reads the diff and the PR body only, besides the read-only dry runs of the
+   Plan's commands. A reviewer that is not its author
    reviews it; the author never waits on CI, but pushes, reports the head and
    finishes.
 

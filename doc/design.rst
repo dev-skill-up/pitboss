@@ -443,6 +443,24 @@ GitHub's own reviews are no regular review and count nowhere in the flow. A PR
 at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING`` or ``RULING_ESCALATES`` is
 offered for no fix or review round in ``slots next``, and its ticket stays taken.
 
+**Findings in one round** (keyword: all-findings, pitboss#169). The brief of a
+review of a stage (the Plan, the Execution, or both) requires the first round of
+that stage to read the whole PR body, the whole diff and every command of the
+Plan against the repository and to list every finding in that one review; a Plan
+review also tries each Plan command as a read-only dry run where it can be tried
+and reports each that cannot run as written. A later round on the same stage
+checks the earlier findings and the findings the changes since caused; a finding
+it raises that is present in the unchanged text of an earlier head is written on
+a line of its own that starts with ``Missed earlier:``. ``pitboss.missed`` counts
+those lines in each regular review, and the sweep's ``PAUSE`` line says how many
+the reviews before and after the newest Opus ruling hold, for the analysis of why
+a PR still needs changes after a ruling. The brief of the review after a fix round
+(``review the fix round's findings only``) names the diff since the reviewed head
+(``git diff <reviewed head>..<head>``) and the earlier findings; the reviewer may
+raise nothing outside them, and when every finding is fixed as asked and the fixes
+do not invalidate the approved Plan the verdict is approved and the PR is
+mergeable.
+
 **tracefs.** ``sweep``, ``pressure`` and every ``slots`` action first make
 the mount themselves (keyword: tracefs, pitboss#28): ``grep tracefs
 /proc/mounts``, else ``mount -t tracefs nodev /sys/kernel/tracing``, and say

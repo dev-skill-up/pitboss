@@ -381,6 +381,8 @@ class Graded:
         comment: whether it is a regular review (a comment in the form, not a
             GitHub review).
         body: the digest of the PR body it records, empty when it records none.
+        missed: how many of its findings it marks ``Missed earlier:`` (keyword:
+            all-findings).
     """
 
     sha: str
@@ -389,3 +391,4 @@ class Graded:
     execution: Verdict | None
     comment: bool = True
     body: str = ""
+    missed: int = 0

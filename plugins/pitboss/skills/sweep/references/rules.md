@@ -644,7 +644,18 @@ Only override for bugs, but do override for bugs (and then file them)".
   parents, the files regenerated from the merge and the CI on the head, and
   nothing else (not the body, not the approved change); a first review, or a
   head changed by anything else, is the full review of that head; the review
-  after a fix round checks that round's findings. A finding outside the scope
+  after a fix round checks that round's findings in the diff since the reviewed
+  head (`git diff <reviewed head>..<head>`) and whether the fixes invalidate the
+  approved Plan, may raise nothing outside them, and approves, so that the PR
+  is mergeable, when every finding is fixed as asked and the Plan stands (owner,
+  2026-11-04, quire#1038). The first round of a stage reads the whole body, the
+  whole diff and every Plan command against the repository and lists every
+  finding in that one review (pitboss#169); a Plan review tries each Plan
+  command as a read-only dry run where it can be tried and reports each that
+  cannot run as written; a later round checks the earlier findings and the
+  findings the changes since caused, and a finding it raises that was in the
+  unchanged text of an earlier head is written on a `Missed earlier:` line,
+  which the sweep counts on the `PAUSE` line. A finding outside the scope
   is not a ground for changes needed. A review brief says that a changes
   needed names a failure an honest worker could hit; a finding that needs
   deliberate evasion is a note, never a ground for changes needed and never a
@@ -682,7 +693,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   against the ticket's text before it is sent.
 - Every worker brief says: the worker rules of the repository; finish inside
   the turn; do not merge; do not write the review. Every reviewer brief says:
-  the reviewer rules, and that a reviewer runs nothing. A reviewer brief is sent
+  the reviewer rules, and that a reviewer runs nothing (a Plan review runs only
+  the read-only dry runs of the Plan's commands). A reviewer brief is sent
   only when the sweep says the PR is ready for review (or, for a review of a draft at its Plan stage,
   when its author hands back), and names the head SHA.
 - **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
@@ -897,7 +909,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   markers and the review's verdict line; the ruling agent, not the
   orchestrator, reads the PR and its reviews for an Opus ruling and for the
   account of what the rounds disagreed about that a pause comment carries.
-- **Reviewers never run anything**: they read the diff, check the author's
+- **Reviewers never run anything** but the read-only dry runs of a Plan's
+  commands in a Plan review: they read the diff, check the author's
   evidence against the ticket's Done-when, read CI for the head, and post the
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
   output on the PR, else changes needed.
@@ -910,7 +923,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   the cause that was found**: "it passed again", "it passes alone" and
   "contention" are not causes. A class of failure a change says it covers has a
   case that fails when the class occurs, shown by injecting it. A reviewer runs
-  nothing and starts only when every required check is finished and green on
+  nothing (but the dry runs of a Plan review) and starts only when every required check is finished and green on
   the exact head (a review of a draft at its Plan stage has no check run to wait for).
 - **Saying a defect out loud is not fixing it** ("documented", "disclosed",
   "known", "non-blocking" never make an approval): a defect is changes needed,
