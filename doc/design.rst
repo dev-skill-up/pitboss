@@ -299,12 +299,17 @@ Commands
        success, that CI's ``Run Nox`` step is the proof of the whole suite.
        Runs no other session: docs, dry_release and the other Python versions
        are CI's.
-   * - ``expand TEMPLATE [--cwd DIR]``
+   * - ``expand TEMPLATE [--cwd DIR] [--pr OWNER/NAME#N [--limit N] [--no-dry-run]]``
      - A PR body whose evidence is produced, never typed (pitboss#117; see
        **Expanding a template** below). Prints TEMPLATE with each directive
        run in DIR (default: the current directory). Exits 0 whatever the
        commands' statuses, 2 on a template or directory it cannot use (and
-       prints nothing: every directive is read before any runs).
+       prints nothing: every directive is read before any runs). With
+       ``--pr`` it also sets the pull request's description to that body, a
+       body over ``--limit`` (default 65536) cut into comments cited by URL
+       (keyword: expand-split, pitboss#177; see **Expanding a template**);
+       a dry run unless ``--no-dry-run``; 2 on a ``--pr`` that is not
+       ``OWNER/NAME#NUMBER`` or a limit the body cannot be cut to.
    * - ``clean-container CONFIG [--approved FILE] [--batch N]``
      - Lists, and with ``--no-dry-run`` removes, the dead paths (keyword:
        clean-container, pitboss#7; see **Dead paths** below). Also the
@@ -667,6 +672,22 @@ newline, and ``exit status: N`` when the status is not zero. The fence is
 longer than any run of backticks inside. ``expand`` exits 0 whatever the
 statuses (a red run is evidence too); a template it cannot read, a directive
 with no command or a missing ``--cwd`` is exit 2 before any command runs.
+
+*A body over the store's limit* (keyword: expand-split, pitboss#177). A PR
+body over 65536 characters breaks and loses its footer, and workers posted
+evidence in comments by hand. ``--pr OWNER/NAME#N`` cuts the expanded body
+into parts on paragraph markers: a blank line outside a fence, or the closing
+fence of a block ``expand`` produced; a block is cut only when it alone is
+longer than a part (then at line ends, and a line longer than a part inside
+the line), and such a block is refused by ``lint pr-body`` as edited. Part 1
+stays the description, with the closing paragraph (when it holds no block and
+is under a quarter of the limit: the footer) after a section ``## Evidence in
+comments`` that cites each later part's comment URL and each row in it. Parts
+2 and on are comments that start with ``<!-- pitboss-expand-part N of M -->``.
+A rerun rewrites those comments in order (the URLs stay), adds comments for
+more parts and removes the ones a shorter body does not need; comments that do
+not start with the marker are never touched. The description, the comments
+and their URLs come from deterministic code, never from the worker.
 
 *Mutation runs.* A run that edits, runs and restores is a script committed in
 the PR (for example ``scripts/mutate.sh``, restoring with ``git checkout``
