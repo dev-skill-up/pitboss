@@ -151,8 +151,9 @@ SEPARATE_DRAFT_DRY = (
 )
 CI_DRAFT = (
     "Draft: this PR is a draft, and a draft has no check run, so there is no CI to"
-    " read and none to wait for. You read the diff and the PR body only (and dry-run"
-    " the Plan's commands); never hand back `NOT STARTED` for a missing check run of a draft."
+    " read and none to wait for. You read the diff and the PR body only (and"
+    " dry-run the Plan's commands); never hand back"
+    " `NOT STARTED` for a missing check run of a draft."
 )
 FORM = (
     "Form: read `references/adversarial-review.md` of the sweep skill, then post"
