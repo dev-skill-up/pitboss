@@ -569,9 +569,13 @@ There are no other directives and nothing built in: the head is
 ``$ git log origin/main..HEAD --oneline | wc -l`` and a file is
 ``$ cat < path``. Each directive becomes a fenced block: the opening line is
 the fence, ``pitboss-expand`` and ``sha256=`` followed by 16 hex digits of the
-SHA-256 of the lines inside; inside are ``$ `` and the command exactly as
-written, the output exactly as it came (standard output and standard error
-together, invalid UTF-8 bytes as backslash escapes, no trimming, no filter),
+SHA-256 of the stored form of the lines inside (no BOM, no carriage return, a
+URL the store wrapped in double backticks unwrapped; keyword: store-form,
+pitboss#164); inside are ``$ `` and the command exactly as
+written, the output as it came with a BOM and carriage returns removed
+(standard output and standard error
+together, invalid UTF-8 bytes as backslash escapes, no other trimming or
+filter),
 a line ``\ No newline at end of output`` when the output ends without a
 newline, and ``exit status: N`` when the status is not zero. The fence is
 longer than any run of backticks inside. ``expand`` exits 0 whatever the
