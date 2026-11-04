@@ -235,7 +235,11 @@ Commands
        expand`` produced, whose command ends in ``; echo $?``, ``&& echo $?``
        or ``|| echo``: ``expand`` prints ``exit status: N`` itself, so the row
        was changed from the Plan's command; pitboss#170, one finding for each,
-       naming its line) and ``footer`` (only when ``[lint.pr_body] footers``
+       naming its line), ``test-name`` (only with ``--checkout DIR``, the
+       head's checkout: every ``test_...`` identifier in the Plan and
+       Execution sections needs a ``def`` of it, or a module of that name, in
+       the tree of ``DIR``; one finding for each identifier it lacks, naming
+       it; pitboss#189) and ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). With ``--branch`` starting with the
        ``[relock] prefix`` (default ``relock/``; pitboss#126) the PR is a relock

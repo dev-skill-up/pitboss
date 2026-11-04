@@ -4,7 +4,6 @@ import argparse
 import functools
 import json
 import pathlib
-import subprocess
 import sys
 from typing import Callable, Mapping, Sequence, TypeVar
 
@@ -18,13 +17,11 @@ from . import (
     contradictions,
     folds,
     forms,
-    gates,
-    ghapi,
+    gateform,
     phrases,
     relock,
-    repoarg,
-    reviews,
     sessionurl,
+    testnames,
     textlint,
 )
 
@@ -136,7 +133,20 @@ def _pr_body_findings(
 ) -> Sequence[str]:
     if relock.is_relock(args.branch, settings.relock_prefix):
         return forms.relock_pr_body(subject, settings.footers)  # keyword: relock
-    return forms.pr_body(subject, settings.footers, _rulings(args, settings))
+    return [
+        *forms.pr_body(subject, settings.footers, _rulings(args, settings)),
+        *_test_names(args, subject),
+    ]
+
+
+def _test_names(args: argparse.Namespace, subject: forms.Subject) -> Sequence[str]:
+    # keyword: test-name (pitboss#189): the tests a Plan cites are in the head
+    if args.checkout is None:
+        return []
+    root = pathlib.Path(args.checkout)
+    if not root.is_dir():
+        raise _fail(f"--checkout {args.checkout}: not a directory")
+    return testnames.findings(subject.name, subject.body, root)
 
 
 def _review_findings(
@@ -154,10 +164,7 @@ def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.Revie
     if args.config is None:
         raise _fail("--repository needs --config")
     full = commands.load_settings(args)
-    repo = repoarg.named_repo(args.repository, full)
-    workflow = _read_gate(args, repo)
-    review = gates.with_gates(full.review, {repo.slug: workflow} if workflow else {})
-    return reviews.rules(review, repo.slug)[1]
+    return gateform.read(args.safe_run, full, args.repository).form
 
 
 def _brief_findings(
@@ -283,6 +290,12 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         " prefix) is checked for its head and footer alone",
     ),
     add_argument(
+        "--checkout",
+        default=None,
+        help="pr-body: the head's checkout; every test_... name the Plan or"
+        " Execution cites needs a `def` of it in the tree (not given: not checked)",
+    ),
+    add_argument(
         "--config",
         default=None,
         help="the project's configuration, for pr-body, review and brief: a path,"
@@ -339,60 +352,3 @@ def lint(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     KINDS[args.kind](args)
-
-
-BODY_NOTE = (
-    "# also one line of its own: Body: <digest> (uvx pitboss body-digest FILE, the"
-    " PR body saved to a file); the sweep keys a review with no such line to the"
-    " head alone"
-)
-
-
-def _gate_source(repo: config.Repo, gate: gates.Gate) -> str:
-    where = f"# the form is read from {gates.WORKFLOW} of {repo.slug}"
-    if gate.form is not None:
-        return f"{where} (its default branch)"
-    return (
-        f"{where}, which this cannot read: read the file; the configured gated"
-        " form follows, and may not be the gate's"
-    )
-
-
-def _read_gate(args: argparse.Namespace, repo: config.Repo) -> gates.Gate | None:
-    # keyword: review-gate (pitboss#166): the form is the repository's own
-    try:
-        return gates.read(ghapi.GitHub(run=args.safe_run, mutate=args.safe_run), repo)
-    except subprocess.CalledProcessError as error:
-        status = ghapi.status_of(error)
-        raise SystemExit(f"cannot read {gates.WORKFLOW} of {repo.slug}: {status}")
-
-
-@ENTRY_DATA.register(
-    commands.CONFIG_ARGUMENT, add_argument("repository"), name="review-form"
-)
-def review_form(args: argparse.Namespace) -> None:
-    """Print the form a review comment in a repository must take.
-
-    Args:
-        args: the parsed arguments.
-    """
-    settings = commands.load_settings(args)
-    repo = repoarg.named_repo(args.repository, settings)
-    workflow = _read_gate(args, repo)
-    read = {repo.slug: workflow} if workflow else {}
-    review = gates.with_gates(settings.review, read)
-    form = reviews.rules(review, repo.slug)[1]
-    gated = repo.slug in review.gated
-    print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")
-    if workflow is not None:
-        print(_gate_source(repo, workflow))
-    print(
-        f"# {{sha}}: the full head SHA; {{verdict}}: {form.approved!r} or"
-        f" {form.changes_needed!r}"
-    )
-    if gated:
-        trusted = workflow.trusted if workflow else sorted(review.trusted)
-        print(f"# {gates.note(trusted)}")
-    for line in form.lines:
-        print(line)
-    print(BODY_NOTE)
