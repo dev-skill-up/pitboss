@@ -360,7 +360,8 @@ api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
 sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
-finished and none failed, state ``clean``, an approving review of this head, or for an
+finished and none failed, state ``clean``, in a gated repository the head's
+``adversarial-review`` status is success (else ``GATE PENDING``), an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
 base branch, or the flow's step is the merge because the newest readable Opus
 ruling says ``execution is approved`` and no review follows it) or, in a

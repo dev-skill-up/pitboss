@@ -33,7 +33,8 @@ quiet_minutes = 15
 # Author associations whose reviews count.
 # Default: ["OWNER", "MEMBER", "COLLABORATOR"].
 trusted_associations = ["OWNER", "MEMBER", "COLLABORATOR"]
-# Repositories whose reviews must take gated_form, strictly, and name the
+# Repositories whose reviews must take the gated form strictly: the form of
+# their review-gate.yml when they have one, else gated_form. They name the
 # exact head. Default: none.
 gated = ["other-org/parser"]
 
@@ -46,7 +47,7 @@ approved = "approved"
 changes_needed = "changes needed"
 
 [review.gated_form]
-# The form in a gated repository. Default: the same as [review.form].
+# The form in a gated repository without a readable review-gate.yml. Default: the same as [review.form].
 lines = ["## Adversarial review", "Reviewed: {sha}", "Verdict: {verdict}"]
 
 [lint.pr_body]
