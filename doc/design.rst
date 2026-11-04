@@ -826,7 +826,8 @@ listed at most once. The eight kinds:
 * ``fix the review``: step ``WORKER``, any other task (``FIX_EXECUTION``): the
   author's fix for a review that asked for changes to the execution;
 * ``fix the CI``: step ``WORKER``, task ``FIX_CI``: a red CI, which is no
-  rejection;
+  rejection, unless the PR waits for a ruling or the owner (``steps.WAITS``,
+  pitboss#183);
 * ``write the Plan and Execution body``: step ``WORKER``, task
   ``FIRST_ROUND``: the PR has no such body;
 * ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
