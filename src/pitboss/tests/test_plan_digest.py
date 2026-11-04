@@ -6,11 +6,18 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import bodydigest, brief, brieftext, plandigest, shapes
+from .. import bodydigest, brief, brieftext, plandigest, shapes, steps
 from . import fakes, world
 from .briefmake import text as brief_text
 from .test_commands import sweep
-from .test_flow_sweep import APPROVED, CHANGES, graded, world_with
+from .test_flow_sweep import (
+    APPROVED,
+    CHANGES,
+    DIRTY,
+    graded,
+    listed_for_third,
+    world_with,
+)
 from .test_slot_commands import next_output
 
 PLAN = fakes.PLAN_AND_EXECUTION
@@ -186,6 +193,23 @@ class TestThePlanEditedLine(unittest.TestCase):
         rounds = [approving(1), ruling(2)]
         out = sweep(world_with(rounds, body=EDITED_PLAN)).out
         assert_that(EDIT_LINE in out, equal_to(False))
+
+    def test_a_rejected_plan_after_an_approval_is_not_revised_once_edited(self) -> None:
+        """The approval still stands: no `revise the plan` round before a ruling."""
+        rounds = [approving(1), graded(CHANGES, None, 2)]
+        _, edited = looked_at(rounds, EDITED_PLAN)
+        _, unedited = looked_at(rounds, PLAN)
+        assert_that(edited, equal_to(""))
+        assert_that(unedited, contains_string("(revise the plan,"))
+
+    def test_a_dirty_pr_with_an_edited_plan_waits_for_the_restoring(self) -> None:
+        """The conflict waits like the other holds: PLAN_EDITED is in WAITS."""
+        assert_that(steps.Step.PLAN_EDITED in steps.WAITS, equal_to(True))
+        here = world_with([approving(1)], body=EDITED_PLAN, **DIRTY)
+        out = sweep(here).out
+        assert_that(out, contains_string(EDIT_LINE))
+        assert_that(out, contains_string("CONFLICT owner/project#3"))
+        assert_that(listed_for_third(here), equal_to([]))
 
     def test_a_ruling_before_the_approval_or_of_another_word_does_not(self) -> None:
         """The ruling must say to edit, and come after the approval."""

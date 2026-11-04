@@ -1,6 +1,7 @@
 """The sweep's lines of the steps about an Opus ruling (keyword: review-flow).
 
-RULING DUE, PAUSE, RULING UNREADABLE and RULING ESCALATES, from the flow.
+RULING DUE, PAUSE, RULING UNREADABLE and RULING ESCALATES, from the flow. The
+fifth hold, PLAN EDITED (the step PLAN_EDITED), is printed by ``planeditline``.
 """
 
 from typing import Sequence

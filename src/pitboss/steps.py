@@ -58,7 +58,8 @@ class Task(enum.Enum):
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
         RESOLVE_CONFLICT: the head conflicts with the base, at any stage except while it
-            waits for a ruling or the owner (``WAITS``).
+            waits for a ruling, the owner or the restoring of an edited approved
+            Plan (``WAITS``, including PLAN_EDITED).
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.
@@ -115,9 +116,17 @@ class Next:
     comment: str = ""
 
 
-# the steps at which a PR waits for an Opus ruling or the owner (pitboss#148): a
-# conflict is not resolved meanwhile, and the sweep prints a line for each
-WAITS = frozenset({Step.OPUS_RULING, Step.PAUSE_FOR_OWNER, Step.RULING_ESCALATES})
+# the steps at which a PR waits for an Opus ruling or the owner (pitboss#148), or
+# for an edited approved Plan to be restored or ruled (pitboss#172): a conflict
+# is not resolved meanwhile, and the sweep prints a line for each
+WAITS = frozenset(
+    {
+        Step.OPUS_RULING,
+        Step.PAUSE_FOR_OWNER,
+        Step.RULING_ESCALATES,
+        Step.PLAN_EDITED,
+    }
+)
 
 TEXTS: Mapping[Step, str] = {
     Step.WAIT_FOR_OWNER: (

@@ -27,7 +27,8 @@ def lines(
 ) -> Sequence[str]:
     """The STALL, UPDATE, waiting-for-ruling, DRAFT ROUND and review-form lines.
 
-    The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES and PAUSE.
+    The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
+    PLAN EDITED.
     The review-form lines are UNREADABLE REVIEW, RULING NO ANALYSIS and GATE PENDING.
 
     Args:

@@ -70,7 +70,7 @@ Only override for bugs, but do override for bugs (and then file them)".
    (Order of work, 3) and then a `STALL` (below), whose fix comes before every
    other pull request but that merge: otherwise the state of a pull
    request says what it needs, not where it stands in the order. A pull
-   request whose review rounds hit the changes-needed limit (`RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`, "Plan first", below) is outside this order: it is offered for no
+   request whose review rounds hit the changes-needed limit (`RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, "Plan first", below) is outside this order: it is offered for no
    fix, update or review round until the ruling is recorded or the owner
    decides. On who takes a fix
    (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It just
@@ -80,7 +80,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      fixed as a red CI is: merge the base in, resolve, check, push); where the
      review did not approve the plan, the fix is a revision of the plan and
      nothing else ("Plan first", below; kind `revise the plan` in `slots
-     next`); not when the pull request has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`;
+     next`); not when the pull request has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`;
    - **a `STALL` is a fix taken before every other pull request but the merge of a ready one.** A relock pull request
      (head branch starting `relock/`) whose required `check` has been red for
      more than four hours (14400 seconds from the run's `completed_at`) is
@@ -89,7 +89,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      stalled, oldest first. It jumps the queue and interrupts no worker
      (Order of work, 1), a merge of a ready pull request still comes before it
      (Order of work, 3: a merge is not a fix), and its pushes keep the
-     runner-pressure hold; a stalled pull request that also has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` waits for the ruling or the owner first;
+     runner-pressure hold; a stalled pull request that also has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` waits for the ruling or the owner first;
    - behind the base, its checks finished, in a repository with no merge
      queue: an update (merge the base in, check, push; the `UPDATE` line of a
      sweep; `slots next` lists the PR by the flow's step alone, which has no
@@ -103,7 +103,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      finish, and not a reason to hold the free slot; so is a pull request on
      the orchestrator's blocked list.
 
-   Never a new ticket while a pull request that can be worked on waits (a pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` cannot be). The
+   Never a new ticket while a pull request that can be worked on waits (a pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` cannot be). The
    `NEXT` lines are printed by `pitboss slots next`: the open pull requests
    that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
    with the kind shown on each line, and then the tickets by priority label
@@ -125,9 +125,10 @@ Only override for bugs, but do override for bugs (and then file them)".
    stage, a draft's and a red CI's too, before the draft, CI and review gates (a
    dirty head runs no CI, pitboss#148). The exceptions are the waits: a pull
    request with the paused-owner label, `RULING UNREADABLE`, `RULING DUE`,
-   `PAUSE` or `RULING ESCALATES` is offered for no round, and its conflict waits
-   for the ruling or the owner (`flow.next_step`, `steps.WAITS`; the Opus ruling
-   on pitboss#181). A ruling's own work step (`do these steps`, `revise the
+   `PAUSE`, `RULING ESCALATES` or `PLAN EDITED` is offered for no round, and its
+   conflict waits for the ruling, the owner or, for `PLAN EDITED`, until the
+   approved Plan is restored or a ruling allows the edit (`flow.next_step`,
+   `steps.WAITS`; the Opus ruling on pitboss#181, pitboss#172). A ruling's own work step (`do these steps`, `revise the
    plan`, `split`, `reshape`, `abandon`) comes after the conflict: the conflict
    is pushed first and the ruling's step comes back. So the pull requests the
    sweep prints `CONFLICT` for, less those waits, are the ones `slots next` lists
@@ -135,7 +136,7 @@ Only override for bugs, but do override for bugs (and then file them)".
    `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
    merge of a ready pull request comes first (Order of work, 3), then a
    `STALL` fix, before every `NEXT` line and every other pull request. A pull
-   request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` has no `NEXT` line: `slots next` leaves
+   request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` has no `NEXT` line: `slots next` leaves
    it out, and its ticket stays taken.
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
@@ -144,7 +145,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      PR, a merge of a PR that is reviewed approved and green), except that a
      merge of a ready pull request comes first (Order of work, 3) and a `STALL`
      fix next, before every other pull request, and except a pull request with
-     `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`, which is offered for no round. Only then the
+     `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, which is offered for no round. Only then the
      tickets, by priority, and within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
@@ -174,7 +175,7 @@ Only override for bugs, but do override for bugs (and then file them)".
 5. **A slot is never held idle** (owner, 2026-10-19T02:00:17Z: "Never, under
    any circumstances, is an empty slot acceptable. This is a hard rule"). Not
    for a fix that is coming, not for a better fit, not for a hold on pushes.
-   "Nothing fits" is not an answer: take a conflicted PR (not one with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`, which waits for the ruling or the owner), or the next ticket
+   "Nothing fits" is not an answer: take a conflicted PR (not one with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, which waits for the ruling or the owner), or the next ticket
    that can be worked in the project's order, which is the next one down when
    every ticket above it is in a worker's hand, blocked or held (item 6 of the order of work; owner,
    2026-10-26T03:03:00Z: "THE RULES SAY SLOTS ARE NEVER EMPTY";
@@ -261,8 +262,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   stop a worker, but it should be next in line for work."). It is a fix among
   the open pull requests of Agents and slots 2, in their one list oldest first:
   it does not stop a worker that is running, but it waits for the next free
-  slot in that order. A conflicted pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` is
-  offered for no round: its conflict waits for the ruling or the owner.
+  slot in that order. A conflicted pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` is
+  offered for no round: its conflict waits for the ruling, the owner or the restoring of the Plan.
 - Most conflicts are small: merge the base in, resolve, regenerate lockfiles
   and generated files with the repository's own tooling, check, push. Merge,
   never rebase or force-push. A conflict where both sides changed the same
@@ -324,7 +325,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      be finished."), oldest first, with nothing else ranking them except a merge of a ready
      one (3, below) and a `STALL` (a fix taken before every other pull request
      but that merge, above), and with no round offered for a pull request held
-     by `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` until the ruling or the owner: a fix does
+     by `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` until the ruling or the owner: a fix does
      not come before an older review (owner, 2026-10-26T13:57:38Z, line 105684:
      "No, among them oldest first."). A pull request that is neither green nor
      red cannot be worked on (owner, 2026-10-26T14:05:11Z, line 105788: "if it
@@ -526,12 +527,12 @@ Only override for bugs, but do override for bugs (and then file them)".
   (keyword: review-flow): `pitboss.flow.next_step` is the owner's pseudo code of
   2026-10-30 (pitboss#107), branch for branch, and `pitboss next CONFIG TICKET`
   prints the one step a ticket is at. The sweep's `RULING DUE`, `PAUSE`,
-  `RULING UNREADABLE`, `RULING ESCALATES`,
+  `RULING UNREADABLE`, `RULING ESCALATES`, `PLAN EDITED`,
   `revise the plan`, `fix the review` and `review it` lines and `slots next` take
   that step, and this file does not state it a second time. The steps are
   `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
   its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`,
-  `FIX_RULING`, `RULING_ESCALATES` and MERGE. Two clauses are by the owner's ruling: a review that approves the
+  `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED` and MERGE. Two clauses are by the owner's ruling: a review that approves the
   plan and asks for execution changes is a worker round (`fix the review`), not
   `RULING DUE` (the count, pitboss#149: the first rejection of the execution on
   an approved plan is that worker round, and the second, once a fix round came
@@ -551,8 +552,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   that no review follows gives its own step (the work it names as a worker
   round, `RULING_ESCALATES` for `escalate to the owner`, the merge for
   `execution is approved`), and a worker's push hands the PR back to the
-  ordinary review gate. A PR at `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`
-  or `RULING_ESCALATES` is offered for no round in `slots
+  ordinary review gate. A PR at `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`,
+  `RULING_ESCALATES` or `PLAN_EDITED` is offered for no round in `slots
   next`, and its ticket stays taken.
 - **An escalation says how the work got there** (keyword: how-we-got-here;
   owner, 2026-11-03, pitboss#168: if something is escalated, whether to an Opus
@@ -625,7 +626,10 @@ Only override for bugs, but do override for bugs (and then file them)".
     body differs from the digest of the newest review that approves the Plan and
     records one, and `slots next` offers the PR for no round (no fix, no review,
     no Plan revision) until a ruling `revise the plan` is recorded after that
-    review. A review with no `Plan digest:` line is not checked.
+    review. The conflict of such a PR waits too (`steps.WAITS`), and its
+    `STALL`, `UPDATE`, `CONFLICT` and `FAILED` lines wait until the Plan is
+    restored or a ruling allows the edit. A review with no `Plan digest:` line is
+    not checked.
   - **While the newest review does not approve the Plan, the only round is a
     revision of the Plan, and the review of it grades the Plan alone**
     (orchestrator, 2026-10-30, pitboss#82: on a PR whose review graded the Plan
@@ -634,12 +638,17 @@ Only override for bugs, but do override for bugs (and then file them)".
     rejected is thrown away). When the newest review of a PR has `Plan: changes
     needed`, the only work offered for it is a revision of the Plan: `slots
     next` prints the kind `revise the plan`, not `fix the review`, and the
-    sweep's PR line says `review=plan-changes-needed`. The author edits the
+    sweep's PR line says `review=plan-changes-needed`. One exception: when an
+    older review approved the Plan and recorded a `Plan digest:`, the Plan stays
+    approved (the digest compared is that review's, not the newest one's), so a
+    Plan section revised after it is `PLAN EDITED` and the PR is offered no
+    round, not `revise the plan`, until a ruling `revise the plan` is recorded
+    after the approval. A Plan not edited is offered as above. The author edits the
     `## Plan` section of the body (and, at the end, its `Head:` line) and nothing else: the code, the docs and the
     tests are not touched, the Execution section stays as it is, and the
     Execution defects the review listed are not fixed in this round. A revision
     of the Plan is a fix: what these rules say of a fix holds for it, and a PR
-    with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` is offered for none. A conflict
+    with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` is offered for none. A conflict
     with the base is merged in as usual. The revision ends with an empty commit
     pushed to the draft (`git commit --allow-empty`; a push to a draft is free),
     so that the head moves and the rejection no longer stands on it, and the
