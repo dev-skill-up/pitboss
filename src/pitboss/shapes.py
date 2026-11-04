@@ -96,11 +96,13 @@ class Outcome:
         branch: the PR's branch.
         still_open: whether the PR is open.
         merged: whether it merged.
+        merged_at: when it merged (ISO 8601), or empty.
     """
 
     branch: str
     still_open: bool
     merged: bool
+    merged_at: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

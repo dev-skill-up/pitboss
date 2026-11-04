@@ -17,6 +17,8 @@ from typing import AbstractSet, Callable, Iterable, Sequence
 from . import cleanconfig, config, container, ghapi, mounts, repocheck, survey
 from .running import Run
 
+MARKED = "holds a file named .pitboss-live"
+
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Candidate:
@@ -50,6 +52,9 @@ class Look:
         mount_points: reads the mount points of the machine.
         working: the directories the command runs in; a path that is or holds
             one is in use (keyword: clean-worktrees).
+        unmarked: the paths whose own ``.pitboss-live`` marker is not honored:
+            under disk pressure, the merged worktrees but the one whose PR
+            merged last (keyword: auto-clean).
     """
 
     run: Run
@@ -59,6 +64,7 @@ class Look:
     watch: container.Watch = container.WATCH
     mount_points: Callable[[], AbstractSet[pathlib.Path]] = mounts.current
     working: AbstractSet[pathlib.Path] = frozenset()
+    unmarked: AbstractSet[pathlib.Path] = frozenset()
 
 
 def marked_above(path: pathlib.Path) -> bool:
@@ -105,8 +111,8 @@ def live_reason(path: pathlib.Path, look: Look, found: survey.Survey) -> str:
     Returns:
         The reason, or empty when it is not live.
     """
-    if found.marked:
-        return "holds a file named .pitboss-live"
+    if found.marked and path.resolve() not in look.unmarked:
+        return MARKED
     if marked_above(path):
         return "lies under a directory that holds a .pitboss-live file"
     if on_live_path(path, look):

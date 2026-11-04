@@ -252,7 +252,8 @@ more of a file system used (`[clean] pressure_percent`) it is aggressive: tempdi
 untouched for an hour, every worktree and checkout with no open PR, and the
 package caches that regenerate. A worktree with an open PR, a running worker's
 directory (changed within the idle hours, or marked `.pitboss-live`), the main
-clone and the sweep's own directory are never touched, and a worktree with
+clone and the sweep's own directory are never touched (but under pressure a merged
+worktree's marker is ignored, except the one whose PR merged last), and a worktree with
 commits on no remote branch or a changed tracked file is kept (`KEPT WORKTREE`).
 The agent never asks the owner whether to clean, and when the classifier denies
 an `rm` it runs `uvx pitboss clean <config>` (which the allow list covers) and

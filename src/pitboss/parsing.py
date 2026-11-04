@@ -82,6 +82,7 @@ def outcomes(text: str) -> Sequence[shapes.Outcome]:
             branch=item["head"]["ref"],
             still_open=item["state"] == "open",
             merged=item.get("merged_at") is not None,
+            merged_at=item.get("merged_at") or "",
         )
         for item in json.loads(text)
     ]

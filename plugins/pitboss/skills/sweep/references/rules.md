@@ -1249,7 +1249,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   the directory or anywhere in it, or in a directory above it, or a path under
   `[clean] live`), and nothing marked is ever listed for removal: a persistent
   checkout that is not marked is removed by the next sweep once its PR has
-  merged. A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
+  merged. A marker outlives its work, so under disk pressure (the aggressive
+  clean, at `[clean] pressure_percent`) a merged worktree's own marker is not
+  honored, except on the one whose PR merged last: the older merged worktrees
+  are removed (`REMOVED WORKTREE` says its marker was ignored) and the last
+  merged one prints `KEPT WORKTREE` with `its PR merged last`. A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
   under `[clean] min_free_gib` (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look

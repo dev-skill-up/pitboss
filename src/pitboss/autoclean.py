@@ -184,7 +184,8 @@ def worktrees_part(job: Job) -> Part:
     decide = local.pressure_reason if job.hot else local.finished_reason
     if option.list_only and not job.hot:
         return Part(lines=worktrees.stale_lines(look, job.machine.now, decide), gone=[])
-    action = worktrees.Action(run=option.run, dry=option.dry)
+    weigh = worktrees.under_pressure if job.hot else worktrees.at_ease
+    action = worktrees.Action(run=option.run, dry=option.dry, weigh=weigh)
     lines = worktrees.remove_lines(look, action, job.machine.now, decide)
     return Part(lines=lines, gone=[])
 
