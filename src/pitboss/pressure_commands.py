@@ -71,11 +71,15 @@ def _record_push(found: commands.Context) -> None:
 
 
 def _git_push(args: argparse.Namespace) -> None:
+    # No git arguments: push the current branch of this worktree to origin.
+    wanted = args.git_arguments or ["origin", "HEAD"]
     try:
-        args.run(["git", "push", *args.git_arguments])
+        args.run(["git", "push", *wanted])
     except subprocess.CalledProcessError as failure:
         print(f"git push failed (exit {failure.returncode}): nothing was recorded")
-        raise SystemExit(failure.returncode)
+        print((failure.stderr or "").strip())
+        # A push that git refused never exits 0, even for a signal's status.
+        raise SystemExit(failure.returncode or 1)
 
 
 @ENTRY_DATA.register(

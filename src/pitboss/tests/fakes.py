@@ -117,7 +117,9 @@ def answer(status: int, command: Sequence[str]) -> Output:
     if status == NOT_FOUND:
         raise FileNotFoundError(command[0])
     if status:
-        raise subprocess.CalledProcessError(status, command)
+        raise subprocess.CalledProcessError(
+            status, command, output="", stderr=f"fatal: {command[0]} refused\n"
+        )
     return Output(stdout="")
 
 
