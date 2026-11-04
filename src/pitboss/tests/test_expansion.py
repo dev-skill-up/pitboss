@@ -52,6 +52,25 @@ def contents(command: str, status: int, output: str) -> str:
     return "".join(rows.splitlines(keepends=True)[1:-1])
 
 
+URL = "https://x.example/a?b=1"
+LOG = expansion.Outcome(
+    status=0, output=f"﻿Redirecting to blob download url: {URL}\r\nok\r\n"
+)
+
+
+class TestStoreForm(unittest.TestCase):
+    """What a store rewrites is not in the block (keyword: store-form, #164)."""
+
+    def test_bom_cr_and_a_wrapped_url(self) -> None:
+        """A BOM, CRs and a wrapped URL leave the printed block as it was."""
+        printed = contents("log", 0, LOG.output)
+        wrapped = printed.replace(URL, f"``{URL}``")
+        assert_that(
+            [printed, expansion.stored_form(wrapped)],
+            equal_to([f"$ log\nRedirecting to blob download url: {URL}\nok\n"] * 2),
+        )
+
+
 class TestBlock(unittest.TestCase):
     """The block of one command."""
 

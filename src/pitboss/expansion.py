@@ -21,6 +21,36 @@ MIN_FENCE = 3
 TICKS = re.compile(r"`+")
 
 
+BOM = "﻿"
+# the store wraps a URL it finds in a line in a pair of backticks (pitboss#164)
+WRAPPED_URL = re.compile(r"``(https?://[^`\s]+)``")
+
+
+def normalise(output: str) -> str:
+    """Remove what a store drops from a command's output (keyword: store-form).
+
+    Args:
+        output: what a command printed.
+
+    Returns:
+        The output without a byte order mark and without carriage returns.
+    """
+    return output.replace(BOM, "").replace("\r", "")
+
+
+def stored_form(text: str) -> str:
+    """The form of a block's lines that a store that rewrites them keeps.
+
+    Args:
+        text: the lines between the fences, as stored.
+
+    Returns:
+        The text without a byte order mark or carriage return, and with a URL
+        the store wrapped in double backticks unwrapped.
+    """
+    return WRAPPED_URL.sub(r"\1", normalise(text))
+
+
 class TemplateError(ValueError):  # noqa: SLD504,SLD401
     """A template that cannot be expanded."""
 
@@ -69,8 +99,10 @@ def info(contents: str) -> str:
 def contents(command: str, outcome: Outcome) -> str:
     """The lines of a block: the command, its output, its status when nonzero.
 
-    The output is never trimmed or filtered. One that does not end with a
-    newline gets a line saying so, so the closing fence is a line of its own.
+    The output is never trimmed or filtered, except that a byte order mark and
+    carriage returns, which a store drops, are removed (``normalise``). One
+    that does not end with a newline gets a line saying so, so the closing
+    fence is a line of its own.
 
     Args:
         command: the command line as written.
@@ -79,11 +111,12 @@ def contents(command: str, outcome: Outcome) -> str:
     Returns:
         The lines between the fences.
     """
-    ended = outcome.output.endswith("\n") or not outcome.output
+    printed = normalise(outcome.output)
+    ended = printed.endswith("\n") or not printed
     return "".join(
         [
             f"{PROMPT}{command}\n",
-            outcome.output,
+            printed,
             "" if ended else "\n" + NO_NEWLINE,
             f"exit status: {outcome.status}\n" if outcome.status else "",
         ]
