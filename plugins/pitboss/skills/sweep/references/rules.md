@@ -989,6 +989,12 @@ Only override for bugs, but do override for bugs (and then file them)".
   needed. The Plan points to CI's `Run Nox` step for the suite as the CI pointer
   rule says (the workflow, the step, a greppable string and how the run is found
   for the commit), and the PR body gives no evidence for it.
+- **A lint, check or exemption that is new or loosened ships a test for the
+  nearest input it must still reject** (pitboss#180; the quire#1038 worker
+  loosened a lint to accept a timer whose handle is kept, tested the accepted
+  form only, and a 5 s sleep spelled the same way passed). The worker brief
+  says so, and the Execution review brief makes a new or loosened lint, check
+  or exemption without that test changes needed.
 - **"This machine lacks X" is never an excuse** (owner, 2026-10-18T22:16:41Z:
   ""This machine lacks" is never an excuse unless physically impossible to
   fix."). If CI has a tool, package, browser, voice, font or setting a test
