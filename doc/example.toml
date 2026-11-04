@@ -152,6 +152,9 @@ log = "/home/user/app/.git/pitboss-slots.log"
 # config: use <path>`), unless the ledger file's "config" key is its path.
 # Default: false
 ledger-owner = true
+# The directory of the workers' transcripts (agent-<id>.jsonl with its
+# agent-<id>.meta.json), which the sweep reads for POLLING. Default: none (no line).
+transcripts = "/home/user/.claude/projects/app/subagents"
 # The models workers run on, smallest first. Default: none.
 models = ["small-model", "large-model"]
 # The ticket labels that are offered, highest priority first; a ticket with

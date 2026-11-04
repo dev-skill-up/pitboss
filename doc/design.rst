@@ -291,8 +291,8 @@ Commands
        closes the finished scratch PRs (see ``sweep``); ``--dry-run`` lists them.
    * - ``nox [-- MODULE...]``
      - The worker's local check (keyword: nox-runner, pitboss#210; see
-       **The local check** below). Runs ``nox -r -s`` for ``skills``,
-       ``tests-3.13``, ``lint`` and ``mypy``, in that order, and stops at the
+       **The local check** below). Runs ``nox -r -s`` for ``tests-3.13``,
+       ``skills``, ``lint`` and ``mypy``, in that order, and stops at the
        first that fails: exit 1 with that session's output. Words after ``--``
        are test modules, passed to the tests session only. Prints one line for
        each session that ran (name, ``success`` or ``failed``, seconds) and, on
@@ -631,11 +631,20 @@ the 90% switch, the never-touch list and the report on a fake.
 takes about seven minutes and CI's ``Run Nox`` step runs it on every push, so a
 worker running it only duplicates CI (the workers of #166 and #167 spent about
 half their time on it). ``pitboss nox`` is the one command that does the right
-thing: the ``skills`` session, the tests of one Python version, ``lint`` and
-``mypy``, each with ``-r``, stopping at the first failure; ``pitboss nox --
+thing: the tests of one Python version first (until they run there is no reason
+to lint the code), then the ``skills`` session, ``lint`` and ``mypy``, each with
+``-r``, stopping at the first failure; ``pitboss nox --
 pitboss.tests.test_gates`` runs only those test modules. The worker briefs tell
-the worker to run it after each edit and never the full ``nox -r``, and the Plan
-never names it or any nox run as its evidence (pitboss#179): the suite is CI's.
+the worker to run it after each edit and never the full ``nox -r``, never to
+run ``virtue`` by hand, to start nothing in the background that needs polling
+(one foreground command under ``timeout 598``, or one ``Monitor`` with an
+``until`` loop), and that throwing away a first design is acceptable
+(pitboss#175). The Plan never names it or any nox run as its evidence
+(pitboss#179): the suite is CI's. The sweep prints ``POLLING`` for a running
+worker with over 40 tool calls whose last 20 are ``Monitor`` calls or ``sleep``
+commands (keyword: polling), read from the transcripts in ``[slots]
+transcripts``, matching the slot's agent to the ``name`` in the transcript's
+``.meta.json``.
 The runner and the clock are injected (``noxcheck.Runner``, ``noxcheck.Clock``),
 so the tests play the order, the stop and the flags on a fake.
 

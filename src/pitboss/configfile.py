@@ -112,6 +112,22 @@ def load_scratch(name: str, start: pathlib.Path, owner: str) -> scratchconfig.Sc
         return scratchconfig.from_document(tomllib.load(stream), owner)
 
 
+def load_transcripts(name: str, start: pathlib.Path) -> pathlib.Path | None:
+    """Locate, read and parse ``[slots] transcripts`` of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+
+    Returns:
+        The directory of the workers' transcripts; None when the configuration
+        has no such key.
+    """
+    with locate(name, start).open("rb") as stream:
+        found = tomllib.load(stream).get("slots", {}).get("transcripts")
+    return None if found is None else pathlib.Path(str(found))
+
+
 def load_holds(name: str, start: pathlib.Path, owner: str) -> holdconfig.Holds:
     """Locate, read and parse the ``[holds]`` table of a configuration.
 

@@ -11,14 +11,14 @@ from . import world
 from .briefmake import has_all, has_none
 
 COMMANDS = [
-    ["nox", "-r", "-s", "skills"],
     ["nox", "-r", "-s", "tests-3.13"],
+    ["nox", "-r", "-s", "skills"],
     ["nox", "-r", "-s", "lint"],
     ["nox", "-r", "-s", "mypy"],
 ]
 SUCCESS_LINES = [
-    ["skills", "success"],
     ["tests-3.13", "success"],
+    ["skills", "success"],
     ["lint", "success"],
     ["mypy", "success"],
 ]
@@ -102,7 +102,7 @@ class TestNoxCommand(unittest.TestCase):
     """``pitboss nox`` runs four sessions in order, each with ``-r``."""
 
     def test_it_runs_the_four_sessions_in_order_with_r(self) -> None:
-        """skills, tests-3.13, lint, mypy; nothing else, never without -r."""
+        """tests-3.13 first, then skills, lint, mypy; never without -r."""
         found, calls = run_nox({})
         assert_that(calls, equal_to(COMMANDS))
         assert_that(found.code, equal_to(0))
@@ -130,7 +130,7 @@ class TestNoxCommand(unittest.TestCase):
     def test_module_names_go_to_the_tests_session_only(self) -> None:
         """Words after `--` are the tests session's posargs."""
         _, calls = run_nox({}, *MODULES)
-        expected = [COMMANDS[0], [*COMMANDS[1], *MODULES], *COMMANDS[2:]]
+        expected = [[*COMMANDS[0], *MODULES], *COMMANDS[1:]]
         assert_that(calls, equal_to(expected))
 
 
@@ -147,8 +147,8 @@ class TestNoxSessions(unittest.TestCase):
             shown,
             equal_to(
                 [
-                    "skills success 7s",
-                    "tests-3.13 success 11s",
+                    "tests-3.13 success 7s",
+                    "skills success 11s",
                     "lint success 15s",
                     "mypy success 19s",
                 ]
@@ -160,4 +160,4 @@ class TestNoxSessions(unittest.TestCase):
         bad = expansion.Outcome(status=1, output="")
         ran = noxcheck.run_sessions(lambda _: bad, clock_of(0, 2), [])
         shown = [noxcheck.line_of(each) for each in ran]
-        assert_that(shown, equal_to(["skills failed 2s"]))
+        assert_that(shown, equal_to(["tests-3.13 failed 2s"]))
