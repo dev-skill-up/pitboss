@@ -9,7 +9,7 @@ import dataclasses
 import enum
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import rulingwords, sessionurl, shapes, steps
+from . import bodydigest, plandigest, rulingwords, sessionurl, shapes, steps
 
 
 class Ci(enum.Enum):
@@ -163,6 +163,80 @@ def has_unreadable_ruling(pr: PullState) -> bool:
         True when there is a ruling and it cannot be read.
     """
     return newest_ruling(pr) is not None and readable_ruling(pr) is None
+
+
+def plan_edited_without_ruling(pr: PullState) -> bool:
+    """Whether the Plan was edited after its approval and no ruling allows it.
+
+    The newest regular review that approves the Plan and records a Plan digest
+    is the one compared (keyword: plan-digest, pitboss#172). An Opus ruling
+    ``revise the plan`` written after that review authorises the edit.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        True when the Plan section of the body is not the one that review read
+        and no such ruling was recorded after it.
+    """
+    newest = newest_plan_digest(pr)
+    if newest is None:
+        return False
+    now = bodydigest.of_section(plandigest.section(pr.pull.body))
+    if not bodydigest.changed(newest.plan_digest, now):
+        return False
+    return not plan_edit_ruled(pr, newest.when)
+
+
+def newest_plan_digest(pr: PullState) -> shapes.Graded | None:
+    """The newest regular review that approves the Plan and records its digest.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The review, or None when no review does.
+    """
+    approving = (
+        each
+        for each in pr.graded
+        if each.comment and each.plan is shapes.Verdict.APPROVED and each.plan_digest
+    )
+    return max(approving, key=lambda each: each.when, default=None)
+
+
+def plan_edit_ruled(pr: PullState, after: str) -> bool:
+    """Whether the newest ruling says ``revise the plan`` and came after a time.
+
+    Args:
+        pr: the PR.
+        after: the time of the approving review (ISO 8601).
+
+    Returns:
+        True when the newest readable Opus ruling revises the Plan and was
+        written after that time.
+    """
+    answered = readable_comment(pr)
+    return (
+        answered is not None
+        and answered[1] is rulingwords.Ruling.REVISE_THE_PLAN
+        and answered[0].created_at > after
+    )
+
+
+def ruling_hold(pr: PullState) -> steps.Next | None:
+    """The step of a PR whose rulings or approved Plan hold it, before any round.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The step to fix an unreadable ruling, or that of a Plan edited with no
+        ruling to allow it; None when neither holds.
+    """
+    if has_unreadable_ruling(pr):
+        return steps.fix_ruling(unreadable_ruling_comment(pr))
+    return steps.plan_edited() if plan_edited_without_ruling(pr) else None
 
 
 def unreadable_ruling_comment(pr: PullState) -> str:

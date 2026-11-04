@@ -289,6 +289,16 @@ Commands
        pitboss#120; see **Automatic cleaning** below): removes at once, with no
        dry run unless ``--dry-run``. The answer to a denied ``rm``. It also
        closes the finished scratch PRs (see ``sweep``); ``--dry-run`` lists them.
+   * - ``nox [-- MODULE...]``
+     - The worker's local check (keyword: nox-runner, pitboss#210; see
+       **The local check** below). Runs ``nox -r -s`` for ``skills``,
+       ``tests-3.13``, ``lint`` and ``mypy``, in that order, and stops at the
+       first that fails: exit 1 with that session's output. Words after ``--``
+       are test modules, passed to the tests session only. Prints one line for
+       each session that ran (name, ``success`` or ``failed``, seconds) and, on
+       success, that CI's ``Run Nox`` step is the proof of the whole suite.
+       Runs no other session: docs, dry_release and the other Python versions
+       are CI's.
    * - ``expand TEMPLATE [--cwd DIR]``
      - A PR body whose evidence is produced, never typed (pitboss#117; see
        **Expanding a template** below). Prints TEMPLATE with each directive
@@ -306,11 +316,14 @@ Commands
        obeys the same liveness, idle and safety rules as any dead path.
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
-   * - ``slots show|set|free|add|remove|failed|check|next CONFIG ...``
+   * - ``slots show|set|free|add|remove|failed|check|next|report|time CONFIG ...``
      - The worker-slot ledger, and the sorted list of what to start next. Every
-       one but ``report`` exits 1 with ``LEDGER MISSING`` and writes nothing when
+       one but ``report`` and ``time`` exits 1 with ``LEDGER MISSING`` and writes nothing when
        the ledger file does not exist (the owner creates it; only ``sweep`` starts
-       one from the configured defaults). ``check`` takes ``--running NAME ...``
+       one from the configured defaults). ``set`` takes ``--kind`` (``start``,
+       ``review``, ``fix`` or ``ruling``), records the ticket the task works on
+       and is refused when the ticket cannot be named; a ``set`` with the same
+       agent and ``--kind fix`` resumes the running agent as an entry. ``check`` takes ``--running NAME ...``
        and an optional number N: it exits 1 when the ledger has fewer than N rows.
        ``free`` prints the ledger, then the ``EMPTY SLOT`` line that ``next``
        gives the freed slot (one function, ``nextview.refill_line``), or
@@ -371,12 +384,12 @@ the relock prefix (``relock/`` by default) and whose required check, named ``che
 been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
-a stall before every other pull request but the merge of a ready one, unless the PR also has ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE``), then
+a stall before every other pull request but the merge of a ready one, unless the PR also has ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED``), then
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
-current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (``pitboss.flow.next_step`` gives the step,
-``pitboss.roundline`` prints; see **Review rounds** below), then
+current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (``pitboss.flow.next_step`` gives the step,
+``pitboss.roundline`` and ``pitboss.planeditline`` print; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, and the review of a revised plan are started by its author's
@@ -401,7 +414,7 @@ is no line; a head the Opus ruling
 approved gets ``READY TO MERGE`` instead).
 
 **Body fixes** (pitboss#147). A review may record the PR body it read in a
-``Body: <digest>`` line (``pitboss body-digest FILE``; REST has no edit time
+``Body: <digest>`` line (``pitboss body-digest FILE``, and ``pitboss plan-digest FILE`` for the ``Plan digest:`` line of the Plan section; REST has no edit time
 for a body). When the newest review of the head records a digest other than the
 body's now, the standing is ``older-body``, the review does not count in
 ``flow.newest_counting_review``, and ``slots next`` offers the PR as ``review
@@ -466,10 +479,10 @@ the first step. A ruling comment without a ``How we got here`` section (an
 analysis of each rejection before the ruling: ``pitboss.analysis``, pitboss#168)
 is read and followed all the same; the sweep says so with ``RULING NO ANALYSIS``
 (``pitboss.analysisline``). The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
-``RULING ESCALATES``, ``revise the plan``,
+``RULING ESCALATES``, ``PLAN EDITED``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
 GitHub's own reviews are no regular review and count nowhere in the flow. A PR
-at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING`` or ``RULING_ESCALATES`` is
+at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING``, ``RULING_ESCALATES`` or ``PLAN_EDITED`` is
 offered for no fix or review round in ``slots next``, and its ticket stays taken.
 
 **Findings in one round** (keyword: all-findings, pitboss#169). The brief of a
@@ -614,6 +627,18 @@ user id, the home directory and the file system are injected
 (``autoclean.Machine``, ``autoclean.Filesystem``), so the tests play the ages,
 the 90% switch, the never-touch list and the report on a fake.
 
+**The local check** (keyword: nox-runner, pitboss#210). The full ``nox -r``
+takes about seven minutes and CI's ``Run Nox`` step runs it on every push, so a
+worker running it only duplicates CI (the workers of #166 and #167 spent about
+half their time on it). ``pitboss nox`` is the one command that does the right
+thing: the ``skills`` session, the tests of one Python version, ``lint`` and
+``mypy``, each with ``-r``, stopping at the first failure; ``pitboss nox --
+pitboss.tests.test_gates`` runs only those test modules. The worker briefs tell
+the worker to run it after each edit and never the full ``nox -r``, and the Plan
+never names it or any nox run as its evidence (pitboss#179): the suite is CI's.
+The runner and the clock are injected (``noxcheck.Runner``, ``noxcheck.Clock``),
+so the tests play the order, the stop and the flags on a fake.
+
 **Expanding a template** (keyword: expand, pitboss#117). Workers typed
 evidence from inference and got it wrong (a count of five for six commits, a
 mutation run described in prose, a block that dropped a line of output). The
@@ -739,8 +764,8 @@ then names the five largest safe dead paths; it scans for them only then. The fr
 (``args.usage``), so a test gives the figure.
 
 **Slots.** The ledger is a JSON file: each slot's name, model, agent, task,
-whether the agent waits, and the tickets each model has failed. ``set``
-refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``models``; a
+ticket, kind, whether the agent waits, and the tickets each model has failed. ``set``
+refuses an occupied slot, except a ``--kind fix`` set with the same agent (a fix round that resumes it), ``remove`` an occupied one, ``add`` a model not in ``models``; a
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
@@ -762,7 +787,8 @@ listed at most once. The eight kinds:
   ``FIRST_ROUND``: the PR has no such body;
 * ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
   head that conflicts with the base, at any stage but while the PR waits for
-  a ruling or the owner (``steps.WAITS``, the ``paused-owner`` label and
+  a ruling, the owner or the restoring of an edited approved Plan
+  (``steps.WAITS``, ``PLAN_EDITED`` included, the ``paused-owner`` label and
   ``RULING UNREADABLE``);
 * ``do the ruling's steps``: step ``WORKER``, task ``RULING_STEPS``: the
   newest readable Opus ruling says ``do these steps`` and no review follows it;
@@ -776,7 +802,7 @@ listed at most once. The eight kinds:
   plan-only review, listed with no CI, since a draft runs none, before every
   new ticket (pitboss#156); a draft is undrafted only once its Plan is approved.
 
-A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (above) is listed as none of these.
+A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR, except a ticket of a repository under
@@ -792,12 +818,16 @@ listed again when the blocker closes or merges.
 overwrites its own timestamps, so idle and waiting time could only be
 estimated (dev-skill-up/pitboss#17). Every ``slots`` change therefore also
 appends a JSON line to ``[slots] log`` for each slot whose state (running,
-waiting or empty), agent or task now differs from its last line, or that is
+waiting or empty), agent, task, ticket or kind now differs from its last line,
+for every ``slots set`` even when it equals the last line (a ``begun`` entry,
+as a fix round that resumes the agent), or that is
 new to the log or gone from the ledger (state ``removed``, which ends its
 slot time). ``slots report CONFIG [--since T] [--until T]`` replays the log:
 each line lasts until the slot's next line (or the window's end), is cut to
 the window, and the seconds in each state are printed as shares, for each
-slot and for all slots together.
+slot and for all slots together. ``slots time CONFIG [--since T] [--until T]``
+replays it too: the worker minutes (running, not waiting) of each ticket, the
+count of ``set`` entries behind each total, and the median and mean over tickets.
 
 Nothing predicts which files a ticket will touch (an earlier version held
 back a ticket whose backticked paths an open PR changed; the owner dropped
@@ -808,7 +838,7 @@ merging the base branch in when it arises.
 The open PRs are ordered oldest first by creation time, and the tickets by
 ``priority_labels`` first and then oldest first by creation time (the one
 exception is a ``STALL`` line of the sweep, whose fix the skill's rules take
-before every line of this list; a PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` has no line
+before every line of this list; a PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` has no line
 in it). Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty

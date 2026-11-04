@@ -1,4 +1,7 @@
-"""The slot log: every change of a slot's state, and the time spent in each."""
+"""The slot log: every change of a slot's state, task, ticket or kind.
+
+It also gives the time spent in each state and on each ticket.
+"""
 
 import dataclasses
 import datetime

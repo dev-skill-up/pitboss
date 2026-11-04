@@ -120,7 +120,7 @@ class Slots:
 
     Attributes:
         ledger: the ledger file.
-        log: the slot log, one line for each change of a slot's state.
+        log: the slot log, a line for each change of state, task, ticket, kind.
         default: the slots a new ledger starts with.
         models: the models, smallest first.
         priority_labels: the ticket labels that are offered, highest first.

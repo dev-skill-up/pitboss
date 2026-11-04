@@ -58,6 +58,23 @@ LOCAL = (
     " with a longer limit. Never leave a command running, and never write under"
     " /dev."
 )
+NOX = (
+    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
+    " each edit (the skills, the tests of one Python version, lint and mypy, each"
+    " with `-r`, stopping at the first failure; module names after `--` run only"
+    " those tests), and never the full `nox -r`: CI's `Run Nox` step runs the"
+    " whole suite."
+)
+PLAN_NO_NOX = (
+    "CI evidence: the Plan never names `pitboss nox` or any nox run as its"
+    " evidence (pitboss#179: a Plan asks for no evidence that CI shows); the whole"
+    " suite is CI's `Run Nox` step, and the PR body points to it."
+)
+PLAN_NO_NOX_REVIEW = (
+    "CI evidence: a Plan that names `pitboss nox` or any nox run as its evidence"
+    " is changes needed (pitboss#179: a Plan asks for no evidence that CI shows);"
+    " the whole suite is CI's `Run Nox` step."
+)
 PUSH_HELD = (
     "Push: push with `uvx pitboss push {config} --no-dry-run` (add `--draft` for a"
     " draft PR), after every commit. Under a hold it exits 1 and pushes nothing:"
@@ -183,6 +200,25 @@ GATED = (
     "Gated: this repository's review-gate.yml reads the comment, and the merge"
     " waits for it: {note}. A comment that breaks any of it leaves the status"
     " `adversarial-review` pending."
+)
+PLAN_DIGEST = (
+    "Plan digest: you grade the Plan, so run `uvx pitboss plan-digest"
+    " <scratchpad>/body.txt` on the PR body you saved for the `Body:` line, and"
+    " add the one line it prints (`Plan digest: <digest>`) to the comment, beside"
+    " the `Plan:` line. The sweep prints `PLAN EDITED` when the Plan section of"
+    " the body later differs from it, and offers the PR for no round until an Opus"
+    " ruling allows the edit."
+)
+NO_PLAN_EDIT = (
+    "Approved Plan: do not edit the Plan section of an approved PR; hand back a"
+    " Plan problem as NOT PROCEEDING with the evidence."
+)
+NO_PLAN_FINDING = (
+    "Approved Plan: it is never reopened. A finding that asks for an edit of the"
+    " Plan (a row, a test or a command added to it) is no finding of the"
+    " Execution: do not post it as one and never ground changes needed on it;"
+    " write it as a note for an Opus ruling, and judge the Execution against the"
+    " Plan as written."
 )
 BODY_DIGEST = (
     "Body: the PR body is part of what you read. Before posting, save it with `gh"

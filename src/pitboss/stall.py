@@ -5,8 +5,8 @@ default ``relock/``) whose required check has been red for over four hours,
 counted from the run's completion, is a stall: the next relock fails on the
 same errors until the fix lands, so the skill's rules take its fix before every
 other pull request but the merge of a ready one, unless the PR also has RULING
-DUE, RULING UNREADABLE, RULING ESCALATES or PAUSE (keyword: review-flow), when
-it waits for the ruling or the owner first.
+DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE or PLAN EDITED (keyword:
+review-flow), when it waits for the ruling or the owner first.
 """
 
 import datetime
@@ -81,5 +81,6 @@ def lines(
         f" {_seconds_text(red)} ({red} seconds, over {STALL_SECONDS}); failing"
         f" steps: {jobs}; fix it before every other pull request but the merge"
         " of a ready one, unless it has RULING DUE, RULING UNREADABLE, RULING"
-        " ESCALATES or PAUSE (then it waits for the ruling or the owner)"
+        " ESCALATES, PAUSE or PLAN EDITED (then it waits for the ruling or the"
+        " owner)"
     ]
