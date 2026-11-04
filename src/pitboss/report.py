@@ -68,8 +68,8 @@ def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
     clean = pull.pull.mergeable_state is shapes.MergeState.CLEAN
     ruled = pull.step.step is steps.Step.MERGE and not pulls.approved(pull)
     ready = pulls.green(pull) and clean and (pulls.approved(pull) or ruled)
-    if not ready or pull.pull.auto_merge:
-        return None
+    if not ready or pull.pull.auto_merge or pull.signals.gate:
+        return None  # keyword: review-gate: a pending gate is no READY TO MERGE
     name = pulls.reference(pull)
     if _by_hand(pull, settings):
         why = "execution approved by the Opus ruling" if ruled else "approved"

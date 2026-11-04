@@ -10,7 +10,13 @@ uvx pitboss review-form <config> <repository>
 
 It prints the form's lines, with `{sha}` standing for the head you reviewed
 and `{verdict}` for the verdict (it names the two verdict words), and says
-whether the repository is gated.
+whether the repository is gated. A repository that has
+`.github/workflows/review-gate.yml` on its default branch is gated, whatever
+the configuration says, and `review-form` prints the form that workflow
+accepts (its first line, `Verdict:` line and `Reviewed:` line, and what else
+it refuses); it says `not gated` only for a repository with no such workflow.
+Post exactly that form: a gate that cannot read the comment keeps the status
+`adversarial-review` pending and the merge is refused.
 
 ## The rules
 

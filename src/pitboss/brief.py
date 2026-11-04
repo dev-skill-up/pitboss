@@ -147,12 +147,15 @@ class Rules:
         form: the lines of the review form, filled in for this PR.
         footer: the line a PR body ends with, empty when none is required.
         project: what the project's briefs say beyond the process.
+        gate_note: what a gated repository's gate also requires of the comment
+            (keyword: review-gate, pitboss#166), empty when it is not gated.
     """
 
     config: str
     form: Sequence[str]
     footer: str
     project: briefconfig.Brief
+    gate_note: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -259,6 +262,11 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     return [
         *_filled(head, values),
         *(f"    {line}" for line in spec.rules.form),
+        *(
+            [text.GATED.format(note=spec.rules.gate_note)]
+            if spec.rules.gate_note
+            else []
+        ),
         *_filled([text.BODY_DIGEST], values),
         text.HONEST,
         *tail,

@@ -42,6 +42,14 @@ What was project-specific, and where it went
        form is ``## Review`` / ``Reviewed: {sha}`` / ``Verdict: {verdict}``
        with ``approved`` and ``changes needed``; ``gated_form`` defaults to
        ``form``
+   * - a repository with ``.github/workflows/review-gate.yml`` needs the form
+       that file accepts
+     - read from the file on the default branch (``gates.py``; keyword:
+       review-gate): such a repository is gated, in the file's first line,
+       ``Verdict:`` line and ``Reviewed:`` line, whatever ``[review]
+       gated_form`` says; ``review-form`` prints it, the reviewer brief quotes
+       it, and the sweep prints ``GATE PENDING`` while the status
+       ``adversarial-review`` of the head is not success
    * - an approval survives a merge of main, except in gated repositories
      - built in: it is what "gated" means
    * - the 20 shared runners, and which repositories share them
@@ -222,7 +230,11 @@ Commands
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
        against ``--head`` (``head``); with ``--gated`` the lines of
        ``[review.gated_form]`` are read as a gate reads them, each once
-       (``exact``), in plain ASCII (``plain``), with the full SHA.
+       (``exact``), in plain ASCII (``plain``), with the full SHA. With
+       ``--gated --repository NAME`` the form is the one ``review-form`` prints
+       for that repository (its ``review-gate.yml`` read through the default
+       branch, else the configured form), not ``[review.gated_form]``, which
+       may differ from the gate's.
        ``brief``: every ``[lint.brief] required`` line start begins a line
        (``required-line``), and with ``--ticket`` each line of the ticket's
        Done-when section is in the brief word for word (``done-when``).
@@ -348,7 +360,8 @@ api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
 sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
-finished and none failed, state ``clean``, an approving review of this head, or for an
+finished and none failed, state ``clean``, in a gated repository the head's
+``adversarial-review`` status is success (else ``GATE PENDING``), an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
 base branch, or the flow's step is the merge because the newest readable Opus
 ruling says ``execution is approved`` and no review follows it) or, in a

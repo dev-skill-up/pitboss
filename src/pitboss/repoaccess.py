@@ -3,7 +3,7 @@
 import dataclasses
 from typing import Mapping
 
-from . import config, ghapi
+from . import config, gates, ghapi
 from .markers import Marker
 
 
@@ -33,6 +33,8 @@ def without(settings: config.Config, failures: Mapping[str, str]) -> config.Conf
 def readable(github: ghapi.GitHub, settings: config.Config) -> config.Config:
     """Leave out, and report, the libraries this session cannot read.
 
+    The repositories left are read for their review gates (``gates.settled``).
+
     Args:
         github: the API.
         settings: the configuration.
@@ -53,4 +55,4 @@ def readable(github: ghapi.GitHub, settings: config.Config) -> config.Config:
         )
     if settings.project.repo.slug in failures:
         raise SystemExit(f"cannot read {settings.project.repo.slug}")
-    return without(settings, failures)
+    return gates.settled(github, without(settings, failures))

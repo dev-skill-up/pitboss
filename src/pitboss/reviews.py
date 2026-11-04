@@ -318,7 +318,8 @@ def newest(sources: Sources, review: config.Review, slug: str) -> Found | None:
     Returns:
         The newest review, or None.
     """
-    found = _gated(sources, review) if slug in review.gated else _open(sources, review)
+    gated = slug in review.gated
+    found = _gated(sources, review, slug) if gated else _open(sources, review)
     return max(found, key=lambda item: item.when, default=None)
 
 
@@ -333,13 +334,13 @@ def rules(review: config.Review, slug: str) -> tuple[Reader, config.ReviewForm]:
         The reader (strict where gated) and the form it reads.
     """
     if slug in review.gated:
-        return read_gated, review.gated_form
+        return read_gated, review.gate_forms.get(slug, review.gated_form)
     return read_comment, review.form
 
 
-def _gated(sources: Sources, review: config.Review) -> Sequence[Found]:
-    trusted, form = review.trusted, review.gated_form
-    return list(from_comments(sources.comments, trusted, read_gated, form))
+def _gated(sources: Sources, review: config.Review, slug: str) -> Sequence[Found]:
+    form = rules(review, slug)[1]
+    return list(from_comments(sources.comments, review.trusted, read_gated, form))
 
 
 def _open(sources: Sources, review: config.Review) -> Sequence[Found]:

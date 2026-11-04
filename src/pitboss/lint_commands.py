@@ -4,6 +4,7 @@ import argparse
 import functools
 import json
 import pathlib
+import subprocess
 import sys
 from typing import Callable, Mapping, Sequence, TypeVar
 
@@ -15,9 +16,12 @@ from . import (
     config,
     contradictions,
     forms,
+    gates,
+    ghapi,
     phrases,
     relock,
     repoarg,
+    reviews,
     sessionurl,
     textlint,
 )
@@ -122,8 +126,21 @@ def _review_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
     if args.gated:
-        return forms.gated_review(subject, settings.review.gated_form)
+        return forms.gated_review(subject, _gated_form(args, settings))
     return forms.ordinary_review(subject, settings.review.form)
+
+
+def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.ReviewForm:
+    # keyword: review-gate (pitboss#166): --repository is the form review-form prints
+    if not args.repository:
+        return settings.review.gated_form
+    if args.config is None:
+        raise _fail("--repository needs --config")
+    full = commands.load_settings(args)
+    repo = repoarg.named_repo(args.repository, full)
+    workflow = _read_gate(args, repo)
+    review = gates.with_gates(full.review, {repo.slug: workflow} if workflow else {})
+    return reviews.rules(review, repo.slug)[1]
 
 
 def _brief_findings(
@@ -252,7 +269,13 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         "--gated",
         action="store_true",
         default=False,
-        help="review: read the configured gated form, strictly, as a gate does",
+        help="review: read the configured gated form, strictly, as a gate does"
+        " (with --repository, the form review-form prints for it)",
+    ),
+    add_argument(
+        "--repository",
+        default="",
+        help="review --gated: the repository, whose review-gate.yml gives the form",
     ),
     add_argument(
         "--ticket",
@@ -277,6 +300,25 @@ BODY_NOTE = (
 )
 
 
+def _gate_source(repo: config.Repo, gate: gates.Gate) -> str:
+    where = f"# the form is read from {gates.WORKFLOW} of {repo.slug}"
+    if gate.form is not None:
+        return f"{where} (its default branch)"
+    return (
+        f"{where}, which this cannot read: read the file; the configured gated"
+        " form follows, and may not be the gate's"
+    )
+
+
+def _read_gate(args: argparse.Namespace, repo: config.Repo) -> gates.Gate | None:
+    # keyword: review-gate (pitboss#166): the form is the repository's own
+    try:
+        return gates.read(ghapi.GitHub(run=args.safe_run, mutate=args.safe_run), repo)
+    except subprocess.CalledProcessError as error:
+        status = ghapi.status_of(error)
+        raise SystemExit(f"cannot read {gates.WORKFLOW} of {repo.slug}: {status}")
+
+
 @ENTRY_DATA.register(
     commands.CONFIG_ARGUMENT, add_argument("repository"), name="review-form"
 )
@@ -288,18 +330,21 @@ def review_form(args: argparse.Namespace) -> None:
     """
     settings = commands.load_settings(args)
     repo = repoarg.named_repo(args.repository, settings)
-    gated = repo.slug in settings.review.gated
-    form = settings.review.gated_form if gated else settings.review.form
+    workflow = _read_gate(args, repo)
+    read = {repo.slug: workflow} if workflow else {}
+    review = gates.with_gates(settings.review, read)
+    form = reviews.rules(review, repo.slug)[1]
+    gated = repo.slug in review.gated
     print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")
+    if workflow is not None:
+        print(_gate_source(repo, workflow))
     print(
         f"# {{sha}}: the full head SHA; {{verdict}}: {form.approved!r} or"
         f" {form.changes_needed!r}"
     )
     if gated:
-        print(
-            "# first line exactly as below; each line below once; ASCII only;"
-            " no code fences, HTML or link definitions"
-        )
+        trusted = workflow.trusted if workflow else sorted(review.trusted)
+        print(f"# {gates.note(trusted)}")
     for line in form.lines:
         print(line)
     print(BODY_NOTE)
