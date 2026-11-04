@@ -4,6 +4,17 @@ Like those of ``brieftext``, they are pinned by tests, so a change to them is a
 reviewed code change.
 """
 
+PLAN_NO_NOX = (
+    "CI evidence: the Plan never names `pitboss nox` or any nox run as its"
+    " evidence (pitboss#179: a Plan asks for no evidence that CI shows); the whole"
+    " suite is CI's `Run Nox` step, which the Plan points to as the CI pointer"
+    " rule says."
+)
+PLAN_NO_NOX_REVIEW = (
+    "CI evidence: a Plan that names `pitboss nox` or any nox run as its evidence"
+    " is changes needed (pitboss#179: a Plan asks for no evidence that CI shows);"
+    " the whole suite is CI's `Run Nox` step."
+)
 PLAN_CI_POINTER = (
     "CI pointer: a Plan row whose result a CI run of the commit shows asks for no"
     " long local command (a whole suite or build, or anything over `timeout"

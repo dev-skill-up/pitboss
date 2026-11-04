@@ -780,7 +780,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
   says: `Plan: open the PR as a draft whose body has a Plan section (what you
   will change, and why that satisfies each Done-when line) and an Execution
-  section (what you did, with each command and its raw output); never mark it
+  section (what you did, with each command and its raw output for what CI does
+  not show); never mark it
   ready.` `Plan revision: when the newest review did not approve the plan, edit
   the ## Plan section of the PR body only; touch no code, doc or test (a merge
   of the base for a conflict excepted), fix none of the Execution defects, end
@@ -804,7 +805,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - **Evidence line** (keyword: expand, pitboss#117; workers typed evidence from
   inference and got counts, mutation runs and output wrong). Evidence, counts
   and file contents in a PR body come only from `pitboss expand`, never from
-  the worker's hand. A worker brief says: `Evidence: write the body as a
+  the worker's hand (a row the Plan points to CI has the pointer in the Plan
+  and no row in the body, pitboss#179). A worker brief says: `Evidence: write the body as a
   template in which every fact is a line "$ <command>" (the head is "$ git
   rev-parse HEAD", a count is "$ git log origin/main..HEAD --oneline | wc -l",
   a file is "$ cat < path", a mutation run is "$ sh scripts/<script>" of a
@@ -818,7 +820,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   block too) that is not inside a block expand produced.` A reviewer brief
   says: `Evidence: every "$ " block in the Evidence is one pitboss expand
   marked (lint pr-body checks the mark); a command that is not the one the
-  claim needs, or a claim with no command, is changes needed.` The commands run with the permissions of whoever
+  claim needs, or a claim with no command (one CI shows has its pointer in the
+  Plan instead), is changes needed.` The commands run with the permissions of whoever
   runs expand, so a template is only ever the worker's own (`design.rst`,
   "Expanding a template").
 - **Try-commands, expand-rows and search lines** (keyword: dry-run, pitboss#170;
@@ -981,7 +984,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   whole suite (every Python version, docs, dry_release) is CI's `Run Nox` step,
   so a Plan never names `pitboss nox` or any nox run as its evidence (it is
   evidence available from CI, pitboss#179), and a Plan that names one is changes
-  needed. The PR body points to CI's `Run Nox` step for the suite.
+  needed. The Plan points to CI's `Run Nox` step for the suite as the CI pointer
+  rule says (the workflow, the step, a greppable string and how the run is found
+  for the commit), and the PR body gives no evidence for it.
 - **"This machine lacks X" is never an excuse** (owner, 2026-10-18T22:16:41Z:
   ""This machine lacks" is never an excuse unless physically impossible to
   fix."). If CI has a tool, package, browser, voice, font or setting a test

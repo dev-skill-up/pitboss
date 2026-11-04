@@ -88,7 +88,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.CHECK,
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
-        text.PLAN_NO_NOX_REVIEW,
+        brieftextci.PLAN_NO_NOX_REVIEW,
         brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_COMMANDS_EXECUTION,
@@ -109,7 +109,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.MISSED_EARLIER,
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
-        text.PLAN_NO_NOX_REVIEW,
+        brieftextci.PLAN_NO_NOX_REVIEW,
         brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_DIGEST,
@@ -269,7 +269,7 @@ def _plan_lines(kind: Kind) -> list[str]:
     writes = kind in PLAN_WRITERS
     runs = kind in PLAN_RUNNERS
     return [
-        *([text.TRY_COMMANDS, text.PLAN_NO_NOX] if writes else []),
+        *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
         *([brieftextci.PLAN_CI_POINTER] if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER] if runs else []),

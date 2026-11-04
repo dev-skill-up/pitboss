@@ -38,7 +38,8 @@ BODY = (
     ' rev-parse HEAD"), never retyped; check it with `uvx pitboss lint pr-body'
     " BODYFILE --config {config} --head <the head>`, which must print ok; after"
     " every PATCH of the body, fetch the stored body back (parsed with python3"
-    " json) and lint that file the same way."
+    " json) and lint that file the same way. A row the Plan points to CI has no"
+    " row in the body."
     "{footer_note}"
 )
 FOOTER_NOTE = " It ends with only this line: {footer}"
@@ -65,16 +66,6 @@ NOX = (
     " mypy, each with `-r`, stopping at the first failure; module names after `--`"
     " run only those tests), and never the full `nox -r`: CI's `Run Nox` step runs"
     " the whole suite."
-)
-PLAN_NO_NOX = (
-    "CI evidence: the Plan never names `pitboss nox` or any nox run as its"
-    " evidence (pitboss#179: a Plan asks for no evidence that CI shows); the whole"
-    " suite is CI's `Run Nox` step, and the PR body points to it."
-)
-PLAN_NO_NOX_REVIEW = (
-    "CI evidence: a Plan that names `pitboss nox` or any nox run as its evidence"
-    " is changes needed (pitboss#179: a Plan asks for no evidence that CI shows);"
-    " the whole suite is CI's `Run Nox` step."
 )
 PUSH_HELD = (
     "Push: push with `uvx pitboss push {config} --no-dry-run` (add `--draft` for a"

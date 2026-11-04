@@ -67,7 +67,8 @@ Post exactly that form: a gate that cannot read the comment keeps the status
   retype or abbreviate output (a file is shown with `$ cat < path`). Every
   `$ ` row of the body is in a block that `pitboss expand` marked, which
   `pitboss lint pr-body` checks; a command that is not the one the claim
-  needs, or a claim with no command, is changes needed.
+  needs, or a claim with no command (one CI shows has its pointer in the Plan
+  instead), is changes needed.
 - The verdict is one of the two words, nothing else.
 - Post as a comment on the PR (an issue comment), from an account the
   repository trusts. You are not done until it is posted: a verdict in your

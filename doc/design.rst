@@ -726,7 +726,8 @@ not close a block. The ``evidence`` check and this one share one definition of
 the section: an ATX heading (one to six ``#``, a space or a tab, up to 3
 spaces of indentation) whose title starts with Evidence, to the next heading of
 the same or a higher level, fences respected; ``evidence`` requires a produced
-block inside it. A block edited after ``expand`` (one changed character breaks
+block inside it (a row the Plan points to CI needs none: the Plan holds its
+pointer, pitboss#179). A block edited after ``expand`` (one changed character breaks
 the digest) is refused. The digest is not a secret: it detects a block that
 is typed or edited by mistake, and a person who computes it has gone round the rule on purpose.
 
