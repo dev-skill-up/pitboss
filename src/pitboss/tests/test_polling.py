@@ -11,6 +11,7 @@ from hamcrest import assert_that, equal_to
 from .. import ledger, polling
 from . import fakes, test_handback, world
 
+Call = tuple[str, str]
 MARKER = "POLLING"
 MONITOR = ("Monitor", "")
 SLEEP = ("Bash", "sleep 295; echo tick")
@@ -90,11 +91,31 @@ def held(waiting: bool) -> ledger.Ledger:
     return dataclasses.replace(test_handback.held(""), slots=(kept,))
 
 
-POLLING_CALLS = [READ] * 21 + [MONITOR] * 20
-CASES: Mapping[str, tuple[Sequence[tuple[str, str]], bool, int]] = {
+def runs(*each: tuple[Call, int]) -> Sequence[Call]:
+    """Calls made in runs.
+
+    Args:
+        *each: a call and how many times it is made in a row.
+
+    Returns:
+        The calls, in order.
+    """
+    return [call for call, count in each for _ in range(count)]
+
+
+POLLING_CALLS = runs((READ, 21), (MONITOR, 20))
+CASES: Mapping[str, tuple[Sequence[Call], bool, int]] = {
     "polling": (POLLING_CALLS, False, 1),
-    "working": ([MONITOR] * 30 + [WORK] + [MONITOR] * 15, False, 0),
-    "waiting": ([MONITOR] * 50, True, 0),
+    "working": (runs((MONITOR, 30), (WORK, 1), (MONITOR, 15)), False, 0),
+    "waiting": (runs((MONITOR, 50)), True, 0),
+}
+VERDICTS: Mapping[str, tuple[Sequence[Call], bool]] = {
+    "41, both waits": (runs((READ, 21), (MONITOR, 10), (SLEEP, 10)), True),
+    "40": (runs((READ, 20), (MONITOR, 20)), False),
+    "41, one nox run": (
+        runs((READ, 30), (MONITOR, 9), (WORK, 1), (MONITOR, 10)),
+        False,
+    ),
 }
 
 
@@ -103,13 +124,9 @@ class TestPolls(unittest.TestCase):
 
     def test_the_count_and_the_last_twenty(self) -> None:
         """Over 40, not 40; a call of work among the last twenty ends it."""
-        cases = {
-            "41, both waits": ([READ] * 21 + [MONITOR, SLEEP] * 10, True),
-            "40": ([READ] * 20 + [MONITOR] * 20, False),
-            "41, one nox run": ([READ] * 30 + [MONITOR] * 9 + [WORK] + [MONITOR] * 10, False),
-        }
-        found = {name: polling.polls(made) for name, (made, _) in cases.items()}
-        assert_that(found, equal_to({name: want for name, (_, want) in cases.items()}))
+        for name, (made, want) in VERDICTS.items():
+            with self.subTest(name):
+                assert_that(polling.polls(made), equal_to(want))
 
     def test_only_a_sleeping_shell_call_waits(self) -> None:
         """A shell call without sleep, or another tool with it, does not."""
