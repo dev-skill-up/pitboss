@@ -6,9 +6,9 @@ from typing import AbstractSet, Callable, Sequence
 
 from . import (
     bodydigest,
-    checkruns,
     config,
     flow,
+    headchecks,
     ghapi,
     mergesonly,
     parsing,
@@ -16,9 +16,23 @@ from . import (
     reviews,
     shapes,
     steps,
-    supersede,
     unreadableform,
 )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class StrayComments:
+    """The comments of a PR that try to be reviews and are not in the form.
+
+    Attributes:
+        newer: when a newer comment that tries to be a review but is not in
+            the form was written (it is ignored), else empty.
+        graded: the trusted comments that grade a review but are not in the
+            review form.
+    """
+
+    newer: str = ""
+    graded: Sequence[unreadableform.UnreadableReview] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -31,10 +45,9 @@ class PullFacts:
         checks: the check runs of its head.
         review: its newest review that counts.
         standing: where its head stands with that review.
-        unread: when a newer comment that tries to be a review but is not in
-            the form was written (it is ignored), else empty.
-        unreadable_reviews: the trusted comments that grade a review but are
-            not in the review form (keyword: unreadable-review).
+        signals: what may block it besides its checks (keyword: red-status).
+        unreadable: its comments that try to be reviews and are not (keyword:
+            unreadable-review).
         step: the one step the PR is at (keyword: review-flow).
         merges_only: only merges of the base since an older full approval.
         relock: whether its head branch starts with the relock prefix
@@ -46,8 +59,10 @@ class PullFacts:
     checks: Sequence[shapes.CheckRun]
     review: reviews.Found | None
     standing: reviews.Standing
-    unread: str = ""
-    unreadable_reviews: Sequence[unreadableform.UnreadableReview] = ()
+    signals: headchecks.HeadSignals = dataclasses.field(
+        default_factory=headchecks.HeadSignals
+    )
+    unreadable: StrayComments = dataclasses.field(default_factory=StrayComments)
     step: steps.Next
     merges_only: bool = False
     relock: bool = False
@@ -242,41 +257,26 @@ class Fetched:
         labels: its labels.
         posted: its comments and GitHub reviews.
         checks: the check runs of its head.
+        statuses: the newest commit status of each context of its head.
     """
 
     pull: shapes.Pull
     labels: AbstractSet[str]
     posted: reviews.Sources
     checks: Sequence[shapes.CheckRun]
-
-
-def _head_checks(
-    source: Source, repo: config.Repo, head: str
-) -> Sequence[shapes.CheckRun]:
-    path = f"repos/{repo.slug}/commits/{head}/check-runs"
-    found = ghapi.pages(source.github, path, parsing.check_runs)
-    current = checkruns.current_checks(found, head)
-    if not any(check.failed for check in current):
-        return current
-    posted = ghapi.pages(
-        source.github, f"repos/{repo.slug}/commits/{head}/status", parsing.statuses
-    )
-
-    def workflow_of(run: int) -> str:
-        text = ghapi.get(source.github, f"repos/{repo.slug}/actions/runs/{run}")
-        return parsing.run_path(text)
-
-    return supersede.settle(current, posted, workflow_of)
+    statuses: Sequence[shapes.CommitStatus] = ()
 
 
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
+    posted = headchecks.statuses(source.github, repo, pull.head.sha)
     return Fetched(
         pull=pull,
         labels=parsing.labels(text),
         posted=_sources(source, repo, number),
-        checks=_head_checks(source, repo, pull.head.sha),
+        checks=headchecks.checks(source.github, repo, pull.head.sha, posted),
+        statuses=posted,
     )
 
 
@@ -300,13 +300,18 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
 
 def _unreadable(
     source: Source, repo: config.Repo, got: Fetched, found: reviews.Found | None
-) -> tuple[str, Sequence[unreadableform.UnreadableReview]]:
+) -> StrayComments:
     rules = reviews.rules(source.review, repo.slug)
     seen = (got.posted.comments, source.review.trusted)
-    return (
-        unreadableform.unread(*seen, rules, found.when if found else ""),
-        unreadableform.find(*seen, rules[1], reviews.line_pattern),
+    return StrayComments(
+        newer=unreadableform.unread(*seen, rules, found.when if found else ""),
+        graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
     )
+
+
+def _signals(got: Fetched) -> headchecks.HeadSignals:
+    red = headchecks.red(got.statuses, got.checks)
+    return headchecks.HeadSignals(statuses=red, labels=got.labels)
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -322,7 +327,6 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     """
     got = _fetched(source, repo, number)
     found = reviews.newest(got.posted, source.review, repo.slug)
-    unread, unreadable_reviews = _unreadable(source, repo, got, found)
     standing, merged = _standing(source, repo, got.pull, found)
     return PullFacts(
         repo=repo,
@@ -330,8 +334,8 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         checks=got.checks,
         review=found,
         standing=standing,
-        unread=unread,
-        unreadable_reviews=unreadable_reviews,
+        signals=_signals(got),
+        unreadable=_unreadable(source, repo, got, found),
         step=flow.next_step(_state(source, repo, got)),
         merges_only=merged,
         relock=_is_relock(source, got.pull),

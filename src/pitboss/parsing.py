@@ -139,6 +139,9 @@ def statuses(text: str) -> Sequence[shapes.CommitStatus]:
             succeeded=item["state"] == "success",
             created_at=item.get("created_at") or "",
             run=run_of(item.get("target_url")),
+            state=item["state"],
+            description=item.get("description") or "",
+            url=item.get("target_url") or "",
         )
         for item in json.loads(text)["statuses"]
     ]

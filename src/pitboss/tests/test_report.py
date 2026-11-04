@@ -51,7 +51,7 @@ def facts(
         checks=checks,
         review=found,
         standing=standing,
-        unread=unread,
+        unreadable=pulls.StrayComments(newer=unread),
         step=steps.wait_for_ci(),
     )
 

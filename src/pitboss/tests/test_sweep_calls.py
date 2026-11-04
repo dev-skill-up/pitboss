@@ -19,7 +19,7 @@ FOUR_PULLS = {
     "gh api check-runs": 1,
     "gh api check-runs/annotations": 1,
     "gh api commits/check-runs": 4,
-    "gh api commits/status": 1,
+    "gh api commits/status": 4,
     "gh api issues": 2,
     "gh api issues/comments": 4,
     "gh api pulls": 8,
@@ -31,6 +31,7 @@ PER_PULL = {
     "gh api issues/comments": 1,
     "gh api pulls/reviews": 1,
     "gh api commits/check-runs": 1,
+    "gh api commits/status": 1,
 }
 
 

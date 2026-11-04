@@ -138,12 +138,19 @@ class CommitStatus:
         succeeded: whether its state is ``success``.
         created_at: when it was posted (ISO 8601).
         run: the id of the Actions run its target URL names (0 when none).
+        state: its state (``failure``, ``error``, ``pending``, ``success``);
+            empty when not known.
+        description: the text the poster gave it, empty when none.
+        url: its target URL, empty when none.
     """
 
     context: str
     succeeded: bool
     created_at: str
     run: int = 0
+    state: str = ""
+    description: str = ""
+    url: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

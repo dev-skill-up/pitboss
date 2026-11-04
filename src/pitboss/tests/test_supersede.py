@@ -60,7 +60,12 @@ def status(
         The status.
     """
     return shapes.CommitStatus(
-        context=context, succeeded=succeeded, created_at=created, run=run
+        context=context,
+        succeeded=succeeded,
+        created_at=created,
+        run=run,
+        state="success" if succeeded else "failure",
+        url=f"https://github.com/o/r/actions/runs/{run}" if run else "",
     )
 
 
@@ -161,8 +166,10 @@ class TestParsing(unittest.TestCase):
         assert_that(
             found,
             contains_exactly(
-                status("text-lint"),
-                shapes.CommitStatus(context="x", succeeded=False, created_at=""),
+                status("text-lint", created="2026-11-03T01:06:05Z", run=41524542678),
+                shapes.CommitStatus(
+                    context="x", succeeded=False, created_at="", state="pending"
+                ),
             ),
         )
 

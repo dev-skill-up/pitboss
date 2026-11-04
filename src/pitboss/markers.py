@@ -20,6 +20,10 @@ class Marker(enum.Enum):
         NO_RUNNER_PRESSURE: nothing waits for a runner.
         WAIT_FOR_CI: a PR's head has no completed check run.
         DRAFT_ROUND: a draft that needs a review or a fix (it has no check run).
+        PR_STATE: the line of an open PR in ``slots next``: its next step.
+        BLOCKED: a commit status of a PR's head failed; the line names the
+            status, its link and, for ``text-lint``, whether the finding is about
+            the body or the pin.
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
         UPDATE: a PR is behind the base with every check finished.
@@ -89,6 +93,8 @@ class Marker(enum.Enum):
     NO_RUNNER_PRESSURE = enum.auto()
     WAIT_FOR_CI = enum.auto()
     DRAFT_ROUND = enum.auto()
+    PR_STATE = enum.auto()
+    BLOCKED = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
     UPDATE = enum.auto()

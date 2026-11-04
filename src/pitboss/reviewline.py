@@ -19,5 +19,5 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
     return [
         f"{Marker.UNREADABLE_REVIEW.text} {reference}: {each.url} is not in the"
         f" review form: {each.problem}"
-        for each in pull.unreadable_reviews
+        for each in pull.unreadable.graded
     ]

@@ -45,7 +45,7 @@ from . import (
     timing,
     worktrees,
 )
-from . import diskline, pulllines, unreadableline
+from . import diskline, pulllines, pullstate, unreadableline
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -230,10 +230,10 @@ def _pull_lines(
     queued = latest is not None and not latest.run.finished
     why = {check_id: describe(each) for check_id, each in got.failures.items()}
     steps = {check_id: each.steps for check_id, each in got.failures.items()}
-    for line in pulllines.lines(pull, found.now, found.settings, steps):
-        print(line)
+    shown = pulllines.lines(pull, found.now, found.settings, steps)
     acts = report.action_lines(pull, found.settings, queued, why)
-    for line in removedline.settle(got.said, acts):
+    blocked = pullstate.blocked_lines(found.github, found.settings, pull, ())
+    for line in (*shown, *removedline.settle(got.said, acts), *blocked):
         print(line)
     return pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
 

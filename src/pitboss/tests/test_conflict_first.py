@@ -53,11 +53,14 @@ def make_dirty(
         created_at=created_at,
         **changes,
     )
-    path = fakes.page(f"{PROJECT}/commits/{head}/check-runs")
-    here.bodies[path] = {"check_runs": list(checks)}
-    here.bodies[f"{PROJECT}/commits/{head}/status"] = fakes.NO_STATUS
-    for each in ("issues/{0}/comments", "pulls/{0}/reviews"):
-        here.bodies[fakes.page(f"{PROJECT}/{each.format(number)}")] = []
+    answers = {
+        f"commits/{head}/check-runs": {"check_runs": list(checks)},
+        f"commits/{head}/status": fakes.NO_STATUS,
+        f"issues/{number}/comments": [],
+        f"pulls/{number}/reviews": [],
+    }
+    for each, body in answers.items():
+        here.bodies[fakes.page(f"{PROJECT}/{each}")] = body
 
 
 def both_sets(here: world.World) -> tuple[AbstractSet[str], AbstractSet[str]]:

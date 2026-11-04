@@ -19,6 +19,7 @@ from . import (
     nextview,
     offering,
     pulls,
+    pullstate,
     suggest,
     unreadableline,
     work,
@@ -125,7 +126,9 @@ def show(
         failed=book.failed,
     )
     for line in itertools.chain(
-        nextview.next_lines(_view(found, ordered, book)), suggest.lines(source)
+        nextview.next_lines(_view(found, ordered, book)),
+        pullstate.lines(found.github, found.settings, source.facts),
+        suggest.lines(source),
     ):
         print(line)
 
