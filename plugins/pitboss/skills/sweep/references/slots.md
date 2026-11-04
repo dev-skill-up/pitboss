@@ -145,7 +145,11 @@ exactly one step and at most one kind. There are eight:
 8. **Review it**: step `REGULAR_REVIEW`. On a PR that is not a draft it comes
    only once every required check finished green on the head (the CI gate). On
    a draft it is the plan-only review (stage `grade the Plan ONLY`), listed
-   with no CI, since a draft runs none. A reviewer that is not its author
+   with no CI, since a draft runs none, for a draft with no review, or one of an older head,
+   and before every `start a PR` line (pitboss#156; a draft whose Plan a review at its head
+   rejects is `revise the plan` or `fix the review`, a draft whose Plan is approved waits for
+   its undraft and is offered for no round). Its brief says a draft has no check run and the
+   reviewer reads the diff and the PR body only. A reviewer that is not its author
    reviews it; the author never waits on CI, but pushes, reports the head and
    finishes.
 

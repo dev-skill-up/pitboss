@@ -331,12 +331,13 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
         The step.
     """
     if is_draft(pr):
+        if not plan_approved(pr):
+            # keyword: draft-review (pitboss#156): a draft is reviewed at its Plan
+            # stage and a rejection of it is fixed, before any undraft
+            rejection = rejection_step(pr, review) if review else None
+            return rejection or steps.regular_review(steps.Stage.PLAN_ONLY)
         if can_undraft(pr):  # pressure passes, the CI-action spacing and holds allow
             return steps.undraft()  # the next step is the CI gate on the undrafted head
-        if not plan_approved(pr):
-            return steps.regular_review(
-                steps.Stage.PLAN_ONLY
-            )  # a rejection is a Plan one
         # plan approved but cannot be undrafted yet: wait for the window
         return steps.wait_for_undraft()
 

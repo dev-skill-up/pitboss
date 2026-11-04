@@ -3,7 +3,8 @@
 import datetime
 from typing import Mapping, Sequence
 
-from . import config, pulls, reviewline, roundline, stall, updateline
+from . import config, pulls, reviewline, roundline, stall, updateline, work
+from .markers import Marker
 
 
 def lines(
@@ -12,7 +13,7 @@ def lines(
     settings: config.Config,
     steps: Mapping[int, Sequence[str]],
 ) -> Sequence[str]:
-    """The STALL, UPDATE, waiting-for-ruling and UNREADABLE REVIEW lines.
+    """The STALL, UPDATE, waiting-for-ruling, DRAFT ROUND and UNREADABLE REVIEW lines.
 
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES and PAUSE.
 
@@ -29,5 +30,19 @@ def lines(
         *stall.lines(pull, now, steps),
         *updateline.lines(pull, settings),
         *roundline.lines(pull),
+        *_draft_lines(pull),
         *reviewline.lines(pull),
     )
+
+
+def _draft_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    # keyword: draft-review (pitboss#156): a draft runs no CI, so its round is
+    # said in the words `slots next` lists it with, before any ticket
+    category = work.category_of(pull) if pull.pull.draft else None
+    if category is None:
+        return []
+    return [
+        f"{Marker.DRAFT_ROUND.text} {pulls.reference(pull)}:"
+        f" {work.CATEGORY_WORDS[category]}; a draft has no check run, so it waits"
+        " for none and is listed first in `slots next`, before every ticket"
+    ]

@@ -6,7 +6,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import steps
-from . import fakes, world
+from . import fakes, test_flow_sweep, world
 
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
 AFTER = ("--now", world.FUTURE)
@@ -156,9 +156,12 @@ class TestNext(unittest.TestCase):
         starts(next_for(here, "#7"), "WAIT_FOR_OWNER: owner/project#7")
 
     def test_a_draft_is_undrafted_when_the_runners_are_quiet(self) -> None:
-        """No job waits and the record shows the quiet period passed."""
+        """The Plan is approved, no job waits, the record shows the quiet period."""
         here = world.make_world()
         third(here, draft=True)
+        approved = test_flow_sweep.graded("approved", None, 1)
+        comments = fakes.page("repos/owner/project/issues/3/comments")
+        here.bodies[comments] = [world.comment_json(approved)]
         here.bodies[JOBS] = {"jobs": []}
         record = here.clone / ".git" / "pitboss-pressure.log"
         record.write_text("2029-12-01T00:00:00+00:00 none\n")

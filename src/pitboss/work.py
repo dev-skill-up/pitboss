@@ -71,6 +71,20 @@ class Category(enum.IntEnum):
     REVIEW_FIX_ROUND = 11
 
 
+CATEGORY_WORDS = {
+    Category.FIX_REVIEW: "fix the review",
+    Category.REVISE_PLAN: "revise the plan",
+    Category.REVIEW: "review it (a reviewer that is not its author)",
+    Category.REVIEW_FIX_ROUND: "review the fix round's findings only",
+    Category.NEW_PR: "start a PR",
+    Category.FIX_CI: "fix the CI (a red CI is no rejection)",
+    Category.FIRST_ROUND: "write the Plan and Execution body",
+    Category.RESOLVE_CONFLICT: "resolve the conflict",
+    Category.RULING_STEPS: "do the ruling's steps",
+    Category.RULING_AS_GIVEN: "carry out the ruling",
+}
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Item:
     """One thing a worker could start.
@@ -109,7 +123,7 @@ def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
             title=pull.pull.title,
         )
         for pull in facts
-        if (category := _category(pull)) is not None
+        if (category := category_of(pull)) is not None
     ]
 
 
@@ -123,7 +137,15 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
 }
 
 
-def _category(pull: pulls.PullFacts) -> Category | None:
+def category_of(pull: pulls.PullFacts) -> Category | None:
+    """The kind of round a PR is offered for, from its step alone.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        The category, or None when its step is offered for no round.
+    """
     step = pull.step
     if step.step is steps.Step.WORKER:
         return CATEGORY_OF_TASK.get(step.task, Category.FIX_REVIEW)
