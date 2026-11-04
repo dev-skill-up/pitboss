@@ -8,8 +8,9 @@ space freed. At or over ``[clean] pressure_percent`` of a filesystem used (90
 by default) it also removes tempdirs of a shorter age, every worktree and every
 checkout of a repository without an open PR, and the package caches that
 regenerate. It never touches a worktree with an open PR, a running worker's
-directory (changed within ``idle_hours``, or marked ``.pitboss-live``), the
-main clone or the directory it runs in, and it says so.
+directory (changed within ``idle_hours``, or marked ``.pitboss-live``; a merged
+worktree's marker is ignored under disk pressure, except the one whose PR merged
+last), the main clone or the directory it runs in, and it says so.
 """
 
 import dataclasses
@@ -149,7 +150,9 @@ def never_line(look: dead.Look) -> str:
     hours = look.settings.idle_hours
     return (
         "clean: never touched: a worktree with an open PR, a running worker's"
-        f" directory (changed within {hours:g} hours or marked .pitboss-live),"
+        f" directory (changed within {hours:g} hours or marked .pitboss-live; a"
+        " merged worktree's marker is ignored under disk pressure, except the one"
+        " whose PR merged last),"
         " the main clone, the directory this command runs in"
     )
 

@@ -5,7 +5,9 @@ branch (``local.finished_reason``). Whether it may go is ``dead.verdict``, the
 test ``clean-container`` and the ``DISK PRESSURE`` line use: not live, not in
 use, and no commit on no remote branch and no changed tracked file in it
 (keyword: clean-worktrees, ``rules.md``, "Checkouts and disk"). One that passes
-but holds untracked files is kept too, since ``git worktree remove`` refuses it.
+but holds untracked files is kept too, since ``git worktree remove`` refuses it,
+unless the marker ignored under pressure is the only untracked file, when it is
+removed with ``--force``.
 """
 
 import dataclasses

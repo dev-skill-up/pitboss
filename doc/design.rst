@@ -563,16 +563,23 @@ is in the base branch (``local.finished_reason``); a worktree with an open PR
 never is. Whether a finished worktree may go is the one safety test of **Dead
 paths** (``dead.verdict``): not live, not in use, and safe. It is written once:
 ``clean-container`` (``dead.consider`` and ``dead.recheck``), the ``DISK
-PRESSURE`` line and the removal of worktrees (``worktrees.py``) all call it. So a
+PRESSURE`` line and the removal of worktrees (``worktrees.py``) all call it; the
+one difference is under disk pressure, where ``worktrees.py`` passes
+``dead.Look.unmarked`` so a merged worktree's own marker is not honored, except
+on the one whose PR merged last (``worktrees.last_merged``). So a
 finished worktree is kept when anything in it changed in the last ``idle_hours``
 (by file times, because a new worktree's tip is an old commit), when it holds a
-``.pitboss-live`` marker or is a live path, when it is a link or holds a mount
+``.pitboss-live`` marker or is a live path (under disk pressure a merged
+worktree's own marker is not honored, except on the one whose PR merged last),
+when it is a link or holds a mount
 point, when it is or holds the directory the command runs in (``PWD`` or the
 process's own), when a commit in it is on no remote branch, or when a tracked
 file in it is changed (untracked files are scratch to the test). A finished
 worktree that passes the test but holds untracked files is kept too, with their
-count, because ``git worktree remove`` refuses it without ``--force``, which
-pitboss never passes. A worktree on no branch or on the base branch is finished
+count, because ``git worktree remove`` refuses it; pitboss passes ``--force``
+only to remove a worktree whose ``.pitboss-live`` marker it ignored under disk
+pressure (``worktrees.removal_line``), where the marker is the only untracked
+file. A worktree on no branch or on the base branch is finished
 when its tip is in the base branch, unlike a checkout of **Dead paths**, so a
 persistent one carries ``.pitboss-live`` (under disk pressure that keeps a
 merged one only when its work merged last). ``[clean] worktrees`` chooses what a
@@ -629,7 +636,8 @@ WORKTREE <dir> (<reason>; its .pitboss-live marker is ignored: a worktree merged
 after it)``, and the last one prints ``KEPT WORKTREE <dir> (holds a file named
 .pitboss-live; its PR merged last)`` (pitboss#185). It never touches, in either mode, a worktree with an open
 PR, a running worker's directory (anything changed within ``idle_hours``, or
-marked ``.pitboss-live``), the main clone, a live path or the directory it runs
+marked ``.pitboss-live``; under pressure the marker of a merged worktree is
+ignored, except the one whose PR merged last), the main clone, a live path or the directory it runs
 in, and it says so (``clean: never touched``, and under pressure ``clean: kept
 <path> (open PR)`` for each such worktree). A commit on no remote branch and a
 changed tracked file still keep a worktree (the safety test is one): losing

@@ -79,8 +79,8 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `STRAGGLER` | A checkout on this machine with uncommitted files or commits on no remote branch. | Triage it (below). |
 | `ORPHANED CHECKOUT` | A directory whose `.git` file points at a gitdir that is gone (a worktree whose main checkout was removed); git cannot read it, so it has no straggler line. | Look in the directory for files worth keeping, then delete it by hand; nothing in it is on a branch. |
 | `STALE WORKTREE` | Printed only under `[clean] worktrees = "list"`: a worktree whose work is finished and on GitHub and that passes the safety test ("Stale worktrees", below). | `pitboss clean-worktrees <config>`, read the dry run, then `--no-dry-run`. |
-| `REMOVED WORKTREE` | A finished worktree was removed (or, under `clean-worktrees` without `--no-dry-run`, would be); its branch is kept. A sweep prints it under `[clean] worktrees = "auto"` (the default), with the space freed on the last line of the section. | Nothing. |
-| `KEPT WORKTREE` | A finished worktree that is not removed, with the reason: commits on no remote branch, changed tracked files, a `.pitboss-live` marker or live path, the directory the command runs in or one above it, a change within the idle hours, a link, a mount point, a checkout git cannot read, or untracked files (`git worktree remove` refuses them). | Triage it like a `STRAGGLER` when the reason is work that exists only here; otherwise nothing: it is removed by a later sweep once the reason is gone. |
+| `REMOVED WORKTREE` | A finished worktree was removed (or, under `clean-worktrees` without `--no-dry-run`, would be); its branch is kept. A sweep prints it under `[clean] worktrees = "auto"` (the default), with the space freed on the last line of the section. Under disk pressure a merged worktree whose `.pitboss-live` marker was ignored prints `(...; its .pitboss-live marker is ignored: a worktree merged after it)`. | Nothing. |
+| `KEPT WORKTREE` | A finished worktree that is not removed, with the reason: commits on no remote branch, changed tracked files, a `.pitboss-live` marker or live path or `its PR merged last` (the marker of the worktree merged last, saved under disk pressure), the directory the command runs in or one above it, a change within the idle hours, a link, a mount point, a checkout git cannot read, or untracked files (`git worktree remove` refuses them). | Triage it like a `STRAGGLER` when the reason is work that exists only here; otherwise nothing: it is removed by a later sweep once the reason is gone. |
 | `COULD NOT REMOVE WORKTREE` | git refused (a locked worktree, for one). | Look at it: someone may still be using it. |
 | `SCRATCH PR` | An open PR of a `[scratch]` repository that is not a kept fixture, in one of two forms (keyword: scratch). `SCRATCH PR owner/repo#N: run finished, close the PR and delete its branch`: every workflow run of its head has finished (a head with no run yet counts as finished once the PR is ten minutes old); printed only under `[clean] worktrees = "list"`, since the default closes it ("Scratch PRs", below). `SCRATCH PR owner/repo#N: head branch B is not one of ...; reuse one of them for the next run`: its head branch is not in `[scratch] branches`, whether its run has finished or not. A PR whose runs are still going and whose branch is a run branch prints no line, and a fixture named in `[scratch] keep` never does. | Close the PR and delete its branch, or run `pitboss clean <config>`; next time reuse a run branch. |
 | `CLOSED SCRATCH PR` | A sweep (under `[clean] worktrees = "auto"`) or `pitboss clean` closed a scratch PR whose run finished. | Nothing. |
@@ -211,10 +211,13 @@ removed only when it passes the safety test, the one `clean-container` and the
 `DISK PRESSURE` line use: every commit in it is on a remote branch, no tracked
 file in it is changed (untracked files are scratch), nothing in it changed in the
 configured idle hours (by file times, because a new worktree's tip is an old
-commit), it holds no `.pitboss-live` marker and is not a live path, it is no
+commit), it holds no `.pitboss-live` marker (below the pressure; the exception
+follows) and is not a live path, it is no
 link or mount point, and it is not the directory the command runs in or a
 directory above it. A finished worktree that passes but holds untracked files is
-kept too, with their count, because `git worktree remove` refuses it. By default
+kept too, with their count, because `git worktree remove` refuses it, except a
+worktree whose only untracked file is a marker that was ignored under pressure,
+which is removed with `--force`. By default
 (`[clean] worktrees = "auto"`) the sweep removes
 every finished worktree that passes, printing `REMOVED WORKTREE`, and prints
 `KEPT WORKTREE` with the reason for each that fails; the section ends with a
