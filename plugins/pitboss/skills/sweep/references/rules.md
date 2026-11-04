@@ -930,6 +930,14 @@ Only override for bugs, but do override for bugs (and then file them)".
   pushes if the gate is open and hands back at once, or commits locally and
   hands back with the worktree path and the commit SHA. A worker brief says so,
   and the orchestrator is the one that watches the checks.
+- **The orchestrator never sits in a long wait** (owner, 2026-11-03: a command
+  ran in the orchestrator thread for 20 minutes; pitboss#178). It hands work to
+  a worker and checks back at its next turn; it never holds a blocking wait
+  (`sleep`, `Monitor`, a wait on a task) for a worker or a CI run. What it
+  tells a worker is the same: a worker's long run is the worker's own, started
+  in the background with a log, and watched by the worker (one `Monitor` with
+  an `until` loop on the log, pitboss#175), never by the orchestrator
+  on the worker's behalf.
 - **Local actions are short** (owner, haiku-rule 42 to 47, 2026-10-25 and
   2026-10-26): a local action is chosen to finish in minutes, and ten minutes
   is a maximum, not a target. When something took over ten minutes the worker
