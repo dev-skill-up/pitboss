@@ -1230,7 +1230,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   "Check locally before every push").
 - Nobody deletes the persistent checkout: the worktree a worker reuses, the one
   whose PR merged last, or the orchestrator's own; each carries a `.pitboss-live`
-  marker, because a sweep removes a finished worktree that has none (below).
+  marker, because a sweep removes a finished worktree that has none (below);
+  under disk pressure a merged one keeps that protection only when its PR
+  merged last (the exception below).
   Another worktree is removed
   only when its work is finished and on GitHub (its PR merged or closed, or its
   tip in the default branch) and it passes the safety test below; a worktree of

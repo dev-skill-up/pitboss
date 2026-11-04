@@ -206,7 +206,7 @@ A worktree is finished when it is not the main clone, lies under the workspace,
 and its branch's PR merged or was closed, or, with no PR, its tip is in the base
 branch. A worktree on no branch, or on the base branch, is finished once its tip
 is in the base branch (unlike a checkout of "Disk" below), so a persistent one
-carries `.pitboss-live`. A worktree with an open PR is never finished. A finished worktree is
+carries `.pitboss-live` (under disk pressure that keeps a merged one only when its work merged last). A worktree with an open PR is never finished. A finished worktree is
 removed only when it passes the safety test, the one `clean-container` and the
 `DISK PRESSURE` line use: every commit in it is on a remote branch, no tracked
 file in it is changed (untracked files are scratch), nothing in it changed in the
