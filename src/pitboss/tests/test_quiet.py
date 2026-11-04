@@ -315,6 +315,27 @@ class TestQueued(unittest.TestCase):
         assert_that(found, equal_to(expected))
 
 
+class TestPushRefused(unittest.TestCase):
+    """A push git refuses is nonzero and shows git's message (#160)."""
+
+    def test_refused_push_shows_git_message(self) -> None:
+        """Status 128, git's text and the hold unchanged; no arguments push HEAD."""
+        here = clear_world({"grep": 0, "mount": 1, "git": 128})
+        seed = hold_at(-60)
+        write(here, seed)
+        result = world.again(here, "push", "--now", at(0), "--no-dry-run", "--draft")
+        pushed = [list(c) for c in here.calls if list(c[:2]) == ["git", "push"]]
+        shown = [line for line in result.out.splitlines() if "git" in line]
+        expected_lines = [
+            "git push failed (exit 128): nothing was recorded",
+            "fatal: git refused",
+        ]
+        found = [result.code, pushed, shown, lines(here)]
+        origin_head = [["git", "push", "origin", "HEAD"]]
+        wanted = [128, origin_head, expected_lines, [seed.strip()]]
+        assert_that(found, equal_to(wanted))
+
+
 class TestRecord(unittest.TestCase):
     """The record's file and lines."""
 
