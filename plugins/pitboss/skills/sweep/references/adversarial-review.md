@@ -171,8 +171,11 @@ review of a revised plan, see the last bullet):
 - a draft has no check run, so you grade its Execution from the diff and the
   evidence in the body, and say that no check was read;
 - if your brief says the Plan was already approved, you grade only the
-  Execution and write `Plan: approved` as carried over: you do not reassess or
-  discuss the Plan;
+  Execution and write `Plan: approved (fixed)`: you do not reassess or discuss
+  the Plan. The Plan verdict is final once given: a gap you see in the Plan is
+  a request for an Opus ruling, never a Plan finding, and a review of that PR
+  whose Plan line is anything but `Plan: approved (fixed)` is refused by
+  `pitboss lint review FILE --plan-approved`;
 - a statement the change makes false or contradictory anywhere in the tree is
   changes needed (the author greps the tree for them before asking for review);
 - an objection to a phrase no claim depends on is withdrawn when the author

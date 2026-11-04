@@ -278,7 +278,7 @@ PLAN_COMMANDS_EXECUTION = (
     " form, or left out, is a changes-needed finding."
 )
 CARRIED = (
-    "Write `Plan: approved` as carried over, and an `Execution:` line with your"
+    "Write `Plan: approved (fixed)`, and an `Execution:` line with your"
     " verdict, the same word as the `Verdict:` line."
 )
 EXCLUSIVE = (
@@ -294,8 +294,8 @@ SCOPE_FULL = (
 SCOPE_EXECUTION = (
     "Scope: the Execution of head {head}, against the approved Plan and the"
     " ticket's Done-when. The Plan is approved: grade only the Execution, and"
-    " write `Plan: approved` as carried over; do not reassess or discuss the"
-    " Plan."
+    " write `Plan: approved (fixed)`; do not reassess or discuss the Plan. A gap"
+    " you see in the Plan is a request for an Opus ruling, never a Plan finding."
 )
 SCOPE_PLAN = (
     "Scope (exclusive): the Plan of head {head}, alone, against the goal and the"

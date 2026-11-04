@@ -211,7 +211,7 @@ class TestSweepAndBrief(unittest.TestCase):
             "Relock checks: (1) the diff",
             "(3) the lock matches",
             "(4) every required check finished and passed",
-            "Write `Plan: approved`",
+            "Write `Plan: approved (fixed)`",
         ):
             assert_that(whole, contains_string(wanted))
         assert_that("ticket's Done-when" in whole, equal_to(False))

@@ -209,7 +209,7 @@ Commands
        leaves the shipped one out). A pairs line is two patterns of the
        phrase language, an example of each and what to do instead, tab
        separated; the text between backticks is not searched.
-   * - ``lint pr-body|review|brief|owner-card FILE [--head SHA] [--branch BRANCH] [--config CONFIG] [--ruling URL FILE]... [--comments FILE]``
+   * - ``lint pr-body|review|brief|owner-card FILE [--head SHA] [--branch BRANCH] [--config CONFIG] [--plan-approved] [--ruling URL FILE]... [--comments FILE]``
      - The forms of the texts agents write (pitboss#37), one file each; the
        phrase check of ``lint text`` runs on the same file. Prints one
        finding per line ending with its check in parentheses, exits 1 on
