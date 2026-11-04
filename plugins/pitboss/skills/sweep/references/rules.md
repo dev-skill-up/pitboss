@@ -115,9 +115,10 @@ Only override for bugs, but do override for bugs (and then file them)".
    the ruling` (`RULING_AS_GIVEN`), and `fix the review` for any other task
    (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
    stage, a plan-only review included (a draft's, or that of a Plan revised
-   after its rejection on a PR that is not a draft), except after a body fix
-   (below) of an Execution rejection: `review the fix round's findings only`.
-   Every other step is offered for
+   after its rejection on a PR that is not a draft), except that after a body
+   fix (below) it is `review the fix round's findings only`, unless the review
+   rejected the Plan, in which case it is `review it` with the Plan alone
+   graded. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
    CI`) whatever the stage, and a conflict as `resolve the conflict` at every
@@ -661,9 +662,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   (`updated_at` moves with every label, push and comment), so the digest is
   the record. When the digest in the newest review of the head is not the
   body's now and the head did not move, the sweep prints `review=older-body`
-  and `slots next` offers the PR as `review the fix round's findings only`
-  when the review rejected the Execution, and as `review it` with the Plan
-  alone graded when it rejected the Plan (pitboss#167): the worker who fixed
+  and `slots next` offers the PR as `review the fix round's findings only`,
+  unless the review rejected the Plan, in which case it is offered as `review
+  it` with the Plan alone graded (pitboss#167): the worker who fixed
   only the body is not sent to fix the review again, and
   the orchestrator does not guess the next step. A review of the same head that
   records the new digest ends it. A review that records no `Body:` line is

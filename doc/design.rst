@@ -379,8 +379,8 @@ approved gets ``READY TO MERGE`` instead).
 for a body). When the newest review of the head records a digest other than the
 body's now, the standing is ``older-body``, the review does not count in
 ``flow.newest_counting_review``, and ``slots next`` offers the PR as ``review
-the fix round's findings only`` (``review it``, the Plan alone graded, when
-the review rejected the Plan, pitboss#167). A review with no such line is keyed to the
+the fix round's findings only``, unless the review rejected the Plan: then as
+``review it`` with the Plan alone graded (pitboss#167). A review with no such line is keyed to the
 head alone.
 
 **Reviews.** A review is the newest comment by a trusted author whose lines
