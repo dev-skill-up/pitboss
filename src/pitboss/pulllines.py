@@ -3,7 +3,7 @@
 import datetime
 from typing import Mapping, Sequence
 
-from . import config, pulls, reviewline, roundline, stall, updateline, work
+from . import config, gateline, pulls, reviewline, roundline, stall, updateline, work
 from .markers import Marker
 
 
@@ -32,6 +32,7 @@ def lines(
         *roundline.lines(pull),
         *_draft_lines(pull),
         *reviewline.lines(pull),
+        *gateline.lines(pull),
     )
 
 

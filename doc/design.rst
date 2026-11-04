@@ -42,6 +42,14 @@ What was project-specific, and where it went
        form is ``## Review`` / ``Reviewed: {sha}`` / ``Verdict: {verdict}``
        with ``approved`` and ``changes needed``; ``gated_form`` defaults to
        ``form``
+   * - a repository with ``.github/workflows/review-gate.yml`` needs the form
+       that file accepts
+     - read from the file on the default branch (``gates.py``; keyword:
+       review-gate): such a repository is gated, in the file's first line,
+       ``Verdict:`` line and ``Reviewed:`` line, whatever ``[review]
+       gated_form`` says; ``review-form`` prints it, the reviewer brief quotes
+       it, and the sweep prints ``GATE PENDING`` while the status
+       ``adversarial-review`` of the head is not success
    * - an approval survives a merge of main, except in gated repositories
      - built in: it is what "gated" means
    * - the 20 shared runners, and which repositories share them

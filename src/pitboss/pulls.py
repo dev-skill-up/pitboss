@@ -309,9 +309,11 @@ def _unreadable(
     )
 
 
-def _signals(got: Fetched) -> headchecks.HeadSignals:
+def _signals(source: Source, repo: config.Repo, got: Fetched) -> headchecks.HeadSignals:
     red = headchecks.red(got.statuses, got.checks)
-    return headchecks.HeadSignals(statuses=red, labels=got.labels)
+    strict = repo.slug in source.review.gated
+    unmet = headchecks.pending_gate(got.statuses) if strict else ""
+    return headchecks.HeadSignals(statuses=red, labels=got.labels, gate=unmet)
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -334,7 +336,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         checks=got.checks,
         review=found,
         standing=standing,
-        signals=_signals(got),
+        signals=_signals(source, repo, got),
         unreadable=_unreadable(source, repo, got, found),
         step=flow.next_step(_state(source, repo, got)),
         merges_only=merged,

@@ -149,6 +149,11 @@ FORM = (
     " one comment on the PR in the form of the repository, from `uvx pitboss"
     " review-form {config} {repo}`:"
 )
+GATED = (
+    "Gated: this repository's review-gate.yml reads the comment, and the merge"
+    " waits for it: {note}. A comment that breaks any of it leaves the status"
+    " `adversarial-review` pending."
+)
 BODY_DIGEST = (
     "Body: the PR body is part of what you read. Before posting, save it with `gh"
     " api repos/{repo}/pulls/{number} --jq .body > <scratchpad>/body.txt`, run"

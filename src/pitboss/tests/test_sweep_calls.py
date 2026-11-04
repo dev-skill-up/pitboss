@@ -20,6 +20,7 @@ FOUR_PULLS = {
     "gh api check-runs/annotations": 1,
     "gh api commits/check-runs": 4,
     "gh api commits/status": 4,
+    "gh api contents/.github/workflows/review-gate.yml": 2,  # one for each repository
     "gh api issues": 2,
     "gh api issues/comments": 4,
     "gh api pulls": 8,

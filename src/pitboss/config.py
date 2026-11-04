@@ -69,16 +69,18 @@ class Review:
 
     Attributes:
         trusted: the author associations whose reviews count.
-        gated: slugs of repositories whose reviews must use the strict form
-            and name the exact head.
+        gated: slugs of repositories whose reviews are strict and name the head.
         form: the form in every other repository.
         gated_form: the form in a gated repository.
+        gate_forms: each gated repository's form read from its workflow, by
+            slug (keyword: review-gate); a gated one with none takes gated_form.
     """
 
     trusted: AbstractSet[str]
     gated: AbstractSet[str]
     form: ReviewForm
     gated_form: ReviewForm
+    gate_forms: Mapping[str, ReviewForm] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -87,12 +89,10 @@ class Lint:
 
     Attributes:
         review: how reviews are read (the same as ``Config.review``).
-        footers: the lines a PR body must end with one of (in its last three
-            lines); none, the default, requires no footer.
+        footers: lines a PR body must end with one of (last three); none, no footer.
         brief_lines: the line starts every brief must have.
-        relock_prefix: the head branch prefix of a relock PR (``[relock]
-            prefix``; keyword: relock), whose body is checked for its head and
-            footer alone.
+        relock_prefix: the head branch prefix of a relock PR (``[relock] prefix``;
+            keyword: relock), whose body is checked for its head and footer alone.
     """
 
     review: Review

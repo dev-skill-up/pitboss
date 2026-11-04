@@ -6,6 +6,8 @@ from typing import AbstractSet, Sequence
 from . import checkruns, config, ghapi, parsing, shapes, supersede
 
 RED_STATES = frozenset({"failure", "error"})
+# keyword: review-gate: the commit status a repository's review gate sets
+GATE_CONTEXT = "adversarial-review"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -16,10 +18,32 @@ class HeadSignals:
         statuses: the commit statuses of its head that failed and that no later
             passing check run of the same name answers.
         labels: the names of the PR's labels.
+        gate: why the review gate's status (``adversarial-review``) of a gated
+            repository's head is not success, empty when it is, or the
+            repository is not gated (keyword: review-gate, pitboss#166).
     """
 
     statuses: Sequence[shapes.CommitStatus] = ()
     labels: AbstractSet[str] = frozenset()
+    gate: str = ""
+
+
+def pending_gate(posted: Sequence[shapes.CommitStatus]) -> str:
+    """Say why a head's review gate status is not success.
+
+    Args:
+        posted: the newest status of each context of the head.
+
+    Returns:
+        Empty when the gate's status is success, else its state, the text the
+        gate gave it and its link; ``no status posted`` when it has none.
+    """
+    for each in posted:
+        if each.context == GATE_CONTEXT:
+            said = f": {each.description}" if each.description else ""
+            link = f" ({each.url})" if each.url else ""
+            return "" if each.succeeded else f"{each.state}{said}{link}"
+    return "no status posted"
 
 
 def statuses(

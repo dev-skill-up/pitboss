@@ -16,6 +16,7 @@ from . import (
     briefconfig,
     config,
     fixes,
+    gates,
     ghapi,
     parsing,
     pulls,
@@ -251,11 +252,13 @@ def _heads(source: Source, pull: pulls.PullFacts | None) -> brief.Heads:
 
 def _rules(source: Source, slug: str, head: str) -> brief.Rules:
     footers = source.settings.lint.footers
+    review = source.settings.review
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
         footer=footers[0] if footers else "",
         project=source.brief,
+        gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
     )
 
 
