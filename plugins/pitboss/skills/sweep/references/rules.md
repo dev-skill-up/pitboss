@@ -486,7 +486,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   know about them instead of burning time on endless cycles." So, after the
   Opus ruling (the next bullet), the PR and its ticket get a pause label and a
   comment that says what the rounds disagreed about and the options; the orchestrator stops listing both and its row moves
-  on; it reports the number and the options to the owner in the same message. A
+  on; it reports the number and the options to the owner in the same message (the comment and the owner's card carry a
+  `How we got here` section, "An escalation says how the work got there", below). A
   pause carries the question whether the finding is about the PR or about the
   brief or rule that produced it (owner, 2026-10-25T05:28:32Z: "By definition,
   you won't be able to tell. That's why we put it in the ledger. To fx the
@@ -500,7 +501,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   (keyword: review-flow): `pitboss.flow.next_step` is the owner's pseudo code of
   2026-10-30 (pitboss#107), branch for branch, and `pitboss next CONFIG TICKET`
   prints the one step a ticket is at. The sweep's `RULING DUE`, `PAUSE`,
-  `RULING UNREADABLE`, `RULING ESCALATES`,
+  `RULING UNREADABLE`, `RULING ESCALATES`, `RULING NO ANALYSIS`,
   `revise the plan`, `fix the review` and `review it` lines and `slots next` take
   that step, and this file does not state it a second time. The steps are
   `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
@@ -528,6 +529,29 @@ Only override for bugs, but do override for bugs (and then file them)".
   ordinary review gate. A PR at `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`
   or `RULING_ESCALATES` is offered for no round in `slots
   next`, and its ticket stays taken.
+- **An escalation says how the work got there** (keyword: how-we-got-here;
+  owner, 2026-11-03, pitboss#168: if something is escalated, whether to an Opus
+  ruling or to the owner, there has to be an analysis of how we got there;
+  quire#1038 and pwa#277 escalated and the owner had to ask for the root cause
+  afterwards). An escalation is the Opus ruling brief, the Opus ruling comment,
+  the pause comment and the owner's decision card (the
+  `request_decision` call). Each carries a section `How we got here` that names,
+  for each rejection before the escalation, the finding, the rule or brief line
+  that should have prevented it, and the prevention filed (a pitboss ticket
+  number). The orchestrator writes it before it escalates, from the reviews and
+  the PR's history, and files the prevention tickets first. Three places hold it:
+  the Opus ruling brief has the line `How we got here:` and tells the Opus agent
+  to refuse to rule without it (hand back NOT STARTED, post nothing), and the
+  ruling comment repeats the section before its steps or reasons; the
+  pause comment has the section; the owner's card has it in its
+  `reason`, whose first words are `How we got here:` and which is at most 200
+  bytes, so it names each rejection as `finding / rule / pitboss#N` and links
+  the comment that has the whole section (the card's question stays the
+  question). `uvx pitboss lint owner-card FILE` (the question and the reason
+  saved to a file) refuses a card with no such section (`how-we-got-here`);
+  post no card it refuses. The sweep prints `RULING NO ANALYSIS` for the newest
+  trusted Opus ruling comment without the section, which an agent adds by editing
+  or reposting the comment; the PR is not held for it.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
   creates a draft PR, splits the body into Plan and Execution" ... "the PR

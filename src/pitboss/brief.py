@@ -279,6 +279,7 @@ def _ruling(values: Mapping[str, str]) -> list[str]:
     words = ", ".join(f"`{each.value}`" for each in rulingwords.Ruling)
     return [
         text.RULING_WHO.format_map(values),
+        text.RULING_HOW,
         text.RULING_RECORD.format(words=words),
         text.HONEST,
         text.GOAL_ONLY,

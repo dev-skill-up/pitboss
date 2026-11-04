@@ -149,6 +149,13 @@ def _brief_findings(
     return forms.brief(subject, settings.brief_lines, _ticket(args))
 
 
+def _card_findings(
+    args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
+) -> Sequence[str]:
+    # keyword: how-we-got-here (pitboss#168): an owner card carries its analysis
+    return forms.owner_card(subject)
+
+
 def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
     def run(args: argparse.Namespace) -> None:
         texts = _read_files(args)
@@ -211,6 +218,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "pr-body": _form_kind(_pr_body_findings),
     "review": _form_kind(_review_findings),
     "brief": _form_kind(_brief_findings),
+    "owner-card": _form_kind(_card_findings),
     "event": _event,
 }
 

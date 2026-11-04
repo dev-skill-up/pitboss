@@ -44,8 +44,10 @@ Commands
 ``pitboss lint text FILE... --phrases FILE``    Banned phrases: one finding per line, exit 1 on any.
                                                 The shipped list is always used; ``--phrases``
                                                 adds a project's (more than once if need be).
-``pitboss lint pr-body|review|brief FILE``      The form of a PR body, a review comment or a brief
-                                                (``--head SHA``, ``--config``, ``--gated``,
+``pitboss lint KIND FILE``                      The form of a PR body (``pr-body``), a review comment
+                                                (``review``), a brief (``brief``) or an owner decision
+                                                card (``owner-card``: it needs a ``How we got here``
+                                                section) (``--head SHA``, ``--config``, ``--gated``,
                                                 ``--ticket FILE``): one finding per line naming its
                                                 check, exit 1 on any.
 ``pitboss lint event EVENT STATUS``             The ``text-lint`` commit status of a pull request
