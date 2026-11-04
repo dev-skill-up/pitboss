@@ -2,6 +2,8 @@
 
 import unittest
 
+from hamcrest import assert_that, equal_to
+
 from .. import brief
 from .briefmake import has_none, pinned, text
 from .test_plan_commands import PLAN_REVIEWS
@@ -14,12 +16,12 @@ NOX = (
     " the whole suite."
 )
 NOX_ORDER = (
-    "Nox order: run `nox -r -s tests-3.13` (one session) first and fix until it"
-    " passes; only then run the other sessions (`lint`, `mypy`, `skills`),"
-    " with `-r`. Never invoke `virtue` or `python -m virtue` by hand: the nox"
-    " session is the way to run tests. Start nothing in the background that needs"
-    " polling: use one foreground command under `timeout 598`, or one `Monitor`"
-    " with an `until` loop."
+    "Nox order: where the checks are nox sessions, run `nox -r -s tests-3.13`"
+    " (one session) first and fix until it passes; only then run the other"
+    " sessions (`lint`, `mypy`, `skills`), with `-r`. Never invoke `virtue` or"
+    " `python -m virtue` by hand: the nox session is the way to run tests. Start"
+    " nothing in the background that needs polling: use one foreground command"
+    " under `timeout 598`, or one `Monitor` with an `until` loop."
 )
 FIRST_DESIGN = (
     "First design: throwing away a first design is acceptable and is not a thing"
@@ -58,6 +60,14 @@ class TestNoxInTheBriefs(unittest.TestCase):
         """One session first, no virtue by hand, nothing to poll (pitboss#175)."""
         for kind in WORKERS:
             pinned(kind, [NOX_ORDER])
+
+    def test_the_order_applies_only_where_the_checks_are_nox_sessions(self) -> None:
+        """Like the Nox sentence, the order is conditional (pitboss#175)."""
+        assert_that(NOX.startswith("Nox: where the checks"), equal_to(True))
+        assert_that(
+            NOX_ORDER.startswith("Nox order: where the checks are nox sessions"),
+            equal_to(True),
+        )
 
     def test_every_worker_brief_allows_a_thrown_away_first_design(self) -> None:
         """Discarding a first design is no failure (pitboss#175)."""

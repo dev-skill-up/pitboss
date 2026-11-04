@@ -5,12 +5,12 @@ reviewed code change.
 """
 
 NOX_ORDER = (
-    "Nox order: run `nox -r -s tests-3.13` (one session) first and fix until it"
-    " passes; only then run the other sessions (`lint`, `mypy`, `skills`),"
-    " with `-r`. Never invoke `virtue` or `python -m virtue` by hand: the nox"
-    " session is the way to run tests. Start nothing in the background that needs"
-    " polling: use one foreground command under `timeout 598`, or one `Monitor`"
-    " with an `until` loop."
+    "Nox order: where the checks are nox sessions, run `nox -r -s tests-3.13`"
+    " (one session) first and fix until it passes; only then run the other"
+    " sessions (`lint`, `mypy`, `skills`), with `-r`. Never invoke `virtue` or"
+    " `python -m virtue` by hand: the nox session is the way to run tests. Start"
+    " nothing in the background that needs polling: use one foreground command"
+    " under `timeout 598`, or one `Monitor` with an `until` loop."
 )
 FIRST_DESIGN = (
     "First design: throwing away a first design is acceptable and is not a thing"
