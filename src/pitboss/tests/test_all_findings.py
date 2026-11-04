@@ -92,6 +92,13 @@ class TestBriefs(unittest.TestCase):
             pinned(kind, [DRY_RUN])
         has_none(text(brief.Kind.REVIEW_EXECUTION), ["Dry run:"])
 
+    def test_only_a_plan_review_runs_anything(self) -> None:
+        """The line that says a reviewer runs nothing names the dry runs."""
+        for kind in brief.REVIEWS:
+            runs = kind in PLAN_STAGES
+            says = "You run nothing but the dry runs of the Plan's commands:"
+            assert_that(says in text(kind), equal_to(runs))
+
     def test_a_later_round_says_a_finding_was_missed_earlier(self) -> None:
         """Done-when 3: the line the sweep counts."""
         for kind in STAGES:

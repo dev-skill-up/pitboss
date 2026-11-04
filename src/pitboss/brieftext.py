@@ -139,6 +139,16 @@ SEPARATE_DRAFT = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
     " say so and stop. You run nothing: you read the diff and the PR body."
 )
+SEPARATE_DRY = (
+    "Separate agent: you are not the author; if you wrote any part of the change,"
+    " say so and stop. You run nothing but the dry runs of the Plan's commands:"
+    " you read the diff and the CI of the head."
+)
+SEPARATE_DRAFT_DRY = (
+    "Separate agent: you are not the author; if you wrote any part of the change,"
+    " say so and stop. You run nothing but the dry runs of the Plan's commands:"
+    " you read the diff and the PR body."
+)
 CI_DRAFT = (
     "Draft: this PR is a draft, and a draft has no check run, so there is no CI to"
     " read and none to wait for. You read the diff and the PR body only; never"
@@ -285,8 +295,7 @@ PLAN_DRY_RUN = (
     "Dry run: in a review of the Plan, try each command of the Plan as a"
     " read-only dry run where it can be tried (it changes nothing in the"
     " repository, the PR or the machine), and report each that cannot run as"
-    " written as a finding of the Plan. This is the one thing you run, whatever"
-    " the line that says you run nothing says."
+    " written as a finding of the Plan."
 )
 
 SCOPE_RELOCK = (
