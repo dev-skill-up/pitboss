@@ -98,7 +98,9 @@ class TestParsing(unittest.TestCase):
         expected = [
             [issue],
             [
-                shapes.Outcome(branch="a", still_open=False, merged=True),
+                shapes.Outcome(
+                    branch="a", still_open=False, merged=True, merged_at="x"
+                ),
                 shapes.Outcome(branch="b", still_open=True, merged=False),
             ],
         ]

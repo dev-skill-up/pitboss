@@ -1230,7 +1230,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   "Check locally before every push").
 - Nobody deletes the persistent checkout: the worktree a worker reuses, the one
   whose PR merged last, or the orchestrator's own; each carries a `.pitboss-live`
-  marker, because a sweep removes a finished worktree that has none (below).
+  marker, because a sweep removes a finished worktree that has none (below);
+  under disk pressure a merged one keeps that protection only when its PR
+  merged last (the exception below).
   Another worktree is removed
   only when its work is finished and on GitHub (its PR merged or closed, or its
   tip in the default branch) and it passes the safety test below; a worktree of
@@ -1241,15 +1243,23 @@ Only override for bugs, but do override for bugs (and then file them)".
   with the reason, so no line is left for the orchestrator to act on
   (`pitboss clean-worktrees`, `pitboss clean-container`). The test is one: no
   commit on no remote branch, no changed tracked file, nothing changed in the
-  idle hours, nothing marked live, no symbolic link or mount point, and not the
+  idle hours, nothing marked live (below the pressure; the exception follows), no
+  symbolic link or mount point, and not the
   directory the command runs in or a directory above it. A finished worktree
-  with untracked files is kept too, because `git worktree remove` refuses it.
+  with untracked files is kept too, because `git worktree remove` refuses it,
+  except a worktree whose only untracked file is a marker that was ignored under
+  pressure, which is removed with `--force`.
   The persistent checkout, a running agent's
   checkout and a shared cache are marked live (a file named `.pitboss-live` in
   the directory or anywhere in it, or in a directory above it, or a path under
-  `[clean] live`), and nothing marked is ever listed for removal: a persistent
+  `[clean] live`), and nothing marked is ever listed for removal (below the pressure; the exception
+  follows): a persistent
   checkout that is not marked is removed by the next sweep once its PR has
-  merged. A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
+  merged. A marker outlives its work, so under disk pressure (the aggressive
+  clean, at `[clean] pressure_percent`) a merged worktree's own marker is not
+  honored, except on the one whose PR merged last: the older merged worktrees
+  are removed (`REMOVED WORKTREE` says its marker was ignored) and the last
+  merged one prints `KEPT WORKTREE` with `its PR merged last`. A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
   under `[clean] min_free_gib` (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look
