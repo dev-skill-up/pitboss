@@ -1,9 +1,10 @@
 """What the pushing worker ran locally, read from the subagent transcripts."""
 
 import dataclasses
-import json
 import pathlib
 from typing import Iterable, Mapping, Protocol, Sequence
+
+from . import toolcalls
 
 SHORT_SHA = 7
 
@@ -108,14 +109,9 @@ class Searched:
 
 
 def _commands(entries: Sequence[str]) -> Iterable[tuple[int, str]]:
-    for index, entry in enumerate(entries):
-        try:
-            content = json.loads(entry)["message"]["content"]
-        except (ValueError, KeyError, TypeError):
-            continue
-        for item in content if isinstance(content, list) else []:
-            if isinstance(item, dict) and item.get("name") == "Bash":
-                yield index, str(item.get("input", {}).get("command", ""))
+    for index, name, given in toolcalls.uses(entries):
+        if name == "Bash":
+            yield index, str(given.get("command", ""))
 
 
 def _before_push(entries: Sequence[str], short: str) -> Sequence[str]:

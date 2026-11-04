@@ -95,6 +95,13 @@ estimated.
   still running (the session's agent listing); message it, or `free` the
   slot and restart the work if it ended without a hand-back. An agent that
   has answered but stays in the slot is marked with `heard`.
+- `POLLING`: the sweep prints `POLLING name on task: n tool calls, the last 20
+  are Monitor or sleep` for a running agent with over 40 tool calls whose last
+  20 are `Monitor` calls or `sleep` commands (each a model turn spent waiting;
+  pitboss#175). Message it to run `pitboss nox` in one foreground command under
+  `timeout 598`, or one `Monitor` with an `until` loop. It needs
+  `[slots] transcripts`, the directory of the workers' transcripts; the agent's
+  name in the ledger is the `name` in the transcript's `.meta.json`.
 - `NEXT`: one line of the sorted list.
 - `SUGGESTION`: after the list and the empty slots, `slots next` (and `next` with no ticket) prints the top five of the list as suggestions, each with its complete brief (`rules.md`, "Briefs come from pitboss"). A PR at `RULING DUE` comes before the list, as an Opus agent that takes no slot. Start the first one that can start, with the brief pasted unchanged (a ruling brief's `How we got here:` line is the one line the orchestrator replaces, with the analysis).
 

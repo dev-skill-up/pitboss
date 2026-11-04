@@ -25,7 +25,6 @@ from . import (
     configfile,
     dead,
     ghapi,
-    handback,
     ledger,
     ledgerowner,
     localsections,
@@ -43,6 +42,7 @@ from . import (
     syncguard,
     syncing,
     timing,
+    workerlines,
     worktrees,
 )
 from . import diskline, pulllines, pullstate, unreadableline
@@ -318,7 +318,7 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     book = read_ledger(found.settings)
     report.print_ledger(book)
     sweepline.slots(book, read, offering.offered(found, read, book))
-    handback.print_lines(book, found.now)
+    workerlines.print_lines(book, found.now, found.args)
 
 
 def _say_not_orchestrator(args: argparse.Namespace) -> None:

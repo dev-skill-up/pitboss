@@ -13,7 +13,7 @@ import dataclasses
 import enum
 from typing import Mapping, Sequence
 
-from . import briefconfig, brieftext as text, rulingwords
+from . import briefconfig, brieftext as text, brieftextwork, rulingwords
 
 
 class Kind(enum.Enum):
@@ -277,6 +277,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.DENIED,
         text.LOCAL,
         text.NOX,
+        *brieftextwork.SENTENCES,
         *([text.TRY_COMMANDS, text.PLAN_NO_NOX] if spec.kind in PLAN_WRITERS else []),
         *([text.PLAN_COMMANDS_WORKER] if spec.kind in PLAN_RUNNERS else []),
         *([text.NO_APPEND, text.SEARCH] if spec.kind in PLAN_RUNNERS else []),
