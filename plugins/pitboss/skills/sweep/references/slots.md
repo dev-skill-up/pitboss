@@ -158,8 +158,9 @@ exactly one step and at most one kind. There are eight:
    checks. On a draft it is the plan-only review (stage `grade the Plan ONLY`), listed
    with no CI, since a draft runs none, for a draft with no review, or one of an older head,
    and before every `start a PR` line (pitboss#156; a draft whose Plan a review at its head
-   rejects is `revise the plan` or `fix the review`, a draft whose Plan is approved waits for
-   its undraft and is offered for no round). Its brief says a draft has no check run and the
+   rejects is `revise the plan` or `fix the review`, and so is a draft whose Plan is approved
+   when the newest review at its head asks for changes, pitboss#176; a draft whose Plan is approved
+   and has no such review waits for its undraft and is offered for no round). Its brief says a draft has no check run and the
    reviewer reads the diff and the PR body only, besides the read-only dry runs of the
    Plan's commands. A reviewer that is not its author
    reviews it; the author never waits on CI, but pushes, reports the head and

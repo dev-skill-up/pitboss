@@ -540,7 +540,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   the base, or an edit of the PR body, which a review records as its `Body:`
   digest, so a body-only fix round at one head counts, and two rejections with
   nothing changed between them are one round); and a draft whose Plan is approved is undrafted when `can_undraft` (the runners are
-  quiet, `pitboss pressure`), before any CI wait (a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156). A red CI is never a plan
+  quiet, `pitboss pressure`), before any CI wait, unless the newest review at its head asks for changes (that fix comes first, pitboss#176; a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156). A red CI is never a plan
   rejection. A ruling is recorded by a PR comment whose first line is exactly
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
   and what follows it (the table `pitboss.flowstate.AFTER`, which the flow reads) is carried out as
@@ -599,10 +599,11 @@ Only override for bugs, but do override for bugs (and then file them)".
     `Plan:` line and an `Execution:` line (`approved` or `changes needed`,
     neither line containing the word verdict followed by a colon) beside the
     one `Verdict:` line of the form (`adversarial-review.md`). A draft whose Plan is approved is undrafted
-    when `can_undraft` holds, before any CI wait (`pitboss.flow.next_step`); a draft whose
+    when `can_undraft` holds, before any CI wait (`pitboss.flow.next_step`), unless the review
+    at its head asks for changes: it gets the fix that review asks for first (pitboss#176); a draft whose
     Plan is not approved is never undrafted: it gets a review of the Plan alone (or, when
     the review at its head asks for changes, the fix that review asks for), and one whose
-    Plan is approved waits for the window (`WAIT_FOR_UNDRAFT`).
+    Plan is approved and has no such review waits for the window (`WAIT_FOR_UNDRAFT`).
   - **After an approved Plan, every later review grades only the Execution**;
     the Plan line is carried over (`Plan: approved`, not reassessed, not
     discussed) (owner, 2026-10-26T23:54:21Z: "Once the plan is approved, YOU DO

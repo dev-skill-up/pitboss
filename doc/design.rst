@@ -809,7 +809,8 @@ listed at most once. The eight kinds:
   the head; it is the plan-only review when the newest review rejected the Plan
   and no review names this head or body (pitboss#167). On a draft it is the
   plan-only review, listed with no CI, since a draft runs none, before every
-  new ticket (pitboss#156); a draft is undrafted only once its Plan is approved.
+  new ticket (pitboss#156); a draft is undrafted only once its Plan is approved
+  and no review at its head asks for changes (that fix comes first, pitboss#176).
 
 A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
