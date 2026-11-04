@@ -83,21 +83,38 @@ TASKS: Mapping[Kind, str] = {
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [
         text.SCOPE_FULL,
+        text.ALL_FINDINGS,
+        text.MISSED_EARLIER,
         text.CHECK,
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
+        text.PLAN_DRY_RUN,
         text.PLAN_COMMANDS_EXECUTION,
     ],
     Kind.REVIEW_EXECUTION: [
         text.SCOPE_EXECUTION,
+        text.ALL_FINDINGS,
+        text.MISSED_EARLIER,
         text.CHECK,
         text.GREP,
         text.PLAN_COMMANDS_EXECUTION,
     ],
-    Kind.REVIEW_PLAN: [text.SCOPE_PLAN, text.GREP, text.PLAN_COMMANDS_PLAN],
+    Kind.REVIEW_PLAN: [
+        text.SCOPE_PLAN,
+        text.ALL_FINDINGS,
+        text.MISSED_EARLIER,
+        text.GREP,
+        text.PLAN_COMMANDS_PLAN,
+        text.PLAN_DRY_RUN,
+    ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
     Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.CARRIED],
     Kind.REVIEW_RELOCK: [text.SCOPE_RELOCK, text.RELOCK_CHECKS, text.CARRIED],
+}
+# keyword: all-findings (pitboss#169): the reviews of a Plan try its commands
+DRY_RUNNERS: Mapping[Kind, str] = {
+    Kind.REVIEW_FULL: text.SEPARATE_DRY,
+    Kind.REVIEW_PLAN: text.SEPARATE_DRAFT_DRY,
 }
 PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
 DRAFTS = {True: text.DRAFT, False: text.READY}
@@ -260,6 +277,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     separate, ci = (
         (text.SEPARATE_DRAFT, text.CI_DRAFT) if draft else (text.SEPARATE, text.CI)
     )
+    separate = DRY_RUNNERS.get(spec.kind, separate)
     head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, text.FORM]
     return [
         *_filled(head, values),

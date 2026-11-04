@@ -4,7 +4,7 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import bodydigest, config, gradeline, sessionurl, shapes
+from . import bodydigest, config, gradeline, missed, sessionurl, shapes
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -31,6 +31,8 @@ class Found:
         url: the comment's address, empty for a GitHub review.
         body: the digest of the PR body its ``Body:`` line records, empty
             with no such line (keyword: body-digest).
+        missed: how many findings it marks ``Missed earlier:`` (keyword:
+            all-findings).
     """
 
     sha: str
@@ -40,6 +42,7 @@ class Found:
     plan_alone: bool = False
     url: str = ""
     body: str = ""
+    missed: int = 0
 
 
 def names(found: Found, head: str) -> bool:
@@ -227,6 +230,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         plan_alone=plan is not None and execution is None,
         url=item.url,
         body=bodydigest.recorded(item.body),
+        missed=missed.count(item.body),
     )
 
 
@@ -278,6 +282,7 @@ def _as_graded(found: Found, comment: bool) -> shapes.Graded:
         execution=None if found.plan_alone else found.verdict,
         comment=comment,
         body=found.body,
+        missed=found.missed,
     )
 
 

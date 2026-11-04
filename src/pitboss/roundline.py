@@ -53,7 +53,18 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
     if found is None:
         return []
     marker, action = found
-    return [f"{marker.text} {pulls.reference(pull)}: {action}"]
+    return [f"{marker.text} {pulls.reference(pull)}: {action}{_missed(pull)}"]
+
+
+def _missed(pull: pulls.PullFacts) -> str:
+    # keyword: all-findings (pitboss#169): the post-ruling escalation analysis
+    if pull.step.step is not steps.Step.PAUSE_FOR_OWNER:
+        return ""
+    shown = pull.review_rounds
+    return (
+        f"; findings the reviews mark `missed earlier`: {shown.missed_after}"
+        f" after the ruling, {shown.missed_before} before it"
+    )
 
 
 def _unreadable(pull: pulls.PullFacts) -> str:

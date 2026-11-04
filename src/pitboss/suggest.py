@@ -172,7 +172,7 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
         The kind.
     """
     resolved = pull.standing is reviews.Standing.APPROVED_BEFORE_MERGES
-    if resolved or pull.merges_only:
+    if resolved or pull.review_rounds.merges_only:
         return brief.Kind.REVIEW_RESOLUTION
     if pull.relock and not _fix_round(pull):
         return brief.Kind.REVIEW_RELOCK  # keyword: relock (pitboss#126)
