@@ -2,16 +2,30 @@
 
 import unittest
 
+from hamcrest import assert_that, equal_to
+
 from .. import brief
 from .briefmake import has_none, pinned, text
 from .test_plan_commands import PLAN_REVIEWS
 
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
-    " each edit (the skills, the tests of one Python version, lint and mypy, each"
-    " with `-r`, stopping at the first failure; module names after `--` run only"
-    " those tests), and never the full `nox -r`: CI's `Run Nox` step runs the"
-    " whole suite."
+    " each edit (the tests of one Python version first, then the skills, lint and"
+    " mypy, each with `-r`, stopping at the first failure; module names after `--`"
+    " run only those tests), and never the full `nox -r`: CI's `Run Nox` step runs"
+    " the whole suite."
+)
+NOX_ORDER = (
+    "Nox order: where the checks are nox sessions, run `nox -r -s tests-3.13`"
+    " (one session) first and fix until it passes; only then run the other"
+    " sessions (`lint`, `mypy`, `skills`), with `-r`. Never invoke `virtue` or"
+    " `python -m virtue` by hand: the nox session is the way to run tests. Start"
+    " nothing in the background that needs polling: use one foreground command"
+    " under `timeout 598`, or one `Monitor` with an `until` loop."
+)
+FIRST_DESIGN = (
+    "First design: throwing away a first design is acceptable and is not a thing"
+    " to avoid; rewrite it when the tests show it is wrong."
 )
 PLAN_NO_NOX = (
     "CI evidence: the Plan never names `pitboss nox` or any nox run as its"
@@ -41,6 +55,25 @@ class TestNoxInTheBriefs(unittest.TestCase):
         """The sentence is pinned in each worker brief."""
         for kind in WORKERS:
             pinned(kind, [NOX])
+
+    def test_every_worker_brief_orders_the_sessions_and_forbids_polling(self) -> None:
+        """One session first, no virtue by hand, nothing to poll (pitboss#175)."""
+        for kind in WORKERS:
+            pinned(kind, [NOX_ORDER])
+
+    def test_the_order_applies_only_where_the_checks_are_nox_sessions(self) -> None:
+        """Like the Nox sentence, the order is conditional (pitboss#175)."""
+        assert_that(NOX.startswith("Nox: where the checks"), equal_to(True))
+        assert_that(
+            NOX_ORDER.startswith("Nox order: where the checks are nox sessions"),
+            equal_to(True),
+        )
+
+    def test_every_worker_brief_allows_a_thrown_away_first_design(self) -> None:
+        """Discarding a first design is no failure (pitboss#175)."""
+        for kind in WORKERS:
+            pinned(kind, [FIRST_DESIGN])
+        has_none(text(brief.Kind.REVIEW_EXECUTION), [FIRST_DESIGN, NOX_ORDER])
 
     def test_a_plan_writing_brief_forbids_a_nox_run_as_evidence(self) -> None:
         """The worker's sentence under the CI-evidence rule."""

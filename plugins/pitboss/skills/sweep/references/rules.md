@@ -951,9 +951,16 @@ Only override for bugs, but do override for bugs (and then file them)".
   keep only the check commands that are specific to it.
 - **A worker's local check is `pitboss nox`** (owner, 2026-11-04, pitboss#210):
   where the checks are nox sessions, the worker runs `timeout 598 pitboss nox`
-  after each edit, never the full `nox -r`. It runs the `skills` session, the
-  tests of one Python version, `lint` and `mypy`, each with `-r`, and stops at
-  the first failure; `pitboss nox -- <test modules>` runs only those tests. The
+  after each edit, never the full `nox -r`. It runs the tests of one Python
+  version first (`nox -r -s tests-3.13`; until the tests run there is no reason
+  to lint the code), then the `skills` session, `lint` and `mypy`, each with
+  `-r`, and stops at the first failure; `pitboss nox -- <test modules>` runs
+  only those tests. A worker never invokes `virtue` or `python -m virtue` by
+  hand (the nox session is the way to run tests), starts nothing in the
+  background that needs polling (pitboss#175: one foreground command under
+  `timeout 598`, or one `Monitor` with an `until` loop; a worker that polled
+  spent 12 of 14 minutes of its checks in its own turns), and may throw away a
+  first design: that is how the work goes, not a thing to avoid. The
   whole suite (every Python version, docs, dry_release) is CI's `Run Nox` step,
   so a Plan never names `pitboss nox` or any nox run as its evidence (it is
   evidence available from CI, pitboss#179), and a Plan that names one is changes

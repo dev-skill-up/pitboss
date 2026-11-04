@@ -85,6 +85,8 @@ class Marker(enum.Enum):
             a repository (``[holds] new_pull_requests``), with its open count.
         HELD_TICKET: a ticket of a held repository, which ``slots next`` does not offer.
         NO_HAND_BACK: an agent started over ten minutes ago that has said nothing.
+        POLLING: a running worker with over 40 tool calls whose last 20 are
+            ``Monitor`` calls or ``sleep`` commands.
         SYNCED: a working file copied to the sync repository's main.
         SYNC_SOURCE_MISSING: a file the sync is told to keep is not there.
         SYNC_NOT_CONFIGURED: the configuration has no ``[sync]`` table.
@@ -150,6 +152,7 @@ class Marker(enum.Enum):
     HOLD = enum.auto()
     HELD_TICKET = enum.auto()
     NO_HAND_BACK = enum.auto()
+    POLLING = enum.auto()
     SYNCED = enum.auto()
     SYNC_SOURCE_MISSING = enum.auto()
     SYNC_NOT_CONFIGURED = enum.auto()

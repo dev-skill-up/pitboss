@@ -1,7 +1,8 @@
 """The local check of a worker: the nox sessions that stand for CI's (pitboss#210).
 
-``pitboss nox`` runs the ``skills`` session, the tests of one Python version, ``lint``
-and ``mypy``, in that order, each with ``-r`` (reuse the environment), and stops at
+``pitboss nox`` runs the tests of one Python version first (until the tests run
+there is no reason to lint the code), then the ``skills`` session, ``lint`` and
+``mypy``, each with ``-r`` (reuse the environment), and stops at
 the first that fails. The other sessions (docs, dry_release, the other Python
 versions) are CI's: its ``Run Nox`` step runs the whole suite. Running the sessions
 is a seam (keyword: nox-runner): a test gives a runner and a clock, so no real nox
@@ -21,14 +22,14 @@ class Session(enum.Enum):
     """The sessions ``pitboss nox`` runs, in the order it runs them.
 
     Attributes:
-        SKILLS: the skill and its references.
         TESTS: the tests of one Python version.
+        SKILLS: the skill and its references.
         LINT: black and stolid.
         MYPY: the type check.
     """
 
-    SKILLS = "skills"
     TESTS = "tests-3.13"
+    SKILLS = "skills"
     LINT = "lint"
     MYPY = "mypy"
 
