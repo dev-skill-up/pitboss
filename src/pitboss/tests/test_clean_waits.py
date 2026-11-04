@@ -10,33 +10,38 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from . import fakes, test_conflict_waits as waits, test_flow_sweep as flows, world
+from . import fakes, test_flow_sweep as flows, world
 from .test_commands import sweep
 
 DUE = "ruling due after two plan rejections"
-PAUSE = "pause after a ruling and another rejection"
-ESCALATES = "the ruling escalates"
+OWNER = "pause after a ruling and another rejection"
+GIVEN_UP = "the ruling escalates"
+ESCALATION = flows.EXECUTION_TWICE + [flows.ruled_by("Ruling: escalate to the owner")]
+AFTER_RULING = flows.RULED + [flows.graded(flows.CHANGES, None, 4)]
+ROUNDS = (flows.TWO_PLAN_REJECTIONS, AFTER_RULING, ESCALATION)
+LINES = (flows.RULING_LINE, flows.PAUSE_LINE, "RULING ESCALATES owner/project#3")
+WAITING = dict(zip((DUE, OWNER, GIVEN_UP), zip(ROUNDS, LINES)))
 
 
 def clean(name: str, **changes: object) -> tuple[world.World, str]:
-    """A clean PR 3 at a wait of the conflict tests.
+    """A clean PR 3 at a wait.
 
     Args:
-        name: the wait, a key of ``test_conflict_waits.WAITING``.
+        name: the wait, a key of ``WAITING``.
         **changes: changes to PR 3's JSON (``draft``).
 
     Returns:
         The world, and the start of the wait's line.
     """
-    rounds, line = waits.WAITING[name]
+    rounds, line = WAITING[name]
     return flows.world_with(rounds, **changes), line
 
 
 def red(name: str) -> tuple[world.World, str]:
-    """A clean PR 3 at a wait of the conflict tests, with red CI.
+    """A clean PR 3 at a wait, with red CI.
 
     Args:
-        name: the wait, a key of ``test_conflict_waits.WAITING``.
+        name: the wait, a key of ``WAITING``.
 
     Returns:
         The world, and the start of the wait's line.
@@ -54,10 +59,10 @@ class TestCleanWaits(unittest.TestCase):
         """A draft at RULING DUE, a draft at PAUSE and red CI at RULING ESCALATES."""
         cases = {
             "a clean draft at RULING DUE": clean(DUE, draft=True),
-            "a clean draft at PAUSE": clean(PAUSE, draft=True),
-            "red CI at RULING ESCALATES": red(ESCALATES),
+            "a clean draft at PAUSE": clean(OWNER, draft=True),
+            "red CI at RULING ESCALATES": red(GIVEN_UP),
             "red CI at RULING DUE": red(DUE),
-            "red CI at PAUSE": red(PAUSE),
+            "red CI at PAUSE": red(OWNER),
         }
         shown = {
             label: (line in sweep(here).out, flows.listed_for_third(here))
