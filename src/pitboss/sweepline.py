@@ -6,6 +6,7 @@ from typing import Callable, Iterable, Sequence
 
 from .markers import Marker
 from . import (
+    blockedline,
     config,
     ghapi,
     holds,
@@ -24,7 +25,7 @@ def slots(
     open_now: Sequence[pulls.Read],
     offer: work.Offered,
 ) -> None:
-    """Print the withheld-tickets line, the hold line and the free-slots line.
+    """Print the withheld-tickets line, the hold, blocked and free-slots lines.
 
     Args:
         book: the ledger.
@@ -34,6 +35,8 @@ def slots(
     unreadableline.print_withheld(open_now)
     for line in holds.sweep_lines(offer.standing):
         print(line)
+    for item in offer.blocked:
+        print(blockedline.line(item.reference, item.blocker))
     report.print_free_slots(book, len(offer.items))
 
 

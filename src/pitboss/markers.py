@@ -23,7 +23,8 @@ class Marker(enum.Enum):
         PR_STATE: the line of an open PR in ``slots next``: its next step.
         BLOCKED: a commit status of a PR's head failed; the line names the
             status, its link and, for ``text-lint``, whether the finding is about
-            the body or the pin.
+            the body or the pin. Also ``BLOCKED <ticket> by <blocker>``: a ticket
+            that says it cannot be worked on until an open ticket or PR.
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
         UPDATE: a PR is behind the base with every check finished.

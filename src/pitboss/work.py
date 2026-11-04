@@ -96,6 +96,10 @@ class Item:
         title: its title.
         priority: the index of its priority label (0 for PRs).
         labels: its labels.
+        body: a ticket's text, to look for a blocker in.
+        comments: how many comments a ticket has.
+        blocker: the open ticket or PR a ticket says it cannot be worked on
+            until, or "" (keyword: ticket-blocked).
     """
 
     category: Category
@@ -104,6 +108,9 @@ class Item:
     title: str
     priority: int = 0
     labels: AbstractSet[str] = frozenset()
+    body: str = ""
+    comments: int = 0
+    blocker: str = ""
 
 
 def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
@@ -245,6 +252,8 @@ def _ticket_item(reference: str, issue: shapes.Issue, priority: int) -> Item:
         title=issue.title,
         priority=priority,
         labels=issue.labels,
+        body=issue.body,
+        comments=issue.comments,
     )
 
 
@@ -297,39 +306,20 @@ def smallest_model(
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Offered:
-    """The work that is queued, and the tickets the owner's hold keeps back.
+    """The work that is queued, and the tickets that are kept back.
 
     Attributes:
         items: the ordered items to start.
         held: the tickets of held repositories, in the same order.
         standing: each held repository and its open count (keyword: pr-hold).
+        blocked: the tickets that say they cannot be worked on until a ticket
+            or PR that is open, in the same order (keyword: ticket-blocked).
     """
 
     items: Sequence[Item]
     held: Sequence[Item]
     standing: Mapping[str, int]
-
-
-def apart(items: Sequence[Item], standing: Mapping[str, int]) -> Offered:
-    """Keep apart the tickets of the repositories the owner holds.
-
-    Args:
-        items: the ordered items (``queued``).
-        standing: the held repositories and their open counts (``holds``).
-
-    Returns:
-        The items to start, and the tickets held back.
-    """
-    return Offered(
-        items=[each for each in items if not _is_held(each, standing)],
-        held=[each for each in items if _is_held(each, standing)],
-        standing=standing,
-    )
-
-
-def _is_held(item: Item, standing: Mapping[str, int]) -> bool:
-    slug = item.reference.rpartition("#")[0]
-    return item.category is Category.NEW_PR and slug in standing
+    blocked: Sequence[Item]
 
 
 def queued(
