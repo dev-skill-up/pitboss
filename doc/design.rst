@@ -316,11 +316,14 @@ Commands
        obeys the same liveness, idle and safety rules as any dead path.
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
-   * - ``slots show|set|free|add|remove|failed|check|next CONFIG ...``
+   * - ``slots show|set|free|add|remove|failed|check|next|report|time CONFIG ...``
      - The worker-slot ledger, and the sorted list of what to start next. Every
-       one but ``report`` exits 1 with ``LEDGER MISSING`` and writes nothing when
+       one but ``report`` and ``time`` exits 1 with ``LEDGER MISSING`` and writes nothing when
        the ledger file does not exist (the owner creates it; only ``sweep`` starts
-       one from the configured defaults). ``check`` takes ``--running NAME ...``
+       one from the configured defaults). ``set`` takes ``--kind`` (``start``,
+       ``review``, ``fix`` or ``ruling``), records the ticket the task works on
+       and is refused when the ticket cannot be named; a ``set`` with the same
+       agent and ``--kind fix`` resumes the running agent as an entry. ``check`` takes ``--running NAME ...``
        and an optional number N: it exits 1 when the ledger has fewer than N rows.
        ``free`` prints the ledger, then the ``EMPTY SLOT`` line that ``next``
        gives the freed slot (one function, ``nextview.refill_line``), or
@@ -761,8 +764,8 @@ then names the five largest safe dead paths; it scans for them only then. The fr
 (``args.usage``), so a test gives the figure.
 
 **Slots.** The ledger is a JSON file: each slot's name, model, agent, task,
-whether the agent waits, and the tickets each model has failed. ``set``
-refuses an occupied slot, ``remove`` an occupied one, ``add`` a model not in ``models``; a
+ticket, kind, whether the agent waits, and the tickets each model has failed. ``set``
+refuses an occupied slot, except a ``--kind fix`` set with the same agent (a fix round that resumes it), ``remove`` an occupied one, ``add`` a model not in ``models``; a
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
 agent listing shows). ``next`` reads GitHub and prints one sorted list, each
@@ -815,12 +818,16 @@ listed again when the blocker closes or merges.
 overwrites its own timestamps, so idle and waiting time could only be
 estimated (dev-skill-up/pitboss#17). Every ``slots`` change therefore also
 appends a JSON line to ``[slots] log`` for each slot whose state (running,
-waiting or empty), agent or task now differs from its last line, or that is
+waiting or empty), agent, task, ticket or kind now differs from its last line,
+for every ``slots set`` even when it equals the last line (a ``begun`` entry,
+as a fix round that resumes the agent), or that is
 new to the log or gone from the ledger (state ``removed``, which ends its
 slot time). ``slots report CONFIG [--since T] [--until T]`` replays the log:
 each line lasts until the slot's next line (or the window's end), is cut to
 the window, and the seconds in each state are printed as shares, for each
-slot and for all slots together.
+slot and for all slots together. ``slots time CONFIG [--since T] [--until T]``
+replays it too: the worker minutes (running, not waiting) of each ticket, the
+count of ``set`` entries behind each total, and the median and mean over tickets.
 
 Nothing predicts which files a ticket will touch (an earlier version held
 back a ticket whose backticked paths an open PR changed; the owner dropped

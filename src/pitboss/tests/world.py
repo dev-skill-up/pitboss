@@ -11,7 +11,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 from gather import commands as gather_commands
 
 from .. import cli_parser, disk, machine, shapes
-from . import fakes
+from . import fakes, ticket_bodies
 
 FUTURE = "2030-01-01T00:00:00+00:00"
 START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
@@ -120,6 +120,7 @@ REPOSITORY_BODIES: MutableMapping[str, object] = {
     fakes.page(f"{LIBRARY}/pulls?state=all"): [],
     fakes.page(f"{PROJECT}/issues?state=open&labels=urgent"): [TICKET],
     fakes.page(f"{LIBRARY}/issues?state=open&labels=urgent"): [],
+    **ticket_bodies.ISSUES,
 }
 PULLS: Sequence[tuple[str, int, object, str]] = [
     ("owner/project", 1, [RED], "dirty"),

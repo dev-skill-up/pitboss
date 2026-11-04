@@ -144,7 +144,7 @@ max_open = 0
 # The ledger: a file outside the repository.
 # Default: <main_clone>/.git/pitboss-slots.json
 ledger = "/home/user/app/.git/pitboss-slots.json"
-# The slot log: a line for each change of a slot's state (`pitboss slots report`).
+# The slot log: a line for each change of a slot's state, with its ticket and kind (`pitboss slots report`, `pitboss slots time`).
 # Default: the ledger's name ending in .log
 log = "/home/user/app/.git/pitboss-slots.log"
 # The orchestrator's configuration says it owns the ledger. `pitboss slots next`,

@@ -24,6 +24,12 @@ class Mark(enum.Enum):
     HEARD = enum.auto()
 
 
+# What a task is: start a PR for a ticket, review a PR, a fix round on a PR (it
+# may resume the agent that works on it), or a ruling on a ticket or PR.
+TASK_KINDS = ("start", "review", "fix", "ruling")
+FIX_ROUND = "fix"
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Refusal:
     """A change the ledger refuses.
@@ -47,6 +53,9 @@ class Slot:
         waiting: the agent waits (on CI, a review or an answer), not runs.
         started: when the agent was put in the slot (ISO time), or empty.
         heard: when the agent last handed back or notified (ISO time), or empty.
+        ticket: the ticket the task works on (an ``owner/name#number``), or
+            empty.
+        kind: the kind of task (one of ``TASK_KINDS``), or empty.
     """
 
     name: str
@@ -56,6 +65,8 @@ class Slot:
     waiting: bool = False
     started: str = ""
     heard: str = ""
+    ticket: str = ""
+    kind: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -167,32 +178,45 @@ def _replace(ledger: Ledger, name: str, slot: Slot | None) -> Ledger:
     return dataclasses.replace(ledger, slots=tuple(item for item in kept if item))
 
 
-def take(ledger: Ledger, slot_name: str, agent: str, task: str) -> Ledger | Refusal:
-    """Put an agent in an empty slot.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Work:
+    """What an agent is put to.
+
+    Attributes:
+        agent: the agent's name.
+        task: what it works on (an ``owner/name#number``).
+        ticket: the ticket the task works on.
+        kind: the kind of task (one of ``TASK_KINDS``).
+    """
+
+    agent: str
+    task: str
+    ticket: str = ""
+    kind: str = ""
+
+
+def take(ledger: Ledger, slot_name: str, work: Work) -> Ledger | Refusal:
+    """Put an agent in an empty slot, or a fix round on the agent it holds.
 
     Args:
         ledger: the ledger.
         slot_name: the slot.
-        agent: the agent's name.
-        task: what it works on.
+        work: the agent and its task.
 
     Returns:
-        The new ledger, or a refusal when the slot is taken (free it first).
+        The new ledger, or a refusal when the slot holds another agent, or the
+        same agent for a task that is not a fix round (free it first).
     """
     slot = find(ledger, slot_name)
     if isinstance(slot, Refusal):
         return slot
-    if slot.agent:
+    resumes = slot.agent == work.agent and work.kind == FIX_ROUND
+    if slot.agent and not resumes:
         return Refusal(
             reason=f"slot {slot_name} holds {slot.agent} on {slot.task}: free it first"
         )
-    return _replace(
-        ledger,
-        slot_name,
-        dataclasses.replace(
-            slot, agent=agent, task=task, waiting=False, started="", heard=""
-        ),
-    )
+    taken = Slot(name=slot.name, model=slot.model, **dataclasses.asdict(work))
+    return _replace(ledger, slot_name, taken)
 
 
 def free(ledger: Ledger, slot_name: str) -> Ledger | Refusal:
@@ -208,13 +232,7 @@ def free(ledger: Ledger, slot_name: str) -> Ledger | Refusal:
     slot = find(ledger, slot_name)
     if isinstance(slot, Refusal):
         return slot
-    return _replace(
-        ledger,
-        slot_name,
-        dataclasses.replace(
-            slot, agent="", task="", waiting=False, started="", heard=""
-        ),
-    )
+    return _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
 
 
 def add(

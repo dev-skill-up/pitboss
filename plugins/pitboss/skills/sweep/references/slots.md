@@ -7,7 +7,7 @@ file does not exist (`[[slots.default]]`; `pitboss slots` never starts one). The
 which agent is in which slot on which task, and which models have failed
 which tickets. The owner creates the ledger file and it is authoritative on
 how many slots there are: when it does not exist, every `pitboss slots`
-command except `report` exits 1 with `LEDGER MISSING: <path> does not exist.
+command except `report` and `time` exits 1 with `LEDGER MISSING: <path> does not exist.
 It is authoritative on the slots and the owner creates it`, and writes no file.
 
 ## Which configuration refills the slot (keyword: ledger-owner)
@@ -36,7 +36,7 @@ with the configuration it names before acting on them.
 | Command | Use |
 | :--- | :--- |
 | `pitboss slots show <config>` | Print the ledger. |
-| `pitboss slots set <config> SLOT AGENT TASK` | An agent took an empty slot. TASK is `#12`, `name#12` or `owner/name#12`. Refused when the slot is occupied: free it first. |
+| `pitboss slots set <config> SLOT AGENT TASK` | An agent took an empty slot. TASK is `#12`, `name#12` or `owner/name#12`. `--kind KIND` is `start` (default), `review`, `fix` or `ruling`. The ledger and the slot log record the ticket the task works on next to TASK: the id itself for a ticket, the first `Fixes` line of the body for a PR. Refused when pitboss cannot name the ticket (not a reference, unreadable, a PR with no `Fixes` line). Refused when the slot is occupied: free it first, except that a fix round on a PR resumes the running agent: run `slots set` again with the same agent and `--kind fix`, so the round is an entry too. |
 | `pitboss slots free <config> SLOT` | The agent finished or was stopped. After it empties the slot it prints the `slots next` line for that slot (what to start, with its smallest model), or `no task is waiting`. |
 | `pitboss slots add <config> SLOT MODEL` | Add a slot, when the owner raises the limit. |
 | `pitboss slots remove <config> SLOT` | Remove an empty slot, when the owner lowers the limit. |
@@ -48,8 +48,9 @@ with the configuration it names before acting on them.
 | `pitboss slots wait <config> SLOT` | The agent in the slot waits (on CI, a review or an answer) and does no work. |
 | `pitboss slots resume <config> SLOT` | The agent in the slot works again. |
 | `pitboss slots report <config> [--since T] [--until T]` | The share of slot time spent running, waiting and empty, for each slot and for all, in a window (ISO times, UTC when no zone; default: the first log line to now). |
+| `pitboss slots time <config> [--since T] [--until T]` | The worker minutes (running, not waiting) of each ticket, summing its start, review, fix and ruling entries, with the count of `set` entries behind each total, and the median and mean over tickets. Sum per ticket, never per task id: a review or a fix round is named by its PR. |
 
-Update the ledger at every spawn (`set`), every time an agent starts or stops
+Update the ledger at every spawn (`set`, with `--kind` review, fix or ruling when the task is not a start), every fix round that resumes a running agent (`set` again, same agent, `--kind fix`), every time an agent starts or stops
 waiting (`wait`, `resume`) and every hand-back or completion notice (`free`, or `heard` when the agent stays).
 
 ## When a worker hands back
@@ -63,12 +64,13 @@ model it names; do not choose the next task or its model from your own list.
 ## The slot log
 
 Every change that leaves a slot in a different state (running, waiting or
-empty), with a different agent or on a different task, is also one JSON line
-in the slot log (`[slots] log`, default: the ledger's name ending in `.log`):
-UTC time, slot, state, agent and task. A slot the log has not seen yet is
+empty), with a different agent, task, ticket or kind, is also one JSON line,
+and so is every `slots set`, even when it equals the slot's last line (a fix
+round that resumes the agent), in the slot log (`[slots] log`, default: the ledger's name ending in `.log`):
+UTC time, slot, state, agent, task, ticket and kind. A slot the log has not seen yet is
 logged in the state it is in, so the time before its first change counts. A
 removed slot is logged as `removed`, after which it has no slot time.
-`slots report` replays the log, so idle and waiting time are measured, not
+`slots report` and `slots time` replay the log, so idle and waiting time are measured, not
 estimated.
 
 ## Markers

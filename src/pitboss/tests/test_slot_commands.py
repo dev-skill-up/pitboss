@@ -77,7 +77,7 @@ NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
         ],
     ),
     (
-        [("set", "tiny", "a", "x"), ("set", "big", "b", "y")],
+        [("set", "tiny", "a", "#50"), ("set", "big", "b", "#50")],
         [*NEXT_THREE, "slots: the ledger says all full: start nothing"],
     ),
     (
@@ -141,7 +141,7 @@ def freed_world(
         The world and the output lines of ``slots free tiny``.
     """
     here = here or world.make_world()
-    run_all(here, [*setup, ("set", "tiny", "agent-1", "x")])
+    run_all(here, [*setup, ("set", "tiny", "agent-1", "#50")])
     args = ("slots", "free", here.config, "tiny", "--now", world.FUTURE)
     return here, tuple(world.invoke(here, *args).out.splitlines())
 
