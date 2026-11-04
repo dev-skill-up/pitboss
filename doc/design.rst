@@ -209,7 +209,7 @@ Commands
        leaves the shipped one out). A pairs line is two patterns of the
        phrase language, an example of each and what to do instead, tab
        separated; the text between backticks is not searched.
-   * - ``lint pr-body|review|brief FILE [--head SHA] [--branch BRANCH] [--config CONFIG] [--ruling URL FILE]... [--comments FILE]``
+   * - ``lint pr-body|review|brief|owner-card FILE [--head SHA] [--branch BRANCH] [--config CONFIG] [--ruling URL FILE]... [--comments FILE]``
      - The forms of the texts agents write (pitboss#37), one file each; the
        phrase check of ``lint text`` runs on the same file. Prints one
        finding per line ending with its check in parentheses, exits 1 on
@@ -249,6 +249,10 @@ Commands
        ``brief``: every ``[lint.brief] required`` line start begins a line
        (``required-line``), and with ``--ticket`` each line of the ticket's
        Done-when section is in the brief word for word (``done-when``).
+       ``owner-card`` (pitboss#168, keyword: how-we-got-here): the text of an
+       owner decision card, its question and reason, has a line that starts
+       with the words ``How we got here`` and an analysis after them
+       (``how-we-got-here``; ``pitboss.analysis``).
        Without ``--config`` the generic forms of ``doc/example.toml`` are
        used.
    * - ``lint event EVENT STATUS [--url URL] [--config CONFIG] [--ruling URL FILE]... [--comments FILE]``
@@ -454,7 +458,10 @@ owner`` and the merge (or the conflict's resolution) for ``execution is
 approved``. ``pitboss next
 CONFIG TICKET`` scans the open PRs of the configuration once, picks the PR whose
 body says ``Fixes`` or ``Closes`` the ticket and prints its step, and for a ticket no PR fixes
-the first step. The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
+the first step. A ruling comment without a ``How we got here`` section (an
+analysis of each rejection before the ruling: ``pitboss.analysis``, pitboss#168)
+is read and followed all the same; the sweep says so with ``RULING NO ANALYSIS``
+(``pitboss.analysisline``). The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
 ``RULING ESCALATES``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
 GitHub's own reviews are no regular review and count nowhere in the flow. A PR

@@ -136,8 +136,8 @@ TEXTS: Mapping[Step, str] = {
     ),
     Step.PAUSE_FOR_OWNER: (
         f"label the PR and its ticket {PAUSED_LABEL}, comment what the rounds"
-        " disagreed about and the options, and report the number and the options"
-        " to the owner"
+        " disagreed about, the options and a `How we got here` section, and report"
+        " the number and the options to the owner on a card that has the section"
     ),
     Step.FIX_RULING: (
         "the newest Opus ruling has no readable `Ruling:` second line; an agent"
@@ -145,8 +145,9 @@ TEXTS: Mapping[Step, str] = {
     ),
     Step.RULING_ESCALATES: (
         "the Opus ruling escalated to the owner: label the PR and its ticket"
-        f" {PAUSED_LABEL}, comment the options, and report the number and the"
-        " options to the owner"
+        f" {PAUSED_LABEL}, comment the options and a `How we got here` section,"
+        " and report the number and the options to the owner on a card that has"
+        " the section"
     ),
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
