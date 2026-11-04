@@ -654,7 +654,11 @@ a greppable string and the run for the head, the Plan review rejects a row that
 does not, and the PR body holds evidence only for what CI does not show. The worker briefs
 say that a lint, check or exemption that is new or loosened ships a test for the
 nearest input it must still reject, and the full and the Execution review briefs
-make one without it changes needed (pitboss#180). The sweep prints ``POLLING`` for a running
+make one without it changes needed (pitboss#180). The ruling brief says that a
+ticket or ruling that changes the order in which steps are offered gives, in its
+Done-when, a table of the full order and a test per row, and the full, Plan and
+Execution review briefs make a doc row or the code that differs from that table
+changes needed (pitboss#182). The sweep prints ``POLLING`` for a running
 worker with over 40 tool calls whose last 20 are ``Monitor`` calls or ``sleep``
 commands (keyword: polling), read from the transcripts in ``[slots]
 transcripts``, matching the slot's agent to the ``name`` in the transcript's

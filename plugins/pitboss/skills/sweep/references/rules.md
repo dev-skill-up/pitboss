@@ -491,6 +491,17 @@ Only override for bugs, but do override for bugs (and then file them)".
   2026-10-29T02:25:33Z: "Avoid dumping five tickets into one task. There's no
   task economy here, otherwise it's less obvious both to you and me what is the
   state"). Each line is brought to its true end state before a report is sent.
+- **A ticket that changes a precedence order lists the full order and a test
+  per row** (pitboss#182; pitboss#148, PR #181, changed where the conflict step
+  sits among the gates of `flow.next_step`, its Done-when did not say how a
+  conflict meets the pause and ruling states, the worker chose an order in code,
+  `sweep.md` kept the old one, the body described a third, and two reviews were
+  rejected). When a ticket or a ruling changes the order in which steps are
+  offered, its Done-when is a table of the full order (every state against the
+  step offered) and names a test per row. The RULING brief carries the rule, and
+  the Plan and Execution review briefs make a doc row (`sweep.md`, `rules.md`,
+  `slots.md`) or the code that differs from that table, or a row with no named
+  test, changes needed.
 
 ## Plan first, and two rounds of changes needed
 

@@ -124,6 +124,11 @@ The order is: write a precise Plan, review the Plan, execute it as written.
 - Lint tests (pitboss#180): a lint, check or exemption that is new or loosened
   ships a test for the nearest input it must still reject, as well as one for
   the input it accepts; the Execution review is changes needed when it does not.
+- Order tables (pitboss#182): when a PR changes the order in which steps are
+  offered, the ticket's Done-when is a table of the full order (every state
+  against the step offered) with a test named per row; the Plan and Execution
+  reviews are changes needed when a doc row (`sweep.md`, `rules.md`, `slots.md`)
+  or the code differs from that table, or a row has no named test.
 - Worker: run each precise command of the Plan as written; if the Plan's
   command cannot show its row, change the Plan first and ask for its review.
 
