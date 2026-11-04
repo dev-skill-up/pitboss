@@ -14,7 +14,7 @@ points here.
 
 from typing import Callable, Sequence
 
-from . import bodydigest, flowstate, planbody, rulingwords, shapes, steps
+from . import bodydigest, flowstate, plancheckflow, planbody, rulingwords, shapes, steps
 
 Verdict = shapes.Verdict
 Graded = shapes.Graded
@@ -327,7 +327,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
         # undraft, the Plan approved or not (pitboss#176)
         rejection = rejection_step(pr, review) if review else None
         if rejection or not plan_approved(pr):
-            return rejection or steps.regular_review(steps.Stage.PLAN_ONLY)
+            return rejection or plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
         if can_undraft(pr):  # pressure passes, the CI-action spacing and holds allow
             return steps.undraft()  # the next step is the CI gate on the undrafted head
         # plan approved but cannot be undrafted yet: wait for the window
@@ -355,9 +355,9 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
     if review is None:
         if plan_approved(pr):  # approved while it was a draft
             return steps.regular_review(steps.Stage.EXECUTION_ONLY)
-        if flowstate.plan_rejected_last(pr):
-            return steps.regular_review(steps.Stage.PLAN_ONLY)
-        return steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+        alone = flowstate.plan_rejected_last(pr)
+        both = steps.Stage.PLAN_AND_EXECUTION
+        return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
 
     return plan_gate(pr, review)
 
