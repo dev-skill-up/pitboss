@@ -618,8 +618,10 @@ Only override for bugs, but do override for bugs (and then file them)".
     the review at its head asks for changes, the fix that review asks for), and one whose
     Plan is approved and has no such review waits for the window (`WAIT_FOR_UNDRAFT`).
   - **After an approved Plan, every later review grades only the Execution**;
-    the Plan line is carried over (`Plan: approved`, not reassessed, not
-    discussed) (owner, 2026-10-26T23:54:21Z: "Once the plan is approved, YOU DO
+    the Plan line is printed as fixed (`Plan: approved (fixed)`, not reassessed, not
+    discussed; a gap in the Plan is a request for an Opus ruling, never a Plan
+    finding; `pitboss lint review FILE --plan-approved` refuses any other Plan
+    line) (owner, 2026-10-26T23:54:21Z: "Once the plan is approved, YOU DO
     NOT GRADE IT. It's approved"). A brief for a re-review says which stage the
     PR is at, and a reviewer is never told that the Execution is reviewed later
     or by someone else.
@@ -810,7 +812,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   review`, or `the Plan was revised after a rejection: grade only the Plan,
   with a Plan line and the one Verdict line, no Execution line and no
   Execution defect`, or `the Plan is approved: grade only the Execution and
-  write the Plan line as approved, carried over.` It also says:
+  write the Plan line as `Plan: approved (fixed)`.` It also says:
   `Grep: look for a statement the change makes false or contradictory anywhere
   in the tree; one is changes needed. An objection to a phrase no claim depends
   on is answered by removing the phrase.`

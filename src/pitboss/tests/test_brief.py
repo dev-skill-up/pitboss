@@ -25,7 +25,7 @@ RESOLUTION = "\n".join(
         f"Review: o/r#3 at head {HEAD}. Read the head from the PR when you start"
         " and again before you post; if it moved, review the new head.",
         RESOLUTION_SCOPE,
-        "Write `Plan: approved` as carried over, and an `Execution:` line with"
+        "Write `Plan: approved (fixed)`, and an `Execution:` line with"
         " your verdict, the same word as the `Verdict:` line.",
         "Separate agent: you are not the author; if you wrote any part of the"
         " change, say so and stop. You run nothing: you read the diff and the CI"
@@ -81,7 +81,7 @@ FULL_SCOPES = (
 )
 EXECUTION = [
     f"Scope: the Execution of head {HEAD}, against the approved Plan",
-    "write `Plan: approved` as carried over; do not reassess or discuss the Plan.",
+    "write `Plan: approved (fixed)`; do not reassess or discuss the Plan.",
 ]
 PLAN = [
     f"Scope (exclusive): the Plan of head {HEAD}, alone,",

@@ -4,6 +4,7 @@ import re
 
 PLAN_PREFIX = "Plan: "
 EXECUTION_PREFIX = "Execution: "
+FIXED = "(fixed)"
 
 
 def line_approved(
@@ -21,8 +22,23 @@ def line_approved(
         True for the approved word, False for the other, or None when no
         line is a grade.
     """
-    alternatives = "|".join(map(re.escape, (approved, changes_needed)))
-    pattern = re.compile(re.escape(prefix) + f"({alternatives})")
+    pattern = re.compile(
+        re.escape(prefix)
+        + f"(?:(?P<yes>{re.escape(approved)})(?: {re.escape(FIXED)})?"
+        + f"|(?P<no>{re.escape(changes_needed)}))"
+    )
     matches = (pattern.fullmatch(line.rstrip()) for line in body.splitlines())
-    word = next((found.group(1) for found in matches if found), None)
-    return None if word is None else word == approved
+    found = next((match for match in matches if match), None)
+    return None if found is None else found.group("yes") is not None
+
+
+def fixed_line(approved: str) -> str:
+    """The Plan line of a review after the Plan was approved.
+
+    Args:
+        approved: the form's word for an approval.
+
+    Returns:
+        ``Plan: approved (fixed)`` in the form's word.
+    """
+    return f"{PLAN_PREFIX}{approved} {FIXED}"

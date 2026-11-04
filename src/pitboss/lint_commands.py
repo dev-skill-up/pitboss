@@ -21,6 +21,7 @@ from . import (
     gates,
     ghapi,
     phrases,
+    planfixed,
     relock,
     repoarg,
     reviews,
@@ -142,9 +143,9 @@ def _pr_body_findings(
 def _review_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
-    if args.gated:
-        return forms.gated_review(subject, _gated_form(args, settings))
-    return forms.ordinary_review(subject, settings.review.form)
+    form = _gated_form(args, settings) if args.gated else settings.review.form
+    check = forms.gated_review if args.gated else forms.ordinary_review
+    return [*check(subject, form), *planfixed.required(args, subject, form)]
 
 
 def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.ReviewForm:
@@ -300,6 +301,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         help="review: read the configured gated form, strictly, as a gate does"
         " (with --repository, the form review-form prints for it)",
     ),
+    planfixed.ARGUMENT,
     add_argument(
         "--repository",
         default="",
