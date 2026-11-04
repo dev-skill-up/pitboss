@@ -922,7 +922,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   word `haven't checked verified looked` is never OK. You already have a
   rule").
 - **A hand-back has one form**: the PR, the head, one piece of evidence
-  (command and raw output) per Done-when item. One with narration, hedging or a
+  (command and raw output) per Done-when item that CI does not show, and for
+  one that CI shows its pointer (workflow, step, greppable string, the run and
+  job URL of the head, pitboss#179). One with narration, hedging or a
   flagged "slip" that is no rule is sent back. Evidence is the command and what
   it printed; a claim is never larger than its evidence, and never made smaller
   to fit it: the work is made to match the claim.
@@ -1295,7 +1297,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - Never cheat a lint: a lint that rejects a phrase rejects the missing work
   behind it; the work is done and its real output reported (owner,
   haiku-rule 3, 2026-10-23).
-- Report outcomes by their evidence: the command and what it printed.
+- Report outcomes by their evidence: the command and what it printed (for what
+  CI shows, its pointer).
 - The owner's preferences in the system prompt apply to every message (no
   analogies unless they help, no "makes you wonder", search before factual
   claims).
