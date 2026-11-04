@@ -544,7 +544,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   that step, and this file does not state it a second time. The steps are
   `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
   its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`,
-  `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED` and MERGE. Two clauses are by the owner's ruling: a review that approves the
+  `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED`, `PLAN_CHECK` and MERGE. A draft whose Plan is not approved, and a PR with no review, whose Plan has
+  commands is at `PLAN_CHECK` until a trusted PR comment records a clean `pitboss plan-check` of this Plan, and only then at its plan review
+  (keyword: plan-check, pitboss#192): the orchestrator runs `uvx pitboss plan-check <body file>` on the body of such a draft and posts its whole output as a PR comment
+  (its first line is `Plan check`, it has a `Plan digest:` line and ends `Plan check: ok` or `Plan check: refused`), and the next step waits for the
+  trusted comment that says `Plan check: ok` with the digest of the Plan now in the body. Two clauses are by the owner's ruling: a review that approves the
   plan and asks for execution changes is a worker round (`fix the review`), not
   `RULING DUE` (the count, pitboss#149: the first rejection of the execution on
   an approved plan is that worker round, and the second, once a fix round came
@@ -565,8 +569,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   round, `RULING_ESCALATES` for `escalate to the owner`, the merge for
   `execution is approved`), and a worker's push hands the PR back to the
   ordinary review gate. A PR at `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`,
-  `RULING_ESCALATES` or `PLAN_EDITED` is offered for no round in `slots
-  next`, and its ticket stays taken.
+  `RULING_ESCALATES`, `PLAN_EDITED` or `PLAN_CHECK` is offered for no round in `slots
+  next` (the orchestrator runs the plan-check itself), and its ticket stays taken.
 - **An escalation says how the work got there** (keyword: how-we-got-here;
   owner, 2026-11-03, pitboss#168: if something is escalated, whether to an Opus
   ruling or to the owner, there has to be an analysis of how we got there;
@@ -633,7 +637,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     one `Verdict:` line of the form (`adversarial-review.md`). A draft whose Plan is approved is undrafted
     when `can_undraft` holds, before any CI wait (`pitboss.flow.next_step`), unless the review
     at its head asks for changes: it gets the fix that review asks for first (pitboss#176); a draft whose
-    Plan is not approved is never undrafted: it gets a review of the Plan alone (or, when
+    Plan is not approved is never undrafted: it is checked first (`plan-check`, run by the orchestrator, output posted as a PR comment, whose trusted
+    clean result for the Plan digest the plan review waits for; a Plan with no command needs none), then it gets a review of the Plan alone (or, when
     the review at its head asks for changes, the fix that review asks for), and one whose
     Plan is approved and has no such review waits for the window (`WAIT_FOR_UNDRAFT`).
   - **After an approved Plan, every later review grades only the Execution**;

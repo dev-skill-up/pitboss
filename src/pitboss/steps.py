@@ -10,6 +10,8 @@ from typing import Mapping
 
 PAUSED_LABEL = "paused-owner"
 RULING_FIRST_LINE = "Opus ruling"
+PLAN_CHECK_FIRST_LINE = "Plan check"  # keyword: plan-check (pitboss#192)
+PLAN_CHECK_OK = "Plan check: ok"
 # keyword: owner-artifact (pitboss#237, the owner's standing ruling of 2026-11-04)
 OWNER_ARTIFACT = (
     "attach a markdown artifact with the sections 'What happened',"
@@ -40,6 +42,9 @@ class Step(enum.Enum):
         PLAN_EDITED: the Plan section differs from the Plan an approving review
             read, and no Opus ruling authorises the edit (keyword: plan-digest,
             pitboss#172).
+        PLAN_CHECK: the Plan has commands and no trusted comment records a clean
+            ``pitboss plan-check`` of this Plan (keyword: plan-check,
+            pitboss#192); no Plan review is offered before it.
         MERGE: the PR merges.
     """
 
@@ -54,6 +59,7 @@ class Step(enum.Enum):
     FIX_RULING = enum.auto()
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
+    PLAN_CHECK = enum.auto()
     MERGE = enum.auto()
 
 
@@ -174,6 +180,11 @@ TEXTS: Mapping[Step, str] = {
         "the Plan was edited after its approval: restore the approved Plan, or"
         " ask an Opus agent for a ruling that says `revise the plan`; no review"
         " or fix is offered meanwhile"
+    ),
+    Step.PLAN_CHECK: (
+        "run `uvx pitboss plan-check <body file>` on the PR body and post its whole"
+        f" output as a PR comment (its first line is {PLAN_CHECK_FIRST_LINE!r});"
+        " the Plan review is offered once it says `Plan check: ok` for this Plan"
     ),
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
@@ -301,6 +312,15 @@ def plan_edited() -> Next:
         The step.
     """
     return Next(step=Step.PLAN_EDITED)
+
+
+def plan_check() -> Next:
+    """The step of a Plan with commands that no recorded check has run.
+
+    Returns:
+        The step.
+    """
+    return Next(step=Step.PLAN_CHECK)
 
 
 def merge() -> Next:
