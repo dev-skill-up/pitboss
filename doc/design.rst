@@ -266,9 +266,12 @@ Commands
        The status's ``target_url`` is ``--url``. Exits 0 once the file is
        written, 2 on an event or a file it cannot use. The reusable workflow
        ``.github/workflows/text-lint-check.yml`` fetches the PR's comments
-       with ``gh api`` into the file ``--comments`` reads (a step that may
-       fail: the caller grants ``pull-requests: read``, and without it no
-       comments are read), runs it and posts the file with ``gh api``: it checks out pitboss at its ``tools-ref`` input (the
+       with ``gh api`` into the file ``--comments`` reads (a caller grants
+       ``pull-requests: read`` in the same change that moves its pin to this
+       commit: GitHub lets a called workflow keep or lower the caller's
+       ``GITHUB_TOKEN`` permissions, never raise them, so a caller without it
+       fails at startup and posts no status; a caller on an older pin is
+       unaffected), runs it and posts the file with ``gh api``: it checks out pitboss at its ``tools-ref`` input (the
        caller repeats its own commit, as a reusable workflow cannot read its
        ref), never the pull request, and the body reaches pitboss only in the
        event's file. Callers are made from ``templates/text-lint.yml``, by
