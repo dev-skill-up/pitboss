@@ -50,3 +50,11 @@ class TestOrderTables(unittest.TestCase):
         """rules.md and adversarial-review.md hold the rule."""
         for name in ("rules.md", "adversarial-review.md"):
             assert_that(words(read(name)), contains_string("a table of the full order"))
+
+    def test_the_rule_sits_in_the_tickets_section_of_rules(self) -> None:
+        """The bullet is between the Tickets heading and the next heading."""
+        rules = read("rules.md")
+        start = rules.index("\n## Tickets\n")
+        section = rules[start + 1 :].split("\n## ")[0]
+        assert_that(words(section), contains_string("a table of the full order"))
+        assert_that(words(section), contains_string("pitboss#182"))
