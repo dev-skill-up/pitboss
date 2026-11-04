@@ -715,6 +715,19 @@ Only override for bugs, but do override for bugs (and then file them)".
   claim needs, or a claim with no command, is changes needed.` The commands run with the permissions of whoever
   runs expand, so a template is only ever the worker's own (`design.rst`,
   "Expanding a template").
+- **Dry run, expand rows and search lines** (keyword: dry-run, pitboss#170;
+  reviewers of pwa#277 and quire#1038 found a Plan command that did not work as
+  written, an expand row with `; echo $?` appended, and a statement left false
+  elsewhere in the tree, each costing rounds). A worker brief says: `Dry run:`
+  run each command read-only before it goes into the Plan, when it can be run,
+  and say so in the Plan for one that cannot; `Expand rows:` never append
+  anything to a row of the template, because `pitboss expand` prints
+  `exit status: N` for a status that is not zero, and `pitboss lint pr-body`
+  refuses an Evidence row that ends in `; echo $?`, `&& echo $?` or `|| echo`
+  (`appended`); `Search:` before handing back, search the tree for the words of
+  every comment, rule bullet and doc the change touches, and fix each statement
+  the change makes false or list it in the Execution. The wording is in
+  `adversarial-review.md`, "The Plan's precise commands".
 - **An existing comment or body is edited only with its full text in hand**
   (orchestrator, 2026-10-30: a stand-in text sent to an update-comment tool on
   a comment that had not been read overwrote the closing comment on

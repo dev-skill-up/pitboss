@@ -98,6 +98,8 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_RELOCK: [text.SCOPE_RELOCK, text.RELOCK_CHECKS, text.CARRIED],
 }
 PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
+# keyword: dry-run (pitboss#170): the briefs that write a Plan's commands
+PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
 PUSHES = {True: text.PUSH_HELD, False: text.PUSH_FREE}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
@@ -241,7 +243,9 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.EDIT,
         text.DENIED,
         text.LOCAL,
+        *([text.DRY_RUN] if spec.kind in PLAN_WRITERS else []),
         *([text.PLAN_COMMANDS_WORKER] if spec.kind in PLAN_RUNNERS else []),
+        *([text.NO_APPEND, text.SEARCH] if spec.kind in PLAN_RUNNERS else []),
         PUSHES[project.holds],
         text.NO_WAITING,
         text.FINISH,

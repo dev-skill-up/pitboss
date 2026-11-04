@@ -102,6 +102,22 @@ The order is: write a precise Plan, review the Plan, execute it as written.
 The briefs `pitboss next` prints carry these sentences. No lint checks them:
 the review does.
 
+Three more lines of the worker briefs (keyword: dry-run, pitboss#170):
+
+- Dry run: run each command read-only before you write it into the Plan, when
+  it can be run, and see that it shows its row (a test command needs the build
+  it depends on; a filter must keep what the row needs, line numbers
+  included); for a command that cannot be run before the change exists, say so
+  in the Plan.
+- Expand rows: never append anything to a row of the template (no `; echo $?`,
+  no `|| echo`): `pitboss expand` prints `exit status: N` for a status that is
+  not zero, and a row not run as the Plan wrote it is rejected.
+  `pitboss lint pr-body` refuses an Evidence row that ends in `; echo $?`,
+  `&& echo $?` or `|| echo` (`appended`).
+- Search: before handing back, search the tree for the words of every comment,
+  rule bullet and doc the change touches, and fix each statement the change
+  makes false or list it in the Execution.
+
 ## A draft PR: Plan, Execution and the Plan line
 
 A fix is a draft PR whose body has a Plan section and an Execution section

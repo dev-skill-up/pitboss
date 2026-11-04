@@ -5,7 +5,8 @@ parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 ``footer`` for a PR body; ``first-line``, ``verdict``, ``reviewed``,
 ``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
 ``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
-``$ `` row that ``pitboss expand`` did not produce. The wording a project
+``$ `` row that ``pitboss expand`` did not produce, and ``appended`` for an
+Evidence row that ends in an echo of the exit status. The wording a project
 chooses (a review's lines, a PR body's footers, a brief's required lines) is
 read from its configuration (``config.Lint`` and ``config.ReviewForm``).
 """
@@ -14,7 +15,7 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, evidence, reviews, sessionurl
+from . import config, evidence, reviews, rowchecks, sessionurl
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
@@ -108,21 +109,6 @@ def _evidence(subject: Subject) -> list[str]:
     )
 
 
-def _typed_by_hand(subject: Subject) -> list[str]:
-    # keyword: expand (pitboss#117)
-    return [
-        found
-        for line in evidence.hand_typed(subject.body)
-        for found in _found(
-            subject,
-            "hand-typed",
-            f'line {line}: a "$ " row that pitboss expand did not produce: put'
-            " the command in a template and run pitboss expand",
-            True,
-        )
-    ]
-
-
 def _kept(footers: Sequence[str]) -> set[str]:
     # keyword: store-form (pitboss#164): the store replaces the robot footer
     # with the generated-by footer, so a project that lists one accepts both
@@ -139,6 +125,14 @@ def _footer(subject: Subject, footers: Sequence[str]) -> list[str]:
     return _found(
         subject, "footer", message, bool(footers) and not ends & _kept(footers)
     )
+
+
+def _command_rows(subject: Subject) -> list[str]:
+    # keywords: expand (pitboss#117), appended (pitboss#170)
+    return [
+        *rowchecks.typed_by_hand(subject.name, subject.body),
+        *rowchecks.appended(subject.name, subject.body),
+    ]
 
 
 def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
@@ -158,7 +152,7 @@ def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
         *_one_ticket(clean),
         *_described_head(clean),
         *_evidence(clean),
-        *_typed_by_hand(clean),
+        *_command_rows(clean),
         *_footer(clean, footers),
     ]
 
@@ -181,7 +175,7 @@ def relock_pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
     clean = _clean(subject)
     return [
         *_described_head(clean),
-        *_typed_by_hand(clean),
+        *rowchecks.typed_by_hand(clean.name, clean.body),
         *_footer(clean, footers),
     ]
 
