@@ -121,3 +121,39 @@ def red(
             for check in current
         )
     ]
+
+
+def signals(
+    posted: Sequence[shapes.CommitStatus],
+    current: Sequence[shapes.CheckRun],
+    labels: AbstractSet[str],
+    rulings: Sequence[tuple[str, str]],
+) -> HeadSignals:
+    """The signals of a head that do not depend on the review gate.
+
+    Args:
+        posted: the newest status of each context of the head.
+        current: the head's current check runs.
+        labels: the names of the PR's labels.
+        rulings: the address and text of each trusted Opus ruling comment.
+
+    Returns:
+        The signals of the head, with no ``gate``.
+    """
+    return HeadSignals(statuses=red(posted, current), labels=labels, rulings=rulings)
+
+
+def gate(
+    posted: Sequence[shapes.CommitStatus], slug: str, gated: AbstractSet[str]
+) -> str:
+    """Say why the review gate of a head is unmet, if its repository is gated.
+
+    Args:
+        posted: the newest status of each context of the head.
+        slug: the repository's ``owner/name``.
+        gated: the slugs of the repositories whose review gate is read.
+
+    Returns:
+        What ``pending_gate`` says, or empty when the repository is not gated.
+    """
+    return pending_gate(posted) if slug in gated else ""
