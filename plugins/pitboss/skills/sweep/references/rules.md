@@ -807,7 +807,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   rev-parse HEAD", a count is "$ git log origin/main..HEAD --oneline | wc -l",
   a file is "$ cat < path", a mutation run is "$ sh scripts/<script>" of a
   script committed in the PR); run pitboss expand TEMPLATE and send its output
-  as the body; never retype or abbreviate output; lint pr-body refuses a
+  as the body (a body over the store's limit, 65536 characters, is set with
+  pitboss expand TEMPLATE --pr OWNER/NAME#N --no-dry-run, which cuts it on
+  paragraph markers, posts the later parts as comments marked
+  <!-- pitboss-expand-part N of M --> and cites them in the section
+  "## Evidence in comments" of the description); never retype or abbreviate output; lint pr-body refuses a
   hand-typed "$ " row anywhere in the body (in a quote, a list or an indented
   block too) that is not inside a block expand produced.` A reviewer brief
   says: `Evidence: every "$ " block in the Evidence is one pitboss expand
@@ -1029,7 +1033,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
   output on the PR, else changes needed.
 - **The author posts the evidence for every claim of a PR and every item of
-  the ticket's Done-when in the PR body: the command and its raw output.** A
+  the ticket's Done-when in the PR body: the command and its raw output**
+  (past the store's limit, in the comments `pitboss expand --pr` posts, which
+  the section "## Evidence in comments" of the body cites by URL). A
   claim is never weakened to match the logs; the code is changed until the
   output shows it. The command and its output come from `pitboss expand`,
   never from the author's hand (`Evidence line`, above).

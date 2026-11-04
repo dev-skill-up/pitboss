@@ -301,13 +301,15 @@ Commands
        are CI's.
    * - ``expand TEMPLATE [--cwd DIR] [--pr OWNER/NAME#N [--limit N] [--no-dry-run]]``
      - A PR body whose evidence is produced, never typed (pitboss#117; see
-       **Expanding a template** below). Prints TEMPLATE with each directive
-       run in DIR (default: the current directory). Exits 0 whatever the
+       **Expanding a template** below). Without ``--pr``
+       prints TEMPLATE with each directive run in DIR (default: the current
+       directory). Exits 0 whatever the
        commands' statuses, 2 on a template or directory it cannot use (and
        prints nothing: every directive is read before any runs). With
-       ``--pr`` it also sets the pull request's description to that body, a
-       body over ``--limit`` (default 65536) cut into comments cited by URL
-       (keyword: expand-split, pitboss#177; see **Expanding a template**);
+       ``--pr`` it prints the description it set: that body, or, for a body
+       over ``--limit`` (default 65536), its first part with the citations of
+       the later parts, which are posted as comments (keyword: expand-split,
+       pitboss#177; see **Expanding a template**);
        a dry run unless ``--no-dry-run``; 2 on a ``--pr`` that is not
        ``OWNER/NAME#NUMBER`` or a limit the body cannot be cut to.
    * - ``clean-container CONFIG [--approved FILE] [--batch N]``
