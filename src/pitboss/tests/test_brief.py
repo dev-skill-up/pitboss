@@ -98,10 +98,11 @@ FORM_LINES = [
 FIX_ROUND = [
     "Scope (exclusive): the fix round. The findings to check are those"
     " of the review at https://example.org/c/1, of head " + APPROVED,
-    f"Check that each is fixed at head {HEAD} as the finding asks,"
-    " and the CI on the head, and nothing else: not a part of the"
-    " change that no finding names, not the Plan. A finding outside"
-    " this scope is not a ground for changes needed; do not write it.",
+    f"Check that each finding is fixed at head {HEAD} as the finding asks,"
+    " whether the fixes invalidate the approved Plan, and the CI on the head,"
+    " and nothing else. You may raise nothing outside that diff or those"
+    " findings: a finding outside this scope is not a ground for changes needed;"
+    " do not write it.",
 ]
 
 

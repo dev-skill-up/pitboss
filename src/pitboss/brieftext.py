@@ -139,10 +139,21 @@ SEPARATE_DRAFT = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
     " say so and stop. You run nothing: you read the diff and the PR body."
 )
+SEPARATE_DRY = (
+    "Separate agent: you are not the author; if you wrote any part of the change,"
+    " say so and stop. You run nothing but the dry runs of the Plan's commands:"
+    " you read the diff and the CI of the head."
+)
+SEPARATE_DRAFT_DRY = (
+    "Separate agent: you are not the author; if you wrote any part of the change,"
+    " say so and stop. You run nothing but the dry runs of the Plan's commands:"
+    " you read the diff and the PR body."
+)
 CI_DRAFT = (
     "Draft: this PR is a draft, and a draft has no check run, so there is no CI to"
-    " read and none to wait for. You read the diff and the PR body only; never"
-    " hand back `NOT STARTED` for a missing check run of a draft."
+    " read and none to wait for. You read the diff and the PR body only (and"
+    " dry-run the Plan's commands); never hand back"
+    " `NOT STARTED` for a missing check run of a draft."
 )
 FORM = (
     "Form: read `references/adversarial-review.md` of the sweep skill, then post"
@@ -254,10 +265,38 @@ SCOPE_RESOLUTION = (
 )
 SCOPE_FIX_ROUND = (
     "Scope (exclusive): the fix round. The findings to check are those of"
-    " {review}, of head {approved}. Check that each is fixed at head {head} as the"
-    " finding asks, and the CI on the head, and nothing else: not a part of the"
-    " change that no finding names, not the Plan. A finding outside this scope is"
-    " not a ground for changes needed; do not write it." + EXCLUSIVE
+    " {review}, of head {approved}. The diff to read is `git diff"
+    " {approved}..{head}`. Check that each finding is fixed at head {head} as the"
+    " finding asks, whether the fixes invalidate the approved Plan, and the CI on"
+    " the head, and nothing else. You may raise nothing outside that diff or those"
+    " findings: a finding outside this scope is not a ground for changes needed;"
+    " do not write it. If every finding is fixed as asked and the fixes do not"
+    " invalidate the approved Plan, the verdict is approved, and the PR is"
+    " mergeable." + EXCLUSIVE
+)
+# keyword: all-findings (pitboss#169): a first round lists every finding, a later
+# round checks those; a fix round is scoped to its diff and its findings
+ALL_FINDINGS = (
+    "Round: in the first round of a stage,"
+    " read the whole PR body, the whole diff and every command of the Plan"
+    " against the repository, and list every finding of the stage you grade in"
+    " that one review, not the first few. A later round on the same stage (an"
+    " earlier review of this PR graded it) checks only the earlier findings and"
+    " the findings caused by the changes made since the head that review read."
+)
+MISSED_EARLIER = (
+    "Missed earlier: a review that is not the first round and raises a finding"
+    " that is present in the unchanged text of an earlier head says so, with one"
+    " line for each such finding that starts with `Missed earlier:` and says what"
+    " the finding is; the sweep counts those lines for the analysis of the rounds"
+    " after an Opus ruling. A finding caused by the changes since has no such"
+    " line."
+)
+PLAN_DRY_RUN = (
+    "Dry run: in a review of the Plan, try each command of the Plan as a"
+    " read-only dry run where it can be tried (it changes nothing in the"
+    " repository, the PR or the machine), and report each that cannot run as"
+    " written as a finding of the Plan."
 )
 
 SCOPE_RELOCK = (

@@ -14,6 +14,7 @@ from . import (
     parsing,
     relock,
     reviews,
+    rounds,
     shapes,
     steps,
     unreadableform,
@@ -49,7 +50,7 @@ class PullFacts:
         unreadable: its comments that try to be reviews and are not (keyword:
             unreadable-review).
         step: the one step the PR is at (keyword: review-flow).
-        merges_only: only merges of the base since an older full approval.
+        review_rounds: what its review rounds show.
         relock: whether its head branch starts with the relock prefix
             (keyword: relock).
     """
@@ -64,7 +65,7 @@ class PullFacts:
     )
     unreadable: StrayComments = dataclasses.field(default_factory=StrayComments)
     step: steps.Next
-    merges_only: bool = False
+    review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
 
 
@@ -330,6 +331,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     got = _fetched(source, repo, number)
     found = reviews.newest(got.posted, source.review, repo.slug)
     standing, merged = _standing(source, repo, got.pull, found)
+    state = _state(source, repo, got)
     return PullFacts(
         repo=repo,
         pull=got.pull,
@@ -338,8 +340,8 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         standing=standing,
         signals=_signals(source, repo, got),
         unreadable=_unreadable(source, repo, got, found),
-        step=flow.next_step(_state(source, repo, got)),
-        merges_only=merged,
+        step=flow.next_step(state),
+        review_rounds=rounds.of(state, merged),
         relock=_is_relock(source, got.pull),
     )
 
