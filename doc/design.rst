@@ -379,7 +379,8 @@ approved gets ``READY TO MERGE`` instead).
 for a body). When the newest review of the head records a digest other than the
 body's now, the standing is ``older-body``, the review does not count in
 ``flow.newest_counting_review``, and ``slots next`` offers the PR as ``review
-the fix round's findings only``. A review with no such line is keyed to the
+the fix round's findings only``, unless the review rejected the Plan: then as
+``review it`` with the Plan alone graded (pitboss#167). A review with no such line is keyed to the
 head alone.
 
 **Reviews.** A review is the newest comment by a trusted author whose lines
@@ -741,9 +742,10 @@ listed at most once. The eight kinds:
   ``revise the plan`` above);
 * ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
   PR that is not a draft it comes once every required check finished green on
-  the head. On a draft it is the plan-only review, listed with no CI, since a
-  draft runs none, before every new ticket (pitboss#156); a draft is undrafted
-  only once its Plan is approved.
+  the head; it is the plan-only review when the newest review rejected the Plan
+  and no review names this head or body (pitboss#167). On a draft it is the
+  plan-only review, listed with no CI, since a draft runs none, before every
+  new ticket (pitboss#156); a draft is undrafted only once its Plan is approved.
 
 A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then

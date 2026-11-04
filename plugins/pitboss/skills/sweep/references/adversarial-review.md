@@ -40,7 +40,8 @@ Post exactly that form: a gate that cannot read the comment keeps the status
   prints (`Body: <digest>`) to the comment beside the verdict line. The sweep
   compares it with the body now: a body fixed after your review, the head not
   having moved, is `review=older-body` and is answered by a review of the fix
-  round's findings.
+  round's findings, unless your review rejected the Plan: then it is answered
+  by a review of the Plan alone.
 - Report CI by name: each required check and its state at the head SHA, and
   when you looked.
 - Check three things from the PR itself, before the diff: the Head line (the

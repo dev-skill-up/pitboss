@@ -156,8 +156,8 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
 
     A head that differs from the approved one only by a merge of the base is
     checked for the merge alone; a head after a review that asked for changes
-    for those findings alone, but only once the Plan is approved (a revised Plan is
-    graded with the Execution as a first review is); the Plan stage for the Plan
+    for those findings alone, but only once the Plan is approved; the Plan stage
+    (a draft's, or a Plan revised after its rejection, pitboss#167) for the Plan
     alone; any other head for the full review of that head. A relock PR
     (keyword: relock) is reviewed for the relock itself, at any head but a
     merge of the base or a fix round.
@@ -282,6 +282,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         ),
         heads=heads,
         rules=_rules(source, slug, heads.head),
+        ready=pick.pull is not None and not pick.pull.pull.draft,
     )
 
 
