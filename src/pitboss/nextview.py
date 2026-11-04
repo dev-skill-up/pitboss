@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 from typing import Iterable, Mapping, Sequence
 
-from . import config, holds, ledger, work
+from . import blockedline, config, holds, ledger, work
 from .markers import Marker
 
 CATEGORY_WORDS = work.CATEGORY_WORDS
@@ -22,6 +22,8 @@ class NextView:
         now: the time now.
         held: the tickets the owner's hold keeps back (keyword: pr-hold).
         standing: each held repository and its open count.
+        blocked: the tickets that cannot be worked on until an open ticket or
+            PR (keyword: ticket-blocked).
     """
 
     items: Sequence[work.Item]
@@ -31,6 +33,7 @@ class NextView:
     now: datetime.datetime
     held: Sequence[work.Item] = ()
     standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    blocked: Sequence[work.Item] = ()
 
 
 def _age_days(created_at: str, now: datetime.datetime) -> int:
@@ -64,6 +67,8 @@ def next_lines(view: NextView) -> Iterable[str]:
         yield f"{Marker.NEXT.text} {index}. {_item_text(item, view)}"
     for item in view.held:
         yield holds.held_line(item.reference, view.standing)
+    for item in view.blocked:
+        yield blockedline.line(item.reference, item.blocker)
     if not view.assignments:
         yield "slots: the ledger says all full: start nothing"
     for slot, chosen in view.assignments:

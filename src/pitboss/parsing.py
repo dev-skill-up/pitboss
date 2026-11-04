@@ -390,6 +390,7 @@ def issues(text: str) -> Sequence[shapes.Issue]:
             created_at=item["created_at"],
             labels=frozenset(label["name"] for label in item["labels"]),
             body=item.get("body") or "",
+            comments=item.get("comments") or 0,
         )
         for item in json.loads(text)
         if "pull_request" not in item

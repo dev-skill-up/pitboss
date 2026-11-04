@@ -383,9 +383,9 @@ Only override for bugs, but do override for bugs (and then file them)".
     impossibility forces, taken from the steps already in the ticket, each with
     the priority and labels of the original and its own `Fixes`. The original
     is closed with its body saying what it was split into; it is not kept open
-    as an umbrella. A piece that depends on another says so in its body ("This
-    ticket cannot be worked on until #n is resolved") and is worked after that
-    one merged.
+    as an umbrella. A piece that depends on another says so in the
+    form of "A blocked ticket is not started" below ("Cannot be worked on until
+    <owner/repo#n> has merged") and is worked after that one merged.
 - **A partial fix is never merged, and a ticket is never narrowed or split to
   get a PR through, unless impossibility is verified** (owner,
   2026-10-29T04:50:34Z: "Merging it as a partial fix is your call. <-- it's not
@@ -412,6 +412,16 @@ Only override for bugs, but do override for bugs (and then file them)".
   the owner is the blocker, the orchestrator says so at once; a ticket not
   labelled for a human is not for the owner (owner, 2026-10-24T05:21:26Z: "if
   it's not labeled human only IT'S NOT FOR ME").
+  **The form of a ticket that is blocked** (keyword: ticket-blocked,
+  pitboss#163), written here once: the body or a comment of a trusted author
+  says `Cannot be worked on until <owner/repo#n> has merged` (or `Blocked by
+  <owner/repo#n>`; the sentence is case-insensitive, `<owner/repo#n>` is a
+  ticket or a PR, and a bare `#n` is of the ticket's own repository). While
+  that ticket or PR is open, `slots next` and the sweep print `BLOCKED
+  <ticket> by <owner/repo#n>` for it and list it as no `NEXT` line, so no slot
+  takes it; when the blocker closes or merges, the ticket is listed in its
+  place in the priority order, with no other change. A blocker that cannot be
+  read blocks nothing.
 - **A pull request says `Fixes` for its ticket, and `Refs` only names a
   related ticket** (owner, 2026-10-20T14:07:12Z: "Refs is allowed in the body,
   for actual refs (ie, related ticket that is related)"). No agent writes that

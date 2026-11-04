@@ -98,6 +98,7 @@ def _view(
         now=found.now,
         held=ordered.held,
         standing=ordered.standing,
+        blocked=ordered.blocked,
     )
 
 

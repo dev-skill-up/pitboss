@@ -276,6 +276,7 @@ class Issue:
         created_at: when it was opened (ISO 8601).
         labels: its labels' names.
         body: its text.
+        comments: how many comments it has.
     """
 
     number: int
@@ -283,6 +284,7 @@ class Issue:
     created_at: str
     labels: AbstractSet[str]
     body: str
+    comments: int = 0
 
 
 RED_CONCLUSIONS = frozenset({"failure", "timed_out", "startup_failure"})
