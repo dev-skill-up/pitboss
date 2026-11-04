@@ -40,8 +40,9 @@ def fixing(
         ticket: the ticket, as ``owner/repo#N``.
 
     Returns:
-        The first PR whose body says ``Fixes`` the ticket, or None, and the
-        PRs that could not be read (one of them may be the ticket's).
+        The first PR whose body says ``Fixes`` or ``Closes`` the ticket, or
+        None, and the PRs that could not be read (one of them may be the
+        ticket's).
     """
     named = (
         each for each in pulls.readable(found) if ticket in fixes.fixed_tickets(each)
@@ -75,8 +76,9 @@ def show_next(args: argparse.Namespace) -> None:
     suggestions, each with the complete brief to paste (keyword: brief).
 
     TICKET is ``owner/repo#N``, ``repo#N`` or ``#N``. The open PRs are read
-    once; the one whose body says ``Fixes`` the ticket is parsed, and its step
-    is ``flow.next_step``. With no such PR the step is the ticket's first.
+    once; the one whose body says ``Fixes`` or ``Closes`` the ticket is
+    parsed, and its step is ``flow.next_step``. With no such PR the step is
+    the ticket's first.
 
     It exits 1 when no PR names the ticket but a PR could not be read, so none
     is said not to exist.

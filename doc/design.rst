@@ -449,7 +449,7 @@ ordinary review gate takes over), ``RULING_ESCALATES`` for ``escalate to the
 owner`` and the merge (or the conflict's resolution) for ``execution is
 approved``. ``pitboss next
 CONFIG TICKET`` scans the open PRs of the configuration once, picks the PR whose
-body says ``Fixes`` the ticket and prints its step, and for a ticket no PR fixes
+body says ``Fixes`` or ``Closes`` the ticket and prints its step, and for a ticket no PR fixes
 the first step. The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
 ``RULING ESCALATES``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
