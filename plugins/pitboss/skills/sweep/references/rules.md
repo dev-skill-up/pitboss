@@ -808,7 +808,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   rev-parse HEAD", a count is "$ git log origin/main..HEAD --oneline | wc -l",
   a file is "$ cat < path", a mutation run is "$ sh scripts/<script>" of a
   script committed in the PR); run pitboss expand TEMPLATE and send its output
-  as the body; never retype or abbreviate output; lint pr-body refuses a
+  as the body (a body over the store's limit, 65536 characters, is set with
+  pitboss expand TEMPLATE --pr OWNER/NAME#N --no-dry-run, which cuts it on
+  paragraph markers, posts the later parts as comments marked
+  <!-- pitboss-expand-part N of M --> and cites them in the section
+  "## Evidence in comments" of the description); never retype or abbreviate output; lint pr-body refuses a
   hand-typed "$ " row anywhere in the body (in a quote, a list or an indented
   block too) that is not inside a block expand produced.` A reviewer brief
   says: `Evidence: every "$ " block in the Evidence is one pitboss expand
@@ -935,9 +939,12 @@ Only override for bugs, but do override for bugs (and then file them)".
   a worker and checks back at its next turn; it never holds a blocking wait
   (`sleep`, `Monitor`, a wait on a task) for a worker or a CI run. What it
   tells a worker is the same: a worker's long run is the worker's own, started
-  in the background with a log, and watched by the worker (one `Monitor` with
-  an `until` loop on the log, pitboss#175), never by the orchestrator
-  on the worker's behalf.
+  in the background with a log, and watched by the worker with one `Monitor`
+  with an `until` loop on the log (pitboss#175: that is the one wait the next
+  bullets allow, not a poll), never by the orchestrator on the worker's
+  behalf. The limits of the next bullets hold for that run: it is a local
+  action of a few minutes under `timeout 598`, it is not left running at
+  hand-back, and a job longer than that is CI's, not a trick.
 - **Local actions are short** (owner, haiku-rule 42 to 47, 2026-10-25 and
   2026-10-26): a local action is chosen to finish in minutes, and ten minutes
   is a maximum, not a target. When something took over ten minutes the worker
@@ -1038,7 +1045,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
   output on the PR, else changes needed.
 - **The author posts the evidence for every claim of a PR and every item of
-  the ticket's Done-when in the PR body: the command and its raw output.** A
+  the ticket's Done-when in the PR body: the command and its raw output**
+  (past the store's limit, in the comments `pitboss expand --pr` posts, which
+  the section "## Evidence in comments" of the body cites by URL). A
   claim is never weakened to match the logs; the code is changed until the
   output shows it. The command and its output come from `pitboss expand`,
   never from the author's hand (`Evidence line`, above).
