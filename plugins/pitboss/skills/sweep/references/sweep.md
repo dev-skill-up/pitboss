@@ -134,7 +134,8 @@ it last, so a restart loses at most one sweep's changes.
 
 The orchestrator dispatches a new reviewer when the sweep shows a review is
 due, and reads no PR body, diff or evidence first. The reviewer checks the Head
-line, that the Evidence is real output on the head, and the checks (`rules.md`,
+line, that the Evidence is real output on the head (a row the Plan points to CI
+has the pointer instead), and the checks (`rules.md`,
 "Reviews"). The only reads the orchestrator makes of a PR are the sweep's
 markers and the review's verdict line.
 

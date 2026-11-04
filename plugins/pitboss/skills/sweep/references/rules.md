@@ -881,7 +881,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   claim, not by its size.
 - **Check line.** A reviewer brief says: `Check: the last Head line of the PR
   body is the full SHA of the PR's head, the one this brief names; the Evidence
-  is real output (a command and what it printed) run on that head; every
+  is real output (a command and what it printed) run on that head (a row the
+  Plan points to CI has the pointer instead); every
   required check finished and passed at that head (a draft at its Plan stage has
   no check run, and you say that none was read); in a review of the Plan alone
   only the Head line is checked.` The brief names the PR and
