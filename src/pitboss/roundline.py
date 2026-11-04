@@ -21,15 +21,17 @@ LINES = {
         Marker.PAUSE,
         "changes needed again after the Opus ruling; label the PR and its"
         " ticket paused-owner with a comment of what the rounds disagreed"
-        " about and the options, stop listing both, and report the number and"
-        " the options to the owner; the PR is offered for no fix, update or"
+        " about, the options and a 'How we got here' section, stop listing"
+        " both, and report the number and the options to the owner on a card"
+        " that has the section; the PR is offered for no fix, update or"
         " review round, and its other action lines wait",
     ),
     steps.Step.RULING_ESCALATES: (
         Marker.RULING_ESCALATES,
         "the Opus ruling escalated to the owner; label the PR and its ticket"
-        " paused-owner with a comment of the options, stop listing both, and"
-        " report the number and the options to the owner; the PR is offered for"
+        " paused-owner with a comment of the options and a 'How we got here'"
+        " section, stop listing both, and report the number and the options to"
+        " the owner on a card that has the section; the PR is offered for"
         " no round",
     ),
 }

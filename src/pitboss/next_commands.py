@@ -72,7 +72,8 @@ def show_next(args: argparse.Namespace) -> None:
     """Print the one step a ticket is at, or the top suggestions with their briefs.
 
     With no TICKET it prints what ``slots next`` prints: up to five ranked
-    suggestions, each with the complete brief to paste (keyword: brief).
+    suggestions, each with the complete brief to paste (keyword: brief; a ruling
+    brief has one line, ``How we got here:``, that the orchestrator replaces).
 
     TICKET is ``owner/repo#N``, ``repo#N`` or ``#N``. The open PRs are read
     once; the one whose body says ``Fixes`` the ticket is parsed, and its step
