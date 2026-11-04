@@ -995,6 +995,17 @@ Only override for bugs, but do override for bugs (and then file them)".
   form only, and a 5 s sleep spelled the same way passed). The worker brief
   says so, and the Execution review brief makes a new or loosened lint, check
   or exemption without that test changes needed.
+- **A ticket that changes a precedence order lists the full order and a test
+  per row** (pitboss#182; pitboss#148, PR #181, changed where the conflict step
+  sits among the gates of `flow.next_step`, its Done-when did not say how a
+  conflict meets the pause and ruling states, the worker chose an order in code,
+  `sweep.md` kept the old one, the body described a third, and two reviews were
+  rejected). When a ticket or a ruling changes the order in which steps are
+  offered, its Done-when is a table of the full order (every state against the
+  step offered) and names a test per row. The RULING brief carries the rule, and
+  the Plan and Execution review briefs make a doc row (`sweep.md`, `rules.md`,
+  `slots.md`) or the code that differs from that table, or a row with no named
+  test, changes needed.
 - **"This machine lacks X" is never an excuse** (owner, 2026-10-18T22:16:41Z:
   ""This machine lacks" is never an excuse unless physically impossible to
   fix."). If CI has a tool, package, browser, voice, font or setting a test

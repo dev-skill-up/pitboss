@@ -18,6 +18,7 @@ from . import (
     brieftext as text,
     brieftextci,
     brieftextlint,
+    brieftextorder,
     brieftextwork,
     rulingwords,
 )
@@ -100,6 +101,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.PLAN_DRY_RUN,
         text.PLAN_COMMANDS_EXECUTION,
         brieftextlint.LINT_TEST_REVIEW,
+        brieftextorder.ORDER_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
@@ -111,6 +113,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.GREP,
         text.PLAN_COMMANDS_EXECUTION,
         brieftextlint.LINT_TEST_REVIEW,
+        brieftextorder.ORDER_REVIEW,
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,
@@ -121,6 +124,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextci.PLAN_NO_NOX_REVIEW,
         brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
+        brieftextorder.ORDER_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
@@ -344,6 +348,7 @@ def _ruling(values: Mapping[str, str]) -> list[str]:
     return [
         text.RULING_WHO.format_map(values),
         text.RULING_HOW,
+        brieftextorder.ORDER_TICKET,
         text.RULING_RECORD.format(words=words),
         text.HONEST,
         text.GOAL_ONLY,
