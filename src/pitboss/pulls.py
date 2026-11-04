@@ -5,6 +5,7 @@ import subprocess
 from typing import AbstractSet, Callable, Sequence
 
 from . import (
+    analysis,
     bodydigest,
     config,
     flow,
@@ -30,10 +31,13 @@ class StrayComments:
             the form was written (it is ignored), else empty.
         graded: the trusted comments that grade a review but are not in the
             review form.
+        unanalysed: the address of the newest trusted Opus ruling comment when
+            it has no ``How we got here`` section (keyword: how-we-got-here).
     """
 
     newer: str = ""
     graded: Sequence[unreadableform.UnreadableReview] = ()
+    unanalysed: Sequence[str] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -307,6 +311,7 @@ def _unreadable(
     return StrayComments(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
+        unanalysed=analysis.unanalysed(*seen),
     )
 
 

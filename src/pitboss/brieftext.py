@@ -346,7 +346,16 @@ RULING_WHO = (
 RULING_RECORD = (
     "Record: post a comment on the PR whose first line is exactly `Opus ruling`"
     " and whose second line is exactly `Ruling: <word>`, where <word> is one of these"
-    " words: {words}; then"
+    " words: {words}; then a section headed `How we got here` (the analysis of"
+    " this brief's `How we got here` line, checked against the PR); then"
     " the steps or the reasons. The ruling is taken as given."
+)
+RULING_HOW = (
+    "How we got here: <the orchestrator writes this before the brief is sent: for"
+    " each rejection before this ruling, the finding, the rule or brief line that"
+    " should have prevented it, and the prevention filed (a pitboss ticket"
+    " number)>. Refuse to rule without it: if this line is still the template,"
+    " is empty, or names no prevention filed for a rejection, hand back NOT STARTED"
+    " with what is missing, post no comment, and write no ruling."
 )
 RULING_END = "Hand back the comment's URL and nothing else."

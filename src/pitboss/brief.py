@@ -1,7 +1,9 @@
 """The briefs ``pitboss next`` prints (keyword: brief, pitboss#118).
 
 A brief is built from what pitboss reads of a PR or a ticket and from the
-project's own rules, and the orchestrator pastes it unchanged. The sentences are
+project's own rules, and the orchestrator pastes it unchanged, but for the one
+line of a ruling brief (``How we got here:``) that it replaces with the
+analysis, a fact the tool cannot know (pitboss#168). The sentences are
 in ``brieftext`` and are pinned by tests, so a change to them is a reviewed code
 change. Every brief starts with the ticket's original goal in one line; a review
 judges the change against that goal, and its scope is exclusive.
@@ -306,6 +308,7 @@ def _ruling(values: Mapping[str, str]) -> list[str]:
     words = ", ".join(f"`{each.value}`" for each in rulingwords.Ruling)
     return [
         text.RULING_WHO.format_map(values),
+        text.RULING_HOW,
         text.RULING_RECORD.format(words=words),
         text.HONEST,
         text.GOAL_ONLY,
