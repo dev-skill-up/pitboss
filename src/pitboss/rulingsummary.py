@@ -52,12 +52,16 @@ def ruled_at(
     Returns:
         The time of each ruling comment whose time can be read.
     """
-    found = [
-        _time(each.created_at)
-        for each in comments
-        if flowstate.is_ruling(each.body) and each.author_association in trusted
-    ]
-    return [each for each in found if each is not None]
+    found: list[datetime.datetime] = []
+    for each in comments:
+        time = _time(each.created_at)
+        if (
+            time
+            and flowstate.is_ruling(each.body)
+            and each.author_association in trusted
+        ):
+            found.append(time)
+    return found
 
 
 def recorded(text: str) -> Sequence[datetime.datetime]:
@@ -69,8 +73,12 @@ def recorded(text: str) -> Sequence[datetime.datetime]:
     Returns:
         The time of each summary.
     """
-    found = [_time(each) for each in text.splitlines()]
-    return [each for each in found if each is not None]
+    found: list[datetime.datetime] = []
+    for each in text.splitlines():
+        time = _time(each)
+        if time:
+            found.append(time)
+    return found
 
 
 def pacific_day(time: datetime.datetime) -> datetime.date:
@@ -126,12 +134,15 @@ def line(count: int, config: str, path: pathlib.Path) -> str:
     )
 
 
-def note(path: pathlib.Path, now: datetime.datetime) -> None:
+def note(path: pathlib.Path, now: datetime.datetime) -> str:
     """Record a summary.
 
     Args:
         path: the record file.
         now: the time of the summary.
+
+    Returns:
+        What to tell the person who recorded it.
 
     Raises:
         SystemExit: when the file cannot be read or written.
@@ -148,3 +159,4 @@ def note(path: pathlib.Path, now: datetime.datetime) -> None:
             stream.write(f"{start}{now.isoformat(timespec='seconds')}\n")
     except OSError as failure:
         raise SystemExit(f"cannot write the ruling summary record {path}: {failure}")
+    return f"recorded the Opus ruling summary of {pacific_day(now)} in {path}"

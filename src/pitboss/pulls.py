@@ -36,11 +36,14 @@ class StrayComments:
             review form.
         unanalysed: the address of the newest trusted Opus ruling comment when
             it has no ``How we got here`` section (keyword: how-we-got-here).
+        rulings: when its trusted Opus ruling comments were written (keyword:
+            ruling-summary).
     """
 
     newer: str = ""
     graded: Sequence[unreadableform.UnreadableReview] = ()
     unanalysed: Sequence[str] = ()
+    rulings: Sequence[datetime.datetime] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -60,8 +63,6 @@ class PullFacts:
         review_rounds: what its review rounds show.
         relock: whether its head branch starts with the relock prefix
             (keyword: relock).
-        rulings: when its trusted Opus ruling comments were written (keyword:
-            ruling-summary).
     """
 
     repo: config.Repo
@@ -76,7 +77,6 @@ class PullFacts:
     step: steps.Next
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
-    rulings: Sequence[datetime.datetime] = ()
 
 
 def unhealthy(facts: PullFacts) -> bool:
@@ -318,6 +318,7 @@ def _unreadable(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
         unanalysed=analysis.unanalysed(*seen),
+        rulings=rulingsummary.ruled_at(*seen),
     )
 
 
@@ -354,7 +355,6 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         step=flow.next_step(state),
         review_rounds=rounds.of(state, merged),
         relock=_is_relock(source, got.pull),
-        rulings=rulingsummary.ruled_at(got.posted.comments, source.review.trusted),
     )
 
 
@@ -371,18 +371,6 @@ def readable(found: Sequence[Read]) -> Sequence[PullFacts]:
         The ones that were read.
     """
     return [each for each in found if isinstance(each, PullFacts)]
-
-
-def failed_reads(found: Sequence[Read]) -> Sequence[shapes.Unreadable]:
-    """The PRs an API call failed for.
-
-    Args:
-        found: each open PR, read or not.
-
-    Returns:
-        The ones that could not be read.
-    """
-    return [each for each in found if isinstance(each, shapes.Unreadable)]
 
 
 def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:

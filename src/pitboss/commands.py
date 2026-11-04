@@ -35,8 +35,8 @@ from . import (
     removedline,
     repoaccess,
     report,
-    rulingsummary,
     scratch,
+    summaryline,
     scratchconfig,
     shapes,
     sweepline,
@@ -44,7 +44,6 @@ from . import (
     syncing,
     timing,
     workerlines,
-    worktrees,
 )
 from . import diskline, pulllines, pullstate, unreadableline
 from .failures import describe, read_all
@@ -322,19 +321,6 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     workerlines.print_lines(book, found.now, found.args)
 
 
-def _summary_section(found: Context, read: Sequence[pulls.Read]) -> None:
-    # The daily summary of the Opus rulings (keyword: ruling-summary).
-    path = rulingsummary.record_path(found.settings.project.main_clone)
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        text = ""
-    rulings = [each for pull in pulls.readable(read) for each in pull.rulings]
-    waiting = rulingsummary.due(rulings, text, found.now)
-    if waiting:
-        print(rulingsummary.line(len(waiting), found.args.config, path))
-
-
 def _say_not_orchestrator(args: argparse.Namespace) -> None:
     # The first line of a sweep of a configuration that does not own the ledger.
     path = configfile.locate(args.config, working_directory(args))
@@ -363,7 +349,8 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "cleaning done")
     broken, read = _repository_sections(found, clock)
     _slot_section(found, read)
-    _summary_section(found, read)
+    for text in summaryline.lines(found.settings, args.config, read, found.now):
+        print(text)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     if syncing.section(args, found.settings) or broken or unconfigured:
@@ -400,16 +387,3 @@ def cancel_stale_runs(args: argparse.Namespace) -> None:
             print(f"{Marker.COULD_NOT_CANCEL_STALE_QUEUE_RUN.text} {name}")
             continue
         print(f"{Marker.CANCELLED_STALE_QUEUE_RUN.text} {name}{verb}")
-
-
-@ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")
-def clean_worktrees(args: argparse.Namespace) -> None:
-    """Remove the finished worktrees that pass the safety test (branches are kept).
-
-    Args:
-        args: the parsed arguments.
-    """
-    found = load_context(args)
-    how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
-    for text in worktrees.remove_lines(sweep_look(found), how, found.now):
-        print(text)

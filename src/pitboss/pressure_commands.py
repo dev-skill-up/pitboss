@@ -9,7 +9,16 @@ import subprocess
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commands, queue, record, report, timing, tracefs
+from . import (
+    ENTRY_DATA,
+    commands,
+    queue,
+    record,
+    report,
+    rulingsummary,
+    timing,
+    tracefs,
+)
 
 TIMED_CONFIG = (commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT)
 
@@ -56,6 +65,21 @@ def put_on_queue(args: argparse.Namespace) -> None:
     now = timing.current_time(args)
     record.note(runners.record, record.Look.HOLD, now)
     print(report.queued_line(now, runners.quiet_minutes))
+
+
+@ENTRY_DATA.register(*TIMED_CONFIG, name="ruling-summary")
+def record_summary(args: argparse.Namespace) -> None:
+    """Record that the summary of the Opus rulings of the day was written.
+
+    The record is the one ``summaryline`` reads (keyword: ruling-summary,
+    pitboss#237).
+
+    Args:
+        args: the parsed arguments.
+    """
+    clone = commands.load_settings(args).project.main_clone
+    path = rulingsummary.record_path(clone)
+    print(rulingsummary.note(path, timing.current_time(args)))
 
 
 def _record_push(found: commands.Context) -> None:
