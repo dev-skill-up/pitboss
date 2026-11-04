@@ -34,9 +34,11 @@ def _queue_word(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> 
 
 
 def _unread_note(pull: pulls.PullFacts) -> str:
-    if not pull.unread:
+    if not pull.unreadable.newer:
         return ""
-    return f" (ignored: the comment of {pull.unread} is not in the review form)"
+    return (
+        f" (ignored: the comment of {pull.unreadable.newer} is not in the review form)"
+    )
 
 
 def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
