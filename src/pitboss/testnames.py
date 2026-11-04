@@ -15,6 +15,8 @@ _CITED = re.compile(r"(?<![A-Za-z0-9_])test_[A-Za-z0-9_]+(?![A-Za-z0-9_])")
 _DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*$", re.MULTILINE)
 SECTIONS = ("plan", "execution")
+# what a checkout holds that is not the head's: build output and installed packages
+NOT_THE_HEADS = frozenset({"build", "dist", "node_modules", "site-packages"})
 
 
 def _sections(body: str) -> Iterator[str]:
@@ -47,7 +49,9 @@ def cited(body: str) -> Sequence[str]:
 
 def _python_files(root: pathlib.Path) -> Iterator[pathlib.Path]:
     for where, names, files in os.walk(root):
-        names[:] = [each for each in names if not each.startswith(".")]
+        names[:] = [
+            each for each in names if each not in NOT_THE_HEADS and each[0] != "."
+        ]
         yield from (
             pathlib.Path(where) / each for each in files if each.endswith(".py")
         )

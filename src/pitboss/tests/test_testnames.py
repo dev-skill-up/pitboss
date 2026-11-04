@@ -24,8 +24,8 @@ def checkout() -> pathlib.Path:
     """
     root = fakes.directory()
     fakes.write(root / "tests" / "test_module.py", TESTS)
-    fakes.write(root / ".nox" / "other.py", "def test_hidden():\n    pass\n")
-    fakes.write(root / "notes.txt", "def test_not_python():\n")
+    for where in (".nox/other.py", "build/made.py", "notes.txt"):
+        fakes.write(root / where, "def test_hidden():\n    pass\n")
     return root
 
 
@@ -72,10 +72,8 @@ class TestTestNames(unittest.TestCase):
                 assert_that(run(cite(name), checkout()), equal_to((0, "ok\n")))
 
     def test_a_hidden_directory_and_a_text_file_have_no_tests(self) -> None:
-        """Only Python files outside hidden directories count."""
-        for name in ("test_hidden", "test_not_python"):
-            with self.subTest(name):
-                assert_that(run(cite(name), checkout())[0], equal_to(1))
+        """Only Python files outside hidden and build directories count."""
+        assert_that(run(cite("test_hidden"), checkout())[0], equal_to(1))
 
     def test_execution_is_read_and_evidence_is_not(self) -> None:
         """A name under Execution is checked; one under Evidence is not."""
