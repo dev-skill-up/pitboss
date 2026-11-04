@@ -24,6 +24,8 @@ is_ruling = flowstate.is_ruling
 read_ruling = flowstate.read_ruling
 newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
+is_dirty = flowstate.is_dirty
+has_conflict = flowstate.has_conflict
 AFTER = flowstate.AFTER
 AS_RULED = flowstate.AS_RULED
 
@@ -172,30 +174,6 @@ def ci_result(pr: PullState) -> Ci | None:
     return Ci.GREEN
 
 
-def is_dirty(pull: shapes.Pull) -> bool:
-    """Whether a PR's merge state is a conflict with its base.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return pull.mergeable_state is shapes.MergeState.DIRTY
-
-
-def has_conflict(pr: PullState) -> bool:
-    """Whether the PR conflicts with its base.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return is_dirty(pr.pull)
-
-
 def plan_rejected_again(pr: PullState) -> bool:
     """Whether the plan was rejected more than once.
 
@@ -307,10 +285,7 @@ def next_step(pr: PullState) -> steps.Next:
     # fix at every stage but while steps.WAITS holds it (PLAN_EDITED included)
     review = newest_counting_review(pr)
     if has_conflict(pr):
-        held = rejection_step(pr, review) if review else None
-        if held is not None and held.step in steps.WAITS:
-            return held
-        return steps.worker(steps.Task.RESOLVE_CONFLICT)
+        return waiting_step(pr, review) or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
     # ---- before any review: the first work on a PR; a relock PR fixes no ticket
     # and has no body to write, it goes straight to its review (pitboss#126)
@@ -318,6 +293,23 @@ def next_step(pr: PullState) -> steps.Next:
         return steps.worker(steps.Task.FIRST_ROUND)
 
     return draft_gate(pr, review)
+
+
+def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
+    """The wait that a rejection is at (keyword: wait-first, pitboss#183).
+
+    A fix (of a conflict or of a red CI) is not offered while the rejection step
+    is a ruling due, a pause or a ruling that escalates.
+
+    Args:
+        pr: the PR.
+        review: the newest review that counts, or None.
+
+    Returns:
+        The wait step, or None when there is no review or its step is no wait.
+    """
+    held = rejection_step(pr, review) if review else None
+    return held if held is not None and held.step in steps.WAITS else None
 
 
 def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
@@ -357,8 +349,8 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
     ci = ci_result(pr)  # GREEN, RED, or None (still running or not started)
     if ci is None:
         return steps.wait_for_ci()  # nobody works or reviews meanwhile
-    if ci is Ci.RED:
-        return steps.worker(steps.Task.FIX_CI)  # a red CI is never a rejection
+    if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait
+        return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
     if review is None:
         if plan_approved(pr):  # approved while it was a draft

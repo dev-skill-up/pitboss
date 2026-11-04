@@ -121,11 +121,12 @@ Only override for bugs, but do override for bugs (and then file them)".
    graded. Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
-   CI`) whatever the stage, and a conflict as `resolve the conflict` at every
+   CI`) whatever the stage but a wait (below, pitboss#183), and a conflict as `resolve the conflict` at every
    stage, a draft's and a red CI's too, before the draft, CI and review gates (a
    dirty head runs no CI, pitboss#148). The exceptions are the waits: a pull
    request with the paused-owner label, `RULING UNREADABLE`, `RULING DUE`,
-   `PAUSE`, `RULING ESCALATES` or `PLAN EDITED` is offered for no round, and its
+   `PAUSE`, `RULING ESCALATES` or `PLAN EDITED` is offered for no round (a clean
+   draft and a PR with a red CI included: `waiting_step`, pitboss#183), and its
    conflict waits for the ruling, the owner or, for `PLAN EDITED`, until the
    approved Plan is restored or a ruling allows the edit (`flow.next_step`,
    `steps.WAITS`; the Opus ruling on pitboss#181, pitboss#172). A ruling's own work step (`do these steps`, `revise the

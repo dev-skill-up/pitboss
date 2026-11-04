@@ -281,7 +281,7 @@ class TestBranches(unittest.TestCase):
         found = [flow.get_plan_rejections(red), flow.next_step(red)]
         assert_that(found, equal_to([1, steps.worker(Task.FIX_CI)]))
         twice = state(FIRST_REJECTION, SECOND_REJECTION, checks=(RED,))
-        expect(steps.worker(Task.FIX_CI), twice)
+        expect(steps.opus_ruling(), twice)  # a red CI fixes no wait (pitboss#183)
 
     def test_a_plan_approved_in_a_draft_is_carried_to_the_execution_review(
         self,

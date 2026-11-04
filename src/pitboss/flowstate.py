@@ -252,6 +252,30 @@ def unreadable_ruling_comment(pr: PullState) -> str:
     return newest.url if newest else ""
 
 
+def is_dirty(pull: shapes.Pull) -> bool:
+    """Whether a PR's merge state is a conflict with its base.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        True on a merge conflict.
+    """
+    return pull.mergeable_state is shapes.MergeState.DIRTY
+
+
+def has_conflict(pr: PullState) -> bool:
+    """Whether the PR conflicts with its base.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        True on a merge conflict.
+    """
+    return is_dirty(pr.pull)
+
+
 # What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads
 # the first step; the later ones are not wired (a worker's push moves the head and
 # the ordinary review gate takes over).
