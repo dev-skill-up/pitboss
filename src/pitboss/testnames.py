@@ -14,6 +14,10 @@ from typing import Collection, Iterator, Sequence
 _CITED = re.compile(r"(?<![A-Za-z0-9_])test_[A-Za-z0-9_]+(?![A-Za-z0-9_])")
 _DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*$", re.MULTILINE)
+_FENCED = re.compile(
+    r"^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?(?:^ {0,3}\1[`~]*[ \t]*$|\Z)",
+    re.MULTILINE | re.DOTALL,
+)
 SECTIONS = ("plan", "execution")
 # what a checkout holds that is not the head's: build output and installed packages
 NOT_THE_HEADS = frozenset({"build", "dist", "node_modules", "site-packages"})
@@ -21,8 +25,13 @@ NOT_THE_HEADS = frozenset({"build", "dist", "node_modules", "site-packages"})
 
 def _sections(body: str) -> Iterator[str]:
     # the text under each Plan or Execution heading, up to the next heading of
-    # the same or a higher level
-    headings = list(_HEADING.finditer(body))
+    # the same or a higher level; a line inside a fenced block is no heading
+    fences = [each.span() for each in _FENCED.finditer(body)]
+    headings = [
+        each
+        for each in _HEADING.finditer(body)
+        if not any(low <= each.start() < high for low, high in fences)
+    ]
     for index, title in enumerate(headings):
         if title.group(2).lower() not in SECTIONS:
             continue

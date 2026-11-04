@@ -89,6 +89,15 @@ class TestTestNames(unittest.TestCase):
         ended = "## Plan\n\ntext\n\n## Notes\n\ntest_gone\n\n"
         assert_that(testnames.cited(ended + BODY), equal_to([]))
 
+    def test_a_comment_in_a_fenced_block_is_no_heading(self) -> None:
+        """A name cited after a block holding a ``#`` line is still refused."""
+        block = "```sh\n# build it\nmake\n```\n\n"
+        plan = "## Plan\n\n" + block + "The test `test_gone` covers it.\n\n"
+        assert_that(testnames.cited(plan + BODY), equal_to(["test_gone"]))
+        assert_that(run(BODY + "\n" + plan, checkout())[0], equal_to(1))
+        open_block = "## Plan\n\n~~~\n# never closed\ntest_gone\n"
+        assert_that(testnames.cited(open_block), equal_to(["test_gone"]))
+
     def test_a_name_cited_twice_is_one_finding(self) -> None:
         """Each identifier is named once."""
         twice = "## Plan\n\ntest_gone and test_gone\n\n## Execution\n\ntest_gone\n"
