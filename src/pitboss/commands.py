@@ -349,7 +349,7 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "cleaning done")
     broken, read = _repository_sections(found, clock)
     _slot_section(found, read)
-    for text in summaryline.lines(found.settings, args.config, read, found.now):
+    for text in summaryline.lines(found.github, found.settings, args.config, found.now):
         print(text)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)

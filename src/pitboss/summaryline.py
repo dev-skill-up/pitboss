@@ -1,23 +1,47 @@
-"""The sweep's OPUS RULINGS DAILY line (keyword: ruling-summary, pitboss#237)."""
+"""The sweep's OPUS RULINGS DAILY line (keyword: ruling-summary, pitboss#237, #239)."""
 
 import datetime
+import subprocess
 from typing import Sequence
 
-from . import config, pulls, rulingsummary
+from . import concurrently, config, ghapi, parsing, rulingsummary
+
+
+def _feed(
+    github: ghapi.GitHub, settings: config.Config, since: str
+) -> Sequence[rulingsummary.Ruling]:
+    # The repository's comments of every PR (open, merged or closed) and issue.
+    query = f"?since={since}" if since else ""
+    repos = config.repositories(settings)
+    found = concurrently.each(
+        lambda repo: ghapi.pages(
+            github, f"repos/{repo.slug}/issues/comments{query}", parsing.comments
+        ),
+        repos,
+    )
+    return [
+        ruling
+        for comments in found
+        for ruling in rulingsummary.ruled_at(comments, settings.review.trusted)
+    ]
 
 
 def lines(
+    github: ghapi.GitHub,
     settings: config.Config,
     name: str,
-    read: Sequence[pulls.Read],
     now: datetime.datetime,
 ) -> Sequence[str]:
     """The line for Opus rulings that wait for the day's summary.
 
+    The rulings are read from the repositories' issue comments since the last
+    summary, so a ruling on a merged or closed PR or on an issue counts as one
+    on an open PR does.
+
     Args:
+        github: the API.
         settings: the configuration.
         name: the configuration argument the sweep was given.
-        read: the open PRs, read or not.
         now: the time now.
 
     Returns:
@@ -28,8 +52,11 @@ def lines(
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         text = ""
-    rulings = [
-        each for pull in pulls.readable(read) for each in pull.unreadable.rulings
-    ]
+    if rulingsummary.recorded_today(text, now):
+        return []
+    try:
+        rulings = _feed(github, settings, rulingsummary.since(text))
+    except subprocess.CalledProcessError as failure:
+        return [rulingsummary.unreadable_line(failure)]
     waiting = rulingsummary.due(rulings, text, now)
-    return [rulingsummary.line(len(waiting), name, path)] if waiting else []
+    return [rulingsummary.line(waiting, name, path)] if waiting else []
