@@ -27,8 +27,10 @@
 # posts the file pitboss wrote after it. A caller must grant pull-requests: read in the same
 # change that moves its pin to this commit: this workflow asks for it, and GitHub lets a called
 # workflow keep or lower the GITHUB_TOKEN permissions its caller passes, never raise them
-# ("The permissions for the GITHUB_TOKEN ... can only be downgraded (not elevated) by the
-# called workflow", docs.github.com, "Reusing workflow configurations"), so a caller without it
+# ("The `GITHUB_TOKEN` permissions passed from the caller workflow can be only downgraded (not
+# elevated) by the called workflow.", docs.github.com/en/actions/reference/workflows-and-actions/
+# reusable-workflows, section "Supported keywords for jobs that call a reusable workflow"), so a
+# caller without it
 # fails at startup and posts no text-lint status. A caller on a pin from before pitboss#171 is
 # unaffected: the older commit does not ask for it.
 name: text-lint-check
