@@ -34,7 +34,7 @@ class Operation(Protocol):
 
 def _take(book: ledger.Ledger, *words: str) -> Outcome:
     slot, agent, task = words
-    return ledger.take(book, slot, agent, task)
+    return ledger.take(book, slot, ledger.Work(agent=agent, task=task))
 
 
 def _add(book: ledger.Ledger, *words: str) -> Outcome:

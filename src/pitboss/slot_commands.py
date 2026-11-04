@@ -17,6 +17,7 @@ from . import (
     nextlist,
     report,
     slotlog,
+    ticketof,
     tracefs,
 )
 from .commands import (
@@ -35,7 +36,8 @@ class Action(enum.Enum):
 
     Attributes:
         SHOW: print the ledger.
-        SET: put an agent in an empty slot (SLOT AGENT TASK).
+        SET: put an agent in an empty slot (SLOT AGENT TASK, --kind), or a
+            fix round on the agent it holds.
         FREE: empty a slot (SLOT), then print the line ``NEXT`` gives it.
         ADD: add a slot (SLOT MODEL).
         REMOVE: remove an empty slot (SLOT).
@@ -46,6 +48,7 @@ class Action(enum.Enum):
         WAIT: say a slot's agent waits (SLOT).
         RESUME: say a slot's agent runs again (SLOT).
         REPORT: print the share of slot time in each state (--since, --until).
+        TIME: print the worker minutes of each ticket (--since, --until).
         HEARD: say a slot's agent handed back or notified (SLOT).
     """
 
@@ -60,6 +63,7 @@ class Action(enum.Enum):
     WAIT = enum.auto()
     RESUME = enum.auto()
     REPORT = enum.auto()
+    TIME = enum.auto()
     HEARD = enum.auto()
 
     @property
@@ -81,7 +85,11 @@ def _set(
     book: ledger.Ledger, words: Sequence[str], found: Context
 ) -> ledger.Ledger | ledger.Refusal:
     task = ledger.reference(words[2], found.settings.project.repo)
-    taken = ledger.take(book, words[0], words[1], task)
+    ticket = ticketof.resolve(found.github, task)
+    if isinstance(ticket, ledger.Refusal):
+        return ticket
+    work = ledger.Work(agent=words[1], task=task, ticket=ticket, kind=found.args.kind)
+    taken = ledger.take(book, words[0], work)
     if isinstance(taken, ledger.Refusal):
         return taken
     return ledger.stamp(taken, words[0], ledger.Mark.STARTED, found.now.isoformat())
@@ -162,13 +170,25 @@ def _changed(action: Action, found: Context) -> ledger.Ledger:
     ledger.write(found.settings.slots.ledger, outcome)
     log = found.settings.slots.log
     log.parent.mkdir(parents=True, exist_ok=True)
-    slotlog.append(log, slotlog.changes(slotlog.read(log), outcome, found.now))
+    begun = found.args.words[0] if action is Action.SET else ""
+    entries = slotlog.changes(slotlog.read(log), outcome, found.now, begun)
+    slotlog.append(log, entries)
     return outcome
 
 
 def _report(found: Context) -> None:
+    for line in _window(found, "report", slotlog.lines):
+        print(line)
+
+
+Lines = Callable[
+    [Sequence[slotlog.Entry], datetime.datetime, datetime.datetime], Sequence[str]
+]
+
+
+def _window(found: Context, word: str, make: Lines) -> Sequence[str]:
     if found.args.words:
-        raise _refuse("slots report takes no words")
+        raise _refuse(f"slots {word} takes no words")
     entries = slotlog.read(found.settings.slots.log)
     since = (
         slotlog.utc(datetime.datetime.fromisoformat(found.args.since))
@@ -180,11 +200,16 @@ def _report(found: Context) -> None:
         if found.args.until
         else slotlog.utc(found.now)
     )
-    for line in slotlog.lines(entries, since, until):
+    return make(entries, since, until)
+
+
+def _time(found: Context) -> None:
+    for line in _window(found, "time", slotlog.ticket_lines):
         print(line)
 
 
 REFILLS = frozenset({Action.SET, Action.FREE, Action.NEXT})
+LOG_ONLY = frozenset({Action.REPORT, Action.TIME})
 
 
 def _require_owner(found: Context) -> None:
@@ -202,7 +227,7 @@ def _require_owner(found: Context) -> None:
 def _require_ledger(found: Context, action: Action) -> None:
     if action in REFILLS:
         _require_owner(found)
-    if action is not Action.REPORT:
+    if action not in LOG_ONLY:
         nextlist.require_ledger(found.settings.slots.ledger)
 
 
@@ -219,6 +244,12 @@ def _read(found: Context) -> ledger.Ledger:
     add_argument("--running", nargs="*", default=None),
     add_argument("--since", default=None, help="report window start (ISO, UTC)"),
     add_argument("--until", default=None, help="report window end (ISO, UTC)"),
+    add_argument(
+        "--kind",
+        choices=ledger.TASK_KINDS,
+        default=ledger.TASK_KINDS[0],
+        help="the kind of task 'slots set' records",
+    ),
     NOW_ARGUMENT,
     name="slots",
 )
@@ -241,6 +272,8 @@ def slots(args: argparse.Namespace) -> None:
         _check(found, read_ledger(found.settings))
     elif action is Action.REPORT:
         _report(found)
+    elif action is Action.TIME:
+        _time(found)
     elif action is Action.NEXT:
         nextlist.show(found, open_pulls(found), _read(found))
     else:
