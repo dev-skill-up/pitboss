@@ -103,6 +103,8 @@ QUEUE_RUNS = {
 REPOSITORY_BODIES: MutableMapping[str, object] = {
     PROJECT: {},
     LIBRARY: {},
+    fakes.page(f"{PROJECT}/issues/comments"): [],
+    fakes.page(f"{LIBRARY}/issues/comments"): [],
     fakes.page(f"{PROJECT}/pulls?state=open"): [
         {"number": 1},
         {"number": 2},

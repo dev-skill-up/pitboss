@@ -608,8 +608,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   2. Once a day the orchestrator summarizes every Opus ruling of the day, each
      with a suggested mitigation, as a markdown artifact for the owner. The
      sweep prints `OPUS RULINGS DAILY` when an Opus ruling comment (first line
-     `Opus ruling`) of a trusted author is dated since the last summary and no
-     summary is recorded for the Pacific day (`America/Los_Angeles`); the
+     `Opus ruling`) of a trusted author, on an open, merged or closed PR or on
+     an issue, is dated since the last summary and no summary is recorded for
+     the Pacific day (`America/Los_Angeles`), and it names each comment; the
      orchestrator writes the summary and records it with `uvx pitboss
      ruling-summary <config>`, which appends the time to
      `.git/pitboss-ruling-summaries.log` of the main clone.

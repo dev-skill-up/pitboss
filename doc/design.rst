@@ -498,9 +498,10 @@ the first step. A ruling comment without a ``How we got here`` section (an
 analysis of each rejection before the ruling: ``pitboss.analysis``, pitboss#168)
 is read and followed all the same; the sweep says so with ``RULING NO ANALYSIS``
 (``pitboss.analysisline``). The sweep prints one ``OPUS RULINGS DAILY`` line
-(``pitboss.summaryline``, ``pitboss.rulingsummary``, pitboss#237) after the slots when a trusted Opus
-ruling comment of an open PR is dated after the last recorded summary and none
-is recorded for the Pacific day; the orchestrator writes the summary of every
+(``pitboss.summaryline``, ``pitboss.rulingsummary``, pitboss#237, #239) after the slots when a trusted Opus
+ruling comment of an open, merged or closed PR or of an issue (read from each
+repository's ``issues/comments`` since the last summary) is dated after the
+last recorded summary and none is recorded for the Pacific day; the orchestrator writes the summary of every
 Opus ruling of the day, each with a suggested mitigation, as a markdown
 artifact and records it with ``ruling-summary``. The ``RULING ESCALATES`` and
 ``PAUSE`` lines and steps say the owner's card carries a markdown artifact with
