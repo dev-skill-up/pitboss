@@ -43,7 +43,7 @@ def run_command(args: argparse.Namespace, command: Sequence[str]) -> expansion.O
     name="nox",
 )
 def nox(args: argparse.Namespace) -> None:
-    """Run the skills, the tests of one Python version, lint and mypy.
+    """Run the tests of one Python version, the skills, lint and mypy.
 
     Each runs as ``nox -r -s SESSION``, in that order, and the first that fails
     stops the rest and exits 1 with its output. One line is printed for each

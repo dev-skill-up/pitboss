@@ -60,10 +60,10 @@ LOCAL = (
 )
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
-    " each edit (the skills, the tests of one Python version, lint and mypy, each"
-    " with `-r`, stopping at the first failure; module names after `--` run only"
-    " those tests), and never the full `nox -r`: CI's `Run Nox` step runs the"
-    " whole suite."
+    " each edit (the tests of one Python version first, then the skills, lint and"
+    " mypy, each with `-r`, stopping at the first failure; module names after `--`"
+    " run only those tests), and never the full `nox -r`: CI's `Run Nox` step runs"
+    " the whole suite."
 )
 PLAN_NO_NOX = (
     "CI evidence: the Plan never names `pitboss nox` or any nox run as its"
