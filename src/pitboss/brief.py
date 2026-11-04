@@ -184,12 +184,15 @@ class Spec:
         subject: what it is about.
         heads: the commits and reviews it names.
         rules: the project's rules.
+        ready: whether the PR is not a draft, so its head has a check run (a
+            Plan-only review of it reads the checks, pitboss#167).
     """
 
     kind: Kind
     subject: Subject
     heads: Heads
     rules: Rules
+    ready: bool = False
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -271,7 +274,8 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
     # keyword: draft-review (pitboss#156): the Plan stage is a draft's, with no CI
-    draft = spec.kind is Kind.REVIEW_PLAN
+    # a Plan revised on a PR that is not a draft has its checks (pitboss#167)
+    draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
     separate, ci = (
         (text.SEPARATE_DRAFT, text.CI_DRAFT) if draft else (text.SEPARATE, text.CI)
     )

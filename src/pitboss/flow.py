@@ -363,6 +363,8 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
     if review is None:
         if plan_approved(pr):  # approved while it was a draft
             return steps.regular_review(steps.Stage.EXECUTION_ONLY)
+        if flowstate.plan_rejected_last(pr):
+            return steps.regular_review(steps.Stage.PLAN_ONLY)
         return steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
 
     return plan_gate(pr, review)

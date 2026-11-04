@@ -45,7 +45,7 @@ class Category(enum.IntEnum):
         REVISE_PLAN: an author revises the plan a review did not approve, and
             touches nothing else (a PR).
         REVIEW: a reviewer (never the author) reviews a green head, or a
-            draft's plan alone (a PR).
+            Plan alone (a draft's, or revised after its rejection) (a PR).
         NEW_PR: a worker starts a ticket (after every PR).
         FIX_CI: an author fixes a red CI, which is no rejection (a PR).
         FIRST_ROUND: an author writes the Plan and Execution body of a PR that
@@ -55,8 +55,9 @@ class Category(enum.IntEnum):
         RULING_STEPS: an author does exactly the steps of an Opus ruling (a PR).
         RULING_AS_GIVEN: an author carries out an Opus ruling that splits,
             reshapes or abandons (a PR).
-        REVIEW_FIX_ROUND: a reviewer checks the findings of a review whose PR
-            body was fixed at the same head (a PR; keyword: body-digest).
+        REVIEW_FIX_ROUND: a reviewer checks the findings of a review that did
+            not reject the Plan, whose PR body was fixed at the same head (a
+            PR; keyword: body-digest).
     """
 
     FIX_REVIEW = 1
@@ -159,7 +160,9 @@ def category_of(pull: pulls.PullFacts) -> Category | None:
     # review-flow: the step alone decides, so ``next`` and ``slots next`` agree
     if step.step is not steps.Step.REGULAR_REVIEW:
         return None
-    return Category.REVIEW_FIX_ROUND if body_fixed(pull) else Category.REVIEW
+    alone = step.stage is steps.Stage.PLAN_ONLY  # keyword: plan-review-listed
+    fix_round = body_fixed(pull) and not alone
+    return Category.REVIEW_FIX_ROUND if fix_round else Category.REVIEW
 
 
 def body_fixed(pull: pulls.PullFacts) -> bool:
