@@ -22,9 +22,11 @@ class Step(enum.Enum):
     Attributes:
         WAIT_FOR_OWNER: the PR is paused; the owner decides.
         WORKER: a worker does a task.
-        UNDRAFT: mark the PR ready.
+        UNDRAFT: mark the PR ready (a draft whose Plan is approved and whose
+            newest review at its head asks for no changes, pitboss#176).
         REGULAR_REVIEW: a new reviewer grades a stage.
-        WAIT_FOR_UNDRAFT: the plan is approved, the PR cannot be undrafted yet.
+        WAIT_FOR_UNDRAFT: the plan is approved, no review at the head asks for
+            changes, the PR cannot be undrafted yet.
         WAIT_FOR_CI: CI on the head has not finished; nobody works meanwhile.
         OPUS_RULING: one Opus agent makes a binding ruling.
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.

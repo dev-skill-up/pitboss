@@ -100,7 +100,7 @@ draft (`rules.md`, "Pushing and merging").
   sweep `DRAFT ROUND` for a draft whose step is a round (a review of its Plan,
   a revision of the Plan, a fix of the review: `rules.md`, "Plan first"),
   `WAIT-FOR-CI` for a draft whose Plan is approved and that waits to be
-  undrafted, with no completed check run, and
+  undrafted (no review at its head asks for changes, pitboss#176), with no completed check run, and
   `[draft]` in the PR line (`sweep.md`). The hold below leaves draft pushes alone
   (`sweep.md`, "The runner-pressure hold"; the hold line `pitboss pressure`
   prints says the same).
