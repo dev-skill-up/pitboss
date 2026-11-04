@@ -1,7 +1,11 @@
 # The form of every pull request body, one lint for the repositories that call pitboss
-# (pitboss#38): the first line is Fixes #N, one ticket, a Head line that is the head, an
-# Evidence section. The result is the commit status text-lint on the head, set again on every edit
-# of the body. The work is pitboss's text-lint-check.yml, called by commit (never @main);
+# (pitboss#38): the first line is Fixes #N, one ticket (several only when the body cites an
+# Opus ruling comment of the pull request that rules `do these steps`, pitboss#171, which the
+# job reads with pull-requests: read, which a caller grants in the same change that moves its
+# pin to the commit of pitboss#171 or later: a called workflow cannot raise its caller's
+# permissions, so without it the run fails at startup and posts no status), a Head line that is the head, an Evidence section.
+# The result is the commit status text-lint on the head, set again on every edit of the body.
+# The work is pitboss's text-lint-check.yml, called by commit (never @main);
 # tools-ref is the same commit (a reusable workflow cannot read its own).
 # Fill COMMIT with a full 40-character commit SHA of dev-skill-up/pitboss and VERSION with
 # a comment naming it.
@@ -13,6 +17,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   statuses: write
 
 jobs:

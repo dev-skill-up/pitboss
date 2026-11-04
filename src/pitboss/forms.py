@@ -5,7 +5,8 @@ parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 ``footer`` for a PR body; ``first-line``, ``verdict``, ``reviewed``,
 ``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
 ``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
-``$ `` row that ``pitboss expand`` did not produce. The wording a project
+``$ `` row that ``pitboss expand`` did not produce, and ``appended`` for an
+Evidence row that ends in an echo of the exit status. The wording a project
 chooses (a review's lines, a PR body's footers, a brief's required lines) is
 read from its configuration (``config.Lint`` and ``config.ReviewForm``).
 """
@@ -14,7 +15,7 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, evidence, reviews, sessionurl
+from . import config, evidence, folds, reviews, rowchecks, sessionurl
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
@@ -69,13 +70,10 @@ def _first_row(subject: Subject) -> list[str]:
     return _found(subject, "first-line", message, not rows or not FIXES.match(rows[0]))
 
 
-def _one_ticket(subject: Subject) -> list[str]:
-    tickets = sorted({each.upper() for each in FIXES.findall(subject.body)})
-    message = (
-        f"Fixes names {len(tickets)} tickets ({', '.join(tickets)}): one"
-        " ticket, one PR; a dependency is its own ticket and PR"
-    )
-    return _found(subject, "one-ticket", message, len(tickets) > 1)
+def _one_ticket(subject: Subject, rulings: Sequence[folds.Recorded]) -> list[str]:
+    # keyword: fold (pitboss#171): Closes counts, and an Opus ruling can allow it
+    named = folds.folded(subject.body, rulings)
+    return _found(subject, "one-ticket", folds.message(named), bool(named))
 
 
 def _described_head(subject: Subject) -> list[str]:
@@ -108,21 +106,6 @@ def _evidence(subject: Subject) -> list[str]:
     )
 
 
-def _typed_by_hand(subject: Subject) -> list[str]:
-    # keyword: expand (pitboss#117)
-    return [
-        found
-        for line in evidence.hand_typed(subject.body)
-        for found in _found(
-            subject,
-            "hand-typed",
-            f'line {line}: a "$ " row that pitboss expand did not produce: put'
-            " the command in a template and run pitboss expand",
-            True,
-        )
-    ]
-
-
 def _kept(footers: Sequence[str]) -> set[str]:
     # keyword: store-form (pitboss#164): the store replaces the robot footer
     # with the generated-by footer, so a project that lists one accepts both
@@ -141,13 +124,27 @@ def _footer(subject: Subject, footers: Sequence[str]) -> list[str]:
     )
 
 
-def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
+def _command_rows(subject: Subject) -> list[str]:
+    # keywords: expand (pitboss#117), appended (pitboss#170)
+    return [
+        *rowchecks.typed_by_hand(subject.name, subject.body),
+        *rowchecks.appended(subject.name, subject.body),
+    ]
+
+
+def pr_body(
+    subject: Subject,
+    footers: Sequence[str],
+    rulings: Sequence[folds.Recorded] = (),
+) -> Sequence[str]:
     """Check the form of a PR body.
 
     Args:
         subject: the body.
         footers: the lines a body must end with one of (in its last three
             lines); none requires no footer.
+        rulings: the PR's comments, each its address and text, that a body
+            with several tickets may cite.
 
     Returns:
         The findings.
@@ -155,10 +152,10 @@ def pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
     clean = _clean(subject)
     return [
         *_first_row(clean),
-        *_one_ticket(clean),
+        *_one_ticket(clean, rulings),
         *_described_head(clean),
         *_evidence(clean),
-        *_typed_by_hand(clean),
+        *_command_rows(clean),
         *_footer(clean, footers),
     ]
 
@@ -181,7 +178,7 @@ def relock_pr_body(subject: Subject, footers: Sequence[str]) -> Sequence[str]:
     clean = _clean(subject)
     return [
         *_described_head(clean),
-        *_typed_by_hand(clean),
+        *rowchecks.typed_by_hand(clean.name, clean.body),
         *_footer(clean, footers),
     ]
 

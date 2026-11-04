@@ -9,6 +9,7 @@ from . import (
     bodydigest,
     config,
     flow,
+    folds,
     headchecks,
     ghapi,
     mergesonly,
@@ -316,10 +317,10 @@ def _unreadable(
 
 
 def _signals(source: Source, repo: config.Repo, got: Fetched) -> headchecks.HeadSignals:
-    red = headchecks.red(got.statuses, got.checks)
-    strict = repo.slug in source.review.gated
-    unmet = headchecks.pending_gate(got.statuses) if strict else ""
-    return headchecks.HeadSignals(statuses=red, labels=got.labels, gate=unmet)
+    ruled = folds.ruling_comments(got.posted.comments, source.review.trusted)
+    found = headchecks.signals(got.statuses, got.checks, got.labels, ruled)
+    unmet = headchecks.gate(got.statuses, repo.slug, source.review.gated)
+    return dataclasses.replace(found, gate=unmet)
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:

@@ -20,7 +20,19 @@
 #
 # The run: steps are one call each of a third-party tool (pipx, gh) with pitboss's own
 # command between them; the status needs the GitHub API, which pitboss's lint does not
-# call (it reads files and writes one), so `gh api` posts the file pitboss wrote.
+# call (it reads files and writes one), so `gh api` fetches the pull request's comments into
+# a file before the lint (a body that closes several tickets is in form only when it cites an
+# Opus ruling comment of the pull request that rules `do these steps`, pitboss#171; the lint
+# reads the comments' file and trusts the ruling comments of the configured associations) and
+# posts the file pitboss wrote after it. A caller must grant pull-requests: read in the same
+# change that moves its pin to this commit: this workflow asks for it, and GitHub lets a called
+# workflow keep or lower the GITHUB_TOKEN permissions its caller passes, never raise them
+# ("The `GITHUB_TOKEN` permissions passed from the caller workflow can be only downgraded (not
+# elevated) by the called workflow.", docs.github.com/en/actions/reference/workflows-and-actions/
+# reusable-workflows, section "Supported keywords for jobs that call a reusable workflow"), so a
+# caller without it
+# fails at startup and posts no text-lint status. A caller on a pin from before pitboss#171 is
+# unaffected: the older commit does not ask for it.
 name: text-lint-check
 
 on:
@@ -33,6 +45,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
   statuses: write
 
 jobs:
@@ -50,10 +63,16 @@ jobs:
           path: pitboss
           persist-credentials: false
 
+      - name: Fetch the comments of the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PULL_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PULL_NUMBER/comments" > "$RUNNER_TEMP/comments.json"
+
       - name: Lint the pull request body
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: pipx run --spec ./pitboss pitboss lint event "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/status.json" --url "$RUN_URL"
+        run: pipx run --spec ./pitboss pitboss lint event "$GITHUB_EVENT_PATH" "$RUNNER_TEMP/status.json" --url "$RUN_URL" --comments "$RUNNER_TEMP/comments.json"
 
       - name: Set the commit status text-lint
         env:
