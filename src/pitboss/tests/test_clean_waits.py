@@ -10,6 +10,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
+from .. import steps
 from . import fakes, test_flow_sweep as flows, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
@@ -65,12 +66,24 @@ class TestCleanWaits(unittest.TestCase):
             "red CI at RULING DUE": red(DUE),
             "red CI at PAUSE": red(OWNER),
         }
+        stated = {
+            "a clean draft at RULING DUE": ("draft ", steps.opus_ruling()),
+            "a clean draft at PAUSE": ("draft ", steps.pause_for_owner()),
+            "red CI at RULING ESCALATES": ("", steps.ruling_escalates()),
+            "red CI at RULING DUE": ("", steps.opus_ruling()),
+            "red CI at PAUSE": ("", steps.pause_for_owner()),
+        }
         shown = {
             label: (
                 line in sweep(here).out,
+                f"PR STATE owner/project#3: {stated[label][0]}next step: "
+                + steps.describe(stated[label][1])
+                in next_output(here).splitlines(),
                 flows.listed_for_third(here),
                 "fix the CI" in next_output(here),
             )
             for label, (here, line) in cases.items()
         }
-        assert_that(shown, equal_to({label: (True, [], False) for label in cases}))
+        assert_that(
+            shown, equal_to({label: (True, True, [], False) for label in cases})
+        )
