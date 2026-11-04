@@ -347,6 +347,15 @@ PLAN_DRY_RUN = (
     " repository, the PR or the machine), and report each that cannot run as"
     " written as a finding of the Plan."
 )
+PLAN_CHECK = (
+    "Plan check: before you approve a Plan that has commands, the PR needs a"
+    " comment whose first line is `Plan check` and whose last line is `Plan check:"
+    " ok`, the output of `uvx pitboss plan-check <body file>` for this Plan (its"
+    " `Plan digest:` line is the one you record); without it, or with a row that"
+    " it says was NOT RUN (a command that cannot start, that waits on a lock or a"
+    " queue, or that exceeds `timeout 598`), the Plan is changes needed and you do"
+    " not approve it (keyword: plan-check, pitboss#192)."
+)
 
 SCOPE_RELOCK = (
     "Scope (exclusive): the relock {reference} at head {head}, which fixes no"

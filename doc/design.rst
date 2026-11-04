@@ -333,6 +333,8 @@ Commands
        obeys the same liveness, idle and safety rules as any dead path.
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
+   * - ``plan-check FILE``
+     - Runs each command of the ``## Plan`` section of the PR body saved in the file, in a scratch worktree, before the Plan is reviewed (pitboss#192). The orchestrator runs it on a PR at ``PLAN_CHECK`` (the Plan has commands and no trusted PR comment records a clean check of this Plan) and posts the whole output as a PR comment: the first line ``Plan check``, a row for each command, the ``Plan digest:`` line and the last line ``Plan check: ok`` or ``Plan check: refused``. Exit 1 when a row did not run, 2 for a body it cannot read. The Plan review is offered only after a trusted comment says ``Plan check: ok`` for the digest of the Plan now in the body.
    * - ``slots show|set|free|add|remove|failed|check|next|report|time CONFIG ...``
      - The worker-slot ledger, and the sorted list of what to start next. Every
        one but ``report`` and ``time`` exits 1 with ``LEDGER MISSING`` and writes nothing when
@@ -508,8 +510,10 @@ mitigation`` (``pitboss.steps.OWNER_ARTIFACT``). The sweep's ``RULING DUE``, ``P
 ``RULING ESCALATES``, ``PLAN EDITED``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
 GitHub's own reviews are no regular review and count nowhere in the flow. A PR
-at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING``, ``RULING_ESCALATES`` or ``PLAN_EDITED`` is
-offered for no fix or review round in ``slots next``, and its ticket stays taken.
+at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING``, ``RULING_ESCALATES``, ``PLAN_EDITED`` or ``PLAN_CHECK`` is
+offered for no fix or review round in ``slots next``, and its ticket stays taken. A draft whose Plan
+is not approved, and a PR with no review, is at ``PLAN_CHECK`` while its Plan has commands and no trusted
+PR comment records a clean ``pitboss plan-check`` of it; the orchestrator runs that command and posts its output as a PR comment (pitboss#192).
 
 **Findings in one round** (keyword: all-findings, pitboss#169). The brief of a
 review of a stage (the Plan, the Execution, or both) requires the first round of
