@@ -386,6 +386,21 @@ Only override for bugs, but do override for bugs (and then file them)".
     as an umbrella. A piece that depends on another says so in the
     form of "A blocked ticket is not started" below (keyword: ticket-blocked)
     and is worked after that one merged.
+- **A cap on open PRs is met by finishing or closing PRs, never by folding
+  tickets into one PR** (keyword: fold, pitboss#171; quire#1038 closed six
+  tickets in one PR after the owner's rule of 2026-10-30 to stop opening PRs
+  and finish the open ones; the six had to be graded together, which made a
+  79-file diff and a Plan that two reviews and an Opus ruling could not
+  settle). A rule that caps the open PRs is a rule about the count: the PRs
+  already open are finished or closed, and no ticket's work is moved into
+  another PR to lower the count. A PR whose body closes more than one ticket
+  (`Fixes` or `Closes` for each) needs an Opus ruling comment on that PR
+  (`Ruling: do these steps`; `Ruling: split` is refused) recorded before its
+  first push, and its body cites that comment's address. `pitboss lint
+  pr-body` refuses a body with several such tickets unless it cites the
+  address of a ruling comment given with `--ruling URL FILE`, and the sweep
+  prints a `FOLDED PR` line for an open PR whose body does and cites no
+  ruling comment of the PR.
 - **A partial fix is never merged, and a ticket is never narrowed or split to
   get a PR through, unless impossibility is verified** (owner,
   2026-10-29T04:50:34Z: "Merging it as a partial fix is your call. <-- it's not

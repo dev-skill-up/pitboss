@@ -21,11 +21,15 @@ class HeadSignals:
         gate: why the review gate's status (``adversarial-review``) of a gated
             repository's head is not success, empty when it is, or the
             repository is not gated (keyword: review-gate, pitboss#166).
+        rulings: the address and text of each Opus ruling comment of a trusted
+            author, which a body with several tickets may cite (keyword: fold,
+            pitboss#171).
     """
 
     statuses: Sequence[shapes.CommitStatus] = ()
     labels: AbstractSet[str] = frozenset()
     gate: str = ""
+    rulings: Sequence[tuple[str, str]] = ()
 
 
 def pending_gate(posted: Sequence[shapes.CommitStatus]) -> str:

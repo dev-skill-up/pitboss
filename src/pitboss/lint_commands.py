@@ -119,7 +119,8 @@ def _pr_body_findings(
 ) -> Sequence[str]:
     if relock.is_relock(args.branch, settings.relock_prefix):
         return forms.relock_pr_body(subject, settings.footers)  # keyword: relock
-    return forms.pr_body(subject, settings.footers)
+    rulings = [(url, _read(name)) for url, name in args.ruling or ()]
+    return forms.pr_body(subject, settings.footers, rulings)
 
 
 def _review_findings(
@@ -276,6 +277,17 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         "--repository",
         default="",
         help="review --gated: the repository, whose review-gate.yml gives the form",
+    ),
+    add_argument(
+        "--ruling",
+        action="append",
+        nargs=2,
+        metavar=("URL", "FILE"),
+        default=None,
+        help="pr-body: an Opus ruling comment of the PR, its address and the file"
+        " holding its text; a body with several Fixes or Closes tickets is"
+        " refused unless it cites the address of a comment ruling `do these"
+        " steps`; give it more than once",
     ),
     add_argument(
         "--ticket",

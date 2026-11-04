@@ -214,7 +214,11 @@ Commands
        phrase check of ``lint text`` runs on the same file. Prints one
        finding per line ending with its check in parentheses, exits 1 on
        any, 0 on none (``ok``), 2 on a file or configuration it cannot use.
-       ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket``, ``head``
+       ``pr-body``: ``first-line`` (``Fixes #N``), ``one-ticket`` (``Fixes`` or
+       ``Closes`` lines for more than one ticket, unless the body cites the
+       address of an Opus ruling comment of the PR, given as ``--ruling URL
+       FILE``, whose ruling is ``do these steps``; the sweep prints
+       ``FOLDED PR`` for an open PR that does not; pitboss#171), ``head``
        (a ``Head: <40 hex>`` line, the last equal to ``--head``),
        ``evidence`` (an Evidence heading and, in its section, a block that
        ``pitboss expand`` produced), ``hand-typed`` (a ``$ `` row anywhere in
