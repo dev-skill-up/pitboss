@@ -1,6 +1,7 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
 import dataclasses
+import datetime
 import subprocess
 from typing import AbstractSet, Callable, Sequence
 
@@ -17,6 +18,7 @@ from . import (
     relock,
     reviews,
     rounds,
+    rulingsummary,
     shapes,
     steps,
     unreadableform,
@@ -58,6 +60,8 @@ class PullFacts:
         review_rounds: what its review rounds show.
         relock: whether its head branch starts with the relock prefix
             (keyword: relock).
+        rulings: when its trusted Opus ruling comments were written (keyword:
+            ruling-summary).
     """
 
     repo: config.Repo
@@ -72,6 +76,7 @@ class PullFacts:
     step: steps.Next
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
+    rulings: Sequence[datetime.datetime] = ()
 
 
 def unhealthy(facts: PullFacts) -> bool:
@@ -349,6 +354,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         step=flow.next_step(state),
         review_rounds=rounds.of(state, merged),
         relock=_is_relock(source, got.pull),
+        rulings=rulingsummary.ruled_at(got.posted.comments, source.review.trusted),
     )
 
 

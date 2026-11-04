@@ -12,7 +12,7 @@ description = "Sweep a project's pull requests, merge queue, worktrees and worke
 readme = "README.rst"
 authors = [{name = "Moshe Zadka", email = "moshez@zadka.club"}]
 requires-python = ">=3.12"
-dependencies = ["gather", "commander_data"]
+dependencies = ["gather", "commander_data", "tzdata"]
 
 [project.optional-dependencies]
 tests = ["virtue", "pyhamcrest", "coverage"]
@@ -75,6 +75,7 @@ module = [
     "pitboss.slot_commands",
     "pitboss.red_commands",
     "pitboss.pressure_commands",
+    "pitboss.summary_commands",
     "pitboss.next_commands",
     "pitboss.sync_commands",
     "pitboss.nox_commands",

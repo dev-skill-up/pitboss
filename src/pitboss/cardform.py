@@ -6,7 +6,6 @@ from . import analysis
 
 CHECK = "how-we-got-here"
 
-
 def findings(name: str, body: str) -> Sequence[str]:
     """Check the text of an owner decision card.
 

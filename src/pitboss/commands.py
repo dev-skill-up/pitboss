@@ -35,6 +35,7 @@ from . import (
     removedline,
     repoaccess,
     report,
+    rulingsummary,
     scratch,
     scratchconfig,
     shapes,
@@ -321,6 +322,19 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     workerlines.print_lines(book, found.now, found.args)
 
 
+def _summary_section(found: Context, read: Sequence[pulls.Read]) -> None:
+    # The daily summary of the Opus rulings (keyword: ruling-summary).
+    path = rulingsummary.record_path(found.settings.project.main_clone)
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        text = ""
+    rulings = [each for pull in pulls.readable(read) for each in pull.rulings]
+    waiting = rulingsummary.due(rulings, text, found.now)
+    if waiting:
+        print(rulingsummary.line(len(waiting), found.args.config, path))
+
+
 def _say_not_orchestrator(args: argparse.Namespace) -> None:
     # The first line of a sweep of a configuration that does not own the ledger.
     path = configfile.locate(args.config, working_directory(args))
@@ -349,6 +363,7 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "cleaning done")
     broken, read = _repository_sections(found, clock)
     _slot_section(found, read)
+    _summary_section(found, read)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     if syncing.section(args, found.settings) or broken or unconfigured:

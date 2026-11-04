@@ -10,6 +10,11 @@ from typing import Mapping
 
 PAUSED_LABEL = "paused-owner"
 RULING_FIRST_LINE = "Opus ruling"
+# keyword: owner-artifact (pitboss#237, the owner's standing ruling of 2026-11-04)
+OWNER_ARTIFACT = (
+    "attach a markdown artifact with the sections 'What happened',"
+    " 'Recommendation' and 'Suggested mitigation'"
+)
 FIRST_STEP = (
     "write the code, open the PR as a draft whose body has a Plan section and an"
     " Execution section; no open PR says it fixes this ticket"
@@ -153,6 +158,7 @@ TEXTS: Mapping[Step, str] = {
         f"label the PR and its ticket {PAUSED_LABEL}, comment what the rounds"
         " disagreed about, the options and a `How we got here` section, and report"
         " the number and the options to the owner on a card that has the section"
+        f" and, on the card, {OWNER_ARTIFACT}"
     ),
     Step.FIX_RULING: (
         "the newest Opus ruling has no readable `Ruling:` second line; an agent"
@@ -162,7 +168,7 @@ TEXTS: Mapping[Step, str] = {
         "the Opus ruling escalated to the owner: label the PR and its ticket"
         f" {PAUSED_LABEL}, comment the options and a `How we got here` section,"
         " and report the number and the options to the owner on a card that has"
-        " the section"
+        f" the section and, on the card, {OWNER_ARTIFACT}"
     ),
     Step.PLAN_EDITED: (
         "the Plan was edited after its approval: restore the approved Plan, or"
