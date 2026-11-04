@@ -655,7 +655,12 @@ Only override for bugs, but do override for bugs (and then file them)".
   `[lint.pr_body] footers`, `[slots.brief]`). The orchestrator pastes the brief of
   the first suggestion it can start, unchanged; it does not write one. Adding
   to a brief is allowed only for a fact the tool cannot know, and never widens
-  a review's scope. The text is `pitboss.brief`, and a test pins it, so a
+  a review's scope. The one exception that replaces a line: the ruling brief has
+  exactly one line, `How we got here:`, that the orchestrator replaces with the
+  analysis ("An escalation says how the work got there"); the analysis is a fact
+  the tool cannot know, and it replaces that line, it is not added to the brief.
+  A ruling brief sent with the line still the template is refused by the Opus
+  agent. The text is `pitboss.brief`, and a test pins it, so a
   change to a brief is a reviewed code change. Every brief starts with the
   ticket's original goal in one line, from the ticket. The scope of a review
   brief is exclusive: a head that differs from the approved head only by a
