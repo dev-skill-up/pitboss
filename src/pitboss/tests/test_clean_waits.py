@@ -7,64 +7,60 @@ no round: ``slots next`` prints the wait line and no NEXT line for each.
 """
 
 import unittest
-from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
-from .. import shapes
 from . import fakes, test_conflict_waits as waits, test_flow_sweep as flows, world
 from .test_commands import sweep
 
+DUE = "ruling due after two plan rejections"
+PAUSE = "pause after a ruling and another rejection"
+ESCALATES = "the ruling escalates"
 
-def red_world(rounds: Sequence[shapes.Comment]) -> world.World:
-    """A clean PR 3 with red CI and the comments.
+
+def clean(name: str, **changes: object) -> tuple[world.World, str]:
+    """A clean PR 3 at a wait of the conflict tests.
 
     Args:
-        rounds: PR 3's comments.
+        name: the wait, a key of ``test_conflict_waits.WAITING``.
+        **changes: changes to PR 3's JSON (``draft``).
 
     Returns:
-        The world.
+        The world, and the start of the wait's line.
     """
-    here = flows.world_with(rounds)
+    rounds, line = waits.WAITING[name]
+    return flows.world_with(rounds, **changes), line
+
+
+def red(name: str) -> tuple[world.World, str]:
+    """A clean PR 3 at a wait of the conflict tests, with red CI.
+
+    Args:
+        name: the wait, a key of ``test_conflict_waits.WAITING``.
+
+    Returns:
+        The world, and the start of the wait's line.
+    """
+    here, line = clean(name)
     path = fakes.page(f"{world.PROJECT}/commits/{flows.HEAD}/check-runs")
     here.bodies[path] = {"check_runs": [world.RED]}
-    return here
-
-
-def cases() -> Sequence[tuple[str, world.World, str]]:
-    """The three fixtures of the ticket, built fresh.
-
-    Returns:
-        Each: its name, its world and the start of its wait line.
-    """
-    paused = [*flows.RULED, flows.graded(flows.CHANGES, None, 4)]
-    ruling = flows.ruled_by("Ruling: escalate to the owner")
-    escalated = [*flows.TWO_PLAN_REJECTIONS, ruling]
-    return [
-        (
-            "a clean draft at RULING DUE",
-            flows.world_with(flows.TWO_PLAN_REJECTIONS, draft=True),
-            flows.RULING_LINE,
-        ),
-        (
-            "a clean draft at PAUSE",
-            flows.world_with(paused, draft=True),
-            flows.PAUSE_LINE,
-        ),
-        (
-            "red CI at RULING ESCALATES",
-            red_world(escalated),
-            waits.ESCALATES,
-        ),
-    ]
+    return here, line
 
 
 class TestCleanWaits(unittest.TestCase):
     """The gates above the rejection step do not hide a wait."""
 
     def test_a_clean_pr_at_a_wait_prints_the_wait_and_no_next_line(self) -> None:
-        """RULING DUE, PAUSE and RULING ESCALATES, each with its own gate."""
-        for name, here, line in cases():
-            with self.subTest(name):
-                assert_that(sweep(here).out, contains_string(line))
-                assert_that(flows.listed_for_third(here), equal_to([]))
+        """A draft at RULING DUE, a draft at PAUSE and red CI at RULING ESCALATES."""
+        cases = {
+            "a clean draft at RULING DUE": clean(DUE, draft=True),
+            "a clean draft at PAUSE": clean(PAUSE, draft=True),
+            "red CI at RULING ESCALATES": red(ESCALATES),
+            "red CI at RULING DUE": red(DUE),
+            "red CI at PAUSE": red(PAUSE),
+        }
+        shown = {
+            label: (line in sweep(here).out, flows.listed_for_third(here))
+            for label, (here, line) in cases.items()
+        }
+        assert_that(shown, equal_to({label: (True, []) for label in cases}))

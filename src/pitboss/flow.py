@@ -24,6 +24,8 @@ is_ruling = flowstate.is_ruling
 read_ruling = flowstate.read_ruling
 newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
+is_dirty = flowstate.is_dirty
+has_conflict = flowstate.has_conflict
 AFTER = flowstate.AFTER
 AS_RULED = flowstate.AS_RULED
 
@@ -170,30 +172,6 @@ def ci_result(pr: PullState) -> Ci | None:
     if not pr.checks or any(not each.finished for each in pr.checks):
         return None
     return Ci.GREEN
-
-
-def is_dirty(pull: shapes.Pull) -> bool:
-    """Whether a PR's merge state is a conflict with its base.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return pull.mergeable_state is shapes.MergeState.DIRTY
-
-
-def has_conflict(pr: PullState) -> bool:
-    """Whether the PR conflicts with its base.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return is_dirty(pr.pull)
 
 
 def plan_rejected_again(pr: PullState) -> bool:
