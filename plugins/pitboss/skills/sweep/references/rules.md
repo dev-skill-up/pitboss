@@ -384,8 +384,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     the priority and labels of the original and its own `Fixes`. The original
     is closed with its body saying what it was split into; it is not kept open
     as an umbrella. A piece that depends on another says so in the
-    form of "A blocked ticket is not started" below ("Cannot be worked on until
-    <owner/repo#n> has merged") and is worked after that one merged.
+    form of "A blocked ticket is not started" below (keyword: ticket-blocked)
+    and is worked after that one merged.
 - **A partial fix is never merged, and a ticket is never narrowed or split to
   get a PR through, unless impossibility is verified** (owner,
   2026-10-29T04:50:34Z: "Merging it as a partial fix is your call. <-- it's not
