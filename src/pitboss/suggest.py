@@ -68,6 +68,9 @@ class Pick:
 class Suggestion:
     """One thing to start, with the brief to paste.
 
+    A ruling brief has one line, ``How we got here:``, that the orchestrator
+    replaces with the analysis (pitboss#168).
+
     Attributes:
         kind: the kind of brief.
         reference: the PR or ticket.

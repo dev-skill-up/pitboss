@@ -4,6 +4,7 @@ import datetime
 from typing import Mapping, Sequence
 
 from . import (
+    analysisline,
     config,
     gateline,
     planeditline,
@@ -23,9 +24,10 @@ def lines(
     settings: config.Config,
     steps: Mapping[int, Sequence[str]],
 ) -> Sequence[str]:
-    """The STALL, UPDATE, waiting-for-ruling, DRAFT ROUND and UNREADABLE REVIEW lines.
+    """The STALL, UPDATE, waiting-for-ruling, DRAFT ROUND and review-form lines.
 
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES and PAUSE.
+    The review-form lines are UNREADABLE REVIEW, RULING NO ANALYSIS and GATE PENDING.
 
     Args:
         pull: the PR.
@@ -43,6 +45,7 @@ def lines(
         *planeditline.lines(pull),
         *_draft_lines(pull),
         *reviewline.lines(pull),
+        *analysisline.lines(pull),
         *gateline.lines(pull),
     )
 

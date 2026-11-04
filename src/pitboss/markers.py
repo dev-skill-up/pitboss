@@ -40,6 +40,8 @@ class Marker(enum.Enum):
         RULING_ESCALATES: a PR whose Opus ruling escalated to the owner.
         PLAN_EDITED: a PR whose Plan section differs from the Plan its newest
             approving review read, with no Opus ruling that allows the edit.
+        RULING_NO_ANALYSIS: a PR whose newest Opus ruling comment has no
+            ``How we got here`` section.
         REMOVED_FROM_QUEUE: the merge queue removed a PR, and why.
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
         READY_TO_MERGE: green, clean and approved; arm auto-merge.
@@ -111,6 +113,7 @@ class Marker(enum.Enum):
     RULING_UNREADABLE = enum.auto()
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
+    RULING_NO_ANALYSIS = enum.auto()
     REMOVED_FROM_QUEUE = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
