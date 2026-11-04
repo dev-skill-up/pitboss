@@ -30,6 +30,9 @@ class Step(enum.Enum):
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
         FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
         RULING_ESCALATES: the Opus ruling escalated to the owner.
+        PLAN_EDITED: the Plan section differs from the Plan an approving review
+            read, and no Opus ruling authorises the edit (keyword: plan-digest,
+            pitboss#172).
         MERGE: the PR merges.
     """
 
@@ -43,6 +46,7 @@ class Step(enum.Enum):
     PAUSE_FOR_OWNER = enum.auto()
     FIX_RULING = enum.auto()
     RULING_ESCALATES = enum.auto()
+    PLAN_EDITED = enum.auto()
     MERGE = enum.auto()
 
 
@@ -54,7 +58,8 @@ class Task(enum.Enum):
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
         RESOLVE_CONFLICT: the head conflicts with the base, at any stage except while it
-            waits for a ruling or the owner (``WAITS``).
+            waits for a ruling, the owner or the restoring of an edited approved
+            Plan (``WAITS``, including PLAN_EDITED).
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.
@@ -111,9 +116,17 @@ class Next:
     comment: str = ""
 
 
-# the steps at which a PR waits for an Opus ruling or the owner (pitboss#148): a
-# conflict is not resolved meanwhile, and the sweep prints a line for each
-WAITS = frozenset({Step.OPUS_RULING, Step.PAUSE_FOR_OWNER, Step.RULING_ESCALATES})
+# the steps at which a PR waits for an Opus ruling or the owner (pitboss#148), or
+# for an edited approved Plan to be restored or ruled (pitboss#172): a conflict
+# is not resolved meanwhile, and the sweep prints a line for each
+WAITS = frozenset(
+    {
+        Step.OPUS_RULING,
+        Step.PAUSE_FOR_OWNER,
+        Step.RULING_ESCALATES,
+        Step.PLAN_EDITED,
+    }
+)
 
 TEXTS: Mapping[Step, str] = {
     Step.WAIT_FOR_OWNER: (
@@ -148,6 +161,11 @@ TEXTS: Mapping[Step, str] = {
         f" {PAUSED_LABEL}, comment the options and a `How we got here` section,"
         " and report the number and the options to the owner on a card that has"
         " the section"
+    ),
+    Step.PLAN_EDITED: (
+        "the Plan was edited after its approval: restore the approved Plan, or"
+        " ask an Opus agent for a ruling that says `revise the plan`; no review"
+        " or fix is offered meanwhile"
     ),
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
@@ -266,6 +284,15 @@ def ruling_escalates() -> Next:
         The step.
     """
     return Next(step=Step.RULING_ESCALATES)
+
+
+def plan_edited() -> Next:
+    """The step of a PR whose approved Plan was edited with no ruling.
+
+    Returns:
+        The step.
+    """
+    return Next(step=Step.PLAN_EDITED)
 
 
 def merge() -> Next:

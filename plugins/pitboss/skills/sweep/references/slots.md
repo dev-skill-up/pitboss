@@ -103,10 +103,10 @@ estimated.
 2. Then pull requests in progress: an open PR with no worker that is still
    relevant is finished (fixed, reviewed, brought up to date, merged),
    whatever its priority, so open PRs do not pile up. A `STALL` fix comes
-   before every other pull request but the merge of a ready one (`rules.md`), unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE`.
-   A pull request whose flow step is `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING` or `RULING_ESCALATES`
-   (`RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` in the sweep; `pitboss.flow.next_step`) is not offered for any round until
-   the ruling is recorded or the owner decides.
+   before every other pull request but the merge of a ready one (`rules.md`), unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`.
+   A pull request whose flow step is `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`, `RULING_ESCALATES` or `PLAN_EDITED`
+   (`RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` in the sweep; `pitboss.flow.next_step`) is not offered for any round until
+   the ruling is recorded, the owner decides or the approved Plan is restored.
 3. Then new work, in the order the project requires.
 
 `slots next` sorts what it can see from GitHub into one list and says on each
@@ -132,9 +132,9 @@ exactly one step and at most one kind. There are eight:
 5. **Resolve the conflict**: step WORKER, task `RESOLVE_CONFLICT`: the head
    conflicts with the base, at every stage (a draft and a red CI included; it
    comes before the draft, CI and review gates). Not while the PR waits: the
-   `paused-owner` label, `RULING UNREADABLE`, `RULING DUE`, `PAUSE` and
-   `RULING ESCALATES` come first, and the conflict waits for the ruling or the
-   owner. A ruling's own work step comes after the conflict. Its author resolves
+   `paused-owner` label, `RULING UNREADABLE`, `RULING DUE`, `PAUSE`,
+   `RULING ESCALATES` and `PLAN EDITED` come first, and the conflict waits for
+   the ruling, the owner or the restoring of the approved Plan. A ruling's own work step comes after the conflict. Its author resolves
    it.
 6. **Do the ruling's steps**: step WORKER, task `RULING_STEPS`: the newest
    readable Opus ruling says `do these steps` and no review follows it. Its
@@ -159,7 +159,7 @@ exactly one step and at most one kind. There are eight:
 Every other step (waiting, undraft, Opus ruling, pause, merge) is offered for
 no round.
 
-A PR with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` (`sweep.md`) is none of these: it has no
+A PR with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` (`sweep.md`) is none of these: it has no
 line in this list, whatever its state, and a fix or a review of it
 waits for the ruling or the owner.
 
@@ -169,7 +169,7 @@ title, body or branch); a ticket with none of the labels is never offered.
 The tickets are ordered by priority label (the order of `priority_labels`),
 then oldest first by the creation time of the ticket. Items a slot already
 holds are left out, and so is a ticket of a repository under the owner's hold (printed `HELD`, below): it is not a ticket that can be worked, and the next ticket takes the slot. So is a ticket that is blocked by an open ticket or PR (keyword: ticket-blocked; printed `BLOCKED <ticket> by <owner/repo#n>`, the form in `rules.md`, "A blocked ticket is not started"): it has no `NEXT` line until the blocker closes or merges. A `STALL` line of the sweep (`rules.md`) is the one
-exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES` or `PAUSE` (then it has no line and waits).
+exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` (then it has no line and waits).
 
 Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a
 ticket will touch, and no ticket is skipped or held back because another PR

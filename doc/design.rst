@@ -381,12 +381,12 @@ the relock prefix (``relock/`` by default) and whose required check, named ``che
 been red for more than 14400 seconds from the run's ``completed_at``, counted
 against the injected clock: exactly 14400 is not yet one; the line says how long
 and, for each failed check, the names of its failed steps; the skill's rules take
-a stall before every other pull request but the merge of a ready one, unless the PR also has ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE``), then
+a stall before every other pull request but the merge of a ready one, unless the PR also has ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED``), then
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
-current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (``pitboss.flow.next_step`` gives the step,
-``pitboss.roundline`` prints; see **Review rounds** below), then
+current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (``pitboss.flow.next_step`` gives the step,
+``pitboss.roundline`` and ``pitboss.planeditline`` print; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, Plan and
 Execution, and the review of a revised plan are started by its author's
@@ -411,7 +411,7 @@ is no line; a head the Opus ruling
 approved gets ``READY TO MERGE`` instead).
 
 **Body fixes** (pitboss#147). A review may record the PR body it read in a
-``Body: <digest>`` line (``pitboss body-digest FILE``; REST has no edit time
+``Body: <digest>`` line (``pitboss body-digest FILE``, and ``pitboss plan-digest FILE`` for the ``Plan digest:`` line of the Plan section; REST has no edit time
 for a body). When the newest review of the head records a digest other than the
 body's now, the standing is ``older-body``, the review does not count in
 ``flow.newest_counting_review``, and ``slots next`` offers the PR as ``review
@@ -476,10 +476,10 @@ the first step. A ruling comment without a ``How we got here`` section (an
 analysis of each rejection before the ruling: ``pitboss.analysis``, pitboss#168)
 is read and followed all the same; the sweep says so with ``RULING NO ANALYSIS``
 (``pitboss.analysisline``). The sweep's ``RULING DUE``, ``PAUSE``, ``RULING UNREADABLE``,
-``RULING ESCALATES``, ``revise the plan``,
+``RULING ESCALATES``, ``PLAN EDITED``, ``revise the plan``,
 ``fix the review`` and ``review it`` lines and ``slots next`` take that step.
 GitHub's own reviews are no regular review and count nowhere in the flow. A PR
-at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING`` or ``RULING_ESCALATES`` is
+at ``OPUS_RULING``, ``PAUSE_FOR_OWNER``, ``FIX_RULING``, ``RULING_ESCALATES`` or ``PLAN_EDITED`` is
 offered for no fix or review round in ``slots next``, and its ticket stays taken.
 
 **Findings in one round** (keyword: all-findings, pitboss#169). The brief of a
@@ -784,7 +784,8 @@ listed at most once. The eight kinds:
   ``FIRST_ROUND``: the PR has no such body;
 * ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
   head that conflicts with the base, at any stage but while the PR waits for
-  a ruling or the owner (``steps.WAITS``, the ``paused-owner`` label and
+  a ruling, the owner or the restoring of an edited approved Plan
+  (``steps.WAITS``, ``PLAN_EDITED`` included, the ``paused-owner`` label and
   ``RULING UNREADABLE``);
 * ``do the ruling's steps``: step ``WORKER``, task ``RULING_STEPS``: the
   newest readable Opus ruling says ``do these steps`` and no review follows it;
@@ -798,7 +799,7 @@ listed at most once. The eight kinds:
   plan-only review, listed with no CI, since a draft runs none, before every
   new ticket (pitboss#156); a draft is undrafted only once its Plan is approved.
 
-A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` (above) is listed as none of these.
+A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR, except a ticket of a repository under
@@ -830,7 +831,7 @@ merging the base branch in when it arises.
 The open PRs are ordered oldest first by creation time, and the tickets by
 ``priority_labels`` first and then oldest first by creation time (the one
 exception is a ``STALL`` line of the sweep, whose fix the skill's rules take
-before every line of this list; a PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES`` or ``PAUSE`` has no line
+before every line of this list; a PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` has no line
 in it). Each line names the
 smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty

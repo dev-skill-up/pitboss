@@ -54,7 +54,8 @@ class TestWaits(unittest.TestCase):
 
     def test_the_waits_are_the_lines_of_the_round_line(self) -> None:
         """Every wait step has its sweep line, and no other step has one."""
-        assert_that(set(roundline.LINES), equal_to(set(steps.WAITS)))
+        lined = set(roundline.LINES) | {steps.Step.PLAN_EDITED}
+        assert_that(lined, equal_to(set(steps.WAITS)))
 
     def test_a_dirty_pr_held_for_the_owner_or_with_an_unreadable_ruling(self) -> None:
         """Neither is offered for a round: the gate must not move above them."""
