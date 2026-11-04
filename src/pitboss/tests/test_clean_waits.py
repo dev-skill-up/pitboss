@@ -12,6 +12,7 @@ from hamcrest import assert_that, equal_to
 
 from . import fakes, test_flow_sweep as flows, world
 from .test_commands import sweep
+from .test_slot_commands import next_output
 
 DUE = "ruling due after two plan rejections"
 OWNER = "pause after a ruling and another rejection"
@@ -65,7 +66,11 @@ class TestCleanWaits(unittest.TestCase):
             "red CI at PAUSE": red(OWNER),
         }
         shown = {
-            label: (line in sweep(here).out, flows.listed_for_third(here))
+            label: (
+                line in sweep(here).out,
+                flows.listed_for_third(here),
+                "fix the CI" in next_output(here),
+            )
             for label, (here, line) in cases.items()
         }
-        assert_that(shown, equal_to({label: (True, []) for label in cases}))
+        assert_that(shown, equal_to({label: (True, [], False) for label in cases}))
