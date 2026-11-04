@@ -232,7 +232,7 @@ def _pull_lines(
     steps = {check_id: each.steps for check_id, each in got.failures.items()}
     shown = pulllines.lines(pull, found.now, found.settings, steps)
     acts = report.action_lines(pull, found.settings, queued, why)
-    blocked = pullstate.blocked_lines(found.settings, pull, ())
+    blocked = pullstate.blocked_lines(found.github, found.settings, pull, ())
     for line in (*shown, *removedline.settle(got.said, acts), *blocked):
         print(line)
     return pulls.conflicted(pull) or bool(pulls.failed_checks(pull))

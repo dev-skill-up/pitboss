@@ -112,6 +112,27 @@ def blocked_failure(**changes: object) -> str:
     return blocked_of(with_statuses([status("failure")], **changes))[0]
 
 
+LINK = "https://github.com/owner/pwa/issues/278"
+
+
+def blocked_with_ticket(
+    state: str, description: str = "", labels: Sequence[Mapping[str, str]] = ()
+) -> str:
+    """The BLOCKED line of PR 3 when ticket owner/pwa#278 exists.
+
+    Args:
+        state: the ticket's state.
+        description: the failed status's description.
+        labels: the labels of PR 3.
+
+    Returns:
+        The line.
+    """
+    here = with_statuses([status("failure", description)], labels=list(labels))
+    here.bodies["repos/owner/pwa/issues/278"] = {"state": state, "labels": []}
+    return blocked_of(here)[0]
+
+
 class TestDraftWithAFailedStatus(unittest.TestCase):
     """A draft PR with a failing status and no review (Done-when 2)."""
 
@@ -170,11 +191,49 @@ class TestTheCauseOfATextLintFailure(unittest.TestCase):
         words = blocked_of(here)[0].split()
         assert_that({"BODY", "PIN"} & set(words), equal_to(set()))
 
-    def test_a_ticket_in_the_description_is_named(self) -> None:
-        """The ticket the description names is linked."""
-        described = status("failure", "stale pin, see owner/pwa#278")
-        found = blocked_of(with_statuses([described]))
-        assert_that(found[0], contains_string("its description names owner/pwa#278"))
+    def test_an_open_ticket_the_description_names_is_linked(self) -> None:
+        """Row 1: the link of the open ticket, and where it was named."""
+        found = blocked_with_ticket("open", description="stale pin, see owner/pwa#278")
+        assert_that(found, contains_string(f"blocked by the open ticket {LINK}"))
+        assert_that(found, contains_string("(named by the status description)"))
+
+    def test_a_closed_ticket_the_description_names_is_not_shown(self) -> None:
+        """Row 1: only an open ticket is a blocker."""
+        found = blocked_with_ticket(
+            "closed", description="stale pin, see owner/pwa#278"
+        )
+        assert_that("blocked by" in found, equal_to(False))
+
+    def test_a_label_of_the_pr_that_names_a_ticket_is_linked(self) -> None:
+        """Row 1: a label names the open ticket."""
+        label = {"name": "waiting for owner/pwa#278"}
+        found = blocked_with_ticket("open", labels=[label])
+        assert_that(found, contains_string(f"blocked by the open ticket {LINK}"))
+        assert_that(found, contains_string("named by the label waiting for"))
+
+    def test_a_label_of_the_ticket_the_pr_fixes_is_linked(self) -> None:
+        """Row 1: the label of the ticket the PR fixes names another ticket."""
+        here = with_statuses([status("failure")], body="Fixes owner/pwa#5\n")
+        label = {"name": "blocked by owner/pwa#278"}
+        here.bodies["repos/owner/pwa/issues/5"] = {
+            "number": 5,
+            "title": "T",
+            "created_at": "2026-10-01T00:00:00Z",
+            "body": "",
+            "state": "open",
+            "labels": [label],
+        }
+        here.bodies["repos/owner/pwa/issues/278"] = {"state": "open", "labels": []}
+        found = blocked_of(here)[0]
+        assert_that(found, contains_string(f"blocked by the open ticket {LINK}"))
+        assert_that(found, contains_string("of owner/pwa#5)"))
+
+    def test_a_ticket_that_cannot_be_read_is_not_shown(self) -> None:
+        """Neither the fixed ticket nor the named one answers."""
+        here = with_statuses(
+            [status("failure", "see owner/pwa#278")], body="Fixes owner/pwa#5\n"
+        )
+        assert_that("blocked by" in blocked_of(here)[0], equal_to(False))
 
     def test_the_same_status_on_other_prs_is_said(self) -> None:
         """A status that fails on every PR is the pin's."""

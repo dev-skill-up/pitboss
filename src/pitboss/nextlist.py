@@ -127,7 +127,7 @@ def show(
     )
     for line in itertools.chain(
         nextview.next_lines(_view(found, ordered, book)),
-        pullstate.lines(found.settings, source.facts),
+        pullstate.lines(found.github, found.settings, source.facts),
         suggest.lines(source),
     ):
         print(line)

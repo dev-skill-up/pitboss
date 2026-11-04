@@ -9,13 +9,15 @@ when a commit status of its head failed, with the context, the link, and for a
 (keyword: red-status).
 """
 
-import re
 from typing import Iterable, Sequence
 
 from . import (
+    blockers,
     config,
     contradictions,
+    fixes,
     forms,
+    ghapi,
     phrases,
     pulls,
     relock,
@@ -27,7 +29,6 @@ from . import (
 )
 from .markers import Marker
 
-TICKET = re.compile(r"(?:[\w.-]+/)?[\w.-]*#\d+|https://github\.com/\S+/issues/\d+")
 BODY_CAUSE = (
     "the lint's finding is about the BODY of the PR ({finding}): fix the body, the"
     " lint runs again on the edit"
@@ -102,21 +103,26 @@ def _also(
         pulls.reference(other)
         for other in everyone
         if other is not pull
-        and any(red.context == each.context for red in other.red_statuses)
+        and any(red.context == each.context for red in other.signals.statuses)
     ]
     if not others:
         return ""
     return f"; the same status fails on {', '.join(others)}"
 
 
-def _tickets(each: shapes.CommitStatus) -> str:
-    named = sorted(set(TICKET.findall(each.description)))
-    if not named:
-        return ""
-    return f"; its description names {', '.join(named)}"
+def _blockers(
+    github: ghapi.GitHub, pull: pulls.PullFacts, each: shapes.CommitStatus
+) -> str:
+    return "".join(
+        f"; {text}"
+        for text in blockers.lines(
+            github, pull, fixes.fixed_tickets(pull), each.description
+        )
+    )
 
 
 def blocked_lines(
+    github: ghapi.GitHub,
     settings: config.Config,
     pull: pulls.PullFacts,
     everyone: Iterable[pulls.PullFacts],
@@ -124,6 +130,7 @@ def blocked_lines(
     """The BLOCKED line of each failed commit status of a PR's head.
 
     Args:
+        github: the API.
         settings: the configuration.
         pull: the PR.
         everyone: every open PR that was read.
@@ -132,7 +139,7 @@ def blocked_lines(
         The lines, none when no status of the head failed.
     """
     lines = []
-    for each in pull.red_statuses:
+    for each in pull.signals.statuses:
         said = f": {each.description}" if each.description else ""
         link = f" ({each.url})" if each.url else ""
         cause = (
@@ -140,16 +147,19 @@ def blocked_lines(
         )
         lines.append(
             f"{Marker.BLOCKED.text} {pulls.reference(pull)}: status {each.context}"
-            f" {each.state}{link}{said}{_tickets(each)}{cause}"
+            f" {each.state}{link}{said}{_blockers(github, pull, each)}{cause}"
             f"{_also(each, pull, everyone)}"
         )
     return lines
 
 
-def lines(settings: config.Config, facts: Sequence[pulls.PullFacts]) -> Iterable[str]:
+def lines(
+    github: ghapi.GitHub, settings: config.Config, facts: Sequence[pulls.PullFacts]
+) -> Iterable[str]:
     """The PR STATE line of every PR, each followed by its BLOCKED lines.
 
     Args:
+        github: the API.
         settings: the configuration.
         facts: the open PRs that were read.
 
@@ -162,4 +172,4 @@ def lines(settings: config.Config, facts: Sequence[pulls.PullFacts]) -> Iterable
             f"{Marker.PR_STATE.text} {pulls.reference(pull)}: {draft}next step:"
             f" {next_step(pull)}"
         )
-        yield from blocked_lines(settings, pull, facts)
+        yield from blocked_lines(github, settings, pull, facts)

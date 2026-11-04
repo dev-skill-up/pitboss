@@ -45,9 +45,7 @@ class PullFacts:
         checks: the check runs of its head.
         review: its newest review that counts.
         standing: where its head stands with that review.
-        red_statuses: the commit statuses of its head that failed and that no
-            later passing check run of the same name answers (keyword:
-            red-status, pitboss#162).
+        signals: what may block it besides its checks (keyword: red-status).
         unreadable: its comments that try to be reviews and are not (keyword:
             unreadable-review).
         step: the one step the PR is at (keyword: review-flow).
@@ -61,7 +59,9 @@ class PullFacts:
     checks: Sequence[shapes.CheckRun]
     review: reviews.Found | None
     standing: reviews.Standing
-    red_statuses: Sequence[shapes.CommitStatus] = ()
+    signals: headchecks.HeadSignals = dataclasses.field(
+        default_factory=headchecks.HeadSignals
+    )
     unreadable: StrayComments = dataclasses.field(default_factory=StrayComments)
     step: steps.Next
     merges_only: bool = False
@@ -309,6 +309,11 @@ def _unreadable(
     )
 
 
+def _signals(got: Fetched) -> headchecks.HeadSignals:
+    red = headchecks.red(got.statuses, got.checks)
+    return headchecks.HeadSignals(statuses=red, labels=got.labels)
+
+
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     """Read one PR: its details, its head's checks and its review.
 
@@ -329,7 +334,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         checks=got.checks,
         review=found,
         standing=standing,
-        red_statuses=headchecks.red(got.statuses, got.checks),
+        signals=_signals(got),
         unreadable=_unreadable(source, repo, got, found),
         step=flow.next_step(_state(source, repo, got)),
         merges_only=merged,

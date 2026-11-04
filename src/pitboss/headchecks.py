@@ -1,10 +1,25 @@
 """The check runs and commit statuses of a PR's head (keyword: red-status)."""
 
-from typing import Sequence
+import dataclasses
+from typing import AbstractSet, Sequence
 
 from . import checkruns, config, ghapi, parsing, shapes, supersede
 
 RED_STATES = frozenset({"failure", "error"})
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class HeadSignals:
+    """What may block a PR besides its check runs (keyword: red-status, #162).
+
+    Attributes:
+        statuses: the commit statuses of its head that failed and that no later
+            passing check run of the same name answers.
+        labels: the names of the PR's labels.
+    """
+
+    statuses: Sequence[shapes.CommitStatus] = ()
+    labels: AbstractSet[str] = frozenset()
 
 
 def statuses(
