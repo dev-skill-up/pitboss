@@ -325,7 +325,11 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
         *([text.NO_PLAN_EDIT] if spec.kind in APPROVED_PLAN_WORKERS else []),
-        *([brieftextimpact.CONFLICT_BODY] if spec.kind is Kind.RESOLVE_CONFLICT else []),
+        *(
+            [brieftextimpact.CONFLICT_BODY]
+            if spec.kind is Kind.RESOLVE_CONFLICT
+            else []
+        ),
         text.EDIT,
         text.DENIED,
         text.LOCAL,
