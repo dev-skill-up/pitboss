@@ -8,12 +8,14 @@ from . import (
     analysis,
     bodydigest,
     config,
+    dispatchruns,
     flow,
     folds,
     headchecks,
     ghapi,
     mergesonly,
     parsing,
+    pullfiles,
     relock,
     reviews,
     rounds,
@@ -207,12 +209,15 @@ class Source:
         undraft: says whether the runners allow an undraft now; it is asked
             only for a draft.
         relock_prefix: the head branch prefix of a relock PR.
+        run_by_e2e: the path prefixes whose change the e2e suite runs on
+            (keyword: run-e2e).
     """
 
     github: ghapi.GitHub
     review: config.Review
     undraft: Callable[[], bool]
     relock_prefix: str = config.DEFAULT_RELOCK_PREFIX
+    run_by_e2e: Sequence[str] = config.DEFAULT_RUN_BY_E2E
 
 
 def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
@@ -301,6 +306,10 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         undraft_clear=got.pull.draft and source.undraft(),
         merges_only_since=lambda sha: _carries(source, repo, got.pull, sha),
         relock=_is_relock(source, got.pull),
+        needs_e2e=lambda: pullfiles.touches(
+            source.github, repo.slug, got.pull.number, source.run_by_e2e
+        )
+        and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
     )
 
 

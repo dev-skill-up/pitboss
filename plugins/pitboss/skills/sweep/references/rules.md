@@ -544,7 +544,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   that step, and this file does not state it a second time. The steps are
   `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
   its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`,
-  `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED`, `PLAN_CHECK` and MERGE. A draft whose Plan is not approved, and a PR with no review, whose Plan has
+  `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED`, `PLAN_CHECK`, `RUN_E2E` (the dispatch of `check.yml` on a draft that changes what e2e runs on, below) and MERGE. A draft whose Plan is not approved, and a PR with no review, whose Plan has
   commands is at `PLAN_CHECK` until a trusted PR comment records a clean `pitboss plan-check` of this Plan, and only then at its plan review
   (keyword: plan-check, pitboss#192): the orchestrator runs `uvx pitboss plan-check <body file>` on the body of such a draft and posts its whole output as a PR comment
   (its first line is `Plan check`, it has a `Plan digest:` line and ends `Plan check: ok` or `Plan check: refused`), and the next step waits for the
@@ -556,7 +556,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   the base, or an edit of the PR body, which a review records as its `Body:`
   digest, so a body-only fix round at one head counts, and two rejections with
   nothing changed between them are one round); and a draft whose Plan is approved is undrafted when `can_undraft` (the runners are
-  quiet, `pitboss pressure`), before any CI wait, unless the newest review at its head asks for changes (that fix comes first, pitboss#176; a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156). A red CI is never a plan
+  quiet, `pitboss pressure`), before any CI wait, unless the newest review at its head asks for changes (that fix comes first, pitboss#176; a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156) or its diff touches `e2e/` or a `[sweep] run_by_e2e` prefix and no dispatched run of `check.yml` at its head has completed (a draft's own run skipped e2e): its step is `RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>` (`RUN_E2E`, pitboss#199; while a check run of its head is unfinished it is `waiting for CI at this head` instead), then the wait for that run, and only then the undraft. A red CI is never a plan
   rejection. A ruling is recorded by a PR comment whose first line is exactly
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
   and what follows it (the table `pitboss.flowstate.AFTER`, which the flow reads) is carried out as
@@ -637,7 +637,10 @@ Only override for bugs, but do override for bugs (and then file them)".
     neither line containing the word verdict followed by a colon) beside the
     one `Verdict:` line of the form (`adversarial-review.md`). A draft whose Plan is approved is undrafted
     when `can_undraft` holds, before any CI wait (`pitboss.flow.next_step`), unless the review
-    at its head asks for changes: it gets the fix that review asks for first (pitboss#176); a draft whose
+    at its head asks for changes: it gets the fix that review asks for first (pitboss#176), or its diff
+    changes what e2e runs on and no dispatched run of `check.yml` at its head has completed: it is at `RUN_E2E` first, the
+    dispatch of `check.yml` on its branch (pitboss#199), unless a check run of its head is unfinished: it
+    is then `waiting for CI at this head`; a draft whose
     Plan is not approved is never undrafted: it is checked first (`plan-check`, run by the orchestrator, output posted as a PR comment, whose trusted
     clean result for the Plan digest the plan review waits for; a Plan with no command needs none), then it gets a review of the Plan alone (or, when
     the review at its head asks for changes, the fix that review asks for), and one whose
