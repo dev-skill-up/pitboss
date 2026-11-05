@@ -338,7 +338,6 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.EDIT,
         text.DENIED,
         text.LOCAL,
-        text.NOX,
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         *_plan_lines(spec.kind),

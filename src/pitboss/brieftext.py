@@ -60,13 +60,6 @@ LOCAL = (
     " with a longer limit. Never leave a command running, and never write under"
     " /dev."
 )
-NOX = (
-    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
-    " each edit (the tests of one Python version first, then the skills, lint and"
-    " mypy, each with `-r`, stopping at the first failure; module names after `--`"
-    " run only those tests), and never the full `nox -r`: CI's `Run Nox` step runs"
-    " the whole suite."
-)
 HOLD_BUG = (
     "A hold that comes from a known pitboss bug with a ticket is not waited out:"
     " push the branch with plain `git push origin <branch>` and cite the ticket in"
@@ -108,7 +101,9 @@ NO_WAITING = "No waiting: never wait for CI. Push, then hand back at once."
 FINISH = "Finish inside the turn. Do not merge. Do not write the review."
 HAND_BACK = (
     "Hand-back: the PR number, the exact head SHA, and what you ran locally (each"
-    " command with the raw output `pitboss expand` printed); nothing else."
+    " command with the raw output `pitboss expand` printed) and, where the checks"
+    " are nox sessions, the `pitboss nox` result of the pushed head (the four"
+    " sessions and their status); nothing else."
 )
 NEW_PR_CHECKOUT = "from origin/{base} after `git fetch origin {base}`"
 PR_CHECKOUT = "on the PR's branch, current with origin/{base}"
