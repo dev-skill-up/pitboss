@@ -18,6 +18,7 @@ from . import (
     briefruling,
     brieftext as text,
     brieftextci,
+    brieftextdraft,
     brieftextexec,
     brieftextimpact,
     brieftextlint,
@@ -165,7 +166,12 @@ APPROVED_PLAN_WORKERS = frozenset(
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
-PUSHES = {True: text.PUSH_HELD, False: text.PUSH_FREE}
+PUSHES = {
+    (True, True): text.PUSH_HELD,
+    (True, False): brieftextdraft.PUSH_HELD_READY,
+    (False, True): text.PUSH_FREE,
+    (False, False): text.PUSH_FREE,
+}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
 
 
@@ -335,7 +341,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         *_plan_lines(spec.kind),
-        PUSHES[project.holds],
+        PUSHES[(project.holds, project.drafts)],
         text.NO_WAITING,
         text.FINISH,
         text.HAND_BACK,

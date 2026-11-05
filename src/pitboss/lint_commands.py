@@ -15,6 +15,7 @@ from . import (
     commands,
     config,
     contradictions,
+    draftrule,
     folds,
     forms,
     gateform,
@@ -171,7 +172,21 @@ def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.Revie
 def _brief_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
-    return forms.brief(subject, settings.brief_lines, _ticket(args))
+    return [
+        *forms.brief(subject, settings.brief_lines, _ticket(args)),
+        *_draft_findings(args, subject),
+    ]
+
+
+def _draft_findings(args: argparse.Namespace, subject: forms.Subject) -> Sequence[str]:
+    # keyword: no-drafts (pitboss#216): a project that needs no drafts
+    if args.config is None:
+        return []
+    try:
+        off = draftrule.drafts_off(args.config, commands.working_directory(args))
+    except (OSError, ValueError, KeyError) as error:
+        raise _fail(f"{args.config}: {error}") from error
+    return draftrule.findings(subject.name, subject.body) if off else []
 
 
 def _card_findings(

@@ -9,6 +9,7 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    draftrule,
     fixes,
     ledger,
     nextlist,
@@ -25,6 +26,7 @@ from .commands import (
     load_context,
     open_pulls,
     read_ledger,
+    working_directory,
 )
 
 _FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
@@ -110,4 +112,6 @@ def _step_of(found: Context, named: str) -> None:
         print(unreadableline.unreadable_line(each))
     if unread:
         raise SystemExit(1)
-    print(f"{steps.Step.WORKER.name}: {ticket}: {steps.FIRST_STEP}")
+    off = draftrule.drafts_off(found.args.config, working_directory(found.args))
+    first = steps.FIRST_STEP_READY if off else steps.FIRST_STEP
+    print(f"{steps.Step.WORKER.name}: {ticket}: {first}")
