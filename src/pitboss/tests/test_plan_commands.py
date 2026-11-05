@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, brieftext
+from .. import brief, brieftext, brieftextexec
 from .briefmake import has_none, pinned, text
 from .test_evidence_rules import read, words
 
@@ -20,7 +20,16 @@ BODY = (
 EXECUTION = (
     "grade the Execution against the Plan as written; each precise command of"
     " the Plan must have been run as written; a command run in another form, or"
-    " left out, is a changes-needed finding."
+    " left out, is a changes-needed finding. Cutting or piping the output of a"
+    " command run exactly as the Plan wrote it is allowed and is never a finding;"
+    " a finding is a different command (another word, file or option), a command"
+    " left out, or a cut that hides the line the row asks to show."
+)
+CUT_ALLOWED = (
+    "Cutting or piping the output of a command run exactly as the Plan wrote it"
+    " is allowed and is never a finding; a finding is a different command"
+    " (another word, file or option), a command left out, or a cut that hides"
+    " the line the row asks to show."
 )
 WORKER = (
     "run each precise command of the Plan as written; if the Plan's command"
@@ -53,6 +62,13 @@ class TestPlanCommands(unittest.TestCase):
         for kind in EXECUTION_REVIEWS:
             pinned(kind, [EXECUTION])
 
+    def test_the_execution_review_allows_a_cut_of_the_output(self) -> None:
+        """pitboss#195: the brief says a cut or a pipe is never a finding."""
+        for kind in EXECUTION_REVIEWS:
+            pinned(kind, [CUT_ALLOWED])
+        reference = words(read("adversarial-review.md"))
+        assert_that(reference.count(CUT_ALLOWED), equal_to(1))
+
     def test_the_worker_runs_each_command_as_written(self) -> None:
         """Done-when 3: the worker briefs that run a Plan say it."""
         for kind in PLAN_RUNNING:
@@ -72,7 +88,7 @@ class TestPlanCommands(unittest.TestCase):
             assert_that(reference, contains_string(sentence))
         for each in (
             brieftext.PLAN_COMMANDS_PLAN,
-            brieftext.PLAN_COMMANDS_EXECUTION,
+            brieftextexec.PLAN_COMMANDS_EXECUTION,
             brieftext.PLAN_COMMANDS_WORKER,
         ):
             assert_that(each.startswith("Plan commands: "), equal_to(True))

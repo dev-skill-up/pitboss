@@ -272,11 +272,6 @@ PLAN_COMMANDS_PLAN = (
     " Plan says exactly what will be shown; a CI run is accepted only as a CI"
     " pointer (the CI pointer rule)."
 )
-PLAN_COMMANDS_EXECUTION = (
-    "Plan commands: grade the Execution against the Plan as written; each precise"
-    " command of the Plan must have been run as written; a command run in another"
-    " form, or left out, is a changes-needed finding."
-)
 CARRIED = (
     "Write `Plan: approved (fixed)`, and an `Execution:` line with your"
     " verdict, the same word as the `Verdict:` line."
