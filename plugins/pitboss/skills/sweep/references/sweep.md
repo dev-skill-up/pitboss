@@ -30,7 +30,10 @@ owner/name#12 [clean] auto-merge=off pending=0 failed=[test (job 345)] queue=- r
   revision of the plan, except that when an older review approved the Plan and
   recorded a `Plan digest:`, a Plan section revised after it is `PLAN EDITED`
   and the PR is offered no round until a ruling `revise the plan`); `plan-approved` (on this head, a review that approved
-  the plan alone: it is no approval to merge, the execution is reviewed next);
+  the plan alone, or any review with a `Plan:` line that grades nothing and no graded `Execution:` line (the
+  gradeline reads a grade word followed by `.`, `,`, `:` or `;` and words, so `Plan: approved. The audit row ...` grades;
+  anything else after the word grades nothing): it is no approval to merge; after an Opus ruling the
+  Plan's commands are run first (the worker round `run the Plan's commands and fill the Execution`), then the execution is reviewed);
   `older-head` (the review is
   of an older head: a fix came since and needs a review); `older-body` (the
   review is of this head and records a `Body:` digest, and the PR body is not

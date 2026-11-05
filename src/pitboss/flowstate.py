@@ -266,10 +266,11 @@ def plan_unrun(pr: PullState, review: shapes.Graded | None) -> steps.Next | None
     and the review after it graded the Plan alone: no one ran the Plan's
     commands (keyword: plan-alone, pitboss#201). The round ends with an edit
     of the body, which the next review does not read (its ``Body:`` digest),
-    so the Plan review is not offered again and the draft goes on to its undraft.
+    so the Plan review is not offered again: a draft goes on to its undraft, any
+    other PR to the review of its Execution. A draft or not alike.
 
     Args:
-        pr: the PR, a draft.
+        pr: the PR.
         review: the newest review that counts.
 
     Returns:

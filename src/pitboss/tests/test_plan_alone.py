@@ -65,17 +65,30 @@ def newest(body: str) -> reviews.Found:
     return next(iter(reviews.from_comments(posted, REVIEW.trusted, read, form)))
 
 
-def next_printed(comments: Sequence[shapes.Comment]) -> str:
-    """What ``pitboss next`` prints for a draft with the comments.
+def next_printed(comments: Sequence[shapes.Comment], draft: bool = True) -> str:
+    """What ``pitboss next`` prints for PR 3 (a draft or not) with the comments.
 
     Args:
         comments: PR 3's comments.
+        draft: whether PR 3 is a draft.
 
     Returns:
         The output.
     """
-    here = test_flow_sweep.world_with(comments, body=test_flow.BODY, draft=True)
+    here = test_flow_sweep.world_with(comments, body=test_flow.BODY, draft=draft)
     return world.invoke(here, "next", here.config, "#7", "--now", world.FUTURE).out
+
+
+def assert_worker_round_not_the_review(draft: bool) -> None:
+    """Assert ``next`` prints the worker round and no review, draft or not.
+
+    Args:
+        draft: whether PR 3 is a draft.
+    """
+    want = steps.describe(steps.worker(steps.Task.RUN_PLAN))
+    printed = next_printed(played(PLAN_ONLY_BODY), draft=draft)
+    assert_that(printed, contains_string(want))
+    assert_that("REGULAR_REVIEW" in printed, equal_to(False))
 
 
 class TestReading(unittest.TestCase):
@@ -123,10 +136,11 @@ class TestSweepAndNext(unittest.TestCase):
 
     def test_next_prints_the_worker_round_and_not_the_plan_review(self) -> None:
         """Done-when 1 and 2: the Plan approved after the ruling is not regraded."""
-        want = steps.describe(steps.worker(steps.Task.RUN_PLAN))
-        printed = next_printed(played(PLAN_ONLY_BODY))
-        assert_that(printed, contains_string(want))
-        assert_that("REGULAR_REVIEW" in printed, equal_to(False))
+        assert_worker_round_not_the_review(draft=True)
+
+    def test_next_prints_the_worker_round_for_a_pr_that_is_not_a_draft(self) -> None:
+        """Done-when 1 with no condition on the draft: the same round."""
+        assert_worker_round_not_the_review(draft=False)
 
     def test_the_worker_round_needs_a_ruling_before_the_approval(self) -> None:
         """With no ruling, a Plan approved alone is the ordinary draft's."""

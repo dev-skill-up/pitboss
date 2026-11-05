@@ -390,6 +390,8 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
         The step.
     """
     if review.execution is None:  # plan approved by a plan-only review
+        if unrun := flowstate.plan_unrun(pr, review):  # keyword: plan-alone
+            return unrun  # the same round as a draft's: no condition on the draft
         return steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
 
     # approved: ``rejection_step`` took the Execution that needs changes
