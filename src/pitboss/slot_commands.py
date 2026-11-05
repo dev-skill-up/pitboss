@@ -84,6 +84,20 @@ Change = Callable[
 def _set(
     book: ledger.Ledger, words: Sequence[str], found: Context
 ) -> ledger.Ledger | ledger.Refusal:
+    running = found.args.running
+    if running is None:
+        return ledger.Refusal(
+            reason="slots set needs --running NAME ...: the agents the session runs"
+        )
+    held = ledger.find(book, words[0])
+    if isinstance(held, ledger.Refusal):
+        return held
+    resumes = held.agent == words[1] and found.args.kind == ledger.FIX_ROUND
+    if held.agent in running and not resumes:
+        return ledger.Refusal(
+            reason=f"slot {words[0]} holds {held.agent}, which is still running:"
+            " free it with --done only when it has handed back"
+        )
     task = ledger.reference(words[2], found.settings.project.repo)
     ticket = ticketof.resolve(found.github, task)
     if isinstance(ticket, ledger.Refusal):
@@ -93,6 +107,16 @@ def _set(
     if isinstance(taken, ledger.Refusal):
         return taken
     return ledger.stamp(taken, words[0], ledger.Mark.STARTED, found.now.isoformat())
+
+
+def _free(
+    book: ledger.Ledger, words: Sequence[str], found: Context
+) -> ledger.Ledger | ledger.Refusal:
+    if not found.args.done:
+        return ledger.Refusal(
+            reason="slots free needs --done AGENT: the agent that handed back"
+        )
+    return ledger.free(book, words[0], found.args.done)
 
 
 def _add(
@@ -117,7 +141,7 @@ def _heard(
 
 CHANGES: Mapping[Action, tuple[int, Change]] = {
     Action.SET: (3, _set),
-    Action.FREE: (1, lambda book, words, _: ledger.free(book, words[0])),
+    Action.FREE: (1, _free),
     Action.ADD: (2, _add),
     Action.REMOVE: (1, lambda book, words, _: ledger.remove(book, words[0])),
     Action.FAILED: (2, _failed),
@@ -150,7 +174,8 @@ def _check(found: Context, book: ledger.Ledger) -> None:
     for slot in ledger.gone(book, found.args.running or ()):
         print(
             f"{Marker.GONE_AGENT.text}: slot {slot.name} holds {slot.agent}, which"
-            f" is not running: 'pitboss slots free {found.args.config} {slot.name}'"
+            f" is not running: 'pitboss slots free {found.args.config} {slot.name}"
+            f" --done {slot.agent}'"
         )
     report.print_ledger(book)
 
@@ -242,6 +267,9 @@ def _read(found: Context) -> ledger.Ledger:
     CONFIG_ARGUMENT,
     add_argument("words", nargs="*"),
     add_argument("--running", nargs="*", default=None),
+    add_argument(
+        "--done", default=None, help="the agent that handed back, for 'slots free'"
+    ),
     add_argument("--since", default=None, help="report window start (ISO, UTC)"),
     add_argument("--until", default=None, help="report window end (ISO, UTC)"),
     add_argument(

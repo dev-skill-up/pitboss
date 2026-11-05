@@ -48,7 +48,7 @@ def _fail(book: ledger.Ledger, *words: str) -> Outcome:
 
 
 def _free(book: ledger.Ledger, *words: str) -> Outcome:
-    return ledger.free(book, *words[:1])
+    return ledger.free(book, *words[:2])
 
 
 def _remove(book: ledger.Ledger, *words: str) -> Outcome:
@@ -69,8 +69,16 @@ CASES: Sequence[tuple[Sequence[Sequence[str]], object]] = [
         "slot first holds a1 on t: free it first",
     ),
     (
-        [("take", "first", "a1", "t"), ("free", "first")],
+        [("take", "first", "a1", "t"), ("free", "first", "a1")],
         [("first", ""), ("second", "")],
+    ),
+    (
+        [("take", "first", "a1", "t"), ("free", "first", "a2")],
+        "slot first holds a1, not a2: only the agent that handed back is done",
+    ),
+    (
+        [("free", "first", "a1")],
+        "slot first holds no agent, not a1: only the agent that handed back is done",
     ),
     (
         [("add", "third", "small", *MODELS), ("remove", "second")],
@@ -85,8 +93,11 @@ CASES: Sequence[tuple[Sequence[Sequence[str]], object]] = [
         [("take", "second", "a1", "t"), ("remove", "second")],
         "slot second holds a1: free it first",
     ),
-    ([("free", "nope")], "no slot 'nope' (slots: first, second)"),
-    ([("remove", "nope"), ("free", "first")], "no slot 'nope' (slots: first, second)"),
+    ([("free", "nope", "a1")], "no slot 'nope' (slots: first, second)"),
+    (
+        [("remove", "nope"), ("free", "first", "a1")],
+        "no slot 'nope' (slots: first, second)",
+    ),
     (
         [("remove", "first"), ("remove", "second"), ("take", "x", "a", "t")],
         "no slot 'x' (slots: none)",

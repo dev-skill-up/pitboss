@@ -11,8 +11,8 @@ from . import world
 
 COMMANDS: Sequence[Sequence[str]] = (
     ("next",),
-    ("free", "tiny"),
-    ("set", "tiny", "agent-1", "#9"),
+    ("set", "tiny", "agent-1", "#9", "--running", "agent-1"),
+    ("free", "tiny", "--done", "agent-1"),
 )
 FLAG = "ledger-owner = true\n"
 REFUSAL = "not the orchestrator config: use "

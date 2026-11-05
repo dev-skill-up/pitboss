@@ -36,8 +36,8 @@ with the configuration it names before acting on them.
 | Command | Use |
 | :--- | :--- |
 | `pitboss slots show <config>` | Print the ledger. |
-| `pitboss slots set <config> SLOT AGENT TASK` | An agent took an empty slot. TASK is `#12`, `name#12` or `owner/name#12`. `--kind KIND` is `start` (default), `review`, `fix` or `ruling`. The ledger and the slot log record the ticket the task works on next to TASK: the id itself for a ticket, the first `Fixes` line of the body for a PR. Refused when pitboss cannot name the ticket (not a reference, unreadable, a PR with no `Fixes` line). Refused when the slot is occupied: free it first, except that a fix round on a PR resumes the running agent: run `slots set` again with the same agent and `--kind fix`, so the round is an entry too. |
-| `pitboss slots free <config> SLOT` | The agent finished or was stopped. After it empties the slot it prints the `slots next` line for that slot (what to start, with its smallest model), or `no task is waiting`. |
+| `pitboss slots set <config> SLOT AGENT TASK` | An agent took an empty slot. `--running NAME ...` lists every agent the session runs (the session's own agent listing) and is required; `set` is refused when the slot's current holder is among them (except a fix round of the same agent, below). Record every agent you launch, reviews included, with `set`. TASK is `#12`, `name#12` or `owner/name#12`. `--kind KIND` is `start` (default), `review`, `fix` or `ruling`. The ledger and the slot log record the ticket the task works on next to TASK: the id itself for a ticket, the first `Fixes` line of the body for a PR. Refused when pitboss cannot name the ticket (not a reference, unreadable, a PR with no `Fixes` line). Refused when the slot is occupied: free it first, except that a fix round on a PR resumes the running agent: run `slots set` again with the same agent and `--kind fix`, so the round is an entry too. |
+| `pitboss slots free <config> SLOT --done AGENT` | The agent AGENT handed back, finished or was stopped. `--done` is required and must name the agent the slot holds, else the command is refused and the slot keeps its agent (pitboss#227). After it empties the slot it prints the `slots next` line for that slot (what to start, with its smallest model), or `no task is waiting`. |
 | `pitboss slots add <config> SLOT MODEL` | Add a slot, when the owner raises the limit. |
 | `pitboss slots remove <config> SLOT` | Remove an empty slot, when the owner lowers the limit. |
 | `pitboss slots failed <config> TICKET MODEL` | A model failed a ticket (a diff that is off target, or a worker that stopped midway); the ticket goes to a larger model next. |
@@ -56,7 +56,10 @@ waiting (`wait`, `resume`) and every hand-back or completion notice (`free`, or 
 ## When a worker hands back
 
 Run `pitboss sweep`, do what its lines say, `slots free` prints the refill.
-`slots free <config> SLOT` empties the slot and prints the line `slots next`
+Free the slot only with `--done` naming the agent that handed back, and record
+every agent you launch, reviews included, with `slots set ... --running` (the
+agents the session runs), so the ledger keeps the cap (pitboss#227).
+`slots free <config> SLOT --done AGENT` empties the slot and prints the line `slots next`
 gives that slot (the task, its step and the smallest model), or `no task is
 waiting`. Start what the line says, with the brief from `slots next`, and the
 model it names; do not choose the next task or its model from your own list.

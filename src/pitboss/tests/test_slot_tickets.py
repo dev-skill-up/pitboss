@@ -36,13 +36,16 @@ def at(hour: int, minute: int = 0) -> str:
 
 
 TIME_STEPS = (
-    ("set", "tiny", "agent-1", "#3", "--kind", "review", "--now", at(0)),
-    ("set", "big", "agent-2", "lib#1", "--now", at(0)),
+    ("set", "tiny", "agent-1", "#3", "--kind", "review", "--now", at(0))
+    + ("--running", "agent-1"),
+    ("set", "big", "agent-2", "lib#1", "--now", at(0))
+    + ("--running", "agent-1", "agent-2"),
     ("wait", "tiny", "--now", at(1)),
-    ("free", "big", "--now", at(1)),
+    ("free", "big", "--done", "agent-2", "--now", at(1)),
     ("resume", "tiny", "--now", at(2)),
-    ("set", "tiny", "agent-1", "#3", "--kind", "fix", "--now", at(2, 30)),
-    ("free", "tiny", "--now", at(3)),
+    ("set", "tiny", "agent-1", "#3", "--kind", "fix", "--now", at(2, 30))
+    + ("--running", "agent-1"),
+    ("free", "tiny", "--done", "agent-1", "--now", at(3)),
 )
 WHOLE = [
     f"worker time per ticket {at(0)} to {at(4)}",
@@ -105,7 +108,7 @@ class TestField(unittest.TestCase):
     def test_ticket_and_kind(self) -> None:
         """A ticket is its own ticket; the kind is start unless it is given."""
         here = world.make_world()
-        run_all(here, [("set", "tiny", "agent-1", "#9")])
+        run_all(here, [("set", "tiny", "agent-1", "#9", "--running", "agent-1")])
         slot = slot_of(here, "tiny")
         assert_that(
             (slot["task"], slot["ticket"], slot["kind"]),
@@ -120,8 +123,10 @@ class TestField(unittest.TestCase):
     def test_pull_request_resolves_to_its_first_fixes(self) -> None:
         """A PR's ticket is the first Fixes line of its body, in any repository."""
         here = world.make_world()
-        run_all(here, [("set", "tiny", "agent-1", "#3", "--kind", "review")])
-        run_all(here, [("set", "big", "agent-2", "lib#4", "--kind", "ruling")])
+        review = ("set", "tiny", "agent-1", "#3", "--kind", "review")
+        run_all(here, [review + ("--running", "agent-1")])
+        ruling = ("set", "big", "agent-2", "lib#4", "--kind", "ruling")
+        run_all(here, [ruling + ("--running", "agent-1", "agent-2")])
         found = [(slot_of(here, name)["ticket"]) for name in ("tiny", "big")]
         assert_that(found, equal_to([TICKET_9, TICKET_9]))
         assert_that(slot_of(here, "big")["kind"], equal_to("ruling"))
@@ -129,7 +134,9 @@ class TestField(unittest.TestCase):
     def test_slots_made_before_the_fields(self) -> None:
         """A slot of an older ledger has the fields empty and is set as any."""
         here = world.make_world()
-        shown, taken = run_all(here, [("show",), ("set", "tiny", "agent-1", "#9")])
+        shown, taken = run_all(
+            here, [("show",), ("set", "tiny", "agent-1", "#9", "--running", "x")]
+        )
         assert_that((shown.code, taken.code), equal_to((0, 0)))
         assert_that(slot_of(here, "big")["ticket"], equal_to(""))
 
@@ -142,7 +149,9 @@ class TestRefusal(unittest.TestCase):
         for task, reason in UNNAMED:
             with self.subTest(task):
                 here = world.make_world()
-                (result,) = run_all(here, [("set", "tiny", "agent-1", task)])
+                (result,) = run_all(
+                    here, [("set", "tiny", "agent-1", task, "--running", "x")]
+                )
                 assert_that(
                     (result.code, result.err.splitlines()[-1]),
                     equal_to((2, f"refused: {reason}")),
@@ -162,6 +171,7 @@ class TestFixRound(unittest.TestCase):
             ("set", "tiny", "agent-2", "#3", "--kind", "fix", "--now", at(2)),
             ("set", "tiny", "agent-1", "#3", "--kind", "review", "--now", at(2)),
         ]
+        steps = [step + ("--running", "agent-1", "agent-2") for step in steps]
         results = run_all(here, steps)
         assert_that([result.code for result in results], equal_to([0, 0, 2, 2]))
         entries = [(item["kind"], item["begun"]) for item in logged(here)]

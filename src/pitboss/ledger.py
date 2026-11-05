@@ -219,19 +219,27 @@ def take(ledger: Ledger, slot_name: str, work: Work) -> Ledger | Refusal:
     return _replace(ledger, slot_name, taken)
 
 
-def free(ledger: Ledger, slot_name: str) -> Ledger | Refusal:
-    """Empty a slot.
+def free(ledger: Ledger, slot_name: str, done: str) -> Ledger | Refusal:
+    """Empty a slot whose agent has handed back.
 
     Args:
         ledger: the ledger.
         slot_name: the slot.
+        done: the agent that handed back.
 
     Returns:
-        The new ledger, or a refusal when there is no such slot.
+        The new ledger, or a refusal when there is no such slot or the slot
+        holds another agent than ``done`` (pitboss#227).
     """
     slot = find(ledger, slot_name)
     if isinstance(slot, Refusal):
         return slot
+    if slot.agent != done:
+        held = slot.agent or "no agent"
+        return Refusal(
+            reason=f"slot {slot_name} holds {held}, not {done}: only the agent"
+            " that handed back is done"
+        )
     return _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
 
 
