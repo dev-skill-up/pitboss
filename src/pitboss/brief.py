@@ -15,6 +15,7 @@ from typing import Mapping, Sequence
 
 from . import (
     briefconfig,
+    briefruling,
     brieftext as text,
     brieftextci,
     brieftextexec,
@@ -22,7 +23,6 @@ from . import (
     brieftextlint,
     brieftextorder,
     brieftextwork,
-    rulingwords,
 )
 
 
@@ -297,6 +297,9 @@ def _filled(sentences: Sequence[str], values: Mapping[str, str]) -> list[str]:
 
 
 def _opening(spec: Spec) -> Sequence[str]:
+    # keyword: impact-list (pitboss#208): a conflict merge refreshes the body
+    if spec.kind is Kind.RESOLVE_CONFLICT:
+        return [brieftextimpact.CONFLICT_BODY]
     shown = spec.kind in (Kind.NEW_PR, Kind.FIRST_ROUND)
     return [text.BODY] if shown else []
 
@@ -325,11 +328,6 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
         *([text.NO_PLAN_EDIT] if spec.kind in APPROVED_PLAN_WORKERS else []),
-        *(
-            [brieftextimpact.CONFLICT_BODY]
-            if spec.kind is Kind.RESOLVE_CONFLICT
-            else []
-        ),
         text.EDIT,
         text.DENIED,
         text.LOCAL,
@@ -376,19 +374,6 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     ]
 
 
-def _ruling(values: Mapping[str, str]) -> list[str]:
-    words = ", ".join(f"`{each.value}`" for each in rulingwords.Ruling)
-    return [
-        text.RULING_WHO.format_map(values),
-        text.RULING_HOW,
-        brieftextorder.ORDER_TICKET,
-        text.RULING_RECORD.format(words=words),
-        text.HONEST,
-        text.GOAL_ONLY,
-        text.RULING_END,
-    ]
-
-
 def build(spec: Spec) -> str:
     """The brief for a PR or a ticket.
 
@@ -402,7 +387,7 @@ def build(spec: Spec) -> str:
     if spec.kind in REVIEWS:
         rules = _review(spec, values)
     elif spec.kind is Kind.RULING:
-        rules = _ruling(values)
+        rules = briefruling.lines(values)
     else:
         rules = _worker(spec, values)
     return "\n".join([f"Goal: {spec.subject.goal}", *rules])
