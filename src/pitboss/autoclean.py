@@ -27,12 +27,10 @@ from typing import AbstractSet, Callable, Sequence
 from . import (
     account,
     cleaning,
-    cleanheader,
     dead,
     deadscan,
     judging,
     local,
-    machine as machines,
     tempclean,
     worktrees,
 )
@@ -288,84 +286,6 @@ def all_parts(job: Job) -> Sequence[Part]:
         tempdirs_part(job),
         caches_part(job),
     ]
-
-
-def crowded_now(look: dead.Look, machine: Machine) -> Sequence[Crowded]:
-    """The file systems that are crowded: over the percent or short of free space.
-
-    Args:
-        look: what to look at and keep.
-        machine: the machine.
-
-    Returns:
-        The file systems; any makes the cleaning aggressive (pitboss#205).
-    """
-    clean = look.clean
-    return machines.find_crowded(
-        machine, paths_watched(look), clean.pressure_percent, clean.min_free_gib
-    )
-
-
-def run_parts(job: Job) -> tuple[Sequence[Part], str]:
-    """Do each kind of cleaning, and total what it removed.
-
-    Args:
-        job: the job.
-
-    Returns:
-        What each kind did, and the totals line (the paths removed, the bytes
-        and the free space of the workspace before and after).
-    """
-    use = functools.partial(job.machine.usage, job.look.settings.project.workspace)
-    before = use()
-    parts = all_parts(job)
-    gone = [each for part in parts for each in part.gone]
-    return parts, account.totals(gone, job.option.dry, before, use())
-
-
-def clean_report(look: dead.Look, machine: Machine, option: Option) -> account.Report:
-    """Clean, and say what was removed and the space freed.
-
-    Args:
-        look: what to look at and keep.
-        machine: the machine.
-        option: how to clean.
-
-    Returns:
-        The lines (the mode, the worktrees, what was removed, what is never
-        touched, and the totals) and what the ``DISK PRESSURE`` line needs.
-    """
-    hot = crowded_now(look, machine)
-    job = Job(look=look, machine=machine, option=option, hot=hot)
-    parts, totals = run_parts(job)
-    tied = worktrees.tied_to_open_pr(look) if hot else []
-    told = told_of(job, parts, tied)
-    shown = [text for part in parts for text in part.lines]
-    return account.Report(
-        lines=[
-            cleanheader.header(hot, look.clean),
-            *shown,
-            *account.open_lines(tied),
-            cleanheader.never_line(look),
-            totals,
-            *account.lines(told),
-        ],
-        told=told,
-        short=short_of(hot),
-        left=short_of(crowded_now(look, machine)),
-    )
-
-
-def short_of(found: Sequence[Crowded]) -> Sequence[Crowded]:
-    """The crowded file systems that have less than the minimum free space.
-
-    Args:
-        found: the crowded file systems.
-
-    Returns:
-        Those of them.
-    """
-    return [each for each in found if each.short]
 
 
 def told_of(

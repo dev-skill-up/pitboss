@@ -21,6 +21,7 @@ from . import (
     account,
     autoclean,
     cleanconfig,
+    cleanreport,
     concurrently,
     config,
     configfile,
@@ -287,7 +288,7 @@ def _clean_section(found: Context) -> account.Report:
     machine = machines.real_machine(
         found.args.env, found.now, running_in(found.args), found.args.usage
     )
-    done = autoclean.clean_report(look, machine, option)
+    done = cleanreport.clean_report(look, machine, option)
     for text in done.lines:
         print(text)
     source = scratch.source_of(found.args.safe_run, found.scratch, found.now)
