@@ -189,7 +189,7 @@ class TestSweep(unittest.TestCase):
     def test_the_line_is_printed_only_with_the_directory(self) -> None:
         """No directory, no line; a directory with a polling worker, one."""
         here = world.make_world()
-        world.invoke(here, "slots", "set", here.config, "tiny", "worker", "#9")
+        world.invoke(here, "slots", "set", here.config, "tiny", "worker", "#9", "--running", "worker")
         assert_that(swept(here), equal_to([]))
         root = here.workspace / "transcripts"
         keep(root, "a1", "worker", [MONITOR] * 45)

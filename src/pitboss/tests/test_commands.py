@@ -152,6 +152,7 @@ def occupy(here: world.World, slot_names: Sequence[str]) -> None:
     """
     for each in slot_names:
         task = ("slots", "set", here.config, each, f"agent-{each}", "#9")
+        task = (*task, "--running", f"agent-{each}")
         world.invoke(here, *task)
 
 
