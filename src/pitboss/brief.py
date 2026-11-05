@@ -15,13 +15,14 @@ from typing import Mapping, Sequence
 
 from . import (
     briefconfig,
+    briefruling,
     brieftext as text,
     brieftextci,
     brieftextexec,
+    brieftextimpact,
     brieftextlint,
     brieftextorder,
     brieftextwork,
-    rulingwords,
 )
 
 
@@ -115,6 +116,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_CHECK,
+        brieftextimpact.IMPACT_REVIEW,
         brieftextexec.PLAN_COMMANDS_EXECUTION,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextorder.ORDER_REVIEW,
@@ -141,6 +143,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextci.PLAN_CI_POINTER_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_CHECK,
+        brieftextimpact.IMPACT_REVIEW,
         brieftextorder.ORDER_REVIEW,
         text.PLAN_DIGEST,
     ],
@@ -294,6 +297,9 @@ def _filled(sentences: Sequence[str], values: Mapping[str, str]) -> list[str]:
 
 
 def _opening(spec: Spec) -> Sequence[str]:
+    # keyword: impact-list (pitboss#208): a conflict merge refreshes the body
+    if spec.kind is Kind.RESOLVE_CONFLICT:
+        return [brieftextimpact.CONFLICT_BODY]
     shown = spec.kind in (Kind.NEW_PR, Kind.FIRST_ROUND)
     return [text.BODY] if shown else []
 
@@ -304,7 +310,7 @@ def _plan_lines(kind: Kind) -> list[str]:
     runs = kind in PLAN_RUNNERS
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
-        *([brieftextci.PLAN_CI_POINTER] if writes else []),
+        *([brieftextci.PLAN_CI_POINTER, brieftextimpact.IMPACT_PLAN] if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),
         *([text.NO_APPEND, text.SEARCH] if runs else []),
@@ -368,19 +374,6 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     ]
 
 
-def _ruling(values: Mapping[str, str]) -> list[str]:
-    words = ", ".join(f"`{each.value}`" for each in rulingwords.Ruling)
-    return [
-        text.RULING_WHO.format_map(values),
-        text.RULING_HOW,
-        brieftextorder.ORDER_TICKET,
-        text.RULING_RECORD.format(words=words),
-        text.HONEST,
-        text.GOAL_ONLY,
-        text.RULING_END,
-    ]
-
-
 def build(spec: Spec) -> str:
     """The brief for a PR or a ticket.
 
@@ -394,7 +387,7 @@ def build(spec: Spec) -> str:
     if spec.kind in REVIEWS:
         rules = _review(spec, values)
     elif spec.kind is Kind.RULING:
-        rules = _ruling(values)
+        rules = list(briefruling.lines(values))
     else:
         rules = _worker(spec, values)
     return "\n".join([f"Goal: {spec.subject.goal}", *rules])

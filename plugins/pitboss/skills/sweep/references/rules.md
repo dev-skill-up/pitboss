@@ -77,7 +77,10 @@ Only override for bugs, but do override for bugs (and then file them)".
    has to be an author".
    - red (a failed check or status, or a review that asked for changes at this
      head) or in conflict with the base: a fix, by any author (a conflict is
-     fixed as a red CI is: merge the base in, resolve, check, push); where the
+     fixed as a red CI is: merge the base in, resolve, check, push, and for a PR
+     with a Plan or Execution body set its last `Head:` line to the merge head
+     and rerun the Plan's commands through `pitboss expand`, the body being
+     the only other change); where the
      review did not approve the plan, the fix is a revision of the plan and
      nothing else ("Plan first", below; kind `revise the plan` in `slots
      next`); not when the pull request has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`;
@@ -270,7 +273,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   slot in that order. A conflicted pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` is
   offered for no round: its conflict waits for the ruling, the owner or the restoring of the Plan.
 - Most conflicts are small: merge the base in, resolve, regenerate lockfiles
-  and generated files with the repository's own tooling, check, push. Merge,
+  and generated files with the repository's own tooling, check, push. For a PR
+  with a Plan or Execution body, the same round sets the body's last `Head:`
+  line to the merge head and replaces the Evidence with a rerun of the Plan's
+  commands through `pitboss expand` at that head (the body only, no other
+  change); such a round is no fix round of the count below. Merge,
   never rebase or force-push. A conflict where both sides changed the same
   logic goes to a more capable agent.
 - Every sweep lists the open PRs whose mergeable state is dirty or
@@ -283,7 +290,10 @@ Only override for bugs, but do override for bugs (and then file them)".
   when a PR is behind with its checks finished.
 - After any branch update of a PR whose body has a `Head:` line, patch the
   line to the new head in the same step, before a review is requested: a
-  review judged the stale line (orchestrator, 2026-10-27).
+  review judged the stale line (orchestrator, 2026-10-27). After a merge of
+  the base the same step reruns the Plan's commands through `pitboss expand`
+  at the new head and replaces the Evidence, for a stale Evidence was judged
+  too (pitboss#208).
 
 ## Tickets
 
@@ -557,9 +567,12 @@ Only override for bugs, but do override for bugs (and then file them)".
   `RULING DUE` (the count, pitboss#149: the first rejection of the execution on
   an approved plan is that worker round, and the second, once a fix round came
   between them, is `RULING DUE`; a fix round is a push of more than a merge of
-  the base, or an edit of the PR body, which a review records as its `Body:`
-  digest, so a body-only fix round at one head counts, and two rejections with
-  nothing changed between them are one round); and a draft whose Plan is approved is undrafted when `can_undraft` (the runners are
+  the base, or an edit of the PR body at the head the review graded, which a
+  review records as its `Body:` digest, so a body-only fix round at one head
+  counts; a conflict round (a merge of the base and the edit of the `Head:`
+  line and the Evidence that goes with it, pitboss#208) moves the head and is
+  no fix round, and two rejections with nothing changed between them are one
+  round); and a draft whose Plan is approved is undrafted when `can_undraft` (the runners are
   quiet, `pitboss pressure`), before any CI wait, unless the newest review at its head asks for changes (that fix comes first, pitboss#176; a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156) or its diff touches `e2e/` or a `[sweep] run_by_e2e` prefix and no dispatched run of `check.yml` at its head has completed (a draft's own run skipped e2e): its step is `RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>` (`RUN_E2E`, pitboss#199; while a check run of its head is unfinished it is `waiting for CI at this head` instead), then the wait for that run, and only then the undraft. A red CI is never a plan
   rejection. A ruling is recorded by a PR comment whose first line is exactly
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,

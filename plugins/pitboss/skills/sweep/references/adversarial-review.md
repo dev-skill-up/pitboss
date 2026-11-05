@@ -168,6 +168,29 @@ the review:
   list in the Execution only a false statement outside this tree, which you
   cannot edit.
 
+Two lines about the statements a change makes false (keyword: impact-list,
+pitboss#208; Plan reviews found them one round at a time, and pitboss#166 and
+pitboss#167 each needed an Opus ruling for it). The worker brief says:
+`Impact list:` the Plan lists each behaviour the change alters (each output
+line, state or condition whose meaning changes, every enumeration of the sweep
+lines included), stated in the code's terms (every input the code treats the
+same way, so that an edited statement is never narrower than the code); for
+each one the exact `rg -U -n -i` command that finds the statements about it in
+the tree (`\s+` between the words of a phrase, since prose wraps lines; over
+`src/pitboss` docstrings, `plugins`, `doc` and the rest of the tree; and a
+neighbouring line name for an enumeration), with the files it found and whether
+each is edited by the change. The brief of a Plan review says: `Impact list:`
+for this check the reviewer runs no commands, and checks the Plan's list of
+altered behaviours against the diff; a behaviour the diff alters and the list
+lacks is a finding of the Plan, and the reviewer names every statement it finds
+for it in that one round (not one example).
+
+The brief that resolves a conflict says, for a PR with a Plan or Execution body
+(`Conflict body:`), to set the last `Head:` line of the body to the merge head
+and to rerun the Plan's commands through `pitboss expand` at that head,
+replacing the Evidence (the body only, no other change); `pitboss lint pr-body`
+already refuses a body whose last `Head:` line is not the head of the PR.
+
 ## A draft PR: Plan, Execution and the Plan line
 
 A fix is a draft PR whose body has a Plan section and an Execution section

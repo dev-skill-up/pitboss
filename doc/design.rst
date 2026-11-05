@@ -502,8 +502,10 @@ comments, reviews as ``Graded`` and checks): ``is_paused_for_owner``,
 ``execution_fixed_since_plan_approval``, ``ci_result`` and ``has_conflict``.
 ``execution_fixed_since_plan_approval`` is the count of the execution (keyword:
 ruling-count, pitboss#149): an execution rejection on the approved plan is
-followed by a fix round when the head moved by more than merge commits or the
-body is no longer the one that review recorded (``bodydigest``), and the next
+followed by a fix round when the head moved by more than merge commits or, the
+head being the one that review graded, the body is no longer the one that review
+recorded (``bodydigest``); a conflict round (a merge of the base and the edit of
+the body's ``Head:`` line and Evidence, pitboss#208) is none; the next
 rejection is then ``OPUS_RULING``.
 The steps are in ``pitboss.steps``; what follows an Opus ruling is the table
 ``pitboss.flowstate.AFTER`` (``pitboss.rulings.after_opus_ruling`` follows it too).
@@ -950,7 +952,9 @@ listed at most once. The nine kinds:
   head that conflicts with the base, at any stage but while the PR waits for
   a ruling, the owner or the restoring of an edited approved Plan
   (``steps.WAITS``, ``PLAN_EDITED`` included, the ``paused-owner`` label and
-  ``RULING UNREADABLE``);
+  ``RULING UNREADABLE``); its brief also has the author set the last ``Head:``
+  line of a Plan or Execution body to the merge head and rerun the Plan's
+  commands through ``expand`` at it (the body only, pitboss#208);
 * ``do the ruling's steps``: step ``WORKER``, task ``RULING_STEPS``: the
   newest readable Opus ruling says ``do these steps`` and no review follows it;
 * ``carry out the ruling``: step ``WORKER``, task ``RULING_AS_GIVEN``: the
