@@ -587,10 +587,10 @@ never is. Whether a finished worktree may go is the one safety test of **Dead
 paths** (``dead.verdict``): not live, not in use, and safe. It is written once:
 ``clean-container`` (``dead.consider`` and ``dead.recheck``), the ``DISK
 PRESSURE`` line and the removal of worktrees (``worktrees.py``) all call it; the
-one difference is under disk pressure, where ``worktrees.py`` passes
+two differences are that, under disk pressure, ``worktrees.py`` passes
 ``dead.Look.unmarked`` so a merged worktree's own marker is not honored, except
-on the one whose PR merged last (``judging.last_merged``). At any disk level a
-merged worktree's marker older than a worker's task, 6 hours
+on the one whose PR merged last (``judging.last_merged``), and that, at any disk
+level, a merged worktree's marker older than a worker's task, 6 hours
 (``workhours.TASK_HOURS``, pitboss#194), is not honored either. The 6 hours
 have no source in the ticket (#194 says "the worker's task bound" and #185,
 which it cites, sets none) or in the repository before: the value is the
@@ -644,7 +644,8 @@ cleans down to a target; here the one switch is the file system's use, 90% by
 default, as the owner said. A normal run removes (1) the finished worktrees and
 the dead checkouts, judged by the one safety test (``dead.verdict``; a linked
 worktree with untracked files is left to its own section, since git keeps it,
-except under pressure one whose only untracked file is an ignored
+except under pressure, or at any disk level once a merged worktree's marker is
+older than 6 hours, one whose only untracked file is an ignored
 ``.pitboss-live`` marker, which that section removes with ``--force``);
 (2) the test tempdirs of ``[clean] tmp_roots`` (default ``/tmp``) whose name
 matches ``tmp_patterns`` (default ``tmp????????``, ``tmp.??????????``,
@@ -852,8 +853,10 @@ branch, or whose repository could not be fetched is not judged), ``dead_scratch`
 (entries of ``[clean] scratch`` directories that are not symbolic links) and
 the root files above; the pressure scan lists the same three sources. A path
 is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
-depth or in a directory above it, a path of ``[clean] live``, the main clone, or
-one that holds or lies in such a path), when it is a symbolic link, when it is
+depth or in a directory above it, except that for a merged checkout a marker
+older than 6 hours, ``workhours.TASK_HOURS``, is not honored, which
+``clean-container`` passes as ``marker_expiry``; a path of ``[clean] live``, the
+main clone, or one that holds or lies in such a path), when it is a symbolic link, when it is
 or holds the directory the command runs in (``PWD`` or the process's own, so a
 sweep never removes the worktree it runs from), or when
 anything in it changed in the last ``idle_hours`` (by file times, in the whole-tree
