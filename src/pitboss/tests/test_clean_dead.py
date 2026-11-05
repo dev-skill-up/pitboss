@@ -80,6 +80,21 @@ class TestHold(unittest.TestCase):
         names = ("marked", "plain", "outer", "group/entry")
         cleanworld.same(reasons(look, top, names), [MARKER, "", MARKER, ABOVE])
 
+    def test_a_marker_above_it_expires_like_its_own(self) -> None:
+        """Older than the expiry, a marker above a path is not honored (pitboss#246)."""
+        top = fakes.directory()
+        cleanworld.make_directories(top, ("old/entry", "young/entry"))
+        now = time.time()
+        for holder, hours in (("old", 7), ("young", 5)):
+            cleanworld.mark_live_since(top / holder, hours, now)
+        look = dataclasses.replace(
+            cleanworld.look_in(top), marker_expiry=now - 6 * 3600
+        )
+        names = ("old/entry", "young/entry")
+        cleanworld.same(reasons(look, top, names), ["", ABOVE])
+        every = cleanworld.look_in(top)
+        cleanworld.same(reasons(every, top, names), [ABOVE, ABOVE])
+
     def test_the_main_clone_and_the_live_paths(self) -> None:
         """A path that is, holds or lies in one is live."""
         top = fakes.directory()

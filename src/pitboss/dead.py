@@ -81,8 +81,9 @@ class Look:
             merged last (keyword: auto-clean).
         marker_expiry: a ``.pitboss-live`` marker written before this time
             (seconds since the epoch) belongs to no running worker, whose task
-            is bounded (``workhours``), so it is not honored; 0 honors every
-            marker (keyword: auto-clean).
+            is bounded (``workhours``), so it is not honored, whether it is in
+            the path or in a directory above it; 0 honors every marker
+            (keyword: auto-clean).
     """
 
     run: Run
@@ -96,17 +97,37 @@ class Look:
     marker_expiry: float = 0.0
 
 
-def marked_above(path: pathlib.Path) -> bool:
+def marker_honored(marker: pathlib.Path, expiry: float) -> bool:
+    """Whether a marker file exists and is not too old to honor.
+
+    Args:
+        marker: the marker's path.
+        expiry: the time before which a marker is too old (``workhours``); 0
+            honors every marker.
+
+    Returns:
+        True when it exists and was written since ``expiry``.
+    """
+    try:
+        written = marker.lstat().st_mtime
+    except OSError:
+        return False
+    return not 0 < written < expiry
+
+
+def marked_above(path: pathlib.Path, expiry: float = 0.0) -> bool:
     """Whether a directory above a path holds a live marker.
 
     Args:
         path: the path.
+        expiry: the time before which a marker is too old to honor (the same
+            rule as the path's own marker, ``workhours``); 0 honors every one.
 
     Returns:
-        True when any of its parents does.
+        True when any of its parents holds a marker that is honored.
     """
     return any(
-        os.path.lexists(above / cleanconfig.LIVE_MARKER)
+        marker_honored(above / cleanconfig.LIVE_MARKER, expiry)
         for above in path.resolve().parents
     )
 
@@ -144,7 +165,7 @@ def live_reason(path: pathlib.Path, look: Look, found: survey.Survey) -> str:
     honored = path.resolve() not in look.unmarked and not expired
     if found.marked and honored:
         return MARKED
-    if marked_above(path):
+    if marked_above(path, look.marker_expiry):
         return "lies under a directory that holds a .pitboss-live file"
     if on_live_path(path, look):
         return "is, holds or lies in a live path"

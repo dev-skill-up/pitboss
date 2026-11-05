@@ -103,7 +103,8 @@ scratch = ["/tmp/claude-0"]
 # Paths never removed (shared caches, toolchain homes, the persistent checkout):
 # a path here, one that holds it or lies in it. A directory that holds a file
 # named .pitboss-live at any depth, or lies under one that does, is live too
-# (except a merged checkout, whose marker older than 6 hours is not honored).
+# (except for a merged checkout: a marker in it or in a directory above it that
+# is older than 6 hours is not honored; every other marker is honored however old).
 # Absolute paths. Default: none.
 live = ["/home/user/.cache/build"]
 # A sweep prints DISK PRESSURE and cleans aggressively (as over pressure_percent)
