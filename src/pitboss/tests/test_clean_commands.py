@@ -69,7 +69,7 @@ class TestRemoval(unittest.TestCase):
         scene = cleanworld.full_world()
         root = scene.root
         agent = root / "old/agent.log"
-        runner = cleanworld.Starting(inner=scene.here.processes, path=agent)
+        runner = cleanruns.Starting(inner=scene.here.processes, path=agent)
         busy = dataclasses.replace(scene.here, processes=runner)
         result = cleanruns.clean(busy, "--no-dry-run", "--batch", "1")
         refused = cleanworld.lines_of(result.out, "COULD NOT REMOVE PATH")

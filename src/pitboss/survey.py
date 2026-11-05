@@ -22,6 +22,7 @@ BARE_FILES = frozenset({"HEAD"})
 BARE_DIRECTORIES = frozenset({"objects", "refs"})
 
 Entries = tuple[Sequence[str], Sequence[str]]
+Statuses = Mapping[str, os.stat_result | None]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -33,6 +34,8 @@ class Survey:
         newest: the newest change, in seconds since the epoch (``.git`` apart:
             fetching changes it).
         marked: whether anything in it is named ``.pitboss-live``.
+        marked_at: the time the newest such marker was written, or 0 when there
+            is none or it is not known.
         repositories: the directories that hold a ``.git``, at any depth.
         bare: the directories that are a bare repository.
         mounts: the mount points in it, or the path itself when it is one;
@@ -43,6 +46,7 @@ class Survey:
     size: int = 0
     newest: float = 0.0
     marked: bool = False
+    marked_at: float = 0.0
     repositories: Sequence[pathlib.Path] = ()
     bare: Sequence[pathlib.Path] = ()
     mounts: Sequence[pathlib.Path] = ()
@@ -62,6 +66,7 @@ def merge(parts: Sequence[Survey]) -> Survey:
         size=sum(each.size for each in parts),
         newest=max((each.newest for each in parts), default=0.0),
         marked=any(each.marked for each in parts),
+        marked_at=max((each.marked_at for each in parts), default=0.0),
         repositories=tuple(itertools.chain(*(each.repositories for each in parts))),
         bare=tuple(itertools.chain(*(each.bare for each in parts))),
         mounts=tuple(itertools.chain(*(each.mounts for each in parts))),
@@ -169,29 +174,29 @@ def crosses(ground: Ground, found: os.stat_result, place: pathlib.Path) -> bool:
     return stat.S_ISDIR(found.st_mode) and (on_another or place in ground.mounts)
 
 
-def about(here: pathlib.Path, names: Iterable[str], inside: bool) -> Survey:
+def about(here: pathlib.Path, seen: Statuses, inside: bool) -> Survey:
     """What a directory is: a checkout, a bare repository, a marker.
 
     Args:
         here: the directory.
-        names: its subdirectories, then the other entries.
+        seen: the status of its subdirectories, then of the other entries.
         inside: whether it is in a ``.git`` (a repository's own files).
 
     Returns:
         The survey of what it is.
     """
-    entries = set(names)
+    entries = set(seen)
     bare = BARE_FILES | BARE_DIRECTORIES <= entries
+    marker = seen.get(cleanconfig.LIVE_MARKER)
     return Survey(
         marked=cleanconfig.LIVE_MARKER in entries and not inside,
+        marked_at=marker.st_mtime if marker and not inside else 0.0,
         repositories=(here,) if GIT in entries and not inside else (),
         bare=(here,) if bare and not inside else (),
     )
 
 
-def crossing(
-    ground: Ground, below: pathlib.Path, seen: Mapping[str, os.stat_result | None]
-) -> Sequence[str]:
+def crossing(ground: Ground, below: pathlib.Path, seen: Statuses) -> Sequence[str]:
     """The subdirectories of a directory that are mount points.
 
     Args:

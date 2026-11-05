@@ -105,6 +105,51 @@ def removals(
             yield each, why or ("" if how.dry else left_behind(each))
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Removed:
+    """What removing some paths did.
+
+    Attributes:
+        lines: a line for each path.
+        gone: the paths gone (all of them in a dry run).
+        freed: the bytes they held.
+        stuck: the paths still there, each with why.
+    """
+
+    lines: Sequence[str]
+    gone: Sequence[dead.Candidate]
+    freed: int
+    stuck: Sequence[dead.Kept]
+
+
+def remove_paths(how: Removal, paths: Sequence[dead.Candidate]) -> Removed:
+    """Remove paths in parts, saying what happened to each.
+
+    Args:
+        how: how to remove them.
+        paths: the candidates.
+
+    Returns:
+        The lines, the paths gone, the bytes freed and the paths still there.
+    """
+    results = list(removals(how, paths))
+    note = " (dry run)" if how.dry else ""
+    gone = [each for each, why in results if not why]
+    return Removed(
+        lines=[
+            stuck_line(each, why) if why else removed_line(each, note)
+            for each, why in results
+        ],
+        gone=gone,
+        freed=sum(each.size for each in gone),
+        stuck=[
+            dead.Kept(path=each.path, why=why, size=each.size)
+            for each, why in results
+            if why
+        ],
+    )
+
+
 def prune(run: Run, gone: Sequence[dead.Candidate]) -> None:
     """Prune the worktree lists that a removed linked worktree was in.
 

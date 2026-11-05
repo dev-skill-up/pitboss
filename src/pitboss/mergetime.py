@@ -2,7 +2,7 @@
 
 Under disk pressure the worktree whose work merged last keeps its
 ``.pitboss-live`` marker and the older merged ones lose theirs
-(``worktrees.under_pressure``).
+(``judging.under_pressure``).
 """
 
 import datetime
