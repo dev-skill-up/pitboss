@@ -68,7 +68,17 @@ def start(here: world.World) -> None:
     Args:
         here: the world.
     """
-    slots(here, "set", "tiny", "agent-1", "#9", "--now", START.isoformat())
+    slots(
+        here,
+        "set",
+        "tiny",
+        "agent-1",
+        "#9",
+        "--now",
+        START.isoformat(),
+        "--running",
+        "agent-1",
+    )
 
 
 class TestNoHandBack(unittest.TestCase):
@@ -88,7 +98,7 @@ class TestNoHandBack(unittest.TestCase):
         """A freed slot (the hand-back arrived) lists nothing."""
         here = world.make_world()
         start(here)
-        slots(here, "free", "tiny")
+        slots(here, "free", "tiny", "--done", "agent-1")
         assert_that(sweep_lines(here, 60), equal_to([]))
 
     def test_unstarted_agent(self) -> None:

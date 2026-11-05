@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import world
+from . import slot_refusals, world
 
 UNREAD_TICKETS_LINE = (
     "UNREADABLE tickets: not offered as new work, 1 open PR(s) could not be read"
@@ -14,33 +14,21 @@ UNREAD_TICKETS_LINE = (
 )
 
 LEDGER_STEPS = (
-    ("set", "tiny", "agent-1", "#9"),
+    ("set", "tiny", "agent-1", "#9", "--running", "agent-1"),
     ("add", "spare", "large"),
     ("remove", "big"),
-    ("set", "spare", "agent-2", "lib#1"),
+    ("set", "spare", "agent-2", "lib#1", "--running", "agent-1", "agent-2"),
     ("check", "--running", "agent-2"),
-    ("free", "tiny"),
+    ("free", "tiny", "--done", "agent-1"),
     ("failed", "#9", "small"),
     ("show",),
 )
 CHECK_LINES = [
     "GONE AGENT: slot tiny holds agent-1, which is not running:"
-    " 'pitboss slots free {config} tiny'",
+    " 'pitboss slots free {config} tiny --done agent-1'",
     "slot tiny (small): owner/project#9 (agent-1)",
     "slot spare (large): owner/lib#1 (agent-2)",
     "slots: the ledger says all full",
-]
-REFUSAL_STEPS = (
-    ("set", "tiny"),
-    ("show", "extra"),
-    ("set", "tiny", "agent-1", "#9"),
-    ("set", "tiny", "agent-2", "#9"),
-)
-REFUSALS = [
-    (2, "slots set takes 3 words"),
-    (2, "slots show takes no words"),
-    (0, "CHECK BEFORE YOU ANSWER"),
-    (2, "refused: slot tiny holds agent-1 on owner/project#9: free it first"),
 ]
 NEXT_THREE = [
     "NEXT 1. owner/project#1",
@@ -77,7 +65,10 @@ NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
         ],
     ),
     (
-        [("set", "tiny", "a", "#50"), ("set", "big", "b", "#50")],
+        [
+            ("set", "tiny", "a", "#50", "--running", "a"),
+            ("set", "big", "b", "#50", "--running", "a", "b"),
+        ],
         [*NEXT_THREE, "slots: the ledger says all full: start nothing"],
     ),
     (
@@ -141,9 +132,10 @@ def freed_world(
         The world and the output lines of ``slots free tiny``.
     """
     here = here or world.make_world()
-    run_all(here, [*setup, ("set", "tiny", "agent-1", "#50")])
-    args = ("slots", "free", here.config, "tiny", "--now", world.FUTURE)
-    return here, tuple(world.invoke(here, *args).out.splitlines())
+    run_all(here, [*setup, ("set", "tiny", "agent-1", "#50", "--running", "agent-1")])
+    args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
+    freed = world.invoke(here, *args, "--now", world.FUTURE)
+    return here, tuple(freed.out.splitlines())
 
 
 def next_output(here: world.World) -> str:
@@ -187,27 +179,28 @@ class TestLedger(unittest.TestCase):
 
     def test_refusals(self) -> None:
         """A wrong word count or a refused change exits 2 and says why."""
-        results = run_all(world.make_world(), REFUSAL_STEPS)
+        results = run_all(world.make_world(), slot_refusals.STEPS)
         found = [
             (result.code, result.err.splitlines()[-1][: len(line)])
-            for result, (_, line) in zip(results, REFUSALS)
+            for result, (_, line) in zip(results, slot_refusals.REFUSALS)
         ]
-        assert_that(found, equal_to(REFUSALS))
+        assert_that(found, equal_to(slot_refusals.REFUSALS))
 
 
 WAIT_STEPS = (
     ("wait", "nosuch"),
     ("wait", "tiny"),
-    ("set", "tiny", "agent-1", "#9"),
+    ("set", "tiny", "agent-1", "#9", "--running", "agent-1"),
     ("wait", "tiny"),
     ("show",),
     ("resume", "tiny"),
-    ("free", "tiny"),
+    ("free", "tiny", "--done", "agent-1"),
 )
 LOG_STEPS = (
-    ("set", "tiny", "agent-1", "#9", "--now", "2030-01-01T00:00:00+00:00"),
+    ("set", "tiny", "agent-1", "#9", "--now", "2030-01-01T00:00:00+00:00")
+    + ("--running", "agent-1"),
     ("wait", "tiny", "--now", "2030-01-01T01:00:00+00:00"),
-    ("free", "tiny", "--now", "2030-01-01T02:00:00+00:00"),
+    ("free", "tiny", "--done", "agent-1", "--now", "2030-01-01T02:00:00+00:00"),
     ("remove", "big", "--now", "2030-01-01T03:00:00+00:00"),
 )
 LOG_LINES = [
