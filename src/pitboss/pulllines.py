@@ -53,10 +53,16 @@ def lines(
         *_draft_lines(pull),
         *e2eline.lines(pull),
         *foldline.lines(pull),
+        *_review_lines(pull),
+        *gateline.lines(pull),
+    )
+
+
+def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    return (
         *reviewline.lines(pull),
         *notesline.lines(pull),
         *analysisline.lines(pull),
-        *gateline.lines(pull),
     )
 
 

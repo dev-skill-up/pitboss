@@ -6,10 +6,11 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, reviewnote, shapes
-from .briefmake import has_none, pinned, text
+from .briefmake import text
 from .test_commands import sweep
 from .test_evidence_rules import read, words
-from .test_flow_sweep import APPROVED, graded, world_with
+from .test_flow_sweep import APPROVED, CHANGES, graded, world_with
+from .test_plan_commands import EXECUTION_REVIEWS
 
 BRIEF_SENTENCE = (
     "a gap against the goal or the Done-when that you can name (a case, a"
@@ -22,48 +23,53 @@ RULES_BULLET = (
     " handle is a finding and starts a fix round, not a ticket"
 )
 MISSED_NOTE = (
-    "Notes: the line reads open PRs only, so rulings on merged PRs are missed.\n"
+    "Notes: the line reads open PRs only, so rulings on merged PRs are missed."
 )
-PLAIN_NOTE = "Notes: the wording could be shorter.\n"
+PLAIN_NOTE = "Notes: the wording could be shorter."
 LINE = "REVIEW NOTE owner/project#3"
 
 
-def noted(note: str) -> shapes.Comment:
-    """An approving review of PR 3 with a ``Notes`` paragraph.
+def noted(note: str, execution: str = APPROVED) -> shapes.Comment:
+    """A review of PR 3 with a ``Notes`` paragraph.
 
     Args:
         note: the paragraph.
+        execution: its Execution grade.
 
     Returns:
         The comment.
     """
-    review = graded(APPROVED, APPROVED, 1)
-    return dataclasses.replace(review, body=review.body + "\n" + note)
+    review = graded(APPROVED, execution, 1)
+    return dataclasses.replace(review, body=review.body + "\n" + note + "\n")
 
 
-class TestBriefs(unittest.TestCase):
-    """Done-when 1: the review briefs say it."""
+def printed(note: str, execution: str = APPROVED) -> bool:
+    """Whether the sweep prints the line for a PR whose review has the note.
+
+    Args:
+        note: the paragraph.
+        execution: the Execution grade of the review.
+
+    Returns:
+        True when the line is printed.
+    """
+    return LINE in sweep(world_with([noted(note, execution)])).out
+
+
+class TestBriefsAndRules(unittest.TestCase):
+    """Done-when 1 and 2: the review briefs and the merge step say it."""
 
     def test_the_full_and_the_execution_review_carry_the_sentence(self) -> None:
-        """REVIEW_FULL and REVIEW_EXECUTION pin it."""
-        for kind in (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION):
-            assert_that(words(text(kind)), contains_string(BRIEF_SENTENCE))
-
-    def test_the_scoped_briefs_do_not(self) -> None:
-        """A scoped review reads nothing outside its scope."""
-        for kind in (brief.Kind.REVIEW_FIX_ROUND, brief.Kind.REVIEW_RELOCK):
-            has_none(text(kind), ["Notes:"])
-        pinned(brief.Kind.REVIEW_FULL, ["Notes: a gap"])
-
-
-class TestRules(unittest.TestCase):
-    """Done-when 2: the merge step of the orchestrator's rules."""
+        """REVIEW_FULL and REVIEW_EXECUTION pin it; the scoped briefs have none."""
+        found = {kind: BRIEF_SENTENCE in words(text(kind)) for kind in brief.Kind}
+        assert_that(
+            sorted(kind.name for kind, has in found.items() if has),
+            equal_to(sorted(kind.name for kind in EXECUTION_REVIEWS)),
+        )
 
     def test_the_merge_step_reads_the_notes_of_the_newest_review(self) -> None:
         """The bullet sits in Agents and slots."""
-        rules = read("rules.md")
-        start = rules.index("\n## Agents and slots\n")
-        section = rules[start + 1 :].split("\n## ")[0]
+        section = read("rules.md").split("\n## Agents and slots\n")[1].split("\n## ")[0]
         assert_that(words(section), contains_string(RULES_BULLET))
 
 
@@ -76,29 +82,21 @@ class TestParagraph(unittest.TestCase):
             body = f"Verdict: x\n\nNotes: a case is {word} here\n"
             assert_that(reviewnote.gap(body), contains_string(word))
 
-    def test_a_heading_and_the_lines_below_it_are_the_paragraph(self) -> None:
-        """The paragraph ends at the blank line."""
-        body = "## Notes\nfirst\nsecond only\n\nafter missed\n"
-        assert_that(reviewnote.paragraph(body), equal_to("first second only"))
+    def test_where_the_paragraph_starts_and_ends(self) -> None:
+        """A heading, a blank line before the text, the next heading."""
+        paragraphs = {
+            "## Notes\nfirst\nsecond only\n\nafter missed\n": "first second only",
+            "## Notes\n\nlater missed\n\nafter\n": "later missed",
+            "Notes:\nfine\n## Other\nmissed\n": "fine",
+            "Verdict: x\n": "",
+        }
+        for body, wanted in paragraphs.items():
+            assert_that(reviewnote.paragraph(body), equal_to(wanted))
 
     def test_the_words_outside_the_paragraph_do_not_count(self) -> None:
         """A finding line with the word is not a note."""
         body = "Missed earlier: x\nonly this\n\nNotes: fine\n"
         assert_that(reviewnote.gap(body), equal_to(""))
-
-    def test_no_notes_is_empty(self) -> None:
-        """No paragraph, nothing."""
-        assert_that(reviewnote.paragraph("Verdict: x\n"), equal_to(""))
-
-    def test_a_bare_heading_takes_the_text_after_a_blank_line(self) -> None:
-        """Nothing is found yet, so the blank line does not end it."""
-        body = "## Notes\n\nlater missed\n\nafter\n"
-        assert_that(reviewnote.paragraph(body), equal_to("later missed"))
-
-    def test_a_heading_ends_the_paragraph(self) -> None:
-        """The next heading closes it."""
-        body = "Notes:\nfine\n## Other\nmissed\n"
-        assert_that(reviewnote.paragraph(body), equal_to("fine"))
 
 
 class TestSweep(unittest.TestCase):
@@ -112,12 +110,10 @@ class TestSweep(unittest.TestCase):
 
     def test_a_note_that_names_no_case_prints_none(self) -> None:
         """A plain note, and a review with no note."""
-        assert_that(LINE in sweep(world_with([noted(PLAIN_NOTE)])).out, equal_to(False))
+        assert_that(printed(PLAIN_NOTE), equal_to(False))
         plain = world_with([graded(APPROVED, APPROVED, 1)])
         assert_that(LINE in sweep(plain).out, equal_to(False))
 
     def test_a_review_that_asks_for_changes_prints_none(self) -> None:
         """Only an approved PR gets the line."""
-        review = graded(APPROVED, "changes needed", 1)
-        asking = dataclasses.replace(review, body=review.body + MISSED_NOTE)
-        assert_that(LINE in sweep(world_with([asking])).out, equal_to(False))
+        assert_that(printed(MISSED_NOTE, CHANGES), equal_to(False))
