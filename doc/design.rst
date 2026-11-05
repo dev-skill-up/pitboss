@@ -612,9 +612,9 @@ files, and commits on no remote branch. Each repository is fetched once.
 is in the base branch (``local.finished_reason``); a worktree with an open PR
 never is. Whether a finished worktree may go is the one safety test of **Dead
 paths** (``dead.verdict``): not live, not in use, and safe. It is written once:
-``clean-container`` (``dead.consider`` and ``dead.recheck``), the ``DISK
-PRESSURE`` line and the removal of worktrees (``worktrees.py``) all call it; the
-two differences are that, under disk pressure, ``worktrees.py`` passes
+``clean-container`` (``dead.consider`` and ``dead.recheck``) and the removal of
+worktrees (``worktrees.py``) call it (the ``DISK PRESSURE`` line runs none, it
+tells what the clean did); the two differences are that, under disk pressure, ``worktrees.py`` passes
 ``dead.Look.unmarked`` so a merged worktree's own marker is not honored, except
 on the one whose PR merged last (``judging.last_merged``), and that, at any disk
 level, a merged worktree's marker older than a worker's task, 6 hours
@@ -660,15 +660,15 @@ we can enable more aggressive cleaning if the disk is over 90%. Better to delete
 something that someone needed than to halt and wait for me" and "NEVER ASK ME
 AGAIN". The disk had filled with about 2,750 ``/tmp/tmpXXXXXXXX`` directories
 from worker test runs, a fix round stopped, and the orchestrator asked before
-deleting. So cleaning is a command (``autoclean.clean_lines``, called first by
+deleting. So cleaning is a command (``autoclean.clean_report``, called first by
 ``sweep`` and on its own by ``clean``), not a step an agent decides, and it has
 no prompt and no dry-run default. Research: ``systemd-tmpfiles`` removes by age
 with exclusions (the tmp.conf ``D``/``q`` lines age out ``/tmp`` after 10 days,
 ``/var/tmp`` after 30), ``tmpreaper`` and ``tmpwatch`` are the same by atime or
 mtime, and the kubelet's image and container garbage collection has a low
 threshold that cleans the oldest unused first and a high one (85%, 80%) that
-cleans down to a target; here the one switch is the file system's use, 90% by
-default, as the owner said. A normal run removes (1) the finished worktrees and
+cleans down to a target; here the switch is the file system's use, 90% by
+default, as the owner said, or its free space under 5 GiB (pitboss#205). A normal run removes (1) the finished worktrees and
 the dead checkouts, judged by the one safety test (``dead.verdict``; a linked
 worktree with untracked files is left to its own section, since git keeps it,
 except under pressure, or at any disk level once a merged worktree's marker is
@@ -681,7 +681,8 @@ link, not marked ``.pitboss-live``, with no mount point in it, not the
 directory the command runs in or above it, and with nothing in it changed for
 ``tmp_hours`` (default 24). At or over ``pressure_percent`` (default 90) of the
 used space of any file system of the workspace, a tempdir root or a scratch
-directory the run is aggressive: tempdirs of ``pressure_tmp_hours`` (default 1),
+directory, or with less than ``min_free_gib`` (default 5 GiB; 0 never) free on
+one of them, the run is aggressive: tempdirs of ``pressure_tmp_hours`` (default 1),
 every worktree whose branch has no open PR (``Reason.NO_OPEN_PR``) and every
 checkout of a repository with no open PR (``Reason.QUIET_REPOSITORY``), and the
 package caches that regenerate (``~/.cache/pip``, ``~/.cache/uv``,
@@ -725,19 +726,22 @@ a git checkout``). Under pressure the sweep also says what it freed and what it
 could not (``account.py``): ``clean: freed by kind: worktrees <size>, checkouts <size>, test tempdirs
 <size>, package caches <size>`` ("would be freed" in a dry run) and, when the
 sum is less than what the crowded file systems need to get under
-``pressure_percent``, a shortfall line (``clean: <size> freed, <size> short of
-the <size> needed to get under 90%: each directory over 500 MB that was kept``)
+``pressure_percent`` and to have ``min_free_gib`` free, a shortfall line
+(``clean: <size> freed, <size> short of the <size> needed to get under 90%: each
+directory over 500 MB that was kept``, with ``to have 5 GiB free`` in place of
+``to get under 90%`` when the free-space rule set the need, ``Crowded.free_rule``)
 and, for each kept directory over 500 MB, largest first, ``clean: kept <size>
 <path> (<why>): over 500 MB``. Under
 ``[clean] worktrees = "list"`` a normal run only lists the worktrees and leaves
 the checkouts; pressure overrides it. The output is the mode line, a
 ``REMOVED``/``COULD NOT REMOVE`` line for each path, ``clean: N paths removed,
 X freed; disk free A before, B after``, and under pressure the lines of the
-account above. The disk reader (the parser's ``args.usage``, also read by the
-``DISK PRESSURE`` line), the clock, the
+account above. The disk reader (the parser's ``args.usage``; the ``DISK
+PRESSURE`` line takes its figures from the clean's report, not from a reader of
+its own), the clock, the
 user id, the home directory and the file system are injected
 (``autoclean.Machine``, ``autoclean.Filesystem``), so the tests play the ages,
-the 90% switch, the never-touch list and the report on a fake.
+the two switches (90% used, 5 GiB free), the never-touch list and the report on a fake.
 
 **The local check** (keyword: nox-runner, pitboss#210). The full ``nox -r``
 takes about seven minutes and CI's ``Run Nox`` step runs it on every push, so a
@@ -878,7 +882,7 @@ common git directory of ``main_clone`` or from ``remote.origin.url``, else the
 tip is in the base branch with no PR; a checkout on the base branch, on no
 branch, or whose repository could not be fetched is not judged), ``dead_scratch``
 (entries of ``[clean] scratch`` directories that are not symbolic links) and
-the root files above; the pressure scan lists the same three sources. A path
+the root files above; the sweep's clean removes the same three sources. A path
 is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
 depth or in a directory above it, except that for a merged checkout a marker
 older than 6 hours, ``workhours.TASK_HOURS``, is not honored, which
@@ -910,8 +914,13 @@ lists of the repositories a removed linked worktree belonged to. ``--approved
 FILE`` limits the removal to the paths in it; an entry that is not among the
 current safe candidates is refused, whatever it is. The sweep warns with
 ``DISK PRESSURE`` when the free space of a filesystem of ``workspace`` or of a
-scratch directory is under ``[clean] min_free_gib`` (default 5; 0 never) and
-then names the five largest safe dead paths; it scans for them only then. The free space comes from the same injected reader
+scratch directory is under ``[clean] min_free_gib`` (default 5; 0 never). That
+is pressure like ``[clean] pressure_percent``: the sweep's clean is the
+aggressive pass (every repository's finished worktrees and clones in the
+workspace, each judged by the PRs of its own ``origin``, whatever the sweep's
+configuration), and the line names the pass it started and the bytes it freed;
+when the free space is still under the minimum afterwards, it lists each
+directory over 500 MB that was kept, with why (pitboss#205). The free space comes from the same injected reader
 (``args.usage``), so a test gives the figure.
 
 **Slots.** The ledger is a JSON file: each slot's name, model, agent, task,

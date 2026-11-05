@@ -92,6 +92,27 @@ class TestLines(unittest.TestCase):
             ],
         )
 
+    def test_a_shortfall_by_the_free_space_names_that_rule(self) -> None:
+        """The need set by the minimum free space is not told as a percent."""
+        crowded = machine.Crowded(
+            place=ROOT, percent=86, over=4 * GIB, free=GIB, short=True, free_rule=True
+        )
+        free = dataclasses.replace(told(GIB, [GIB, 0, 0, 0]), hot=[crowded], minimum=5)
+        same(
+            account.lines(free)[1],
+            "clean: 1.0 GiB freed, 3.0 GiB short of the 4.0 GiB needed to have"
+            " 5 GiB free: each directory over 500 MB that was kept",
+        )
+
+    def test_both_rules_are_named_when_each_set_a_need(self) -> None:
+        """One file system by the percent, another by the free space."""
+        by_free = machine.Crowded(place=ROOT, percent=86, over=GIB, free_rule=True)
+        by_percent = machine.Crowded(place=ROOT, percent=95, over=GIB)
+        both = dataclasses.replace(
+            told(GIB, [0, 0, 0, 0]), hot=[by_free, by_percent], minimum=5
+        )
+        same(account.goal_text(both), "to get under 90% and to have 5 GiB free")
+
     def test_a_dry_run_says_would_be_freed(self) -> None:
         """The verb follows the mode."""
         dry = dataclasses.replace(told(GIB, [GIB, 0, 0, 0]), dry=True)

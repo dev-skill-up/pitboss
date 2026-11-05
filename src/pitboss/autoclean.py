@@ -5,9 +5,10 @@ This is the auto-clean rule (pitboss#120; the rule is in ``rules.md``,
 test tempdirs older than ``[clean] tmp_hours`` that the session user owns, the
 finished worktrees and the dead checkouts, and prints what it removed and the
 space freed. At or over ``[clean] pressure_percent`` of a filesystem used (90
-by default) it also removes tempdirs of a shorter age, every worktree and every
-checkout of a repository without an open PR, and the package caches that
-regenerate. It never touches a worktree with an open PR, a running worker's
+by default), or when it has less than ``[clean] min_free_gib`` free (5 GiB by
+default; pitboss#205), it also removes tempdirs of a shorter age, every
+worktree and every checkout of a repository without an open PR, and the package
+caches that regenerate. It never touches a worktree with an open PR, a running worker's
 directory (changed within ``idle_hours``, or marked ``.pitboss-live``; a merged
 worktree's marker is ignored under disk pressure, except the one whose PR merged
 last, and, at any disk level, once it is older than a worker's task, 6 hours:
@@ -20,151 +21,21 @@ fall short, each kept directory over 500 MB (``account``, pitboss#194).
 
 import dataclasses
 import functools
-import pathlib
-from typing import AbstractSet, Callable, Sequence
+from typing import Callable, Sequence
 
 from . import (
     account,
     cleaning,
-    cleanconfig,
+    cleanheader,
     dead,
     deadscan,
     judging,
     local,
-    machine as machines,
     tempclean,
     worktrees,
 )
-from .machine import Crowded, Machine
-from .running import Run
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Option:
-    """How a run cleans.
-
-    Attributes:
-        run: the runner for changes (``rm`` and ``git worktree remove``).
-        dry: whether to remove nothing.
-        list_only: whether the finished worktrees are only listed, and the
-            dead checkouts left, unless the disk is under pressure.
-    """
-
-    run: Run
-    dry: bool
-    list_only: bool = False
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Job:
-    """One job: what it looks at, on what machine, and how hard.
-
-    Attributes:
-        look: what to look at and keep.
-        machine: the machine.
-        option: how to clean.
-        hot: the crowded file systems; any makes the cleaning aggressive.
-    """
-
-    look: dead.Look
-    machine: Machine
-    option: Option
-    hot: Sequence[Crowded]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Part:
-    """What one kind of cleaning did.
-
-    Attributes:
-        lines: what to print.
-        gone: the paths removed, or that would be in a dry run.
-        freed: the bytes freed, or that would be in a dry run.
-        kept: the directories this kind of cleaning left, each with why.
-    """
-
-    lines: Sequence[str]
-    gone: Sequence[dead.Candidate]
-    freed: int = 0
-    kept: Sequence[dead.Kept] = ()
-
-
-def nothing() -> Part:
-    """A part that did nothing.
-
-    Returns:
-        The part.
-    """
-    return Part(lines=[], gone=[])
-
-
-def paths_watched(look: dead.Look) -> Sequence[pathlib.Path]:
-    """The paths whose file systems are watched for pressure.
-
-    Args:
-        look: what to look at and keep.
-
-    Returns:
-        The workspace, the tempdir roots and the scratch directories.
-    """
-    return [look.settings.project.workspace, *look.clean.tmp_roots, *look.clean.scratch]
-
-
-def roots(look: dead.Look) -> AbstractSet[pathlib.Path]:
-    """The directories whose entries may be removed.
-
-    Args:
-        look: what to look at and keep.
-
-    Returns:
-        The workspace, the scratch directories and the root of the files.
-    """
-    return {look.settings.project.workspace, *look.clean.scratch, look.watch.root}
-
-
-def header(hot: Sequence[Crowded], clean: cleanconfig.Clean) -> str:
-    """The line that says which cleaning this is.
-
-    Args:
-        hot: the crowded file systems.
-        clean: the settings.
-
-    Returns:
-        The line.
-    """
-    limit = f"{clean.pressure_percent:g}%"
-    if not hot:
-        age = f"{clean.tmp_hours:g} hours"
-        return (
-            f"clean: disk under {limit} used: test tempdirs untouched for {age},"
-            " finished worktrees and checkouts"
-        )
-    where = ", ".join(f"{each.place} {each.percent:.0f}%" for each in hot)
-    age = f"{clean.pressure_tmp_hours:g} hours"
-    return (
-        f"clean: DISK OVER {limit} ({where}): aggressive: test tempdirs untouched"
-        f" for {age}, every worktree and checkout without an open PR, package caches"
-    )
-
-
-def never_line(look: dead.Look) -> str:
-    """Say what the cleaning never touches.
-
-    Args:
-        look: what to look at and keep.
-
-    Returns:
-        The line.
-    """
-    hours = look.settings.idle_hours
-    return (
-        "clean: never touched: a worktree with an open PR, a running worker's"
-        f" directory (changed within {hours:g} hours or marked .pitboss-live; a"
-        " merged worktree's marker is ignored under disk pressure, except the one"
-        " whose PR merged last, and at any disk level once it is older than 6"
-        " hours),"
-        " the main clone, the directory this command runs in"
-    )
+from .cleanjob import Job, Option, Part, crowded_now, nothing, roots, short_of
+from .machine import Machine
 
 
 def worktrees_part(job: Job) -> Part:
@@ -334,7 +205,36 @@ def all_parts(job: Job) -> Sequence[Part]:
     ]
 
 
-def clean_lines(look: dead.Look, machine: Machine, option: Option) -> Sequence[str]:
+def run_parts(job: Job) -> tuple[Sequence[Part], str]:
+    """Do each kind of cleaning, and total what it removed.
+
+    Args:
+        job: the job.
+
+    Returns:
+        What each kind did, and the totals line (the paths removed, the bytes
+        and the free space of the workspace before and after).
+    """
+    use = functools.partial(job.machine.usage, job.look.settings.project.workspace)
+    before = use()
+    parts = all_parts(job)
+    gone = [each for part in parts for each in part.gone]
+    return parts, account.totals(gone, job.option.dry, before, use())
+
+
+def parts_lines(parts: Sequence[Part]) -> Sequence[str]:
+    """What the kinds of cleaning print, in order.
+
+    Args:
+        parts: what each kind did.
+
+    Returns:
+        Their lines.
+    """
+    return [text for part in parts for text in part.lines]
+
+
+def clean_report(look: dead.Look, machine: Machine, option: Option) -> account.Report:
     """Clean, and say what was removed and the space freed.
 
     Args:
@@ -343,26 +243,22 @@ def clean_lines(look: dead.Look, machine: Machine, option: Option) -> Sequence[s
         option: how to clean.
 
     Returns:
-        The lines: the mode, the worktrees, what was removed, what is never
-        touched, and the totals.
+        The lines (the mode, the worktrees, what was removed, what is never
+        touched, and the totals) and what the ``DISK PRESSURE`` line needs.
     """
-    clean = look.clean
-    hot = machines.find_crowded(machine, paths_watched(look), clean.pressure_percent)
+    hot = crowded_now(look, machine)
     job = Job(look=look, machine=machine, option=option, hot=hot)
-    workspace_use = functools.partial(machine.usage, look.settings.project.workspace)
-    before = workspace_use()
-    parts = all_parts(job)
-    after = workspace_use()
-    gone = [each for part in parts for each in part.gone]
+    parts, totals = run_parts(job)
     tied = worktrees.tied_to_open_pr(look) if hot else []
-    return [
-        header(hot, clean),
-        *(text for part in parts for text in part.lines),
-        *account.open_lines(tied),
-        never_line(look),
-        account.totals(gone, option.dry, before, after),
-        *account.lines(told_of(job, parts, tied)),
-    ]
+    told = told_of(job, parts, tied)
+    head = cleanheader.header(hot, look.clean)
+    tail = [cleanheader.never_line(look), totals, *account.lines(told)]
+    return account.Report(
+        lines=[head, *parts_lines(parts), *account.open_lines(tied), *tail],
+        told=told,
+        short=short_of(hot),
+        left=short_of(crowded_now(look, machine)),
+    )
 
 
 def told_of(
@@ -382,6 +278,7 @@ def told_of(
         dry=job.option.dry,
         hot=job.hot,
         percent=job.look.clean.pressure_percent,
+        minimum=job.look.clean.min_free_gib,
         freed=[part.freed for part in parts],
         kept=[each for part in parts for each in part.kept],
         tied=tied,

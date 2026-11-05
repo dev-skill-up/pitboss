@@ -914,7 +914,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   something that someone needed than to halt and wait for me" and "NEVER ASK ME
   AGAIN"; pitboss#120). A sweep cleans first by itself (`pitboss clean`, "Stale
   worktrees" and "Automatic cleaning" in `sweep.md`), more aggressively at 90%
-  of a file system used, and never touches a worktree with an open PR or a
+  of a file system used or under 5 GiB free on it, and never touches a worktree with an open PR or a
   running worker's directory. The agent never asks the owner about cleanup, and
   a classifier denial of `rm` is answered by running `uvx pitboss clean
   <config>`, never by stopping. A worker brief says: `Disk: never ask the owner
@@ -1306,7 +1306,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   follow): a persistent
   checkout that is not marked is removed by the next sweep once its PR has
   merged. A marker outlives its work, so under disk pressure (the aggressive
-  clean, at `[clean] pressure_percent`) a merged worktree's own marker is not
+  clean, at `[clean] pressure_percent` used or under `[clean] min_free_gib`
+  free) a merged worktree's own marker is not
   honored, except on the one whose PR merged last: the older merged worktrees
   are removed (`REMOVED WORKTREE` says its marker was ignored) and the last
   merged one prints `KEPT WORKTREE` with `its PR merged last`. At any disk level
@@ -1319,7 +1320,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   kind: ...` and, when that falls short of getting under the pressure, the
   shortfall and each kept directory over 500 MB with why (`sweep.md`, the
   `clean:` row). A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
-  under `[clean] min_free_gib` (`DISK PRESSURE`).
+  and cleans aggressively under `[clean] min_free_gib` free (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look
   for stragglers"; 2026-10-24T13:23:09Z: "Aggressively clean. Qsweep clean is

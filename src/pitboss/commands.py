@@ -18,8 +18,10 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    account,
     autoclean,
     cleanconfig,
+    cleanjob,
     concurrently,
     config,
     configfile,
@@ -278,23 +280,25 @@ def sweep_look(found: Context) -> dead.Look:
     )
 
 
-def _clean_section(found: Context) -> None:
+def _clean_section(found: Context) -> account.Report:
     # A sweep that removes: safe_run really runs (keyword: auto-clean).
     listed = found.clean.worktrees is cleanconfig.Worktrees.LIST
-    option = autoclean.Option(run=found.args.safe_run, dry=False, list_only=listed)
+    option = cleanjob.Option(run=found.args.safe_run, dry=False, list_only=listed)
     look = sweep_look(found)
     machine = machines.real_machine(
         found.args.env, found.now, running_in(found.args), found.args.usage
     )
-    for text in autoclean.clean_lines(look, machine, option):
+    done = autoclean.clean_report(look, machine, option)
+    for text in done.lines:
         print(text)
     source = scratch.source_of(found.args.safe_run, found.scratch, found.now)
     for text in (scratch.listing if listed else scratch.cleaning)(source):
         print(text)
+    return done
 
 
 def _repository_sections(
-    found: Context, clock: timing.Clock
+    found: Context, clock: timing.Clock, cleaned: account.Report
 ) -> tuple[bool, Sequence[pulls.Read]]:
     runs = read_queue_runs(found)
     timing.lap(clock, "merge queue runs read")
@@ -308,7 +312,7 @@ def _repository_sections(
     localsections.print_stragglers(
         found.args.safe_run, found.settings.project.workspace
     )
-    for line in diskline.lines(sweep_look(found), found.now, found.args.usage):
+    for line in diskline.lines(cleaned, found.clean.min_free_gib):
         print(line)
     timing.lap(clock, "checkouts done")
     return broken, read
@@ -347,9 +351,9 @@ def sweep(args: argparse.Namespace) -> None:
     localsections.print_update_check(args.safe_run)
     found = load_context(args)
     timing.lap(clock, "update check and configuration read")
-    _clean_section(found)
+    cleaned = _clean_section(found)
     timing.lap(clock, "cleaning done")
-    broken, read = _repository_sections(found, clock)
+    broken, read = _repository_sections(found, clock, cleaned)
     _slot_section(found, read)
     for text in summaryline.lines(found.github, found.settings, args.config, found.now):
         print(text)
