@@ -47,7 +47,7 @@ class Step(enum.Enum):
             ``pitboss plan-check`` of this Plan (keyword: plan-check,
             pitboss#192); no Plan review is offered before it.
         RUN_E2E: a draft whose Plan is approved, whose diff touches what the
-            e2e suite runs on, has no completed dispatched run at its head (a
+            e2e suite runs on, has no completed dispatched run of ``check.yml`` at its head (a
             draft's own run skipped e2e): the check workflow is dispatched on
             its branch before any approval
             (keyword: run-e2e, pitboss#199).

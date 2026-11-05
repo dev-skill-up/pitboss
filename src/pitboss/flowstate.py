@@ -42,7 +42,7 @@ class PullState:
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         needs_e2e: says whether the diff touches a path the e2e jobs run on and
-            no dispatched run of the head has completed (the caller reads the
+            no dispatched run of ``check.yml`` at the head has completed (the caller reads the
             files, the configuration and the runs; a draft's own run skipped
             the e2e jobs, so it is not one; asked only for a draft whose Plan
             is approved; keyword: run-e2e).
@@ -265,7 +265,7 @@ def e2e_step(pr: PullState) -> steps.Next | None:
     (keyword: run-e2e, pitboss#199). The check workflow is dispatched on its
     branch, and its run is the check run the approval waits for. A draft's own
     completed run does not end the step (it skipped e2e, the case of the
-    ticket); only a dispatched run of the head that completed does.
+    ticket); only a dispatched run of ``check.yml`` at the head that completed does.
 
     Args:
         pr: the draft, whose Plan is approved.

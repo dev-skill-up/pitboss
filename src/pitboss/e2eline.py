@@ -4,7 +4,7 @@ A draft's CI runs plan and build only, so a PR that changes what the e2e suite
 runs on has no e2e result until the check workflow is dispatched on its branch
 (pitboss#199: an approval and an owner's ruling were given on a PR whose e2e
 was red). A draft's own run, complete or not, skipped e2e, so only a completed
-dispatched run of the head ends the step. The line is the step ``slots next``
+dispatched run of ``check.yml`` at the head ends the step. The line is the step ``slots next``
 prints for the PR, in the same words, and it replaces ``WAIT-FOR-CI`` for it.
 """
 
@@ -26,6 +26,6 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         return []
     return [
         f"{steps.describe(pull.step)} ({pulls.reference(pull)}); a draft's CI skips"
-        " e2e, so no review approves it until the dispatched run of its head has"
+        " e2e, so no review approves it until the dispatched run of check.yml at its head has"
         " completed"
     ]
