@@ -37,8 +37,8 @@ class Account:
     dry: bool
     hot: Sequence[machine.Crowded]
     percent: float
-    freed: Sequence[int]
     minimum: float = 0.0
+    freed: Sequence[int]
     kept: Sequence[dead.Kept]
     tied: Sequence[local.Worktree]
     measure: Callable[[pathlib.Path], int]

@@ -3,7 +3,8 @@
 A worktree is finished when its PR merged or closed, or its tip is in the base
 branch (``local.finished_reason``). Whether it may go is ``dead.verdict``, the
 test ``clean-container`` uses too (the ``DISK PRESSURE`` line runs none, it
-tells what the clean did): not live, not in use, and no commit on no remote branch and no changed tracked file in it
+tells what the clean did): not live, not in use, and no commit on no remote
+branch and no changed tracked file in it
 (keyword: clean-worktrees, ``rules.md``, "Checkouts and disk"). One that passes
 but holds untracked files is kept too, since ``git worktree remove`` refuses it,
 unless the marker ignored (under pressure, or for its age) is the only
