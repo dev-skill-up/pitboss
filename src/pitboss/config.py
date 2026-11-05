@@ -72,8 +72,7 @@ class Review:
         gated: slugs of repositories whose reviews are strict and name the head.
         form: the form in every other repository.
         gated_form: the form in a gated repository.
-        gate_forms: each gated repository's form read from its workflow, by
-            slug (keyword: review-gate); a gated one with none takes gated_form.
+        gate_forms: a gated repository's form from its workflow (keyword: review-gate).
     """
 
     trusted: AbstractSet[str]
@@ -91,8 +90,7 @@ class Lint:
         review: how reviews are read (the same as ``Config.review``).
         footers: lines a PR body must end with one of (last three); none, no footer.
         brief_lines: the line starts every brief must have.
-        relock_prefix: the head branch prefix of a relock PR (``[relock] prefix``;
-            keyword: relock), whose body is checked for its head and footer alone.
+        relock_prefix: the head branch prefix of a relock PR (keyword: relock).
     """
 
     review: Review
@@ -125,8 +123,7 @@ class Slots:
         models: the models, smallest first.
         priority_labels: the ticket labels that are offered, highest first.
         model_labels: a label, and the smallest model a ticket with it goes to.
-        ledger_owner: ``ledger-owner = true``: this configuration owns the
-            ledger, whatever path the ledger records.
+        ledger_owner: ``ledger-owner = true``: this configuration owns the ledger.
     """
 
     ledger: pathlib.Path
@@ -165,11 +162,13 @@ class Runners:
         repositories: the repositories whose merge-queue runs count.
         record: the file of looks at the runners and of queued jobs.
         quiet_minutes: how long the runners must be quiet before a hold lifts.
+        held: a ``[runners]`` table exists; without one nothing is held (#215).
     """
 
     repositories: Sequence[Repo]
     record: pathlib.Path
     quiet_minutes: int
+    held: bool
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -361,6 +360,7 @@ def _runners(
         repositories=shared or (project.repo, *libraries),
         record=pathlib.Path(_setting(document, "runners", "record", default)),
         quiet_minutes=minutes,
+        held="runners" in document,
     )
 
 

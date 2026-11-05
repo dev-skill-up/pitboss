@@ -112,7 +112,7 @@ def load_settings(args: argparse.Namespace) -> config.Config:
 
 
 def open_pulls(found: Context) -> Sequence[pulls.Read]:
-    """Read every open PR the configuration names.
+    """Read every open PR the configuration names, and record the look at the runners.
 
     Args:
         found: the context.
@@ -121,7 +121,7 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
         The PRs, a PR whose API call failed as an ``Unreadable``.
     """
     runs = functools.partial(read_runner_runs, found)
-    return sweepline.open_pulls(found.github, found.settings, found.now, runs)
+    return sweepline.looked_pulls(found.github, found.settings, found.now, runs)
 
 
 def load_context(args: argparse.Namespace) -> Context:

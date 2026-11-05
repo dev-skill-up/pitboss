@@ -18,6 +18,8 @@ START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
 PROJECT = "repos/owner/project"
 LIBRARY = "repos/owner/lib"
 EXTRA = """
+[runners]
+
 [libraries]
 repositories = ["lib", "gone"]
 no_auto_merge = ["lib"]

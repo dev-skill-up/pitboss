@@ -1,4 +1,4 @@
-"""The runner-pressure line of the sweep: it reads the record and writes nothing."""
+"""The runner-pressure line of the sweep: it reads the record and writes its look."""
 
 import datetime
 import functools
@@ -60,13 +60,15 @@ def pressure(
     Returns:
         The line.
     """
+    if not runners.held:
+        return report.no_hold_line()
     measured = measure(github, runs, runners, now)
     if not isinstance(measured, tuple):
         return report.unreadable_record_line(measured)
-    jobs, owed = measured
+    jobs, found = measured
     if not jobs.unread:
-        return report.quiet_line(jobs.waiting, owed)
-    return partial_pressure(jobs, owed)
+        return report.seen_line(found)
+    return partial_pressure(jobs, found.owed)
 
 
 def measure(
@@ -74,8 +76,11 @@ def measure(
     runs: Iterable[queue.QueueRun],
     runners: config.Runners,
     now: datetime.datetime,
-) -> tuple[queue.Jobs, int] | str | int | None:
-    """Count the jobs waiting and what the quiet period owes.
+) -> tuple[queue.Jobs, queue.Seen] | str | int | None:
+    """Count the jobs waiting and what the quiet period owes, and record the look.
+
+    The look is written to the record (keyword: quiet-period, pitboss#215), so
+    the quiet period can end with no one running ``pressure`` by hand.
 
     Args:
         github: the API.
@@ -84,11 +89,14 @@ def measure(
         now: the time now.
 
     Returns:
-        The jobs and the seconds owed, or the exit code of an unreadable record.
+        The jobs and what the look showed, or the exit code of a record that
+        cannot be read or written.
     """
     try:
         jobs = queue.count_jobs(github, runs)
-        return jobs, queue.owed(jobs, runners, now)
+        found = queue.count(jobs, runners, now)
+        queue.note_look(jobs, runners, now)
+        return jobs, found
     except SystemExit as unreadable:
         return unreadable.code
 
@@ -133,7 +141,54 @@ def open_pulls(
     Returns:
         The PRs, a PR whose API call failed as an ``Unreadable``.
     """
-    undraft = functools.partial(clear, github, runs, settings.runners, now)
+    return pullread.read_each(
+        github, settings, undraft_check(github, settings, now, runs)
+    )
+
+
+def undraft_check(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    now: datetime.datetime,
+    runs: Callable[[], Sequence[queue.QueueRun]],
+) -> Callable[[], bool]:
+    """The question whether an undraft is allowed, asked once for the run.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        now: the time now.
+        runs: reads the queue runs of the repositories that share the runners.
+
+    Returns:
+        The question.
+    """
+    ask = functools.partial(clear, github, runs, settings.runners, now)
+    return functools.cache(ask)
+
+
+def looked_pulls(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    now: datetime.datetime,
+    runs: Callable[[], Sequence[queue.QueueRun]],
+) -> Sequence[pulls.Read]:
+    """Look at the runners, record the look, and read every open PR.
+
+    ``next`` makes this look even when no PR needs an undraft (keyword:
+    quiet-period, pitboss#215); the PRs are asked about it from the same look.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        now: the time now.
+        runs: reads the queue runs of the repositories that share the runners.
+
+    Returns:
+        The PRs, a PR whose API call failed as an ``Unreadable``.
+    """
+    undraft = undraft_check(github, settings, now, runs)
+    undraft()  # the look, whether or not a PR asks
     return pullread.read_each(github, settings, undraft)
 
 
@@ -143,11 +198,12 @@ def clear(
     runners: config.Runners,
     now: datetime.datetime,
 ) -> bool:
-    """Whether the runners allow a CI-triggering action now; nothing is written.
+    """Whether the runners allow a CI-triggering action now; the look is recorded.
 
     No job waits for a runner and the quiet period is over, as ``pitboss
     pressure`` would say. A look that cannot be read (the record, a queue
-    run's jobs) is a hold (keyword: quiet-period).
+    run's jobs) is a hold (keyword: quiet-period). A configuration with no
+    ``[runners]`` table never holds.
 
     Args:
         github: the API.
@@ -158,8 +214,10 @@ def clear(
     Returns:
         True when an undraft may be done now.
     """
+    if not runners.held:
+        return True
     measured = measure(github, runs(), runners, now)
     if not isinstance(measured, tuple):
         return False
-    jobs, owed = measured
-    return not (jobs.waiting or jobs.unread or owed)
+    jobs, found = measured
+    return not (jobs.waiting or jobs.unread or found.owed)

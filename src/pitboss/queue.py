@@ -205,12 +205,30 @@ def age_minutes(queue_run: QueueRun, now: datetime.datetime) -> int:
     return int((now - created).total_seconds() // 60)
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Seen:
+    """What a look at the runners showed, counted in the quiet period.
+
+    Attributes:
+        waiting: queue-run jobs waiting for a runner.
+        owed: the quiet minutes still owed.
+        starts: whether the record had no earlier line, so this look starts
+            the quiet period (keyword: quiet-period, pitboss#215).
+        look: the look it is, for the record.
+    """
+
+    waiting: int
+    owed: int
+    starts: bool
+    look: record.Look
+
+
 def look(
     github: ghapi.GitHub,
     runs: Iterable[QueueRun],
     runners: config.Runners,
     now: datetime.datetime,
-) -> tuple[int, int]:
+) -> Seen:
     """Look at the runners and count the look in the quiet period; nothing is written.
 
     Args:
@@ -220,13 +238,27 @@ def look(
         now: the time now.
 
     Returns:
-        The jobs waiting now, and the quiet minutes still owed.
+        What the look showed; nothing waits and nothing is owed without a
+        ``[runners]`` table.
     """
-    waiting = waiting_jobs(github, runs)
-    return waiting, owed(Jobs(waiting=waiting, unread=()), runners, now)
+    if not runners.held:
+        return Seen(waiting=0, owed=0, starts=False, look=record.Look.NONE)
+    return count(Jobs(waiting=waiting_jobs(github, runs), unread=()), runners, now)
 
 
-def owed(jobs: Jobs, runners: config.Runners, now: datetime.datetime) -> int:
+def shown(jobs: Jobs) -> record.Look:
+    """The look that the jobs seen are.
+
+    Args:
+        jobs: what the look saw.
+
+    Returns:
+        A hold when a job waits, else none.
+    """
+    return record.Look.HOLD if jobs.waiting else record.Look.NONE
+
+
+def count(jobs: Jobs, runners: config.Runners, now: datetime.datetime) -> Seen:
     """Count a look at ``jobs`` in the quiet period; nothing is written.
 
     Args:
@@ -235,7 +267,29 @@ def owed(jobs: Jobs, runners: config.Runners, now: datetime.datetime) -> int:
         now: the time now.
 
     Returns:
-        The quiet minutes still owed.
+        The jobs waiting, the quiet minutes still owed, and whether the record
+        had no earlier line.
     """
-    shown = record.Look.HOLD if jobs.waiting else record.Look.NONE
-    return record.remaining(runners.record, shown, runners.quiet_minutes, now)
+    quiet, look_now = runners.quiet_minutes, shown(jobs)
+    return Seen(
+        waiting=jobs.waiting,
+        owed=record.remaining(runners.record, look_now, quiet, now),
+        starts=not record.has_lines(runners.record, now),
+        look=look_now,
+    )
+
+
+def note_look(jobs: Jobs, runners: config.Runners, now: datetime.datetime) -> None:
+    """Write the look at ``jobs`` to the record (keyword: quiet-period, pitboss#215).
+
+    A none look is written only when every queue run's jobs could be read: a
+    count known to be incomplete is no free runner.
+
+    Args:
+        jobs: what the look saw.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+    """
+    if jobs.unread and not jobs.waiting:
+        return
+    record.note_look(runners.record, shown(jobs), now)

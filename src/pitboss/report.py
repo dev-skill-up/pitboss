@@ -209,6 +209,37 @@ def unreadable_record_line(reason: object) -> str:
     return "; ".join([f"{head} ({reason})", HOLD_ACTIONS])
 
 
+def no_hold_line() -> str:
+    """The pressure line of a configuration with no ``[runners]`` table.
+
+    Returns:
+        The line: nothing is held and nothing is recorded.
+    """
+    return (
+        f"{Marker.NO_RUNNER_PRESSURE.text}: no hold, the configuration has no"
+        " [runners] table (its own runner budget); push and merge as usual"
+    )
+
+
+def seen_line(found: queue.Seen) -> str:
+    """The runner-pressure line of a look, the first of a record included.
+
+    Args:
+        found: what the look showed.
+
+    Returns:
+        The line; where the record had no earlier look and nothing waits, it
+        says the quiet period starts now (pitboss#215), not that a job waited.
+    """
+    if found.starts and found.owed and not found.waiting:
+        return (
+            f"{Marker.RUNNER_PRESSURE.text}: nothing waits now and the pressure"
+            f" record has no earlier look; quiet period starts now; {found.owed}"
+            f" quiet minutes remain: {HOLD_ACTIONS}"
+        )
+    return quiet_line(found.waiting, found.owed)
+
+
 def quiet_line(waiting: int, owed: int) -> str:
     """The runner-pressure line of a look that counts the quiet period.
 

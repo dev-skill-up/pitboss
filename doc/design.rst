@@ -152,7 +152,8 @@ Commands
    * - ``pressure CONFIG``
      - Appends a look (``none`` or ``hold``) to the record and prints the
        runner-pressure line; exits 0 only after ``[runners] quiet_minutes``
-       with no hold, else 1 with the minutes remaining.
+       with no hold, else 1 with the minutes remaining. With no ``[runners]``
+       table it holds nothing, writes nothing and says so.
    * - ``queued CONFIG``
      - Appends a hold to the record: a job was put on the queue (after a
        merge, an enqueue or auto-merge armed), so the quiet period restarts.
@@ -164,7 +165,8 @@ Commands
        day.
    * - ``push CONFIG [--draft] [--no-dry-run] [GIT_ARGUMENTS]``
      - The pressure check, then ``git push``; a push that goes out appends a
-       hold, a refused or failed one appends nothing. ``--draft`` skips both.
+       hold, a refused one appends the look it made (pitboss#215), a failed
+       one appends nothing. ``--draft`` skips both.
        Dry run unless ``--no-dry-run``; put ``--`` before git's options.
    * - ``cancel-stale-runs CONFIG``
      - Cancels the queue runs that are not the newest of their PR. Dry run
@@ -583,12 +585,22 @@ some jobs take a minute to trigger in a serial queue, and a job put on the
 queue is pressure at once, so stuffing the queue cannot eject entries (a
 dequeued entry restarts the merge queue and causes endless holds). The record
 (``[runners] record``, default ``pitboss-pressure.log`` in the main clone's
-``.git``) has a line ``<ISO time with offset> none|hold`` for each ``pressure``
-look and each queued job. The quiet period runs from the newest hold, or from
-the oldest line when there is no hold; it is over when that is at least
-``quiet_minutes`` ago (exactly that is over), and the look being made counts:
-a look that sees a job waiting is a hold. Robustness: a missing or empty record
-has seen no quiet yet (the first look starts it); a line that cannot be read
+``.git``) has a line ``<ISO time with offset> none|hold`` for each look and
+each queued job (pitboss#215). The looks that are recorded: ``pressure``, a
+``sweep`` (its pressure line, and the undraft check, which writes the same line
+once), a ``next`` (with or without a ticket), and a ``push`` that is refused
+(``none`` when nothing waits, ``hold`` when a job waits); a look whose queue
+run jobs could not all be read writes no ``none``. A ``push`` that goes out
+and ``queued`` record a ``hold``, ``push --draft`` records nothing. The quiet
+period runs from the newest hold, or from the oldest line when there is no
+hold; it is over when that is at least ``quiet_minutes`` ago (exactly that is
+over), and the look being made counts: a look that sees a job waiting is a
+hold. A configuration with no ``[runners]`` table is on its own runner budget
+(pitboss#141): nothing is held, nothing is recorded, and ``sweep``, ``next``,
+``pressure`` and ``push`` say ``NO RUNNER PRESSURE: no hold`` and go on.
+Robustness: a missing or empty record
+has seen no quiet yet (the first look starts it, and the line says ``quiet
+period starts now``, not that a job waited); a line that cannot be read
 (not two fields, a time without an offset, a word other than ``none`` and
 ``hold``, bytes that are not UTF-8) is taken as a hold at the time of the next
 good line, or of the look being made when it is the last, so it never makes a
@@ -596,9 +608,9 @@ quiet period that was not seen and ages out; a last line cut short is not
 glued to the next; a record that cannot be read or written stops the command.
 ``push`` records only a push that went out; if that record write fails it says
 the push went out and exits 2 (git's own status when git fails, 1 when refused).
-``sweep`` reads the record without writing it and prints the same line, so its
+``sweep`` writes its look and prints the same line, so its
 ``NO RUNNER PRESSURE`` means the quiet period is over; a record it cannot
-read is its own ``RUNNER PRESSURE`` line (a hold) and the sweep goes on.
+read or write is its own ``RUNNER PRESSURE`` line (a hold) and the sweep goes on.
 
 **Queue runs.** The unfinished ``merge_group`` runs of every repository
 read; a run is stale when its merge group (its ``gh-readonly-queue`` branch)
