@@ -51,6 +51,8 @@ class Marker(enum.Enum):
             approving review read, with no Opus ruling that allows the edit.
         RULING_NO_ANALYSIS: a PR whose newest Opus ruling comment has no
             ``How we got here`` section.
+        REVIEW_NOTE: an approved PR whose newest review has a ``Notes``
+            paragraph that names a case not handled.
         OPUS_RULINGS_DAILY: Opus ruling comments are dated since the last
             summary and none is recorded for the Pacific day.
         REMOVED_FROM_QUEUE: the merge queue removed a PR, and why.
@@ -132,6 +134,7 @@ class Marker(enum.Enum):
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
     RULING_NO_ANALYSIS = enum.auto()
+    REVIEW_NOTE = enum.auto()
     OPUS_RULINGS_DAILY = enum.auto()
     REMOVED_FROM_QUEUE = enum.auto()
     AUTO_MERGE_OFF = enum.auto()

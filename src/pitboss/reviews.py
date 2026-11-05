@@ -4,13 +4,19 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import bodydigest, config, gradeline, missed, sessionurl, shapes
+from . import (
+    bodydigest,
+    config,
+    gradeline,
+    missed,
+    reviewnote,
+    reviewplain,
+    sessionurl,
+    shapes,
+)
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
-_HTML = re.compile(r"<[A-Za-z/!]")
-_LINK_DEFINITION = re.compile(r"^\s*\[[^\]]+\]:\s", re.MULTILINE)
-_FENCE = "```"
 _GITHUB_STATES = {"APPROVED": True, "CHANGES_REQUESTED": False}
 
 
@@ -36,6 +42,8 @@ class Found:
             all-findings).
         plan_digest: the digest of the Plan section its ``Plan digest:`` line
             records, empty with no such line (keyword: plan-digest).
+        note: its ``Notes`` paragraph when that names a case not handled,
+            empty otherwise (keyword: review-note).
     """
 
     sha: str
@@ -47,6 +55,7 @@ class Found:
     body: str = ""
     missed: int = 0
     plan_digest: str = ""
+    note: str = ""
 
 
 def names(found: Found, head: str) -> bool:
@@ -92,22 +101,7 @@ def literal_prefix(template: str) -> str:
     return re.split(r"\{(?:sha|verdict)\}", template)[0].strip()
 
 
-def is_plain(body: str) -> bool:
-    """Whether a comment is plain ASCII with no fence, HTML or link definition.
-
-    Args:
-        body: the comment.
-
-    Returns:
-        True when it is.
-    """
-    text = sessionurl.strip(body)
-    return (
-        text.isascii()
-        and _FENCE not in text
-        and not _HTML.search(text)
-        and not _LINK_DEFINITION.search(text)
-    )
+is_plain = reviewplain.is_plain
 
 
 def _matches_strictly(lines: Sequence[str], template: str, count: int) -> bool:
@@ -237,6 +231,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         body=bodydigest.recorded(item.body),
         missed=missed.count(item.body),
         plan_digest=bodydigest.recorded_after(item.body, bodydigest.PLAN_PREFIX),
+        note=reviewnote.gap(item.body),
     )
 
 

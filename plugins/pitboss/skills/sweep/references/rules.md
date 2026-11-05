@@ -103,7 +103,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      approved the Plan alone: a review, by an agent that is not its author
      (when that review came after the newest readable Opus ruling, first the
      worker round `run the Plan's commands and fill the Execution`, pitboss#201);
-   - reviewed approved at its head and green: a merge;
+   - reviewed approved at its head and green: a merge; before merging, read the Notes of the newest review (pitboss#240, keyword: review-note): a note that names a case of the goal the change does not handle is a finding and starts a fix round, not a ticket (the sweep prints `REVIEW NOTE` for such a note);
    - its checks still running: neither green nor red, so skipped until they
      finish, and not a reason to hold the free slot; so is a pull request on
      the orchestrator's blocked list.
