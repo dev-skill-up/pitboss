@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, brieftext
+from .. import brief, brieftext, brieftextexec
 from .briefmake import has_none, pinned, text
 from .test_evidence_rules import read, words
 
@@ -88,7 +88,7 @@ class TestPlanCommands(unittest.TestCase):
             assert_that(reference, contains_string(sentence))
         for each in (
             brieftext.PLAN_COMMANDS_PLAN,
-            brieftext.PLAN_COMMANDS_EXECUTION,
+            brieftextexec.PLAN_COMMANDS_EXECUTION,
             brieftext.PLAN_COMMANDS_WORKER,
         ):
             assert_that(each.startswith("Plan commands: "), equal_to(True))
