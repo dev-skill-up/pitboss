@@ -4,7 +4,7 @@ import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commands, config, gateform, gates
+from . import ENTRY_DATA, commands, config, gateform, gates, gradeline
 
 BODY_NOTE = (
     "# also one line of its own: Body: <digest> (uvx pitboss body-digest FILE, the"
@@ -48,4 +48,6 @@ def review_form(args: argparse.Namespace) -> None:
         print(f"# {gates.note(trusted)}")
     for line in form.lines:
         print(line)
+    print(gradeline.FORM_NOTE)
+    print(gradeline.FORM_LINE)
     print(BODY_NOTE)

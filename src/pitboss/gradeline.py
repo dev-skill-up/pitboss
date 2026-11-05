@@ -5,10 +5,17 @@ import re
 PLAN_PREFIX = "Plan: "
 EXECUTION_PREFIX = "Execution: "
 FIXED = "(fixed)"
-# keyword: plan-alone (pitboss#201): the grade word may be followed by a full stop,
-# comma, colon or semicolon and the reviewer's own words (``Plan: approved. The
-# audit row now ...``); another ending grades nothing
-PROSE = r"(?:[.,:;](?: .*)?)?"
+# keyword: plan-alone (pitboss#201, pitboss#255): the grade word may be followed by a
+# full stop, comma, colon or semicolon and the reviewer's own words (``Plan:
+# approved. The audit row now ...``), or by a space and the reviewer's own words
+# (``Plan: approved Review of the Plan alone``); another ending grades nothing
+PROSE = r"(?:[.,:;](?: .*)?| (?!\(fixed\)).*)?"
+FORM_LINE = "Plan: {verdict}"
+FORM_NOTE = (
+    "# the Plan line is one line, `Plan: <verdict>`, the verdict on that same line;"
+    " the verdict may be followed by `.`, `,`, `:`, `;` or a space and your own"
+    " words, and a verdict on the next line is not read"
+)
 
 
 def present(body: str, prefix: str) -> bool:
