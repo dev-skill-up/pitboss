@@ -1013,7 +1013,10 @@ Only override for bugs, but do override for bugs (and then file them)".
   hand back. If it's red, it'll wait for the next open slot."). A hold on pushes
   limits pushes, not worker time: a worker never sleeps or polls for a gate; it
   pushes if the gate is open and hands back at once, or commits locally and
-  hands back with the worktree path and the commit SHA. A worker brief says so,
+  hands back with the worktree path and the commit SHA; a gate that a known
+  pitboss bug with a ticket closed wrongly is not handed back on but overridden
+  with the plain `git push origin <branch>`, the ticket cited (pitboss#218).
+  A worker brief says so,
   and the orchestrator is the one that watches the checks.
 - **The orchestrator never sits in a long wait** (owner, 2026-11-03: a command
   ran in the orchestrator thread for 20 minutes; pitboss#178). It hands work to
@@ -1196,7 +1199,13 @@ Only override for bugs, but do override for bugs (and then file them)".
   the wait, so a retried push does not keep restarting it), and the orchestrator runs `pitboss queued <config>`
   after a merge, an enqueue or auto-merge armed. If the pressure check fails a
   worker hands back; it does not loop, retry or sleep for it (owner,
-  haiku-rule 47, 2026-10-25).
+  haiku-rule 47, 2026-10-25). A hold that is wrong because of a known pitboss
+  bug with a ticket is not waited out: the agent overrides it on the spot with
+  the plain `git push origin <branch>`, cites the ticket in the same turn, and
+  files the ticket first when there is none (owner, 2026-11-04 15:29Z:
+  "pitboss is not the final arbiter. The agent has to run it, but can override
+  it if there is a reason", pitboss#218; the wait of pitboss#215 lasted about
+  an hour). Every other hold is kept, the bats-lang repositories' included.
 - **Whether a PR is opened as a draft is the config's `[slots.brief] drafts`,
   never the orchestrator's text** (default true; owner, 2026-11-03: pitboss
   never needs drafts, because it uses a different runner budget). Where it is
