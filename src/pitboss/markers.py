@@ -24,8 +24,9 @@ class Marker(enum.Enum):
         WAIT_FOR_CI: a PR's head has no completed check run.
         DRAFT_ROUND: a draft that needs a review or a fix (it has no check run).
         RUN_E2E_BEFORE_APPROVAL: a draft whose Plan is approved and whose diff
-            touches what the e2e suite runs on, with no completed check run at
-            its head: dispatch the check workflow on its branch.
+            touches what the e2e suite runs on, with no completed dispatched
+            run at its head (its own run skipped e2e): dispatch the check
+            workflow on its branch.
         FOLDED_PR: an open PR whose body closes several tickets and cites no
             Opus ruling that allows it.
         PR_STATE: the line of an open PR in ``slots next``: its next step.

@@ -11,7 +11,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, flow, markers, pullfiles, shapes, steps
+from .. import brief, dispatchruns, flow, markers, pullfiles, shapes, steps
 from . import fakes, test_flow, world
 from .briefmake import make
 from .test_commands import sweep
@@ -20,7 +20,12 @@ from .test_flow_sweep import APPROVED, HEAD, graded, world_with
 from .test_slot_commands import next_output
 
 LINE = "RUN E2E BEFORE APPROVAL: dispatch check.yml on branch-3"
-PAGES = {"files": "pulls/3/files", "runs": f"commits/{HEAD}/check-runs"}
+DISPATCHED = f"actions/runs?head_sha={HEAD}&event=workflow_dispatch&status=completed"
+PAGES = {
+    "files": "pulls/3/files",
+    "runs": f"commits/{HEAD}/check-runs",
+    "dispatch": DISPATCHED,
+}
 RAN, RUNNING = (
     {"id": 9, "name": "e2e", "status": status, "conclusion": conclusion}
     for status, conclusion in (("completed", "success"), ("in_progress", None))
@@ -64,6 +69,7 @@ def said(
     rounds: Sequence[shapes.Comment],
     changed: Sequence[Mapping[str, str]],
     *runs: Mapping[str, object],
+    dispatched: bool = False,
 ) -> tuple[str, str]:
     """What the sweep prints and PR 3's PR STATE line, for a draft PR 3.
 
@@ -71,12 +77,14 @@ def said(
         rounds: PR 3's comments.
         changed: the files its diff changes.
         *runs: the check runs of its head.
+        dispatched: whether a dispatched run of its head has completed.
 
     Returns:
         The sweep's output, and the PR STATE line of PR 3.
     """
     here = served(world_with(rounds, draft=True), "files", list(changed))
     served(here, "runs", {"check_runs": list(runs)})
+    served(here, "dispatch", {"workflow_runs": [{"id": 5}] if dispatched else []})
     lines = next_output(here).splitlines()
     found = "".join(each for each in lines if "PR STATE owner/project#3" in each)
     return sweep(here).out, found
@@ -85,17 +93,35 @@ def said(
 APPROVED_PLAN = [graded(APPROVED, None, 1)]
 APPROVED_REVIEW = test_flow.graded(test_flow.APPROVED, None, 1)
 REJECTED_REVIEW = test_flow.graded(None, test_flow.CHANGES, 2)
-# the Plan approved, the files changed, the check runs, and what the draft says
+# the Plan approved, the files changed, the check runs, whether a dispatched run
+# completed, and what the draft says
 SWEEPS = {
-    "a changed e2e and no check run": ([E2E_FILE], [], f"next step: {LINE}"),
-    "a rename out of e2e": ([MOVED], [], f"next step: {LINE}"),
-    "a completed run of the head": (
+    "a changed e2e and no check run": ([E2E_FILE], [], False, f"next step: {LINE}"),
+    "a rename out of e2e": ([MOVED], [], False, f"next step: {LINE}"),
+    "a draft run that skipped e2e (quire#1038)": (
         [E2E_FILE],
         [RAN],
+        False,
+        f"next step: {LINE}",
+    ),
+    "a completed dispatched run of the head": (
+        [E2E_FILE],
+        [RAN],
+        True,
         "next step: the plan is approved",
     ),
-    "a run that is running": ([E2E_FILE], [RUNNING], f"next step: {WAITING}"),
-    "a change outside e2e": ([OTHER_FILE], [], "next step: the plan is approved"),
+    "a run that is running": (
+        [E2E_FILE],
+        [RUNNING],
+        False,
+        f"next step: {WAITING}",
+    ),
+    "a change outside e2e": (
+        [OTHER_FILE],
+        [],
+        False,
+        "next step: the plan is approved",
+    ),
 }
 
 
@@ -104,8 +130,8 @@ class TestTheSweep(unittest.TestCase):
 
     def test_each_case_says_what_the_draft_needs(self) -> None:
         """The line is in the sweep exactly when the step is the dispatch."""
-        for name, (files, runs, step) in SWEEPS.items():
-            out, line = said(APPROVED_PLAN, files, *runs)
+        for name, (files, runs, dispatched, step) in SWEEPS.items():
+            out, line = said(APPROVED_PLAN, files, *runs, dispatched=dispatched)
             assert_that(LINE in out, equal_to(LINE in step), name)
             assert_that(line, contains_string(step), name)
 
@@ -120,19 +146,27 @@ class TestTheSweep(unittest.TestCase):
         assert_that("RUN E2E" in out + line, equal_to(False))
 
 
-def step_of(review: shapes.Graded, touches: bool, *checks: shapes.CheckRun) -> object:
+def step_of(
+    review: shapes.Graded,
+    touches: bool,
+    *checks: shapes.CheckRun,
+    dispatched: bool = False,
+) -> object:
     """The step of a draft that has the review.
 
     Args:
         review: the review at its head.
         touches: whether its diff touches the e2e suite.
         *checks: the check runs of its head.
+        dispatched: whether a dispatched run of its head has completed.
 
     Returns:
         The step.
     """
     found = state(review, checks=checks, draft=True, undraft_clear=True)
-    return flow.next_step(dataclasses.replace(found, runs_e2e=lambda: touches))
+    return flow.next_step(
+        dataclasses.replace(found, runs_e2e=lambda: touches, ran_e2e=lambda: dispatched)
+    )
 
 
 class TestTheFlow(unittest.TestCase):
@@ -144,11 +178,18 @@ class TestTheFlow(unittest.TestCase):
         found = [
             step_of(APPROVED_REVIEW, True),
             step_of(APPROVED_REVIEW, False),
-            step_of(APPROVED_REVIEW, True, test_flow.GREEN),
+            step_of(APPROVED_REVIEW, True, test_flow.GREEN, dispatched=True),
             step_of(REJECTED_REVIEW, True),
+            step_of(APPROVED_REVIEW, True, test_flow.GREEN),
         ]
         fix = steps.worker(steps.Task.FIX_EXECUTION)
-        wanted = [steps.run_e2e(branch), steps.undraft(), steps.undraft(), fix]
+        wanted = [
+            steps.run_e2e(branch),
+            steps.undraft(),
+            steps.undraft(),
+            fix,
+            steps.run_e2e(branch),
+        ]
         assert_that(found, equal_to(wanted))
         assert_that(steps.describe(wanted[0]), contains_string(f"on {branch}"))
 
@@ -185,6 +226,11 @@ class TestThePieces(unittest.TestCase):
         """One text for the marker and the step."""
         found = markers.Marker.RUN_E2E_BEFORE_APPROVAL.text
         assert_that(found, equal_to(steps.RUN_E2E_MARKER))
+
+    def test_the_parser_gives_the_ids_of_the_dispatched_runs(self) -> None:
+        """The ids of a page of runs."""
+        text = '{"workflow_runs": [{"id": 5}, {"id": 6}]}'
+        assert_that(dispatchruns.run_ids(text), equal_to([5, 6]))
 
     def test_the_parser_gives_the_names_of_a_page(self) -> None:
         """A rename gives both."""

@@ -44,6 +44,9 @@ class PullState:
         runs_e2e: says whether the diff touches a path the e2e suite runs on
             (the caller reads the files and the configuration; it is asked
             only for a draft whose Plan is approved; keyword: run-e2e).
+        ran_e2e: says whether a dispatched run of the head has completed (the
+            caller reads the runs; a draft's own run skipped the e2e jobs, so
+            it is not one; asked only for a draft whose diff runs the e2e suite).
     """
 
     pull: shapes.Pull
@@ -56,6 +59,7 @@ class PullState:
     merges_only_since: Callable[[str], bool] = lambda sha: False
     relock: bool = False
     runs_e2e: Callable[[], bool] = lambda: False
+    ran_e2e: Callable[[], bool] = lambda: False
 
 
 def plan_rejected_last(pr: PullState) -> bool:
@@ -261,20 +265,23 @@ def e2e_step(pr: PullState) -> steps.Next | None:
 
     A draft's CI skips the e2e jobs, so an approval of it reads no e2e result
     (keyword: run-e2e, pitboss#199). The check workflow is dispatched on its
-    branch, and its run is the check run the approval waits for.
+    branch, and its run is the check run the approval waits for. A draft's own
+    completed run does not end the step (it skipped e2e, the case of the
+    ticket); only a dispatched run of the head that completed does.
 
     Args:
         pr: the draft, whose Plan is approved.
 
     Returns:
-        None when a check run of the head completed or its diff touches no path
-        the e2e suite runs on; the wait for CI when a run has started and not
-        finished (it is not dispatched again); else the dispatch.
+        None when its diff touches no path the e2e suite runs on or a
+        dispatched run of the head completed; the wait for CI when a check run
+        of the head has started and not finished (it is not dispatched again);
+        else the dispatch.
     """
-    ran = [each for each in pr.checks if each.finished]
-    if ran or not pr.runs_e2e():
+    if not pr.runs_e2e() or pr.ran_e2e():
         return None
-    return steps.wait_for_ci() if pr.checks else steps.run_e2e(pr.pull.head.branch)
+    waiting = any(not each.finished for each in pr.checks)
+    return steps.wait_for_ci() if waiting else steps.run_e2e(pr.pull.head.branch)
 
 
 def is_dirty(pull: shapes.Pull) -> bool:

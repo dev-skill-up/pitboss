@@ -8,6 +8,7 @@ from . import (
     analysis,
     bodydigest,
     config,
+    dispatchruns,
     flow,
     folds,
     headchecks,
@@ -307,6 +308,9 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         relock=_is_relock(source, got.pull),
         runs_e2e=lambda: pullfiles.touches(
             source.github, repo.slug, got.pull.number, source.run_by_e2e
+        ),
+        ran_e2e=lambda: dispatchruns.completed(
+            source.github, repo.slug, got.pull.head.sha
         ),
     )
 

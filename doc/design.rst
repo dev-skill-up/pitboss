@@ -415,7 +415,8 @@ Execution, and the review of a revised plan are started by its author's
 hand-back; a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
 same words as ``slots next``, pitboss#156; a draft whose Plan is approved, with
 a diff that touches ``e2e/`` or a ``[sweep] run_by_e2e`` prefix and no completed
-check run, has ``RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>``
+``workflow_dispatch`` run of its head (a draft's own run skipped e2e, complete
+or not; one still running is waited for), has ``RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>``
 instead, pitboss#199), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
