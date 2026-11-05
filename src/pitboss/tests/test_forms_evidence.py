@@ -28,10 +28,11 @@ ELSEWHERE = headed("## Plan") + "\n## Evidence\n\nSee.\n"
 CASES: Mapping[str, tuple[str, Sequence[str]]] = {
     "no space after the hash": (headed("#Evidence"), ["evidence"]),
     "seven hashes": (headed("####### Evidence"), ["evidence"]),
-    "a produced block under Plan": (ELSEWHERE, ["evidence"]),
+    # the Plan's command is one the Evidence never ran (plan-command, pitboss#196)
+    "a produced block under Plan": (ELSEWHERE, ["evidence", "plan-command"]),
     "a typed block under Plan": (
         ELSEWHERE.replace(RAN, TYPED),
-        ["evidence", "hand-typed"],
+        ["evidence", "hand-typed", "plan-command"],
     ),
     "a typed block under a bare heading": (
         BODY.replace("## Evidence\n\n" + RAN, "#Evidence\n" + TYPED),

@@ -2,11 +2,13 @@
 
 Each check returns findings, one line each, ending with the check's name in
 parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
-``footer`` for a PR body; ``first-line``, ``verdict``, ``reviewed``,
+``footer`` for a PR body, and ``plan-command`` for a Plan command not run as
+written; ``first-line``, ``verdict``, ``reviewed``,
 ``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
 ``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
-``$ `` row that ``pitboss expand`` did not produce, and ``appended`` for an
-Evidence row that ends in an echo of the exit status. The wording a project
+``$ `` row that ``pitboss expand`` did not produce, ``appended`` for an
+Evidence row that ends in an echo of the exit status, and ``test-name`` for a
+test the Plan or Execution cites that the head's tree lacks. The wording a project
 chooses (a review's lines, a PR body's footers, a brief's required lines) is
 read from its configuration (``config.Lint`` and ``config.ReviewForm``).
 """
@@ -15,7 +17,7 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, evidence, folds, reviews, rowchecks, sessionurl
+from . import config, evidence, folds, plancommands, reviews, rowchecks, sessionurl
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
@@ -157,6 +159,7 @@ def pr_body(
         *_described_head(clean),
         *_evidence(clean),
         *_command_rows(clean),
+        *plancommands.findings(clean.name, clean.body),  # keyword: plan-command
         *_footer(clean, footers),
     ]
 
