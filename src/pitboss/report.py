@@ -149,8 +149,11 @@ def _auto_merge_off(
     return healthy and not manual and not queued and not pull.pull.auto_merge
 
 
+# keyword: hold-actions (pitboss#200): the one text of the actions a runner hold
+# covers; the skill's references/ci.md ("What costs runs") quotes it word for word.
 HOLD_ACTIONS = (
-    "HOLD pushes to non-draft PRs, undrafts, enqueues, merges and re-runs"
+    "HOLD pushes to non-draft PRs, undrafts, enqueues, merges,"
+    " workflow dispatches (a dispatch on a draft too) and re-runs"
     " (all repositories; pushes to drafts are free)"
 )
 
