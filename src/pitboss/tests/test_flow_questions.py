@@ -188,18 +188,6 @@ class TestQuestions(unittest.TestCase):
         ]
         check(flow.execution_fixed_since_plan_approval, cases)
 
-    def test_a_conflict_round_is_no_fix_round(self) -> None:
-        """A merge of the base and the body edit that goes with it (pitboss#208)."""
-        again = graded(None, CHANGES, 2)
-        reading = test_flow.reading
-        rewritten = reading(graded(APPROVED, CHANGES, 1, sha=OLDER), "before")
-        cases = [
-            (test_flow.merged(state(rewritten, again), OLDER), False),
-            (state(rewritten, again), True),
-            (test_flow.merged(state(rewritten, again), "1" * 40), True),
-        ]
-        check(flow.execution_fixed_since_plan_approval, cases)
-
     def test_the_base_is_compared_only_for_a_rejection_at_another_head(
         self,
     ) -> None:
@@ -252,3 +240,18 @@ class TestQuestions(unittest.TestCase):
             (state(github), None),
         ]
         check(flow.newest_counting_review, cases)
+
+
+class TestConflictRound(unittest.TestCase):
+    """A conflict round edits the body and is no fix round (pitboss#208)."""
+
+    def test_a_merge_with_a_body_edit_is_no_fix_round(self) -> None:
+        """The body is compared only while the head is the reviewed one."""
+        again = graded(None, CHANGES, 2)
+        rewritten = test_flow.reading(graded(APPROVED, CHANGES, 1, sha=OLDER), "before")
+        cases = [
+            (test_flow.merged(state(rewritten, again), OLDER), False),
+            (state(rewritten, again), True),
+            (test_flow.merged(state(rewritten, again), "1" * 40), True),
+        ]
+        check(flow.execution_fixed_since_plan_approval, cases)

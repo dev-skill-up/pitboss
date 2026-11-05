@@ -133,13 +133,10 @@ def execution_fixed_since_plan_approval(pr: PullState) -> bool:
     """Whether a fix round followed an execution rejection on the approved plan.
 
     Read from the reviews: the execution was graded changes needed on the
-    approved plan, and since then the code moved by more than merge commits or,
-    the head being the one that review graded, the PR body no longer is the one
-    that review recorded (a body fix: keyword: body-digest, pitboss#149, whose
-    head did not move between its two rejections). A merge of the base is no
-    fix (``merges_only_since``), nor is the body edit that goes with it: a
-    conflict round sets the last ``Head:`` line and reruns the Evidence
-    (pitboss#208), so the body is compared only while the head is unmoved.
+    approved plan, and since then the code moved by more than merge commits
+    (``merges_only_since``) or, at that review's head, the PR body no longer is
+    the one it recorded (keyword: body-digest, pitboss#149); a conflict round
+    (a merge and its body edit) is no fix.
 
     Args:
         pr: the PR.
@@ -148,18 +145,17 @@ def execution_fixed_since_plan_approval(pr: PullState) -> bool:
         True when an earlier execution rejection names such a round.
     """
     approved = False
-    now = bodydigest.digest(pr.pull.body)
     for each in _regular_reviews(pr):
         approved = approved or each.plan is Verdict.APPROVED
         rejecting = approved and each.execution is Verdict.CHANGES_NEEDED
-        if rejecting and _fixed_since(pr, each, now):
+        if rejecting and _fixed_since(pr, each):
             return True
     return False
 
 
-def _fixed_since(pr: PullState, review: Graded, now: str) -> bool:
+def _fixed_since(pr: PullState, review: Graded) -> bool:
     if _of_head(pr, [review]):
-        return bodydigest.changed(review.body, now)
+        return bodydigest.changed(review.body, bodydigest.digest(pr.pull.body))
     return not pr.merges_only_since(review.sha)
 
 
