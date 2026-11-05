@@ -254,9 +254,10 @@ def _pull_section(
     return broken
 
 
-def _queue_section(found: Context, runs: Sequence[queue.QueueRun]) -> None:
-    shared = runner_runs(found, runs)
-    print(sweepline.pressure(found.github, shared, found.settings.runners, found.now))
+def _queue_section(
+    found: Context, runs: Sequence[queue.QueueRun], pressure: str
+) -> None:
+    print(pressure)
     for line in report.queue_lines(runs, found.settings, found.now):
         print(line)
 
@@ -303,11 +304,15 @@ def _repository_sections(
     runs = read_queue_runs(found)
     timing.lap(clock, "merge queue runs read")
     shared = functools.partial(runner_runs, found, runs)
+    # Before the PRs are read: a draft's undraft check writes the first look.
+    pressure = sweepline.pressure(
+        found.github, shared(), found.settings.runners, found.now
+    )
     read = sweepline.open_pulls(found.github, found.settings, found.now, shared)
     timing.lap(clock, "pull requests read")
     broken = _pull_section(found, runs, read)
     timing.lap(clock, "pull requests done")
-    _queue_section(found, runs)
+    _queue_section(found, runs, pressure)
     timing.lap(clock, "merge queue done")
     localsections.print_stragglers(
         found.args.safe_run, found.settings.project.workspace

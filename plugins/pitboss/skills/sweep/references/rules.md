@@ -1189,8 +1189,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   and if we stuff the queue, we get the ejection stuff that causes infinite
   holds (stuff gets dequeued, and then the MQ start from scratch)"). A job put
   on the queue is recorded at once: `pitboss push` records the push that went
-  out (a refused push records nothing, so a retried push does not keep
-  restarting the wait), and the orchestrator runs `pitboss queued <config>`
+  out (a refused push records its look, and a `none` look does not restart
+  the wait, so a retried push does not keep restarting it), and the orchestrator runs `pitboss queued <config>`
   after a merge, an enqueue or auto-merge armed. If the pressure check fails a
   worker hands back; it does not loop, retry or sleep for it (owner,
   haiku-rule 47, 2026-10-25).

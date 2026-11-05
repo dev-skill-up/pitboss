@@ -588,7 +588,9 @@ dequeued entry restarts the merge queue and causes endless holds). The record
 ``.git``) has a line ``<ISO time with offset> none|hold`` for each look and
 each queued job (pitboss#215). The looks that are recorded: ``pressure``, a
 ``sweep`` (its pressure line, and the undraft check, which writes the same line
-once), a ``next`` (with or without a ticket), and a ``push`` that is refused
+once), a ``next`` (with or without a ticket; it records its look and prints no
+pressure line, so only ``sweep`` and ``pressure`` say ``quiet period starts
+now``), and a ``push`` that is refused
 (``none`` when nothing waits, ``hold`` when a job waits); a look whose queue
 run jobs could not all be read writes no ``none``. A ``push`` that goes out
 and ``queued`` record a ``hold``, ``push --draft`` records nothing. The quiet

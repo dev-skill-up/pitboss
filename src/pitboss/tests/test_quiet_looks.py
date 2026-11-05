@@ -6,7 +6,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import report
 from . import test_quiet as helpers
-from . import quietworld, world
+from . import fakes, quietworld, world
 
 
 def refused_push(here: world.World, minute: int) -> world.Result:
@@ -53,14 +53,20 @@ class TestRecordedLooks(unittest.TestCase):
         assert_that(found, equal_to((1, [f"{helpers.at(0)} hold"])))
 
     def test_sweep_and_next_end_the_quiet_period(self) -> None:
-        """A sweep or a next on a new record writes a none look, and the clock runs."""
-        for command in ("sweep", "next"):
+        """A sweep or a next on a new record writes a none look, and the clock runs.
+
+        ``sweep`` prints the line that says the quiet period starts now, with a
+        draft PR open too (its undraft check writes the first look); ``next``
+        prints no pressure line at all.
+        """
+        for command, draft in (("sweep", False), ("sweep", True), ("next", False)):
             here = helpers.clear_world()
+            if draft:
+                here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, draft=True)
             first = world.again(here, command, "--now", helpers.at(0))
+            said = (helpers.FIRST_LOOK in first.out, "PRESSURE" in first.out)
+            assert_that(said, equal_to((command == "sweep",) * 2))
             assert_that(helpers.lines(here), equal_to([f"{helpers.at(0)} none"]))
-            assert_that(
-                (command == "next") or helpers.FIRST_LOOK in first.out, equal_to(True)
-            )
             assert_that(helpers.exit_code(here, "pressure", 15), equal_to(0))
 
 
