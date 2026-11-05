@@ -14,7 +14,7 @@ from pitboss.markers import Marker
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REFERENCES = sorted(ROOT.glob("plugins/*/skills/*/references/*.md"))
-NAMED = re.compile(r"`([A-Z][A-Z -]*[A-Z])`")
+NAMED = re.compile(r"`([A-Z][A-Z0-9 -]*[A-Z0-9])`")
 
 
 def main():

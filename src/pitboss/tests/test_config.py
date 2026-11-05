@@ -35,6 +35,7 @@ repositories = ["lib"]
 idle_hours = 1.5
 [sweep]
 reminders = ["one"]
+run_by_e2e = ["e2e/", "ui/"]
 [slots]
 ledger = "/somewhere/ledger.json"
 models = ["small", "large"]
@@ -63,7 +64,7 @@ def _summary(settings: config.Config) -> dict[str, object]:
         ),
         "lint": (settings.lint.footers, settings.lint.brief_lines),
         "numbers": (settings.merge_queue.timeout_minutes, settings.idle_hours),
-        "reminders": settings.reminders,
+        "sweep": (settings.reminders, settings.project.run_by_e2e),
         "slots": (
             settings.slots.models,
             settings.slots.priority_labels,
@@ -83,7 +84,7 @@ DEFAULTS: Mapping[str, object] = {
     "approved": ("approved", "approved"),
     "lint": ((), ()),
     "numbers": (60, 3.0),
-    "reminders": config.DEFAULT_REMINDERS,
+    "sweep": (config.DEFAULT_REMINDERS, ("e2e/",)),
     "slots": ((), (), (), {}),
 }
 READ: Mapping[str, object] = {
@@ -96,7 +97,7 @@ READ: Mapping[str, object] = {
     "approved": ("yes", "yes"),
     "lint": (("made by me",), ("Overlap:",)),
     "numbers": (30, 1.5),
-    "reminders": ("one",),
+    "sweep": (("one",), ("e2e/", "ui/")),
     "slots": (
         ("small", "large"),
         ("urgent",),
@@ -110,6 +111,7 @@ WRONG = [
     ('[libraries]\nrepositories = "lib"\n', "repositories"),
     ('[slots]\ndefault = "slot"\n', "slots.default"),
     ("[runners]\nquiet_minutes = -1\n", "quiet_minutes"),
+    ('[sweep]\nrun_by_e2e = "e2e/"\n', "run_by_e2e"),
 ]
 
 

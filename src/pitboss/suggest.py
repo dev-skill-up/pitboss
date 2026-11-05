@@ -19,6 +19,7 @@ from . import (
     gates,
     ghapi,
     parsing,
+    pullfiles,
     pulls,
     reviews,
     steps,
@@ -265,6 +266,16 @@ def _rules(source: Source, slug: str, head: str) -> brief.Rules:
     )
 
 
+def _touches_e2e(source: Source, pick: Pick, kind: brief.Kind) -> bool:
+    # keyword: run-e2e (pitboss#199): read the files only for a review of a PR
+    found = pick.pull
+    if found is None or kind not in brief.E2E_KINDS:
+        return False
+    slug = found.repo.slug
+    prefixes = source.settings.project.run_by_e2e
+    return pullfiles.touches(source.github, slug, found.pull.number, prefixes)
+
+
 def spec(source: Source, pick: Pick) -> brief.Spec:
     """What the brief of a pick is built from.
 
@@ -278,14 +289,16 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
     ticket, text = goal(source, pick)
     slug = pick.reference.rpartition("#")[0]
     heads = _heads(source, pick.pull)
+    kind = kind_of(pick)
     return brief.Spec(
-        kind=kind_of(pick),
+        kind=kind,
         subject=brief.Subject(
             reference=pick.reference, ticket=ticket, repo=slug, goal=text
         ),
         heads=heads,
         rules=_rules(source, slug, heads.head),
         ready=pick.pull is not None and not pick.pull.pull.draft,
+        e2e=_touches_e2e(source, pick, kind),
     )
 
 

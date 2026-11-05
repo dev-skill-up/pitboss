@@ -6,6 +6,7 @@ from typing import Mapping, Sequence
 from . import (
     analysisline,
     config,
+    e2eline,
     foldline,
     gateline,
     planeditline,
@@ -27,6 +28,8 @@ def lines(
 ) -> Sequence[str]:
     """The STALL, UPDATE, waiting-for-ruling, DRAFT ROUND and review-form lines.
 
+    The RUN E2E BEFORE APPROVAL line follows the DRAFT ROUND one.
+
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
     PLAN EDITED.
     The review-form lines are UNREADABLE REVIEW, RULING NO ANALYSIS and GATE PENDING.
@@ -46,6 +49,7 @@ def lines(
         *roundline.lines(pull),
         *planeditline.lines(pull),
         *_draft_lines(pull),
+        *e2eline.lines(pull),
         *foldline.lines(pull),
         *reviewline.lines(pull),
         *analysisline.lines(pull),

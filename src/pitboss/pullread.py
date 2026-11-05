@@ -64,6 +64,7 @@ def read_each(
         review=settings.review,
         undraft=functools.cache(undraft),
         relock_prefix=settings.lint.relock_prefix,
+        run_by_e2e=settings.project.run_by_e2e,
     )
     return concurrently.each(
         lambda item: pulls.fetch_or_unreadable(source, *item), wanted
