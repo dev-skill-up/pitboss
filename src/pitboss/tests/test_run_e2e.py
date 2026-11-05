@@ -30,8 +30,8 @@ RAN, RUNNING = (
     {"id": 9, "name": "e2e", "status": status, "conclusion": conclusion}
     for status, conclusion in (("completed", "success"), ("in_progress", None))
 )
-NO_RUN: list[Mapping[str, int]] = []
-DONE_RUN: list[Mapping[str, int]] = [{"id": 5}]
+NO_RUN: Sequence[Mapping[str, int]] = ()
+DONE_RUN: Sequence[Mapping[str, int]] = ({"id": 5},)
 E2E_FILE = {"filename": "e2e/reader.spec.js"}
 MOVED = {"filename": "src/reader.js", "previous_filename": "e2e/reader.js"}
 OTHER_FILE = {"filename": "src/reader.js"}

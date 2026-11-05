@@ -278,9 +278,8 @@ def e2e_step(pr: PullState) -> steps.Next | None:
     """
     if not pr.needs_e2e():
         return None
-    if all(each.finished for each in pr.checks):
-        return steps.run_e2e(pr.pull.head.branch)
-    return steps.wait_for_ci()
+    running = [each for each in pr.checks if not each.finished]
+    return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)
 
 
 def is_dirty(pull: shapes.Pull) -> bool:
