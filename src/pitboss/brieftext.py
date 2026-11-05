@@ -67,11 +67,17 @@ NOX = (
     " run only those tests), and never the full `nox -r`: CI's `Run Nox` step runs"
     " the whole suite."
 )
+HOLD_BUG = (
+    "A hold that comes from a known pitboss bug with a ticket is not waited out:"
+    " push the branch with plain `git push origin <branch>` and cite the ticket in"
+    " the hand-back (with no ticket yet, file one first); every other hold is"
+    " kept (pitboss#218)."
+)
 PUSH_HELD = (
     "Push: push with `uvx pitboss push {config} --no-dry-run` (add `--draft` for a"
     " draft PR), after every commit. Under a hold it exits 1 and pushes nothing:"
     " hand back at once, naming where you stopped and the SHA of what is"
-    " unpushed; never loop or sleep for the hold to clear."
+    " unpushed; never loop or sleep for the hold to clear. " + HOLD_BUG
 )
 PUSH_FREE = "Push: push the branch with `git push` after every commit."
 PLAN_COMMANDS_WORKER = (

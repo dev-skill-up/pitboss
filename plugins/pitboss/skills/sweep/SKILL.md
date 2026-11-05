@@ -86,7 +86,7 @@ Other commands, all reading the same file:
 | :--- | :--- |
 | `uvx pitboss pressure <config>` | Before a push to a non-draft PR, an undraft, an enqueue, a merge, a workflow dispatch or a re-run: records a look and prints one line; exit 1 under runner pressure and until the quiet period is over (the minutes remaining are in the line). The looks that are recorded are this one, a `sweep`'s, a `next`'s and a refused `push`'s; a configuration with no `[runners]` table is on its own runner budget and is never held. |
 | `uvx pitboss queued <config>` | After a merge, an enqueue or auto-merge armed: records that a job was put on the queue, which restarts the quiet period. |
-| `uvx pitboss push <config> [--draft] [--no-dry-run] [-- <git push arguments>]` | The pressure check and `git push` in one command, so the check is not left out or put in the wrong place. Under pressure or in the quiet period it prints the hold line, exits 1, pushes nothing and records the look it made (so the quiet period can end); the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear. A push that goes out is recorded as a queued job. `--draft` is for a push to a draft PR: no check, nothing recorded. |
+| `uvx pitboss push <config> [--draft] [--no-dry-run] [-- <git push arguments>]` | The pressure check and `git push` in one command, so the check is not left out or put in the wrong place. Under pressure or in the quiet period it prints the hold line, exits 1, pushes nothing and records the look it made (so the quiet period can end); the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear (a hold that comes from a known pitboss bug with a ticket is overridden with the plain `git push origin <branch>`, the ticket cited in the hand-back). A push that goes out is recorded as a queued job. `--draft` is for a push to a draft PR: no check, nothing recorded. |
 | `uvx pitboss cancel-stale-runs <config> [--no-dry-run]` | Cancel superseded merge-queue runs. |
 | `uvx pitboss clean <config> [--dry-run]` | The cleaning a sweep does first, on its own: removes at once. Run it when the disk is tight or an `rm` is denied; never ask the owner. |
 | `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove the finished worktrees that pass the safety test (a sweep does the same by itself under `[clean] worktrees = "auto"`, the default). |
@@ -102,6 +102,17 @@ Other commands, all reading the same file:
 | `uvx pitboss next <config> <owner/repo#N>` | The one step the ticket's PR is at (`WAIT_FOR_OWNER`, WORKER with its task, UNDRAFT, `REGULAR_REVIEW` with its stage, `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED`, `PLAN_CHECK`, `RUN_E2E` or MERGE), from the open PR whose body says `Fixes` or `Closes` it; for a ticket no PR fixes, its first step. The flow is `pitboss.flow.next_step` (`rules.md`, "Plan first"). |
 | `uvx pitboss slots <action> <config> ...` | The worker-slot ledger and what to start next. When a worker hands back: run `uvx pitboss sweep <config>`, do what its lines say, `slots free` prints the refill (`references/slots.md`, "When a worker hands back"). Only the config that owns the ledger refills a slot (`ledger-owner = true`, or the path the ledger records, a key put in the ledger file by hand; a ledger made before this check records none, so the orchestrator's config adds `ledger-owner = true` to its `[slots]` table once): `slots next`, `free` and `set` from another exit 1 with `not the orchestrator config: use <path>` (`references/slots.md`, "Which configuration refills the slot"). A repository under the owner's hold (`[holds] new_pull_requests`) has its tickets printed as `HELD`, never `NEXT`, and the sweep prints one `HOLD` line: start no new pull request there (`references/rules.md`, "Order of work", 6). |
 | `uvx pitboss sync <config>` | Copy the working files outside any repository (configurations, ledger, log, pressure record, `[sync] paths`) to main of the `[sync]` repository; a sweep does it last. A file you create is added to `[sync] paths` in the same turn; a configuration missing at session start is restored from `notes-current` (`references/sweep.md`, "The orchestrator's working files"). |
+
+## A line that is wrong because of a pitboss bug (pitboss#218)
+
+Pitboss is not the final arbiter: you run it, and you may override it with a
+reason. When a line of `pitboss sweep`, `pitboss next` or `pitboss push` is
+wrong because of a known pitboss bug that has a ticket, override it on the
+spot, cite the ticket in the same turn, and do not wait the line out; with no
+ticket yet, file one first. A hold on a push that comes from such a bug is
+overridden with the plain `git push origin <branch>` of the branch. Only a line
+whose cause is a ticketed pitboss bug is overridden: the bats-lang
+repositories keep their hold (`references/rules.md`, the rule on checking the runner pressure; `references/sweep.md`, "The runner-pressure hold").
 
 ## Before acting on any line
 
