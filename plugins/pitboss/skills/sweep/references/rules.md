@@ -1143,8 +1143,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 
 ## Pushing and merging
 
-- **Before any push to a non-draft PR, undraft, enqueue or merge, check the
-  runner pressure** (`pitboss pressure`; `sweep.md` has the hold). Pushes to a
+- **Before any push to a non-draft PR, undraft, enqueue, merge, workflow
+  dispatch or re-run, check the runner pressure** (`pitboss pressure`; `sweep.md` has the hold). Pushes to a
   draft PR start no costly job and are not held (`ci.md`). Under pressure,
   hold. **A hold lifts only after the quiet period:** `pitboss pressure` exits 0
   only when its record (`[runners] record`) shows no hold at any look, and no

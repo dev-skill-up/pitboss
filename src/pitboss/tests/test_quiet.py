@@ -5,9 +5,9 @@ import pathlib
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to, starts_with
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
-from .. import record
+from .. import record, report
 from . import fakes, test_config, world
 
 PROJECT_JOBS = world.project_page("actions/runs/11/jobs")
@@ -116,10 +116,7 @@ def exit_code(here: world.World, command: str, minute: int, *more: str) -> objec
     return world.again(here, command, "--now", at(minute), *more).code
 
 
-HOLD = (
-    "HOLD pushes to non-draft PRs, undrafts, enqueues, merges and re-runs"
-    " (all repositories; pushes to drafts are free)"
-)
+HOLD = report.HOLD_ACTIONS
 WAITING = (
     "RUNNER PRESSURE: 1 queue-run jobs waiting for a runner: "
     f"{HOLD}; 15 quiet minutes remain"
@@ -133,6 +130,11 @@ CLEAR = "NO RUNNER PRESSURE: push and merge as usual"
 
 class TestPressure(unittest.TestCase):
     """``pressure`` against the record."""
+
+    def test_line_names_dispatches(self) -> None:
+        """The pressure line holds workflow dispatches, a draft's too."""
+        assert_that(HOLD, contains_string("workflow dispatches (a dispatch on a draft"))
+        assert_that(WAITING, contains_string(HOLD))
 
     def test_lines(self) -> None:
         """Waiting, a quiet period to go, and over: one line each."""

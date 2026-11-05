@@ -88,7 +88,7 @@ rows = [
  ("orchestration.md Briefs sed", "rules.md", "**Checked-in code and YAML do not depend on sed**"),
  ("orchestration.md Briefs disk", "rules.md", "**Disk is a shared allowance, and cleaning it is the orchestrator's job**"),
  ("orchestration.md Briefs checkouts persist", "rules.md", "A worker keeps its checkout and its build output between tickets"),
- ("orchestration.md Pushing pressure before a push (split)", "rules.md", "**Before any push to a non-draft PR, undraft, enqueue or merge, check the runner pressure**"),
+ ("orchestration.md Pushing pressure before a push (split)", "rules.md", "**Before any push to a non-draft PR, undraft, enqueue, merge, workflow dispatch or re-run, check the runner pressure**"),
  ("orchestration.md Pushing Fixes first line", "rules.md", "A PR body starts with `Fixes #N`"),
  ("orchestration.md Pushing never wait for CI", "rules.md", "**A worker never waits for CI checks**"),
  ("orchestration.md Pushing merge needs a review of the head", "rules.md", "**A PR merges only after an independent review comment for its head.**"),
