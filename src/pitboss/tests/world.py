@@ -105,11 +105,7 @@ REPOSITORY_BODIES: MutableMapping[str, object] = {
     LIBRARY: {},
     fakes.page(f"{PROJECT}/issues/comments"): [],
     fakes.page(f"{LIBRARY}/issues/comments"): [],
-    fakes.page(f"{PROJECT}/pulls?state=open"): [
-        {"number": 1},
-        {"number": 2},
-        {"number": 3},
-    ],
+    fakes.page(f"{PROJECT}/pulls?state=open"): [{"number": n} for n in (1, 2, 3)],
     fakes.page(f"{LIBRARY}/pulls?state=open"): [{"number": 4}],
     fakes.page(f"{PROJECT}/actions/runs?event=merge_group"): QUEUE_RUNS,
     fakes.page(f"{LIBRARY}/actions/runs?event=merge_group"): {"workflow_runs": []},
@@ -198,6 +194,7 @@ def pull_bodies(
     pages = [
         (f"issues/{number}/comments", [COMMENT] if library or number == 2 else []),
         (f"pulls/{number}/reviews", [APPROVAL] if number == 2 else []),
+        (f"pulls/{number}/files", []),
         (f"commits/{head}/check-runs", {"check_runs": checks}),
         (f"commits/{head}/status", fakes.NO_STATUS),
     ]

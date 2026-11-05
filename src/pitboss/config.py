@@ -15,8 +15,8 @@ DEFAULT_REMINDERS = (
 )
 DEFAULT_FORM = ("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 DEFAULT_RELOCK_PREFIX = "relock/"
+DEFAULT_RUN_BY_E2E = ("e2e/",)
 DEFAULT_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
-DEFAULT_FOOTERS: Sequence[str] = ()  # a PR body needs no footer unless configured
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -147,12 +147,14 @@ class Project:
         base_branch: the branch PRs merge into.
         main_clone: the clone whose worktrees are swept.
         workspace: the directory whose checkouts are swept.
+        run_by_e2e: the path prefixes the e2e suite runs on (``[sweep]``).
     """
 
     repo: Repo
     base_branch: str
     main_clone: pathlib.Path
     workspace: pathlib.Path
+    run_by_e2e: Sequence[str] = DEFAULT_RUN_BY_E2E
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -262,8 +264,8 @@ def _table(document: Mapping[str, object], key: str) -> Mapping[str, object]:
     return found
 
 
-def _setting(document: Mapping[str, object], table: str, key: str, default: int) -> str:
-    return str(_table(document, table).get(key, default))
+def _setting(document: Mapping[str, object], table: str, key: str, fall: object) -> str:
+    return str(_table(document, table).get(key, fall))
 
 
 def _review(document: Mapping[str, object], owner: str) -> Review:
@@ -287,11 +289,9 @@ def _lint(document: Mapping[str, object], owner: str) -> Lint:
     table = _table(document, "lint")
     return Lint(
         review=_review(document, owner),
-        footers=_strings(_table(table, "pr_body"), "footers", DEFAULT_FOOTERS),
+        footers=_strings(_table(table, "pr_body"), "footers", ()),  # none required
         brief_lines=_strings(_table(table, "brief"), "required", ()),
-        relock_prefix=str(
-            _table(document, "relock").get("prefix", DEFAULT_RELOCK_PREFIX)
-        ),
+        relock_prefix=_setting(document, "relock", "prefix", DEFAULT_RELOCK_PREFIX),
     )
 
 
@@ -305,13 +305,14 @@ def default_lint() -> Lint:
 
 
 def _project(document: Mapping[str, object]) -> Project:
-    table = _table(document, "project")
+    table, sweep = _table(document, "project"), _table(document, "sweep")
     main_clone = pathlib.Path(str(table["main_clone"]))
     return Project(
         repo=make_repo(str(table["owner"]), str(table["repository"])),
         base_branch=str(table.get("base_branch", "main")),
         main_clone=main_clone,
         workspace=pathlib.Path(str(table.get("workspace", main_clone.parent))),
+        run_by_e2e=_strings(sweep, "run_by_e2e", DEFAULT_RUN_BY_E2E),
     )
 
 
@@ -355,11 +356,10 @@ def _runners(
     if minutes < 0:
         raise ValueError(f"[runners] quiet_minutes must not be negative, not {minutes}")
     default = project.main_clone / ".git" / "pitboss-pressure.log"
-    named = _table(document, "runners").get("record", default)
     shared = _repos(document, "runners", "repositories", project.repo.owner)
     return Runners(
         repositories=shared or (project.repo, *libraries),
-        record=pathlib.Path(str(named)),
+        record=pathlib.Path(_setting(document, "runners", "record", default)),
         quiet_minutes=minutes,
     )
 

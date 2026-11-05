@@ -77,6 +77,16 @@ REVIEWS = frozenset(
         Kind.REVIEW_RELOCK,
     }
 )
+# keyword: run-e2e (pitboss#199): the reviews that read a head's checks, so an
+# e2e result, which a draft's CI would leave without one
+E2E_KINDS = frozenset(
+    {
+        Kind.REVIEW_FULL,
+        Kind.REVIEW_EXECUTION,
+        Kind.REVIEW_RESOLUTION,
+        Kind.REVIEW_FIX_ROUND,
+    }
+)
 SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND, Kind.REVIEW_RELOCK})
 
 TASKS: Mapping[Kind, str] = {
@@ -218,6 +228,9 @@ class Spec:
         rules: the project's rules.
         ready: whether the PR is not a draft, so its head has a check run (a
             Plan-only review of it reads the checks, pitboss#167).
+        e2e: whether the PR's diff touches what the e2e suite runs on, so that
+            a review reads the run of its head that ran e2e, the dispatched one
+            for a draft (keyword: run-e2e, pitboss#199).
     """
 
     kind: Kind
@@ -225,6 +238,7 @@ class Spec:
     heads: Heads
     rules: Rules
     ready: bool = False
+    e2e: bool = False
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -319,6 +333,10 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     return [*_filled(sentences, values), *project.worker_lines]
 
 
+def _e2e(spec: Spec) -> Sequence[str]:
+    return [brieftextci.E2E] if spec.e2e and spec.kind in E2E_KINDS else []
+
+
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
@@ -329,7 +347,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
         (text.SEPARATE_DRAFT, text.CI_DRAFT) if draft else (text.SEPARATE, text.CI)
     )
     separate = DRY_RUNNERS.get(spec.kind, separate)
-    head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, text.FORM]
+    head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, *_e2e(spec), text.FORM]
     return [
         *_filled(head, values),
         *(f"    {line}" for line in spec.rules.form),

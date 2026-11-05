@@ -135,6 +135,11 @@ branches = ["scratch-run-1", "scratch-run-2"]
 # The questions each sweep ends with. Default: whether any ticket can be
 # closed, and whether any blocked ticket is unblocked.
 # reminders = ["..."]
+# Path prefixes the e2e suite runs on. A draft whose Plan is approved, with a
+# diff that touches one and no completed check run, has the step `RUN E2E BEFORE
+# APPROVAL: dispatch check.yml on <branch>` (a draft's CI skips e2e).
+# Default: ["e2e/"].
+# run_by_e2e = ["e2e/", "src/ui/"]
 
 [holds]
 # The owner's hold on new pull requests: in these repositories no ticket is

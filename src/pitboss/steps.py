@@ -12,6 +12,7 @@ PAUSED_LABEL = "paused-owner"
 RULING_FIRST_LINE = "Opus ruling"
 PLAN_CHECK_FIRST_LINE = "Plan check"  # keyword: plan-check (pitboss#192)
 PLAN_CHECK_OK = "Plan check: ok"
+RUN_E2E_MARKER = "RUN E2E BEFORE APPROVAL"  # keyword: run-e2e (pitboss#199)
 # keyword: owner-artifact (pitboss#237, the owner's standing ruling of 2026-11-04)
 OWNER_ARTIFACT = (
     "attach a markdown artifact with the sections 'What happened',"
@@ -45,6 +46,10 @@ class Step(enum.Enum):
         PLAN_CHECK: the Plan has commands and no trusted comment records a clean
             ``pitboss plan-check`` of this Plan (keyword: plan-check,
             pitboss#192); no Plan review is offered before it.
+        RUN_E2E: a draft whose Plan is approved, whose diff touches what the
+            e2e suite runs on, has no completed check run at its head: the
+            check workflow is dispatched on its branch before any approval
+            (keyword: run-e2e, pitboss#199).
         MERGE: the PR merges.
     """
 
@@ -60,6 +65,7 @@ class Step(enum.Enum):
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
     PLAN_CHECK = enum.auto()
+    RUN_E2E = enum.auto()
     MERGE = enum.auto()
 
 
@@ -121,12 +127,15 @@ class Next:
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
             FIX_RULING step), empty when the API gave none.
+        branch: the head branch the check workflow is dispatched on (a RUN_E2E
+            step).
     """
 
     step: Step
     task: Task | None = None
     stage: Stage | None = None
     comment: str = ""
+    branch: str = ""
 
 
 # the steps at which a PR waits for an Opus ruling or the owner (pitboss#148), or
@@ -186,6 +195,7 @@ TEXTS: Mapping[Step, str] = {
         f" output as a PR comment (its first line is {PLAN_CHECK_FIRST_LINE!r});"
         " the Plan review is offered once it says `Plan check: ok` for this Plan"
     ),
+    Step.RUN_E2E: f"{RUN_E2E_MARKER}: dispatch check.yml on {{branch}}",
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
 
@@ -203,6 +213,8 @@ def describe(step: Next) -> str:
         return step.task.value
     if step.stage is not None:
         return step.stage.value
+    if step.step is Step.RUN_E2E:
+        return TEXTS[step.step].format(branch=step.branch)
     return TEXTS[step.step]
 
 
@@ -321,6 +333,18 @@ def plan_check() -> Next:
         The step.
     """
     return Next(step=Step.PLAN_CHECK)
+
+
+def run_e2e(branch: str) -> Next:
+    """The step of a draft whose changed e2e suite has run in no check run.
+
+    Args:
+        branch: the head branch to dispatch the check workflow on.
+
+    Returns:
+        The step.
+    """
+    return Next(step=Step.RUN_E2E, branch=branch)
 
 
 def merge() -> Next:
