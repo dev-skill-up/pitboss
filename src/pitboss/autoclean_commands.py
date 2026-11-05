@@ -4,7 +4,7 @@ import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, autoclean, cleanreport, machine as machines, scratch
+from . import ENTRY_DATA, autoclean, cleanjob, machine as machines, scratch
 from .commands import (
     CONFIG_ARGUMENT,
     NOW_ARGUMENT,
@@ -40,9 +40,9 @@ def clean(args: argparse.Namespace) -> None:
     """
     found = load_context(args)
     run = args.run if args.dry_run else args.safe_run
-    option = autoclean.Option(run=run, dry=args.dry_run)
+    option = cleanjob.Option(run=run, dry=args.dry_run)
     machine = machines.real_machine(args.env, found.now, running_in(args), args.usage)
-    for text in cleanreport.clean_report(sweep_look(found), machine, option).lines:
+    for text in autoclean.clean_report(sweep_look(found), machine, option).lines:
         print(text)
     source = scratch.source_of(args.safe_run, found.scratch, found.now)
     for text in (scratch.listing if args.dry_run else scratch.cleaning)(source):

@@ -21,7 +21,7 @@ from . import (
     account,
     autoclean,
     cleanconfig,
-    cleanreport,
+    cleanjob,
     concurrently,
     config,
     configfile,
@@ -283,12 +283,12 @@ def sweep_look(found: Context) -> dead.Look:
 def _clean_section(found: Context) -> account.Report:
     # A sweep that removes: safe_run really runs (keyword: auto-clean).
     listed = found.clean.worktrees is cleanconfig.Worktrees.LIST
-    option = autoclean.Option(run=found.args.safe_run, dry=False, list_only=listed)
+    option = cleanjob.Option(run=found.args.safe_run, dry=False, list_only=listed)
     look = sweep_look(found)
     machine = machines.real_machine(
         found.args.env, found.now, running_in(found.args), found.args.usage
     )
-    done = cleanreport.clean_report(look, machine, option)
+    done = autoclean.clean_report(look, machine, option)
     for text in done.lines:
         print(text)
     source = scratch.source_of(found.args.safe_run, found.scratch, found.now)
