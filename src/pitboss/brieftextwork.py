@@ -16,4 +16,11 @@ FIRST_DESIGN = (
     "First design: throwing away a first design is acceptable and is not a thing"
     " to avoid; rewrite it when the tests show it is wrong."
 )
+TASK_RUN_PLAN = (
+    "Task: PR {reference}: its Plan was approved alone (a review with a `Plan:` line"
+    " and no `Execution:` line), after an Opus ruling, so its commands were never"
+    " run. Run each precise command of the Plan as written, and fill the Execution"
+    " and Evidence of the PR body with what they printed. The Plan is approved: do"
+    " not change it (pitboss#201)."
+)
 SENTENCES = (NOX_ORDER, FIRST_DESIGN)

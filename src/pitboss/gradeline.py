@@ -5,6 +5,25 @@ import re
 PLAN_PREFIX = "Plan: "
 EXECUTION_PREFIX = "Execution: "
 FIXED = "(fixed)"
+# keyword: plan-alone (pitboss#201): the grade word may be followed by a full stop,
+# comma, colon or semicolon and the reviewer's own words (``Plan: approved. The
+# audit row now ...``); another ending grades nothing
+PROSE = r"(?:[.,:;](?: .*)?)?"
+
+
+def present(body: str, prefix: str) -> bool:
+    """Whether a line of a review starts with ``prefix``, whatever it says.
+
+    Args:
+        body: the review comment.
+        prefix: the start of the line (``Plan: `` or ``Execution: ``).
+
+    Returns:
+        True when some line starts with the prefix (without its trailing
+        space), graded or not.
+    """
+    start = prefix.rstrip()
+    return any(line.startswith(start) for line in body.splitlines())
 
 
 def line_approved(
@@ -26,6 +45,7 @@ def line_approved(
         re.escape(prefix)
         + f"(?:(?P<yes>{re.escape(approved)})(?: {re.escape(FIXED)})?"
         + f"|(?P<no>{re.escape(changes_needed)}))"
+        + PROSE
     )
     matches = (pattern.fullmatch(line.rstrip()) for line in body.splitlines())
     found = next((match for match in matches if match), None)

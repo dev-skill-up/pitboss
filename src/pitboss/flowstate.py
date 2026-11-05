@@ -259,6 +259,31 @@ def unreadable_ruling_comment(pr: PullState) -> str:
     return newest.url if newest else ""
 
 
+def plan_unrun(pr: PullState, review: shapes.Graded | None) -> steps.Next | None:
+    """The worker round of a Plan approved alone after an Opus ruling.
+
+    The ruling's worker round rewrote the Plan and left the Execution unrun,
+    and the review after it graded the Plan alone: no one ran the Plan's
+    commands (keyword: plan-alone, pitboss#201). The round ends with an edit
+    of the body, which the next review does not read (its ``Body:`` digest),
+    so the Plan review is not offered again: a draft goes on to its undraft, any
+    other PR to the review of its Execution. A draft or not alike.
+
+    Args:
+        pr: the PR.
+        review: the newest review that counts.
+
+    Returns:
+        The round, or None when the newest review of the head does not approve
+        the Plan alone, or no readable ruling came before it.
+    """
+    ruled = readable_comment(pr)
+    if review is None or ruled is None or review.when <= ruled[0].created_at:
+        return None
+    alone = review.plan is shapes.Verdict.APPROVED and review.execution is None
+    return steps.worker(steps.Task.RUN_PLAN) if alone else None
+
+
 def e2e_step(pr: PullState) -> steps.Next | None:
     """The step of a draft whose changed e2e suite has run in no check run.
 

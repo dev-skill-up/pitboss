@@ -59,6 +59,8 @@ class Category(enum.IntEnum):
         REVIEW_FIX_ROUND: a reviewer checks the findings of a review that did
             not reject the Plan, whose PR body was fixed at the same head (a
             PR; keyword: body-digest).
+        RUN_PLAN: an author runs the commands of a Plan that was approved alone
+            after a ruling and fills the Execution (a PR; keyword: plan-alone).
     """
 
     FIX_REVIEW = 1
@@ -71,6 +73,7 @@ class Category(enum.IntEnum):
     RULING_STEPS = 9
     RULING_AS_GIVEN = 10
     REVIEW_FIX_ROUND = 11
+    RUN_PLAN = 12
 
 
 CATEGORY_WORDS = {
@@ -84,6 +87,7 @@ CATEGORY_WORDS = {
     Category.RESOLVE_CONFLICT: "resolve the conflict",
     Category.RULING_STEPS: "do the ruling's steps",
     Category.RULING_AS_GIVEN: "carry out the ruling",
+    Category.RUN_PLAN: "run the Plan's commands and fill the Execution",
 }
 
 
@@ -143,6 +147,7 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.RESOLVE_CONFLICT: Category.RESOLVE_CONFLICT,
     steps.Task.RULING_STEPS: Category.RULING_STEPS,
     steps.Task.RULING_AS_GIVEN: Category.RULING_AS_GIVEN,
+    steps.Task.RUN_PLAN: Category.RUN_PLAN,
 }
 
 
