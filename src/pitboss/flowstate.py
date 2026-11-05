@@ -42,8 +42,9 @@ class PullState:
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         needs_e2e: says whether the diff touches a path the e2e jobs run on and
-            no dispatched run of ``check.yml`` at the head has completed (the caller reads the
-            files, the configuration and the runs; a draft's own run skipped
+            no dispatched run of ``check.yml`` at the head has completed (the
+            caller reads the files, the configuration and the runs; a draft's
+            own run skipped
             the e2e jobs, so it is not one; asked only for a draft whose Plan
             is approved; keyword: run-e2e).
     """
