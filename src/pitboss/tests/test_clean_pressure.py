@@ -1,13 +1,42 @@
 """End-to-end tests of the root files and of the disk pressure line."""
 
-import dataclasses
-import datetime
+import pathlib
 import unittest
+from typing import Sequence
 
-from .. import cleanconfig, diskline, machine
+from .. import account, dead, diskline, machine
 from . import cleanworld, test_tracefs, world
 
 LATER = ("--now", world.FUTURE)
+BIG = pathlib.Path("/w/big")
+
+
+SHORT = machine.Crowded(place=BIG.parent, percent=99, free=2**30, short=True)
+
+
+def report_of(
+    dry: bool, kept: Sequence[dead.Kept], left: Sequence[machine.Crowded]
+) -> account.Report:
+    """What a clean that freed 1 GiB of a workspace short of free space said.
+
+    Args:
+        dry: whether nothing was removed.
+        kept: the directories left.
+        left: the file systems still short of free space.
+
+    Returns:
+        The report.
+    """
+    told = account.Account(
+        dry=dry,
+        hot=[],
+        percent=90,
+        freed=[2**30, 0, 0, 0],
+        kept=kept,
+        tied=[],
+        measure=lambda path: 0,
+    )
+    return account.Report(lines=[], told=told, short=[SHORT], left=left)
 
 
 class TestRootFiles(unittest.TestCase):
@@ -28,36 +57,46 @@ class TestRootFiles(unittest.TestCase):
 class TestPressure(unittest.TestCase):
     """The warning of a sweep."""
 
-    def test_pressure_names_the_largest_dead_paths(self) -> None:
-        """Under the minimum a sweep names the dead paths that could be freed."""
+    def test_pressure_names_the_pass_it_started_and_what_it_freed(self) -> None:
+        """Under the minimum a sweep cleans hard and the line says so."""
         here = world.make_world()
         cleanworld.crowd(here, "1e9")
         late = world.again(here, "sweep", *LATER).out
-        pieces = [f"DISK PRESSURE {here.workspace}:", "merged-work (its PR merged)"]
+        pieces = [
+            f"DISK PRESSURE {here.workspace}:",
+            "the aggressive clean started",
+            "freed ",
+            "(worktrees ",
+            "clean: DISK UNDER 1e+09 GiB FREE",
+            "still ",
+            "no kept directory is over 500 MB",
+        ]
         busy = world.again(here, "sweep").out
         cleanworld.same(
             (cleanworld.absent(late, pieces), "merged-work" in busy), ([], False)
         )
 
-    def test_the_pressure_line_scans_what_the_dry_run_lists(self) -> None:
-        """The root files are in the one scan: the line names them too."""
-        root = cleanworld.session_root("written")
-        settings = cleanconfig.Clean(scratch=[], live=[], min_free_gib=1e9)
-        look = dataclasses.replace(
-            cleanworld.look_in(root), clean=settings, watch=cleanworld.watching(root)
-        )
-        now = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
-        text = "\n".join(
-            diskline.lines(
-                look, now + datetime.timedelta(days=99999), machine.read_usage
-            )
-        )
+    def test_a_directory_over_500_mb_that_was_kept_is_named_with_why(self) -> None:
+        """Still short of free space afterwards: each big kept directory, with why."""
+        big = dead.Kept(path=BIG, why="its branch has an open PR", size=2**30)
+        text = "\n".join(diskline.lines(report_of(False, [big], [SHORT]), 5.0))
         cleanworld.same(
             cleanworld.absent(
-                text, ["DISK PRESSURE", f"{root / 'written'} (written over 1 hours"]
+                text,
+                [
+                    "DISK PRESSURE /w: 1.0 GiB free, under 5 GiB: the aggressive clean",
+                    "freed 1.0 GiB (worktrees 1.0 GiB, checkouts 0.0 MiB,",
+                    "DISK PRESSURE /w: still 1.0 GiB free, under 5 GiB",
+                    f"  1.0 GiB {BIG} (its branch has an open PR)",
+                ],
             ),
             [],
         )
+
+    def test_enough_freed_says_no_more(self) -> None:
+        """A file system that is no longer short has only the pass line."""
+        text = diskline.lines(report_of(True, [], []), 5.0)
+        cleanworld.same((len(text), "would be freed 1.0 GiB" in text[0]), (1, True))
 
     def test_no_pressure_no_line(self) -> None:
         """With room there is no line and nothing is scanned."""

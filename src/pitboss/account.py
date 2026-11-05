@@ -16,6 +16,7 @@ from . import dead, disk, local, machine
 KINDS = ("worktrees", "checkouts", "test tempdirs", "package caches")
 VERBS = {False: "freed", True: "would be freed"}
 BIG_BYTES = 500 * 1000**2
+BIG_FORM = "clean: kept {size} {path} ({why}): over 500 MB"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -26,6 +27,7 @@ class Account:
         dry: whether nothing was removed.
         hot: the crowded file systems.
         percent: the disk use from which the clean is aggressive.
+        minimum: the free space, in GiB, under which it is aggressive too.
         freed: the bytes each kind of cleaning freed, in the order of ``KINDS``.
         kept: the directories the cleaning left, each with why.
         tied: the worktrees with an open PR, which are never removed.
@@ -35,10 +37,29 @@ class Account:
     dry: bool
     hot: Sequence[machine.Crowded]
     percent: float
+    minimum: float = 0.0
     freed: Sequence[int]
     kept: Sequence[dead.Kept]
     tied: Sequence[local.Worktree]
     measure: Callable[[pathlib.Path], int]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Report:
+    """What a sweep's clean said and did.
+
+    Attributes:
+        lines: what to print.
+        told: what the clean did, to be told.
+        short: the file systems that had less than the minimum free space
+            before the clean (the ``DISK PRESSURE`` rule), as they were.
+        left: those of them that still have less after it, as they are.
+    """
+
+    lines: Sequence[str]
+    told: Account
+    short: Sequence[machine.Crowded]
+    left: Sequence[machine.Crowded]
 
 
 def totals(
@@ -149,6 +170,20 @@ def needed(told: Account) -> int:
     return sum(one.over for one in told.hot)
 
 
+def kinds_text(told: Account) -> str:
+    """The bytes each kind of cleaning freed.
+
+    Args:
+        told: what the clean did.
+
+    Returns:
+        ``worktrees 3.0 GiB, checkouts ...``, one entry for each kind.
+    """
+    return ", ".join(
+        f"{kind} {disk.size_text(size)}" for kind, size in zip(KINDS, told.freed)
+    )
+
+
 def by_kind(told: Account) -> str:
     """The line with the bytes each kind of cleaning freed.
 
@@ -158,10 +193,7 @@ def by_kind(told: Account) -> str:
     Returns:
         The line.
     """
-    each = ", ".join(
-        f"{kind} {disk.size_text(size)}" for kind, size in zip(KINDS, told.freed)
-    )
-    return f"clean: {VERBS[told.dry]} by kind: {each}"
+    return f"clean: {VERBS[told.dry]} by kind: {kinds_text(told)}"
 
 
 def short_line(told: Account) -> str:
@@ -177,19 +209,38 @@ def short_line(told: Account) -> str:
     return (
         f"clean: {disk.size_text(freed)} {VERBS[told.dry]},"
         f" {disk.size_text(need - freed)} short of the {disk.size_text(need)}"
-        f" needed to get under {told.percent:g}%:"
+        f" needed {goal_text(told)}:"
         " each directory over 500 MB that was kept"
     )
 
 
-def big_lines(told: Account) -> Sequence[str]:
+def goal_text(told: Account) -> str:
+    """The rule or rules that set the need, as the line spells them.
+
+    Args:
+        told: what the clean did.
+
+    Returns:
+        ``to get under 90%`` when the percent used set the need of a file
+        system, ``to have 5 GiB free`` when the free space did; both, joined by
+        ``and``, when each did for one.
+    """
+    rules = {
+        True: f"to have {told.minimum:g} GiB free",
+        False: f"to get under {told.percent:g}%",
+    }
+    named = {one.free_rule for one in told.hot}
+    return " and ".join(rules[each] for each in (False, True) if each in named)
+
+
+def big_kept(told: Account) -> Sequence[tuple[pathlib.Path, int, str]]:
     """The directories over 500 MB that the cleaning kept, each with why.
 
     Args:
         told: what the clean did.
 
     Returns:
-        A line for each, the largest first.
+        The path, the bytes and the reason of each, the largest first.
     """
     open_pr = [dead.Kept(path=each.path, why="open PR") for each in told.tied]
     once = {each.path: each for each in [*told.kept, *open_pr]}
@@ -201,8 +252,20 @@ def big_lines(told: Account) -> Sequence[str]:
         (path for path, size in sizes.items() if size > BIG_BYTES),
         key=lambda path: (-sizes[path], str(path)),
     )
+    return [(path, sizes[path], once[path].why) for path in big]
+
+
+def big_lines(told: Account, form: str = BIG_FORM) -> Sequence[str]:
+    """The directories over 500 MB that the cleaning kept, each with why.
+
+    Args:
+        told: what the clean did.
+        form: the line, with ``{size}``, ``{path}`` and ``{why}`` in it.
+
+    Returns:
+        A line for each, the largest first.
+    """
     return [
-        f"clean: kept {disk.size_text(sizes[path])} {path} ({once[path].why}):"
-        " over 500 MB"
-        for path in big
+        form.format(size=disk.size_text(size), path=path, why=why)
+        for path, size, why in big_kept(told)
     ]

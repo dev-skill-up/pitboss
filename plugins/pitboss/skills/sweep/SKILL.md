@@ -70,7 +70,7 @@ It reads, with two exceptions: it ends by syncing the working files to the
 `[sync]` repository's main when the configuration has the table (below), and it
 cleans first, by itself, with no prompt and no
 dry run (the finished worktrees that pass the safety test, the dead checkouts
-and the test tempdirs of `/tmp`; at 90% disk use also every worktree and
+and the test tempdirs of `/tmp`; at 90% disk use or under 5 GiB free also every worktree and
 checkout with no open PR and the package caches), and prints what it removed and
 the space freed. It never touches a worktree with an open PR or a running
 worker's directory. The same cleaning closes the open PRs of the `[scratch]`

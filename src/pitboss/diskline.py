@@ -1,67 +1,76 @@
-"""The ``DISK PRESSURE`` lines of a sweep: little free space, what could be freed."""
+"""The ``DISK PRESSURE`` lines of a sweep: little free space, what the clean did.
 
-import datetime
+Under the minimum free space the sweep's clean is the aggressive pass, as over
+the percent used (pitboss#205): the line says so, how many bytes it freed and,
+when the free space is still under the minimum, each directory over 500 MB that
+was kept, with why.
+"""
+
 from typing import Sequence
 
-from . import dead, deadscan, disk
+from . import account, disk
+from .machine import Crowded
 from .markers import Marker
 
-NAMED = 5
 
-
-def warning(each: disk.Low, minimum: float) -> str:
-    """The line for one filesystem.
+def started(each: Crowded, minimum: float, told: account.Account) -> str:
+    """The line for one file system that was short of free space.
 
     Args:
-        each: the filesystem.
+        each: the file system, as it was before the clean.
         minimum: the minimum free space, in GiB.
+        told: what the clean did.
 
     Returns:
-        The line.
+        The line: the free space, the pass started and the bytes it freed.
     """
+    freed = disk.size_text(sum(told.freed))
     return (
-        f"{Marker.DISK_PRESSURE.text} {each.path}: {disk.size_text(each.free)} free,"
-        f" under {minimum:g} GiB: clean-container removes the dead paths"
+        f"{Marker.DISK_PRESSURE.text} {each.place}: {disk.size_text(each.free)}"
+        f" free, under {minimum:g} GiB: the aggressive clean started (worktrees"
+        f" and clones of every repository in the workspace, checkouts, test"
+        f" tempdirs, package caches): {account.VERBS[told.dry]} {freed}"
+        f" ({account.kinds_text(told)})"
     )
 
 
-def largest(found: Sequence[dead.Candidate]) -> Sequence[str]:
-    """Name the largest safe dead paths.
+def remaining(each: Crowded, minimum: float, told: account.Account) -> Sequence[str]:
+    """The lines for a file system that is still short of free space.
 
     Args:
-        found: the dead paths, largest first.
+        each: the file system, as it is after the clean.
+        minimum: the minimum free space, in GiB.
+        told: what the clean did.
 
     Returns:
-        An indented line for each of the first few safe ones, or one saying
-        that there is none.
+        A line saying so, then each directory over 500 MB that was kept, with
+        why (or that there is none).
     """
-    named = [
-        f"  {disk.size_text(each.size)} {each.path} ({each.reason})"
-        for each in dead.safe(found)[:NAMED]
-    ]
-    return named or ["  no dead path found"]
+    head = (
+        f"{Marker.DISK_PRESSURE.text} {each.place}: still {disk.size_text(each.free)}"
+        f" free, under {minimum:g} GiB: each directory over 500 MB that was kept"
+    )
+    big = account.big_lines(told, "  {size} {path} ({why})")
+    return [head, *(big or ["  no kept directory is over 500 MB"])]
 
 
-def lines(look: dead.Look, now: datetime.datetime, usage: disk.Reader) -> Sequence[str]:
-    """Warn when a filesystem the cleaning covers is nearly full.
+def lines(report: account.Report, minimum: float) -> Sequence[str]:
+    """Warn when a filesystem the cleaning covers was short of free space.
 
-    Nothing is scanned while there is room.
+    Nothing is said while there is room.
 
     Args:
-        look: what to look at and keep.
-        now: the time now.
-        usage: reads the use of a path's file system (``args.usage``).
+        report: what the clean said and did.
+        minimum: the minimum free space, in GiB.
 
     Returns:
-        A line for each low filesystem, then the largest safe dead paths.
+        For each file system that was short, the pass started and the bytes
+        it freed; for each still short, the directories over 500 MB kept.
     """
-    minimum = look.clean.min_free_gib
-    paths = [look.settings.project.workspace, *look.clean.scratch]
-    crowded = disk.low_space_read(paths, minimum, usage)
-    if not crowded:
-        return []
-    found = deadscan.scan(look, now.timestamp())
-    return [
-        *(warning(each, minimum) for each in crowded),
-        *largest(found.candidates),
-    ]
+    still = {each.place: each for each in report.left}
+    said = []
+    for each in report.short:
+        said.append(started(each, minimum, report.told))
+        if each.place in still:
+            said.extend(remaining(still[each.place], minimum, report.told))
+    return said

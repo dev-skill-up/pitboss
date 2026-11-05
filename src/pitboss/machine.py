@@ -150,12 +150,22 @@ class Crowded:
     Attributes:
         place: a configured path on it.
         percent: how much of it is used.
-        over: the bytes to free to get under the limit.
+        over: the bytes to free to get under the limit and over the minimum
+            free space.
+        free: the bytes free.
+        short: whether the free bytes are under the minimum (the second rule of
+            pressure, pitboss#205), whatever the percent used.
+        free_rule: whether the free bytes, not the percent used, set ``over``
+            (the file system needs more freed to have the minimum free than to
+            get under the limit).
     """
 
     place: pathlib.Path
     percent: float
     over: int = 0
+    free: int = 0
+    short: bool = False
+    free_rule: bool = False
 
 
 def percent_used(usage: disk.Usage) -> float:
@@ -172,41 +182,59 @@ def percent_used(usage: disk.Usage) -> float:
 
 
 def find_crowded(
-    machine: Machine, places: Sequence[pathlib.Path], limit: float
+    machine: Machine,
+    places: Sequence[pathlib.Path],
+    limit: float,
+    minimum_gib: float = 0.0,
 ) -> Sequence[Crowded]:
-    """The file systems used up to the limit, each once.
+    """The file systems used up to the limit or with too little free, each once.
 
     Args:
         machine: the machine.
         places: the configured paths; one that is not there is left out.
         limit: the percent from which a file system is crowded.
+        minimum_gib: the free space, in GiB, under which a file system is
+            crowded too; 0 never is (pitboss#205).
 
     Returns:
         One entry for each, named by its first path.
     """
     seen: set[disk.Usage] = set()
     found = []
+    least = math.ceil(minimum_gib * disk.BYTES_IN_GIBIBYTE)
     for each in places:
         usage = machine.usage(each)
         if usage is None or usage in seen:
             continue
         seen.add(usage)
-        if percent_used(usage) >= limit:
-            found.append(crowd(each, usage, limit))
+        if percent_used(usage) >= limit or usage.free < least:
+            found.append(crowd(each, usage, limit, least))
     return found
 
 
-def crowd(place: pathlib.Path, usage: disk.Usage, limit: float) -> Crowded:
-    """A file system used up to the limit, with the bytes to free to get under it.
+def crowd(
+    place: pathlib.Path, usage: disk.Usage, limit: float, least: int = 0
+) -> Crowded:
+    """A file system crowded, with the bytes to free to get out of it.
 
     Args:
         place: a configured path on it.
         usage: its use.
         limit: the percent it must get under.
+        least: the free bytes it must have.
 
     Returns:
         The entry; it is at least 1 byte over.
     """
     shown = usage.used + usage.free
-    over = max(1, math.ceil(usage.used - shown * limit / 100) + 1)
-    return Crowded(place=place, percent=percent_used(usage), over=over)
+    short = usage.free < least
+    by_percent = math.ceil(usage.used - shown * limit / 100) + 1
+    by_free = least - usage.free + 1 if short else 0
+    return Crowded(
+        place=place,
+        percent=percent_used(usage),
+        over=max(1, by_percent, by_free),
+        free=usage.free,
+        short=short,
+        free_rule=by_free > by_percent,
+    )

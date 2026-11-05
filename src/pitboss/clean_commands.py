@@ -9,8 +9,8 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
-    autoclean,
     cleaning,
+    cleanjob,
     container,
     dead,
     deadscan,
@@ -62,7 +62,7 @@ def roots_of(look: dead.Look) -> AbstractSet[pathlib.Path]:
     Returns:
         The workspace, the scratch directories and the root of the files.
     """
-    return autoclean.roots(look)
+    return cleanjob.roots(look)
 
 
 def remove_listed(

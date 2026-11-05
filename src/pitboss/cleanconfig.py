@@ -37,7 +37,9 @@ class Clean:
             persistent checkout); a directory holding a file named
             ``.pitboss-live`` is live too (except in a merged checkout, where
             a marker older than 6 hours is not honored).
-        min_free_gib: free space, in GiB, under which a sweep warns; 0 never warns.
+        min_free_gib: free space, in GiB, under which a sweep warns and cleans
+            aggressively, as it does over ``pressure_percent`` (pitboss#205); 0
+            never does.
         worktrees: ``auto`` (a sweep removes the finished worktrees that pass the
             safety test and says which it kept) or ``list`` (it only lists them).
         tmp_roots: directories whose test tempdirs a sweep removes by age.
