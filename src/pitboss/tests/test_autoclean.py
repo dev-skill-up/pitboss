@@ -3,24 +3,24 @@
 import pathlib
 import unittest
 
-from .. import autoclean, dead, machine
+from .. import account, autoclean, dead, machine
 from . import cleanworld
 from .autocleanworld import TMP, has, plain, used
 
 same = cleanworld.same
 
 
-def total_of(verb: str) -> str:
+def total_of(dry: bool) -> str:
     """The totals of one path of 3 MiB, with the disk filling up.
 
     Args:
-        verb: what happens to the space.
+        dry: whether nothing was removed.
 
     Returns:
         The line.
     """
     gone = [dead.Candidate(path=TMP / "x", size=3 * 2**20, reason="old")]
-    return autoclean.totals(gone, verb, used(40), used(95))
+    return account.totals(gone, dry, used(40), used(95))
 
 
 class TestHeader(unittest.TestCase):
@@ -45,12 +45,12 @@ class TestTotals(unittest.TestCase):
 
     def test_the_last_line_has_the_space_freed(self) -> None:
         """The totals say how many, how much, and the free space around it."""
-        text = total_of("freed")
+        text = total_of(False)
         has(text, "1 paths removed, 3.0 MiB freed")
         has(text, "60.0 GiB before, 5.0 GiB after")
 
     def test_the_totals_of_a_dry_run_with_no_disk_reading(self) -> None:
         """A dry run says would be freed; an unreadable disk is unknown."""
-        text = autoclean.totals([], "would be freed", None, None)
+        text = account.totals([], True, None, None)
         has(text, "would be freed")
         has(text, "unknown before, unknown after")

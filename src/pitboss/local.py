@@ -216,6 +216,9 @@ class Reason(enum.Enum):
     QUIET_REPOSITORY = "disk pressure: its repository has no open PR"
 
 
+MERGED_WORK = (Reason.MERGED, Reason.IN_BASE)
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Sweeper:
     """What deciding about worktrees needs.

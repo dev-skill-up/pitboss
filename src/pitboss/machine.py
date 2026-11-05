@@ -7,6 +7,7 @@ pitboss#120; the rule is in ``rules.md``, "Checkouts and disk").
 
 import dataclasses
 import datetime
+import math
 import os
 import pathlib
 import shutil
@@ -149,10 +150,12 @@ class Crowded:
     Attributes:
         place: a configured path on it.
         percent: how much of it is used.
+        over: the bytes to free to get under the limit.
     """
 
     place: pathlib.Path
     percent: float
+    over: int = 0
 
 
 def percent_used(usage: disk.Usage) -> float:
@@ -189,5 +192,21 @@ def find_crowded(
             continue
         seen.add(usage)
         if percent_used(usage) >= limit:
-            found.append(Crowded(place=each, percent=percent_used(usage)))
+            found.append(crowd(each, usage, limit))
     return found
+
+
+def crowd(place: pathlib.Path, usage: disk.Usage, limit: float) -> Crowded:
+    """A file system used up to the limit, with the bytes to free to get under it.
+
+    Args:
+        place: a configured path on it.
+        usage: its use.
+        limit: the percent it must get under.
+
+    Returns:
+        The entry; it is at least 1 byte over.
+    """
+    shown = usage.used + usage.free
+    over = max(1, math.ceil(usage.used - shown * limit / 100) + 1)
+    return Crowded(place=place, percent=percent_used(usage), over=over)

@@ -14,7 +14,16 @@ import os
 import pathlib
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import cleanconfig, config, container, ghapi, mounts, repocheck, survey
+from . import (
+    cleanconfig,
+    config,
+    container,
+    ghapi,
+    mounts,
+    repocheck,
+    survey,
+    workhours,
+)
 from .running import Run
 
 MARKED = "holds a file named .pitboss-live"
@@ -40,6 +49,21 @@ class Candidate:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Kept:
+    """A directory that a clean leaves alone, and why.
+
+    Attributes:
+        path: the directory.
+        why: why it is not removed.
+        size: the bytes it holds on disk, or None when not measured.
+    """
+
+    path: pathlib.Path
+    why: str
+    size: int | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Look:
     """What looking at the machine needs.
 
@@ -55,6 +79,10 @@ class Look:
         unmarked: the paths whose own ``.pitboss-live`` marker is not honored:
             under disk pressure, the merged worktrees but the one whose PR
             merged last (keyword: auto-clean).
+        marker_expiry: a ``.pitboss-live`` marker written before this time
+            (seconds since the epoch) belongs to no running worker, whose task
+            is bounded (``workhours``), so it is not honored; 0 honors every
+            marker (keyword: auto-clean).
     """
 
     run: Run
@@ -65,6 +93,7 @@ class Look:
     mount_points: Callable[[], AbstractSet[pathlib.Path]] = mounts.current
     working: AbstractSet[pathlib.Path] = frozenset()
     unmarked: AbstractSet[pathlib.Path] = frozenset()
+    marker_expiry: float = 0.0
 
 
 def marked_above(path: pathlib.Path) -> bool:
@@ -111,7 +140,9 @@ def live_reason(path: pathlib.Path, look: Look, found: survey.Survey) -> str:
     Returns:
         The reason, or empty when it is not live.
     """
-    if found.marked and path.resolve() not in look.unmarked:
+    expired = workhours.expired(look.marker_expiry, found)
+    honored = path.resolve() not in look.unmarked and not expired
+    if found.marked and honored:
         return MARKED
     if marked_above(path):
         return "lies under a directory that holds a .pitboss-live file"

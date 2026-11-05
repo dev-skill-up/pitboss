@@ -35,7 +35,8 @@ class Clean:
             was touched in the idle hours and nothing marks them live.
         live: paths never removed (shared caches, toolchain homes, the
             persistent checkout); a directory holding a file named
-            ``.pitboss-live`` is live too.
+            ``.pitboss-live`` is live too (except in a merged checkout, where
+            a marker older than 6 hours is not honored).
         min_free_gib: free space, in GiB, under which a sweep warns; 0 never warns.
         worktrees: ``auto`` (a sweep removes the finished worktrees that pass the
             safety test and says which it kept) or ``list`` (it only lists them).
