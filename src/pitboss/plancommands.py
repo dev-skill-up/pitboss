@@ -13,7 +13,7 @@ it.
 import re
 from typing import Sequence
 
-from . import evidence, expansion, plandigest
+from . import evidence, expansion, noxrow, plandigest
 
 # the Plan section as plandigest.section reads it
 PLAN_HEADING = re.compile(r"^## Plan\s*$")
@@ -105,4 +105,6 @@ def findings(name: str, body: str) -> Sequence[str]:
         f"{name}: " + MESSAGE.format(line=line, command=command, check=CHECK)
         for line, command in planned(body)
         if not any(same(command, each) for each in done)
-    ]
+    ] + list(
+        noxrow.findings(name, planned(body))
+    )  # keyword: plan-nox

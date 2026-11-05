@@ -1,7 +1,8 @@
 """The dry run of a Plan's commands (keyword: plan-check, pitboss#192).
 
 ``pitboss plan-check`` runs each command of a Plan in a scratch worktree of the
-PR's base before the Plan is approved, so a command that cannot run as written
+PR's base (a row that runs nox is refused and not run, pitboss#251) before the
+Plan is approved, so a command that cannot run as written
 is a finding of the Plan and not of the Execution hours later. A command that
 cannot start, that times out (a wait on a lock or a queue is one) or that was
 cut off is not run; any other exit status is shown and is no finding, because
@@ -12,7 +13,7 @@ imports no process: the runner is given.
 import dataclasses
 from typing import Callable, Sequence
 
-from . import bodydigest, expansion, steps
+from . import bodydigest, expansion, noxrow, steps
 
 TIMEOUT = 598
 COULD_NOT_START = frozenset({126, 127})
@@ -86,6 +87,8 @@ def line(number: int, command: str, run: Run) -> str:
 def report(section: str, runner: Runner) -> tuple[Sequence[str], Sequence[int]]:
     """Run each command of a Plan and say what each did.
 
+    A row that runs nox is refused and not run (pitboss#251).
+
     Args:
         section: the Plan section of the body.
         runner: runs one command line.
@@ -96,7 +99,11 @@ def report(section: str, runner: Runner) -> tuple[Sequence[str], Sequence[int]]:
         checked first).
     """
     commands = expansion.commands(section)
-    runs = [runner(each) for each in commands]
+    # keyword: plan-nox (pitboss#251): a nox row is refused and not run
+    runs = [
+        cut_off(noxrow.SENTENCE, 0.0) if noxrow.runs_nox(each) else runner(each)
+        for each in commands
+    ]
     rows = [line(n, each, run) for n, (each, run) in enumerate(zip(commands, runs), 1)]
     refused = [n for n, run in enumerate(runs, 1) if run.problem]
     return rows, refused

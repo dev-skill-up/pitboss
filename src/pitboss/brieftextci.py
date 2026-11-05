@@ -4,6 +4,9 @@ Like those of ``brieftext``, they are pinned by tests, so a change to them is a
 reviewed code change.
 """
 
+from . import noxrow
+
+PLAN_NO_NOX_ROW = noxrow.SENTENCE  # keyword: plan-nox (pitboss#251)
 PLAN_NO_NOX = (
     "CI evidence: the Plan never names `pitboss nox` or any nox run as its"
     " evidence (pitboss#179: a Plan asks for no evidence that CI shows); the whole"

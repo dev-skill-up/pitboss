@@ -2,8 +2,9 @@
 
 Each check returns findings, one line each, ending with the check's name in
 parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
-``footer`` for a PR body, and ``plan-command`` for a Plan command not run as
-written; ``first-line``, ``verdict``, ``reviewed``,
+``footer`` for a PR body, ``plan-command`` for a Plan command not run as
+written and ``plan-nox`` for one that runs nox; ``first-line``, ``verdict``,
+``reviewed``,
 ``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
 ``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
 ``$ `` row that ``pitboss expand`` did not produce, ``appended`` for an
