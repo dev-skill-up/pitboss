@@ -316,6 +316,7 @@ def _plan_lines(kind: Kind) -> list[str]:
     runs = kind in PLAN_RUNNERS
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
+        *([brieftextci.PLAN_NO_NOX_ROW] if writes else []),
         *([brieftextci.PLAN_CI_POINTER, brieftextimpact.IMPACT_PLAN] if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),

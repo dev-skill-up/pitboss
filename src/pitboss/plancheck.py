@@ -12,7 +12,7 @@ imports no process: the runner is given.
 import dataclasses
 from typing import Callable, Sequence
 
-from . import bodydigest, expansion, steps
+from . import bodydigest, expansion, noxrow, steps
 
 TIMEOUT = 598
 COULD_NOT_START = frozenset({126, 127})
@@ -96,7 +96,11 @@ def report(section: str, runner: Runner) -> tuple[Sequence[str], Sequence[int]]:
         checked first).
     """
     commands = expansion.commands(section)
-    runs = [runner(each) for each in commands]
+    # keyword: plan-nox (pitboss#251): a nox row is refused and not run
+    runs = [
+        cut_off(noxrow.SENTENCE, 0.0) if noxrow.runs_nox(each) else runner(each)
+        for each in commands
+    ]
     rows = [line(n, each, run) for n, (each, run) in enumerate(zip(commands, runs), 1)]
     refused = [n for n, run in enumerate(runs, 1) if run.problem]
     return rows, refused
