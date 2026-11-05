@@ -4,10 +4,16 @@ Like those of ``brieftext``, they are pinned by tests, so a change to them is a
 reviewed code change.
 """
 
+NOX = (
+    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
+    " every edit and before every push, for iterating too (the tests of one Python"
+    " version first, then the skills, lint and mypy; it stops at the first failure"
+    " and always uses `-r`); a targeted test module, `nox -s ...` or `virtue` is"
+    " never run by hand, and never the full `nox -r`: CI's `Run Nox` step runs the"
+    " whole suite."
+)
 NOX_ORDER = (
-    "Nox order: where the checks are nox sessions, run `nox -r -s tests-3.13`"
-    " (one session) first and fix until it passes; only then run the other"
-    " sessions (`lint`, `mypy`, `skills`), with `-r`. Never invoke `virtue` or"
+    "Nox order: where the checks are nox sessions, never invoke `virtue` or"
     " `python -m virtue` by hand: the nox session is the way to run tests. Start"
     " nothing in the background that needs polling: use one foreground command"
     " under `timeout 598`, or one `Monitor` with an `until` loop."
@@ -23,4 +29,4 @@ TASK_RUN_PLAN = (
     " and Evidence of the PR body with what they printed. The Plan is approved: do"
     " not change it (pitboss#201)."
 )
-SENTENCES = (NOX_ORDER, FIRST_DESIGN)
+SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN)

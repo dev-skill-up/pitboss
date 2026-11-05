@@ -2,26 +2,30 @@
 
 import unittest
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief
 from .briefmake import has_none, pinned, text
+from .test_evidence_rules import read, words
 from .test_plan_commands import PLAN_REVIEWS
 
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
-    " each edit (the tests of one Python version first, then the skills, lint and"
-    " mypy, each with `-r`, stopping at the first failure; module names after `--`"
-    " run only those tests), and never the full `nox -r`: CI's `Run Nox` step runs"
-    " the whole suite."
+    " every edit and before every push, for iterating too (the tests of one Python"
+    " version first, then the skills, lint and mypy; it stops at the first failure"
+    " and always uses `-r`); a targeted test module, `nox -s ...` or `virtue` is"
+    " never run by hand, and never the full `nox -r`: CI's `Run Nox` step runs the"
+    " whole suite."
 )
 NOX_ORDER = (
-    "Nox order: where the checks are nox sessions, run `nox -r -s tests-3.13`"
-    " (one session) first and fix until it passes; only then run the other"
-    " sessions (`lint`, `mypy`, `skills`), with `-r`. Never invoke `virtue` or"
+    "Nox order: where the checks are nox sessions, never invoke `virtue` or"
     " `python -m virtue` by hand: the nox session is the way to run tests. Start"
     " nothing in the background that needs polling: use one foreground command"
     " under `timeout 598`, or one `Monitor` with an `until` loop."
+)
+HAND_BACK_NOX = (
+    " and, where the checks are nox sessions, the `pitboss nox` result of the"
+    " pushed head (the four sessions and their status); nothing else."
 )
 FIRST_DESIGN = (
     "First design: throwing away a first design is acceptable and is not a thing"
@@ -56,6 +60,24 @@ class TestNoxInTheBriefs(unittest.TestCase):
         """The sentence is pinned in each worker brief."""
         for kind in WORKERS:
             pinned(kind, [NOX])
+
+    def test_the_sentence_is_once_in_the_sweep_skill_references(self) -> None:
+        """The same sentence is once in rules.md (pitboss#250)."""
+        assert_that(words(read("rules.md")).count(NOX), equal_to(1))
+
+    def test_every_worker_brief_asks_for_the_nox_result_of_the_head(self) -> None:
+        """The hand-back names the four sessions and their status (pitboss#250)."""
+        for kind in WORKERS:
+            pinned(kind, [HAND_BACK_NOX])
+
+    def test_the_reference_has_the_hand_back_check_for_the_nox_result(self) -> None:
+        """The check of a hand-back names a missing `pitboss nox` result."""
+        rule = (
+            "a hand-back without the `pitboss nox` result of the pushed head"
+            " (the four sessions and their status) is sent back, naming it as"
+            " missing"
+        )
+        assert_that(words(read("rules.md")), contains_string(rule))
 
     def test_every_worker_brief_orders_the_sessions_and_forbids_polling(self) -> None:
         """One session first, no virtue by hand, nothing to poll (pitboss#175)."""
