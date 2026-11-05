@@ -245,12 +245,21 @@ Commands
        head's checkout: every ``test_...`` identifier in the Plan and
        Execution sections needs a ``def`` of it, or a module of that name, in
        the tree of ``DIR``; one finding for each identifier it lacks, naming
-       it; pitboss#189) and ``footer`` (only when ``[lint.pr_body] footers``
+       it; pitboss#189), ``plan-command`` (each ``$ `` command of the Plan
+       section needs a block ``pitboss expand`` produced in the Evidence
+       section whose command is the same string, or the same string with a
+       cut or a pipe after it, not ``||``; one finding for each command that
+       has none, ``plan command not run as written: line N COMMAND: run it as
+       written; the only reasons to run another are that it is impossible or
+       dangerous, and then stop, show the output that proves it, and change
+       the Plan and have it reviewed first (plan-command)``; pitboss#196) and
+       ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). With ``--branch`` starting with the
        ``[relock] prefix`` (default ``relock/``; pitboss#126) the PR is a relock
        PR, which fixes no ticket and has no Plan, Execution or hand-run
-       evidence: only ``head``, ``hand-typed`` and ``footer`` are checked.
+       evidence: only ``head``, ``hand-typed`` and ``footer`` are checked, and
+       ``plan-command`` is not (``relock_pr_body`` does not call it).
        ``review``: the lines of ``[review.form]``
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
        against ``--head`` (``head``); with ``--gated`` the lines of
