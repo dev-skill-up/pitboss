@@ -44,6 +44,7 @@ from . import (
     sweepline,
     syncguard,
     syncing,
+    tasklist,
     timing,
     workerlines,
     workhours,
@@ -331,6 +332,22 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     sweepline.slots(book, read, offer)
     sweepline.idle(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(book, found.now, found.args)
+    merges, unreadable = tasklist.read_merges(
+        found.github, found.settings, book.refreshed
+    )
+    for line in tasklist.lines(book, merges, unreadable, found.args.config):
+        print(line)
+
+
+def _refused_task_list(found: Context) -> bool:
+    # The orchestrator's own list, when the sweep is given it (keyword: task-list).
+    if not found.args.task_list:
+        return False
+    path = pathlib.Path(found.args.task_list)
+    refused = tasklist.check_file(path, found.settings.project.repo)
+    for line in refused:
+        print(line)
+    return bool(refused)
 
 
 def _say_not_orchestrator(args: argparse.Namespace) -> None:
@@ -341,7 +358,17 @@ def _say_not_orchestrator(args: argparse.Namespace) -> None:
         print(ledgerowner.sweep_line(use))
 
 
-@ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sweep")
+@ENTRY_DATA.register(
+    CONFIG_ARGUMENT,
+    NOW_ARGUMENT,
+    add_argument(
+        "--task-list",
+        default=None,
+        help="a file holding the orchestrator's task list, one line for each task;"
+        " a line that names several tickets is refused",
+    ),
+    name="sweep",
+)
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots.
 
@@ -364,7 +391,8 @@ def sweep(args: argparse.Namespace) -> None:
     summaryline.print_lines(found.github, found.settings, args.config, found.now)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
-    if syncing.section(args, found.settings) or broken or unconfigured:
+    crowded = _refused_task_list(found)
+    if syncing.section(args, found.settings) or broken or unconfigured or crowded:
         raise SystemExit(1)
 
 

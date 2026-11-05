@@ -50,6 +50,8 @@ class Action(enum.Enum):
         REPORT: print the share of slot time in each state (--since, --until).
         TIME: print the worker minutes of each ticket (--since, --until).
         HEARD: say a slot's agent handed back or notified (SLOT).
+        REFRESHED: say the orchestrator updated its task list (keyword:
+            task-list).
     """
 
     SHOW = enum.auto()
@@ -65,6 +67,7 @@ class Action(enum.Enum):
     REPORT = enum.auto()
     TIME = enum.auto()
     HEARD = enum.auto()
+    REFRESHED = enum.auto()
 
     @property
     def word(self) -> str:
@@ -136,7 +139,11 @@ def _failed(
 def _heard(
     book: ledger.Ledger, words: Sequence[str], found: Context
 ) -> ledger.Ledger | ledger.Refusal:
-    return ledger.stamp(book, words[0], ledger.Mark.HEARD, found.now.isoformat())
+    held = ledger.find(book, words[0])
+    stamped = ledger.stamp(book, words[0], ledger.Mark.HEARD, found.now.isoformat())
+    if isinstance(held, ledger.Refusal) or isinstance(stamped, ledger.Refusal):
+        return stamped
+    return ledger.handed_back(stamped, held.ticket)
 
 
 CHANGES: Mapping[Action, tuple[int, Change]] = {
@@ -146,6 +153,10 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
     Action.REMOVE: (1, lambda book, words, _: ledger.remove(book, words[0])),
     Action.FAILED: (2, _failed),
     Action.HEARD: (1, _heard),
+    Action.REFRESHED: (
+        0,
+        lambda book, _words, found: ledger.refreshed(book, found.now.isoformat()),
+    ),
     Action.WAIT: (1, lambda book, words, _: ledger.wait(book, words[0], True)),
     Action.RESUME: (1, lambda book, words, _: ledger.wait(book, words[0], False)),
 }

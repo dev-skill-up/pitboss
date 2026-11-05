@@ -79,11 +79,17 @@ class Ledger:
         config: the path of the configuration that owns the ledger, a key put
             in the file by hand (nothing writes it when the file is made), or
             empty when the file records none.
+        refreshed: when the orchestrator last said it had updated its task
+            list (``slots refreshed``; ISO time), or empty (keyword: task-list).
+        handbacks: the tickets of the agents that handed back since then, one
+            each, in order.
     """
 
     slots: Sequence[Slot]
     failed: Mapping[str, Sequence[str]]
     config: str = ""
+    refreshed: str = ""
+    handbacks: Sequence[str] = ()
 
 
 def reference(text: str, project: config.Repo) -> str:
@@ -124,6 +130,8 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
         slots=tuple(Slot(**item) for item in data["slots"]),
         failed={key: tuple(value) for key, value in data["failed"].items()},
         config=data.get("config", ""),
+        refreshed=data.get("refreshed", ""),
+        handbacks=tuple(data.get("handbacks", ())),
     )
 
 
@@ -153,6 +161,10 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
     }
     if ledger.config:
         data["config"] = ledger.config
+    if ledger.refreshed:
+        data["refreshed"] = ledger.refreshed
+    if ledger.handbacks:
+        data["handbacks"] = list(ledger.handbacks)
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 
@@ -240,7 +252,36 @@ def free(ledger: Ledger, slot_name: str, done: str) -> Ledger | Refusal:
             reason=f"slot {slot_name} holds {held}, not {done}: only the agent"
             " that handed back is done"
         )
-    return _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
+    emptied = _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
+    return handed_back(emptied, slot.ticket)
+
+
+def handed_back(ledger: Ledger, ticket: str) -> Ledger:
+    """Note that an agent working on a ticket handed back.
+
+    Args:
+        ledger: the ledger.
+        ticket: the ticket, or empty when the slot recorded none.
+
+    Returns:
+        The ledger whose ``handbacks`` has the ticket once, last.
+    """
+    if not ticket or ticket in ledger.handbacks:
+        return ledger
+    return dataclasses.replace(ledger, handbacks=(*ledger.handbacks, ticket))
+
+
+def refreshed(ledger: Ledger, when: str) -> Ledger:
+    """Note that the orchestrator updated its task list.
+
+    Args:
+        ledger: the ledger.
+        when: the time (ISO).
+
+    Returns:
+        The ledger with that time and no hand-backs waiting.
+    """
+    return dataclasses.replace(ledger, refreshed=when, handbacks=())
 
 
 def add(

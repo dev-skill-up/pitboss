@@ -513,6 +513,16 @@ Only override for bugs, but do override for bugs (and then file them)".
   2026-10-29T02:25:33Z: "Avoid dumping five tickets into one task. There's no
   task economy here, otherwise it's less obvious both to you and me what is the
   state"). Each line is brought to its true end state before a report is sent.
+  Refresh the task list at every merge and at every worker hand-back, before
+  the reply, so each line shows its true state: one task-list line per ticket,
+  merged ones included, queue ones included. (Owner, 2026-11-05: "Does the task
+  list reflect reality" after four merges it had not shown; "A single task must
+  never be more than one ticket"; "One task per ticket"; pitboss#252.) The
+  sweep prints a `TASK LIST` line for each ticket whose PR merged, or whose
+  agent handed back, since the ledger's last `pitboss slots refreshed`, and the
+  orchestrator runs that command when the list is updated. `pitboss sweep
+  CONFIG --task-list FILE` refuses a line of the list that names more than one
+  ticket.
 - **A ticket that changes a precedence order lists the full order and a test
   per row** (pitboss#182; pitboss#148, PR #181, changed where the conflict step
   sits among the gates of `flow.next_step`, its Done-when did not say how a
