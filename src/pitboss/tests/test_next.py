@@ -1,5 +1,6 @@
 """End-to-end tests of ``pitboss next CONFIG TICKET`` (pitboss#107)."""
 
+import pathlib
 import unittest
 from typing import Sequence
 
@@ -142,6 +143,27 @@ class TestNext(unittest.TestCase):
         found = next_for(world.make_world(), "#99")
         first = f"WORKER: owner/project#99: {steps.FIRST_STEP}\n"
         assert_that((said(found), found.code), equal_to((first, 0)))
+
+    def test_the_first_step_follows_the_drafts_setting(self) -> None:
+        """A draft by default; ready where ``[slots.brief] drafts`` is false."""
+        lines = []
+        for setting in (
+            "",
+            "[slots.brief]\ndrafts = true\n",
+            "[slots.brief]\ndrafts = false\n",
+        ):
+            here = world.make_world()
+            path = pathlib.Path(here.config)
+            path.write_text(path.read_text() + "\n" + setting)
+            lines.append(said(next_for(here, "#99")).strip())
+        head = "WORKER: owner/project#99: "
+        drafted, ready = steps.FIRST_STEP, steps.FIRST_STEP_READY
+        assert_that(
+            lines,
+            equal_to([head + drafted, head + drafted, head + ready]),
+        )
+        assert_that(ready, contains_string("open the PR ready for review"))
+        assert_that(drafted, contains_string("as a draft"))
 
     def test_a_pr_without_the_body_is_the_workers(self) -> None:
         """The worker writes the Plan and Execution body."""

@@ -632,13 +632,15 @@ Only override for bugs, but do override for bugs (and then file them)".
      ruling-summary <config>`, which appends the time to
      `.git/pitboss-ruling-summaries.log` of the main clone.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
-  separately** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
+  separately, unless `[slots.brief] drafts` is false** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
   creates a draft PR, splits the body into Plan and Execution" ... "the PR
   stays as draft for another cycle until the plan is approved ... Only once the
   plan is approved does it move the PR out of draft mode."). The process, in
   any project:
   - The author writes the code, then opens the PR as a draft (it stays a draft
-    until its Plan is approved). The body has a **Plan** section (what will
+    until its Plan is approved); where `[slots.brief] drafts` is false it is
+    opened ready, and its Plan is reviewed on it with its checks (below, "Whether
+    a PR is opened as a draft"). The body has a **Plan** section (what will
     change, and why that satisfies each Done-when line) and an **Execution**
     section (what was done, with the evidence: each command and its raw
     output, for what CI does not show; a row the Plan points to CI has the
@@ -847,7 +849,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   only when the sweep says the PR is ready for review (or, for a review of a draft at its Plan stage,
   when its author hands back), and names the head SHA.
 - **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
-  says: `Plan: open the PR as a draft whose body has a Plan section (what you
+  says (where `[slots.brief] drafts` is false, the brief says `Ready:` and
+  opens the PR ready instead of the draft): `Plan: open the PR as a draft whose body has a Plan section (what you
   will change, and why that satisfies each Done-when line) and an Execution
   section (what you did, with each command and its raw output for what CI does
   not show); never mark it
@@ -1200,7 +1203,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   `false` the worker brief says to open the PR ready and to push without
   `--draft`, `pitboss push --draft` exits 1 naming the setting, and
   `pitboss lint brief --config` refuses an appended sentence that tells the
-  worker to open a draft (pitboss#216). Read the brief; do not copy a draft
+  worker to open a draft (pitboss#216). The first step that `pitboss next`
+  and `pitboss slots next` print for a ticket no PR fixes follows the same
+  setting (a draft by default, ready where false). Read the brief; do not copy a draft
   rule from another repository.
 - **A PR merges only after an independent review comment for its head.** In a
   gated repository a push, an update-branch or a merge of the base voids the
