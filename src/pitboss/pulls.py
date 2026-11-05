@@ -9,6 +9,7 @@ from . import (
     bodydigest,
     config,
     dispatchruns,
+    earlyfound,
     flow,
     folds,
     headchecks,
@@ -36,11 +37,14 @@ class StrayComments:
             review form.
         unanalysed: the address of the newest trusted Opus ruling comment when
             it has no ``How we got here`` section (keyword: how-we-got-here).
+        premature: the Execution reviews written before green, which do not
+            count (keyword: execution-before-green).
     """
 
     newer: str = ""
     graded: Sequence[unreadableform.UnreadableReview] = ()
     unanalysed: Sequence[str] = ()
+    premature: Sequence[earlyfound.Premature] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -211,6 +215,8 @@ class Source:
         relock_prefix: the head branch prefix of a relock PR.
         run_by_e2e: the path prefixes whose change the e2e suite runs on
             (keyword: run-e2e).
+        early: takes the Execution reviews written before green out of a
+            PR's comments (keyword: execution-before-green, pitboss#202).
     """
 
     github: ghapi.GitHub
@@ -218,14 +224,7 @@ class Source:
     undraft: Callable[[], bool]
     relock_prefix: str = config.DEFAULT_RELOCK_PREFIX
     run_by_e2e: Sequence[str] = config.DEFAULT_RUN_BY_E2E
-
-
-def _carries(source: Source, repo: config.Repo, pull: shapes.Pull, sha: str) -> bool:
-    compare = f"repos/{repo.slug}/compare/{pull.base}..."
-    heads = (pull.head.sha, sha)
-    return mergesonly.only_merges(
-        *(parsing.comparison(ghapi.get(source.github, compare + h)) for h in heads)
-    )
+    early: earlyfound.Split = earlyfound.keep_all
 
 
 def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
@@ -252,7 +251,7 @@ def _standing(
         and standing is reviews.Standing.OLDER_HEAD
         and found.verdict is reviews.Verdict.APPROVED
         and not reviews.plan_only(found)
-        and _carries(source, repo, pull, found.sha)
+        and mergesonly.carries(source.github, repo, pull, found.sha)
     )
     if merged and repo.slug not in source.review.gated:
         return reviews.Standing.APPROVED_BEFORE_MERGES, True
@@ -266,9 +265,10 @@ class Fetched:
     Attributes:
         pull: its details.
         labels: its labels.
-        posted: its comments and GitHub reviews.
+        posted: its comments and GitHub reviews that count.
         checks: the check runs of its head.
         statuses: the newest commit status of each context of its head.
+        premature: its Execution reviews left out of ``posted``.
     """
 
     pull: shapes.Pull
@@ -276,23 +276,23 @@ class Fetched:
     posted: reviews.Sources
     checks: Sequence[shapes.CheckRun]
     statuses: Sequence[shapes.CommitStatus] = ()
+    premature: Sequence[earlyfound.Premature] = ()
 
 
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
     posted = headchecks.statuses(source.github, repo, pull.head.sha)
+    sent = _sources(source, repo, number)
+    kept, early = source.early(repo, pull, sent.comments)
     return Fetched(
         pull=pull,
         labels=parsing.labels(text),
-        posted=_sources(source, repo, number),
+        posted=reviews.Sources(comments=kept, reviews=sent.reviews),
         checks=headchecks.checks(source.github, repo, pull.head.sha, posted),
         statuses=posted,
+        premature=early,
     )
-
-
-def _is_relock(source: Source, pull: shapes.Pull) -> bool:
-    return relock.is_relock(pull.head.branch, source.relock_prefix)
 
 
 def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
@@ -304,8 +304,10 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         comments=got.posted.comments,
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
-        merges_only_since=lambda sha: _carries(source, repo, got.pull, sha),
-        relock=_is_relock(source, got.pull),
+        merges_only_since=lambda sha: mergesonly.carries(
+            source.github, repo, got.pull, sha
+        ),
+        relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
         needs_e2e=lambda: pullfiles.touches(
             source.github, repo.slug, got.pull.number, source.run_by_e2e
         )
@@ -322,6 +324,7 @@ def _unreadable(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
         unanalysed=analysis.unanalysed(*seen),
+        premature=got.premature,
     )
 
 
@@ -357,7 +360,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         unreadable=_unreadable(source, repo, got, found),
         step=flow.next_step(state),
         review_rounds=rounds.of(state, merged),
-        relock=_is_relock(source, got.pull),
+        relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
     )
 
 

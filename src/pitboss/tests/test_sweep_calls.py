@@ -18,11 +18,12 @@ FOUR_PULLS = {
     "gh api actions/runs/jobs": 2,
     "gh api check-runs": 1,
     "gh api check-runs/annotations": 1,
-    "gh api commits/check-runs": 4,
+    "gh api commits/check-runs": 6,  # four heads, two reviewed heads (#202)
     "gh api commits/status": 4,
     "gh api contents/.github/workflows/review-gate.yml": 2,  # one for each repository
     "gh api issues": 2,
     "gh api issues/comments": 6,  # four PRs' and one feed for each repository (#239)
+    "gh api issues/timeline": 2,  # the PRs with an Execution review (#202)
     "gh api pulls": 8,
     "gh api pulls/reviews": 4,
     "gh api repository": 3,
