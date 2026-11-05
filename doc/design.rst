@@ -589,23 +589,30 @@ paths** (``dead.verdict``): not live, not in use, and safe. It is written once:
 PRESSURE`` line and the removal of worktrees (``worktrees.py``) all call it; the
 one difference is under disk pressure, where ``worktrees.py`` passes
 ``dead.Look.unmarked`` so a merged worktree's own marker is not honored, except
-on the one whose PR merged last (``worktrees.last_merged``). So a
+on the one whose PR merged last (``judging.last_merged``). At any disk level a
+merged worktree's marker older than a worker's task, 6 hours
+(``workhours.TASK_HOURS``, pitboss#194), is not honored either. The 6 hours
+have no source in the ticket (#194 says "the worker's task bound" and #185,
+which it cites, sets none) or in the repository before: the value is the
+orchestrator's choice in pitboss#194, and the constant defines the bound. So a
 finished worktree is kept when anything in it changed in the last ``idle_hours``
 (by file times, because a new worktree's tip is an old commit), when it holds a
-``.pitboss-live`` marker or is a live path (under disk pressure a merged
-worktree's own marker is not honored, except on the one whose PR merged last),
+``.pitboss-live`` marker or is a live path (a merged worktree's own marker is
+not honored under disk pressure, except on the one whose PR merged last, nor at
+any disk level once it is older than 6 hours),
 when it is a link or holds a mount
 point, when it is or holds the directory the command runs in (``PWD`` or the
 process's own), when a commit in it is on no remote branch, or when a tracked
 file in it is changed (untracked files are scratch to the test). A finished
 worktree that passes the test but holds untracked files is kept too, with their
 count, because ``git worktree remove`` refuses it; pitboss passes ``--force``
-only to remove a worktree whose ``.pitboss-live`` marker it ignored under disk
-pressure (``worktrees.removal_line``), where the marker is the only untracked
-file. A worktree on no branch or on the base branch is finished
-when its tip is in the base branch, unlike a checkout of **Dead paths**, so a
-persistent one carries ``.pitboss-live`` (under disk pressure that keeps a
-merged one only when its work merged last). ``[clean] worktrees`` chooses what a
+only to remove a worktree whose ``.pitboss-live`` marker it ignored, under disk
+pressure or for its age of over 6 hours (``worktrees.removal_line``), where the
+marker is the only untracked file. A worktree on no branch or on the base branch
+is finished when its tip is in the base branch, unlike a checkout of **Dead
+paths**, so a persistent one carries ``.pitboss-live`` (under disk pressure that
+keeps a merged one only when its work merged last, and a marker older than 6
+hours keeps a merged one at no disk level). ``[clean] worktrees`` chooses what a
 sweep does with the finished worktrees: ``auto`` (the default) removes each that
 passes, one at a time, judging it right before its ``git worktree remove``,
 and prints ``REMOVED WORKTREE <dir> (<reason>)`` or, for one that fails,
@@ -653,22 +660,52 @@ package caches that regenerate (``~/.cache/pip``, ``~/.cache/uv``,
 ``~/.cache/pre-commit``, ``~/.npm/_cacache``, ``~/.cargo/registry/cache`` and
 ``[clean] caches``). Under pressure a merged worktree's own ``.pitboss-live``
 marker is not honored, except on the worktree whose work merged last
-(``worktrees.last_merged``, by ``mergetime``): each other one is removed, with
+(``judging.last_merged``, by ``mergetime``): each other one is removed, with
 ``--force`` when the marker is its only untracked file, and prints ``REMOVED
 WORKTREE <dir> (<reason>; its .pitboss-live marker is ignored: a worktree merged
 after it)``, and the last one prints ``KEPT WORKTREE <dir> (holds a file named
-.pitboss-live; its PR merged last)`` (pitboss#185). It never touches, in either mode, a worktree with an open
-PR, a running worker's directory (anything changed within ``idle_hours``, or
-marked ``.pitboss-live``; under pressure the marker of a merged worktree is
-ignored, except the one whose PR merged last), the main clone, a live path or the directory it runs
-in, and it says so (``clean: never touched``, and under pressure ``clean: kept
-<path> (open PR)`` for each such worktree). A commit on no remote branch and a
+.pitboss-live; its PR merged last)`` (pitboss#185). At any disk level, normal
+or aggressive, the marker of a merged worktree or checkout (or one whose tip is
+in the base branch) is not honored once it is older than 6 hours (``workhours.TASK_HOURS``; the bound is the
+orchestrator's choice in pitboss#194, see **Worktrees**), even on the one whose
+work merged last: it is removed, with ``--force`` as above, and prints
+``REMOVED WORKTREE <dir> (<reason>; its .pitboss-live marker is older than 6
+hours, longer than a worker runs)``. A marker of a worktree with an open PR, of
+a closed unmerged one, or of a scratch or tempdir path, is honored whatever its
+age. It
+never touches, in either mode, a worktree with an open PR, a running worker's
+directory (anything changed within ``idle_hours``, or marked ``.pitboss-live``;
+the marker of a merged worktree is ignored under pressure, except the one whose
+PR merged last, and at any disk level once it is older than 6 hours), the main
+clone, a live path or the directory it runs in, and it says so (``clean: never
+touched``, and under pressure ``clean: kept <path> (open PR)`` for each such
+worktree). A commit on no remote branch and a
 changed tracked file still keep a worktree (the safety test is one): losing
-that is not "something someone needed" but work that exists nowhere else. Under
+that is not "something someone needed" but work that exists nowhere else.
+Every directory of the workspace that holds a git checkout and is not a
+registered worktree of the main clone, a full clone of a repository the
+configuration does not name included, is judged by the PRs of its own
+``origin`` (``deadscan.dead_checkouts``; a clone is a checkout whose ``.git`` is
+a directory, so ``git worktree list`` never showed it, pitboss#194): under
+pressure it is removed when its branch has no open PR, and a checkout that is
+kept, because its branch has an open PR, git cannot read it, it has no
+``origin`` or its repository's PRs could not be read, or that is live or in
+use, is named with the reason (``clean: kept <path> (<why>)``, one line for
+each directory of the workspace that is not a registered worktree, which says
+itself why it is kept; a directory that is not a git checkout is kept as ``not
+a git checkout``). Under pressure the sweep also says what it freed and what it
+could not (``account.py``): ``clean: freed by kind: worktrees <size>, checkouts <size>, test tempdirs
+<size>, package caches <size>`` ("would be freed" in a dry run) and, when the
+sum is less than what the crowded file systems need to get under
+``pressure_percent``, a shortfall line (``clean: <size> freed, <size> short of
+the <size> needed to get under 90%: each directory over 500 MB that was kept``)
+and, for each kept directory over 500 MB, largest first, ``clean: kept <size>
+<path> (<why>): over 500 MB``. Under
 ``[clean] worktrees = "list"`` a normal run only lists the worktrees and leaves
 the checkouts; pressure overrides it. The output is the mode line, a
-``REMOVED``/``COULD NOT REMOVE`` line for each path, and ``clean: N paths
-removed, X freed; disk free A before, B after``. The disk reader (the parser's ``args.usage``, also read by the
+``REMOVED``/``COULD NOT REMOVE`` line for each path, ``clean: N paths removed,
+X freed; disk free A before, B after``, and under pressure the lines of the
+account above. The disk reader (the parser's ``args.usage``, also read by the
 ``DISK PRESSURE`` line), the clock, the
 user id, the home directory and the file system are injected
 (``autoclean.Machine``, ``autoclean.Filesystem``), so the tests play the ages,

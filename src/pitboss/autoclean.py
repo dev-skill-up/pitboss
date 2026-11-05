@@ -10,7 +10,12 @@ checkout of a repository without an open PR, and the package caches that
 regenerate. It never touches a worktree with an open PR, a running worker's
 directory (changed within ``idle_hours``, or marked ``.pitboss-live``; a merged
 worktree's marker is ignored under disk pressure, except the one whose PR merged
-last), the main clone or the directory it runs in, and it says so.
+last, and, at any disk level, once it is older than a worker's task, 6 hours:
+``workhours``), the main clone or the directory it runs in, and it says so.
+Under pressure it also judges every directory of the workspace that is not a
+registered worktree (a full clone included) by the PRs of its own ``origin``,
+names each it keeps with why, says the bytes freed by each kind and, when they
+fall short, each kept directory over 500 MB (``account``, pitboss#194).
 """
 
 import dataclasses
@@ -156,7 +161,8 @@ def never_line(look: dead.Look) -> str:
         "clean: never touched: a worktree with an open PR, a running worker's"
         f" directory (changed within {hours:g} hours or marked .pitboss-live; a"
         " merged worktree's marker is ignored under disk pressure, except the one"
-        " whose PR merged last),"
+        " whose PR merged last, and at any disk level once it is older than 6"
+        " hours),"
         " the main clone, the directory this command runs in"
     )
 

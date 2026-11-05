@@ -6,8 +6,8 @@ test ``clean-container`` and the ``DISK PRESSURE`` line use: not live, not in
 use, and no commit on no remote branch and no changed tracked file in it
 (keyword: clean-worktrees, ``rules.md``, "Checkouts and disk"). One that passes
 but holds untracked files is kept too, since ``git worktree remove`` refuses it,
-unless the marker ignored under pressure is the only untracked file, when it is
-removed with ``--force``.
+unless the marker ignored (under pressure, or for its age) is the only
+untracked file, when it is removed with ``--force``.
 """
 
 import dataclasses

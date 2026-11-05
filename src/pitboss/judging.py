@@ -1,8 +1,9 @@
 """A finished worktree and what is said of it: its marker, under pressure and by age.
 
 A merged worktree's own ``.pitboss-live`` marker is not honored under disk
-pressure, except on the one whose work merged last, nor whatever the disk once
-it is older than a worker's task (keyword: auto-clean, ``worktrees.judge``).
+pressure, except on the one whose work merged last. Whatever the disk, it is
+not honored either once it is older than a worker's task (``workhours``, 6
+hours). Keyword: auto-clean, ``worktrees.judge``.
 """
 
 import dataclasses
