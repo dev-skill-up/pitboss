@@ -2,7 +2,7 @@
 
 from typing import Iterable
 
-from . import shapes
+from . import config, ghapi, parsing, shapes
 
 
 def only_merges(
@@ -22,3 +22,24 @@ def only_merges(
         return frozenset(commit.sha for commit in commits if commit.parents < 2)
 
     return authored(since_base) == authored(reviewed_since_base)
+
+
+def carries(
+    github: ghapi.GitHub, repo: config.Repo, pull: shapes.Pull, sha: str
+) -> bool:
+    """Whether the PR's head differs from a reviewed head only by merges.
+
+    Args:
+        github: the API.
+        repo: the PR's repository.
+        pull: the PR.
+        sha: the reviewed head.
+
+    Returns:
+        True when both heads have the same non-merge commits since the base.
+    """
+    compare = f"repos/{repo.slug}/compare/{pull.base}..."
+    heads = (pull.head.sha, sha)
+    return only_merges(
+        *(parsing.comparison(ghapi.get(github, compare + h)) for h in heads)
+    )

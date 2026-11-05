@@ -347,11 +347,8 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     # keyword: draft-review (pitboss#156): the Plan stage is a draft's, with no CI
     # a Plan revised on a PR that is not a draft has its checks (pitboss#167)
     draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
-    # keyword: execution-before-green (pitboss#202): only a Plan-stage brief may
-    # say a draft has no check run; every other review reads the complete run
-    stage_ci = text.CI if spec.kind is Kind.REVIEW_PLAN else text.CI_EXECUTION
     separate, ci = (
-        (text.SEPARATE_DRAFT, text.CI_DRAFT) if draft else (text.SEPARATE, stage_ci)
+        (text.SEPARATE_DRAFT, text.CI_DRAFT) if draft else (text.SEPARATE, text.CI)
     )
     separate = DRY_RUNNERS.get(spec.kind, separate)
     head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, *_e2e(spec), text.FORM]

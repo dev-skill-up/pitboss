@@ -3,7 +3,7 @@
 import functools
 from typing import Callable, Sequence
 
-from . import concurrently, config, ghapi, parsing, pulls, shapes
+from . import concurrently, config, earlyreview, ghapi, parsing, pulls, shapes
 
 
 def read_open(
@@ -65,6 +65,9 @@ def read_each(
         undraft=functools.cache(undraft),
         relock_prefix=settings.lint.relock_prefix,
         run_by_e2e=settings.project.run_by_e2e,
+        early=functools.partial(
+            earlyreview.split, earlyreview.Tools(github=github, review=settings.review)
+        ),
     )
     return concurrently.each(
         lambda item: pulls.fetch_or_unreadable(source, *item), wanted

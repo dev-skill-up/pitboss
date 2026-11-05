@@ -50,6 +50,28 @@ def compared(prefix: str, since_head: Sequence[object]) -> Mapping[str, object]:
     }
 
 
+def pages_of(number: int) -> Sequence[tuple[str, object]]:
+    """The pages of a PR, with those the reading of its reviews asks for.
+
+    The reading of Execution reviews (pitboss#202) asks for the PR's timeline
+    and the check runs of the head its review names.
+
+    Args:
+        number: the PR's number.
+
+    Returns:
+        The pages, under the PR's repository.
+    """
+    return [
+        (f"issues/{number}/comments", [OLD_GATED_APPROVAL]),
+        (f"pulls/{number}/reviews", [GITHUB_APPROVAL]),
+        (f"issues/{number}/timeline", []),
+        (f"commits/{fakes.OLDER}/check-runs", {"check_runs": [DONE_BUILD]}),
+        (f"commits/{fakes.HEAD}/check-runs", CHECKS),
+        (f"commits/{fakes.HEAD}/status", fakes.NO_STATUS),
+    ]
+
+
 def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, object]:
     """A project PR approved on an older head, and a gated PR the same.
 
@@ -68,15 +90,7 @@ def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, 
         prefix = f"repos/{slug}"
         found.update(compared(prefix, since_head))
         found[f"{prefix}/pulls/{number}"] = fakes.pull_body(number, **changes)
-        pages = [
-            (f"issues/{number}/comments", [OLD_GATED_APPROVAL]),
-            (f"pulls/{number}/reviews", [GITHUB_APPROVAL]),
-            (f"issues/{number}/timeline", []),
-            (f"commits/{fakes.OLDER}/check-runs", {"check_runs": [DONE_BUILD]}),
-            (f"commits/{fakes.HEAD}/check-runs", CHECKS),
-            (f"commits/{fakes.HEAD}/status", fakes.NO_STATUS),
-        ]
-        found.update(fakes.bodies_under(prefix, pages))
+        found.update(fakes.bodies_under(prefix, pages_of(number)))
     return found
 
 

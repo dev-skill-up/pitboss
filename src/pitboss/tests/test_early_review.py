@@ -12,14 +12,15 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, dispatchruns, earlyreview, markers, parsing, shapes
+from .. import brief, config, dispatchruns, earlyfound, earlyreview, markers
+from .. import parsing, shapes
 from . import fakes, world
 from .briefmake import make
 from .test_commands import sweep
-from .test_flow_sweep import APPROVED, HEAD, OLDER, graded, world_with
+from .test_flow_sweep import APPROVED, HEAD, OLDER, graded, older_checks, world_with
 from .test_slot_commands import next_output
 
-Json = Mapping[str, object]
+Body = Mapping[str, object]
 LINE = "EXECUTION REVIEWED BEFORE GREEN owner/project#3: review 6619082966 at"
 THE_LINE = f"{LINE} {HEAD} does not count; "
 DRAFT_WORDS = "the PR was a draft and no dispatched run of check.yml had completed"
@@ -28,7 +29,7 @@ READY = {"event": "ready_for_review", "created_at": "2026-10-30T00:00:05Z"}
 ADDRESS = "https://github.com/owner/project/pull/3#issuecomment-6619082966"
 
 
-def run_of(status: str, at: str, number: int = 9) -> Json:
+def run_of(status: str, at: str, number: int = 9) -> Body:
     """A check run of the head.
 
     Args:
@@ -65,26 +66,24 @@ def reviewed(second: int, sha: str = HEAD) -> shapes.Comment:
 
 def served(
     here: world.World,
-    runs: Sequence[Json],
-    events: Sequence[Json] = (),
-    dispatch: Sequence[Json] = (),
-    sha: str = HEAD,
+    runs: Sequence[Body],
+    events: Sequence[Body] = (),
+    dispatch: Sequence[Body] = (),
 ) -> world.World:
     """Serve the check runs, the timeline and the dispatched runs of PR 3.
 
     Args:
         here: the world.
-        runs: the check runs of the head ``sha``.
+        runs: the check runs of the head.
         events: the timeline of the PR.
         dispatch: the completed dispatched runs of the head.
-        sha: the head whose check runs these are.
 
     Returns:
         The same world.
     """
-    query = f"head_sha={sha}&event=workflow_dispatch&status=completed"
+    query = f"head_sha={HEAD}&event=workflow_dispatch&status=completed"
     pages = {
-        f"commits/{sha}/check-runs": {"check_runs": list(runs)},
+        f"commits/{HEAD}/check-runs": {"check_runs": list(runs)},
         "issues/3/timeline": list(events),
         f"actions/workflows/check.yml/runs?{query}": {"workflow_runs": list(dispatch)},
     }
@@ -96,9 +95,8 @@ def served(
 def printed(
     comments: Sequence[shapes.Comment],
     draft: bool,
-    runs: Sequence[Json],
-    events: Sequence[Json] = (),
-    dispatch: Sequence[Json] = (),
+    runs: Sequence[Body],
+    dispatch: Sequence[Body] = (),
 ) -> str:
     """What the sweep prints for a world whose PR 3 has the comments.
 
@@ -106,14 +104,25 @@ def printed(
         comments: PR 3's comments.
         draft: whether PR 3 is a draft now.
         runs: the check runs of its head.
-        events: its timeline.
         dispatch: the completed dispatched runs of its head.
 
     Returns:
         The sweep's output.
     """
-    here = served(world_with(comments, draft=draft), runs, events, dispatch)
+    here = served(world_with(comments, draft=draft), runs, (), dispatch)
     return sweep(here).out
+
+
+def quiet(out: str) -> bool:
+    """Whether the sweep says no review came before green.
+
+    Args:
+        out: the sweep's output.
+
+    Returns:
+        True when it has no such line.
+    """
+    return "EXECUTION REVIEWED" not in out
 
 
 def third_of(out: str) -> str:
@@ -149,19 +158,21 @@ class TestTheSweep(unittest.TestCase):
         assert_that(out, contains_string(said))
         assert_that(out, contains_string("the next step is the review again"))
         assert_that("review=approved-this-head" in third_of(out), equal_to(False))
-        state =[each for each in next_output(here).splitlines() if "project#3:" in each]
+        state = [
+            each for each in next_output(here).splitlines() if "project#3:" in each
+        ]
         assert_that("".join(state), contains_string("the plan is approved"))
 
     def test_the_same_pr_with_a_complete_run_before_the_comment_shows_none(
         self,
     ) -> None:
         """A dispatched run and every check run completed before the comment."""
-        out = printed([PLAN_ONLY, reviewed(2)], True, [DONE], [], [DISPATCHED_BEFORE])
-        assert_that("EXECUTION REVIEWED" in out, equal_to(False))
+        out = printed([PLAN_ONLY, reviewed(2)], True, [DONE], [DISPATCHED_BEFORE])
+        assert_that(quiet(out), equal_to(True))
 
     def test_a_dispatched_run_that_completed_after_the_comment_is_no_run(self) -> None:
         """The run completed once the review had been written."""
-        out = printed([PLAN_ONLY, reviewed(2)], True, [DONE], [], [DISPATCHED_AFTER])
+        out = printed([PLAN_ONLY, reviewed(2)], True, [DONE], [DISPATCHED_AFTER])
         assert_that(out, contains_string(f"{THE_LINE}{DRAFT_WORDS}"))
 
     def test_a_ready_pr_is_judged_by_its_checks(self) -> None:
@@ -178,49 +189,38 @@ class TestTheSweep(unittest.TestCase):
     def test_a_ready_pr_with_complete_checks_has_its_review(self) -> None:
         """Every check completed before the comment."""
         out = printed([reviewed(2)], False, [DONE])
-        assert_that("EXECUTION REVIEWED" in out, equal_to(False))
+        assert_that(quiet(out), equal_to(True))
         assert_that(third_of(out), contains_string("review=approved-this-head"))
 
     def test_a_plan_alone_review_of_a_draft_counts(self) -> None:
         """A draft's Plan review is the stage of a draft."""
         out = printed([PLAN_ONLY], True, [])
-        assert_that("EXECUTION REVIEWED" in out, equal_to(False))
+        assert_that(quiet(out), equal_to(True))
 
     def test_a_pr_made_ready_after_the_comment_was_a_draft_then(self) -> None:
         """The timeline says when the draft was marked ready."""
-        out = printed([reviewed(2)], False, [DONE], [READY])
-        assert_that(out, contains_string(f"{THE_LINE}{DRAFT_WORDS}"))
+        here = served(world_with([reviewed(2)]), [DONE], [READY])
+        assert_that(sweep(here).out, contains_string(f"{THE_LINE}{DRAFT_WORDS}"))
 
     def test_a_pr_made_ready_before_the_comment_was_not_a_draft(self) -> None:
         """The same timeline, with the comment after the event."""
         late = dataclasses.replace(reviewed(2), created_at="2026-10-30T00:00:07Z")
-        out = printed([late], False, [DONE], [READY])
-        assert_that("EXECUTION REVIEWED" in out, equal_to(False))
+        here = served(world_with([late]), [DONE], [READY])
+        assert_that(quiet(sweep(here).out), equal_to(True))
 
     def test_a_review_of_an_older_head_reads_the_checks_of_that_head(self) -> None:
         """The reviewed head's runs are read, not the current head's."""
         here = served(world_with([reviewed(2, sha=OLDER)]), [DONE])
-        served(here, [run_of("queued", "")], sha=OLDER)
-        out = sweep(here).out
+        out = sweep(older_checks(here, {"check_runs": [run_of("queued", "")]})).out
         assert_that(out, contains_string(f"at {OLDER} does not count; 1 of 1 checks"))
 
     def test_an_abbreviated_head_is_the_current_head(self) -> None:
         """A short SHA that names the head reads the head's runs."""
         here = served(world_with([reviewed(2, sha=HEAD[:7])]), [DONE])
-        assert_that("EXECUTION REVIEWED" in sweep(here).out, equal_to(False))
+        assert_that(quiet(sweep(here).out), equal_to(True))
 
 
-def pull_of(draft: bool) -> shapes.Pull:
-    """PR 3 of the fake GitHub.
-
-    Args:
-        draft: whether it is a draft now.
-
-    Returns:
-        The PR.
-    """
-    body = world_with([], draft=draft).bodies[f"{world.PROJECT}/pulls/3"]
-    return parsing.pull(json.dumps(body))
+THIRD = parsing.pull(json.dumps(world_with([]).bodies[f"{world.PROJECT}/pulls/3"]))
 
 
 class TestThePieces(unittest.TestCase):
@@ -232,28 +232,39 @@ class TestThePieces(unittest.TestCase):
         again = shapes.TimelineEvent(kind="convert_to_draft", at="2026-10-30T00:00:07Z")
         other = shapes.TimelineEvent(kind="labeled", at="2026-10-30T00:00:01Z")
         both = [again, other, ready]
-        at = "2026-10-30T00:00:0"
-        found = [
-            earlyreview.draft_at(pull_of(True), [other], at + "1Z"),
-            earlyreview.draft_at(pull_of(False), [], at + "1Z"),
-            earlyreview.draft_at(pull_of(False), both, at + "1Z"),
-            earlyreview.draft_at(pull_of(False), both, at + "6Z"),
-            earlyreview.draft_at(pull_of(False), both, at + "8Z"),
-            earlyreview.draft_at(pull_of(True), [again], at + "1Z"),
+        now = dataclasses.replace(THIRD, draft=True)
+        cases = [
+            (now, [other], "1Z", True),
+            (THIRD, [], "1Z", False),
+            (THIRD, both, "1Z", True),
+            (THIRD, both, "6Z", False),
+            (THIRD, both, "8Z", True),
+            (now, [again], "1Z", False),
         ]
-        assert_that(found, equal_to([True, False, True, False, True, False]))
+        found = [
+            earlyreview.draft_at(pull, events, f"2026-10-30T00:00:0{second}")
+            for pull, events, second, _ in cases
+        ]
+        assert_that(found, equal_to([each[3] for each in cases]))
+
+    def test_the_default_reading_leaves_every_comment_in(self) -> None:
+        """No reading finds nothing too early."""
+        comments = [reviewed(2)]
+        repo = config.make_repo("owner", "project")
+        kept = earlyfound.keep_all(repo, THIRD, comments)
+        assert_that(kept, equal_to((comments, [])))
 
     def test_the_id_of_a_comment(self) -> None:
         """The part after the mark, or the address."""
         found = [earlyreview.comment_id(each) for each in ("a#issuecomment-5", "b")]
         assert_that(found, equal_to(["5", "b"]))
 
-    def test_the_reasons_are_joined(self) -> None:
-        """A draft with no dispatched run and unfinished checks says both."""
-        checks = "2 of 3 checks of the head had not completed"
-        found = earlyreview.why(True, False, checks)
-        assert_that(found, equal_to(f"{DRAFT_WORDS}; {checks}"))
-        assert_that(earlyreview.why(True, True, ""), equal_to(""))
+    def test_the_unfinished_checks_are_counted(self) -> None:
+        """Later or open ones count; none at all is said; all done is empty."""
+        runs = [shapes.CheckRun(id=1, name="a", finished=False, failed=False)]
+        found = earlyreview.unfinished_checks(runs, AFTER)
+        assert_that(found, equal_to("1 of 1 checks of the head had not completed"))
+        assert_that(earlyreview.unfinished_checks([], AFTER), contains_string("no"))
 
     def test_the_parser_gives_the_times_of_the_runs(self) -> None:
         """A run without a time gives the empty string."""

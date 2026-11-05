@@ -105,7 +105,20 @@ def with_complete_run(here: world.World) -> world.World:
         query = f"head_sha={sha}&event=workflow_dispatch&status=completed"
         path = f"{world.PROJECT}/actions/workflows/check.yml/runs?{query}"
         here.bodies[fakes.page(path)] = done
-    here.bodies[fakes.page(f"{world.PROJECT}/commits/{OLDER}/check-runs")] = ran
+    return older_checks(here, ran)
+
+
+def older_checks(here: world.World, body: Mapping[str, object]) -> world.World:
+    """Serve the check runs of the older head of PR 3.
+
+    Args:
+        here: the world.
+        body: the check runs page.
+
+    Returns:
+        The same world.
+    """
+    here.bodies[fakes.page(f"{world.PROJECT}/commits/{OLDER}/check-runs")] = body
     return here
 
 

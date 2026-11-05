@@ -160,11 +160,6 @@ SEPARATE = (
 CI = (
     "CI: first read the checks of the head SHA above; if one has not finished or"
     " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
-    " review nothing (a draft at its Plan stage has no check run)."
-)
-CI_EXECUTION = (
-    "CI: first read the checks of the head SHA above; if one has not finished or"
-    " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
     " review nothing. Read the complete run of this head. A draft, or a head with"
     " an unfinished check, is `NOT STARTED`, not a verdict (pitboss#202)."
 )

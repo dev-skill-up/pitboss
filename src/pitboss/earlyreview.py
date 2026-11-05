@@ -12,27 +12,19 @@ that grades the Plan alone is a draft's, and always counts.
 import dataclasses
 from typing import Sequence
 
-from . import config, dispatchruns, ghapi, headchecks, parsing, reviews, shapes
+from . import (
+    checkruns,
+    config,
+    dispatchruns,
+    earlyfound,
+    ghapi,
+    parsing,
+    reviews,
+    shapes,
+)
 
 DRAFT_EVENTS = {"convert_to_draft": True, "ready_for_review": False}
 COMMENT_MARK = "#issuecomment-"
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Premature:
-    """An Execution review that was written before the run of its head finished.
-
-    Attributes:
-        url: the comment's address.
-        when: when it was written (ISO 8601).
-        sha: the head it reviewed (possibly abbreviated).
-        unfinished: what was not finished when it was written.
-    """
-
-    url: str
-    when: str
-    sha: str
-    unfinished: str
 
 
 def comment_id(url: str) -> str:
@@ -97,109 +89,103 @@ def unfinished_checks(checks: Sequence[shapes.CheckRun], when: str) -> str:
     return f"{len(open_ones)} of {len(checks)} checks of the head had not completed"
 
 
-def why(draft: bool, dispatched: bool, checks: str) -> str:
-    """Say what was unfinished.
-
-    Args:
-        draft: whether the PR was a draft.
-        dispatched: whether a dispatched run of ``check.yml`` of the head had
-            completed.
-        checks: what ``unfinished_checks`` says.
-
-    Returns:
-        The reasons, joined, empty when nothing was unfinished.
-    """
-    said = [
-        *(
-            ["the PR was a draft and no dispatched run of check.yml had completed"]
-            if draft and not dispatched
-            else []
-        ),
-        *([checks] if checks else []),
-    ]
-    return "; ".join(said)
-
-
 def _full(pull: shapes.Pull, sha: str) -> str:
     return pull.head.sha if pull.head.sha.startswith(sha) else sha
 
 
-def _ran(
-    github: ghapi.GitHub,
-    repo: config.Repo,
-    pull: shapes.Pull,
-    checks: Sequence[shapes.CheckRun],
-    sha: str,
-) -> Sequence[shapes.CheckRun]:
-    if sha == pull.head.sha:
-        return checks
-    return headchecks.checks(github, repo, sha, ())
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Seen:
+    """What is read to judge a PR's reviews.
+
+    Attributes:
+        github: the API.
+        repo: the PR's repository.
+        pull: the PR.
+        review: how reviews are read.
+    """
+
+    github: ghapi.GitHub
+    repo: config.Repo
+    pull: shapes.Pull
+    review: config.Review
 
 
-def find(
-    github: ghapi.GitHub,
+def _before(
+    seen: Seen, events: Sequence[shapes.TimelineEvent], each: reviews.Found
+) -> str:
+    sha = _full(seen.pull, each.sha)
+    drafted = (
+        "the PR was a draft and no dispatched run of check.yml had completed"
+        if draft_at(seen.pull, events, each.when)
+        and not dispatchruns.completed_before(
+            seen.github, seen.repo.slug, sha, each.when
+        )
+        else ""
+    )
+    path = f"repos/{seen.repo.slug}/commits/{sha}/check-runs"
+    found = ghapi.pages(seen.github, path, parsing.check_runs)
+    unfinished = unfinished_checks(checkruns.current_checks(found, sha), each.when)
+    return "; ".join(part for part in (drafted, unfinished) if part)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Tools:
+    """What judges the reviews of every PR.
+
+    Attributes:
+        github: the API.
+        review: how reviews are read.
+    """
+
+    github: ghapi.GitHub
+    review: config.Review
+
+
+def _executions(
+    tools: Tools, slug: str, comments: Sequence[shapes.Comment]
+) -> Sequence[reviews.Found]:
+    trusted = tools.review.trusted
+    read, form = reviews.rules(tools.review, slug)
+    found = reviews.from_comments(comments, trusted, read, form)
+    return [each for each in found if not each.plan_alone]
+
+
+def _timeline(seen: Seen) -> Sequence[shapes.TimelineEvent]:
+    path = f"repos/{seen.repo.slug}/issues/{seen.pull.number}/timeline"
+    return ghapi.pages(seen.github, path, parsing.timeline_events)
+
+
+def split(
+    tools: Tools,
     repo: config.Repo,
     pull: shapes.Pull,
-    checks: Sequence[shapes.CheckRun],
-    posted: reviews.Sources,
-    review: config.Review,
-) -> Sequence[Premature]:
-    """Find the Execution reviews written before the run of their head finished.
+    comments: Sequence[shapes.Comment],
+) -> tuple[Sequence[shapes.Comment], Sequence[earlyfound.Premature]]:
+    """Take the Execution reviews written before their head's run finished out.
 
     Only comment reviews are read (a GitHub review names no Execution), and the
     timeline and the check runs are read only when there is one to judge.
 
     Args:
-        github: the API.
+        tools: the API and how reviews are read.
         repo: the PR's repository.
         pull: the PR.
-        checks: the check runs of its current head.
-        posted: its comments and GitHub reviews.
-        review: how reviews are read.
+        comments: the PR's comments.
 
     Returns:
-        One finding for each such review, oldest first.
+        The comments that count, and one finding for each review left out,
+        oldest first.
     """
-    read, form = reviews.rules(review, repo.slug)
-    written = [
-        each
-        for each in reviews.from_comments(posted.comments, review.trusted, read, form)
-        if not each.plan_alone
-    ]
+    written = _executions(tools, repo.slug, comments)
     if not written:
-        return []
-    path = f"repos/{repo.slug}/issues/{pull.number}/timeline"
-    events = ghapi.pages(github, path, parsing.timeline_events)
-    found = []
-    for each in sorted(written, key=lambda item: item.when):
-        sha = _full(pull, each.sha)
-        draft = draft_at(pull, events, each.when)
-        dispatched = draft and dispatchruns.completed_before(
-            github, repo.slug, sha, each.when
-        )
-        ran = _ran(github, repo, pull, checks, sha)
-        said = why(draft, dispatched, unfinished_checks(ran, each.when))
-        if said:
-            found.append(
-                Premature(url=each.url, when=each.when, sha=each.sha, unfinished=said)
-            )
-    return found
-
-
-def kept(posted: reviews.Sources, early: Sequence[Premature]) -> reviews.Sources:
-    """The comments and reviews that count, without the premature ones.
-
-    Args:
-        posted: the PR's comments and GitHub reviews.
-        early: the premature Execution reviews.
-
-    Returns:
-        The same sources with those comments left out.
-    """
+        return comments, []
+    seen = Seen(github=tools.github, repo=repo, pull=pull, review=tools.review)
+    events = _timeline(seen)
+    said = [(each, _before(seen, events, each)) for each in written]
+    early = [
+        earlyfound.Premature(url=each.url, when=each.when, sha=each.sha, unfinished=why)
+        for each, why in sorted(said, key=lambda pair: pair[0].when)
+        if why
+    ]
     gone = {(each.when, each.url) for each in early}
-    return reviews.Sources(
-        comments=[
-            each for each in posted.comments if (each.created_at, each.url) not in gone
-        ],
-        reviews=posted.reviews,
-    )
+    return [each for each in comments if (each.created_at, each.url) not in gone], early
