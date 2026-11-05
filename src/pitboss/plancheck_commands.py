@@ -153,6 +153,8 @@ def _plan_of(name: str, body: str) -> str:
 def plan_check(args: argparse.Namespace) -> None:
     """Run each command of a Plan, and refuse the Plan if one does not run.
 
+    A row that runs nox is refused and not run (pitboss#251).
+
     Prints a row for each command (its exit status and duration, or that it did
     not run: it could not start, it timed out, or it runs nox, which is refused
     unrun with the sentence that gives the CI pointer, pitboss#251), the Plan

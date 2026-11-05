@@ -1,7 +1,8 @@
 """The dry run of a Plan's commands (keyword: plan-check, pitboss#192).
 
 ``pitboss plan-check`` runs each command of a Plan in a scratch worktree of the
-PR's base before the Plan is approved, so a command that cannot run as written
+PR's base (a row that runs nox is refused and not run, pitboss#251) before the
+Plan is approved, so a command that cannot run as written
 is a finding of the Plan and not of the Execution hours later. A command that
 cannot start, that times out (a wait on a lock or a queue is one) or that was
 cut off is not run; any other exit status is shown and is no finding, because
@@ -85,6 +86,8 @@ def line(number: int, command: str, run: Run) -> str:
 
 def report(section: str, runner: Runner) -> tuple[Sequence[str], Sequence[int]]:
     """Run each command of a Plan and say what each did.
+
+    A row that runs nox is refused and not run (pitboss#251).
 
     Args:
         section: the Plan section of the body.
