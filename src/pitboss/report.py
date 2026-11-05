@@ -317,6 +317,16 @@ def straggler_line(straggler: local.Straggler) -> str:
     )
 
 
+def print_reminders(settings: config.Config) -> None:
+    """Print the reminders each sweep ends with.
+
+    Args:
+        settings: the configuration.
+    """
+    for line in reminder_lines(settings):
+        print(line)
+
+
 def reminder_lines(settings: config.Config) -> Sequence[str]:
     """The questions each sweep ends with.
 

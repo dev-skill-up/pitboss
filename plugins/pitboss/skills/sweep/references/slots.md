@@ -74,7 +74,7 @@ UTC time, slot, state, agent, task, ticket and kind. A slot the log has not seen
 logged in the state it is in, so the time before its first change counts. A
 removed slot is logged as `removed`, after which it has no slot time.
 `slots report` and `slots time` replay the log, so idle and waiting time are measured, not
-estimated.
+estimated; the sweep reads it too, for `SLOT IDLE`.
 
 ## Markers
 
@@ -85,6 +85,10 @@ estimated.
   have no agent and the queue has work. Start work for them, and require a
   wake-up (`send_later`) before the turn ends: an orchestrator that ends its
   turn with free slots and queued work sleeps until a GitHub event.
+- `SLOT IDLE`: `SLOT IDLE <slot> (<n> minutes)`, printed by `sweep` for a slot
+  that has been empty for more than 2 minutes by the slot log while work is
+  queued. Start the item its `EMPTY SLOT` line names now: a `waiting for CI`
+  line is no reason to leave the slot empty (`rules.md`, "Agents and slots", 5).
 - `GONE AGENT`: the ledger holds an agent the session no longer runs. Free
   the slot with the command the line gives.
 - `CHECK BEFORE YOU ANSWER`: printed after the ledger, on stderr. The ledger

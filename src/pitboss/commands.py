@@ -324,11 +324,12 @@ def _repository_sections(
 
 
 def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
-    for line in report.reminder_lines(found.settings):
-        print(line)
+    report.print_reminders(found.settings)
     book = read_ledger(found.settings)
     report.print_ledger(book)
-    sweepline.slots(book, read, offering.offered(found, read, book))
+    offer = offering.offered(found, read, book)
+    sweepline.slots(book, read, offer)
+    sweepline.idle(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(book, found.now, found.args)
 
 
@@ -360,8 +361,7 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "cleaning done")
     broken, read = _repository_sections(found, clock, cleaned)
     _slot_section(found, read)
-    for text in summaryline.lines(found.github, found.settings, args.config, found.now):
-        print(text)
+    summaryline.print_lines(found.github, found.settings, args.config, found.now)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     if syncing.section(args, found.settings) or broken or unconfigured:

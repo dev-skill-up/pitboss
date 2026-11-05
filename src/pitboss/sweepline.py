@@ -2,6 +2,7 @@
 
 import datetime
 import functools
+import pathlib
 from typing import Callable, Iterable, Sequence
 
 from .markers import Marker
@@ -15,6 +16,8 @@ from . import (
     pullread,
     queue,
     report,
+    slotidle,
+    slotlog,
     unreadableline,
     work,
 )
@@ -38,6 +41,22 @@ def slots(
     for item in offer.blocked:
         print(blockedline.line(item.reference, item.blocker))
     report.print_free_slots(book, len(offer.items))
+
+
+def idle(
+    book: ledger.Ledger, offer: work.Offered, log: pathlib.Path, now: datetime.datetime
+) -> None:
+    """Print the ``SLOT IDLE`` lines, while work is queued.
+
+    Args:
+        book: the ledger.
+        offer: the queued work (``offering.offered``).
+        log: the slot log, which tells how long a slot stayed empty.
+        now: the time now.
+    """
+    if offer.items:
+        for line in slotidle.lines(book, slotlog.read(log), now):
+            print(line)
 
 
 def pressure(

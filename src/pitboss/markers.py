@@ -87,6 +87,8 @@ class Marker(enum.Enum):
         SWEEP_REMINDER: a question each sweep ends with.
         EMPTY_SLOT: a worker slot with no agent.
         SLOTS_FREE: slots are free and work is queued; a wake-up is required.
+        SLOT_IDLE: a slot empty for over two minutes (by the slot log) while
+            work is queued.
         GONE_AGENT: a slot whose agent is no longer running.
         CHECK_BEFORE_YOU_ANSWER: the ledger is kept by hand; check it.
         NEXT: a line of the sorted list of work.
@@ -160,6 +162,7 @@ class Marker(enum.Enum):
     SWEEP_REMINDER = enum.auto()
     EMPTY_SLOT = enum.auto()
     SLOTS_FREE = enum.auto()
+    SLOT_IDLE = enum.auto()
     GONE_AGENT = enum.auto()
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
     NEXT = enum.auto()

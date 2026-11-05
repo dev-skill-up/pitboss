@@ -189,6 +189,13 @@ Only override for bugs, but do override for bugs (and then file them)".
    2026-10-26T03:03:00Z: "THE RULES SAY SLOTS ARE NEVER EMPTY";
    2026-10-26T04:32:05Z: "IT SAT EMPTY BECAUSE YOU DIDN'T FILL IT"). Record
    each spawn in the ledger.
+   - A `waiting for CI` line, or any wait line, is never a reason to leave a
+     slot empty: start the item the `EMPTY SLOT` line names at once. A pull
+     request that becomes ready while the slot is full waits for the slot, and
+     the running agent is never interrupted (owner, 2026-11-05: the cap is a
+     target, never under and never over; pitboss#244). The sweep prints
+     `SLOT IDLE <slot> (<n> minutes)` for a slot empty over 2 minutes while
+     work is queued.
 6. **An interrupt that killed agents is not a stop** (owner,
    2026-10-21T04:29:23Z): "Yes. Unless I explicitly say "quiesce agent",
    assume I still want agents running, just doing the right thing." A killed
