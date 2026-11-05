@@ -328,6 +328,8 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
         rejection = rejection_step(pr, review) if review else None
         if rejection or not plan_approved(pr):
             return rejection or plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+        if unrun := flowstate.plan_unrun(pr, review):  # keyword: plan-alone
+            return unrun
         if e2e := flowstate.e2e_step(pr):  # keyword: run-e2e (pitboss#199)
             return e2e
         if can_undraft(pr):  # pressure passes, the CI-action spacing and holds allow

@@ -149,7 +149,6 @@ TASK_RULING_AS_GIVEN = (
     " or abandon. Do exactly what that ruling says to the ticket and the PR; it is"
     " not checked against the one-ticket-one-PR rules."
 )
-
 REVIEW = (
     "Review: {reference} at head {head}. Read the head from the PR when you start"
     " and again before you post; if it moved, review the new head."
