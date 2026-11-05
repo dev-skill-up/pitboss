@@ -12,7 +12,6 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     commands,
-    configfile,
     draftrule,
     queue,
     record,
@@ -55,10 +54,8 @@ def _refuse_if_held(found: commands.Context) -> None:
 
 def _refuse_draft(args: argparse.Namespace) -> None:
     # keyword: no-drafts (pitboss#216): a project whose config needs no drafts
-    if not args.draft:
-        return
-    drafts = configfile.load_brief(args.config, commands.working_directory(args))
-    if not drafts.drafts:
+    start = commands.working_directory(args)
+    if args.draft and draftrule.drafts_off(args.config, start):
         print(f"push refused: --draft, but {draftrule.REFUSAL}; nothing was pushed")
         raise SystemExit(1)
 

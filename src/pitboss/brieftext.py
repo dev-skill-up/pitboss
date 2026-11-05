@@ -73,13 +73,6 @@ PUSH_HELD = (
     " hand back at once, naming where you stopped and the SHA of what is"
     " unpushed; never loop or sleep for the hold to clear."
 )
-PUSH_HELD_READY = (
-    "Push: push with `uvx pitboss push {config} --no-dry-run` (without `--draft`:"
-    " this project's PRs are not drafts, and push refuses `--draft` here), after"
-    " every commit. Under a hold it exits 1 and pushes nothing: hand back at once,"
-    " naming where you stopped and the SHA of what is unpushed; never loop or"
-    " sleep for the hold to clear."
-)
 PUSH_FREE = "Push: push the branch with `git push` after every commit."
 PLAN_COMMANDS_WORKER = (
     "Plan commands: run each precise command of the Plan as written; if the"

@@ -14,7 +14,6 @@ from . import (
     cardform,
     commands,
     config,
-    configfile,
     contradictions,
     draftrule,
     folds,
@@ -184,10 +183,10 @@ def _draft_findings(args: argparse.Namespace, subject: forms.Subject) -> Sequenc
     if args.config is None:
         return []
     try:
-        drafts = configfile.load_brief(args.config, commands.working_directory(args))
+        off = draftrule.drafts_off(args.config, commands.working_directory(args))
     except (OSError, ValueError, KeyError) as error:
         raise _fail(f"{args.config}: {error}") from error
-    return [] if drafts.drafts else draftrule.findings(subject.name, subject.body)
+    return draftrule.findings(subject.name, subject.body) if off else []
 
 
 def _card_findings(

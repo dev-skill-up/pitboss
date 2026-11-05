@@ -5,8 +5,11 @@
 appended to the generated one may not tell the worker to open a draft.
 """
 
+import pathlib
 import re
 from typing import Sequence
+
+from . import configfile
 
 SETTING = "[slots.brief] drafts = false"
 REFUSAL = (
@@ -25,6 +28,19 @@ _NEGATED = re.compile(
     re.IGNORECASE,
 )
 SHOWN = 80
+
+
+def drafts_off(config: str, start: pathlib.Path) -> bool:
+    """Whether the configuration says the project's PRs are not drafts.
+
+    Args:
+        config: the configuration's path or name.
+        start: the directory a name is looked up from.
+
+    Returns:
+        True when ``[slots.brief] drafts`` is false.
+    """
+    return not configfile.load_brief(config, start).drafts
 
 
 def findings(name: str, body: str) -> Sequence[str]:

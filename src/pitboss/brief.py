@@ -18,6 +18,7 @@ from . import (
     briefruling,
     brieftext as text,
     brieftextci,
+    brieftextdraft,
     brieftextexec,
     brieftextimpact,
     brieftextlint,
@@ -167,7 +168,7 @@ PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
 PUSHES = {
     (True, True): text.PUSH_HELD,
-    (True, False): text.PUSH_HELD_READY,
+    (True, False): brieftextdraft.PUSH_HELD_READY,
     (False, True): text.PUSH_FREE,
     (False, False): text.PUSH_FREE,
 }
