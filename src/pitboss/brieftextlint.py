@@ -10,6 +10,16 @@ LINT_TEST = (
     " loosened rule now accepts, such as a fixed sleep whose timer handle is"
     " kept), as well as a test for the input it accepts."
 )
+PLAN_LINT = (
+    "Plan lint: before every push, run `uvx pitboss lint pr-body BODYFILE`"
+    " (with the PR body's file): it prints `plan command not run as written:"
+    " <row> <command>` for each Plan command that no Evidence block ran as"
+    " written (a cut or a pipe after it is allowed). A Plan command is run as"
+    " written; the only reasons to run another are that it is impossible or"
+    " dangerous, and then you stop, show the output that proves it, and the Plan"
+    " is changed and reviewed first (a repository rule such as `e2e runs through"
+    " a script` does not override an approved Plan's command)."
+)
 LINT_TEST_REVIEW = (
     "Lint tests: a lint, check or exemption that is new or loosened and ships no"
     " test for the nearest input it must still reject is changes needed (a form"
