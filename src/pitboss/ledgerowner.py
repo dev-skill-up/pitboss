@@ -48,6 +48,18 @@ def refusal(use: str) -> str:
     return f"not the orchestrator config: use {use}"
 
 
+def say_sweep(settings: config.Config, path: pathlib.Path) -> None:
+    """Print the first line of a sweep of a configuration that is not the owner.
+
+    Args:
+        settings: the configuration.
+        path: the configuration file that was given.
+    """
+    use = owner(settings, path)
+    if use is not None:
+        print(sweep_line(use))
+
+
 def sweep_line(use: str) -> str:
     """The first line of a sweep of a configuration that does not own the ledger.
 

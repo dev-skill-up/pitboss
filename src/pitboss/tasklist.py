@@ -7,6 +7,7 @@ the note when the orchestrator has updated the list. ``sweep --task-list FILE``
 refuses a line of the orchestrator's own list that names several tickets.
 """
 
+import contextlib
 import dataclasses
 import datetime
 import json
@@ -15,9 +16,17 @@ import re
 import subprocess
 from typing import Mapping, Sequence
 
+from gather.commands import add_argument
+
 from . import config, fixes, ghapi, ledger, slotlog
 from .markers import Marker
 
+ARGUMENT = add_argument(
+    "--task-list",
+    default=None,
+    help="a file holding the orchestrator's task list, one line for each task;"
+    " a line that names several tickets is refused",
+)
 MERGED_PATH = "pulls?state=closed&sort=updated&direction=desc&per_page=30"
 _REFERENCE = re.compile(r"(?:[\w.-]+/[\w.-]+)?#\d+")
 
@@ -37,6 +46,74 @@ class Merge:
     merged_at: str
 
 
+def noting(
+    before: ledger.Ledger, after: ledger.Ledger | ledger.Refusal, slot_name: str
+) -> ledger.Ledger | ledger.Refusal:
+    """Note the ticket of a slot whose agent handed back.
+
+    Args:
+        before: the ledger before the change.
+        after: the ledger the change made, or its refusal.
+        slot_name: the slot.
+
+    Returns:
+        A refusal as it is; else the new ledger, whose ``handbacks`` has the
+        slot's ticket once, last (none when the slot recorded no ticket).
+    """
+    if isinstance(after, ledger.Refusal):
+        return after
+    held = [slot.ticket for slot in before.slots if slot.name == slot_name]
+    if not any(held) or held[0] in after.handbacks:
+        return after
+    return dataclasses.replace(after, handbacks=(*after.handbacks, held[0]))
+
+
+def heard(
+    book: ledger.Ledger, slot_name: str, when: str
+) -> ledger.Ledger | ledger.Refusal:
+    """Say a slot's agent notified (it stays), and note its ticket.
+
+    Args:
+        book: the ledger.
+        slot_name: the slot.
+        when: the time (ISO).
+
+    Returns:
+        The new ledger, or a refusal when the slot has no agent.
+    """
+    stamped = ledger.stamp(book, slot_name, ledger.Mark.HEARD, when)
+    return noting(book, stamped, slot_name)
+
+
+def freed(
+    book: ledger.Ledger, slot_name: str, done: str
+) -> ledger.Ledger | ledger.Refusal:
+    """Empty a slot whose agent handed back, and note its ticket.
+
+    Args:
+        book: the ledger.
+        slot_name: the slot.
+        done: the agent that handed back.
+
+    Returns:
+        The new ledger, or a refusal (see ``ledger.free``).
+    """
+    return noting(book, ledger.free(book, slot_name, done), slot_name)
+
+
+def refreshed(book: ledger.Ledger, when: str) -> ledger.Ledger:
+    """Note that the orchestrator updated its task list.
+
+    Args:
+        book: the ledger.
+        when: the time (ISO).
+
+    Returns:
+        The ledger with that time and no hand-backs waiting.
+    """
+    return dataclasses.replace(book, refreshed=when, handbacks=())
+
+
 def _merges_of(repo: config.Repo, text: str, since: str) -> Sequence[Merge]:
     after = slotlog.utc(datetime.datetime.fromisoformat(since)) if since else None
     found = []
@@ -46,8 +123,8 @@ def _merges_of(repo: config.Repo, text: str, since: str) -> Sequence[Merge]:
             continue
         if after and slotlog.utc(datetime.datetime.fromisoformat(merged)) <= after:
             continue
-        for ticket in fixes.named_tickets(str(item.get("body") or ""), repo):
-            found.append(Merge(number=item["number"], ticket=ticket, merged_at=merged))
+        for fixed in fixes.named_tickets(item.get("body") or "", repo):
+            found.append(Merge(number=item["number"], ticket=fixed, merged_at=merged))
     return found
 
 
@@ -67,18 +144,27 @@ def read_merges(
     merges: list[Merge] = []
     unreadable: list[str] = []
     for repo in config.repositories(settings):
-        try:
+        text = ""
+        with contextlib.suppress(subprocess.CalledProcessError):
             text = ghapi.get(github, f"repos/{repo.slug}/{MERGED_PATH}")
+        if text:
             merges.extend(_merges_of(repo, text, since))
-        except subprocess.CalledProcessError:
+        else:
             unreadable.append(repo.slug)
     return sorted(merges, key=lambda each: each.merged_at), unreadable
 
 
-def _reasons(merges: Sequence[Merge]) -> str:
-    numbers = ", ".join(str(each.number) for each in merges)
-    plural = "PRs" if len(merges) > 1 else "PR"
-    return f"show it done: {plural} {numbers} merged {merges[-1].merged_at}"
+def _line(book: ledger.Ledger, merges: Sequence[Merge], ticket: str, name: str) -> str:
+    mine = [each for each in merges if each.ticket == ticket]
+    said = []
+    if mine:
+        numbers = ", ".join(str(each.number) for each in mine)
+        plural = "PRs" if len(mine) > 1 else "PR"
+        said.append(f"show it done: {plural} {numbers} merged {mine[-1].merged_at}")
+    if ticket in book.handbacks:
+        said.append("an agent handed back: show its true state")
+    again = f"then run 'pitboss slots refreshed {name}'"
+    return f"{Marker.TASK_LIST.text} {ticket}: {'; '.join(said)}; {again}"
 
 
 def lines(
@@ -101,21 +187,30 @@ def lines(
     Returns:
         The lines; none when nothing merged and no agent handed back since.
     """
-    tickets = list(dict.fromkeys([each.ticket for each in merges] + [*book.handbacks]))
-    done = f"then run 'pitboss slots refreshed {name}'"
-    found = []
-    for ticket in tickets:
-        mine = [each for each in merges if each.ticket == ticket]
-        said = [_reasons(mine)] if mine else []
-        if ticket in book.handbacks:
-            said.append("an agent handed back: show its true state")
-        found.append(f"{Marker.TASK_LIST.text} {ticket}: {'; '.join(said)}; {done}")
+    wanted = [*(each.ticket for each in merges), *book.handbacks]
+    found = [_line(book, merges, ticket, name) for ticket in dict.fromkeys(wanted)]
     found.extend(
         f"{Marker.TASK_LIST.text} {slug}: its merged pull requests could not be"
         " read; find by hand which tickets merged since the last refresh"
         for slug in unreadable
     )
     return found
+
+
+def print_lines(
+    github: ghapi.GitHub, settings: config.Config, book: ledger.Ledger, name: str
+) -> None:
+    """Print the ``TASK LIST`` lines of a sweep.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        book: the ledger.
+        name: the configuration argument the sweep was given.
+    """
+    merges, unreadable = read_merges(github, settings, book.refreshed)
+    for line in lines(book, merges, unreadable, name):
+        print(line)
 
 
 def crowded(text: str, project: config.Repo) -> Mapping[int, Sequence[str]]:
@@ -156,18 +251,24 @@ def refusals(text: str, project: config.Repo) -> Sequence[str]:
     ]
 
 
-def check_file(path: pathlib.Path, project: config.Repo) -> Sequence[str]:
-    """Check the orchestrator's task list file.
+def refused(path: str | None, project: config.Repo) -> bool:
+    """Check the orchestrator's task list file, when the sweep is given one.
+
+    Prints a line for each refusal.
 
     Args:
-        path: the file.
+        path: the file, or None.
         project: the repository of a bare ``#12``.
 
     Returns:
-        The refusals, or one line when the file cannot be read.
+        Whether the list was refused (or could not be read).
     """
+    if not path:
+        return False
     try:
-        text = path.read_text()
+        found = refusals(pathlib.Path(path).read_text(), project)
     except OSError as error:
-        return [f"{Marker.TASK_LIST.text} REFUSED: cannot read {path}: {error}"]
-    return refusals(text, project)
+        found = [f"{Marker.TASK_LIST.text} REFUSED: cannot read {path}: {error}"]
+    for line in found:
+        print(line)
+    return bool(found)

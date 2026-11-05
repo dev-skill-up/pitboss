@@ -252,36 +252,7 @@ def free(ledger: Ledger, slot_name: str, done: str) -> Ledger | Refusal:
             reason=f"slot {slot_name} holds {held}, not {done}: only the agent"
             " that handed back is done"
         )
-    emptied = _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
-    return handed_back(emptied, slot.ticket)
-
-
-def handed_back(ledger: Ledger, ticket: str) -> Ledger:
-    """Note that an agent working on a ticket handed back.
-
-    Args:
-        ledger: the ledger.
-        ticket: the ticket, or empty when the slot recorded none.
-
-    Returns:
-        The ledger whose ``handbacks`` has the ticket once, last.
-    """
-    if not ticket or ticket in ledger.handbacks:
-        return ledger
-    return dataclasses.replace(ledger, handbacks=(*ledger.handbacks, ticket))
-
-
-def refreshed(ledger: Ledger, when: str) -> Ledger:
-    """Note that the orchestrator updated its task list.
-
-    Args:
-        ledger: the ledger.
-        when: the time (ISO).
-
-    Returns:
-        The ledger with that time and no hand-backs waiting.
-    """
-    return dataclasses.replace(ledger, refreshed=when, handbacks=())
+    return _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
 
 
 def add(

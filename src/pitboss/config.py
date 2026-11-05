@@ -7,17 +7,11 @@ import dataclasses
 import pathlib
 from typing import AbstractSet, Mapping, Sequence
 
-TASK_LIST_RULE = (
-    "Refresh the task list at every merge and at every worker hand-back, before"
-    " the reply, so each line shows its true state: one task-list line per"
-    " ticket, merged ones included, queue ones included."
-)
 DEFAULT_REMINDERS = (
     "Is any ticket closeable? A ticket whose work merged: read the merged PR"
     " against the ticket's done-when, comment the evidence, close it.",
     "Is any blocked ticket unblocked? A ticket that waits on X: check X; when"
     " X is done, say so on the ticket.",
-    TASK_LIST_RULE,
 )
 DEFAULT_FORM = ("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 DEFAULT_RELOCK_PREFIX = "relock/"
