@@ -134,6 +134,14 @@ The order is: write a precise Plan, review the Plan, execute it as written.
   or the code differs from that table, or a row has no named test.
 - Worker: run each precise command of the Plan as written; if the Plan's
   command cannot show its row, change the Plan first and ask for its review.
+- Plan lint (pitboss#196): before every push, run `uvx pitboss lint pr-body
+  BODYFILE` (with the PR body's file): it prints `plan command not run as
+  written: <row> <command>` for each Plan command that no Evidence block ran as
+  written (a cut or a pipe after it is allowed). A Plan command is run as
+  written; the only reasons to run another are that it is impossible or
+  dangerous, and then you stop, show the output that proves it, and the Plan is
+  changed and reviewed first (a repository rule such as `e2e runs through a
+  script` does not override an approved Plan's command).
 
 The briefs `pitboss next` prints carry these sentences. No lint checks these
 three sentences: the review does. (The reviewers' own `Dry run:` line, in the
