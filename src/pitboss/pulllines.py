@@ -9,6 +9,7 @@ from . import (
     e2eline,
     foldline,
     gateline,
+    notesline,
     planeditline,
     pulls,
     reviewline,
@@ -32,7 +33,8 @@ def lines(
 
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
     PLAN EDITED.
-    The review-form lines are UNREADABLE REVIEW, RULING NO ANALYSIS and GATE PENDING.
+    The review-form lines are UNREADABLE REVIEW, REVIEW NOTE, RULING NO ANALYSIS
+    and GATE PENDING.
 
     Args:
         pull: the PR.
@@ -52,6 +54,7 @@ def lines(
         *e2eline.lines(pull),
         *foldline.lines(pull),
         *reviewline.lines(pull),
+        *notesline.lines(pull),
         *analysisline.lines(pull),
         *gateline.lines(pull),
     )

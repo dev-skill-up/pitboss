@@ -246,6 +246,11 @@ after an Opus ruling, an escalation to the owner. So:
   and saying what the finding is. The sweep counts those lines, before and after
   the newest Opus ruling, on the `PAUSE` line. A finding the changes since caused
   has no such line.
+- A gap against the goal or the Done-when that you can name (a case, a fixture,
+  a repository kind the change does not handle) is a finding, never a note; a
+  note holds only what the change did not cause (pitboss#240). The sweep prints
+  `REVIEW NOTE` for an approved PR whose `Notes` paragraph mentions `missed`,
+  `never counted`, `not handled` or `only`.
 
 ## A scope in the brief is exclusive
 

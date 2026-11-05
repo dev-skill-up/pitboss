@@ -22,6 +22,7 @@ from . import (
     brieftextexec,
     brieftextimpact,
     brieftextlint,
+    brieftextnote,
     brieftextorder,
     brieftextwork,
 )
@@ -121,6 +122,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextexec.PLAN_COMMANDS_EXECUTION,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextorder.ORDER_REVIEW,
+        brieftextnote.REVIEW_NOTES,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
@@ -133,6 +135,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextexec.PLAN_COMMANDS_EXECUTION,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextorder.ORDER_REVIEW,
+        brieftextnote.REVIEW_NOTES,
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,

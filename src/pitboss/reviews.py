@@ -4,7 +4,7 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
-from . import bodydigest, config, gradeline, missed, sessionurl, shapes
+from . import bodydigest, config, gradeline, missed, reviewnote, sessionurl, shapes
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -36,6 +36,8 @@ class Found:
             all-findings).
         plan_digest: the digest of the Plan section its ``Plan digest:`` line
             records, empty with no such line (keyword: plan-digest).
+        note: its ``Notes`` paragraph when that names a case not handled,
+            empty otherwise (keyword: review-note).
     """
 
     sha: str
@@ -47,6 +49,7 @@ class Found:
     body: str = ""
     missed: int = 0
     plan_digest: str = ""
+    note: str = ""
 
 
 def names(found: Found, head: str) -> bool:
@@ -237,6 +240,7 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         body=bodydigest.recorded(item.body),
         missed=missed.count(item.body),
         plan_digest=bodydigest.recorded_after(item.body, bodydigest.PLAN_PREFIX),
+        note=reviewnote.gap(item.body),
     )
 
 
