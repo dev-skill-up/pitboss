@@ -18,6 +18,7 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    account,
     autoclean,
     cleanconfig,
     concurrently,
@@ -278,7 +279,7 @@ def sweep_look(found: Context) -> dead.Look:
     )
 
 
-def _clean_section(found: Context) -> autoclean.Report:
+def _clean_section(found: Context) -> account.Report:
     # A sweep that removes: safe_run really runs (keyword: auto-clean).
     listed = found.clean.worktrees is cleanconfig.Worktrees.LIST
     option = autoclean.Option(run=found.args.safe_run, dry=False, list_only=listed)
@@ -296,7 +297,7 @@ def _clean_section(found: Context) -> autoclean.Report:
 
 
 def _repository_sections(
-    found: Context, clock: timing.Clock, cleaned: autoclean.Report
+    found: Context, clock: timing.Clock, cleaned: account.Report
 ) -> tuple[bool, Sequence[pulls.Read]]:
     runs = read_queue_runs(found)
     timing.lap(clock, "merge queue runs read")

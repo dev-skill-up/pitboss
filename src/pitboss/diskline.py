@@ -8,9 +8,9 @@ was kept, with why.
 
 from typing import Sequence
 
-from . import account, autoclean, disk
-from .markers import Marker
+from . import account, disk
 from .machine import Crowded
+from .markers import Marker
 
 
 def started(each: Crowded, minimum: float, told: account.Account) -> str:
@@ -50,14 +50,11 @@ def remaining(each: Crowded, minimum: float, told: account.Account) -> Sequence[
         f"{Marker.DISK_PRESSURE.text} {each.place}: still {disk.size_text(each.free)}"
         f" free, under {minimum:g} GiB: each directory over 500 MB that was kept"
     )
-    big = [
-        f"  {disk.size_text(size)} {path} ({why})"
-        for path, size, why in account.big_kept(told)
-    ]
+    big = account.big_lines(told, "  {size} {path} ({why})")
     return [head, *(big or ["  no kept directory is over 500 MB"])]
 
 
-def lines(report: autoclean.Report, minimum: float) -> Sequence[str]:
+def lines(report: account.Report, minimum: float) -> Sequence[str]:
     """Warn when a filesystem the cleaning covers was short of free space.
 
     Nothing is said while there is room.

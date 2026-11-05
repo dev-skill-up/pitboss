@@ -41,7 +41,7 @@ def clean(args: argparse.Namespace) -> None:
     run = args.run if args.dry_run else args.safe_run
     option = autoclean.Option(run=run, dry=args.dry_run)
     machine = machines.real_machine(args.env, found.now, running_in(args), args.usage)
-    for text in autoclean.clean_lines(sweep_look(found), machine, option):
+    for text in autoclean.clean_report(sweep_look(found), machine, option).lines:
         print(text)
     source = scratch.source_of(args.safe_run, found.scratch, found.now)
     for text in (scratch.listing if args.dry_run else scratch.cleaning)(source):

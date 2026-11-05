@@ -16,6 +16,7 @@ from . import dead, disk, local, machine
 KINDS = ("worktrees", "checkouts", "test tempdirs", "package caches")
 VERBS = {False: "freed", True: "would be freed"}
 BIG_BYTES = 500 * 1000**2
+BIG_FORM = "clean: kept {size} {path} ({why}): over 500 MB"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -39,6 +40,24 @@ class Account:
     kept: Sequence[dead.Kept]
     tied: Sequence[local.Worktree]
     measure: Callable[[pathlib.Path], int]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Report:
+    """What a sweep's clean said and did.
+
+    Attributes:
+        lines: what to print.
+        told: what the clean did, to be told.
+        short: the file systems that had less than the minimum free space
+            before the clean (the ``DISK PRESSURE`` rule), as they were.
+        left: those of them that still have less after it, as they are.
+    """
+
+    lines: Sequence[str]
+    told: Account
+    short: Sequence[machine.Crowded]
+    left: Sequence[machine.Crowded]
 
 
 def totals(
@@ -215,16 +234,17 @@ def big_kept(told: Account) -> Sequence[tuple[pathlib.Path, int, str]]:
     return [(path, sizes[path], once[path].why) for path in big]
 
 
-def big_lines(told: Account) -> Sequence[str]:
+def big_lines(told: Account, form: str = BIG_FORM) -> Sequence[str]:
     """The directories over 500 MB that the cleaning kept, each with why.
 
     Args:
         told: what the clean did.
+        form: the line, with ``{size}``, ``{path}`` and ``{why}`` in it.
 
     Returns:
         A line for each, the largest first.
     """
     return [
-        f"clean: kept {disk.size_text(size)} {path} ({why}): over 500 MB"
+        form.format(size=disk.size_text(size), path=path, why=why)
         for path, size, why in big_kept(told)
     ]

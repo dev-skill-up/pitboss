@@ -2,11 +2,41 @@
 
 import pathlib
 import unittest
+from typing import Sequence
 
-from .. import account, autoclean, dead, diskline, machine
+from .. import account, dead, diskline, machine
 from . import cleanworld, test_tracefs, world
 
 LATER = ("--now", world.FUTURE)
+BIG = pathlib.Path("/w/big")
+
+
+SHORT = machine.Crowded(place=BIG.parent, percent=99, free=2**30, short=True)
+
+
+def report_of(
+    dry: bool, kept: Sequence[dead.Kept], left: Sequence[machine.Crowded]
+) -> account.Report:
+    """What a clean that freed 1 GiB of a workspace short of free space said.
+
+    Args:
+        dry: whether nothing was removed.
+        kept: the directories left.
+        left: the file systems still short of free space.
+
+    Returns:
+        The report.
+    """
+    told = account.Account(
+        dry=dry,
+        hot=[],
+        percent=90,
+        freed=[2**30, 0, 0, 0],
+        kept=kept,
+        tied=[],
+        measure=lambda path: 0,
+    )
+    return account.Report(lines=[], told=told, short=[SHORT], left=left)
 
 
 class TestRootFiles(unittest.TestCase):
@@ -48,19 +78,8 @@ class TestPressure(unittest.TestCase):
 
     def test_a_directory_over_500_mb_that_was_kept_is_named_with_why(self) -> None:
         """Still short of free space afterwards: each big kept directory, with why."""
-        big = pathlib.Path("/w/big")
-        told = account.Account(
-            dry=False,
-            hot=[],
-            percent=90,
-            freed=[2**30, 0, 0, 0],
-            kept=[dead.Kept(path=big, why="its branch has an open PR", size=2**30)],
-            tied=[],
-            measure=lambda path: 0,
-        )
-        short = machine.Crowded(place=big.parent, percent=99, free=2**30, short=True)
-        report = autoclean.Report(lines=[], told=told, short=[short], left=[short])
-        text = "\n".join(diskline.lines(report, 5.0))
+        big = dead.Kept(path=BIG, why="its branch has an open PR", size=2**30)
+        text = "\n".join(diskline.lines(report_of(False, [big], [SHORT]), 5.0))
         cleanworld.same(
             cleanworld.absent(
                 text,
@@ -68,7 +87,7 @@ class TestPressure(unittest.TestCase):
                     "DISK PRESSURE /w: 1.0 GiB free, under 5 GiB: the aggressive clean",
                     "freed 1.0 GiB (worktrees 1.0 GiB, checkouts 0.0 MiB,",
                     "DISK PRESSURE /w: still 1.0 GiB free, under 5 GiB",
-                    f"  1.0 GiB {big} (its branch has an open PR)",
+                    f"  1.0 GiB {BIG} (its branch has an open PR)",
                 ],
             ),
             [],
@@ -76,16 +95,8 @@ class TestPressure(unittest.TestCase):
 
     def test_enough_freed_says_no_more(self) -> None:
         """A file system that is no longer short has only the pass line."""
-        told = account.Account(
-            dry=True, hot=[], percent=90, freed=[0, 0, 0, 0], kept=[], tied=[],
-            measure=lambda path: 0,
-        )
-        short = machine.Crowded(place=pathlib.Path("/w"), percent=99, short=True)
-        report = autoclean.Report(lines=[], told=told, short=[short], left=[])
-        text = diskline.lines(report, 5.0)
-        cleanworld.same(
-            (len(text), "would be freed 0.0 MiB" in text[0]), (1, True)
-        )
+        text = diskline.lines(report_of(True, [], []), 5.0)
+        cleanworld.same((len(text), "would be freed 1.0 GiB" in text[0]), (1, True))
 
     def test_no_pressure_no_line(self) -> None:
         """With room there is no line and nothing is scanned."""

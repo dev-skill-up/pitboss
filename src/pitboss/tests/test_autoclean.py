@@ -1,9 +1,10 @@
 """The lines of the automatic cleaning: the header, the totals, the never line."""
 
+import dataclasses
 import pathlib
 import unittest
 
-from .. import account, autoclean, dead, machine
+from .. import account, cleanheader, dead, machine
 from . import cleanworld
 from .autocleanworld import TMP, has, plain, used
 
@@ -28,14 +29,14 @@ class TestHeader(unittest.TestCase):
 
     def test_the_normal_header_names_the_ages(self) -> None:
         """Below the limit the header says so, and the tempdir age."""
-        text = autoclean.header([], plain())
+        text = cleanheader.header([], plain())
         has(text, "disk under 90% used")
         has(text, "untouched for 24 hours")
 
     def test_the_aggressive_header_names_the_file_system(self) -> None:
         """Over the limit the header says which file system and the short age."""
         hot = [machine.Crowded(place=pathlib.Path("/w"), percent=95.2)]
-        text = autoclean.header(hot, plain())
+        text = cleanheader.header(hot, plain())
         has(text, "DISK OVER 90% (/w 95%)")
         has(text, "untouched for 1 hours")
 
@@ -46,7 +47,8 @@ class TestHeader(unittest.TestCase):
                 place=pathlib.Path("/w"), percent=50.0, free=2**30, short=True
             )
         ]
-        text = autoclean.header(hot, plain())
+        settings = dataclasses.replace(plain(), min_free_gib=5.0)
+        text = cleanheader.header(hot, settings)
         has(text, "DISK UNDER 5 GiB FREE (/w 50%, 1.0 GiB free)")
 
 

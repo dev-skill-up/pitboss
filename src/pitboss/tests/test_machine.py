@@ -2,6 +2,7 @@
 
 import pathlib
 import unittest
+from typing import Sequence
 
 from .. import disk, machine
 from . import cleanworld, world
@@ -10,19 +11,34 @@ from .autocleanworld import Tree, machine_of, used
 same = cleanworld.same
 
 
-def crowded_count(percent: int, limit: float) -> int:
+def crowded_in(percent: int, limit: float, minimum: float) -> Sequence[machine.Crowded]:
+    """The file systems of one path that are crowded.
+
+    Args:
+        percent: how much of the 100 GiB file system is used.
+        limit: the limit.
+        minimum: the free space, in GiB, under which it is crowded.
+
+    Returns:
+        The crowded file systems.
+    """
+    place = pathlib.Path("/a")
+    seen = machine_of(Tree(), {place: used(percent)})
+    return machine.find_crowded(seen, [place], limit, minimum)
+
+
+def crowded_count(percent: int, limit: float, minimum: float = 0.0) -> int:
     """How many file systems of one path are crowded.
 
     Args:
         percent: how much of the file system is used.
         limit: the limit.
+        minimum: the free space, in GiB, under which it is crowded.
 
     Returns:
         The count.
     """
-    place = pathlib.Path("/a")
-    seen = machine_of(Tree(), {place: used(percent)})
-    return len(machine.find_crowded(seen, [place], limit))
+    return len(crowded_in(percent, limit, minimum))
 
 
 class TestPressureSwitch(unittest.TestCase):
@@ -47,21 +63,16 @@ class TestPressureSwitch(unittest.TestCase):
 
     def test_under_the_minimum_free_space_is_crowded_too(self) -> None:
         """95 GiB used of 100 leaves 5 GiB: under 6 GiB free, not under 5."""
-        place = pathlib.Path("/a")
-        seen = machine_of(Tree(), {place: used(95)})
-        under = machine.find_crowded(seen, [place], 99, 6.0)
-        level = machine.find_crowded(seen, [place], 99, 5.0)
-        none = machine.find_crowded(seen, [place], 99, 0.0)
+        (found,) = crowded_in(95, 99, 6.0)
         same(
-            ([(e.short, e.free, e.over) for e in under], level, none),
-            ([(True, 5 * 2**30, 2**30 + 1)], [], []),
+            (found.short, found.free, found.over),
+            (True, 5 * 2**30, 2**30 + 1),
         )
+        same((crowded_count(95, 99, 5.0), crowded_count(95, 99)), (0, 0))
 
     def test_the_bytes_over_are_the_larger_of_the_two_rules(self) -> None:
         """Over 90 percent and short of free space: the more bytes to free."""
-        place = pathlib.Path("/a")
-        seen = machine_of(Tree(), {place: used(95)})
-        (found,) = machine.find_crowded(seen, [place], 90, 20.0)
+        (found,) = crowded_in(95, 90, 20.0)
         same((found.short, found.over), (True, 15 * 2**30 + 1))
 
     def test_each_file_system_once_and_absent_paths_left_out(self) -> None:
