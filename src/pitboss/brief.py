@@ -387,7 +387,7 @@ def build(spec: Spec) -> str:
     if spec.kind in REVIEWS:
         rules = _review(spec, values)
     elif spec.kind is Kind.RULING:
-        rules = briefruling.lines(values)
+        rules = list(briefruling.lines(values))
     else:
         rules = _worker(spec, values)
     return "\n".join([f"Goal: {spec.subject.goal}", *rules])

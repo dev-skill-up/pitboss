@@ -1,11 +1,11 @@
 """The lines of the brief of an Opus ruling (keyword: brief, pitboss#118)."""
 
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from . import brieftext as text, brieftextorder, rulingwords
 
 
-def lines(values: Mapping[str, str]) -> list[str]:
+def lines(values: Mapping[str, str]) -> Sequence[str]:
     """The lines of a ruling brief.
 
     Args:
