@@ -19,6 +19,7 @@ from . import (
     folds,
     forms,
     gateform,
+    holdwait,
     phrases,
     planfixed,
     relock,
@@ -174,6 +175,7 @@ def _brief_findings(
 ) -> Sequence[str]:
     return [
         *forms.brief(subject, settings.brief_lines, _ticket(args)),
+        *holdwait.findings(subject.name, subject.body),  # keyword: hold-wait
         *_draft_findings(args, subject),
     ]
 

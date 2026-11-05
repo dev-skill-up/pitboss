@@ -164,6 +164,12 @@ While `RUNNER PRESSURE` is printed:
 - reading runs and logs, filing and commenting on issues, and reviews that
   start no runs are fine.
 
+A hold that is wrong because of a known pitboss bug with a ticket (pitboss#215
+held pitboss's own pull requests, which use their own runner budget) is not
+waited out: push with the plain `git push origin <branch>` and cite the ticket
+in the same turn. No ticket yet: file it first. The bats-lang repositories keep
+their hold.
+
 When `pitboss pressure <config>` exits 0 and reads `NO RUNNER PRESSURE` (the
 quiet period of `rules.md` is over; `RUNNER PRESSURE` with minutes remaining
 is still a hold), release held work one push at a time, running it
