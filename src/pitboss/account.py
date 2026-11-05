@@ -149,6 +149,20 @@ def needed(told: Account) -> int:
     return sum(one.over for one in told.hot)
 
 
+def kinds_text(told: Account) -> str:
+    """The bytes each kind of cleaning freed.
+
+    Args:
+        told: what the clean did.
+
+    Returns:
+        ``worktrees 3.0 GiB, checkouts ...``, one entry for each kind.
+    """
+    return ", ".join(
+        f"{kind} {disk.size_text(size)}" for kind, size in zip(KINDS, told.freed)
+    )
+
+
 def by_kind(told: Account) -> str:
     """The line with the bytes each kind of cleaning freed.
 
@@ -158,10 +172,7 @@ def by_kind(told: Account) -> str:
     Returns:
         The line.
     """
-    each = ", ".join(
-        f"{kind} {disk.size_text(size)}" for kind, size in zip(KINDS, told.freed)
-    )
-    return f"clean: {VERBS[told.dry]} by kind: {each}"
+    return f"clean: {VERBS[told.dry]} by kind: {kinds_text(told)}"
 
 
 def short_line(told: Account) -> str:
@@ -182,14 +193,14 @@ def short_line(told: Account) -> str:
     )
 
 
-def big_lines(told: Account) -> Sequence[str]:
+def big_kept(told: Account) -> Sequence[tuple[pathlib.Path, int, str]]:
     """The directories over 500 MB that the cleaning kept, each with why.
 
     Args:
         told: what the clean did.
 
     Returns:
-        A line for each, the largest first.
+        The path, the bytes and the reason of each, the largest first.
     """
     open_pr = [dead.Kept(path=each.path, why="open PR") for each in told.tied]
     once = {each.path: each for each in [*told.kept, *open_pr]}
@@ -201,8 +212,19 @@ def big_lines(told: Account) -> Sequence[str]:
         (path for path, size in sizes.items() if size > BIG_BYTES),
         key=lambda path: (-sizes[path], str(path)),
     )
+    return [(path, sizes[path], once[path].why) for path in big]
+
+
+def big_lines(told: Account) -> Sequence[str]:
+    """The directories over 500 MB that the cleaning kept, each with why.
+
+    Args:
+        told: what the clean did.
+
+    Returns:
+        A line for each, the largest first.
+    """
     return [
-        f"clean: kept {disk.size_text(sizes[path])} {path} ({once[path].why}):"
-        " over 500 MB"
-        for path in big
+        f"clean: kept {disk.size_text(size)} {path} ({why}): over 500 MB"
+        for path, size, why in big_kept(told)
     ]

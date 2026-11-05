@@ -45,6 +45,25 @@ class TestPressureSwitch(unittest.TestCase):
         """Exactly 90% used switches to the aggressive cleaning."""
         same(crowded_count(90, 90), 1)
 
+    def test_under_the_minimum_free_space_is_crowded_too(self) -> None:
+        """95 GiB used of 100 leaves 5 GiB: under 6 GiB free, not under 5."""
+        place = pathlib.Path("/a")
+        seen = machine_of(Tree(), {place: used(95)})
+        under = machine.find_crowded(seen, [place], 99, 6.0)
+        level = machine.find_crowded(seen, [place], 99, 5.0)
+        none = machine.find_crowded(seen, [place], 99, 0.0)
+        same(
+            ([(e.short, e.free, e.over) for e in under], level, none),
+            ([(True, 5 * 2**30, 2**30 + 1)], [], []),
+        )
+
+    def test_the_bytes_over_are_the_larger_of_the_two_rules(self) -> None:
+        """Over 90 percent and short of free space: the more bytes to free."""
+        place = pathlib.Path("/a")
+        seen = machine_of(Tree(), {place: used(95)})
+        (found,) = machine.find_crowded(seen, [place], 90, 20.0)
+        same((found.short, found.over), (True, 15 * 2**30 + 1))
+
     def test_each_file_system_once_and_absent_paths_left_out(self) -> None:
         """Two paths on one file system are one entry; a missing path is none."""
         first, second, missing = (pathlib.Path(name) for name in ("/a", "/b", "/c"))

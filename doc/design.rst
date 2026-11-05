@@ -910,8 +910,13 @@ lists of the repositories a removed linked worktree belonged to. ``--approved
 FILE`` limits the removal to the paths in it; an entry that is not among the
 current safe candidates is refused, whatever it is. The sweep warns with
 ``DISK PRESSURE`` when the free space of a filesystem of ``workspace`` or of a
-scratch directory is under ``[clean] min_free_gib`` (default 5; 0 never) and
-then names the five largest safe dead paths; it scans for them only then. The free space comes from the same injected reader
+scratch directory is under ``[clean] min_free_gib`` (default 5; 0 never). That
+is pressure like ``[clean] pressure_percent``: the sweep's clean is the
+aggressive pass (every repository's finished worktrees and clones in the
+workspace, each judged by the PRs of its own ``origin``, whatever the sweep's
+configuration), and the line names the pass it started and the bytes it freed;
+when the free space is still under the minimum afterwards, it lists each
+directory over 500 MB that was kept, with why (pitboss#205). The free space comes from the same injected reader
 (``args.usage``), so a test gives the figure.
 
 **Slots.** The ledger is a JSON file: each slot's name, model, agent, task,

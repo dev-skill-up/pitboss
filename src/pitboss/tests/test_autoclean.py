@@ -39,6 +39,16 @@ class TestHeader(unittest.TestCase):
         has(text, "DISK OVER 90% (/w 95%)")
         has(text, "untouched for 1 hours")
 
+    def test_the_header_names_the_free_space_rule(self) -> None:
+        """Under the minimum free space the header says so and the free space."""
+        hot = [
+            machine.Crowded(
+                place=pathlib.Path("/w"), percent=50.0, free=2**30, short=True
+            )
+        ]
+        text = autoclean.header(hot, plain())
+        has(text, "DISK UNDER 5 GiB FREE (/w 50%, 1.0 GiB free)")
+
 
 class TestTotals(unittest.TestCase):
     """The last line has the space freed."""

@@ -1,10 +1,9 @@
 """End-to-end tests of the root files and of the disk pressure line."""
 
-import dataclasses
-import datetime
+import pathlib
 import unittest
 
-from .. import cleanconfig, diskline, machine
+from .. import account, autoclean, dead, diskline, machine
 from . import cleanworld, test_tracefs, world
 
 LATER = ("--now", world.FUTURE)
@@ -28,35 +27,64 @@ class TestRootFiles(unittest.TestCase):
 class TestPressure(unittest.TestCase):
     """The warning of a sweep."""
 
-    def test_pressure_names_the_largest_dead_paths(self) -> None:
-        """Under the minimum a sweep names the dead paths that could be freed."""
+    def test_pressure_names_the_pass_it_started_and_what_it_freed(self) -> None:
+        """Under the minimum a sweep cleans hard and the line says so."""
         here = world.make_world()
         cleanworld.crowd(here, "1e9")
         late = world.again(here, "sweep", *LATER).out
-        pieces = [f"DISK PRESSURE {here.workspace}:", "merged-work (its PR merged)"]
+        pieces = [
+            f"DISK PRESSURE {here.workspace}:",
+            "the aggressive clean started",
+            "freed ",
+            "(worktrees ",
+            "clean: DISK UNDER 1e+09 GiB FREE",
+            "still ",
+            "no kept directory is over 500 MB",
+        ]
         busy = world.again(here, "sweep").out
         cleanworld.same(
             (cleanworld.absent(late, pieces), "merged-work" in busy), ([], False)
         )
 
-    def test_the_pressure_line_scans_what_the_dry_run_lists(self) -> None:
-        """The root files are in the one scan: the line names them too."""
-        root = cleanworld.session_root("written")
-        settings = cleanconfig.Clean(scratch=[], live=[], min_free_gib=1e9)
-        look = dataclasses.replace(
-            cleanworld.look_in(root), clean=settings, watch=cleanworld.watching(root)
+    def test_a_directory_over_500_mb_that_was_kept_is_named_with_why(self) -> None:
+        """Still short of free space afterwards: each big kept directory, with why."""
+        big = pathlib.Path("/w/big")
+        told = account.Account(
+            dry=False,
+            hot=[],
+            percent=90,
+            freed=[2**30, 0, 0, 0],
+            kept=[dead.Kept(path=big, why="its branch has an open PR", size=2**30)],
+            tied=[],
+            measure=lambda path: 0,
         )
-        now = datetime.datetime.fromtimestamp(0, datetime.timezone.utc)
-        text = "\n".join(
-            diskline.lines(
-                look, now + datetime.timedelta(days=99999), machine.read_usage
-            )
-        )
+        short = machine.Crowded(place=big.parent, percent=99, free=2**30, short=True)
+        report = autoclean.Report(lines=[], told=told, short=[short], left=[short])
+        text = "\n".join(diskline.lines(report, 5.0))
         cleanworld.same(
             cleanworld.absent(
-                text, ["DISK PRESSURE", f"{root / 'written'} (written over 1 hours"]
+                text,
+                [
+                    "DISK PRESSURE /w: 1.0 GiB free, under 5 GiB: the aggressive clean",
+                    "freed 1.0 GiB (worktrees 1.0 GiB, checkouts 0.0 MiB,",
+                    "DISK PRESSURE /w: still 1.0 GiB free, under 5 GiB",
+                    f"  1.0 GiB {big} (its branch has an open PR)",
+                ],
             ),
             [],
+        )
+
+    def test_enough_freed_says_no_more(self) -> None:
+        """A file system that is no longer short has only the pass line."""
+        told = account.Account(
+            dry=True, hot=[], percent=90, freed=[0, 0, 0, 0], kept=[], tied=[],
+            measure=lambda path: 0,
+        )
+        short = machine.Crowded(place=pathlib.Path("/w"), percent=99, short=True)
+        report = autoclean.Report(lines=[], told=told, short=[short], left=[])
+        text = diskline.lines(report, 5.0)
+        cleanworld.same(
+            (len(text), "would be freed 0.0 MiB" in text[0]), (1, True)
         )
 
     def test_no_pressure_no_line(self) -> None:

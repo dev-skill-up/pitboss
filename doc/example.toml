@@ -102,8 +102,9 @@ scratch = ["/tmp/claude-0"]
 # (except a merged checkout, whose marker older than 6 hours is not honored).
 # Absolute paths. Default: none.
 live = ["/home/user/.cache/build"]
-# A sweep prints DISK PRESSURE when a filesystem of the workspace or of a scratch
-# directory has less free than this many GiB; 0 never warns. Default: 5.
+# A sweep prints DISK PRESSURE and cleans aggressively (as over pressure_percent)
+# when a filesystem of the workspace or of a scratch directory has less free than
+# this many GiB; 0 never does. Default: 5.
 min_free_gib = 5
 # What a sweep does with the worktrees whose work is finished (PR merged or
 # closed, or tip in the base branch): "auto" removes each that passes the safety
