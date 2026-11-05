@@ -10,21 +10,26 @@ checkout of a repository without an open PR, and the package caches that
 regenerate. It never touches a worktree with an open PR, a running worker's
 directory (changed within ``idle_hours``, or marked ``.pitboss-live``; a merged
 worktree's marker is ignored under disk pressure, except the one whose PR merged
-last), the main clone or the directory it runs in, and it says so.
+last, and, at any disk level, once it is older than a worker's task, 6 hours:
+``workhours``), the main clone or the directory it runs in, and it says so.
+Under pressure it also judges every directory of the workspace that is not a
+registered worktree (a full clone included) by the PRs of its own ``origin``,
+names each it keeps with why, says the bytes freed by each kind and, when they
+fall short, each kept directory over 500 MB (``account``, pitboss#194).
 """
 
 import dataclasses
 import functools
-import operator
 import pathlib
 from typing import AbstractSet, Callable, Sequence
 
 from . import (
+    account,
     cleaning,
     cleanconfig,
     dead,
     deadscan,
-    disk,
+    judging,
     local,
     machine as machines,
     tempclean,
@@ -74,10 +79,14 @@ class Part:
     Attributes:
         lines: what to print.
         gone: the paths removed, or that would be in a dry run.
+        freed: the bytes freed, or that would be in a dry run.
+        kept: the directories this kind of cleaning left, each with why.
     """
 
     lines: Sequence[str]
     gone: Sequence[dead.Candidate]
+    freed: int = 0
+    kept: Sequence[dead.Kept] = ()
 
 
 def nothing() -> Part:
@@ -152,26 +161,10 @@ def never_line(look: dead.Look) -> str:
         "clean: never touched: a worktree with an open PR, a running worker's"
         f" directory (changed within {hours:g} hours or marked .pitboss-live; a"
         " merged worktree's marker is ignored under disk pressure, except the one"
-        " whose PR merged last),"
+        " whose PR merged last, and at any disk level once it is older than 6"
+        " hours),"
         " the main clone, the directory this command runs in"
     )
-
-
-def kept_lines(job: Job) -> Sequence[str]:
-    """Name the worktrees with an open PR that pressure left alone.
-
-    Args:
-        job: the cleaning.
-
-    Returns:
-        A line for each; none unless the disk is under pressure.
-    """
-    if not job.hot:
-        return []
-    return [
-        f"clean: kept {each.path} [{each.branch}] (open PR)"
-        for each in worktrees.tied_to_open_pr(job.look)
-    ]
 
 
 def worktrees_part(job: Job) -> Part:
@@ -187,10 +180,10 @@ def worktrees_part(job: Job) -> Part:
     decide = local.pressure_reason if job.hot else local.finished_reason
     if option.list_only and not job.hot:
         return Part(lines=worktrees.stale_lines(look, job.machine.now, decide), gone=[])
-    weigh = worktrees.under_pressure if job.hot else worktrees.at_ease
+    weigh = judging.under_pressure if job.hot else judging.at_ease
     action = worktrees.Action(run=option.run, dry=option.dry, weigh=weigh)
-    lines = worktrees.remove_lines(look, action, job.machine.now, decide)
-    return Part(lines=lines, gone=[])
+    done = worktrees.removal(look, action, job.machine.now, decide)
+    return Part(lines=done.lines, gone=[], freed=done.freed, kept=done.left)
 
 
 def scan_checkouts(
@@ -244,13 +237,8 @@ def removal_part(
     how = cleaning.Removal(
         run=option.run, recheck=recheck, batch=cleaning.DEFAULT_BATCH, dry=option.dry
     )
-    results = list(cleaning.removals(how, found))
-    note = " (dry run)" if option.dry else ""
-    lines = [
-        cleaning.stuck_line(each, why) if why else cleaning.removed_line(each, note)
-        for each, why in results
-    ]
-    return Part(lines=lines, gone=[each for each, why in results if not why])
+    done = cleaning.remove_paths(how, found)
+    return Part(lines=done.lines, gone=done.gone, freed=done.freed, kept=done.stuck)
 
 
 def checkouts_part(job: Job) -> Part:
@@ -261,7 +249,8 @@ def checkouts_part(job: Job) -> Part:
 
     Returns:
         The lines, and the paths that are gone; nothing when the worktrees are
-        only listed and the disk is not under pressure.
+        only listed and the disk is not under pressure. Under pressure, a line
+        for each directory of the workspace that was kept, with why.
     """
     if job.option.list_only and not job.hot:
         return nothing()
@@ -274,7 +263,27 @@ def checkouts_part(job: Job) -> Part:
         f"fetch failed in {name}: its checkouts are not judged"
         for name in found.unfetched
     ]
-    return Part(lines=[*failed, *part.lines], gone=part.gone)
+    left = directories_left(job, found)
+    said = [f"clean: kept {each.path} ({each.why})" for each in left]
+    return dataclasses.replace(
+        part, lines=[*failed, *part.lines, *said], kept=[*left, *part.kept]
+    )
+
+
+def directories_left(job: Job, found: deadscan.Findings) -> Sequence[dead.Kept]:
+    """The directories of the workspace the scan left, under pressure.
+
+    Args:
+        job: the job.
+        found: what the scan found.
+
+    Returns:
+        A ``Kept`` for each, with why; none unless the disk is under pressure.
+    """
+    if not job.hot:
+        return []
+    listed = worktrees.registered(job.look)
+    return account.directories_left(found.kept, found.candidates, listed)
 
 
 def tempdirs_part(job: Job) -> Part:
@@ -345,47 +354,36 @@ def clean_lines(look: dead.Look, machine: Machine, option: Option) -> Sequence[s
     parts = all_parts(job)
     after = workspace_use()
     gone = [each for part in parts for each in part.gone]
-    verb = "would be freed" if option.dry else "freed"
+    tied = worktrees.tied_to_open_pr(look) if hot else []
     return [
         header(hot, clean),
         *(text for part in parts for text in part.lines),
-        *kept_lines(job),
+        *account.open_lines(tied),
         never_line(look),
-        totals(gone, verb, before, after),
+        account.totals(gone, option.dry, before, after),
+        *account.lines(told_of(job, parts, tied)),
     ]
 
 
-def totals(
-    gone: Sequence[dead.Candidate],
-    verb: str,
-    before: disk.Usage | None,
-    after: disk.Usage | None,
-) -> str:
-    """The last line: how much was removed, and the free space around it.
+def told_of(
+    job: Job, parts: Sequence[Part], tied: Sequence[local.Worktree]
+) -> account.Account:
+    """What the clean did, to be told.
 
     Args:
-        gone: the paths removed (or, in a dry run, that would be).
-        verb: what happens to the space: ``freed`` or ``would be freed``.
-        before: the use before.
-        after: the use after.
+        job: the job.
+        parts: what each kind of cleaning did.
+        tied: the worktrees with an open PR.
 
     Returns:
-        The line.
+        The account.
     """
-    size = disk.size_text(sum(map(operator.attrgetter("size"), gone)))
-    return (
-        f"clean: {len(gone)} paths removed, {size} {verb}; disk free"
-        f" {free_text(before)} before, {free_text(after)} after"
+    return account.Account(
+        dry=job.option.dry,
+        hot=job.hot,
+        percent=job.look.clean.pressure_percent,
+        freed=[part.freed for part in parts],
+        kept=[each for part in parts for each in part.kept],
+        tied=tied,
+        measure=lambda path: job.machine.fs.inspect(path).size,
     )
-
-
-def free_text(usage: disk.Usage | None) -> str:
-    """Spell the free space of a use.
-
-    Args:
-        usage: the use, or None when it could not be read.
-
-    Returns:
-        The size, or ``unknown``.
-    """
-    return disk.size_text(usage.free) if usage else "unknown"

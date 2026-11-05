@@ -15,6 +15,7 @@ from . import (
     dead,
     deadscan,
     disk,
+    workhours,
     worktrees,
 )
 from .commands import (
@@ -48,6 +49,7 @@ def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
         clean=found.clean,
         watch=watch,
         working=running_in(args),
+        marker_expiry=workhours.expiry_of(found.now),
     )
 
 

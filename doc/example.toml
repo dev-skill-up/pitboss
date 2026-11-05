@@ -98,7 +98,8 @@ idle_hours = 3
 scratch = ["/tmp/claude-0"]
 # Paths never removed (shared caches, toolchain homes, the persistent checkout):
 # a path here, one that holds it or lies in it. A directory that holds a file
-# named .pitboss-live at any depth, or lies under one that does, is live too.
+# named .pitboss-live at any depth, or lies under one that does, is live too
+# (except a merged checkout, whose marker older than 6 hours is not honored).
 # Absolute paths. Default: none.
 live = ["/home/user/.cache/build"]
 # A sweep prints DISK PRESSURE when a filesystem of the workspace or of a scratch
@@ -108,7 +109,8 @@ min_free_gib = 5
 # closed, or tip in the base branch): "auto" removes each that passes the safety
 # test (every commit on a remote branch, no changed tracked file, nothing
 # changed in the idle hours, no .pitboss-live marker (under disk pressure the
-# marker of a merged worktree is ignored, except the one whose PR merged last),
+# marker of a merged worktree is ignored, except the one whose PR merged last,
+# and at any disk level once it is older than 6 hours),
 # not the directory the
 # sweep runs in or one above it; one with untracked files is kept too, since
 # git worktree remove refuses it, except a marker alone) and prints REMOVED

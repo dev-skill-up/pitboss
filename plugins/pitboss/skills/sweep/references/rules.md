@@ -1259,7 +1259,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   whose PR merged last, or the orchestrator's own; each carries a `.pitboss-live`
   marker, because a sweep removes a finished worktree that has none (below);
   under disk pressure a merged one keeps that protection only when its PR
-  merged last (the exception below).
+  merged last, and a marker older than 6 hours, the bound of a worker's task,
+  protects a merged one at no disk level (the exceptions below; the 6 hours are
+  the choice of pitboss#194, no earlier ticket sets a bound).
   Another worktree is removed
   only when its work is finished and on GitHub (its PR merged or closed, or its
   tip in the default branch) and it passes the safety test below; a worktree of
@@ -1270,23 +1272,34 @@ Only override for bugs, but do override for bugs (and then file them)".
   with the reason, so no line is left for the orchestrator to act on
   (`pitboss clean-worktrees`, `pitboss clean-container`). The test is one: no
   commit on no remote branch, no changed tracked file, nothing changed in the
-  idle hours, nothing marked live (below the pressure; the exception follows), no
+  idle hours, nothing marked live (below the pressure and under 6 hours old; the
+  exceptions follow), no
   symbolic link or mount point, and not the
   directory the command runs in or a directory above it. A finished worktree
   with untracked files is kept too, because `git worktree remove` refuses it,
-  except a worktree whose only untracked file is a marker that was ignored under
-  pressure, which is removed with `--force`.
+  except a worktree whose only untracked file is a marker that was ignored (under
+  pressure, or for its age), which is removed with `--force`.
   The persistent checkout, a running agent's
   checkout and a shared cache are marked live (a file named `.pitboss-live` in
   the directory or anywhere in it, or in a directory above it, or a path under
-  `[clean] live`), and nothing marked is ever listed for removal (below the pressure; the exception
-  follows): a persistent
+  `[clean] live`), and nothing marked is ever listed for removal (below the pressure and
+  while the marker of a merged one is under 6 hours old; the exceptions
+  follow): a persistent
   checkout that is not marked is removed by the next sweep once its PR has
   merged. A marker outlives its work, so under disk pressure (the aggressive
   clean, at `[clean] pressure_percent`) a merged worktree's own marker is not
   honored, except on the one whose PR merged last: the older merged worktrees
   are removed (`REMOVED WORKTREE` says its marker was ignored) and the last
-  merged one prints `KEPT WORKTREE` with `its PR merged last`. A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
+  merged one prints `KEPT WORKTREE` with `its PR merged last`. At any disk level
+  the marker of a merged worktree or checkout older than 6 hours is not honored,
+  not even on the one merged last (`REMOVED WORKTREE` says it is older than 6
+  hours). Under pressure the cleaner also judges every directory of the
+  workspace that is not a registered worktree, a full clone included, by the PRs
+  of its own `origin`: one whose branch has no open PR is removed, and each one
+  kept prints `clean: kept PATH (WHY)`; the clean ends with `clean: freed by
+  kind: ...` and, when that falls short of getting under the pressure, the
+  shortfall and each kept directory over 500 MB with why (`sweep.md`, the
+  `clean:` row). A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
   under `[clean] min_free_gib` (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look

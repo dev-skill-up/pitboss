@@ -36,7 +36,8 @@ def scene() -> world.World:
     )
     for name, leaf, text in files:
         (here.workspace / name / leaf).write_text(text)
-    cleanworld.mark_live(here.workspace / "live-work")
+    started = world.START.timestamp()
+    cleanworld.mark_live_since(here.workspace / "live-work", 4, started)
     done = {"state": "closed", "merged_at": "x"}
     branches = ("merged-work", *UNSAFE)
     page = world.project_page("pulls?state=all")

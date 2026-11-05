@@ -44,6 +44,7 @@ from . import (
     syncing,
     timing,
     workerlines,
+    workhours,
 )
 from . import diskline, pulllines, pullstate, unreadableline
 from .failures import describe, read_all
@@ -273,6 +274,7 @@ def sweep_look(found: Context) -> dead.Look:
         settings=found.settings,
         clean=found.clean,
         working=running_in(found.args),
+        marker_expiry=workhours.expiry_of(found.now),
     )
 
 

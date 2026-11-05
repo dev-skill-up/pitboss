@@ -1,10 +1,10 @@
 """Helpers of the cleaning tests: a world of dead and live paths."""
 
-import dataclasses
 import os
 import pathlib
 import re
 import subprocess
+import time
 from typing import NamedTuple, Sequence
 
 from hamcrest import assert_that, equal_to
@@ -131,33 +131,6 @@ def look_in(workspace: pathlib.Path, extra: str = "") -> dead.Look:
     clean = cleanconfig.from_document({"clean": {"live": []}})
     run = fakes.FakeProcesses(bodies={})
     return dead.Look(run=run, github=github, settings=settings, clean=clean)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Starting:
-    """Runs commands, and starts an agent in a path just before the first ``rm``.
-
-    Attributes:
-        inner: what runs the commands.
-        path: the file the agent writes.
-    """
-
-    inner: fakes.Processes
-    path: pathlib.Path
-
-    def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
-        """Run a command.
-
-        Args:
-            cmdargs: the command line.
-            **kwargs: what gather passes to ``subprocess.run``.
-
-        Returns:
-            The finished process.
-        """
-        if cmdargs[0] == "rm" and not self.path.exists():
-            self.path.write_text("an agent is working here")
-        return self.inner(cmdargs, **kwargs)
 
 
 def lines_of(out: str, marker: str) -> Sequence[str]:
@@ -358,6 +331,8 @@ def full_world() -> Scene:
     configure(here, root)
     age(here.workspace)
     age(root.parent)
+    # Older than the idle hours and younger than a worker's task.
+    mark_live_since(here.workspace / "pinned-work", 4, time.time())
     (root / "fresh/touched").write_text("now")
     return Scene(here, root)
 
@@ -369,6 +344,19 @@ def mark_live(folder: pathlib.Path) -> None:
         folder: the folder.
     """
     (folder / cleanconfig.LIVE_MARKER).write_text("")
+
+
+def mark_live_since(folder: pathlib.Path, hours_ago: float, now: float) -> None:
+    """Put the live marker in a folder, written some hours before a time.
+
+    Args:
+        folder: the folder.
+        hours_ago: how long before ``now`` it was written.
+        now: seconds since the epoch; the time the sweep runs at.
+    """
+    mark_live(folder)
+    stamp = now - hours_ago * 3600
+    os.utime(folder / cleanconfig.LIVE_MARKER, (stamp, stamp))
 
 
 def crowd(here: world.World, minimum: str) -> None:

@@ -6,91 +6,22 @@ test ``clean-container`` and the ``DISK PRESSURE`` line use: not live, not in
 use, and no commit on no remote branch and no changed tracked file in it
 (keyword: clean-worktrees, ``rules.md``, "Checkouts and disk"). One that passes
 but holds untracked files is kept too, since ``git worktree remove`` refuses it,
-unless the marker ignored under pressure is the only untracked file, when it is
-removed with ``--force``.
+unless the marker ignored (under pressure, or for its age) is the only
+untracked file, when it is removed with ``--force``.
 """
 
 import dataclasses
 import datetime
+import pathlib
 import subprocess
-from typing import Callable, Sequence
+from typing import AbstractSet, Callable, Sequence
 
-from . import dead, disk, local, mergetime, untracked
+from . import dead, disk, judging, local, mergetime, survey, untracked, workhours
+from .judging import Finished, Judged, Pressure, at_ease
 from .markers import Marker
 from .running import Run, git
 
 Decide = Callable[[local.Sweeper, local.Worktree], local.Reason | None]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Finished:
-    """A worktree whose work is finished and on GitHub.
-
-    Attributes:
-        worktree: the worktree.
-        reason: why it is finished.
-        merged: when it merged, in seconds (the PR's merge, or the tip's commit
-            when it has no PR), or 0 when it did not merge.
-    """
-
-    worktree: local.Worktree
-    reason: local.Reason
-    merged: float = 0.0
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Pressure:
-    """What disk pressure does to the live markers of the merged worktrees.
-
-    Attributes:
-        last: the merged worktree that merged last, or None when none merged;
-            it keeps its marker (keyword: auto-clean).
-    """
-
-    last: Finished | None
-
-
-def at_ease(found: Sequence[Finished]) -> Pressure | None:
-    """What the disk does to markers when it has room: nothing.
-
-    Args:
-        found: the finished worktrees.
-
-    Returns:
-        None.
-    """
-    return None
-
-
-def under_pressure(found: Sequence[Finished]) -> Pressure | None:
-    """What a crowded disk does to markers: the last merged worktree keeps its own.
-
-    Args:
-        found: the finished worktrees.
-
-    Returns:
-        The pressure.
-    """
-    return Pressure(last=last_merged(found))
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Judged:
-    """A finished worktree and what the safety test said of it.
-
-    Attributes:
-        found: the finished worktree.
-        size: the bytes it holds on disk.
-        why: why it is not removed, or empty when it may be.
-        ignored: whether its ``.pitboss-live`` marker was not honored.
-        last: whether it is the merged worktree that merged last, under pressure.
-    """
-
-    found: Finished
-    size: int
-    why: str
-    ignored: bool = False
-    last: bool = False
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -120,8 +51,26 @@ def _listed(look: dead.Look) -> tuple[local.Sweeper, Sequence[local.Worktree]]:
         settings=look.settings,
         outcomes=local.read_outcomes(look.github, project.repo),
     )
-    listed = git(look.run, project.main_clone, "worktree", "list", "--porcelain")
-    return sweeper, local.parse_worktrees(listed)
+    return sweeper, _porcelain(look)
+
+
+def _porcelain(look: dead.Look) -> Sequence[local.Worktree]:
+    main_clone = look.settings.project.main_clone
+    return local.parse_worktrees(
+        git(look.run, main_clone, "worktree", "list", "--porcelain")
+    )
+
+
+def registered(look: dead.Look) -> AbstractSet[pathlib.Path]:
+    """The paths of the worktrees registered in the main clone.
+
+    Args:
+        look: what to look at and keep.
+
+    Returns:
+        The paths, the main clone's own included.
+    """
+    return {each.path for each in _porcelain(look)}
 
 
 def tied_to_open_pr(look: dead.Look) -> Sequence[local.Worktree]:
@@ -169,20 +118,26 @@ def find(look: dead.Look, decide: Decide = local.finished_reason) -> Sequence[Fi
     ]
 
 
-def last_merged(found: Sequence[Finished]) -> Finished | None:
-    """The finished worktree whose work merged last.
-
-    Args:
-        found: the finished worktrees.
-
-    Returns:
-        It, or None when none merged.
-    """
-    merged = [each for each in found if each.merged]
-    return max(merged, key=lambda each: each.merged, default=None)
+def _forgiven(each: Finished, pressure: Pressure | None) -> bool:
+    # Under pressure a merged worktree's marker is not honored, but the last's.
+    merged = each.reason in local.MERGED_WORK
+    return pressure is not None and merged and each != pressure.last
 
 
-MERGED_WORK = (local.Reason.MERGED, local.Reason.IN_BASE)
+def _eyes(
+    look: dead.Look, each: Finished, unmarked: AbstractSet[pathlib.Path]
+) -> dead.Look:
+    # Only a merged worktree's marker expires.
+    expiry = look.marker_expiry if each.reason in local.MERGED_WORK else 0.0
+    return dataclasses.replace(look, unmarked=unmarked, marker_expiry=expiry)
+
+
+def _ignored(
+    eyes: dead.Look, found: survey.Survey, forgiven: bool
+) -> tuple[bool, bool]:
+    # Whether the marker was not honored, and whether that was its age.
+    stale = not forgiven and workhours.expired(eyes.marker_expiry, found)
+    return found.marked and (forgiven or stale), stale
 
 
 def judge(
@@ -195,7 +150,9 @@ def judge(
 
     Under disk pressure a merged worktree's own ``.pitboss-live`` marker is not
     honored, except on the one whose work merged last: a marker outlives its
-    work (keyword: auto-clean, ``rules.md``, "Checkouts and disk").
+    work. The marker of a merged worktree is not honored either, whatever the
+    disk, once it is older than a worker's task. Keyword: auto-clean,
+    ``workhours``, pitboss#194.
 
     Args:
         look: what to look at and keep.
@@ -206,17 +163,19 @@ def judge(
     Returns:
         What the test said.
     """
-    last = pressure is not None and each == pressure.last
-    forgiven = pressure is not None and each.reason in MERGED_WORK and not last
+    forgiven = _forgiven(each, pressure)
     path = each.worktree.path
     unmarked = frozenset({path.resolve()}) if forgiven else look.unmarked
-    eyes = dataclasses.replace(look, unmarked=unmarked)
-    cutoff = now.timestamp() - look.settings.idle_hours * 3600
-    held, kept, found = dead.verdict(eyes, path, cutoff)
-    ignored = forgiven and found.marked
+    eyes = _eyes(look, each, unmarked)
+    idle = now.timestamp() - look.settings.idle_hours * 3600
+    held, kept, found = dead.verdict(eyes, path, idle)
+    ignored, stale = _ignored(eyes, found, forgiven)
     refused = untracked.files_but_marker if ignored else untracked.files
     why = held or kept or refused(look.run, path)
-    return Judged(found=each, size=found.size, why=why, ignored=ignored, last=last)
+    last = pressure is not None and each == pressure.last
+    return Judged(
+        found=each, size=found.size, why=why, ignored=ignored, stale=stale, last=last
+    )
 
 
 def stale_lines(
@@ -277,15 +236,9 @@ def removal_line(action: Action, look: dead.Look, each: Judged) -> tuple[str, bo
     except subprocess.CalledProcessError:
         return f"{Marker.COULD_NOT_REMOVE_WORKTREE.text} {path}", False
     verb = " (dry run: --no-dry-run removes it)" if action.dry else ""
-    note = (
-        "; its .pitboss-live marker is ignored: a worktree merged after it"
-        if each.ignored
-        else ""
-    )
-    said = (
-        f"{Marker.REMOVED_WORKTREE.text} {path} ({each.found.reason.value}{note}){verb}"
-    )
-    return said, True
+    note = judging.marker_note(each)
+    reason = f"{each.found.reason.value}{note}"
+    return f"{Marker.REMOVED_WORKTREE.text} {path} ({reason}){verb}", True
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -297,12 +250,29 @@ class Outcome:
         freed: the bytes it held, when it was removed.
         kept: whether the safety test kept it.
         removed: whether it was removed.
+        left: the directory, and why it is still there, when it is.
     """
 
     said: str
     freed: int
     kept: bool
     removed: bool
+    left: dead.Kept | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Removed:
+    """What removing the finished worktrees did.
+
+    Attributes:
+        lines: a line for each worktree, then the totals.
+        freed: the bytes freed (or, in a dry run, that would be).
+        left: the finished worktrees still on disk, each with why.
+    """
+
+    lines: Sequence[str]
+    freed: int
+    left: Sequence[dead.Kept]
 
 
 def act(
@@ -323,10 +293,17 @@ def act(
         What happened.
     """
     made = judge(look, moment, each, action.pressure)
+    path = each.worktree.path
     if made.why:
-        return Outcome(said=kept_line(made), freed=0, kept=True, removed=False)
+        left = dead.Kept(path=path, why=made.why, size=made.size)
+        return Outcome(
+            said=kept_line(made), freed=0, kept=True, removed=False, left=left
+        )
     said, removed = removal_line(action, look, made)
-    return Outcome(said=said, freed=made.size * removed, kept=False, removed=removed)
+    stuck = None if removed else dead.Kept(path=path, why=said, size=made.size)
+    return Outcome(
+        said=said, freed=made.size * removed, kept=False, removed=removed, left=stuck
+    )
 
 
 def remove_lines(
@@ -335,6 +312,26 @@ def remove_lines(
     moment: datetime.datetime,
     decide: Decide = local.finished_reason,
 ) -> Sequence[str]:
+    """Remove the finished worktrees that pass the safety test, saying what happened.
+
+    Args:
+        look: what to look at and keep.
+        action: how to remove them.
+        moment: the time now.
+        decide: whether a worktree is finished.
+
+    Returns:
+        A line for each worktree, then the totals.
+    """
+    return removal(look, action, moment, decide).lines
+
+
+def removal(
+    look: dead.Look,
+    action: Action,
+    moment: datetime.datetime,
+    decide: Decide = local.finished_reason,
+) -> Removed:
     """Remove the finished worktrees that pass the safety test, saying what happened.
 
     Each is judged right before its removal, and the worktree lists are pruned
@@ -347,15 +344,19 @@ def remove_lines(
         decide: whether a worktree is finished.
 
     Returns:
-        A line for each worktree, then the totals.
+        The lines, the bytes freed and the worktrees left.
     """
     found = find(look, decide)
     weighed = dataclasses.replace(action, pressure=action.weigh(found))
     steps = [act(look, weighed, moment, each) for each in found]
     git(action.run, look.settings.project.main_clone, "worktree", "prune")
-    freed = disk.size_text(sum(each.freed for each in steps))
+    freed = sum(each.freed for each in steps)
     verb = "would be freed" if action.dry else "freed"
     removed = sum(each.removed for each in steps)
     kept = sum(each.kept for each in steps)
-    total = f"worktrees: {removed} removed, {freed} {verb}; {kept} kept"
-    return [*(each.said for each in steps), total]
+    total = f"worktrees: {removed} removed, {disk.size_text(freed)} {verb}; {kept} kept"
+    return Removed(
+        lines=[*(each.said for each in steps), total],
+        freed=freed,
+        left=[each.left for each in steps if each.left is not None],
+    )

@@ -4,14 +4,33 @@ import unittest
 from typing import Sequence
 
 from .. import mergetime
-from . import cleanworld, fakes, test_autoclean_world, world
+from . import cleanruns, cleanworld, fakes, test_autoclean_world, world
 
 same = cleanworld.same
 NAMES = ("stale-live", "merged-old", "merged-last", "closed-live")
 IGNORED = "its .pitboss-live marker is ignored: a worktree merged after it"
 
 
-def scene(percent: str) -> world.World:
+MARCH = "2026-03-01T00:00:00Z"
+# After the fixture's own commits, which are dated when the test runs.
+OCTOBER = "2099-10-01T00:00:00Z"
+
+
+def pulls() -> Sequence[object]:
+    """What GitHub says of the scene's branches.
+
+    Returns:
+        The pull requests: two merged and one closed.
+    """
+    closed = {"state": "closed"}
+    return [
+        test_autoclean_world.pull("merged-old", {**closed, "merged_at": MARCH}),
+        test_autoclean_world.pull("merged-last", {**closed, "merged_at": OCTOBER}),
+        test_autoclean_world.pull("closed-live", closed),
+    ]
+
+
+def scene(percent: str, marker_hours: float = 4) -> world.World:
     """A world with four worktrees, each holding a live marker.
 
     ``stale-live`` has no PR and its tip is in the base branch, ``merged-old``
@@ -20,31 +39,21 @@ def scene(percent: str) -> world.World:
 
     Args:
         percent: the TOML number of ``pressure_percent``.
+        marker_hours: how old each marker is (the default is older than the
+            idle hours and younger than a worker's task).
 
     Returns:
-        The world; every worktree is 99 hours old.
+        The world; every worktree but its marker is 99 hours old.
     """
     here = world.make_world()
-    cleanworld.rewrite(
-        here, f"min_free_gib = 0\ntmp_roots = []\npressure_percent = {percent}\n"
-    )
+    settings = f"min_free_gib = 0\ntmp_roots = []\npressure_percent = {percent}\n"
+    cleanworld.rewrite(here, settings)
     for name in NAMES:
         path = fakes.add_worktree(here.clone, name)
-        cleanworld.mark_live(path)
         test_autoclean_world.touch_all(path, 99)
-    merged = "merged_at"
-    pulls = [
-        test_autoclean_world.pull("merged-old", {"state": "closed", merged: MARCH}),
-        test_autoclean_world.pull("merged-last", {"state": "closed", merged: OCTOBER}),
-        test_autoclean_world.pull("closed-live", {"state": "closed"}),
-    ]
-    here.bodies[world.project_page("pulls?state=all")] = pulls
+        cleanworld.mark_live_since(path, marker_hours, world.START.timestamp())
+    here.bodies[world.project_page("pulls?state=all")] = pulls()
     return here
-
-
-MARCH = "2026-03-01T00:00:00Z"
-# After the fixture's own commits, which are dated when the test runs.
-OCTOBER = "2099-10-01T00:00:00Z"
 
 
 def sweep(here: world.World) -> str:
@@ -59,18 +68,6 @@ def sweep(here: world.World) -> str:
     return world.again(here, "sweep", *test_autoclean_world.AFTER).out
 
 
-def on_disk(here: world.World) -> Sequence[bool]:
-    """Whether each worktree of the scene is still there.
-
-    Args:
-        here: the world.
-
-    Returns:
-        One answer for each, in the order of ``NAMES``.
-    """
-    return [(here.workspace / name).exists() for name in NAMES]
-
-
 class TestMarkersUnderPressure(unittest.TestCase):
     """The aggressive clean does not honor the marker of a merged worktree."""
 
@@ -79,7 +76,7 @@ class TestMarkersUnderPressure(unittest.TestCase):
         here = scene("0.001")
         out = sweep(here)
         root = here.workspace
-        same(on_disk(here), [False, False, True, True])
+        same(cleanruns.present(here, NAMES), [False, False, True, True])
         test_autoclean_world.shows(
             out,
             [
@@ -93,12 +90,37 @@ class TestMarkersUnderPressure(unittest.TestCase):
             ],
         )
 
-    def test_with_room_on_the_disk_every_marker_is_honored(self) -> None:
-        """Below the pressure the marker is absolute, as it was."""
-        here = scene("99.9")
+    def test_with_room_on_the_disk_every_young_marker_is_honored(self) -> None:
+        """Below the pressure a marker within a worker's task (6 hours) is absolute."""
+        for hours in (4, 5):
+            here = scene("99.9", marker_hours=hours)
+            out = sweep(here)
+            same(cleanruns.present(here, NAMES), [True] * 4)
+            same(out.count("holds a file named .pitboss-live)"), 4)
+
+
+class TestOldMarkers(unittest.TestCase):
+    """A marker older than a worker's task saves no merged worktree (pitboss#194)."""
+
+    def test_a_merged_worktree_with_an_old_marker_goes_even_with_room(self) -> None:
+        """The last merged one too; a closed one keeps the marker it holds."""
+        here = scene("99.9", marker_hours=7)
         out = sweep(here)
-        same(on_disk(here), [True] * 4)
-        same(out.count("holds a file named .pitboss-live)"), 4)
+        root = here.workspace
+        old = (
+            "its .pitboss-live marker is older than 6 hours, longer than a worker runs"
+        )
+        same(cleanruns.present(here, NAMES), [False, False, False, True])
+        test_autoclean_world.shows(
+            out,
+            [
+                f"REMOVED WORKTREE {root}/stale-live"
+                f" (its tip is in the base branch; {old})",
+                f"REMOVED WORKTREE {root}/merged-old (its PR merged; {old})",
+                f"REMOVED WORKTREE {root}/merged-last (its PR merged; {old})",
+                f"KEPT WORKTREE {root}/closed-live (holds a file named .pitboss-live)",
+            ],
+        )
 
 
 class TestSeconds(unittest.TestCase):
