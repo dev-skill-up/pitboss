@@ -25,6 +25,7 @@ OLD_GATED_APPROVAL = {
     "author_association": "MEMBER",
     "created_at": "2026-10-03T00:00:00Z",
 }
+DONE_BUILD = {"id": 3, "name": "build", "status": "completed", "conclusion": "success"}
 CHECKS = {
     "check_runs": [
         {"id": 1, "name": "build", "status": "completed", "conclusion": "failure"},
@@ -70,6 +71,8 @@ def bodies(since_head: Sequence[object], **pull: object) -> MutableMapping[str, 
         pages = [
             (f"issues/{number}/comments", [OLD_GATED_APPROVAL]),
             (f"pulls/{number}/reviews", [GITHUB_APPROVAL]),
+            (f"issues/{number}/timeline", []),
+            (f"commits/{fakes.OLDER}/check-runs", {"check_runs": [DONE_BUILD]}),
             (f"commits/{fakes.HEAD}/check-runs", CHECKS),
             (f"commits/{fakes.HEAD}/status", fakes.NO_STATUS),
         ]

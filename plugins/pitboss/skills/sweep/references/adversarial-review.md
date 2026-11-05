@@ -179,8 +179,8 @@ review of a revised plan, see the last bullet):
   `Execution: approved` or `Execution: changes needed`; neither line contains
   the word verdict followed by a colon, so the form's one verdict line stays
   the only one;
-- a draft has no check run, so you grade its Execution from the diff and the
-  evidence in the body, and say that no check was read;
+- you grade the Execution only from the complete run of the head: a draft, or a
+  head with an unfinished check, is NOT STARTED, not a verdict (pitboss#202);
 - if your brief says the Plan was already approved, you grade only the
   Execution and write `Plan: approved (fixed)`: you do not reassess or discuss
   the Plan. The Plan verdict is final once given: a gap you see in the Plan is

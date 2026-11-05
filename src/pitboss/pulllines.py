@@ -7,6 +7,7 @@ from . import (
     analysisline,
     config,
     e2eline,
+    earlyline,
     foldline,
     gateline,
     planeditline,
@@ -28,7 +29,8 @@ def lines(
 ) -> Sequence[str]:
     """The STALL, UPDATE, waiting-for-ruling, DRAFT ROUND and review-form lines.
 
-    The RUN E2E BEFORE APPROVAL line follows the DRAFT ROUND one.
+    The RUN E2E BEFORE APPROVAL line follows the DRAFT ROUND one, and the
+    EXECUTION REVIEWED BEFORE GREEN lines (pitboss#202) follow that.
 
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
     PLAN EDITED.
@@ -50,6 +52,7 @@ def lines(
         *planeditline.lines(pull),
         *_draft_lines(pull),
         *e2eline.lines(pull),
+        *earlyline.lines(pull),
         *foldline.lines(pull),
         *reviewline.lines(pull),
         *analysisline.lines(pull),

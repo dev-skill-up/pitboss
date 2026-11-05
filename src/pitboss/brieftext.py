@@ -163,6 +163,12 @@ CI = (
     " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
     " review nothing (a draft at its Plan stage has no check run)."
 )
+CI_EXECUTION = (
+    "CI: first read the checks of the head SHA above; if one has not finished or"
+    " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
+    " review nothing. Read the complete run of this head. A draft, or a head with"
+    " an unfinished check, is `NOT STARTED`, not a verdict (pitboss#202)."
+)
 SEPARATE_DRAFT = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
     " say so and stop. You run nothing: you read the diff and the PR body."
@@ -255,8 +261,7 @@ CHECK = (
     " Evidence is real output (a command and what it printed) run on that head,"
     " and every `$ ` block in it is one `pitboss expand` marked (a row the Plan"
     " points to CI has the pointer instead); every required"
-    " check finished and passed at that head (a draft has no check run: say that"
-    " none was read)."
+    " check finished and passed at that head."
 )
 GREP = (
     "Grep: look for a statement the change makes false or contradictory anywhere"

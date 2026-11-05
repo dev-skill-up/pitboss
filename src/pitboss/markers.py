@@ -27,6 +27,9 @@ class Marker(enum.Enum):
             touches what the e2e suite runs on, with no completed dispatched
             run at its head (its own run skipped e2e): dispatch the check
             workflow on its branch.
+        EXECUTION_REVIEWED_BEFORE_GREEN: an Execution review written while the
+            PR was a draft or before every check of the reviewed head had
+            completed; it does not count.
         FOLDED_PR: an open PR whose body closes several tickets and cites no
             Opus ruling that allows it.
         PR_STATE: the line of an open PR in ``slots next``: its next step.
@@ -113,6 +116,7 @@ class Marker(enum.Enum):
     WAIT_FOR_CI = enum.auto()
     DRAFT_ROUND = enum.auto()
     RUN_E2E_BEFORE_APPROVAL = enum.auto()
+    EXECUTION_REVIEWED_BEFORE_GREEN = enum.auto()
     FOLDED_PR = enum.auto()
     PR_STATE = enum.auto()
     BLOCKED = enum.auto()

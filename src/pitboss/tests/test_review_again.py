@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import shapes
-from . import test_plan_revision, world
+from . import test_flow_sweep, test_plan_revision, world
 
 THIRD = "repos/owner/project/pulls/3"
 NEEDED = "changes needed"
@@ -27,7 +27,7 @@ def listed_for(posted: shapes.Comment, draft: bool) -> str:
     Returns:
         The line.
     """
-    here = test_plan_revision.world_with(posted)
+    here = test_flow_sweep.with_complete_run(test_plan_revision.world_with(posted))
     third = here.bodies[THIRD]
     here.bodies[THIRD] = {**third, "draft": draft}  # type: ignore[dict-item]
     out = world.invoke(here, "slots", "next", here.config, *test_plan_revision.AFTER)

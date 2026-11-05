@@ -84,6 +84,28 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     fix = {"sha": "2", "parents": [{"sha": "1"}]}
     here.bodies[compare + HEAD] = {"commits": [authored, fix]}
     here.bodies[compare + OLDER] = {"commits": [authored]}
+    return with_complete_run(here)
+
+
+def with_complete_run(here: world.World) -> world.World:
+    """Give PR 3's head a dispatched run that completed before every review.
+
+    An Execution review written before the run of its head finished does not
+    count (pitboss#202), so the worlds whose reviews are meant to count have one.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The same world.
+    """
+    done = {"workflow_runs": [{"id": 5, "updated_at": "2026-01-01T00:00:00Z"}]}
+    ran = {"check_runs": [world.GREEN]}
+    for sha in (HEAD, OLDER):
+        query = f"head_sha={sha}&event=workflow_dispatch&status=completed"
+        path = f"{world.PROJECT}/actions/workflows/check.yml/runs?{query}"
+        here.bodies[fakes.page(path)] = done
+    here.bodies[fakes.page(f"{world.PROJECT}/commits/{OLDER}/check-runs")] = ran
     return here
 
 

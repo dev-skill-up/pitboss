@@ -630,9 +630,11 @@ Only override for bugs, but do override for bugs (and then file them)".
     Plan and the Execution together**, in one review, and it is never a reviewer
     continued from an earlier round
     (orchestrator, 2026-10-26, from the owner's corrections of that date; owner,
-    2026-10-26T23:14:17Z: "It can grade the execution as well."). It may grade
-    the Execution while the PR is still a draft: a draft has no check run, so
-    that grade rests on the diff and the evidence in the body. The review has a
+    2026-10-26T23:14:17Z: "It can grade the execution as well."). It does not
+    grade the Execution while the PR is still a draft, or before every check of
+    the head has completed: such a review does not count (pitboss#202,
+    `EXECUTION REVIEWED BEFORE GREEN`), and a draft's review grades the Plan
+    alone. The review of a head after green has a
     `Plan:` line and an `Execution:` line (`approved` or `changes needed`,
     neither line containing the word verdict followed by a colon) beside the
     one `Verdict:` line of the form (`adversarial-review.md`). A draft whose Plan is approved is undrafted

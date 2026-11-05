@@ -194,6 +194,7 @@ def pull_bodies(
     pages = [
         (f"issues/{number}/comments", [COMMENT] if library or number == 2 else []),
         (f"pulls/{number}/reviews", [APPROVAL] if number == 2 else []),
+        (f"issues/{number}/timeline", []),
         (f"pulls/{number}/files", []),
         (f"commits/{head}/check-runs", {"check_runs": checks}),
         (f"commits/{head}/status", fakes.NO_STATUS),

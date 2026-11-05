@@ -9,6 +9,7 @@ from . import (
     bodydigest,
     config,
     dispatchruns,
+    earlyreview,
     flow,
     folds,
     headchecks,
@@ -60,6 +61,9 @@ class PullFacts:
         review_rounds: what its review rounds show.
         relock: whether its head branch starts with the relock prefix
             (keyword: relock).
+        premature: its Execution reviews that do not count because the run of
+            their head had not finished (keyword: execution-before-green,
+            pitboss#202).
     """
 
     repo: config.Repo
@@ -74,6 +78,7 @@ class PullFacts:
     step: steps.Next
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
+    premature: Sequence[earlyreview.Premature] = ()
 
 
 def unhealthy(facts: PullFacts) -> bool:
@@ -295,12 +300,14 @@ def _is_relock(source: Source, pull: shapes.Pull) -> bool:
     return relock.is_relock(pull.head.branch, source.relock_prefix)
 
 
-def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
+def _state(
+    source: Source, repo: config.Repo, got: Fetched, counted: reviews.Sources
+) -> flow.PullState:
     return flow.PullState(
         pull=got.pull,
         labels=got.labels,
         checks=got.checks,
-        graded=reviews.recorded(source.review, repo.slug, got.posted),
+        graded=reviews.recorded(source.review, repo.slug, counted),
         comments=got.posted.comments,
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
@@ -344,9 +351,13 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         The PR's facts.
     """
     got = _fetched(source, repo, number)
-    found = reviews.newest(got.posted, source.review, repo.slug)
+    early = earlyreview.find(
+        source.github, repo, got.pull, got.checks, got.posted, source.review
+    )
+    counted = earlyreview.kept(got.posted, early)
+    found = reviews.newest(counted, source.review, repo.slug)
     standing, merged = _standing(source, repo, got.pull, found)
-    state = _state(source, repo, got)
+    state = _state(source, repo, got, counted)
     return PullFacts(
         repo=repo,
         pull=got.pull,
@@ -358,6 +369,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         step=flow.next_step(state),
         review_rounds=rounds.of(state, merged),
         relock=_is_relock(source, got.pull),
+        premature=early,
     )
 
 

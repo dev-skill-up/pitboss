@@ -23,6 +23,7 @@ FOUR_PULLS = {
     "gh api contents/.github/workflows/review-gate.yml": 2,  # one for each repository
     "gh api issues": 2,
     "gh api issues/comments": 6,  # four PRs' and one feed for each repository (#239)
+    "gh api issues/timeline": 2,  # the PRs with an Execution review (#202)
     "gh api pulls": 8,
     "gh api pulls/reviews": 4,
     "gh api repository": 3,
