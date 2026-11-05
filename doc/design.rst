@@ -390,7 +390,20 @@ How each part decides
 
 **Pull requests.** One request for the PR list, then, per PR, its details,
 its comments and reviews, and one request for its head's check runs, all PRs
-at once in a thread pool. Only when one of those runs has failed (the latest
+at once in a thread pool. A PR with an Execution review in a comment (an
+``Execution:`` line; a review that grades the Plan alone, and a GitHub review,
+are not read this way) has two more reads (``pitboss.earlyreview``, keyword:
+execution-before-green, pitboss#202): its timeline (``convert_to_draft`` and
+``ready_for_review``, for whether it was a draft at the comment's time), and the
+check runs of the head each such review names (read from the API for each
+review, an abbreviated SHA that names the current head read as it), with the dispatched
+``check.yml`` runs of the head when the PR was a draft then. A review written
+while the PR was a draft with no completed dispatched run, or while a check run
+of the reviewed head had not completed (or the head had none), does not count:
+it is left out of the reviews the flow reads, so ``review=`` does not name it,
+and the sweep prints ``EXECUTION REVIEWED BEFORE GREEN <pr>: review <id> at
+<sha> does not count; <what was unfinished>``, the next step being the review
+again after green. Only when one of those runs has failed (the latest
 run of its name) are two more reads made: the head's commit statuses (the
 newest of each context) and, for a status that does not carry the check's
 name, the workflow file of the Actions run of the status and of the check
@@ -419,9 +432,10 @@ not under ``[merge_queue] repositories``, whose queue builds each entry on the
 current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (``pitboss.flow.next_step`` gives the step,
 ``pitboss.roundline`` and ``pitboss.planeditline`` print; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
-ready for review or to merge, though a draft's first review, Plan and
-Execution, and the review of a revised plan are started by its author's
-hand-back; a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
+ready for review or to merge, though a draft's first review, which grades the
+Plan alone, and the review of a revised plan are started by its author's
+hand-back (an Execution review of a draft does not count, ``EXECUTION REVIEWED
+BEFORE GREEN``, pitboss#202); a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
 same words as ``slots next``, pitboss#156; a draft whose Plan is approved, with
 a diff that touches ``e2e/`` or a ``[sweep] run_by_e2e`` prefix and no completed
 ``workflow_dispatch`` run of ``check.yml`` at its head (a draft's own run skipped e2e, complete

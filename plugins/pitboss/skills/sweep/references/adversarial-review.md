@@ -172,15 +172,20 @@ the review:
 
 A fix is a draft PR whose body has a Plan section and an Execution section
 (`rules.md`, "Plan first"). You are a new reviewer, never a continued one, and
-you grade both in one review, besides the form's single verdict line (for a
-review of a revised plan, see the last bullet):
+you grade both in one review, besides the form's single verdict line, when
+your brief says the PR is at its full review (a head with a complete run). A
+draft at its Plan stage is graded on the Plan alone: see the second bullet
+below and the last one:
 
 - a line `Plan: approved` or `Plan: changes needed`, and a line
   `Execution: approved` or `Execution: changes needed`; neither line contains
   the word verdict followed by a colon, so the form's one verdict line stays
   the only one;
-- you grade the Execution only from the complete run of the head: a draft, or a
-  head with an unfinished check, is NOT STARTED, not a verdict (pitboss#202);
+- a draft at its Plan stage is graded on the Plan alone, with no `Execution:`
+  line, and never gets NOT STARTED for a missing check run (its brief says a
+  draft has no check run). The Execution is graded only on the complete run of
+  the head: a review at the full stage of a draft, or of a head with an
+  unfinished check, is NOT STARTED, not a verdict (pitboss#202);
 - if your brief says the Plan was already approved, you grade only the
   Execution and write `Plan: approved (fixed)`: you do not reassess or discuss
   the Plan. The Plan verdict is final once given: a gap you see in the Plan is
