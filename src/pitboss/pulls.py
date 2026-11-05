@@ -306,12 +306,10 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         undraft_clear=got.pull.draft and source.undraft(),
         merges_only_since=lambda sha: _carries(source, repo, got.pull, sha),
         relock=_is_relock(source, got.pull),
-        runs_e2e=lambda: pullfiles.touches(
+        needs_e2e=lambda: pullfiles.touches(
             source.github, repo.slug, got.pull.number, source.run_by_e2e
-        ),
-        ran_e2e=lambda: dispatchruns.completed(
-            source.github, repo.slug, got.pull.head.sha
-        ),
+        )
+        and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
     )
 
 

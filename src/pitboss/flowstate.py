@@ -41,12 +41,11 @@ class PullState:
             reviewed head by merge commits only (the caller reads the base).
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
-        runs_e2e: says whether the diff touches a path the e2e suite runs on
-            (the caller reads the files and the configuration; it is asked
-            only for a draft whose Plan is approved; keyword: run-e2e).
-        ran_e2e: says whether a dispatched run of the head has completed (the
-            caller reads the runs; a draft's own run skipped the e2e jobs, so
-            it is not one; asked only for a draft whose diff runs the e2e suite).
+        needs_e2e: says whether the diff touches a path the e2e jobs run on and
+            no dispatched run of the head has completed (the caller reads the
+            files, the configuration and the runs; a draft's own run skipped
+            the e2e jobs, so it is not one; asked only for a draft whose Plan
+            is approved; keyword: run-e2e).
     """
 
     pull: shapes.Pull
@@ -58,8 +57,7 @@ class PullState:
     undraft_clear: bool = False
     merges_only_since: Callable[[str], bool] = lambda sha: False
     relock: bool = False
-    runs_e2e: Callable[[], bool] = lambda: False
-    ran_e2e: Callable[[], bool] = lambda: False
+    needs_e2e: Callable[[], bool] = lambda: False
 
 
 def plan_rejected_last(pr: PullState) -> bool:
@@ -278,10 +276,11 @@ def e2e_step(pr: PullState) -> steps.Next | None:
         of the head has started and not finished (it is not dispatched again);
         else the dispatch.
     """
-    if not pr.runs_e2e() or pr.ran_e2e():
+    if not pr.needs_e2e():
         return None
-    waiting = any(not each.finished for each in pr.checks)
-    return steps.wait_for_ci() if waiting else steps.run_e2e(pr.pull.head.branch)
+    if all(each.finished for each in pr.checks):
+        return steps.run_e2e(pr.pull.head.branch)
+    return steps.wait_for_ci()
 
 
 def is_dirty(pull: shapes.Pull) -> bool:

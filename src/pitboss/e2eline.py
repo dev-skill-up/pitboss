@@ -4,8 +4,8 @@ A draft's CI runs plan and build only, so a PR that changes what the e2e suite
 runs on has no e2e result until the check workflow is dispatched on its branch
 (pitboss#199: an approval and an owner's ruling were given on a PR whose e2e
 was red). A draft's own run, complete or not, skipped e2e, so only a completed
-dispatched run of the head ends the step. The line is the step ``slots next`` prints for the PR, in the same
-words, and it replaces ``WAIT-FOR-CI`` for it.
+dispatched run of the head ends the step. The line is the step ``slots next``
+prints for the PR, in the same words, and it replaces ``WAIT-FOR-CI`` for it.
 """
 
 from typing import Sequence
