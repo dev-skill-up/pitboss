@@ -124,6 +124,12 @@ class TestTwoRepositories(unittest.TestCase):
         shows(out, [*said, f"{here.workspace} 86%, 1.0 GiB free"])
         same(kept, [False, True, False, True])
 
+    def test_86_percent_used_and_1_gib_free_names_the_free_space_rule(self) -> None:
+        """The shortfall is to have 5 GiB free; 86 percent used needs no freeing."""
+        out = swept(SHORT)[1]
+        shows(out, [" short of the ", "needed to have 5 GiB free:"])
+        same("get under 90%" in out, False)
+
     def test_a_directory_whose_pull_requests_cannot_be_read_is_kept(self) -> None:
         """Its repository is not read: the directory stays, with the reason."""
         here = two_repositories(FULL)

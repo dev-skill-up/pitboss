@@ -278,6 +278,7 @@ def told_of(
         dry=job.option.dry,
         hot=job.hot,
         percent=job.look.clean.pressure_percent,
+        minimum=job.look.clean.min_free_gib,
         freed=[part.freed for part in parts],
         kept=[each for part in parts for each in part.kept],
         tied=tied,

@@ -27,6 +27,7 @@ class Account:
         dry: whether nothing was removed.
         hot: the crowded file systems.
         percent: the disk use from which the clean is aggressive.
+        minimum: the free space, in GiB, under which it is aggressive too.
         freed: the bytes each kind of cleaning freed, in the order of ``KINDS``.
         kept: the directories the cleaning left, each with why.
         tied: the worktrees with an open PR, which are never removed.
@@ -37,6 +38,7 @@ class Account:
     hot: Sequence[machine.Crowded]
     percent: float
     freed: Sequence[int]
+    minimum: float = 0.0
     kept: Sequence[dead.Kept]
     tied: Sequence[local.Worktree]
     measure: Callable[[pathlib.Path], int]
@@ -207,9 +209,28 @@ def short_line(told: Account) -> str:
     return (
         f"clean: {disk.size_text(freed)} {VERBS[told.dry]},"
         f" {disk.size_text(need - freed)} short of the {disk.size_text(need)}"
-        f" needed to get under {told.percent:g}%:"
+        f" needed {goal_text(told)}:"
         " each directory over 500 MB that was kept"
     )
+
+
+def goal_text(told: Account) -> str:
+    """The rule or rules that set the need, as the line spells them.
+
+    Args:
+        told: what the clean did.
+
+    Returns:
+        ``to get under 90%`` when the percent used set the need of a file
+        system, ``to have 5 GiB free`` when the free space did; both, joined by
+        ``and``, when each did for one.
+    """
+    rules = {
+        True: f"to have {told.minimum:g} GiB free",
+        False: f"to get under {told.percent:g}%",
+    }
+    named = {one.free_rule for one in told.hot}
+    return " and ".join(rules[each] for each in (False, True) if each in named)
 
 
 def big_kept(told: Account) -> Sequence[tuple[pathlib.Path, int, str]]:

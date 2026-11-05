@@ -93,7 +93,7 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `DELETED SCRATCH BRANCH` | The head branch of a scratch PR it closed was deleted. | Nothing. |
 | `COULD NOT CLOSE SCRATCH PR` | GitHub refused to close a scratch PR; the line gives the HTTP status. | Close it by hand, or give the session the access; the next sweep tries again. |
 | `COULD NOT DELETE SCRATCH BRANCH` | A branch of a closed scratch PR is still there, with the reason: another open PR has it as its head (a run branch is reused), its head is in another repository, or GitHub refused (a session may not be allowed to delete a branch). | Nothing for the first two. For a refusal, leave it: the run branches are reused, and the next run force-pushes into one ("Scratch PRs", below). |
-| `clean:` | The first lines of a sweep (keyword: auto-clean): the mode (`disk under 90% used`, or `DISK OVER 90% (...)`: aggressive), what was removed and the space freed, what is never touched (a worktree with an open PR, a running worker's directory (a merged one's `.pitboss-live` marker counts only for 6 hours), the main clone, the directory the sweep runs in; under pressure each open-PR worktree is named), and a total. Under pressure it ends with the account below: `clean: kept PATH (WHY)` for each directory of the workspace that is not a registered worktree and was not removed (a full clone with an open PR, an unreadable checkout, `not a git checkout`); `clean: freed by kind: worktrees X, checkouts X, test tempdirs X, package caches X` ("would be freed" in a dry run); when that is less than the disk needs to get under the pressure, `clean: X freed, X short of the X needed to get under 90%: each directory over 500 MB that was kept` and then `clean: kept SIZE PATH (WHY): over 500 MB` for each such directory, largest first. The sweep has removed it already. | Nothing. Never ask the owner about it ("Automatic cleaning", below). |
+| `clean:` | The first lines of a sweep (keyword: auto-clean): the mode (`disk under 90% used`, or `DISK OVER 90% (...)` or `DISK UNDER 5 GiB FREE (...)`: aggressive), what was removed and the space freed, what is never touched (a worktree with an open PR, a running worker's directory (a merged one's `.pitboss-live` marker counts only for 6 hours), the main clone, the directory the sweep runs in; under pressure each open-PR worktree is named), and a total. Under pressure it ends with the account below: `clean: kept PATH (WHY)` for each directory of the workspace that is not a registered worktree and was not removed (a full clone with an open PR, an unreadable checkout, `not a git checkout`); `clean: freed by kind: worktrees X, checkouts X, test tempdirs X, package caches X` ("would be freed" in a dry run); when that is less than the disk needs to get out of the pressure, `clean: X freed, X short of the X needed to get under 90%: each directory over 500 MB that was kept` (`needed to have 5 GiB free` when the free-space rule set the need) and then `clean: kept SIZE PATH (WHY): over 500 MB` for each such directory, largest first. The sweep has removed it already. | Nothing. Never ask the owner about it ("Automatic cleaning", below). |
 | `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). Under that minimum the sweep's clean is the aggressive pass, as over `pressure_percent`, for every repository the workspace holds (each directory judged by the PRs of its own `origin`, whatever config the sweep runs with). The line says how much was free, the pass it started and the bytes it freed; when the free space is still under the minimum, further lines list each directory over 500 MB that was kept, with why. | Read the kept directories; `pitboss clean-container <config>` for the dead paths ("Disk", below). |
 | `REMOVED PATH` | A dead path was removed by `clean-container` (or, with "dry run", would be): its size and why it is dead. | Nothing. |
 | `KEPT PATH` | A dead path with work that exists only here (commits on no remote branch, in any branch or the stash of a standalone clone; changed tracked files), or that git cannot read, a bare repository, a mount point inside it or a path that cannot be looked at; never removed. | Triage it like a `STRAGGLER`. |
@@ -214,7 +214,7 @@ branch. A worktree on no branch, or on the base branch, is finished once its tip
 is in the base branch (unlike a checkout of "Disk" below), so a persistent one
 carries `.pitboss-live` (under disk pressure that keeps a merged one only when its work merged last, and a marker older than 6 hours, the bound of a worker's task, keeps a merged one at no disk level). A worktree with an open PR is never finished. A finished worktree is
 removed only when it passes the safety test, the one `clean-container` and the
-`DISK PRESSURE` line use: every commit in it is on a remote branch, no tracked
+sweep's clean use (the `DISK PRESSURE` line runs none, it tells what the clean did): every commit in it is on a remote branch, no tracked
 file in it is changed (untracked files are scratch), nothing in it changed in the
 configured idle hours (by file times, because a new worktree's tip is an old
 commit), it holds no `.pitboss-live` marker (below the pressure and for a
@@ -258,7 +258,8 @@ A sweep starts by cleaning (`pitboss clean <config>` is the same on its own;
 `--dry-run` removes nothing), with no prompt and no dry run: the finished
 worktrees and dead checkouts, and the test tempdirs (`/tmp/tmp????????`, the
 session user's, untouched for `[clean] tmp_hours`, default 24 hours). At 90% or
-more of a file system used (`[clean] pressure_percent`) it is aggressive: tempdirs
+more of a file system used (`[clean] pressure_percent`), or with less than 5 GiB
+free on it (`[clean] min_free_gib`, `DISK PRESSURE`), it is aggressive: tempdirs
 untouched for an hour, every worktree and checkout with no open PR, and the
 package caches that regenerate. A worktree with an open PR, a running worker's
 directory (changed within the idle hours, or marked `.pitboss-live`), the main
@@ -289,7 +290,7 @@ does not stop.
   in it changed in the idle hours (`[worktrees] idle_hours`);
 - a regular file directly in `--root` (default `/`) written over `--hours`
   (default 1) after `--marker` (default `/container_info.json`, skipped when
-  absent), which is judged like the others and is in the disk pressure scan.
+  absent), which is judged like the others and is removed by a sweep's clean.
 
 It is never listed when it is marked live: a file named `.pitboss-live` is in
 it at any depth or in a directory above it (except in a merged checkout, where a

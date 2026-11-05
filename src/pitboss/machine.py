@@ -155,6 +155,9 @@ class Crowded:
         free: the bytes free.
         short: whether the free bytes are under the minimum (the second rule of
             pressure, pitboss#205), whatever the percent used.
+        free_rule: whether the free bytes, not the percent used, set ``over``
+            (the file system needs more freed to have the minimum free than to
+            get under the limit).
     """
 
     place: pathlib.Path
@@ -162,6 +165,7 @@ class Crowded:
     over: int = 0
     free: int = 0
     short: bool = False
+    free_rule: bool = False
 
 
 def percent_used(usage: disk.Usage) -> float:
@@ -232,4 +236,5 @@ def crowd(
         over=max(1, by_percent, by_free),
         free=usage.free,
         short=short,
+        free_rule=by_free > by_percent,
     )
