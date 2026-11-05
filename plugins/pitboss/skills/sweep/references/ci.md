@@ -142,7 +142,9 @@ commands through `pitboss expand` (`rules.md`, "Merge conflicts").
 
 **When to hold under runner pressure.** While a queue run has a job waiting
 for a runner, take no CI-triggering action in any repository that shares the
-runners, tell running agents to hold their pushes to non-draft PRs and work locally, and file,
+runners, tell running agents to hold their pushes to non-draft PRs and work locally (a hold
+that comes from a known pitboss bug with a ticket is overridden with the plain
+`git push origin <branch>`, the ticket cited: `rules.md`, "Pushing and merging"), and file,
 comment and read as usual. A hold lifts only after the quiet period
 (`rules.md`, "Pushing and merging"). Then release held work one push at a time, with a
 pressure look between, re-queueing the PRs dequeued by the time limit first.

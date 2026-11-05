@@ -4,16 +4,18 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, has_length
+from hamcrest import assert_that, contains_string, equal_to, has_key, has_length
 
 from .. import brief, holdwait
 from .briefmake import PROJECT, text
 from .linting import lint, write_text
-from .test_evidence_rules import read, words
-from .test_inventory_landing import REFERENCES, ROOT
+from .test_evidence_rules import words
+from .test_inventory_landing import ROOT, SKILL
 
-SKILL_FILES = ("SKILL.md", "sweep.md", "rules.md", "slots.md", "ci.md")
 WAITS = [
+    "Tell running agents to hold their pushes to non-draft PRs.",
+    "It pushes if the gate is open and hands back at once.",
+    "Hand back at once when the gate is closed.",
     "Under a hold it exits 1: hand back at once.",
     "It never sleeps for the pressure to clear.",
     "A worker does not wait out the hold.",
@@ -34,10 +36,10 @@ def skill_texts() -> Sequence[tuple[str, str]]:
     Returns:
         Each file's name and text.
     """
-    top = (ROOT / REFERENCES).parent / "SKILL.md"
+    top = ROOT / SKILL
     return [
-        (name, top.read_text(encoding="utf-8") if name == "SKILL.md" else read(name))
-        for name in SKILL_FILES
+        (str(each.relative_to(top)), each.read_text(encoding="utf-8"))
+        for each in sorted(top.rglob("*.md"))
     ]
 
 
@@ -89,6 +91,8 @@ class TestShippedTexts(unittest.TestCase):
     def test_the_skill_says_it_in_one_place(self) -> None:
         """SKILL.md has the rule in its own words, and every file passes."""
         files = dict(skill_texts())
+        for name in ("references/engineering.md", "references/adversarial-review.md"):
+            assert_that(files, has_key(name))
         body = words(files["SKILL.md"])
         for phrase in (
             "wrong because of a known pitboss bug that has a ticket",

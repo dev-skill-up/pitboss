@@ -1013,7 +1013,10 @@ Only override for bugs, but do override for bugs (and then file them)".
   hand back. If it's red, it'll wait for the next open slot."). A hold on pushes
   limits pushes, not worker time: a worker never sleeps or polls for a gate; it
   pushes if the gate is open and hands back at once, or commits locally and
-  hands back with the worktree path and the commit SHA. A worker brief says so,
+  hands back with the worktree path and the commit SHA; a gate that a known
+  pitboss bug with a ticket closed wrongly is not handed back on but overridden
+  with the plain `git push origin <branch>`, the ticket cited (pitboss#218).
+  A worker brief says so,
   and the orchestrator is the one that watches the checks.
 - **The orchestrator never sits in a long wait** (owner, 2026-11-03: a command
   ran in the orchestrator thread for 20 minutes; pitboss#178). It hands work to

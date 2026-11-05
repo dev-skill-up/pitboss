@@ -17,7 +17,9 @@ SHOWN = 80
 _WAITS = re.compile(
     r"\bsleeps? for (?:it|the (?:hold|pressure))\b"
     r"|\bwait(?:s|ed)? (?:out|for) (?:the|a) hold\b"
-    r"|\bunder (?:a|the) hold\b",
+    r"|\bunder (?:a|the) hold\b"
+    r"|\bhold(?:s)? (?:their|its|your|the) pushes\b"
+    r"|\b(?:closed|open) gate\b|\bgate is (?:open|closed)\b",
     re.IGNORECASE,
 )
 
