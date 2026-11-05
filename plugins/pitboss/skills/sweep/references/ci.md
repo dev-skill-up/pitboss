@@ -130,7 +130,9 @@ to be undrafted again.
 queue builds each entry on the current base, so a PR behind the base needs no
 update push, which would spend an action and re-run the check for nothing.
 Only a conflict is fixed: merge the base in (never rebase or force-push),
-resolve, check locally, push (`rules.md`, "Merge conflicts").
+resolve, check locally, push; for a PR with a Plan or Execution body the same
+round sets its last `Head:` line to the merge head and reruns the Plan's
+commands through `pitboss expand` (`rules.md`, "Merge conflicts").
 - Carried by: `[behind]` in the PR line (no `UPDATE` line for a repository
   under `[merge_queue] repositories`, `sweep.md`), and
   for a conflict `[dirty]` with `CONFLICT` and, from the queue,

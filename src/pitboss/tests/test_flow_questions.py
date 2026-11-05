@@ -188,10 +188,22 @@ class TestQuestions(unittest.TestCase):
         ]
         check(flow.execution_fixed_since_plan_approval, cases)
 
-    def test_the_base_is_compared_only_for_a_rejection_of_an_unchanged_body(
+    def test_a_conflict_round_is_no_fix_round(self) -> None:
+        """A merge of the base and the body edit that goes with it (pitboss#208)."""
+        again = graded(None, CHANGES, 2)
+        reading = test_flow.reading
+        rewritten = reading(graded(APPROVED, CHANGES, 1, sha=OLDER), "before")
+        cases = [
+            (test_flow.merged(state(rewritten, again), OLDER), False),
+            (state(rewritten, again), True),
+            (test_flow.merged(state(rewritten, again), "1" * 40), True),
+        ]
+        check(flow.execution_fixed_since_plan_approval, cases)
+
+    def test_the_base_is_compared_only_for_a_rejection_at_another_head(
         self,
     ) -> None:
-        """No compare for a review that does not reject, or whose body changed."""
+        """No compare for a review that does not reject, or is of the head."""
         calls: list[str] = []
 
         def record(sha: str) -> bool:
@@ -199,7 +211,7 @@ class TestQuestions(unittest.TestCase):
             return False
 
         plain = graded(APPROVED, None, 1, sha=OLDER)
-        edited = test_flow.reading(graded(APPROVED, CHANGES, 2, sha=OLDER), "before")
+        edited = test_flow.reading(graded(APPROVED, CHANGES, 2), "before")
         kept = test_flow.reading(
             graded(APPROVED, CHANGES, 3, sha=OLDER), test_flow.BODY
         )

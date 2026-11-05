@@ -133,10 +133,13 @@ def execution_fixed_since_plan_approval(pr: PullState) -> bool:
     """Whether a fix round followed an execution rejection on the approved plan.
 
     Read from the reviews: the execution was graded changes needed on the
-    approved plan, and since then the code moved by more than merge commits (a
-    merge of the base is no fix: ``merges_only_since``) or the PR body no
-    longer is the one that review recorded (a body fix: keyword: body-digest,
-    pitboss#149, whose head did not move between its two rejections).
+    approved plan, and since then the code moved by more than merge commits or,
+    the head being the one that review graded, the PR body no longer is the one
+    that review recorded (a body fix: keyword: body-digest, pitboss#149, whose
+    head did not move between its two rejections). A merge of the base is no
+    fix (``merges_only_since``), nor is the body edit that goes with it: a
+    conflict round sets the last ``Head:`` line and reruns the Evidence
+    (pitboss#208), so the body is compared only while the head is unmoved.
 
     Args:
         pr: the PR.
@@ -149,12 +152,15 @@ def execution_fixed_since_plan_approval(pr: PullState) -> bool:
     for each in _regular_reviews(pr):
         approved = approved or each.plan is Verdict.APPROVED
         rejecting = approved and each.execution is Verdict.CHANGES_NEEDED
-        if rejecting and (
-            bodydigest.changed(each.body, now)
-            or not (_of_head(pr, [each]) or pr.merges_only_since(each.sha))
-        ):
+        if rejecting and _fixed_since(pr, each, now):
             return True
     return False
+
+
+def _fixed_since(pr: PullState, review: Graded, now: str) -> bool:
+    if _of_head(pr, [review]):
+        return bodydigest.changed(review.body, now)
+    return not pr.merges_only_since(review.sha)
 
 
 def ci_result(pr: PullState) -> Ci | None:
