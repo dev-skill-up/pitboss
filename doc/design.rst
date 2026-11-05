@@ -780,9 +780,10 @@ worker running it only duplicates CI (the workers of #166 and #167 spent about
 half their time on it). ``pitboss nox`` is the one command that does the right
 thing: the tests of one Python version first (until they run there is no reason
 to lint the code), then the ``skills`` session, ``lint`` and ``mypy``, each with
-``-r``, stopping at the first failure; ``pitboss nox --
-pitboss.tests.test_gates`` runs only those test modules. The worker briefs tell
-the worker to run it after each edit and never the full ``nox -r``, never to
+``-r``, stopping at the first failure. The worker briefs tell
+the worker to run it after every edit and before every push, for iterating too,
+never a targeted test module, ``nox -s`` or the full ``nox -r``, to hand back
+its result for the pushed head (pitboss#250), never to
 run ``virtue`` by hand, to start nothing in the background that needs polling
 (one foreground command under ``timeout 598``, or one ``Monitor`` with an
 ``until`` loop), and that throwing away a first design is acceptable

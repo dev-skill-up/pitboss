@@ -1006,7 +1006,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   (command and raw output) per Done-when item that CI does not show, and for
   one that CI shows its pointer (workflow, step, greppable string, the run and
   job URL of the head, pitboss#179). One with narration, hedging or a
-  flagged "slip" that is no rule is sent back. Evidence is the command and what
+  flagged "slip" that is no rule is sent back. Where the checks are nox
+  sessions it also holds the `pitboss nox` result of the pushed head (the four
+  sessions and their status, pitboss#250), and the check of a hand-back is
+  that a hand-back without the `pitboss nox` result of the pushed head (the
+  four sessions and their status) is sent back, naming it as missing. Evidence is the command and what
   it printed; a claim is never larger than its evidence, and never made smaller
   to fit it: the work is made to match the claim.
 - **A worker never waits for CI checks** (quire#708 comment 3,
@@ -1055,13 +1059,16 @@ Only override for bugs, but do override for bugs (and then file them)".
   longer wait. A check that ends in 124 is not rerun with a longer limit: it is
   left to CI. This is the one statement of the wrapper; a project's own rules
   keep only the check commands that are specific to it.
-- **A worker's local check is `pitboss nox`** (owner, 2026-11-04, pitboss#210):
-  where the checks are nox sessions, the worker runs `timeout 598 pitboss nox`
-  after each edit, never the full `nox -r`. It runs the tests of one Python
-  version first (`nox -r -s tests-3.13`; until the tests run there is no reason
-  to lint the code), then the `skills` session, `lint` and `mypy`, each with
-  `-r`, and stops at the first failure; `pitboss nox -- <test modules>` runs
-  only those tests. A worker never invokes `virtue` or `python -m virtue` by
+- **A worker's local check is `pitboss nox`** (owner, 2026-11-04, pitboss#210;
+  2026-11-05, pitboss#250: "Stop with the targeted runs for iterating. Use
+  pitboss nox for iterating too. That's what it's for."): the worker brief says
+  Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after
+  every edit and before every push, for iterating too (the tests of one Python
+  version first, then the skills, lint and mypy; it stops at the first failure
+  and always uses `-r`); a targeted test module, `nox -s ...` or `virtue` is
+  never run by hand, and never the full `nox -r`: CI's `Run Nox` step runs the
+  whole suite. The tests come first because until they run there is no reason
+  to lint the code. A worker never invokes `virtue` or `python -m virtue` by
   hand (the nox session is the way to run tests), starts nothing in the
   background that needs polling (pitboss#175: one foreground command under
   `timeout 598`, or one `Monitor` with an `until` loop; a worker that polled
