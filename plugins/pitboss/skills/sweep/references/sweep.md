@@ -143,7 +143,7 @@ markers and the review's verdict line.
 ## The runner-pressure hold
 
 Runners are shared between the merge queue and everything else. While a
-queue run waits for a runner, every push, new PR, merge or re-run in any
+queue run waits for a runner, every push, new PR, merge, workflow dispatch or re-run in any
 repository that shares them adds runs ahead of it, and a queue run that
 waits past its time limit is dequeued (`CI_TIMEOUT`).
 
