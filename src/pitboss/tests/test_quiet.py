@@ -5,7 +5,7 @@ import pathlib
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to, starts_with
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import record, report
 from . import fakes, test_config, world
@@ -133,9 +133,8 @@ class TestPressure(unittest.TestCase):
 
     def test_line_names_dispatches(self) -> None:
         """The pressure line holds workflow dispatches, a draft's too."""
-        waiting = world.make_world(GIT_ANSWERS)
-        printed = world.again(waiting, "pressure", "--now", at(0)).out
-        assert_that("workflow dispatches" in printed, equal_to(True))
+        assert_that(HOLD, contains_string("workflow dispatches (a dispatch on a draft"))
+        assert_that(WAITING, contains_string(HOLD))
 
     def test_lines(self) -> None:
         """Waiting, a quiet period to go, and over: one line each."""
