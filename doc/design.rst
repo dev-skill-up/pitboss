@@ -941,7 +941,9 @@ listed at most once. The nine kinds:
   head that conflicts with the base, at any stage but while the PR waits for
   a ruling, the owner or the restoring of an edited approved Plan
   (``steps.WAITS``, ``PLAN_EDITED`` included, the ``paused-owner`` label and
-  ``RULING UNREADABLE``);
+  ``RULING UNREADABLE``); its brief also has the author set the last ``Head:``
+  line of a Plan or Execution body to the merge head and rerun the Plan's
+  commands through ``expand`` at it (the body only, pitboss#208);
 * ``do the ruling's steps``: step ``WORKER``, task ``RULING_STEPS``: the
   newest readable Opus ruling says ``do these steps`` and no review follows it;
 * ``carry out the ruling``: step ``WORKER``, task ``RULING_AS_GIVEN``: the

@@ -145,7 +145,8 @@ exactly one step and at most one kind. There are nine:
    `paused-owner` label, `RULING UNREADABLE`, `RULING DUE`, `PAUSE`,
    `RULING ESCALATES` and `PLAN EDITED` come first, and the conflict waits for
    the ruling, the owner or the restoring of the approved Plan. A ruling's own work step comes after the conflict. Its author resolves
-   it.
+   it, and for a PR with a Plan or Execution body also sets the body's last `Head:` line to the merge
+   head and reruns the Plan's commands through `pitboss expand` at it (the body only, pitboss#208).
 6. **Do the ruling's steps**: step WORKER, task `RULING_STEPS`: the newest
    readable Opus ruling says `do these steps` and no review follows it. Its
    author does exactly those steps (the ruling is taken as given).
