@@ -41,7 +41,7 @@ def skill_texts() -> Sequence[tuple[str, str]]:
     ]
 
 
-def briefs() -> Sequence[tuple[str, str]]:
+def worker_briefs() -> Sequence[tuple[str, str]]:
     """The worker briefs of a project with holds, drafts or not.
 
     Returns:
@@ -104,7 +104,7 @@ class TestShippedTexts(unittest.TestCase):
 
     def test_the_briefs_say_it(self) -> None:
         """A brief that hands back under a hold names the push form and the ticket."""
-        for name, each in briefs():
+        for name, each in worker_briefs():
             with self.subTest(name):
                 assert_that(holdwait.findings(name, each), equal_to([]))
                 assert_that(each, contains_string("Under a hold"))
@@ -114,8 +114,6 @@ class TestShippedTexts(unittest.TestCase):
 
     def test_lint_brief_refuses_a_wait_without_the_exception(self) -> None:
         """An appended sentence that tells the worker to wait out a hold."""
-        refused = lint("brief", write_text("w.md", WAITS[0]))
-        assert_that(refused.code, equal_to(1))
-        assert_that(refused.out, contains_string("(hold-wait)"))
-        passed = lint("brief", write_text("e.md", EXCEPTED))
-        assert_that(passed.code, equal_to(0))
+        ran = [lint("brief", write_text("w.md", each)) for each in (WAITS[0], EXCEPTED)]
+        assert_that([each.code for each in ran], equal_to([1, 0]))
+        assert_that(ran[0].out, contains_string("(hold-wait)"))
