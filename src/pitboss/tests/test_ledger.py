@@ -94,7 +94,10 @@ CASES: Sequence[tuple[Sequence[Sequence[str]], object]] = [
         "slot second holds a1: free it first",
     ),
     ([("free", "nope", "a1")], "no slot 'nope' (slots: first, second)"),
-    ([("remove", "nope"), ("free", "first", "a1")], "no slot 'nope' (slots: first, second)"),
+    (
+        [("remove", "nope"), ("free", "first", "a1")],
+        "no slot 'nope' (slots: first, second)",
+    ),
     (
         [("remove", "first"), ("remove", "second"), ("take", "x", "a", "t")],
         "no slot 'x' (slots: none)",

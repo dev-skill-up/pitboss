@@ -134,7 +134,9 @@ class TestField(unittest.TestCase):
     def test_slots_made_before_the_fields(self) -> None:
         """A slot of an older ledger has the fields empty and is set as any."""
         here = world.make_world()
-        shown, taken = run_all(here, [("show",), ("set", "tiny", "agent-1", "#9", "--running", "x")])
+        shown, taken = run_all(
+            here, [("show",), ("set", "tiny", "agent-1", "#9", "--running", "x")]
+        )
         assert_that((shown.code, taken.code), equal_to((0, 0)))
         assert_that(slot_of(here, "big")["ticket"], equal_to(""))
 
@@ -147,7 +149,9 @@ class TestRefusal(unittest.TestCase):
         for task, reason in UNNAMED:
             with self.subTest(task):
                 here = world.make_world()
-                (result,) = run_all(here, [("set", "tiny", "agent-1", task, "--running", "x")])
+                (result,) = run_all(
+                    here, [("set", "tiny", "agent-1", task, "--running", "x")]
+                )
                 assert_that(
                     (result.code, result.err.splitlines()[-1]),
                     equal_to((2, f"refused: {reason}")),
