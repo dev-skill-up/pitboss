@@ -123,7 +123,7 @@ line why it is where it is. The open pull requests that the flow's step gives a
 round come first, in one list, oldest first by creation time, whatever each
 needs; a line says which kind it is. The kind is the step alone
 (`pitboss.flow.next_step`; `pitboss next` prints the same step), so a PR has
-exactly one step and at most one kind. There are eight:
+exactly one step and at most one kind. There are nine:
 
 1. **Revise the plan**: step WORKER, task `REVISE_PLAN`. Its author edits the
    `## Plan` section of the body (and, at the end, its `Head:` line) and nothing else (`rules.md`, "Plan first"):
@@ -161,13 +161,25 @@ exactly one step and at most one kind. There are eight:
    and before every `start a PR` line (pitboss#156; a draft whose Plan a review at its head
    rejects is `revise the plan` or `fix the review`, and so is a draft whose Plan is approved
    when the newest review at its head asks for changes, pitboss#176; a draft whose Plan is approved
-   and has no such review waits for its undraft and is offered for no round (so is one whose diff changes the e2e suite and has no completed dispatched run of `check.yml` at its head: its step is `RUN E2E BEFORE APPROVAL`, the dispatch, pitboss#199, when nothing is running at the head; while a check run of the head is unfinished it is `waiting for CI at this head`); a draft or a PR with no review whose Plan has commands and no trusted
+   and has no such review, and whose newest review did not approve the Plan alone after the newest readable ruling (kind 9), waits for its undraft and is offered for no round (so is one whose diff changes the e2e suite and has no completed dispatched run of `check.yml` at its head: its step is `RUN E2E BEFORE APPROVAL`, the dispatch, pitboss#199, when nothing is running at the head; while a check run of the head is unfinished it is `waiting for CI at this head`); a draft or a PR with no review whose Plan has commands and no trusted
    PR comment records a clean `plan-check` of it is at `PLAN_CHECK` and is offered for no round until the orchestrator has run
    `uvx pitboss plan-check` and posted its output as a PR comment, keyword: plan-check, pitboss#192). Its brief says a draft has no check run and the
    reviewer reads the diff and the PR body only, besides the read-only dry runs of the
    Plan's commands. A reviewer that is not its author
    reviews it; the author never waits on CI, but pushes, reports the head and
    finishes.
+9. **Run the Plan's commands and fill the Execution**: step WORKER, task
+   `RUN_PLAN` (pitboss#201): the newest review that counts approved the Plan
+   alone (a `Plan:` line and no graded `Execution:` line) and was written after
+   the newest readable Opus ruling, on a draft and on a PR that is not a draft
+   alike. The ruling's round rewrote the Plan and left the Execution unrun, so
+   its author runs each command of the Plan as written and fills the Execution
+   and Evidence of the body, and does not change the Plan. The edit of the body
+   ends the round: the review no longer counts (its `Body:` digest), so the
+   Plan review is not offered again, a draft goes on to its undraft, and a PR
+   that is not a draft is offered `review it` for the Execution. A Plan
+   approved alone with no ruling before the review is the ordinary draft's and
+   is not changed.
 
 Every other step (waiting, undraft, plan-check, the e2e dispatch, Opus ruling, pause, merge) is offered for
 no round.

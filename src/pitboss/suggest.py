@@ -43,6 +43,7 @@ KIND_OF_CATEGORY = {
     work.Category.RESOLVE_CONFLICT: brief.Kind.RESOLVE_CONFLICT,
     work.Category.RULING_STEPS: brief.Kind.RULING_STEPS,
     work.Category.RULING_AS_GIVEN: brief.Kind.RULING_AS_GIVEN,
+    work.Category.RUN_PLAN: brief.Kind.RUN_PLAN,
 }
 
 

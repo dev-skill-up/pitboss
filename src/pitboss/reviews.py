@@ -27,7 +27,8 @@ class Found:
         verdict: what it says.
         when: when it was written (ISO 8601).
         plan_approved: what its ``Plan:`` line grades, None with no such line.
-        plan_alone: whether it has a ``Plan:`` line and no ``Execution:`` line.
+        plan_alone: whether it has a ``Plan:`` line (graded or not) and no
+            graded ``Execution:`` line.
         url: the comment's address, empty for a GitHub review.
         body: the digest of the PR body its ``Body:`` line records, empty
             with no such line (keyword: body-digest).
@@ -230,7 +231,8 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         verdict=read[1],
         when=item.created_at,
         plan_approved=plan,
-        plan_alone=plan is not None and execution is None,
+        plan_alone=gradeline.present(item.body, gradeline.PLAN_PREFIX)
+        and execution is None,  # keyword: plan-alone (pitboss#201)
         url=item.url,
         body=bodydigest.recorded(item.body),
         missed=missed.count(item.body),
@@ -368,11 +370,13 @@ def plan_only(found: Found) -> bool:
         found: the review.
 
     Returns:
-        True when it is an approval with ``Plan: approved`` and no
-        ``Execution:`` line: it is no approval to merge.
+        True when it is an approval with a ``Plan:`` line that does not
+        reject the Plan (approved, or a line that grades nothing) and no
+        ``Execution:`` line: it is no approval to merge (keyword: plan-alone,
+        pitboss#201).
     """
     approves = found.verdict is Verdict.APPROVED
-    return approves and found.plan_approved is True and found.plan_alone
+    return approves and found.plan_approved is not False and found.plan_alone
 
 
 def head_standing(found: Found | None, head: str) -> Standing:

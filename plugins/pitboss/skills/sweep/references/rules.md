@@ -97,7 +97,9 @@ Only override for bugs, but do override for bugs (and then file them)".
      entry on the current base (`[merge_queue] repositories`), behind is no
      work (see "Merge conflicts");
    - green on its exact head with no review of that head, or only one that
-     approved the Plan alone: a review, by an agent that is not its author;
+     approved the Plan alone: a review, by an agent that is not its author
+     (when that review came after the newest readable Opus ruling, first the
+     worker round `run the Plan's commands and fill the Execution`, pitboss#201);
    - reviewed approved at its head and green: a merge;
    - its checks still running: neither green nor red, so skipped until they
      finish, and not a reason to hold the free slot; so is a pull request on
@@ -112,7 +114,9 @@ Only override for bugs, but do override for bugs (and then file them)".
    task's kind: `revise the plan` (`REVISE_PLAN`), `fix the CI` (`FIX_CI`),
    `write the Plan and Execution body` (`FIRST_ROUND`), `resolve the conflict`
    (`RESOLVE_CONFLICT`), `do the ruling's steps` (`RULING_STEPS`), `carry out
-   the ruling` (`RULING_AS_GIVEN`), and `fix the review` for any other task
+   the ruling` (`RULING_AS_GIVEN`), `run the Plan's commands and fill the
+   Execution` (`RUN_PLAN`: a review approved the Plan alone after the newest
+   readable ruling, pitboss#201), and `fix the review` for any other task
    (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
    stage, a plan-only review included (a draft's, or that of a Plan revised
    after its rejection on a PR that is not a draft), except that after a body
@@ -639,7 +643,7 @@ Only override for bugs, but do override for bugs (and then file them)".
     neither line containing the word verdict followed by a colon) beside the
     one `Verdict:` line of the form (`adversarial-review.md`). A draft whose Plan is approved is undrafted
     when `can_undraft` holds, before any CI wait (`pitboss.flow.next_step`), unless the review
-    at its head asks for changes: it gets the fix that review asks for first (pitboss#176), or its diff
+    at its head asks for changes: it gets the fix that review asks for first (pitboss#176), or the newest review approved the Plan alone after the newest readable ruling: it gets the worker round `RUN_PLAN` first (pitboss#201), or its diff
     changes what e2e runs on and no dispatched run of `check.yml` at its head has completed: it is at `RUN_E2E` first, the
     dispatch of `check.yml` on its branch (pitboss#199), unless a check run of its head is unfinished: it
     is then `waiting for CI at this head`; a draft whose
@@ -705,12 +709,20 @@ Only override for bugs, but do override for bugs (and then file them)".
     Execution defect. A review that approves the Plan alone is no approval to
     merge: the sweep's PR line says `review=plan-approved` and the sweep prints
     no `AUTO MERGE OFF` for it (that line is for a head whose review approved
-    it, `review=approved-this-head`), so auto-merge is never armed on it. The
-    orchestrator undrafts the PR when a sweep shows that line with `[draft]`
-    (after `pitboss pressure` passes, "Pushing and merging"), and once its
-    checks are green it is offered (`review it`) for a review of the Execution,
-    which is measured against
-    the approved Plan. Only a review that grades the Execution approves a head
+    it, `review=approved-this-head`), so auto-merge is never armed on it. A
+    `Plan:` line that grades nothing (`Plan: approved. The audit row now ...`
+    is a grade word and prose; a line that is neither) with no graded
+    `Execution:` line is a review of the Plan alone too (pitboss#201). When
+    that review was written after the newest readable Opus ruling, the Plan's
+    commands were never run: the next step, on a draft and on a PR that is not
+    a draft, is the worker round `run the Plan's commands and fill the
+    Execution` (`RUN_PLAN`), and only then the undraft of a draft
+    (the orchestrator undrafts it when a sweep shows `review=plan-approved` with
+    `[draft]`, after `pitboss pressure` passes, "Pushing and merging") and,
+    once its checks are green, the offer (`review it`) of a review of the
+    Execution, which is measured against
+    the approved Plan. With no ruling before it, the orchestrator undrafts the
+    PR at once, as before. Only a review that grades the Execution approves a head
     to merge.
   - **A Plan graded changes needed is a Plan rejection** (owner,
     2026-10-26T22:45:16Z: "there's no rejected outright. It's just that the

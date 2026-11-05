@@ -38,6 +38,8 @@ class Kind(enum.Enum):
         RULING_STEPS: a worker does exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: a worker carries out an Opus ruling to split, reshape
             or abandon.
+        RUN_PLAN: a worker runs the commands of a Plan approved alone and
+            fills the Execution.
         REVIEW_FULL: a reviewer grades the Plan and the Execution of a head.
         REVIEW_EXECUTION: a reviewer grades the Execution of a head whose
             Plan is approved.
@@ -58,6 +60,7 @@ class Kind(enum.Enum):
     RESOLVE_CONFLICT = "resolve the conflict"
     RULING_STEPS = "do the steps of the Opus ruling"
     RULING_AS_GIVEN = "carry out the Opus ruling"
+    RUN_PLAN = "run the Plan's commands and fill the Execution"
     REVIEW_FULL = "review the Plan and the Execution"
     REVIEW_EXECUTION = "review the Execution"
     REVIEW_PLAN = "review the Plan alone"
@@ -98,6 +101,7 @@ TASKS: Mapping[Kind, str] = {
     Kind.RESOLVE_CONFLICT: text.TASK_RESOLVE_CONFLICT,
     Kind.RULING_STEPS: text.TASK_RULING_STEPS,
     Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
+    Kind.RUN_PLAN: brieftextwork.TASK_RUN_PLAN,
 }
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [
@@ -153,7 +157,7 @@ PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
 # keyword: plan-digest (pitboss#172): the Plan of these PRs is approved
 APPROVED_PLAN_WORKERS = frozenset(
     {Kind.FIX_REVIEW, Kind.FIX_CI, Kind.RESOLVE_CONFLICT, Kind.RULING_STEPS}
-)
+) | {Kind.RUN_PLAN}
 # keyword: dry-run (pitboss#170): the briefs that write a Plan's commands (the
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}

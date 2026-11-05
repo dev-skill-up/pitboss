@@ -468,7 +468,7 @@ a verdict but is not in the form (``Independent re-review``) is not a review;
 the PR's line says so (``review=... (ignored: the comment of <time> is not in
 the review form)``), so the older review is not taken for the last word
 unseen (#20). A review comment also carries what its ``Plan:`` line grades and
-whether it has an ``Execution:`` line (keyword: plan-revision, pitboss#82). A
+whether it has an ``Execution:`` line (keyword: plan-revision, pitboss#82; a ``Plan:`` line that grades nothing, with no graded ``Execution:`` line, is a review of the plan alone too, keyword: plan-alone, pitboss#201). A
 head whose newest review asks for changes and grades the plan changes needed
 stands ``plan-changes-needed``; one whose newest review approves and has a
 ``Plan: approved`` line but no ``Execution:`` line (a review of a revised plan,
@@ -910,7 +910,7 @@ line saying why it is where it is. The open PRs that the flow's step gives a
 round come first, in one list ordered oldest first, whatever each needs; each
 line says which kind it is, the kind being the flow's step alone
 (``pitboss next`` prints the same step). A PR has exactly one step, so it is
-listed at most once. The eight kinds:
+listed at most once. The nine kinds:
 
 * ``revise the plan``: step ``WORKER``, task ``REVISE_PLAN`` (keyword:
   plan-revision, pitboss#82); the author edits the ``## Plan`` section of the
@@ -933,13 +933,20 @@ listed at most once. The eight kinds:
 * ``carry out the ruling``: step ``WORKER``, task ``RULING_AS_GIVEN``: the
   ruling says ``split``, ``reshape`` or ``abandon`` (``revise the plan`` is
   ``revise the plan`` above);
+* ``run the Plan's commands and fill the Execution``: step ``WORKER``, task
+  ``RUN_PLAN`` (keyword: plan-alone, pitboss#201): the newest review that
+  counts approved the Plan alone, after the newest readable Opus ruling, on a
+  draft or not; the author runs the Plan's commands as written and fills the
+  Execution and Evidence, and does not change the Plan;
 * ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
   PR that is not a draft it comes once every required check finished green on
   the head; it is the plan-only review when the newest review rejected the Plan
   and no review names this head or body (pitboss#167). On a draft it is the
   plan-only review, listed with no CI, since a draft runs none, before every
   new ticket (pitboss#156); a draft is undrafted only once its Plan is approved
-  and no review at its head asks for changes (that fix comes first, pitboss#176).
+  and no review at its head asks for changes (that fix comes first, pitboss#176)
+  and none approved the Plan alone after a ruling (that worker round comes
+  first, pitboss#201).
 
 A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (above) is listed as none of these.
 After them come the new PRs, ordered by ``priority_labels`` first and then
