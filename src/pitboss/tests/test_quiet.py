@@ -8,7 +8,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import record, report
-from . import fakes, test_config, world
+from . import fakes, quietworld, test_config, world
 
 PROJECT_JOBS = world.project_page("actions/runs/11/jobs")
 START = world.START
@@ -39,6 +39,20 @@ def clear_world(answers: fakes.Answers = GIT_ANSWERS) -> world.World:
     """
     here = world.make_world(answers)
     here.bodies[PROJECT_JOBS] = {"jobs": []}
+    return here
+
+
+def waiting_world(jobs: int) -> world.World:
+    """A world whose runners have jobs waiting.
+
+    Args:
+        jobs: how many.
+
+    Returns:
+        The world.
+    """
+    here = world.make_world(GIT_ANSWERS)
+    here.bodies[PROJECT_JOBS] = {"jobs": [{"status": "queued"}] * jobs}
     return here
 
 
@@ -125,6 +139,10 @@ QUIET = (
     "RUNNER PRESSURE: nothing waits now, but a job waited or was put on the queue"
     f" within the quiet period; 15 quiet minutes remain: {HOLD}"
 )
+FIRST_LOOK = (
+    "RUNNER PRESSURE: nothing waits now and the pressure record has no earlier"
+    f" look; quiet period starts now; 15 quiet minutes remain: {HOLD}"
+)
 CLEAR = "NO RUNNER PRESSURE: push and merge as usual"
 
 
@@ -153,7 +171,7 @@ class TestPressure(unittest.TestCase):
             (lasts, [result.code for result in found], written),
             equal_to(
                 (
-                    [WAITING, QUIET, CLEAR],
+                    [WAITING, FIRST_LOOK, CLEAR],
                     [1, 1, 0],
                     [f"{at(0)} hold", f"{at(0)} none", f"{at(0)} none"],
                 )
@@ -244,11 +262,10 @@ class TestPressure(unittest.TestCase):
     def test_quiet_minutes_key(self) -> None:
         """The quiet period is the configured one."""
         here = clear_world()
-        with open(here.config, "a", encoding="utf-8") as stream:
-            stream.write(
-                "\n[runners]\nquiet_minutes = 3\nrecord = '%s'\n"
-                % (here.workspace / "mine.log")
-            )
+        mine = here.workspace / "mine.log"
+        quietworld.edit_config(
+            here, "[runners]", f"[runners]\nquiet_minutes = 3\nrecord = '{mine}'"
+        )
         (here.workspace / "mine.log").write_text(hold_at(0))
         found = (exit_code(here, "pressure", 2), exit_code(here, "pressure", 3))
         assert_that((found, lines(here)), equal_to(((1, 0), [])))
@@ -271,16 +288,6 @@ class TestQueued(unittest.TestCase):
         said = world.again(here, "queued", "--now", at(40)).out
         assert_that(said, starts_with(f"recorded a queued job at {at(40)}: the quiet"))
 
-    def test_refused_push_changes_nothing(self) -> None:
-        """A push in the quiet period is refused and leaves the record as it was."""
-        here = clear_world()
-        exit_code(here, "queued", 0)
-        before = record_path(here).read_text()
-        result = world.again(here, *PUSH[:1], "--now", at(10), *PUSH[1:])
-        found = (result.code, record_path(here).read_text() == before, pushes(here))
-        assert_that(found, equal_to((1, True, 0)))
-        assert_that(exit_code(here, "pressure", 15), equal_to(0))
-
     def test_push_that_goes_out(self) -> None:
         """A push at minute 16 goes out, records a hold and holds until minute 31."""
         here = clear_world()
@@ -299,11 +306,10 @@ class TestQueued(unittest.TestCase):
         )
 
     def test_pushes_that_do_not_record(self) -> None:
-        """Under pressure, in a dry run, when git fails or to a draft: no hold."""
+        """In a dry run, when git fails or to a draft: no hold."""
         seed = hold_at(-60)
         failing = {"grep": 0, "mount": 1, "git": 3}
         cases = [
-            (world.make_world(GIT_ANSWERS), ("--no-dry-run",), (1, 0)),
             (clear_world(), (), (0, 0)),
             (clear_world(failing), ("--no-dry-run",), (3, 1)),
             (world.make_world(GIT_ANSWERS), ("--no-dry-run", "--draft"), (0, 1)),

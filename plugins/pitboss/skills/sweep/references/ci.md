@@ -90,7 +90,9 @@ a queue run that waits past the queue's time limit is dequeued.
   that gates the base branch (`rules.md`, "Pushing and merging": "avoid
   bursts: CI capacity is the constraint").
 - Carried by: the quiet period (`rules.md`, "Pushing and merging"):
-  `pitboss queued` and `pitboss push` record each action that goes out, and
+  `pitboss queued` and `pitboss push` record each action that goes out, every
+  look (`pitboss pressure`, `sweep`, `next`, a refused `push`) is recorded
+  too, so the period can end with no one running `pressure` by hand, and
   `pitboss pressure` exits 1 until `[runners] quiet_minutes` have passed. A
   worker never sleeps to wait it out: it commits locally and hands back
   (`rules.md`, "A worker never waits for CI checks"; owner,
@@ -152,7 +154,9 @@ than the pool has) with the stale runs of removed entries cancelled.
   PRESSURE` and `NO RUNNER PRESSURE`, `QUEUE RUN` (age against the limit),
   `STALE QUEUE RUN` with `pitboss cancel-stale-runs`, and the keys
   `[runners] repositories` (whose queue runs count and whose actions are held;
-  default the project and its libraries), `[runners] record` and `[runners]
+  default the project and its libraries; a project on its own runner budget
+  leaves the whole `[runners]` table out, is never held, and no brief or tool
+  tells an agent to add it, pitboss#215), `[runners] record` and `[runners]
   quiet_minutes` (the record the looks and queued jobs are written to, and the
   quiet period), and `[merge_queue] timeout_minutes` (the limit the age is shown
   against; default 60). The limit on queue entries is kept by hand: pitboss has

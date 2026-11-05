@@ -204,3 +204,38 @@ def note(path: pathlib.Path, look: Look, now: datetime.datetime) -> None:
         now: the time now.
     """
     append(path, addition(read(path), Entry(time=now, look=look)))
+
+
+def has_lines(path: pathlib.Path, now: datetime.datetime) -> bool:
+    """Whether the record holds any line, so an earlier look was made.
+
+    A line that cannot be read counts as one (it was a look or a hold).
+
+    Args:
+        path: the record file.
+        now: the time now.
+
+    Returns:
+        False for an absent or empty record, where the look being made now
+        starts the quiet period.
+    """
+    return bool(read_entries(read(path), now))
+
+
+def note_look(path: pathlib.Path, look: Look, now: datetime.datetime) -> None:
+    """Add a look unless the record already ends with that very line.
+
+    A sweep makes the same look twice in one second (its pressure line and an
+    undraft check); one line is enough.
+
+    Args:
+        path: the record file.
+        look: what it showed.
+        now: the time now.
+    """
+    text = read(path)
+    entry = Entry(time=now, look=look)
+    lines = text.splitlines()
+    if lines and lines[-1].strip() == line(entry):
+        return
+    append(path, addition(text, entry))

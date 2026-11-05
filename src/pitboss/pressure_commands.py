@@ -23,14 +23,32 @@ from . import (
 TIMED_CONFIG = (commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT)
 
 
-def _look(found: commands.Context) -> tuple[int, int]:
+def _look(found: commands.Context) -> queue.Seen:
     runs = commands.runner_runs(found, commands.read_queue_runs(found))
     return queue.look(found.github, runs, found.settings.runners, found.now)
 
 
-def _say(waiting: int, owed: int) -> bool:
-    print(report.quiet_line(waiting, owed))
-    return bool(waiting or owed)
+def _say(found: commands.Context, looked: queue.Seen) -> bool:
+    if not found.settings.runners.held:
+        print(report.no_hold_line())
+        return False
+    print(report.seen_line(looked))
+    return bool(looked.waiting or looked.owed)
+
+
+def _note_look(found: commands.Context, looked: queue.Seen) -> None:
+    # Nothing is written without a [runners] table.
+    runners = found.settings.runners
+    if runners.held:
+        record.note_look(runners.record, looked.look, found.now)
+
+
+def _refuse_if_held(found: commands.Context) -> None:
+    looked = _look(found)
+    if _say(found, looked):
+        _note_look(found, looked)
+        print("push refused: nothing was pushed; the look was recorded; hand back")
+        raise SystemExit(1)
 
 
 @ENTRY_DATA.register(commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT, name="pressure")
@@ -45,10 +63,9 @@ def pressure(args: argparse.Namespace) -> None:
     """
     tracefs.say(args.safe_run)
     found = commands.load_context(args)
-    waiting, owed = _look(found)
-    shown = record.Look.HOLD if waiting else record.Look.NONE
-    record.note(found.settings.runners.record, shown, found.now)
-    if _say(waiting, owed):
+    looked = _look(found)
+    _note_look(found, looked)
+    if _say(found, looked):
         raise SystemExit(1)
 
 
@@ -63,6 +80,9 @@ def put_on_queue(args: argparse.Namespace) -> None:
     """
     runners = commands.load_settings(args).runners
     now = timing.current_time(args)
+    if not runners.held:
+        print(report.no_hold_line() + "; nothing recorded")
+        return
     record.note(runners.record, record.Look.HOLD, now)
     print(report.queued_line(now, runners.quiet_minutes))
 
@@ -83,6 +103,8 @@ def record_summary(args: argparse.Namespace) -> None:
 
 
 def _record_push(found: commands.Context) -> None:
+    if not found.settings.runners.held:
+        return
     try:
         record.note(found.settings.runners.record, record.Look.HOLD, found.now)
     except SystemExit as stopped:
@@ -116,23 +138,22 @@ def push(args: argparse.Namespace) -> None:
     """Push with ``git push`` when the quiet period is over, and record the push.
 
     A push that goes out is a queued job: it restarts the quiet period. A push
-    that is refused records nothing, so a retried push does not keep restarting
-    the wait. A push to a draft PR (``--draft``) starts no costly job and is
-    neither checked nor recorded. Put ``--`` before git's own options.
+    that is refused records the look it made (``none`` when nothing waits,
+    ``hold`` when a job waits), so the quiet period can end; a retried push
+    adds only none looks, which do not restart the wait. A push to a draft PR
+    (``--draft``) starts no costly job and is neither checked nor recorded.
+    With no ``[runners]`` table nothing is held or recorded. Put ``--`` before
+    git's own options. The exit is 1 while the quiet period is not over, git's
+    status when the push fails, and 2 when the push went out but its hold could
+    not be recorded.
 
     Args:
         args: the parsed arguments.
-
-    Raises:
-        SystemExit: 1 while the quiet period is not over; git's status when
-            the push fails; 2 when the push went out but its hold could not be
-            recorded.
     """
     tracefs.say(args.safe_run)
     found = commands.load_context(args)
-    if not args.draft and _say(*_look(found)):
-        print("push refused: nothing was pushed or recorded; hand back")
-        raise SystemExit(1)
+    if not args.draft:
+        _refuse_if_held(found)
     if not args.no_dry_run:
         print("dry run: --no-dry-run pushes")
         return

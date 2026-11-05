@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from . import test_quiet as helpers
-from . import world
+from . import quietworld, world
 
 
 def configure_runners(here: world.World, text: str) -> None:
@@ -15,8 +15,7 @@ def configure_runners(here: world.World, text: str) -> None:
         here: the world.
         text: the table's lines.
     """
-    with open(here.config, "a", encoding="utf-8") as stream:
-        stream.write(f"\n[runners]\n{text}\n")
+    quietworld.edit_config(here, "[runners]", f"[runners]\n{text}")
 
 
 def at_zero(here: world.World, command: str, *options: str) -> world.Result:
@@ -50,7 +49,7 @@ CANNOT = "RUNNER PRESSURE: the quiet period cannot be told"
 
 
 class TestSweep(unittest.TestCase):
-    """``sweep`` reads the record and writes nothing."""
+    """``sweep`` reads the record and writes its look (pitboss#215)."""
 
     def test_sweep_line_follows_the_record(self) -> None:
         """Quiet, in the quiet period and under pressure: the line each time."""
@@ -66,8 +65,12 @@ class TestSweep(unittest.TestCase):
         ]
         assert_that(found, equal_to(wanted))
         seeds = [helpers.hold_at(minute).strip() for minute in (-60, -5)]
-        kept = [[seeds[0]], [seeds[1]], []]
-        assert_that(written, equal_to(kept))
+        looks = [
+            [seeds[0], f"{helpers.at(0)} none"],
+            [seeds[1], f"{helpers.at(0)} none"],
+            [f"{helpers.at(0)} hold"],
+        ]
+        assert_that(written, equal_to(looks))
 
 
 class TestEdges(unittest.TestCase):
@@ -86,8 +89,7 @@ class TestEdges(unittest.TestCase):
 
     def test_zero_quiet_minutes_with_jobs_waiting(self) -> None:
         """Three jobs waiting and no quiet period: exit 1, 0 minutes remain."""
-        here = world.make_world(helpers.GIT_ANSWERS)
-        here.bodies[helpers.PROJECT_JOBS] = {"jobs": [{"status": "queued"}] * 3}
+        here = helpers.waiting_world(3)
         configure_runners(here, "quiet_minutes = 0")
         result = at_zero(here, "pressure")
         line = result.out.splitlines()[-1]

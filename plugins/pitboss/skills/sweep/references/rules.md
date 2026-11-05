@@ -1176,7 +1176,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   dispatch or re-run, check the runner pressure** (`pitboss pressure`; `sweep.md` has the hold). Pushes to a
   draft PR start no costly job and are not held (`ci.md`). Under pressure,
   hold. **A hold lifts only after the quiet period:** `pitboss pressure` exits 0
-  only when its record (`[runners] record`) shows no hold at any look, and no
+  only when its record (`[runners] record`; a `sweep`, a `next` and a refused
+  `push` write their looks to it too, and the first look of an empty record
+  says `quiet period starts now`) shows no hold at any look, and no
   job put on the queue, for the last `[runners] quiet_minutes` minutes in a row
   (default 15), and otherwise exits 1 saying how many minutes remain (owner,
   2026-10-26: "New rule: runner pressure should be 0 for 15 minutes before we
@@ -1187,8 +1189,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   and if we stuff the queue, we get the ejection stuff that causes infinite
   holds (stuff gets dequeued, and then the MQ start from scratch)"). A job put
   on the queue is recorded at once: `pitboss push` records the push that went
-  out (a refused push records nothing, so a retried push does not keep
-  restarting the wait), and the orchestrator runs `pitboss queued <config>`
+  out (a refused push records its look, and a `none` look does not restart
+  the wait, so a retried push does not keep restarting it), and the orchestrator runs `pitboss queued <config>`
   after a merge, an enqueue or auto-merge armed. If the pressure check fails a
   worker hands back; it does not loop, retry or sleep for it (owner,
   haiku-rule 47, 2026-10-25).
