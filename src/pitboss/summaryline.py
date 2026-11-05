@@ -60,3 +60,21 @@ def lines(
         return [rulingsummary.unreadable_line(failure)]
     waiting = rulingsummary.due(rulings, text, now)
     return [rulingsummary.line(waiting, name, path)] if waiting else []
+
+
+def print_lines(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    name: str,
+    now: datetime.datetime,
+) -> None:
+    """Print the line for Opus rulings that wait for the day's summary.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        name: the configuration argument the sweep was given.
+        now: the time now.
+    """
+    for text in lines(github, settings, name, now):
+        print(text)

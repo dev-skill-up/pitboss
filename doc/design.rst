@@ -1046,7 +1046,7 @@ Output
 ------
 
 Every line that calls for an action says the action. The markers
-(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``DISK PRESSURE``, ``EMPTY SLOT``, ``SLOTS FREE``, ``HOLD``, ``HELD``,
+(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``DISK PRESSURE``, ``EMPTY SLOT``, ``SLOTS FREE``, ``SLOT IDLE`` (a slot empty over two minutes by the slot log while work is queued, ``pitboss.slotidle``), ``HOLD``, ``HELD``,
 ``RULING DUE``, ``PAUSE``, ``NO HAND-BACK``, ...) are members of one enum, ``pitboss.markers.Marker``, printed as the
 member's name in words (so ``READY_TO_MERGE`` prints ``READY TO MERGE``,
 and the line with no pressure reads ``NO RUNNER PRESSURE``); a check in CI
