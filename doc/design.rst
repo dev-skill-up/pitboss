@@ -265,7 +265,10 @@ Commands
        has none, ``plan command not run as written: line N COMMAND: run it as
        written; the only reasons to run another are that it is impossible or
        dangerous, and then stop, show the output that proves it, and change
-       the Plan and have it reviewed first (plan-command)``; pitboss#196) and
+       the Plan and have it reviewed first (plan-command)``; pitboss#196),
+       ``plan-nox`` (a ``$ `` command of the Plan section that runs ``nox``,
+       ``pitboss nox`` or ``uvx ... nox`` is refused with the sentence that
+       gives the CI pointer instead; one finding for each; pitboss#251) and
        ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). With ``--branch`` starting with the
@@ -356,7 +359,7 @@ Commands
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
    * - ``plan-check FILE``
-     - Runs each command of the ``## Plan`` section of the PR body saved in the file, in a scratch worktree, before the Plan is reviewed (pitboss#192). The orchestrator runs it on a PR at ``PLAN_CHECK`` (the Plan has commands and no trusted PR comment records a clean check of this Plan) and posts the whole output as a PR comment: the first line ``Plan check``, a row for each command, the ``Plan digest:`` line and the last line ``Plan check: ok`` or ``Plan check: refused``. Exit 1 when a row did not run, 2 for a body it cannot read. The Plan review is offered only after a trusted comment says ``Plan check: ok`` for the digest of the Plan now in the body.
+     - Runs each command of the ``## Plan`` section of the PR body saved in the file, in a scratch worktree, except a row that runs ``nox``, ``pitboss nox`` or ``uvx ... nox``, which is not run but refused with the sentence that gives the CI pointer instead (pitboss#251), before the Plan is reviewed (pitboss#192). The orchestrator runs it on a PR at ``PLAN_CHECK`` (the Plan has commands and no trusted PR comment records a clean check of this Plan) and posts the whole output as a PR comment: the first line ``Plan check``, a row for each command, the ``Plan digest:`` line and the last line ``Plan check: ok`` or ``Plan check: refused``. Exit 1 when a row did not run, 2 for a body it cannot read. The Plan review is offered only after a trusted comment says ``Plan check: ok`` for the digest of the Plan now in the body.
    * - ``slots show|set|free|add|remove|failed|check|next|report|time CONFIG ...``
      - The worker-slot ledger, and the sorted list of what to start next. Every
        one but ``report`` and ``time`` exits 1 with ``LEDGER MISSING`` and writes nothing when

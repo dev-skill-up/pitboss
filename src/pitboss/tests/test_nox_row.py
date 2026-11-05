@@ -22,6 +22,12 @@ NOX_ROWS = (
     "python -m nox -s mypy",
     "cd x && nox -r",
     "FOO=1 .venv/bin/nox",
+    "uvx --python 3.13 nox -s tests-3.13",
+    "uvx --with foo nox",
+    "uvx nox@latest",
+    "uv run --python 3.13 nox",
+    "env FOO=1 nox",
+    "time nox",
 )
 OTHER_ROWS = (
     "git rev-parse HEAD",

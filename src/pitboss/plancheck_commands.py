@@ -1,7 +1,8 @@
 """The ``plan-check`` command: a Plan's commands, run before it is approved.
 
 This is the plan-check area (pitboss#192). Each command of the Plan runs with
-``sh -c`` in a scratch worktree of the PR's base, with the permissions of whoever
+``sh -c`` in a scratch worktree of the PR's base (a row that runs nox is not run
+but refused, pitboss#251), with the permissions of whoever
 runs ``pitboss plan-check``, so the body is the worker's own and is never read
 from somewhere else (it is the file the caller saved, as ``expand`` reads its
 template).
@@ -153,7 +154,9 @@ def plan_check(args: argparse.Namespace) -> None:
     """Run each command of a Plan, and refuse the Plan if one does not run.
 
     Prints a row for each command (its exit status and duration, or that it did
-    not run: it could not start or it timed out), the Plan digest and the last
+    not run: it could not start, it timed out, or it runs nox, which is refused
+    unrun with the sentence that gives the CI pointer, pitboss#251), the Plan
+    digest and the last
     line, ``Plan check: ok`` or ``Plan check: refused`` naming each row that did
     not run. The output is posted as a comment on the PR (keyword: plan-check,
     pitboss#192); ``pitboss next`` offers a Plan review that has commands only

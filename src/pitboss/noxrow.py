@@ -18,8 +18,13 @@ SENTENCE = (
 SEGMENTS = re.compile(r"[;&|()\n`]+")
 # the words that may stand before nox in a row that runs it
 NOX_SEGMENT = re.compile(
-    r"\s*(?:(?:timeout|uvx|uv|run|pitboss|python3?|\.|-\S*|\d+|[^\s=]+=\S*)\s+)*"
-    r"(?:\S*/)?nox(?:\s|$)"
+    # words before the program: env, time, timeout N and NAME=value
+    r"\s*(?:(?:env|time|timeout|\d+|[^\s=]+=\S*)\s+)*"
+    # a launcher, with any options and their values after it
+    r"(?:(?:\S*/)?(?:uvx|uv\s+run|uv\s+tool\s+run|pitboss|python3?\s+-m)\s+"
+    r"(?:\S+\s+)*?)?"
+    # nox itself, with a version (nox@latest) or a path
+    r"(?:\S*/)?nox(?:@\S*)?(?:\s|$)"
 )
 
 
