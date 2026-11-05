@@ -35,8 +35,11 @@ class Clean:
             was touched in the idle hours and nothing marks them live.
         live: paths never removed (shared caches, toolchain homes, the
             persistent checkout); a directory holding a file named
-            ``.pitboss-live`` is live too (except in a merged checkout, where
-            a marker older than 6 hours is not honored).
+            ``.pitboss-live`` is live too, in the directory or in one above
+            it. Only the markers that concern a merged checkout expire: one in
+            the checkout or in a directory above it, older than 6 hours, is not
+            honored for that checkout; every other marker (a closed
+            checkout's, scratch's) is honored however old.
         min_free_gib: free space, in GiB, under which a sweep warns and cleans
             aggressively, as it does over ``pressure_percent`` (pitboss#205); 0
             never does.

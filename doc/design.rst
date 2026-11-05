@@ -645,7 +645,10 @@ tells what the clean did); the two differences are that, under disk pressure, ``
 ``dead.Look.unmarked`` so a merged worktree's own marker is not honored, except
 on the one whose PR merged last (``judging.last_merged``), and that, at any disk
 level, a merged worktree's marker older than a worker's task, 6 hours
-(``workhours.TASK_HOURS``, pitboss#194), is not honored either. The 6 hours
+(``workhours.TASK_HOURS``, pitboss#194), is not honored either, whether it is
+in the worktree or in a directory above it (``dead.marked_above`` applies the
+same expiry, pitboss#246). Only markers that concern a merged worktree expire;
+a closed worktree's and scratch's are honored however old. The 6 hours
 have no source in the ticket (#194 says "the worker's task bound" and #185,
 which it cites, sets none) or in the repository before: the value is the
 orchestrator's choice in pitboss#194, and the constant defines the bound. So a
@@ -653,7 +656,8 @@ finished worktree is kept when anything in it changed in the last ``idle_hours``
 (by file times, because a new worktree's tip is an old commit), when it holds a
 ``.pitboss-live`` marker or is a live path (a merged worktree's own marker is
 not honored under disk pressure, except on the one whose PR merged last, nor at
-any disk level once it is older than 6 hours),
+any disk level once it is older than 6 hours; a marker above it expires the same
+way),
 when it is a link or holds a mount
 point, when it is or holds the directory the command runs in (``PWD`` or the
 process's own), when a commit in it is on no remote branch, or when a tracked
@@ -912,7 +916,8 @@ branch, or whose repository could not be fetched is not judged), ``dead_scratch`
 the root files above; the sweep's clean removes the same three sources. A path
 is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
 depth or in a directory above it, except that for a merged checkout a marker
-older than 6 hours, ``workhours.TASK_HOURS``, is not honored, which
+(in it or above it) older than 6 hours, ``workhours.TASK_HOURS``, is not
+honored, and no other marker expires, which
 ``clean-container`` passes as ``marker_expiry``; a path of ``[clean] live``, the
 main clone, or one that holds or lies in such a path), when it is a symbolic link, when it is
 or holds the directory the command runs in (``PWD`` or the process's own, so a
