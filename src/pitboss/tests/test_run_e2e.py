@@ -20,11 +20,14 @@ from .test_flow_sweep import APPROVED, HEAD, graded, world_with
 from .test_slot_commands import next_output
 
 LINE = "RUN E2E BEFORE APPROVAL: dispatch check.yml on branch-3"
-DISPATCHED = f"actions/runs?head_sha={HEAD}&event=workflow_dispatch&status=completed"
+QUERY = f"head_sha={HEAD}&event=workflow_dispatch&status=completed"
+DISPATCHED = f"actions/workflows/check.yml/runs?{QUERY}"
+ANY_WORKFLOW = f"actions/runs?{QUERY}"
 PAGES = {
     "files": "pulls/3/files",
     "runs": f"commits/{HEAD}/check-runs",
     "dispatch": DISPATCHED,
+    "any": ANY_WORKFLOW,
 }
 RAN, RUNNING = (
     {"id": 9, "name": "e2e", "status": status, "conclusion": conclusion}
@@ -44,7 +47,7 @@ def served(here: world.World, page: str, body: object) -> world.World:
 
     Args:
         here: the world.
-        page: ``files`` or ``runs``.
+        page: ``files``, ``runs``, ``dispatch`` or ``any``.
         body: what GitHub gives for it.
 
     Returns:
@@ -136,6 +139,23 @@ class TestTheSweep(unittest.TestCase):
             out, line = said(APPROVED_PLAN, files, *runs, dispatch=dispatch)
             assert_that(LINE in out, equal_to(LINE in step), name)
             assert_that(line, contains_string(step), name)
+
+    def test_a_dispatch_of_another_workflow_does_not_end_the_step(self) -> None:
+        """Only a completed dispatch of check.yml counts, not any workflow's."""
+        here = served(world_with(APPROVED_PLAN, draft=True), "files", [E2E_FILE])
+        served(here, "runs", {"check_runs": [RAN]})
+        served(here, "dispatch", {"workflow_runs": []})
+        served(here, "any", {"workflow_runs": list(DONE_RUN)})
+        out = sweep(here).out
+        assert_that(LINE in out, equal_to(True))
+
+    def test_a_dispatch_of_check_yml_ends_the_step(self) -> None:
+        """A completed dispatch of check.yml at the head ends it."""
+        here = served(world_with(APPROVED_PLAN, draft=True), "files", [E2E_FILE])
+        served(here, "runs", {"check_runs": [RAN]})
+        served(here, "dispatch", {"workflow_runs": list(DONE_RUN)})
+        out = sweep(here).out
+        assert_that(LINE in out, equal_to(False))
 
     def test_the_line_replaces_the_wait_and_the_review(self) -> None:
         """No WAIT-FOR-CI line, and no review of the PR is listed."""

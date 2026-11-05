@@ -426,7 +426,7 @@ same words as ``slots next``, pitboss#156; a draft whose Plan is approved, with
 a diff that touches ``e2e/`` or a ``[sweep] run_by_e2e`` prefix and no completed
 ``workflow_dispatch`` run of its head (a draft's own run skipped e2e, complete
 or not; one still running is waited for), has ``RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>``
-instead, pitboss#199), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
+instead when nothing is running at its head (while a check run of the head is unfinished it is ``waiting for CI at this head``), pitboss#199), ``CONFLICT``, ``FAILED`` (one line for each failed check, saying why from
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a

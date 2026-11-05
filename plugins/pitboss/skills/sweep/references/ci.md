@@ -102,7 +102,8 @@ draft (`rules.md`, "Pushing and merging").
   `WAIT-FOR-CI` for a draft whose Plan is approved and that waits to be
   undrafted (no review at its head asks for changes, pitboss#176), with no completed check run (but
   `RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>` for such a draft whose diff changes the e2e
-  suite and that has no completed dispatched run at its head, pitboss#199), and
+  suite and that has no completed dispatched run at its head and nothing running there; while a check run of the head is unfinished it
+  shows `waiting for CI at this head`, pitboss#199), and
   `[draft]` in the PR line (`sweep.md`). The hold below leaves draft pushes alone
   (`sweep.md`, "The runner-pressure hold"; the hold line `pitboss pressure`
   prints says the same).
