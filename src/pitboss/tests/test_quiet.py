@@ -134,8 +134,8 @@ class TestPressure(unittest.TestCase):
     def test_line_names_dispatches(self) -> None:
         """The pressure line holds workflow dispatches, a draft's too."""
         waiting = world.make_world(GIT_ANSWERS)
-        line = world.again(waiting, "pressure", "--now", at(0)).out.splitlines()[-1]
-        assert_that("dispatch" in line, equal_to(True))
+        printed = world.again(waiting, "pressure", "--now", at(0)).out
+        assert_that("workflow dispatches" in printed, equal_to(True))
 
     def test_lines(self) -> None:
         """Waiting, a quiet period to go, and over: one line each."""
