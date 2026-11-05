@@ -12,6 +12,8 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     commands,
+    configfile,
+    draftrule,
     queue,
     record,
     report,
@@ -48,6 +50,16 @@ def _refuse_if_held(found: commands.Context) -> None:
     if _say(found, looked):
         _note_look(found, looked)
         print("push refused: nothing was pushed; the look was recorded; hand back")
+        raise SystemExit(1)
+
+
+def _refuse_draft(args: argparse.Namespace) -> None:
+    # keyword: no-drafts (pitboss#216): a project whose config needs no drafts
+    if not args.draft:
+        return
+    drafts = configfile.load_brief(args.config, commands.working_directory(args))
+    if not drafts.drafts:
+        print(f"push refused: --draft, but {draftrule.REFUSAL}; nothing was pushed")
         raise SystemExit(1)
 
 
@@ -151,6 +163,7 @@ def push(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     tracefs.say(args.safe_run)
+    _refuse_draft(args)
     found = commands.load_context(args)
     if not args.draft:
         _refuse_if_held(found)

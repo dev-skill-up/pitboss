@@ -1194,6 +1194,14 @@ Only override for bugs, but do override for bugs (and then file them)".
   after a merge, an enqueue or auto-merge armed. If the pressure check fails a
   worker hands back; it does not loop, retry or sleep for it (owner,
   haiku-rule 47, 2026-10-25).
+- **Whether a PR is opened as a draft is the config's `[slots.brief] drafts`,
+  never the orchestrator's text** (default true; owner, 2026-11-03: pitboss
+  never needs drafts, because it uses a different runner budget). Where it is
+  `false` the worker brief says to open the PR ready and to push without
+  `--draft`, `pitboss push --draft` exits 1 naming the setting, and
+  `pitboss lint brief --config` refuses an appended sentence that tells the
+  worker to open a draft (pitboss#216). Read the brief; do not copy a draft
+  rule from another repository.
 - **A PR merges only after an independent review comment for its head.** In a
   gated repository a push, an update-branch or a merge of the base voids the
   gate's approval and a new head needs a new review (the form is
