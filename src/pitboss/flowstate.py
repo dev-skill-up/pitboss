@@ -195,6 +195,25 @@ def plan_edited_without_ruling(pr: PullState) -> bool:
     return not plan_edit_ruled(pr, newest.when)
 
 
+def approved_digests(graded: Sequence[shapes.Graded]) -> Sequence[str]:
+    """The digests of the Plans that regular reviews approved.
+
+    Args:
+        graded: every review that counts.
+
+    Returns:
+        The ``Plan digest:`` of each regular review that grades the Plan
+        approved (keyword: plan-approved, pitboss#296).
+    """
+    return [each.plan_digest for each in graded if _approves(each)]
+
+
+def _approves(review: shapes.Graded) -> bool:
+    return bool(
+        review.comment and review.plan is shapes.Verdict.APPROVED and review.plan_digest
+    )
+
+
 def newest_plan_digest(pr: PullState) -> shapes.Graded | None:
     """The newest regular review that approves the Plan and records its digest.
 
@@ -204,11 +223,7 @@ def newest_plan_digest(pr: PullState) -> shapes.Graded | None:
     Returns:
         The review, or None when no review does.
     """
-    approving = (
-        each
-        for each in pr.graded
-        if each.comment and each.plan is shapes.Verdict.APPROVED and each.plan_digest
-    )
+    approving = (each for each in pr.graded if _approves(each))
     return max(approving, key=lambda each: each.when, default=None)
 
 

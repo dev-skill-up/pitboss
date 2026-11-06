@@ -21,9 +21,11 @@ from . import (
     gateform,
     holdwait,
     phrases,
+    planapproved,
     planfixed,
     relock,
     sessionurl,
+    shapes,
     testnames,
     textlint,
 )
@@ -116,19 +118,29 @@ def _ticket(args: argparse.Namespace) -> str | None:
     return None if args.ticket is None else _read(args.ticket)
 
 
+def _comments(args: argparse.Namespace) -> Sequence[shapes.Comment]:
+    # a --comments file that is not there is no comments
+    if args.comments is None or not pathlib.Path(args.comments).exists():
+        return []
+    try:
+        return folds.parse_comments(_read(args.comments))
+    except ValueError as error:
+        raise _fail(f"{args.comments}: {error}") from error
+
+
 def _rulings(
     args: argparse.Namespace, settings: config.Lint
 ) -> Sequence[folds.Recorded]:
     # keyword: fold (pitboss#171): the PR's Opus ruling comments, which a body
-    # with several tickets may cite; a --comments file that is not there is none
+    # with several tickets may cite
     given = [(url, _read(name)) for url, name in args.ruling or ()]
-    if args.comments is None or not pathlib.Path(args.comments).exists():
-        return given
-    try:
-        found = folds.read_comments(_read(args.comments), settings.review.trusted)
-    except ValueError as error:
-        raise _fail(f"{args.comments}: {error}") from error
+    found = folds.ruling_comments(_comments(args), settings.review.trusted)
     return [*given, *found]
+
+
+def _approved(args: argparse.Namespace, settings: config.Lint) -> Sequence[str]:
+    # keyword: plan-approved (pitboss#296): the Plans the PR's reviews approved
+    return planapproved.digests(_comments(args), settings.review, "")
 
 
 def _pr_body_findings(
@@ -137,7 +149,12 @@ def _pr_body_findings(
     if relock.is_relock(args.branch, settings.relock_prefix):
         return forms.relock_pr_body(subject, settings.footers)  # keyword: relock
     return [
-        *forms.pr_body(subject, settings.footers, _rulings(args, settings)),
+        *forms.pr_body(
+            subject,
+            settings.footers,
+            _rulings(args, settings),
+            _approved(args, settings),
+        ),
         *_test_names(args, subject),
     ]
 
@@ -240,13 +257,13 @@ def _event(args: argparse.Namespace) -> None:
     except textlint.EventError as error:
         raise _fail(f"{event}: {error}") from error
     settings = _lint_settings(args)
-    check = functools.partial(
-        _body_findings,
-        (_phrases(args), _pairs(args)),
-        functools.partial(
-            forms.pr_body, footers=settings.footers, rulings=_rulings(args, settings)
-        ),
+    form = functools.partial(
+        forms.pr_body,
+        footers=settings.footers,
+        rulings=_rulings(args, settings),
+        approved=_approved(args, settings),
     )
+    check = functools.partial(_body_findings, (_phrases(args), _pairs(args)), form)
     status, found = textlint.decide(pull, args.url, check)
     for each in found:
         print(each)
@@ -354,8 +371,10 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         help="pr-body, event: the PR's comments as the API gives them"
         " (`gh api repos/OWNER/REPO/issues/N/comments --paginate`, all its"
         " pages); the Opus ruling comments of the configured trusted"
-        " associations are rulings a body may cite, as with --ruling; a file"
-        " that is not there is no comments",
+        " associations are rulings a body may cite, as with --ruling, and a"
+        " review of theirs that approves the Plan and records its `Plan digest:`"
+        " makes that Plan approved, which the Plan-row rule does not judge; a"
+        " file that is not there is no comments",
     ),
     add_argument(
         "--ticket",

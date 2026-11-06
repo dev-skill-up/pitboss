@@ -6,13 +6,11 @@ parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 written, ``plan-nox`` for one that runs nox and ``plan-row`` for a numbered
 Plan row that lacks the whole command of its Evidence line; ``first-line``,
 ``verdict``, ``reviewed``, ``exact``, ``plain`` and ``head`` for a review;
-``required-line`` and
-``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
-``$ `` row that ``pitboss expand`` did not produce, ``appended`` for an
-Evidence row that ends in an echo of the exit status, and ``test-name`` for a
-test the Plan or Execution cites that the head's tree lacks. The wording a project
-chooses (a review's lines, a PR body's footers, a brief's required lines) is
-read from its configuration (``config.Lint`` and ``config.ReviewForm``).
+``required-line`` and ``done-when`` for a brief). A PR body also gets
+``hand-typed`` for a ``$ `` row ``pitboss expand`` did not produce,
+``appended`` for an Evidence row that ends in an echo of the exit status, and
+``test-name`` for a test the Plan or Execution cites that the head lacks. The
+wording a project chooses is read from ``config.Lint`` and ``config.ReviewForm``.
 """
 
 import dataclasses
@@ -141,6 +139,7 @@ def pr_body(
     subject: Subject,
     footers: Sequence[str],
     rulings: Sequence[folds.Recorded] = (),
+    approved: Sequence[str] = (),
 ) -> Sequence[str]:
     """Check the form of a PR body.
 
@@ -150,6 +149,7 @@ def pr_body(
             lines); none requires no footer.
         rulings: the PR's comments, each its address and text, that a body
             with several tickets may cite.
+        approved: the digests of the Plans reviews approved (plan-approved).
 
     Returns:
         The findings.
@@ -161,7 +161,7 @@ def pr_body(
         *_described_head(clean),
         *_evidence(clean),
         *_command_rows(clean),
-        *plancommands.findings(clean.name, clean.body),  # keyword: plan-command
+        *plancommands.findings(clean.name, clean.body, approved),
         *_footer(clean, footers),
     ]
 

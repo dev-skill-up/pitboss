@@ -24,12 +24,16 @@ class HeadSignals:
         rulings: the address and text of each Opus ruling comment of a trusted
             author, which a body with several tickets may cite (keyword: fold,
             pitboss#171).
+        approved_plans: the digest of each Plan section a trusted review
+            approved, which the Plan-row rule does not judge (keyword:
+            plan-approved, pitboss#296).
     """
 
     statuses: Sequence[shapes.CommitStatus] = ()
     labels: AbstractSet[str] = frozenset()
     gate: str = ""
     rulings: Sequence[tuple[str, str]] = ()
+    approved_plans: Sequence[str] = ()
 
 
 def pending_gate(posted: Sequence[shapes.CommitStatus]) -> str:
