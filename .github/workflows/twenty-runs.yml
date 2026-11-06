@@ -1,0 +1,35 @@
+# Evidence for pitboss#134: the coverage command of noxfile.py's tests session,
+# 20 times in a row (not part of the fix; the branch stays until the PR merges).
+name: twenty-runs
+on: workflow_dispatch
+jobs:
+  twenty:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3.0.2
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v4.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install the tests' requirements
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/venv/bin/pip" install -r requirements-tests.txt
+          "$RUNNER_TEMP/venv/bin/pip" install -e .
+
+      - name: Run the coverage command 20 times
+        run: |
+          set -e
+          for n in $(seq 1 20); do
+            dir="$RUNNER_TEMP/run-$n"
+            mkdir -p "$dir"
+            COVERAGE_FILE="$dir/coverage" TMPDIR="$dir" \
+              "$RUNNER_TEMP/venv/bin/coverage" run --branch --source=pitboss \
+              --omit='**/__main__.py' -m virtue pitboss.tests
+            echo "RUN $n PASSED"
+            rm -rf "$dir"
+          done
