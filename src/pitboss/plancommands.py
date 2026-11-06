@@ -13,13 +13,11 @@ it.
 import re
 from typing import Sequence
 
-from . import evidence, expansion, noxrow, plandigest
+from . import expansion, noxrow, plandigest, planrow
 
 # the Plan section as plandigest.section reads it
 PLAN_HEADING = re.compile(r"^## Plan\s*$")
 ANY_HEADING = re.compile(r"^## ")
-# a pipe after the command, which is not the `||` of an or-list
-PIPED = re.compile(r"^\s*\|(?!\|)")
 CHECK = "plan-command"
 MESSAGE = (
     "plan command not run as written: line {line} {command}: run it as written;"
@@ -57,38 +55,6 @@ def planned(body: str) -> Sequence[tuple[int, str]]:
     return found
 
 
-def ran(body: str) -> Sequence[str]:
-    """The commands of the produced blocks of the Evidence section.
-
-    Args:
-        body: the PR's body.
-
-    Returns:
-        The first row of each such block, without its ``$ ``.
-    """
-    return [
-        evidence.first_row(each).removeprefix(expansion.PROMPT)
-        for each in evidence.blocks(body)
-        if evidence.produced(each) and each.in_evidence
-    ]
-
-
-def same(command: str, run: str) -> bool:
-    """Whether a command that ran is a Plan command as written.
-
-    Args:
-        command: the Plan's command.
-        run: the command in an Evidence block.
-
-    Returns:
-        True when they are the same string, or ``run`` is ``command`` followed
-        by a pipe (a cut is one).
-    """
-    return run == command or (
-        run.startswith(command) and PIPED.match(run[len(command) :]) is not None
-    )
-
-
 def findings(name: str, body: str) -> Sequence[str]:
     """The findings for the Plan commands the Evidence did not run as written.
 
@@ -100,11 +66,12 @@ def findings(name: str, body: str) -> Sequence[str]:
         One finding for each Plan command with no command in the Evidence that
         is the same, or the same with a cut or a pipe after it.
     """
-    done = ran(body)
+    done = planrow.ran(body)
     return [
         f"{name}: " + MESSAGE.format(line=line, command=command, check=CHECK)
         for line, command in planned(body)
-        if not any(same(command, each) for each in done)
-    ] + list(
-        noxrow.findings(name, planned(body))
-    )  # keyword: plan-nox
+        if not any(planrow.same(command, each) for each in done)
+    ] + [
+        *noxrow.findings(name, planned(body)),  # keyword: plan-nox
+        *planrow.findings(name, body),  # keyword: plan-row (pitboss#259)
+    ]

@@ -11,6 +11,7 @@ from . import (
     gateline,
     notesline,
     planeditline,
+    planrowline,
     pulls,
     reviewline,
     roundline,
@@ -33,8 +34,8 @@ def lines(
 
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
     PLAN EDITED.
-    The review-form lines are UNREADABLE REVIEW, REVIEW NOTE, RULING NO ANALYSIS
-    and GATE PENDING.
+    The review-form lines are PLAN ROW (a refusal of the body), UNREADABLE REVIEW,
+    REVIEW NOTE, RULING NO ANALYSIS and GATE PENDING.
 
     Args:
         pull: the PR.
@@ -60,6 +61,7 @@ def lines(
 
 def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:
     return (
+        *planrowline.lines(pull),
         *reviewline.lines(pull),
         *notesline.lines(pull),
         *analysisline.lines(pull),
