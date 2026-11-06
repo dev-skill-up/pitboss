@@ -138,6 +138,17 @@ class TestTrailingText(unittest.TestCase):
         assert_that(second, equal_to(first))
         assert_that(first, equal_to(next_printed(played(PLAN_ONLY_BODY))))
 
+    def test_sweep_reads_the_same_verdict_from_both_forms(self) -> None:
+        """Done-when 2: the sweep reads the same standing from both forms."""
+        bare = f"{FIRST}Plan: approved\nVerdict: approved\n"
+        text = f"{FIRST}Plan: approved Review of the Plan alone\nVerdict: approved\n"
+        first = sweep(test_flow_sweep.world_with(played(bare))).out
+        second = sweep(test_flow_sweep.world_with(played(text))).out
+        assert_that(first, contains_string("review=plan-approved"))
+        assert_that(second, contains_string("review=plan-approved"))
+        assert_that(READY in first, equal_to(False))
+        assert_that(READY in second, equal_to(False))
+
     def test_review_form_prints_the_plan_line(self) -> None:
         """Done-when 3: the form says the exact Plan line."""
         here = world.make_world()
