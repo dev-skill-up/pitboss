@@ -7,7 +7,7 @@ each of them ran as written. A Plan with no command needs no check.
 
 from typing import AbstractSet, Protocol, Sequence
 
-from . import bodydigest, expansion, plandigest, sessionurl, shapes, steps
+from . import bodydigest, expansion, plandigest, planbody, sessionurl, shapes, steps
 
 
 def is_plan_check(body: str, digest: str) -> bool:
@@ -98,4 +98,21 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
     """
     if needs_check(pr.pull.body, pr.comments, pr.trusted):
         return steps.plan_check()
+    return steps.regular_review(stage)
+
+
+def execution_review(pr: Described, stage: steps.Stage) -> steps.Next:
+    """A review of the Execution, once the Execution is written.
+
+    Args:
+        pr: the PR, whose Plan is approved.
+        stage: what the review grades.
+
+    Returns:
+        The worker round that runs the Plan's commands and fills the Execution
+        while the body's Execution section is empty or a placeholder (keyword:
+        unwritten-execution, pitboss#294), else the review.
+    """
+    if planbody.execution_unwritten(pr.pull.body):
+        return steps.worker(steps.Task.RUN_PLAN)
     return steps.regular_review(stage)

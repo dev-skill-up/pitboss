@@ -71,17 +71,17 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
     """The sweep keys a review to the head and to the body it read."""
 
     def test_body_edited_after_the_review_at_the_same_head(self) -> None:
-        """review=older-body, and a review of the fix round's findings is next."""
+        """review=older-body, and a review is next, no fix round (pitboss#294)."""
         swept, listed = looked_at([review(1, OLD_LINE)], EDITED)
         assert_that(swept, contains_string("review=older-body"))
-        assert_that(listed, contains_string("(review the fix round's findings only"))
+        assert_that(listed, contains_string("(review it"))
 
     def test_an_approval_is_answered_the_same_way(self) -> None:
-        """An approving review and an edited body: older-body, a fix-round line."""
+        """An approving review and an edited body: older-body, a review line."""
         approving = review(1, OLD_LINE, verdict=APPROVED)
         swept, listed = looked_at([approving], EDITED)
         assert_that(swept, contains_string("review=older-body"))
-        assert_that(listed, contains_string("(review the fix round's findings only"))
+        assert_that(listed, contains_string("(review it"))
 
     def test_an_older_body_pr_is_neither_armed_nor_merged(self) -> None:
         """No AUTO MERGE OFF and no READY TO MERGE line while the body is newer."""
@@ -134,7 +134,9 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
                 swept, listed = looked_at([review(1, OLD_LINE, OLDER)], body)
                 assert_that(swept, contains_string("review=older-head"))
                 assert_that("older-body" in swept, equal_to(False))
-                assert_that(listed, contains_string("(review it"))
+                assert_that(
+                    listed, contains_string("(review the fix round's findings only")
+                )
 
 
 class TestTheDigest(unittest.TestCase):

@@ -49,7 +49,8 @@ class Kind(enum.Enum):
         REVIEW_RESOLUTION: a reviewer checks a merge of the base into an
             approved head, and nothing else.
         REVIEW_FIX_ROUND: a reviewer checks that the findings of the last
-            review are fixed, and nothing else.
+            review, which asked for changes at an older head, are fixed in the
+            diff to the current head, and nothing else (keyword: fix-round).
         REVIEW_RELOCK: a reviewer checks a relock PR (keyword: relock).
         RULING: an Opus agent makes a ruling.
     """

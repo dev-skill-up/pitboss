@@ -90,8 +90,9 @@ class Task(enum.Enum):
         RULING_STEPS: exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.
         RUN_PLAN: the Plan was approved alone after a ruling, so its commands
-            were never run: run them as written and fill the Execution
-            (keyword: plan-alone, pitboss#201).
+            were never run, or the Execution section is empty or a placeholder
+            (keyword: unwritten-execution, pitboss#294): run them as written
+            and fill the Execution (keyword: plan-alone, pitboss#201).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -107,7 +108,8 @@ class Task(enum.Enum):
     )
     RUN_PLAN = (
         "run the approved Plan's commands as written and fill the Execution"
-        " (the Plan was approved alone, after a ruling)"
+        " (the Plan was approved alone, after a ruling, or the Execution section"
+        " is empty or a placeholder)"
     )
 
 

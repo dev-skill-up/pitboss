@@ -101,8 +101,13 @@ Only override for bugs, but do override for bugs (and then file them)".
      work (see "Merge conflicts");
    - green on its exact head with no review of that head, or only one that
      approved the Plan alone: a review, by an agent that is not its author
-     (when that review came after the newest readable Opus ruling, first the
-     worker round `run the Plan's commands and fill the Execution`, pitboss#201);
+     (when that review came after the newest readable Opus ruling, or the body's
+     Execution section is empty or a placeholder such as `Not started: ...`, first the
+     worker round `run the Plan's commands and fill the Execution`, pitboss#201,
+     keyword: unwritten-execution, pitboss#294); but while the newest readable Opus
+     ruling is newer than every review and no check run of the head started after it
+     (keyword: ruling-posted, pitboss#294), the step is the ruling's own (`do the
+     ruling's steps`, `revise the plan`, ...), because the ruling is not applied yet;
    - reviewed approved at its head and green: a merge; before merging, read the Notes of the newest review (pitboss#240, keyword: review-note): a note that names a case of the goal the change does not handle is a finding and starts a fix round, not a ticket (the sweep prints `REVIEW NOTE` for such a note);
    - its checks still running: neither green nor red, so skipped until they
      finish, and not a reason to hold the free slot; so is a pull request on
@@ -126,10 +131,12 @@ Only override for bugs, but do override for bugs (and then file them)".
    readable ruling, pitboss#201), and `fix the review` for any other task
    (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
    stage, a plan-only review included (a draft's, or that of a Plan revised
-   after its rejection on a PR that is not a draft), except that after a body
-   fix (below) it is `review the fix round's findings only`, unless the review
-   rejected the Plan, in which case it is `review it` with the Plan alone
-   graded. Every other step is offered for
+   after its rejection on a PR that is not a draft), except that after a review
+   of changes needed whose head is older than the current one (keyword:
+   fix-round, pitboss#294) it is `review the fix round's findings only`, unless
+   the review rejected the Plan, in which case it is `review it` with the Plan
+   alone graded; a body fixed at one head, or an approval, is never a fix round
+   (its diff would have one SHA twice). Every other step is offered for
    no round. A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
    CI`) whatever the stage but a wait (below, pitboss#183), and a conflict as `resolve the conflict` at every
@@ -851,16 +858,16 @@ Only override for bugs, but do override for bugs (and then file them)".
   deliberate obfuscation is hunted: those gaps are not findings and get no
   ticket. The Done-when is read from the ticket by the worker, and copied word
   for word, as the next bullet says.
-- A body fix is answered by a re-review of the findings (keyword: body-digest,
-  pitboss#147). A review records the PR body it read in one line, `Body:
+- A body fix is answered by a re-review (keyword: body-digest, pitboss#147). A review records the PR body it read in one line, `Body:
   <digest>` (`uvx pitboss body-digest FILE` prints it for the body saved to a
   file; the brief says how). GitHub's REST API gives a PR body no edit time
   (`updated_at` moves with every label, push and comment), so the digest is
   the record. When the digest in the newest review of the head is not the
   body's now and the head did not move, the sweep prints `review=older-body`
-  and `slots next` offers the PR as `review the fix round's findings only`,
-  unless the review rejected the Plan, in which case it is offered as `review
-  it` with the Plan alone graded (pitboss#167): the worker who fixed
+  and `slots next` offers the PR as `review it` with the Execution graded, or
+  the Plan alone when the review rejected the Plan (pitboss#167); the fix-round
+  brief is never printed for a body fixed at one head, because its diff would
+  have the same SHA twice (pitboss#294): the worker who fixed
   only the body is not sent to fix the review again, and
   the orchestrator does not guess the next step. A review of the same head that
   records the new digest ends it. A review that records no `Body:` line is

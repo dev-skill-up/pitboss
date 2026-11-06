@@ -284,6 +284,28 @@ def plan_unrun(pr: PullState, review: shapes.Graded | None) -> steps.Next | None
     return steps.worker(steps.Task.RUN_PLAN) if alone else None
 
 
+def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
+    """The readable ruling no review and no push has followed.
+
+    A ruling is applied once a regular review or a check run of the head (a
+    push) is newer than it; until then its own step is next, whatever the
+    newest review that counts says (keyword: ruling-posted, pitboss#294).
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The newest readable ruling, or None when none or something followed.
+    """
+    answered = readable_comment(pr)
+    if answered is None:
+        return None
+    posted, ruled = answered
+    reviewed = any(each.when > posted.created_at for each in pr.graded if each.comment)
+    pushed = any(each.started_at > posted.created_at for each in pr.checks)
+    return None if reviewed or pushed else ruled
+
+
 def e2e_step(pr: PullState) -> steps.Next | None:
     """The step of a draft whose changed e2e suite has run in no check run.
 
@@ -330,6 +352,30 @@ def has_conflict(pr: PullState) -> bool:
         True on a merge conflict.
     """
     return is_dirty(pr.pull)
+
+
+def merge_unless_conflict(pr: PullState) -> steps.Next:
+    """Merge, or resolve the conflict of the head first.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The merge step, or the worker's conflict resolution.
+    """
+    return conflict_step(pr) or steps.merge()
+
+
+def conflict_step(pr: PullState) -> steps.Next | None:
+    """The worker's resolution of a conflict, when the PR has one.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The step, or None when the PR does not conflict with its base.
+    """
+    return steps.worker(steps.Task.RESOLVE_CONFLICT) if has_conflict(pr) else None
 
 
 # What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads
