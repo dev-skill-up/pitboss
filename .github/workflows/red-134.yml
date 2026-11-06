@@ -1,0 +1,74 @@
+# Evidence for pitboss#134 (red): the coverage command of noxfile.py's tests
+# session on the reported commit 70716a0, whole suite, in a fresh venv, run
+# until it fails, beside a process that writes and removes a 256 MiB file (what
+# other processes do to the host's free space). Not part of the fix; the branch
+# stays until the PR merges.
+name: red-134
+on:
+  workflow_dispatch:
+  push:
+    branches: ["w/134-red"]
+jobs:
+  red:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3.0.2
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v4.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install the tests' requirements in a fresh venv
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/venv/bin/pip" install -r requirements-tests.txt
+          "$RUNNER_TEMP/venv/bin/pip" install -e .
+
+      - name: Run the coverage command until it fails, beside the filler
+        run: |
+          ( while true; do
+              head -c 268435456 /dev/zero > "$RUNNER_TEMP/filler"
+              rm -f "$RUNNER_TEMP/filler"
+            done ) &
+          filler=$!
+          red=no
+          for n in $(seq 1 10); do
+            dir="$RUNNER_TEMP/run-$n"
+            mkdir -p "$dir"
+            if COVERAGE_FILE="$dir/coverage" TMPDIR="$dir" \
+              "$RUNNER_TEMP/venv/bin/coverage" run --branch --source=pitboss \
+              --omit='**/__main__.py' -m virtue pitboss.tests > "$dir/out.log" 2>&1
+            then
+              echo "RUN $n PASSED"
+              rm -rf "$dir"
+            else
+              echo "RED: run $n FAILED test_each_command"
+              sed 's/\x1b\[[0-9;]*m//g' "$dir/out.log" | grep -E "test_each_command|test_tracefs.py|^Expected|but: was|Ran |FAILED|PASSED" | cut -c1-400
+              red=yes
+              break
+            fi
+          done
+          kill $filler
+          [ "$red" = yes ] || echo "NO RED: 10 runs of the whole suite did not fail"
+
+      - name: Demonstration, not the coverage command (TestCommands alone, beside the filler)
+        run: |
+          ( while true; do
+              head -c 268435456 /dev/zero > "$RUNNER_TEMP/filler"
+              rm -f "$RUNNER_TEMP/filler"
+            done ) &
+          filler=$!
+          for n in $(seq 1 10); do
+            if "$RUNNER_TEMP/venv/bin/python" -m virtue pitboss.tests.test_tracefs.TestCommands > "$RUNNER_TEMP/demo.log" 2>&1
+            then
+              echo "DEMO $n PASSED"
+            else
+              echo "DEMO RED: run $n FAILED test_each_command"
+              sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/demo.log" | grep -E "test_each_command|^Expected|but: was|Ran |FAILED" | cut -c1-400
+              break
+            fi
+          done
+          kill $filler
