@@ -50,7 +50,8 @@ class Marker(enum.Enum):
         PLAN_EDITED: a PR whose Plan section differs from the Plan its newest
             approving review read, with no Opus ruling that allows the edit.
         PLAN_ROW: a PR whose numbered Plan row lacks the whole command of the
-            Evidence line of the same number in backticks (pitboss#259).
+            Evidence line of the same number in backticks (pitboss#259), unless a
+            trusted review approved that Plan (pitboss#296).
         RULING_NO_ANALYSIS: a PR whose newest Opus ruling comment has no
             ``How we got here`` section.
         REVIEW_NOTE: an approved PR whose newest review has a ``Notes``

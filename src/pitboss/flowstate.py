@@ -195,6 +195,25 @@ def plan_edited_without_ruling(pr: PullState) -> bool:
     return not plan_edit_ruled(pr, newest.when)
 
 
+def approved_digests(graded: Sequence[shapes.Graded]) -> Sequence[str]:
+    """The digests of the Plans that regular reviews approved.
+
+    Args:
+        graded: every review that counts.
+
+    Returns:
+        The ``Plan digest:`` of each regular review that grades the Plan
+        approved (keyword: plan-approved, pitboss#296).
+    """
+    return [each.plan_digest for each in graded if _approves(each)]
+
+
+def _approves(review: shapes.Graded) -> bool:
+    return bool(
+        review.comment and review.plan is shapes.Verdict.APPROVED and review.plan_digest
+    )
+
+
 def newest_plan_digest(pr: PullState) -> shapes.Graded | None:
     """The newest regular review that approves the Plan and records its digest.
 
@@ -204,11 +223,7 @@ def newest_plan_digest(pr: PullState) -> shapes.Graded | None:
     Returns:
         The review, or None when no review does.
     """
-    approving = (
-        each
-        for each in pr.graded
-        if each.comment and each.plan is shapes.Verdict.APPROVED and each.plan_digest
-    )
+    approving = (each for each in pr.graded if _approves(each))
     return max(approving, key=lambda each: each.when, default=None)
 
 
@@ -328,54 +343,6 @@ def e2e_step(pr: PullState) -> steps.Next | None:
         return None
     running = [each for each in pr.checks if not each.finished]
     return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)
-
-
-def is_dirty(pull: shapes.Pull) -> bool:
-    """Whether a PR's merge state is a conflict with its base.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return pull.mergeable_state is shapes.MergeState.DIRTY
-
-
-def has_conflict(pr: PullState) -> bool:
-    """Whether the PR conflicts with its base.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return is_dirty(pr.pull)
-
-
-def merge_unless_conflict(pr: PullState) -> steps.Next:
-    """Merge, or resolve the conflict of the head first.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The merge step, or the worker's conflict resolution.
-    """
-    return conflict_step(pr) or steps.merge()
-
-
-def conflict_step(pr: PullState) -> steps.Next | None:
-    """The worker's resolution of a conflict, when the PR has one.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The step, or None when the PR does not conflict with its base.
-    """
-    return steps.worker(steps.Task.RESOLVE_CONFLICT) if has_conflict(pr) else None
 
 
 # What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads

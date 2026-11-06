@@ -8,14 +8,16 @@ number (the first command ``pitboss expand`` produced is number 1) is paired
 with the Plan row of the same number, and ``plan-row`` is the finding when that
 row has no backticked span that is the command (or the command followed by a
 pipe, as ``same`` reads it). ``lint pr-body`` and the sweep's
-``PLAN ROW`` line say it. A Plan with no numbered row is read by
+``PLAN ROW`` line say it. A Plan whose digest now is one a trusted review approved
+(``Plan digest:``) is not judged (pitboss#296); ``plan-command`` and
+``plan-nox`` still judge it. A Plan with no numbered row is read by
 ``plan-command`` alone.
 """
 
 import re
 from typing import Mapping, Sequence
 
-from . import evidence, expansion, plandigest
+from . import bodydigest, evidence, expansion, plandigest
 
 # a pipe after the command, which is not the `||` of an or-list
 PIPED = re.compile(r"^\s*\|(?!\|)")
@@ -115,20 +117,25 @@ def _finding(number: int, row: str | None, command: str) -> str:
     )
 
 
-def findings(name: str, body: str) -> Sequence[str]:
+def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str]:
     """The findings for the Plan rows that do not name their Evidence command.
 
     Args:
         name: what to call the body in a finding.
         body: the PR's body.
+        approved: the digests of the Plans that reviews approved (keyword:
+            plan-approved, pitboss#296).
 
     Returns:
         One finding for each Evidence ``$`` line whose Plan row of the same
         number lacks the whole command in backticks or names another string;
-        none when the Plan has no numbered row.
+        none when the Plan has no numbered row, or is an approved Plan.
     """
     numbered = rows(body)
-    if not numbered:
+    # keyword: plan-approved (pitboss#296): a Plan whose digest now is one a
+    # review recorded was approved as it stands
+    plan = plandigest.section(body)
+    if not numbered or bodydigest.of_section(plan) in approved:
         return []
     return [
         f"{name}: " + _finding(number, numbered.get(number), command) + f" ({CHECK})"

@@ -55,12 +55,14 @@ def planned(body: str) -> Sequence[tuple[int, str]]:
     return found
 
 
-def findings(name: str, body: str) -> Sequence[str]:
+def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str]:
     """The findings for the Plan commands the Evidence did not run as written.
 
     Args:
         name: what to call the body in a finding.
         body: the PR's body.
+        approved: the digests of the Plans that reviews approved, which the
+            Plan-row rule does not judge (keyword: plan-approved, pitboss#296).
 
     Returns:
         One finding for each Plan command with no command in the Evidence that
@@ -73,5 +75,5 @@ def findings(name: str, body: str) -> Sequence[str]:
         if not any(planrow.same(command, each) for each in done)
     ] + [
         *noxrow.findings(name, planned(body)),  # keyword: plan-nox
-        *planrow.findings(name, body),  # keyword: plan-row (pitboss#259)
+        *planrow.findings(name, body, approved),  # keyword: plan-row (pitboss#259)
     ]

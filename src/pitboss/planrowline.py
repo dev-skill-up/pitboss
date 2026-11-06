@@ -18,7 +18,9 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
     """
     if pull.relock:
         return []
-    found = planrow.findings("body", sessionurl.strip(pull.pull.body or ""))
+    found = planrow.findings(
+        "body", sessionurl.strip(pull.pull.body or ""), pull.signals.approved_plans
+    )
     if not found:
         return []
     return [

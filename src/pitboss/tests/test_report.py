@@ -8,7 +8,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, parsing, pulls, report, reviews, shapes, steps
+from .. import config, parsing, pulls, report, reviews, shapes, steps, straycomments
 from . import fakes
 
 
@@ -51,7 +51,7 @@ def facts(
         checks=checks,
         review=found,
         standing=standing,
-        unreadable=pulls.StrayComments(newer=unread),
+        unreadable=straycomments.StrayComments(newer=unread),
         step=steps.wait_for_ci(),
     )
 
