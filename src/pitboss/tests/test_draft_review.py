@@ -20,7 +20,15 @@ from . import fakes, test_flow, world
 from .briefmake import has_none, make, text
 from .test_commands import sweep
 from .test_flow import CHANGES as FLOW_CHANGES, expect, state
-from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
+from .test_flow_sweep import (
+    APPROVED,
+    CHANGES,
+    HEAD,
+    OLDER,
+    graded,
+    listed_for_third,
+    world_with,
+)
 from .test_slot_commands import next_output
 
 TICKET_LINE = re.compile(r"^NEXT \d+\. \S+#\d+ \(start a PR", re.MULTILINE)
@@ -160,9 +168,21 @@ class TestDraftsInTheSweep(unittest.TestCase):
         assert_that("WAIT-FOR-CI owner/project#3" in out, equal_to(False))
 
     def test_the_sweep_says_the_fix_of_a_rejected_draft(self) -> None:
-        """The same words as the list."""
+        """The same words as the list; busy runners, so no second Plan review.
+
+        pitboss#130: the world is not ``quiet``, so ``undraft_clear`` is false.
+        """
         out = swept([graded(CHANGES, None, 1)], draft=True)
         assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
+        assert_that("DRAFT ROUND owner/project#3: review it" in out, equal_to(False))
+
+    def test_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy(self) -> None:
+        """pitboss#130: ``slots next`` offers a ruling, and no review line for PR 3."""
+        rounds = [graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2)]
+        here = world_with(rounds, draft=True)
+        ruling = "make an Opus ruling: owner/project#3"
+        assert_that(next_output(here), contains_string(ruling))
+        assert_that(listed_for_third(here), equal_to([]))
 
     def test_a_draft_that_waits_for_its_undraft_has_no_round(self) -> None:
         """No round to offer, so no DRAFT ROUND line."""
@@ -185,10 +205,22 @@ class TestTheFlow(unittest.TestCase):
         expect(steps.regular_review(steps.Stage.PLAN_ONLY), draft)
 
     def test_a_draft_with_a_rejected_plan_is_revised(self) -> None:
-        """The first rejection is the worker's."""
+        """The first rejection is the worker's, the runners quiet or busy.
+
+        pitboss#130: with ``undraft_clear`` false the gate still reads the
+        review; the step was a second Plan review of the same head.
+        """
         review = test_flow.graded(*test_flow.PLAN_REJECTED, 1)
-        draft = state(review, checks=(), draft=True, undraft_clear=True)
-        expect(steps.worker(steps.Task.REVISE_PLAN), draft)
+        for clear in (True, False):
+            draft = state(review, checks=(), draft=True, undraft_clear=clear)
+            expect(steps.worker(steps.Task.REVISE_PLAN), draft)
+
+    def test_a_draft_rejected_twice_goes_to_opus(self) -> None:
+        """pitboss#130: the second rejection is Opus's, not a third review."""
+        rejections = (test_flow.FIRST_REJECTION, test_flow.SECOND_REJECTION)
+        for clear in (True, False):
+            draft = state(*rejections, checks=(), draft=True, undraft_clear=clear)
+            expect(steps.opus_ruling(), draft)
 
     def test_a_draft_with_a_rejected_execution_is_fixed(self) -> None:
         """The worker fixes the review."""
