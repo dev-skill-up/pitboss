@@ -165,3 +165,13 @@ class TestCommands(unittest.TestCase):
             [said[i] in out for i, out in enumerate(lines)], equal_to([True] * 2)
         )
         assert_that(said[0] in lines[1], equal_to(False))
+
+    def test_default_world_ignores_the_host_disk(self) -> None:
+        """A world that gives no figure prints the fixed one, not the host's.
+
+        The fixed figure is ``fixeddisk.fixed_usage``, 50 GiB free (pitboss#134).
+        On the old default this fails unless the host has between 49.95 and
+        50.05 GiB free at both reads.
+        """
+        out = run(world.make_world(), "sweep").out
+        assert_that("disk free 50.0 GiB before, 50.0 GiB after" in out, equal_to(True))

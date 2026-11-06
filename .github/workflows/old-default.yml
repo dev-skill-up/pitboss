@@ -1,0 +1,31 @@
+# Evidence for pitboss#134: the regression test on the base 3cc3ca5e, where a
+# world that gives no figure reads the host's disk. Expected: red. Not part of
+# the fix; the branch stays until the PR merges.
+name: old-default
+on:
+  workflow_dispatch:
+  push:
+    branches: ["w/134-old-default"]
+jobs:
+  old-default:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3.0.2
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v4.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install the tests' requirements in a fresh venv
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/venv/bin/pip" install -r requirements-tests.txt
+          "$RUNNER_TEMP/venv/bin/pip" install -e .
+
+      - name: Run the regression test on the old default
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" -m virtue pitboss.tests.test_tracefs.TestCommands.test_default_world_ignores_the_host_disk || true
