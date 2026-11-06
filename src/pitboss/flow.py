@@ -26,6 +26,8 @@ newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
 is_dirty = flowstate.is_dirty
 has_conflict = flowstate.has_conflict
+merge_unless_conflict = flowstate.merge_unless_conflict
+conflict_step = flowstate.conflict_step
 AFTER = flowstate.AFTER
 AS_RULED = flowstate.AS_RULED
 
@@ -215,6 +217,20 @@ def rejected(
     posted, ruled = answered
     if review.when > posted.created_at:  # the ruling was used, still rejected
         return steps.pause_for_owner()
+    return ruled_step(pr, ruled)
+
+
+def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
+    """The step a readable ruling gives, before any review follows it.
+
+    Args:
+        pr: the PR.
+        ruled: what the ruling rules.
+
+    Returns:
+        The merge (or the conflict's resolution) for ``execution is
+        approved``, else the first step of the ruling's row of ``AFTER``.
+    """
     if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
         return merge_unless_conflict(pr)  # CI is green, the gate above passed
     return AFTER[ruled][0]
@@ -241,30 +257,6 @@ def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
             pr, review, steps.Task.FIX_EXECUTION, execution_fixed_since_plan_approval
         )
     return None
-
-
-def merge_unless_conflict(pr: PullState) -> steps.Next:
-    """Merge, or resolve the conflict of the head first.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The merge step, or the worker's conflict resolution.
-    """
-    return conflict_step(pr) or steps.merge()
-
-
-def conflict_step(pr: PullState) -> steps.Next | None:
-    """The worker's resolution of a conflict, when the PR has one.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The step, or None when the PR does not conflict with its base.
-    """
-    return steps.worker(steps.Task.RESOLVE_CONFLICT) if has_conflict(pr) else None
 
 
 def next_step(pr: PullState) -> steps.Next:
@@ -359,8 +351,10 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
         return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
     if review is None:
+        if ruled := flowstate.ruling_unapplied(pr):  # keyword: ruling-posted
+            return ruled_step(pr, ruled)
         if plan_approved(pr):  # approved while it was a draft
-            return steps.regular_review(steps.Stage.EXECUTION_ONLY)
+            return plancheckflow.execution_review(pr, steps.Stage.EXECUTION_ONLY)
         alone = flowstate.plan_rejected_last(pr)
         both = steps.Stage.PLAN_AND_EXECUTION
         return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
@@ -394,7 +388,7 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
     if review.execution is None:  # plan approved by a plan-only review
         if unrun := flowstate.plan_unrun(pr, review):  # keyword: plan-alone
             return unrun  # the same round as a draft's: no condition on the draft
-        return steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
+        return plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
 
     # approved: ``rejection_step`` took the Execution that needs changes
     return merge_unless_conflict(pr)  # CI is green, the gate above passed
