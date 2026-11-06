@@ -1037,7 +1037,19 @@ Only override for bugs, but do override for bugs (and then file them)".
   sessions it also holds the `pitboss nox` result of the pushed head (the four
   sessions and their status, pitboss#250), and the check of a hand-back is
   that a hand-back without the `pitboss nox` result of the pushed head (the
-  four sessions and their status) is sent back, naming it as missing. Evidence is the command and what
+  four sessions and their status) is sent back, naming it as missing. It also
+  holds a `Deviations:` line (the rules of the brief the worker broke, an edit by
+  `sed`, a heredoc or `rm` instead of the Edit tool included, or `none`,
+  pitboss#257), and a hand-back without it is NOT STARTED text the
+  orchestrator sends back (`uvx pitboss hand-back-check FILE` prints it). The
+  review of an Execution reads the PR body's `Deviations:` line: a listed edit by
+  shell is a finding only when it left a trace in the tree that the Edit tool
+  would not have, never for a clean tree, and the reviewer records each listed
+  deviation on a `Deviation:` line of the review, and the orchestrator saves
+  the review in a file and runs `uvx pitboss slots deviation CONFIG TICKET FILE`,
+  which records the lines in the ledger's line for the worker (`slots show`
+  prints them).
+  Evidence is the command and what
   it printed; a claim is never larger than its evidence, and never made smaller
   to fit it: the work is made to match the claim.
 - **A worker never waits for CI checks** (quire#708 comment 3,

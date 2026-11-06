@@ -83,6 +83,8 @@ class Ledger:
             list (``slots refreshed``; ISO time), or empty (keyword: task-list).
         handbacks: the tickets of the agents that handed back since then, one
             each, in order.
+        deviations: for each ticket, the deviations a review of its worker's
+            work listed (keyword: deviations, pitboss#257).
     """
 
     slots: Sequence[Slot]
@@ -90,6 +92,7 @@ class Ledger:
     config: str = ""
     refreshed: str = ""
     handbacks: Sequence[str] = ()
+    deviations: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
 
 
 def reference(text: str, project: config.Repo) -> str:
@@ -132,6 +135,9 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
         config=data.get("config", ""),
         refreshed=data.get("refreshed", ""),
         handbacks=tuple(data.get("handbacks", ())),
+        deviations={
+            key: tuple(value) for key, value in data.get("deviations", {}).items()
+        },
     )
 
 
@@ -165,6 +171,10 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
         data["refreshed"] = ledger.refreshed
     if ledger.handbacks:
         data["handbacks"] = list(ledger.handbacks)
+    if ledger.deviations:
+        data["deviations"] = {
+            key: list(value) for key, value in sorted(ledger.deviations.items())
+        }
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 

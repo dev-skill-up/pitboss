@@ -6,6 +6,7 @@ from typing import Mapping, Sequence
 
 from . import (
     config,
+    deviations,
     ledger,
     local,
     pulls,
@@ -353,7 +354,7 @@ def slot_lines(book: ledger.Ledger) -> Sequence[str]:
     found = [_slot_line(slot) for slot in book.slots]
     if all(slot.agent for slot in book.slots):
         found.append("slots: the ledger says all full")
-    return found
+    return [*found, *deviations.ledger_lines(book)]
 
 
 def _slot_line(slot: ledger.Slot) -> str:

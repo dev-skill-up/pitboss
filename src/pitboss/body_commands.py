@@ -10,7 +10,7 @@ import sys
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, bodydigest, plandigest
+from . import ENTRY_DATA, bodydigest, deviations, plandigest
 
 USAGE_ERROR = 2
 
@@ -46,6 +46,28 @@ def body_digest(args: argparse.Namespace) -> None:
             status 2).
     """
     print(f"{bodydigest.PREFIX}{bodydigest.digest(_read(args.file))}")
+
+
+@ENTRY_DATA.register(
+    add_argument("file", help="the worker's hand-back, in a file"),
+    name="hand-back-check",
+)
+def hand_back_check(args: argparse.Namespace) -> None:
+    """Print ``ok``, or the ``NOT STARTED`` text of a hand-back without the line.
+
+    This is the deviations area (pitboss#257).
+
+    Args:
+        args: the parsed arguments (a file it cannot read as UTF-8 exits with
+            status 2).
+
+    Raises:
+        SystemExit: 1 when the hand-back has no ``Deviations:`` line.
+    """
+    missing = deviations.not_started(_read(args.file))
+    print(missing or "ok")
+    if missing:
+        raise SystemExit(1)
 
 
 @ENTRY_DATA.register(BODY_FILE, name="plan-digest")
