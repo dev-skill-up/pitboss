@@ -109,3 +109,49 @@ class TestTheHandBack(unittest.TestCase):
         for handback, wanted in expected.items():
             done = world.invoke(world.make_world(), "hand-back-check", saved(handback))
             assert_that([done.code, done.out], equal_to(wanted))
+
+
+REVIEW = (
+    "Verdict: approved\n"
+    "Deviation: two `sed -i` runs, no trace in the tree\n"
+    "Deviation: one `rm`, a backup file left\n"
+    "Deviation: none\n"
+    "Deviations: not a review line\n"
+)
+
+
+class TestTheLedger(unittest.TestCase):
+    """A review's ``Deviation:`` lines end up in the ledger line of the worker."""
+
+    def test_the_lines_of_a_review_are_read(self) -> None:
+        """Only the lines with the review prefix, and not ``none``."""
+        assert_that(
+            deviations.recorded(REVIEW),
+            equal_to(
+                [
+                    "two `sed -i` runs, no trace in the tree",
+                    "one `rm`, a backup file left",
+                ]
+            ),
+        )
+        assert_that(deviations.recorded("Verdict: approved\n"), equal_to([]))
+
+    def test_slots_deviation_records_them_and_show_prints_them(self) -> None:
+        """The command writes the ledger, and the ledger keeps them."""
+        here, review = world.make_world(), saved(REVIEW)
+        lines = [
+            "deviation owner/project#257: two `sed -i` runs, no trace in the tree",
+            "deviation owner/project#257: one `rm`, a backup file left",
+        ]
+        tails = []
+        for action, count in (("deviation", 2), ("show", 2), ("deviation", 4)):
+            extra = ("#257", review) if action == "deviation" else ()
+            done = world.invoke(here, "slots", action, here.config, *extra)
+            tails.append((done.code, done.out.splitlines()[-count:]))
+        assert_that(tails, equal_to([(0, lines), (0, lines), (0, lines + lines)]))
+
+    def test_a_missing_review_file_is_refused(self) -> None:
+        """Nothing is recorded."""
+        here = world.make_world()
+        gone = world.invoke(here, "slots", "deviation", here.config, "#7", "/none")
+        assert_that(f"{gone.code} {gone.err}", contains_string("\nrefused: /none"))

@@ -1045,7 +1045,10 @@ Only override for bugs, but do override for bugs (and then file them)".
   review of an Execution reads the PR body's `Deviations:` line: a listed edit by
   shell is a finding only when it left a trace in the tree that the Edit tool
   would not have, never for a clean tree, and the reviewer records each listed
-  deviation on a `Deviation:` line for the sweep's ledger line for the worker.
+  deviation on a `Deviation:` line of the review, and the orchestrator saves
+  the review in a file and runs `uvx pitboss slots deviation CONFIG TICKET FILE`,
+  which records the lines in the ledger's line for the worker (`slots show`
+  prints them).
   Evidence is the command and what
   it printed; a claim is never larger than its evidence, and never made smaller
   to fit it: the work is made to match the claim.

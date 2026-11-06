@@ -12,6 +12,7 @@ from . import (
     ENTRY_DATA,
     config,
     configfile,
+    deviations,
     ledger,
     ledgerowner,
     nextlist,
@@ -53,6 +54,8 @@ class Action(enum.Enum):
         HEARD: say a slot's agent handed back or notified (SLOT).
         REFRESHED: say the orchestrator updated its task list (keyword:
             task-list).
+        DEVIATION: record the ``Deviation:`` lines of a review saved in a
+            file on the worker's ticket (TICKET FILE; keyword: deviations).
     """
 
     SHOW = enum.auto()
@@ -69,6 +72,7 @@ class Action(enum.Enum):
     TIME = enum.auto()
     HEARD = enum.auto()
     REFRESHED = enum.auto()
+    DEVIATION = enum.auto()
 
     @property
     def word(self) -> str:
@@ -138,6 +142,12 @@ def _failed(
 
 
 CHANGES: Mapping[Action, tuple[int, Change]] = {
+    Action.DEVIATION: (
+        2,
+        lambda book, words, found: deviations.record(
+            book, found.settings.project.repo, *words
+        ),
+    ),
     Action.SET: (3, _set),
     Action.FREE: (1, _free),
     Action.ADD: (2, _add),

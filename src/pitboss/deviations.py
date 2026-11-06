@@ -6,6 +6,12 @@ used ``sed``, a heredoc or ``rm`` until it said so itself. A hand-back now has a
 a hand-back without it is ``NOT STARTED`` and is sent back.
 """
 
+import dataclasses
+import pathlib
+from typing import Sequence
+
+from . import config, ledger
+
 PREFIX = "Deviations:"
 NOT_STARTED = (
     "NOT STARTED: the hand-back has no `Deviations:` line (the rules of the brief"
@@ -40,3 +46,65 @@ def not_started(handback: str) -> str:
         ``Deviations:`` line that says something.
     """
     return "" if line(handback) else NOT_STARTED
+
+
+REVIEW_PREFIX = "Deviation:"
+
+
+def recorded(review: str) -> Sequence[str]:
+    """The deviations a review lists, one for each ``Deviation:`` line.
+
+    Args:
+        review: the review comment's text.
+
+    Returns:
+        The text after the prefix of each line that starts with it, stripped, in
+        order; a line with nothing after the prefix, or ``none``, is left out.
+    """
+    found = (
+        each[len(REVIEW_PREFIX) :].strip()
+        for each in review.splitlines()
+        if each.startswith(REVIEW_PREFIX)
+    )
+    return [text for text in found if text and text.lower() != "none"]
+
+
+def ledger_lines(book: ledger.Ledger) -> Sequence[str]:
+    """The ledger's line for each deviation a review listed.
+
+    Args:
+        book: the ledger.
+
+    Returns:
+        A line for each deviation, ordered by ticket.
+    """
+    return [
+        f"deviation {ticket}: {each}"
+        for ticket, listed in sorted(book.deviations.items())
+        for each in listed
+    ]
+
+
+def record(
+    book: ledger.Ledger, project: config.Repo, ticket: str, name: str
+) -> ledger.Ledger | ledger.Refusal:
+    """Record the deviations of a review saved in a file on a ticket.
+
+    Args:
+        book: the ledger.
+        project: the repository of a bare ``#12``.
+        ticket: the ticket, as ``slots`` takes it.
+        name: the file that holds the review.
+
+    Returns:
+        The new ledger, with the deviations after those already recorded, or a
+        refusal when the file cannot be read.
+    """
+    try:
+        listed = recorded(pathlib.Path(name).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError) as error:
+        return ledger.Refusal(reason=f"{name}: {error}")
+    full = ledger.reference(ticket, project)
+    kept = dict(book.deviations)
+    kept[full] = (*kept.get(full, ()), *listed)
+    return dataclasses.replace(book, deviations=kept)
