@@ -14,6 +14,7 @@ from typing import Iterable, Sequence
 from . import config, pulls, record, steps
 
 HOLD_WORDS = "HOLD on undrafts (the RUNNER PRESSURE line says why)"
+UNKNOWN_END = "unknown (the runners' look could not be read)"
 
 
 def hold_end(runners: config.Runners, now: datetime.datetime) -> str:
@@ -25,12 +26,18 @@ def hold_end(runners: config.Runners, now: datetime.datetime) -> str:
 
     Returns:
         The time at the earliest, or ``unknown`` when the record owes no quiet
-        minutes (a look that could not be read holds with none owed).
+        minutes (a look that could not be read holds with none owed), is empty
+        or cannot be read. It never raises.
     """
-    entries = record.read_entries(record.read(runners.record), now)
+    try:
+        entries = record.read_entries(record.read(runners.record), now)
+    except SystemExit:
+        return UNKNOWN_END
+    if not entries:
+        return UNKNOWN_END
     owed = record.minutes_remaining(entries, runners.quiet_minutes, now)
     if not owed:
-        return "unknown (the runners' look could not be read)"
+        return UNKNOWN_END
     end = now + datetime.timedelta(minutes=owed)
     return f"{end.isoformat(timespec='seconds')} at the earliest"
 

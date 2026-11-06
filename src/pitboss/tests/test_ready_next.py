@@ -90,6 +90,25 @@ class TestAHoldIsANextLineToo(unittest.TestCase):
         assert_that(next_lines(here)[0], contains_string("mark ready at unknown"))
 
 
+    def test_an_empty_record_with_the_jobs_unreadable_prints_the_unknown_end(
+        self,
+    ) -> None:
+        """No record file and no readable jobs: the list is still printed."""
+        here = quiet_draft()
+        del here.bodies[JOBS]
+        (here.clone / ".git" / "pitboss-pressure.log").unlink()
+        assert_that(next_lines(here)[0], contains_string("mark ready at unknown"))
+
+    def test_an_unreadable_record_prints_the_unknown_end(self) -> None:
+        """A record that cannot be read does not stop the list."""
+        here = quiet_draft()
+        del here.bodies[JOBS]
+        log = here.clone / ".git" / "pitboss-pressure.log"
+        log.unlink()
+        log.mkdir()
+        assert_that(next_lines(here)[0], contains_string("mark ready at unknown"))
+
+
 class TestNoDraftNoLine(unittest.TestCase):
     """A world without such a draft is as it was."""
 

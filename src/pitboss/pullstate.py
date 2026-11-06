@@ -1,6 +1,7 @@
 """One line for every open PR: its next step, or what blocks it (pitboss#162).
 
-``slots next`` lists the PRs that a round or a review is offered for. A PR that
+``slots next`` lists the PRs that a round or a review is offered for, and a draft
+whose Plan is approved (its first ``NEXT`` lines, pitboss#273). A PR that
 is offered for none (it waits for CI, for the owner or for a ruling, or it
 is blocked by a failed commit status) used to be absent from the output. Each
 open PR now has one ``PR STATE`` line with its next step, and a ``BLOCKED`` line
