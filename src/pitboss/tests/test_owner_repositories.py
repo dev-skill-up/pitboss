@@ -1,13 +1,15 @@
 """The sweep takes the owner's repositories, and says what it could not read (#295)."""
 
+import dataclasses
 import pathlib
+import subprocess
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, equal_to, has_item
 
 from .. import configfile, ownerconfig, repoaccess
-from . import ownerbodies, test_slot_commands, world
+from . import fakes, ownerbodies, test_slot_commands, world
 
 GONE = "UNREADABLE owner/gone: gh: not found: repos/owner/gone (HTTP 404)"
 GIVE_ACCESS = ": give the session access or take it out of the configuration"
@@ -20,6 +22,38 @@ NOT_LISTED = (
     " orgs/owner/repos?per_page=100&page=1 (HTTP 404)); no statement about the PRs"
     " or tickets of a repository outside the configuration is true"
 )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class RefusedOrganization:
+    """Processes whose read of the organization's listing fails with HTTP 403.
+
+    Attributes:
+        inner: the processes the others go to.
+        status: the HTTP status printed.
+    """
+
+    inner: fakes.Processes
+    status: int = 403
+
+    def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
+        """Run a command, failing on the organization's listing.
+
+        Args:
+            cmdargs: the command line.
+            **kwargs: passed on.
+
+        Returns:
+            The finished process.
+
+        Raises:
+            subprocess.CalledProcessError: for a read of ``orgs/owner/repos``.
+        """
+        if any(word.startswith("orgs/owner/repos") for word in cmdargs):
+            raise subprocess.CalledProcessError(
+                1, list(cmdargs), stderr=f"gh: forbidden (HTTP {self.status})\n"
+            )
+        return self.inner(cmdargs, **kwargs)
 
 
 def with_extra(
@@ -168,6 +202,30 @@ class TestIncomplete(unittest.TestCase):
         result = run_next(here)
         said = lines_of(result.out, "UNREADABLE owner:")
         assert_that((len(said), ends(result)), equal_to((1, (NOT_LISTED, 1))))
+
+    def test_a_refused_organization_listing_is_not_replaced_by_the_users_list(
+        self,
+    ) -> None:
+        """A 403 on the organization is said; the users list is not used."""
+        here = with_extra()
+        here.bodies[ownerbodies.USERS_LISTING] = ownerbodies.listed(
+            ("owner/extra", False)
+        )
+        here = dataclasses.replace(
+            here, processes=RefusedOrganization(inner=here.processes)
+        )
+        result = run_next(here)
+        said = lines_of(result.out, "UNREADABLE owner:")
+        assert_that(len(said), equal_to(1))
+        assert_that("HTTP 403" in said[0], equal_to(True))
+        assert_that(ends(result)[1], equal_to(1))
+        assert_that(
+            result.out.rstrip("\n")
+            .splitlines()[-1]
+            .startswith("INCOMPLETE: the repositories of owner were not listed"),
+            equal_to(True),
+        )
+        assert_that(lines_of(result.out, "PR STATE owner/extra"), equal_to([]))
 
     def test_nothing_unread_is_no_incomplete_line(self) -> None:
         """The lines for a complete read are none."""

@@ -7,7 +7,8 @@ from typing import AbstractSet, Sequence
 
 from . import config, ghapi
 
-PATHS = ("orgs/{owner}/repos", "users/{owner}/repos")  # an organization, then a user
+# an organization, then (only after a 404) a user
+PATHS = ("orgs/{owner}/repos", "users/{owner}/repos")
 
 
 def repositories(text: str) -> Sequence[tuple[str, bool]]:
@@ -28,14 +29,40 @@ def repositories(text: str) -> Sequence[tuple[str, bool]]:
     ]
 
 
-def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
-    failures: list[subprocess.CalledProcessError] = []
-    for path in PATHS:
-        try:
-            return ghapi.pages(github, path.format(owner=owner), repositories)
-        except subprocess.CalledProcessError as error:
-            failures.append(error)
-    raise failures[0]
+def _as_user(
+    github: ghapi.GitHub, owner: str, refused: subprocess.CalledProcessError
+) -> Sequence[tuple[str, bool]]:
+    try:
+        return ghapi.pages(github, PATHS[1].format(owner=owner), repositories)
+    except subprocess.CalledProcessError:
+        raise refused from None
+
+
+def listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
+    """List the owner's repositories, as an organization, else as a user.
+
+    The users path is tried only after the organization's answered 404: for an
+    organization it lists the public repositories alone, so any other refusal
+    (403, SSO, proxy, 5xx) must be said, not answered with a shorter list.
+
+    Args:
+        github: the API.
+        owner: the owner.
+
+    Returns:
+        The ``owner/name`` of each, and whether it is archived.
+
+    Raises:
+        subprocess.CalledProcessError: the organization's error, when neither
+            path could be read.
+    """
+    try:
+        return ghapi.pages(github, PATHS[0].format(owner=owner), repositories)
+    except subprocess.CalledProcessError as refused:
+        # repo-access: a user's list holds only public repositories of an org
+        if ghapi.status_of(refused) != "HTTP 404":
+            raise
+        return _as_user(github, owner, refused)
 
 
 def widened(
@@ -58,7 +85,7 @@ def widened(
     """
     owner = settings.project.repo.owner
     try:
-        listed = _listing(github, owner)
+        listed = listing(github, owner)
     except subprocess.CalledProcessError as error:
         return settings, ghapi.why(error)
     named = {repo.slug for repo in config.repositories(settings)} | left_out

@@ -64,7 +64,7 @@ Commands
 does not run after a container restart. Stdout is unchanged.
 
 ``CONFIG`` is a path, or a name looked up as ``.claude/pitboss/<name>.toml`` in
-the current directory or a parent. ``doc/example.toml`` lists every key.
+the current directory or a parent.
 
 The sweep skill
 ---------------

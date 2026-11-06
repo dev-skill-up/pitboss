@@ -18,8 +18,8 @@ Then, from anywhere inside the project:
     uvx pitboss sweep <name>
 
 Every line that calls for an action starts with a marker; the ``sweep``
-skill's ``references/sweep.md`` explains each. Every key of the
-configuration, with its default, is in ``doc/example.toml``:
+skill's ``references/sweep.md`` explains each. An example configuration,
+``doc/example.toml``:
 
 .. literalinclude:: example.toml
    :language: toml
