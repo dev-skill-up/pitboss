@@ -10,8 +10,8 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 from gather import commands as gather_commands
 
-from .. import cli_parser, disk, machine, shapes
-from . import fakes, ticket_bodies
+from .. import cli_parser, disk, shapes
+from . import fakes, fixeddisk, ticket_bodies
 
 FUTURE = "2030-01-01T00:00:00+00:00"
 START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
@@ -143,7 +143,7 @@ class World:
         bodies: the fake GitHub's bodies (change them to change GitHub).
         calls: every command line the commands ran.
         processes: what the commands run processes with.
-        usage: reads the use of a disk; the real disk unless a test gives a figure.
+        usage: reads the use of a disk; a fixed figure unless a test gives one.
     """
 
     workspace: pathlib.Path
@@ -154,7 +154,7 @@ class World:
     bodies: MutableMapping[str, object]
     calls: MutableSequence[Sequence[str]]
     processes: fakes.Processes
-    usage: disk.Reader = machine.read_usage
+    usage: disk.Reader = fixeddisk.fixed_usage
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

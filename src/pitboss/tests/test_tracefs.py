@@ -151,6 +151,16 @@ class TestCommands(unittest.TestCase):
         found = [play(command) for command in ("sweep", "pressure", "slots")]
         assert_that(found, equal_to([(expected, 1)] * 3))
 
+    def test_default_world_ignores_the_host_disk(self) -> None:
+        """A world that gives no figure prints the fixed one, not the host's.
+
+        The fixed figure is ``fixeddisk.fixed_usage``, 50 GiB free (pitboss#134).
+        On the old default this fails unless the host has between 49.95 and
+        50.05 GiB free at both reads.
+        """
+        out = run(world.make_world(), "sweep").out
+        assert_that("disk free 50.0 GiB before, 50.0 GiB after" in out, equal_to(True))
+
     def test_disk_figure_is_the_injected_one(self) -> None:
         """The clean line says the injected free space, not the host's."""
         lines = []
