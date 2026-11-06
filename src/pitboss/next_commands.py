@@ -9,6 +9,9 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    blockers,
+    brief,
+    donewhen,
     draftrule,
     fixes,
     ledger,
@@ -84,6 +87,10 @@ def show_next(args: argparse.Namespace) -> None:
     parsed, and its step is ``flow.next_step``. With no such PR the step is
     the ticket's first.
 
+    For a ticket no PR fixes it first prints a ``MISSING NAMES`` line when the
+    ticket's Done-when names a ``brief.Kind``, a file path or a ``pitboss``
+    command that does not exist (keyword: done-when-names).
+
     It exits 1 when no PR names the ticket but a PR could not be read, so none
     is said not to exist.
 
@@ -100,6 +107,19 @@ def show_next(args: argparse.Namespace) -> None:
         _step_of(found, args.ticket)
 
 
+def _say_missing_names(found: Context, ticket: str) -> None:
+    # the names of the ticket's Done-when that are not in this tree
+    read = blockers.read(found.github, ticket)
+    known = donewhen.Known(
+        kinds=frozenset(brief.Kind.__members__),
+        commands=frozenset(ENTRY_DATA.collector.collect()),
+        tree=working_directory(found.args),
+    )
+    said = donewhen.missing_line(ticket, read.body if read else "", known)
+    if said:
+        print(said)
+
+
 def _step_of(found: Context, named: str) -> None:
     ticket = ledger.reference(named, found.settings.project.repo)
     if not _FULL_REFERENCE.match(ticket):
@@ -112,6 +132,7 @@ def _step_of(found: Context, named: str) -> None:
         print(unreadableline.unreadable_line(each))
     if unread:
         raise SystemExit(1)
+    _say_missing_names(found, ticket)
     off = draftrule.drafts_off(found.args.config, working_directory(found.args))
     first = steps.FIRST_STEP_READY if off else steps.FIRST_STEP
     print(f"{steps.Step.WORKER.name}: {ticket}: {first}")
