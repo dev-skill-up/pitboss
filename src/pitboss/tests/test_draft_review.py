@@ -200,35 +200,22 @@ class TestTheFlow(unittest.TestCase):
         expect(steps.regular_review(steps.Stage.PLAN_ONLY), draft)
 
     def test_a_draft_with_a_rejected_plan_is_revised(self) -> None:
-        """The first rejection is the worker's."""
-        review = test_flow.graded(*test_flow.PLAN_REJECTED, 1)
-        draft = state(review, checks=(), draft=True, undraft_clear=True)
-        expect(steps.worker(steps.Task.REVISE_PLAN), draft)
+        """The first rejection is the worker's, the runners quiet or busy.
 
-    def test_a_draft_with_a_rejected_plan_is_revised_while_the_runners_are_busy(
-        self,
-    ) -> None:
-        """pitboss#130: ``undraft_clear`` false, the gate still reads the review.
-
-        The step was a second ``regular_review(PLAN_ONLY)`` of the same head,
-        with no round for the worker in between.
+        pitboss#130: with ``undraft_clear`` false the gate still reads the
+        review; the step was a second Plan review of the same head.
         """
         review = test_flow.graded(*test_flow.PLAN_REJECTED, 1)
-        draft = state(review, checks=(), draft=True, undraft_clear=False)
-        expect(steps.worker(steps.Task.REVISE_PLAN), draft)
+        for clear in (True, False):
+            draft = state(review, checks=(), draft=True, undraft_clear=clear)
+            expect(steps.worker(steps.Task.REVISE_PLAN), draft)
 
-    def test_a_draft_rejected_twice_goes_to_opus_while_the_runners_are_busy(
-        self,
-    ) -> None:
+    def test_a_draft_rejected_twice_goes_to_opus(self) -> None:
         """pitboss#130: the second rejection is Opus's, not a third review."""
-        draft = state(
-            test_flow.FIRST_REJECTION,
-            test_flow.SECOND_REJECTION,
-            checks=(),
-            draft=True,
-            undraft_clear=False,
-        )
-        expect(steps.opus_ruling(), draft)
+        rejections = (test_flow.FIRST_REJECTION, test_flow.SECOND_REJECTION)
+        for clear in (True, False):
+            draft = state(*rejections, checks=(), draft=True, undraft_clear=clear)
+            expect(steps.opus_ruling(), draft)
 
     def test_a_draft_with_a_rejected_execution_is_fixed(self) -> None:
         """The worker fixes the review."""
