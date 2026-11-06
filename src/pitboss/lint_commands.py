@@ -373,8 +373,12 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         " pages); the Opus ruling comments of the configured trusted"
         " associations are rulings a body may cite, as with --ruling, and a"
         " review of theirs that approves the Plan and records its `Plan digest:`"
-        " makes that Plan approved, which the Plan-row rule does not judge; a"
-        " file that is not there is no comments",
+        " makes that Plan approved. The Plan-row rule (plan-row): when the Plan"
+        " section has numbered rows, each must hold, in backticks, the whole"
+        " command of the Evidence `$` line of the same number; a Plan so"
+        " approved is not judged by it (plan-command and plan-nox still are;"
+        " the sweep prints a failure as a PLAN ROW line). A file that is not"
+        " there is no comments",
     ),
     add_argument(
         "--ticket",
