@@ -120,6 +120,18 @@ REVIEW = (
 )
 
 
+LATER = (
+    "Verdict: approved\n"
+    "Deviation: two `sed -i` runs, no trace in the tree\n"
+    "Deviation: one python heredoc, no trace in the tree\n"
+)
+LINES = [
+    "deviation owner/project#9: two `sed -i` runs, no trace in the tree",
+    "deviation owner/project#9: one `rm`, a backup file left",
+]
+NEW_LINE = "deviation owner/project#9: one python heredoc, no trace in the tree"
+
+
 class TestTheLedger(unittest.TestCase):
     """A review's ``Deviation:`` lines end up in the ledger line of the worker."""
 
@@ -136,19 +148,35 @@ class TestTheLedger(unittest.TestCase):
         )
         assert_that(deviations.recorded("Verdict: approved\n"), equal_to([]))
 
-    def test_slots_deviation_records_them_and_show_prints_them(self) -> None:
-        """The command writes the ledger, and the ledger keeps them."""
+    def test_slots_deviation_records_them_once_and_keeps_them_after_free(self) -> None:
+        """A repeat records nothing new, and the lines outlive the slot."""
         here, review = world.make_world(), saved(REVIEW)
-        lines = [
-            "deviation owner/project#257: two `sed -i` runs, no trace in the tree",
-            "deviation owner/project#257: one `rm`, a backup file left",
+        steps = (
+            ("set", "tiny", "agent-1", "#9", "--running", "agent-1"),
+            ("deviation", "#9", review),
+            ("show",),
+            ("deviation", "#9", review),
+            ("free", "tiny", "--done", "agent-1"),
+            ("show",),
+        )
+        seen = []
+        for action, *rest in steps:
+            done = world.invoke(here, "slots", action, here.config, *rest)
+            held = [text for text in done.out.splitlines() if text in LINES]
+            seen.append((done.code, held, done.out.splitlines()[-2:] == LINES))
+        shown = (0, LINES, True)
+        freed = (0, LINES, False)
+        assert_that(seen, equal_to([(0, [], False), *[shown] * 3, freed, shown]))
+
+    def test_a_new_line_of_a_later_review_is_added_after_the_others(self) -> None:
+        """The old lines first, then the new one."""
+        here = world.make_world()
+        outputs = [
+            world.invoke(here, "slots", "deviation", here.config, "#9", saved(text))
+            for text in (REVIEW, LATER)
         ]
-        tails = []
-        for action, count in (("deviation", 2), ("show", 2), ("deviation", 4)):
-            extra = ("#257", review) if action == "deviation" else ()
-            done = world.invoke(here, "slots", action, here.config, *extra)
-            tails.append((done.code, done.out.splitlines()[-count:]))
-        assert_that(tails, equal_to([(0, lines), (0, lines), (0, lines + lines)]))
+        found = [each for each in outputs[-1].out.splitlines() if "#9:" in each]
+        assert_that(found, equal_to([*LINES, NEW_LINE]))
 
     def test_a_missing_review_file_is_refused(self) -> None:
         """Nothing is recorded."""

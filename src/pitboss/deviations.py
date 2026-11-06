@@ -97,8 +97,8 @@ def record(
         name: the file that holds the review.
 
     Returns:
-        The new ledger, with the deviations after those already recorded, or a
-        refusal when the file cannot be read.
+        The new ledger, with the deviations not already recorded for the ticket
+        after those that are, or a refusal when the file cannot be read.
     """
     try:
         listed = recorded(pathlib.Path(name).read_text(encoding="utf-8"))
@@ -106,5 +106,5 @@ def record(
         return ledger.Refusal(reason=f"{name}: {error}")
     full = ledger.reference(ticket, project)
     kept = dict(book.deviations)
-    kept[full] = (*kept.get(full, ()), *listed)
+    kept[full] = tuple(dict.fromkeys((*kept.get(full, ()), *listed)))
     return dataclasses.replace(book, deviations=kept)

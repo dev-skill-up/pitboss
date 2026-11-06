@@ -41,7 +41,7 @@ with the configuration it names before acting on them.
 | `pitboss slots add <config> SLOT MODEL` | Add a slot, when the owner raises the limit. |
 | `pitboss slots remove <config> SLOT` | Remove an empty slot, when the owner lowers the limit. |
 | `pitboss slots failed <config> TICKET MODEL` | A model failed a ticket (a diff that is off target, or a worker that stopped midway); the ticket goes to a larger model next. |
-| `pitboss slots deviation <config> TICKET FILE` | Records the `Deviation:` lines of a review comment saved in FILE (a line `none` is left out) on the ledger's line for the worker of TICKET, the `deviation <ticket>: <text>` lines `slots show` prints after the slots; they stay when the slot is freed. Run it for every review that lists one (`references/rules.md`, "A hand-back has one form"; pitboss#257). |
+| `pitboss slots deviation <config> TICKET FILE` | Records the `Deviation:` lines of a review comment saved in FILE (a line `none` is left out) on the ledger's line for the worker of TICKET, the `deviation <ticket>: <text>` lines `slots show` prints after the slots; a line already recorded for the ticket is not recorded again, and the lines stay when the slot is freed. Run it for every review that lists one (`references/rules.md`, "A hand-back has one form"; pitboss#257). |
 | `pitboss slots check <config> --running NAME ...` | Give it the names of the agents the session runs; it prints a `GONE AGENT` line for each agent the ledger holds that is not among them. |
 | `pitboss slots check <config> N` | Exits 1 and says the ledger has fewer rows when the ledger has fewer than N rows. |
 | `pitboss slots next <config>` | The sorted list of what to start, and what each empty slot takes. |
