@@ -1,6 +1,8 @@
 """The tracefs mount: three cases, with the mount command injected."""
 
 import dataclasses
+import pathlib
+import tempfile
 import unittest
 from typing import Mapping, Sequence
 
@@ -142,6 +144,31 @@ def play(command: str) -> tuple[Sequence[tuple[str, bool]], int]:
     )
 
 
+MIB = 2**20
+FILLER_MIB = 256
+
+
+def disk_lines(result: world.Result) -> Sequence[str]:
+    """The lines of a sweep that say the free space.
+
+    Args:
+        result: what the sweep did.
+
+    Returns:
+        The lines.
+    """
+    return [each for each in result.out.splitlines() if "disk free" in each]
+
+
+def swept_disk_lines() -> Sequence[str]:
+    """The free-space lines of a sweep in a new world with the default disk.
+
+    Returns:
+        The lines.
+    """
+    return disk_lines(run(world.make_world(), "sweep"))
+
+
 class TestCommands(unittest.TestCase):
     """Sweep, pressure and slots make the mount first and say so on stderr."""
 
@@ -150,6 +177,21 @@ class TestCommands(unittest.TestCase):
         expected = [(said, mounts) for _, said, mounts in CASES]
         found = [play(command) for command in ("sweep", "pressure", "slots")]
         assert_that(found, equal_to([(expected, 1)] * 3))
+
+    def test_default_world_ignores_the_host_disk(self) -> None:
+        """A sweep says the same disk lines before and after the host's changes.
+
+        The host's free space is changed by other processes (a coverage run, the
+        other tests), so a world that read it said different lines in the three
+        worlds of ``test_each_command`` (pitboss#134).
+        """
+        first = swept_disk_lines()
+        with tempfile.TemporaryDirectory() as scratch:
+            with (pathlib.Path(scratch) / "filler").open("wb") as handle:
+                for _ in range(FILLER_MIB // 16):
+                    handle.write(bytes(16 * MIB))
+            second = swept_disk_lines()
+        assert_that(second, equal_to(first))
 
     def test_disk_figure_is_the_injected_one(self) -> None:
         """The clean line says the injected free space, not the host's."""

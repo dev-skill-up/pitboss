@@ -10,7 +10,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 from gather import commands as gather_commands
 
-from .. import cli_parser, disk, machine, shapes
+from .. import cli_parser, disk, shapes
 from . import fakes, ticket_bodies
 
 FUTURE = "2030-01-01T00:00:00+00:00"
@@ -130,6 +130,19 @@ PULLS: Sequence[tuple[str, int, object, str]] = [
 ]
 
 
+def fixed_usage(_: pathlib.Path) -> disk.Usage:
+    """The use of every disk of a world: 100 GiB, half of it free.
+
+    Args:
+        _: the path, whose disk is not read.
+
+    Returns:
+        The same figures at every call.
+    """
+    gibibyte = 2**30
+    return disk.Usage(100 * gibibyte, 50 * gibibyte, 50 * gibibyte)
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class World:
     """A workspace with a clone, a finished worktree, a config and a fake GitHub.
@@ -143,7 +156,9 @@ class World:
         bodies: the fake GitHub's bodies (change them to change GitHub).
         calls: every command line the commands ran.
         processes: what the commands run processes with.
-        usage: reads the use of a disk; the real disk unless a test gives a figure.
+        usage: reads the use of a disk; a fixed figure unless a test gives
+            another (never the host's disk, which other processes change:
+            pitboss#134).
     """
 
     workspace: pathlib.Path
@@ -154,7 +169,7 @@ class World:
     bodies: MutableMapping[str, object]
     calls: MutableSequence[Sequence[str]]
     processes: fakes.Processes
-    usage: disk.Reader = machine.read_usage
+    usage: disk.Reader = fixed_usage
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
