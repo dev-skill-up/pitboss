@@ -268,13 +268,7 @@ Commands
        the Plan and have it reviewed first (plan-command)``; pitboss#196),
        ``plan-nox`` (a ``$ `` command of the Plan section that runs ``nox``,
        ``pitboss nox`` or ``uvx ... nox`` is refused with the sentence that
-       gives the CI pointer instead; one finding for each; pitboss#251),
-       ``plan-row`` (when the Plan section has numbered rows, ``1. ...``, the
-       Evidence ``$`` line of each number is paired with the Plan row of the
-       same number, and the row must hold the whole command in backticks, or
-       the command followed by a pipe; a prose row, a differing string or a
-       missing row is one finding, and the sweep prints it as a ``PLAN ROW``
-       line; pitboss#259) and
+       gives the CI pointer instead; one finding for each; pitboss#251) and
        ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). With ``--branch`` starting with the
