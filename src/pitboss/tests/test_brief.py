@@ -51,7 +51,7 @@ RESOLUTION = "\n".join(
 )
 GUARDS = (
     "Guards: a guard or lint exists to stop workers forgetting or retyping by"
-    " inference. If this PR adds one, check that honest mistakes (an accidental"
+    " inference. If this PR adds one, check that mistakes (an accidental"
     " paste included) are caught; do not hunt for deliberate obfuscation or for"
     " scripts that fake output. Gaps of that kind are not findings and get no"
     " ticket."
@@ -163,7 +163,9 @@ class TestReviewScopes(unittest.TestCase):
 class TestReviewRules(unittest.TestCase):
     """What every review brief says."""
 
-    def test_a_changes_needed_names_a_failure_an_honest_worker_could_hit(self) -> None:
+    def test_a_changes_needed_names_a_failure_a_worker_could_hit_by_mistake(
+        self,
+    ) -> None:
         """A finding that needs deliberate evasion is a note, never a ruling."""
         for kind in brief.REVIEWS:
             pinned(kind, [HONEST, NO_ATTACKS])
@@ -173,7 +175,7 @@ class TestReviewRules(unittest.TestCase):
         for kind in brief.REVIEWS:
             pinned(kind, [briefmake.BODY])
 
-    def test_a_guard_review_checks_honest_mistakes_only(self) -> None:
+    def test_a_guard_review_checks_mistakes_only(self) -> None:
         """Obfuscation and faked output are not hunted and get no ticket."""
         for kind in FULL_SCOPES:
             pinned(kind, [GUARDS])

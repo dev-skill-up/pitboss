@@ -22,7 +22,7 @@ BODY = (
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
-    " an honest worker could hit (a mistake, a forgotten step, an accidental"
+    " a worker could hit by mistake (a forgotten step, an accidental"
     " paste). A finding that needs deliberate evasion (obfuscation, a script that"
     " fakes output) is a note: it is never a ground for changes needed, and it"
     " never starts a ruling."

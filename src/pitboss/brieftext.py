@@ -224,7 +224,7 @@ BODY_DIGEST = (
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
-    " an honest worker could hit (a mistake, a forgotten step, an accidental"
+    " a worker could hit by mistake (a forgotten step, an accidental"
     " paste). A finding that needs deliberate evasion (obfuscation, a script that"
     " fakes output) is a note: it is never a ground for changes needed, and it"
     " never starts a ruling."
@@ -238,7 +238,7 @@ GOAL_ONLY = (
 )
 GUARDS = (
     "Guards: a guard or lint exists to stop workers forgetting or retyping by"
-    " inference. If this PR adds one, check that honest mistakes (an accidental"
+    " inference. If this PR adds one, check that mistakes (an accidental"
     " paste included) are caught; do not hunt for deliberate obfuscation or for"
     " scripts that fake output. Gaps of that kind are not findings and get no"
     " ticket."
