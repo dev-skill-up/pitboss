@@ -38,28 +38,13 @@ def _as_user(
         raise refused from None
 
 
-def listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
-    """List the owner's repositories, as an organization, else as a user.
-
-    The users path is tried only after the organization's answered 404: for an
-    organization it lists the public repositories alone, so any other refusal
-    (403, SSO, proxy, 5xx) must be said, not answered with a shorter list.
-
-    Args:
-        github: the API.
-        owner: the owner.
-
-    Returns:
-        The ``owner/name`` of each, and whether it is archived.
-
-    Raises:
-        subprocess.CalledProcessError: the organization's error, when neither
-            path could be read.
-    """
+def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
+    # repo-access: a user's list holds only public repositories of an org, so the
+    # users path is tried only after the organization's answered 404; any other
+    # refusal (403, SSO, proxy, 5xx) is raised, not answered with a shorter list.
     try:
         return ghapi.pages(github, PATHS[0].format(owner=owner), repositories)
     except subprocess.CalledProcessError as refused:
-        # repo-access: a user's list holds only public repositories of an org
         if ghapi.status_of(refused) != "HTTP 404":
             raise
         return _as_user(github, owner, refused)
@@ -85,7 +70,7 @@ def widened(
     """
     owner = settings.project.repo.owner
     try:
-        listed = listing(github, owner)
+        listed = _listing(github, owner)
     except subprocess.CalledProcessError as error:
         return settings, ghapi.why(error)
     named = {repo.slug for repo in config.repositories(settings)} | left_out
