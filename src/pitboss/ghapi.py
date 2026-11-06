@@ -158,12 +158,24 @@ def status_of(error: subprocess.CalledProcessError) -> str:
     return found.group(0) if found else f"gh exited {error.returncode}"
 
 
+def why(error: subprocess.CalledProcessError) -> str:
+    """Say why a ``gh api`` run failed.
+
+    Args:
+        error: the failed run.
+
+    Returns:
+        The first line of ``gh``'s error, else ``gh exited N``.
+    """
+    lines = str(error.stderr or "").strip().splitlines()
+    return lines[0] if lines else f"gh exited {error.returncode}"
+
+
 def _why_unreadable(github: GitHub, slug: str) -> str:
     try:
         get(github, f"repos/{slug}")
     except subprocess.CalledProcessError as error:
-        lines = str(error.stderr or "").strip().splitlines()
-        return lines[0] if lines else f"gh exited {error.returncode}"
+        return why(error)
     return ""
 
 

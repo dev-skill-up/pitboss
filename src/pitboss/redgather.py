@@ -10,11 +10,6 @@ from . import config, ghapi, parsing, redlog, redparsing, redshapes, shapes
 RUN_PAGES = 3
 
 
-def _why(error: subprocess.CalledProcessError) -> str:
-    lines = str(error.stderr or "").strip().splitlines()
-    return lines[0] if lines else f"gh exited {error.returncode}"
-
-
 def read_error(
     github: ghapi.GitHub, repo: config.Repo, jobs: Sequence[redshapes.Job]
 ) -> tuple[redshapes.FirstError | None, str]:
@@ -35,7 +30,7 @@ def read_error(
     try:
         log = ghapi.get(github, f"repos/{repo.slug}/actions/jobs/{culprit.id}/logs")
     except subprocess.CalledProcessError as error:
-        return None, f"log of job {culprit.id} not readable: {_why(error)}"
+        return None, f"log of job {culprit.id} not readable: {ghapi.why(error)}"
     line = redlog.first_error(log)
     if line is None:
         return None, f"log of job {culprit.id} has no error line"

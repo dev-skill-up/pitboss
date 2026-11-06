@@ -20,7 +20,6 @@ QUEUE_CALL_FAILS = (
     JOBS_FAILED,
 )
 SWEEP_LINES = (
-    "UNREADABLE owner/gone: gh: not found",
     "owner/project#1 [dirty] auto-merge=off pending=0 failed=[test (job 8)]",
     "CONFLICT owner/project#1: merge main into branch-1",
     "FAILED owner/project#1: test: failed step",

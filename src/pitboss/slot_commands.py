@@ -16,6 +16,7 @@ from . import (
     ledger,
     ledgerowner,
     nextlist,
+    repoaccess,
     report,
     slotlog,
     tasklist,
@@ -321,5 +322,6 @@ def slots(args: argparse.Namespace) -> None:
         _time(found)
     elif action is Action.NEXT:
         nextlist.show(found, open_pulls(found), _read(found))
+        repoaccess.finish(found.access)
     else:
         report.print_ledger(_read(found))

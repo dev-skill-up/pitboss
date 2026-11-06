@@ -138,6 +138,18 @@ def freed_world(
     return here, tuple(freed.out.splitlines())
 
 
+def next_result(here: world.World) -> world.Result:
+    """What ``slots next`` did.
+
+    Args:
+        here: the world.
+
+    Returns:
+        Its output, error and exit code.
+    """
+    return world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE)
+
+
 def next_output(here: world.World) -> str:
     """What ``slots next`` prints.
 
@@ -147,7 +159,7 @@ def next_output(here: world.World) -> str:
     Returns:
         Its output.
     """
-    return world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE).out
+    return next_result(here).out
 
 
 def next_lines(here: world.World) -> Sequence[str]:
@@ -228,7 +240,7 @@ class TestLog(unittest.TestCase):
         assert_that(results[0].code, equal_to(2))
         assert_that(results[1].code, equal_to(2))
         assert_that(
-            results[4].out.splitlines()[1],
+            results[4].out.splitlines()[0],
             equal_to("slot tiny (small): owner/project#9 (agent-1, waiting)"),
         )
         assert_that(results[-1].code, equal_to(0))
@@ -248,7 +260,7 @@ class TestLog(unittest.TestCase):
         run_all(here, LOG_STEPS)
         until = ("--until", "2030-01-01T04:00:00")
         report = world.invoke(here, "slots", "report", here.config, *until)
-        assert_that(report.out.splitlines()[1:], equal_to(REPORT_LINES))
+        assert_that(report.out.splitlines(), equal_to(REPORT_LINES))
         window = ("--since", "2029-12-30", "--until", "2029-12-31")
         empty = world.invoke(here, "slots", "report", here.config, *window)
         assert_that(empty.out.strip().endswith("none"), equal_to(True))

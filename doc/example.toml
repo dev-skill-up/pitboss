@@ -1,6 +1,6 @@
 # A pitboss configuration, checked in as .claude/pitboss/<name>.toml.
-# Every key is shown; only [project] owner, repository and main_clone are
-# required. The values are an example's; the comments give the defaults.
+# Only [project] owner, repository and main_clone are required. The values are
+# an example's; the comments give the defaults.
 
 [project]
 owner = "example-org"
