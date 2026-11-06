@@ -18,6 +18,26 @@ def page(path: str) -> str:
 LISTING = page("orgs/owner/repos")
 USERS_LISTING = page("users/owner/repos")
 EXTRA = "repos/owner/extra"
+SEARCH = "search/repositories?q="
+ORG_SEARCH = page(f"{SEARCH}org:owner%20archived:false")
+USER_SEARCH = page(f"{SEARCH}user:owner%20archived:false")
+BOUND_MESSAGE = (
+    "gh: This GitHub API path is not available: sessions are bound to their"
+    " configured repositories. Use repository-scoped endpoints"
+    " (repos/{owner}/{repo}...)\n"
+)
+
+
+def searched(*rows: tuple[str, bool]) -> object:
+    """The search's answer for repositories.
+
+    Args:
+        *rows: each repository's ``owner/name`` and whether it is archived.
+
+    Returns:
+        The JSON.
+    """
+    return {"total_count": len(rows), "items": listing(*rows)}
 
 
 def listing(*rows: tuple[str, bool]) -> object:
