@@ -20,7 +20,15 @@ from . import fakes, test_flow, world
 from .briefmake import has_none, make, text
 from .test_commands import sweep
 from .test_flow import CHANGES as FLOW_CHANGES, expect, state
-from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
+from .test_flow_sweep import (
+    APPROVED,
+    CHANGES,
+    HEAD,
+    OLDER,
+    graded,
+    listed_for_third,
+    world_with,
+)
 from .test_slot_commands import next_output
 
 TICKET_LINE = re.compile(r"^NEXT \d+\. \S+#\d+ \(start a PR", re.MULTILINE)
@@ -160,24 +168,21 @@ class TestDraftsInTheSweep(unittest.TestCase):
         assert_that("WAIT-FOR-CI owner/project#3" in out, equal_to(False))
 
     def test_the_sweep_says_the_fix_of_a_rejected_draft(self) -> None:
-        """The same words as the list."""
-        out = swept([graded(CHANGES, None, 1)], draft=True)
-        assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
+        """The same words as the list; busy runners, so no second Plan review.
 
-    def test_the_sweep_says_the_fix_of_a_rejected_draft_while_the_runners_are_busy(
-        self,
-    ) -> None:
-        """pitboss#130: no ``quiet`` world, so ``undraft_clear`` is false."""
+        pitboss#130: the world is not ``quiet``, so ``undraft_clear`` is false.
+        """
         out = swept([graded(CHANGES, None, 1)], draft=True)
         assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
         assert_that("DRAFT ROUND owner/project#3: review it" in out, equal_to(False))
 
-    def test_the_sweep_sends_a_twice_rejected_draft_to_opus_while_busy(self) -> None:
-        """pitboss#130: the second rejection of a draft is a ruling, not a review."""
+    def test_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy(self) -> None:
+        """pitboss#130: ``slots next`` offers a ruling, and no review line for PR 3."""
         rounds = [graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2)]
-        out = next_output(world_with(rounds, draft=True))
-        assert_that(out, contains_string("make an Opus ruling: owner/project#3"))
-        assert_that("review it" in out.split("owner/project#3")[-1], equal_to(False))
+        here = world_with(rounds, draft=True)
+        ruling = "make an Opus ruling: owner/project#3"
+        assert_that(next_output(here), contains_string(ruling))
+        assert_that(listed_for_third(here), equal_to([]))
 
     def test_a_draft_that_waits_for_its_undraft_has_no_round(self) -> None:
         """No round to offer, so no DRAFT ROUND line."""
