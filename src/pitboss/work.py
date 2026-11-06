@@ -56,9 +56,9 @@ class Category(enum.IntEnum):
         RULING_STEPS: an author does exactly the steps of an Opus ruling (a PR).
         RULING_AS_GIVEN: an author carries out an Opus ruling that splits,
             reshapes or abandons (a PR).
-        REVIEW_FIX_ROUND: a reviewer checks the findings of a review that did
-            not reject the Plan, whose PR body was fixed at the same head (a
-            PR; keyword: body-digest).
+        REVIEW_FIX_ROUND: a reviewer checks the findings of a review that
+            asked for changes at an older head, which differs from the current
+            one (a PR; keyword: fix-round).
         RUN_PLAN: an author runs the commands of a Plan that was approved alone
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
     """
@@ -167,22 +167,25 @@ def category_of(pull: pulls.PullFacts) -> Category | None:
     if step.step is not steps.Step.REGULAR_REVIEW:
         return None
     alone = step.stage is steps.Stage.PLAN_ONLY  # keyword: plan-review-listed
-    fix_round = body_fixed(pull) and not alone
-    return Category.REVIEW_FIX_ROUND if fix_round else Category.REVIEW
+    fixing = fix_round(pull) and not alone
+    return Category.REVIEW_FIX_ROUND if fixing else Category.REVIEW
 
 
-def body_fixed(pull: pulls.PullFacts) -> bool:
-    """Whether the PR body changed after the newest review of its head.
+def fix_round(pull: pulls.PullFacts) -> bool:
+    """Whether the newest review asked for changes and the head moved since.
+
+    Only then the review has two different heads to diff (keyword: fix-round,
+    pitboss#294): a body edited at one head, or an approval, is no fix round.
 
     Args:
         pull: the PR.
 
     Returns:
-        True when the standing is ``older-body``, whatever the verdict.
+        True when the newest review says changes needed and names an older head.
     """
-    # keyword: body-digest (pitboss#147): the body changed after the newest review
-    # of the head (whatever its verdict), the head did not move
-    return pull.standing is reviews.Standing.OLDER_BODY
+    found = pull.review
+    asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
+    return asked and pull.standing is reviews.Standing.OLDER_HEAD
 
 
 def _references(pull: pulls.PullFacts) -> frozenset[str]:

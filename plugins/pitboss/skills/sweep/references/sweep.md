@@ -38,9 +38,9 @@ owner/name#12 [clean] auto-merge=off pending=0 failed=[test (job 345)] queue=- r
   of an older head: a fix came since and needs a review); `older-body` (the
   review is of this head and records a `Body:` digest, and the PR body is not
   the one it recorded: the body was fixed after the review and the head did
-  not move; `slots next` prints `NEXT ... (review the fix round's findings
-  only)` for it, unless the review rejected the Plan, in which case it prints
-  `review it` (the Plan alone is graded); a review of the same head that records the new digest
+  not move; `slots next` prints `review it` for it, with the Execution graded, or the Plan
+  alone when the review rejected the Plan (the `review the fix round's findings
+  only` line is only for a review of changes needed of an older head); a review of the same head that records the new digest
   makes the standing the review's own again; a review with no `Body:` line is
   keyed to the head alone); `none`.
 

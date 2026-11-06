@@ -39,9 +39,10 @@ Post exactly that form: a gate that cannot read the comment keeps the status
   run `uvx pitboss body-digest <scratchpad>/body.txt`, and add the one line it
   prints (`Body: <digest>`) to the comment beside the verdict line. The sweep
   compares it with the body now: a body fixed after your review, the head not
-  having moved, is `review=older-body` and is answered by a review of the fix
-  round's findings, unless your review rejected the Plan: then it is answered
-  by a review of the Plan alone.
+  having moved, is `review=older-body` and is answered by a review of the
+  Execution, or of the Plan alone when your review rejected the Plan (a fix
+  round's brief exists only for a head that moved after a review of changes
+  needed).
 - When you grade the Plan (a review of the Plan alone, or of the Plan and the
   Execution), also run `uvx pitboss plan-digest <scratchpad>/body.txt` on the
   same saved body and add the line it prints (`Plan digest: <digest>`) to the

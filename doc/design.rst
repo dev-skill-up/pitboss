@@ -486,9 +486,12 @@ approved gets ``READY TO MERGE`` instead).
 for a body). When the newest review of the head records a digest other than the
 body's now, the standing is ``older-body``, the review does not count in
 ``flow.newest_counting_review``, and ``slots next`` offers the PR as ``review
-the fix round's findings only``, unless the review rejected the Plan: then as
-``review it`` with the Plan alone graded (pitboss#167). A review with no such line is keyed to the
-head alone.
+it`` with the Execution graded, or the Plan alone when the review rejected the
+Plan (pitboss#167). A body fixed at one head is never a fix round: the brief
+``review the fix round's findings only`` is printed only after a review of
+changes needed whose head is older than the current one, so its diff
+``git diff <reviewed head>..<head>`` never has the same SHA twice (pitboss#294).
+A review with no such line is keyed to the head alone.
 
 **Reviews.** A review is the newest comment by a trusted author whose lines
 match the repository's form. In a gated repository the form is strict: the

@@ -149,13 +149,6 @@ def picks(source: Source) -> Sequence[Pick]:
     ]
 
 
-def _fix_round(pull: pulls.PullFacts) -> bool:
-    found = pull.review
-    asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
-    older = asked and pull.standing is reviews.Standing.OLDER_HEAD
-    return work.body_fixed(pull) or older  # keyword: body-digest
-
-
 def review_kind(pull: pulls.PullFacts) -> brief.Kind:
     """The kind of review a PR is due, and so its scope.
 
@@ -176,13 +169,13 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
     resolved = pull.standing is reviews.Standing.APPROVED_BEFORE_MERGES
     if resolved or pull.review_rounds.merges_only:
         return brief.Kind.REVIEW_RESOLUTION
-    if pull.relock and not _fix_round(pull):
+    if pull.relock and not work.fix_round(pull):
         return brief.Kind.REVIEW_RELOCK  # keyword: relock (pitboss#126)
     if pull.step.stage is steps.Stage.PLAN_ONLY:
         return brief.Kind.REVIEW_PLAN
     if pull.step.stage is steps.Stage.PLAN_AND_EXECUTION:
         return brief.Kind.REVIEW_FULL  # the Plan was never approved: graded alone
-    if _fix_round(pull):
+    if work.fix_round(pull):
         return brief.Kind.REVIEW_FIX_ROUND
     return brief.Kind.REVIEW_EXECUTION
 
