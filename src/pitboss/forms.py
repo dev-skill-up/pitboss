@@ -3,9 +3,10 @@
 Each check returns findings, one line each, ending with the check's name in
 parentheses (``first-line``, ``one-ticket``, ``head``, ``evidence``,
 ``footer`` for a PR body, ``plan-command`` for a Plan command not run as
-written and ``plan-nox`` for one that runs nox; ``first-line``, ``verdict``,
-``reviewed``,
-``exact``, ``plain`` and ``head`` for a review; ``required-line`` and
+written, ``plan-nox`` for one that runs nox and ``plan-row`` for a numbered
+Plan row that lacks the whole command of its Evidence line; ``first-line``,
+``verdict``, ``reviewed``, ``exact``, ``plain`` and ``head`` for a review;
+``required-line`` and
 ``done-when`` for a brief). A PR body also gets ``hand-typed`` for a
 ``$ `` row that ``pitboss expand`` did not produce, ``appended`` for an
 Evidence row that ends in an echo of the exit status, and ``test-name`` for a

@@ -49,6 +49,8 @@ class Marker(enum.Enum):
         RULING_ESCALATES: a PR whose Opus ruling escalated to the owner.
         PLAN_EDITED: a PR whose Plan section differs from the Plan its newest
             approving review read, with no Opus ruling that allows the edit.
+        PLAN_ROW: a PR whose numbered Plan row lacks the whole command of the
+            Evidence line of the same number in backticks (pitboss#259).
         RULING_NO_ANALYSIS: a PR whose newest Opus ruling comment has no
             ``How we got here`` section.
         REVIEW_NOTE: an approved PR whose newest review has a ``Notes``
@@ -135,6 +137,7 @@ class Marker(enum.Enum):
     RULING_UNREADABLE = enum.auto()
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
+    PLAN_ROW = enum.auto()
     RULING_NO_ANALYSIS = enum.auto()
     REVIEW_NOTE = enum.auto()
     OPUS_RULINGS_DAILY = enum.auto()
