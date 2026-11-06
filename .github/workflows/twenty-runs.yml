@@ -1,7 +1,10 @@
 # Evidence for pitboss#134: the coverage command of noxfile.py's tests session,
 # 20 times in a row (not part of the fix; the branch stays until the PR merges).
 name: twenty-runs
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches: ["w/134-twenty-runs"]
 jobs:
   twenty:
     runs-on: ubuntu-latest
