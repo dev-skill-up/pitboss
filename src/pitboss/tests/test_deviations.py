@@ -23,6 +23,10 @@ WORKERS = (
 )
 ASKS = brieftextwork.DEVIATIONS
 READS = brieftextnote.DEVIATIONS_REVIEW
+HAND_BACK_NAMES = (
+    "and the `Deviations:` line (each rule of this brief you broke, or `none`);"
+    " nothing else."
+)
 WITH_LINE = "PR 5\nhead abc\nDeviations: two `sed -i` runs, one `rm`\n"
 WITH_NONE = "PR 5\nhead abc\nDeviations: none\n"
 WITHOUT_LINE = "PR 5\nhead abc\nI used the Edit tool.\n"
@@ -47,11 +51,13 @@ class TestTheBriefs(unittest.TestCase):
     """A worker is asked for the line, a reviewer reads it."""
 
     def test_every_worker_brief_asks_for_the_line_before_the_hand_back(self) -> None:
-        """The sentence is in each worker brief, and no review has it."""
+        """Each worker brief asks for it and its Hand-back names it; no review does."""
         for kind in WORKERS:
             found = text(kind)
             assert_that(found, contains_string(ASKS))
             assert_that(found.index(ASKS) < found.index("Hand-back:"), equal_to(True))
+            hand_back = found[found.index("Hand-back:") :].split("\n")[0]
+            assert_that(hand_back, contains_string(HAND_BACK_NAMES))
         for kind in EXECUTION_REVIEWS:
             assert_that(ASKS in text(kind), equal_to(False))
 

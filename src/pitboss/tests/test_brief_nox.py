@@ -25,7 +25,7 @@ NOX_ORDER = (
 )
 HAND_BACK_NOX = (
     " and, where the checks are nox sessions, the `pitboss nox` result of the"
-    " pushed head (the four sessions and their status); nothing else."
+    " pushed head (the four sessions and their status),"
 )
 FIRST_DESIGN = (
     "First design: throwing away a first design is acceptable and is not a thing"

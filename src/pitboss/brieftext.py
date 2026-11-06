@@ -103,7 +103,8 @@ HAND_BACK = (
     "Hand-back: the PR number, the exact head SHA, and what you ran locally (each"
     " command with the raw output `pitboss expand` printed) and, where the checks"
     " are nox sessions, the `pitboss nox` result of the pushed head (the four"
-    " sessions and their status); nothing else."
+    " sessions and their status), and the `Deviations:` line (each rule of this"
+    " brief you broke, or `none`); nothing else."
 )
 NEW_PR_CHECKOUT = "from origin/{base} after `git fetch origin {base}`"
 PR_CHECKOUT = "on the PR's branch, current with origin/{base}"
