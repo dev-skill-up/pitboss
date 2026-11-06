@@ -240,7 +240,9 @@ Commands
        comment's address and the file holding its text) and from ``--comments
        FILE`` (the API's list of the PR's comments, all its pages, of which
        the ``Opus ruling`` comments of the ``[review] trusted_associations``
-       count; a file that is not there is no comments); ``lint event`` takes
+       count, and the regular reviews of those authors that grade ``Plan:
+       approved`` with a ``Plan digest:`` line, for ``plan-row``, pitboss#296;
+       a file that is not there is no comments); ``lint event`` takes
        the same two, so the ``text-lint`` status of a PR with a cited ruling
        is success; ``pitboss next`` and the blockers read a ``Closes #N``
        line as a ticket the PR fixes; the sweep prints ``FOLDED PR`` for an
@@ -274,7 +276,10 @@ Commands
        same number, and the row must hold the whole command in backticks, or
        the command followed by a pipe; a prose row, a differing string or a
        missing row is one finding, and the sweep prints it as a ``PLAN ROW``
-       line; pitboss#259) and
+       line; a Plan whose digest is the ``Plan digest:`` of a trusted review
+       that grades ``Plan: approved`` (read from ``--comments``) is not judged
+       by it, while ``plan-command`` and ``plan-nox`` still are (pitboss#296);
+       pitboss#259) and
        ``footer`` (only when ``[lint.pr_body] footers``
        lists lines: one of them in the last three lines; by default none is
        listed, so no footer is required). With ``--branch`` starting with the
@@ -304,8 +309,8 @@ Commands
      - The ``text-lint`` commit status of a ``pull_request_target`` event
        (pitboss#38). Reads the pull request's body, head SHA, head branch and
        author from the event file EVENT, runs the checks of ``lint pr-body``
-       (against the event's head, with the PR's ruling comments from
-       ``--comments``, so a body that closes several tickets and cites an Opus
+       (against the event's head, with the PR's ruling comments and Plan
+       approvals from ``--comments``, so a body that closes several tickets and cites an Opus
        ruling comment of ``do these steps`` is in form; pitboss#171),
        ``lint text`` and ``lint contradictions`` on the body, prints every finding, and writes the JSON body of GitHub's
        create-a-commit-status call to STATUS: ``success`` with ``ok``,

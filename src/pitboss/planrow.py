@@ -8,7 +8,9 @@ number (the first command ``pitboss expand`` produced is number 1) is paired
 with the Plan row of the same number, and ``plan-row`` is the finding when that
 row has no backticked span that is the command (or the command followed by a
 pipe, as ``same`` reads it). ``lint pr-body`` and the sweep's
-``PLAN ROW`` line say it. A Plan with no numbered row is read by
+``PLAN ROW`` line say it. A Plan whose digest now is one a trusted review approved
+(``Plan digest:``) is not judged (pitboss#296); ``plan-command`` and
+``plan-nox`` still judge it. A Plan with no numbered row is read by
 ``plan-command`` alone.
 """
 
