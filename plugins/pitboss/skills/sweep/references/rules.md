@@ -609,6 +609,19 @@ Only override for bugs, but do override for bugs (and then file them)".
   ordinary review gate. A PR at `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`,
   `RULING_ESCALATES`, `PLAN_EDITED` or `PLAN_CHECK` is offered for no round in `slots
   next` (the orchestrator runs the plan-check itself), and its ticket stays taken.
+- **A Done-when in conflict with an owner decision is escalated at once**
+  (keyword: owner-conflict; owner, 2026-11-06T03:18Z, pitboss#283: if the
+  owner's decisions make the ticket a paradox, the right thing is to escalate to
+  him at that time, not later; the Opus ruling on bats-lang/quire#828 kept
+  quire#411, quire#416 and the package-language decision, reshaped the ticket to
+  its one fixable row and left nine `must` rows failing, which narrowed the
+  Done-when and left the question of reversing the decisions to nobody). In an
+  Opus ruling: a Done-when that cannot be met without reversing a decision of
+  the owner (a closed owner ticket, a rule, a recorded ruling) is `Ruling:
+  escalate to the owner`, at once, with the artifact (what happened, the
+  recommendation, the mitigation), and never `reshape`, `split` or `abandon`
+  around the conflict. The ruling brief carries the sentence
+  (`briefruling.OWNER_CONFLICT`), and a test pins the brief and this file.
 - **An escalation says how the work got there** (keyword: how-we-got-here;
   owner, 2026-11-03, pitboss#168: if something is escalated, whether to an Opus
   ruling or to the owner, there has to be an analysis of how we got there;
