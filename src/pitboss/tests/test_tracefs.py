@@ -144,8 +144,8 @@ def play(command: str) -> tuple[Sequence[tuple[str, bool]], int]:
     )
 
 
-MIB = 2**20
-FILLER_MIB = 256
+FILLER_CHUNK = bytes(2**24)
+FILLER_REPEATS = 16
 
 
 def disk_lines(result: world.Result) -> Sequence[str]:
@@ -188,8 +188,8 @@ class TestCommands(unittest.TestCase):
         first = swept_disk_lines()
         with tempfile.TemporaryDirectory() as scratch:
             with (pathlib.Path(scratch) / "filler").open("wb") as handle:
-                for _ in range(FILLER_MIB // 16):
-                    handle.write(bytes(16 * MIB))
+                for _ in range(FILLER_REPEATS):
+                    handle.write(FILLER_CHUNK)
             second = swept_disk_lines()
         assert_that(second, equal_to(first))
 
