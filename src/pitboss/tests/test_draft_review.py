@@ -164,6 +164,21 @@ class TestDraftsInTheSweep(unittest.TestCase):
         out = swept([graded(CHANGES, None, 1)], draft=True)
         assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
 
+    def test_the_sweep_says_the_fix_of_a_rejected_draft_while_the_runners_are_busy(
+        self,
+    ) -> None:
+        """pitboss#130: no ``quiet`` world, so ``undraft_clear`` is false."""
+        out = swept([graded(CHANGES, None, 1)], draft=True)
+        assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
+        assert_that("DRAFT ROUND owner/project#3: review it" in out, equal_to(False))
+
+    def test_the_sweep_sends_a_twice_rejected_draft_to_opus_while_busy(self) -> None:
+        """pitboss#130: the second rejection of a draft is a ruling, not a review."""
+        rounds = [graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2)]
+        out = next_output(world_with(rounds, draft=True))
+        assert_that(out, contains_string("make an Opus ruling: owner/project#3"))
+        assert_that("review it" in out.split("owner/project#3")[-1], equal_to(False))
+
     def test_a_draft_that_waits_for_its_undraft_has_no_round(self) -> None:
         """No round to offer, so no DRAFT ROUND line."""
         out = swept([graded(APPROVED, None, 1)], draft=True)
@@ -189,6 +204,31 @@ class TestTheFlow(unittest.TestCase):
         review = test_flow.graded(*test_flow.PLAN_REJECTED, 1)
         draft = state(review, checks=(), draft=True, undraft_clear=True)
         expect(steps.worker(steps.Task.REVISE_PLAN), draft)
+
+    def test_a_draft_with_a_rejected_plan_is_revised_while_the_runners_are_busy(
+        self,
+    ) -> None:
+        """pitboss#130: ``undraft_clear`` false, the gate still reads the review.
+
+        The step was a second ``regular_review(PLAN_ONLY)`` of the same head,
+        with no round for the worker in between.
+        """
+        review = test_flow.graded(*test_flow.PLAN_REJECTED, 1)
+        draft = state(review, checks=(), draft=True, undraft_clear=False)
+        expect(steps.worker(steps.Task.REVISE_PLAN), draft)
+
+    def test_a_draft_rejected_twice_goes_to_opus_while_the_runners_are_busy(
+        self,
+    ) -> None:
+        """pitboss#130: the second rejection is Opus's, not a third review."""
+        draft = state(
+            test_flow.FIRST_REJECTION,
+            test_flow.SECOND_REJECTION,
+            checks=(),
+            draft=True,
+            undraft_clear=False,
+        )
+        expect(steps.opus_ruling(), draft)
 
     def test_a_draft_with_a_rejected_execution_is_fixed(self) -> None:
         """The worker fixes the review."""
