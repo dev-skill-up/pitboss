@@ -102,9 +102,13 @@ class TestReading(unittest.TestCase):
             "Plan: changes needed, the list is short",
             "Plan: approvedly",
             "Plan: changes needed (fixed)",
+            "Plan: approved",
+            "Plan: approved; the row is there",
+            "Plan: approved Review of the Plan alone, second round",
+            "Plan: changes needed the list is short",
         )
         found = [gradeline.line_approved(each, "Plan: ", *words) for each in lines]
-        assert_that(found, equal_to([True, False, None, None]))
+        assert_that(found, equal_to([True, False, None, None, True, True, True, False]))
 
     def test_a_plan_line_is_present_whatever_it_says(self) -> None:
         """A line that starts with ``Plan:`` counts; another does not."""
@@ -121,6 +125,36 @@ class TestReading(unittest.TestCase):
         )
         standings = [reviews.head_standing(each, HEAD) for each in (approved, ungraded)]
         assert_that(standings, equal_to([reviews.Standing.PLAN_APPROVED] * 2))
+
+
+class TestTrailingText(unittest.TestCase):
+    """A Plan line with text after the verdict is read as the verdict (#255)."""
+
+    def test_next_prints_the_same_for_both_forms(self) -> None:
+        """Done-when 2: ``pitboss next`` reads the same verdict from both."""
+        bare = f"{FIRST}Plan: approved\nVerdict: approved\n"
+        text = f"{FIRST}Plan: approved Review of the Plan alone\nVerdict: approved\n"
+        first, second = next_printed(played(bare)), next_printed(played(text))
+        assert_that(second, equal_to(first))
+        assert_that(first, equal_to(next_printed(played(PLAN_ONLY_BODY))))
+
+    def test_sweep_reads_the_same_verdict_from_both_forms(self) -> None:
+        """Done-when 2: the sweep reads the same standing from both forms."""
+        bare = f"{FIRST}Plan: approved\nVerdict: approved\n"
+        text = f"{FIRST}Plan: approved Review of the Plan alone\nVerdict: approved\n"
+        first = sweep(test_flow_sweep.world_with(played(bare))).out
+        second = sweep(test_flow_sweep.world_with(played(text))).out
+        assert_that(first, contains_string("review=plan-approved"))
+        assert_that(second, contains_string("review=plan-approved"))
+        assert_that(READY in first, equal_to(False))
+        assert_that(READY in second, equal_to(False))
+
+    def test_review_form_prints_the_plan_line(self) -> None:
+        """Done-when 3: the form says the exact Plan line."""
+        here = world.make_world()
+        printed = world.again(here, "review-form", "gated").out
+        assert_that(printed, contains_string(gradeline.FORM_LINE))
+        assert_that(printed, contains_string(gradeline.FORM_NOTE))
 
 
 class TestSweepAndNext(unittest.TestCase):
