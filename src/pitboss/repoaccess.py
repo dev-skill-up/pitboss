@@ -1,10 +1,10 @@
 """The repositories this session can read (keyword: repo-access)."""
 
 import dataclasses
-import subprocess
-from typing import Mapping, Sequence
+import pathlib
+from typing import AbstractSet, Mapping, Sequence
 
-from . import config, gates, ghapi, parsing
+from . import config, configfile, gates, ghapi, ownerrepos
 from .markers import Marker
 
 
@@ -49,53 +49,38 @@ def without(settings: config.Config, failures: Mapping[str, str]) -> config.Conf
     )
 
 
-def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
-    try:
-        return ghapi.pages(github, f"orgs/{owner}/repos", parsing.repositories)
-    except subprocess.CalledProcessError as error:
-        try:  # the owner is a user, not an organization
-            return ghapi.pages(github, f"users/{owner}/repos", parsing.repositories)
-        except subprocess.CalledProcessError:
-            raise error from None
+def _say(failures: Mapping[str, str], owner: str, unlisted: str) -> None:
+    for slug, reason in failures.items():
+        print(
+            f"{Marker.UNREADABLE.text} {slug}: {reason}: give the session access"
+            " or take it out of the configuration; swept without it"
+        )
+    if unlisted:
+        print(
+            f"{Marker.UNREADABLE.text} {owner}: its repositories could not be"
+            f" listed ({unlisted}): only the configured repositories were checked"
+        )
 
 
-def _why_not_listed(error: subprocess.CalledProcessError) -> str:
-    lines = str(error.stderr or "").strip().splitlines()
-    return lines[0] if lines else f"gh exited {error.returncode}"
-
-
-def with_owner_repositories(
-    github: ghapi.GitHub, settings: config.Config
-) -> tuple[config.Config, str]:
-    """Add the owner's repositories the configuration does not name.
-
-    A repository left out of ``[libraries] repositories`` still has open PRs,
-    so the sweep takes every repository of the owner that is not archived,
-    except those in ``[libraries] exclude``.
+def read(github: ghapi.GitHub, name: str, start: pathlib.Path) -> Access:
+    """Read a configuration, and what the session can read of it.
 
     Args:
         github: the API.
-        settings: the configuration.
+        name: a path, or a name (see ``configfile.locate``).
+        start: the directory a name is looked up from.
 
     Returns:
-        The configuration with them as libraries, and why the owner's list could
-        not be read (empty when it was).
+        What can be swept, and what could not be read.
     """
-    owner = settings.project.repo.owner
-    try:
-        listed = _listing(github, owner)
-    except subprocess.CalledProcessError as error:
-        return settings, _why_not_listed(error)
-    named = {repo.slug for repo in config.repositories(settings)}
-    more = [
-        config.parse_repo(slug, owner)
-        for slug, archived in listed
-        if not archived and slug not in named and slug not in settings.exclude
-    ]
-    return dataclasses.replace(settings, libraries=[*settings.libraries, *more]), ""
+    settings = configfile.load(name, start)
+    left_out = configfile.load_exclude(name, start, settings.project.repo.owner)
+    return readable(github, settings, left_out)
 
 
-def readable(github: ghapi.GitHub, settings: config.Config) -> Access:
+def readable(
+    github: ghapi.GitHub, settings: config.Config, left_out: AbstractSet[str]
+) -> Access:
     """Take in the owner's repositories, and leave out, and report, the unreadable.
 
     The repositories left are read for their review gates (``gates.settled``).
@@ -103,6 +88,8 @@ def readable(github: ghapi.GitHub, settings: config.Config) -> Access:
     Args:
         github: the API.
         settings: the configuration.
+        left_out: the ``owner/name`` of the owner's repositories not to sweep
+            (``[libraries] exclude``).
 
     Returns:
         What can be swept, and what could not be read.
@@ -110,25 +97,15 @@ def readable(github: ghapi.GitHub, settings: config.Config) -> Access:
     Raises:
         SystemExit: when the project's own repository cannot be read.
     """
-    widened, unlisted = with_owner_repositories(github, settings)
-    shared = widened.runners.repositories
-    wanted = [repo.slug for repo in (*config.repositories(widened), *shared)]
+    wide, unlisted = ownerrepos.widened(github, settings, left_out)
+    shared = wide.runners.repositories
+    wanted = [repo.slug for repo in (*config.repositories(wide), *shared)]
     failures = ghapi.unreadable(github, wanted)
-    for slug, reason in failures.items():
-        print(
-            f"{Marker.UNREADABLE.text} {slug}: {reason}: give the session access"
-            " or take it out of the configuration; swept without it"
-        )
-    if unlisted:
-        owner = settings.project.repo.owner
-        print(
-            f"{Marker.UNREADABLE.text} {owner}: its repositories could not be"
-            f" listed ({unlisted}): only the configured repositories were checked"
-        )
-    if widened.project.repo.slug in failures:
-        raise SystemExit(f"cannot read {widened.project.repo.slug}")
+    _say(failures, wide.project.repo.owner, unlisted)
+    if wide.project.repo.slug in failures:
+        raise SystemExit(f"cannot read {wide.project.repo.slug}")
     return Access(
-        settings=gates.settled(github, without(widened, failures)),
+        settings=gates.settled(github, without(wide, failures)),
         unreadable=failures,
         unlisted=unlisted,
     )
@@ -161,8 +138,23 @@ def incomplete_lines(access: Access) -> Sequence[str]:
     return found
 
 
+def say(access: Access) -> bool:
+    """Print the last lines of a sweep that did not read everything.
+
+    Args:
+        access: what was read.
+
+    Returns:
+        Whether it printed any.
+    """
+    said = incomplete_lines(access)
+    for each in said:
+        print(each)
+    return bool(said)
+
+
 def finish(access: Access) -> None:
-    """End a sweep: say what it did not read, and fail.
+    """End a command: say what it did not read, and fail.
 
     Args:
         access: what was read.
@@ -170,8 +162,5 @@ def finish(access: Access) -> None:
     Raises:
         SystemExit: 1 when something was not read.
     """
-    lines = incomplete_lines(access)
-    for line in lines:
-        print(line)
-    if lines:
+    if say(access):
         raise SystemExit(1)

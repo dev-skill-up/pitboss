@@ -3,13 +3,14 @@
 import argparse
 import pathlib
 import tomllib
-from typing import Mapping
+from typing import AbstractSet, Mapping
 
 from . import (
     briefconfig,
     cleanconfig,
     config,
     holdconfig,
+    ownerconfig,
     scratchconfig,
     syncconfig,
 )
@@ -110,6 +111,21 @@ def load_scratch(name: str, start: pathlib.Path, owner: str) -> scratchconfig.Sc
     """
     with locate(name, start).open("rb") as stream:
         return scratchconfig.from_document(tomllib.load(stream), owner)
+
+
+def load_exclude(name: str, start: pathlib.Path, owner: str) -> AbstractSet[str]:
+    """Locate, read and parse ``[libraries] exclude`` of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+        owner: the project's owner, the owner of a bare repository name.
+
+    Returns:
+        The ``owner/name`` of the repositories the sweep leaves out.
+    """
+    with locate(name, start).open("rb") as stream:
+        return ownerconfig.exclude(tomllib.load(stream), owner)
 
 
 def load_transcripts(name: str, start: pathlib.Path) -> pathlib.Path | None:

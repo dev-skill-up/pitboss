@@ -68,24 +68,6 @@ def pull_numbers(text: str) -> Sequence[int]:
     return [int(number) for number in _each(text, "number")]
 
 
-def repositories(text: str) -> Sequence[tuple[str, bool]]:
-    """Parse a page of an owner's repositories.
-
-    Every repository is kept, so a page is as long as GitHub made it and the
-    paging stops on a short one.
-
-    Args:
-        text: the response body of ``orgs/<owner>/repos``.
-
-    Returns:
-        The ``owner/name`` of each, and whether it is archived.
-    """
-    return [
-        (str(item["full_name"]), bool(item.get("archived")))
-        for item in json.loads(text)
-    ]
-
-
 def outcomes(text: str) -> Sequence[shapes.Outcome]:
     """Parse a page of pull requests into what became of their branches.
 

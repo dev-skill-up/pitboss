@@ -192,8 +192,6 @@ class Config:
         project: the project's repository and checkouts.
         libraries: the other repositories its sessions change.
         no_auto_merge: slugs of libraries whose PRs are merged by hand.
-        exclude: slugs of the owner's repositories the sweep leaves out
-            (``[libraries] exclude``; fixtures), though the owner lists them.
         runners: the repositories that share the runners, and the pressure record.
         review: how reviews are read.
         lint: the form checks of ``pitboss lint``.
@@ -206,7 +204,6 @@ class Config:
     project: Project
     libraries: Sequence[Repo]
     no_auto_merge: AbstractSet[str]
-    exclude: AbstractSet[str]
     runners: Runners
     review: Review
     lint: Lint
@@ -388,13 +385,11 @@ def from_document(document: Mapping[str, object]) -> Config:
     owner = project.repo.owner
     libraries = _repos(document, "libraries", "repositories", owner)
     no_auto_merge = _repos(document, "libraries", "no_auto_merge", owner)
-    exclude = _repos(document, "libraries", "exclude", owner)
     lint = _lint(document, owner)
     return Config(
         project=project,
         libraries=libraries,
         no_auto_merge=frozenset(repo.slug for repo in no_auto_merge),
-        exclude=frozenset(repo.slug for repo in exclude),
         runners=_runners(document, project, libraries),
         review=lint.review,
         lint=lint,

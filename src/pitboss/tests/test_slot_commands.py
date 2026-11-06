@@ -138,6 +138,18 @@ def freed_world(
     return here, tuple(freed.out.splitlines())
 
 
+def next_result(here: world.World) -> world.Result:
+    """What ``slots next`` did.
+
+    Args:
+        here: the world.
+
+    Returns:
+        Its output, error and exit code.
+    """
+    return world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE)
+
+
 def next_output(here: world.World) -> str:
     """What ``slots next`` prints.
 
@@ -147,7 +159,7 @@ def next_output(here: world.World) -> str:
     Returns:
         Its output.
     """
-    return world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE).out
+    return next_result(here).out
 
 
 def next_lines(here: world.World) -> Sequence[str]:

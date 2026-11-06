@@ -11,7 +11,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 from gather import commands as gather_commands
 
 from .. import cli_parser, disk, shapes
-from . import fakes, fixeddisk, ticket_bodies
+from . import fakes, fixeddisk, ownerbodies, ticket_bodies
 
 FUTURE = "2030-01-01T00:00:00+00:00"
 START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
@@ -102,12 +102,7 @@ QUEUE_RUNS = {
         },
     ]
 }
-OWNER_REPOSITORIES = fakes.page("orgs/owner/repos")
 REPOSITORY_BODIES: MutableMapping[str, object] = {
-    OWNER_REPOSITORIES: [
-        {"full_name": "owner/project", "archived": False},
-        {"full_name": "owner/lib", "archived": False},
-    ],
     PROJECT: {},
     LIBRARY: {},
     fakes.page(f"{PROJECT}/issues/comments"): [],
@@ -230,7 +225,7 @@ def bodies() -> MutableMapping[str, object]:
     Returns:
         The canned bodies.
     """
-    found = dict(REPOSITORY_BODIES)
+    found = {**ownerbodies.BODIES, **REPOSITORY_BODIES}
     for slug, number, checks, state in PULLS:
         found.update(pull_bodies(slug, number, checks, state))
     found.update(RED_BODIES)

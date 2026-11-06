@@ -139,8 +139,8 @@ def load_context(args: argparse.Namespace) -> Context:
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
-    access = repoaccess.readable(github, load_settings(args))
     start = working_directory(args)
+    access = repoaccess.read(github, args.config, start)
     owner = access.settings.project.repo.owner
     return Context(
         settings=access.settings,
@@ -346,8 +346,7 @@ def sweep(args: argparse.Namespace) -> None:
         args: the parsed arguments.
 
     Raises:
-        SystemExit: 1 when a PR has a failed check or a merge conflict, or when
-            a repository could not be read (the last line is then ``INCOMPLETE``).
+        SystemExit: 1 for a failed check, a conflict, or an unread repository.
     """
     clock = timing.start()
     args = timing.logged_args(args, clock)
@@ -365,8 +364,7 @@ def sweep(args: argparse.Namespace) -> None:
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)
     failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
-    repoaccess.finish(found.access)
-    if failed:
+    if repoaccess.say(found.access) or failed:
         raise SystemExit(1)
 
 
