@@ -14,7 +14,16 @@ points here.
 
 from typing import Callable, Sequence
 
-from . import bodydigest, flowstate, plancheckflow, planbody, rulingwords, shapes, steps
+from . import (
+    bodydigest,
+    conflicts,
+    flowstate,
+    plancheckflow,
+    planbody,
+    rulingwords,
+    shapes,
+    steps,
+)
 
 Verdict = shapes.Verdict
 Graded = shapes.Graded
@@ -24,10 +33,7 @@ is_ruling = flowstate.is_ruling
 read_ruling = flowstate.read_ruling
 newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
-is_dirty = flowstate.is_dirty
-has_conflict = flowstate.has_conflict
-merge_unless_conflict = flowstate.merge_unless_conflict
-conflict_step = flowstate.conflict_step
+has_conflict = conflicts.has_conflict
 AFTER = flowstate.AFTER
 AS_RULED = flowstate.AS_RULED
 
@@ -232,7 +238,7 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
         approved``, else the first step of the ruling's row of ``AFTER``.
     """
     if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
-        return merge_unless_conflict(pr)  # CI is green, the gate above passed
+        return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
     return AFTER[ruled][0]
 
 
@@ -391,4 +397,4 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
         return plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
 
     # approved: ``rejection_step`` took the Execution that needs changes
-    return merge_unless_conflict(pr)  # CI is green, the gate above passed
+    return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed

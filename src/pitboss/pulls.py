@@ -8,6 +8,7 @@ from . import (
     analysis,
     bodydigest,
     config,
+    conflicts,
     dispatchruns,
     earlyfound,
     flow,
@@ -146,7 +147,7 @@ def conflicted(facts: PullFacts) -> bool:
     Returns:
         True on a conflict.
     """
-    return flow.is_dirty(facts.pull)
+    return conflicts.is_dirty(facts.pull)
 
 
 def needs_update(facts: PullFacts, settings: config.Config) -> bool:

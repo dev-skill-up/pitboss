@@ -345,54 +345,6 @@ def e2e_step(pr: PullState) -> steps.Next | None:
     return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)
 
 
-def is_dirty(pull: shapes.Pull) -> bool:
-    """Whether a PR's merge state is a conflict with its base.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return pull.mergeable_state is shapes.MergeState.DIRTY
-
-
-def has_conflict(pr: PullState) -> bool:
-    """Whether the PR conflicts with its base.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True on a merge conflict.
-    """
-    return is_dirty(pr.pull)
-
-
-def merge_unless_conflict(pr: PullState) -> steps.Next:
-    """Merge, or resolve the conflict of the head first.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The merge step, or the worker's conflict resolution.
-    """
-    return conflict_step(pr) or steps.merge()
-
-
-def conflict_step(pr: PullState) -> steps.Next | None:
-    """The worker's resolution of a conflict, when the PR has one.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The step, or None when the PR does not conflict with its base.
-    """
-    return steps.worker(steps.Task.RESOLVE_CONFLICT) if has_conflict(pr) else None
-
-
 # What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads
 # the first step; the later ones are not wired (a worker's push moves the head and
 # the ordinary review gate takes over).
