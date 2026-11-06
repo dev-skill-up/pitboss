@@ -18,6 +18,10 @@ PLAN_NO_NOX_REVIEW = (
     " is changes needed (pitboss#179: a Plan asks for no evidence that CI shows);"
     " the whole suite is CI's `Run Nox` step."
 )
+PLAN_POINTER_LAST = (
+    "Number the Plan rows with every command row first and the CI-pointer rows"
+    " last; plan-row pairs the Nth Evidence command with row N (pitboss#274)."
+)
 PLAN_CI_POINTER = (
     "CI pointer: a Plan row whose result a CI run of the commit shows asks for no"
     " long local command (a whole suite or build, or anything over `timeout"
