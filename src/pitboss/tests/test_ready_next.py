@@ -89,7 +89,6 @@ class TestAHoldIsANextLineToo(unittest.TestCase):
         del here.bodies[JOBS]
         assert_that(next_lines(here)[0], contains_string("mark ready at unknown"))
 
-
     def test_an_empty_record_with_the_jobs_unreadable_prints_the_unknown_end(
         self,
     ) -> None:
