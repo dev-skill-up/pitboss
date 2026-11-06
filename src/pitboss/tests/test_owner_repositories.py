@@ -26,15 +26,17 @@ NOT_LISTED = (
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class RefusedOrganization:
-    """Processes whose read of the organization's listing fails with HTTP 403.
+    """Processes whose read of the organization's listing fails.
 
     Attributes:
         inner: the processes the others go to.
-        status: the HTTP status printed.
+        status: the HTTP status printed (403).
+        message: what ``gh`` prints instead of the status, when not empty.
     """
 
     inner: fakes.Processes
     status: int = 403
+    message: str = ""
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
         """Run a command, failing on the organization's listing.
@@ -51,7 +53,9 @@ class RefusedOrganization:
         """
         if any(word.startswith("orgs/owner/repos") for word in cmdargs):
             raise subprocess.CalledProcessError(
-                1, list(cmdargs), stderr=f"gh: forbidden (HTTP {self.status})\n"
+                1,
+                list(cmdargs),
+                stderr=self.message or f"gh: forbidden (HTTP {self.status})\n",
             )
         return self.inner(cmdargs, **kwargs)
 
@@ -82,6 +86,40 @@ def with_extra(
     here.bodies.update(ownerbodies.extra())
     here.bodies.update(world.pull_bodies("owner/extra", 5, [world.GREEN], "clean"))
     return here
+
+
+def bound(here: world.World) -> world.World:
+    """The world as a session bound to its repositories sees the owner's listing.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The world whose ``orgs/owner/repos`` is refused with the bound message.
+    """
+    return dataclasses.replace(
+        here,
+        processes=RefusedOrganization(
+            inner=here.processes, message=ownerbodies.BOUND_MESSAGE
+        ),
+    )
+
+
+def owner_listing(result: world.Result) -> tuple[int, int, int]:
+    """What a sweep said about the owner's listing.
+
+    Args:
+        result: what the sweep did.
+
+    Returns:
+        The lines saying the owner was unreadable, the lines of the unlisted
+        repository's PR, and the lines saying the owner was not listed.
+    """
+    return (
+        len(lines_of(result.out, "UNREADABLE owner:")),
+        len(lines_of(result.out, "PR STATE owner/extra#5")),
+        len(lines_of(result.out, "INCOMPLETE: the repositories of owner")),
+    )
 
 
 def lines_of(out: str, start: str) -> Sequence[str]:
@@ -226,6 +264,33 @@ class TestIncomplete(unittest.TestCase):
             equal_to(True),
         )
         assert_that(lines_of(result.out, "PR STATE owner/extra"), equal_to([]))
+
+    def test_a_bound_session_lists_through_the_search(self) -> None:
+        """The refusal of the organization's path is answered by the search."""
+        here = with_extra()
+        here.bodies[ownerbodies.ORG_SEARCH] = ownerbodies.searched(
+            ("owner/project", False), ("owner/lib", False), ("owner/extra", False)
+        )
+        result = run_next(bound(here))
+        assert_that(owner_listing(result), equal_to((0, 1, 0)))
+
+    def test_a_bound_session_lists_a_user_through_the_search(self) -> None:
+        """The organization search finds nothing, so the user search is read."""
+        here = with_extra()
+        here.bodies[ownerbodies.ORG_SEARCH] = ownerbodies.searched()
+        here.bodies[ownerbodies.USER_SEARCH] = ownerbodies.searched(
+            ("owner/extra", False)
+        )
+        result = run_next(bound(here))
+        assert_that(owner_listing(result), equal_to((0, 1, 0)))
+
+    def test_a_bound_session_whose_search_fails_is_incomplete(self) -> None:
+        """Both routes fail: UNREADABLE and INCOMPLETE, not a shorter list."""
+        here = with_extra()
+        result = run_next(bound(here))
+        said = lines_of(result.out, "UNREADABLE owner:")
+        assert_that("search/repositories" in said[0], equal_to(True))
+        assert_that((*owner_listing(result), result.code), equal_to((1, 0, 1, 1)))
 
     def test_nothing_unread_is_no_incomplete_line(self) -> None:
         """The lines for a complete read are none."""

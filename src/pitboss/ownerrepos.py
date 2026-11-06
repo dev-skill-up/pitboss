@@ -3,12 +3,17 @@
 import dataclasses
 import json
 import subprocess
+import urllib.parse
 from typing import AbstractSet, Sequence
 
 from . import config, ghapi
 
 # an organization, then (only after a 404) a user
 PATHS = ("orgs/{owner}/repos", "users/{owner}/repos")
+# what gh prints for a path a session bound to its repositories may not read
+BOUND = "sessions are bound to their configured repositories"
+# the search answers at most 1000 results, so ten pages of 100
+SEARCH_PAGES = 10
 
 
 def repositories(text: str) -> Sequence[tuple[str, bool]]:
@@ -29,6 +34,43 @@ def repositories(text: str) -> Sequence[tuple[str, bool]]:
     ]
 
 
+def found(text: str) -> Sequence[tuple[str, bool]]:
+    """Parse a page of ``search/repositories``.
+
+    Args:
+        text: the response body, ``{"items": [...]}``.
+
+    Returns:
+        The ``owner/name`` of each, and whether it is archived.
+    """
+    return repositories(json.dumps(json.loads(text)["items"]))
+
+
+def is_bound_refusal(error: subprocess.CalledProcessError) -> bool:
+    """Say whether a session bound to its repositories refused the path.
+
+    Args:
+        error: the failed ``gh api`` run.
+
+    Returns:
+        True when ``gh`` printed the bound-session message.
+    """
+    return BOUND in str(error.stderr or "")
+
+
+def _search(github: ghapi.GitHub, qualifier: str) -> Sequence[tuple[str, bool]]:
+    query = urllib.parse.quote(f"{qualifier} archived:false", safe=":")
+    return ghapi.pages(
+        github, f"search/repositories?q={query}", found, limit=SEARCH_PAGES
+    )
+
+
+def _searched(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
+    # repo-access: a bound session may list an owner only through the search; an
+    # organization is asked first, and an owner it finds nothing for is a user.
+    return _search(github, f"org:{owner}") or _search(github, f"user:{owner}")
+
+
 def _as_user(
     github: ghapi.GitHub, owner: str, refused: subprocess.CalledProcessError
 ) -> Sequence[tuple[str, bool]]:
@@ -40,11 +82,14 @@ def _as_user(
 
 def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
     # repo-access: a user's list holds only public repositories of an org, so the
-    # users path is tried only after the organization's answered 404; any other
-    # refusal (403, SSO, proxy, 5xx) is raised, not answered with a shorter list.
+    # users path is tried only after the organization's answered 404; a bound
+    # session's refusal goes to the search (pitboss#305); any other refusal (403,
+    # SSO, proxy, 5xx) is raised, not answered with a shorter list.
     try:
         return ghapi.pages(github, PATHS[0].format(owner=owner), repositories)
     except subprocess.CalledProcessError as refused:
+        if is_bound_refusal(refused):
+            return _searched(github, owner)
         if ghapi.status_of(refused) != "HTTP 404":
             raise
         return _as_user(github, owner, refused)
