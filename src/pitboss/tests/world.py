@@ -21,7 +21,7 @@ EXTRA = """
 [runners]
 
 [libraries]
-repositories = ["lib", "gone"]
+repositories = ["lib"]
 no_auto_merge = ["lib"]
 
 [review]
@@ -102,7 +102,12 @@ QUEUE_RUNS = {
         },
     ]
 }
+OWNER_REPOSITORIES = fakes.page("orgs/owner/repos")
 REPOSITORY_BODIES: MutableMapping[str, object] = {
+    OWNER_REPOSITORIES: [
+        {"full_name": "owner/project", "archived": False},
+        {"full_name": "owner/lib", "archived": False},
+    ],
     PROJECT: {},
     LIBRARY: {},
     fakes.page(f"{PROJECT}/issues/comments"): [],

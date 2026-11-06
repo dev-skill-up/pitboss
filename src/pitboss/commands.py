@@ -66,7 +66,8 @@ class Context:
     """What every command starts from.
 
     Attributes:
-        settings: the configuration.
+        settings: the configuration, with the owner's other repositories.
+        access: what could not be read (``repoaccess.finish`` says it).
         clean: what ``clean-container`` looks at and keeps.
         scratch: the scratch repositories (``[scratch]``).
         github: the API.
@@ -75,6 +76,7 @@ class Context:
     """
 
     settings: config.Config
+    access: repoaccess.Access
     clean: cleanconfig.Clean
     scratch: scratchconfig.Scratch
     github: ghapi.GitHub
@@ -137,11 +139,12 @@ def load_context(args: argparse.Namespace) -> Context:
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
-    settings = repoaccess.readable(github, load_settings(args))
+    access = repoaccess.readable(github, load_settings(args))
     start = working_directory(args)
-    owner = settings.project.repo.owner
+    owner = access.settings.project.repo.owner
     return Context(
-        settings=settings,
+        settings=access.settings,
+        access=access,
         clean=configfile.load_clean(args.config, start),
         scratch=configfile.load_scratch(args.config, start, owner),
         github=github,
@@ -343,7 +346,8 @@ def sweep(args: argparse.Namespace) -> None:
         args: the parsed arguments.
 
     Raises:
-        SystemExit: 1 when a PR has a failed check or a merge conflict.
+        SystemExit: 1 when a PR has a failed check or a merge conflict, or when
+            a repository could not be read (the last line is then ``INCOMPLETE``).
     """
     clock = timing.start()
     args = timing.logged_args(args, clock)
@@ -360,7 +364,9 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)
-    if syncing.section(args, found.settings) or broken or unconfigured or crowded:
+    failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
+    repoaccess.finish(found.access)
+    if failed:
         raise SystemExit(1)
 
 

@@ -17,6 +17,7 @@ from . import (
     ledger,
     nextlist,
     pulls,
+    repoaccess,
     shapes,
     steps,
     tracefs,
@@ -92,7 +93,8 @@ def show_next(args: argparse.Namespace) -> None:
     command that does not exist (keyword: done-when-names).
 
     It exits 1 when no PR names the ticket but a PR could not be read, so none
-    is said not to exist.
+    is said not to exist. It also exits 1, with an ``INCOMPLETE`` last line, when
+    a repository could not be read: no statement about its PRs is true.
 
     Args:
         args: the parsed arguments.
@@ -105,6 +107,7 @@ def show_next(args: argparse.Namespace) -> None:
         nextlist.show(found, open_pulls(found), book)
     else:
         _step_of(found, args.ticket)
+    repoaccess.finish(found.access)
 
 
 def _say_missing_names(found: Context, ticket: str) -> None:

@@ -113,6 +113,9 @@ class Marker(enum.Enum):
             to push to it.
         NOT_THE_ORCHESTRATOR_CONFIG: the first line of a sweep of a configuration
             that does not own the slot ledger.
+        INCOMPLETE: the last line of a sweep that could not read a configured
+            repository, or the list of the owner's repositories (keyword:
+            repo-access); the exit status is 1.
     """
 
     OUTDATED = enum.auto()
@@ -183,6 +186,7 @@ class Marker(enum.Enum):
     NOT_SYNCED = enum.auto()
     COULD_NOT_SYNC = enum.auto()
     NOT_THE_ORCHESTRATOR_CONFIG = enum.auto()
+    INCOMPLETE = enum.auto()
 
     @property
     def text(self) -> str:

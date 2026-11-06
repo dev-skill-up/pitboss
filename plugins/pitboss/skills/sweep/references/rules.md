@@ -44,6 +44,10 @@ this order:
 4. Override a line only when it is a pitboss bug, always override when it is
    one, and file the bug as a pitboss ticket in the same turn.
 
+A sweep whose last line is `INCOMPLETE` (it exits 1) did not read every repository:
+an answer about "all PRs", a count of PRs or "no other PR is open" is never given from
+it, because the repositories it names have no line (`sweep.md`, marker `INCOMPLETE`).
+
 The owner's rulings (owner, 2026-11-02T23:47:19Z): "Doesn't pitboss just tell
 you what to do? Run it and you won't make mistakes instead of guessing"; and
 (owner, 2026-11-03T00:29:17Z): "To be clear, it's still your responsibility to
