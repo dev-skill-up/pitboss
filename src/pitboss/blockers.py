@@ -26,10 +26,12 @@ class Ticket:
     Attributes:
         open: whether it is open.
         labels: its labels' names.
+        body: its text (keyword: done-when-names).
     """
 
     open: bool
     labels: AbstractSet[str]
+    body: str = ""
 
 
 def named(text: str, repo: config.Repo) -> Iterable[str]:
@@ -68,6 +70,7 @@ def read(github: ghapi.GitHub, reference: str) -> Ticket | None:
     return Ticket(
         open=item["state"] == "open",
         labels=frozenset(str(label["name"]) for label in listed),
+        body=item.get("body") or "",
     )
 
 
