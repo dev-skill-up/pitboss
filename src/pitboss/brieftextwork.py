@@ -29,4 +29,11 @@ TASK_RUN_PLAN = (
     " and Evidence of the PR body with what they printed. The Plan is approved: do"
     " not change it (pitboss#201)."
 )
-SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN)
+DEVIATIONS = (
+    "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
+    " each rule of this brief you broke (an edit by `sed`, a heredoc or `rm`"
+    " instead of the Edit tool included), or `none`; it is part of the form of"
+    " the hand-back, and a hand-back without it is NOT STARTED and is sent back"
+    " (pitboss#257)."
+)
+SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN, DEVIATIONS)
