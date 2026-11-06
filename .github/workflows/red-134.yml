@@ -72,3 +72,35 @@ jobs:
             fi
           done
           kill $filler
+
+      - name: Show the sweep outputs that differ among the three worlds, beside the filler
+        run: |
+          ( while true; do
+              head -c 268435456 /dev/zero > "$RUNNER_TEMP/filler"
+              rm -f "$RUNNER_TEMP/filler"
+            done ) &
+          filler=$!
+          PYTHONPATH=src "$RUNNER_TEMP/venv/bin/python" - <<'PY'
+          import difflib
+
+          from pitboss.tests import test_tracefs, world
+
+          for attempt in range(1, 51):
+              outs = []
+              for answers, _, _ in test_tracefs.CASES:
+                  here = world.make_world(answers)
+                  result = test_tracefs.run(here, "sweep")
+                  outs.append(result.out.replace(str(here.workspace), "WORKSPACE"))
+              differing = [each for each in outs[1:] if each != outs[0]]
+              if differing:
+                  print(f"DIFF at try {attempt}")
+                  for each in differing:
+                      for text in difflib.unified_diff(
+                          outs[0].splitlines(), each.splitlines(), "world 1", "other", n=0, lineterm=""
+                      ):
+                          print(text)
+                  break
+          else:
+              print("NO DIFF in 50 tries")
+          PY
+          kill $filler
