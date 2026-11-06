@@ -24,6 +24,8 @@ class NextView:
         standing: each held repository and its open count.
         blocked: the tickets that cannot be worked on until an open ticket or
             PR (keyword: ticket-blocked).
+        ready: the texts of the NEXT lines of the drafts to mark ready, printed
+            first and numbered first (keyword: mark-ready, pitboss#273).
     """
 
     items: Sequence[work.Item]
@@ -34,6 +36,7 @@ class NextView:
     held: Sequence[work.Item] = ()
     standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
     blocked: Sequence[work.Item] = ()
+    ready: Sequence[str] = ()
 
 
 def _age_days(created_at: str, now: datetime.datetime) -> int:
@@ -63,7 +66,9 @@ def next_lines(view: NextView) -> Iterable[str]:
     Yields:
         The lines.
     """
-    for index, item in enumerate(view.items, start=1):
+    for index, text in enumerate(view.ready, start=1):
+        yield f"{Marker.NEXT.text} {index}. {text}"
+    for index, item in enumerate(view.items, start=len(view.ready) + 1):
         yield f"{Marker.NEXT.text} {index}. {_item_text(item, view)}"
     for item in view.held:
         yield holds.held_line(item.reference, view.standing)

@@ -109,7 +109,11 @@ Only override for bugs, but do override for bugs (and then file them)".
      the orchestrator's blocked list.
 
    Never a new ticket while a pull request that can be worked on waits (a pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` cannot be). The
-   `NEXT` lines are printed by `pitboss slots next`: the open pull requests
+   `NEXT` lines are printed by `pitboss slots next`: first, numbered first, a
+   line for each draft whose Plan is approved (`mark the PR ready:
+   update_pull_request draft=false`, or, while the runners show a hold, the
+   hold and its end; an action of the orchestrator, no round and no slot,
+   pitboss#273); then the open pull requests
    that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
    with the kind shown on each line, and then the tickets by priority label
    and age (a ticket of a repository under the owner's hold is printed `HELD`

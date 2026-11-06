@@ -20,6 +20,7 @@ from . import (
     offering,
     pulls,
     pullstate,
+    readyline,
     suggest,
     unreadableline,
     work,
@@ -88,7 +89,10 @@ def _ordered(
 
 
 def _view(
-    found: Found, ordered: work.Offered, book: ledger.Ledger
+    found: Found,
+    ordered: work.Offered,
+    book: ledger.Ledger,
+    facts: Sequence[pulls.PullFacts] = (),
 ) -> nextview.NextView:
     return nextview.NextView(
         items=ordered.items,
@@ -99,6 +103,7 @@ def _view(
         held=ordered.held,
         standing=ordered.standing,
         blocked=ordered.blocked,
+        ready=list(readyline.texts(found.settings, facts, found.now)),
     )
 
 
@@ -127,7 +132,7 @@ def show(
         failed=book.failed,
     )
     for line in itertools.chain(
-        nextview.next_lines(_view(found, ordered, book)),
+        nextview.next_lines(_view(found, ordered, book, source.facts)),
         pullstate.lines(found.github, found.settings, source.facts),
         suggest.lines(source),
     ):

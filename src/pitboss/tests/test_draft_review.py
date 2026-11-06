@@ -13,7 +13,7 @@ import re
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, shapes, steps
 from . import fakes, test_flow, world
@@ -45,6 +45,18 @@ def quiet(here: world.World) -> world.World:
     pathlib.Path(here.clone, ".git", "pitboss-pressure.log").write_text(
         "2029-12-01T00:00:00+00:00 none\n"
     )
+    return here
+
+
+def without_checks() -> world.World:
+    """A world whose ready PR 3 has no check run at its head.
+
+    Returns:
+        The world.
+    """
+    here = world_with([])
+    runs = fakes.page(f"{world.PROJECT}/commits/{HEAD}/check-runs")
+    here.bodies[runs] = {"check_runs": []}
     return here
 
 
@@ -107,15 +119,20 @@ class TestDraftsInSlotsNext(unittest.TestCase):
             assert_that(listed(here), equal_to(("fix the review", True)))
 
     def test_a_draft_with_the_plan_approved_is_not_a_review(self) -> None:
-        """It must still be refused a review: it waits for the undraft."""
+        """It is refused a review: its NEXT line is the hold on its undraft (#273)."""
         approved = graded(APPROVED, None, 1)
-        assert_that(listed(world_with([approved], draft=True))[0], equal_to(""))
+        words = listed(world_with([approved], draft=True))[0]
+        assert_that(words, starts_with("HOLD on undrafts"))
+
+    def test_a_pr_waiting_for_ci_has_no_next_line(self) -> None:
+        """No round and no ready line: the order is unknown."""
+        assert_that(listed(without_checks()), equal_to(("", False)))
 
     def test_a_draft_with_the_plan_approved_is_undrafted_when_quiet(self) -> None:
-        """The undraft is no round, so it is not listed either."""
+        """The undraft is no round: its NEXT line is the action itself (#273)."""
         approved = graded(APPROVED, None, 1)
         here = quiet(world_with([approved], draft=True))
-        assert_that(listed(here)[0], equal_to(""))
+        assert_that(listed(here)[0], starts_with("mark the PR ready"))
         assert_that(sweep(here).out, contains_string("owner/project#3"))
 
 
@@ -154,10 +171,7 @@ class TestDraftsInTheSweep(unittest.TestCase):
 
     def test_a_ready_pr_without_a_check_run_is_not_a_draft_round(self) -> None:
         """It must still be refused a review: it waits for its CI."""
-        here = world_with([])
-        runs = fakes.page(f"{world.PROJECT}/commits/{HEAD}/check-runs")
-        here.bodies[runs] = {"check_runs": []}
-        out = sweep(here).out
+        out = sweep(without_checks()).out
         assert_that("DRAFT ROUND" in out, equal_to(False))
         assert_that(out, contains_string("WAIT-FOR-CI owner/project#3"))
 
