@@ -8,9 +8,11 @@ from . import (
     analysis,
     bodydigest,
     config,
+    conflicts,
     dispatchruns,
     earlyfound,
     flow,
+    flowstate,
     folds,
     headchecks,
     ghapi,
@@ -22,29 +24,9 @@ from . import (
     rounds,
     shapes,
     steps,
+    straycomments,
     unreadableform,
 )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class StrayComments:
-    """The comments of a PR that try to be reviews and are not in the form.
-
-    Attributes:
-        newer: when a newer comment that tries to be a review but is not in
-            the form was written (it is ignored), else empty.
-        graded: the trusted comments that grade a review but are not in the
-            review form.
-        unanalysed: the address of the newest trusted Opus ruling comment when
-            it has no ``How we got here`` section (keyword: how-we-got-here).
-        premature: the Execution reviews written before green, which do not
-            count (keyword: execution-before-green).
-    """
-
-    newer: str = ""
-    graded: Sequence[unreadableform.UnreadableReview] = ()
-    unanalysed: Sequence[str] = ()
-    premature: Sequence[earlyfound.Premature] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,7 +56,9 @@ class PullFacts:
     signals: headchecks.HeadSignals = dataclasses.field(
         default_factory=headchecks.HeadSignals
     )
-    unreadable: StrayComments = dataclasses.field(default_factory=StrayComments)
+    unreadable: straycomments.StrayComments = dataclasses.field(
+        default_factory=straycomments.StrayComments
+    )
     step: steps.Next
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
@@ -163,7 +147,7 @@ def conflicted(facts: PullFacts) -> bool:
     Returns:
         True on a conflict.
     """
-    return flow.is_dirty(facts.pull)
+    return conflicts.is_dirty(facts.pull)
 
 
 def needs_update(facts: PullFacts, settings: config.Config) -> bool:
@@ -317,10 +301,10 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
 
 def _unreadable(
     source: Source, repo: config.Repo, got: Fetched, found: reviews.Found | None
-) -> StrayComments:
+) -> straycomments.StrayComments:
     rules = reviews.rules(source.review, repo.slug)
     seen = (got.posted.comments, source.review.trusted)
-    return StrayComments(
+    return straycomments.StrayComments(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
         unanalysed=analysis.unanalysed(*seen),
@@ -328,11 +312,15 @@ def _unreadable(
     )
 
 
-def _signals(source: Source, repo: config.Repo, got: Fetched) -> headchecks.HeadSignals:
+def _signals(
+    source: Source, repo: config.Repo, got: Fetched, graded: Sequence[shapes.Graded]
+) -> headchecks.HeadSignals:
     ruled = folds.ruling_comments(got.posted.comments, source.review.trusted)
     found = headchecks.signals(got.statuses, got.checks, got.labels, ruled)
     unmet = headchecks.gate(got.statuses, repo.slug, source.review.gated)
-    return dataclasses.replace(found, gate=unmet)
+    # keyword: plan-approved (pitboss#296): the Plans that reviews approved
+    approved = flowstate.approved_digests(graded)
+    return dataclasses.replace(found, gate=unmet, approved_plans=approved)
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -356,7 +344,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         checks=got.checks,
         review=found,
         standing=standing,
-        signals=_signals(source, repo, got),
+        signals=_signals(source, repo, got, state.graded),
         unreadable=_unreadable(source, repo, got, found),
         step=flow.next_step(state),
         review_rounds=rounds.of(state, merged),

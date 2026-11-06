@@ -87,18 +87,17 @@ def _comment_objects(value: object) -> list[object]:
     return [value]
 
 
-def read_comments(text: str, trusted: AbstractSet[str]) -> Sequence[Recorded]:
-    """The Opus ruling comments in the API's list of a PR's comments.
+def parse_comments(text: str) -> Sequence[shapes.Comment]:
+    """The comments in the API's list of a PR's comments.
 
     ``gh api --paginate`` prints one JSON list for each page, one after
     another, and ``--slurp`` wraps the pages in one more list; both are read.
 
     Args:
         text: the response of ``issues/<number>/comments``, all its pages.
-        trusted: the author associations whose comments count.
 
     Returns:
-        The address and text of each ruling comment of a trusted author.
+        The comments.
 
     Raises:
         ValueError: the text is not the comments of a PR.
@@ -113,9 +112,23 @@ def read_comments(text: str, trusted: AbstractSet[str]) -> Sequence[Recorded]:
     if not all(isinstance(each, dict) for each in objects):
         raise ValueError("a comment is not an object")
     try:
-        return ruling_comments(parsing.comments(json.dumps(objects)), trusted)
+        return parsing.comments(json.dumps(objects))
     except KeyError as error:
         raise ValueError(f"a comment has no {error}") from error
+
+
+def read_comments(text: str, trusted: AbstractSet[str]) -> Sequence[Recorded]:
+    """The Opus ruling comments in the API's list of a PR's comments.
+
+    Args:
+        text: the response of ``issues/<number>/comments``, all its pages
+            (``parse_comments`` says what it reads; its ValueError passes).
+        trusted: the author associations whose comments count.
+
+    Returns:
+        The address and text of each ruling comment of a trusted author.
+    """
+    return ruling_comments(parse_comments(text), trusted)
 
 
 def message(named: Sequence[str]) -> str:
