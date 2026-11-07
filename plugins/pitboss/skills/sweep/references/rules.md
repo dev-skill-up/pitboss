@@ -778,10 +778,7 @@ Only override for bugs, but do override for bugs (and then file them)".
     a draft, is the worker round `run the Plan's commands and fill the
     Execution` (`RUN_PLAN`), and only then the undraft of a draft
     (the orchestrator undrafts it when a sweep shows `review=plan-approved` with
-    `[draft]`, after `pitboss pressure` passes, "Pushing and merging") and,
-    once its checks are green, the offer (`review it`) of a review of the
-    Execution, which is measured against
-    the approved Plan. With no ruling before it, the orchestrator undrafts the
+    `[draft]`, after `pitboss pressure` passes, "Pushing and merging"). With no ruling before it, the orchestrator undrafts the
     PR at once, as before. Only a review that grades the Execution approves a head
     to merge.
   - **A Plan graded changes needed is a Plan rejection** (owner,
