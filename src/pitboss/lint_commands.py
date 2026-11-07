@@ -108,7 +108,7 @@ def _text(args: argparse.Namespace) -> None:
 
 def _lint_settings(args: argparse.Namespace) -> config.Lint:
     if args.config is None:
-        return config.default_lint()
+        return config.DEFAULT_LINT
     try:
         return commands.load_settings(args).lint
     except (OSError, ValueError, KeyError) as error:

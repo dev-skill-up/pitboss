@@ -22,7 +22,7 @@ class Marker(enum.Enum):
         RUNNER_PRESSURE: queue runs wait for runners; hold.
         NO_RUNNER_PRESSURE: nothing waits for a runner.
         WAIT_FOR_CI: a PR's head has no completed check run.
-        DRAFT_ROUND: a draft that needs a review or a fix (it has no check run).
+        DRAFT_ROUND: a draft that needs a review or a fix.
         RUN_E2E_BEFORE_APPROVAL: a draft whose Plan is approved and whose diff
             touches what the e2e suite runs on, with no completed dispatched
             run at its head (its own run skipped e2e): dispatch the check

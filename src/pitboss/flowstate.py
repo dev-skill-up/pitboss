@@ -9,7 +9,15 @@ import dataclasses
 import enum
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import bodydigest, plandigest, rulingwords, sessionurl, shapes, steps
+from . import (
+    bodydigest,
+    draftfacts,
+    plandigest,
+    rulingwords,
+    sessionurl,
+    shapes,
+    steps,
+)
 
 
 class Ci(enum.Enum):
@@ -41,12 +49,7 @@ class PullState:
             reviewed head by merge commits only (the caller reads the base).
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
-        needs_e2e: says whether the diff touches a path the e2e jobs run on and
-            no dispatched run of ``check.yml`` at the head has completed (the
-            caller reads the files, the configuration and the runs; a draft's
-            own run skipped
-            the e2e jobs, so it is not one; asked only for a draft whose Plan
-            is approved; keyword: run-e2e).
+        draft: what the caller read for a draft (``draftfacts.Draft``).
     """
 
     pull: shapes.Pull
@@ -58,7 +61,7 @@ class PullState:
     undraft_clear: bool = False
     merges_only_since: Callable[[str], bool] = lambda sha: False
     relock: bool = False
-    needs_e2e: Callable[[], bool] = lambda: False
+    draft: draftfacts.Draft = draftfacts.Draft()
 
 
 def plan_rejected_last(pr: PullState) -> bool:
@@ -321,6 +324,28 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     return None if reviewed or pushed else ruled
 
 
+def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Next:
+    """The Plan review of a draft, once the check its repository requires is done.
+
+    quire's lint refuses an approval of a head with no completed green ``check``
+    run, and a draft runs that job (keyword: plan-review-check, pitboss#275), so
+    the review waits for the run as a ready PR's does; the Plan check needs no CI.
+
+    Args:
+        pr: the draft, whose Plan is not approved and not rejected at its head.
+        step: the step of its Plan (``plancheckflow.review``).
+
+    Returns:
+        The wait for CI when the step is the review and the configured check has
+        not completed at the head, else the step.
+    """
+    name = pr.draft.plan_review_check
+    due = step.step is steps.Step.REGULAR_REVIEW and name
+    if due and not draftfacts.completed(pr.checks, name):
+        return steps.wait_for_ci()
+    return step
+
+
 def e2e_step(pr: PullState) -> steps.Next | None:
     """The step of a draft whose changed e2e suite has run in no check run.
 
@@ -339,7 +364,7 @@ def e2e_step(pr: PullState) -> steps.Next | None:
         of the head has started and not finished (it is not dispatched again);
         else the dispatch.
     """
-    if not pr.needs_e2e():
+    if not pr.draft.needs_e2e():
         return None
     running = [each for each in pr.checks if not each.finished]
     return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)

@@ -257,6 +257,7 @@ def _rules(source: Source, slug: str, head: str) -> brief.Rules:
         footer=footers[0] if footers else "",
         project=source.brief,
         gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
+        plan_check=source.settings.project.plan_review_check,
     )
 
 
