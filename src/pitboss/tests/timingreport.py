@@ -6,13 +6,16 @@ time of the tests and the slowest ones with their times (keyword: test-timing).
 """
 
 import unittest
+from typing import Sequence
 
-from virtue.reporters import ComponentizedReporter
+from virtue.reporters import ComponentizedReporter as Virtue
 
 from ..noxcheck import SLOWEST_COUNT, TIMING_PREFIX
 
 
-def timing_lines(durations: list[tuple[float, str]]) -> list[str]:
+def timing_lines(
+    durations: Sequence[tuple[float, str]],
+) -> Sequence[str]:
     """The lines that say how long the tests took.
 
     Args:
@@ -30,19 +33,19 @@ def timing_lines(durations: list[tuple[float, str]]) -> list[str]:
     return lines
 
 
-class TimingReporter(ComponentizedReporter):  # type: ignore[misc]
+class TimingReporter(Virtue):  # type: ignore[misc]  # noqa: SLD504,SLD401
     """Virtue's default reporter, and at the end the time of the tests.
 
     The lines are printed when the run stops, which virtue does after a failing
     test too (``-x`` included), so a run that fails shows them.
     """
 
-    def startTestRun(self) -> None:  # noqa: N802
+    def startTestRun(self) -> None:  # noqa: N802,SLD303
         """Start the run with no durations."""
         self.durations: list[tuple[float, str]] = []
         super().startTestRun()
 
-    def addDuration(  # noqa: N802
+    def addDuration(  # noqa: N802,SLD303
         self, test: unittest.TestCase, elapsed: float
     ) -> None:
         """Keep how long a test took.
@@ -54,7 +57,7 @@ class TimingReporter(ComponentizedReporter):  # type: ignore[misc]
         self.durations.append((elapsed, test.id()))
         super().addDuration(test, elapsed)
 
-    def stopTestRun(self) -> None:  # noqa: N802
+    def stopTestRun(self) -> None:  # noqa: N802,SLD303
         """Stop the run, then print the time."""
         super().stopTestRun()
         self.stream.writelines(f"{line}\n" for line in timing_lines(self.durations))

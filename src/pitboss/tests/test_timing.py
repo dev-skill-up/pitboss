@@ -63,12 +63,7 @@ class TestReporter(unittest.TestCase):
 
     def test_the_lines_follow_virtues_summary(self) -> None:
         """The durations unittest reports are what is printed, after Ran."""
-        stream = io.StringIO()
-        reporter = timingreport.TimingReporter(stream=stream)
-        reporter.startTestRun()
-        reporter.addDuration(Case("test_one"), 0.25)
-        reporter.stopTestRun()
-        shown = stream.getvalue().splitlines()
+        shown = printed_by_runs(1, 0.25).splitlines()
         expected = [
             f"{PREFIX}total 0.250s in 1 tests",
             f"{PREFIX}slowest 1 0.250s {Case('test_one').id()}",
@@ -78,14 +73,27 @@ class TestReporter(unittest.TestCase):
 
     def test_a_second_run_starts_from_none(self) -> None:
         """The durations are the run's own."""
-        stream = io.StringIO()
-        reporter = timingreport.TimingReporter(stream=stream)
-        for _ in range(2):
-            reporter.startTestRun()
-            reporter.addDuration(Case("test_one"), 1.0)
-        reporter.stopTestRun()
-        shown = stream.getvalue()
+        shown = printed_by_runs(2, 1.0)
         assert_that(f"{PREFIX}total 1.000s in 1 tests" in shown, equal_to(True))
+
+
+def printed_by_runs(starts: int, seconds: float) -> str:
+    """What a reporter prints when it is started some times and stopped once.
+
+    Args:
+        starts: how many times the run is started.
+        seconds: the duration reported after each start.
+
+    Returns:
+        The text.
+    """
+    stream = io.StringIO()
+    reporter = timingreport.TimingReporter(stream=stream)
+    for _ in range(starts):
+        reporter.startTestRun()
+        reporter.addDuration(Case("test_one"), seconds)
+    reporter.stopTestRun()
+    return stream.getvalue()
 
 
 class TestTimingOf(unittest.TestCase):

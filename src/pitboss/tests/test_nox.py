@@ -135,7 +135,9 @@ class TestNoxCommand(unittest.TestCase):
         found, _ = run_nox({"tests-3.13": 1})
         timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests"
         assert_that(found.out.count(timing), equal_to(1))
-        has_all(found.out, ["tests-3.13 failed", "output of tests-3.13"])
+        shown = [each for each in found.out.splitlines() if "tests-3.13" in each]
+        assert_that(shown[0].startswith("tests-3.13 failed"), equal_to(True))
+        assert_that("output of tests-3.13" in found.out, equal_to(True))
 
     def test_it_stops_at_the_first_failure(self) -> None:
         """Whichever session fails, none after it runs, and the exit is 1."""
