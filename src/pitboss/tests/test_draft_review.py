@@ -164,7 +164,7 @@ class TestDraftsInTheSweep(unittest.TestCase):
         """One DRAFT ROUND line, in place of WAIT-FOR-CI."""
         out = swept([], draft=True)
         assert_that(out, contains_string("DRAFT ROUND owner/project#3: review it"))
-        assert_that(out, contains_string("a draft has no check run"))
+        assert_that(out, contains_string("it is listed first in `slots next`"))
         assert_that("WAIT-FOR-CI owner/project#3" in out, equal_to(False))
 
     def test_the_sweep_says_the_fix_of_a_rejected_draft(self) -> None:

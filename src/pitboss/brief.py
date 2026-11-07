@@ -354,7 +354,7 @@ def _e2e(spec: Spec) -> Sequence[str]:
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
-    # keyword: draft-review (pitboss#156): the Plan stage is a draft's, with no CI
+    # keyword: draft-review (pitboss#156): the Plan stage is a draft's
     # a Plan revised on a PR that is not a draft has its checks (pitboss#167)
     draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
     ci = brieftextdraft.draft_ci(spec.rules.plan_check) if draft else text.CI

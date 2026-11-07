@@ -114,7 +114,7 @@ def pending(facts: PullFacts) -> int:
 
 
 def waiting_for_ci(facts: PullFacts) -> bool:
-    """Whether the head has no completed check run (a draft that runs no CI).
+    """Whether the head has no completed check run.
 
     Args:
         facts: the PR.

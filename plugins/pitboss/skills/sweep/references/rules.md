@@ -173,10 +173,10 @@ Only override for bugs, but do override for bugs (and then file them)".
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
    review of a PR in progress is never started to fill a slot. A head with no
-   completed check run (a draft that runs no CI) is waiting for CI: a reviewer
+   completed check run is waiting for CI: a reviewer
    on it reports NOT STARTED, except a review of a draft at its Plan stage (its
    first review, or the review of a Plan revised on a draft), which its author's
-   hand-back starts and which has no check to wait for ("Plan first"). A Plan
+   hand-back starts and ("Plan first"). A Plan
    revised on a PR that is not a draft waits for CI like any review, and is then
    graded alone (pitboss#167).
 4. **The rows of the ledger are the agents that run, reviewers included**
@@ -1003,8 +1003,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   body is the full SHA of the PR's head, the one this brief names; the Evidence
   is real output (a command and what it printed) run on that head (a row the
   Plan points to CI has the pointer instead); every
-  required check finished and passed at that head (a draft at its Plan stage has
-  no check run, and you say that none was read; an Execution is graded only on a
+  required check finished and passed at that head (an Execution is graded only on a
   complete run: a draft, or a head with an unfinished check, is NOT STARTED,
   pitboss#202); in a review of the Plan alone
   only the Head line is checked.` The brief names the PR and
@@ -1216,7 +1215,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   "contention" are not causes. A class of failure a change says it covers has a
   case that fails when the class occurs, shown by injecting it. A reviewer runs
   nothing (but the dry runs of a Plan review) and starts only when every required check is finished and green on
-  the exact head (a review of a draft at its Plan stage has no check run to wait for).
+  the exact head (a review of a draft at its Plan stage: its brief from `slots next` says what to read).
 - **Saying a defect out loud is not fixing it** ("documented", "disclosed",
   "known", "non-blocking" never make an approval): a defect is changes needed,
   or, when the owner has ruled the PR may land, its own ticket at once.

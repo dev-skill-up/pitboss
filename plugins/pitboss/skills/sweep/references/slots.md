@@ -167,13 +167,13 @@ exactly one step and at most one kind. There are nine:
    is the plan-only review too when the newest review rejected the Plan and no
    review names this head or body (pitboss#167), and its brief then reads the
    checks. On a draft it is the plan-only review (stage `grade the Plan ONLY`), listed
-   with no CI, since a draft runs none, for a draft with no review, or one of an older head,
+   for a draft with no review, or one of an older head,
    and before every `start a PR` line (pitboss#156; a draft whose Plan a review at its head
    rejects is `revise the plan` or `fix the review`, and so is a draft whose Plan is approved
    when the newest review at its head asks for changes, pitboss#176; a draft whose Plan is approved
    and has no such review, and whose newest review did not approve the Plan alone after the newest readable ruling (kind 9), waits for its undraft and is offered for no round (so is one whose diff changes the e2e suite and has no completed dispatched run of `check.yml` at its head: its step is `RUN E2E BEFORE APPROVAL`, the dispatch, pitboss#199, when nothing is running at the head; while a check run of the head is unfinished it is `waiting for CI at this head`); a draft or a PR with no review whose Plan has commands and no trusted
    PR comment records a clean `plan-check` of it is at `PLAN_CHECK` and is offered for no round until the orchestrator has run
-   `uvx pitboss plan-check` and posted its output as a PR comment, keyword: plan-check, pitboss#192). Its brief (the Plan stage's alone: an Execution-stage brief says a draft is NOT STARTED, pitboss#202) says a draft has no check run and the
+   `uvx pitboss plan-check` and posted its output as a PR comment, keyword: plan-check, pitboss#192). Its brief (the Plan stage's alone: an Execution-stage brief says a draft is NOT STARTED, pitboss#202) says the
    reviewer reads the diff and the PR body only, besides the read-only dry runs of the
    Plan's commands. A reviewer that is not its author
    reviews it; the author never waits on CI, but pushes, reports the head and
