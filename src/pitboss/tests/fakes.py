@@ -62,7 +62,7 @@ class Processes(Protocol):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class FakeProcesses:
-    """Answers ``gh api`` from canned bodies, and runs everything else.
+    """Answers ``gh api`` from canned bodies, and runs the rest, git too, for real.
 
     Attributes:
         bodies: each ``gh api`` path (or ``POST`` path) and its JSON body (a
@@ -70,12 +70,17 @@ class FakeProcesses:
             a missing path fails like ``gh`` does on a 404.
         calls: every command line run, in order.
         answers: the exit status of each program that is not run at all (the
-            machine's tracefs check and mount); 127 is a program not found.
+            machine's tracefs check and mount, ``curl``, ``gh``); 127 is a
+            program not found. ``git`` is never one of them: a test that needs
+            git to fail gives it a repository that makes it fail.
+        cwd: where the commands that are run for real run; None is the
+            directory of the test process.
     """
 
     bodies: MutableMapping[str, object]
     calls: MutableSequence[Sequence[str]] = dataclasses.field(default_factory=list)
     answers: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    cwd: pathlib.Path | None = None
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Output:
         """Run a command.
@@ -95,8 +100,7 @@ class FakeProcesses:
         if command[0] in self.answers:
             return answer(self.answers[command[0]], command)
         if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
-            done = subprocess.run(command, check=True, capture_output=True, text=True)
-            return Output(stdout=done.stdout)
+            return run_for_real(command, self.cwd)
         path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
         if path not in self.bodies:
             raise subprocess.CalledProcessError(
@@ -104,6 +108,20 @@ class FakeProcesses:
             )
         body = self.bodies[path]
         return Output(stdout=body if isinstance(body, str) else json.dumps(body))
+
+
+def run_for_real(command: Sequence[str], cwd: pathlib.Path | None) -> Output:
+    """Run a command, ``git`` included, on the machine.
+
+    Args:
+        command: the command line.
+        cwd: where it runs; None is the directory of the test process.
+
+    Returns:
+        The finished process.
+    """
+    done = subprocess.run(command, check=True, capture_output=True, text=True, cwd=cwd)
+    return Output(stdout=done.stdout)
 
 
 def answer(status: int, command: Sequence[str]) -> Output:
@@ -117,9 +135,12 @@ def answer(status: int, command: Sequence[str]) -> Output:
         The finished process.
 
     Raises:
+        ValueError: for ``git``, which is never answered.
         FileNotFoundError: for 127.
         subprocess.CalledProcessError: for any other status but 0.
     """
+    if command[0] == "git":
+        raise ValueError("git is run for real; give it a repository that fails")
     if status == NOT_FOUND:
         raise FileNotFoundError(command[0])
     if status:

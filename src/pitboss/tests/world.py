@@ -254,7 +254,8 @@ def make_world(answers: fakes.Answers = fakes.TRACEFS_FOUND) -> World:
 
     Args:
         answers: the exit status of the tracefs check (``grep``) and of the
-            mount; nothing is mounted on the machine.
+            mount; nothing is mounted on the machine. Git runs for real, in
+            the world's main clone.
 
     Returns:
         The world.
@@ -263,7 +264,7 @@ def make_world(answers: fakes.Answers = fakes.TRACEFS_FOUND) -> World:
     clone = repositories.make_merged(workspace)
     worktree = workspace / repositories.MERGED
     ledger = configure(workspace)
-    processes = fakes.FakeProcesses(bodies=bodies(), answers=answers)
+    processes = fakes.FakeProcesses(bodies=bodies(), answers=answers, cwd=clone)
     return World(
         workspace=workspace,
         clone=clone,

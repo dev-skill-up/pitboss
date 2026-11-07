@@ -12,7 +12,6 @@ from . import fakes, quietworld, test_config, world
 
 PROJECT_JOBS = world.project_page("actions/runs/11/jobs")
 START = world.START
-GIT_ANSWERS = {"grep": 0, "mount": 1, "git": 0}
 PUSH = ("push", "--no-dry-run", "origin", "branch-1")
 
 
@@ -28,7 +27,7 @@ def at(minute: int) -> str:
     return (START + datetime.timedelta(minutes=minute)).isoformat()
 
 
-def clear_world(answers: fakes.Answers = GIT_ANSWERS) -> world.World:
+def clear_world(answers: fakes.Answers = fakes.TRACEFS_FOUND) -> world.World:
     """A world whose runners have no job waiting.
 
     Args:
@@ -51,7 +50,7 @@ def waiting_world(jobs: int) -> world.World:
     Returns:
         The world.
     """
-    here = world.make_world(GIT_ANSWERS)
+    here = world.make_world()
     here.bodies[PROJECT_JOBS] = {"jobs": [{"status": "queued"}] * jobs}
     return here
 
@@ -156,7 +155,7 @@ class TestPressure(unittest.TestCase):
 
     def test_lines(self) -> None:
         """Waiting, a quiet period to go, and over: one line each."""
-        waiting = world.make_world(GIT_ANSWERS)
+        waiting = world.make_world()
         first = clear_world()
         later = clear_world()
         write(later, hold_at(-60))
@@ -308,11 +307,12 @@ class TestQueued(unittest.TestCase):
     def test_pushes_that_do_not_record(self) -> None:
         """In a dry run, when git fails or to a draft: no hold."""
         seed = hold_at(-60)
-        failing = {"grep": 0, "mount": 1, "git": 3}
+        refused = clear_world()
+        quietworld.refused_by_the_origin(refused)
         cases = [
             (clear_world(), (), (0, 0)),
-            (clear_world(failing), ("--no-dry-run",), (3, 1)),
-            (world.make_world(GIT_ANSWERS), ("--no-dry-run", "--draft"), (0, 1)),
+            (refused, ("--no-dry-run",), (1, 1)),
+            (world.make_world(), ("--no-dry-run", "--draft"), (0, 1)),
         ]
         found = []
         for here, options, _ in cases:
@@ -328,7 +328,8 @@ class TestPushRefused(unittest.TestCase):
 
     def test_refused_push_shows_git_message(self) -> None:
         """Status 128, git's text and the hold unchanged; no arguments push HEAD."""
-        here = clear_world({"grep": 0, "mount": 1, "git": 128})
+        here = clear_world()
+        gone = quietworld.without_an_origin(here)
         seed = hold_at(-60)
         write(here, seed)
         result = world.again(here, "push", "--now", at(0), "--no-dry-run", "--draft")
@@ -336,7 +337,7 @@ class TestPushRefused(unittest.TestCase):
         shown = [line for line in result.out.splitlines() if "git" in line]
         expected_lines = [
             "git push failed (exit 128): nothing was recorded",
-            "fatal: git refused",
+            f"fatal: '{gone}' does not appear to be a git repository",
         ]
         found = [result.code, pushed, shown, lines(here)]
         origin_head = [["git", "push", "origin", "HEAD"]]

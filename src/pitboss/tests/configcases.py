@@ -11,7 +11,6 @@ from typing import Callable, Mapping, NamedTuple, Sequence
 from .. import configsettle
 from . import cleanworld, fakes, redworld, syncworld, world
 
-GIT = {"grep": 0, "mount": 1, "git": 0}
 FORMS = ("bare", "option", "positional", "variable")
 SEARCHED = "pitboss.toml"
 ELSEWHERE = "elsewhere.toml"
@@ -36,12 +35,12 @@ class Case:
 
 
 def plain() -> world.World:
-    """A world whose ``git`` is not run and whose runners have no job waiting.
+    """A world whose runners have no job waiting.
 
     Returns:
         The world.
     """
-    here = world.make_world(GIT)
+    here = world.make_world()
     here.bodies.update({world.project_page("actions/runs/11/jobs"): {"jobs": []}})
     return here
 
