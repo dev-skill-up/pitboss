@@ -1,7 +1,7 @@
 # Reading a sweep
 
 `pitboss sweep` prints, in order: one line per open PR of the project and its
-libraries, each followed by its action lines (in this order: `STALL`, `UPDATE`, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, `PLAN ROW`, `UNREADABLE REVIEW`, `REVIEW NOTE`, `RULING NO ANALYSIS`, `GATE PENDING`, `WAIT-FOR-CI`, `CONFLICT`, one `FAILED` for each failed check, then `PINS-ONLY OK` or `PINS-ONLY`, then `READY TO MERGE`, `MERGE BY HAND` or `AUTO MERGE OFF`); the runner-pressure line; the
+libraries, each followed by its action lines (in this order: `STALL`, `UPDATE`, `FIXED ON BASE`, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, `PLAN ROW`, `UNREADABLE REVIEW`, `REVIEW NOTE`, `RULING NO ANALYSIS`, `GATE PENDING`, `WAIT-FOR-CI`, `CONFLICT`, one `FAILED` for each failed check, then `PINS-ONLY OK` or `PINS-ONLY`, then `READY TO MERGE`, `MERGE BY HAND` or `AUTO MERGE OFF`); the runner-pressure line; the
 merge-queue runs; the stragglers; the finished worktrees (removed or kept, or with `[clean] worktrees = "list"` listed as stale); the disk pressure; the
 reminders; the slot ledger; the `OPUS RULINGS DAILY` line when a day's summary is owed. It exits 1 when any PR has a failed check (not one that passed on the base since: `FIXED ON BASE`) or a merge conflict,
 so a loop can act on it.

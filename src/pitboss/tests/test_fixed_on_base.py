@@ -12,7 +12,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import basefix, fixedline, flow, headchecks, reviews, shapes, steps
-from . import fakes, test_flow, test_work, world
+from . import fakes, syncworld, test_commands, test_flow, test_work, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -43,6 +43,12 @@ BASE_PASSED = {
 BASE_FAILED = dict(BASE_PASSED, conclusion="failure")
 BASE_CANCELLED = dict(BASE_PASSED, conclusion="cancelled")
 BASE_BEFORE = dict(BASE_PASSED, completed_at="2026-10-01T09:00:00Z")
+BASE_NEWER_FAILED = dict(
+    BASE_FAILED,
+    id=100,
+    started_at="2026-10-01T12:50:00Z",
+    completed_at="2026-10-01T13:00:00Z",
+)
 BASE_OTHER = dict(BASE_PASSED, name="lint")
 ENQUEUE = "enqueue it (the merge queue tests it on main)"
 REQUEST = "request the review"
@@ -83,8 +89,27 @@ def red_world(
     Returns:
         The world.
     """
-    number, state = pr
     here = world.make_world()
+    add_pull(here, pr, base, checks)
+    fakes.settings(here.workspace, (world.EXTRA + extra).format(ledger=here.ledger))
+    return here
+
+
+def add_pull(
+    here: world.World,
+    pr: tuple[int, str],
+    base: Sequence[object],
+    checks: Sequence[object],
+) -> None:
+    """Put a PR with check runs, and the base's runs, in a world.
+
+    Args:
+        here: the world.
+        pr: the PR's number and ``mergeable_state``.
+        base: the check runs of the base branch's tip.
+        checks: the check runs of the PR's head.
+    """
+    number, state = pr
     head = fakes.HEAD if number == 2 else str(number) * 40
     ref = {"sha": head, "ref": f"branch-{number}"}
     here.bodies[f"{PROJECT}/pulls/{number}"] = fakes.pull_body(
@@ -93,8 +118,6 @@ def red_world(
     for commit, runs in ((head, checks), ("main", base)):
         path = fakes.page(f"{PROJECT}/commits/{commit}/check-runs")
         here.bodies[path] = {"check_runs": list(runs)}
-    fakes.settings(here.workspace, (world.EXTRA + extra).format(ledger=here.ledger))
-    return here
 
 
 # each: what the world is, the sweep lines that start with a text (or not), the
@@ -165,6 +188,8 @@ CASES: Sequence[Case] = [
             ("before", [BASE_BEFORE]),
             ("another check", [BASE_OTHER]),
             ("no run", []),
+            ("older pass, newer failure", [BASE_PASSED, BASE_NEWER_FAILED]),
+            ("newer failure listed first", [BASE_NEWER_FAILED, BASE_PASSED]),
         ]
     ],
 ]
@@ -185,6 +210,32 @@ class TestSweep(unittest.TestCase):
                     any("commits/main/check-runs" in " ".join(c) for c in here.calls),
                 )
                 assert_that(found, equal_to((said, listed, read)))
+
+
+def exit_and_logs(base: Sequence[object]) -> tuple[int, bool]:
+    """Sweep a world whose only open PR of the project is the red PR 3.
+
+    Args:
+        base: the check runs of the base branch's tip.
+
+    Returns:
+        The sweep's exit code, and whether it read the failed job's log.
+    """
+    here = syncworld.make_synced(QUEUE).here
+    add_pull(here, (3, "behind"), base, (RED_RUN,))
+    here.bodies.update({test_commands.OPEN_PULLS: [{"number": 3}]})
+    code = int(str(sweep(here).code))
+    logs = [call for call in here.calls if "actions/jobs/8" in " ".join(call)]
+    return code, bool(logs)
+
+
+class TestExit(unittest.TestCase):
+    """The exit status of ``pitboss sweep`` and the failure logs it reads."""
+
+    def test_only_an_unanswered_failed_check_makes_it_exit_one(self) -> None:
+        """Answered: exit 0 and no log read; unanswered: exit 1 and the log read."""
+        found = [exit_and_logs(base) for base in ([BASE_PASSED], [])]
+        assert_that(found, equal_to([(0, False), (1, True)]))
 
 
 class TestLine(unittest.TestCase):
