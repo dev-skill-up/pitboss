@@ -1009,9 +1009,10 @@ listed at most once. The nine kinds:
   draft or not; the author runs the Plan's commands as written and fills the
   Execution and Evidence, and does not change the Plan;
 * ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
-  PR that is not a draft it is the plan-only review when the newest review rejected the Plan
+  PR that is not a draft it comes once every required check finished green on
+  the head; it is the plan-only review when the newest review rejected the Plan
   and no review names this head or body (pitboss#167). On a draft it is the
-  plan-only review, listed with no CI, since a draft runs none, before every
+  plan-only review, before every
   new ticket (pitboss#156); a draft is undrafted only once its Plan is approved
   and no review at its head asks for changes (that fix comes first, pitboss#176)
   and none approved the Plan alone after a ruling (that worker round comes

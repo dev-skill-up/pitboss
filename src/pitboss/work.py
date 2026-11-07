@@ -4,7 +4,7 @@ The order (work-order): the open PRs that need work come first, in one list,
 oldest first, whatever each needs. What a PR needs is the step ``flow.next_step``
 gives it (keyword: review-flow): a worker's round, whose kind is its task (a
 revision of the plan and nothing else, a fix of the CI, the Plan and Execution
-body, the resolution of a conflict, or any other fix of a review), or a review
+body, the resolution of a conflict, a fix of a review, or CI quotes), or a review
 by a new reviewer (a draft's plan-only review included). There is no update
 kind. The kind is a label on the line, not a rank. A PR whose step is to wait
 (for CI, an undraft or the owner), to ask Opus for a ruling, to pause for the

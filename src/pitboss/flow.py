@@ -68,7 +68,7 @@ def newest_counting_review(pr: PullState) -> Graded | None:
     an older head and does not count; ``plan_approved`` carries its approval.
     The newest review of the head that records a body digest other than the
     PR body's now does not count either (keyword: body-digest, pitboss#147):
-    a body fix is answered by a re-review, as a pushed fix is.
+    a body fix is answered by a re-review or, while CI quotes are missing, by theirs.
 
     Args:
         pr: the PR.
