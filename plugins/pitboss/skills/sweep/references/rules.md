@@ -176,7 +176,7 @@ Only override for bugs, but do override for bugs (and then file them)".
    completed check run is waiting for CI: a reviewer
    on it reports NOT STARTED, except a review of a draft at its Plan stage (its
    first review, or the review of a Plan revised on a draft), which its author's
-   hand-back starts and ("Plan first"). A Plan
+   hand-back starts ("Plan first"). A Plan
    revised on a PR that is not a draft waits for CI like any review, and is then
    graded alone (pitboss#167).
 4. **The rows of the ledger are the agents that run, reviewers included**
