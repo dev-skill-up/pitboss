@@ -19,7 +19,8 @@ Commands
                                                 worktrees (it removes the finished ones that
                                                 are safe to, ``[clean] worktrees``), disk
                                                 pressure, reminders, slots. Exits 1 on a red or
-                                                conflicted PR.
+                                                conflicted PR (not one red only from
+                                                checks that passed on the base since).
 ``pitboss pressure CONFIG``                     Records a look; one line; exits 1 under runner pressure
                                                 and until the quiet period is over.
 ``pitboss queued CONFIG``                       Records a queued job (restarts the quiet period).

@@ -106,6 +106,7 @@ QUEUE_RUNS = {
 REPOSITORY_BODIES: MutableMapping[str, object] = {
     PROJECT: {},
     LIBRARY: {},
+    fakes.page(f"{PROJECT}/commits/main/check-runs"): {"check_runs": []},
     fakes.page(f"{PROJECT}/issues/comments"): [],
     fakes.page(f"{LIBRARY}/issues/comments"): [],
     fakes.page(f"{PROJECT}/pulls?state=open"): [{"number": n} for n in (1, 2, 3)],

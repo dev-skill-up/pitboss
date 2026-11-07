@@ -6,6 +6,7 @@ from typing import AbstractSet, Callable, Sequence
 
 from . import (
     analysis,
+    basefix,
     bodydigest,
     config,
     conflicts,
@@ -182,6 +183,7 @@ class Source:
             (keyword: run-e2e).
         plan_review_check: the check a draft's Plan review waits for
             (keyword: plan-review-check).
+        merge_queue: the repositories with a merge queue (keyword: fixed-on-base).
         early: takes the Execution reviews written before green out of a
             PR's comments (keyword: execution-before-green, pitboss#202).
         pins: asks the pins-check command about a PR at a review step
@@ -194,6 +196,7 @@ class Source:
     relock_prefix: str = config.DEFAULT_RELOCK_PREFIX
     run_by_e2e: Sequence[str] = config.DEFAULT_RUN_BY_E2E
     plan_review_check: str = ""
+    merge_queue: AbstractSet[str] = frozenset()
     early: earlyfound.Split = earlyfound.keep_all
     pins: pinsask.Ask = lambda repo, pull: pinsreading.NOTHING
 
@@ -240,6 +243,8 @@ class Fetched:
         checks: the check runs of its head.
         statuses: the newest commit status of each context of its head.
         premature: its Execution reviews left out of ``posted``.
+        fixed: what the base answered of its failed checks (keyword:
+            fixed-on-base, pitboss#314).
     """
 
     pull: shapes.Pull
@@ -248,6 +253,7 @@ class Fetched:
     checks: Sequence[shapes.CheckRun]
     statuses: Sequence[shapes.CommitStatus] = ()
     premature: Sequence[earlyfound.Premature] = ()
+    fixed: Sequence[basefix.Answer] = ()
 
 
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
@@ -256,13 +262,17 @@ def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     posted = headchecks.statuses(source.github, repo, pull.head.sha)
     sent = _sources(source, repo, number)
     kept, early = source.early(repo, pull, sent.comments)
+    current = headchecks.checks(source.github, repo, pull.head.sha, posted)
+    queued = repo.slug in source.merge_queue
+    base = pull.base
     return Fetched(
         pull=pull,
         labels=parsing.labels(text),
         posted=reviews.Sources(comments=kept, reviews=sent.reviews),
-        checks=headchecks.checks(source.github, repo, pull.head.sha, posted),
+        checks=current,
         statuses=posted,
         premature=early,
+        fixed=headchecks.answered(source.github, repo, base, current) if queued else (),
     )
 
 
@@ -270,7 +280,7 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
     return flow.PullState(
         pull=got.pull,
         labels=got.labels,
-        checks=got.checks,
+        checks=basefix.settle(got.checks, got.fixed),
         graded=reviews.recorded(source.review, repo.slug, got.posted),
         comments=got.posted.comments,
         trusted=source.review.trusted,
@@ -312,7 +322,15 @@ def _signals(
     approved = flowstate.approved_digests(state.graded)
     # keyword: pins-only (pitboss#34): asked only where a review would be offered
     pins = pinsask.at_review(source.pins, repo, got.pull, flow.next_step(state))
-    return dataclasses.replace(found, gate=unmet, approved_plans=approved, pins=pins)
+    return dataclasses.replace(
+        found, gate=unmet, approved_plans=approved, pins=pins, fixed=got.fixed
+    )
+
+
+def _step(state: flow.PullState, signals: headchecks.HeadSignals) -> steps.Next:
+    # keyword: fixed-on-base: the flow read the answered failures as passed
+    step = pinsask.unreviewed(flow.next_step(state), signals.pins)
+    return dataclasses.replace(step, on_base=bool(signals.fixed))
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -339,7 +357,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         standing=standing,
         signals=signals,
         unreadable=_unreadable(source, repo, got, found),
-        step=pinsask.unreviewed(flow.next_step(state), signals.pins),
+        step=_step(state, signals),
         review_rounds=rounds.of(state, merged),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
     )

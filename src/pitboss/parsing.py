@@ -107,6 +107,7 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
             started_at=item.get("started_at") or "",
             completed_at=item.get("completed_at") or "",
             run=run_of(item.get("details_url")),
+            succeeded=item.get("conclusion") == "success",
         )
         for item in json.loads(text)["check_runs"]
     ]

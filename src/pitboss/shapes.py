@@ -117,8 +117,8 @@ class CheckRun:
         head_sha: the commit it ran on ("" when GitHub does not say).
         started_at: when it started (ISO 8601, "" when it has not).
         completed_at: when it completed (ISO 8601, "" when it has not).
-        run: the id of the Actions workflow run it belongs to (0 when it is
-            not an Actions check).
+        run: the id of its Actions workflow run (0 when not an Actions check).
+        succeeded: whether it completed with the conclusion ``success``.
     """
 
     id: int
@@ -129,6 +129,7 @@ class CheckRun:
     started_at: str = ""
     completed_at: str = ""
     run: int = 0
+    succeeded: bool = False
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

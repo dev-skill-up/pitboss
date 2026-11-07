@@ -25,6 +25,7 @@ from . import (
     configfile,
     dead,
     ghapi,
+    headchecks,
     ledger,
     ledgerowner,
     localsections,
@@ -235,7 +236,9 @@ def _pull_lines(
     blocked = pullstate.blocked_lines(found.github, found.settings, pull, ())
     for line in (*shown, *removedline.settle(got.said, acts), *blocked):
         print(line)
-    return pulls.conflicted(pull) or bool(pulls.failed_checks(pull))
+    return pulls.conflicted(pull) or bool(
+        headchecks.unanswered(pull.checks, pull.signals)
+    )
 
 
 def _pull_section(

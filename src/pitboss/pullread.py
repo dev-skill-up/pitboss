@@ -85,6 +85,7 @@ def _source(
         relock_prefix=settings.lint.relock_prefix,
         run_by_e2e=settings.project.run_by_e2e,
         plan_review_check=settings.project.plan_review_check,
+        merge_queue=settings.merge_queue.repositories,
         early=functools.partial(earlyreview.split, tools),
         pins=pinsonly.asker(github, settings),
     )
