@@ -1,6 +1,7 @@
 """The top suggestions of ``next`` and ``slots next``, each with its brief.
 
-The first suggestion is the one the process requires, the others are the next
+On a crowded volume (90% used or more) the clean suggestion comes first; the
+first of the picks is the one the process requires, the others are the next
 ones that could start, so that a reason the model cannot name (the slot cap, a
 missing checkout) does not stop the work. The order is the one ``work.queued``
 gives, with the PRs at an Opus ruling before it: a ruling is owed first and
@@ -15,6 +16,7 @@ from . import (
     brief,
     briefconfig,
     config,
+    diskwatch,
     fixes,
     gates,
     ghapi,
@@ -99,6 +101,9 @@ class Source:
         facts: the open PRs that were read.
         items: the queued work, in order.
         failed: each reference's failed models.
+        volume: the workspace's volume as read (keyword: disk-watch,
+            pitboss#288), None when unread.
+        big: the largest scratch entries, read only for a crowded volume.
     """
 
     github: ghapi.GitHub
@@ -108,6 +113,8 @@ class Source:
     facts: Sequence[pulls.PullFacts]
     items: Sequence[work.Item]
     failed: Mapping[str, Sequence[str]]
+    volume: diskwatch.Reading | None = None
+    big: Sequence[diskwatch.Big] = ()
 
 
 def _ruling_pick(each: pulls.PullFacts) -> Pick:
@@ -335,6 +342,20 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
     )
 
 
+def _ranked(
+    source: Source, shown: Sequence[Pick], first: int, total: int
+) -> Iterable[str]:
+    marker = Marker.SUGGESTION.text
+    for rank, pick in enumerate(shown, start=first):
+        found = suggest(source, pick)
+        yield (
+            f"{marker} {rank} of {total}: {found.kind.value}:"
+            f" {found.reference}: {found.model}"
+        )
+        yield from found.text.splitlines()
+        yield f"--- end of suggestion {rank} ---"
+
+
 def lines(source: Source) -> Iterable[str]:
     """The top suggestions, each as a header, its brief and an end line.
 
@@ -343,20 +364,18 @@ def lines(source: Source) -> Iterable[str]:
 
     Yields:
         The lines: up to ``TOP`` suggestions in order, then how many more
-        are queued; one line when nothing could start.
+        are queued; one line when nothing could start. On a volume 90 % used or
+        with under 1 GiB free the first suggestion is ``clean the disk``; under
+        1 GiB free no worker is suggested (keyword: disk-watch, pitboss#288).
     """
     marker = Marker.SUGGESTION.text
-    every = picks(source)
+    every = [] if diskwatch.starved(source.volume) else picks(source)
     shown = every[:TOP]
-    if not shown:
+    if not shown and not diskwatch.starved(source.volume):
         yield f"{marker}: none: nothing is queued that could start"
-    for rank, pick in enumerate(shown, start=1):
-        found = suggest(source, pick)
-        yield (
-            f"{marker} {rank} of {len(shown)}: {found.kind.value}:"
-            f" {found.reference}: {found.model}"
-        )
-        yield from found.text.splitlines()
-        yield f"--- end of suggestion {rank} ---"
+    cleaning = diskwatch.crowded(source.volume)
+    total = len(shown) + cleaning
+    yield from diskwatch.opening(source.volume, source.big, total)
+    yield from _ranked(source, shown, 1 + cleaning, total)
     if len(every) > len(shown):
         yield f"{marker}: {len(every) - len(shown)} more queued, not shown"

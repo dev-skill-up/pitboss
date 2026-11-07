@@ -18,6 +18,11 @@ PLAN_NO_NOX_REVIEW = (
     " is changes needed (pitboss#179: a Plan asks for no evidence that CI shows);"
     " the whole suite is CI's `Run Nox` step."
 )
+PLAN_NO_LOOP_REVIEW = (
+    "Repeated runs: a Plan whose evidence is a repeated local run (a loop of N"
+    " runs of a check) is a long run, which CI is the evidence for; it is changes"
+    " needed, and the finding is `move the evidence to CI` (pitboss#288)."
+)
 PLAN_POINTER_LAST = (
     "Number the Plan rows with every command row first and the CI-pointer rows"
     " last; plan-row pairs the Nth Evidence command with row N (pitboss#274)."
@@ -44,6 +49,8 @@ PLAN_CI_POINTER_REVIEW = (
     " workflow, the step, a greppable string and how the run is found for the"
     " commit (pitboss#179)."
 )
+# the CI lines of a Plan review, in order (keyword: ci-pointer)
+PLAN_CI_REVIEW = (PLAN_NO_NOX_REVIEW, PLAN_NO_LOOP_REVIEW, PLAN_CI_POINTER_REVIEW)
 REVIEW_CI_ACCEPTED = (
     "CI evidence in the body: for a row the Plan points to CI, a CI pointer (the"
     " workflow, the job URL of the head, the step and the greppable string) is the"

@@ -12,10 +12,13 @@ import sys
 from typing import Protocol, Sequence
 
 from . import (
+    cleanconfig,
     config,
     configfile,
+    diskwatch,
     ghapi,
     ledger,
+    machine,
     nextview,
     offering,
     pulls,
@@ -44,6 +47,14 @@ class Found(Protocol):
 
         Returns:
             The configuration.
+        """
+
+    @property
+    def clean(self) -> cleanconfig.Clean:
+        """What ``clean-container`` looks at and keeps.
+
+        Returns:
+            The ``[clean]`` table.
         """
 
     @property
@@ -107,6 +118,36 @@ def _view(
     )
 
 
+def _big(found: Found, volume: diskwatch.Reading | None) -> Sequence[diskwatch.Big]:
+    # keyword: disk-watch (pitboss#288): walked only when the suggestion is due
+    if volume is None or not volume.crowded:
+        return []
+    return diskwatch.largest(machine.real(), found.clean.scratch)
+
+
+def _source(
+    found: Found,
+    opened: Sequence[pulls.Read],
+    ordered: work.Offered,
+    book: ledger.Ledger,
+) -> suggest.Source:
+    volume = diskwatch.read(found.args.usage, found.settings.project.workspace)
+    given = configfile.named(found.args)
+    return suggest.Source(
+        github=found.github,
+        settings=found.settings,
+        given=given,
+        brief=configfile.load_brief(
+            given, pathlib.Path(found.args.env.get("PWD", "."))
+        ),
+        facts=pulls.readable(opened),
+        items=ordered.items,
+        failed=book.failed,
+        volume=volume,
+        big=_big(found, volume),
+    )
+
+
 def show(
     found: Found,
     opened: Sequence[pulls.Read],
@@ -120,20 +161,11 @@ def show(
         book: the slot ledger.
     """
     ordered = _ordered(found, opened, book)
-    source = suggest.Source(
-        github=found.github,
-        settings=found.settings,
-        given=configfile.named(found.args),
-        brief=configfile.load_brief(
-            configfile.named(found.args), pathlib.Path(found.args.env.get("PWD", "."))
-        ),
-        facts=pulls.readable(opened),
-        items=ordered.items,
-        failed=book.failed,
-    )
+    source = _source(found, opened, ordered, book)
     for line in itertools.chain(
         nextview.next_lines(_view(found, ordered, book, source.facts)),
         pullstate.lines(found.github, found.settings, source.facts),
+        [diskwatch.line(source.volume)] if source.volume else [],
         suggest.lines(source),
     ):
         print(line)
