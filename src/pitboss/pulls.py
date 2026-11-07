@@ -10,6 +10,7 @@ from . import (
     config,
     conflicts,
     dispatchruns,
+    draftfacts,
     earlyfound,
     flow,
     flowstate,
@@ -199,6 +200,8 @@ class Source:
         relock_prefix: the head branch prefix of a relock PR.
         run_by_e2e: the path prefixes whose change the e2e suite runs on
             (keyword: run-e2e).
+        plan_review_check: the check a draft's Plan review waits for
+            (keyword: plan-review-check).
         early: takes the Execution reviews written before green out of a
             PR's comments (keyword: execution-before-green, pitboss#202).
     """
@@ -208,6 +211,7 @@ class Source:
     undraft: Callable[[], bool]
     relock_prefix: str = config.DEFAULT_RELOCK_PREFIX
     run_by_e2e: Sequence[str] = config.DEFAULT_RUN_BY_E2E
+    plan_review_check: str = ""
     early: earlyfound.Split = earlyfound.keep_all
 
 
@@ -292,10 +296,13 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
             source.github, repo, got.pull, sha
         ),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
-        needs_e2e=lambda: pullfiles.touches(
-            source.github, repo.slug, got.pull.number, source.run_by_e2e
-        )
-        and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
+        draft=draftfacts.Draft(
+            needs_e2e=lambda: pullfiles.touches(
+                source.github, repo.slug, got.pull.number, source.run_by_e2e
+            )
+            and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
+            plan_review_check=source.plan_review_check,
+        ),
     )
 
 

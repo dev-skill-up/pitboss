@@ -145,6 +145,7 @@ class Project:
         main_clone: the clone whose worktrees are swept.
         workspace: the directory whose checkouts are swept.
         run_by_e2e: the path prefixes the e2e suite runs on (``[sweep]``).
+        plan_review_check: the check a draft's Plan review waits for (``[sweep]``).
     """
 
     repo: Repo
@@ -152,6 +153,7 @@ class Project:
     main_clone: pathlib.Path
     workspace: pathlib.Path
     run_by_e2e: Sequence[str] = DEFAULT_RUN_BY_E2E
+    plan_review_check: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -294,13 +296,9 @@ def _lint(document: Mapping[str, object], owner: str) -> Lint:
     )
 
 
-def default_lint() -> Lint:
-    """The form checks when a project says nothing.
-
-    Returns:
-        The generic review form, no required footer and no required brief line.
-    """
-    return _lint({}, "")
+# the form checks when a project says nothing: the generic review form, no required
+# footer and no required brief line
+DEFAULT_LINT = _lint({}, "")
 
 
 def _project(document: Mapping[str, object]) -> Project:
@@ -312,6 +310,7 @@ def _project(document: Mapping[str, object]) -> Project:
         main_clone=main_clone,
         workspace=pathlib.Path(str(table.get("workspace", main_clone.parent))),
         run_by_e2e=_strings(sweep, "run_by_e2e", DEFAULT_RUN_BY_E2E),
+        plan_review_check=str(sweep.get("plan_review_check", "")),
     )
 
 

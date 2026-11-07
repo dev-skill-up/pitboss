@@ -323,11 +323,11 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
         The step.
     """
     if is_draft(pr):
-        # keyword: draft-review (pitboss#156): a rejection is fixed before any
-        # undraft, the Plan approved or not (pitboss#176)
+        # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
         rejection = rejection_step(pr, review) if review else None
         if rejection or not plan_approved(pr):
-            return rejection or plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+            alone = plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+            return rejection or flowstate.draft_plan_review(pr, alone)
         if unrun := flowstate.plan_unrun(pr, review):  # keyword: plan-alone
             return unrun
         if e2e := flowstate.e2e_step(pr):  # keyword: run-e2e (pitboss#199)
