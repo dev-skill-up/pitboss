@@ -2,8 +2,9 @@
 
 import io
 import unittest
+from typing import Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, not_
 
 from .. import expansion, noxcheck
 from . import timingreport
@@ -69,7 +70,7 @@ class TestReporter(unittest.TestCase):
             f"{PREFIX}slowest 1 0.250s {Case('test_one').id()}",
         ]
         assert_that(shown[-2:], equal_to(expected))
-        assert_that(any(line.startswith("Ran ") for line in shown), equal_to(True))
+        assert_that([each for each in shown if each[:4] == "Ran "], not_(equal_to([])))
 
     def test_a_second_run_starts_from_none(self) -> None:
         """The durations are the run's own."""
@@ -101,22 +102,22 @@ class TestTimingOf(unittest.TestCase):
 
     def test_only_the_lines_that_start_with_the_prefix(self) -> None:
         """Noise around them is left out."""
-        step = noxcheck.Step(
-            name="tests-3.13",
-            outcome=expansion.Outcome(
-                status=0, output=f"noise\n{PREFIX}total 1.000s in 1 tests\nmore\n"
-            ),
-            seconds=1,
-        )
-        assert_that(
-            noxcheck.timing_of(step), equal_to([f"{PREFIX}total 1.000s in 1 tests"])
-        )
+        found = timing_in(f"noise\n{PREFIX}total 1.000s in 1 tests\nmore\n")
+        assert_that(found, equal_to([f"{PREFIX}total 1.000s in 1 tests"]))
 
     def test_a_line_that_only_holds_the_prefix_is_not_timing(self) -> None:
         """The nearest input: the prefix inside a line, not at its start."""
-        step = noxcheck.Step(
-            name="lint",
-            outcome=expansion.Outcome(status=0, output=f"x {PREFIX}total\n"),
-            seconds=1,
-        )
-        assert_that(noxcheck.timing_of(step), equal_to([]))
+        assert_that(timing_in(f"x {PREFIX}total\n"), equal_to([]))
+
+
+def timing_in(output: str) -> Sequence[str]:
+    """The timing lines of the output of a passing session.
+
+    Args:
+        output: what the session printed.
+
+    Returns:
+        The lines ``noxcheck.timing_of`` finds.
+    """
+    done = expansion.Outcome(status=0, output=output)
+    return noxcheck.timing_of(noxcheck.Step(name="s", outcome=done, seconds=1))
