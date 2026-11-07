@@ -75,12 +75,15 @@ class FakeProcesses:
             git to fail gives it a repository that makes it fail.
         cwd: where the commands that are run for real run; None is the
             directory of the test process.
+        path: the ``PATH`` they run with; None is the machine's (a test of a
+            machine with no git gives a directory with no programs).
     """
 
     bodies: MutableMapping[str, object]
     calls: MutableSequence[Sequence[str]] = dataclasses.field(default_factory=list)
     answers: Mapping[str, int] = dataclasses.field(default_factory=dict)
     cwd: pathlib.Path | None = None
+    path: str | None = None
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Output:
         """Run a command.
@@ -100,7 +103,7 @@ class FakeProcesses:
         if command[0] in self.answers:
             return answer(self.answers[command[0]], command)
         if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
-            return run_for_real(command, self.cwd)
+            return run_for_real(command, self.cwd, self.path)
         path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
         if path not in self.bodies:
             raise subprocess.CalledProcessError(
@@ -110,17 +113,23 @@ class FakeProcesses:
         return Output(stdout=body if isinstance(body, str) else json.dumps(body))
 
 
-def run_for_real(command: Sequence[str], cwd: pathlib.Path | None) -> Output:
+def run_for_real(
+    command: Sequence[str], cwd: pathlib.Path | None, path: str | None
+) -> Output:
     """Run a command, ``git`` included, on the machine.
 
     Args:
         command: the command line.
         cwd: where it runs; None is the directory of the test process.
+        path: its ``PATH``; None is the machine's.
 
     Returns:
         The finished process.
     """
-    done = subprocess.run(command, check=True, capture_output=True, text=True, cwd=cwd)
+    env = None if path is None else {**os.environ, "PATH": path}
+    done = subprocess.run(
+        command, check=True, capture_output=True, text=True, cwd=cwd, env=env
+    )
     return Output(stdout=done.stdout)
 
 

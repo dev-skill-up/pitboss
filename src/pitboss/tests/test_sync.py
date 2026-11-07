@@ -1,13 +1,11 @@
 """``pitboss sync`` and the sweep's last step: the working files go to main."""
 
 import pathlib
-import subprocess
 import unittest
 from typing import Sequence
 
 from . import cleanworld, syncworld, test_commands, world
 
-NOT_RUN = subprocess.CalledProcessError(1, ["git"])
 FAILED = (1, "COULD NOT SYNC")
 NOTHING = "sync: nothing to commit"
 
@@ -47,22 +45,17 @@ def nothing_to_commit(synced: syncworld.Synced) -> None:
     cleanworld.same((code_and_lines, kept(synced)), ((0, [NOTHING]), before))
 
 
-def failing_sync(
-    word: str, error: Exception
-) -> tuple[syncworld.Synced, tuple[object, str]]:
-    """Sync a world whose git command with a word fails.
+def result_of(here: world.World) -> tuple[object, str]:
+    """Sync a world: the exit code and the start of the output.
 
     Args:
-        word: the word of the command.
-        error: what it raises.
+        here: the world.
 
     Returns:
-        The world, and the exit code and the start of the output.
+        The exit code and the start of the output.
     """
-    synced = syncworld.make_synced()
-    broken = syncworld.with_failing(synced.here, word, error)
-    result = world.again(broken, "sync")
-    return synced, (result.code, result.out[:14])
+    result = world.again(here, "sync")
+    return result.code, result.out[:14]
 
 
 class TestSync(unittest.TestCase):
@@ -92,8 +85,10 @@ class TestSync(unittest.TestCase):
 
     def test_a_failing_diff_is_still_reported(self) -> None:
         """A git that fails to diff (status 128, not 1) is COULD NOT SYNC."""
-        broken = subprocess.CalledProcessError(128, ["git"])
-        cleanworld.same(failing_sync("diff", broken)[1], FAILED)
+        synced = syncworld.after_first_sync()
+        syncworld.break_diff(synced)
+        synced.notes.write_text("second notes\n")
+        cleanworld.same(result_of(synced.here), FAILED)
 
     def test_only_the_file_that_changed_is_copied(self) -> None:
         """A later sync updates the changed file in a new commit."""
@@ -124,14 +119,18 @@ class TestSync(unittest.TestCase):
 
     def test_a_failed_push_is_reported_and_the_next_sync_sends_it(self) -> None:
         """A push that fails is a line and exit 1; the next sync pushes the file."""
-        synced, said = failing_sync("push", NOT_RUN)
+        synced = syncworld.make_synced()
+        syncworld.refuse_pushes(synced)
+        said = result_of(synced.here)
+        syncworld.allow_pushes(synced)
         count = syncworld.commits(synced)
         cleanworld.same((said, syncworld.sync(synced)[0]), (FAILED, 0))
         cleanworld.same(kept(synced), ("first notes\n", count + 1))
 
     def test_git_that_cannot_run_is_reported(self) -> None:
         """No git program is a line and exit 1, not a traceback."""
-        cleanworld.same(failing_sync("clone", FileNotFoundError("git"))[1], FAILED)
+        synced = syncworld.make_synced()
+        cleanworld.same(result_of(syncworld.without_git(synced)), FAILED)
 
     def test_without_a_table_the_command_refuses(self) -> None:
         """A configuration with no ``[sync]`` table exits 2 and says so."""
@@ -201,7 +200,7 @@ class TestSweep(unittest.TestCase):
     def test_a_failed_sync_is_reported_by_the_sweep(self) -> None:
         """A sweep whose sync fails says so, and exits 1."""
         synced = syncworld.make_synced()
-        broken = syncworld.with_failing(synced.here, "clone", NOT_RUN)
-        result = test_commands.sweep(broken)
+        syncworld.lose_origin(synced)
+        result = test_commands.sweep(synced.here)
         cleanworld.same(result.code, 1)
         cleanworld.same(result.out.count("COULD NOT SYNC"), 1)
