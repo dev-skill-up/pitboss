@@ -1,97 +1,25 @@
 """Finding, reading and parsing the configuration file a command was given."""
 
-import argparse
 import pathlib
 import tomllib
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Mapping
 
 from . import (
     briefconfig,
     cleanconfig,
     config,
+    configsearch,
     holdconfig,
     ownerconfig,
     scratchconfig,
     syncconfig,
 )
 
-CONFIG_DIRECTORY = (".claude", "pitboss")
+CONFIG_DIRECTORY = configsearch.CONFIG_DIRECTORY
 
 
-def working_directory(args: argparse.Namespace) -> pathlib.Path:
-    """The directory a configuration name is looked up from.
-
-    Args:
-        args: the parsed arguments.
-
-    Returns:
-        ``PWD`` of the environment, else the current directory.
-    """
-    return pathlib.Path(args.env.get("PWD", "."))
-
-
-ENVIRONMENT_VARIABLE = "PITBOSS_CONFIG"
-
-
-def default_names(directory: pathlib.Path) -> Sequence[pathlib.Path]:
-    """The files a command with no configuration looks for in one directory.
-
-    Args:
-        directory: the directory, the working directory or one of its parents.
-
-    Returns:
-        ``pitboss.toml`` and ``<directory name>.toml`` (``quire.toml`` in a
-        ``quire`` checkout) in it, then the same two in its ``.claude/pitboss``.
-    """
-    names = ("pitboss.toml", f"{directory.name}.toml")
-    inside = directory.joinpath(*CONFIG_DIRECTORY)
-    return (*(directory / each for each in names), *(inside / each for each in names))
-
-
-def find_default(start: pathlib.Path) -> pathlib.Path:
-    """Find the configuration of a command that was given none.
-
-    Args:
-        start: the directory the lookup starts from; its parents follow.
-
-    Returns:
-        The first file of ``default_names`` found, from ``start`` upward.
-
-    Raises:
-        FileNotFoundError: when there is none; the message says every place
-            looked and that ``PITBOSS_CONFIG`` or an argument names one.
-    """
-    looked = []
-    for directory in (start, *start.parents):
-        for candidate in default_names(directory):
-            if candidate.is_file():
-                return candidate
-            looked.append(str(candidate))
-    raise FileNotFoundError(
-        f"no configuration given, ${ENVIRONMENT_VARIABLE} is not set, and none"
-        f" of these exists: {', '.join(looked)}"
-    )
-
-
-def named(args: argparse.Namespace) -> str:
-    """The configuration a command was given, or the one it finds (default-config).
-
-    The argument, else ``$PITBOSS_CONFIG``, else the first file of
-    ``find_default`` (which raises when there is none), so the same command line
-    runs with no argument.
-
-    Args:
-        args: the parsed arguments.
-
-    Returns:
-        A path, or a name (see ``locate``).
-    """
-    if args.config is not None:
-        return str(args.config)
-    from_environment = args.env.get(ENVIRONMENT_VARIABLE)
-    if from_environment:
-        return str(from_environment)
-    return str(find_default(working_directory(args)))
+working_directory = configsearch.working_directory
+named = configsearch.named  # keyword: default-config
 
 
 def locate(name: str, start: pathlib.Path) -> pathlib.Path:
@@ -108,16 +36,14 @@ def locate(name: str, start: pathlib.Path) -> pathlib.Path:
     Raises:
         FileNotFoundError: when there is no such file.
     """
-    given = pathlib.Path(name)
-    if given.suffix == ".toml" or len(given.parts) > 1:
-        return given
-    for directory in (start, *start.parents):
-        candidate = directory.joinpath(*CONFIG_DIRECTORY, f"{name}.toml")
-        if candidate.is_file():
-            return candidate
-    raise FileNotFoundError(
-        f"no {name}.toml in .claude/pitboss of {start} or its parents"
-    )
+    if configsearch.is_path(name):
+        return pathlib.Path(name)
+    found = configsearch.in_config_directory(name, start)
+    if found is None:
+        raise FileNotFoundError(
+            f"no {name}.toml in .claude/pitboss of {start} or its parents"
+        )
+    return found
 
 
 def load(name: str, start: pathlib.Path) -> config.Config:

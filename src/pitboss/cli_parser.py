@@ -14,7 +14,7 @@ from collections.abc import Iterator, Sequence
 
 from gather import commands as gather_commands
 
-from . import ENTRY_DATA, disk
+from . import ENTRY_DATA, configsettle, disk
 
 
 @contextlib.contextmanager
@@ -78,8 +78,9 @@ def make_parser(usage: disk.Reader) -> argparse.ArgumentParser:
     Returns:
         The parser.
     """
+    collected = configsettle.with_option(ENTRY_DATA.collector.collect())
     made: argparse.ArgumentParser = gather_commands.set_parser(
-        collected=ENTRY_DATA.collector.collect(), parser=IntermixedParser()
+        collected=collected, parser=IntermixedParser()
     )
     made.set_defaults(usage=usage)
     return made

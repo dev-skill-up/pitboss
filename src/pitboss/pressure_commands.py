@@ -156,9 +156,9 @@ def push(args: argparse.Namespace) -> None:
     With no ``[runners]`` table nothing is held or recorded. Put ``--`` before
     git's own options. The exit is 1 while the quiet period is not over, git's
     status when the push fails, and 2 when the push went out but its hold could
-    not be recorded. With no configuration (the first word), the default one is
-    used (keyword: default-config); git's arguments need the configuration
-    given, since the first word is always the configuration.
+    not be recorded. With no ``--config``, the default configuration is used
+    (keyword: default-config), so ``pitboss push --no-dry-run origin branch``
+    runs ``git push origin branch``.
 
     Args:
         args: the parsed arguments.

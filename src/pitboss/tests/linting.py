@@ -35,9 +35,16 @@ def lint(*argv: str) -> world.Result:
         *argv: the arguments after ``lint``.
 
     Returns:
-        What it did.
+        What it did, without the line that says where the search for a
+        configuration looked (keyword: default-config).
     """
-    return world.invoke(world.make_world(), "lint", *argv)
+    found = world.invoke(world.make_world(), "lint", *argv)
+    kept = [
+        each
+        for each in found.err.splitlines(keepends=True)
+        if not each.startswith("no configuration given")
+    ]
+    return world.Result(out=found.out, err="".join(kept), code=found.code)
 
 
 def lines(result: world.Result) -> Sequence[str]:

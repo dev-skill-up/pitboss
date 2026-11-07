@@ -14,6 +14,7 @@ from . import (
     cardform,
     commands,
     config,
+    configsettle,
     contradictions,
     draftrule,
     folds,
@@ -334,7 +335,8 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         "--config",
         default=None,
         help="the project's configuration, for pr-body, review and brief: a path,"
-        " or a name in .claude/pitboss/<name>.toml (default: the generic forms)",
+        " or a name in .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else"
+        " the search; with none found, the generic forms)",
     ),
     add_argument(
         "--url",
@@ -393,4 +395,5 @@ def lint(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
+    configsettle.find_or_say(args)
     KINDS[args.kind](args)

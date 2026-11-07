@@ -5,12 +5,13 @@ import contextlib
 import dataclasses
 import datetime
 import io
+import os
 import pathlib
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 from gather import commands as gather_commands
 
-from .. import cli_parser, disk, shapes
+from .. import cli_parser, disk
 from . import fakes, fixeddisk, ownerbodies, ticket_bodies
 
 FUTURE = "2030-01-01T00:00:00+00:00"
@@ -301,10 +302,16 @@ def shell_env(world: World, directory: pathlib.Path | None) -> Mapping[str, str]
     return {
         "PWD": str(directory or world.workspace),
         "HOME": str(world.workspace / "home"),
+        "GIT_CEILING_DIRECTORIES": os.environ.get("GIT_CEILING_DIRECTORIES", ""),
     }
 
 
-def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
+def invoke(
+    world: World,
+    *argv: str,
+    directory: pathlib.Path | None = None,
+    variables: Sequence[tuple[str, str]] = (),
+) -> Result:
     """Run ``pitboss`` with arguments.
 
     Args:
@@ -312,13 +319,15 @@ def invoke(world: World, *argv: str, directory: pathlib.Path | None = None) -> R
         *argv: the arguments.
         directory: the directory it runs in (its ``PWD``); the workspace when
             None.
+        variables: more of the environment, each a name and a value.
 
     Returns:
         What it did.
     """
     out, err = io.StringIO(), io.StringIO()
+    env = {**shell_env(world, directory), **dict(variables)}
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-        code = exit_code(world, ["pitboss", *argv], shell_env(world, directory))
+        code = exit_code(world, ["pitboss", *argv], env)
     return Result(out=out.getvalue(), err=err.getvalue(), code=code)
 
 
@@ -383,18 +392,4 @@ def project_page(path: str) -> str:
     return fakes.page(f"{PROJECT}/{path}")
 
 
-def comment_json(posted: shapes.Comment) -> Mapping[str, str]:
-    """An issue comment as the API gives it.
-
-    Args:
-        posted: the comment.
-
-    Returns:
-        Its JSON.
-    """
-    return {
-        "body": posted.body,
-        "author_association": posted.author_association,
-        "created_at": posted.created_at,
-        "html_url": posted.url,
-    }
+comment_json = ownerbodies.comment_json
