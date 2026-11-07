@@ -18,6 +18,10 @@ PLAN_NO_NOX_REVIEW = (
     " is changes needed (pitboss#179: a Plan asks for no evidence that CI shows);"
     " the whole suite is CI's `Run Nox` step."
 )
+PLAN_POINTER_LAST = (
+    "Number the Plan rows with every command row first and the CI-pointer rows"
+    " last; plan-row pairs the Nth Evidence command with row N (pitboss#274)."
+)
 PLAN_CI_POINTER = (
     "CI pointer: a Plan row whose result a CI run of the commit shows asks for no"
     " long local command (a whole suite or build, or anything over `timeout"
@@ -26,6 +30,7 @@ PLAN_CI_POINTER = (
     " is found for the commit (the run and job URL `actions` gives for the head)."
     " Evidence in the PR body is only for what CI does not show (pitboss#179)."
 )
+PLAN_ROWS = (PLAN_NO_NOX_ROW, PLAN_CI_POINTER, PLAN_POINTER_LAST)
 BODY_CI_POINTER = (
     "CI in the body: for a row the Plan points to CI, the PR body gives no"
     " evidence and holds only the pointer, with the run and job URL found for the"
