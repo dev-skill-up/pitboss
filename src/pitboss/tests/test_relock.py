@@ -251,5 +251,5 @@ class TestConfigDefault(unittest.TestCase):
     """The configuration object keeps the default when nothing is said."""
 
     def test_default_lint_has_the_default_prefix(self) -> None:
-        """``default_lint`` is what a command without --config uses."""
-        assert_that(config.default_lint().relock_prefix, equal_to("relock/"))
+        """``DEFAULT_LINT`` is what a command without --config uses."""
+        assert_that(config.DEFAULT_LINT.relock_prefix, equal_to("relock/"))

@@ -220,6 +220,8 @@ class Rules:
         project: what the project's briefs say beyond the process.
         gate_note: what a gated repository's gate also requires of the comment
             (keyword: review-gate, pitboss#166), empty when it is not gated.
+        plan_check: the check a draft's Plan review reads first (keyword:
+            plan-review-check, pitboss#275), empty when the project has none.
     """
 
     config: str
@@ -227,6 +229,7 @@ class Rules:
     footer: str
     project: briefconfig.Brief
     gate_note: str = ""
+    plan_check: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -355,12 +358,11 @@ def _e2e(spec: Spec) -> Sequence[str]:
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
-    # keyword: draft-review (pitboss#156): the Plan stage is a draft's, with no CI
+    # keyword: draft-review (pitboss#156): the Plan stage is a draft's
     # a Plan revised on a PR that is not a draft has its checks (pitboss#167)
     draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
-    separate, ci = (
-        (text.SEPARATE_DRAFT, text.CI_DRAFT) if draft else (text.SEPARATE, text.CI)
-    )
+    ci = brieftextdraft.draft_ci(spec.rules.plan_check) if draft else text.CI
+    separate = text.SEPARATE_DRAFT if draft else text.SEPARATE
     separate = DRY_RUNNERS.get(spec.kind, separate)
     head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, *_e2e(spec), text.FORM]
     return [

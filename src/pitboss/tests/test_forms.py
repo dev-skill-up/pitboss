@@ -110,7 +110,7 @@ class TestPrBody(unittest.TestCase):
         far = WITH_FOOTER.replace(FOOTER, "x\ny\nz").replace(
             "Head:", f"{FOOTER}\nHead:", 1
         )
-        default = config.default_lint().footers
+        default = config.DEFAULT_LINT.footers
         found = [
             checks(forms.pr_body(subject(BODY), default)),
             body_checks(BODY, footers=(FOOTER,)),

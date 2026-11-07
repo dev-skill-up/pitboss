@@ -69,13 +69,13 @@ def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:
 
 
 def _draft_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    # keyword: draft-review (pitboss#156): a draft runs no CI, so its round is
-    # said in the words `slots next` lists it with, before any ticket
+    # keyword: draft-review (pitboss#156): a draft's round is said as `slots next`
+    # lists it, before a ticket
     category = work.category_of(pull) if pull.pull.draft else None
     if category is None:
         return []
     return [
         f"{Marker.DRAFT_ROUND.text} {pulls.reference(pull)}:"
-        f" {work.CATEGORY_WORDS[category]}; a draft has no check run, so it waits"
-        " for none and is listed first in `slots next`, before every ticket"
+        f" {work.CATEGORY_WORDS[category]}; it is"
+        " listed first in `slots next`, before every ticket"
     ]

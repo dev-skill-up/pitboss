@@ -24,11 +24,11 @@ Post exactly that form: a gate that cannot read the comment keeps the status
   reviewed where the form says `{sha}`; read it from the PR when you start,
   and again before you post: if the head moved, review the new head.
 - Start only when every check has finished and passed on that head, except
-  for a review of a draft PR at its Plan stage (below), which has no check run. Your
+  for a review of a draft PR at its Plan stage (below). Your
   first act is to read the checks of the full head SHA the brief names. If one
   has not finished or has not passed, you were started too early: hand back at
   once with `NOT STARTED: <check> is <state> at <sha>`, and review nothing.
-- A head with no completed check run (a draft that runs no CI) is waiting
+- A head with no completed check run is waiting
   for CI: hand back `NOT STARTED: no completed check run at <sha>`, and never
   approve it, unless your brief says the PR is a draft at its Plan stage: then
   you grade it as the next section says.
@@ -205,8 +205,7 @@ below and the last one:
   the word verdict followed by a colon, so the form's one verdict line stays
   the only one;
 - a draft at its Plan stage is graded on the Plan alone, with no `Execution:`
-  line, and never gets NOT STARTED for a missing check run (its brief says a
-  draft has no check run). The Execution is graded only on the complete run of
+  line. The Execution is graded only on the complete run of
   the head: a review at the full stage of a draft, or of a head with an
   unfinished check, is NOT STARTED, not a verdict (pitboss#202);
 - if your brief says the Plan was already approved, you grade only the
