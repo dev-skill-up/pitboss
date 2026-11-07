@@ -158,7 +158,7 @@ Only override for bugs, but do override for bugs (and then file them)".
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
      first, whatever each needs (a fix of a red CI, an answer to a review that
-     asked for changes, or a revision of a plan it did not approve, an update of a PR that is behind, a review of a green
+     asked for changes, or a revision of a plan it did not approve, an update of a PR that is behind (not in a repository under `[merge_queue] repositories`), a review of a green
      PR, a merge of a PR that is reviewed approved and green), except that a
      merge of a ready pull request comes first (Order of work, 3) and a `STALL`
      fix next, before every other pull request, and except a pull request with
