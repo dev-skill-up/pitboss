@@ -44,6 +44,17 @@ PLAN_CI_POINTER_REVIEW = (
     " workflow, the step, a greppable string and how the run is found for the"
     " commit (pitboss#179)."
 )
+REVIEW_CI_ACCEPTED = (
+    "CI evidence in the body: for a row the Plan points to CI, a CI pointer (the"
+    " workflow, the job URL of the head, the step and the greppable string) is the"
+    " evidence; never ask for quoted log lines or pasted CI output (pitboss#277)."
+)
+RULING_NO_CI_QUOTES = (
+    "CI in the steps: a ruling's steps never ask for CI log lines or pasted CI"
+    " output in the PR body; they point to the run (the workflow, the job URL of"
+    " the head, the step and the greppable string), as the CI pointer rule says"
+    " (pitboss#277)."
+)
 E2E = (
     "E2E: this PR's diff touches what the e2e suite runs on. Read the run of"
     " `check.yml` of the head that ran e2e, and every e2e job of it: for a draft,"

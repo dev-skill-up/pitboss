@@ -4,7 +4,7 @@ The order (work-order): the open PRs that need work come first, in one list,
 oldest first, whatever each needs. What a PR needs is the step ``flow.next_step``
 gives it (keyword: review-flow): a worker's round, whose kind is its task (a
 revision of the plan and nothing else, a fix of the CI, the Plan and Execution
-body, the resolution of a conflict, or any other fix of a review), or a review
+body, the resolution of a conflict, a fix of a review, or CI quotes), or a review
 by a new reviewer (a draft's plan-only review included). There is no update
 kind. The kind is a label on the line, not a rank. A PR whose step is to wait
 (for CI, an undraft or the owner), to ask Opus for a ruling, to pause for the
@@ -61,6 +61,8 @@ class Category(enum.IntEnum):
             one (a PR; keyword: fix-round).
         RUN_PLAN: an author runs the commands of a Plan that was approved alone
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
+        ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
+            a ready PR whose checks passed (a PR; keyword: ci-quotes).
     """
 
     FIX_REVIEW = 1
@@ -74,6 +76,7 @@ class Category(enum.IntEnum):
     RULING_AS_GIVEN = 10
     REVIEW_FIX_ROUND = 11
     RUN_PLAN = 12
+    ADD_CI_QUOTES = 13
 
 
 CATEGORY_WORDS = {
@@ -88,6 +91,7 @@ CATEGORY_WORDS = {
     Category.RULING_STEPS: "do the ruling's steps",
     Category.RULING_AS_GIVEN: "carry out the ruling",
     Category.RUN_PLAN: "run the Plan's commands and fill the Execution",
+    Category.ADD_CI_QUOTES: "add the CI quotes to the body",
 }
 
 
@@ -148,6 +152,7 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.RULING_STEPS: Category.RULING_STEPS,
     steps.Task.RULING_AS_GIVEN: Category.RULING_AS_GIVEN,
     steps.Task.RUN_PLAN: Category.RUN_PLAN,
+    steps.Task.ADD_CI_QUOTES: Category.ADD_CI_QUOTES,
 }
 
 

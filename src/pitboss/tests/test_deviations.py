@@ -20,6 +20,7 @@ WORKERS = (
     brief.Kind.RULING_STEPS,
     brief.Kind.RULING_AS_GIVEN,
     brief.Kind.RUN_PLAN,
+    brief.Kind.ADD_CI_QUOTES,
 )
 ASKS = brieftextwork.DEVIATIONS
 READS = brieftextnote.DEVIATIONS_REVIEW

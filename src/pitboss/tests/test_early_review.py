@@ -156,7 +156,8 @@ class TestTheSweep(unittest.TestCase):
         out = sweep(here).out
         said = f"{THE_LINE}{DRAFT_WORDS}; 1 of 2 checks of the head had not completed"
         assert_that(out, contains_string(said))
-        assert_that(out, contains_string("the next step is the review again"))
+        gives = "after green, the step slots next gives"
+        assert_that(out, contains_string(gives))
         assert_that("review=approved-this-head" in third_of(out), equal_to(False))
         state = [
             each for each in next_output(here).splitlines() if "project#3:" in each

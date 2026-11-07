@@ -285,7 +285,8 @@ def plan_unrun(pr: PullState, review: shapes.Graded | None) -> steps.Next | None
     commands (keyword: plan-alone, pitboss#201). The round ends with an edit
     of the body, which the next review does not read (its ``Body:`` digest),
     so the Plan review is not offered again: a draft goes on to its undraft, any
-    other PR to the review of its Execution. A draft or not alike.
+    other PR to the next step of its Execution, the review or the round that
+    adds the CI quotes. A draft or not alike.
 
     Args:
         pr: the PR.
