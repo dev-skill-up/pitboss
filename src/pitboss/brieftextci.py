@@ -49,6 +49,8 @@ PLAN_CI_POINTER_REVIEW = (
     " workflow, the step, a greppable string and how the run is found for the"
     " commit (pitboss#179)."
 )
+# the CI lines of a Plan review, in order (keyword: ci-pointer)
+PLAN_CI_REVIEW = (PLAN_NO_NOX_REVIEW, PLAN_NO_LOOP_REVIEW, PLAN_CI_POINTER_REVIEW)
 REVIEW_CI_ACCEPTED = (
     "CI evidence in the body: for a row the Plan points to CI, a CI pointer (the"
     " workflow, the job URL of the head, the step and the greppable string) is the"
