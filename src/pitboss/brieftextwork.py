@@ -29,6 +29,14 @@ TASK_RUN_PLAN = (
     " and Evidence of the PR body with what they printed. The Plan is approved: do"
     " not change it (pitboss#201)."
 )
+TASK_ADD_CI_QUOTES = (
+    "Task: PR {reference} is ready and its checks passed, and its Plan has CI-quote"
+    " rows the body does not answer yet. Add each quote to the Execution as a line"
+    " that starts `CI quote:` and points to the run (the workflow, the job URL of"
+    " the head, the step and a greppable string that step prints), as the CI"
+    " pointer rule says; paste no log output. Change nothing else; the Plan is"
+    " approved (pitboss#277)."
+)
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
     " each rule of this brief you broke (an edit by `sed`, a heredoc or `rm`"

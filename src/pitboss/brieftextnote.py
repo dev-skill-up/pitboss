@@ -4,7 +4,7 @@ Like those of ``brieftext``, it is pinned by a test, so a change to it is a
 reviewed code change.
 """
 
-from . import brieftextexec
+from . import brieftextci, brieftextexec
 
 REVIEW_NOTES = (
     "Notes: a gap against the goal or the Done-when that you can name (a case, a"
@@ -23,6 +23,7 @@ DEVIATIONS_REVIEW = (
 # the sentences of the reviews that grade an Execution
 EXECUTION_REVIEW = (
     brieftextexec.PLAN_COMMANDS_EXECUTION,
+    brieftextci.REVIEW_CI_ACCEPTED,
     REVIEW_NOTES,
     DEVIATIONS_REVIEW,
 )

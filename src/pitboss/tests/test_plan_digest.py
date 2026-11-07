@@ -247,6 +247,7 @@ class TestTheBriefs(unittest.TestCase):
                 Kind.RESOLVE_CONFLICT,
                 Kind.RULING_STEPS,
                 Kind.RUN_PLAN,
+                Kind.ADD_CI_QUOTES,
             },
             brieftext.NO_PLAN_FINDING: {Kind.REVIEW_EXECUTION, Kind.REVIEW_FIX_ROUND},
             brieftext.PLAN_DIGEST: {Kind.REVIEW_FULL, Kind.REVIEW_PLAN},

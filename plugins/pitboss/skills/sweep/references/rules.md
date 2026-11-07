@@ -104,11 +104,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      entry on the current base (`[merge_queue] repositories`), behind is no
      work (see "Merge conflicts");
    - green on its exact head with no review of that head, or only one that
-     approved the Plan alone: a review, by an agent that is not its author
-     (when that review came after the newest readable Opus ruling, or the body's
-     Execution section is empty or a placeholder such as `Not started: ...`, first the
-     worker round `run the Plan's commands and fill the Execution`, pitboss#201,
-     keyword: unwritten-execution, pitboss#294); but while the newest readable Opus
+     approved the Plan alone: while the newest readable Opus
      ruling is newer than every review and no check run of the head started after it
      (keyword: ruling-posted, pitboss#294), the step is the ruling's own (`do the
      ruling's steps`, `revise the plan`, ...), because the ruling is not applied yet;
@@ -126,22 +122,14 @@ Only override for bugs, but do override for bugs (and then file them)".
    that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
    with the kind shown on each line, and then the tickets by priority label
    and age (a ticket of a repository under the owner's hold is printed `HELD`
-   instead, not numbered and not offered). The kind is the step alone. A WORKER step is listed with its
-   task's kind: `revise the plan` (`REVISE_PLAN`), `fix the CI` (`FIX_CI`),
-   `write the Plan and Execution body` (`FIRST_ROUND`), `resolve the conflict`
-   (`RESOLVE_CONFLICT`), `do the ruling's steps` (`RULING_STEPS`), `carry out
-   the ruling` (`RULING_AS_GIVEN`), `run the Plan's commands and fill the
-   Execution` (`RUN_PLAN`: a review approved the Plan alone after the newest
-   readable ruling, pitboss#201), and `fix the review` for any other task
-   (`FIX_EXECUTION`). A `REGULAR_REVIEW` step is `review it`, whatever its
+   instead, not numbered and not offered). The kind is the step alone. A `REGULAR_REVIEW` step is `review it`, whatever its
    stage, a plan-only review included (a draft's, or that of a Plan revised
    after its rejection on a PR that is not a draft), except that after a review
    of changes needed whose head is older than the current one (keyword:
    fix-round, pitboss#294) it is `review the fix round's findings only`, unless
    the review rejected the Plan, in which case it is `review it` with the Plan
    alone graded; a body fixed at one head, or an approval, is never a fix round
-   (its diff would have one SHA twice). Every other step is offered for
-   no round. A red CI and a conflict are printed by the sweep as `FAILED` and
+   (its diff would have one SHA twice). A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
    CI`) whatever the stage but a wait (below, pitboss#183), and a conflict as `resolve the conflict` at every
    stage, a draft's and a red CI's too, before the draft, CI and review gates (a
@@ -778,10 +766,7 @@ Only override for bugs, but do override for bugs (and then file them)".
     a draft, is the worker round `run the Plan's commands and fill the
     Execution` (`RUN_PLAN`), and only then the undraft of a draft
     (the orchestrator undrafts it when a sweep shows `review=plan-approved` with
-    `[draft]`, after `pitboss pressure` passes, "Pushing and merging") and,
-    once its checks are green, the offer (`review it`) of a review of the
-    Execution, which is measured against
-    the approved Plan. With no ruling before it, the orchestrator undrafts the
+    `[draft]`, after `pitboss pressure` passes, "Pushing and merging"). With no ruling before it, the orchestrator undrafts the
     PR at once, as before. Only a review that grades the Execution approves a head
     to merge.
   - **A Plan graded changes needed is a Plan rejection** (owner,
@@ -861,14 +846,13 @@ Only override for bugs, but do override for bugs (and then file them)".
   deliberate obfuscation is hunted: those gaps are not findings and get no
   ticket. The Done-when is read from the ticket by the worker, and copied word
   for word, as the next bullet says.
-- A body fix is answered by a re-review (keyword: body-digest, pitboss#147). A review records the PR body it read in one line, `Body:
+- The body digest (keyword: body-digest, pitboss#147). A review records the PR body it read in one line, `Body:
   <digest>` (`uvx pitboss body-digest FILE` prints it for the body saved to a
   file; the brief says how). GitHub's REST API gives a PR body no edit time
   (`updated_at` moves with every label, push and comment), so the digest is
   the record. When the digest in the newest review of the head is not the
-  body's now and the head did not move, the sweep prints `review=older-body`
-  and `slots next` offers the PR as `review it` with the Execution graded, or
-  the Plan alone when the review rejected the Plan (pitboss#167); the fix-round
+  body's now and the head did not move, the sweep prints `review=older-body`;
+  the fix-round
   brief is never printed for a body fixed at one head, because its diff would
   have the same SHA twice (pitboss#294): the worker who fixed
   only the body is not sent to fix the review again, and

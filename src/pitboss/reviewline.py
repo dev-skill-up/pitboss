@@ -13,7 +13,7 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
     """The lines for the comments of a PR that grade a review that does not count.
 
     An Execution review written before the run of its head finished does not
-    count (pitboss#202): the PR's next step is the review again after green.
+    count (pitboss#202): after green the step is the one ``slots next`` gives.
 
     Args:
         pull: the PR.
@@ -32,7 +32,7 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         *(
             f"{Marker.EXECUTION_REVIEWED_BEFORE_GREEN.text} {reference}: review"
             f" {earlyreview.comment_id(each.url)} at {each.sha} does not count;"
-            f" {each.unfinished}; the next step is the review again after green"
+            f" {each.unfinished}; after green, the step slots next gives"
             for each in pull.unreadable.premature
         ),
     ]

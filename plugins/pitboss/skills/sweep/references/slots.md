@@ -132,12 +132,12 @@ line why it is where it is. The open pull requests that the flow's step gives a
 round come first, in one list, oldest first by creation time, whatever each
 needs; a line says which kind it is. The kind is the step alone
 (`pitboss.flow.next_step`; `pitboss next` prints the same step), so a PR has
-exactly one step and at most one kind. There are nine:
+exactly one step and at most one kind.
 
 1. **Revise the plan**: step WORKER, task `REVISE_PLAN`. Its author edits the
    `## Plan` section of the body (and, at the end, its `Head:` line) and nothing else (`rules.md`, "Plan first"):
    the code, docs and tests are not touched until the plan is approved.
-2. **Fix the review**: step WORKER, any other task (`FIX_EXECUTION`): a
+2. **Fix the review**: step WORKER (`FIX_EXECUTION`): a
    review asked for changes to the execution. Its author fixes it.
 3. **Fix the CI**: step WORKER, task `FIX_CI`: the checks of the head are
    red, which is no rejection. Its author fixes them, unless the PR waits for a
@@ -186,13 +186,9 @@ exactly one step and at most one kind. There are nine:
    its author runs each command of the Plan as written and fills the Execution
    and Evidence of the body, and does not change the Plan. The edit of the body
    ends the round: the review no longer counts (its `Body:` digest), so the
-   Plan review is not offered again, a draft goes on to its undraft, and a PR
-   that is not a draft is offered `review it` for the Execution. A Plan
+   Plan review is not offered again and a draft goes on to its undraft. A Plan
    approved alone with no ruling before the review is the ordinary draft's and
    is not changed.
-
-Every other step (waiting, undraft, plan-check, the e2e dispatch, Opus ruling, pause, merge) is offered for
-no round.
 
 A PR with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` (`sweep.md`) is none of these: it has no
 line in this list, whatever its state, and a fix or a review of it

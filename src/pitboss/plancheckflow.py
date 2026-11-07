@@ -111,8 +111,11 @@ def execution_review(pr: Described, stage: steps.Stage) -> steps.Next:
     Returns:
         The worker round that runs the Plan's commands and fills the Execution
         while the body's Execution section is empty or a placeholder (keyword:
-        unwritten-execution, pitboss#294), else the review.
+        unwritten-execution, pitboss#294), or the one that adds the CI quotes
+        the Plan names (keyword: ci-quotes, pitboss#277), else the review.
     """
     if planbody.execution_unwritten(pr.pull.body):
         return steps.worker(steps.Task.RUN_PLAN)
+    if planbody.ci_quotes_missing(pr.pull.body):
+        return steps.worker(steps.Task.ADD_CI_QUOTES)
     return steps.regular_review(stage)

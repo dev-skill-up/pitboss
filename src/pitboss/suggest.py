@@ -46,6 +46,7 @@ KIND_OF_CATEGORY = {
     work.Category.RULING_STEPS: brief.Kind.RULING_STEPS,
     work.Category.RULING_AS_GIVEN: brief.Kind.RULING_AS_GIVEN,
     work.Category.RUN_PLAN: brief.Kind.RUN_PLAN,
+    work.Category.ADD_CI_QUOTES: brief.Kind.ADD_CI_QUOTES,
 }
 
 

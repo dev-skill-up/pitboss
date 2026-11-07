@@ -2,7 +2,7 @@
 
 from typing import Mapping, Sequence
 
-from . import brieftext as text, brieftextorder, rulingwords
+from . import brieftext as text, brieftextci, brieftextorder, rulingwords
 
 OWNER_CONFLICT = (
     "Owner decisions: a Done-when that cannot be met without reversing a decision"
@@ -29,6 +29,7 @@ def lines(values: Mapping[str, str]) -> Sequence[str]:
         brieftextorder.ORDER_TICKET,
         text.RULING_RECORD.format(words=words),
         OWNER_CONFLICT,
+        brieftextci.RULING_NO_CI_QUOTES,
         text.HONEST,
         text.GOAL_ONLY,
         text.RULING_END,

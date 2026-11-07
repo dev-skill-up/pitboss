@@ -93,6 +93,9 @@ class Task(enum.Enum):
             were never run, or the Execution section is empty or a placeholder
             (keyword: unwritten-execution, pitboss#294): run them as written
             and fill the Execution (keyword: plan-alone, pitboss#201).
+        ADD_CI_QUOTES: the Plan has CI-quote rows and the body lacks the quotes,
+            which exist only after the PR is ready and its checks pass (keyword:
+            ci-quotes, pitboss#277).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -111,6 +114,7 @@ class Task(enum.Enum):
         " (the Plan was approved alone, after a ruling, or the Execution section"
         " is empty or a placeholder)"
     )
+    ADD_CI_QUOTES = "add the CI quotes to the body"
 
 
 class Stage(enum.Enum):
