@@ -104,7 +104,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      entry on the current base (`[merge_queue] repositories`), behind is no
      work (see "Merge conflicts");
    - green on its exact head with no review of that head, or only one that
-     approved the Plan alone: a review, by an agent that is not its author; but while the newest readable Opus
+     approved the Plan alone: while the newest readable Opus
      ruling is newer than every review and no check run of the head started after it
      (keyword: ruling-posted, pitboss#294), the step is the ruling's own (`do the
      ruling's steps`, `revise the plan`, ...), because the ruling is not applied yet;
