@@ -130,7 +130,9 @@ class TestTestsSession(unittest.TestCase):
         """The nearest input: `--reporter=text` is an option, and ours is after it."""
         found = virtue_words_of("--reporter=text")
         assert_that(found, equal_to(["--reporter=text", REPORTER, "pitboss.tests"]))
-        assert_that(found.index(REPORTER) > found.index("--reporter=text"), equal_to(True))
+        assert_that(
+            found.index(REPORTER) > found.index("--reporter=text"), equal_to(True)
+        )
 
 
 FAILING_MODULE = """

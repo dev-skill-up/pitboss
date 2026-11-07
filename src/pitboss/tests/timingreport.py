@@ -42,7 +42,9 @@ class TimingReporter(ComponentizedReporter):  # type: ignore[misc]
         self.durations: list[tuple[float, str]] = []
         super().startTestRun()
 
-    def addDuration(self, test: unittest.TestCase, elapsed: float) -> None:  # noqa: N802
+    def addDuration(  # noqa: N802
+        self, test: unittest.TestCase, elapsed: float
+    ) -> None:
         """Keep how long a test took.
 
         Args:
