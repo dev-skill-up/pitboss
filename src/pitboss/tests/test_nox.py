@@ -11,18 +11,18 @@ from . import world
 from .briefmake import has_all, has_none
 
 COMMANDS = [
-    ["nox", "-r", "-s", "tests-3.13"],
     ["nox", "-r", "-s", "skills"],
     ["nox", "-r", "-s", "lint"],
     ["nox", "-r", "-s", "mypy"],
+    ["nox", "-r", "-s", "tests-3.13", "--", "-x"],
 ]
 SUCCESS_LINES = [
-    ["tests-3.13", "success"],
     ["skills", "success"],
     ["lint", "success"],
     ["mypy", "success"],
+    ["tests-3.13", "success"],
 ]
-MODULES = ["--", "pitboss.tests.test_gates", "pitboss.tests.test_nox"]
+MODULES = ["pitboss.tests.test_gates", "pitboss.tests.test_nox"]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -102,7 +102,7 @@ class TestNoxCommand(unittest.TestCase):
     """``pitboss nox`` runs four sessions in order, each with ``-r``."""
 
     def test_it_runs_the_four_sessions_in_order_with_r(self) -> None:
-        """tests-3.13 first, then skills, lint, mypy; never without -r."""
+        """skills, lint and mypy first, tests-3.13 last; never without -r."""
         found, calls = run_nox({})
         assert_that(calls, equal_to(COMMANDS))
         assert_that(found.code, equal_to(0))
@@ -130,8 +130,21 @@ class TestNoxCommand(unittest.TestCase):
     def test_module_names_go_to_the_tests_session_only(self) -> None:
         """Words after `--` are the tests session's posargs."""
         _, calls = run_nox({}, *MODULES)
-        expected = [[*COMMANDS[0], *MODULES], *COMMANDS[1:]]
+        expected = [*COMMANDS[:3], [*COMMANDS[3], *MODULES]]
         assert_that(calls, equal_to(expected))
+
+    def test_the_tests_session_stops_at_its_first_failing_test(self) -> None:
+        """-x is in the tests command whatever the arguments, and in no other."""
+        for words in ([], MODULES, ["pitboss.tests.test_gates"]):
+            _, calls = run_nox({}, *words)
+            assert_that(calls[-1][4:6], equal_to(["--", "-x"]))
+            assert_that([each for each in calls[:3] if "-x" in each], equal_to([]))
+
+    def test_a_cheap_session_that_fails_keeps_the_tests_from_running(self) -> None:
+        """Red in mypy: the 4-minute tests never start."""
+        found, calls = run_nox({"mypy": 1})
+        assert_that(calls, equal_to(COMMANDS[:3]))
+        has_none(found.out, ["tests-3.13", noxcheck.PROOF])
 
 
 class TestNoxSessions(unittest.TestCase):
@@ -147,10 +160,10 @@ class TestNoxSessions(unittest.TestCase):
             shown,
             equal_to(
                 [
-                    "tests-3.13 success 7s",
-                    "skills success 11s",
-                    "lint success 15s",
-                    "mypy success 19s",
+                    "skills success 7s",
+                    "lint success 11s",
+                    "mypy success 15s",
+                    "tests-3.13 success 19s",
                 ]
             ),
         )
@@ -160,4 +173,4 @@ class TestNoxSessions(unittest.TestCase):
         bad = expansion.Outcome(status=1, output="")
         ran = noxcheck.run_sessions(lambda _: bad, clock_of(0, 2), [])
         shown = [noxcheck.line_of(each) for each in ran]
-        assert_that(shown, equal_to(["tests-3.13 failed 2s"]))
+        assert_that(shown, equal_to(["skills failed 2s"]))

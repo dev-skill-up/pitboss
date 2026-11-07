@@ -13,7 +13,7 @@ Run all checks (this is CI's `Run Nox` step; a worker does not run it locally):
 nox
 ```
 
-A worker's local check is `pitboss nox` (pitboss#210): the tests of one Python version first, then the `skills` session, `lint` and `mypy`, each with `-r`, stopping at the first failure. A worker runs `pitboss nox` after every edit and before every push, for iterating too (pitboss#250), and never a targeted test module (`pitboss nox -- <module>`), `nox -s ...` or `virtue` by hand.
+A worker's local check is `pitboss nox` (pitboss#210): the `skills` session, `lint` and `mypy` first (about 23 s together), then the tests of one Python version (about 4 minutes), each with `-r`, stopping at the first failing session; the tests session stops at its first failing test (virtue's `-x`), and CI's `Run Nox` step passes no `-x` and runs every test (pitboss#326). A worker runs `pitboss nox` after every edit and before every push, for iterating too (pitboss#250), and never a targeted test module (`pitboss nox -- <module>`), `nox -s ...` or `virtue` by hand.
 
 Run specific sessions (for a person, not for a worker):
 ```bash

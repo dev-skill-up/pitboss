@@ -1111,12 +1111,17 @@ Only override for bugs, but do override for bugs (and then file them)".
   2026-11-05, pitboss#250: "Stop with the targeted runs for iterating. Use
   pitboss nox for iterating too. That's what it's for."): the worker brief says
   Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after
-  every edit and before every push, for iterating too (the tests of one Python
-  version first, then the skills, lint and mypy; it stops at the first failure
-  and always uses `-r`); a targeted test module, `nox -s ...` or `virtue` is
-  never run by hand, and never the full `nox -r`: CI's `Run Nox` step runs the
-  whole suite. The tests come first because until they run there is no reason
-  to lint the code. A worker never invokes `virtue` or `python -m virtue` by
+  every edit and before every push, for iterating too (the skills, lint and
+  mypy first, then the tests of one Python version, which stop at the first
+  failing test; it stops at the first failing session and always uses `-r`); a
+  targeted test module, `nox -s ...` or `virtue` is never run by hand, and
+  never the full `nox -r`: CI's `Run Nox` step runs the whole suite. The
+  skills, lint and mypy come first because they take about 23 s together and
+  most red runs are red there (twelve runs of pitboss#318: six were red in
+  lint or mypy after 221 to 246 s of passing tests), and the tests session is
+  run with virtue's `-x` (pitboss#326), whatever its arguments, so a failing
+  test stops the run and is reported; CI's `Run Nox` step passes no `-x` and
+  runs every test. A worker never invokes `virtue` or `python -m virtue` by
   hand (the nox session is the way to run tests), starts nothing in the
   background that needs polling (pitboss#175: one foreground command under
   `timeout 598`, or one `Monitor` with an `until` loop; a worker that polled

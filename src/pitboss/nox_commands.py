@@ -43,10 +43,11 @@ def run_command(args: argparse.Namespace, command: Sequence[str]) -> expansion.O
     name="nox",
 )
 def nox(args: argparse.Namespace) -> None:
-    """Run the tests of one Python version, the skills, lint and mypy.
+    """Run the skills, lint and mypy, then the tests of one Python version.
 
     Each runs as ``nox -r -s SESSION``, in that order, and the first that fails
-    stops the rest and exits 1 with its output. One line is printed for each
+    stops the rest and exits 1 with its output. The tests session also stops
+    at its first failing test (``-x``). One line is printed for each
     session that ran, and on success a line says CI's ``Run Nox`` step is the
     proof of the whole suite. No other session runs: docs, dry_release and the
     other Python versions are CI's.

@@ -353,9 +353,10 @@ Commands
        closes the finished scratch PRs (see ``sweep``); ``--dry-run`` lists them.
    * - ``nox [-- MODULE...]``
      - The worker's local check (keyword: nox-runner, pitboss#210; see
-       **The local check** below). Runs ``nox -r -s`` for ``tests-3.13``,
-       ``skills``, ``lint`` and ``mypy``, in that order, and stops at the
-       first that fails: exit 1 with that session's output. Words after ``--``
+       **The local check** below). Runs ``nox -r -s`` for ``skills``,
+       ``lint``, ``mypy`` and ``tests-3.13``, in that order, and stops at the
+       first that fails: exit 1 with that session's output. The tests session
+       is given ``-x`` (it stops at its first failing test). Words after ``--``
        are test modules, passed to the tests session only. Prints one line for
        each session that ran (name, ``success`` or ``failed``, seconds) and, on
        success, that CI's ``Run Nox`` step is the proof of the whole suite.
@@ -811,9 +812,14 @@ the two switches (90% used, 5 GiB free), the never-touch list and the report on 
 takes about seven minutes and CI's ``Run Nox`` step runs it on every push, so a
 worker running it only duplicates CI (the workers of #166 and #167 spent about
 half their time on it). ``pitboss nox`` is the one command that does the right
-thing: the tests of one Python version first (until they run there is no reason
-to lint the code), then the ``skills`` session, ``lint`` and ``mypy``, each with
-``-r``, stopping at the first failure. The worker briefs tell
+thing: the ``skills`` session, ``lint`` and ``mypy`` first (about 23 s together;
+twelve runs of #318 spent 221 to 246 s on passing tests before six of them failed
+in lint or mypy), then the tests of one Python version, each with ``-r``,
+stopping at the first failing session. The tests session runs virtue with ``-x``
+(``noxcheck.STOP_AFTER``), so it stops at its first failing test and reports it,
+whatever its arguments; ``noxfile.py`` takes the words that start with a dash as
+virtue's options and the others as modules, and CI passes none, so its
+``Run Nox`` step runs every test (pitboss#326). The worker briefs tell
 the worker to run it after every edit and before every push, for iterating too,
 never a targeted test module, ``nox -s`` or the full ``nox -r``, to hand back
 its result for the pushed head (pitboss#250), never to

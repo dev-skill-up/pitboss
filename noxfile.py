@@ -57,7 +57,11 @@ def tests(session):
     tmpdir = session.create_tmp()
     session.install("-r", "requirements-tests.txt")
     session.install("-e", ".")
-    tests = session.posargs or ["pitboss.tests"]
+    # `pitboss nox` passes -x (virtue stops after the first unsuccessful test,
+    # pitboss#326): the words that start with a dash are virtue's options, the
+    # others the modules, and CI passes none, so it runs every test.
+    options = [word for word in session.posargs if word.startswith("-")]
+    modules = [word for word in session.posargs if not word.startswith("-")]
     session.run(
         "coverage",
         "run",
@@ -66,13 +70,14 @@ def tests(session):
         "--omit=**/__main__.py",
         "-m",
         "virtue",
-        *tests,
+        *options,
+        *(modules or ["pitboss.tests"]),
         env=dict(COVERAGE_FILE=os.path.join(tmpdir, "coverage"), TMPDIR=tmpdir),
     )
     # A run of some modules covers only part of the package, so the 100% report
     # belongs to the whole run (CI's), and `pitboss nox -- MODULES` (pitboss#210)
     # passes when the named tests pass.
-    if session.posargs:
+    if modules:
         return
     fail_under = "--fail-under=100"
     session.run(
