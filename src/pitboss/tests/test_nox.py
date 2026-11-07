@@ -133,7 +133,7 @@ class TestNoxCommand(unittest.TestCase):
         expected = [*COMMANDS[:3], [*COMMANDS[3], *MODULES]]
         assert_that(calls, equal_to(expected))
 
-    def test_the_tests_session_stops_at_its_first_failing_test(self) -> None:
+    def test_the_tests_command_carries_the_stop_after_option(self) -> None:
         """-x is in the tests command whatever the arguments, and in no other."""
         for words in ([], MODULES, ["pitboss.tests.test_gates"]):
             _, calls = run_nox({}, *words)

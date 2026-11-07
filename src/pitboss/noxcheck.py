@@ -1,14 +1,11 @@
 """The local check of a worker: the nox sessions that stand for CI's (pitboss#210).
 
-``pitboss nox`` runs the ``skills`` session, ``lint`` and ``mypy`` first (about
-23 s together, and most red runs are red there), then the tests of one Python
-version (about 4 minutes), each with ``-r`` (reuse the environment), and stops at
-the first that fails. The tests session stops at its first failing test (virtue's
-``-x``), whatever its arguments. The other sessions (docs, dry_release, the other
-Python versions) are CI's: its ``Run Nox`` step runs the whole suite, every test.
-Running the sessions
-is a seam (keyword: nox-runner): a test gives a runner and a clock, so no real nox
-runs.
+``pitboss nox`` runs the sessions of ``Session``, in that order (the rule that
+states the order and the stop is the worker brief's ``Nox`` sentence,
+``brieftextwork.NOX``), each with ``-r`` (reuse the environment). The other
+sessions (docs, dry_release, the other Python versions) are CI's: its ``Run Nox``
+step runs the whole suite. Running the sessions is a seam (keyword: nox-runner):
+a test gives a runner and a clock, so no real nox runs.
 """
 
 import dataclasses
