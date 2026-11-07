@@ -1,6 +1,7 @@
 """The top suggestions of ``next`` and ``slots next``, each with its brief.
 
-The first suggestion is the one the process requires, the others are the next
+On a crowded volume (90% used or more) the clean suggestion comes first; the
+first of the picks is the one the process requires, the others are the next
 ones that could start, so that a reason the model cannot name (the slot cap, a
 missing checkout) does not stop the work. The order is the one ``work.queued``
 gives, with the PRs at an Opus ruling before it: a ruling is owed first and
