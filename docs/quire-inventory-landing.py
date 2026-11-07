@@ -130,7 +130,6 @@ rows = [
  ("reviewer.md no way out", "adversarial-review.md", "## No exit clauses"),
  ("reviewer.md review form", "adversarial-review.md", "uvx pitboss review-form"),
  ("reviewer.md harmless phrases", "rules.md", "**Reviewers do not object to what does not harm**"),
- ("reviewer.md relock quick check", "rules.md", "**A mechanical relock**"),
  ("reviewer.md plan and execution lines", "rules.md", "`Plan:` line and an `Execution:` line"),
  ("qsweep PR line and readiness (split)", "sweep.md", "## The PR line"),
  ("qsweep conflict marker", "sweep.md", "The PR has a merge conflict."),

@@ -10,7 +10,7 @@ from typing import AbstractSet, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, flow, forms, relock, shapes, steps
+from .. import config, configfile, flow, forms, relock, shapes, steps
 from . import fakes, test_flow, world
 from .formchecks import body_checks, checks, subject
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
@@ -252,4 +252,4 @@ class TestConfigDefault(unittest.TestCase):
 
     def test_default_lint_has_the_default_prefix(self) -> None:
         """``DEFAULT_LINT`` is what a command without --config uses."""
-        assert_that(config.DEFAULT_LINT.relock_prefix, equal_to("relock/"))
+        assert_that(configfile.DEFAULT_LINT.relock_prefix, equal_to("relock/"))

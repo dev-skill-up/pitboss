@@ -236,7 +236,8 @@ after an Opus ruling, an escalation to the owner. So:
 - In a Plan review, try each command of the Plan as a read-only dry run where it
   can be tried (it changes nothing in the repository, the PR or the machine), and
   report each that cannot run as written as a finding of the Plan. This is the
-  one thing a reviewer runs.
+  one thing a reviewer runs (a relock review also runs the project's pins-check
+  command).
 - A later round on the same stage (an earlier review of the PR graded it) checks
   the earlier findings and the findings caused by the changes made since the head
   that review read.

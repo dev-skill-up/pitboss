@@ -9,6 +9,7 @@ from . import (
     deviations,
     ledger,
     local,
+    pinsline,
     pulls,
     queue,
     reviews,
@@ -73,14 +74,11 @@ def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
     if not ready or pull.pull.auto_merge or pull.signals.gate:
         return None  # keyword: review-gate: a pending gate is no READY TO MERGE
     name = pulls.reference(pull)
-    if _by_hand(pull, settings):
+    if config.merges_by_hand(settings, pull.repo):
         why = "execution approved by the Opus ruling" if ruled else "approved"
-        return f"{Marker.MERGE_BY_HAND.text} {name}: green, clean, {why}"
+        said = pinsline.why(pull.signals.pins, why)
+        return f"{Marker.MERGE_BY_HAND.text} {name}: green, clean, {said}"
     return f"{Marker.READY_TO_MERGE.text} {name}: arm auto-merge or merge"
-
-
-def _by_hand(pull: pulls.PullFacts, settings: config.Config) -> bool:
-    return pull.repo.slug in settings.no_auto_merge
 
 
 def action_lines(
@@ -107,7 +105,17 @@ def action_lines(
         *_wait_lines(pull),
         *_conflict_lines(pull),
         *_failure_lines(pull, why),
+        *pinsline.lines(pulls.reference(pull), pull.signals.pins),
         *([merge] if merge else []),
+    ]
+
+
+def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    if not pulls.conflicted(pull):
+        return []
+    return [
+        f"{Marker.CONFLICT.text} {pulls.reference(pull)}: merge {pull.pull.base} into"
+        f" {pull.pull.head.branch} (never rewrite history)"
     ]
 
 
@@ -128,15 +136,6 @@ def _wait_lines(pull: pulls.PullFacts) -> Sequence[str]:
     ]
 
 
-def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    if not pulls.conflicted(pull):
-        return []
-    return [
-        f"{Marker.CONFLICT.text} {pulls.reference(pull)}: merge {pull.pull.base} into"
-        f" {pull.pull.head.branch} (never rewrite history)"
-    ]
-
-
 def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[str]:
     return [
         f"{Marker.FAILED.text} {pulls.reference(pull)}: {check.name}"
@@ -148,7 +147,7 @@ def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[st
 def _auto_merge_off(
     pull: pulls.PullFacts, settings: config.Config, queued: bool
 ) -> bool:
-    manual = _by_hand(pull, settings)
+    manual = config.merges_by_hand(settings, pull.repo)
     # keyword: auto-merge-approved (pitboss#85): AUTO MERGE OFF is printed only for
     # a head a review approved; a head the Opus ruling approved gets READY TO MERGE
     # while auto-merge is off.

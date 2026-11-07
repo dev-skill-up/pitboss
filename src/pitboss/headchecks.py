@@ -3,7 +3,7 @@
 import dataclasses
 from typing import AbstractSet, Sequence
 
-from . import checkruns, config, ghapi, parsing, shapes, supersede
+from . import checkruns, config, ghapi, parsing, pinsreading, shapes, supersede
 
 RED_STATES = frozenset({"failure", "error"})
 # keyword: review-gate: the commit status a repository's review gate sets
@@ -27,6 +27,8 @@ class HeadSignals:
         approved_plans: the digest of each Plan section a trusted review
             approved, which the Plan-row rule does not judge (keyword:
             plan-approved, pitboss#296).
+        pins: what the pins-check command said of the PR, asked only at a
+            review step (keyword: pins-only, pitboss#34).
     """
 
     statuses: Sequence[shapes.CommitStatus] = ()
@@ -34,6 +36,7 @@ class HeadSignals:
     gate: str = ""
     rulings: Sequence[tuple[str, str]] = ()
     approved_plans: Sequence[str] = ()
+    pins: pinsreading.Reading = pinsreading.NOTHING
 
 
 def pending_gate(posted: Sequence[shapes.CommitStatus]) -> str:

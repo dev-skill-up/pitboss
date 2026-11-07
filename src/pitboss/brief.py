@@ -23,6 +23,7 @@ from . import (
     brieftextlint,
     brieftextnote,
     brieftextorder,
+    brieftextpins,
     brieftextwork,
 )
 
@@ -159,6 +160,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
 DRY_RUNNERS: Mapping[Kind, str] = {
     Kind.REVIEW_FULL: text.SEPARATE_DRY,
     Kind.REVIEW_PLAN: text.SEPARATE_DRAFT_DRY,
+    Kind.REVIEW_RELOCK: brieftextpins.SEPARATE_PINS,
 }
 PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
 # keyword: plan-digest (pitboss#172): the Plan of these PRs is approved

@@ -14,6 +14,7 @@ from . import (
     cardform,
     commands,
     config,
+    configfile,
     configsettle,
     contradictions,
     draftrule,
@@ -107,10 +108,9 @@ def _text(args: argparse.Namespace) -> None:
 
 
 def _lint_settings(args: argparse.Namespace) -> config.Lint:
-    if args.config is None:
-        return config.DEFAULT_LINT
     try:
-        return commands.load_settings(args).lint
+        loaded = None if args.config is None else commands.load_settings(args)
+        return configfile.DEFAULT_LINT if loaded is None else loaded.lint
     except (OSError, ValueError, KeyError) as error:
         raise _fail(f"{args.config}: {error}") from error
 

@@ -32,6 +32,11 @@ class Marker(enum.Enum):
             completed; it does not count.
         FOLDED_PR: an open PR whose body closes several tickets and cites no
             Opus ruling that allows it.
+        PINS_ONLY: a green PR that only moves pins, at a review step, whose
+            pins-check command did not print ``OK``; it is reviewed as before
+            (keyword: pins-only, pitboss#34).
+        PINS_ONLY_OK: a green PR that only moves pins whose pins-check command
+            printed ``OK``: no review is offered, the merge is.
         PR_STATE: the line of an open PR in ``slots next``: its next step.
         BLOCKED: a commit status of a PR's head failed; the line names the
             status, its link and, for ``text-lint``, whether the finding is about
@@ -132,6 +137,8 @@ class Marker(enum.Enum):
     RUN_E2E_BEFORE_APPROVAL = enum.auto()
     EXECUTION_REVIEWED_BEFORE_GREEN = enum.auto()
     FOLDED_PR = enum.auto()
+    PINS_ONLY = enum.auto()
+    PINS_ONLY_OK = enum.auto()
     PR_STATE = enum.auto()
     BLOCKED = enum.auto()
     CONFLICT = enum.auto()
@@ -204,6 +211,8 @@ class Marker(enum.Enum):
 
 SPELLED = {
     Marker.HELD_TICKET: "HELD",
+    Marker.PINS_ONLY: "PINS-ONLY",
+    Marker.PINS_ONLY_OK: "PINS-ONLY OK",
     Marker.NO_HAND_BACK: "NO HAND-BACK",
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
 }

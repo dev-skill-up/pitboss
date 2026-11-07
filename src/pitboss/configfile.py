@@ -2,7 +2,7 @@
 
 import pathlib
 import tomllib
-from typing import AbstractSet, Mapping
+from typing import AbstractSet, Mapping, Sequence
 
 from . import (
     briefconfig,
@@ -57,7 +57,7 @@ def load(name: str, start: pathlib.Path) -> config.Config:
         The configuration.
     """
     with locate(name, start).open("rb") as stream:
-        return config.from_document(tomllib.load(stream))
+        return from_document(tomllib.load(stream))
 
 
 def load_brief(name: str, start: pathlib.Path) -> briefconfig.Brief:
@@ -178,3 +178,176 @@ def load_document(name: str, start: pathlib.Path) -> Mapping[str, object]:
     """
     with locate(name, start).open("rb") as stream:
         return tomllib.load(stream)
+
+
+def _form(
+    table: Mapping[str, object], fallback: config.ReviewForm
+) -> config.ReviewForm:
+    return config.ReviewForm(
+        lines=tuple(_strings(table, "lines", fallback.lines)),
+        approved=str(table.get("approved", fallback.approved)),
+        changes_needed=str(table.get("changes_needed", fallback.changes_needed)),
+    )
+
+
+def _strings(
+    table: Mapping[str, object], key: str, fallback: Sequence[str]
+) -> Sequence[str]:
+    found = table.get(key, fallback)
+    if not isinstance(found, (list, tuple)):
+        raise ValueError(f"{key} must be a list of strings, not {found!r}")
+    return tuple(str(item) for item in found)
+
+
+def _table(document: Mapping[str, object], key: str) -> Mapping[str, object]:
+    found = document.get(key, {})
+    if not isinstance(found, dict):
+        raise ValueError(f"[{key}] must be a table, not {found!r}")
+    return found
+
+
+def _setting(document: Mapping[str, object], table: str, key: str, fall: object) -> str:
+    return str(_table(document, table).get(key, fall))
+
+
+def _review(document: Mapping[str, object], owner: str) -> config.Review:
+    table = _table(document, "review")
+    form = _form(_table(table, "form"), config.DEFAULT_REVIEW_FORM)
+    gated = _strings(table, "gated", ())
+    return config.Review(
+        trusted=frozenset(
+            _strings(table, "trusted_associations", config.DEFAULT_ASSOCIATIONS)
+        ),
+        gated=frozenset(config.parse_repo(item, owner).slug for item in gated),
+        form=form,
+        gated_form=_form(_table(table, "gated_form"), form),
+    )
+
+
+def _pins(table: Mapping[str, object]) -> config.Pins:
+    return config.Pins(
+        command=str(table.get("pins_check_command", "")),
+        files=_strings(table, "pin_files", config.DEFAULT_PIN_FILES),
+    )
+
+
+def _lint(document: Mapping[str, object], owner: str) -> config.Lint:
+    table = _table(document, "lint")
+    prefix = _setting(document, "relock", "prefix", config.DEFAULT_RELOCK_PREFIX)
+    return config.Lint(
+        review=_review(document, owner),
+        footers=_strings(_table(table, "pr_body"), "footers", ()),  # none required
+        brief_lines=_strings(_table(table, "brief"), "required", ()),
+        relock_prefix=prefix,
+        pins=_pins(_table(document, "relock")),
+    )
+
+
+# the form checks when a project says nothing: the generic review form, no required
+# footer and no required brief line
+DEFAULT_LINT = _lint({}, "")
+
+
+def _project(document: Mapping[str, object]) -> config.Project:
+    table, sweep = _table(document, "project"), _table(document, "sweep")
+    main_clone = pathlib.Path(str(table["main_clone"]))
+    return config.Project(
+        repo=config.make_repo(str(table["owner"]), str(table["repository"])),
+        base_branch=str(table.get("base_branch", "main")),
+        main_clone=main_clone,
+        workspace=pathlib.Path(str(table.get("workspace", main_clone.parent))),
+        run_by_e2e=_strings(sweep, "run_by_e2e", config.DEFAULT_RUN_BY_E2E),
+        plan_review_check=str(sweep.get("plan_review_check", "")),
+    )
+
+
+def _slot_specs(table: Mapping[str, object]) -> Sequence[config.SlotSpec]:
+    found = table.get("default", [])
+    if not isinstance(found, list):
+        raise ValueError(f"slots.default must be a list, not {found!r}")
+    return tuple(
+        config.SlotSpec(name=str(item["name"]), model=str(item["model"]))
+        for item in found
+    )
+
+
+def _slots(document: Mapping[str, object], project: config.Project) -> config.Slots:
+    table = _table(document, "slots")
+    ledger = project.main_clone / ".git" / "pitboss-slots.json"
+    book = pathlib.Path(str(table.get("ledger", ledger)))
+    return config.Slots(
+        ledger=book,
+        log=pathlib.Path(str(table.get("log", book.with_suffix(".log")))),
+        default=_slot_specs(table),
+        models=_strings(table, "models", ()),
+        priority_labels=_strings(table, "priority_labels", ()),
+        model_labels={
+            str(key): str(value) for key, value in _table(table, "model_labels").items()
+        },
+        ledger_owner=table.get("ledger-owner") is True,
+    )
+
+
+def _repos(
+    document: Mapping[str, object], table: str, key: str, owner: str
+) -> Sequence[config.Repo]:
+    names = _strings(_table(document, table), key, ())
+    return tuple(config.parse_repo(name, owner) for name in names)
+
+
+def _runners(
+    document: Mapping[str, object],
+    project: config.Project,
+    libraries: Sequence[config.Repo],
+) -> config.Runners:
+    minutes = int(_setting(document, "runners", "quiet_minutes", 15))
+    if minutes < 0:
+        raise ValueError(f"[runners] quiet_minutes must not be negative, not {minutes}")
+    default = project.main_clone / ".git" / "pitboss-pressure.log"
+    shared = _repos(document, "runners", "repositories", project.repo.owner)
+    return config.Runners(
+        repositories=shared or (project.repo, *libraries),
+        record=pathlib.Path(_setting(document, "runners", "record", default)),
+        quiet_minutes=minutes,
+        held="runners" in document,
+    )
+
+
+def _merge_queue(document: Mapping[str, object], owner: str) -> config.MergeQueue:
+    named = _repos(document, "merge_queue", "repositories", owner)
+    minutes = int(_setting(document, "merge_queue", "timeout_minutes", 60))
+    return config.MergeQueue(
+        timeout_minutes=minutes, repositories=frozenset(each.slug for each in named)
+    )
+
+
+def _reminders(document: Mapping[str, object]) -> Sequence[str]:
+    return _strings(_table(document, "sweep"), "reminders", config.DEFAULT_REMINDERS)
+
+
+def from_document(document: Mapping[str, object]) -> config.Config:
+    """Build the configuration from a parsed TOML document.
+
+    Args:
+        document: the parsed document.
+
+    Returns:
+        The configuration.
+    """
+    project = _project(document)
+    owner = project.repo.owner
+    libraries = _repos(document, "libraries", "repositories", owner)
+    no_auto_merge = _repos(document, "libraries", "no_auto_merge", owner)
+    lint = _lint(document, owner)
+    return config.Config(
+        project=project,
+        libraries=libraries,
+        no_auto_merge=frozenset(repo.slug for repo in no_auto_merge),
+        runners=_runners(document, project, libraries),
+        review=lint.review,
+        lint=lint,
+        merge_queue=_merge_queue(document, owner),
+        idle_hours=float(_setting(document, "worktrees", "idle_hours", 3)),
+        slots=_slots(document, project),
+        reminders=_reminders(document),
+    )

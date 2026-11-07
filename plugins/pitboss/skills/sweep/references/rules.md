@@ -767,8 +767,7 @@ Only override for bugs, but do override for bugs (and then file them)".
     Execution` (`RUN_PLAN`), and only then the undraft of a draft
     (the orchestrator undrafts it when a sweep shows `review=plan-approved` with
     `[draft]`, after `pitboss pressure` passes, "Pushing and merging"). With no ruling before it, the orchestrator undrafts the
-    PR at once, as before. Only a review that grades the Execution approves a head
-    to merge.
+    PR at once, as before.
   - **A Plan graded changes needed is a Plan rejection** (owner,
     2026-10-26T22:45:16Z: "there's no rejected outright. It's just that the
     first needs changes counts as the first plan rejection"); rejections are
@@ -873,7 +872,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - Every worker brief says: the worker rules of the repository; finish inside
   the turn; do not merge; do not write the review. Every reviewer brief says:
   the reviewer rules, and that a reviewer runs nothing (a Plan review runs only
-  the read-only dry runs of the Plan's commands). A reviewer brief is sent
+  the read-only dry runs of the Plan's commands, a relock review only the
+  project's pins-check command). A reviewer brief is sent
   only when the sweep says the PR is ready for review (or, for a review of a draft at its Plan stage,
   when its author hands back), and names the head SHA.
 - **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
@@ -1179,7 +1179,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   orchestrator, reads the PR and its reviews for an Opus ruling and for the
   account of what the rounds disagreed about that a pause comment carries.
 - **Reviewers never run anything** but the read-only dry runs of a Plan's
-  commands in a Plan review: they read the diff, check the author's
+  commands in a Plan review and the pins-check command in a relock review: they read the diff, check the author's
   evidence against the ticket's Done-when, read CI for the head, and post the
   verdict (haiku-rule 4). A claim CI does not cover needs the author's command
   output on the PR, else changes needed.
@@ -1197,7 +1197,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   the cause that was found**: "it passed again", "it passes alone" and
   "contention" are not causes. A class of failure a change says it covers has a
   case that fails when the class occurs, shown by injecting it. A reviewer runs
-  nothing (but the dry runs of a Plan review) and starts only when every required check is finished and green on
+  nothing (but the dry runs of a Plan review and the pins-check of a relock review) and starts only when every required check is finished and green on
   the exact head (a review of a draft at its Plan stage: its brief from `slots next` says what to read).
 - **Saying a defect out loud is not fixing it** ("documented", "disclosed",
   "known", "non-blocking" never make an approval): a defect is changes needed,
@@ -1209,10 +1209,22 @@ Only override for bugs, but do override for bugs (and then file them)".
   not change (owner, 2026-10-25, haiku-rule 38: "reviewers have no right to
   object to 'this doesn't fix other existing issues'"); it ends with a
   suggestion to file a bug.
-- **A mechanical relock** that is green and changes nothing but the relock
-  needs a quick check, not a full review (owner, 2026-10-23T11:25:42Z: "a green
-  relock pr with no changes other than the relocking itself doesn't need a full
-  review. Just a quick check that nothing else was done.").
+- **A pins-only pull request is verified by the pins-check command, with no
+  review** (keyword: pins-only, pitboss#34; owner, 2026-10-23T11:25:42Z: "a
+  green relock pr with no changes other than the relocking itself doesn't need
+  a full review"; owner, 2026-11-07T11:50Z: "Why do we need review for relock?
+  Unless it needs changes to the logic, it's mechanical"). A pull request is
+  pins-only when its head branch has the `[relock] prefix` (default `relock/`)
+  or every path it changes is in `[relock] pin_files`. The project's command is
+  `[relock] pins_check_command` (for bats projects `bats pins-check {base}
+  {head} --compiler <dir> --repository <dir>`; empty means none, and every such
+  PR is reviewed). When CI is green and the command's last output line is the word OK
+  or starts `OK:`, the sweep prints `PINS-ONLY OK`, then `READY TO MERGE` (or
+  `MERGE BY HAND`), and offers no review: the orchestrator merges it. Any
+  other output (`NOT OK: ...`, a command that cannot run, a mixed PR, a PR with
+  a non-pin file) is the line `PINS-ONLY` with the command's line, and the PR
+  is offered for a review as before, whose brief (`review the relock`) tells
+  the reviewer to run the command on the head and paste its output as evidence.
 - **Before asking the owner, an Opus worker predicts the answer** (owner,
   2026-10-27T15:48:08Z: "In the future, treat it as a standing order. Before
   asking me, start an opus worker with the request to predict what I'll say. If

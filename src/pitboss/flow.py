@@ -288,7 +288,7 @@ def next_step(pr: PullState) -> steps.Next:
         return waiting_step(pr, review) or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
     # ---- before any review: the first work on a PR; a relock PR fixes no ticket
-    # and has no body to write, it goes straight to its review (pitboss#126)
+    # and has no body to write: its review (pitboss#126), or ``pinsonly`` (#34)
     if not (pr.relock or planbody.has_plan_execution_body(pr.pull.body)):
         return steps.worker(steps.Task.FIRST_ROUND)
 

@@ -19,6 +19,8 @@ from . import (
     ghapi,
     mergesonly,
     parsing,
+    pinsask,
+    pinsreading,
     pullfiles,
     relock,
     reviews,
@@ -151,28 +153,6 @@ def conflicted(facts: PullFacts) -> bool:
     return conflicts.is_dirty(facts.pull)
 
 
-def needs_update(facts: PullFacts, settings: config.Config) -> bool:
-    """Whether the PR is behind the base with every check finished.
-
-    A PR behind the base whose checks still run is not named, and where the
-    repository has a merge queue (``[merge_queue] repositories``) the queue
-    builds each entry on the current base, so behind is no work.
-
-    Args:
-        facts: the PR.
-        settings: the configuration.
-
-    Returns:
-        True when the PR needs the base merged in.
-    """
-    return (
-        facts.pull.mergeable_state is shapes.MergeState.BEHIND
-        and not waiting_for_ci(facts)
-        and not pending(facts)
-        and facts.repo.slug not in settings.merge_queue.repositories
-    )
-
-
 def approved(facts: PullFacts) -> bool:
     """Whether the head's review approves it.
 
@@ -204,6 +184,8 @@ class Source:
             (keyword: plan-review-check).
         early: takes the Execution reviews written before green out of a
             PR's comments (keyword: execution-before-green, pitboss#202).
+        pins: asks the pins-check command about a PR at a review step
+            (keyword: pins-only, pitboss#34).
     """
 
     github: ghapi.GitHub
@@ -213,6 +195,7 @@ class Source:
     run_by_e2e: Sequence[str] = config.DEFAULT_RUN_BY_E2E
     plan_review_check: str = ""
     early: earlyfound.Split = earlyfound.keep_all
+    pins: pinsask.Ask = lambda repo, pull: pinsreading.NOTHING
 
 
 def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
@@ -320,14 +303,16 @@ def _unreadable(
 
 
 def _signals(
-    source: Source, repo: config.Repo, got: Fetched, graded: Sequence[shapes.Graded]
+    source: Source, repo: config.Repo, got: Fetched, state: flow.PullState
 ) -> headchecks.HeadSignals:
     ruled = folds.ruling_comments(got.posted.comments, source.review.trusted)
     found = headchecks.signals(got.statuses, got.checks, got.labels, ruled)
     unmet = headchecks.gate(got.statuses, repo.slug, source.review.gated)
     # keyword: plan-approved (pitboss#296): the Plans that reviews approved
-    approved = flowstate.approved_digests(graded)
-    return dataclasses.replace(found, gate=unmet, approved_plans=approved)
+    approved = flowstate.approved_digests(state.graded)
+    # keyword: pins-only (pitboss#34): asked only where a review would be offered
+    pins = pinsask.at_review(source.pins, repo, got.pull, flow.next_step(state))
+    return dataclasses.replace(found, gate=unmet, approved_plans=approved, pins=pins)
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -345,15 +330,16 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     found = reviews.newest(got.posted, source.review, repo.slug)
     standing, merged = _standing(source, repo, got.pull, found)
     state = _state(source, repo, got)
+    signals = _signals(source, repo, got, state)
     return PullFacts(
         repo=repo,
         pull=got.pull,
         checks=got.checks,
         review=found,
         standing=standing,
-        signals=_signals(source, repo, got, state.graded),
+        signals=signals,
         unreadable=_unreadable(source, repo, got, found),
-        step=flow.next_step(state),
+        step=pinsask.unreviewed(flow.next_step(state), signals.pins),
         review_rounds=rounds.of(state, merged),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
     )

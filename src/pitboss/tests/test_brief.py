@@ -97,6 +97,7 @@ FORM_LINES = [
     "You run nothing",
     "Do not push, merge, or edit the PR or its branch.",
 ]
+SEPARATE_PINS = "You run nothing but the project's pins-check command:"
 FIX_ROUND = [
     "Scope (exclusive): the fix round. The findings to check are those"
     " of the review at https://example.org/c/1, of head " + APPROVED,
@@ -183,6 +184,12 @@ class TestReviewRules(unittest.TestCase):
     def test_the_review_form_is_filled_in_and_the_head_named(self) -> None:
         """The comment's lines are the repository's, with the head."""
         pinned(brief.Kind.REVIEW_FULL, FORM_LINES)
+
+    def test_a_relock_review_may_run_the_pins_check_and_nothing_else(self) -> None:
+        """The relock brief names the one command, and does not say it runs nothing."""
+        found = text(brief.Kind.REVIEW_RELOCK)
+        pinned(brief.Kind.REVIEW_RELOCK, [SEPARATE_PINS])
+        has_none(found, ["You run nothing:"])
 
     def test_the_projects_review_lines_end_the_brief(self) -> None:
         """A fact only the project knows is added, after the process."""
