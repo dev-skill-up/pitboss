@@ -69,8 +69,8 @@ def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:
 
 
 def _draft_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    # keyword: draft-review (pitboss#156): a draft runs no CI, so its round is
-    # said in the words `slots next` lists it with, before any ticket
+    # keyword: draft-review (pitboss#156): a draft waits for no CI (but the check of
+    # plan-review-check) so its round is said as `slots next` lists it, before a ticket
     category = work.category_of(pull) if pull.pull.draft else None
     if category is None:
         return []

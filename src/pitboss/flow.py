@@ -313,7 +313,7 @@ def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
 
 
 def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
-    """The draft gate of ``next_step`` (a draft runs no CI), then the CI gate.
+    """The draft gate of ``next_step`` (CI is not waited for, but for the Plan review).
 
     Args:
         pr: the PR.
