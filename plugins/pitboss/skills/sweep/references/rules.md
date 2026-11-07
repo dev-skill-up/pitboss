@@ -820,12 +820,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   2026-10-31, after a review brief for a resolution-only review also asked for
   body checks and the reviewer rejected on the body's last line: "If you only
   review the conflict resolution, you only review it"). `pitboss next CONFIG`
-  and `pitboss slots next CONFIG` print the top five suggestions in the order
-  the process ranks them (a PR at `RULING DUE` first, then the list of `slots
-  next`), each with its kind, its PR or ticket, its model class and its
-  complete brief, built from the repository's own rules (`[review.form]`,
-  `[lint.pr_body] footers`, `[slots.brief]`). The orchestrator pastes the brief of
-  the first suggestion it can start, unchanged; it does not write one. Adding
+  and `pitboss slots next CONFIG` print suggestions, each with its kind, its PR or
+  ticket, its model class and its complete brief, built from the repository's
+  own rules (`[review.form]`, `[lint.pr_body] footers`, `[slots.brief]`). The
+  orchestrator pastes the brief of the first suggestion it can start,
+  unchanged; it does not write one. Adding
   to a brief is allowed only for a fact the tool cannot know, and never widens
   a review's scope. The one exception that replaces a line: the ruling brief has
   exactly one line, `How we got here:`, that the orchestrator replaces with the
