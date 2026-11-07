@@ -120,7 +120,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.PLAN_COMMANDS_PLAN,
         brieftextci.PLAN_NO_NOX_REVIEW,
         brieftextci.PLAN_CI_POINTER_REVIEW,
-        brieftextci.REVIEW_CI_ACCEPTED,
         text.PLAN_DRY_RUN,
         text.PLAN_CHECK,
         brieftextimpact.IMPACT_REVIEW,
@@ -136,7 +135,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.MISSED_EARLIER,
         text.CHECK,
         text.GREP,
-        brieftextci.REVIEW_CI_ACCEPTED,
         *brieftextnote.EXECUTION_REVIEW,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextorder.ORDER_REVIEW,
@@ -173,12 +171,6 @@ APPROVED_PLAN_WORKERS = frozenset(
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
-PUSHES = {
-    (True, True): text.PUSH_HELD,
-    (True, False): brieftextdraft.PUSH_HELD_READY,
-    (False, True): text.PUSH_FREE,
-    (False, False): text.PUSH_FREE,
-}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
 
 
@@ -348,7 +340,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         *_plan_lines(spec.kind),
-        PUSHES[(project.holds, project.drafts)],
+        brieftextdraft.PUSHES[(project.holds, project.drafts)],
         text.NO_WAITING,
         text.FINISH,
         text.HAND_BACK,

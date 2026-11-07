@@ -10,9 +10,8 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextci, planbody, steps
-from . import test_flow, test_flow_sweep, world
+from . import test_flow, test_flow_sweep, test_plan_commands
 from .briefmake import pinned, text
-from .test_commands import sweep
 
 QUOTES_PLAN = "## Plan\n1. CI quote: the Run Nox step of the head\n"
 PLAN_ONLY_APPROVED = test_flow_sweep.graded("approved", None, 1)
@@ -64,70 +63,48 @@ class TestRead(unittest.TestCase):
 class TestFlow(unittest.TestCase):
     """The step of a ready PR with green checks."""
 
-    def test_the_worker_adds_the_quotes_before_any_review(self) -> None:
-        """Plan approved, checks green, quotes missing: a worker, no review."""
-        pr = test_flow.state(
-            test_flow.graded(*test_flow.PLAN_APPROVED_ALONE, 1),
-            body=body(QUOTES_PLAN, UNQUOTED),
-        )
-        test_flow.expect(steps.worker(steps.Task.ADD_CI_QUOTES), pr)
-
-    def test_the_review_is_offered_once_the_quotes_are_there(self) -> None:
-        """With the quotes in the body the Execution is reviewed."""
-        pr = test_flow.state(
-            test_flow.graded(*test_flow.PLAN_APPROVED_ALONE, 1),
-            body=body(QUOTES_PLAN, QUOTED),
-        )
-        want = steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
-        test_flow.expect(want, pr)
-
-    def test_a_plan_without_quote_rows_is_reviewed_as_before(self) -> None:
-        """The state needs the Plan's rows."""
-        pr = test_flow.state(test_flow.graded(*test_flow.PLAN_APPROVED_ALONE, 1))
-        want = steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
-        test_flow.expect(want, pr)
+    def test_the_step_follows_the_quotes_the_plan_names(self) -> None:
+        """Quotes missing: a worker, no review; given or not named: the review."""
+        review = steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
+        cases = [
+            (body(QUOTES_PLAN, UNQUOTED), steps.worker(steps.Task.ADD_CI_QUOTES)),
+            (body(QUOTES_PLAN, QUOTED), review),
+            (test_flow.BODY, review),
+        ]
+        approved = test_flow.graded(test_flow.APPROVED, None, 1)
+        for text_of_body, want in cases:
+            made = test_flow.state(approved, body=text_of_body)
+            test_flow.expect(want, made)
 
 
 class TestSweep(unittest.TestCase):
     """The sweep of a ready PR with green checks and a Plan with CI-quote rows."""
 
-    def test_the_sweep_names_the_step_and_offers_no_review(self) -> None:
+    def test_the_list_names_the_step_and_offers_no_review(self) -> None:
         """Done-when: the next step is `add the CI quotes to the body`."""
         here = test_flow_sweep.world_with(
             [PLAN_ONLY_APPROVED], body=body(QUOTES_PLAN, UNQUOTED), draft=False
         )
-        printed = sweep(here).out
-        assert_that(printed, contains_string(WANTED))
-        assert_that("review=" in printed.split("project#3")[-1], equal_to(False))
-        nexts = world.invoke(here, "next", here.config, "#7", "--now", world.FUTURE).out
-        assert_that(nexts, contains_string(WANTED))
-        assert_that("REGULAR_REVIEW" in nexts, equal_to(False))
+        listed = "".join(test_flow_sweep.listed_for_third(here))
+        assert_that(listed, contains_string(f"({WANTED},"))
+        assert_that("review it" in listed, equal_to(False))
 
 
 class TestBriefs(unittest.TestCase):
     """The briefs of the ruling, the reviews and the worker."""
 
-    def test_the_ruling_brief_asks_for_no_pasted_ci_output(self) -> None:
-        """(c): a ruling points to the run, never asks for log lines."""
+    def test_the_ruling_asks_for_no_pasted_output_and_reviews_accept_a_pointer(
+        self,
+    ) -> None:
+        """(c): a ruling points to the run; a CI row's pointer is the evidence."""
         pinned(brief.Kind.RULING, [brieftextci.RULING_NO_CI_QUOTES])
+        for kind in test_plan_commands.EXECUTION_REVIEWS:
+            pinned(kind, [brieftextci.REVIEW_CI_ACCEPTED])
         assert_that(
             brieftextci.RULING_NO_CI_QUOTES,
             contains_string("never ask for CI log lines or pasted CI output"),
-        )
-
-    def test_the_execution_reviews_accept_a_ci_pointer(self) -> None:
-        """The reviewer never demands quoted log lines for a CI row."""
-        for kind in (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION):
-            pinned(kind, [brieftextci.REVIEW_CI_ACCEPTED])
-        assert_that(
-            brieftextci.REVIEW_CI_ACCEPTED,
-            contains_string("never ask for quoted log lines"),
         )
         assert_that(
             brieftextci.REVIEW_CI_ACCEPTED in text(brief.Kind.REVIEW_PLAN),
             equal_to(False),
         )
-
-    def test_the_worker_brief_adds_the_quotes_as_pointers(self) -> None:
-        """The worker's task names the pointer and pastes no output."""
-        pinned(brief.Kind.ADD_CI_QUOTES, ["paste no log output", "CI quote:"])

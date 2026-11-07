@@ -4,7 +4,7 @@ Like those of ``brieftext``, it is pinned by tests, so a change to it is a
 reviewed code change.
 """
 
-from .brieftext import HOLD_BUG
+from .brieftext import HOLD_BUG, PUSH_FREE, PUSH_HELD
 
 PUSH_HELD_READY = (
     "Push: push with `uvx pitboss push {config} --no-dry-run` (without `--draft`:"
@@ -13,3 +13,9 @@ PUSH_HELD_READY = (
     " naming where you stopped and the SHA of what is unpushed; never loop or"
     " sleep for the hold to clear. " + HOLD_BUG
 )
+PUSHES = {
+    (True, True): PUSH_HELD,
+    (True, False): PUSH_HELD_READY,
+    (False, True): PUSH_FREE,
+    (False, False): PUSH_FREE,
+}
