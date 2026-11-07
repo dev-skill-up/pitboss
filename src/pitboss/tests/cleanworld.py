@@ -10,7 +10,7 @@ from typing import NamedTuple, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import cleanconfig, container, dead
-from . import fakes, world
+from . import fakes, repositories, world
 from .test_local import age
 
 SETTINGS = "min_free_gib = 0\ntmp_roots = []\npressure_percent = 100\n"
@@ -156,7 +156,7 @@ def repository(where: pathlib.Path) -> pathlib.Path:
         The clone.
     """
     where.mkdir(parents=True)
-    return fakes.make_repository(where)
+    return repositories.make_repository(where)
 
 
 def clone_of(workspace: pathlib.Path, here: world.World, name: str) -> pathlib.Path:

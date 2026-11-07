@@ -8,7 +8,7 @@ import unittest
 from typing import Sequence
 
 from .. import cleanconfig, dead
-from . import cleanworld, fakes
+from . import cleanworld, fakes, repositories
 from .test_local import CUTOFF, age
 
 FAR = time.time() + 1e6
@@ -146,7 +146,7 @@ class TestConsider(unittest.TestCase):
         """A candidate with an unpushed commit says so."""
         top = fakes.directory()
         cleanworld.make_directories(top, ("clones",))
-        clone = fakes.make_repository(top / "clones")
+        clone = repositories.make_repository(top / "clones")
         fakes.commit_file(clone, "only-here")
         kept = dead.consider(cleanworld.look_in(top), clone.parent, "r", FAR)
         cleanworld.same(kept and kept.kept.split(" ")[0], "1")
@@ -160,7 +160,7 @@ def listed() -> tuple[dead.Look, pathlib.Path, dead.Candidate]:
     """
     top = fakes.directory()
     cleanworld.put(top, "entry/file")
-    clone = fakes.make_repository(top / "entry")
+    clone = repositories.make_repository(top / "entry")
     age(top)
     look = cleanworld.look_in(top)
     made = dead.consider(look, top / "entry", "r", CUTOFF)

@@ -6,7 +6,7 @@ import unittest
 from typing import AbstractSet
 
 from .. import repocheck, survey
-from . import cleanworld, fakes
+from . import cleanworld, fakes, repositories
 from .cleanworld import failing, same
 
 NOBODY: AbstractSet[pathlib.Path] = frozenset()
@@ -32,7 +32,7 @@ def fresh() -> pathlib.Path:
     Returns:
         The clone.
     """
-    return fakes.make_repository(fakes.directory())
+    return repositories.make_repository(fakes.directory())
 
 
 def local_branch(clone: pathlib.Path, name: str) -> None:
@@ -111,7 +111,7 @@ class TestWhatTheRemovalLoses(unittest.TestCase):
     def test_a_linked_worktree_goes_without_its_repository(self) -> None:
         """Only the worktree's HEAD is lost; the repository elsewhere keeps its refs."""
         workspace = fakes.directory()
-        main = fakes.make_repository(workspace)
+        main = repositories.make_repository(workspace)
         local_branch(main, "other-work")
         linked = fakes.add_worktree(main, "linked")
         same(verdict(linked), "")
@@ -124,7 +124,7 @@ class TestWhatTheRemovalLoses(unittest.TestCase):
         entry = fakes.directory()
         deep = entry / "a/b/c/d"
         deep.mkdir(parents=True)
-        clone = fakes.make_repository(deep)
+        clone = repositories.make_repository(deep)
         before = verdict(entry)
         fakes.commit_file(clone, "only-here")
         same((before, verdict(entry).split(" ")[0]), ("", "1"))

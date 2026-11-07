@@ -11,7 +11,7 @@ from typing import Callable, Mapping, MutableSequence, Sequence
 from hamcrest import assert_that, contains_string, greater_than
 
 from .. import cleaning, cleanconfig, dead, deadscan, disk
-from . import fakes
+from . import fakes, repositories
 from .cleanworld import candidates, failing, same
 
 
@@ -169,7 +169,7 @@ class TestCommandPieces(unittest.TestCase):
     def test_prune_skips_a_git_directory_that_is_gone(self) -> None:
         """A prune of a missing directory runs no git; an existing one does."""
         top = fakes.directory()
-        repository = fakes.make_repository(top)
+        repository = repositories.make_repository(top)
         gone = top / "removed" / ".git"
         run = fakes.FakeProcesses(bodies={})
         each = candidates(top, "a", "b")

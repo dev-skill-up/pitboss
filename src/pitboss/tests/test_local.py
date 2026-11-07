@@ -10,7 +10,7 @@ from typing import Mapping
 from hamcrest import assert_that, equal_to
 
 from .. import config, local, shapes
-from . import fakes, orphans
+from . import fakes, orphans, repositories
 
 OLD = time.time() - 10 * 3600
 CUTOFF = OLD + 3600
@@ -77,7 +77,7 @@ def scene() -> tuple[pathlib.Path, pathlib.Path]:
         The workspace and the clone.
     """
     workspace = fakes.directory()
-    clone = fakes.make_repository(workspace)
+    clone = repositories.make_repository(workspace)
     for name in PUSHED:
         fakes.push(add_worktree(clone, name))
     add_worktree(clone, "unpushed")
@@ -121,7 +121,7 @@ class TestStragglers(unittest.TestCase):
     def test_stragglers(self) -> None:
         """A clean checkout is not one; changes and unpushed commits are."""
         workspace = fakes.directory()
-        clone = fakes.make_repository(workspace)
+        clone = repositories.make_repository(workspace)
         fakes.write(workspace / "not-a-checkout/file", "")
         runner = fakes.FakeProcesses(bodies={})
         before = (local.checkouts(workspace), local.read_straggler(runner, clone))
@@ -148,7 +148,7 @@ class TestStragglers(unittest.TestCase):
     def test_an_orphaned_checkout_is_told_from_a_readable_one(self) -> None:
         """A .git file pointing at a missing gitdir is orphaned (#98)."""
         workspace = fakes.directory()
-        clone = fakes.make_repository(workspace)
+        clone = repositories.make_repository(workspace)
         orphan = orphans.make_orphaned(workspace, "orphan")
         runner = fakes.FakeProcesses(bodies={})
         found = (local.orphaned(runner, clone), local.orphaned(runner, orphan))
@@ -157,7 +157,7 @@ class TestStragglers(unittest.TestCase):
     def test_fetch_once_per_repository(self) -> None:
         """Worktrees of one repository are fetched once; a failure is named."""
         workspace = fakes.directory()
-        clone = fakes.make_repository(workspace)
+        clone = repositories.make_repository(workspace)
         worktree = add_worktree(clone, "worktree")
         broken = fakes.make_unfetchable(workspace, "broken")
         empty = fakes.make_unfetchable(workspace, "empty")

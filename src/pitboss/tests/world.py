@@ -12,7 +12,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 from gather import commands as gather_commands
 
 from .. import cli_parser, disk
-from . import fakes, fixeddisk, ownerbodies, ticket_bodies
+from . import fakes, fixeddisk, ownerbodies, repositories, ticket_bodies
 
 FUTURE = "2030-01-01T00:00:00+00:00"
 START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
@@ -260,9 +260,8 @@ def make_world(answers: fakes.Answers = fakes.TRACEFS_FOUND) -> World:
         The world.
     """
     workspace = fakes.directory()
-    clone = fakes.make_repository(workspace)
-    worktree = fakes.add_worktree(clone, "merged-work")
-    fakes.push(worktree)
+    clone = repositories.make_merged(workspace)
+    worktree = workspace / repositories.MERGED
     ledger = configure(workspace)
     processes = fakes.FakeProcesses(bodies=bodies(), answers=answers)
     return World(

@@ -1,6 +1,7 @@
 """Every command that takes a configuration, in a world (keyword: default-config)."""
 
 import dataclasses
+import functools
 import os
 import pathlib
 import re
@@ -231,6 +232,21 @@ def form_run(case: Case, form: str) -> Ran:
     variables = [("PITBOSS_CONFIG", here.config)] if form == "variable" else []
     words = with_form(case.before, case.after, here, form)
     return Ran(here, run(here, words, variables))
+
+
+@functools.cache
+def every_run() -> Mapping[tuple[str, str], Ran]:
+    """Run each form of each case once, for all the tests that read them.
+
+    Each run has a world of its own and its output is only read afterwards,
+    so the tests share the runs (keyword: shared-repository).
+
+    Returns:
+        What each run did, by its command and its form.
+    """
+    return {
+        (case.before[0], form): form_run(case, form) for case in CASES for form in FORMS
+    }
 
 
 def deprecation(command: str) -> str:
