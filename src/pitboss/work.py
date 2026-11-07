@@ -61,6 +61,8 @@ class Category(enum.IntEnum):
             one (a PR; keyword: fix-round).
         RUN_PLAN: an author runs the commands of a Plan that was approved alone
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
+        ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
+            a ready PR whose checks passed (a PR; keyword: ci-quotes).
     """
 
     FIX_REVIEW = 1
@@ -74,6 +76,7 @@ class Category(enum.IntEnum):
     RULING_AS_GIVEN = 10
     REVIEW_FIX_ROUND = 11
     RUN_PLAN = 12
+    ADD_CI_QUOTES = 13
 
 
 CATEGORY_WORDS = {
@@ -88,6 +91,7 @@ CATEGORY_WORDS = {
     Category.RULING_STEPS: "do the ruling's steps",
     Category.RULING_AS_GIVEN: "carry out the ruling",
     Category.RUN_PLAN: "run the Plan's commands and fill the Execution",
+    Category.ADD_CI_QUOTES: "add the CI quotes to the body",
 }
 
 
@@ -148,6 +152,7 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.RULING_STEPS: Category.RULING_STEPS,
     steps.Task.RULING_AS_GIVEN: Category.RULING_AS_GIVEN,
     steps.Task.RUN_PLAN: Category.RUN_PLAN,
+    steps.Task.ADD_CI_QUOTES: Category.ADD_CI_QUOTES,
 }
 
 

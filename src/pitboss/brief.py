@@ -42,6 +42,8 @@ class Kind(enum.Enum):
             or abandon.
         RUN_PLAN: a worker runs the commands of a Plan approved alone and
             fills the Execution.
+        ADD_CI_QUOTES: a worker adds the CI quotes the Plan names to the body of
+            a ready PR whose checks passed (keyword: ci-quotes, pitboss#277).
         REVIEW_FULL: a reviewer grades the Plan and the Execution of a head.
         REVIEW_EXECUTION: a reviewer grades the Execution of a head whose
             Plan is approved.
@@ -64,6 +66,7 @@ class Kind(enum.Enum):
     RULING_STEPS = "do the steps of the Opus ruling"
     RULING_AS_GIVEN = "carry out the Opus ruling"
     RUN_PLAN = "run the Plan's commands and fill the Execution"
+    ADD_CI_QUOTES = "add the CI quotes to the body"
     REVIEW_FULL = "review the Plan and the Execution"
     REVIEW_EXECUTION = "review the Execution"
     REVIEW_PLAN = "review the Plan alone"
@@ -105,6 +108,7 @@ TASKS: Mapping[Kind, str] = {
     Kind.RULING_STEPS: text.TASK_RULING_STEPS,
     Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
     Kind.RUN_PLAN: brieftextwork.TASK_RUN_PLAN,
+    Kind.ADD_CI_QUOTES: brieftextwork.TASK_ADD_CI_QUOTES,
 }
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [
@@ -116,6 +120,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.PLAN_COMMANDS_PLAN,
         brieftextci.PLAN_NO_NOX_REVIEW,
         brieftextci.PLAN_CI_POINTER_REVIEW,
+        brieftextci.REVIEW_CI_ACCEPTED,
         text.PLAN_DRY_RUN,
         text.PLAN_CHECK,
         brieftextimpact.IMPACT_REVIEW,
@@ -131,6 +136,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.MISSED_EARLIER,
         text.CHECK,
         text.GREP,
+        brieftextci.REVIEW_CI_ACCEPTED,
         *brieftextnote.EXECUTION_REVIEW,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextorder.ORDER_REVIEW,
@@ -162,7 +168,7 @@ PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
 # keyword: plan-digest (pitboss#172): the Plan of these PRs is approved
 APPROVED_PLAN_WORKERS = frozenset(
     {Kind.FIX_REVIEW, Kind.FIX_CI, Kind.RESOLVE_CONFLICT, Kind.RULING_STEPS}
-) | {Kind.RUN_PLAN}
+) | {Kind.RUN_PLAN, Kind.ADD_CI_QUOTES}
 # keyword: dry-run (pitboss#170): the briefs that write a Plan's commands (the
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}

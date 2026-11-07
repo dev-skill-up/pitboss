@@ -47,3 +47,38 @@ def execution_unwritten(body: str) -> bool:
         written.append(text)
     first = next((each.strip() for each in written if each.strip()), "")
     return not first or bool(_PLACEHOLDER.match(first))
+
+
+_CI_QUOTE = re.compile(r"\bCI\s+quotes?\b", re.IGNORECASE)
+_QUOTE_LINE = re.compile(r"^[\W_]*CI\s+quotes?\b", re.IGNORECASE)
+
+
+def _section(body: str, heading: "re.Pattern[str]") -> list[str]:
+    lines = iter(body.splitlines())
+    if not any(heading.match(text) for text in lines):
+        return []
+    found = []
+    for text in lines:
+        if text.startswith("## "):
+            break
+        found.append(text)
+    return found
+
+
+def ci_quotes_missing(body: str) -> bool:
+    """Whether the Plan has CI-quote rows and the Execution fewer quotes.
+
+    A CI-quote row is a line of the Plan that names a ``CI quote``; a quote in
+    the Execution is a line that starts with ``CI quote`` (a list mark or bold
+    before it is allowed). The Plan puts the quotes after CI exists, so the
+    review of the Execution waits for them (keyword: ci-quotes, pitboss#277).
+
+    Args:
+        body: the PR's body.
+
+    Returns:
+        True when the Plan names more CI quotes than the Execution gives.
+    """
+    rows = sum(1 for each in _section(body, _PLAN_HEADING) if _CI_QUOTE.search(each))
+    quoted = _section(body, _EXECUTION_HEADING)
+    return sum(1 for each in quoted if _QUOTE_LINE.match(each)) < rows
