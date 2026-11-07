@@ -245,6 +245,27 @@ def deprecation(command: str) -> str:
     return configsettle.DEPRECATED.format(command=command) + "\n"
 
 
+FREE = r"(?:unknown|\d+\.\d+ [GM]iB)"
+# the two lines of a clean that say the free disk: ``clean-container``'s own and
+# ``clean``'s last line (keyword: default-config, pitboss#316)
+FREE_DISK = re.compile(
+    rf"(^disk: |; disk free ){FREE}( (?:free )?before, ){FREE}( after)$", re.MULTILINE
+)
+
+
+def free_disk_hidden(text: str) -> str:
+    """A text with the figures of its free-disk lines replaced by a token.
+
+    Args:
+        text: the output of a command.
+
+    Returns:
+        The text, whose ``disk: 6.9 GiB free before, 6.8 GiB after`` says
+        ``disk: <free> free before, <free> after``; no other line changes.
+    """
+    return FREE_DISK.sub(r"\1<free>\2<free>\3", text)
+
+
 def seen(here: world.World, found: world.Result, command: str) -> Sequence[object]:
     """What a run did, without the paths of its world and the deprecation line.
 
@@ -257,7 +278,8 @@ def seen(here: world.World, found: world.Result, command: str) -> Sequence[objec
         The exit code, the output and the error output.
     """
     texts = [
-        text.replace(here.config, "<config>")
+        free_disk_hidden(text)
+        .replace(here.config, "<config>")
         .replace(deprecation(command), "")
         .replace(str(here.workspace), "<workspace>")
         for text in (found.out, found.err)

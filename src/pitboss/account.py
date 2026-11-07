@@ -82,20 +82,8 @@ def totals(
     size = disk.size_text(sum(map(operator.attrgetter("size"), gone)))
     return (
         f"clean: {len(gone)} paths removed, {size} {VERBS[dry]}; disk free"
-        f" {free_text(before)} before, {free_text(after)} after"
+        f" {disk.free_text(before)} before, {disk.free_text(after)} after"
     )
-
-
-def free_text(usage: disk.Usage | None) -> str:
-    """Spell the free space of a use.
-
-    Args:
-        usage: the use, or None when it could not be read.
-
-    Returns:
-        The size, or ``unknown``.
-    """
-    return disk.size_text(usage.free) if usage else "unknown"
 
 
 def open_lines(tied: Sequence[local.Worktree]) -> Sequence[str]:

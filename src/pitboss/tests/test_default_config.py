@@ -1,5 +1,6 @@
 """A command with no configuration argument finds one (keyword: default-config)."""
 
+import dataclasses
 import os
 import pathlib
 import shutil
@@ -9,9 +10,9 @@ import unittest
 from typing import Sequence, cast
 
 from gather.api import Wrapper, unique
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, is_not
 
-from .. import ENTRY_DATA, cli_parser, commandscan, configsettle
+from .. import ENTRY_DATA, cli_parser, commandscan, configsettle, disk
 from . import configcases, fakes, fixeddisk, world
 
 CASES = configcases.CASES
@@ -129,4 +130,103 @@ class TestMissingConfiguration(unittest.TestCase):
         assert_that(
             (found.code, *(each in found.err for each in places)),
             equal_to((0, True, True)),
+        )
+
+
+def free_of(gibibytes: int) -> disk.Reader:
+    """A disk reader whose disk has a free space.
+
+    Args:
+        gibibytes: the free space, in GiB.
+
+    Returns:
+        The reader, which gives that figure for every path.
+    """
+
+    def read(path: pathlib.Path) -> disk.Usage:
+        total = 100 * fixeddisk.GIBIBYTE
+        free = gibibytes * fixeddisk.GIBIBYTE
+        return disk.Usage(total, total - free, free)
+
+    return read
+
+
+def cleaned_with(gibibytes: int) -> tuple[world.World, world.Result]:
+    """Run the ``clean-container`` case in a world whose disk has a free space.
+
+    Args:
+        gibibytes: the free space, in GiB.
+
+    Returns:
+        The world and what the command did.
+    """
+    case = CASES[1]
+    made = configcases.placed(case.make, configcases.SEARCHED)
+    here = dataclasses.replace(made, usage=free_of(gibibytes))
+    words = configcases.with_form(case.before, case.after, here, "bare")
+    return here, configcases.run(here, words)
+
+
+class TestFreeDiskFigures(unittest.TestCase):
+    """The free-disk figures of a clean are the world's disk reading (pitboss#316)."""
+
+    def test_clean_container_says_the_disk_reading_it_was_given(self) -> None:
+        """The figures are the injected ones, not the machine's."""
+        lines = [
+            [each for each in cleaned_with(size)[1].out.splitlines() if "disk:" in each]
+            for size in (20, 30)
+        ]
+        assert_that(
+            lines,
+            equal_to(
+                [
+                    ["disk: 20.0 GiB free before, 20.0 GiB after"],
+                    ["disk: 30.0 GiB free before, 30.0 GiB after"],
+                ]
+            ),
+        )
+
+    def test_the_same_case_is_equal_with_different_figures(self) -> None:
+        """Two runs of the case on disks of different free space are seen alike."""
+        small, large = cleaned_with(20), cleaned_with(30)
+        assert_that(small[1].out, is_not(equal_to(large[1].out)))
+        assert_that(
+            configcases.seen(*small, "clean-container"),
+            equal_to(configcases.seen(*large, "clean-container")),
+        )
+
+    def test_figures_of_both_lines_are_hidden(self) -> None:
+        """``clean-container``'s line and the last line of ``clean`` are hidden."""
+        texts = [
+            "disk: 6.9 GiB free before, 6.8 GiB after\n",
+            "x; disk free unknown before, 512.0 MiB after\n",
+        ]
+        assert_that(
+            [configcases.free_disk_hidden(each) for each in texts],
+            equal_to(
+                [
+                    "disk: <free> free before, <free> after\n",
+                    "x; disk free <free> before, <free> after\n",
+                ]
+            ),
+        )
+
+    def test_two_outputs_differing_in_another_line_stay_different(self) -> None:
+        """A different path, size or count is not hidden with the figures."""
+        base = (
+            "REMOVED PATH /a 1.0 GiB (x)\n"
+            "clean: 6 paths removed, 1.0 GiB freed;"
+            " disk free 6.9 GiB before, 6.9 GiB after\n"
+        )
+        others = [
+            base.replace("/a", "/b"),
+            base.replace("REMOVED PATH /a 1.0 GiB", "REMOVED PATH /a 2.0 GiB"),
+            base.replace("6 paths", "7 paths"),
+            base.replace("1.0 GiB freed", "2.0 GiB freed"),
+            base.replace("disk free", "disk used"),
+        ]
+        hidden = configcases.free_disk_hidden
+        assert_that(
+            [hidden(each) == hidden(base) for each in others],
+            equal_to([False] * len(others)),
         )
