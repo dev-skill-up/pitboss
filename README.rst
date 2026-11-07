@@ -88,9 +88,8 @@ about every line. A project enables it in its ``.claude/settings.json``:
 Development
 -----------
 
-``pitboss nox`` is a worker's local check (the tests of
-one Python version, the ``skills`` session, ``lint`` and ``mypy``, stopping at the first failure; the
-rest is CI's). ``nox`` runs every check: ``tests`` (100% branch coverage),
+``pitboss nox`` is a worker's local check (its sessions and their order are in
+the sweep skill's ``references/rules.md``; the rest is CI's). ``nox`` runs every check: ``tests`` (100% branch coverage),
 ``lint`` (black and stolid), ``mypy``, ``docs``, ``skills`` (the skill's files,
 the markers against the references, and ``skill-zips/``), ``dry_release``. The
 design, and how each value specific to one project became configuration, is in

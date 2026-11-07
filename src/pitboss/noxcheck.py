@@ -1,12 +1,11 @@
 """The local check of a worker: the nox sessions that stand for CI's (pitboss#210).
 
-``pitboss nox`` runs the tests of one Python version first (until the tests run
-there is no reason to lint the code), then the ``skills`` session, ``lint`` and
-``mypy``, each with ``-r`` (reuse the environment), and stops at
-the first that fails. The other sessions (docs, dry_release, the other Python
-versions) are CI's: its ``Run Nox`` step runs the whole suite. Running the sessions
-is a seam (keyword: nox-runner): a test gives a runner and a clock, so no real nox
-runs.
+``pitboss nox`` runs the sessions of ``Session``, in that order (the rule that
+states the order and the stop is the worker brief's ``Nox`` sentence,
+``brieftextwork.NOX``), each with ``-r`` (reuse the environment). The other
+sessions (docs, dry_release, the other Python versions) are CI's: its ``Run Nox``
+step runs the whole suite. Running the sessions is a seam (keyword: nox-runner):
+a test gives a runner and a clock, so no real nox runs.
 """
 
 import dataclasses
@@ -15,6 +14,7 @@ from typing import Protocol, Sequence
 
 from .expansion import Outcome
 
+STOP_AFTER = "-x"
 PROOF = "CI's `Run Nox` step is the proof of the whole suite."
 
 
@@ -22,16 +22,16 @@ class Session(enum.Enum):
     """The sessions ``pitboss nox`` runs, in the order it runs them.
 
     Attributes:
-        TESTS: the tests of one Python version.
         SKILLS: the skill and its references.
         LINT: black and stolid.
         MYPY: the type check.
+        TESTS: the tests of one Python version, last (the longest).
     """
 
-    TESTS = "tests-3.13"
     SKILLS = "skills"
     LINT = "lint"
     MYPY = "mypy"
+    TESTS = "tests-3.13"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -78,6 +78,9 @@ class Clock(Protocol):
 def command_of(name: str, modules: Sequence[str]) -> Sequence[str]:
     """The command line of a session: always ``-r``.
 
+    The tests session always gets ``-x`` (virtue stops after the first
+    unsuccessful test), with the test modules after it when there are some.
+
     Args:
         name: the session.
         modules: the test modules, for the tests session only.
@@ -85,7 +88,7 @@ def command_of(name: str, modules: Sequence[str]) -> Sequence[str]:
     Returns:
         The command line.
     """
-    wanted = ["--", *modules] if modules and name == Session.TESTS.value else []
+    wanted = ["--", STOP_AFTER, *modules] if name == Session.TESTS.value else []
     return ["nox", "-r", "-s", name, *wanted]
 
 

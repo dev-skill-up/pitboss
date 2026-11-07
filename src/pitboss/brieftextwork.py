@@ -6,11 +6,11 @@ reviewed code change.
 
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
-    " every edit and before every push, for iterating too (the tests of one Python"
-    " version first, then the skills, lint and mypy; it stops at the first failure"
-    " and always uses `-r`); a targeted test module, `nox -s ...` or `virtue` is"
-    " never run by hand, and never the full `nox -r`: CI's `Run Nox` step runs the"
-    " whole suite."
+    " every edit and before every push, for iterating too (the skills, lint and"
+    " mypy first, then the tests of one Python version, which stop at the first"
+    " failing test; it stops at the first failing session and always uses `-r`); a"
+    " targeted test module, `nox -s ...` or `virtue` is never run by hand,"
+    " and never the full `nox -r`: CI's `Run Nox` step runs the whole suite."
 )
 NOX_ORDER = (
     "Nox order: where the checks are nox sessions, never invoke `virtue` or"
