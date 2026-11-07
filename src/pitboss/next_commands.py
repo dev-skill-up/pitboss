@@ -11,6 +11,7 @@ from . import (
     ENTRY_DATA,
     blockers,
     brief,
+    commandscan,
     configfile,
     donewhen,
     draftrule,
@@ -25,13 +26,7 @@ from . import (
     unreadableline,
 )
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
-from .commands import (
-    Context,
-    load_context,
-    open_pulls,
-    read_ledger,
-    working_directory,
-)
+from .commands import Context, load_context, open_pulls, read_ledger, working_directory
 
 _FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
 
@@ -117,7 +112,7 @@ def _say_missing_names(found: Context, ticket: str) -> None:
     read = blockers.read(found.github, ticket)
     known = donewhen.Known(
         kinds=frozenset(brief.Kind.__members__),
-        commands=frozenset(ENTRY_DATA.collector.collect()),
+        commands=frozenset(commandscan.scanned(ENTRY_DATA.collector.collect)),
         tree=working_directory(found.args),
     )
     said = donewhen.missing_line(ticket, read.body if read else "", known)

@@ -11,7 +11,7 @@ from typing import Sequence, cast
 from gather.api import Wrapper, unique
 from hamcrest import assert_that, equal_to
 
-from .. import ENTRY_DATA, cli_parser, configsettle
+from .. import ENTRY_DATA, cli_parser, commandscan, configsettle
 from . import configcases, fakes, fixeddisk, world
 
 CASES = configcases.CASES
@@ -23,7 +23,7 @@ def registered() -> Sequence[str]:
     Returns:
         Their names, sorted.
     """
-    commands = unique(ENTRY_DATA.collector.collect())
+    commands = unique(commandscan.scanned(ENTRY_DATA.collector.collect))
     named = {
         name: configsettle.names_of(cast(Wrapper, each).extra)  # noqa: SLD203
         for name, each in commands.items()
