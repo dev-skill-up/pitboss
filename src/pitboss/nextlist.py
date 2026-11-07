@@ -123,9 +123,9 @@ def show(
     source = suggest.Source(
         github=found.github,
         settings=found.settings,
-        given=found.args.config,
+        given=configfile.named(found.args),
         brief=configfile.load_brief(
-            found.args.config, pathlib.Path(found.args.env.get("PWD", "."))
+            configfile.named(found.args), pathlib.Path(found.args.env.get("PWD", "."))
         ),
         facts=pulls.readable(opened),
         items=ordered.items,

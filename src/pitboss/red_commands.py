@@ -17,7 +17,8 @@ from . import (
     repoarg,
     redtranscripts,
 )
-from .commands import CONFIG_ARGUMENT, NOW_ARGUMENT, load_settings
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
+from .commands import load_settings
 
 TRANSCRIPTS = pathlib.Path.home() / ".claude" / "projects"
 

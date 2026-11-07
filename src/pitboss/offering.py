@@ -130,7 +130,7 @@ def offered(
         The queued work, the held and the blocked tickets apart.
     """
     owned = configfile.load_holds(
-        found.args.config,
+        configfile.named(found.args),
         configfile.working_directory(found.args),
         found.settings.project.repo.owner,
     )

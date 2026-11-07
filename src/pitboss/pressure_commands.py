@@ -11,7 +11,9 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    commandarguments,
     commands,
+    configfile,
     draftrule,
     queue,
     record,
@@ -21,7 +23,7 @@ from . import (
     tracefs,
 )
 
-TIMED_CONFIG = (commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT)
+TIMED_CONFIG = (commandarguments.CONFIG_ARGUMENT, commandarguments.NOW_ARGUMENT)
 
 
 def _look(found: commands.Context) -> queue.Seen:
@@ -55,12 +57,12 @@ def _refuse_if_held(found: commands.Context) -> None:
 def _refuse_draft(args: argparse.Namespace) -> None:
     # keyword: no-drafts (pitboss#216): a project whose config needs no drafts
     start = commands.working_directory(args)
-    if args.draft and draftrule.drafts_off(args.config, start):
+    if args.draft and draftrule.drafts_off(configfile.named(args), start):
         print(f"push refused: --draft, but {draftrule.REFUSAL}; nothing was pushed")
         raise SystemExit(1)
 
 
-@ENTRY_DATA.register(commands.CONFIG_ARGUMENT, commands.NOW_ARGUMENT, name="pressure")
+@ENTRY_DATA.register(*TIMED_CONFIG, name="pressure")
 def pressure(args: argparse.Namespace) -> None:
     """Record a look at the runners and print the pressure line.
 
@@ -138,7 +140,7 @@ def _git_push(args: argparse.Namespace) -> None:
 
 
 @ENTRY_DATA.register(
-    *commands.CHANGING_ARGUMENTS,
+    *commandarguments.CHANGING_ARGUMENTS,
     add_argument("--draft", action="store_true", default=False),
     add_argument("git_arguments", nargs="*"),
     name="push",
@@ -154,7 +156,9 @@ def push(args: argparse.Namespace) -> None:
     With no ``[runners]`` table nothing is held or recorded. Put ``--`` before
     git's own options. The exit is 1 while the quiet period is not over, git's
     status when the push fails, and 2 when the push went out but its hold could
-    not be recorded.
+    not be recorded. With no configuration (the first word), the default one is
+    used (keyword: default-config); git's arguments need the configuration
+    given, since the first word is always the configuration.
 
     Args:
         args: the parsed arguments.

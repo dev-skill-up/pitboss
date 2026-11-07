@@ -11,6 +11,7 @@ from . import (
     ENTRY_DATA,
     blockers,
     brief,
+    configfile,
     donewhen,
     draftrule,
     fixes,
@@ -23,9 +24,8 @@ from . import (
     tracefs,
     unreadableline,
 )
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import (
-    CONFIG_ARGUMENT,
-    NOW_ARGUMENT,
     Context,
     load_context,
     open_pulls,
@@ -136,6 +136,8 @@ def _step_of(found: Context, named: str) -> None:
     if unread:
         raise SystemExit(1)
     _say_missing_names(found, ticket)
-    off = draftrule.drafts_off(found.args.config, working_directory(found.args))
+    off = draftrule.drafts_off(
+        configfile.named(found.args), working_directory(found.args)
+    )
     first = steps.FIRST_STEP_READY if off else steps.FIRST_STEP
     print(f"{steps.Step.WORKER.name}: {ticket}: {first}")

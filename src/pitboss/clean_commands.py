@@ -18,8 +18,8 @@ from . import (
     workhours,
     worktrees,
 )
+from .commandarguments import CHANGING_ARGUMENTS
 from .commands import (
-    CHANGING_ARGUMENTS,
     Context,
     load_context,
     running_in,
