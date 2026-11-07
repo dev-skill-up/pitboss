@@ -149,7 +149,9 @@ exactly one step and at most one kind.
    (`rules.md`, "A pins-only pull request is verified by the pins-check
    command"), and when that does not print OK to its review, whose kind is
    `review the relock` (`pitboss#126`; the brief states the goal, that moves of
-   pins are safe when the lock matches and CI is green, and the check list).
+   pins are safe when the lock matches and CI is green, the check list, and that
+   the reviewer runs the project's pins-check command on the head and pastes its
+   output).
 5. **Resolve the conflict**: step WORKER, task `RESOLVE_CONFLICT`: the head
    conflicts with the base, at every stage (a draft and a red CI included; it
    comes before the draft, CI and review gates). Not while the PR waits: the

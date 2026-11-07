@@ -6,7 +6,8 @@ description: Check on a project's open pull requests, merge queue, local checkou
 # sweep
 
 `pitboss` reads a project's state from GitHub and from the checkouts on this
-machine, and prints one line per thing that needs a look. Every line that
+machine (for a green pins-only PR it also runs the project's
+`[relock] pins_check_command` after a `git fetch`, `sweep.md`, `PINS-ONLY`), and prints one line per thing that needs a look. Every line that
 calls for an action starts with a marker in capitals and says the action.
 
 ## Run it
