@@ -2,26 +2,21 @@
 
 import dataclasses
 import pathlib
+import tempfile
 import unittest
+from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, is_not
+from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, disk, diskwatch
+from .. import brief, disk, diskwatch, machine
 from . import world
 from .briefmake import has_none, pinned, text
 from .suggestions import next_output, parsed
+from .test_brief_nox import WORKERS
 from .test_plan_commands import PLAN_REVIEWS
 
 GIBIBYTE = 2**30
 TOTAL = 100 * GIBIBYTE
-WORKERS = (
-    brief.Kind.NEW_PR,
-    brief.Kind.FIRST_ROUND,
-    brief.Kind.REVISE_PLAN,
-    brief.Kind.FIX_REVIEW,
-    brief.Kind.FIX_CI,
-    brief.Kind.RESOLVE_CONFLICT,
-)
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"
     " right after each run; a run that needs more than 1 GiB is left to CI"
@@ -48,7 +43,7 @@ def used(percent: float) -> world.World:
     return dataclasses.replace(world.make_world(), usage=lambda _: usage)
 
 
-def headers(output: str) -> list[str]:
+def headers(output: str) -> Sequence[str]:
     """The suggestion headers of an output.
 
     Args:
@@ -68,23 +63,32 @@ class TestDiskLine(unittest.TestCase):
         out = next_output(used(50))
         assert_that(out, contains_string("DISK "))
         assert_that(out, contains_string("50.0 GiB free of 100.0 GiB (50.0% used)"))
-        assert_that(out, is_not(contains_string("clean the disk")))
-        assert_that(out, is_not(contains_string("clean before it fills")))
+        assert_that("clean the disk" in out, equal_to(False))
+        assert_that("clean before it fills" in out, equal_to(False))
+
+    def test_an_unreadable_volume_says_nothing(self) -> None:
+        """No line and no clean suggestion; the workers are suggested."""
+        here = dataclasses.replace(world.make_world(), usage=lambda _: None)
+        out = next_output(here)
+        assert_that("DISK " in out, equal_to(False))
+        assert_that(len(headers(out)), equal_to(3))
 
     def test_at_85_percent_the_line_warns(self) -> None:
         """The line says to clean, and no suggestion is added yet."""
         out = next_output(used(86))
         assert_that(out, contains_string("clean before it fills"))
-        assert_that(out, is_not(contains_string("clean the disk")))
+        assert_that("clean the disk" in out, equal_to(False))
 
     def test_at_95_percent_cleaning_is_the_first_suggestion(self) -> None:
         """Before any worker suggestion, with the commands in order."""
         out = next_output(used(95))
         found = headers(out)
         assert_that(
-            found[0].startswith("SUGGESTION 1 of 4: clean the disk"), equal_to(True)
+            [found[0][:33], found[1][:26]],
+            equal_to(
+                ["SUGGESTION 1 of 4: clean the disk", "SUGGESTION 2 of 4: resolve"]
+            ),
         )
-        assert_that(found[1].startswith("SUGGESTION 2 of 4: "), equal_to(True))
         assert_that(len(found), equal_to(4))
         brief_of_first = parsed(out)[0][1]
         assert_that(brief_of_first[1], equal_to(f"1. {diskwatch.CLEAN_WORKTREES}"))
@@ -93,13 +97,12 @@ class TestDiskLine(unittest.TestCase):
     def test_at_99_9_percent_no_worker_is_suggested(self) -> None:
         """Under 1 GiB free: the clean suggestion and no worker."""
         out = next_output(used(99.9))
-        found = headers(out)
-        assert_that(len(found), equal_to(1))
         assert_that(
-            found[0].startswith("SUGGESTION 1 of 1: clean the disk"), equal_to(True)
+            [each[:33] for each in headers(out)],
+            equal_to(["SUGGESTION 1 of 1: clean the disk"]),
         )
         assert_that(out, contains_string("no worker starts until the disk is cleaned"))
-        assert_that(out, is_not(contains_string("SUGGESTION 2")))
+        assert_that("SUGGESTION 2" in out, equal_to(False))
 
 
 class TestLargest(unittest.TestCase):
@@ -107,13 +110,16 @@ class TestLargest(unittest.TestCase):
 
     def test_the_five_largest_come_first(self) -> None:
         """Seven entries under two roots: five are kept, largest first."""
-        sizes = {pathlib.Path(f"/s/{n}"): n for n in range(1, 8)}
-        found = diskwatch.largest(
-            lambda root: [path for path in sizes if str(path.parent) == str(root)],
-            sizes.__getitem__,
-            [pathlib.Path("/s")],
+        with tempfile.TemporaryDirectory() as root:
+            for number in range(1, 8):
+                (pathlib.Path(root) / f"entry{number}").write_bytes(
+                    b"x" * number * 65536
+                )
+            found = diskwatch.largest(machine.real(), [pathlib.Path(root)])
+        assert_that(
+            [one.path.name for one in found],
+            equal_to([f"entry{number}" for number in range(7, 2, -1)]),
         )
-        assert_that([one.size for one in found], equal_to([7, 6, 5, 4, 3]))
 
 
 class TestBriefs(unittest.TestCase):

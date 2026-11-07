@@ -11,7 +11,7 @@ below 1 GiB free. The cleaning it names is the auto-approved ``clean-container``
 
 import dataclasses
 import pathlib
-from typing import Callable, Iterable, Sequence
+from typing import Iterable, NamedTuple, Sequence
 
 from . import disk, machine
 from .markers import Marker
@@ -47,6 +47,15 @@ class Reading:
         return machine.percent_used(self.usage)
 
     @property
+    def free_text(self) -> str:
+        """The free space, spelled.
+
+        Returns:
+            The size, as ``disk.size_text`` spells it.
+        """
+        return disk.size_text(self.usage.free)
+
+    @property
     def starved(self) -> bool:
         """Whether less than 1 GiB is free: no worker can run.
 
@@ -65,8 +74,7 @@ class Reading:
         return self.percent >= CLEAN_PERCENT or self.starved
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Big:
+class Big(NamedTuple):
     """One of the largest entries under the scratch directories.
 
     Attributes:
@@ -92,6 +100,30 @@ def read(reader: disk.Reader, place: pathlib.Path) -> Reading | None:
     return Reading(place=place, usage=found) if found else None
 
 
+def starved(each: Reading | None) -> bool:
+    """Whether a reading has under 1 GiB free.
+
+    Args:
+        each: the reading, None when unread.
+
+    Returns:
+        True when no worker may be suggested.
+    """
+    return each is not None and each.starved
+
+
+def crowded(each: Reading | None) -> bool:
+    """Whether a reading is due the ``clean the disk`` suggestion.
+
+    Args:
+        each: the reading, None when unread.
+
+    Returns:
+        True from 90 % used or under 1 GiB free.
+    """
+    return each is not None and each.crowded
+
+
 def line(each: Reading) -> str:
     """The ``DISK`` line.
 
@@ -103,7 +135,7 @@ def line(each: Reading) -> str:
         before the disk is full, and from 90 % that the first suggestion does.
     """
     text = (
-        f"{Marker.DISK.text} {each.place}: {disk.size_text(each.usage.free)} free of"
+        f"{Marker.DISK.text} {each.place}: {each.free_text} free of"
         f" {disk.size_text(each.usage.total)} ({each.percent:.1f}% used)"
     )
     if each.crowded:
@@ -113,23 +145,18 @@ def line(each: Reading) -> str:
     return text
 
 
-def largest(
-    children: Callable[[pathlib.Path], Sequence[pathlib.Path]],
-    size: Callable[[pathlib.Path], int],
-    roots: Iterable[pathlib.Path],
-) -> Sequence[Big]:
+def largest(files: machine.Filesystem, roots: Iterable[pathlib.Path]) -> Sequence[Big]:
     """The five largest entries directly under some directories.
 
     Args:
-        children: lists a directory.
-        size: the bytes a path holds.
+        files: the file system.
         roots: the scratch directories (``[clean] scratch``).
 
     Returns:
         Up to five, the largest first.
     """
     every = [
-        Big(path=each, size=size(each)) for root in roots for each in children(root)
+        Big(each, files.inspect(each).size) for r in roots for each in files.children(r)
     ]
     return sorted(every, key=lambda one: one.size, reverse=True)[:LARGEST]
 
@@ -146,7 +173,7 @@ def suggestion(each: Reading, big: Sequence[Big]) -> Sequence[str]:
     """
     lines = [
         f"The volume of {each.place} is {each.percent:.1f}% used,"
-        f" {disk.size_text(each.usage.free)} free: clean before any worker starts.",
+        f" {each.free_text} free: clean before any worker starts.",
         f"1. {CLEAN_WORKTREES}",
         f"2. {CLEAN_CONTAINER}",
         f"3. the {LARGEST} largest entries under the scratch directories:",
@@ -155,17 +182,30 @@ def suggestion(each: Reading, big: Sequence[Big]) -> Sequence[str]:
     return [*lines, *(named or ["   none found"])]
 
 
-def starved_line(each: Reading) -> str:
-    """The line that replaces the worker suggestions under 1 GiB free.
+def opening(each: Reading | None, big: Sequence[Big], total: int) -> Sequence[str]:
+    """The lines that come before the worker suggestions.
 
     Args:
-        each: the reading.
+        each: the reading, None when unread.
+        big: the largest scratch entries.
+        total: how many suggestions are printed.
 
     Returns:
-        The ``SUGGESTION`` line that says no worker starts.
+        Under 1 GiB free, the line that says no worker starts; on a crowded
+        volume, the first suggestion ``clean the disk``.
     """
-    return (
-        f"{Marker.SUGGESTION.text}: none: {disk.size_text(each.usage.free)} free"
-        f" under {disk.size_text(STARVED_FREE)}: no worker starts until the disk"
-        " is cleaned"
-    )
+    if each is None:
+        return []
+    marker = Marker.SUGGESTION.text
+    said = []
+    if each.starved:
+        said.append(
+            f"{marker}: none: {each.free_text} free under"
+            f" {disk.size_text(STARVED_FREE)}: no worker starts until the disk is"
+            " cleaned"
+        )
+    if each.crowded:
+        said.append(f"{marker} 1 of {total}: {HEADER}: {each.place}")
+        said.extend(suggestion(each, big))
+        said.append("--- end of suggestion 1 ---")
+    return said

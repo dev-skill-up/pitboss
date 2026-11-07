@@ -340,6 +340,20 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
     )
 
 
+def _ranked(
+    source: Source, shown: Sequence[Pick], first: int, total: int
+) -> Iterable[str]:
+    marker = Marker.SUGGESTION.text
+    for rank, pick in enumerate(shown, start=first):
+        found = suggest(source, pick)
+        yield (
+            f"{marker} {rank} of {total}: {found.kind.value}:"
+            f" {found.reference}: {found.model}"
+        )
+        yield from found.text.splitlines()
+        yield f"--- end of suggestion {rank} ---"
+
+
 def lines(source: Source) -> Iterable[str]:
     """The top suggestions, each as a header, its brief and an end line.
 
@@ -353,27 +367,13 @@ def lines(source: Source) -> Iterable[str]:
         1 GiB free no worker is suggested (keyword: disk-watch, pitboss#288).
     """
     marker = Marker.SUGGESTION.text
-    volume = source.volume
-    cleaning = volume is not None and volume.crowded
-    starved = volume is not None and volume.starved
-    every = [] if starved else picks(source)
+    every = [] if diskwatch.starved(source.volume) else picks(source)
     shown = every[:TOP]
-    total = len(shown) + cleaning
-    if volume is not None and starved:
-        yield diskwatch.starved_line(volume)
-    elif not shown:
+    if not shown and not diskwatch.starved(source.volume):
         yield f"{marker}: none: nothing is queued that could start"
-    if volume is not None and cleaning:
-        yield f"{marker} 1 of {total}: {diskwatch.HEADER}: {volume.place}"
-        yield from diskwatch.suggestion(volume, source.big)
-        yield "--- end of suggestion 1 ---"
-    for rank, pick in enumerate(shown, start=1 + cleaning):
-        found = suggest(source, pick)
-        yield (
-            f"{marker} {rank} of {total}: {found.kind.value}:"
-            f" {found.reference}: {found.model}"
-        )
-        yield from found.text.splitlines()
-        yield f"--- end of suggestion {rank} ---"
+    cleaning = diskwatch.crowded(source.volume)
+    total = len(shown) + cleaning
+    yield from diskwatch.opening(source.volume, source.big, total)
+    yield from _ranked(source, shown, 1 + cleaning, total)
     if len(every) > len(shown):
         yield f"{marker}: {len(every) - len(shown)} more queued, not shown"
