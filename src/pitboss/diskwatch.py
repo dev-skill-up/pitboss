@@ -128,7 +128,9 @@ def largest(
     Returns:
         Up to five, the largest first.
     """
-    every = [Big(path=each, size=size(each)) for root in roots for each in children(root)]
+    every = [
+        Big(path=each, size=size(each)) for root in roots for each in children(root)
+    ]
     return sorted(every, key=lambda one: one.size, reverse=True)[:LARGEST]
 
 

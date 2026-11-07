@@ -81,7 +81,9 @@ class TestDiskLine(unittest.TestCase):
         """Before any worker suggestion, with the commands in order."""
         out = next_output(used(95))
         found = headers(out)
-        assert_that(found[0].startswith("SUGGESTION 1 of 4: clean the disk"), equal_to(True))
+        assert_that(
+            found[0].startswith("SUGGESTION 1 of 4: clean the disk"), equal_to(True)
+        )
         assert_that(found[1].startswith("SUGGESTION 2 of 4: "), equal_to(True))
         assert_that(len(found), equal_to(4))
         brief_of_first = parsed(out)[0][1]
@@ -93,7 +95,9 @@ class TestDiskLine(unittest.TestCase):
         out = next_output(used(99.9))
         found = headers(out)
         assert_that(len(found), equal_to(1))
-        assert_that(found[0].startswith("SUGGESTION 1 of 1: clean the disk"), equal_to(True))
+        assert_that(
+            found[0].startswith("SUGGESTION 1 of 1: clean the disk"), equal_to(True)
+        )
         assert_that(out, contains_string("no worker starts until the disk is cleaned"))
         assert_that(out, is_not(contains_string("SUGGESTION 2")))
 
