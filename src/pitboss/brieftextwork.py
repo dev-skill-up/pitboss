@@ -36,4 +36,9 @@ DEVIATIONS = (
     " the hand-back, and a hand-back without it is NOT STARTED and is sent back"
     " (pitboss#257)."
 )
-SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN, DEVIATIONS)
+TEMP_RUNS = (
+    "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"
+    " right after each run; a run that needs more than 1 GiB is left to CI"
+    " (pitboss#288)."
+)
+SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN, DEVIATIONS, TEMP_RUNS)

@@ -12,10 +12,13 @@ import sys
 from typing import Protocol, Sequence
 
 from . import (
+    cleanconfig,
     config,
     configfile,
+    diskwatch,
     ghapi,
     ledger,
+    machine,
     nextview,
     offering,
     pulls,
@@ -44,6 +47,14 @@ class Found(Protocol):
 
         Returns:
             The configuration.
+        """
+
+    @property
+    def clean(self) -> cleanconfig.Clean:
+        """What ``clean-container`` looks at and keeps.
+
+        Returns:
+            The ``[clean]`` table.
         """
 
     @property
@@ -107,6 +118,16 @@ def _view(
     )
 
 
+def _big(found: Found, volume: diskwatch.Reading | None) -> Sequence[diskwatch.Big]:
+    # keyword: disk-watch (pitboss#288): walked only when the suggestion is due
+    if volume is None or not volume.crowded:
+        return []
+    files = machine.real()
+    return diskwatch.largest(
+        files.children, lambda path: files.inspect(path).size, found.clean.scratch
+    )
+
+
 def show(
     found: Found,
     opened: Sequence[pulls.Read],
@@ -120,6 +141,7 @@ def show(
         book: the slot ledger.
     """
     ordered = _ordered(found, opened, book)
+    volume = diskwatch.read(found.args.usage, found.settings.project.workspace)
     source = suggest.Source(
         github=found.github,
         settings=found.settings,
@@ -130,10 +152,13 @@ def show(
         facts=pulls.readable(opened),
         items=ordered.items,
         failed=book.failed,
+        volume=volume,
+        big=_big(found, volume),
     )
     for line in itertools.chain(
         nextview.next_lines(_view(found, ordered, book, source.facts)),
         pullstate.lines(found.github, found.settings, source.facts),
+        [diskwatch.line(volume)] if volume else [],
         suggest.lines(source),
     ):
         print(line)

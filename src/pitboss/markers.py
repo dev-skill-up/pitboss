@@ -74,6 +74,8 @@ class Marker(enum.Enum):
         KEPT_WORKTREE: a finished worktree that is not removed, and why.
         COULD_NOT_REMOVE_WORKTREE: one that could not be.
         DISK_PRESSURE: free space is under the configured minimum.
+        DISK: the free space of the workspace's volume, in ``next`` and
+            ``slots next`` (keyword: disk-watch, pitboss#288).
         REMOVED_PATH: a dead path removed by ``clean-container`` (or, in a dry
             run, one that would be).
         KEPT_PATH: a dead path that is not safe to remove.
@@ -160,6 +162,7 @@ class Marker(enum.Enum):
     KEPT_WORKTREE = enum.auto()
     COULD_NOT_REMOVE_WORKTREE = enum.auto()
     DISK_PRESSURE = enum.auto()
+    DISK = enum.auto()
     REMOVED_PATH = enum.auto()
     KEPT_PATH = enum.auto()
     COULD_NOT_REMOVE_PATH = enum.auto()

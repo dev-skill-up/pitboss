@@ -15,6 +15,7 @@ from . import (
     brief,
     briefconfig,
     config,
+    diskwatch,
     fixes,
     gates,
     ghapi,
@@ -98,6 +99,9 @@ class Source:
         facts: the open PRs that were read.
         items: the queued work, in order.
         failed: each reference's failed models.
+        volume: the workspace's volume as read (keyword: disk-watch,
+            pitboss#288), None when unread.
+        big: the largest scratch entries, read only for a crowded volume.
     """
 
     github: ghapi.GitHub
@@ -107,6 +111,8 @@ class Source:
     facts: Sequence[pulls.PullFacts]
     items: Sequence[work.Item]
     failed: Mapping[str, Sequence[str]]
+    volume: diskwatch.Reading | None = None
+    big: Sequence[diskwatch.Big] = ()
 
 
 def _ruling_pick(each: pulls.PullFacts) -> Pick:
@@ -342,17 +348,29 @@ def lines(source: Source) -> Iterable[str]:
 
     Yields:
         The lines: up to ``TOP`` suggestions in order, then how many more
-        are queued; one line when nothing could start.
+        are queued; one line when nothing could start. On a volume 90 % used or
+        with under 1 GiB free the first suggestion is ``clean the disk``; under
+        1 GiB free no worker is suggested (keyword: disk-watch, pitboss#288).
     """
     marker = Marker.SUGGESTION.text
-    every = picks(source)
+    volume = source.volume
+    cleaning = volume is not None and volume.crowded
+    starved = volume is not None and volume.starved
+    every = [] if starved else picks(source)
     shown = every[:TOP]
-    if not shown:
+    total = len(shown) + cleaning
+    if volume is not None and starved:
+        yield diskwatch.starved_line(volume)
+    elif not shown:
         yield f"{marker}: none: nothing is queued that could start"
-    for rank, pick in enumerate(shown, start=1):
+    if volume is not None and cleaning:
+        yield f"{marker} 1 of {total}: {diskwatch.HEADER}: {volume.place}"
+        yield from diskwatch.suggestion(volume, source.big)
+        yield "--- end of suggestion 1 ---"
+    for rank, pick in enumerate(shown, start=1 + cleaning):
         found = suggest(source, pick)
         yield (
-            f"{marker} {rank} of {len(shown)}: {found.kind.value}:"
+            f"{marker} {rank} of {total}: {found.kind.value}:"
             f" {found.reference}: {found.model}"
         )
         yield from found.text.splitlines()
