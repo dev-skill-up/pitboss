@@ -1110,11 +1110,7 @@ module functions over them. ``parsing`` turns GitHub's response bodies into
 ``shapes`` dataclasses, its wire strings into enums and booleans, so nothing
 else reads JSON. ``ledger`` returns a ``Refusal`` rather than raising. Tests
 inject a fake ``gh`` (canned bodies by path) and run real git in temporary
-directories; ``unittest.mock`` is never used. The repository a test needs is
-built by real git once for the run (``tests/repositories.py``) and each test gets
-a file copy of it with its paths moved; a test that tests what git does keeps
-calling git. ``scripts/count_git_calls.py`` counts the git processes of the
-tests by fixture.
+directories; ``unittest.mock`` is never used.
 
 The skill
 ---------
