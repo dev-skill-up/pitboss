@@ -54,6 +54,8 @@ def next_step(pull: pulls.PullFacts) -> str:
         this head`` for a head whose CI has not finished, else the step's text.
     """
     category = work.category_of(pull)
+    if category is work.Category.REVIEW and pull.step.on_base:
+        return steps.REQUEST_REVIEW  # keyword: fixed-on-base (pitboss#314)
     if category is not None:
         return work.CATEGORY_WORDS[category]
     if pull.step.step is steps.Step.WAIT_FOR_CI:

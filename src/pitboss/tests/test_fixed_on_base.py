@@ -56,6 +56,7 @@ FIXED_2 = FIXED.format(n=2, action=ENQUEUE)
 FAILED_3 = "FAILED owner/project#3: test"
 CONFLICT_3 = "CONFLICT owner/project#3: merge main into branch-3"
 REVIEW_3 = "owner/project#3 (review it"
+STATE_3 = "PR STATE owner/project#3: next step: "
 FIX_CI_3 = "owner/project#3 (fix the CI"
 RED = dataclasses.replace(test_flow.RED, completed_at=FAILED_AT)
 PASSED = shapes.CheckRun(
@@ -125,14 +126,14 @@ CASES: Sequence[Case] = [
         "behind, red, fixed on the base, no review",
         dict(pr=(3, "behind"), base=[BASE_PASSED]),
         {FIXED_3: True, FAILED_3: False, "UPDATE": False, CONFLICT_3: False},
-        {REVIEW_3: True, FIX_CI_3: False},
+        {REVIEW_3: True, FIX_CI_3: False, STATE_3 + REQUEST: True},
         True,
     ),
     (
         "clean, red, fixed on the base, approved",
         dict(pr=(2, "clean"), base=[BASE_PASSED]),
         {FIXED_2: True, "FAILED owner/project#2": False, "READY TO MERGE": False},
-        {},
+        {STATE_3.replace("#3", "#2") + ENQUEUE: True},
         True,
     ),
     (
