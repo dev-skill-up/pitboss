@@ -15,6 +15,11 @@ from typing import Protocol, Sequence
 from .expansion import Outcome
 
 STOP_AFTER = "-x"
+# The tests session ends with these lines (keyword: test-timing, pitboss#324):
+# the total, then the slowest tests, each line starting with the prefix so that
+# `rg test-timing` finds them in CI's log and `pitboss nox` can show them.
+TIMING_PREFIX = "test-timing "
+SLOWEST_COUNT = 30
 PROOF = "CI's `Run Nox` step is the proof of the whole suite."
 
 
@@ -114,6 +119,22 @@ def run_sessions(
         if outcome.status:
             break
     return steps
+
+
+def timing_of(step: Step) -> Sequence[str]:
+    """The timing lines a session printed (the tests session's).
+
+    Args:
+        step: the session.
+
+    Returns:
+        Its lines that start with ``TIMING_PREFIX``; none for the others.
+    """
+    return [
+        line
+        for line in step.outcome.output.splitlines()
+        if line.startswith(TIMING_PREFIX)
+    ]
 
 
 def line_of(step: Step) -> str:
