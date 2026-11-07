@@ -130,7 +130,9 @@ to be undrafted again.
 
 **A PR that is only behind is not pushed; a real conflict gets a merge.** A
 queue builds each entry on the current base, so a PR behind the base needs no
-update push, which would spend an action and re-run the check for nothing.
+update push, which would spend an action and re-run the check for nothing. The
+same holds for a head that is red only from checks that passed on the base since
+(`FIXED ON BASE`, pitboss#314): it is enqueued, or reviewed first, never updated.
 Only a conflict is fixed: merge the base in (never rebase or force-push),
 resolve, check locally, push; for a PR with a Plan or Execution body the same
 round sets its last `Head:` line to the merge head and reruns the Plan's

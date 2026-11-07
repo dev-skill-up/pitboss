@@ -80,7 +80,9 @@ Only override for bugs, but do override for bugs (and then file them)".
    (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It just
    has to be an author".
    - red (a failed check or status, or a review that asked for changes at this
-     head) or in conflict with the base: a fix, by any author (a conflict is
+     head; not a failed check that passed on the base since, in a repository
+     under `[merge_queue] repositories`: that PR is reviewed or enqueued, as
+     "Merge conflicts" says) or in conflict with the base: a fix, by any author (a conflict is
      fixed as a red CI is: merge the base in, resolve, check, push, and for a PR
      with a Plan or Execution body set its last `Head:` line to the merge head
      and rerun the Plan's commands through `pitboss expand`, the body being
@@ -102,7 +104,8 @@ Only override for bugs, but do override for bugs (and then file them)".
      sweep; `slots next` lists the PR by the flow's step alone, which has no
      update step); where a merge queue builds each
      entry on the current base (`[merge_queue] repositories`), behind is no
-     work (see "Merge conflicts");
+     work, and neither is a red CI whose failed checks all passed on the base
+     since (see "Merge conflicts");
    - green on its exact head with no review of that head, or only one that
      approved the Plan alone: while the newest readable Opus
      ruling is newer than every review and no check run of the head started after it
@@ -131,7 +134,10 @@ Only override for bugs, but do override for bugs (and then file them)".
    alone graded; a body fixed at one head, or an approval, is never a fix round
    (its diff would have one SHA twice). A red CI and a conflict are printed by the sweep as `FAILED` and
    `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
-   CI`) whatever the stage but a wait (below, pitboss#183), and a conflict as `resolve the conflict` at every
+   CI`) whatever the stage but a wait (below, pitboss#183) and but a red head
+   whose failed checks all passed on the base since, in a repository under
+   `[merge_queue] repositories` (`FIXED ON BASE`; its step is the one a green
+   head has), and a conflict as `resolve the conflict` at every
    stage, a draft's and a red CI's too, before the draft, CI and review gates (a
    dirty head runs no CI, pitboss#148). The exceptions are the waits: a pull
    request with the paused-owner label, `RULING UNREADABLE`, `RULING DUE`,
@@ -152,7 +158,7 @@ Only override for bugs, but do override for bugs (and then file them)".
    - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
      owner's ruling of that date): open pull requests come first, oldest
      first, whatever each needs (a fix of a red CI, an answer to a review that
-     asked for changes, or a revision of a plan it did not approve, an update of a PR that is behind, a review of a green
+     asked for changes, or a revision of a plan it did not approve, an update of a PR that is behind (not in a repository under `[merge_queue] repositories`), a review of a green
      PR, a merge of a PR that is reviewed approved and green), except that a
      merge of a ready pull request comes first (Order of work, 3) and a `STALL`
      fix next, before every other pull request, and except a pull request with
@@ -298,6 +304,16 @@ Only override for bugs, but do override for bugs (and then file them)".
   queue."); the repository is named under `[merge_queue] repositories` in
   the pitboss configuration, and a repository not named there gets an `UPDATE`
   when a PR is behind with its checks finished.
+- In a repository under `[merge_queue] repositories` the base is merged into a
+  PR's branch only for a conflict (`mergeable_state` dirty, `CONFLICT`), never
+  to refresh a head or to clear a red CI (keyword: fixed-on-base, pitboss#314;
+  the update of PR quire#1060 cost a CI run and left a stale `Head:` line). A head whose failed checks all passed on the base after
+  the head's own run (the sweep reads the base's check runs for it) gets
+  `FIXED ON BASE`, not `FAILED`: `enqueue it (the merge queue tests it on
+  main)` when its review approves the head, `request the review` when it has
+  none, and the step a green head would have for any other state; `slots next`
+  offers it no `fix the CI`. A head red from any check the base has not passed
+  since is still `FAILED`.
 - After any branch update of a PR whose body has a `Head:` line, patch the
   line to the new head in the same step, before a review is requested: a
   review judged the stale line (orchestrator, 2026-10-27). After a merge of

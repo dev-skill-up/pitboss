@@ -44,6 +44,9 @@ class Marker(enum.Enum):
             that says it cannot be worked on until an open ticket or PR.
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
+        FIXED_ON_BASE: a PR of a merge-queue repository is red only from checks
+            that passed on the base since (pitboss#314): enqueue it, or request
+            its review.
         UPDATE: a PR is behind the base with every check finished.
         STALL: a relock PR whose check has been red for over four hours.
         RULING_DUE: a PR whose review rounds hit the changes-needed limit and
@@ -143,6 +146,7 @@ class Marker(enum.Enum):
     BLOCKED = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
+    FIXED_ON_BASE = enum.auto()
     UPDATE = enum.auto()
     STALL = enum.auto()
     RULING_DUE = enum.auto()

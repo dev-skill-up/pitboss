@@ -141,7 +141,10 @@ exactly one step and at most one kind.
    review asked for changes to the execution. Its author fixes it.
 3. **Fix the CI**: step WORKER, task `FIX_CI`: the checks of the head are
    red, which is no rejection. Its author fixes them, unless the PR waits for a
-   ruling or the owner (`RULING DUE`, `PAUSE`, `RULING ESCALATES`; pitboss#183).
+   ruling or the owner (`RULING DUE`, `PAUSE`, `RULING ESCALATES`; pitboss#183),
+   and unless the PR is in a repository under `[merge_queue] repositories` and
+   every failed check passed on the base since (`FIXED ON BASE`, pitboss#314):
+   its step is then the one a green head has.
 4. **Write the Plan and Execution body**: step WORKER, task `FIRST_ROUND`:
    the PR has no such body. Its author writes it. A relock PR (head branch
    starting with `[relock] prefix`, default `relock/`) fixes no ticket and is

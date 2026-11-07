@@ -149,6 +149,8 @@ class Next:
             FIX_RULING step), empty when the API gave none.
         branch: the head branch the check workflow is dispatched on (a RUN_E2E
             step).
+        on_base: the head is red only from checks that passed on the base since
+            (keyword: fixed-on-base, pitboss#314): the step is a green head's.
     """
 
     step: Step
@@ -156,6 +158,7 @@ class Next:
     stage: Stage | None = None
     comment: str = ""
     branch: str = ""
+    on_base: bool = False
 
 
 # the steps at which a PR waits for an Opus ruling or the owner (pitboss#148), or
@@ -220,6 +223,11 @@ TEXTS: Mapping[Step, str] = {
 }
 
 
+# keyword: fixed-on-base (pitboss#314): the words of a red CI the base has answered
+ENQUEUE = "enqueue it (the merge queue tests it on main)"
+REQUEST_REVIEW = "request the review"
+
+
 def describe(step: Next) -> str:
     """Say what to do for a step, in one line.
 
@@ -229,8 +237,12 @@ def describe(step: Next) -> str:
     Returns:
         Its task, its stage, or the text of the step.
     """
+    if step.step is Step.MERGE and step.on_base:
+        return ENQUEUE
     if step.task is not None:
         return step.task.value
+    if step.stage is not None and step.on_base:
+        return f"{REQUEST_REVIEW}: {step.stage.value}"
     if step.stage is not None:
         return step.stage.value
     if step.step is Step.RUN_E2E:
