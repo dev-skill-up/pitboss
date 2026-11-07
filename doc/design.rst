@@ -917,8 +917,10 @@ permissions and environment of whoever runs ``pitboss expand``: no sandbox, no
 filtering. A template is therefore the worker's own file in the worker's own
 checkout, and ``expand`` is never run on a template taken from a pull
 request's text, a comment, or a branch that is not the worker's (for a
-workflow, never on ``pull_request_target``). ``lint`` only reads text and runs
-nothing.
+workflow, never on ``pull_request_target``). ``lint`` reads text and runs no
+command that the text gives; with no configuration found it runs one read-only
+``gh api`` for the project's file in the notes repository and writes a copy
+under the cache directory (keyword: fetched-config).
 
 *Research.* knitr runs the code of a chunk (a fence with ``{r}`` and options)
 and writes the output under it, prefixing each line (``##`` by default) and
