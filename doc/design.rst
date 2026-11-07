@@ -317,7 +317,9 @@ Commands
        owner decision card, its question and reason, has a line that starts
        with the words ``How we got here`` and an analysis after them
        (``how-we-got-here``; ``pitboss.analysis``).
-       Without ``--config`` the generic forms of ``doc/example.toml`` are
+       Without ``--config`` the configuration is found as for every command
+       (``$PITBOSS_CONFIG``, the search, then the fetch by the repository's
+       name); with none found, the generic forms of ``doc/example.toml`` are
        used.
    * - ``lint event EVENT STATUS [--url URL] [--config CONFIG] [--ruling URL FILE]... [--comments FILE]``
      - The ``text-lint`` commit status of a ``pull_request_target`` event
