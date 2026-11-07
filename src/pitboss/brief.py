@@ -3,10 +3,10 @@
 A brief is built from what pitboss reads of a PR or a ticket and from the
 project's own rules, and the orchestrator pastes it unchanged, but for the one
 line of a ruling brief (``How we got here:``) that it replaces with the
-analysis, a fact the tool cannot know (pitboss#168). The sentences are
-in ``brieftext`` and are pinned by tests, so a change to them is a reviewed code
-change. Every brief starts with the ticket's original goal in one line; a review
-judges the change against that goal, and its scope is exclusive.
+analysis, a fact the tool cannot know (pitboss#168). The sentences are in
+``brieftext`` and are pinned by tests, so a change to them is a reviewed code
+change. Every brief starts with the ticket's goal in one line; a review judges
+the change against that goal, and its scope is exclusive.
 """
 
 import dataclasses
@@ -317,9 +317,8 @@ def _plan_lines(kind: Kind) -> list[str]:
     runs = kind in PLAN_RUNNERS
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
-        *([brieftextci.PLAN_NO_NOX_ROW] if writes else []),
-        *([brieftextci.PLAN_CI_POINTER, brieftextimpact.IMPACT_PLAN] if writes else []),
-        *([brieftextci.PLAN_POINTER_LAST] if writes else []),
+        *(brieftextci.PLAN_ROWS if writes else []),
+        *([brieftextimpact.IMPACT_PLAN] if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),
         *([text.NO_APPEND, text.SEARCH] if runs else []),

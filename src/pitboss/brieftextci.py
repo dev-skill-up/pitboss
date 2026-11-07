@@ -30,6 +30,7 @@ PLAN_CI_POINTER = (
     " is found for the commit (the run and job URL `actions` gives for the head)."
     " Evidence in the PR body is only for what CI does not show (pitboss#179)."
 )
+PLAN_ROWS = (PLAN_NO_NOX_ROW, PLAN_CI_POINTER, PLAN_POINTER_LAST)
 BODY_CI_POINTER = (
     "CI in the body: for a row the Plan points to CI, the PR body gives no"
     " evidence and holds only the pointer, with the run and job URL found for the"
