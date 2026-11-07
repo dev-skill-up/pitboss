@@ -102,7 +102,10 @@ What was project-specific, and where it went
      - ``[sweep] reminders`` (the two questions are the default)
    * - ``.claude/pitboss/quire.toml``
      - a project checks in its own file; pitboss ships only
-       ``doc/example.toml``
+       ``doc/example.toml``. A container that has the checkout but not the
+       file (the sweep configurations are working files outside any
+       repository, kept by ``[sync]``) gets the configuration by the
+       repository's name: see "The configuration file"
 
 Three more things in the earlier design were quire's in a less obvious way,
 and changed:
@@ -138,6 +141,22 @@ The configuration file
 ``.claude/pitboss/<name>.toml`` in the current directory or the nearest
 parent that has one. ``doc/example.toml`` lists every key with its default.
 Only ``[project] owner``, ``repository`` and ``main_clone`` are required.
+
+With no ``CONFIG`` (``--config NAME``, ``$PITBOSS_CONFIG``) the command looks
+for ``pitboss.toml`` or ``<repository>.toml`` in the working directory, a
+parent, or their ``.claude/pitboss`` (``<repository>`` is the name of the
+``origin`` remote), and when there is none it fetches ``<repository>.toml``
+from ``notes-current/configs`` of the notes repository (``moshez/claude-jsonl``,
+the default of ``[sync] repository``) with ``gh api``, keeping the copy in
+``pitboss/configs`` of ``$XDG_CACHE_HOME`` (else ``~/.cache``), outside the
+places the search reads, so a stale copy is never taken for the project's file.
+A fetch that fails uses the copy of an earlier one and says so on standard
+error; with none the error says the places the search looked and why the fetch
+failed (keyword: fetched-config, pitboss#318). Why it is a fetch and not a file
+in each project's checkout: the file holds the orchestrator's working
+settings (the slot ledger, the paths ``clean-container`` may delete), which
+are kept in the notes repository and restored from it, and a copy in the
+project would be a second one to keep equal.
 
 Commands
 --------

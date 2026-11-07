@@ -45,6 +45,24 @@ def plain() -> world.World:
     return here
 
 
+def checkout(name: str, url: str | None) -> pathlib.Path:
+    """A directory that looks like a checkout of a repository.
+
+    Args:
+        name: its directory's name.
+        url: the url of its ``origin``; None for a checkout with no remote.
+
+    Returns:
+        The directory.
+    """
+    top = fakes.directory().joinpath(name)
+    top.mkdir()
+    fakes.run_git(top, "init", "-q")
+    if url is not None:
+        fakes.run_git(top, "remote", "add", "origin", url)
+    return top
+
+
 def copy_config(here: world.World, target: pathlib.Path) -> None:
     """Copy a world's configuration.
 

@@ -336,7 +336,8 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         default=None,
         help="the project's configuration, for pr-body, review and brief: a path,"
         " or a name in .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else"
-        " the search; with none found, the generic forms)",
+        " the search, else the copy fetched by the repository's name; with none"
+        " found, the generic forms)",
     ),
     add_argument(
         "--url",

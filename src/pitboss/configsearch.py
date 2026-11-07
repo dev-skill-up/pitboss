@@ -167,6 +167,8 @@ def named(args: argparse.Namespace) -> str:
     ``--config`` (or the old first word, see ``configsettle``), else
     ``$PITBOSS_CONFIG``, else the first file of ``find_default`` (which raises
     when there is none), so the same command line runs with no configuration.
+    ``configsettle`` fetches one by the repository's name when there is none
+    (keyword: fetched-config).
 
     Args:
         args: the parsed arguments.

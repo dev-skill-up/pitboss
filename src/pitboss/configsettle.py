@@ -14,8 +14,9 @@ from typing import Iterable, Mapping, NoReturn, Protocol, Sequence, cast
 
 from gather.api import Wrapper
 
-from . import configsearch
+from . import configfetch, configsearch
 from .commandarguments import CONFIG_OPTION
+from .running import Run
 
 DEPRECATED = (
     "DEPRECATED: the configuration as the first word of `pitboss {command}`"
@@ -44,19 +45,54 @@ def _give_back(args: argparse.Namespace, destination: str, word: str) -> None:
     setattr(args, destination, word if held is None else [word, *held])
 
 
+def _output(run: Run, command: Sequence[str]) -> str:
+    return run(command).stdout
+
+
+def found_or_fetched(args: argparse.Namespace) -> str:
+    """The configuration of a command that was given none (keyword: fetched-config).
+
+    ``$PITBOSS_CONFIG``, then the search, then ``<repository>.toml`` fetched
+    from the notes repository, which a fresh container needs: it has the
+    checkout and nothing else.
+
+    Args:
+        args: the parsed arguments.
+
+    Returns:
+        A path, or a name (see ``locate`` of ``configfile``); when there is
+        none, ``configfetch.fetch`` raises ``FileNotFoundError`` saying where
+        the search looked and why the fetch failed.
+    """
+    try:
+        return configsearch.named(args)
+    except FileNotFoundError as missing:
+        start = configsearch.working_directory(args)
+        name = configsearch.repository_name(start, configsearch.ceilings(args.env))
+        read = functools.partial(_output, args.safe_run)
+        return str(configfetch.fetch(read, args.env, name, missing))
+
+
 def settle(args: argparse.Namespace, destination: str | None) -> None:
     """Decide the configuration, and give the first word back when it is not one.
 
     The positional configuration is optional and first, so argparse gives it
     the first word of every command. ``--config`` wins, and then no word is
     read as the configuration; else the first word is the old configuration
-    when it names one or when the command has nowhere else to put it.
+    when it names one or when the command has nowhere else to put it. With
+    none given, the configuration is the one ``found_or_fetched`` gives.
 
     Args:
         args: the parsed arguments; ``config`` is the first word (or None) and
             ``config_option`` is ``--config``.
         destination: the argument that takes the command's next positional word.
     """
+    _read_word(args, destination)
+    if args.config is None:
+        args.config = found_or_fetched(args)
+
+
+def _read_word(args: argparse.Namespace, destination: str | None) -> None:
     word, option = args.config, args.config_option
     command = args.__gather_name__
     if word is None:
@@ -78,9 +114,10 @@ def settle(args: argparse.Namespace, destination: str | None) -> None:
 def find_or_say(args: argparse.Namespace) -> None:
     """Find the configuration of ``lint`` when ``--config`` is not given.
 
-    ``$PITBOSS_CONFIG``, then the search; one found is used as if it had been
-    given. With none, ``lint`` keeps its generic forms and says on standard
-    error every place it looked.
+    ``$PITBOSS_CONFIG``, then the search, then the fetch by the repository's
+    name (``configfetch``); one found is used as if it had been given. With
+    none, ``lint`` keeps its generic forms and says on standard error every
+    place it looked.
 
     Args:
         args: the parsed arguments, whose ``config`` is ``--config``.
@@ -88,7 +125,7 @@ def find_or_say(args: argparse.Namespace) -> None:
     if args.config is not None:
         return
     try:
-        args.config = configsearch.named(args)
+        args.config = found_or_fetched(args)
     except FileNotFoundError as error:
         print(error, file=sys.stderr)
 
