@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import config, forms
+from .. import config, configfile, forms
 from .formchecks import body_checks, checks, subject
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
 from .test_reviews import form as review_form
@@ -110,7 +110,7 @@ class TestPrBody(unittest.TestCase):
         far = WITH_FOOTER.replace(FOOTER, "x\ny\nz").replace(
             "Head:", f"{FOOTER}\nHead:", 1
         )
-        default = config.DEFAULT_LINT.footers
+        default = configfile.DEFAULT_LINT.footers
         found = [
             checks(forms.pr_body(subject(BODY), default)),
             body_checks(BODY, footers=(FOOTER,)),

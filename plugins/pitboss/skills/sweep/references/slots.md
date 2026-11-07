@@ -145,7 +145,9 @@ exactly one step and at most one kind.
 4. **Write the Plan and Execution body**: step WORKER, task `FIRST_ROUND`:
    the PR has no such body. Its author writes it. A relock PR (head branch
    starting with `[relock] prefix`, default `relock/`) fixes no ticket and is
-   never asked for this body: it goes straight to its review, whose kind is
+   never asked for this body: it goes straight to the pins-check command
+   (`rules.md`, "A pins-only pull request is verified by the pins-check
+   command"), and when that does not print OK to its review, whose kind is
    `review the relock` (`pitboss#126`; the brief states the goal, that moves of
    pins are safe when the lock matches and CI is green, and the check list).
 5. **Resolve the conflict**: step WORKER, task `RESOLVE_CONFLICT`: the head

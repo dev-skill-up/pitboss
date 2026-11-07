@@ -63,8 +63,23 @@ lines = ["## Adversarial review", "Reviewed: {sha}", "Verdict: {verdict}"]
 # Head branch prefix of the PRs the daily relock opens. Such a PR fixes no ticket
 # and has no Plan or Execution of its own: `pitboss lint pr-body --branch BRANCH`
 # checks its head and footer alone, and the sweep sends it straight to its
-# review (`review the relock`). Default: "relock/". An empty prefix names none.
+# pins-check (below), else to its review (`review the relock`).
+# Default: "relock/". An empty prefix names none.
 prefix = "relock/"
+# The command that verifies a PR which only moves pins (pitboss#34), run in the
+# PR's checkout (the main clone, or the library's directory in the workspace)
+# after `git fetch origin <base> pull/<n>/head`; {base} is `origin/<base branch>`
+# and {head} the PR's head SHA. A green PR at a review step whose branch has the
+# relock prefix, or whose changed paths are all in pin_files, is run through it:
+# when its last output line is `OK` or starts `OK:` the sweep prints
+# `PINS-ONLY OK` and `READY TO MERGE` and offers no review; any other output
+# prints `PINS-ONLY` and the PR is reviewed as before. Empty means no such
+# command: every such PR is reviewed. Default: "".
+pins_check_command = "bats pins-check {base} {head} --compiler /home/user/bats --repository /home/user/repository-prototype"
+# The paths a non-relock PR may change and still be pins-only (a relock PR is,
+# whatever it changes: the command judges its diff).
+# Default: bats's own five pin files, as below.
+pin_files = ["bats.lock", ".github/bats-version", ".github/repository-version", ".github/workflows/relock.yml", ".github/workflows/publish.yml"]
 
 [lint.brief]
 # Line starts every brief must have (`pitboss lint brief`). Default: none.

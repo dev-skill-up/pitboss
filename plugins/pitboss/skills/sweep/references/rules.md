@@ -1209,10 +1209,22 @@ Only override for bugs, but do override for bugs (and then file them)".
   not change (owner, 2026-10-25, haiku-rule 38: "reviewers have no right to
   object to 'this doesn't fix other existing issues'"); it ends with a
   suggestion to file a bug.
-- **A mechanical relock** that is green and changes nothing but the relock
-  needs a quick check, not a full review (owner, 2026-10-23T11:25:42Z: "a green
-  relock pr with no changes other than the relocking itself doesn't need a full
-  review. Just a quick check that nothing else was done.").
+- **A pins-only pull request is verified by the pins-check command, with no
+  review** (keyword: pins-only, pitboss#34; owner, 2026-10-23T11:25:42Z: "a
+  green relock pr with no changes other than the relocking itself doesn't need
+  a full review"; owner, 2026-11-07T11:50Z: "Why do we need review for relock?
+  Unless it needs changes to the logic, it's mechanical"). A pull request is
+  pins-only when its head branch has the `[relock] prefix` (default `relock/`)
+  or every path it changes is in `[relock] pin_files`. The project's command is
+  `[relock] pins_check_command` (for bats projects `bats pins-check {base}
+  {head} --compiler <dir> --repository <dir>`; empty means none, and every such
+  PR is reviewed). When CI is green and the command's last output line is the word OK
+  or starts `OK:`, the sweep prints `PINS-ONLY OK`, then `READY TO MERGE` (or
+  `MERGE BY HAND`), and offers no review: the orchestrator merges it. Any
+  other output (`NOT OK: ...`, a command that cannot run, a mixed PR, a PR with
+  a non-pin file) is the line `PINS-ONLY` with the command's line, and the PR
+  is offered for a review as before, whose brief (`review the relock`) tells
+  the reviewer to run the command on the head and paste its output as evidence.
 - **Before asking the owner, an Opus worker predicts the answer** (owner,
   2026-10-27T15:48:08Z: "In the future, treat it as a standing order. Before
   asking me, start an opus worker with the request to predict what I'll say. If

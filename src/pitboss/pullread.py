@@ -3,7 +3,16 @@
 import functools
 from typing import Callable, Sequence
 
-from . import concurrently, config, earlyreview, ghapi, parsing, pulls, shapes
+from . import (
+    concurrently,
+    config,
+    earlyreview,
+    ghapi,
+    parsing,
+    pinsonly,
+    pulls,
+    shapes,
+)
 
 
 def read_open(
@@ -59,17 +68,23 @@ def read_each(
         Each PR, in the order ``read_open`` gives.
     """
     wanted = _open_numbers(github, settings)
-    source = pulls.Source(
+    source = _source(github, settings, undraft)
+    return concurrently.each(
+        lambda item: pulls.fetch_or_unreadable(source, *item), wanted
+    )
+
+
+def _source(
+    github: ghapi.GitHub, settings: config.Config, undraft: Callable[[], bool]
+) -> pulls.Source:
+    tools = earlyreview.Tools(github=github, review=settings.review)
+    return pulls.Source(
         github=github,
         review=settings.review,
         undraft=functools.cache(undraft),
         relock_prefix=settings.lint.relock_prefix,
         run_by_e2e=settings.project.run_by_e2e,
         plan_review_check=settings.project.plan_review_check,
-        early=functools.partial(
-            earlyreview.split, earlyreview.Tools(github=github, review=settings.review)
-        ),
-    )
-    return concurrently.each(
-        lambda item: pulls.fetch_or_unreadable(source, *item), wanted
+        early=functools.partial(earlyreview.split, tools),
+        pins=pinsonly.asker(github, settings),
     )

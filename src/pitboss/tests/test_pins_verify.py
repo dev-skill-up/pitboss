@@ -1,0 +1,198 @@
+"""The pins-check command: the fetch, the run and its output (pitboss#34)."""
+
+import json
+import pathlib
+import subprocess
+import tomllib
+import unittest
+from typing import MutableSequence, Sequence
+
+from hamcrest import assert_that, contains_string, equal_to
+
+from .. import (
+    config,
+    parsing,
+    pinsask,
+    pinsonly,
+    pinsreading,
+    running,
+    shapes,
+    steps,
+)
+from . import fakes, pinsworld
+
+NOT_OK = pinsreading.Status.NOT_OK
+REVIEW = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+SAID_OK = pinsreading.Reading(status=pinsreading.Status.OK, detail="OK")
+
+
+def scripted(
+    answers: Sequence[object], calls: MutableSequence[Sequence[str]]
+) -> running.Run:
+    """A runner that records the commands and answers from a list.
+
+    Args:
+        answers: an output text, or an exception to raise, for each call.
+        calls: where the command lines are recorded.
+
+    Returns:
+        The runner.
+    """
+    left = list(answers)
+
+    def run(cmdargs: Sequence[str], /) -> running.Output:
+        calls.append(list(cmdargs))
+        answer = left.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return fakes.Output(stdout=str(answer))
+
+    return run
+
+
+def settings_for(command: str) -> config.Config:
+    """A configuration whose pins command is given.
+
+    Args:
+        command: the command.
+
+    Returns:
+        The configuration.
+    """
+    return fakes.settings(fakes.directory(), pinsworld.relock_table(command))
+
+
+def pull_of(number: int = 7) -> shapes.Pull:
+    """A PR.
+
+    Args:
+        number: its number.
+
+    Returns:
+        The PR.
+    """
+    return parsing.pull(json.dumps(fakes.pull_body(number)))
+
+
+def verify(
+    answers: Sequence[object], calls: MutableSequence[Sequence[str]]
+) -> pinsreading.Reading:
+    """Verify PR 7 of the project with a scripted runner.
+
+    Args:
+        answers: what the runner answers to each call.
+        calls: where the command lines are recorded.
+
+    Returns:
+        The reading.
+    """
+    settings = settings_for("check {base} {head}")
+    run = scripted(answers, calls)
+    return pinsonly.verify(run, settings, settings.project.repo, pull_of())
+
+
+def failed(
+    status: int, output: str = "", stderr: str = ""
+) -> subprocess.CalledProcessError:
+    """A command that failed.
+
+    Args:
+        status: its exit status.
+        output: what it printed.
+        stderr: what it printed to its error output.
+
+    Returns:
+        The error a runner raises.
+    """
+    return subprocess.CalledProcessError(status, "x", output=output, stderr=stderr)
+
+
+class TestVerify(unittest.TestCase):
+    """The fetch, the command and how its output is read."""
+
+    def test_it_fetches_then_runs_the_command_in_the_checkout(self) -> None:
+        """Two calls: the fetch of the base and the head, then env -C."""
+        calls: MutableSequence[Sequence[str]] = []
+        found = verify(["", "OK\n"], calls)
+        fetched = ["fetch", "--quiet", "origin", "main", "pull/7/head"]
+        want = ["env", "-C", calls[0][2], "check", "origin/main", fakes.HEAD]
+        assert_that(calls[0][3:], equal_to(fetched))
+        assert_that(calls[1], equal_to(want))
+        assert_that(found, equal_to(SAID_OK))
+
+    def test_what_is_said_when_it_is_not_ok(self) -> None:
+        """The first NOT OK line, else the first line, else the status, else a word."""
+        first = "ok   a\nNOT OK: bats.lock: behind\nNOT OK: b: c\n"
+        cases: Sequence[tuple[Sequence[object], str]] = [
+            (["", failed(1, first)], "NOT OK: bats.lock: behind"),
+            (["", failed(2, stderr="usage: no checkout\n")], "usage: no checkout"),
+            ([failed(128)], "exit status 128"),
+            (["", FileNotFoundError("env")], "cannot run: env"),
+            (["", "\n"], "no output"),
+        ]
+        for answers, detail in cases:
+            with self.subTest(detail):
+                found = verify(answers, [])
+                assert_that(
+                    found, equal_to(pinsreading.Reading(status=NOT_OK, detail=detail))
+                )
+
+    def test_a_library_runs_in_its_directory_of_the_workspace(self) -> None:
+        """Not the main clone."""
+        settings = settings_for("check")
+        calls: MutableSequence[Sequence[str]] = []
+        lib = config.make_repo("owner", "lib")
+        pinsonly.verify(scripted(["", "OK\n"], calls), settings, lib, pull_of())
+        want = str(settings.project.workspace / "lib")
+        assert_that([calls[0][2], calls[1][2]], equal_to([want, want]))
+
+
+class TestReading(unittest.TestCase):
+    """The pure parts."""
+
+    def test_ok_lines(self) -> None:
+        """OK, OK: ..., OK ... pass; NOT OK, OKAY, a mid-output OK, nothing do not."""
+        texts = (
+            "OK",
+            "ok   a\nOK: a...b changes only pins\n\n",
+            "OK all",
+            "NOT OK: x",
+            "OKAY",
+            "OK: a\nNOT OK: b",
+            "",
+        )
+        found = [pinsreading.printed_ok(text) for text in texts]
+        assert_that(found, equal_to([True, True, True, False, False, False, False]))
+
+    def test_only_pins(self) -> None:
+        """Every path in the list, and at least one."""
+        pins = ("bats.lock", "b")
+        found = [
+            pinsonly.only_pins(["b", "bats.lock"], pins),
+            pinsonly.only_pins(["b", "c"], pins),
+            pinsonly.only_pins([], pins),
+        ]
+        assert_that(found, equal_to([True, False, False]))
+
+    def test_the_command_words_keep_quotes_and_replace_both_revisions(self) -> None:
+        """shlex splits; each word has {base} and {head} replaced."""
+        words = pinsonly.command_line("c '{base} x' --h={head}", "origin/m", "abc")
+        assert_that(words, equal_to(["c", "origin/m x", "--h=abc"]))
+
+    def test_an_ok_replaces_the_review_by_the_merge_and_nothing_else_does(self) -> None:
+        """Only OK changes the step."""
+        review = REVIEW
+        refused = pinsreading.Reading(status=NOT_OK, detail="x")
+        cases = [(SAID_OK, steps.merge()), (refused, review)]
+        cases.append((pinsreading.NOTHING, review))
+        for reading, want in cases:
+            with self.subTest(reading.status):
+                assert_that(pinsask.unreviewed(review, reading), equal_to(want))
+
+    def test_the_example_configuration_says_both_keys(self) -> None:
+        """doc/example.toml names both keys and its list is the default."""
+        path = pathlib.Path(__file__).parents[3] / "doc" / "example.toml"
+        text = path.read_text()
+        assert_that(text, contains_string("pins_check_command = "))
+        loaded = tomllib.loads(text)["relock"]
+        assert_that(loaded["pin_files"], equal_to(list(config.DEFAULT_PIN_FILES)))

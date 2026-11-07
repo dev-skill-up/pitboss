@@ -17,6 +17,14 @@ DEFAULT_FORM = ("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 DEFAULT_RELOCK_PREFIX = "relock/"
 DEFAULT_RUN_BY_E2E = ("e2e/",)
 DEFAULT_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
+# the files bats's `bats pins-check` reads as pins (keyword: pins-only, pitboss#34)
+DEFAULT_PIN_FILES = (
+    "bats.lock",
+    ".github/bats-version",
+    ".github/repository-version",
+    ".github/workflows/relock.yml",
+    ".github/workflows/publish.yml",
+)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -63,6 +71,11 @@ class ReviewForm:
     changes_needed: str
 
 
+DEFAULT_REVIEW_FORM = ReviewForm(
+    lines=DEFAULT_FORM, approved="approved", changes_needed="changes needed"
+)
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Review:
     """How reviews are read.
@@ -83,6 +96,21 @@ class Review:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Pins:
+    """The pins-check command and the files a pins-only PR may touch (``[relock]``).
+
+    Attributes:
+        command: the pins-check command line, ``{base}`` and ``{head}`` standing
+            for the revisions it compares; empty means no such command.
+        files: the paths a PR may touch and still be pins-only (a relock PR is
+            pins-only whatever it touches: the command judges its diff).
+    """
+
+    command: str = ""
+    files: Sequence[str] = DEFAULT_PIN_FILES
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Lint:
     """What the form checks of ``pitboss lint`` read.
 
@@ -91,12 +119,14 @@ class Lint:
         footers: lines a PR body must end with one of (last three); none, no footer.
         brief_lines: the line starts every brief must have.
         relock_prefix: the head branch prefix of a relock PR (keyword: relock).
+        pins: how a PR that only moves pins is verified (keyword: pins-only).
     """
 
     review: Review
     footers: Sequence[str]
     brief_lines: Sequence[str]
     relock_prefix: str = DEFAULT_RELOCK_PREFIX
+    pins: Pins = Pins()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -227,6 +257,19 @@ def repositories(settings: Config) -> Sequence[Repo]:
     return (settings.project.repo, *settings.libraries)
 
 
+def merges_by_hand(settings: Config, repo: Repo) -> bool:
+    """Whether a library's PRs are merged by hand (``[libraries] no_auto_merge``).
+
+    Args:
+        settings: the configuration.
+        repo: the repository.
+
+    Returns:
+        True when auto-merge is not armed there.
+    """
+    return repo.slug in settings.no_auto_merge
+
+
 def parse_repo(text: str, owner: str) -> Repo:
     """Read ``name`` (of ``owner``) or ``owner/name``.
 
@@ -239,161 +282,3 @@ def parse_repo(text: str, owner: str) -> Repo:
     """
     found_owner, _, name = text.rpartition("/")
     return make_repo(found_owner or owner, name)
-
-
-def _form(table: Mapping[str, object], fallback: ReviewForm) -> ReviewForm:
-    return ReviewForm(
-        lines=tuple(_strings(table, "lines", fallback.lines)),
-        approved=str(table.get("approved", fallback.approved)),
-        changes_needed=str(table.get("changes_needed", fallback.changes_needed)),
-    )
-
-
-def _strings(
-    table: Mapping[str, object], key: str, fallback: Sequence[str]
-) -> Sequence[str]:
-    found = table.get(key, fallback)
-    if not isinstance(found, (list, tuple)):
-        raise ValueError(f"{key} must be a list of strings, not {found!r}")
-    return tuple(str(item) for item in found)
-
-
-def _table(document: Mapping[str, object], key: str) -> Mapping[str, object]:
-    found = document.get(key, {})
-    if not isinstance(found, dict):
-        raise ValueError(f"[{key}] must be a table, not {found!r}")
-    return found
-
-
-def _setting(document: Mapping[str, object], table: str, key: str, fall: object) -> str:
-    return str(_table(document, table).get(key, fall))
-
-
-def _review(document: Mapping[str, object], owner: str) -> Review:
-    table = _table(document, "review")
-    base = ReviewForm(
-        lines=DEFAULT_FORM, approved="approved", changes_needed="changes needed"
-    )
-    form = _form(_table(table, "form"), base)
-    gated = _strings(table, "gated", ())
-    return Review(
-        trusted=frozenset(
-            _strings(table, "trusted_associations", DEFAULT_ASSOCIATIONS)
-        ),
-        gated=frozenset(parse_repo(item, owner).slug for item in gated),
-        form=form,
-        gated_form=_form(_table(table, "gated_form"), form),
-    )
-
-
-def _lint(document: Mapping[str, object], owner: str) -> Lint:
-    table = _table(document, "lint")
-    return Lint(
-        review=_review(document, owner),
-        footers=_strings(_table(table, "pr_body"), "footers", ()),  # none required
-        brief_lines=_strings(_table(table, "brief"), "required", ()),
-        relock_prefix=_setting(document, "relock", "prefix", DEFAULT_RELOCK_PREFIX),
-    )
-
-
-# the form checks when a project says nothing: the generic review form, no required
-# footer and no required brief line
-DEFAULT_LINT = _lint({}, "")
-
-
-def _project(document: Mapping[str, object]) -> Project:
-    table, sweep = _table(document, "project"), _table(document, "sweep")
-    main_clone = pathlib.Path(str(table["main_clone"]))
-    return Project(
-        repo=make_repo(str(table["owner"]), str(table["repository"])),
-        base_branch=str(table.get("base_branch", "main")),
-        main_clone=main_clone,
-        workspace=pathlib.Path(str(table.get("workspace", main_clone.parent))),
-        run_by_e2e=_strings(sweep, "run_by_e2e", DEFAULT_RUN_BY_E2E),
-        plan_review_check=str(sweep.get("plan_review_check", "")),
-    )
-
-
-def _slot_specs(table: Mapping[str, object]) -> Sequence[SlotSpec]:
-    found = table.get("default", [])
-    if not isinstance(found, list):
-        raise ValueError(f"slots.default must be a list, not {found!r}")
-    return tuple(
-        SlotSpec(name=str(item["name"]), model=str(item["model"])) for item in found
-    )
-
-
-def _slots(document: Mapping[str, object], project: Project) -> Slots:
-    table = _table(document, "slots")
-    ledger = project.main_clone / ".git" / "pitboss-slots.json"
-    book = pathlib.Path(str(table.get("ledger", ledger)))
-    return Slots(
-        ledger=book,
-        log=pathlib.Path(str(table.get("log", book.with_suffix(".log")))),
-        default=_slot_specs(table),
-        models=_strings(table, "models", ()),
-        priority_labels=_strings(table, "priority_labels", ()),
-        model_labels={
-            str(key): str(value) for key, value in _table(table, "model_labels").items()
-        },
-        ledger_owner=table.get("ledger-owner") is True,
-    )
-
-
-def _repos(
-    document: Mapping[str, object], table: str, key: str, owner: str
-) -> Sequence[Repo]:
-    names = _strings(_table(document, table), key, ())
-    return tuple(parse_repo(name, owner) for name in names)
-
-
-def _runners(
-    document: Mapping[str, object], project: Project, libraries: Sequence[Repo]
-) -> Runners:
-    minutes = int(_setting(document, "runners", "quiet_minutes", 15))
-    if minutes < 0:
-        raise ValueError(f"[runners] quiet_minutes must not be negative, not {minutes}")
-    default = project.main_clone / ".git" / "pitboss-pressure.log"
-    shared = _repos(document, "runners", "repositories", project.repo.owner)
-    return Runners(
-        repositories=shared or (project.repo, *libraries),
-        record=pathlib.Path(_setting(document, "runners", "record", default)),
-        quiet_minutes=minutes,
-        held="runners" in document,
-    )
-
-
-def _merge_queue(document: Mapping[str, object], owner: str) -> MergeQueue:
-    named = _repos(document, "merge_queue", "repositories", owner)
-    minutes = int(_setting(document, "merge_queue", "timeout_minutes", 60))
-    return MergeQueue(
-        timeout_minutes=minutes, repositories=frozenset(each.slug for each in named)
-    )
-
-
-def from_document(document: Mapping[str, object]) -> Config:
-    """Build the configuration from a parsed TOML document.
-
-    Args:
-        document: the parsed document.
-
-    Returns:
-        The configuration.
-    """
-    project = _project(document)
-    owner = project.repo.owner
-    libraries = _repos(document, "libraries", "repositories", owner)
-    no_auto_merge = _repos(document, "libraries", "no_auto_merge", owner)
-    lint = _lint(document, owner)
-    return Config(
-        project=project,
-        libraries=libraries,
-        no_auto_merge=frozenset(repo.slug for repo in no_auto_merge),
-        runners=_runners(document, project, libraries),
-        review=lint.review,
-        lint=lint,
-        merge_queue=_merge_queue(document, owner),
-        idle_hours=float(_setting(document, "worktrees", "idle_hours", 3)),
-        slots=_slots(document, project),
-        reminders=_strings(_table(document, "sweep"), "reminders", DEFAULT_REMINDERS),
-    )

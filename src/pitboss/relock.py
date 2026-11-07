@@ -3,7 +3,8 @@
 The daily relock opens a pull request from a branch whose name starts with a
 configured prefix (``[relock] prefix``, default ``relock/``). It fixes no
 ticket and has no hand-written Plan or Execution, so the sweep and the body
-lint treat it apart: it goes straight to its review.
+lint treat it apart: it goes straight to its pins-check, else to its review
+(``pinsonly``).
 """
 
 
