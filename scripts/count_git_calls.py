@@ -38,7 +38,15 @@ import unittest
 
 TESTS = os.sep.join(["pitboss", "tests", ""])
 # only run git for a caller: the fixture is the frame above them
-RELAYS = {"run_git", "__call__", "commit_file", "push", "build", "copy_of"}
+RELAYS = {
+    "run_git",
+    "__call__",
+    "commit_file",
+    "push",
+    "build",
+    "copy_of",
+    "run_for_real",
+}
 DETAIL = collections.Counter()
 HELPERS = {"fakes.py", "repositories.py"}
 
