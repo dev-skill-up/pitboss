@@ -61,10 +61,9 @@ What was project-specific, and where it went
        ``notes-current``), and a sweep does it last
    * - a queue run's 60 minute limit
      - ``[merge_queue] timeout_minutes``
-   * - quire has a merge queue, so a PR that is behind needs no update, nor
-       one whose red checks passed on the base since
+   * - quire has a merge queue, so a PR that is behind needs no update
      - ``[merge_queue] repositories`` (default none: a behind PR with finished
-       checks is an update, and a red head is a fix of the CI)
+       checks is an update)
    * - three hours of idleness before a finished worktree may be removed
      - ``[worktrees] idle_hours`` (it is the idleness of a scratch entry too)
    * - ``/tmp/claude-0``, shared caches, the 5 GiB of free space
@@ -473,14 +472,7 @@ a stall before every other pull request but the merge of a ready one, unless the
 ``UPDATE`` (``pitboss.updateline``; the PR is ``behind`` the base, at least one
 check run of the head has completed and none is pending, and the repository is
 not under ``[merge_queue] repositories``, whose queue builds each entry on the
-current base), then ``FIXED ON BASE`` (``pitboss.fixedline``, keyword:
-fixed-on-base, pitboss#314; a repository under ``[merge_queue] repositories``
-whose PR has no conflict and whose failed checks each have a succeeded run on
-the base branch's tip that completed after the failed run, read by
-``pitboss.basefix`` only for a head with a failed check; the line stands in
-place of the ``FAILED`` lines, and says ``enqueue it (the merge queue tests it
-on main)`` at the merge step, ``request the review`` at a review step, else the
-step), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (``pitboss.flow.next_step`` gives the step,
+current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (``pitboss.flow.next_step`` gives the step,
 ``pitboss.roundline`` and ``pitboss.planeditline`` print; see **Review rounds** below), then
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, which grades the
@@ -1019,10 +1011,7 @@ listed at most once. The nine kinds:
   author's fix for a review that asked for changes to the execution;
 * ``fix the CI``: step ``WORKER``, task ``FIX_CI``: a red CI, which is no
   rejection, unless the PR waits for a ruling or the owner (``steps.WAITS``,
-  pitboss#183) or, in a repository under ``[merge_queue] repositories``, every
-  failed check passed on the base since (``pitboss.basefix.settle`` gives the
-  flow those checks as passed, so the step is the one a green CI gives, with
-  ``Next.on_base`` set; pitboss#314);
+  pitboss#183);
 * ``write the Plan and Execution body``: step ``WORKER``, task
   ``FIRST_ROUND``: the PR has no such body;
 * ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an

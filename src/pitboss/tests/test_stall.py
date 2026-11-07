@@ -8,7 +8,17 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, parsing, pulls, reviews, shapes, stall, steps
+from .. import (
+    basefix,
+    config,
+    headchecks,
+    parsing,
+    pulls,
+    reviews,
+    shapes,
+    stall,
+    steps,
+)
 from . import fakes, test_flow, world
 from .test_commands import sweep
 
@@ -130,6 +140,19 @@ class TestStall(unittest.TestCase):
         )
         assert_that(draft.pull.draft, equal_to(True))
         assert_that(len(printed(draft)), equal_to(1))
+
+    def test_a_red_the_base_has_passed_since_is_no_stall(self) -> None:
+        """A merge-queue relock PR red only from checks fixed on main is quiet."""
+        red = check(86400)
+        passed = dataclasses.replace(red, failed=False, succeeded=True)
+        pull = facts(RELOCK, [red])
+        answered = dataclasses.replace(
+            pull,
+            signals=headchecks.HeadSignals(
+                fixed=[basefix.Answer(failed=red, passed=passed)]
+            ),
+        )
+        assert_that((len(printed(pull)), printed(answered)), equal_to((1, [])))
 
     def test_a_green_relock_pr_is_quiet(self) -> None:
         """A relock PR whose check passed prints nothing, however old."""

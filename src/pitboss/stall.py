@@ -12,7 +12,7 @@ review-flow), when it waits for the ruling or the owner first.
 import datetime
 from typing import Mapping, Sequence
 
-from . import pulls, shapes
+from . import headchecks, pulls, shapes
 from .markers import Marker
 
 STALL_SECONDS = 4 * 3600
@@ -22,6 +22,11 @@ NO_STEP = "no failed step read"
 
 def _required(check: shapes.CheckRun) -> bool:
     return check.name == REQUIRED or check.name.endswith(f" / {REQUIRED}")
+
+
+def _failing(pull: pulls.PullFacts) -> Sequence[shapes.CheckRun]:
+    # keyword: fixed-on-base (pitboss#314): a red the base passed since is no stall
+    return headchecks.unanswered(pull.checks, pull.signals)
 
 
 def red_seconds(pull: pulls.PullFacts, now: datetime.datetime) -> int | None:
@@ -40,7 +45,7 @@ def red_seconds(pull: pulls.PullFacts, now: datetime.datetime) -> int | None:
         return None
     times = [
         datetime.datetime.fromisoformat(check.completed_at)
-        for check in pulls.failed_checks(pull)
+        for check in _failing(pull)
         if _required(check) and check.completed_at
     ]
     return int((now - min(times)).total_seconds()) if times else None
@@ -74,7 +79,7 @@ def lines(
     red = red_seconds(pull, now)
     if red is None or red <= STALL_SECONDS:
         return []
-    failing = pulls.failed_checks(pull)
+    failing = _failing(pull)
     jobs = "; ".join(_job_text(check, steps) for check in failing)
     return [
         f"{Marker.STALL.text} {pulls.reference(pull)}: relock check red for"
