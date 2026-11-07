@@ -36,22 +36,7 @@ def written(directory: pathlib.Path, *names: str) -> Sequence[pathlib.Path]:
     return files
 
 
-def checkout(name: str, url: str | None) -> pathlib.Path:
-    """A directory that looks like a checkout of a repository.
-
-    Args:
-        name: its directory's name.
-        url: the url of its ``origin``; None for a checkout with no remote.
-
-    Returns:
-        The directory.
-    """
-    top = fakes.directory().joinpath(name)
-    top.mkdir()
-    fakes.run_git(top, "init", "-q")
-    if url is not None:
-        fakes.run_git(top, "remote", "add", "origin", url)
-    return top
+checkout = configcases.checkout
 
 
 def quire_world() -> world.World:

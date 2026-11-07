@@ -2,6 +2,7 @@
 
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import unittest
@@ -94,7 +95,10 @@ def missing(case: configcases.Case, directory: pathlib.Path) -> tuple[int, bool,
         and the file ``pitboss.toml`` of the directory.
     """
     env = {key: value for key, value in os.environ.items() if key != "PITBOSS_CONFIG"}
-    env.update(PWD=str(directory), HOME=str(directory))
+    # a PATH with git only: the fetch by name (fetched-config) finds no gh
+    tools = fakes.directory()
+    (tools / "git").symlink_to(str(shutil.which("git")))
+    env.update(PWD=str(directory), HOME=str(directory), PATH=str(tools))
     done = subprocess.run(
         [sys.executable, "-m", "pitboss", *case.before, *case.after],
         cwd=directory,
