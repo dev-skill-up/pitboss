@@ -5,13 +5,8 @@ import argparse
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, autoclean, cleanjob, machine as machines, scratch
-from .commands import (
-    CONFIG_ARGUMENT,
-    NOW_ARGUMENT,
-    load_context,
-    running_in,
-    sweep_look,
-)
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
+from .commands import load_context, running_in, sweep_look
 
 
 @ENTRY_DATA.register(

@@ -17,5 +17,7 @@ def print_lines(
         args: the parsed arguments, which name the configuration.
     """
     handback.print_lines(book, now)
-    root = configfile.load_transcripts(args.config, configfile.working_directory(args))
+    root = configfile.load_transcripts(
+        configfile.named(args), configfile.working_directory(args)
+    )
     polling.print_lines(book, root)

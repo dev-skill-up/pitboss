@@ -1,6 +1,5 @@
 """Finding, reading and parsing the configuration file a command was given."""
 
-import argparse
 import pathlib
 import tomllib
 from typing import AbstractSet, Mapping
@@ -9,25 +8,18 @@ from . import (
     briefconfig,
     cleanconfig,
     config,
+    configsearch,
     holdconfig,
     ownerconfig,
     scratchconfig,
     syncconfig,
 )
 
-CONFIG_DIRECTORY = (".claude", "pitboss")
+CONFIG_DIRECTORY = configsearch.CONFIG_DIRECTORY
 
 
-def working_directory(args: argparse.Namespace) -> pathlib.Path:
-    """The directory a configuration name is looked up from.
-
-    Args:
-        args: the parsed arguments.
-
-    Returns:
-        ``PWD`` of the environment, else the current directory.
-    """
-    return pathlib.Path(args.env.get("PWD", "."))
+working_directory = configsearch.working_directory
+named = configsearch.named  # keyword: default-config
 
 
 def locate(name: str, start: pathlib.Path) -> pathlib.Path:
@@ -44,16 +36,14 @@ def locate(name: str, start: pathlib.Path) -> pathlib.Path:
     Raises:
         FileNotFoundError: when there is no such file.
     """
-    given = pathlib.Path(name)
-    if given.suffix == ".toml" or len(given.parts) > 1:
-        return given
-    for directory in (start, *start.parents):
-        candidate = directory.joinpath(*CONFIG_DIRECTORY, f"{name}.toml")
-        if candidate.is_file():
-            return candidate
-    raise FileNotFoundError(
-        f"no {name}.toml in .claude/pitboss of {start} or its parents"
-    )
+    if configsearch.is_path(name):
+        return pathlib.Path(name)
+    found = configsearch.in_config_directory(name, start)
+    if found is None:
+        raise FileNotFoundError(
+            f"no {name}.toml in .claude/pitboss of {start} or its parents"
+        )
+    return found
 
 
 def load(name: str, start: pathlib.Path) -> config.Config:

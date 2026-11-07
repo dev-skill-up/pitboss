@@ -14,8 +14,6 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Mapping, Sequence
 
-from gather.commands import add_argument
-
 from . import (
     ENTRY_DATA,
     account,
@@ -50,15 +48,9 @@ from . import (
     workhours,
 )
 from . import diskline, pulllines, pullstate, unreadableline
+from .commandarguments import CHANGING_ARGUMENTS, CONFIG_ARGUMENT, NOW_ARGUMENT
 from .failures import describe, read_all
 from .markers import Marker
-
-CONFIG_ARGUMENT = add_argument(
-    "config", help="a path, or a name in .claude/pitboss/<name>.toml"
-)
-NOW_ARGUMENT = add_argument("--now", default=None, help=argparse.SUPPRESS)
-DRY_RUN_ARGUMENT = add_argument("--no-dry-run", action="store_true", default=False)
-CHANGING_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, DRY_RUN_ARGUMENT)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -111,7 +103,7 @@ def load_settings(args: argparse.Namespace) -> config.Config:
     Returns:
         The configuration.
     """
-    return configfile.load(args.config, working_directory(args))
+    return configfile.load(configfile.named(args), working_directory(args))
 
 
 def open_pulls(found: Context) -> Sequence[pulls.Read]:
@@ -140,13 +132,14 @@ def load_context(args: argparse.Namespace) -> Context:
     now = timing.current_time(args)
     github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
     start = working_directory(args)
-    access = repoaccess.read(github, args.config, start)
+    given = configfile.named(args)
+    access = repoaccess.read(github, given, start)
     owner = access.settings.project.repo.owner
     return Context(
         settings=access.settings,
         access=access,
-        clean=configfile.load_clean(args.config, start),
-        scratch=configfile.load_scratch(args.config, start, owner),
+        clean=configfile.load_clean(given, start),
+        scratch=configfile.load_scratch(given, start, owner),
         github=github,
         now=now,
         args=args,
@@ -335,7 +328,9 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     sweepline.slots(book, read, offer)
     sweepline.idle(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(book, found.now, found.args)
-    tasklist.print_lines(found.github, found.settings, book, found.args.config)
+    tasklist.print_lines(
+        found.github, found.settings, book, configfile.named(found.args)
+    )
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, tasklist.ARGUMENT, name="sweep")
@@ -350,7 +345,7 @@ def sweep(args: argparse.Namespace) -> None:
     """
     clock = timing.start()
     args = timing.logged_args(args, clock)
-    where = configfile.locate(args.config, working_directory(args))
+    where = configfile.locate(configfile.named(args), working_directory(args))
     ledgerowner.say_sweep(load_settings(args), where)
     localsections.print_update_check(args.safe_run)
     found = load_context(args)
@@ -359,7 +354,9 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "cleaning done")
     broken, read = _repository_sections(found, clock, cleaned)
     _slot_section(found, read)
-    summaryline.print_lines(found.github, found.settings, args.config, found.now)
+    summaryline.print_lines(
+        found.github, found.settings, configfile.named(args), found.now
+    )
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)

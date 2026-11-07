@@ -116,8 +116,8 @@ def run(here: world.World, command: str) -> world.Result:
         What it did.
     """
     if command == "slots":
-        return world.invoke(here, "slots", "show", here.config)
-    return world.again(here, command, "--now", world.FUTURE)
+        return world.invoke(here, "slots", "show", "--config", here.config)
+    return world.invoke(here, command, "--config", here.config, "--now", world.FUTURE)
 
 
 def play(command: str) -> tuple[Sequence[tuple[str, bool]], int]:

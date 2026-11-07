@@ -26,7 +26,7 @@ def unconfigured(args: argparse.Namespace) -> bool:
         Whether it has none (the line is printed, and the sweep fails).
     """
     start = configfile.working_directory(args)
-    if configfile.load_sync(args.config, start, start) is not None:
+    if configfile.load_sync(configfile.named(args), start, start) is not None:
         return False
     marker = Marker.SYNC_NOT_CONFIGURED.text
     print(f"{marker}: add a [sync] table (reference: {REFERENCE})")

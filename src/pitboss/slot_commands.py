@@ -23,9 +23,8 @@ from . import (
     ticketof,
     tracefs,
 )
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import (
-    CONFIG_ARGUMENT,
-    NOW_ARGUMENT,
     Context,
     load_context,
     open_pulls,
@@ -189,10 +188,11 @@ def _fewer(found: Context, book: ledger.Ledger) -> None:
 
 def _check(found: Context, book: ledger.Ledger) -> None:
     _fewer(found, book)
+    given = configfile.named(found.args)
     for slot in ledger.gone(book, found.args.running or ()):
         print(
             f"{Marker.GONE_AGENT.text}: slot {slot.name} holds {slot.agent}, which"
-            f" is not running: 'pitboss slots free {found.args.config} {slot.name}"
+            f" is not running: 'pitboss slots free {given} {slot.name}"
             f" --done {slot.agent}'"
         )
     report.print_ledger(book)
@@ -259,7 +259,7 @@ def _require_owner(found: Context) -> None:
     # The ledger is neither read nor changed by a configuration that is not
     # the orchestrator's (keyword: ledger-owner).
     path = configfile.locate(
-        found.args.config, configfile.working_directory(found.args)
+        configfile.named(found.args), configfile.working_directory(found.args)
     )
     use = ledgerowner.owner(found.settings, path)
     if use is not None:

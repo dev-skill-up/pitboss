@@ -2,6 +2,25 @@
 
 from typing import Mapping
 
+from .. import shapes
+
+
+def comment_json(posted: shapes.Comment) -> Mapping[str, str]:
+    """An issue comment as the API gives it.
+
+    Args:
+        posted: the comment.
+
+    Returns:
+        Its JSON.
+    """
+    return {
+        "body": posted.body,
+        "author_association": posted.author_association,
+        "created_at": posted.created_at,
+        "html_url": posted.url,
+    }
+
 
 def page(path: str) -> str:
     """The path ``ghapi.pages`` asks for first (``fakes.page``, which needs no import).

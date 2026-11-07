@@ -5,7 +5,8 @@ import sys
 
 from . import ENTRY_DATA
 from . import configfile, syncing
-from .commands import CONFIG_ARGUMENT, NOW_ARGUMENT, load_settings
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
+from .commands import load_settings
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, name="sync")
@@ -27,7 +28,7 @@ def sync(args: argparse.Namespace) -> None:
     """
     settings = load_settings(args)
     start = configfile.working_directory(args)
-    if configfile.load_sync(args.config, start, start) is None:
+    if configfile.load_sync(configfile.named(args), start, start) is None:
         print("the configuration has no [sync] table", file=sys.stderr)
         raise SystemExit(2)
     if syncing.section(args, settings):

@@ -4,7 +4,7 @@ import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commands, config, gateform, gates, gradeline
+from . import ENTRY_DATA, commandarguments, commands, config, gateform, gates, gradeline
 
 BODY_NOTE = (
     "# also one line of its own: Body: <digest> (uvx pitboss body-digest FILE, the"
@@ -24,7 +24,7 @@ def _gate_source(repo: config.Repo, gate: gates.Gate) -> str:
 
 
 @ENTRY_DATA.register(
-    commands.CONFIG_ARGUMENT, add_argument("repository"), name="review-form"
+    commandarguments.CONFIG_ARGUMENT, add_argument("repository"), name="review-form"
 )
 def review_form(args: argparse.Namespace) -> None:
     """Print the form a review comment in a repository must take.

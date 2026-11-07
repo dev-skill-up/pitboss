@@ -179,12 +179,13 @@ def section(args: argparse.Namespace, settings: config.Config) -> bool:
     """
     start = configfile.working_directory(args)
     checkout = settings.project.main_clone / ".git" / "pitboss-sync"
-    sync = configfile.load_sync(args.config, start, checkout)
+    name = configfile.named(args)
+    sync = configfile.load_sync(name, start, checkout)
     if sync is None:
         return False
-    given = configfile.locate(args.config, start).absolute()
+    given = configfile.locate(name, start).absolute()
     found = sources(settings, sync, given)
-    document = configfile.load_document(args.config, start)
+    document = configfile.load_document(name, start)
     unkept = syncguard.not_synced(given, document, [each.path for each in found])
     for line in unkept:
         print(line)
