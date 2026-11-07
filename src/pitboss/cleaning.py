@@ -282,16 +282,16 @@ class Outcome:
         kept: the dead paths that are not safe.
         refused: the paths named that are no safe dead path now.
         removing: whether this was not a dry run.
-        before: the bytes free before.
-        after: the bytes free after.
+        before: the disk's use before, None when it could not be read.
+        after: the disk's use after, None when it could not be read.
     """
 
     gone: Sequence[dead.Candidate]
     kept: Sequence[dead.Candidate]
     refused: Sequence[pathlib.Path]
     removing: bool
-    before: int
-    after: int
+    before: disk.Usage | None
+    after: disk.Usage | None
 
 
 def closing_lines(done: Outcome) -> Sequence[str]:
@@ -315,6 +315,6 @@ def closing_lines(done: Outcome) -> Sequence[str]:
         *(kept_line(each) for each in done.kept),
         f"container: {len(done.gone)} paths, {total} {verb};"
         f" {len(done.kept)} kept, {held}",
-        f"disk: {disk.size_text(done.before)} free before,"
-        f" {disk.size_text(done.after)} after",
+        f"disk: {disk.free_text(done.before)} free before,"
+        f" {disk.free_text(done.after)} after",
     ]

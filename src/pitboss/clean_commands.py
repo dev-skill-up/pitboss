@@ -14,7 +14,6 @@ from . import (
     container,
     dead,
     deadscan,
-    disk,
     workhours,
     worktrees,
 )
@@ -88,7 +87,7 @@ def remove_listed(
     chosen, refused = cleaning.choose(listed, approved, roots_of(look))
     cutoff = now - look.settings.idle_hours * 3600
     workspace = look.settings.project.workspace
-    before = disk.free_space(workspace)
+    before = args.usage(workspace)
     recheck = functools.partial(dead.recheck, look, cutoff)
     gone = cleaning.remove_all(args, recheck, chosen)
     cleaning.prune(args.run, gone)
@@ -98,7 +97,7 @@ def remove_listed(
         refused=refused,
         removing=args.no_dry_run,
         before=before,
-        after=disk.free_space(workspace),
+        after=args.usage(workspace),
     )
 
 

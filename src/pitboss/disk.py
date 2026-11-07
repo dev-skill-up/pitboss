@@ -115,3 +115,15 @@ def size_text(size: int) -> str:
     if size >= BYTES_IN_GIBIBYTE:
         return f"{size / BYTES_IN_GIBIBYTE:.1f} GiB"
     return f"{size / BYTES_IN_MEBIBYTE:.1f} MiB"
+
+
+def free_text(usage: Usage | None) -> str:
+    """Spell the free space of a use.
+
+    Args:
+        usage: the use, or None when it could not be read.
+
+    Returns:
+        The size, or ``unknown``.
+    """
+    return size_text(usage.free) if usage else "unknown"
