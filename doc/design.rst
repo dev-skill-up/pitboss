@@ -487,12 +487,12 @@ instead when nothing is running at its head (while a check run of the head is un
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
-sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
+sandbox may block), then ``PINS-ONLY OK`` or ``PINS-ONLY`` (pitboss#34: a green PR at a review step that only moves pins, whose project has a ``[relock] pins_check_command``; ``OK`` makes the flow's step the merge, with no review), then ``READY TO MERGE`` (at least one check finished, all
 finished and none failed, state ``clean``, in a gated repository the head's
 ``adversarial-review`` status is success (else ``GATE PENDING``), an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
 base branch, or the flow's step is the merge because the newest readable Opus
-ruling says ``execution is approved`` and no review follows it) or, in a
+ruling says ``execution is approved`` and no review follows it, or the pins-check printed ``PINS-ONLY OK``) or, in a
 ``no_auto_merge`` repository, ``MERGE BY HAND``, or
 else ``AUTO MERGE OFF`` for a PR with auto-merge off, not in the queue, nothing
 failed, no conflict and not a draft, whose newest review approved this exact head
