@@ -205,7 +205,10 @@ class Runners:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class MergeQueue:
-    """The merge queue: its run limit, and where a PR that is behind needs no update.
+    """The merge queue: its run limit, and where only a conflict updates a branch.
+
+    A PR that is behind, or red only from checks that passed on the base since
+    (keyword: fixed-on-base), needs no merge of the base there.
 
     Attributes:
         timeout_minutes: how long a merge-queue run may take.

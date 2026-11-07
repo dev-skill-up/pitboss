@@ -90,8 +90,10 @@ required = ["Overlap:"]
 timeout_minutes = 60
 # Repositories with a merge queue. A PR there that is behind the base needs no
 # merge of the base (the queue builds each entry on the current base), so
-# `pitboss sweep` offers it no such step. `pitboss slots next` has no update
-# kind at all, for any repository. Default: none.
+# `pitboss sweep` offers it no such step, and neither to a PR red only from
+# checks that passed on the base since: it is enqueued, or reviewed first
+# (`FIXED ON BASE`). `pitboss slots next` has no update kind at all, for any
+# repository. Default: none.
 repositories = ["app"]
 
 [slots.brief]

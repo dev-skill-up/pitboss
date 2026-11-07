@@ -7,6 +7,7 @@ from typing import Mapping, Sequence
 from . import (
     config,
     deviations,
+    headchecks,
     ledger,
     local,
     pinsline,
@@ -140,7 +141,7 @@ def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[st
     return [
         f"{Marker.FAILED.text} {pulls.reference(pull)}: {check.name}"
         + (f": {why[check.id]}" if why.get(check.id) else "")
-        for check in pulls.failed_checks(pull)
+        for check in headchecks.unanswered(pull.checks, pull.signals)
     ]
 
 

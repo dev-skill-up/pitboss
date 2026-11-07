@@ -3,7 +3,16 @@
 import dataclasses
 from typing import AbstractSet, Sequence
 
-from . import checkruns, config, ghapi, parsing, pinsreading, shapes, supersede
+from . import (
+    basefix,
+    checkruns,
+    config,
+    ghapi,
+    parsing,
+    pinsreading,
+    shapes,
+    supersede,
+)
 
 RED_STATES = frozenset({"failure", "error"})
 # keyword: review-gate: the commit status a repository's review gate sets
@@ -29,6 +38,9 @@ class HeadSignals:
             plan-approved, pitboss#296).
         pins: what the pins-check command said of the PR, asked only at a
             review step (keyword: pins-only, pitboss#34).
+        fixed: the base's later passing run of each failed check of the head,
+            when it has one for every failed check, in a repository with a merge
+            queue (keyword: fixed-on-base, pitboss#314).
     """
 
     statuses: Sequence[shapes.CommitStatus] = ()
@@ -37,6 +49,7 @@ class HeadSignals:
     rulings: Sequence[tuple[str, str]] = ()
     approved_plans: Sequence[str] = ()
     pins: pinsreading.Reading = pinsreading.NOTHING
+    fixed: Sequence[basefix.Answer] = ()
 
 
 def pending_gate(posted: Sequence[shapes.CommitStatus]) -> str:
@@ -74,6 +87,59 @@ def statuses(
     return ghapi.pages(github, path, parsing.statuses)
 
 
+def runs_of(
+    github: ghapi.GitHub, repo: config.Repo, ref: str
+) -> Sequence[shapes.CheckRun]:
+    """Every check run on a commit or branch, as GitHub lists them.
+
+    Args:
+        github: the API.
+        repo: the repository.
+        ref: a SHA or a branch name (its tip).
+
+    Returns:
+        The check runs, those of reruns and of older attempts included.
+    """
+    path = f"repos/{repo.slug}/commits/{ref}/check-runs"
+    return ghapi.pages(github, path, parsing.check_runs)
+
+
+def answered(
+    github: ghapi.GitHub,
+    repo: config.Repo,
+    base: str,
+    current: Sequence[shapes.CheckRun],
+) -> Sequence[basefix.Answer]:
+    """The base's answers to the failed checks of a head (keyword: fixed-on-base).
+
+    Args:
+        github: the API.
+        repo: the repository, which has a merge queue.
+        base: the branch the PR merges into.
+        current: the head's current check runs.
+
+    Returns:
+        What ``basefix.answers`` gives; the base is not read when nothing failed.
+    """
+    failed = [check for check in current if check.failed]
+    return basefix.answers(failed, runs_of(github, repo, base)) if failed else []
+
+
+def unanswered(
+    current: Sequence[shapes.CheckRun], known: HeadSignals
+) -> Sequence[shapes.CheckRun]:
+    """The failed checks of a head that the base has not passed since.
+
+    Args:
+        current: the head's current check runs.
+        known: the head's signals.
+
+    Returns:
+        The failed checks, none when the base answered every one.
+    """
+    return [] if known.fixed else [check for check in current if check.failed]
+
+
 def checks(
     github: ghapi.GitHub,
     repo: config.Repo,
@@ -91,8 +157,7 @@ def checks(
     Returns:
         The check runs.
     """
-    path = f"repos/{repo.slug}/commits/{head}/check-runs"
-    found = ghapi.pages(github, path, parsing.check_runs)
+    found = runs_of(github, repo, head)
     current = checkruns.current_checks(found, head)
     if not any(check.failed for check in current):
         return current

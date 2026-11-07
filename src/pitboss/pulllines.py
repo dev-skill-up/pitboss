@@ -7,6 +7,7 @@ from . import (
     analysisline,
     config,
     e2eline,
+    fixedline,
     foldline,
     gateline,
     notesline,
@@ -28,7 +29,7 @@ def lines(
     settings: config.Config,
     steps: Mapping[int, Sequence[str]],
 ) -> Sequence[str]:
-    """The STALL, UPDATE, waiting-for-ruling, DRAFT ROUND and review-form lines.
+    """The STALL, UPDATE, FIXED ON BASE, waiting-for-ruling, DRAFT ROUND and form lines.
 
     The RUN E2E BEFORE APPROVAL line follows the DRAFT ROUND one.
 
@@ -48,7 +49,7 @@ def lines(
     """
     return (
         *stall.lines(pull, now, steps),
-        *updateline.lines(pull, settings),
+        *_branch_lines(pull, settings),
         *roundline.lines(pull),
         *planeditline.lines(pull),
         *_draft_lines(pull),
@@ -57,6 +58,11 @@ def lines(
         *_review_lines(pull),
         *gateline.lines(pull),
     )
+
+
+def _branch_lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[str]:
+    # the lines about the base: UPDATE where it is merged in, FIXED ON BASE where not
+    return (*updateline.lines(pull, settings), *fixedline.lines(pull))
 
 
 def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:

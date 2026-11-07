@@ -7,7 +7,7 @@ failed step, the output and the annotations stand in for it.
 import subprocess
 from typing import Callable, Mapping, Sequence, TypeVar
 
-from . import config, ghapi, parsing, pulls, shapes
+from . import config, ghapi, headchecks, parsing, pulls, shapes
 
 _Found = TypeVar("_Found")
 NONE: Sequence[str] = ()
@@ -63,7 +63,8 @@ def read_all(
         Each failed check's id and what was read of it.
     """
     return {
-        check.id: read(github, pull.repo, check) for check in pulls.failed_checks(pull)
+        check.id: read(github, pull.repo, check)
+        for check in headchecks.unanswered(pull.checks, pull.signals)
     }
 
 
