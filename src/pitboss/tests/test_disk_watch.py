@@ -91,8 +91,12 @@ class TestDiskLine(unittest.TestCase):
         )
         assert_that(len(found), equal_to(4))
         brief_of_first = parsed(out)[0][1]
-        assert_that(brief_of_first[1], equal_to(f"1. {diskwatch.CLEAN_WORKTREES}"))
-        assert_that(brief_of_first[2], equal_to(f"2. {diskwatch.CLEAN_CONTAINER}"))
+        # the exact strings of quire's .claude/settings.json (auto-approved)
+        assert_that(brief_of_first[1], equal_to("1. uvx pitboss clean-container"))
+        assert_that(
+            brief_of_first[2], equal_to("2. uvx pitboss clean-container --no-dry-run")
+        )
+        assert_that("clean-worktrees" in out, equal_to(False))
 
     def test_at_99_9_percent_no_worker_is_suggested(self) -> None:
         """Under 1 GiB free: the clean suggestion and no worker."""

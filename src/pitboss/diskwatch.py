@@ -20,7 +20,7 @@ SOON_PERCENT = 85.0
 CLEAN_PERCENT = 90.0
 STARVED_FREE = disk.BYTES_IN_GIBIBYTE
 LARGEST = 5
-CLEAN_WORKTREES = "uvx pitboss clean-worktrees --no-dry-run"
+CLEAN_LOOK = "uvx pitboss clean-container"
 CLEAN_CONTAINER = "uvx pitboss clean-container --no-dry-run"
 HEADER = "clean the disk"
 
@@ -174,7 +174,7 @@ def suggestion(each: Reading, big: Sequence[Big]) -> Sequence[str]:
     lines = [
         f"The volume of {each.place} is {each.percent:.1f}% used,"
         f" {each.free_text} free: clean before any worker starts.",
-        f"1. {CLEAN_WORKTREES}",
+        f"1. {CLEAN_LOOK}",
         f"2. {CLEAN_CONTAINER}",
         f"3. the {LARGEST} largest entries under the scratch directories:",
     ]
