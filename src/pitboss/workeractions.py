@@ -87,7 +87,7 @@ def scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:
         shown.append((report[0], FINAL_REPORT + ":", report[1]))
     matches = [
         f"{number}: {name} {text}"
-        for number, name, text in shown
+        for number, name, text in sorted(shown, key=lambda each: each[0])
         if any(each.search(text) for each in found)
     ]
     return matches or [f"no match in {len(calls)} calls and the {FINAL_REPORT}"]

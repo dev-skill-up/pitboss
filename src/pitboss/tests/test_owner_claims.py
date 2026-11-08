@@ -131,6 +131,11 @@ CASES = {
         ["a.py"],
         '1: Edit {"file_path": "a.py"}\n2: final report: edited a.py',
     ),
+    "a report on an earlier line than a call prints first": (
+        [said("converted it"), call("Bash", {"command": "echo converted"})],
+        ["converted"],
+        '1: final report: converted it\n2: Bash {"command": "echo converted"}',
+    ),
     "the label of the report is no match": (
         [said("done")],
         ["final report"],
