@@ -226,6 +226,16 @@ def clean_container(args: argparse.Namespace) -> None:
     done = remove_listed(args, look, removing)
     for text in cleaning.closing_lines(done):
         print(text)
+    log_freed(found, done)
+
+
+def log_freed(found: Context, done: cleaning.Outcome) -> None:
+    """Record in the log what a real run freed.
+
+    Args:
+        found: the configuration and the API.
+        done: what the run did.
+    """
     if done.removing:
         size = sum(each.size for each in done.gone)
         freed = logline.Freed(who="pitboss clean-container", size=size, heads=[])
