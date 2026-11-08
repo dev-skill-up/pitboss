@@ -18,6 +18,7 @@ from typing import Sequence
 from . import disk, ledger, slotlog
 
 WORD = "LOG"
+HEADER = "POST EACH LOG LINE below to the owner as it is (pitboss#347)"
 NO_PR = "no open PR fixes the ticket"
 NO_WORKTREE = "no worktree was removed"
 
@@ -194,6 +195,9 @@ def post(log: pathlib.Path) -> None:
         log: the slot log.
     """
     events = read(log)
-    for each in events[posted(log) :]:
+    fresh = events[posted(log) :]
+    if fresh:
+        print(HEADER)
+    for each in fresh:
         print(text(each))
     put(beside(log, ".posted"), str(len(events)))

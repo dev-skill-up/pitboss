@@ -105,6 +105,15 @@ class TestHandBack(unittest.TestCase):
         found = posted(here, POSTING[0], "hand-back")
         assert_that(found, equal_to([HAND_BACK + fakes.HEAD]))
 
+    def test_the_header_comes_with_the_lines_only(self) -> None:
+        """The line that says to post them as they are is printed once."""
+        here = world.make_world()
+        slot_steps(here)
+        words = [here.config, "--now", FREE_AT]
+        outs = [world.invoke(here, "next", *words).out for _ in range(2)]
+        found = [logline.HEADER in each for each in outs]
+        assert_that(found, equal_to([True, False]))
+
     def test_a_refused_free_records_nothing(self) -> None:
         """Freeing a slot for the wrong agent is refused and logs no hand-back."""
         here = world.make_world()
