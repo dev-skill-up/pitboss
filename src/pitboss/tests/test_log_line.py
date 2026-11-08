@@ -93,8 +93,8 @@ class TestHandBack(unittest.TestCase):
             slot_steps(here)
             first = posted(here, words, "hand-back")
             again = [posted(here, each, "hand-back") for each in POSTING]
-            wanted = ([HAND_BACK + logline.NO_PR], [[]] * len(POSTING))
-            assert_that((first, again), equal_to(wanted))
+            assert_that(first, equal_to([HAND_BACK + logline.NO_PR]))
+            assert_that(again, equal_to([[]] * len(POSTING)))
 
     def test_the_head_is_the_one_of_the_pr_that_fixes_the_ticket(self) -> None:
         """An open PR whose body says ``Fixes #9`` gives the head."""
