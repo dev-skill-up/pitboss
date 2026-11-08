@@ -265,12 +265,12 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
         that did not run, the number of Impact findings, of CI pointer findings
-        and of markup line findings, then the other checks' counts.
+        and of markup line findings.
     """
     if not refused and not found:
         return steps.PLAN_CHECK_OK
     named = ", ".join(str(each) for each in refused)
-    counts = _counts(found)
+    counts = _counts(found)  # and the count of each other check of KINDS
     # a finding of no other check is one of the Impact list (impact-list)
     other = len(found) - sum(count for _, count in counts)
     parts = [
