@@ -1,7 +1,8 @@
 """Dead paths on this machine: what ``clean-container`` may remove, and why it may.
 
 A path is dead when its work is finished (a checkout whose PR merged or closed,
-or whose tip is in the base branch) or nobody uses it (scratch untouched for the
+or whose tip is in the base branch, or with no PR whose name holds a closed
+ticket's number) or nobody uses it (scratch untouched for the
 idle hours), and it is not live. A dead path is safe to remove when everything
 in it exists elsewhere (``repocheck``); a dead path that is not safe is listed
 apart and never removed (keyword: clean-container; the rule is in ``rules.md``,
