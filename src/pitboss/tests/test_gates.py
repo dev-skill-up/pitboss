@@ -1,6 +1,5 @@
 """A repository's review gate is read from its workflow (pitboss#166)."""
 
-import base64
 import dataclasses
 import subprocess
 import unittest
@@ -10,23 +9,17 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, gates, ghapi, headchecks, shapes
 from . import fakes, suggestions, test_commands, test_flow_sweep, world
-
-GATE = """
-TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
-    if raw[0] != "## Adversarial review" or not shown:
-    if verdicts == (["Verdict: changes needed"], ["Verdict: changes needed"]):
-    if verdicts != (["Verdict: approved"], ["Verdict: approved"]):
-    if (reviewed[0] not in (["Reviewed: " + head[:7]], ["Reviewed: " + head])
-            or reviewed[1] != ["Reviewed: " + head]):
-"""
-LIBRARY_GATE = f"{world.LIBRARY}/contents/{gates.WORKFLOW}"
-PROJECT_GATE = f"{world.PROJECT}/contents/{gates.WORKFLOW}"
-THIRD_STATUS = fakes.page(f"{world.PROJECT}/commits/{'3' * 40}/status")
-FORM = config.ReviewForm(
-    lines=["## Adversarial review", "Verdict: {verdict}", "Reviewed: {sha}"],
-    approved="approved",
-    changes_needed="changes needed",
+from .gateworld import (
+    FORM,
+    GATE,
+    PROJECT_GATE,
+    SUCCESS,
+    THIRD_STATUS,
+    contents,
+    with_gate,
 )
+
+LIBRARY_GATE = f"{world.LIBRARY}/contents/{gates.WORKFLOW}"
 PENDING = {
     "statuses": [
         {
@@ -38,42 +31,6 @@ PENDING = {
         }
     ]
 }
-SUCCESS = {
-    "statuses": [
-        {
-            "context": "adversarial-review",
-            "state": "success",
-            "created_at": "2030-01-01T00:00:00Z",
-        }
-    ]
-}
-
-
-def contents(text: str) -> object:
-    """A file as the contents API gives it, its base64 in lines.
-
-    Args:
-        text: the file.
-
-    Returns:
-        The JSON.
-    """
-    return {"content": base64.encodebytes(text.encode()).decode(), "encoding": "base64"}
-
-
-def with_gate(here: world.World, path: str, text: str = GATE) -> world.World:
-    """Give a repository of the world a review gate.
-
-    Args:
-        here: the world.
-        path: the path of the workflow file in the fake API.
-        text: the workflow.
-
-    Returns:
-        The world.
-    """
-    here.bodies[path] = contents(text)
-    return here
 
 
 def library_form(text: str | None) -> str:

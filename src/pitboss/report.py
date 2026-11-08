@@ -103,9 +103,16 @@ def action_lines(
         *_wait_lines(pull),
         *_conflict_lines(pull),
         *_failure_lines(pull, why),
-        *pinsline.lines(pulls.reference(pull), pull.signals.pins),
+        *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
         *([merge] if merge else []),
     ]
+
+
+def _posting(pull: pulls.PullFacts) -> str:
+    # keyword: pins-review (pitboss#350): only a relock PR can have the comment posted
+    if pull.relock and pull.signals.gate:
+        return pinsline.posting_words(pulls.reference(pull))
+    return ""
 
 
 def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:

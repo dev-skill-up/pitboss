@@ -1,6 +1,8 @@
 """A world whose PR 3 is a relock or pins-only PR with a pins-check (pitboss#34)."""
 
+import dataclasses
 import json
+import shutil
 from typing import Sequence
 
 from . import fakes, world
@@ -13,6 +15,7 @@ OK_COMMAND = "echo OK: {base}...{head} changes only pins"
 FILES_PAGE = fakes.page("/".join([world.PROJECT, "pulls", "3", "files"]))
 OK_ANSWER = f"OK: origin/main...{HEAD} changes only pins"
 PIN_FILES = [{"filename": "bats.lock"}, {"filename": ".github/bats-version"}]
+BATS_OK = '#!/bin/sh\necho "OK: bats $*"\n'
 MIXED_FILES = [{"filename": "bats.lock"}, {"filename": "src/a.py"}]
 
 
@@ -42,7 +45,7 @@ def make(
 
     Args:
         branch: PR 3's head branch.
-        command: ``[relock] pins_check_command``; empty for none.
+        command: ``[relock] pins_check_command``; empty for the default.
         names: the files PR 3 changes, as the API gives them.
         extra: more lines of the ``[relock]`` table.
         **changes: changes to PR 3's JSON.
@@ -70,6 +73,43 @@ def relock(command: str) -> world.World:
         The world.
     """
     return make(RELOCK_BRANCH, command)
+
+
+def with_bats(here: world.World, script: str = BATS_OK) -> world.World:
+    """Give the world's commands a PATH with git, env and sh, and a ``bats``.
+
+    Args:
+        here: the world.
+        script: the ``bats`` on the PATH; empty for none.
+
+    Returns:
+        The world, whose commands run with that PATH only.
+    """
+    tools = fakes.directory() / "tools"
+    tools.mkdir()
+    for name in ("git", "env", "sh"):
+        (tools / name).symlink_to(str(shutil.which(name)))
+    if script:
+        stub = tools / "bats"
+        stub.write_text(script)
+        stub.chmod(0o755)
+    path = fakes.FakeProcesses(
+        bodies=here.bodies,
+        calls=here.calls,
+        answers=fakes.TRACEFS_FOUND,
+        cwd=here.clone,
+        path=str(tools),
+    )
+    return dataclasses.replace(here, processes=path)
+
+
+def without_bats() -> world.World:
+    """A world whose PR 3 is on a relock branch, with no command and no bats.
+
+    Returns:
+        The world.
+    """
+    return with_bats(relock(""), script="")
 
 
 def lines_of(out: str, start: str) -> str:

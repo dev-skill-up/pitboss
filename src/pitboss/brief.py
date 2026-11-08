@@ -19,6 +19,7 @@ from . import (
     brieftext as text,
     brieftextci,
     brieftextdraft,
+    brieftextfailure,
     brieftextimpact,
     brieftextlint,
     brieftextnote,
@@ -81,6 +82,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextlint.LINT_TEST_REVIEW,
         brieftextlint.MARKUP_LINES_REVIEW,
         brieftextorder.ORDER_REVIEW,
+        brieftextfailure.FAILURE_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
@@ -94,6 +96,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextlint.LINT_TEST_REVIEW,
         brieftextlint.MARKUP_LINES_REVIEW,
         brieftextorder.ORDER_REVIEW,
+        brieftextfailure.FAILURE_REVIEW,
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,
@@ -106,6 +109,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.PLAN_CHECK,
         brieftextimpact.IMPACT_REVIEW,
         brieftextorder.ORDER_REVIEW,
+        brieftextfailure.FAILURE_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
