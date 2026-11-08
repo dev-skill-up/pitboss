@@ -136,17 +136,15 @@ def slurp(path: pathlib.Path) -> str:
     return path.read_text() if path.exists() else ""
 
 
-def put(path: pathlib.Path, text: str, mode: str) -> None:
-    """Write to a file, making its directory.
+def put(path: pathlib.Path, text: str) -> None:
+    """Replace the text of a file, making its directory.
 
     Args:
         path: the file.
         text: what to write.
-        mode: ``a`` to append, ``w`` to replace.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open(mode) as handle:
-        handle.write(text)
+    path.write_text(text)
 
 
 def record(log: pathlib.Path, event: Event) -> None:
@@ -156,7 +154,8 @@ def record(log: pathlib.Path, event: Event) -> None:
         log: the slot log.
         event: the event.
     """
-    put(beside(log, ".events"), json.dumps(dataclasses.asdict(event)) + "\n", "a")
+    path = beside(log, ".events")
+    put(path, slurp(path) + json.dumps(dataclasses.asdict(event)) + "\n")
 
 
 def read(log: pathlib.Path) -> Sequence[Event]:
@@ -195,4 +194,4 @@ def post(log: pathlib.Path) -> None:
     events = read(log)
     for each in events[posted(log) :]:
         print(text(each))
-    put(beside(log, ".posted"), str(len(events)), "w")
+    put(beside(log, ".posted"), str(len(events)))

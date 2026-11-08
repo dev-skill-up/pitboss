@@ -3,7 +3,7 @@
 import pathlib
 import subprocess
 import unittest
-from typing import Callable, Sequence
+from typing import Callable, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -99,8 +99,8 @@ class TestHandBack(unittest.TestCase):
     def test_the_head_is_the_one_of_the_pr_that_fixes_the_ticket(self) -> None:
         """An open PR whose body says ``Fixes #9`` gives the head."""
         here = world.make_world()
-        body = fakes.pull_body(2, body="Fixes #9")
-        here.bodies[f"{world.PROJECT}/pulls/2"] = body
+        pull = {f"{world.PROJECT}/pulls/2": fakes.pull_body(2, body="Fixes #9")}
+        here.bodies.update(pull)
         slot_steps(here)
         found = posted(here, POSTING[0], "hand-back")
         assert_that(found, equal_to([HAND_BACK + fakes.HEAD]))
@@ -126,7 +126,7 @@ def sweeping(here: world.World) -> str:
 
 
 Case = tuple[Callable[[], world.World], Sequence[str], Sequence[str]]
-CASES: dict[str, Case] = {
+CASES: Mapping[str, Case] = {
     "clean": (lambda: scenes.scene("99.9"), ("--dry-run",), ()),
     "clean-worktrees": (world.make_world, (), ("--no-dry-run",)),
     "clean-container": (
@@ -144,8 +144,9 @@ class TestCleanUp(unittest.TestCase):
         """The merged worktree goes; its tip is the head; a second sweep is silent."""
         here = scenes.scene("99.9")
         head = sweeping(here)
-        first = posted(here, POSTING[0], "clean-up", world.FUTURE)
-        later = posted(here, POSTING[0], "clean-up", world.FUTURE)
+        first, later = (
+            posted(here, POSTING[0], "clean-up", world.FUTURE) for _ in range(2)
+        )
         prefix = "LOG clean-up 2030-01-01T00:00:00+00:00 pitboss sweep: freed "
         found = (len(first), first[0].startswith(prefix), first[0].endswith(head))
         assert_that((found, later), equal_to(((1, True, True), [])))
