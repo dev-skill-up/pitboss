@@ -52,8 +52,9 @@ def beside(log: pathlib.Path, suffix: str) -> pathlib.Path:
     Returns:
         The file, in a directory that exists.
     """
-    os.makedirs(log.parent, exist_ok=True)
-    return log.with_suffix(suffix)
+    target = log.with_suffix(suffix)
+    os.makedirs(target.parent, exist_ok=True)
+    return target
 
 
 def text(event: Event) -> str:
