@@ -39,6 +39,9 @@ class Session(enum.Enum):
     TESTS = "tests-3.13"
 
 
+WITHOUT_TESTS = (Session.SKILLS, Session.LINT, Session.MYPY)
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Step:
     """A session that ran.
@@ -98,7 +101,10 @@ def command_of(name: str, modules: Sequence[str]) -> Sequence[str]:
 
 
 def run_sessions(
-    runner: Runner, clock: Clock, modules: Sequence[str]
+    runner: Runner,
+    clock: Clock,
+    modules: Sequence[str],
+    sessions: Sequence[Session] = tuple(Session),
 ) -> Sequence[Step]:
     """Run the sessions in order, up to the first that fails.
 
@@ -106,13 +112,15 @@ def run_sessions(
         runner: runs a command line.
         clock: reads the time.
         modules: the test modules the tests session runs; all when empty.
+        sessions: the sessions to run, in order (all of them; without the tests
+            session when the diff reaches no test, pitboss#331).
 
     Returns:
         The sessions that ran; a failed one is the last.
     """
     steps: list[Step] = []
-    for session in Session:
-        name = session.value
+    for each in sessions:
+        name = each.value
         started = clock()
         outcome = runner(command_of(name, modules))
         steps.append(Step(name=name, outcome=outcome, seconds=clock() - started))

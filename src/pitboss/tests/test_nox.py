@@ -2,7 +2,7 @@
 
 import dataclasses
 import unittest
-from typing import Mapping, MutableSequence, Sequence
+from typing import Callable, Mapping, MutableSequence, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -23,6 +23,7 @@ SUCCESS_LINES = [
     ["tests-3.13", "success"],
 ]
 MODULES = ["pitboss.tests.test_gates", "pitboss.tests.test_nox"]
+SELECTION = "test-selection"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -38,17 +39,31 @@ class Done:
     stdout: str
 
 
+def cannot_say(cmdargs: Sequence[str]) -> Done:
+    """Answer git, asked for the diff: it cannot say, so every test is run.
+
+    Args:
+        cmdargs: the command line.
+
+    Returns:
+        A failed process.
+    """
+    return Done(returncode=1, stdout=" ".join(cmdargs[:2]))
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class FakeNox:
     """Answers every ``nox`` command line from canned statuses, running no nox.
 
     Attributes:
         statuses: the exit status of each session by name; 0 when absent.
-        calls: every command line run, in order.
+        calls: every ``nox`` command line run, in order.
+        git: answers the command lines that are not ``nox``.
     """
 
     statuses: Mapping[str, int]
     calls: MutableSequence[Sequence[str]]
+    git: Callable[[Sequence[str]], Done] = cannot_say
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Done:
         """Run a command.
@@ -60,6 +75,8 @@ class FakeNox:
         Returns:
             The finished process, which printed its session's name.
         """
+        if cmdargs[0] != "nox":
+            return self.git(cmdargs)
         self.calls.append(list(cmdargs))
         name = cmdargs[3]
         timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests\n"
@@ -83,11 +100,36 @@ def run_nox(
         What the command did, and the command lines it ran.
     """
     fake = FakeNox(statuses=statuses, calls=[])
+    return run_with(fake, *options), fake.calls
+
+
+def run_with(processes: object, *options: str) -> world.Result:
+    """Run ``pitboss nox`` in a world whose processes are given.
+
+    Args:
+        processes: what runs the command lines (git and nox).
+        *options: the words after ``nox``.
+
+    Returns:
+        What the command did.
+    """
     here = dataclasses.replace(
         world.make_world(),
-        processes=fake,  # type: ignore[arg-type]
+        processes=processes,  # type: ignore[arg-type]
     )
-    return world.invoke(here, "nox", *options), fake.calls
+    return world.invoke(here, "nox", *options)
+
+
+def without_selection(output: str) -> Sequence[str]:
+    """The lines of an output that are not about the test selection.
+
+    Args:
+        output: what the command printed.
+
+    Returns:
+        Its lines, those that start with ``test-selection`` left out.
+    """
+    return [each for each in output.splitlines() if not each.startswith(SELECTION)]
 
 
 def clock_of(*readings: float) -> noxcheck.Clock:
@@ -115,7 +157,7 @@ class TestNoxCommand(unittest.TestCase):
     def test_it_prints_a_line_for_each_session_and_names_the_proof(self) -> None:
         """Name, success, seconds; then CI's `Run Nox` step is the proof."""
         found, _ = run_nox({})
-        shown = found.out.splitlines()
+        shown = without_selection(found.out)
         lines = [line for line in shown if not line.startswith(noxcheck.TIMING_PREFIX)]
         assert_that([line.split()[0:2] for line in lines[:4]], equal_to(SUCCESS_LINES))
         assert_that(shown[0].endswith("s"), equal_to(True))
@@ -124,7 +166,7 @@ class TestNoxCommand(unittest.TestCase):
     def test_a_passing_run_shows_the_timing_after_the_tests_line(self) -> None:
         """The captured output is not shown on success, the timing lines are."""
         found, _ = run_nox({})
-        shown = found.out.splitlines()
+        shown = without_selection(found.out)
         timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests"
         assert_that(shown[4], equal_to(timing))
         assert_that(shown[3].startswith("tests-3.13 success"), equal_to(True))
