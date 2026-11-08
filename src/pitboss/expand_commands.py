@@ -143,9 +143,10 @@ def expand(args: argparse.Namespace) -> None:
     supplies a fact. With ``--pr`` the body is also set as the pull request's
     description, and a body over ``--limit`` is cut on paragraph markers: the
     later parts become comments, cited by URL in the description (keyword:
-    expand-split, pitboss#177). Standard error then says that the overflow is the
-    standing decision, with each comment's URL, and the description's section
-    starts with the same sentence (keyword: expand-split, pitboss#317). When the
+    expand-split, pitboss#177).
+    Standard error then says that the overflow is the standing decision, with
+    each comment's URL, and the description's section starts with the same
+    sentence (keyword: expand-split, pitboss#317). When the
     checkout's HEAD is a merge commit, standard error says to run ``plan-check``
     again against it (keyword: merge-head, pitboss#317).
 

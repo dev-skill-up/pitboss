@@ -3,8 +3,9 @@
 A Plan or an Execution that cites ``test_...`` a head does not have was
 written before the tests were (pitboss#189); ``test-name`` is the finding for
 each such identifier. A name counts as there when the tree has a
-``def <name>`` or a module ``<name>.py``, or when a line of the Execution names it
-with another test the tree has (a ruling replaced the test: superseded-pointer).
+``def <name>`` or a module ``<name>.py``.
+A name also counts when a line of the Execution names it with another test the
+tree has (a ruling replaced the test: superseded-pointer).
 """
 
 import os
@@ -23,6 +24,10 @@ SECTIONS = ("plan", "execution")
 EXECUTION = "execution"
 # what a checkout holds that is not the head's: build output and installed packages
 NOT_THE_HEADS = frozenset({"build", "dist", "node_modules", "site-packages"})
+
+
+def _sections(body: str) -> Iterator[str]:
+    return (text for _, text in _titled(body))
 
 
 def _titled(body: str) -> Iterator[tuple[str, str]]:
@@ -44,10 +49,6 @@ def _titled(body: str) -> Iterator[tuple[str, str]]:
                 end = later.start()
                 break
         yield title.group(2).lower(), body[title.end() : end]
-
-
-def _sections(body: str) -> Iterator[str]:
-    return (text for _, text in _titled(body))
 
 
 def cited(body: str) -> Sequence[str]:

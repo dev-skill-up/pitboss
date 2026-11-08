@@ -13,13 +13,14 @@ have a disposition line in the Plan, at the lines of the PR's head (keyword:
 impact-list, pitboss#320). A CI pointer that names a workflow file, job or step
 that is not there, and a spec the diff adds that no pointer or group names, are
 findings too (keyword: ci-pointer, pitboss#335), and so is a line the diff adds to
-a .md or .rst file, except a cut span (keyword: markup-lines, #343, #373). So are a
-numbered row with no command, read or CI pointer (plan-pointer), a CI run whose head
-is not the body's (ci-run), a Done-when that is not the ticket's (plan-done-when), an
-interpretation of it (plan-interpretation), an Impact row whose dispositions are not
-its hits (impact-count), a diff phrase with no Impact row (impact-phrase) and a claim
-that no markup file changed (markup-claim), all pitboss#317. The
+a .md or .rst file, except a cut span (keyword: markup-lines, #343, #373). The
 module imports no process: the runner, the search and the readers of files are given.
+So are a numbered row with no command, read or CI pointer (plan-pointer), a CI run
+whose head is not the body's (ci-run), a Done-when that is not the ticket's
+(plan-done-when), an interpretation of it (plan-interpretation), an Impact row whose
+dispositions are not its hits (impact-count), a diff phrase with no Impact row
+(impact-phrase) and a claim that no markup file changed (markup-claim), all
+pitboss#317.
 """
 
 import dataclasses
@@ -256,13 +257,17 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
 
     Args:
         refused: the numbers of the rows that did not run.
-        found: the findings, a line each, starting with the name of its check and
-            a colon (those of ``KINDS`` are counted apart; any other is a finding
-            of the Impact list).
+        found: the findings, a line each: those of the Impact list, the
+            ``ci-pointer:`` ones, and the diff's added lines in .md and .rst
+            files but a cut span (#373), the ``markup-lines:`` ones.
+            Those of the other checks of ``KINDS`` start with the name of their
+            check and a colon.
 
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
-        that did not run and the number of findings of each check.
+        that did not run, the number of Impact findings, of CI pointer findings
+        and of markup line findings.
+        The number of findings of each other check of ``KINDS`` follows.
     """
     if not refused and not found:
         return steps.PLAN_CHECK_OK

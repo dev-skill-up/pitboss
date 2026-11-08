@@ -246,7 +246,8 @@ def plan_check(args: argparse.Namespace) -> None:
 def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
     body = args.file.read()
     section = _plan_of(args.file.name, body)
-    return _checked(args, body, section, _head_of(args, body))
+    args.body = body  # the checks that read the body whole take it from here
+    return _checked(args, section, _head_of(args, body))
 
 
 def _head_of(args: argparse.Namespace, body: str) -> str:
@@ -270,6 +271,11 @@ def _unreadable(name: str) -> Iterator[None]:
         yield
     except (OSError, ValueError) as error:
         raise _fail(f"{name}: {error}") from error
+
+
+def _added(args: argparse.Namespace, ref: str) -> Sequence[str]:
+    # the paths the PR adds: the head against its merge base with the base
+    return _names(args, ref, "--diff-filter=A")
 
 
 def _names(args: argparse.Namespace, ref: str, *flags: str) -> Sequence[str]:
@@ -316,14 +322,13 @@ def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list
     ]
 
 
-def _checked(
-    args: argparse.Namespace, body: str, section: str, ref: str
-) -> tuple[str, bool]:
+def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
+    body = args.body
     with (
         scratch_worktree(args, args.base) as tree,
         scratch_worktree(args, ref) as head,
     ):
-        added = _names(args, ref, "--diff-filter=A")
+        added = _added(args, ref)
         stat = _diff(args, ref, "--numstat", "-z")
         patch = _diff(args, ref, "-U0", "--no-color")
         runner = functools.partial(run_in, args, tree, args.timeout)

@@ -13,10 +13,10 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         pull: the PR.
 
     Returns:
-        One line naming the first finding of ``planrow.findings`` or of the
-        ``plan-pointer`` check (a numbered row with no command, read or CI
-        pointer) on the body, before any review round is requested; none when
-        there is no finding.
+        One line naming the first finding of ``planrow.findings`` on the body,
+        before any review round is requested; none when there is no finding.
+        The ``plan-pointer`` check (a numbered row with no command, read or CI
+        pointer) is read too.
     """
     if pull.relock:
         return []
