@@ -95,7 +95,7 @@ class TestBlock(unittest.TestCase):
         assert_that("#77" in shown, equal_to(False))
 
     def test_ready_drafts_come_first_in_the_numbers(self) -> None:
-        """A draft to mark ready is numbered after the running line, and the items after it."""
+        """A draft to mark ready follows the running line, and the items it."""
         queued = [test_work.item("owner/project#5", work.Category.NEW_PR)]
         book = ledger.Ledger(slots=(), failed={})
         ready = ["owner/project#4 (mark the PR ready)"]

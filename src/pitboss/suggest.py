@@ -3,8 +3,7 @@
 On a crowded volume (90% used or more) the clean suggestion comes first; the
 first of the picks is the one the process requires, the others are the next
 ones that could start, so that a reason the model cannot name (a missing
-checkout) does not stop the work; with no free slot only rulings and the rounds
-of PRs that hold a slot are picked. The order is the one ``work.queued``
+checkout) does not stop the work. The order is the one ``work.queued``
 gives, with the PRs at an Opus ruling before it: a ruling is owed first and
 takes no slot (keyword: brief, pitboss#118).
 """
@@ -151,10 +150,8 @@ def picks(source: Source) -> Sequence[Pick]:
         source: what suggestions are made from.
 
     Returns:
-        The PRs at an Opus ruling, oldest first, then the queued work. While no
-        slot is free (keyword: slot-held, pitboss#291) only the rulings, which
-        take no slot, and the rounds of the PRs that hold one: a start and a
-        review wait for a free slot.
+        The PRs at an Opus ruling, oldest first, then the queued work; with no
+        free slot only the rounds of PRs that hold one (keyword: slot-held).
     """
     by_reference = {pulls.reference(each): each for each in source.facts}
     ruled = sorted(

@@ -11,6 +11,19 @@ CATEGORY_WORDS = work.CATEGORY_WORDS
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Withheld:
+    """The tickets the owner's hold keeps back.
+
+    Attributes:
+        held: the tickets.
+        standing: each held repository and its open count.
+    """
+
+    held: Sequence[work.Item] = ()
+    standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class NextView:
     """What ``slots next`` prints from.
 
@@ -20,8 +33,8 @@ class NextView:
         slots: the slot configuration.
         failed: each reference's failed models.
         now: the time now.
-        held: the tickets the owner's hold keeps back (keyword: pr-hold).
-        standing: each held repository and its open count.
+        withheld: the tickets the owner's hold keeps back and each held
+            repository's open count (keyword: pr-hold).
         blocked: the tickets that cannot be worked on until an open ticket or
             PR (keyword: ticket-blocked).
         ready: the texts of the NEXT lines of the drafts to mark ready, printed
@@ -38,8 +51,7 @@ class NextView:
     slots: config.Slots
     failed: Mapping[str, Sequence[str]]
     now: datetime.datetime
-    held: Sequence[work.Item] = ()
-    standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    withheld: Withheld = Withheld()
     blocked: Sequence[work.Item] = ()
     ready: Sequence[str] = ()
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
@@ -94,8 +106,8 @@ def next_lines(view: NextView) -> Iterable[str]:
     ]
     for index, text in enumerate(listed, start=first):
         yield f"{Marker.NEXT.text} {index}. {text}"
-    for item in view.held:
-        yield holds.held_line(item.reference, view.standing)
+    for item in view.withheld.held:
+        yield holds.held_line(item.reference, view.withheld.standing)
     for item in view.blocked:
         yield blockedline.line(item.reference, item.blocker)
     yield from slotheld.lines(view.occupancy)
