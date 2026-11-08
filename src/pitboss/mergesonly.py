@@ -112,4 +112,6 @@ def files_of(github: ghapi.GitHub, repo: config.Repo, sha: str) -> Sequence[str]
     Returns:
         The paths.
     """
-    return file_names(ghapi.get(github, f"repos/{repo.slug}/commits/{sha}"))
+    path = f"repos/{repo.slug}/commits/{sha}"
+    text = ghapi.get(github, path)
+    return file_names(text)

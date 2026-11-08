@@ -27,8 +27,8 @@ def third_line(files: Sequence[Mapping[str, str]]) -> str:
     """
     here = world_with([graded("approved", APPROVED, 1, OLDER)])
     here.bodies[f"{world.PROJECT}/commits/2"] = {"files": files}
-    lines = sweep(here).out.splitlines()
-    return "\n".join(line for line in lines if "project#3" in line)
+    out = sweep(here).out
+    return "\n".join(sorted(x for x in out.splitlines() if "project#3" in x))
 
 
 def named(*names: str) -> Sequence[Mapping[str, str]]:
