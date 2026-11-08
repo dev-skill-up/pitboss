@@ -27,6 +27,7 @@ class TestRow(unittest.TestCase):
             "pitboss impact 'a b' c",
             "uvx pitboss impact 'a b' c",
             "uvx --from . pitboss impact 'a b' c",
+            "uvx --no-cache --from . pitboss impact 'a b' c",
             "PYTHONPATH=src python3 -m pitboss impact 'a b' c",
             "python -m pitboss impact 'a b' c",
         )

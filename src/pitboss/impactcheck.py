@@ -73,15 +73,21 @@ def parse(command: str) -> Row | None:
         return None
     while words and ASSIGNMENT.match(words[0]):
         words = words[1:]
-    if words[:3] == ["uvx", "--from", words[2] if len(words) > 2 else ""]:
-        words = words[3:]
-    elif words[:1] == ["uvx"]:
-        words = words[1:]
+    if words[:1] == ["uvx"]:
+        words = _after_options(words[1:])
     elif words[:1] in (["python"], ["python3"]) and words[1:2] == ["-m"]:
         words = words[2:]
     if tuple(words[:2]) != PROGRAM:
         return None
     return _row(words[2:])
+
+
+def _after_options(words: Sequence[str]) -> list[str]:
+    # uvx options: --from takes a value, the others (--no-cache) none
+    rest = list(words)
+    while rest and rest[0].startswith("--"):
+        rest = rest[2:] if rest[0] == "--from" else rest[1:]
+    return rest
 
 
 def _row(phrases: Sequence[str]) -> Row:
