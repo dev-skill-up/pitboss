@@ -43,7 +43,9 @@ def repo_of(head: str, status: str = "") -> Repo:
     """
     directory = fakes.directory()
     git = noxgitstub.answering(head, directory, status)
-    return Repo(directory=directory, fake=test_nox.FakeNox(statuses={}, calls=[], git=git))
+    return Repo(
+        directory=directory, fake=test_nox.FakeNox(statuses={}, calls=[], git=git)
+    )
 
 
 def ran(repo: Repo, *options: str) -> Sequence[Sequence[str]]:
