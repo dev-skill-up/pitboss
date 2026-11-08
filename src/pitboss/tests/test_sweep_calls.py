@@ -25,11 +25,13 @@ FOUR_PULLS = {
     "gh api issues/comments": 6,  # four PRs' and one feed for each repository (#239)
     "gh api issues/timeline": 2,  # the PRs with an Execution review (#202)
     "gh api pulls": 8,
+    "gh api pulls/files": 1,  # the PR at a review step: pins-only by its files (#350)
     "gh api pulls/reviews": 4,
     "gh api repository": 3,
 }
 PER_PULL = {
     "gh api pulls": 1,
+    "gh api pulls/files": 1,
     "gh api issues/comments": 1,
     "gh api pulls/reviews": 1,
     "gh api commits/check-runs": 1,

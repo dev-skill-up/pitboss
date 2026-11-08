@@ -41,8 +41,10 @@ class TestCommandsWithAConfiguration(unittest.TestCase):
     def test_every_command_with_a_configuration_is_run_here(self) -> None:
         """A new command that takes a configuration must be added to ``CASES``."""
         # these two have only the option, so no old first word to run in four
-        # forms; lint is run below, plan-check by test_ci_pointer_check.py
-        expected = {each.before[0] for each in CASES} | {"lint", "plan-check"}
+        # forms; lint is run below, plan-check by test_ci_pointer_check.py and
+        # pins-review by test_pins_review.py
+        only_option = {"lint", "plan-check", "pins-review"}
+        expected = {each.before[0] for each in CASES} | only_option
         assert_that(registered(), equal_to(sorted(expected)))
 
     def test_each_command_takes_the_option(self) -> None:

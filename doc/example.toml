@@ -73,8 +73,12 @@ prefix = "relock/"
 # relock prefix, or whose changed paths are all in pin_files, is run through it:
 # when its last output line is `OK` or starts `OK:` the sweep prints
 # `PINS-ONLY OK` and `READY TO MERGE` and offers no review; any other output
-# prints `PINS-ONLY` and the PR is reviewed as before. Empty means no such
-# command: every such PR is reviewed. Default: "".
+# prints `PINS-ONLY` and the PR is reviewed as before. Empty or absent means
+# the default below, never a review by an agent (pitboss#350).
+# On a relock PR whose OK is printed in a gated repository, `pitboss pins-review
+# OWNER/NAME#N --no-dry-run` posts the review comment the gate reads.
+# Default: "bats pins-check {base} {head} --compiler ../bats" (the bats checkout
+# beside the repository's, so the default also refuses an older compiler).
 # When the command has `--compiler DIR` (a checkout of bats) and the head has a
 # `.github/bats-version`, DIR's HEAD must contain that commit, else pitboss runs
 # nothing and the `PINS-ONLY` line says which commit DIR is at, which is required

@@ -11,20 +11,23 @@ from . import pinsreading
 from .markers import Marker
 
 
-def lines(name: str, found: pinsreading.Reading) -> Sequence[str]:
+def lines(name: str, found: pinsreading.Reading, posting: str = "") -> Sequence[str]:
     """The PINS-ONLY line of a PR, else nothing.
 
     Args:
         name: the PR's ``owner/name#number``.
         found: what the pins-check said of it.
+        posting: ``posting_words`` of a relock PR whose review gate is pending,
+            else empty (pitboss#350).
 
     Returns:
-        The line for a PR whose pins-check was asked, none for any other.
+        The line for a PR whose pins-check was asked, none for any other; an
+        OK line ends with ``posting``.
     """
     if found.status is pinsreading.Status.OK:
         return [
             f"{Marker.PINS_ONLY_OK.text} {name}: pins-check printed OK"
-            f" ({found.detail}); no review is offered"
+            f" ({found.detail}); no review is offered{posting}"
         ]
     if found.status is pinsreading.Status.NOT_OK:
         return [
@@ -32,6 +35,21 @@ def lines(name: str, found: pinsreading.Reading) -> Sequence[str]:
             f" ({found.detail}); review it as before"
         ]
     return []
+
+
+def posting_words(name: str) -> str:
+    """What the line of a relock PR whose review gate is pending ends with.
+
+    Args:
+        name: the PR's ``owner/name#number``.
+
+    Returns:
+        The command that posts the review comment the gate reads (no agent).
+    """
+    return (
+        f"; the gate is pending, run `pitboss pins-review {name} --no-dry-run`"
+        " (it posts the review comment in the gate's form; dispatch no agent)"
+    )
 
 
 def why(found: pinsreading.Reading, otherwise: str) -> str:

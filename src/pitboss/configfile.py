@@ -247,7 +247,7 @@ def _review(document: Mapping[str, object], owner: str) -> config.Review:
 
 def _pins(table: Mapping[str, object]) -> config.Pins:
     return config.Pins(
-        command=str(table.get("pins_check_command", "")),
+        command=str(table.get("pins_check_command") or config.DEFAULT_PINS_COMMAND),
         files=_strings(table, "pin_files", config.DEFAULT_PIN_FILES),
     )
 

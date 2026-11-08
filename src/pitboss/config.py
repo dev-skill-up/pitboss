@@ -16,6 +16,10 @@ DEFAULT_REMINDERS = (
 DEFAULT_FORM = ("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 DEFAULT_RELOCK_PREFIX = "relock/"
 DEFAULT_RUN_BY_E2E = ("e2e/",)
+# the pins-check a project that configures none runs (keyword: pins-only, pitboss#350);
+# --compiler ../bats is the bats checkout beside the repository's, whose commit
+# must contain the head's .github/bats-version (pinscompiler, pitboss#349)
+DEFAULT_PINS_COMMAND = "bats pins-check {base} {head} --compiler ../bats"
 DEFAULT_ASSOCIATIONS = ("OWNER", "MEMBER", "COLLABORATOR")
 # the files bats's `bats pins-check` reads as pins (keyword: pins-only, pitboss#34)
 DEFAULT_PIN_FILES = (
@@ -101,12 +105,13 @@ class Pins:
 
     Attributes:
         command: the pins-check command line, ``{base}`` and ``{head}`` standing
-            for the revisions it compares; empty means no such command.
+            for the revisions it compares; the default is ``bats pins-check`` with
+            ``--compiler ../bats``.
         files: the paths a PR may touch and still be pins-only (a relock PR is
             pins-only whatever it touches: the command judges its diff).
     """
 
-    command: str = ""
+    command: str = DEFAULT_PINS_COMMAND
     files: Sequence[str] = DEFAULT_PIN_FILES
 
 

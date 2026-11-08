@@ -65,6 +65,7 @@ def pages_of(number: int) -> Sequence[tuple[str, object]]:
         (f"issues/{number}/comments", [OLD_GATED_APPROVAL]),
         (f"pulls/{number}/reviews", [GITHUB_APPROVAL]),
         (f"issues/{number}/timeline", []),
+        (f"pulls/{number}/files", []),
         (f"commits/{fakes.OLDER}/check-runs", {"check_runs": [DONE_BUILD]}),
         (f"commits/{fakes.HEAD}/check-runs", CHECKS),
         (f"commits/{fakes.HEAD}/status", fakes.NO_STATUS),
