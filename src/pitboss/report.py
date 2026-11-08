@@ -65,9 +65,13 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
     )
 
 
+def _ruled(pull: pulls.PullFacts) -> bool:
+    return pull.step.step is steps.Step.MERGE and not pulls.approved(pull)
+
+
 def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
     clean = pull.pull.mergeable_state is shapes.MergeState.CLEAN
-    ruled = pull.step.step is steps.Step.MERGE and not pulls.approved(pull)
+    ruled = _ruled(pull)
     ready = pulls.green(pull) and clean and (pulls.approved(pull) or ruled)
     if not ready or pull.pull.auto_merge or pull.signals.gate:
         return None  # keyword: review-gate: a pending gate is no READY TO MERGE
@@ -104,8 +108,23 @@ def action_lines(
         *_conflict_lines(pull),
         *_failure_lines(pull, why),
         *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
+        *_behind_lines(pull),
         *([merge] if merge else []),
     ]
+
+
+# keyword: behind-approved (pitboss#369): the strict up-to-date rule held pwa#293
+# behind main after its review and checks; the merge of main is reviewed by the proof
+BEHIND_WORDS = (
+    "update the branch, then the merge-main proof (bats merge-proof) is the review"
+)
+
+
+def _behind_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    behind = pull.pull.mergeable_state is shapes.MergeState.BEHIND
+    if behind and (pulls.approved(pull) or _ruled(pull)) and pulls.green(pull):
+        return [f"{Marker.BEHIND.text}: {BEHIND_WORDS}"]
+    return []
 
 
 def _posting(pull: pulls.PullFacts) -> str:

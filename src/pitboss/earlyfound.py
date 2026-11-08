@@ -18,13 +18,16 @@ class Premature:
         url: the comment's address.
         when: when it was written (ISO 8601).
         sha: the head it reviewed (possibly abbreviated).
-        unfinished: what was not finished when it was written.
+        unfinished: what was not finished (or not green) when it was written.
+        ci_done: when the last check of the reviewed head completed, empty
+            when a check had not completed or the head had none.
     """
 
     url: str
     when: str
     sha: str
     unfinished: str
+    ci_done: str = ""
 
 
 Split = Callable[

@@ -331,6 +331,28 @@ class TestRulingNoReviewFollows(unittest.TestCase):
                 assert_that(line in swept, equal_to(printed))
                 assert_that("PAUSE owner" in swept, equal_to(False))
 
+    def test_an_approved_green_pr_that_is_behind_is_told_so_and_not_offered(
+        self,
+    ) -> None:
+        """BEHIND (pitboss#369) before any merge offer: the proof is the review."""
+        behind = (
+            "BEHIND: update the branch, then the merge-main proof (bats merge-proof)"
+        )
+        here = world_with(
+            [*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED], mergeable_state="behind"
+        )
+        swept = sweep(here).out
+        assert_that(swept, contains_string(f"{behind} is the review"))
+        assert_that("READY TO MERGE" in swept, equal_to(False))
+        assert_that(swept, contains_string("pitboss body-head owner/project#3"))
+        clean = sweep(world_with([*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED])).out
+        assert_that("BEHIND" in clean, equal_to(False))
+
+    def test_a_behind_pr_without_an_approval_is_not_told_behind(self) -> None:
+        """The nearest input: behind and green, but no review approves the head."""
+        swept = sweep(world_with(TWO_PLAN_REJECTIONS, mergeable_state="behind")).out
+        assert_that("BEHIND:" in swept, equal_to(False))
+
     def test_an_approved_execution_with_a_conflict_is_the_workers(self) -> None:
         """Listed as the conflict resolution, and not as a merge."""
         here = world_with([*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED], **DIRTY)

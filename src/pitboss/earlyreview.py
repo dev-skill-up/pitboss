@@ -5,8 +5,10 @@ approved while it was a draft with no complete run, and the owner's ruling was
 given on that approval. A review that grades the Execution (an ``Execution:``
 line, or none at all) counts only when, at the comment's time, the PR was not a
 draft (or a dispatched run of ``check.yml`` of the reviewed head had completed,
-pitboss#199) and every check run of the reviewed head had completed. A review
-that grades the Plan alone is a draft's, and always counts.
+pitboss#199) and every check run of the reviewed head had completed green
+(pitboss#369: a review written before the last check completed, or while a check
+had failed, is early; a skipped check is green by design). A review that grades
+the Plan alone (``Execution: not graded`` too) is a draft's, and always counts.
 """
 
 import dataclasses
@@ -18,6 +20,7 @@ from . import (
     dispatchruns,
     earlyfound,
     ghapi,
+    headchecks,
     parsing,
     reviews,
     shapes,
@@ -69,24 +72,50 @@ def draft_at(
 
 
 def unfinished_checks(checks: Sequence[shapes.CheckRun], when: str) -> str:
-    """What was not complete of a head's check runs at a time.
+    """What was not complete and green of a head's check runs at a time.
 
     Args:
         checks: the check runs of the head.
         when: the time (ISO 8601).
 
     Returns:
-        The empty string when every check run had completed, else how many had
-        not (a run that completed later, or has not), or that there was none.
+        The empty string when every check run had completed and none failed,
+        else how many had not completed (a run that completed later, or has
+        not) and how many failed, or that there was none.
     """
     if not checks:
         return "no check run of the head existed"
     open_ones = [
         each for each in checks if not each.finished or each.completed_at > when
     ]
-    if not open_ones:
+    failed = [each for each in checks if each.failed and each not in open_ones]
+    parts = [
+        *(
+            [f"{len(open_ones)} of {len(checks)} checks of the head had not completed"]
+            if open_ones
+            else []
+        ),
+        *(
+            [f"{len(failed)} of {len(checks)} checks of the head had not passed"]
+            if failed
+            else []
+        ),
+    ]
+    return "; ".join(parts)
+
+
+def last_completed(checks: Sequence[shapes.CheckRun]) -> str:
+    """When the last check run of a head completed.
+
+    Args:
+        checks: the check runs of the head.
+
+    Returns:
+        The time (ISO 8601); empty when there is none or one has not completed.
+    """
+    if not checks or not all(each.finished for each in checks):
         return ""
-    return f"{len(open_ones)} of {len(checks)} checks of the head had not completed"
+    return max(each.completed_at for each in checks)
 
 
 def _full(pull: shapes.Pull, sha: str) -> str:
@@ -112,7 +141,7 @@ class Seen:
 
 def _before(
     seen: Seen, events: Sequence[shapes.TimelineEvent], each: reviews.Found
-) -> str:
+) -> tuple[str, str]:
     sha = _full(seen.pull, each.sha)
     drafted = (
         "the PR was a draft and no dispatched run of check.yml had completed"
@@ -124,8 +153,13 @@ def _before(
     )
     path = f"repos/{seen.repo.slug}/commits/{sha}/check-runs"
     found = ghapi.pages(seen.github, path, parsing.check_runs)
-    unfinished = unfinished_checks(checkruns.current_checks(found, sha), each.when)
-    return "; ".join(part for part in (drafted, unfinished) if part)
+    current = checkruns.current_checks(found, sha)
+    if any(run.failed for run in current):  # a later passing status clears it
+        posted = headchecks.statuses(seen.github, seen.repo, sha)
+        current = headchecks.checks(seen.github, seen.repo, sha, posted)
+    unfinished = unfinished_checks(current, each.when)
+    why = "; ".join(part for part in (drafted, unfinished) if part)
+    return why, last_completed(current)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -181,10 +215,12 @@ def split(
         return comments, []
     seen = Seen(github=tools.github, repo=repo, pull=pull, review=tools.review)
     events = _timeline(seen)
-    said = [(each, _before(seen, events, each)) for each in written]
+    said = [(each, *_before(seen, events, each)) for each in written]
     early = [
-        earlyfound.Premature(url=each.url, when=each.when, sha=each.sha, unfinished=why)
-        for each, why in sorted(said, key=lambda pair: pair[0].when)
+        earlyfound.Premature(
+            url=each.url, when=each.when, sha=each.sha, unfinished=why, ci_done=done
+        )
+        for each, why, done in sorted(said, key=lambda triple: triple[0].when)
         if why
     ]
     gone = {(each.when, each.url) for each in early}

@@ -12,7 +12,19 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, bodydigest, deviations, plandigest, workeractions
+from . import (
+    ENTRY_DATA,
+    bodydigest,
+    bodyhead,
+    commandarguments,
+    deviations,
+    expand_commands,
+    ghapi,
+    ghstore,
+    parsing,
+    plandigest,
+    workeractions,
+)
 
 USAGE_ERROR = 2
 
@@ -114,3 +126,43 @@ def plan_digest(args: argparse.Namespace) -> None:
             body has no ``## Plan`` section, exits with status 2).
     """
     print(f"{bodydigest.PLAN_PREFIX}{_plan_digest(args.file)}")
+
+
+def _pull(text: str) -> tuple[str, int]:
+    found = expand_commands.PULL.match(text)
+    if not found:
+        raise _fail(f"{text}: not OWNER/NAME#NUMBER")
+    return found.group(1), int(found.group(2))
+
+
+@ENTRY_DATA.register(
+    add_argument("pull", help="OWNER/NAME#NUMBER: a pull request"),
+    commandarguments.DRY_RUN_ARGUMENT,
+    name="body-head",
+)
+def body_head(args: argparse.Namespace) -> None:
+    """Add the ``Head:`` line of the PR's head to its body, after a merge of main.
+
+    This is the body-head area (pitboss#369). The one change to the body that a
+    merge of the base requires: a line ``Head: <the head now>`` after the last
+    ``Head:`` line, nothing else changed (``text-lint`` reads the last one). It
+    prints the new body's ``Body:`` digest line and the input of ``bats
+    merge-proof`` (the head the body named, then the head now). A dry run
+    unless ``--no-dry-run``; a body with no ``Head: <40 hex>`` line exits with
+    status 2, and a body whose last ``Head:`` line is the head is not changed.
+
+    Args:
+        args: the parsed arguments.
+    """
+    slug, number = _pull(args.pull)
+    github = ghapi.GitHub(mutate=args.run, run=args.safe_run)
+    path = f"repos/{slug}/pulls/{number}"
+    pull = parsing.pull(ghapi.get(github, path))
+    old = bodyhead.last_head(pull.body)
+    if not old:
+        raise _fail(f"{args.pull}: the body has no line `Head: <40 hex>`")
+    new = bodyhead.with_head(pull.body, pull.head.sha)
+    if new != pull.body:
+        ghstore.set_body(github, path, new)
+    print(f"{bodydigest.PREFIX}{bodydigest.digest(new)}")
+    print(f"bats merge-proof {old} {pull.head.sha}")

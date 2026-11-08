@@ -1,4 +1,4 @@
-"""The sweep's UNREADABLE REVIEW and EXECUTION REVIEWED BEFORE GREEN lines.
+"""The sweep's UNREADABLE REVIEW and EXECUTION REVIEW EARLY lines.
 
 (Keywords: unreadable-review, execution-before-green.)
 """
@@ -30,9 +30,10 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
             for each in pull.unreadable.graded
         ),
         *(
-            f"{Marker.EXECUTION_REVIEWED_BEFORE_GREEN.text} {reference}: review"
-            f" {earlyreview.comment_id(each.url)} at {each.sha} does not count;"
-            f" {each.unfinished}; after green, the step slots next gives"
+            f"{Marker.EXECUTION_REVIEW_EARLY.text}: {reference} reviewed at"
+            f" {each.when}, CI completed {each.ci_done or 'not yet'}; one Execution"
+            f" review is due (review {earlyreview.comment_id(each.url)} of"
+            f" {each.sha} does not count: {each.unfinished})"
             for each in pull.unreadable.premature
         ),
     ]

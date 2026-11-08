@@ -1,7 +1,9 @@
 """The markers that start the output lines a reader acts on.
 
 A marker's text is its name in words, so the output and the references
-spell it the same way; CI checks that the references explain every one.
+spell it the same way; CI checks that the references explain every one, except
+the ``SELF_EXPLAINED`` ones, whose line says what to do (no line is added to a
+reference, pitboss#343).
 """
 
 import enum
@@ -27,9 +29,9 @@ class Marker(enum.Enum):
             touches what the e2e suite runs on, with no completed dispatched
             run at its head (its own run skipped e2e): dispatch the check
             workflow on its branch.
-        EXECUTION_REVIEWED_BEFORE_GREEN: an Execution review written while the
-            PR was a draft or before every check of the reviewed head had
-            completed; it does not count.
+        EXECUTION_REVIEW_EARLY: an Execution review written while the PR was a
+            draft, or before the last check of the reviewed head completed green
+            (pitboss#369); it does not count, and one Execution review is due.
         FOLDED_PR: an open PR whose body closes several tickets and cites no
             Opus ruling that allows it.
         PINS_ONLY: a green PR that only moves pins, at a review step, whose
@@ -48,6 +50,8 @@ class Marker(enum.Enum):
             that passed on the base since (pitboss#314): enqueue it, or request
             its review.
         UPDATE: a PR is behind the base with every check finished.
+        BEHIND: a PR whose review approved and whose checks passed is behind
+            the base (pitboss#369); no merge is offered.
         STALL: a relock PR whose check has been red for over four hours.
         RULING_DUE: a PR whose review rounds hit the changes-needed limit and
             has no Opus ruling.
@@ -138,7 +142,7 @@ class Marker(enum.Enum):
     WAIT_FOR_CI = enum.auto()
     DRAFT_ROUND = enum.auto()
     RUN_E2E_BEFORE_APPROVAL = enum.auto()
-    EXECUTION_REVIEWED_BEFORE_GREEN = enum.auto()
+    EXECUTION_REVIEW_EARLY = enum.auto()
     FOLDED_PR = enum.auto()
     PINS_ONLY = enum.auto()
     PINS_ONLY_OK = enum.auto()
@@ -148,6 +152,7 @@ class Marker(enum.Enum):
     FAILED = enum.auto()
     FIXED_ON_BASE = enum.auto()
     UPDATE = enum.auto()
+    BEHIND = enum.auto()
     STALL = enum.auto()
     RULING_DUE = enum.auto()
     PAUSE = enum.auto()
@@ -219,3 +224,7 @@ SPELLED = {
     Marker.NO_HAND_BACK: "NO HAND-BACK",
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
 }
+
+# keyword: markup-lines (pitboss#343): the line of these says its own action, and
+# a reference gets no new line for them
+SELF_EXPLAINED = frozenset({Marker.EXECUTION_REVIEW_EARLY, Marker.BEHIND})

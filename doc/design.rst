@@ -430,8 +430,7 @@ review, an abbreviated SHA that names the current head read as it), with the dis
 while the PR was a draft with no completed dispatched run, or while a check run
 of the reviewed head had not completed (or the head had none), does not count:
 it is left out of the reviews the flow reads, so ``review=`` does not name it,
-and the sweep prints ``EXECUTION REVIEWED BEFORE GREEN <pr>: review <id> at
-<sha> does not count; <what was unfinished>``, the next step being the review
+the next step being the review
 again after green. Only when one of those runs has failed (the latest
 run of its name) are two more reads made: the head's commit statuses (the
 newest of each context) and, for a status that does not carry the check's
@@ -463,8 +462,8 @@ current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``,
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, which grades the
 Plan alone, and the review of a revised plan are started by its author's
-hand-back (an Execution review of a draft does not count, ``EXECUTION REVIEWED
-BEFORE GREEN``, pitboss#202); a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
+hand-back (an Execution review of a draft does not count,
+pitboss#202); a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
 same words as ``slots next``, pitboss#156; a draft whose Plan is approved, with
 a diff that touches ``e2e/`` or a ``[sweep] run_by_e2e`` prefix and no completed
 ``workflow_dispatch`` run of ``check.yml`` at its head (a draft's own run skipped e2e, complete
