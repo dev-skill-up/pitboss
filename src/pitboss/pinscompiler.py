@@ -7,6 +7,7 @@ must contain the commit in the PR head's ``.github/bats-version``, else no
 verdict is printed and the line says which commit it is and which is required.
 """
 
+import os.path
 import subprocess
 from typing import Sequence
 
@@ -46,9 +47,10 @@ def refusal(run: running.Run, where: str, head: str, words: Sequence[str]) -> st
         compiler's commit contains the pin; else the line that says which
         commit the compiler is, which is required, and how to get it.
     """
-    compiler = compiler_dir(words)
-    if not compiler:
+    named = compiler_dir(words)
+    if not named:
         return ""
+    compiler = os.path.join(where, named)  # the command runs in WHERE (env -C)
     required = _pin(run, where, head)
     if not required:
         return ""
