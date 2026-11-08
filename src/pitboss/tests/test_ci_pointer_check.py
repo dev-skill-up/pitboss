@@ -270,7 +270,7 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
         """A configuration with no ``[plan_check]`` has no spec to hold."""
         repo = repository(self)
         diffrepo.commit(repo, "e2e/unlisted.spec.js", "")
-        done = check(repo, "1. x\n", "[project]\n")
+        done = check(repo, pointer(), "[project]\n")
         assert_that([done.code, OK in done.out], equal_to([0, True]))
 
     def test_a_table_that_is_not_a_table_of_lists_is_a_usage_error(self) -> None:
