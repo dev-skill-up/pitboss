@@ -82,8 +82,8 @@ estimated; the sweep reads it too, for `SLOT IDLE`.
 - `EMPTY SLOT`: the slot has no agent. In `slots show`, run `slots next`; in
   `slots next`, the line names what the slot starts, or says nothing fits
   it. Start that now, or leave the slot empty when nothing fits.
-- `SLOTS FREE`: `SLOTS FREE n`, printed by `sweep` after the ledger
-  . Start work for them, and require a
+- `SLOTS FREE`: `SLOTS FREE n`,
+  require a
   wake-up (`send_later`) before the turn ends: an orchestrator that ends its
   turn with free slots and queued work sleeps until a GitHub event.
 - `SLOT IDLE`: `SLOT IDLE <slot> (<n> minutes)`, printed by `sweep` for a slot

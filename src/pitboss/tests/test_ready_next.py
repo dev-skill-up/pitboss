@@ -53,10 +53,10 @@ def next_lines(here: world.World) -> Sequence[str]:
     return re.findall(r"(?m)^NEXT .*$", next_output(here))[1:]
 
 
-class TestMarkReadyIsTheFirstNextLine(unittest.TestCase):
+class TestMarkReadyFollowsTheRunningLine(unittest.TestCase):
     """The approved-Plan draft with no hold."""
 
-    def test_the_first_next_line_is_to_mark_the_pr_ready(self) -> None:
+    def test_the_draft_is_next_2_after_the_running_line(self) -> None:
         """The exact action, above every start and review line."""
         found = next_lines(quiet_draft())
         assert_that(len(found) > 1, equal_to(True))
