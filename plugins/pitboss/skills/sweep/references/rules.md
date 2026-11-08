@@ -1023,7 +1023,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   sessions and their status, pitboss#250), and the check of a hand-back is
   that a hand-back without the `pitboss nox` result of the pushed head (the
   four sessions and their status) is sent back, naming it as missing. It also
-  holds a `Deviations:` line, and a hand-back without it is NOT STARTED text the
+  holds a `Deviations:` line,
+  and a hand-back without it is NOT STARTED text the
   orchestrator sends back (`uvx pitboss hand-back-check FILE` prints it). The
   review of an Execution reads the PR body's `Deviations:` line: a listed edit by
   shell is a finding only when it left a trace in the tree that the Edit tool
@@ -1084,7 +1085,8 @@ Only override for bugs, but do override for bugs (and then file them)".
 - **A worker's local check is `pitboss nox`** (owner, 2026-11-04, pitboss#210;
   2026-11-05, pitboss#250: "Stop with the targeted runs for iterating. Use
   pitboss nox for iterating too. That's what it's for."): the worker brief says
-  Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` (the skills, lint and
+  Nox: where the checks are nox sessions, run `timeout 598 pitboss nox`
+  before every push (the skills, lint and
   mypy first, then the tests of one Python version, which stop at the first
   failing test; it stops at the first failing session and always uses `-r`); a
   targeted test module, `nox -s ...` or `virtue` is never run by hand, and
