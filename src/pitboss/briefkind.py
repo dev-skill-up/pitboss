@@ -1,0 +1,52 @@
+"""The kinds of brief (keyword: brief, pitboss#118); ``brief.Kind`` is this class."""
+
+import enum
+
+
+class Kind(enum.Enum):
+    """The kinds of brief; the value is the label printed in the header.
+
+    Attributes:
+        NEW_PR: a worker starts a ticket.
+        FIRST_ROUND: a worker writes the Plan and Execution body of a PR.
+        REVISE_PLAN: a worker revises the Plan and nothing else.
+        FIX_REVIEW: a worker fixes the findings of a review.
+        FIX_CI: a worker fixes a red CI.
+        RESOLVE_CONFLICT: a worker merges the base into a conflicted PR.
+        RULING_STEPS: a worker does exactly the steps of an Opus ruling.
+        RULING_AS_GIVEN: a worker carries out an Opus ruling to split, reshape
+            or abandon.
+        RUN_PLAN: a worker runs the commands of a Plan approved alone and
+            fills the Execution.
+        ADD_CI_QUOTES: a worker adds the CI quotes the Plan names to the body of
+            a ready PR whose checks passed (keyword: ci-quotes, pitboss#277).
+        REVIEW_FULL: a reviewer grades the Plan and the Execution of a head.
+        REVIEW_EXECUTION: a reviewer grades the Execution of a head whose
+            Plan is approved.
+        REVIEW_PLAN: a reviewer grades the Plan alone.
+        REVIEW_RESOLUTION: a reviewer checks a merge of the base into an
+            approved head, and nothing else.
+        REVIEW_FIX_ROUND: a reviewer checks that the findings of the last
+            review, which asked for changes at an older head, are fixed in the
+            diff to the current head, and nothing else (keyword: fix-round).
+        REVIEW_RELOCK: a reviewer checks a relock PR (keyword: relock).
+        RULING: an Opus agent makes a ruling.
+    """
+
+    NEW_PR = "start a PR"
+    FIRST_ROUND = "write the Plan and Execution body"
+    REVISE_PLAN = "revise the plan"
+    FIX_REVIEW = "fix the review"
+    FIX_CI = "fix the CI"
+    RESOLVE_CONFLICT = "resolve the conflict"
+    RULING_STEPS = "do the steps of the Opus ruling"
+    RULING_AS_GIVEN = "carry out the Opus ruling"
+    RUN_PLAN = "run the Plan's commands and fill the Execution"
+    ADD_CI_QUOTES = "add the CI quotes to the body"
+    REVIEW_FULL = "review the Plan and the Execution"
+    REVIEW_EXECUTION = "review the Execution"
+    REVIEW_PLAN = "review the Plan alone"
+    REVIEW_RESOLUTION = "review the merge resolution only"
+    REVIEW_FIX_ROUND = "review the fix round's findings only"
+    REVIEW_RELOCK = "review the relock"
+    RULING = "make an Opus ruling"

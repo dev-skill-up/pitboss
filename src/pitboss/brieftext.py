@@ -196,12 +196,11 @@ GATED = (
     " `adversarial-review` pending."
 )
 PLAN_DIGEST = (
-    "Plan digest: you grade the Plan, so run `uvx pitboss plan-digest"
-    " <scratchpad>/body.txt` on the PR body you saved for the `Body:` line, and"
-    " add the one line it prints (`Plan digest: <digest>`) to the comment, beside"
-    " the `Plan:` line. The sweep prints `PLAN EDITED` when the Plan section of"
-    " the body later differs from it, and offers the PR for no round until an Opus"
-    " ruling allows the edit."
+    "Plan digest: you grade the Plan, so add {plan_digest_line} to the comment,"
+    " beside the `Plan:` line, as given (it is what `uvx pitboss plan-digest`"
+    " prints for the body this brief read). The sweep prints `PLAN EDITED` when"
+    " the Plan section of the body later differs from it, and offers the PR for"
+    " no round until an Opus ruling allows the edit."
 )
 NO_PLAN_EDIT = (
     "Approved Plan: do not edit the Plan section of an approved PR; hand back a"
@@ -215,12 +214,12 @@ NO_PLAN_FINDING = (
     " Plan as written."
 )
 BODY_DIGEST = (
-    "Body: the PR body is part of what you read. Before posting, save it with `gh"
-    " api repos/{repo}/pulls/{number} --jq .body > <scratchpad>/body.txt`, run"
-    " `uvx pitboss body-digest <scratchpad>/body.txt`, and add the one line it"
-    " prints (`Body: <digest>`) to the comment, beside the `Verdict:` line. The"
-    " sweep shows `review=older-body` for a body edited after the review of an"
-    " unmoved head, and a review that records the new digest answers it."
+    "Body: the PR body is part of what you read. This brief read it as it stood"
+    " when the sweep printed it (keyword: review-brief, pitboss#338): add the"
+    " line `Body: {body_digest}` to the comment, beside the `Verdict:` line, as"
+    " given. The sweep shows `review=older-body` for a body edited after the"
+    " review of an unmoved head, and a review that records the new digest"
+    " answers it."
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"

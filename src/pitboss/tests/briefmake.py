@@ -12,13 +12,15 @@ APPROVED = "2" * 40
 PROJECT = briefconfig.Brief(drafts=True, holds=True, worker_lines=(), review_lines=())
 FORM = ("## Review", f"Reviewed: {HEAD}", "Verdict: <approved or changes needed>")
 GOAL = "ticket o/r#7: Do the thing"
+BODY_DIGEST = "d" * 16
+PLAN_DIGEST = "e" * 16
 BODY = (
-    "Body: the PR body is part of what you read. Before posting, save it with `gh"
-    " api repos/o/r/pulls/3 --jq .body > <scratchpad>/body.txt`, run `uvx pitboss"
-    " body-digest <scratchpad>/body.txt`, and add the one line it prints (`Body:"
-    " <digest>`) to the comment, beside the `Verdict:` line. The sweep shows"
-    " `review=older-body` for a body edited after the review of an unmoved head,"
-    " and a review that records the new digest answers it."
+    "Body: the PR body is part of what you read. This brief read it as it stood"
+    " when the sweep printed it (keyword: review-brief, pitboss#338): add the"
+    f" line `Body: {BODY_DIGEST}` to the comment, beside the `Verdict:` line, as"
+    " given. The sweep shows `review=older-body` for a body edited after the"
+    " review of an unmoved head, and a review that records the new digest"
+    " answers it."
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
@@ -29,7 +31,12 @@ HONEST = (
 )
 SUBJECT = brief.Subject(reference="o/r#3", ticket="o/r#7", repo="o/r", goal=GOAL)
 COMMITS = brief.Heads(
-    head=HEAD, base="main", approved=APPROVED, findings="https://example.org/c/1"
+    head=HEAD,
+    base="main",
+    approved=APPROVED,
+    findings="https://example.org/c/1",
+    body_digest=BODY_DIGEST,
+    plan_digest=PLAN_DIGEST,
 )
 RULES = brief.Rules(config="proj", form=FORM, footer="THE FOOTER", project=PROJECT)
 
