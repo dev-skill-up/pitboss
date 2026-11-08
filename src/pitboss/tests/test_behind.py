@@ -1,6 +1,7 @@
 """A green PR that is behind the base says BEHIND, with no merge offer (pitboss#369)."""
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -21,7 +22,7 @@ LINE = (
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 
 
-def offers(swept: str) -> list[bool]:
+def offers(swept: str) -> Sequence[bool]:
     """Whether the sweep offers a merge: ready, by hand, or auto-merge to arm.
 
     Args:
@@ -50,9 +51,8 @@ class TestBehind(unittest.TestCase):
     def test_a_directly_approved_behind_pr_gets_no_merge_offer(self) -> None:
         """Auto-merge off and approved by a review: BEHIND, and no merge offer."""
         here = world_with([graded(APPROVED, APPROVED, 9)], mergeable_state="behind")
-        swept = sweep(here).out
-        assert_that(swept, contains_string("BEHIND:"))
-        assert_that(offers(swept), equal_to([False] * 3))
+        said = ["BEHIND:" in sweep(here).out, *offers(sweep(here).out)]
+        assert_that(said, equal_to([True, False, False, False]))
 
     def test_a_queued_repository_is_not_told_behind(self) -> None:
         """A merge-queue repository builds each entry on the base: no BEHIND."""

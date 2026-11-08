@@ -308,9 +308,7 @@ def _unreadable(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
         unanalysed=analysis.unanalysed(*seen),
-        premature=[
-            each for each in got.premature if found is None or each.when > found.when
-        ],
+        premature=earlyfound.newer(got.premature, found.when if found else ""),
     )
 
 

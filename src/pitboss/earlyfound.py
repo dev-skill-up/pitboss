@@ -30,6 +30,21 @@ class Premature:
     ci_done: str = ""
 
 
+def newer(found: Sequence[Premature], counted: str) -> Sequence[Premature]:
+    """Keep the early reviews written after the newest counted review.
+
+    One written before it decides nothing: the counted review's standing stands.
+
+    Args:
+        found: the early reviews.
+        counted: when the newest counted review was written, empty when none.
+
+    Returns:
+        The early reviews written later than that.
+    """
+    return [each for each in found if each.when > counted]
+
+
 Split = Callable[
     [config.Repo, shapes.Pull, Sequence[shapes.Comment]],
     tuple[Sequence[shapes.Comment], Sequence[Premature]],
