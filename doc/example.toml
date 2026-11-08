@@ -75,6 +75,10 @@ prefix = "relock/"
 # `PINS-ONLY OK` and `READY TO MERGE` and offers no review; any other output
 # prints `PINS-ONLY` and the PR is reviewed as before. Empty means no such
 # command: every such PR is reviewed. Default: "".
+# When the command has `--compiler DIR` (a checkout of bats) and the head has a
+# `.github/bats-version`, DIR's HEAD must contain that commit, else pitboss runs
+# nothing and the `PINS-ONLY` line says which commit DIR is at, which is required
+# and how to get it (pitboss#349): an older compiler prints a false `NOT OK`.
 pins_check_command = "bats pins-check {base} {head} --compiler /home/user/bats --repository /home/user/repository-prototype"
 # The paths a non-relock PR may change and still be pins-only (a relock PR is,
 # whatever it changes: the command judges its diff).
