@@ -260,14 +260,13 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
         found: the findings, a line each: those of the Impact list, the
             ``ci-pointer:`` ones, and the diff's added lines in .md and .rst
             files but a cut span (#373), the ``markup-lines:`` ones.
-            Those of the other checks of ``KINDS`` start with the name of their
-            check and a colon.
+            The other checks' start with their name (``KINDS``).
 
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
         that did not run, the number of Impact findings, of CI pointer findings
         and of markup line findings.
-        The number of findings of each other check of ``KINDS`` follows.
+        The other checks' counts follow.
     """
     if not refused and not found:
         return steps.PLAN_CHECK_OK
