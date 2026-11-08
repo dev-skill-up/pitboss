@@ -5,7 +5,7 @@ import subprocess
 import unittest
 from typing import Mapping, MutableSequence, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, is_not
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import parsing, pinscompiler, pinsonly, pinsreading, running
 from . import fakes, pinsworld
@@ -106,7 +106,7 @@ class TestRefusal(unittest.TestCase):
         found, _ = verdict(OLDER)
         for part in (OLD, PIN, "/c", ".github/bats-version", "bootstrap/c"):
             assert_that(found.detail, contains_string(part))
-        assert_that(found.detail, is_not(contains_string("OK:")))
+        assert_that(pinsreading.printed_ok(found.detail), equal_to(False))
         said = verdict(NO_CHECKOUT)[0].detail
         assert_that(said, contains_string("not a git checkout"))
 
