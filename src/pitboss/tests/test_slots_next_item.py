@@ -237,3 +237,11 @@ class TestOwnerPriorities(unittest.TestCase):
                     configfile.load(here.config, here.workspace)
                 said = f"{ticket!r} = {stated!r}"
                 assert_that(str(caught.exception), contains_string(said))
+
+    def test_a_stated_priority_that_is_not_a_table_is_refused(self) -> None:
+        """``owner_priorities = "p0"`` names no ticket."""
+        here = world.make_world()
+        quietworld.edit_config(here, "[slots]", '[slots]\nowner_priorities = "p0"')
+        with self.assertRaises(ValueError) as caught:
+            configfile.load(here.config, here.workspace)
+        assert_that(str(caught.exception), contains_string("must be a table"))
