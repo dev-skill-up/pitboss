@@ -288,7 +288,7 @@ class TestUnreadSpelling(unittest.TestCase):
         assert_that(impactcheck.parse("rg 'pitboss impact' src"), equal_to(None))
 
     def test_plan_check_refuses_a_plan_with_such_a_row(self) -> None:
-        """The exit status is 1: the row did not run."""
+        """The exit status is 1: the Plan is refused."""
         row = "uv run pitboss impact readme"
         plan = f"## Plan\nx\n\n$ {row}\nREADME:1: edited\n\n## Execution\nx\n"
         assert_that(checked(plan).code, equal_to(1))
