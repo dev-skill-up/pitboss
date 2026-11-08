@@ -241,8 +241,8 @@ class TestRefillAndRecordedRounds(unittest.TestCase):
 
     def test_a_freed_slot_with_nothing_waiting(self) -> None:
         """More slots than tasks: the refill says that no task is waiting."""
-        spares = [("add", f"spare-{n}", "tiny") for n in range(12)]
-        _, lines = freed_world(spares)
+        spares = [("add", f"spare-{n}", "small") for n in range(12)]
+        _, lines = freed_world(spares, slot="spare-11")
         assert_that(lines[-1], equal_to("no task is waiting"))
 
     def test_a_round_the_ledger_records_holds_no_second_slot(self) -> None:
