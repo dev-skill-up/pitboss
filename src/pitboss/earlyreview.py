@@ -12,9 +12,10 @@ the Plan alone (``Execution: not graded`` too) is a draft's, and always counts.
 """
 
 import dataclasses
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import (
+    basefix,
     checkruns,
     config,
     dispatchruns,
@@ -121,22 +122,34 @@ class Seen:
         repo: the PR's repository.
         pull: the PR.
         review: how reviews are read.
+        queued: whether the repository has a merge queue.
     """
 
     github: ghapi.GitHub
     repo: config.Repo
     pull: shapes.Pull
     review: config.Review
+    queued: bool = False
+
+
+def _answers(
+    seen: Seen, current: Sequence[shapes.CheckRun]
+) -> Sequence[basefix.Answer]:
+    if not seen.queued:
+        return []
+    return headchecks.answered(seen.github, seen.repo, seen.pull.base, current)
 
 
 def _settled(
     seen: Seen, sha: str, current: Sequence[shapes.CheckRun]
 ) -> Sequence[shapes.CheckRun]:
-    # a failure that a later passing status answers is not one
+    # a failure that a later passing status answers is not one, nor one that the
+    # base passed since, in a merge-queue repository (fixed-on-base, pitboss#314)
     if not any(run.failed for run in current):
         return current
     posted = headchecks.statuses(seen.github, seen.repo, sha)
-    return headchecks.checks(seen.github, seen.repo, sha, posted)
+    settled = headchecks.checks(seen.github, seen.repo, sha, posted)
+    return basefix.settle(settled, _answers(seen, settled))
 
 
 def _unjudged(current: Sequence[shapes.CheckRun]) -> Sequence[shapes.CheckRun]:
@@ -174,10 +187,12 @@ class Tools:
     Attributes:
         github: the API.
         review: how reviews are read.
+        merge_queue: the repositories with a merge queue.
     """
 
     github: ghapi.GitHub
     review: config.Review
+    merge_queue: AbstractSet[str] = frozenset()
 
 
 def _executions(
@@ -224,7 +239,14 @@ def split(
     written = _executions(tools, repo.slug, comments)
     if not written:
         return comments, []
-    seen = Seen(github=tools.github, repo=repo, pull=pull, review=tools.review)
+    queued = repo.slug in tools.merge_queue
+    seen = Seen(
+        github=tools.github,
+        repo=repo,
+        pull=pull,
+        review=tools.review,
+        queued=queued,
+    )
     events = _timeline(seen)
     said = [(each, *_before(seen, events, each)) for each in written]
     early = [
