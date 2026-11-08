@@ -320,8 +320,14 @@ class TestThePieces(unittest.TestCase):
         found = markers.Marker.EXECUTION_REVIEW_EARLY.text
         assert_that(found, equal_to("EXECUTION REVIEW EARLY"))
         assert_that(markers.Marker.BEHIND.text, equal_to("BEHIND"))
-        both = {markers.Marker.EXECUTION_REVIEW_EARLY, markers.Marker.BEHIND}
-        assert_that(markers.SELF_EXPLAINED, equal_to(both))
+        own = {
+            markers.Marker.EXECUTION_REVIEW_EARLY,
+            markers.Marker.BEHIND,
+            markers.Marker.READY_TO_MERGE,
+            markers.Marker.MERGE_BY_HAND,
+            markers.Marker.AUTO_MERGE_OFF,
+        }
+        assert_that(markers.SELF_EXPLAINED, equal_to(own))
 
 
 class TestTheBrief(unittest.TestCase):

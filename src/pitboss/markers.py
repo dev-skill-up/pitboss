@@ -227,4 +227,12 @@ SPELLED = {
 
 # keyword: markup-lines (pitboss#343): the line of these says its own action, and
 # a reference gets no new line for them
-SELF_EXPLAINED = frozenset({Marker.EXECUTION_REVIEW_EARLY, Marker.BEHIND})
+SELF_EXPLAINED = frozenset(
+    {
+        Marker.EXECUTION_REVIEW_EARLY,
+        Marker.BEHIND,
+        Marker.READY_TO_MERGE,
+        Marker.MERGE_BY_HAND,
+        Marker.AUTO_MERGE_OFF,
+    }
+)
