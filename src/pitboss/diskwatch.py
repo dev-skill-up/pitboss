@@ -19,6 +19,7 @@ from .markers import Marker
 SOON_PERCENT = 85.0
 CLEAN_PERCENT = 90.0
 STARVED_FREE = disk.BYTES_IN_GIBIBYTE
+NOX_FREE = 5 * disk.BYTES_IN_GIBIBYTE
 LARGEST = 5
 CLEAN_LOOK = "uvx pitboss clean-container"
 CLEAN_CONTAINER = "uvx pitboss clean-container --no-dry-run"
@@ -143,6 +144,30 @@ def line(each: Reading) -> str:
     if each.percent >= SOON_PERCENT:
         return f"{text}: clean before it fills: {CLEAN_CONTAINER}"
     return text
+
+
+def nox_refusal(each: Reading | None) -> Sequence[str]:
+    """The lines that stop ``pitboss nox`` on a volume with little free space.
+
+    A worker fills the disk inside one round (each ``pitboss nox`` makes an
+    environment of gigabytes per worktree, pitboss#346), so the command reads
+    the volume it writes to before it starts a session.
+
+    Args:
+        each: the reading of the working directory's volume, None when unread.
+
+    Returns:
+        No line when the volume is unread or has at least 5 GiB free; else the
+        ``DISK`` line, the same ``line`` that ``next`` prints, and the sentence
+        with the auto-approved cleaning that the command stops for.
+    """
+    if each is None or each.usage.free >= NOX_FREE:
+        return []
+    return [
+        line(each),
+        f"pitboss nox starts no session under {disk.size_text(NOX_FREE)} free:"
+        f" run {CLEAN_CONTAINER}",
+    ]
 
 
 def largest(files: machine.Filesystem, roots: Iterable[pathlib.Path]) -> Sequence[Big]:

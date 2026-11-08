@@ -9,7 +9,7 @@ import sys
 import tempfile
 import types
 import unittest
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -74,20 +74,88 @@ def runs_of(*posargs: str) -> Sequence[Sequence[str]]:
         Each command, whole.
     """
     ran: list[Sequence[str]] = []
-    session = types.SimpleNamespace(
-        posargs=posargs,
-        create_tmp=lambda: "/x",
-        install=lambda *_: None,
-        run=lambda *command, **_: ran.append(command),
-    )
+    with tempfile.TemporaryDirectory() as name:
+        session = types.SimpleNamespace(
+            posargs=posargs,
+            create_tmp=lambda: made_tmp(pathlib.Path(name)),
+            install=lambda *_: None,
+            run=lambda *command, **_: ran.append(command),
+        )
+        noxfile_module().tests(session)
+    return ran
+
+
+def made_tmp(root: pathlib.Path) -> str:
+    """The ``TMPDIR`` of a session, as nox makes it: ``tmp`` in the environment.
+
+    Args:
+        root: a directory to hold the environment.
+
+    Returns:
+        The path of the ``tmp`` directory, which exists.
+    """
+    tmp = root / "tests-3-13" / "tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
+    return str(tmp)
+
+
+def noxfile_module() -> types.ModuleType:
+    """Load noxfile.py with a stand-in for nox.
+
+    Returns:
+        The module.
+    """
     path = EXAMPLE.parents[1] / "noxfile.py"
     with nox_stand_in():
         spec = importlib.util.spec_from_file_location("noxfile_under_test", path)
         assert spec is not None and spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-    module.tests(session)
-    return ran
+    return module
+
+
+class RunFailed(Exception):
+    """The stand-in for a command of the session that exits with a status."""
+
+
+def left_after(
+    root: pathlib.Path, *posargs: str, fails: bool = False
+) -> tuple[Sequence[str], Mapping[str, str]]:
+    """Run the tests session over a ``TMPDIR`` the tests left things in.
+
+    Args:
+        root: a directory to hold the environment.
+        *posargs: the words after ``--``.
+        fails: whether the run of the tests fails.
+
+    Returns:
+        What is in ``TMPDIR`` afterwards, sorted, and the ``COVERAGE_FILE`` and
+        ``TMPDIR`` that the first command got.
+    """
+    tmp = pathlib.Path(made_tmp(root))
+    (tmp / "world" / "project").mkdir(parents=True)
+    (tmp / "world" / "project" / "file").write_text("x")
+    (tmp / "loose").write_text("y")
+    outside = root / "outside"
+    outside.mkdir()
+    (tmp / "link").symlink_to(outside)
+    given: list[Mapping[str, str]] = []
+
+    def run(*command: str, **kwargs: Mapping[str, str]) -> None:
+        given.append(kwargs["env"])
+        if fails and "virtue" in command:
+            raise RunFailed()
+
+    session = types.SimpleNamespace(
+        posargs=posargs,
+        create_tmp=lambda: str(tmp),
+        install=lambda *_: None,
+        run=run,
+    )
+    with contextlib.suppress(RunFailed):
+        noxfile_module().tests(session)
+    assert_that(outside.is_dir(), equal_to(True))  # a link is removed, not followed
+    return sorted(each.name for each in tmp.iterdir()), given[0]
 
 
 class TestTestsSession(unittest.TestCase):
@@ -133,6 +201,38 @@ class TestTestsSession(unittest.TestCase):
         assert_that(
             found.index(REPORTER) > found.index("--reporter=text"), equal_to(True)
         )
+
+
+class TestTestsSessionEmptiesItsTmpdir(unittest.TestCase):
+    """Only a green run removes what the tests left in TMPDIR (pitboss#346)."""
+
+    def test_a_green_run_empties_it(self) -> None:
+        """The directories, the file and the link are gone; the directory stays."""
+        with tempfile.TemporaryDirectory() as name:
+            left, _ = left_after(pathlib.Path(name))
+        assert_that(left, equal_to([]))
+
+    def test_a_green_run_of_some_modules_empties_it_too(self) -> None:
+        """A targeted run (`pitboss nox`) leaves as much, and removes it."""
+        with tempfile.TemporaryDirectory() as name:
+            left, _ = left_after(pathlib.Path(name), "-x", "pitboss.tests.test_gates")
+        assert_that(left, equal_to([]))
+
+    def test_a_run_that_fails_keeps_it_for_debugging(self) -> None:
+        """The nearest input: the tests fail and everything is still there."""
+        with tempfile.TemporaryDirectory() as name:
+            left, _ = left_after(pathlib.Path(name), fails=True)
+        assert_that(left, equal_to(["link", "loose", "world"]))
+
+    def test_the_coverage_data_is_beside_tmpdir_not_in_it(self) -> None:
+        """Emptying TMPDIR leaves the data the 100% report reads."""
+        with tempfile.TemporaryDirectory() as name:
+            _, env = left_after(pathlib.Path(name))
+            expected = {
+                "COVERAGE_FILE": str(pathlib.Path(name) / "tests-3-13" / "coverage"),
+                "TMPDIR": str(pathlib.Path(name) / "tests-3-13" / "tmp"),
+            }
+        assert_that(env, equal_to(expected))
 
 
 FAILING_MODULE = """

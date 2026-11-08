@@ -9,11 +9,10 @@ test changes only its copy.
 
 import copy
 import dataclasses
-import functools
 import pathlib
 from typing import Callable, Mapping, Sequence
 
-from . import fakes, repositories, world
+from . import fakes, repositories, scratch, world
 
 Made = tuple[world.World, Sequence[pathlib.Path]]
 Maker = Callable[[], Made]
@@ -59,7 +58,7 @@ def cached(make: Maker) -> Callable[[], Built]:
     Returns:
         The function that gives the scene, which no test changes.
     """
-    return functools.cache(lambda: build(make))
+    return scratch.built_once(lambda: build(make))
 
 
 def remade(old: world.World, moved: Mapping[str, str]) -> world.World:

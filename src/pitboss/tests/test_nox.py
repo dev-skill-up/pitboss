@@ -6,7 +6,7 @@ from typing import Callable, Mapping, MutableSequence, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import expansion, noxcheck
+from .. import disk, diskwatch, expansion, noxcheck
 from . import world
 from .briefmake import has_all, has_none
 
@@ -204,6 +204,74 @@ class TestNoxCommand(unittest.TestCase):
         found, calls = run_nox({"mypy": 1})
         assert_that(calls, equal_to(COMMANDS[:3]))
         has_none(found.out, ["tests-3.13", noxcheck.PROOF])
+
+
+GIBIBYTE = 2**30
+CLEAN = "uvx pitboss clean-container --no-dry-run"
+
+
+def usage_with(free: int) -> disk.Usage:
+    """The use of a 100 GiB volume with some bytes free.
+
+    Args:
+        free: the bytes free.
+
+    Returns:
+        The use.
+    """
+    return disk.Usage(100 * GIBIBYTE, 100 * GIBIBYTE - free, free)
+
+
+def run_on_disk(
+    reader: disk.Reader,
+) -> tuple[world.World, world.Result, Sequence[Sequence[str]]]:
+    """Run ``pitboss nox`` with a fake nox on a volume whose use is given.
+
+    Args:
+        reader: reads the use of the working directory's volume.
+
+    Returns:
+        The world, what the command did, and the ``nox`` command lines it ran.
+    """
+    fake = FakeNox(statuses={}, calls=[])
+    here = dataclasses.replace(
+        world.make_world(),
+        processes=fake,  # type: ignore[arg-type]
+        usage=reader,
+    )
+    return here, world.invoke(here, "nox"), fake.calls
+
+
+class TestNoxChecksTheDisk(unittest.TestCase):
+    """Under 5 GiB free it stops before a session, with the line and the clean."""
+
+    def test_under_five_gibibytes_it_exits_1_with_the_disk_line_and_the_clean(
+        self,
+    ) -> None:
+        """The `next` line (one source), then the auto-approved command; no nox."""
+        usage = usage_with(5 * GIBIBYTE - 1)
+        here, found, calls = run_on_disk(lambda _: usage)
+        shown = diskwatch.line(diskwatch.Reading(place=here.workspace, usage=usage))
+        assert_that((found.code, calls), equal_to((1, [])))
+        assert_that(found.out.splitlines()[0], equal_to(shown))
+        has_all(found.out, ["DISK ", CLEAN, "under 5.0 GiB free"])
+        has_none(found.out, ["test-selection", "success"])
+
+    def test_the_refusal_names_the_volume_it_read_and_its_free_space(self) -> None:
+        """4 GiB free of 100: the figures of the line are the volume's."""
+        _, found, _ = run_on_disk(lambda _: usage_with(4 * GIBIBYTE))
+        has_all(found.out, ["4.0 GiB free of 100.0 GiB (96.0% used)"])
+
+    def test_at_five_gibibytes_it_runs_the_four_sessions(self) -> None:
+        """The nearest input: exactly the limit is enough."""
+        _, found, calls = run_on_disk(lambda _: usage_with(5 * GIBIBYTE))
+        assert_that((found.code, calls), equal_to((0, COMMANDS)))
+        has_none(found.out, [CLEAN, "DISK "])
+
+    def test_a_volume_that_cannot_be_read_does_not_stop_it(self) -> None:
+        """No figure, no refusal: the sessions run."""
+        _, found, calls = run_on_disk(lambda _: None)
+        assert_that((found.code, calls), equal_to((0, COMMANDS)))
 
 
 class TestNoxSessions(unittest.TestCase):
