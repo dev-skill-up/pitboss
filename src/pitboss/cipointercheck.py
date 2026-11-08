@@ -24,19 +24,36 @@ Read = Callable[[str], str | None]
 WILDCARD = re.compile(r"[*?\[]")
 
 
-def _near(name: str, names: Sequence[str]) -> str:
-    close = difflib.get_close_matches(name, sorted(names), n=3, cutoff=0.5)
+def _near(wanted: str, known: Sequence[str]) -> str:
+    close = difflib.get_close_matches(wanted, sorted(known), n=3, cutoff=0.5)
     return f" (similar: {', '.join(f'`{each}`' for each in close)})" if close else ""
 
 
 def _missing(
-    point: cipointer.Pointer, kind: str, names: Sequence[str], known: AbstractSet[str]
+    point: cipointer.Pointer, kind: str, given: Sequence[str], known: AbstractSet[str]
 ) -> Sequence[str]:
     return [
         f"{CHECK}: Plan line {point.line} gives the {kind} `{each}`, which is no"
         f" {kind} of `{point.workflow}`{_near(each, sorted(known))}"
-        for each in names
+        for each in given
         if each not in known
+    ]
+
+
+def _workflow_findings(
+    point: cipointer.Pointer, base: Read, head: Read
+) -> Sequence[str]:
+    text = head(point.workflow)
+    text = base(point.workflow) if text is None else text
+    if text is None:
+        return [
+            f"{CHECK}: Plan line {point.line} names the workflow"
+            f" `{point.workflow}`, which exists at neither the base nor the head"
+        ]
+    parsed = ciworkflow.read(text)
+    return [
+        *_missing(point, "job", point.jobs, parsed.jobs),
+        *_missing(point, "step", point.steps, parsed.steps),
     ]
 
 
@@ -55,20 +72,9 @@ def pointer_findings(
         for each job or step the head's file (the base's when the head has none)
         has no name for, exactly as written.
     """
-    found: list[str] = []
-    for each in pointers:
-        text = head(each.workflow)
-        text = base(each.workflow) if text is None else text
-        if text is None:
-            found.append(
-                f"{CHECK}: Plan line {each.line} names the workflow"
-                f" `{each.workflow}`, which exists at neither the base nor the head"
-            )
-            continue
-        read = ciworkflow.read(text)
-        found += _missing(each, "job", each.jobs, read.jobs)
-        found += _missing(each, "step", each.steps, read.steps)
-    return found
+    return [
+        each for point in pointers for each in _workflow_findings(point, base, head)
+    ]
 
 
 def _segments_match(path: str, pattern: str) -> bool:
@@ -153,23 +159,33 @@ def spec_findings(
     found: list[str] = []
     for path in sorted(added):
         pattern = pattern_of(path, settings)
-        if pattern is None:
-            continue
-        name = posixpath.basename(path)
-        if not any(path in each or name in each for each in greppable):
-            found.append(
-                f"{CHECK}: the diff adds the spec `{path}`, which no CI pointer's"
-                f" greppable string names (workflow, job, step and greppable"
-                f" `{name}`)"
-            )
-        relative = _under_directory(path, pattern)
-        texts = [head(each) for each in settings.groups]
-        if settings.groups and not any(
-            text is not None and lists(text, path, relative) for text in texts
-        ):
-            found.append(
-                f"{CHECK}: the diff adds the spec `{path}`, which no group list"
-                f" file ({', '.join(f'`{each}`' for each in settings.groups)})"
-                f" names at the head, so no CI job runs it"
-            )
+        if pattern is not None:
+            found += _unnamed(path, greppable)
+            found += _ungrouped(path, _under_directory(path, pattern), settings, head)
     return found
+
+
+def _unnamed(path: str, greppable: Sequence[str]) -> Sequence[str]:
+    name = posixpath.basename(path)
+    if any(path in each or name in each for each in greppable):
+        return []
+    return [
+        f"{CHECK}: the diff adds the spec `{path}`, which no CI pointer's"
+        f" greppable string names (workflow, job, step and greppable `{name}`)"
+    ]
+
+
+def _ungrouped(
+    path: str, relative: str, settings: plancheckconfig.PlanCheck, head: Read
+) -> Sequence[str]:
+    texts = [head(each) for each in settings.groups]
+    listed = [
+        text for text in texts if text is not None and lists(text, path, relative)
+    ]
+    if listed or not settings.groups:
+        return []
+    return [
+        f"{CHECK}: the diff adds the spec `{path}`, which no group list"
+        f" file ({', '.join(f'`{each}`' for each in settings.groups)})"
+        f" names at the head, so no CI job runs it"
+    ]

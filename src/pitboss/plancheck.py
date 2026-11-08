@@ -184,28 +184,28 @@ def ci_findings(
     ]
 
 
-def verdict(
-    refused: Sequence[int], found: Sequence[str] = (), ci: Sequence[str] = ()
-) -> str:
+def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     """The last line of the report.
 
     Args:
         refused: the numbers of the rows that did not run.
-        found: the findings of the Impact list.
-        ci: the findings of the CI pointers.
+        found: the findings, a line each: those of the Impact list, and those of
+            the CI pointers, which start ``ci-pointer:``.
 
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
         that did not run, the number of Impact findings and the number of CI
         pointer findings.
     """
-    if not refused and not found and not ci:
+    if not refused and not found:
         return steps.PLAN_CHECK_OK
+    pointer = [each for each in found if each.startswith(f"{cipointercheck.CHECK}:")]
     named = ", ".join(str(each) for each in refused)
+    impact = len(found) - len(pointer)
     parts = [
         *([f"rows that did not run: {named}"] if refused else []),
-        *([f"Impact findings: {len(found)}"] if found else []),
-        *([f"CI pointer findings: {len(ci)}"] if ci else []),
+        *([f"Impact findings: {impact}"] if impact else []),
+        *([f"CI pointer findings: {len(pointer)}"] if pointer else []),
     ]
     return f"Plan check: refused, {'; '.join(parts)}"
 
@@ -215,7 +215,6 @@ def text(
     rows: Sequence[str],
     refused: Sequence[int],
     found: Sequence[str] = (),
-    ci: Sequence[str] = (),
 ) -> str:
     """The whole output, which is posted as a comment on the PR.
 
@@ -223,8 +222,8 @@ def text(
         section: the Plan section the rows were run from.
         rows: the report's rows.
         refused: the numbers of the rows that did not run.
-        found: the findings of the Impact list, a line each.
-        ci: the findings of the CI pointers, a line each.
+        found: the findings of the Impact list and of the CI pointers, a line
+            each.
 
     Returns:
         The first line, the rows, the findings, the Plan digest and the verdict.
@@ -234,9 +233,8 @@ def text(
             steps.PLAN_CHECK_FIRST_LINE,
             *rows,
             *found,
-            *ci,
             f"{bodydigest.PLAN_PREFIX}{bodydigest.of_section(section)}",
-            verdict(refused, found, ci),
+            verdict(refused, found),
             "",
         ]
     )

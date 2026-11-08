@@ -92,19 +92,21 @@ def _job(chunk: Sequence[str]) -> tuple[Sequence[str], Sequence[str]]:
     key = KEY.match(chunk[0].strip())
     body = chunk[1:]
     direct = _direct(body)
-    named = [_name_of(text) for _, text in direct]
-    steps = [
+    labels = [_name_of(text) for _, text in direct]
+    lists = [
         _step_names(_list_under(body, n)) for n, text in direct if text == "steps:"
     ]
-    names = [*([key["key"]] if key else []), *(each for each in named if each)]
-    return names, [name for each in steps for name in each]
+    ids = [key["key"]] if key else []
+    return [*ids, *(each for each in labels if each)], [
+        each for item in lists for each in item
+    ]
 
 
 def _chunks(lines: Sequence[str]) -> Sequence[Sequence[str]]:
-    start = next((n for n, each in enumerate(lines) if each.rstrip() == "jobs:"), None)
-    under = [] if start is None else _under(lines, start)
-    starts = [n for n, _ in _direct(under)]
-    return [under[a:b] for a, b in zip(starts, [*starts[1:], len(under)])]
+    begin = next((n for n, each in enumerate(lines) if each.rstrip() == "jobs:"), None)
+    under = [] if begin is None else _under(lines, begin)
+    firsts = [n for n, _ in _direct(under)]
+    return [under[a:b] for a, b in zip(firsts, [*firsts[1:], len(under)])]
 
 
 def read(text: str) -> Workflow:
@@ -122,8 +124,8 @@ def read(text: str) -> Workflow:
         for each in text.splitlines()
         if each.strip() and not each.lstrip().startswith("#")
     ]
-    read_jobs = [_job(each) for each in _chunks(lines)]
+    parsed = [_job(each) for each in _chunks(lines)]
     return Workflow(
-        jobs=frozenset(name for names, _ in read_jobs for name in names),
-        steps=frozenset(name for _, steps in read_jobs for name in steps),
+        jobs=frozenset(each for found, _ in parsed for each in found),
+        steps=frozenset(each for _, found in parsed for each in found),
     )

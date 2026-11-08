@@ -146,9 +146,9 @@ def accepts(
         field: ``job``, ``step`` or ``grep``.
         values: what the pointer gives there.
     """
-    for value in values:
-        with case.subTest(value):
-            verdict(repo, pointer(**{field: value}))
+    for given in values:
+        with case.subTest(given):
+            verdict(repo, pointer(**{field: given}))
 
 
 class TestPointerAgainstTheTree(unittest.TestCase):
@@ -263,10 +263,10 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
 
     def test_a_configuration_that_is_not_there_is_a_usage_error(self) -> None:
         """The path is named."""
-        gone = "/nonexistent/project.toml"
+        path = "/nonexistent/project.toml"
         body = write_text("body.txt", "## Plan\n1. x\n")
-        done = world.invoke(real_world(), "plan-check", body, "--config", gone)
-        assert_that([done.code, gone in done.err], equal_to([2, True]))
+        done = world.invoke(real_world(), "plan-check", body, "--config", path)
+        assert_that([done.code, path in done.err], equal_to([2, True]))
 
 
 class TestNames(unittest.TestCase):

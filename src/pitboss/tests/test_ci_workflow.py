@@ -48,11 +48,10 @@ jobs:
 class TestWorkflow(unittest.TestCase):
     """The jobs and steps a file names, as written."""
 
-    def test_the_jobs_are_keys_and_names_and_the_steps_are_the_list_items(self) -> None:
-        """A matrix job's name is its pattern; a name elsewhere is no step."""
-        found = ciworkflow.read(QUIRE)
+    def test_the_jobs_are_keys_and_names(self) -> None:
+        """A matrix job's name is its pattern."""
         assert_that(
-            sorted(found.jobs),
+            sorted(ciworkflow.read(QUIRE).jobs),
             equal_to(
                 [
                     "e2e",
@@ -63,8 +62,11 @@ class TestWorkflow(unittest.TestCase):
                 ]
             ),
         )
+
+    def test_the_steps_are_the_list_items_of_steps(self) -> None:
+        """A name in a string, a matrix or a nested list is no step."""
         assert_that(
-            sorted(found.steps),
+            sorted(ciworkflow.read(QUIRE).steps),
             equal_to(
                 [
                     "Every test in exactly one group",

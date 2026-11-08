@@ -6,7 +6,9 @@ runs with ``sh -c`` in a scratch worktree of the PR's base (a row that runs nox
 is not run but refused, pitboss#251), with the permissions of whoever
 runs ``pitboss plan-check``, so the body is the worker's own and is never read
 from somewhere else (it is the file the caller saved, as ``expand`` reads its
-template).
+template). The Plan's CI pointers are held to the workflow files of the base and
+the head, and a spec the diff adds to the pointers and the group files of
+``[plan_check]`` (keyword: ci-pointer, pitboss#335).
 """
 
 import argparse
@@ -141,6 +143,21 @@ HEAD_OPTION = add_argument(
 )
 
 
+CONFIG_OPTION = add_argument(
+    "--config",
+    default=None,
+    help="the project's configuration: a path, or a name in"
+    " .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else the search, else"
+    " the copy fetched by the repository's name). Its table [plan_check] has"
+    " `specs`, patterns of the paths of a spec (e2e/*.spec.js), and `groups`, the"
+    " files that list the specs a CI job runs (tests/groups.json): a spec the diff"
+    " adds must be named by a CI pointer's greppable string (a row with a"
+    " `workflow` file and, after `job`, `step` or `greppable`, backticked names)"
+    " and by a group file; every pointer's workflow file, job and step must exist"
+    " as written. With no table, no spec is checked",
+)
+
+
 def _plan_of(name: str, body: str) -> str:
     section = plandigest.section(body)
     if not section:
@@ -170,19 +187,7 @@ def _plan_of(name: str, body: str) -> str:
         " origin/main)",
     ),
     HEAD_OPTION,
-    add_argument(
-        "--config",
-        default=None,
-        help="the project's configuration: a path, or a name in"
-        " .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else the search,"
-        " else the copy fetched by the repository's name). Its table [plan_check]"
-        " has `specs`, patterns of the paths of a spec (e2e/*.spec.js), and"
-        " `groups`, the files that list the specs a CI job runs (tests/groups.json):"
-        " a spec the diff adds must be named by a CI pointer's greppable string"
-        " (a row with `workflow`, `job`, `step` or `greppable` and backticked"
-        " names) and by a group file; every pointer's workflow file, job and step"
-        " must exist as written. With no table, no spec is checked",
-    ),
+    CONFIG_OPTION,
     add_argument(
         "--timeout",
         type=int,
@@ -201,31 +206,11 @@ def plan_check(args: argparse.Namespace) -> None:
     edited``) and for one citing a ``file:line`` that is no hit there (keyword:
     impact-list, pitboss#320).
 
-    A CI pointer is a row of the Plan with a backticked workflow file (``*.yml``,
-    bare or under ``.github/workflows/``) and, after the words ``job``, ``step``
-    or ``greppable``, backticked names, in a list joined by commas, ``and`` or
-    ``the``::
-
-        1. workflow `check.yml`, job `e2e (${{ matrix.group }})`,
-           step `Run e2e tests`, greppable `smoke.spec.js`
-
-    The Plan is refused for a pointer
-    whose workflow file is at neither the base nor the head, for a job (its key
-    or its ``name:``) or a step (its ``name:``) the file does not have exactly as
-    written (a matrix job's name is the pattern the file writes), and, when the
-    configuration has a table ``[plan_check]``, for a path the diff adds that
-    matches a pattern of ``specs`` (such as ``e2e/*.spec.js``; ``*``, ``?`` and
-    ``[...]`` stand for part of one component) and is named by no pointer's
-    greppable string (its path or its file name), or by none of the files of
-    ``groups`` (such as ``tests/groups.json``: a JSON string that is its path or
-    its path under the pattern's directory, else the name standing in the text),
-    so a spec that no CI job runs cannot be approved (keyword: ci-pointer,
-    pitboss#335).
-
     Prints a row for each command (its exit status and duration, or that it did
-    not run), a line for each Impact and CI pointer finding, the Plan digest and
-    the last line, ``Plan check: ok`` or ``Plan check: refused`` naming the rows
-    that did not run and the numbers of findings. The output is posted as a
+    not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
+    pointer or spec the tree does not bear out), the Plan digest and the last
+    line, ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did
+    not run and the numbers of findings. The output is posted as a
     comment on the PR (keyword: plan-check, pitboss#192); ``pitboss next``
     offers a Plan review that has commands only after a comment that says
     ``Plan check: ok`` for this Plan.
@@ -300,11 +285,12 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
         runner = functools.partial(run_in, args, tree, args.timeout)
         search = _searching(head)
         rows, refused = plancheck.report(section, runner, search)
-        found = plancheck.impact_findings(section, search)
         files = (_reading(tree), _reading(head))
-        ci = plancheck.ci_findings(section, added, settings, files)
-        output = plancheck.text(section, rows, refused, found, ci)
-        return output, bool(refused or found or ci)
+        found = [
+            *plancheck.impact_findings(section, search),
+            *plancheck.ci_findings(section, added, settings, files),
+        ]
+        return plancheck.text(section, rows, refused, found), bool(refused or found)
 
 
 def _searching(tree: pathlib.Path) -> plancheck.Search:
