@@ -53,14 +53,38 @@ class TestFiles(unittest.TestCase):
         assert_that(pw.swept(here), contains_string(want))
 
 
+class TestDefaultCommand(unittest.TestCase):
+    """No pins_check_command: `bats pins-check` is run (pitboss#350)."""
+
+    def test_the_head_is_run_through_bats_pins_check(self) -> None:
+        """An empty command is the default; the sweep offers no review on OK."""
+        here = pw.with_bats(pw.relock(""))
+        out = pw.swept(here)
+        words = ["env", "-C", str(here.clone), "bats", "pins-check", "origin/main"]
+        (ran,) = pw.ran_commands(here)
+        assert_that(ran, equal_to([*words, pw.HEAD]))
+        assert_that(out, contains_string(OK_LINE))
+        assert_that(pw.offered(here), equal_to(""))
+
+    def test_a_missing_bats_is_said_and_the_pr_is_reviewed(self) -> None:
+        """The default command that cannot run is a PINS-ONLY line, never silence."""
+        here = pw.without_bats()
+        out = pw.swept(here)
+        assert_that(out, contains_string("pins-check did not print OK (env: "))
+        assert_that(pw.offered(here), contains_string("(review it"))
+
+
 class TestConfig(unittest.TestCase):
     """``[relock] pins_check_command`` and ``pin_files``."""
 
-    def test_the_defaults_are_no_command_and_the_bats_files(self) -> None:
-        """Empty means none."""
+    def test_the_defaults_are_bats_pins_check_and_the_bats_files(self) -> None:
+        """No key, or an empty one, is `bats pins-check {base} {head}`."""
         found = fakes.settings(fakes.directory()).lint.pins
         assert_that(found, equal_to(config.Pins()))
         assert_that(found.files, equal_to(config.DEFAULT_PIN_FILES))
+        assert_that(found.command, equal_to("bats pins-check {base} {head}"))
+        empty = fakes.settings(fakes.directory(), pw.relock_table("")).lint.pins
+        assert_that(empty.command, equal_to(found.command))
 
     def test_the_command_and_files_are_read(self) -> None:
         """Both keys of ``[relock]``."""

@@ -88,7 +88,7 @@ def verify(
 
     Args:
         run: the runner.
-        settings: the configuration; its pins command must not be empty.
+        settings: the configuration.
         repo: the PR's repository.
         pull: the PR.
 
@@ -158,13 +158,11 @@ def asker(github: ghapi.GitHub, settings: config.Config) -> pinsask.Ask:
         settings: the configuration.
 
     Returns:
-        A function from a PR to its reading: NOTHING without a configured
-        command and for a PR that is not pins-only.
+        A function from a PR to its reading: NOTHING for a PR that is not
+        pins-only.
     """
 
     def ask(repo: config.Repo, pull: shapes.Pull) -> pinsreading.Reading:
-        if not settings.lint.pins.command:
-            return pinsreading.NOTHING
         if not pins_only(github, settings, repo, pull):
             return pinsreading.NOTHING
         return verify(github.run, settings, repo, pull)

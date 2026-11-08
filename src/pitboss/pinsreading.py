@@ -18,8 +18,8 @@ class Status(enum.Enum):
     """What the pins-check says about a PR.
 
     Attributes:
-        NOT_PINS_ONLY: the PR is not pins-only, or no command is configured, or
-            it is not at a review: nothing was asked.
+        NOT_PINS_ONLY: the PR is not pins-only, or it is not at a review:
+            nothing was asked.
         OK: the command printed ``OK``.
         NOT_OK: the PR is pins-only and the command did not print ``OK``, or
             could not be run.

@@ -48,14 +48,13 @@ class TestRelock(unittest.TestCase):
         assert_that(ran_commands(here)[0][2], equal_to(clone))
 
     def test_anything_but_ok_is_reviewed_as_before(self) -> None:
-        """No OK last line, a failure, no command or no head: the review stays."""
+        """No OK last line, a failure or no head: the review stays."""
         missing = relock(OK_COMMAND)
         gone = ["update-ref", "-d", "refs/pull/3/head"]
         fakes.run_git(world.origin_of(missing.clone), *gone)
         cases = {
             "failure": (relock("sh -c 'echo NOT-OK; exit 1'"), "NOT-OK"),
             "exit zero": (relock("echo NOT OK: x: behind"), "NOT OK: x: behind"),
-            "no command": (relock(""), ""),
             "no fetch": (missing, "PINS-ONLY"),
         }
         for name, (here, said) in cases.items():

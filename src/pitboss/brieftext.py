@@ -371,8 +371,8 @@ RELOCK_CHECKS = (
     " `bats.toml` and the committed pins (the build fetches exactly the locked"
     " versions); (4) every required check finished and passed at that head; (5)"
     " the last `Head:` line of the body, when it has one, is the full SHA of the"
-    " head. When the project configures `[relock] pins_check_command`, run it on the"
-    " head and paste its output as your evidence: this relock is reviewed only"
+    " head. Run the project's pins-check command (`[relock] pins_check_command`) on"
+    " the head and paste its output as your evidence: this relock is reviewed only"
     ' because the command did not print `OK` (`rules.md`, "A pins-only pull'
     ' request is verified by the pins-check command").'
 )

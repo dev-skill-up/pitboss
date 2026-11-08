@@ -1217,8 +1217,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   pins-only when its head branch has the `[relock] prefix` (default `relock/`)
   or every path it changes is in `[relock] pin_files`. The project's command is
   `[relock] pins_check_command` (for bats projects `bats pins-check {base}
-  {head} --compiler <dir> --repository <dir>`; empty means none, and every such
-  PR is reviewed). When CI is green and the command's last output line is the word OK
+  {head} --compiler <dir> --repository <dir>`
+  ). When CI is green and the command's last output line is the word OK
   or starts `OK:`, the sweep prints `PINS-ONLY OK`, then `READY TO MERGE` (or
   `MERGE BY HAND`), and offers no review: the orchestrator merges it. Any
   other output (`NOT OK: ...`, a command that cannot run, a mixed PR, a PR with
