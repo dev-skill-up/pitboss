@@ -8,12 +8,14 @@ approved Plan's command. ``plan-command`` is the finding for each ``$ `` command
 of the Plan section with no command in an Evidence block ``pitboss expand``
 produced that is the same string, or the same string with a cut or a pipe after
 it.
+The Plan's numbered rows each have a command, an exact read or a CI pointer
+(keyword: plan-pointer, pitboss#317).
 """
 
 import re
 from typing import Sequence
 
-from . import expansion, noxrow, plandigest, planrow
+from . import bodydigest, expansion, noxrow, plandigest, planrow, planrows
 
 # the Plan section as plandigest.section reads it
 PLAN_HEADING = re.compile(r"^## Plan\s*$")
@@ -76,4 +78,26 @@ def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str
     ] + [
         *noxrow.findings(name, planned(body)),  # keyword: plan-nox
         *planrow.findings(name, body, approved),  # keyword: plan-row (pitboss#259)
+        *pointer_findings(name, body, approved),
+    ]
+
+
+def pointer_findings(name: str, body: str, approved: Sequence[str]) -> Sequence[str]:
+    """The findings for the numbered Plan rows with no command, read or CI pointer.
+
+    Args:
+        name: what to call the body in a finding.
+        body: the PR's body.
+        approved: the digests of the Plans that reviews approved, which are not
+            judged (keyword: plan-approved, pitboss#296).
+
+    Returns:
+        One finding for each such row (keyword: plan-pointer, pitboss#317).
+    """
+    section = plandigest.section(body)
+    if bodydigest.of_section(section) in approved:
+        return []
+    return [
+        f"{name}: {each.removeprefix(planrows.CHECK + ': ')} ({planrows.CHECK})"
+        for each in planrows.findings(section)
     ]

@@ -17,6 +17,7 @@ from . import (
     reviewline,
     roundline,
     stall,
+    supersededline,
     updateline,
     work,
 )
@@ -36,7 +37,8 @@ def lines(
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
     PLAN EDITED.
     The review-form lines are PLAN ROW (a refusal of the body), UNREADABLE REVIEW,
-    REVIEW NOTE, RULING NO ANALYSIS and GATE PENDING.
+    REVIEW NOTE, RULING NO ANALYSIS and GATE PENDING; SUPERSEDED POINTER follows PLAN
+    ROW (keyword: superseded-pointer, pitboss#317).
 
     Args:
         pull: the PR.
@@ -68,6 +70,7 @@ def _branch_lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[st
 def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:
     return (
         *planrowline.lines(pull),
+        *supersededline.lines(pull),
         *reviewline.lines(pull),
         *notesline.lines(pull),
         *analysisline.lines(pull),

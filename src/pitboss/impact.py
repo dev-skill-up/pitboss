@@ -87,6 +87,30 @@ def expression(phrase: str) -> re.Pattern[str]:
     return re.compile(BREAK.join(re.escape(each) for each in words), re.IGNORECASE)
 
 
+def underscore_forms(root: pathlib.Path, phrases: Sequence[str]) -> Sequence[str]:
+    """The phrases with a space whose words the tree joins with underscores.
+
+    A phrase of several words never matches ``come_first``, the name a test or a
+    function has, so a Plan row searching ``come first`` finds none of the
+    statements that use the name (pitboss#317).
+
+    Args:
+        root: the checkout.
+        phrases: the phrases.
+
+    Returns:
+        The underscore form (``come_first``) of each phrase of two words or more
+        that some file of the tree has, in any case, in the order of the phrases.
+    """
+    forms = {each: "_".join(each.split()) for each in phrases if len(each.split()) > 1}
+    lows = {each.lower() for each in forms.values()}
+    seen: set[str] = set()
+    for path in _files(root):
+        text = _read(path).lower()
+        seen.update(each for each in lows if each in text)
+    return [each for each in forms.values() if each.lower() in seen]
+
+
 def _files(root: pathlib.Path) -> Iterator[pathlib.Path]:
     for here, names, files in os.walk(root):
         top = pathlib.Path(here) == root

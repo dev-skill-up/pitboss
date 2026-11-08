@@ -3,13 +3,14 @@
 A Plan or an Execution that cites ``test_...`` a head does not have was
 written before the tests were (pitboss#189); ``test-name`` is the finding for
 each such identifier. A name counts as there when the tree has a
-``def <name>`` or a module ``<name>.py``.
+``def <name>`` or a module ``<name>.py``, or when a line of the Execution names it
+with another test the tree has (a ruling replaced the test: superseded-pointer).
 """
 
 import os
 import pathlib
 import re
-from typing import Collection, Iterator, Sequence
+from typing import Collection, Iterator, Mapping, Sequence
 
 _CITED = re.compile(r"(?<![A-Za-z0-9_])test_[A-Za-z0-9_]+(?![A-Za-z0-9_])")
 _DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
@@ -19,13 +20,15 @@ _FENCED = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 SECTIONS = ("plan", "execution")
+EXECUTION = "execution"
 # what a checkout holds that is not the head's: build output and installed packages
 NOT_THE_HEADS = frozenset({"build", "dist", "node_modules", "site-packages"})
 
 
-def _sections(body: str) -> Iterator[str]:
+def _titled(body: str) -> Iterator[tuple[str, str]]:
     # the text under each Plan or Execution heading, up to the next heading of
-    # the same or a higher level; a line inside a fenced block is no heading
+    # the same or a higher level, with the heading's name in lower case; a line
+    # inside a fenced block is no heading
     fences = [each.span() for each in _FENCED.finditer(body)]
     headings = [
         each
@@ -40,7 +43,11 @@ def _sections(body: str) -> Iterator[str]:
             if len(later.group(1)) <= len(title.group(1)):
                 end = later.start()
                 break
-        yield body[title.end() : end]
+        yield title.group(2).lower(), body[title.end() : end]
+
+
+def _sections(body: str) -> Iterator[str]:
+    return (text for _, text in _titled(body))
 
 
 def cited(body: str) -> Sequence[str]:
@@ -54,6 +61,34 @@ def cited(body: str) -> Sequence[str]:
     """
     found = [name for text in _sections(body) for name in _CITED.findall(text)]
     return list(dict.fromkeys(found))
+
+
+def superseding(body: str) -> Mapping[str, str]:
+    """The tests a line of the Execution says another test replaced.
+
+    An Opus ruling that replaces a test the approved Plan names does not edit the
+    Plan: the Execution has a line that names both (keyword: superseded-pointer,
+    pitboss#317).
+
+    Args:
+        body: the PR's body.
+
+    Returns:
+        For each cited ``test_...`` name, the other name the first Execution
+        line that holds it also holds.
+    """
+    lines = [
+        each
+        for title, text in _titled(body)
+        if title == EXECUTION
+        for each in text.splitlines()
+    ]
+    found: dict[str, str] = {}
+    for line in lines:
+        names = list(dict.fromkeys(_CITED.findall(line)))
+        for old in names:
+            found.setdefault(old, next((each for each in names if each != old), ""))
+    return {old: new for old, new in found.items() if new}
 
 
 def _python_files(root: pathlib.Path) -> Iterator[pathlib.Path]:
@@ -95,9 +130,12 @@ def findings(name: str, body: str, root: pathlib.Path) -> Sequence[str]:
     """
     wanted = cited(body)
     there = defined(root) if wanted else ()
+    # keyword: superseded-pointer (pitboss#317): a test the Execution says another
+    # replaced, which the head has, is no finding
+    replaced = {old for old, new in superseding(body).items() if new in there}
     return [
         f"{name}: the Plan or Execution cites {each}, which the head has no"
         f" `def {each}` for: cite a test the head has (test-name)"
         for each in wanted
-        if each not in there
+        if each not in there and each not in replaced
     ]

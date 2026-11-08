@@ -10,6 +10,8 @@ template). The Plan's CI pointers are held to the workflow files of the base and
 the head, and a spec the diff adds to the pointers and the group files of
 ``[plan_check]`` (keyword: ci-pointer, pitboss#335). The diff is held to the rule
 that it adds no line to a .md or .rst file (keyword: markup-lines, pitboss#343).
+With ``--repository`` (or the checkout's ``origin``) it also reads, never waiting,
+the run of a CI pointer and the ticket's Done-when from GitHub (pitboss#317).
 """
 
 import argparse
@@ -27,15 +29,18 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     cipointercheck,
+    cirun,
     configfile,
     configsettle,
     expansion,
     forms,
+    ghapi,
     impact,
     markuplines,
     plancheck,
     plancheckconfig,
     plandigest,
+    plantickets,
 )
 
 USAGE_ERROR = 2
@@ -191,6 +196,12 @@ def _plan_of(name: str, body: str) -> str:
     HEAD_OPTION,
     CONFIG_OPTION,
     add_argument(
+        "--repository",
+        default="",
+        help="the PR's repository as OWNER/NAME, which owns a bare `Fixes #N`"
+        " (default: the checkout's `origin`)",
+    ),
+    add_argument(
         "--timeout",
         type=int,
         default=plancheck.TIMEOUT,
@@ -235,7 +246,7 @@ def plan_check(args: argparse.Namespace) -> None:
 def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
     body = args.file.read()
     section = _plan_of(args.file.name, body)
-    return _checked(args, section, _head_of(args, body))
+    return _checked(args, body, section, _head_of(args, body))
 
 
 def _head_of(args: argparse.Namespace, body: str) -> str:
@@ -261,9 +272,9 @@ def _unreadable(name: str) -> Iterator[None]:
         raise _fail(f"{name}: {error}") from error
 
 
-def _added(args: argparse.Namespace, ref: str) -> Sequence[str]:
-    # the paths the PR adds: the head against its merge base with the base
-    words = ["diff", "--name-only", "-z", "--diff-filter=A", f"{args.base}...{ref}"]
+def _names(args: argparse.Namespace, ref: str, *flags: str) -> Sequence[str]:
+    # the paths of the head against its merge base with the base
+    words = ["diff", "--name-only", "-z", *flags, f"{args.base}...{ref}"]
     return [each for each in _git(args, *words).split("\0") if each]
 
 
@@ -283,13 +294,37 @@ def _reading(tree: pathlib.Path) -> cipointercheck.Read:
     return read
 
 
-def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
+def _repository(args: argparse.Namespace) -> str:
+    # the repository that owns a bare `Fixes #N`: the option, else `origin`
+    if args.repository:
+        return str(args.repository)
+    try:
+        return plantickets.slug_of(_git(args, "remote", "get-url", "origin"))
+    except SystemExit:
+        return ""
+
+
+def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list[str]:
+    # keywords: ci-run, plan-done-when (pitboss#317): GitHub's word on the run and
+    # the ticket
+    github = ghapi.read_only(args.safe_run)
+    named = forms.FIXES.search(body)
+    ticket = named.group(1) if named else ""
+    return [
+        *cirun.findings(section, ref, plantickets.run_head(github)),
+        *plantickets.done_when(github, ticket, _repository(args), section),
+    ]
+
+
+def _checked(
+    args: argparse.Namespace, body: str, section: str, ref: str
+) -> tuple[str, bool]:
     settings = _settings(args)
     with (
         scratch_worktree(args, args.base) as tree,
         scratch_worktree(args, ref) as head,
     ):
-        added = _added(args, ref)
+        added = _names(args, ref, "--diff-filter=A")
         runner = functools.partial(run_in, args, tree, args.timeout)
         search = _searching(head)
         rows, refused = plancheck.report(section, runner, search)
@@ -298,8 +333,11 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
         patch = _diff(args, ref, "-U0", "--no-color")
         found = [
             *plancheck.impact_findings(section, search),
+            *plancheck.diff_findings(section, patch, files[0]),
             *plancheck.ci_findings(section, added, settings, files),
             *markuplines.findings(stat, patch),
+            *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
+            *_remote(args, body, section, ref),
         ]
         noted = [*rows, *markuplines.notes(stat, patch)]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
