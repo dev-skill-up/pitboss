@@ -109,11 +109,8 @@ class TestPlanCheck(unittest.TestCase):
         assert_that((done.code, len(found), rows(done)[-1]), equal_to((1, 3, last)))
 
     def test_the_accepted_forms_pass(self) -> None:
-        """A command, a read and a CI pointer."""
-        plan = (
-            "## Plan\n1. `rg -n x src/`\n2. `src/a.py` shows the `x` line\n"
-            "3. workflow `check.yml`, job `tests`, step `Run Nox`\n"
-        )
+        """A command and a read (the CI pointer's form is in ``CASES``)."""
+        plan = "## Plan\n1. `rg -n x src/`\n2. `src/a.py` shows the `x` line\n"
         done = checked(plan + EXECUTION)
         assert_that([done.code, rows(done)[-1]], equal_to([0, "Plan check: ok"]))
 
