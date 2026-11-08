@@ -68,15 +68,22 @@ class TestFindings(unittest.TestCase):
         """One added line is enough, in either suffix and in any case."""
         stat = "1\t0\ta.md\0" + "2\t9\tb.rst\0" + "1\t0\tC.RST\0"
         found = markuplines.findings(stat)
-        assert_that([each.split(";")[0] for each in found], equal_to([
-            "markup-lines: `a.md` gets 1 added line",
-            "markup-lines: `b.rst` gets 2 added lines",
-            "markup-lines: `C.RST` gets 1 added line",
-        ]))
+        assert_that(
+            [each.split(";")[0] for each in found],
+            equal_to(
+                [
+                    "markup-lines: `a.md` gets 1 added line",
+                    "markup-lines: `b.rst` gets 2 added lines",
+                    "markup-lines: `C.RST` gets 1 added line",
+                ]
+            ),
+        )
 
     def test_other_files_and_binary_files_have_no_finding(self) -> None:
         """Only the suffixes are judged; a binary file has no count."""
-        stat = "9\t0\tsrc/a.py\0" + "9\t0\tmd\0" + "-\t-\tlogo.md\0" + "3\t0\ta.md.txt\0"
+        stat = (
+            "9\t0\tsrc/a.py\0" + "9\t0\tmd\0" + "-\t-\tlogo.md\0" + "3\t0\ta.md.txt\0"
+        )
         assert_that(markuplines.findings(stat), equal_to([]))
 
 
