@@ -10,37 +10,36 @@ removed when the process ends. This module imports nothing of pitboss.
 
 import atexit
 import contextlib
-import dataclasses
+import contextvars
 import functools
 import os
 import pathlib
 import shutil
 import tempfile
 import unittest
-from typing import Callable, Iterable, Iterator, TypeVar
+from typing import (
+    AbstractSet,
+    Callable,
+    Iterable,
+    Iterator,
+    MutableSet,
+    Sequence,
+    TypeVar,
+)
 
 Built = TypeVar("Built")
 
-
-@dataclasses.dataclass(slots=True, kw_only=True)
-class State:
-    """Who owns the directories made now.
-
-    Attributes:
-        test: the test that is running, None between tests.
-        process: whether the directories made now live until the process ends.
-        owned: the names of the directories that live until the process ends.
-    """
-
-    test: unittest.TestCase | None = None
-    process: bool = False
-    owned: set[str] = dataclasses.field(default_factory=set)
+# the test that is running, None between tests
+TEST: contextvars.ContextVar[unittest.TestCase | None] = contextvars.ContextVar(
+    "test", default=None
+)
+# whether the directories made now live until the process ends
+PROCESS: contextvars.ContextVar[bool] = contextvars.ContextVar("process", default=False)
+# the names of the directories that live until the process ends
+OWNED: MutableSet[str] = set()
 
 
-STATE = State()
-
-
-def listing() -> frozenset[str]:
+def listing() -> AbstractSet[str]:
     """The names in the temporary directory the tests make theirs in.
 
     Returns:
@@ -50,7 +49,7 @@ def listing() -> frozenset[str]:
     return frozenset(os.listdir(place) if os.path.isdir(place) else ())
 
 
-def fresh(before: Iterable[str], after: Iterable[str]) -> list[str]:
+def fresh(before: Iterable[str], after: Iterable[str]) -> Sequence[str]:
     """The names that appeared and that nothing owned by the process explains.
 
     Args:
@@ -61,7 +60,7 @@ def fresh(before: Iterable[str], after: Iterable[str]) -> list[str]:
         The names in ``after`` and not in ``before``, nor owned by the process,
         sorted.
     """
-    return sorted(set(after) - set(before) - STATE.owned)
+    return sorted(set(after) - set(before) - OWNED)
 
 
 def begin(test: unittest.TestCase) -> None:
@@ -70,12 +69,12 @@ def begin(test: unittest.TestCase) -> None:
     Args:
         test: the test.
     """
-    STATE.test = test
+    TEST.set(test)
 
 
 def end() -> None:
     """Say that no test is running."""
-    STATE.test = None
+    TEST.set(None)
 
 
 def directory() -> pathlib.Path:
@@ -87,11 +86,12 @@ def directory() -> pathlib.Path:
         neither, it stays.
     """
     path = pathlib.Path(tempfile.mkdtemp())
-    if STATE.process:
-        STATE.owned.add(path.name)
+    running = TEST.get()
+    if PROCESS.get():
+        OWNED.add(path.name)
         atexit.register(shutil.rmtree, path, ignore_errors=True)
-    elif STATE.test is not None:
-        STATE.test.addCleanup(shutil.rmtree, path, ignore_errors=True)
+    elif running is not None:
+        running.addCleanup(shutil.rmtree, path, ignore_errors=True)
     return path
 
 
@@ -102,12 +102,11 @@ def process_wide() -> Iterator[None]:
     Yields:
         Nothing, while the directories made are the process's.
     """
-    before = STATE.process
-    STATE.process = True
+    token = PROCESS.set(True)
     try:
         yield
     finally:
-        STATE.process = before
+        PROCESS.reset(token)
 
 
 def process_directory() -> pathlib.Path:

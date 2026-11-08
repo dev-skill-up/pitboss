@@ -262,16 +262,18 @@ class TestNoxChecksTheDisk(unittest.TestCase):
         _, found, _ = run_on_disk(lambda _: usage_with(4 * GIBIBYTE))
         has_all(found.out, ["4.0 GiB free of 100.0 GiB (96.0% used)"])
 
-    def test_at_five_gibibytes_it_runs_the_four_sessions(self) -> None:
-        """The nearest input: exactly the limit is enough."""
-        _, found, calls = run_on_disk(lambda _: usage_with(5 * GIBIBYTE))
-        assert_that((found.code, calls), equal_to((0, COMMANDS)))
-        has_none(found.out, [CLEAN, "DISK "])
-
-    def test_a_volume_that_cannot_be_read_does_not_stop_it(self) -> None:
-        """No figure, no refusal: the sessions run."""
-        _, found, calls = run_on_disk(lambda _: None)
-        assert_that((found.code, calls), equal_to((0, COMMANDS)))
+    def test_at_five_gibibytes_or_with_no_figure_it_runs_the_four_sessions(
+        self,
+    ) -> None:
+        """Exactly the limit is enough (the nearest input); no figure, no refusal."""
+        readers: Sequence[disk.Reader] = (
+            lambda _: usage_with(5 * GIBIBYTE),
+            lambda _: None,
+        )
+        for usage_of in readers:
+            _, found, calls = run_on_disk(usage_of)
+            assert_that((found.code, calls), equal_to((0, COMMANDS)))
+            has_none(found.out, [CLEAN, "DISK "])
 
 
 class TestNoxSessions(unittest.TestCase):

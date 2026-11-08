@@ -1,6 +1,7 @@
 """The tests session of noxfile.py: a targeted run has no 100% report (pitboss#210)."""
 
 import contextlib
+import dataclasses
 import importlib.util
 import os
 import pathlib
@@ -9,7 +10,7 @@ import sys
 import tempfile
 import types
 import unittest
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -118,19 +119,31 @@ class RunFailed(Exception):
     """The stand-in for a command of the session that exits with a status."""
 
 
-def left_after(
-    root: pathlib.Path, *posargs: str, fails: bool = False
-) -> tuple[Sequence[str], Mapping[str, str]]:
-    """Run the tests session over a ``TMPDIR`` the tests left things in.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Left:
+    """What a run of the tests session left of the things the tests made.
+
+    Attributes:
+        names: what is in ``TMPDIR`` afterwards, sorted.
+        env: the environment the first command got (``COVERAGE_FILE`` and
+            ``TMPDIR``).
+        outside_kept: whether the directory a link in ``TMPDIR`` points at is
+            still there.
+    """
+
+    names: Sequence[str]
+    env: Mapping[str, str]
+    outside_kept: bool
+
+
+def things_left(root: pathlib.Path) -> pathlib.Path:
+    """Make what tests leave in a ``TMPDIR``: a tree, a file and a link.
 
     Args:
         root: a directory to hold the environment.
-        *posargs: the words after ``--``.
-        fails: whether the run of the tests fails.
 
     Returns:
-        What is in ``TMPDIR`` afterwards, sorted, and the ``COVERAGE_FILE`` and
-        ``TMPDIR`` that the first command got.
+        The directory the link points at.
     """
     tmp = pathlib.Path(made_tmp(root))
     (tmp / "world" / "project").mkdir(parents=True)
@@ -139,6 +152,19 @@ def left_after(
     outside = root / "outside"
     outside.mkdir()
     (tmp / "link").symlink_to(outside)
+    return outside
+
+
+def left_after(*posargs: str, fails: bool = False) -> Left:
+    """Run the tests session over a ``TMPDIR`` the tests left things in.
+
+    Args:
+        *posargs: the words after ``--``.
+        fails: whether the run of the tests fails.
+
+    Returns:
+        What was left.
+    """
     given: list[Mapping[str, str]] = []
 
     def run(*command: str, **kwargs: Mapping[str, str]) -> None:
@@ -146,16 +172,34 @@ def left_after(
         if fails and "virtue" in command:
             raise RunFailed()
 
-    session = types.SimpleNamespace(
+    with tempfile.TemporaryDirectory() as top:
+        root = pathlib.Path(top)
+        outside = things_left(root)
+        with contextlib.suppress(RunFailed):
+            noxfile_module().tests(session_in(root, posargs, run))
+        kept = sorted(each.name for each in (root / "tests-3-13" / "tmp").iterdir())
+        return Left(names=kept, env=given[0], outside_kept=outside.is_dir())
+
+
+def session_in(
+    root: pathlib.Path, posargs: Sequence[str], run: Callable[..., None]
+) -> types.SimpleNamespace:
+    """A session whose environment is in a directory and whose commands are ``run``.
+
+    Args:
+        root: the directory.
+        posargs: the words after ``--``.
+        run: what a command line does.
+
+    Returns:
+        The session.
+    """
+    return types.SimpleNamespace(
         posargs=posargs,
-        create_tmp=lambda: str(tmp),
+        create_tmp=lambda: made_tmp(root),
         install=lambda *_: None,
         run=run,
     )
-    with contextlib.suppress(RunFailed):
-        noxfile_module().tests(session)
-    assert_that(outside.is_dir(), equal_to(True))  # a link is removed, not followed
-    return sorted(each.name for each in tmp.iterdir()), given[0]
 
 
 class TestTestsSession(unittest.TestCase):
@@ -206,33 +250,23 @@ class TestTestsSession(unittest.TestCase):
 class TestTestsSessionEmptiesItsTmpdir(unittest.TestCase):
     """Only a green run removes what the tests left in TMPDIR (pitboss#346)."""
 
-    def test_a_green_run_empties_it(self) -> None:
-        """The directories, the file and the link are gone; the directory stays."""
-        with tempfile.TemporaryDirectory() as name:
-            left, _ = left_after(pathlib.Path(name))
-        assert_that(left, equal_to([]))
-
-    def test_a_green_run_of_some_modules_empties_it_too(self) -> None:
-        """A targeted run (`pitboss nox`) leaves as much, and removes it."""
-        with tempfile.TemporaryDirectory() as name:
-            left, _ = left_after(pathlib.Path(name), "-x", "pitboss.tests.test_gates")
-        assert_that(left, equal_to([]))
+    def test_a_green_run_empties_it_whole_or_targeted(self) -> None:
+        """The tree, the file and the link are gone; a link is not followed."""
+        for words in ([], ["-x", "pitboss.tests.test_gates"]):
+            found = left_after(*words)
+            assert_that((found.names, found.outside_kept), equal_to(([], True)))
 
     def test_a_run_that_fails_keeps_it_for_debugging(self) -> None:
         """The nearest input: the tests fail and everything is still there."""
-        with tempfile.TemporaryDirectory() as name:
-            left, _ = left_after(pathlib.Path(name), fails=True)
-        assert_that(left, equal_to(["link", "loose", "world"]))
+        found = left_after(fails=True)
+        assert_that(found.names, equal_to(["link", "loose", "world"]))
 
     def test_the_coverage_data_is_beside_tmpdir_not_in_it(self) -> None:
         """Emptying TMPDIR leaves the data the 100% report reads."""
-        with tempfile.TemporaryDirectory() as name:
-            _, env = left_after(pathlib.Path(name))
-            expected = {
-                "COVERAGE_FILE": str(pathlib.Path(name) / "tests-3-13" / "coverage"),
-                "TMPDIR": str(pathlib.Path(name) / "tests-3-13" / "tmp"),
-            }
-        assert_that(env, equal_to(expected))
+        env = left_after().env
+        tmp, data = env["TMPDIR"], env["COVERAGE_FILE"]
+        beside = os.path.join(os.path.dirname(tmp), "coverage")
+        assert_that((data, data.startswith(tmp + os.sep)), equal_to((beside, False)))
 
 
 FAILING_MODULE = """
