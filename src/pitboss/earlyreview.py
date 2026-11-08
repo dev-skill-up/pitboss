@@ -85,23 +85,13 @@ def unfinished_checks(checks: Sequence[shapes.CheckRun], when: str) -> str:
     """
     if not checks:
         return "no check run of the head existed"
-    open_ones = [
-        each for each in checks if not each.finished or each.completed_at > when
-    ]
-    failed = [each for each in checks if each.failed and each not in open_ones]
-    parts = [
-        *(
-            [f"{len(open_ones)} of {len(checks)} checks of the head had not completed"]
-            if open_ones
-            else []
-        ),
-        *(
-            [f"{len(failed)} of {len(checks)} checks of the head had not passed"]
-            if failed
-            else []
-        ),
-    ]
-    return "; ".join(parts)
+    late = [each for each in checks if not each.finished or each.completed_at > when]
+    red = [each for each in checks if each.failed and each not in late]
+    return "; ".join(
+        f"{len(found)} of {len(checks)} checks of the head {words}"
+        for found, words in ((late, "had not completed"), (red, "had not passed"))
+        if found
+    )
 
 
 def last_completed(checks: Sequence[shapes.CheckRun]) -> str:
@@ -189,6 +179,12 @@ def _timeline(seen: Seen) -> Sequence[shapes.TimelineEvent]:
     return ghapi.pages(seen.github, path, parsing.timeline_events)
 
 
+def _premature(each: reviews.Found, why: str, done: str) -> earlyfound.Premature:
+    return earlyfound.Premature(
+        url=each.url, when=each.when, sha=each.sha, unfinished=why, ci_done=done
+    )
+
+
 def split(
     tools: Tools,
     repo: config.Repo,
@@ -217,11 +213,9 @@ def split(
     events = _timeline(seen)
     said = [(each, *_before(seen, events, each)) for each in written]
     early = [
-        earlyfound.Premature(
-            url=each.url, when=each.when, sha=each.sha, unfinished=why, ci_done=done
-        )
-        for each, why, done in sorted(said, key=lambda triple: triple[0].when)
-        if why
+        _premature(*triple)
+        for triple in sorted(said, key=lambda triple: triple[0].when)
+        if triple[1]
     ]
     gone = {(each.when, each.url) for each in early}
     return [each for each in comments if (each.created_at, each.url) not in gone], early

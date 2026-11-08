@@ -121,10 +121,12 @@ BEHIND_WORDS = (
 
 
 def _behind_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    behind = pull.pull.mergeable_state is shapes.MergeState.BEHIND
-    if behind and (pulls.approved(pull) or _ruled(pull)) and pulls.green(pull):
-        return [f"{Marker.BEHIND.text}: {BEHIND_WORDS}"]
-    return []
+    said = [f"{Marker.BEHIND.text}: {BEHIND_WORDS}"]
+    return said if pulls.behind(pull) and _approved_green(pull) else []
+
+
+def _approved_green(pull: pulls.PullFacts) -> bool:
+    return (pulls.approved(pull) or _ruled(pull)) and pulls.green(pull)
 
 
 def _posting(pull: pulls.PullFacts) -> str:

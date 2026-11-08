@@ -19,9 +19,6 @@ from . import (
     commandarguments,
     deviations,
     expand_commands,
-    ghapi,
-    ghstore,
-    parsing,
     plandigest,
     workeractions,
 )
@@ -130,7 +127,7 @@ def plan_digest(args: argparse.Namespace) -> None:
 
 def _pull(text: str) -> tuple[str, int]:
     found = expand_commands.PULL.match(text)
-    if not found:
+    if found is None:
         raise _fail(f"{text}: not OWNER/NAME#NUMBER")
     return found.group(1), int(found.group(2))
 
@@ -148,21 +145,19 @@ def body_head(args: argparse.Namespace) -> None:
     ``Head:`` line, nothing else changed (``text-lint`` reads the last one). It
     prints the new body's ``Body:`` digest line and the input of ``bats
     merge-proof`` (the head the body named, then the head now). A dry run
-    unless ``--no-dry-run``; a body with no ``Head: <40 hex>`` line exits with
-    status 2, and a body whose last ``Head:`` line is the head is not changed.
+    unless ``--no-dry-run``; a body whose last ``Head:`` line is the head is
+    not changed.
 
     Args:
         args: the parsed arguments.
+
+    Raises:
+        SystemExit: 2 for a body with no ``Head: <40 hex>`` line.
     """
     slug, number = _pull(args.pull)
-    github = ghapi.GitHub(mutate=args.run, run=args.safe_run)
     path = f"repos/{slug}/pulls/{number}"
-    pull = parsing.pull(ghapi.get(github, path))
-    old = bodyhead.last_head(pull.body)
-    if not old:
+    done = bodyhead.move(args.safe_run, args.run, path)
+    if done is None:
         raise _fail(f"{args.pull}: the body has no line `Head: <40 hex>`")
-    new = bodyhead.with_head(pull.body, pull.head.sha)
-    if new != pull.body:
-        ghstore.set_body(github, path, new)
-    print(f"{bodydigest.PREFIX}{bodydigest.digest(new)}")
-    print(f"bats merge-proof {old} {pull.head.sha}")
+    print(f"{bodydigest.PREFIX}{done.digest}")
+    print(f"bats merge-proof {done.old} {done.new}")

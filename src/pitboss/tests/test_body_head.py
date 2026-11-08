@@ -40,7 +40,7 @@ def patches(here: world.World) -> Sequence[Sequence[str]]:
     Returns:
         The command lines.
     """
-    return [each for each in here.calls if "PATCH" in each]
+    return [call for call in here.calls if call[2:4] == ["-X", "PATCH"]]
 
 
 def run(here: world.World, *more: str) -> world.Result:
@@ -106,30 +106,27 @@ class TestTheCommand(unittest.TestCase):
         """The body sent is the old one with the new line; nothing else."""
         here = served(BODY)
         done = run(here, "--no-dry-run")
-        sent = patches(here)
-        assert_that([each[-3] for each in sent], equal_to([f"body={WANTED}"]))
+        sent = [call[-2] for call in patches(here)]
         digest = f"{bodydigest.PREFIX}{bodydigest.digest(WANTED)}"
-        assert_that(done.out, equal_to(f"{digest}\nbats merge-proof {OLD} {NEW}\n"))
-        assert_that(done.code, equal_to(0))
+        wanted = f"{digest}\nbats merge-proof {OLD} {NEW}\n"
+        assert_that(
+            [sent, done.out, done.code], equal_to([[f"body={WANTED}"], wanted, 0])
+        )
 
-    def test_a_dry_run_changes_nothing_but_prints_the_same(self) -> None:
-        """The default."""
-        here = served(BODY)
-        done = run(here)
-        assert_that(patches(here), equal_to([]))
-        assert_that(done.out.splitlines()[1], equal_to(f"bats merge-proof {OLD} {NEW}"))
-
-    def test_a_body_that_names_the_head_is_left_alone(self) -> None:
-        """No change when the last head line is the head."""
-        here = served(WANTED)
-        done = run(here, "--no-dry-run")
-        assert_that(patches(here), equal_to([]))
-        assert_that(done.out.splitlines()[1], equal_to(f"bats merge-proof {NEW} {NEW}"))
+    def test_a_dry_run_and_a_body_that_names_the_head_change_nothing(self) -> None:
+        """The default; and the head already named."""
+        cases = [(BODY, "", OLD), (WANTED, "--no-dry-run", NEW)]
+        for body, option, named in cases:
+            with self.subTest(named=named):
+                here = served(body)
+                done = run(here, *([option] if option else []))
+                proof = f"bats merge-proof {named} {NEW}"
+                assert_that(patches(here), equal_to([]))
+                assert_that(done.out.splitlines()[1], equal_to(proof))
 
     def test_a_body_with_no_head_line_and_a_bad_reference_exit_2(self) -> None:
         """Nothing is changed."""
         here = served("Fixes o/p#1\n")
-        assert_that(run(here, "--no-dry-run").code, equal_to(2))
-        assert_that(patches(here), equal_to([]))
         bad = world.invoke(here, "body-head", "owner/project", "--no-dry-run")
-        assert_that(bad.code, equal_to(2))
+        codes = [run(here, "--no-dry-run").code, bad.code, len(patches(here))]
+        assert_that(codes, equal_to([2, 2, 0]))

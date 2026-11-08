@@ -195,20 +195,17 @@ class TestTheSweep(unittest.TestCase):
         assert_that(out, contains_string(f"{early(AFTER)}1 of 2 checks of the head"))
         assert_that("review=approved-this-head" in third_of(out), equal_to(False))
 
-    def test_a_failed_check_before_the_comment_is_no_green(self) -> None:
-        """Completed is not green: the review waits for a passing run."""
-        red = dict(run_of("completed", BEFORE, 12), conclusion="failure")
-        out = printed([reviewed(2)], False, [DONE, red])
-        said = f"{early(BEFORE)}1 of 2 checks of the head had not passed"
-        assert_that(out, contains_string(said))
-        assert_that("review=approved-this-head" in third_of(out), equal_to(False))
-
-    def test_a_skipped_check_before_the_comment_is_green_by_design(self) -> None:
-        """A check skipped by design does not hold the review back."""
-        skipped = dict(run_of("completed", BEFORE, 12), conclusion="skipped")
-        out = printed([reviewed(2)], False, [DONE, skipped])
-        assert_that(quiet(out), equal_to(True))
-        assert_that(third_of(out), contains_string("review=approved-this-head"))
+    def test_a_failed_check_is_no_green_and_a_skipped_one_is(self) -> None:
+        """Completed is not green; a check skipped by design is."""
+        for conclusion, early_words in (("failure", "1 of 2 checks"), ("skipped", "")):
+            with self.subTest(conclusion=conclusion):
+                other = dict(run_of("completed", BEFORE, 12), conclusion=conclusion)
+                out = printed([reviewed(2)], False, [DONE, other])
+                counted = "review=approved-this-head" in third_of(out)
+                said = f"{early(BEFORE)}{early_words} of the head had not passed"
+                assert_that(quiet(out), equal_to(not early_words))
+                assert_that(counted, equal_to(not early_words))
+                assert_that(said in out, equal_to(bool(early_words)))
 
     def test_an_execution_not_graded_is_the_plan_stage_of_a_draft(self) -> None:
         """A draft's Plan-stage review counts, and is not early."""

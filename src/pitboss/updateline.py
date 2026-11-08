@@ -2,7 +2,7 @@
 
 from typing import Sequence
 
-from . import config, pulls, shapes
+from . import config, pulls
 from .markers import Marker
 
 
@@ -21,7 +21,7 @@ def needs_update(facts: pulls.PullFacts, settings: config.Config) -> bool:
         True when the PR needs the base merged in.
     """
     return (
-        facts.pull.mergeable_state is shapes.MergeState.BEHIND
+        pulls.behind(facts)
         and not pulls.waiting_for_ci(facts)
         and not pulls.pending(facts)
         and facts.repo.slug not in settings.merge_queue.repositories

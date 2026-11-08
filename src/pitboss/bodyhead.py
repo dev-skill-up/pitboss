@@ -6,7 +6,11 @@ needs exactly one change to the body: a new ``Head:`` line, after the last one.
 The module reads no file and calls nothing.
 """
 
+import dataclasses
 import re
+
+from . import bodydigest, ghapi, ghstore, parsing
+from .running import Run
 
 LINE = re.compile(r"Head: ([0-9a-f]{40})")
 ENDING = "\r\n"
@@ -48,3 +52,43 @@ def with_head(body: str, head: str) -> str:
     new = f"Head: {head}"
     lines[at] = f"{old}{new}{ending}" if ending else f"{old}\n{new}"
     return "".join(lines)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Moved:
+    """What the move of a PR's body to its head gave.
+
+    Attributes:
+        old: the head the body named before.
+        new: the head now.
+        digest: the digest of the new body.
+    """
+
+    old: str
+    new: str
+    digest: str
+
+
+def _api(read: Run, write: Run) -> ghapi.GitHub:
+    return ghapi.GitHub(run=read, mutate=write)
+
+
+def move(read: Run, write: Run, path: str) -> Moved | None:
+    """Put the PR's head in its body (only when not a dry run).
+
+    Args:
+        read: the runner reads go through.
+        write: the runner changes go through (a dry run unless asked).
+        path: the pull request's path.
+
+    Returns:
+        What it gave; None when the body has no ``Head:`` line.
+    """
+    github = _api(read, write)
+    pull = parsing.pull(ghapi.get(github, path))
+    old = last_head(pull.body)
+    new = with_head(pull.body, pull.head.sha) if old else pull.body
+    if old and new != pull.body:
+        ghstore.set_body(github, path, new)
+    found = Moved(old=old, new=pull.head.sha, digest=bodydigest.digest(new))
+    return found if old else None

@@ -142,6 +142,18 @@ def green(facts: PullFacts) -> bool:
     return not waiting_for_ci(facts) and not pending(facts) and not failed_checks(facts)
 
 
+def behind(facts: PullFacts) -> bool:
+    """Whether the base moved on since the PR's head.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when GitHub's merge state is ``behind``.
+    """
+    return facts.pull.mergeable_state is shapes.MergeState.BEHIND
+
+
 def conflicted(facts: PullFacts) -> bool:
     """Whether the PR has a merge conflict.
 
