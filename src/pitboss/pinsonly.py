@@ -1,18 +1,30 @@
 """Running the project's pins-check command on a pins-only PR (keyword: pins-only).
 
 pitboss#34: ``[relock] pins_check_command`` is run in the PR's checkout once the
-head is fetched (``pinsreading`` says what its output means). A PR is pins-only
+head is fetched (``pinsreading`` says what its output means); no verdict is
+printed from a compiler older than the head's ``.github/bats-version``
+(``pinscompiler``, pitboss#349). A PR is pins-only
 when its head branch has the relock prefix or every path it changes is in
 ``[relock] pin_files``.
 """
 
+import functools
 import pathlib
 import shlex
 import subprocess
 import threading
-from typing import Sequence
+from typing import Callable, Sequence
 
-from . import config, ghapi, pinsask, pinsreading, pullfiles, running, shapes
+from . import (
+    config,
+    ghapi,
+    pinsask,
+    pinscompiler,
+    pinsreading,
+    pullfiles,
+    running,
+    shapes,
+)
 
 _ONE_CHECKOUT = threading.Lock()  # one fetch and one command at a time in a clone
 
@@ -90,7 +102,10 @@ def verify(
     fetch = ["git", "-C", where, "fetch", "--quiet", "origin"]
     fetch += [pull.base, f"pull/{pull.number}/head"]
     try:
-        return _ran(run, fetch, ["env", "-C", where, *words])
+        why_not = functools.partial(
+            pinscompiler.refusal, run, where, pull.head.sha, words
+        )
+        return _ran(run, fetch, why_not, ["env", "-C", where, *words])
     except subprocess.CalledProcessError as error:
         detail = _said(error)
     except FileNotFoundError as error:
@@ -99,10 +114,16 @@ def verify(
 
 
 def _ran(
-    run: running.Run, fetch: Sequence[str], command: Sequence[str]
+    run: running.Run,
+    fetch: Sequence[str],
+    why_not: Callable[[], str],
+    command: Sequence[str],
 ) -> pinsreading.Reading:
     with _ONE_CHECKOUT:
         run(fetch)
+        reason = why_not()
+        if reason:
+            return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=reason)
         return pinsreading.read(run(command).stdout)
 
 
