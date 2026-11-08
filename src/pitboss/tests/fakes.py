@@ -4,6 +4,7 @@ import dataclasses
 import os
 import json
 import pathlib
+import re
 import subprocess
 from typing import (
     Callable,
@@ -22,6 +23,8 @@ HEAD = "a" * 40
 PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
 OLDER = "b" * 40
 NOT_FOUND = 127
+# the listing of every open ticket of a repository (keyword: unlabeled)
+UNLABELED_LISTING = re.compile(r"^repos/[\w.-]+/[\w.-]+/issues\?state=open&per_page")
 Answers = Mapping[str, int]
 NO_STATUS: Mapping[str, object] = {"statuses": []}
 TRACEFS_FOUND: Answers = {"grep": 0, "mount": 1}
@@ -105,6 +108,8 @@ class FakeProcesses:
         if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
             return run_for_real(command, self.cwd, self.path)
         path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
+        if UNLABELED_LISTING.match(path) and path not in self.bodies:
+            return Output(stdout="[]")  # a world that cans no such list has none
         if path not in self.bodies:
             raise subprocess.CalledProcessError(
                 1, command, output="", stderr=f"gh: not found: {path} (HTTP 404)\n"

@@ -5,7 +5,7 @@ The facts and the lines are ``slotheld``'s (pitboss#291).
 
 import argparse
 import dataclasses
-from typing import Iterable, Sequence
+from typing import AbstractSet, Iterable, Sequence
 
 from . import ledger, pulls, slotheld, work
 
@@ -19,6 +19,34 @@ HOLDING = (
 
 def _recorded(book: ledger.Ledger) -> Iterable[ledger.Slot]:
     return (slot for slot in book.slots if slot.agent)
+
+
+def derived(book: ledger.Ledger, running: Iterable[str] | None) -> ledger.Ledger:
+    """The ledger as the live agents make it: a slot holds an agent only if it runs.
+
+    The ledger is kept by hand, so a line for an agent that finished must not
+    make a slot look full, nor a missing line for a running agent make it look
+    empty (keyword: slot-derived, pitboss#94). With no ``--running`` the agents
+    are not known and the ledger stands as it is.
+
+    Args:
+        book: the ledger.
+        running: the names of the agents the session runs, or None when not given.
+
+    Returns:
+        The ledger with every slot whose agent does not run emptied.
+    """
+    if running is None:
+        return book
+    alive = frozenset(running)
+    slots = tuple(_if_running(slot, alive) for slot in book.slots)
+    return dataclasses.replace(book, slots=slots)
+
+
+def _if_running(slot: ledger.Slot, alive: AbstractSet[str]) -> ledger.Slot:
+    if not slot.agent or slot.agent in alive:
+        return slot
+    return ledger.Slot(name=slot.name, model=slot.model)
 
 
 def holding(

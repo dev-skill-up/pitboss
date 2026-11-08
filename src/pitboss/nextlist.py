@@ -28,6 +28,7 @@ from . import (
     readyline,
     slotholding,
     suggest,
+    unlabeled,
     unreadableline,
     work,
 )
@@ -93,6 +94,11 @@ def require_ledger(path: pathlib.Path) -> None:
             file=sys.stderr,
         )
         raise SystemExit(1)
+
+
+def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
+    # keyword: slot-derived (pitboss#94): the agents that run, not the hand's rows
+    return slotholding.derived(book, getattr(found.args, "running", None))
 
 
 def _ordered(
@@ -176,9 +182,11 @@ def show(
         book: the slot ledger.
     """
     logline.post(found.settings.slots.log)
+    book = _live(found, book)
     ordered = _ordered(found, opened, book)
     source = _source(found, opened, ordered, book)
     for line in itertools.chain(
+        unlabeled.lines(found.github, found.settings),
         nextview.next_lines(_view(found, ordered, book, source.facts)),
         pullstate.lines(found.github, found.settings, source.facts),
         [diskwatch.line(source.volume)] if source.volume else [],
@@ -202,5 +210,5 @@ def refill(
         book: the slot ledger, in which the slot is empty.
         name: the slot.
     """
-    ordered = _ordered(found, opened, book)
-    print(nextview.refill_line(_view(found, ordered, book), name))
+    book = _live(found, book)
+    print(nextview.refill_line(_view(found, _ordered(found, opened, book), book), name))

@@ -191,13 +191,18 @@ def _check(found: Context, book: ledger.Ledger) -> None:
             f" is not running: 'pitboss slots free {given} {slot.name}"
             f" --done {slot.agent}'"
         )
-    _print(found, book)
+    _print(found, book)  # the rows as written, beside the GONE AGENT lines
 
 
 def _print(found: Context, book: ledger.Ledger) -> None:
     # the PRs are not read here: only the live agents that hold no slot count
     taken = slotholding.occupy((), book, found.args.running)
     slotreport.print_ledger(book, taken)
+
+
+def _shown(found: Context, book: ledger.Ledger) -> None:
+    # keyword: slot-derived (pitboss#94): the rows are the live agents', not the hand's
+    _print(found, slotholding.derived(book, found.args.running))
 
 
 def _refuse(message: str) -> SystemExit:
@@ -346,4 +351,4 @@ def slots(args: argparse.Namespace) -> None:
         nextlist.show(found, open_pulls(found), _read(found))
         repoaccess.finish(found.access)
     else:
-        _print(found, _read(found))
+        _shown(found, _read(found))
