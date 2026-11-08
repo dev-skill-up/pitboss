@@ -138,8 +138,8 @@ def clean_container(args: argparse.Namespace) -> None:
         print(text)
     if done.removing:
         freed = sum(each.size for each in done.gone)
-        event = logline.clean_up("pitboss clean-container", freed, [], found.now)
-        logline.record(found.settings.slots.log, event)
+        log = found.settings.slots.log
+        logline.record_clean(log, "pitboss clean-container", freed, [], found.now)
 
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")
@@ -155,7 +155,8 @@ def clean_worktrees(args: argparse.Namespace) -> None:
     for text in done.lines:
         print(text)
     if not how.dry:
-        event = logline.clean_up(
-            "pitboss clean-worktrees", done.freed, done.heads, found.now
+        log = found.settings.slots.log
+        heads = done.heads
+        logline.record_clean(
+            log, "pitboss clean-worktrees", done.freed, heads, found.now
         )
-        logline.record(found.settings.slots.log, event)

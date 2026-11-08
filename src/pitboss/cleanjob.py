@@ -19,11 +19,13 @@ class Option:
         dry: whether to remove nothing.
         list_only: whether the finished worktrees are only listed, and the
             dead checkouts left, unless the disk is under pressure.
+        command: the command that cleans, named in the ``LOG`` line.
     """
 
     run: Run
     dry: bool
     list_only: bool = False
+    command: str = "pitboss sweep"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

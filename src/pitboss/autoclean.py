@@ -31,6 +31,7 @@ from . import (
     deadscan,
     judging,
     local,
+    logline,
     tempclean,
     worktrees,
 )
@@ -257,6 +258,7 @@ def clean_report(look: dead.Look, machine: Machine, option: Option) -> account.R
     parts, totals = run_parts(job)
     tied = worktrees.tied_to_open_pr(look) if hot else []
     told = told_of(job, parts, tied)
+    log_clean(job, told)
     head = cleanheader.header(hot, look.clean)
     tail = [cleanheader.never_line(look), totals, *account.lines(told)]
     return account.Report(
@@ -265,6 +267,21 @@ def clean_report(look: dead.Look, machine: Machine, option: Option) -> account.R
         short=short_of(hot),
         left=short_of(crowded_now(look, machine)),
     )
+
+
+def log_clean(job: Job, told: account.Account) -> None:
+    """Record a clean that freed space, for the ``LOG`` line (keyword: log-line).
+
+    Args:
+        job: the job.
+        told: what the clean did.
+    """
+    if not job.option.dry:
+        log = job.look.settings.slots.log
+        freed = sum(told.freed)
+        logline.record_clean(
+            log, job.option.command, freed, told.heads, job.machine.now
+        )
 
 
 def told_of(

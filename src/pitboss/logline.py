@@ -40,28 +40,18 @@ class Event:
     head: str
 
 
-def events_file(log: pathlib.Path) -> pathlib.Path:
-    """The events beside the slot log.
+def beside(log: pathlib.Path, suffix: str) -> pathlib.Path:
+    """A file of the log lines, beside the slot log.
 
     Args:
         log: the slot log.
-
-    Returns:
-        The file, one JSON object for each event.
-    """
-    return log.with_suffix(".events")
-
-
-def posted_file(log: pathlib.Path) -> pathlib.Path:
-    """The count of events already posted, beside the slot log.
-
-    Args:
-        log: the slot log.
+        suffix: ``.events`` (one JSON object for each event) or ``.posted``
+            (how many events were posted).
 
     Returns:
         The file.
     """
-    return log.with_suffix(".posted")
+    return log.with_suffix(suffix)
 
 
 def text(event: Event) -> str:
@@ -109,41 +99,43 @@ def hand_back(
     )
 
 
-def clean_up(
-    who: str, freed: int, heads: Sequence[str], now: datetime.datetime
-) -> Event | None:
-    """The event of a clean-up that freed space.
+def record_clean(
+    log: pathlib.Path,
+    who: str,
+    freed: int,
+    heads: Sequence[str],
+    now: datetime.datetime,
+) -> None:
+    """Record a clean-up that freed space; one that freed none is not recorded.
 
     Args:
+        log: the slot log.
         who: the command.
-        freed: the bytes it freed; a clean-up that freed none has no event.
+        freed: the bytes it freed.
         heads: the heads of the worktrees it removed.
         now: the time now.
-
-    Returns:
-        The event, or None when nothing was freed.
     """
-    if not freed:
-        return None
-    return Event(
-        kind="clean-up",
-        time=slotlog.utc(now).isoformat(),
-        who=who,
-        what=f"freed {disk.size_text(freed)}",
-        head=", ".join(heads) or NO_WORKTREE,
-    )
+    if freed:
+        record(
+            log,
+            Event(
+                kind="clean-up",
+                time=slotlog.utc(now).isoformat(),
+                who=who,
+                what=f"freed {disk.size_text(freed)}",
+                head=", ".join(heads) or NO_WORKTREE,
+            ),
+        )
 
 
-def record(log: pathlib.Path, event: Event | None) -> None:
+def record(log: pathlib.Path, event: Event) -> None:
     """Add an event to the events file.
 
     Args:
         log: the slot log.
-        event: the event, or None for none.
+        event: the event.
     """
-    if event is None:
-        return
-    path = events_file(log)
+    path = beside(log, ".events")
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a") as handle:
         handle.write(json.dumps(dataclasses.asdict(event)) + "\n")
@@ -158,7 +150,7 @@ def read(log: pathlib.Path) -> Sequence[Event]:
     Returns:
         The events, oldest first; none when no file exists.
     """
-    path = events_file(log)
+    path = beside(log, ".events")
     lines = path.read_text().splitlines() if path.exists() else []
     return [Event(**json.loads(each)) for each in lines]
 
@@ -170,13 +162,12 @@ def posted(log: pathlib.Path) -> int:
         log: the slot log.
 
     Returns:
-        The count; 0 when the file is missing or unreadable, so an event is
-        said again rather than lost.
+        The count; 0 when the file is missing or holds no number, so an event
+        is said again rather than lost.
     """
-    try:
-        return int(posted_file(log).read_text())
-    except (OSError, ValueError):
-        return 0
+    path = beside(log, ".posted")
+    count = path.read_text() if path.exists() else ""
+    return int(count) if count.isdigit() else 0
 
 
 def post(log: pathlib.Path) -> None:
@@ -186,7 +177,8 @@ def post(log: pathlib.Path) -> None:
         log: the slot log.
     """
     events = read(log)
-    for event in events[posted(log) :]:
-        print(text(event))
-    posted_file(log).parent.mkdir(parents=True, exist_ok=True)
-    posted_file(log).write_text(str(len(events)))
+    for each in events[posted(log) :]:
+        print(text(each))
+    path = beside(log, ".posted")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(str(len(events)))

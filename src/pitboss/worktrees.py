@@ -252,7 +252,6 @@ class Outcome:
         kept: whether the safety test kept it.
         removed: whether it was removed.
         left: the directory, and why it is still there, when it is.
-        head: the tip of the worktree, when it was removed.
     """
 
     said: str
@@ -260,7 +259,6 @@ class Outcome:
     kept: bool
     removed: bool
     left: dead.Kept | None = None
-    head: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -307,12 +305,7 @@ def act(
     said, removed = removal_line(action, look, made)
     stuck = None if removed else dead.Kept(path=path, why=said, size=made.size)
     return Outcome(
-        said=said,
-        freed=made.size * removed,
-        kept=False,
-        removed=removed,
-        left=stuck,
-        head=each.worktree.head if removed else "",
+        said=said, freed=made.size * removed, kept=False, removed=removed, left=stuck
     )
 
 
@@ -349,5 +342,5 @@ def removal(
         lines=[*(each.said for each in steps), total],
         freed=freed,
         left=[each.left for each in steps if each.left is not None],
-        heads=[each.head for each in steps if each.head],
+        heads=[each.worktree.head for each, step in zip(found, steps) if step.removed],
     )

@@ -4,7 +4,7 @@ import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, autoclean, cleanjob, logline, machine as machines, scratch
+from . import ENTRY_DATA, autoclean, cleanjob, machine as machines, scratch
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import load_context, running_in, sweep_look
 
@@ -35,15 +35,10 @@ def clean(args: argparse.Namespace) -> None:
     """
     found = load_context(args)
     run = args.run if args.dry_run else args.safe_run
-    option = cleanjob.Option(run=run, dry=args.dry_run)
+    option = cleanjob.Option(run=run, dry=args.dry_run, command="pitboss clean")
     machine = machines.real_machine(args.env, found.now, running_in(args), args.usage)
-    done = autoclean.clean_report(sweep_look(found), machine, option)
-    for text in done.lines:
+    for text in autoclean.clean_report(sweep_look(found), machine, option).lines:
         print(text)
-    if not args.dry_run:
-        freed = sum(done.told.freed)
-        event = logline.clean_up("pitboss clean", freed, done.told.heads, found.now)
-        logline.record(found.settings.slots.log, event)
     source = scratch.source_of(args.safe_run, found.scratch, found.now)
     for text in (scratch.listing if args.dry_run else scratch.cleaning)(source):
         print(text)
