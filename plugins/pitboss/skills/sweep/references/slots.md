@@ -206,7 +206,7 @@ with one of the configured priority labels that no open PR names (in its
 title, body or branch); a ticket with none of the labels is never offered.
 The tickets are ordered by priority label (the order of `priority_labels`),
 then oldest first by the creation time of the ticket. Items a slot already
-holds are left out, and so is a ticket of a repository under the owner's hold (printed `HELD`, below): it is not a ticket that can be worked, and the next ticket takes the slot. So is a ticket that is blocked by an open ticket or PR (keyword: ticket-blocked; printed `BLOCKED <ticket> by <owner/repo#n>`, the form in `rules.md`, "A blocked ticket is not started"): it has no `NEXT` line until the blocker closes or merges. A `STALL` line of the sweep (`rules.md`) is the one
+holds are left out, and so is a ticket of a repository under the owner's hold (printed `HELD`, below): it is not a ticket that can be worked, and the next ticket takes the slot. So is a ticket that is blocked by an open ticket or PR (keyword: ticket-blocked; printed `BLOCKED <ticket> by <owner/repo#n>`): it has no `NEXT` line until the blocker closes or merges. A `STALL` line of the sweep (`rules.md`) is the one
 exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` (then it has no line and waits).
 
 Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a

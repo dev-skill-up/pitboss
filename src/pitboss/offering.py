@@ -2,12 +2,14 @@
 
 Kept back are the tickets of a repository under the owner's hold (keyword:
 pr-hold) and the tickets that cannot be worked on until an open ticket or PR
-(keyword: ticket-blocked). Shared by ``slots next``, ``next`` and the sweep, so
-the three agree on which tickets are offered.
+(keyword: ticket-blocked); the open ticket a blocked ticket waits for is offered
+ahead of it (``dependency``, pitboss#280). Shared by ``slots next``, ``next`` and
+the sweep, so the three agree on which tickets are offered.
 """
 
 import argparse
 import dataclasses
+import functools
 from typing import Mapping, Protocol, Sequence
 
 from . import (
@@ -15,6 +17,7 @@ from . import (
     concurrently,
     config,
     configfile,
+    dependency,
     ghapi,
     holds,
     ledger,
@@ -54,8 +57,9 @@ def marked(github: ghapi.GitHub, settings: config.Config, item: work.Item) -> wo
     """Name the open ticket or PR a ticket says it cannot be worked on until.
 
     The body and the trusted comments of a ticket are read for ``Cannot be
-    worked on until <owner/repo#n>`` or ``Blocked by <owner/repo#n>``; a
-    blocker that is closed or merged blocks nothing.
+    worked on until <owner/repo#n>``, ``Blocked by <owner/repo#n>`` or
+    ``Depends on <owner/repo#n>``; a blocker that is closed or merged blocks
+    nothing.
 
     Args:
         github: the API.
@@ -139,4 +143,45 @@ def offered(
     tickets = concurrently.each(
         lambda item: marked(found.github, found.settings, item), queued
     )
-    return apart(tickets, held)
+    return apart(_dependencies_first(found, opened, book, tickets), held)
+
+
+def _open_ticket(found: Source, reference: str, waiting: work.Item) -> work.Item | None:
+    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
+    ticket = blockers.read(found.github, reference)
+    if ticket is None or not ticket.open or ticket.pull:
+        return None
+    item = work.Item(
+        category=work.Category.NEW_PR,
+        reference=reference,
+        created_at=waiting.created_at,
+        title=ticket.title,
+        priority=waiting.priority,
+        labels=ticket.labels,
+        body=ticket.body,
+        comments=ticket.comments,
+    )
+    return marked(found.github, found.settings, item)
+
+
+def _dependencies_first(
+    found: Source,
+    opened: Sequence[pulls.Read],
+    book: ledger.Ledger,
+    tickets: Sequence[work.Item],
+) -> Sequence[work.Item]:
+    # keyword: ticket-blocked (pitboss#280): a dependency is offered ahead of it
+    readable = pulls.readable(opened)
+    unavailable = work.taken(readable) | {s.task for s in book.slots if s.agent}
+    # an unreadable PR may work on any ticket (keyword: unreadable-pull)
+    if len(readable) != len(opened):
+        return dependency.order(tickets, _inherit)
+    read = functools.partial(_open_ticket, found)
+    return dependency.order(dependency.join(tickets, read, unavailable), _inherit)
+
+
+def _inherit(found: work.Item, waiting: work.Item) -> work.Item:
+    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
+    return dataclasses.replace(
+        found, priority=waiting.priority, created_at=waiting.created_at
+    )
