@@ -3,8 +3,8 @@
 This is the auto-clean rule (pitboss#120; the rule is in ``rules.md``,
 "Checkouts and disk"). No prompt and no dry-run default: a sweep removes the
 test tempdirs older than ``[clean] tmp_hours`` that the session user owns and
-no running process works in, the finished worktrees and the dead checkouts, and prints what it removed and the
-space freed. At or over ``[clean] pressure_percent`` of a filesystem used (90
+no running process works in, the finished worktrees and the dead checkouts, and
+prints what it removed and the space freed. At or over ``[clean] pressure_percent`` of a filesystem used (90
 by default), or when it has less than ``[clean] min_free_gib`` free (5 GiB by
 default; pitboss#205), it also removes tempdirs of a shorter age, every
 worktree and every checkout of a repository without an open PR, and the package
