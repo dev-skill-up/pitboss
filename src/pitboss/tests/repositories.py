@@ -11,12 +11,14 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
-from typing import Mapping, MutableSequence, Sequence
+from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
 MERGED = "merged-work"
 # every ``origin`` that ``copy_of`` made, in order, so that a scene built by a
 # test helper can be copied with the origins it holds
 MADE: MutableSequence[pathlib.Path] = []
+# the origin of each clone ``copy_of`` made, so a test gets the path without asking git
+ORIGINS: MutableMapping[pathlib.Path, pathlib.Path] = {}
 IDENTITY = ("-c", "user.email=t@example.org", "-c", "user.name=T")
 
 
@@ -242,6 +244,9 @@ def copied(
     for _, new in pairs:
         moved_paths(new, moved)
         moved_links(new, moved)
+    for clone, source in list(ORIGINS.items()):
+        if shifted(clone, moved) != clone:
+            ORIGINS[shifted(clone, moved)] = shifted(source, moved)
     return moved
 
 
@@ -277,6 +282,7 @@ def copy_of(made: Template, workspace: pathlib.Path) -> pathlib.Path:
     shutil.copytree(made.workspace, workspace, symlinks=True, dirs_exist_ok=True)
     moved = {str(made.workspace): str(workspace), str(made.origin): str(origin)}
     moved_paths(workspace, moved)
+    ORIGINS[workspace / "project"] = origin
     return workspace / "project"
 
 

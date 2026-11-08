@@ -370,7 +370,7 @@ def again(here: World, *argv: str, directory: pathlib.Path | None = None) -> Res
 
 
 def origin_of(clone: pathlib.Path) -> pathlib.Path:
-    """The path of a clone's ``origin``.
+    """The path of the ``origin`` of a clone ``copy_of`` made (or its copy).
 
     Args:
         clone: the clone.
@@ -378,7 +378,7 @@ def origin_of(clone: pathlib.Path) -> pathlib.Path:
     Returns:
         The path of the repository it came from.
     """
-    return pathlib.Path(fakes.run_git(clone, "remote", "get-url", "origin").strip())
+    return repositories.ORIGINS[clone]  # recorded by copy_of: no git process
 
 
 def project_page(path: str) -> str:

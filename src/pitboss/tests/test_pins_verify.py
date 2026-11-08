@@ -89,9 +89,10 @@ def checkout_for(settings: config.Config, repo: config.Repo) -> pathlib.Path:
     """
     where = pinsonly.checkout_of(settings, repo)
     clone = repositories.make_repository(settings.project.workspace)
+    origin = world.origin_of(clone)
     if clone != where:
         clone.rename(where)
-    fakes.run_git(world.origin_of(where), "update-ref", "refs/pull/7/head", "main")
+    fakes.run_git(origin, "update-ref", "refs/pull/7/head", "main")
     return where
 
 
