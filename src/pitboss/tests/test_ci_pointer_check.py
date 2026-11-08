@@ -1,5 +1,6 @@
 """Tests for the check of a Plan's CI pointers (keyword: ci-pointer, pitboss#335)."""
 
+import pathlib
 import unittest
 import dataclasses
 from typing import Mapping, Sequence
@@ -7,7 +8,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import cipointer, cipointercheck, plancheckconfig
-from . import diffrepo, world
+from . import diffrepo, fakes, world
 from .linting import write_text
 from .repositories import IDENTITY, run_git
 from .test_expand_commands import real_world
@@ -93,6 +94,28 @@ def check(repo: diffrepo.Repository, plan: str, table: str = CONFIG) -> world.Re
     Returns:
         What it did.
     """
+    return unconfigured(repo, plan, "--config", write_text("project.toml", table))
+
+
+def unconfigured(
+    repo: diffrepo.Repository,
+    plan: str,
+    *more: str,
+    directory: pathlib.Path | None = None,
+    variables: Sequence[tuple[str, str]] = (),
+) -> world.Result:
+    """Run ``pitboss plan-check`` on a Plan, with the configuration left to the caller.
+
+    Args:
+        repo: the repository, whose ``work`` is the head.
+        plan: the rows of the Plan.
+        *more: more arguments.
+        directory: where it runs (the search for the configuration starts there).
+        variables: more of the environment.
+
+    Returns:
+        What it did.
+    """
     return world.invoke(
         real_world(),
         "plan-check",
@@ -101,8 +124,9 @@ def check(repo: diffrepo.Repository, plan: str, table: str = CONFIG) -> world.Re
         str(repo.root),
         "--head",
         "HEAD",
-        "--config",
-        write_text("project.toml", table),
+        *more,
+        directory=directory,
+        variables=variables,
     )
 
 
@@ -267,6 +291,29 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
         body = write_text("body.txt", "## Plan\n1. x\n")
         done = world.invoke(real_world(), "plan-check", body, "--config", path)
         assert_that([done.code, path in done.err], equal_to([2, True]))
+
+
+class TestFoundConfiguration(unittest.TestCase):
+    """With no ``--config`` the table comes from the variable or the search."""
+
+    SAID = "the diff adds the spec `e2e/unlisted.spec.js`"
+
+    def test_the_variable_names_the_table(self) -> None:
+        """``$PITBOSS_CONFIG`` gives the table, and its spec is refused."""
+        repo = repository(self)
+        diffrepo.commit(repo, "e2e/unlisted.spec.js", "")
+        path = write_text("variable.toml", CONFIG)
+        done = unconfigured(repo, pointer(), variables=[("PITBOSS_CONFIG", path)])
+        assert_that([done.code, self.SAID in done.out], equal_to([1, True]))
+
+    def test_the_search_finds_the_table(self) -> None:
+        """A ``pitboss.toml`` above the working directory gives the table."""
+        repo = repository(self)
+        diffrepo.commit(repo, "e2e/unlisted.spec.js", "")
+        here = fakes.directory()
+        (here / "pitboss.toml").write_text(CONFIG)
+        done = unconfigured(repo, pointer(), directory=here)
+        assert_that([done.code, self.SAID in done.out], equal_to([1, True]))
 
 
 class TestNames(unittest.TestCase):
