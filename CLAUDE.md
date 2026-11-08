@@ -13,6 +13,7 @@ Run all checks (this is CI's `Run Nox` step; a worker does not run it locally):
 nox
 ```
 
+A worker's local check is `pitboss nox` (pitboss#210): the order of its sessions and its stops are stated in the sweep skill's `references/rules.md` ("A worker's local check is `pitboss nox`"), each session with `-r`.
 Run specific sessions (for a person, not for a worker):
 ```bash
 nox -s tests    # Run tests with coverage

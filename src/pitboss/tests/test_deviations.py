@@ -7,6 +7,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import brief, brieftextnote, brieftextwork, deviations
 from . import fakes, world
 from .briefmake import text
+from .test_evidence_rules import read, words
 
 EXECUTION_REVIEWS = {brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION}
 WORKERS = (
@@ -87,6 +88,11 @@ class TestTheBriefs(unittest.TestCase):
             "for the sweep's ledger line for the worker",
         ):
             assert_that(READS, contains_string(part))
+
+    def test_the_reference_states_the_rule(self) -> None:
+        """rules.md has the check of the hand-back and the review."""
+        rule = "a hand-back without it is NOT STARTED text the orchestrator sends back"
+        assert_that(words(read("rules.md")), contains_string(rule))
 
     def test_the_sentence_keeps_only_what_costs_something(self) -> None:
         """A heredoc, a virtualenv, a redirected file or a fetch is no deviation."""
