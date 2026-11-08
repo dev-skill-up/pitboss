@@ -3,8 +3,8 @@
 Owner, 2026-11-08: each hand-back and each disk clean-up is documented, or it
 is impossible to know what is going on (pitboss#347). ``slots free`` and
 ``slots heard`` record a hand-back, and every command that removes something
-records a clean-up, in an events file beside the slot log. ``sweep``, ``next`` and ``slots next`` print a
-``LOG`` line for each event not yet posted, and mark them posted, so a line is
+records a clean-up, in an events file beside the slot log. ``sweep``, ``next``
+and ``slots next`` print a ``LOG`` line for each event not yet posted, and mark them posted, so a line is
 printed once. The orchestrator posts each ``LOG`` line to the owner as it is.
 """
 

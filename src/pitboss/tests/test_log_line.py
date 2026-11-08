@@ -122,8 +122,7 @@ class TestHandBack(unittest.TestCase):
         here = world.make_world()
         slot_steps(here, ("heard", "tiny"))
         first, again = (posted(here, POSTING[0], "hand-back") for _ in range(2))
-        held = world.invoke(here, "slots", "show", here.config).out
-        found = (first, again, "agent-1" in held)
+        found = (first, again, "agent-1" in here.ledger.read_text())
         assert_that(found, equal_to(([HAND_BACK + logline.NO_PR], [], True)))
 
     def test_a_refused_free_records_nothing(self) -> None:
