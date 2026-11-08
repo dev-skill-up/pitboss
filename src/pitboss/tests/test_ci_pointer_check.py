@@ -264,7 +264,7 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
         diffrepo.commit(repo, "e2e/helper.js", "")
         diffrepo.commit(repo, "e2e/sub/deep.spec.js", "")
         diffrepo.commit(repo, "e2e/old.spec.js", "changed\n")
-        verdict(repo, "1. nothing points to CI\n")
+        verdict(repo, pointer())
 
     def test_no_table_checks_no_spec(self) -> None:
         """A configuration with no ``[plan_check]`` has no spec to hold."""
