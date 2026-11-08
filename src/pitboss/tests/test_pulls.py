@@ -1,7 +1,5 @@
 """Tests for reading open PRs."""
 
-import pathlib
-import tempfile
 import unittest
 from typing import Mapping, MutableMapping, Sequence
 
@@ -104,7 +102,7 @@ def read(found: MutableMapping[str, object]) -> Sequence[pulls.PullFacts]:
     Returns:
         The PRs.
     """
-    settings = fakes.settings(pathlib.Path(tempfile.mkdtemp()), GATED)
+    settings = fakes.settings(fakes.directory(), GATED)
     return pullread.read_open(fakes.github(found), settings, lambda: False)
 
 

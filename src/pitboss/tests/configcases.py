@@ -1,7 +1,6 @@
 """Every command that takes a configuration, in a world (keyword: default-config)."""
 
 import dataclasses
-import functools
 import os
 import pathlib
 import re
@@ -9,7 +8,7 @@ import shutil
 from typing import Callable, Mapping, NamedTuple, Sequence
 
 from .. import configsettle
-from . import cleanscene, cleanworld, fakes, redworld, syncworld, world
+from . import cleanscene, cleanworld, fakes, redworld, scratch, syncworld, world
 
 FORMS = ("bare", "option", "positional", "variable")
 SEARCHED = "pitboss.toml"
@@ -233,7 +232,7 @@ def form_run(case: Case, form: str) -> Ran:
     return Ran(here, run(here, words, variables))
 
 
-@functools.cache
+@scratch.built_once
 def every_run() -> Mapping[tuple[str, str], Ran]:
     """Run each form of each case once, for all the tests that read them.
 
