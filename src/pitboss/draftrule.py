@@ -13,8 +13,9 @@ from . import configfile
 
 SETTING = "[slots.brief] drafts = false"
 REFUSAL = (
-    f"this project's config says no drafts ({SETTING}): open the PR ready for"
-    " review and push without --draft"
+    f"this repository has no drafts (the config says {SETTING}, or lists it in"
+    " [slots.brief] no_drafts, or it is dev-skill-up/pitboss): open the PR ready"
+    " for review and push without --draft"
 )
 _SENTENCE = re.compile(r"[^.\n;]+")
 _INSTRUCTS = re.compile(
@@ -30,17 +31,21 @@ _NEGATED = re.compile(
 SHOWN = 80
 
 
-def drafts_off(config: str, start: pathlib.Path) -> bool:
+def drafts_off(config: str, start: pathlib.Path, slug: str | None = None) -> bool:
     """Whether the configuration says the project's PRs are not drafts.
 
     Args:
         config: the configuration's path or name.
         start: the directory a name is looked up from.
+        slug: the repository of the PR, when it is known (keyword:
+            pitboss-exempt, pitboss#113); it has no drafts when it is pitboss or
+            listed in ``[slots.brief] no_drafts``.
 
     Returns:
-        True when ``[slots.brief] drafts`` is false.
+        True when ``[slots.brief] drafts`` is false, or the repository has none.
     """
-    return not configfile.load_brief(config, start).drafts
+    brief = configfile.load_brief(config, start)
+    return not brief.drafts or (slug is not None and slug in brief.no_drafts)
 
 
 def findings(name: str, body: str) -> Sequence[str]:

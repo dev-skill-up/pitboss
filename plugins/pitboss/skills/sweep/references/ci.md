@@ -76,7 +76,7 @@ merging into the base branch, dispatching a workflow, and re-running jobs. The
 sweep's `RUNNER PRESSURE` line names what a hold covers in these words
 (`HOLD_ACTIONS` in `src/pitboss/report.py`, the one text): "HOLD pushes to
 non-draft PRs, undrafts, enqueues, merges, workflow dispatches (a dispatch on a
-draft too) and re-runs (all repositories; pushes to drafts are free)".
+draft too) and re-runs (pushes to drafts are free)".
 Each adds runs ahead of a queue run that is already waiting for a runner, and
 a queue run that waits past the queue's time limit is dequeued.
 
