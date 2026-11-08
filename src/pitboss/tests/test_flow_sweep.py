@@ -82,9 +82,13 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     compare = f"{world.PROJECT}/compare/main..."
     authored = {"sha": "1", "parents": [{"sha": "0"}]}
     fix = {"sha": "2", "parents": [{"sha": "1"}]}
-    here.bodies[compare + HEAD] = {"commits": [authored, fix]}
-    here.bodies[compare + OLDER] = {"commits": [authored]}
-    here.bodies[f"{world.PROJECT}/commits/2"] = {"files": [{"filename": "a.bats"}]}
+    here.bodies.update(
+        {
+            compare + HEAD: {"commits": [authored, fix]},
+            compare + OLDER: {"commits": [authored]},
+            f"{world.PROJECT}/commits/2": {"files": [{"filename": "a.bats"}]},
+        }
+    )
     return with_complete_run(here)
 
 
