@@ -24,10 +24,10 @@ def compiler_dir(words: Sequence[str]) -> str:
     Returns:
         The directory (``--compiler DIR`` or ``--compiler=DIR``), else empty.
     """
-    for index, word in enumerate(words):
-        if word.startswith("--compiler="):
-            return word.removeprefix("--compiler=")
-        if word == "--compiler":
+    for index, each in enumerate(words):
+        if each.startswith("--compiler="):
+            return each.removeprefix("--compiler=")
+        if each == "--compiler":
             return "".join(words[index + 1 : index + 2])
     return ""
 
@@ -49,9 +49,8 @@ def refusal(run: running.Run, where: str, head: str, words: Sequence[str]) -> st
     compiler = compiler_dir(words)
     if not compiler:
         return ""
-    try:
-        required = running.git(run, where, "show", f"{head}:{PIN_FILE}").strip()
-    except subprocess.CalledProcessError:
+    required = _pin(run, where, head)
+    if not required:
         return ""
     try:
         local = running.git(run, compiler, "rev-parse", "HEAD").strip()
@@ -62,6 +61,13 @@ def refusal(run: running.Run, where: str, head: str, words: Sequence[str]) -> st
     except subprocess.CalledProcessError:
         return _line(compiler, required, local)
     return ""
+
+
+def _pin(run: running.Run, where: str, head: str) -> str:
+    try:
+        return running.git(run, where, "show", f"{head}:{PIN_FILE}").strip()
+    except subprocess.CalledProcessError:
+        return ""
 
 
 def _line(compiler: str, required: str, local: str) -> str:

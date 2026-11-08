@@ -8,11 +8,12 @@ when its head branch has the relock prefix or every path it changes is in
 ``[relock] pin_files``.
 """
 
+import functools
 import pathlib
 import shlex
 import subprocess
 import threading
-from typing import Sequence
+from typing import Callable, Sequence
 
 from . import (
     config,
@@ -101,7 +102,10 @@ def verify(
     fetch = ["git", "-C", where, "fetch", "--quiet", "origin"]
     fetch += [pull.base, f"pull/{pull.number}/head"]
     try:
-        return _ran(run, fetch, where, pull.head.sha, words)
+        refuse = functools.partial(
+            pinscompiler.refusal, run, where, pull.head.sha, words
+        )
+        return _ran(run, fetch, refuse, ["env", "-C", where, *words])
     except subprocess.CalledProcessError as error:
         detail = _said(error)
     except FileNotFoundError as error:
@@ -110,14 +114,17 @@ def verify(
 
 
 def _ran(
-    run: running.Run, fetch: Sequence[str], where: str, head: str, words: Sequence[str]
+    run: running.Run,
+    fetch: Sequence[str],
+    refuse: Callable[[], str],
+    command: Sequence[str],
 ) -> pinsreading.Reading:
     with _ONE_CHECKOUT:
         run(fetch)
-        refused = pinscompiler.refusal(run, where, head, words)
+        refused = refuse()
         if refused:
             return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=refused)
-        return pinsreading.read(run(["env", "-C", where, *words]).stdout)
+        return pinsreading.read(run(command).stdout)
 
 
 def pins_only(
