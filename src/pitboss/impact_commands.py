@@ -32,8 +32,8 @@ def impact_command(args: argparse.Namespace) -> None:
     wrapped sentence included) between a phrase's words. It leaves out ``.git``,
     the root ``build`` and ``skill-zips``, caches, links and NUL-byte files. A Plan
     cites this command, so its Evidence block is the Impact list, and ``pitboss
-    plan-check`` holds the Plan to it (keyword: impact-list, pitboss#320). On
-    standard error it prints the phrases it searched, and a hint for a phrase of
+    plan-check`` holds the Plan to it (keyword: impact-list, pitboss#320).
+    On standard error it prints the phrases it searched, and a hint for a phrase of
     several words when the tree has the same words joined by underscores
     (``come first`` and ``come_first``), which the phrase does not match
     (keyword: impact-phrase, pitboss#317).
