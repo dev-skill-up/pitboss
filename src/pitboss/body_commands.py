@@ -158,6 +158,7 @@ def body_head(args: argparse.Namespace) -> None:
     path = f"repos/{slug}/pulls/{number}"
     done = bodyhead.move(args.safe_run, args.run, path)
     if done is None:
-        raise _fail(f"{args.pull}: the body has no line `Head: <40 hex>`")
+        print(f"{args.pull}: the body has no line `Head: <40 hex>`", file=sys.stderr)
+        raise SystemExit(USAGE_ERROR)
     print(f"{bodydigest.PREFIX}{done.digest}")
     print(f"bats merge-proof {done.old} {done.new}")
