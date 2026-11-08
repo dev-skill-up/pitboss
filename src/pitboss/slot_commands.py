@@ -53,7 +53,8 @@ class Action(enum.Enum):
         RESUME: say a slot's agent runs again (SLOT).
         REPORT: print the share of slot time in each state (--since, --until).
         TIME: print the worker minutes of each ticket (--since, --until).
-        HEARD: say a slot's agent handed back or notified (SLOT).
+        HEARD: say a slot's agent handed back or notified (SLOT); each is
+            logged as a hand-back (keyword: log-line).
         DEVIATION: record the ``Deviation:`` lines of a review saved in a
             file on the worker's ticket (TICKET FILE; keyword: deviations).
     """
@@ -248,6 +249,8 @@ def _time(found: Context) -> None:
 
 REFILLS = frozenset({Action.SET, Action.FREE, Action.NEXT})
 LOG_ONLY = frozenset({Action.REPORT, Action.TIME})
+# every hand-back is logged: ``heard`` records each one, a notification too
+HAND_BACKS = frozenset({Action.FREE, Action.HEARD})
 
 
 def _require_owner(found: Context) -> None:
@@ -274,15 +277,16 @@ def _changing(found: Context, action: Action) -> None:
     before = read_ledger(found.settings)
     changed = _changed(action, found)
     report.print_ledger(changed)
-    if action is Action.FREE:
+    if action in HAND_BACKS:
         name = found.args.words[0]
         slot = ledger.find(before, name)
-        assert isinstance(slot, ledger.Slot)  # the free was done, so it exists
+        assert isinstance(slot, ledger.Slot)  # the change was done, so it exists
         opened = open_pulls(found)
         head = fixes.head_fixing(slot.ticket, pulls.readable(opened))
         event = logline.hand_back(slot, head, found.now)
         logline.record(found.settings.slots.log, event)
-        nextlist.refill(found, opened, changed, name)
+        if action is Action.FREE:
+            nextlist.refill(found, opened, changed, name)
 
 
 def _read(found: Context) -> ledger.Ledger:
@@ -311,7 +315,7 @@ def _read(found: Context) -> ledger.Ledger:
     name="slots",
 )
 def slots(args: argparse.Namespace) -> None:
-    """Keep the worker-slot ledger, and say what to start next.
+    """Keep the worker-slot ledger, say what to start next, print the LOG lines.
 
     Args:
         args: the parsed arguments.

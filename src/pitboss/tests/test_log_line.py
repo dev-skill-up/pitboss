@@ -19,15 +19,18 @@ HAND_BACK = (
 POSTING = (("sweep", "CONFIG"), ("next", "CONFIG"), ("slots", "next", "CONFIG"))
 
 
-def slot_steps(here: world.World) -> None:
-    """Put an agent in the slot ``tiny`` on ticket 9, and free it as handed back.
+def slot_steps(
+    here: world.World, closing: Sequence[str] = ("free", "tiny", "--done", "agent-1")
+) -> None:
+    """Put an agent in the slot ``tiny`` on ticket 9, and say it handed back.
 
     Args:
         here: the world.
+        closing: the ``slots`` command that says so: ``free`` by default.
     """
     steps = (
         ("set", "tiny", "agent-1", "#9", "--running", "agent-1", "--now", SET_AT),
-        ("free", "tiny", "--done", "agent-1", "--now", FREE_AT),
+        (*closing, "--now", FREE_AT),
     )
     for words in steps:
         world.invoke(here, "slots", words[0], here.config, *words[1:])
@@ -113,6 +116,15 @@ class TestHandBack(unittest.TestCase):
         outs = [world.invoke(here, "next", *words).out for _ in range(2)]
         found = [logline.HEADER in each for each in outs]
         assert_that(found, equal_to([True, False]))
+
+    def test_heard_logs_a_hand_back_once_and_the_agent_stays(self) -> None:
+        """``slots heard`` records every hand-back, a notification too (#347)."""
+        here = world.make_world()
+        slot_steps(here, ("heard", "tiny"))
+        first, again = (posted(here, POSTING[0], "hand-back") for _ in range(2))
+        held = world.invoke(here, "slots", "show", here.config).out
+        found = (first, again, "agent-1" in held)
+        assert_that(found, equal_to(([HAND_BACK + logline.NO_PR], [], True)))
 
     def test_a_refused_free_records_nothing(self) -> None:
         """Freeing a slot for the wrong agent is refused and logs no hand-back."""
