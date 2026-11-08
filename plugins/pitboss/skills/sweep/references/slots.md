@@ -110,7 +110,7 @@ estimated; the sweep reads it too, for `SLOT IDLE`.
   `timeout 598`, or one `Monitor` with an `until` loop. It needs
   `[slots] transcripts`, the directory of the workers' transcripts; the agent's
   name in the ledger is the `name` in the transcript's `.meta.json`.
-- `NEXT`: one line of the sorted list. The first lines, before every start and review line, are the drafts whose Plan is approved: `mark the PR ready: update_pull_request draft=false for <PR>` (the orchestrator does it, no slot), or, while the runners show a hold, `HOLD on undrafts ...: mark ready at <time> at the earliest` (pitboss#273).
+- `NEXT`: one line of the sorted list. The lines, before every start and review line, are the drafts whose Plan is approved: `mark the PR ready: update_pull_request draft=false for <PR>` (the orchestrator does it, no slot), or, while the runners show a hold, `HOLD on undrafts ...: mark ready at <time> at the earliest` (pitboss#273).
 - `SUGGESTION`: after the list and the empty slots, `slots next` (and `next` with no ticket) prints suggestions, each with its complete brief (`rules.md`, "Briefs come from pitboss"). A PR at `RULING DUE` comes before the list, as an Opus agent that takes no slot. Start the first one that can start, with the brief pasted unchanged (a ruling brief's `How we got here:` line is the one line the orchestrator replaces, with the analysis).
 
 ## The order of work

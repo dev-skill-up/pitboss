@@ -202,12 +202,13 @@ class TestUnrecordedAgents(unittest.TestCase):
             said(shown, "EMPTY SLOT", 0)
             assert_that(shown, contains_string("empty, but held by work"))
 
-    def test_one_agent_leaves_one_slot(self) -> None:
-        """The second slot is free, and the first is held by the agent."""
+    def test_one_agent_holds_every_empty_slot_until_it_is_recorded(self) -> None:
+        """Two empty slots and one unrecorded agent: no start line at all."""
         here = calm()
         shown = ran(here, ("slots", "next"), "a")
         said(shown, "UNRECORDED AGENT", 1)
-        said(shown, "EMPTY SLOT", 1)
+        said(shown, "EMPTY SLOT", 0)
+        assert_that(kinds(shown), equal_to([]))
 
     def test_recorded_agents_are_not_unrecorded(self) -> None:
         """Live agents that the ledger holds, and none given, say nothing."""
@@ -253,3 +254,26 @@ class TestRefillAndRecordedRounds(unittest.TestCase):
         shown = next_output(here)
         said(shown, "SLOT HELD", 0)
         said(shown, "EMPTY SLOT", 1)
+
+
+class TestTheSweepListWaits(unittest.TestCase):
+    """The sweep's ``TASK LIST`` block, with a full ledger and a ready PR."""
+
+    def test_the_running_line_is_line_one_and_the_steps_are_queued(self) -> None:
+        """Line 1 is the running agents; PR 3 waits for a review, so it waits."""
+        here = calm()
+        full = [("remove", "big"), ("set", "tiny", "a", "#50", "--running", "a")]
+        run_all(here, full)
+        shown = lines_of(ran(here, ("sweep",), "a"), "TASK LIST next ")
+        assert_that(shown[0], equal_to(f"TASK LIST next 1. {FIRST_NEXT[8:]}"))
+        waiting = [line for line in shown[1:] if "#" in line]
+        assert_that(len(waiting) > 0, equal_to(True))
+        assert_that(
+            [x.endswith(QUEUED) for x in waiting], equal_to([True] * len(waiting))
+        )
+
+    def test_the_round_of_a_held_pr_is_not_queued(self) -> None:
+        """The fix round of PR 3 holds the slot, so its line does not wait."""
+        shown = lines_of(sweep(incident()).out, "TASK LIST next ")
+        rounds = [line for line in shown if "owner/project#3" in line]
+        assert_that(rounds[0].endswith(QUEUED), equal_to(False))

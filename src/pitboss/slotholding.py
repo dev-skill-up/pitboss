@@ -90,7 +90,7 @@ def occupy(
     return slotheld.Occupancy(
         holding=held,
         unrecorded=loose,
-        free=max(0, empty - len(held) - len(loose)),
+        free=0 if loose else max(0, empty - len(held)),
         references=frozenset() if loose else frozenset(h.reference for h in held),
     )
 

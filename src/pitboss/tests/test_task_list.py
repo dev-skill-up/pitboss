@@ -72,7 +72,7 @@ class TestBlock(unittest.TestCase):
         shown = world.invoke(here, "slots", "next", here.config, "--now", at(30)).out
         wanted = re.findall(r"^NEXT (\d+)\. (\S+) ", shown, re.MULTILINE)[1:]
         assert_that(wanted, has_length(3))
-        for (number, reference), line in zip(wanted, found[1:]):
+        for (number, reference), line in zip(wanted, found[2:]):
             prefix = f"TASK LIST next {number}. {reference}:"
             assert_that(line, starts_with(prefix))
 
@@ -95,12 +95,12 @@ class TestBlock(unittest.TestCase):
         assert_that("#77" in shown, equal_to(False))
 
     def test_ready_drafts_come_first_in_the_numbers(self) -> None:
-        """A draft to mark ready is numbered first, and the items after it."""
+        """A draft to mark ready is numbered after the running line, and the items after it."""
         queued = [test_work.item("owner/project#5", work.Category.NEW_PR)]
         book = ledger.Ledger(slots=(), failed={})
         ready = ["owner/project#4 (mark the PR ready)"]
         assert_that(
-            tasklist.block(book, ready, queued)[1:],
+            tasklist.block(book, ready, queued)[2:],
             equal_to(
                 [
                     "TASK LIST next 2. owner/project#4 (mark the PR ready)",

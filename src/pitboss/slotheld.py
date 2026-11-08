@@ -39,7 +39,8 @@ class Occupancy:
     Attributes:
         holding: the PRs whose next step holds a slot.
         unrecorded: the live agents that hold no slot.
-        free: how many empty slots no agent or PR holds.
+        free: how many empty slots no agent or PR holds; none while a live
+            agent is unrecorded.
         references: the PRs that hold a slot, none while a live agent holds none
             (it may be the one working on them).
     """
