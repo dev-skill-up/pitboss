@@ -11,6 +11,7 @@ from . import (
     config,
     ghapi,
     holds,
+    exempt,
     ledger,
     pulls,
     pullread,
@@ -59,6 +60,33 @@ def idle(
 
 
 def pressure(
+    github: ghapi.GitHub,
+    runs: Iterable[queue.QueueRun],
+    runners: config.Runners,
+    now: datetime.datetime,
+) -> str:
+    """Look at the runners and say the pressure line, and who is exempt from it.
+
+    Under a hold the line is followed by one that says ``pitboss is exempt from
+    holds`` (keyword: pitboss-exempt, pitboss#113).
+
+    Args:
+        github: the API.
+        runs: the runs of the repositories that share the runners.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
+
+    Returns:
+        The lines.
+    """
+    said = looked(github, runs, runners, now)
+    held = any(
+        each.startswith(Marker.RUNNER_PRESSURE.text) for each in said.split("\n")
+    )
+    return "\n".join([said, exempt.sweep_saying(runners.exempt)] if held else [said])
+
+
+def looked(
     github: ghapi.GitHub,
     runs: Iterable[queue.QueueRun],
     runners: config.Runners,

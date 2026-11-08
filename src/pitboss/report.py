@@ -157,7 +157,7 @@ def _auto_merge_off(
 HOLD_ACTIONS = (
     "HOLD pushes to non-draft PRs, undrafts, enqueues, merges,"
     " workflow dispatches (a dispatch on a draft too) and re-runs"
-    " (all repositories; pushes to drafts are free)"
+    " (pushes to drafts are free)"
 )
 
 

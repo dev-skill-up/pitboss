@@ -15,6 +15,7 @@ from . import (
     commands,
     configfile,
     draftrule,
+    exempt,
     queue,
     record,
     report,
@@ -54,10 +55,51 @@ def _refuse_if_held(found: commands.Context) -> None:
         raise SystemExit(1)
 
 
-def _refuse_draft(args: argparse.Namespace) -> None:
+def _pushed_repository(args: argparse.Namespace) -> str | None:
+    # keyword: pitboss-exempt (pitboss#113): the repository a push goes to
+    named = [each for each in args.git_arguments if not each.startswith("-")]
+    try:
+        done = args.safe_run(
+            ["git", "remote", "get-url", named[0] if named else "origin"]
+        )
+    except subprocess.CalledProcessError:
+        return None
+    return exempt.slug_of(done.stdout)
+
+
+def _free(args: argparse.Namespace, found: commands.Context, slug: str | None) -> bool:
+    # keyword: pitboss-exempt (pitboss#113): said once, and the push is neither
+    # checked nor recorded, as a push to a draft is not
+    if args.draft:
+        return True
+    free = exempt.is_exempt(slug, found.settings.runners.exempt)
+    if free:
+        print(exempt.SAYING)
+    return free
+
+
+def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context, bool]:
+    # the context, and whether the push is free of the hold (else it is checked)
+    found = commands.load_context(args)
+    free = _free(args, found, slug)
+    if not free:
+        _refuse_if_held(found)
+    return found, free
+
+
+def _send(args: argparse.Namespace) -> bool:
+    # whether git pushed: a dry run pushes nothing
+    if not args.no_dry_run:
+        print("dry run: --no-dry-run pushes")
+        return False
+    _git_push(args)
+    return True
+
+
+def _refuse_draft(args: argparse.Namespace, slug: str | None) -> None:
     # keyword: no-drafts (pitboss#216): a project whose config needs no drafts
     start = commands.working_directory(args)
-    if args.draft and draftrule.drafts_off(configfile.named(args), start):
+    if args.draft and draftrule.drafts_off(configfile.named(args), start, slug):
         print(f"push refused: --draft, but {draftrule.REFUSAL}; nothing was pushed")
         raise SystemExit(1)
 
@@ -152,7 +194,11 @@ def push(args: argparse.Namespace) -> None:
     that is refused records the look it made (``none`` when nothing waits,
     ``hold`` when a job waits), so the quiet period can end; a retried push
     adds only none looks, which do not restart the wait. A push to a draft PR
-    (``--draft``) starts no costly job and is neither checked nor recorded.
+    (``--draft``) starts no costly job and is neither checked nor recorded. A
+    push to ``dev-skill-up/pitboss`` (or a repository of ``[runners] exempt``),
+    read from the URL of the remote, is never held, whatever the pressure: it
+    prints ``pitboss is exempt from holds`` once, runs ``git push`` and records
+    nothing (keyword: pitboss-exempt, pitboss#113).
     With no ``[runners]`` table nothing is held or recorded. Put ``--`` before
     git's own options. The exit is 1 while the quiet period is not over, git's
     status when the push fails, and 2 when the push went out but its hold could
@@ -164,14 +210,11 @@ def push(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     tracefs.say(args.safe_run)
-    _refuse_draft(args)
-    found = commands.load_context(args)
-    if not args.draft:
-        _refuse_if_held(found)
-    if not args.no_dry_run:
-        print("dry run: --no-dry-run pushes")
+    slug = _pushed_repository(args)
+    _refuse_draft(args, slug)
+    found, free = _gate(args, slug)
+    if not _send(args):
         return
-    _git_push(args)
-    if not args.draft:
+    if not free:
         _record_push(found)
     print("pushed")

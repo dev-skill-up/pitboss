@@ -16,13 +16,16 @@ BASE = ("doc/a.md", "doc/b.rst", "doc/C.MD")
 WORKER_SENTENCE = (
     "Doc lines: a change never adds a line to any .md or .rst file; lines are only"
     " removed (a doc that code makes outdated is cut, not reworded, and a rule goes"
-    " into the command's output or help text); `pitboss plan-check` refuses a diff"
-    " that adds one (keyword: markup-lines, pitboss#343)."
+    " into the command's output or help text); a changed line whose text is its"
+    " removed line with characters deleted and none inserted or reordered is a"
+    " removal, so cut the span and keep the rest; `pitboss plan-check` refuses a"
+    " diff that adds any other line (keyword: markup-lines, pitboss#343, #373)."
 )
 REVIEW_SENTENCE = (
     "Doc lines: a diff that adds a line to a .md or .rst file is changes needed,"
-    " whatever the ticket says; lines are only removed (keyword: markup-lines,"
-    " pitboss#343)."
+    " whatever the ticket says, except a changed line that is its removed line with"
+    " characters deleted and none inserted or reordered, which is a removal;"
+    " lines are only removed (keyword: markup-lines, pitboss#343, #373)."
 )
 
 
@@ -128,6 +131,111 @@ class TestPlanCheck(unittest.TestCase):
         said = "`doc/moved.md` gets 3 added lines"
         assert_that([code, said in out], equal_to([1, True]))
         assert_that("refused, Markup line findings: 1" in out, equal_to(True))
+
+
+def hunk(old: Sequence[str], new: Sequence[str], path: str = "a.md") -> str:
+    """A ``git diff -U0`` patch of one hunk of a file.
+
+    Args:
+        old: the removed lines.
+        new: the added lines.
+        path: the file.
+
+    Returns:
+        The patch.
+    """
+    head = f"diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -1 +1 @@\n"
+    return (
+        head
+        + "".join(f"-{each}\n" for each in old)
+        + "".join(f"+{each}\n" for each in new)
+    )
+
+
+def counted(patch: str, stat: str = "1\t1\ta.md\0") -> int:
+    """How many findings a patch has.
+
+    Args:
+        patch: the patch.
+        stat: its numstat.
+
+    Returns:
+        The number of findings.
+    """
+    return len(markuplines.findings(stat, patch))
+
+
+FOX = "a red fox"
+
+
+class TestCutSpans(unittest.TestCase):
+    """A changed line that only lost characters is a removal (pitboss#373)."""
+
+    def test_a_line_with_spans_cut_is_accepted_and_named_once(self) -> None:
+        """Done-when: the accepted form, and the output names the rule once."""
+        patch = hunk(["keep one, cut two, keep three"], ["keep one, keep three"])
+        assert_that(counted(patch), equal_to(0))
+        assert_that(
+            markuplines.notes("1\t1\ta.md\0", patch), equal_to([markuplines.NOTE])
+        )
+
+    def test_the_nearest_inputs_are_still_refused(self) -> None:
+        """Done-when: word replaced, character inserted, spans swapped, new line."""
+        cases = {
+            "word replaced": ([FOX], ["a blue fox"]),
+            "character inserted": ([FOX], ["a red foxx"]),
+            "spans swapped": (["red fox, blue dog"], ["blue dog, red fox"]),
+            "new line next to a removed one": ([FOX], [FOX, "new"]),
+            "two lines from one removed line": (["ab cd"], ["ab", "cd"]),
+            "two lines out of order": (["ab cd", "ef gh"], ["ef", "ab"]),
+        }
+        for name, (old, new) in cases.items():
+            with self.subTest(name):
+                stat = f"{len(new)}\t{len(old)}\ta.md\0"
+                assert_that(counted(hunk(old, new), stat), equal_to(1))
+
+    def test_the_removed_line_is_in_the_same_hunk_of_the_same_file(self) -> None:
+        """A removal in another file is no source of a cut."""
+        patch = hunk([FOX], []) + hunk([], ["a fox"], "b.md")
+        stat = "0\t1\ta.md\0" + "1\t0\tb.md\0"
+        assert_that(counted(patch, stat), equal_to(1))
+
+    def test_a_quoted_path_is_read_and_an_odd_one_is_counted(self) -> None:
+        """A path git quotes is unquoted; one that cannot be is never excused."""
+        cut = hunk([FOX], ["a fox"])
+        quoted = cut.replace("b/a.md", '"b/a b.md"')
+        assert_that(counted(quoted, "1\t1\ta b.md\0"), equal_to(0))
+        for name, odd in {
+            "unreadable": cut.replace("b/a.md", '"b/a\\q.md'),
+            "deleted": cut.replace("+++ b/a.md", "+++ /dev/null"),
+        }.items():
+            with self.subTest(name):
+                assert_that(counted(odd), equal_to(1))
+
+
+class TestPlanCheckCuts(unittest.TestCase):
+    """``pitboss plan-check`` on real diffs that cut or change a line."""
+
+    def test_a_line_with_a_span_cut_passes_and_names_the_rule(self) -> None:
+        """Done-when: accepted, with the rule named once."""
+        code, said = outcome({"doc/a.md": "one\nto\nthree\n"})
+        assert_that(
+            [code, said.count(markuplines.NOTE), OK in said], equal_to([0, 1, True])
+        )
+
+    def test_the_nearest_changes_are_refused(self) -> None:
+        """Done-when: replaced, inserted, swapped, a new line."""
+        cases = {
+            "word replaced": "one\ntoo\nthree\n",
+            "character inserted": "one\ntwoo\nthree\n",
+            "spans swapped": "one\nwot\nthree\n",
+            "new line next to a removed one": "one\nfour\nthree\n",
+        }
+        for name, content in cases.items():
+            with self.subTest(name):
+                code, out = outcome({"doc/a.md": content})
+                said = "markup-lines: `doc/a.md` gets 1 added line"
+                assert_that([code, said in out], equal_to([1, True]))
 
 
 class TestBriefs(unittest.TestCase):

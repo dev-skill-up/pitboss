@@ -176,6 +176,8 @@ class Project:
         workspace: the directory whose checkouts are swept.
         run_by_e2e: the path prefixes the e2e suite runs on (``[sweep]``).
         plan_review_check: the check a draft's Plan review waits for (``[sweep]``).
+        no_drafts: the repositories whose PRs are opened ready: pitboss itself and
+            ``[slots.brief] no_drafts`` (keyword: pitboss-exempt, pitboss#113).
     """
 
     repo: Repo
@@ -184,6 +186,7 @@ class Project:
     workspace: pathlib.Path
     run_by_e2e: Sequence[str] = DEFAULT_RUN_BY_E2E
     plan_review_check: str = ""
+    no_drafts: AbstractSet[str] = frozenset()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -195,12 +198,15 @@ class Runners:
         record: the file of looks at the runners and of queued jobs.
         quiet_minutes: how long the runners must be quiet before a hold lifts.
         held: a ``[runners]`` table exists; without one nothing is held (#215).
+        exempt: the repositories never held, whatever the pressure: pitboss itself
+            and ``[runners] exempt`` (keyword: pitboss-exempt, pitboss#113).
     """
 
     repositories: Sequence[Repo]
     record: pathlib.Path
     quiet_minutes: int
     held: bool
+    exempt: AbstractSet[str] = frozenset()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

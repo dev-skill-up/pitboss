@@ -2,9 +2,9 @@
 
 import dataclasses
 import datetime
-from typing import Iterable, Mapping, Sequence
+from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import blockedline, config, holds, ledger, slotheld, work
+from . import blockedline, config, exempt, holds, ledger, slotheld, work
 from .markers import Marker
 
 CATEGORY_WORDS = work.CATEGORY_WORDS
@@ -29,6 +29,8 @@ class NextView:
             pitboss#273).
         occupancy: what holds the slots beyond the ledger's agents (keyword:
             slot-held, pitboss#291).
+        no_drafts: the repositories whose PRs open ready; the line of a ticket
+            there says so (keyword: pitboss-exempt, pitboss#113).
     """
 
     items: Sequence[work.Item]
@@ -41,21 +43,26 @@ class NextView:
     blocked: Sequence[work.Item] = ()
     ready: Sequence[str] = ()
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
+    no_drafts: AbstractSet[str] = frozenset()
 
 
 def _age_days(created_at: str, now: datetime.datetime) -> int:
     return (now - datetime.datetime.fromisoformat(created_at)).days
 
 
+def _new_pr(item: work.Item, view: NextView) -> str:
+    # the priority of a ticket, and that its PR opens ready where there are no drafts
+    if item.category is not work.Category.NEW_PR:
+        return ""
+    slug = item.reference.rpartition("#")[0]
+    ready = f", {exempt.OPEN_READY}" if slug in view.no_drafts else ""
+    return f" {view.slots.priority_labels[item.priority]}{ready}"
+
+
 def _item_text(item: work.Item, view: NextView) -> str:
     model = work.smallest_model(item, view.slots, view.failed) or "none left"
-    priority = (
-        f" {view.slots.priority_labels[item.priority]}"
-        if item.category is work.Category.NEW_PR
-        else ""
-    )
     return (
-        f"{item.reference} ({CATEGORY_WORDS[item.category]}{priority},"
+        f"{item.reference} ({CATEGORY_WORDS[item.category]}{_new_pr(item, view)},"
         f" opened {item.created_at[:10]}, {_age_days(item.created_at, view.now)}"
         f" days, smallest model {model}): {item.title[:60]}"
     )

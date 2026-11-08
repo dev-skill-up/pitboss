@@ -211,10 +211,10 @@ def plan_check(args: argparse.Namespace) -> None:
     Prints a row for each command (its exit status and duration, or that it did
     not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
     pointer or spec the tree does not bear out; markup-lines: a line added to a
-    .md or .rst file), the Plan digest and the last line, ``Plan check: ok`` or
-    ``Plan check: refused`` naming the rows that did not run and the numbers of
-    findings. The output is posted as a
-    comment on the PR (keyword: plan-check, pitboss#192); ``pitboss next``
+    .md or .rst file, not a cut span), the Plan digest and the last line,
+    ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did not
+    run and the numbers of findings. The output is posted as a comment on the PR
+    (keyword: plan-check, pitboss#192); ``pitboss next``
     offers a Plan review that has commands only after a comment that says
     ``Plan check: ok`` for this Plan.
 
@@ -267,10 +267,10 @@ def _added(args: argparse.Namespace, ref: str) -> Sequence[str]:
     return [each for each in _git(args, *words).split("\0") if each]
 
 
-def _numstat(args: argparse.Namespace, ref: str) -> str:
-    # keyword: markup-lines (pitboss#343): the lines the PR adds to each file
-    words = ["diff", "--numstat", "-z", "--no-renames", f"{args.base}...{ref}"]
-    return _git(args, *words)
+def _diff(args: argparse.Namespace, ref: str, *flags: str) -> str:
+    # keyword: markup-lines (pitboss#343, #373): the lines the PR adds to each
+    # file (--numstat -z) and its hunks, to tell a cut span from a new line (-U0)
+    return _git(args, "diff", *flags, "--no-renames", f"{args.base}...{ref}")
 
 
 def _reading(tree: pathlib.Path) -> cipointercheck.Read:
@@ -294,12 +294,15 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
         search = _searching(head)
         rows, refused = plancheck.report(section, runner, search)
         files = (_reading(tree), _reading(head))
+        stat = _diff(args, ref, "--numstat", "-z")
+        patch = _diff(args, ref, "-U0", "--no-color")
         found = [
             *plancheck.impact_findings(section, search),
             *plancheck.ci_findings(section, added, settings, files),
-            *markuplines.findings(_numstat(args, ref)),
+            *markuplines.findings(stat, patch),
         ]
-        return plancheck.text(section, rows, refused, found), bool(refused or found)
+        noted = [*rows, *markuplines.notes(stat, patch)]
+        return plancheck.text(section, noted, refused, found), bool(refused or found)
 
 
 def _searching(tree: pathlib.Path) -> plancheck.Search:

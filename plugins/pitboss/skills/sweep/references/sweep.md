@@ -162,7 +162,7 @@ While `RUNNER PRESSURE` is printed:
 
 - do not push to a non-draft PR, mark a PR ready, enqueue or merge (by hand
   or by re-arming auto-merge), dispatch a workflow (a dispatch on a draft too)
-  or re-run jobs, in any repository the configuration lists under runners;
+  or re-run jobs;
   pushes to a draft PR, and opening one, start no costly job and are not held;
 - tell every running agent to hold its pushes to non-draft PRs and keep working locally
   (design, proofs, local checks), committing locally only; unpushed work is

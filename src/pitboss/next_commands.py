@@ -135,7 +135,9 @@ def _step_of(found: Context, named: str) -> None:
         raise SystemExit(1)
     _say_missing_names(found, ticket)
     off = draftrule.drafts_off(
-        configfile.named(found.args), working_directory(found.args)
+        configfile.named(found.args),
+        working_directory(found.args),
+        ticket.rpartition("#")[0],  # keyword: pitboss-exempt (pitboss#113)
     )
     first = steps.FIRST_STEP_READY if off else steps.FIRST_STEP
     print(f"{steps.Step.WORKER.name}: {ticket}: {first}")
