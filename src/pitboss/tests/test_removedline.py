@@ -254,7 +254,8 @@ class TestStanding(unittest.TestCase):
         fix = {"sha": "2", "parents": [{"sha": "1"}]}
         here.bodies[compare + fakes.HEAD] = {"commits": [authored, fix]}
         here.bodies[compare + fakes.OLDER] = {"commits": [authored]}
-        here.bodies[f"{world.PROJECT}/commits/2"] = {"files": [{"filename": "a.bats"}]}
+        listed = {"files": [{"filename": "a.bats"}]}
+        here.bodies.update({f"{world.PROJECT}/commits/2": listed})
         assert_that(lines_of(reviewed(here, [old])), equal_to([ALONE]))
 
     def test_no_review_gets_the_removal_alone(self) -> None:
