@@ -6,7 +6,7 @@ merge (keyword: derived-only, pitboss#323).
 """
 
 import json
-from typing import Callable, Iterable, Sequence
+from typing import AbstractSet, Iterable, Sequence
 
 from . import config, ghapi, parsing, shapes
 
@@ -15,7 +15,7 @@ DERIVED = ("skill-zips/",)
 
 def added(
     since_base: Iterable[shapes.Commit], reviewed_since_base: Iterable[shapes.Commit]
-) -> frozenset[str] | None:
+) -> AbstractSet[str] | None:
     """The non-merge commits a head has that a reviewed head does not.
 
     Args:
@@ -96,9 +96,20 @@ def carries(
     compare = f"repos/{repo.slug}/compare/{pull.base}..."
     heads = (pull.head.sha, sha)
     extra = added(*(parsing.comparison(ghapi.get(github, compare + h)) for h in heads))
-    fetch: Callable[[str], str] = lambda each: ghapi.get(
-        github, f"repos/{repo.slug}/commits/{each}"
-    )
     return extra is not None and all(
-        derived_only(file_names(fetch(each))) for each in sorted(extra)
+        derived_only(files_of(github, repo, each)) for each in sorted(extra)
     )
+
+
+def files_of(github: ghapi.GitHub, repo: config.Repo, sha: str) -> Sequence[str]:
+    """The paths a commit changes.
+
+    Args:
+        github: the API.
+        repo: the commit's repository.
+        sha: the commit.
+
+    Returns:
+        The paths.
+    """
+    return file_names(ghapi.get(github, f"repos/{repo.slug}/commits/{sha}"))

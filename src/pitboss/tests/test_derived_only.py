@@ -2,6 +2,7 @@
 
 import json
 import unittest
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, is_not
 
@@ -12,33 +13,34 @@ from .test_flow_sweep import APPROVED, OLDER, graded, world_with
 
 ZIP = "skill-zips/sweep.zip"
 SOURCE = "src/pitboss/pulls.py"
+RENAMED: Mapping[str, str] = {"filename": SOURCE, "previous_filename": ZIP}
 
 
-def commit_files(*names: str) -> dict[str, object]:
-    """The API's answer for the commit a fix round pushed.
-
-    Args:
-        *names: the paths it changes.
-
-    Returns:
-        The canned body.
-    """
-    return {"files": [{"filename": name} for name in names]}
-
-
-def third_line(*names: str) -> str:
+def third_line(files: Sequence[Mapping[str, str]]) -> str:
     """What the sweep prints for PR 3, approved at an older head.
 
     Args:
-        *names: the paths the one commit since that head changes.
+        files: the files the one commit since that head changes.
 
     Returns:
-        The sweep's output with PR 3's lines only.
+        The sweep's lines of PR 3.
     """
     here = world_with([graded("approved", APPROVED, 1, OLDER)])
-    here.bodies[f"{world.PROJECT}/commits/2"] = commit_files(*names)
+    here.bodies[f"{world.PROJECT}/commits/2"] = {"files": files}
     lines = sweep(here).out.splitlines()
     return "\n".join(line for line in lines if "project#3" in line)
+
+
+def named(*names: str) -> Sequence[Mapping[str, str]]:
+    """Files as the API lists them.
+
+    Args:
+        *names: the paths.
+
+    Returns:
+        The files.
+    """
+    return [{"filename": name} for name in names]
 
 
 class TestSweepLines(unittest.TestCase):
@@ -46,28 +48,17 @@ class TestSweepLines(unittest.TestCase):
 
     def test_only_the_zip_is_approved_before_merges(self) -> None:
         """Only skill-zips/ differs: approved, and READY TO MERGE holds."""
-        swept = third_line(ZIP)
+        swept = third_line(named(ZIP))
         assert_that(swept, contains_string("review=approved-before-merges"))
         assert_that(swept, contains_string("READY TO MERGE owner/project#3"))
 
     def test_the_zip_and_another_file_is_reviewed_as_before(self) -> None:
-        """A mixed diff stays an older head, with no READY TO MERGE."""
-        swept = third_line(ZIP, SOURCE)
-        assert_that(swept, contains_string("review=older-head"))
-        assert_that(swept, is_not(contains_string("READY TO MERGE")))
-
-    def test_a_file_beside_the_directory_is_reviewed(self) -> None:
-        """The nearest name, skill-zips.txt, is not under skill-zips/."""
-        swept = third_line("skill-zips.txt")
-        assert_that(swept, contains_string("review=older-head"))
-
-    def test_a_zip_renamed_out_of_the_directory_is_reviewed(self) -> None:
-        """A rename counts its old path and its new one."""
-        here = world_with([graded("approved", APPROVED, 1, OLDER)])
-        moved = {"files": [{"filename": SOURCE, "previous_filename": ZIP}]}
-        here.bodies[f"{world.PROJECT}/commits/2"] = moved
-        out = sweep(here).out
-        assert_that(out, contains_string("review=older-head"))
+        """A mixed diff stays an older head; so do the nearest names."""
+        mixed = [named(ZIP, SOURCE), named("skill-zips.txt"), [RENAMED]]
+        for files in mixed:
+            swept = third_line(files)
+            assert_that(swept, contains_string("review=older-head"))
+            assert_that(swept, is_not(contains_string("READY TO MERGE")))
 
 
 class TestParts(unittest.TestCase):
@@ -83,8 +74,7 @@ class TestParts(unittest.TestCase):
         found = [mergesonly.derived_only([]), mergesonly.derived_only([ZIP])]
         assert_that(found, equal_to([False, True]))
 
-    def test_the_older_head_missing_a_commit_is_not_carried(self) -> None:
+    def test_a_head_missing_a_reviewed_commit_is_not_carried(self) -> None:
         """A head that lacks a commit of the reviewed head is a rewrite."""
-        kept = shapes.Commit(sha="1", parents=1)
-        gone = shapes.Commit(sha="2", parents=1)
+        kept, gone = (shapes.Commit(sha=each, parents=1) for each in "12")
         assert_that(mergesonly.added([kept], [kept, gone]), equal_to(None))
