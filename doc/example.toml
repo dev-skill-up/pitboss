@@ -159,8 +159,9 @@ keep = ["example-org/app-scratch#29"]
 branches = ["scratch-run-1", "scratch-run-2"]
 
 [sweep]
-# The questions each sweep ends with. Default: whether any ticket can be
-# closed, and whether any blocked ticket is unblocked.
+# The questions each sweep ends with, after the two sentences it always prints
+# (the owner's words, a worker's actions; pitboss#352). Default: whether any
+# ticket can be closed, and whether any blocked ticket is unblocked.
 # reminders = ["..."]
 # Path prefixes the e2e suite runs on. A draft whose Plan is approved, with a
 # diff that touches one and no completed dispatched run of `check.yml` at its head, has the step
