@@ -12,7 +12,7 @@ import dataclasses
 import pathlib
 import subprocess
 import unittest
-from typing import Sequence
+from typing import MutableMapping, Sequence
 
 from .. import ticketclosed
 from . import cleanworld, fakes, test_clean_clones, test_local, world
@@ -288,7 +288,7 @@ class TestTicketNumbers(unittest.TestCase):
 
     def test_the_first_closed_ticket_is_the_one(self) -> None:
         """An open one and one that cannot be read are passed over."""
-        bodies = {
+        bodies: MutableMapping[str, object] = {
             "repos/o/r/issues/11": {"state": "open"},
             "repos/o/r/issues/33": {"state": "closed"},
         }
