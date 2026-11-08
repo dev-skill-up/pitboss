@@ -20,6 +20,7 @@ from . import cleanruns, cleanworld, fakes, test_local, world
 same = cleanworld.same
 BUSY = fx.TMP / "tmpbusy"
 SLEEP = "import time; time.sleep(60)"
+TEMPS = dataclasses.replace(fx.plain(), tmp_patterns=("tmp*",))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -172,7 +173,7 @@ def split(tmp: Tmp, directory: pathlib.Path) -> tuple[Sequence[str], Sequence[st
         The two lists of names.
     """
     busy = dataclasses.replace(tmp.machine, busy=lambda: {directory})
-    free, used = tempclean.split_tempdirs(busy, fx.plain(), 2)
+    free, used = tempclean.split_tempdirs(busy, TEMPS, 2)
     return fx.names(free), fx.names(used)
 
 
@@ -183,7 +184,7 @@ class TestSplitting(unittest.TestCase):
         """Its current directory is below the tempdir; the other one may go."""
         tmp = tmp_of()
         same(split(tmp, BUSY / "inner"), (["tmpold"], ["tmpbusy"]))
-        stale = tempclean.stale_tempdirs(tmp.machine, fx.plain(), 2)
+        stale = tempclean.stale_tempdirs(tmp.machine, TEMPS, 2)
         same(fx.names(stale), ["tmpbusy", "tmpold"])
 
     def test_a_tempdir_that_is_a_process_s_directory_is_used(self) -> None:
