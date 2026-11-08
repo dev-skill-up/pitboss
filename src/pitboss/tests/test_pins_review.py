@@ -47,7 +47,15 @@ def compiler_checkout(here: world.World, name: str) -> pathlib.Path:
     path = here.workspace / name
     path.mkdir()
     repositories.run_git(path, "init", "--quiet")
-    repositories.run_git(path, "commit", "--quiet", "--allow-empty", "-m", "old")
+    repositories.run_git(
+        path,
+        *repositories.IDENTITY,
+        "commit",
+        "--quiet",
+        "--allow-empty",
+        "-m",
+        "old",
+    )
     return path
 
 
