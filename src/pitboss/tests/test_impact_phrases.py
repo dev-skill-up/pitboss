@@ -202,6 +202,7 @@ def work_repository(case: unittest.TestCase) -> diffrepo.Repository:
 ROW = (
     "1. `pitboss impact come_first come-first 'come first' "
     "'Say the come first rule.'`\n"
+    "   src/mod.py:3: not edited, a constant of the fixture\n"
 )
 
 
