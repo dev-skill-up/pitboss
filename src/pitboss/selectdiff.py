@@ -124,7 +124,9 @@ def choose(run: Runner) -> tuple[Sequence[str], testselect.Selection]:
     """
     diff = diff_of(run)
     if diff.problem:
-        gone = testselect.Selection(everything=diff.problem, chosen={}, total=0)
+        gone = testselect.Selection(
+            everything=diff.problem, chosen={}, total=0, changed=[]
+        )
         return testselect.lines_of(gone), gone
     graph = importgraph.build_graph(sources_of(diff.root))
     found = testselect.affected_by(graph, diff.changes)

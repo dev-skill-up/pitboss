@@ -22,7 +22,6 @@ SUCCESS_LINES = [
     ["mypy", "success"],
     ["tests-3.13", "success"],
 ]
-MODULES = ["pitboss.tests.test_gates", "pitboss.tests.test_nox"]
 SELECTION = "test-selection"
 
 
@@ -193,15 +192,9 @@ class TestNoxCommand(unittest.TestCase):
         has_all(found.out, ["lint failed", "output of lint\n"])
         has_none(found.out, ["output of skills", "mypy", noxcheck.PROOF])
 
-    def test_module_names_go_to_the_tests_session_only(self) -> None:
-        """Words after `--` are the tests session's posargs."""
-        _, calls = run_nox({}, *MODULES)
-        expected = [*COMMANDS[:3], [*COMMANDS[3], *MODULES]]
-        assert_that(calls, equal_to(expected))
-
     def test_the_tests_command_carries_the_stop_after_option(self) -> None:
         """-x is in the tests command whatever the arguments, and in no other."""
-        for words in ([], MODULES, ["pitboss.tests.test_gates"]):
+        for words in ([], ["--also", "pitboss.tests.test_gates=it reads a file"]):
             _, calls = run_nox({}, *words)
             assert_that(calls[-1][4:6], equal_to(["--", "-x"]))
             assert_that([each for each in calls[:3] if "-x" in each], equal_to([]))

@@ -45,24 +45,34 @@ class Selection:
         everything: why the whole suite runs; empty when the choice was made.
         chosen: for each selected test module, the changed files that reach it.
         total: how many test modules there are.
+        changed: the files the diff changed.
     """
 
     everything: str
     chosen: Mapping[str, Sequence[str]]
     total: int
+    changed: Sequence[str]
 
 
-def everything(graph: importgraph.Graph, why: str) -> Selection:
+def everything(
+    graph: importgraph.Graph, why: str, changes: Sequence[Change]
+) -> Selection:
     """The whole suite.
 
     Args:
         graph: the graph.
         why: the reason.
+        changes: the files the diff changed.
 
     Returns:
         A selection that runs every test.
     """
-    return Selection(everything=why, chosen={}, total=len(importgraph.tests_of(graph)))
+    return Selection(
+        everything=why,
+        chosen={},
+        total=len(importgraph.tests_of(graph)),
+        changed=[each.path for each in changes],
+    )
 
 
 def unplaced(change: Change) -> str:
@@ -98,9 +108,10 @@ def affected_by(graph: importgraph.Graph, changes: Sequence[Change]) -> Selectio
     """
     reasons = [unplaced(each) for each in changes]
     if graph.unreadable:
-        return everything(graph, f"{sorted(graph.unreadable)[0]} cannot be parsed")
+        why = f"{sorted(graph.unreadable)[0]} cannot be parsed"
+        return everything(graph, why, changes)
     if any(reasons):
-        return everything(graph, next(each for each in reasons if each))
+        return everything(graph, next(each for each in reasons if each), changes)
     chosen: dict[str, list[str]] = {}
     wanted = importgraph.tests_of(graph)
     for each in (found for found in changes if not found.deleted):
@@ -108,7 +119,8 @@ def affected_by(graph: importgraph.Graph, changes: Sequence[Change]) -> Selectio
         for test in wanted:
             if test in reached:
                 chosen.setdefault(test, []).append(each.path)
-    return Selection(everything="", chosen=chosen, total=len(wanted))
+    paths = [each.path for each in changes]
+    return Selection(everything="", chosen=chosen, total=len(wanted), changed=paths)
 
 
 def lines_of(selection: Selection) -> Sequence[str]:
