@@ -16,8 +16,11 @@ from . import (
     diskwatch,
     expansion,
     noxcheck,
+    noxgreen,
     selectdiff,
 )
+from .commandarguments import NOW_ARGUMENT
+from .timing import current_time
 
 
 def run_command(args: argparse.Namespace, command: Sequence[str]) -> expansion.Outcome:
@@ -105,6 +108,40 @@ def stop_when_short_of_disk(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def skipped_as_green(args: argparse.Namespace, place: noxgreen.Place | None) -> bool:
+    """Print the NOTE and say so when this head already ran green.
+
+    Args:
+        args: the parsed arguments.
+        place: the clean head and its record file, none when git cannot say.
+
+    Returns:
+        True when the sessions are not to run again.
+    """
+    before = noxgreen.green_at(place) if place and not args.force else ""
+    if before:
+        print(noxgreen.note_of(before))
+    return bool(before)
+
+
+def run_planned(
+    args: argparse.Namespace, runner: noxcheck.Runner, place: noxgreen.Place | None
+) -> None:
+    """Print the plan, run the sessions and record a green head.
+
+    Args:
+        args: the parsed arguments.
+        runner: runs a command line.
+        place: the clean head and its record file, none when git cannot say.
+    """
+    lines, modules, sessions = planned(args, runner)
+    for each in lines:
+        print(each)
+    show(noxcheck.run_sessions(runner, time.monotonic, modules, sessions))
+    if place:
+        noxgreen.record(place, current_time(args).isoformat())
+
+
 @ENTRY_DATA.register(
     add_argument(
         "--also",
@@ -130,6 +167,16 @@ def stop_when_short_of_disk(args: argparse.Namespace) -> None:
         " module is deleted, when a file cannot be parsed and when git cannot"
         " say the diff; no test runs when the diff reaches none.",
     ),
+    add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="run the sessions on a head that already ran green (without it the"
+        " command prints a NOTE with the time of that run and exits 0; run it"
+        " before each push and when feedback is needed, not again on one head;"
+        " a tree with a change is never skipped).",
+    ),
+    NOW_ARGUMENT,
     name="nox",
 )
 def nox(args: argparse.Namespace) -> None:
@@ -150,14 +197,16 @@ def nox(args: argparse.Namespace) -> None:
     docs, dry_release and the other Python versions are CI's. The tests session
     runs the tests the diff can affect (``testselect``, ``selectdiff``,
     pitboss#331), printed first with the reason; a test module added with
-    ``--also MODULE=REASON`` runs besides them (``alsotests``).
+    ``--also MODULE=REASON`` runs besides them (``alsotests``). A head that
+    already ran green on a clean tree is not run again: a ``NOTE`` with the
+    time of that run is printed and the status is 0, unless ``--force`` is
+    given (``noxgreen``, pitboss#345).
 
     Args:
         args: the parsed arguments.
     """
     stop_when_short_of_disk(args)
     runner = functools.partial(run_command, args)
-    lines, modules, sessions = planned(args, runner)
-    for each in lines:
-        print(each)
-    show(noxcheck.run_sessions(runner, time.monotonic, modules, sessions))
+    place = noxgreen.place_of(runner)
+    if not skipped_as_green(args, place):
+        run_planned(args, runner, place)

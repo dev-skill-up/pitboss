@@ -1,9 +1,11 @@
 """The ``Deviations:`` line of a hand-back (keyword: deviations, pitboss#257).
 
-A worker told to change files with the Edit tool only was not caught when it
-used ``sed``, a heredoc or ``rm`` until it said so itself. A hand-back now has a
-``Deviations:`` line (the rules of the brief the worker broke, or ``none``), and
-a hand-back without it is ``NOT STARTED`` and is sent back.
+A hand-back has a ``Deviations:`` line (only a departure from the Plan's
+commands or the ticket's Done-when, such as ``pitboss nox`` run more than once
+on one head; or ``none``, pitboss#345), and a hand-back without it is
+``NOT STARTED`` and is sent back. How a file is edited (a heredoc, the Edit
+tool, ``sed``), a virtualenv, a redirected output file or a research fetch is
+never a deviation.
 """
 
 import dataclasses
@@ -14,8 +16,8 @@ from . import config, ledger
 
 PREFIX = "Deviations:"
 NOT_STARTED = (
-    "NOT STARTED: the hand-back has no `Deviations:` line (the rules of the brief"
-    " you broke, or `none`)"
+    "NOT STARTED: the hand-back has no `Deviations:` line (only a departure"
+    " from the Plan's commands or the ticket's Done-when, or `none`)"
 )
 
 

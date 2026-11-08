@@ -5,8 +5,8 @@ reviewed code change.
 """
 
 NOX = (
-    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
-    " every edit and before every push, for iterating too (the skills, lint and"
+    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
+    " each push and when you need feedback, once for a head (the skills, lint and"
     " mypy first, then the tests of one Python version, which stop at the first"
     " failing test; it stops at the first failing session and always uses `-r`); a"
     " targeted test module, `nox -s ...` or `virtue` is never run by hand,"
@@ -39,10 +39,13 @@ TASK_ADD_CI_QUOTES = (
 )
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
-    " each rule of this brief you broke (an edit by `sed`, a heredoc or `rm`"
-    " instead of the Edit tool included), or `none`; it is part of the form of"
-    " the hand-back, and a hand-back without it is NOT STARTED and is sent back"
-    " (pitboss#257)."
+    " only a departure from the Plan's commands or the ticket's Done-when"
+    " (`pitboss nox` run more than once on one head is one; `--all` is not"
+    " feedback); how a file is edited (a heredoc, the Edit tool, `sed`), a"
+    " virtualenv, a redirected output file or a research fetch is never a"
+    " deviation, and the line is `Deviations: none` beside them; it is part of"
+    " the form of the hand-back, and a hand-back without it is NOT STARTED and"
+    " is sent back (pitboss#257, pitboss#345)."
 )
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"

@@ -12,11 +12,15 @@ REVIEW_NOTES = (
     " a note; a note holds only what the change did not cause."
 )
 DEVIATIONS_REVIEW = (
-    "Deviations: read the PR body's `Deviations:` line. A listed edit by shell is"
-    " a finding only when it left a trace in the tree that the Edit tool would"
-    " not have (a stray or backup file, a changed mode or line ending, a file"
-    " removed that the change does not remove); it never fails a PR for a clean"
-    " tree. Record each listed deviation, finding or not, on a line of the"
+    "Deviations: read the PR body's `Deviations:` line. A listed deviation is a"
+    " finding only when it is a departure from the Plan's commands or the"
+    " ticket's Done-when (`pitboss nox` run more than once on one head is one) or"
+    " a trace in the tree that the Edit tool would not have: a stray or backup"
+    " file, a changed mode or line ending, a file removed that the change does"
+    " not remove; how a file is edited (a heredoc, the Edit tool, `sed`), a"
+    " virtualenv, a redirected output file or a research fetch is never a"
+    " deviation and never fails a PR. Record each listed deviation,"
+    " finding or not, on a line of the"
     " comment that starts with `Deviation:`, for the sweep's ledger line for the"
     " worker (pitboss#257)."
 )
