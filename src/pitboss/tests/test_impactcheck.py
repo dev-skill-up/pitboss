@@ -260,3 +260,35 @@ class TestHead(unittest.TestCase):
         assert_that(by_head_line(right), equal_to([0, "Plan check: ok"]))
         want = [1, "Plan check: refused, Impact findings: 2"]
         assert_that(by_head_line(stale), equal_to(want))
+
+
+UNREAD = (
+    "uv run pitboss impact x",
+    ".venv/bin/pitboss impact x",
+    "cd . && pitboss impact x",
+    "uvx --with foo pitboss impact x",
+    "env pitboss impact x",
+    "uvx --python 3.12 pitboss impact x",
+    "uv run pitboss impact 'x",
+)
+
+
+class TestUnreadSpelling(unittest.TestCase):
+    """A spelling of the Impact command the check does not read is refused."""
+
+    def test_each_spelling_is_a_row_with_a_problem(self) -> None:
+        """No row goes to sh with a pitboss that may lack the command."""
+        for command in UNREAD:
+            row = impactcheck.parse(command)
+            assert row is not None, command
+            assert_that(row.problem, contains_string("Impact command"), command)
+
+    def test_a_quoted_phrase_is_an_ordinary_row(self) -> None:
+        """Only shell words count: one word that holds the text is no program."""
+        assert_that(impactcheck.parse("rg 'pitboss impact' src"), equal_to(None))
+
+    def test_plan_check_refuses_a_plan_with_such_a_row(self) -> None:
+        """The exit status is 1: the row did not run."""
+        row = "uv run pitboss impact readme"
+        plan = f"## Plan\nx\n\n$ {row}\nREADME:1: edited\n\n## Execution\nx\n"
+        assert_that(checked(plan).code, equal_to(1))

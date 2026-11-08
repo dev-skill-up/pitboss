@@ -26,10 +26,10 @@ USAGE_ERROR = 2
 def impact_command(args: argparse.Namespace) -> None:
     """Print every line of the tree where a phrase starts, as ``file:line:text``.
 
-    The search is of the whole directory at its head, not of the index, without
-    regard to case, with any whitespace (a line break and the marks that
-    continue a wrapped sentence included) between the words of a phrase, and
-    leaves out only ``.git``, ``build``, ``skill-zips`` and the caches. A Plan
+    The search is of the whole directory at its head, not of the index, in any
+    case, with any whitespace (a line break and the marks that continue a
+    wrapped sentence included) between a phrase's words. It leaves out ``.git``,
+    the root ``build`` and ``skill-zips``, caches, links and NUL-byte files. A Plan
     cites this command, so its Evidence block is the Impact list, and ``pitboss
     plan-check`` holds the Plan to it (keyword: impact-list, pitboss#320).
 

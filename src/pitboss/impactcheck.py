@@ -12,6 +12,7 @@ given.
 """
 
 import dataclasses
+import posixpath
 import re
 import shlex
 from typing import Mapping, Sequence
@@ -28,6 +29,11 @@ OPERATORS = re.compile(r"^[();<>|&]+$")
 SHELL_PROBLEM = (
     "an Impact command takes no pipe, redirect or list of commands: the Plan"
     " cites its whole output"
+)
+RAW = re.compile(r"(^|[\s/])pitboss\s+impact\b")
+SPELLING_PROBLEM = (
+    "an Impact command is read only as `pitboss impact`, behind `uvx` (with"
+    " `--from DIR` or `--no-cache`) or `python -m`, after `NAME=value`: write it so"
 )
 WORD_PROBLEM = "an Impact command needs a phrase with a word"
 
@@ -60,17 +66,34 @@ def parse(command: str) -> Row | None:
     The program is ``pitboss impact``, behind ``uvx``, ``uvx --from DIR`` or
     ``python -m``, and after variable assignments (``PYTHONPATH=src``).
 
+    Any other spelling of it (``uv run``, a path, ``env``, ``cd && ...``) is a
+    row with a problem, not a row for ``sh``: the check never runs a launcher.
+
     Args:
         command: the row's command line.
 
     Returns:
         None for any other row; else its phrases, or the problem that keeps the
         check from running it as written (a pipe or a redirect after it, which
-        would cut the list the Plan cites, or no phrase).
+        would cut the list the Plan cites, no phrase, or a spelling it does not
+        read).
     """
     words = _words(command)
     if words is None:
-        return None
+        spelled = RAW.search(command) is not None
+        return Row(phrases=[], problem=SPELLING_PROBLEM) if spelled else None
+    row = _read(list(words))
+    if row is None and _names_program(words):
+        return Row(phrases=[], problem=SPELLING_PROBLEM)
+    return row
+
+
+def _names_program(words: Sequence[str]) -> bool:
+    programs = [posixpath.basename(each) for each in words]
+    return PROGRAM in set(zip(programs, words[1:]))
+
+
+def _read(words: list[str]) -> Row | None:
     while words and ASSIGNMENT.match(words[0]):
         words = words[1:]
     if words[:1] == ["uvx"]:

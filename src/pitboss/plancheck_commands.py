@@ -162,7 +162,7 @@ def _plan_of(name: str, body: str) -> str:
     name="plan-check",
 )
 def plan_check(args: argparse.Namespace) -> None:
-    """Run the commands of a Plan, and refuse it for a row that did not run.
+    """Run a Plan's rows; refuse it for a row that did not run or an Impact finding.
 
     A nox row is refused unrun (pitboss#251). A row ``pitboss impact PHRASE...``
     is searched in a scratch worktree of the PR's head (``--head``, by default the
