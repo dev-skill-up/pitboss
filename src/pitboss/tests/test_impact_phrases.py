@@ -15,13 +15,13 @@ SOURCE = '''\
 """The module says what it does."""
 
 COME_FIRST = 1
-SHORT = 2
+TINY = 2
 
 
 def come_first(x):
     """Say the come first rule.
 
-    Returns the thing.
+    Returns it.
     """
     return x
 
@@ -84,8 +84,16 @@ CASES: Mapping[str, tuple[Mapping[str, Sequence[int]], str, Sequence[str]]] = {
         SOURCE,
         ["Say the come first rule.", *SAYS_FORMS],
     ),
-    "a line of a docstring that is two words": ({MOD: [RETURNS]}, SOURCE, []),
-    "the module docstring": ({MOD: [MODULE]}, SOURCE, ["The module says what it"]),
+    "a line of a docstring that is two words": (
+        {MOD: [RETURNS]},
+        SOURCE,
+        SAYS_FORMS,
+    ),
+    "the module docstring": (
+        {MOD: [MODULE]},
+        SOURCE,
+        ['The module says what it does."""'],
+    ),
     "a function": ({MOD: [DEF]}, SOURCE, SAYS_FORMS),
     "a constant in the forms of its name": (
         {MOD: [CONSTANT]},
@@ -104,7 +112,7 @@ CASES: Mapping[str, tuple[Mapping[str, Sequence[int]], str, Sequence[str]]] = {
         ["The plan lists each behaviour of"],
     ),
     "a short line of a guide": ({"doc/guide.md": [5]}, SOURCE, []),
-    "a source that does not parse": ({MOD: [DEF]}, BROKEN, []),
+    "a source that does not parse": ({MOD: [DEF]}, BROKEN, SAYS_FORMS),
 }
 
 
