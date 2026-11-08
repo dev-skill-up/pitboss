@@ -96,12 +96,12 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `DELETED SCRATCH BRANCH` | The head branch of a scratch PR it closed was deleted. | Nothing. |
 | `COULD NOT CLOSE SCRATCH PR` | GitHub refused to close a scratch PR; the line gives the HTTP status. | Close it by hand, or give the session the access; the next sweep tries again. |
 | `COULD NOT DELETE SCRATCH BRANCH` | A branch of a closed scratch PR is still there, with the reason: another open PR has it as its head (a run branch is reused), its head is in another repository, or GitHub refused (a session may not be allowed to delete a branch). | Nothing for the first two. For a refusal, leave it: the run branches are reused, and the next run force-pushes into one ("Scratch PRs", below). |
-| `clean:` | The first lines of a sweep (keyword: auto-clean): the mode (`disk under 90% used`, or `DISK OVER 90% (...)` or `DISK UNDER 5 GiB FREE (...)`: aggressive), what was removed and the space freed, what is never touched (a worktree with an open PR, a running worker's directory (a merged one's `.pitboss-live` marker counts only for 6 hours), the main clone, the directory the sweep runs in; under pressure each open-PR worktree is named), and a total. Under pressure it ends with the account below: `clean: kept PATH (WHY)` for each directory of the workspace that is not a registered worktree and was not removed (a full clone with an open PR, an unreadable checkout, `not a git checkout`); `clean: freed by kind: worktrees X, checkouts X, test tempdirs X, package caches X` ("would be freed" in a dry run); when that is less than the disk needs to get out of the pressure, `clean: X freed, X short of the X needed to get under 90%: each directory over 500 MB that was kept` (`needed to have 5 GiB free` when the free-space rule set the need) and then `clean: kept SIZE PATH (WHY): over 500 MB` for each such directory, largest first. The sweep has removed it already. | Nothing. Never ask the owner about it ("Automatic cleaning", below). |
+| `clean:` | The first lines of a sweep (keyword: auto-clean): the mode (`disk under 90% used`, or `DISK OVER 90% (...)` or `DISK UNDER 5 GiB FREE (...)`: aggressive), what was removed and the space freed, what is never touched (a worktree with an open PR, a running worker's directory (a merged one's `.pitboss-live` marker counts only for 6 hours), the main clone, the directory the sweep runs in; under pressure each open-PR worktree is named), and a total. Under pressure it ends with the account below: `clean: kept PATH (WHY)`; `clean: freed by kind: worktrees X, checkouts X, test tempdirs X, package caches X` ("would be freed" in a dry run); when that is less than the disk needs to get out of the pressure, `clean: X freed, X short of the X needed to get under 90%: each directory over 500 MB that was kept` (`needed to have 5 GiB free` when the free-space rule set the need) and then `clean: kept SIZE PATH (WHY): over 500 MB` for each such directory, largest first. The sweep has removed it already. | Nothing. Never ask the owner about it ("Automatic cleaning", below). |
 | `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). Under that minimum the sweep's clean is the aggressive pass, as over `pressure_percent`, for every repository the workspace holds (each directory judged by the PRs of its own `origin`, whatever config the sweep runs with). The line says how much was free, the pass it started and the bytes it freed; when the free space is still under the minimum, further lines list each directory over 500 MB that was kept, with why. | Read the kept directories; `pitboss clean-container <config>` for the dead paths ("Disk", below). |
 | `DISK` | `next` and `slots next` print the free space of the workspace's volume (keyword: disk-watch, pitboss#288). From 85% used the line says to clean; from 90% used, or under 1 GiB free, the first suggestion is `clean the disk` (`uvx pitboss clean-container`, then `uvx pitboss clean-container --no-dry-run`, then the five largest `[clean] scratch` entries); under 1 GiB free no worker is suggested. | Run the two commands the suggestion names before starting a worker. |
 | `REMOVED PATH` | A dead path was removed by `clean-container` (or, with "dry run", would be): its size and why it is dead. | Nothing. |
 | `KEPT PATH` | A dead path with work that exists only here (commits on no remote branch, in any branch or the stash of a standalone clone; changed tracked files), or that git cannot read, a bare repository, a mount point inside it or a path that cannot be looked at; never removed. | Triage it like a `STRAGGLER`. |
-| `COULD NOT REMOVE PATH` | `rm` left the path in place, the path was looked at again just before its removal and was live, busy or unsafe, or a path of the `--approved` file is not a safe dead path directly in a configured root now. | Look at it: someone may still be using it. |
+| `COULD NOT REMOVE PATH` | `rm` left the path in place, the path was looked at again just before its removal and was live, busy or unsafe, or a path of the `--approved` file is not a safe dead path now. | Look at it: someone may still be using it. |
 | `SWEEP REMINDER` | A question each sweep ends with (the project's configuration may set its own). | Answer it before ending the sweep (below). |
 | `EMPTY SLOT` | A worker slot has no agent. | See `slots.md`. |
 | `SLOTS FREE` | `SLOTS FREE n`: fewer workers run than the slots configured (n of them free) and the queue has work. | Start work with `slots next`, and before the turn ends set a wake-up (`send_later`): nothing else wakes an idle orchestrator until a GitHub event. |
@@ -220,9 +220,7 @@ included: unpushed work can be lost, and a fix waits).
 
 ## Stale worktrees
 
-A worktree is finished when it is not the main clone, lies under the workspace,
-and its branch's PR merged or was closed, or, with no PR, its tip is in the base
-branch. A worktree on no branch, or on the base branch, is finished once its tip
+A worktree on no branch, or on the base branch, is finished once its tip
 is in the base branch (unlike a checkout of "Disk" below), so a persistent one
 carries `.pitboss-live` (under disk pressure that keeps a merged one only when its work merged last, and a marker older than 6 hours, the bound of a worker's task, keeps a merged one at no disk level). A worktree with an open PR is never finished. A finished worktree is
 removed only when it passes the safety test, the one `clean-container` and the
@@ -268,8 +266,8 @@ whose runs are still going prints no line. How a run uses the table is in
 
 A sweep starts by cleaning (`pitboss clean <config>` is the same on its own;
 `--dry-run` removes nothing), with no prompt and no dry run: the finished
-worktrees and dead checkouts, and the test tempdirs (`/tmp/tmp????????`, the
-session user's, untouched for `[clean] tmp_hours`, default 24 hours). At 90% or
+worktrees and dead checkouts, and the test tempdirs
+. At 90% or
 more of a file system used (`[clean] pressure_percent`), or with less than 5 GiB
 free on it (`[clean] min_free_gib`, `DISK PRESSURE`), it is aggressive: tempdirs
 untouched for an hour, every worktree and checkout with no open PR, and the
@@ -290,14 +288,8 @@ does not stop.
 ## Disk
 
 `pitboss clean-container <config>` lists the dead paths of the machine and
-`--no-dry-run` removes them. A path is dead when it is one of:
+`--no-dry-run` removes them.
 
-- a git checkout directly under the workspace whose PR merged or closed, or
-  whose tip is in the base branch with no PR (a checkout on the base branch or
-  on no branch is never dead: it is a persistent checkout; a sweep under `auto`
-  has already removed the finished worktrees of the main clone, judged as in
-  "Stale worktrees" above, where a worktree on no branch or on the base branch
-  can be finished);
 - an entry of a `[clean] scratch` directory (not a symbolic link) with nothing
   in it changed in the idle hours (`[worktrees] idle_hours`);
 - a regular file directly in `--root` (default `/`) written over `--hours`
@@ -322,8 +314,8 @@ largest first, with its size and reason, and a last line with the total.
 
 To approve a subset, write its paths one to a line in a file and pass
 `--approved FILE`: only those paths are removed, and a path of the file that is
-not among the safe dead paths now, or not directly in the workspace, a scratch
-directory or `--root`, is `COULD NOT REMOVE PATH`. Removal runs
+not among the safe dead paths now
+is `COULD NOT REMOVE PATH`. Removal runs
 `rm -rf --one-file-system` on at most `--batch` paths at a time (default 5), so a
 sandbox that refuses one large delete still completes; each part is looked at
 again just before its `rm`, and a path that is live, busy or unsafe by then is

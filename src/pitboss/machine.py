@@ -13,7 +13,7 @@ import pathlib
 import shutil
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import disk, mounts, survey
+from . import disk, mounts, procs, survey
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -95,6 +95,15 @@ def read_usage(path: pathlib.Path) -> disk.Usage | None:
         return None
 
 
+def nobody() -> AbstractSet[pathlib.Path]:
+    """The directories no process works in: what a machine of no processes says.
+
+    Returns:
+        None.
+    """
+    return frozenset()
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Machine:
     """What the cleaning reads from the machine.
@@ -106,6 +115,8 @@ class Machine:
         uid: the user whose tempdirs are removed.
         home: the home directory, where the package caches are.
         working: the directories the command runs in; never removed.
+        busy: reads the directories the running processes work in; a tempdir
+            that is or holds one is not removed (pitboss#348).
     """
 
     fs: Filesystem
@@ -114,6 +125,7 @@ class Machine:
     uid: int
     home: pathlib.Path
     working: AbstractSet[pathlib.Path] = frozenset()
+    busy: Callable[[], AbstractSet[pathlib.Path]] = nobody
 
 
 def real_machine(
@@ -140,6 +152,7 @@ def real_machine(
         uid=os.getuid(),
         home=pathlib.Path(env.get("HOME", str(pathlib.Path.home()))),
         working=working,
+        busy=procs.in_use,
     )
 
 

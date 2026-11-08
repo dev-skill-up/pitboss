@@ -2,13 +2,14 @@
 
 This is the auto-clean rule (pitboss#120; the rule is in ``rules.md``,
 "Checkouts and disk"). No prompt and no dry-run default: a sweep removes the
-test tempdirs older than ``[clean] tmp_hours`` that the session user owns, the
-finished worktrees and the dead checkouts, and prints what it removed and the
-space freed. At or over ``[clean] pressure_percent`` of a filesystem used (90
-by default), or when it has less than ``[clean] min_free_gib`` free (5 GiB by
-default; pitboss#205), it also removes tempdirs of a shorter age, every
-worktree and every checkout of a repository without an open PR, and the package
-caches that regenerate. It never touches a worktree with an open PR, a running worker's
+test tempdirs older than ``[clean] tmp_hours`` that the session user owns and
+no running process works in, the finished worktrees and the dead checkouts, and
+prints what it removed and the space freed. At or over ``[clean]
+pressure_percent`` of a filesystem used (90 by default), or when it has less
+than ``[clean] min_free_gib`` free (5 GiB by default; pitboss#205), it also
+removes tempdirs of a shorter age, every worktree and every checkout of a
+repository without an open PR, and the package caches that regenerate. It never
+touches a worktree with an open PR, a running worker's
 directory (changed within ``idle_hours``, or marked ``.pitboss-live``; a merged
 worktree's marker is ignored under disk pressure, except the one whose PR merged
 last, and, at any disk level, once it is older than a worker's task, 6 hours:
@@ -142,7 +143,7 @@ def checkouts_part(job: Job) -> Part:
         for name in found.unfetched
     ]
     left = directories_left(job, found)
-    said = [f"clean: kept {each.path} ({each.why})" for each in left]
+    said = cleaning.kept_checkouts(left)
     return dataclasses.replace(
         part, lines=[*failed, *part.lines, *said], kept=[*left, *part.kept]
     )
@@ -165,7 +166,7 @@ def directories_left(job: Job, found: deadscan.Findings) -> Sequence[dead.Kept]:
 
 
 def tempdirs_part(job: Job) -> Part:
-    """Remove the session user's test tempdirs that nobody has touched.
+    """Remove the session user's test tempdirs that nobody touched or works in.
 
     Args:
         job: the job.

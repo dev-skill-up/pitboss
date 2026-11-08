@@ -173,9 +173,10 @@ def choose(
 ) -> tuple[Sequence[dead.Candidate], Sequence[pathlib.Path]]:
     """The safe candidates to remove, and the paths named that are not.
 
-    Only a path directly in a configured root is ever removed, and an approved
-    path is removed only when it is one of the safe candidates now: any other
-    path of the file is refused, whatever it is.
+    Only a path directly in a root (the workspace, a scratch directory, the
+    root of files, a tempdir root, a directory that holds a dead checkout) is
+    ever removed, and an approved path is removed only when it is one of the
+    safe candidates now: any other path of the file is refused, whatever it is.
 
     Args:
         listed: the dead paths.
@@ -185,7 +186,7 @@ def choose(
     Returns:
         The candidates to remove, and the approved paths (or, with no list,
         the safe candidates) that are not removed because they are no safe
-        dead path directly in a root.
+        dead path directly in one.
     """
     safe = dead.safe(listed)
     placed = [each for each in safe if each.path.parent in roots]
@@ -219,6 +220,18 @@ def kept_line(each: dead.Candidate) -> str:
         The line.
     """
     return path_line(Marker.KEPT_PATH, each, f": {each.kept}")
+
+
+def kept_checkouts(kept: Sequence[dead.Kept]) -> Sequence[str]:
+    """The lines that say why checkouts are kept.
+
+    Args:
+        kept: the directories kept, each with why.
+
+    Returns:
+        A line for each.
+    """
+    return [f"clean: kept {each.path} ({each.why})" for each in kept]
 
 
 def removed_line(each: dead.Candidate, verb: str) -> str:
@@ -262,7 +275,7 @@ def remove_all(
     Returns:
         The paths that are gone (all of them in a dry run).
     """
-    verb = "" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
+    verb = " FREED" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
     gone = []
     how = Removal(
         run=args.run, recheck=recheck, batch=args.batch, dry=not args.no_dry_run
@@ -303,7 +316,7 @@ def closing_lines(done: Outcome) -> Sequence[str]:
     Returns:
         The lines.
     """
-    note = "(not a safe dead path directly in a configured root)"
+    note = "(not a safe dead path directly in a place that may be removed from)"
     total = disk.size_text(sum(each.size for each in done.gone))
     held = disk.size_text(sum(each.size for each in done.kept))
     verb = "freed" if done.removing else "would be freed"

@@ -4,9 +4,10 @@ import dataclasses
 import functools
 import pathlib
 import subprocess
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import AbstractSet, Callable, Iterable, Mapping, Sequence
 
-from . import concurrently, config, dead, local, shapes
+from . import concurrently, dead, local, registered, shapes, ticketclosed
+from .outcomes import outcomes_of
 from .dead import Kept
 from .running import git
 
@@ -137,7 +138,7 @@ def explain_keeping(
         return "on the base branch: a persistent checkout"
     if opened(known, each.branch):
         return "its branch has an open PR"
-    return "its branch is not merged or closed"
+    return "its branch is not merged or closed, and its name is no closed ticket's"
 
 
 def checkout_reason(
@@ -148,7 +149,8 @@ def checkout_reason(
     """Why a checkout is dead.
 
     A checkout on the base branch, or detached, is never dead: it is a
-    persistent checkout.
+    persistent checkout. One whose branch has no PR is dead when its tip is in
+    the base branch or a number in its name or branch is a closed ticket.
 
     Args:
         look: what to look at.
@@ -164,29 +166,13 @@ def checkout_reason(
     newest = outcomes.get(each.slug, {}).get(each.branch)
     if newest is not None and not newest.still_open:
         return local.Reason.MERGED if newest.merged else local.Reason.CLOSED
-    if newest is None and local.in_base(look.run, each.path, "HEAD", base):
+    if newest is not None:
+        return None
+    if local.in_base(look.run, each.path, "HEAD", base):
         return local.Reason.IN_BASE
-    return None
-
-
-def _outcomes(
-    look: dead.Look, slugs: Iterable[str]
-) -> Mapping[str, Mapping[str, shapes.Outcome]]:
-    # A clone of a repository the configuration does not name is asked about
-    # too: its branches' PRs decide it as much as any other's.
-    owner = look.settings.project.repo.owner
-    repos = {repo.slug: repo for repo in config.repositories(look.settings)}
-    wanted = sorted({slug for slug in slugs if slug})
-
-    def attempt(slug: str) -> Mapping[str, shapes.Outcome] | None:
-        repo = repos.get(slug) or config.parse_repo(slug, owner)
-        try:
-            return local.read_outcomes(look.github, repo)
-        except subprocess.CalledProcessError:
-            return None
-
-    read = concurrently.each(attempt, wanted)
-    return {slug: found for slug, found in zip(wanted, read) if found is not None}
+    names = (each.path.name, each.branch)
+    closed = each.slug and ticketclosed.closed_ticket(look.github, each.slug, names)
+    return local.Reason.TICKET_CLOSED if closed else None
 
 
 def _linked(each: Checkout) -> pathlib.Path | None:
@@ -225,10 +211,14 @@ def _judged(
     return dataclasses.replace(made, prune=_linked(each))
 
 
+def _firsts(read: Sequence[Checkout]) -> registered.Firsts:
+    return {each.common: each.path for each in reversed(read)}
+
+
 def _fetched(
     look: dead.Look, read: Sequence[Checkout]
 ) -> tuple[Sequence[Checkout], Sequence[str]]:
-    firsts = {each.common: each.path for each in reversed(read)}
+    firsts = _firsts(read)
     failed = local.fetch_each_repository(look.run, firsts.values())
     return [e for e in read if str(firsts[e.common]) not in failed], sorted(failed)
 
@@ -265,27 +255,6 @@ def _unreadable(
     )
 
 
-def plain_directories(workspace: pathlib.Path) -> Sequence[Kept]:
-    """The directories of the workspace that are not git checkouts.
-
-    They are never judged; a hidden one is not named.
-
-    Args:
-        workspace: the directory.
-
-    Returns:
-        A ``Kept`` for each, sorted.
-    """
-    return [
-        Kept(path=path, why="not a git checkout")
-        for path in sorted(workspace.iterdir())
-        if path.is_dir()
-        and not path.is_symlink()
-        and not path.name.startswith(".")
-        and not (path / ".git").exists()
-    ]
-
-
 def _judging(
     look: dead.Look,
     decide: Decide,
@@ -300,6 +269,19 @@ def _judging(
 def _checkout_paths(look: dead.Look) -> Sequence[pathlib.Path]:
     found = local.checkouts(look.settings.project.workspace)
     return [path for path in found if not path.is_symlink()]
+
+
+def _every(
+    look: dead.Look,
+) -> tuple[Sequence[Checkout], Sequence[pathlib.Path]]:
+    # The checkouts directly under the workspace, and the worktrees git lists
+    # for their repositories wherever under the workspace (pitboss#348).
+    direct, lost = _read(look, _checkout_paths(look))
+    known = {each.path.resolve() for each in direct}
+    workspace = look.settings.project.workspace
+    more = registered.under_workspace(look.run, workspace, _firsts(direct), known)
+    deeper, lost_deeper = _read(look, more)
+    return [*direct, *deeper], [*lost, *lost_deeper]
 
 
 def _skipped(read: Sequence[Checkout], fetched: Sequence[Checkout]) -> Sequence[Kept]:
@@ -324,9 +306,10 @@ def dead_checkouts(
         A candidate for each dead checkout, a ``Kept`` (with why) for each that
         is not dead or is live or in use, and the checkouts whose fetch failed.
     """
-    read, unreadable = _read(look, _checkout_paths(look))
+    read, unreadable = _every(look)
     fetched, failed = _fetched(look, read)
-    outcomes = _outcomes(look, {each.slug for each in fetched})
+    slugs = {each.slug for each in fetched}
+    outcomes = outcomes_of(look.github, look.settings, slugs)
     judging = _judging(look, decide, outcomes)
     judged = concurrently.each(
         lambda each: _judged(judging, look, cutoff, each), fetched
@@ -351,11 +334,16 @@ class Findings:
         kept: the directories of the workspace that are not dead or are live or
             in use, each with why; the dead ones that are not safe are
             candidates with a reason.
+        places: the directories under the workspace that hold a dead checkout,
+            which are not otherwise a place ``clean-container`` removes from.
+        tickets: the numbers in the names of the dead checkouts.
     """
 
     candidates: Sequence[dead.Candidate]
     unfetched: Sequence[str]
     kept: Sequence[Kept] = ()
+    places: AbstractSet[pathlib.Path] = frozenset()
+    tickets: Sequence[int] = ()
 
 
 def scan(look: dead.Look, now: float, decide: Decide = checkout_reason) -> Findings:
@@ -375,12 +363,15 @@ def scan(look: dead.Look, now: float, decide: Decide = checkout_reason) -> Findi
     found, unfetched = dead_checkouts(look, cutoff, decide)
     # Only a merged checkout's marker expires, not a scratch entry's (pitboss#194).
     plain = dataclasses.replace(look, marker_expiry=0.0)
-    scratch = dead.dead_scratch(plain, cutoff)
-    files = dead.dead_root_files(plain, cutoff)
+    elsewhere = dead.dead_elsewhere(plain, cutoff)
     checkouts = [each for each in found if isinstance(each, dead.Candidate)]
     kept = [each for each in found if isinstance(each, Kept)]
+    workspace = look.settings.project.workspace
+    places, tickets = ticketclosed.where(workspace, [e.path for e in checkouts])
     return Findings(
-        candidates=dead.ordered([*checkouts, *scratch, *files]),
+        candidates=dead.ordered([*checkouts, *elsewhere]),
         unfetched=unfetched,
-        kept=[*kept, *plain_directories(look.settings.project.workspace)],
+        kept=[*kept, *dead.plain_directories(workspace)],
+        places=places,
+        tickets=tickets,
     )

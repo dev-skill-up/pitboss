@@ -184,7 +184,10 @@ class TestExplaining(unittest.TestCase):
     def test_a_branch_says_what_became_of_its_pr(self) -> None:
         """An open PR; or none that merged or closed."""
         same(why("o/r", "live"), "its branch has an open PR")
-        same(why("o/r", "other"), "its branch is not merged or closed")
+        same(
+            why("o/r", "other"),
+            "its branch is not merged or closed, and its name is no closed ticket's",
+        )
 
 
 class TestAccount(unittest.TestCase):
