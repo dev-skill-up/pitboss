@@ -8,7 +8,8 @@ runs ``pitboss plan-check``, so the body is the worker's own and is never read
 from somewhere else (it is the file the caller saved, as ``expand`` reads its
 template). The Plan's CI pointers are held to the workflow files of the base and
 the head, and a spec the diff adds to the pointers and the group files of
-``[plan_check]`` (keyword: ci-pointer, pitboss#335).
+``[plan_check]`` (keyword: ci-pointer, pitboss#335). The diff is held to the rule
+that it adds no line to a .md or .rst file (keyword: markup-lines, pitboss#343).
 """
 
 import argparse
@@ -209,9 +210,10 @@ def plan_check(args: argparse.Namespace) -> None:
 
     Prints a row for each command (its exit status and duration, or that it did
     not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
-    pointer or spec the tree does not bear out), the Plan digest and the last
-    line, ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did
-    not run and the numbers of findings. The output is posted as a
+    pointer or spec the tree does not bear out; markup-lines: a line added to a
+    .md or .rst file), the Plan digest and the last line, ``Plan check: ok`` or
+    ``Plan check: refused`` naming the rows that did not run and the numbers of
+    findings. The output is posted as a
     comment on the PR (keyword: plan-check, pitboss#192); ``pitboss next``
     offers a Plan review that has commands only after a comment that says
     ``Plan check: ok`` for this Plan.
@@ -221,8 +223,7 @@ def plan_check(args: argparse.Namespace) -> None:
             section or with a directive with no command exits with status 2).
 
     Raises:
-        SystemExit: with status 1 when a row did not run or the Impact list or
-            a CI pointer has a finding.
+        SystemExit: with status 1 when a row did not run or there is a finding.
     """
     configsettle.find_or_say(args)
     output, failed = _read_and_checked(args)

@@ -12,7 +12,8 @@ a Plan's command may fail on the base (a test the change makes pass). A row
 have a disposition line in the Plan, at the lines of the PR's head (keyword:
 impact-list, pitboss#320). A CI pointer that names a workflow file, job or step
 that is not there, and a spec the diff adds that no pointer or group names, are
-findings too (keyword: ci-pointer, pitboss#335). The module imports no process:
+findings too (keyword: ci-pointer, pitboss#335), and so is a line the diff adds to
+a .md or .rst file (keyword: markup-lines, pitboss#343). The module imports no process:
 the runner, the search and the readers of files are given.
 """
 
@@ -226,8 +227,8 @@ def text(
         section: the Plan section the rows were run from.
         rows: the report's rows.
         refused: the numbers of the rows that did not run.
-        found: the findings of the Impact list and of the CI pointers, a line
-            each.
+        found: the findings of the Impact list, of the CI pointers and of the
+            lines the diff adds to .md and .rst files, a line each.
 
     Returns:
         The first line, the rows, the findings, the Plan digest and the verdict.
