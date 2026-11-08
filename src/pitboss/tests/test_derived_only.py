@@ -26,9 +26,20 @@ def third_line(files: Sequence[Mapping[str, str]]) -> str:
         The sweep's lines of PR 3.
     """
     here = world_with([graded("approved", APPROVED, 1, OLDER)])
-    here.bodies[f"{world.PROJECT}/commits/2"] = {"files": files}
-    out = sweep(here).out
-    return "\n".join(sorted(x for x in out.splitlines() if "project#3" in x))
+    here.bodies.update({f"{world.PROJECT}/commits/2": {"files": files}})
+    return "\n".join(filter(is_third, sweep(here).out.splitlines()))
+
+
+def is_third(line: str) -> bool:
+    """Whether a sweep line is about PR 3.
+
+    Args:
+        line: the line.
+
+    Returns:
+        True for PR 3's.
+    """
+    return "project#3" in line
 
 
 def named(*names: str) -> Sequence[Mapping[str, str]]:
