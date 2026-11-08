@@ -11,6 +11,7 @@ printed once. The orchestrator posts each ``LOG`` line to the owner as it is.
 import dataclasses
 import datetime
 import json
+import os
 import pathlib
 from typing import Sequence
 
@@ -51,7 +52,7 @@ def beside(log: pathlib.Path, suffix: str) -> pathlib.Path:
     Returns:
         The file, in a directory that exists.
     """
-    log.parent.mkdir(parents=True, exist_ok=True)
+    os.makedirs(log.parent, exist_ok=True)
     return log.with_suffix(suffix)
 
 
