@@ -83,7 +83,7 @@ class TestCommand(unittest.TestCase):
     def test_a_claim_against_a_changed_guide_is_refused(self) -> None:
         """The diff of the head is what is read."""
         out = said(self, "docs/guide.md", "changed\n")
-        last = "Plan check: refused, Markup claim findings: 1"
+        last = "Plan check: refused, Markup line findings: 1; Markup claim findings: 1"
         assert_that(out, contains_string("changes docs/guide.md"))
         assert_that(out.splitlines()[-1], equal_to(last))
 

@@ -149,12 +149,18 @@ class TestPlanCheck(unittest.TestCase):
     def test_a_hit_with_no_disposition_and_a_stale_line_refuse_the_plan(self) -> None:
         """Done-when: no line for the hit, and a line the head does not have."""
         cases = {
-            "no disposition": ("", 1, "README:1 has no disposition"),
-            "stale line": ("README:2: edited\n", 2, "cites README:2, which is no"),
+            "no disposition": ("", 1, "README:1 has no disposition", True),
+            "stale line": (
+                "README:2: edited\n",
+                2,
+                "cites README:2, which is no",
+                False,
+            ),
         }
-        for name, (lines, count, said) in cases.items():
+        for name, (lines, count, said, short) in cases.items():
             body = README_PLAN.format(lines)
             last = f"Plan check: refused, Impact findings: {count}"
+            last += "; Impact count findings: 1" if short else ""
             with self.subTest(name):
                 assert_that(outcome(body), equal_to([1, last]))
                 assert_that(checked(body).out, contains_string(said))
