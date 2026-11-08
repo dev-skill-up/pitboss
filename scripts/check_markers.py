@@ -10,6 +10,7 @@ import pathlib
 import re
 import sys
 
+from pitboss import markercheck
 from pitboss.markers import SELF_EXPLAINED, Marker
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -20,23 +21,13 @@ NAMED = re.compile(r"`([A-Z][A-Z0-9 -]*[A-Z0-9])`")
 def main():
     text = "\n".join(path.read_text() for path in REFERENCES)
     printed = {marker.text for marker in Marker}
-    explained_by_output = {marker.text for marker in SELF_EXPLAINED}
-    named = set(NAMED.findall(text))
-    errors = [
-        *(
-            f"marker {name!r} is not explained in the references"
-            for name in sorted(printed - named - explained_by_output)
-        ),
-        *(
-            f"the references name {name!r}, which pitboss never prints"
-            for name in sorted(named - printed)
-        ),
-    ]
-    for error in errors:
+    own = {marker.text for marker in SELF_EXPLAINED}
+    found = markercheck.errors(printed, own, set(NAMED.findall(text)))
+    for error in found:
         print(f"FAIL: {error}")
-    if errors:
+    if found:
         sys.exit(1)
-    print(f"all {len(printed)} markers explained in {len(REFERENCES)} references")
+    print(markercheck.summary(printed, own, len(REFERENCES)))
 
 
 if __name__ == "__main__":

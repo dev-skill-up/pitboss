@@ -250,6 +250,14 @@ class TestTheSweep(unittest.TestCase):
         said = f"{early('not yet', OLDER)}1 of 1 checks"
         assert_that(out, contains_string(said))
 
+    def test_an_early_review_older_than_a_counted_one_is_not_said(self) -> None:
+        """A later counted review of the head decides: no line, ready to merge."""
+        counted = graded(APPROVED, APPROVED, 20)
+        here = served(world_with([reviewed(2, sha=OLDER), counted]), [DONE])
+        out = sweep(older_checks(here, {"check_runs": [run_of("queued", "")]})).out
+        assert_that(quiet(out), equal_to(True))
+        assert_that(out, contains_string("READY TO MERGE owner/project#3"))
+
     def test_an_abbreviated_head_is_the_current_head(self) -> None:
         """A short SHA that names the head reads the head's runs."""
         here = served(world_with([reviewed(2, sha=HEAD[:7])]), [DONE])

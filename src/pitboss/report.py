@@ -100,15 +100,16 @@ def action_lines(
     Returns:
         The lines.
     """
-    merge = _ready_line(pull, settings)
-    if merge is None and _auto_merge_off(pull, settings, queued):
+    behind = _behind_lines(pull, settings)
+    merge = None if behind else _ready_line(pull, settings)
+    if merge is None and not behind and _auto_merge_off(pull, settings, queued):
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
     return [
         *_wait_lines(pull),
         *_conflict_lines(pull),
         *_failure_lines(pull, why),
         *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
-        *_behind_lines(pull),
+        *behind,
         *([merge] if merge else []),
     ]
 
@@ -121,11 +122,15 @@ BEHIND_WORDS = (
 )
 
 
-def _behind_lines(pull: pulls.PullFacts) -> Sequence[str]:
+def _behind_lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[str]:
+    # a merge-queue repository builds each entry on the current base: behind is no work
+    queued = pull.repo.slug in settings.merge_queue.repositories
     said = [f"{Marker.BEHIND.text}: {BEHIND_WORDS}"]
     return (
         said
-        if pull.pull.mergeable_state in BEHIND_STATES and _approved_green(pull)
+        if pull.pull.mergeable_state in BEHIND_STATES
+        and _approved_green(pull)
+        and not queued
         else []
     )
 
