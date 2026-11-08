@@ -70,7 +70,7 @@ class TestBlock(unittest.TestCase):
         here = world.make_world()
         found = task_lines(here)
         shown = world.invoke(here, "slots", "next", here.config, "--now", at(30)).out
-        wanted = re.findall(r"^NEXT (\d+)\. (\S+) ", shown, re.MULTILINE)
+        wanted = re.findall(r"^NEXT (\d+)\. (\S+) ", shown, re.MULTILINE)[1:]
         assert_that(wanted, has_length(3))
         for (number, reference), line in zip(wanted, found[1:]):
             prefix = f"TASK LIST next {number}. {reference}:"
@@ -91,7 +91,7 @@ class TestBlock(unittest.TestCase):
         here = world.make_world()
         here.bodies[fakes.page(LOWER)] = [dict(world.TICKET, number=77)]
         shown = sweep(here).out
-        assert_that(shown, contains_string("TASK LIST next 3. owner/project#9"))
+        assert_that(shown, contains_string("TASK LIST next 4. owner/project#9"))
         assert_that("#77" in shown, equal_to(False))
 
     def test_ready_drafts_come_first_in_the_numbers(self) -> None:
@@ -103,8 +103,8 @@ class TestBlock(unittest.TestCase):
             tasklist.block(book, ready, queued)[1:],
             equal_to(
                 [
-                    "TASK LIST next 1. owner/project#4 (mark the PR ready)",
-                    "TASK LIST next 2. owner/project#5: t",
+                    "TASK LIST next 2. owner/project#4 (mark the PR ready)",
+                    "TASK LIST next 3. owner/project#5: t",
                 ]
             ),
         )

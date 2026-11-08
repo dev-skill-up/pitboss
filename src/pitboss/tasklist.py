@@ -15,7 +15,7 @@ from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import config, ledger, work
+from . import config, ledger, slotheld, work
 
 ARGUMENT = add_argument(
     "--task-list",
@@ -54,9 +54,10 @@ def block(
                 f"{LABEL} in flight {slot.ticket or slot.task}:"
                 f" slot {slot.name} ({slot.agent})"
             )
-    for index, text in enumerate(ready, start=1):
+    first = slotheld.LEAD + 1
+    for index, text in enumerate(ready, start=first):
         found.append(f"{LABEL} next {index}. {text}")
-    for index, each in enumerate(items, start=len(ready) + 1):
+    for index, each in enumerate(items, start=len(ready) + first):
         found.append(f"{LABEL} next {index}. {each.reference}: {each.title[:60]}")
     return found
 

@@ -1,14 +1,11 @@
 """The sweep's lines: every line that calls for an action says the action."""
 
 import datetime
-import sys
 from typing import Mapping, Sequence
 
 from . import (
     config,
-    deviations,
     headchecks,
-    ledger,
     local,
     pinsline,
     pulls,
@@ -338,61 +335,3 @@ def reminder_lines(settings: config.Config) -> Sequence[str]:
         The lines.
     """
     return [f"{Marker.SWEEP_REMINDER.text}: {text}" for text in settings.reminders]
-
-
-def slot_lines(book: ledger.Ledger) -> Sequence[str]:
-    """The ledger, with a loud line for each empty slot.
-
-    Args:
-        book: the ledger.
-
-    Returns:
-        The lines.
-    """
-    found = [_slot_line(slot) for slot in book.slots]
-    if all(slot.agent for slot in book.slots):
-        found.append("slots: the ledger says all full")
-    return [*found, *deviations.ledger_lines(book)]
-
-
-def _slot_line(slot: ledger.Slot) -> str:
-    name = f"{slot.name} ({slot.model})"
-    if slot.agent:
-        state = ", waiting" if slot.waiting else ""
-        return f"slot {name}: {slot.task} ({slot.agent}{state})"
-    return (
-        f"{Marker.EMPTY_SLOT.text}: {name}: run 'pitboss slots next' and start its line"
-    )
-
-
-def print_free_slots(book: ledger.Ledger, queued: int) -> None:
-    """Print the line that says slots are free while work is queued.
-
-    Args:
-        book: the ledger.
-        queued: how many items are queued.
-    """
-    free = sum(1 for slot in book.slots if not slot.agent)
-    if free and queued:
-        print(
-            f"{Marker.SLOTS_FREE.text} {free}: {queued} queued; a wake-up"
-            " (send_later) is required before this turn ends, or nothing starts them"
-        )
-
-
-def print_ledger(book: ledger.Ledger) -> None:
-    """Print the ledger, and on stderr the reminder to check it.
-
-    Args:
-        book: the ledger.
-    """
-    for line in slot_lines(book):
-        print(line)
-    print(CHECK_LEDGER_LINE, file=sys.stderr)
-
-
-CHECK_LEDGER_LINE = (
-    f"{Marker.CHECK_BEFORE_YOU_ANSWER.text}: the ledger is kept by hand. List the"
-    " agents the session runs, run 'pitboss slots check CONFIG --running NAME ...',"
-    " fix the ledger with 'slots free' and 'slots set', then act or answer."
-)

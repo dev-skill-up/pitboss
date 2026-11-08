@@ -42,7 +42,7 @@ def quiet_draft() -> world.World:
 
 
 def next_lines(here: world.World) -> Sequence[str]:
-    """The NEXT lines of ``slots next``.
+    """The NEXT lines of ``slots next`` after the running agents' line.
 
     Args:
         here: the world.
@@ -50,7 +50,7 @@ def next_lines(here: world.World) -> Sequence[str]:
     Returns:
         The lines, in order.
     """
-    return re.findall(r"(?m)^NEXT .*$", next_output(here))
+    return re.findall(r"(?m)^NEXT .*$", next_output(here))[1:]
 
 
 class TestMarkReadyIsTheFirstNextLine(unittest.TestCase):
@@ -60,9 +60,9 @@ class TestMarkReadyIsTheFirstNextLine(unittest.TestCase):
         """The exact action, above every start and review line."""
         found = next_lines(quiet_draft())
         assert_that(len(found) > 1, equal_to(True))
-        assert_that(found[0], starts_with("NEXT 1. owner/project#3 (mark the PR ready"))
+        assert_that(found[0], starts_with("NEXT 2. owner/project#3 (mark the PR ready"))
         assert_that(found[0], contains_string("update_pull_request draft=false"))
-        assert_that(found[1], starts_with("NEXT 2. "))
+        assert_that(found[1], starts_with("NEXT 3. "))
 
     def test_no_other_next_line_marks_ready(self) -> None:
         """Only the draft's line does."""
@@ -77,7 +77,7 @@ class TestAHoldIsANextLineToo(unittest.TestCase):
         """No action is offered; the hold and its end are."""
         found = next_lines(held_draft())
         wanted = (
-            "NEXT 1. owner/project#3 (" + readyline.HOLD_WORDS + ": mark ready at "
+            "NEXT 2. owner/project#3 (" + readyline.HOLD_WORDS + ": mark ready at "
             "2030-01-01T00:15:00+00:00 at the earliest)"
         )
         assert_that(found[0], equal_to(wanted))
@@ -114,5 +114,5 @@ class TestNoDraftNoLine(unittest.TestCase):
     def test_the_list_starts_at_one_with_its_items(self) -> None:
         """No ready line, so the first NEXT line is a review or a start."""
         found = next_lines(world.make_world())
-        assert_that(found[0], starts_with("NEXT 1. "))
+        assert_that(found[0], starts_with("NEXT 2. "))
         assert_that("mark the PR ready" in found[0], equal_to(False))
