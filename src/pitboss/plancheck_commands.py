@@ -211,10 +211,10 @@ def plan_check(args: argparse.Namespace) -> None:
     Prints a row for each command (its exit status and duration, or that it did
     not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
     pointer or spec the tree does not bear out; markup-lines: a line added to a
-    .md or .rst file), the Plan digest and the last line, ``Plan check: ok`` or
-    ``Plan check: refused`` naming the rows that did not run and the numbers of
-    findings. The output is posted as a
-    comment on the PR (keyword: plan-check, pitboss#192); ``pitboss next``
+    .md or .rst file, not a cut span), the Plan digest and the last line,
+    ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did not
+    run and the numbers of findings. The output is posted as a comment on the PR
+    (keyword: plan-check, pitboss#192); ``pitboss next``
     offers a Plan review that has commands only after a comment that says
     ``Plan check: ok`` for this Plan.
 

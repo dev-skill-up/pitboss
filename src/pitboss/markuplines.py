@@ -3,8 +3,11 @@
 The owner's rule (pitboss#343, keyword markup-lines) is that lines only get
 removed from the Markdown and reStructuredText files, and a rule goes into a
 command's output or help text. ``pitboss plan-check`` refuses a PR whose diff
-adds a line to such a file. The module reads no file and runs nothing: the
-output of ``git diff --numstat -z`` is given.
+adds a line to such a file, except a changed line that is the removed line of
+its hunk with characters deleted and none inserted or reordered (pitboss#373):
+that is a removal, and the check names the rule once. The module reads no file
+and runs nothing: the output of ``git diff --numstat -z`` and of ``git diff -U0``
+is given.
 """
 
 import json
@@ -91,11 +94,9 @@ def findings(numstat: str, patch: str = "") -> Sequence[str]:
         numstat: the output of ``git diff --numstat -z --no-renames`` of the
             PR's head against its merge base with the base (a renamed file is
             a removal and an addition, so it adds its lines).
-        patch: the output of ``git diff -U0 --no-renames`` of the same range.
-            An added line that is a removed line of its hunk with characters
-            deleted, and none inserted or reordered (its text is a subsequence
-            of the removed line's), is a removal and is not counted; with no
-            patch every added line is counted.
+        patch: the output of ``git diff -U0 --no-renames`` of the same range. An
+            added line that is a subsequence of a removed line of its hunk is a
+            removal, not counted; with no patch every added line is counted.
 
     Returns:
         A finding for each ``.md`` or ``.rst`` file (in any case) with an added
@@ -104,7 +105,8 @@ def findings(numstat: str, patch: str = "") -> Sequence[str]:
     """
     return [
         f"{CHECK}: `{path}` gets {added} added line{'' if added == 1 else 's'}; a"
-        " change never adds a line to a .md or .rst file (lines are only removed)"
+        " change never adds a line to a .md or .rst file (lines are only removed;"
+        " a span cut from a line is a removal)"
         for path, added, _ in _left(numstat, patch)
         if added
     ]
