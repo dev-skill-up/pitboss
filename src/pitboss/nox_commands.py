@@ -108,6 +108,40 @@ def stop_when_short_of_disk(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def skipped_as_green(args: argparse.Namespace, place: noxgreen.Place | None) -> bool:
+    """Print the NOTE and say so when this head already ran green.
+
+    Args:
+        args: the parsed arguments.
+        place: the clean head and its record file, none when git cannot say.
+
+    Returns:
+        True when the sessions are not to run again.
+    """
+    before = noxgreen.green_at(place) if place and not args.force else ""
+    if before:
+        print(noxgreen.note_of(before))
+    return bool(before)
+
+
+def run_planned(
+    args: argparse.Namespace, runner: noxcheck.Runner, place: noxgreen.Place | None
+) -> None:
+    """Print the plan, run the sessions and record a green head.
+
+    Args:
+        args: the parsed arguments.
+        runner: runs a command line.
+        place: the clean head and its record file, none when git cannot say.
+    """
+    lines, modules, sessions = planned(args, runner)
+    for each in lines:
+        print(each)
+    show(noxcheck.run_sessions(runner, time.monotonic, modules, sessions))
+    if place:
+        noxgreen.record(place, current_time(args).isoformat())
+
+
 @ENTRY_DATA.register(
     add_argument(
         "--also",
@@ -174,13 +208,5 @@ def nox(args: argparse.Namespace) -> None:
     stop_when_short_of_disk(args)
     runner = functools.partial(run_command, args)
     place = noxgreen.place_of(runner)
-    before = noxgreen.green_at(place) if place and not args.force else ""
-    if before:
-        print(noxgreen.note_of(before))
-        return
-    lines, modules, sessions = planned(args, runner)
-    for each in lines:
-        print(each)
-    show(noxcheck.run_sessions(runner, time.monotonic, modules, sessions))
-    if place:
-        noxgreen.record(place, current_time(args).isoformat())
+    if not skipped_as_green(args, place):
+        run_planned(args, runner, place)
