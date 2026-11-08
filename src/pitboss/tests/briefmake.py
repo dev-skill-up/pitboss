@@ -20,7 +20,8 @@ BODY = (
     f" line `Body: {BODY_DIGEST}` to the comment, beside the `Verdict:` line, as"
     " given. The sweep shows `review=older-body` for a body edited after the"
     " review of an unmoved head, and a review that records the new digest"
-    " answers it."
+    " answers it. This brief is complete: the orchestrator dispatches it"
+    " unchanged, and you copy its form, head and digest lines as given."
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"
