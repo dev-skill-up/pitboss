@@ -19,11 +19,13 @@ class Option:
         dry: whether to remove nothing.
         list_only: whether the finished worktrees are only listed, and the
             dead checkouts left, unless the disk is under pressure.
+        command: the command that cleans, named in the ``LOG`` line.
     """
 
     run: Run
     dry: bool
     list_only: bool = False
+    command: str = "pitboss sweep"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -52,12 +54,14 @@ class Part:
         gone: the paths removed, or that would be in a dry run.
         freed: the bytes freed, or that would be in a dry run.
         kept: the directories this kind of cleaning left, each with why.
+        heads: the tips of the worktrees removed (keyword: log-line).
     """
 
     lines: Sequence[str]
     gone: Sequence[dead.Candidate]
     freed: int = 0
     kept: Sequence[dead.Kept] = ()
+    heads: Sequence[str] = ()
 
 
 def nothing() -> Part:

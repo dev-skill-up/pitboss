@@ -168,7 +168,7 @@ Commands
      - The report, in order: the project's PRs, the libraries'
        PRs, runner pressure, queue runs, stragglers, worktrees, disk
        pressure, the reminders, the slots. Exits 1 when a PR has a failed check or a
-       merge conflict. It reads, except that under ``[clean] worktrees =
+       merge conflict. under ``[clean] worktrees =
        "auto"`` (the default) it removes the finished worktrees that pass the
        safety test (see **Worktrees**), through ``args.safe_run``, with no
        dry run, and, in the same mode, closes the open PRs of the ``[scratch]``
@@ -987,7 +987,7 @@ ticket, kind, whether the agent waits, and the tickets each model has failed. ``
 refuses an occupied slot, except a ``--kind fix`` set with the same agent (a fix round that resumes it), ``remove`` an occupied one, ``add`` a model not in ``models``; a
 refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
 slots whose agent is not among the names (the session passes what its own
-agent listing shows). ``next`` reads GitHub and prints one sorted list, each
+agent listing shows). ``next`` prints one sorted list, each
 line saying why it is where it is. The open PRs that the flow's step gives a
 round come first, in one list ordered oldest first, whatever each needs; each
 line says which kind it is, the kind being the flow's step alone

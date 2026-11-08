@@ -19,6 +19,7 @@ from . import (
     exempt,
     ghapi,
     ledger,
+    logline,
     machine,
     nextview,
     offering,
@@ -174,6 +175,7 @@ def show(
         opened: the open PRs, read or not.
         book: the slot ledger.
     """
+    logline.post(found.settings.slots.log)
     ordered = _ordered(found, opened, book)
     source = _source(found, opened, ordered, book)
     for line in itertools.chain(

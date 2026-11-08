@@ -14,6 +14,7 @@ from . import (
     container,
     dead,
     deadscan,
+    logline,
     workhours,
     worktrees,
 )
@@ -135,6 +136,10 @@ def clean_container(args: argparse.Namespace) -> None:
     done = remove_listed(args, look, scan.candidates, now)
     for text in cleaning.closing_lines(done):
         print(text)
+    if done.removing:
+        size = sum(each.size for each in done.gone)
+        freed = logline.Freed(who="pitboss clean-container", size=size, heads=[])
+        logline.record_clean(found.settings.slots.log, freed, found.now)
 
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")
@@ -146,5 +151,10 @@ def clean_worktrees(args: argparse.Namespace) -> None:
     """
     found = load_context(args)
     how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
-    for text in worktrees.remove_lines(sweep_look(found), how, found.now):
+    done = worktrees.removal(sweep_look(found), how, found.now)
+    for text in done.lines:
         print(text)
+    if not how.dry:
+        who = "pitboss clean-worktrees"
+        freed = logline.Freed(who=who, size=done.freed, heads=done.heads)
+        logline.record_clean(found.settings.slots.log, freed, found.now)

@@ -73,7 +73,7 @@ def _line(ticket: str, pull: pulls.PullFacts) -> str:
     name="next",
 )
 def show_next(args: argparse.Namespace) -> None:
-    """Print the one step a ticket is at, or the top suggestions with their briefs.
+    """Print a ticket's step, or the LOG lines to post as is and the top suggestions.
 
     With no TICKET it prints what ``slots next`` prints: on a volume 90 % used or
     under 1 GiB free, first the ``clean the disk`` suggestion (keyword:

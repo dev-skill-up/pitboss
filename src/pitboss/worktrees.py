@@ -36,7 +36,7 @@ class Action:
             worktrees lose their markers but the one that merged last), else
             ``at_ease``.
         pressure: what ``weigh`` said of the finished worktrees; set by
-            ``remove_lines``.
+            ``removal``.
     """
 
     run: Run
@@ -269,11 +269,13 @@ class Removed:
         lines: a line for each worktree, then the totals.
         freed: the bytes freed (or, in a dry run, that would be).
         left: the finished worktrees still on disk, each with why.
+        heads: the tips of the worktrees removed (keyword: log-line).
     """
 
     lines: Sequence[str]
     freed: int
     left: Sequence[dead.Kept]
+    heads: Sequence[str] = ()
 
 
 def act(
@@ -305,26 +307,6 @@ def act(
     return Outcome(
         said=said, freed=made.size * removed, kept=False, removed=removed, left=stuck
     )
-
-
-def remove_lines(
-    look: dead.Look,
-    action: Action,
-    moment: datetime.datetime,
-    decide: Decide = local.finished_reason,
-) -> Sequence[str]:
-    """Remove the finished worktrees that pass the safety test, saying what happened.
-
-    Args:
-        look: what to look at and keep.
-        action: how to remove them.
-        moment: the time now.
-        decide: whether a worktree is finished.
-
-    Returns:
-        A line for each worktree, then the totals.
-    """
-    return removal(look, action, moment, decide).lines
 
 
 def removal(
@@ -360,4 +342,5 @@ def removal(
         lines=[*(each.said for each in steps), total],
         freed=freed,
         left=[each.left for each in steps if each.left is not None],
+        heads=[each.worktree.head for each, step in zip(found, steps) if step.removed],
     )

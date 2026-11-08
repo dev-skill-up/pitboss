@@ -31,6 +31,7 @@ class Account:
         freed: the bytes each kind of cleaning freed, in the order of ``KINDS``.
         kept: the directories the cleaning left, each with why.
         tied: the worktrees with an open PR, which are never removed.
+        heads: the tips of the worktrees removed (keyword: log-line).
         measure: the bytes a directory holds.
     """
 
@@ -41,6 +42,7 @@ class Account:
     freed: Sequence[int]
     kept: Sequence[dead.Kept]
     tied: Sequence[local.Worktree]
+    heads: Sequence[str] = ()
     measure: Callable[[pathlib.Path], int]
 
 
