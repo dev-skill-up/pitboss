@@ -82,13 +82,14 @@ def pins_review(args: argparse.Namespace) -> None:
     """Post the approving review comment of a green relock whose pins-check is OK.
 
     The PR must be on a branch with the ``[relock] prefix`` with every check of
-    its head green, and ``[relock] pins_check_command`` (default ``bats
-    pins-check {base} {head}``), run on the head, must print ``OK`` from a
-    compiler that contains the head's ``.github/bats-version``; the comment is
-    in the repository's own form (``review-form``) with ``Verdict: approved``,
-    ``Reviewed: <the full head SHA>``, the pins-check's line and the owner's
-    ruling. Otherwise nothing is posted, the reason is printed and the exit
-    status is 1. A dry run unless ``--no-dry-run``.
+    its head green, and ``[relock] pins_check_command`` (default
+    ``bats pins-check {base} {head} --compiler ../bats``), run on the head, must
+    print ``OK`` from a compiler that contains the head's
+    ``.github/bats-version``; the comment is in the repository's own form
+    (``review-form``) with ``Verdict: approved``, ``Reviewed: <the full head
+    SHA>``, the pins-check's line and the owner's ruling. Otherwise nothing is
+    posted, the reason is printed and the exit status is 1.
+    A dry run unless ``--no-dry-run``.
 
     Args:
         args: the parsed arguments.

@@ -1,12 +1,13 @@
 """``pitboss pins-review`` posts the gate's comment on a green relock (pitboss#350)."""
 
+import pathlib
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import forms, pinsreading, pinsreview
-from . import fakes, world
+from . import fakes, repositories, world
 from . import gateworld as gate_fixture
 from . import pinsworld as pw
 from .formchecks import subject
@@ -18,7 +19,6 @@ POSTED = {"id": 5, "html_url": "https://github.example/owner/project/pull/3#c5"}
 PENDING_RUN = {"id": 9, "name": "slow", "status": "in_progress"}
 REFUSED = "pitboss pins-review: refused: "
 NAMES = f"run `pitboss pins-review {PULL} --no-dry-run`"
-OLDER = "b" * 40
 UNFIT_LINES = (
     "OK: café",
     "OK: ```x",
@@ -29,6 +29,55 @@ UNFIT_LINES = (
     "OK: Verdict: approved",
     "OK: reviewed: abc",
 )
+
+
+PIN = "a" * 40
+
+
+def compiler_checkout(here: world.World, name: str) -> pathlib.Path:
+    """A git checkout, in the workspace, whose commit does not contain ``PIN``.
+
+    Args:
+        here: the world.
+        name: its directory's name.
+
+    Returns:
+        The directory.
+    """
+    path = here.workspace / name
+    path.mkdir()
+    repositories.run_git(path, "init", "--quiet")
+    repositories.run_git(path, "commit", "--quiet", "--allow-empty", "-m", "old")
+    return path
+
+
+def refused_for_age(here: world.World, compiler: pathlib.Path) -> None:
+    """Give PR 3 a head whose bats pin is ``PIN`` and assert the age refusal.
+
+    Args:
+        here: the world, a relock whose command names ``compiler``.
+        compiler: the checkout of the compiler, without ``PIN``.
+    """
+    pin = here.clone / ".github" / "bats-version"
+    pin.parent.mkdir(exist_ok=True)
+    pin.write_text(PIN + "\n")
+    repositories.run_git(here.clone, "add", ".github/bats-version")
+    repositories.run_git(here.clone, "commit", "--quiet", "-m", "pin")
+    head = repositories.run_git(here.clone, "rev-parse", "HEAD").strip()
+    local = repositories.run_git(compiler, "rev-parse", "HEAD").strip()
+    for key in [each for each in here.bodies if pw.HEAD in each]:
+        here.bodies[key.replace(pw.HEAD, head)] = here.bodies.pop(key)
+    pull = here.bodies[f"{world.PROJECT}/pulls/3"]
+    assert isinstance(pull, dict)
+    pull["head"] = {"sha": head, "ref": pw.RELOCK_BRANCH}
+    here = with_gate(here)
+    done = review(here, "--no-dry-run")
+    assert_that(
+        str(done.code), contains_string(f"{REFUSED}pins-check did not print OK")
+    )
+    assert_that(str(done.code), contains_string(local))
+    assert_that(str(done.code), contains_string(PIN))
+    assert_that(posts(here), equal_to([]))
 
 
 def with_gate(here: world.World) -> world.World:
@@ -212,15 +261,13 @@ class TestRefusal(unittest.TestCase):
         """The default command that cannot run is a refusal, never a review."""
         refused(with_gate(pw.without_bats()), "pins-check did not print OK (env: ")
 
-    def test_a_compiler_older_than_the_pin_is_refused(self) -> None:
-        """The reading ``verify`` gives for an older compiler says no OK."""
-        reading = pinsreading.Reading(
-            status=pinsreading.Status.NOT_OK,
-            detail=f"no verdict, the compiler in /c is at {OLDER}",
-        )
-        why = pinsreview.unclear(reading)
-        assert_that(why, contains_string("pins-check did not print OK (no verdict"))
-        assert_that(why, contains_string(OLDER))
+    def test_a_compiler_without_the_pin_is_refused(self) -> None:
+        """A ``--compiler`` command, and the default (the bats beside the repo)."""
+        named = "bats pins-check {base} {head} --compiler ../older"
+        for command, directory in {named: "older", "": "bats"}.items():
+            with self.subTest(command or "default"):
+                here = pw.with_bats(pw.relock(command))
+                refused_for_age(here, compiler_checkout(here, directory))
 
     def test_an_ok_line_that_a_gate_would_not_read_as_plain_text(self) -> None:
         """Non-ASCII, a fence, an HTML tag, a definition, a verdict word."""

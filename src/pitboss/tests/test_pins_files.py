@@ -62,7 +62,7 @@ class TestDefaultCommand(unittest.TestCase):
         out = pw.swept(here)
         words = ["env", "-C", str(here.clone), "bats", "pins-check", "origin/main"]
         (ran,) = pw.ran_commands(here)
-        assert_that(ran, equal_to([*words, pw.HEAD]))
+        assert_that(ran, equal_to([*words, pw.HEAD, "--compiler", "../bats"]))
         assert_that(out, contains_string(OK_LINE))
         assert_that(pw.offered(here), equal_to(""))
 
@@ -78,11 +78,12 @@ class TestConfig(unittest.TestCase):
     """``[relock] pins_check_command`` and ``pin_files``."""
 
     def test_the_defaults_are_bats_pins_check_and_the_bats_files(self) -> None:
-        """No key, or an empty one, is `bats pins-check {base} {head}`."""
+        """No key, or an empty one, is `bats pins-check` with `--compiler ../bats`."""
         found = fakes.settings(fakes.directory()).lint.pins
         assert_that(found, equal_to(config.Pins()))
         assert_that(found.files, equal_to(config.DEFAULT_PIN_FILES))
-        assert_that(found.command, equal_to("bats pins-check {base} {head}"))
+        want = "bats pins-check {base} {head} --compiler ../bats"
+        assert_that(found.command, equal_to(want))
         empty = fakes.settings(fakes.directory(), pw.relock_table("")).lint.pins
         assert_that(empty.command, equal_to(found.command))
 
