@@ -146,16 +146,19 @@ def offered(
     return apart(_dependencies_first(found, opened, book, tickets), held)
 
 
-def _open_ticket(found: Source, reference: str, priority: int) -> work.Item | None:
+def _open_ticket(
+    found: Source, reference: str, waiting: work.Item
+) -> work.Item | None:
+    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
     ticket = blockers.read(found.github, reference)
     if ticket is None or not ticket.open or ticket.pull:
         return None
     item = work.Item(
         category=work.Category.NEW_PR,
         reference=reference,
-        created_at=ticket.created_at,
+        created_at=waiting.created_at,
         title=ticket.title,
-        priority=priority,
+        priority=waiting.priority,
         labels=ticket.labels,
         body=ticket.body,
         comments=ticket.comments,

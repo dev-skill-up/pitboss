@@ -73,7 +73,7 @@ def _missing(
 
 def join(
     items: Sequence[Each],
-    read: Callable[[str, int], Each | None],
+    read: Callable[[str, Each], Each | None],
     unavailable: AbstractSet[str],
 ) -> Sequence[Each]:
     """Add the open tickets that listed tickets wait for and the list lacks.
@@ -84,8 +84,8 @@ def join(
 
     Args:
         items: the ordered items, with their blockers named.
-        read: reads an open ticket as an item with the priority of the ticket
-            that waits for it, its blocker named (None for a PR, a closed
+        read: reads an open ticket as an item with the priority and the age of
+            the ticket that waits for it, its blocker named (None for a PR, a closed
             ticket or one the API cannot give).
         unavailable: the references no worker may be started on (a slot holds
             them, or an open PR names them).
@@ -98,7 +98,7 @@ def join(
     while (found := _missing(listed, skipped)) is not None:
         waiting, reference = found
         skipped.add(reference)
-        joined = read(reference, waiting.priority)
+        joined = read(reference, waiting)
         if joined is not None:
             listed.insert(listed.index(waiting), joined)
     return listed

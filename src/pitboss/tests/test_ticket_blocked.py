@@ -339,6 +339,8 @@ class TestOrder(unittest.TestCase):
         suggested = re.findall(r"start a PR: (\S+#\d+):", out)
         assert_that(suggested, equal_to(["owner/lib#3", "owner/project#10"]))
         assert_that(out, contains_string("is never ground for a split"))
+        inherited = "owner/lib#3 (start a PR urgent, opened 2026-09-01,"
+        assert_that(out, contains_string(inherited))
 
 
 class TestBrief(unittest.TestCase):
