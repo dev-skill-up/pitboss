@@ -40,7 +40,7 @@ class TestCommandsWithAConfiguration(unittest.TestCase):
 
     def test_every_command_with_a_configuration_is_run_here(self) -> None:
         """A new command that takes a configuration must be added to ``CASES``."""
-        expected = {each.before[0] for each in CASES} | {"lint"}
+        expected = {each.before[0] for each in CASES} | {"lint", "plan-check"}
         assert_that(registered(), equal_to(sorted(expected)))
 
     def test_each_command_takes_the_option(self) -> None:
