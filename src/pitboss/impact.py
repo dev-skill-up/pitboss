@@ -34,7 +34,7 @@ CACHES = frozenset(
 )
 ALWAYS = frozenset({".git"}) | CACHES
 # the marks a wrapped sentence carries from one line to the next
-MARKS = "\"'#*/>|\\\\"
+MARKS = "\"'`#*/>|\\\\"
 BREAK = rf"[{MARKS}]*\s[\s{MARKS}]*"
 
 

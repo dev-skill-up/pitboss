@@ -102,6 +102,12 @@ class TestSearch(unittest.TestCase):
         os.symlink(root / "real.txt", root / "link.txt")
         assert_that(shown(root, "key"), equal_to(["real.txt:1:key"]))
 
+    def test_an_inline_code_span_is_part_of_the_break(self) -> None:
+        """A docstring wraps before a literal in double backticks."""
+        root = planted({"a.py": "Each row runs with\n``sh -c`` in a tree\n"})
+        want = ["a.py:1:Each row runs with"]
+        assert_that(shown(root, "runs with sh -c"), equal_to(want))
+
     def test_a_git_file_of_a_worktree_is_left_out(self) -> None:
         """A worktree has a file named .git, which is not searched."""
         root = planted({".git": "gitdir: key\n", "a.txt": "key\n"})

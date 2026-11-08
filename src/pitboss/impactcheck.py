@@ -1,9 +1,10 @@
 """The check of a Plan's Impact list (keyword: impact-list, pitboss#320).
 
 A Plan row ``pitboss impact PHRASE...`` is an Impact command: ``pitboss
-plan-check`` runs the search itself, at the head it checks, and holds the Plan to
-its output. Every hit needs a disposition line in the Plan, ``file:line: edited``
-or ``file:line: not edited`` with the reason after it, and every line the Plan
+plan-check`` runs the search itself, at the PR's head (``--head``), and holds the
+Plan to its output. Every hit needs a disposition line in the Plan,
+``file:line: edited`` or ``file:line: not edited`` with the reason after it, and
+every line the Plan
 cites that way must be a hit of some Impact command at that head, so a line
 number that moved, or a statement a hand-typed list missed, is a finding of the
 Plan and not of a review rounds later. The module reads no file: the hits are
@@ -21,7 +22,7 @@ CHECK = "impact-list"
 DISPOSITION = re.compile(
     r"^\s*(?:[-*]\s+)?(?P<path>[^\s:]+):(?P<line>\d+):\s+(?:not edited|edited)\b"
 )
-LAUNCHERS = ("uvx",)
+ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 PROGRAM = ("pitboss", "impact")
 OPERATORS = re.compile(r"^[();<>|&]+$")
 SHELL_PROBLEM = (
@@ -56,6 +57,9 @@ def _words(command: str) -> Sequence[str] | None:
 def parse(command: str) -> Row | None:
     """Whether a Plan row is an Impact command, and what it searches for.
 
+    The program is ``pitboss impact``, behind ``uvx``, ``uvx --from DIR`` or
+    ``python -m``, and after variable assignments (``PYTHONPATH=src``).
+
     Args:
         command: the row's command line.
 
@@ -67,8 +71,14 @@ def parse(command: str) -> Row | None:
     words = _words(command)
     if words is None:
         return None
-    if words[: len(LAUNCHERS)] == list(LAUNCHERS):
-        words = words[len(LAUNCHERS) :]
+    while words and ASSIGNMENT.match(words[0]):
+        words = words[1:]
+    if words[:3] == ["uvx", "--from", words[2] if len(words) > 2 else ""]:
+        words = words[3:]
+    elif words[:1] == ["uvx"]:
+        words = words[1:]
+    elif words[:1] in (["python"], ["python3"]) and words[1:2] == ["-m"]:
+        words = words[2:]
     if tuple(words[:2]) != PROGRAM:
         return None
     return _row(words[2:])

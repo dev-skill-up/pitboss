@@ -1,8 +1,9 @@
 """The ``plan-check`` command: a Plan's commands, run before it is approved.
 
-This is the plan-check area (pitboss#192). Each command of the Plan runs with
-``sh -c`` in a scratch worktree of the PR's base (a row that runs nox is not run
-but refused, pitboss#251), with the permissions of whoever
+This is the plan-check area (pitboss#192). Each row of the Plan but an Impact
+command (``pitboss impact``, searched in a worktree of the PR's head, pitboss#320)
+runs with ``sh -c`` in a scratch worktree of the PR's base (a row that runs nox
+is not run but refused, pitboss#251), with the permissions of whoever
 runs ``pitboss plan-check``, so the body is the worker's own and is never read
 from somewhere else (it is the file the caller saved, as ``expand`` reads its
 template).
@@ -96,22 +97,30 @@ def _git(args: argparse.Namespace, *words: str) -> None:
 
 
 @contextlib.contextmanager
-def scratch_worktree(args: argparse.Namespace) -> Iterator[pathlib.Path]:
-    """A detached worktree of the base, removed when the block ends.
+def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Path]:
+    """A detached worktree of a commit, removed when the block ends.
 
     Args:
-        args: the parsed arguments (``repo`` and ``base``).
+        args: the parsed arguments (``repo``).
+        ref: the commit: the base, or the head.
 
     Yields:
         The worktree's directory.
     """
     with tempfile.TemporaryDirectory(prefix="plan-check-") as scratch:
         tree = pathlib.Path(scratch) / "tree"
-        _git(args, "worktree", "add", "--detach", str(tree), args.base)
+        _git(args, "worktree", "add", "--detach", str(tree), ref)
         try:
             yield tree
         finally:
             _git(args, "worktree", "remove", "--force", str(tree))
+
+
+HEAD_OPTION = add_argument(
+    "--head",
+    default="HEAD",
+    help="the PR's head, searched by an Impact command (default: HEAD)",
+)
 
 
 def _plan_of(name: str, body: str) -> str:
@@ -142,6 +151,7 @@ def _plan_of(name: str, body: str) -> str:
         help="the PR's base, which the scratch worktree is made of (default:"
         " origin/main)",
     ),
+    HEAD_OPTION,
     add_argument(
         "--timeout",
         type=int,
@@ -151,23 +161,21 @@ def _plan_of(name: str, body: str) -> str:
     name="plan-check",
 )
 def plan_check(args: argparse.Namespace) -> None:
-    """Run each command of a Plan, and refuse the Plan if one does not run.
+    """Run the commands of a Plan, and refuse it for a row that did not run.
 
-    A row that runs nox is refused and not run (pitboss#251). A row ``pitboss
-    impact PHRASE...`` is searched in this process, at the head of the scratch
-    worktree, and the Plan is refused for a hit with no disposition line
-    (``file:line: edited`` or ``file:line: not edited``) and for a disposition
-    line whose ``file:line`` is not a hit there (keyword: impact-list,
-    pitboss#320).
+    A nox row is refused unrun (pitboss#251). A row ``pitboss impact PHRASE...``
+    is searched in a scratch worktree of the PR's head (``--head``); the Plan is
+    refused for a hit with no disposition line (``file:line: edited`` or ``not
+    edited``) and for one citing a ``file:line`` that is no hit there (keyword:
+    impact-list, pitboss#320).
 
     Prints a row for each command (its exit status and duration, or that it did
-    not run: it could not start, it timed out, or it runs nox, which is refused
-    unrun with the sentence that gives the CI pointer, pitboss#251), a line for
-    each Impact finding, the Plan digest and the last line, ``Plan check: ok``
-    or ``Plan check: refused`` naming each row that did not run and the number
-    of Impact findings. The output is posted as a comment on the PR (keyword:
-    plan-check, pitboss#192); ``pitboss next`` offers a Plan review that has
-    commands only after a comment that says ``Plan check: ok`` for this Plan.
+    not run), a line for each Impact finding, the Plan digest and the last
+    line, ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did
+    not run and the number of Impact findings. The output is posted as a
+    comment on the PR (keyword: plan-check, pitboss#192); ``pitboss next``
+    offers a Plan review that has commands only after a comment that says
+    ``Plan check: ok`` for this Plan.
 
     Args:
         args: the parsed arguments (a body it cannot read, without a ``## Plan``
@@ -178,20 +186,22 @@ def plan_check(args: argparse.Namespace) -> None:
             a finding.
     """
     section = _plan_of(args.file.name, args.file.read())
-    rows, refused, found = _checked(args, section)
-    sys.stdout.write(plancheck.text(section, rows, refused, found))
-    if refused or found:
+    output, failed = _checked(args, section)
+    sys.stdout.write(output)
+    if failed:
         raise SystemExit(REFUSED)
 
 
-def _checked(
-    args: argparse.Namespace, section: str
-) -> tuple[Sequence[str], Sequence[int], Sequence[str]]:
-    with scratch_worktree(args) as tree:
+def _checked(args: argparse.Namespace, section: str) -> tuple[str, bool]:
+    with (
+        scratch_worktree(args, args.base) as tree,
+        scratch_worktree(args, args.head) as head,
+    ):
         runner = functools.partial(run_in, args, tree, args.timeout)
-        search = _searching(tree)
+        search = _searching(head)
         rows, refused = plancheck.report(section, runner, search)
-        return rows, refused, plancheck.impact_findings(section, search)
+        found = plancheck.impact_findings(section, search)
+        return plancheck.text(section, rows, refused, found), bool(refused or found)
 
 
 def _searching(tree: pathlib.Path) -> plancheck.Search:

@@ -6,6 +6,9 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import impact, impactcheck, plancheck
+from . import repositories, world
+from .linting import write_text
+from .test_expand_commands import real_world
 from .test_plan_check import checked, rows
 
 A_HIT = impact.Hit(path="doc/a.md", line=3, text="the plan lists each behaviour")
@@ -20,7 +23,14 @@ class TestRow(unittest.TestCase):
 
     def test_the_phrases_of_a_row(self) -> None:
         """With or without uvx, quoted phrases keep their spaces."""
-        for command in ("pitboss impact 'a b' c", "uvx pitboss impact 'a b' c"):
+        forms = (
+            "pitboss impact 'a b' c",
+            "uvx pitboss impact 'a b' c",
+            "uvx --from . pitboss impact 'a b' c",
+            "PYTHONPATH=src python3 -m pitboss impact 'a b' c",
+            "python -m pitboss impact 'a b' c",
+        )
+        for command in forms:
             row = impactcheck.parse(command)
             assert row is not None
             assert_that([row.phrases, row.problem], equal_to([["a b", "c"], ""]))
@@ -166,3 +176,41 @@ class TestPlanCheck(unittest.TestCase):
         """A line in the form of a disposition means nothing without the command."""
         body = "## Plan\nx\n\n$ true\nREADME:9: edited\n\n## Execution\nx\n"
         assert_that(outcome(body), equal_to([0, "Plan check: ok"]))
+
+
+def on_a_head(body: str) -> Sequence[object]:
+    """The exit status and last line of a check of a PR that adds a line.
+
+    The head is a real commit on a branch of the world's clone, whose
+    ``README`` has a line before the base's one.
+
+    Args:
+        body: the PR body.
+
+    Returns:
+        The two.
+    """
+    here = real_world()
+    repositories.run_git(here.clone, "checkout", "-q", "-b", "pr")
+    (here.clone / "README").write_text("intro\nREADME\n")
+    repositories.run_git(here.clone, "add", "README")
+    repositories.run_git(here.clone, *repositories.IDENTITY, "commit", "-q", "-m", "pr")
+    done = world.invoke(
+        here,
+        "plan-check",
+        write_text("body.txt", body),
+        *("--repo", str(here.clone), "--base", "origin/main", "--head", "pr"),
+    )
+    return [done.code, rows(done)[-1]]
+
+
+class TestHead(unittest.TestCase):
+    """The Impact list is held to the lines of the PR's head, not of its base."""
+
+    def test_the_lines_of_the_head_pass_and_those_of_the_base_are_stale(self) -> None:
+        """README is line 2 at the head and line 1 at the base."""
+        right = README_PLAN.format("README:2: edited\n")
+        stale = README_PLAN.format("README:1: edited\n")
+        assert_that(on_a_head(right), equal_to([0, "Plan check: ok"]))
+        want = [1, "Plan check: refused, Impact findings: 2"]
+        assert_that(on_a_head(stale), equal_to(want))

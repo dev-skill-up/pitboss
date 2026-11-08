@@ -1,14 +1,15 @@
 """The dry run of a Plan's commands (keyword: plan-check, pitboss#192).
 
-``pitboss plan-check`` runs each command of a Plan in a scratch worktree of the
-PR's base (a row that runs nox is refused and not run, pitboss#251) before the
+``pitboss plan-check`` runs each row of a Plan but an Impact command in a scratch
+worktree of the PR's base (a row that runs nox is refused and not run,
+pitboss#251) before the
 Plan is approved, so a command that cannot run as written
 is a finding of the Plan and not of the Execution hours later. A command that
 cannot start, that times out (a wait on a lock or a queue is one) or that was
 cut off is not run; any other exit status is shown and is no finding, because
 a Plan's command may fail on the base (a test the change makes pass). A row
 ``pitboss impact PHRASE...`` is searched in this process and its hits must each
-have a disposition line in the Plan, at the lines of this head (keyword:
+have a disposition line in the Plan, at the lines of the PR's head (keyword:
 impact-list, pitboss#320). The module imports no process: the runner and the
 search are given.
 """
@@ -92,7 +93,7 @@ def _run(each: str, runner: Runner, search: Search) -> Run:
     # keyword: plan-nox (pitboss#251): a nox row is refused and not run
     if noxrow.runs_nox(each):
         return cut_off(noxrow.SENTENCE, 0.0)
-    # keyword: impact-list (pitboss#320): the search runs here, at this head
+    # keyword: impact-list (pitboss#320): the search runs here, at the PR's head
     impact = impactcheck.parse(each)
     if impact is None:
         return runner(each)
@@ -105,7 +106,7 @@ def _run(each: str, runner: Runner, search: Search) -> Run:
 def report(
     section: str, runner: Runner, search: Search
 ) -> tuple[Sequence[str], Sequence[int]]:
-    """Run each command of a Plan and say what each did.
+    """Run the rows of a Plan and say what each did.
 
     A row that runs nox is refused and not run (pitboss#251). A row that is an
     Impact command (``pitboss impact``) is run by ``search``, in this process
@@ -129,7 +130,7 @@ def report(
 
 
 def impact_findings(section: str, search: Search) -> Sequence[str]:
-    """What the Plan's Impact list lacks or cites wrongly at this head.
+    """What the Plan's Impact list lacks or cites wrongly at the head.
 
     Args:
         section: the Plan section of the body.
