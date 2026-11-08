@@ -126,7 +126,7 @@ class TestTempdirsOfTheCommand(unittest.TestCase):
         for name, text in (("tmpbig", "x" * 200_000), ("tmpsmall", "x")):
             fakes.write(second / name / "file", text)
         test_local.age(second)
-        here = temps_of(self).here
+        here = world.make_world()
         use(here, second)
         out = clean_with_agent(here, second / "tmpsmall/agent")
         refused = cleanworld.lines_of(out, "COULD NOT REMOVE PATH")
