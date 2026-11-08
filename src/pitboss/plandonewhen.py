@@ -7,8 +7,8 @@ does not hold, word for word, every line of the ticket's Done-when and of each
 ``Added to the Done-when`` comment, naming the first line that differs
 (``plan-done-when``). It also refuses a body whose Plan or Execution has an
 "Interpretation" or "interpreted" paragraph about a Done-when item
-(``plan-interpretation``): an item that cannot be met as written is NOT PROCEEDING,
-with the evidence. The module reads nothing: the texts are given.
+(``plan-interpretation``): meet the Done-when as written, or prove it impossible.
+The module reads nothing: the texts are given.
 """
 
 import re
@@ -19,6 +19,7 @@ from . import bodytext, ticketwhen
 CHECK = "plan-done-when"
 INTERPRETATION = "plan-interpretation"
 SHOWN = 100
+RULE = "meet the Done-when as written, or prove it impossible"
 INTERPRET = re.compile(r"\binterpret(?:ation|ations|ed|ing|s)?\b", re.IGNORECASE)
 ABOUT = re.compile(r"\bdone[- ]when\b|\bitems?\s+\d", re.IGNORECASE)
 
@@ -45,7 +46,7 @@ def findings(section: str, ticket: str, comments: Sequence[str]) -> Sequence[str
         if _squeezed(line) not in plan:
             return [
                 f"{CHECK}: the Plan's Done-when is not {source} word for word;"
-                f" the first line that differs is: {line[:SHOWN]}"
+                f" the first line that differs is: {line[:SHOWN]}; {RULE}"
             ]
     return []
 
@@ -63,8 +64,7 @@ def interpretations(body: str) -> Sequence[str]:
     """
     return [
         f"{INTERPRETATION}: a paragraph interprets a Done-when item"
-        f" ({_squeezed(each)[:SHOWN]}): an item that cannot be met as written is"
-        " NOT PROCEEDING, with the evidence; the Plan does not narrow it"
+        f" ({_squeezed(each)[:SHOWN]}): {RULE}"
         for each in bodytext.paragraphs(body)
         if INTERPRET.search(each) and ABOUT.search(each)
     ]

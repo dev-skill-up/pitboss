@@ -221,8 +221,23 @@ class TestPlanDoneWhen(unittest.TestCase):
         """Done-when: the Execution's Interpretation of an item."""
         refused = plandonewhen.interpretations(INTERPRETED)
         passed = plandonewhen.interpretations(NOT_INTERPRETED)
-        assert_that(mentions(refused, [["NOT PROCEEDING"]]), equal_to(True))
+        rule = "meet the Done-when as written, or prove it impossible"
+        assert_that(mentions(refused, [[rule]]), equal_to(True))
+        assert_that(plandonewhen.RULE, equal_to(rule))
+        for text in refused:
+            for word in ("NOT PROCEEDING", "NOT STARTED", "hand back", "escalate"):
+                assert_that(word in text, equal_to(False))
         assert_that(passed, equal_to([]))
+
+    def test_a_differing_line_says_to_meet_it_or_prove_it_impossible(self) -> None:
+        """The plan-done-when refusal carries the same rule."""
+        found = plandonewhen.findings("nothing", TICKET, COMMENTS)
+        assert_that(
+            mentions(
+                found, [["meet the Done-when as written, or prove it impossible"]]
+            ),
+            equal_to(True),
+        )
 
 
 def clone_head(here: world.World) -> str:
