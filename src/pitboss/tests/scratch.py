@@ -86,13 +86,23 @@ def directory() -> pathlib.Path:
         neither, it stays.
     """
     path = pathlib.Path(tempfile.mkdtemp())
-    running = TEST.get()
     if PROCESS.get():
         OWNED.add(path.name)
         atexit.register(shutil.rmtree, path, ignore_errors=True)
-    elif running is not None:
-        running.addCleanup(shutil.rmtree, path, ignore_errors=True)
+    else:
+        remove_after_test(path)
     return path
+
+
+def remove_after_test(path: pathlib.Path) -> None:
+    """Remove a path, made by hand in the temporary directory, when the test ends.
+
+    Args:
+        path: the path; it stays when no test is running.
+    """
+    running = TEST.get()
+    if running is not None:
+        running.addCleanup(shutil.rmtree, path, ignore_errors=True)
 
 
 @contextlib.contextmanager

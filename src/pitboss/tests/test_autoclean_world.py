@@ -7,7 +7,7 @@ import shutil
 import unittest
 from typing import AbstractSet, Mapping, Sequence
 
-from . import cleanworld, fakes, repositories, world, worldcopy
+from . import cleanworld, fakes, repositories, scratch, world, worldcopy
 
 same = cleanworld.same
 MERGED = {"state": "closed", "merged_at": "x"}
@@ -170,6 +170,7 @@ def scene(percent: str, extra: str = "") -> world.World:
     built = scene_template()
     here, moved = worldcopy.copy_of(built)
     shutil.move(repositories.shifted(temps_of(built.world), moved), temps_of(here))
+    scratch.remove_after_test(temps_of(here))
     settings = (
         f'min_free_gib = 0\ntmp_roots = ["{temps_of(here)}"]\n'
         f"pressure_percent = {percent}\n"
