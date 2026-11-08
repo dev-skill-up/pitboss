@@ -8,9 +8,7 @@ runs ``pitboss plan-check``, so the body is the worker's own and is never read
 from somewhere else (it is the file the caller saved, as ``expand`` reads its
 template). The Plan's CI pointers are held to the workflow files of the base and
 the head, and a spec the diff adds to the pointers and the group files of
-``[plan_check]`` (keyword: ci-pointer, pitboss#335). A diff that adds a line to
-a ``.md`` or ``.rst`` file is refused with a ``markup-lines:`` finding for each
-such file (keyword: markup-lines, pitboss#343): lines are only removed.
+``[plan_check]`` (keyword: ci-pointer, pitboss#335).
 """
 
 import argparse

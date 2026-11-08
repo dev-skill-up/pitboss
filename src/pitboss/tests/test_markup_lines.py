@@ -1,7 +1,7 @@
 """No line is added to a .md or .rst file (keyword: markup-lines, pitboss#343)."""
 
 import unittest
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -13,7 +13,7 @@ from .test_brief_nox import WORKERS
 from .test_ci_pointer_check import OK, check
 
 DOC = "one\ntwo\nthree\n"
-BASE = {"doc/a.md": DOC, "doc/b.rst": DOC, "doc/C.MD": DOC}
+BASE = ("doc/a.md", "doc/b.rst", "doc/C.MD")
 EXECUTION = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
 WORKER_SENTENCE = (
     "Doc lines: a change never adds a line to any .md or .rst file; lines are only"
@@ -28,12 +28,11 @@ REVIEW_SENTENCE = (
 )
 
 
-def outcome(files: Mapping[str, str], rename: bool = False) -> tuple[int, str]:
+def outcome(files: Mapping[str, str | None]) -> tuple[int, str]:
     """Check a diff that writes files over the base's .md and .rst files.
 
     Args:
-        files: the files the head commits, by path.
-        rename: whether the head also moves ``doc/a.md`` to ``doc/moved.md``.
+        files: the files the head commits by path, text None for a removal.
 
     Returns:
         The exit status of ``pitboss plan-check`` and its output.
@@ -41,21 +40,22 @@ def outcome(files: Mapping[str, str], rename: bool = False) -> tuple[int, str]:
     case = unittest.TestCase()
     repo = diffrepo.make_repository(case)
     run_git(repo.root, "checkout", "-q", "main")
-    for name, content in BASE.items():
-        diffrepo.commit(repo, name, content)
-    run_git(repo.root, "update-ref", "refs/remotes/origin/main", "HEAD")
-    run_git(repo.root, "checkout", "-q", "-B", "work")
+    for name in BASE:
+        diffrepo.commit(repo, name, DOC)
+    for words in (("update-ref", "refs/remotes/origin/main", "HEAD"), ("switch", "-C", "work")):
+        run_git(repo.root, *words)
     for name, content in files.items():
-        diffrepo.commit(repo, name, content)
-    if rename:
-        run_git(repo.root, "mv", "doc/a.md", "doc/moved.md")
-        run_git(repo.root, *IDENTITY, "commit", "-q", "-m", "move")
+        if content is None:
+            run_git(repo.root, "rm", "-q", name)
+            run_git(repo.root, *IDENTITY, "commit", "-q", "-m", f"remove {name}")
+        else:
+            diffrepo.commit(repo, name, content)
     done = check(repo, "1. nothing points to CI\n", "")
     case.doCleanups()
     return done.code, done.out
 
 
-def kinds_with(sentence: str) -> list[str]:
+def kinds_with(sentence: str) -> Sequence[str]:
     """The kinds of brief that hold a sentence.
 
     Args:
@@ -123,7 +123,7 @@ class TestPlanCheck(unittest.TestCase):
 
     def test_a_moved_file_adds_its_lines(self) -> None:
         """A move is a removal and an addition, and the verdict counts it."""
-        code, out = outcome({}, rename=True)
+        code, out = outcome({"doc/moved.md": DOC, "doc/a.md": None})
         said = "`doc/moved.md` gets 3 added lines"
         assert_that([code, said in out], equal_to([1, True]))
         assert_that("refused, Markup line findings: 1" in out, equal_to(True))

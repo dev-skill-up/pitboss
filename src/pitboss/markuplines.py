@@ -1,10 +1,10 @@
 """The check that a change adds no line to a ``.md`` or ``.rst`` file.
 
-Keyword: markup-lines. Owner rule (pitboss#343): lines only get removed from the Markdown and
-reStructuredText files; a rule goes into a command's output or help text.
-``pitboss plan-check`` refuses a PR whose diff adds a line to such a file. The
-module reads no file and runs nothing: the output of ``git diff --numstat -z`` is
-given.
+The owner's rule (pitboss#343, keyword markup-lines) is that lines only get
+removed from the Markdown and reStructuredText files, and a rule goes into a
+command's output or help text. ``pitboss plan-check`` refuses a PR whose diff
+adds a line to such a file. The module reads no file and runs nothing: the
+output of ``git diff --numstat -z`` is given.
 """
 
 from typing import Sequence
