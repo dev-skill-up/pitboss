@@ -45,7 +45,7 @@ def make(
 
     Args:
         branch: PR 3's head branch.
-        command: ``[relock] pins_check_command``; empty for none.
+        command: ``[relock] pins_check_command``; empty for the default.
         names: the files PR 3 changes, as the API gives them.
         extra: more lines of the ``[relock]`` table.
         **changes: changes to PR 3's JSON.
