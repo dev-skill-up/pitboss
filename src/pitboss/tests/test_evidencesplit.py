@@ -370,7 +370,7 @@ class TestCommand(unittest.TestCase):
         under = invoked("Top\n\n$ echo hi\n\n" + FOOTER, *options)
         said = "Overflowed to comments, as per the standing decision: "
         section = f"{evidencesplit.HEADING}\n\n{said}"
-        past = "parts past the 5000-character limit, URLs below"
+        past = "parts past the 5000-character limit, split by pitboss"
         shown = [said in over.err, past in over.err, URL + "55" in over.err]
         assert_that(shown + [section in over.out], equal_to([True] * 4))
         assert_that([said in under.err, said in under.out], equal_to([False, False]))
