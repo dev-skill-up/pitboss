@@ -9,7 +9,7 @@ in it is live or in use and no work exists only in it (pitboss#348).
 import pathlib
 from typing import AbstractSet, Sequence
 
-from . import dead, deadscan, ticketclosed
+from . import dead, ticketclosed
 
 
 def ticket_of(wanted: AbstractSet[int], entry: pathlib.Path) -> int:
@@ -27,7 +27,10 @@ def ticket_of(wanted: AbstractSet[int], entry: pathlib.Path) -> int:
 
 
 def dead_named(
-    look: dead.Look, cutoff: float, found: deadscan.Findings
+    look: dead.Look,
+    cutoff: float,
+    places: AbstractSet[pathlib.Path],
+    tickets: Sequence[int],
 ) -> Sequence[dead.Candidate]:
     """The entries beside the dead checkouts that are named for their tickets.
 
@@ -37,15 +40,16 @@ def dead_named(
     Args:
         look: what to look at and keep.
         cutoff: anything changed after this time is in use.
-        found: what the scan found.
+        places: the directories that hold a dead checkout.
+        tickets: the numbers in the names of the dead checkouts.
 
     Returns:
         The candidates.
     """
-    wanted = set(found.tickets)
+    wanted = set(tickets)
     entries = (
         (entry, ticket_of(wanted, entry))
-        for place in sorted(found.places)
+        for place in sorted(places)
         for entry in sorted(place.iterdir())
         if not (entry / ".git").exists()
     )

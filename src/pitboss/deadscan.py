@@ -6,11 +6,11 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Callable, Iterable, Mapping, Sequence
 
-from . import concurrently, config, dead, local, shapes, ticketclosed
+from . import concurrently, dead, local, registered, shapes, ticketclosed
+from .outcomes import outcomes_of
 from .dead import Kept
 from .running import git
 
-NOT_A_CHECKOUT = "not a git checkout"
 Decide = Callable[
     [dead.Look, Mapping[str, Mapping[str, shapes.Outcome]], "Checkout"],
     local.Reason | None,
@@ -175,26 +175,6 @@ def checkout_reason(
     return local.Reason.TICKET_CLOSED if closed else None
 
 
-def _outcomes(
-    look: dead.Look, slugs: Iterable[str]
-) -> Mapping[str, Mapping[str, shapes.Outcome]]:
-    # A clone of a repository the configuration does not name is asked about
-    # too: its branches' PRs decide it as much as any other's.
-    owner = look.settings.project.repo.owner
-    repos = {repo.slug: repo for repo in config.repositories(look.settings)}
-    wanted = sorted({slug for slug in slugs if slug})
-
-    def attempt(slug: str) -> Mapping[str, shapes.Outcome] | None:
-        repo = repos.get(slug) or config.parse_repo(slug, owner)
-        try:
-            return local.read_outcomes(look.github, repo)
-        except subprocess.CalledProcessError:
-            return None
-
-    read = concurrently.each(attempt, wanted)
-    return {slug: found for slug, found in zip(wanted, read) if found is not None}
-
-
 def _linked(each: Checkout) -> pathlib.Path | None:
     own = (each.path / ".git").resolve()
     return None if each.common == own else each.common
@@ -231,10 +211,14 @@ def _judged(
     return dataclasses.replace(made, prune=_linked(each))
 
 
+def _firsts(read: Sequence[Checkout]) -> registered.Firsts:
+    return {each.common: each.path for each in reversed(read)}
+
+
 def _fetched(
     look: dead.Look, read: Sequence[Checkout]
 ) -> tuple[Sequence[Checkout], Sequence[str]]:
-    firsts = {each.common: each.path for each in reversed(read)}
+    firsts = _firsts(read)
     failed = local.fetch_each_repository(look.run, firsts.values())
     return [e for e in read if str(firsts[e.common]) not in failed], sorted(failed)
 
@@ -256,35 +240,6 @@ def _read(
     return read, unreadable
 
 
-def _listed_by_git(look: dead.Look, path: pathlib.Path) -> Sequence[local.Worktree]:
-    try:
-        return local.parse_worktrees(
-            git(look.run, path, "worktree", "list", "--porcelain")
-        )
-    except subprocess.CalledProcessError:
-        return []
-
-
-def _registered(look: dead.Look, read: Sequence[Checkout]) -> Sequence[pathlib.Path]:
-    # The linked worktrees that git lists for the repositories of the checkouts
-    # read, wherever under the workspace they are (pitboss#348).
-    workspace = look.settings.project.workspace.resolve()
-    known = {each.path.resolve() for each in read}
-    firsts = {each.common: each.path for each in reversed(read)}
-    listed = concurrently.each(
-        lambda path: _listed_by_git(look, path), list(firsts.values())
-    )
-    wanted = {
-        each.path
-        for worktrees in listed
-        for each in worktrees
-        if each.path.is_relative_to(workspace)
-        and (each.path / ".git").is_file()
-        and each.path not in known
-    }
-    return sorted(wanted)
-
-
 def _unreadable(
     look: dead.Look, cutoff: float, each: pathlib.Path
 ) -> dead.Candidate | Kept:
@@ -298,27 +253,6 @@ def _unreadable(
         reason="a checkout git cannot read",
         kept=f"git cannot read {each}",
     )
-
-
-def plain_directories(workspace: pathlib.Path) -> Sequence[Kept]:
-    """The directories of the workspace that are not git checkouts.
-
-    They are never judged; a hidden one is not named.
-
-    Args:
-        workspace: the directory.
-
-    Returns:
-        A ``Kept`` for each, sorted.
-    """
-    return [
-        Kept(path=path, why=NOT_A_CHECKOUT)
-        for path in sorted(workspace.iterdir())
-        if path.is_dir()
-        and not path.is_symlink()
-        and not path.name.startswith(".")
-        and not (path / ".git").exists()
-    ]
 
 
 def _judging(
@@ -335,6 +269,19 @@ def _judging(
 def _checkout_paths(look: dead.Look) -> Sequence[pathlib.Path]:
     found = local.checkouts(look.settings.project.workspace)
     return [path for path in found if not path.is_symlink()]
+
+
+def _every(
+    look: dead.Look,
+) -> tuple[Sequence[Checkout], Sequence[pathlib.Path]]:
+    # The checkouts directly under the workspace, and the worktrees git lists
+    # for their repositories wherever under the workspace (pitboss#348).
+    direct, lost = _read(look, _checkout_paths(look))
+    known = {each.path.resolve() for each in direct}
+    workspace = look.settings.project.workspace
+    more = registered.under_workspace(look.run, workspace, _firsts(direct), known)
+    deeper, lost_deeper = _read(look, more)
+    return [*direct, *deeper], [*lost, *lost_deeper]
 
 
 def _skipped(read: Sequence[Checkout], fetched: Sequence[Checkout]) -> Sequence[Kept]:
@@ -359,11 +306,10 @@ def dead_checkouts(
         A candidate for each dead checkout, a ``Kept`` (with why) for each that
         is not dead or is live or in use, and the checkouts whose fetch failed.
     """
-    direct, lost = _read(look, _checkout_paths(look))
-    deeper, lost_deeper = _read(look, _registered(look, direct))
-    read, unreadable = [*direct, *deeper], [*lost, *lost_deeper]
+    read, unreadable = _every(look)
     fetched, failed = _fetched(look, read)
-    outcomes = _outcomes(look, {each.slug for each in fetched})
+    slugs = {each.slug for each in fetched}
+    outcomes = outcomes_of(look.github, look.settings, slugs)
     judging = _judging(look, decide, outcomes)
     judged = concurrently.each(
         lambda each: _judged(judging, look, cutoff, each), fetched
@@ -417,19 +363,15 @@ def scan(look: dead.Look, now: float, decide: Decide = checkout_reason) -> Findi
     found, unfetched = dead_checkouts(look, cutoff, decide)
     # Only a merged checkout's marker expires, not a scratch entry's (pitboss#194).
     plain = dataclasses.replace(look, marker_expiry=0.0)
-    scratch = dead.dead_scratch(plain, cutoff)
-    files = dead.dead_root_files(plain, cutoff)
+    elsewhere = dead.dead_elsewhere(plain, cutoff)
     checkouts = [each for each in found if isinstance(each, dead.Candidate)]
     kept = [each for each in found if isinstance(each, Kept)]
     workspace = look.settings.project.workspace
+    places, tickets = ticketclosed.where(workspace, [e.path for e in checkouts])
     return Findings(
-        candidates=dead.ordered([*checkouts, *scratch, *files]),
+        candidates=dead.ordered([*checkouts, *elsewhere]),
         unfetched=unfetched,
-        kept=[*kept, *plain_directories(workspace)],
-        places={
-            each.path.parent
-            for each in checkouts
-            if each.path.parent.resolve().is_relative_to(workspace.resolve())
-        },
-        tickets=ticketclosed.numbers_in(each.path.name for each in checkouts),
+        kept=[*kept, *dead.plain_directories(workspace)],
+        places=places,
+        tickets=tickets,
     )

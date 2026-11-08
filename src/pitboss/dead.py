@@ -27,6 +27,7 @@ from . import (
 from .running import Run
 
 MARKED = "holds a file named .pitboss-live"
+NOT_A_CHECKOUT = "not a git checkout"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -355,3 +356,37 @@ def dead_scratch(look: Look, cutoff: float) -> Sequence[Candidate]:
         for entry in sorted(root.iterdir())
     )
     return present(consider(look, entry, reason, cutoff) for entry in entries)
+
+
+def plain_directories(workspace: pathlib.Path) -> Sequence[Kept]:
+    """The directories of the workspace that are not git checkouts.
+
+    They are never judged; a hidden one is not named.
+
+    Args:
+        workspace: the directory.
+
+    Returns:
+        A ``Kept`` for each, sorted.
+    """
+    return [
+        Kept(path=path, why=NOT_A_CHECKOUT)
+        for path in sorted(workspace.iterdir())
+        if path.is_dir()
+        and not path.is_symlink()
+        and not path.name.startswith(".")
+        and not (path / ".git").exists()
+    ]
+
+
+def dead_elsewhere(look: Look, cutoff: float) -> Sequence[Candidate]:
+    """The dead scratch entries and the dead files in the container's root.
+
+    Args:
+        look: what to look at and keep.
+        cutoff: anything changed after this time is in use.
+
+    Returns:
+        The candidates.
+    """
+    return [*dead_scratch(look, cutoff), *dead_root_files(look, cutoff)]

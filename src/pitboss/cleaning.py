@@ -221,6 +221,18 @@ def kept_line(each: dead.Candidate) -> str:
     return path_line(Marker.KEPT_PATH, each, f": {each.kept}")
 
 
+def kept_checkouts(kept: Sequence[dead.Kept]) -> Sequence[str]:
+    """The lines that say why checkouts are kept.
+
+    Args:
+        kept: the directories kept, each with why.
+
+    Returns:
+        A line for each.
+    """
+    return [f"clean: kept {each.path} ({each.why})" for each in kept]
+
+
 def removed_line(each: dead.Candidate, verb: str) -> str:
     """The line for a path that was removed.
 

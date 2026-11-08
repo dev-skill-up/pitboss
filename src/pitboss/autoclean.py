@@ -135,7 +135,7 @@ def checkouts_part(job: Job) -> Part:
         for name in found.unfetched
     ]
     left = directories_left(job, found)
-    said = [f"clean: kept {each.path} ({each.why})" for each in left]
+    said = cleaning.kept_checkouts(left)
     return dataclasses.replace(
         part, lines=[*failed, *part.lines, *said], kept=[*left, *part.kept]
     )

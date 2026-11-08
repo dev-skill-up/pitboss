@@ -31,7 +31,7 @@ def holds_working(machine: Machine, path: pathlib.Path) -> bool:
     Returns:
         True when removing it would remove the command's own directory.
     """
-    return any(each == path or each.is_relative_to(path) for each in machine.working)
+    return worked_in(machine.working, path)
 
 
 def is_mine(machine: Machine, clean: cleanconfig.Clean, path: pathlib.Path) -> bool:

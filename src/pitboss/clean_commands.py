@@ -32,6 +32,7 @@ from .machine import Machine, real_machine
 
 TMP_PATTERN = "tmp*"
 DEFAULT_TMP_HOURS = 2.0
+FETCH_FAILED = "fetch failed in {}: its repository's checkouts are not judged"
 
 
 def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
@@ -76,36 +77,82 @@ def roots_of(
     return {*cleanjob.roots(look), *look.clean.tmp_roots, *places}
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Tempdirs:
+    """The test tempdirs ``clean-container`` looks at.
+
+    Attributes:
+        machine: the machine.
+        hours: how long a tempdir must be untouched.
+        free: the idle tempdirs that may go.
+        used: the idle tempdirs a running process works in.
+        paths: the paths of ``free``.
+    """
+
+    machine: Machine
+    hours: float
+    free: Sequence[dead.Candidate]
+    used: Sequence[dead.Candidate]
+    paths: AbstractSet[pathlib.Path]
+
+
+def tempdirs_of(args: argparse.Namespace, look: dead.Look, found: Context) -> Tempdirs:
+    """Look at the test tempdirs: ``tmp*`` in the tempdir roots, idle for the hours.
+
+    Args:
+        args: the parsed arguments.
+        look: what to look at and keep.
+        found: the configuration and the API.
+
+    Returns:
+        The tempdirs.
+    """
+    machine = real_machine(args.env, found.now, running_in(args), args.usage)
+    patterns = (TMP_PATTERN, *look.clean.tmp_patterns)
+    clean = dataclasses.replace(look.clean, tmp_patterns=patterns)
+    free, used = tempclean.split_tempdirs(machine, clean, args.tmp_hours)
+    paths = {each.path for each in free}
+    return Tempdirs(
+        machine=machine, hours=args.tmp_hours, free=free, used=used, paths=paths
+    )
+
+
 def recheck_of(
-    look: dead.Look,
-    machine: Machine,
-    cutoffs: tuple[float, float],
-    tempdirs: AbstractSet[pathlib.Path],
-    each: dead.Candidate,
+    look: dead.Look, cutoff: float, tempdirs: Tempdirs, each: dead.Candidate
 ) -> str:
     """Look again, just before the removal, at a path that was listed.
 
     Args:
         look: what to look at and keep.
-        machine: the machine.
-        cutoffs: the time before which a path is idle, and the hours of a tempdir.
-        tempdirs: the paths that are tempdirs.
+        cutoff: anything changed after this time is in use.
+        tempdirs: the test tempdirs.
         each: the candidate.
 
     Returns:
         Why the path must not be removed now, or empty when it may.
     """
-    cutoff, hours = cutoffs
-    if each.path in tempdirs:
-        return tempclean.recheck(machine, hours, each)
+    if each.path in tempdirs.paths:
+        return tempclean.recheck(tempdirs.machine, tempdirs.hours, each)
     return dead.recheck(look, cutoff, each)
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Removing:
+    """What ``clean-container`` is to remove, and from where.
+
+    Attributes:
+        listed: the dead paths.
+        roots: the directories whose entries may be removed.
+        recheck: why a path must not be removed now, looked at just before.
+    """
+
+    listed: Sequence[dead.Candidate]
+    roots: AbstractSet[pathlib.Path]
+    recheck: Callable[[dead.Candidate], str]
+
+
 def remove_listed(
-    args: argparse.Namespace,
-    look: dead.Look,
-    listed: Sequence[dead.Candidate],
-    how: tuple[AbstractSet[pathlib.Path], Callable[[dead.Candidate], str]],
+    args: argparse.Namespace, look: dead.Look, removing: Removing
 ) -> cleaning.Outcome:
     """Remove the safe (and approved) dead paths, saying what happened to each.
 
@@ -114,27 +161,24 @@ def remove_listed(
     Args:
         args: the parsed arguments.
         look: what to look at and keep.
-        listed: the dead paths.
-        how: the directories whose entries may be removed, and the look at a
-            path just before its removal.
+        removing: the dead paths, where they may go from, and how to look again.
 
     Returns:
         What was done.
     """
-    roots, recheck = how
     approved = cleaning.read_approved(args.approved)
-    chosen, refused = cleaning.choose(listed, approved, roots)
-    workspace = look.settings.project.workspace
-    before = args.usage(workspace)
-    gone = cleaning.remove_all(args, recheck, chosen)
+    chosen, refused = cleaning.choose(removing.listed, approved, removing.roots)
+    use = functools.partial(args.usage, look.settings.project.workspace)
+    before = use()
+    gone = cleaning.remove_all(args, removing.recheck, chosen)
     cleaning.prune(args.run, gone)
     return cleaning.Outcome(
         gone=gone,
-        kept=dead.unsafe(listed),
+        kept=dead.unsafe(removing.listed),
         refused=refused,
         removing=args.no_dry_run,
         before=before,
-        after=args.usage(workspace),
+        after=use(),
     )
 
 
@@ -175,70 +219,79 @@ def clean_container(args: argparse.Namespace) -> None:
     """
     found = load_context(args)
     look = look_of(args, found)
-    now = found.now.timestamp()
-    cutoff = now - look.settings.idle_hours * 3600
-    machine = real_machine(args.env, found.now, running_in(args), args.usage)
-    scan = deadscan.scan(look, now)
-    patterns = (TMP_PATTERN, *look.clean.tmp_patterns)
-    clean = dataclasses.replace(look.clean, tmp_patterns=patterns)
-    free, used = tempclean.split_tempdirs(machine, clean, args.tmp_hours)
-    listed = dead.ordered(
-        [*scan.candidates, *named.dead_named(look, cutoff, scan), *free]
-    )
-    recheck = functools.partial(
-        recheck_of,
-        look,
-        machine,
-        (cutoff, args.tmp_hours),
-        {each.path for each in free},
-    )
-    for name in scan.unfetched:
-        print(f"fetch failed in {name}: its repository's checkouts are not judged")
-    for text in kept_lines(scan.kept, used, args.tmp_hours):
+    scan, tempdirs, removing = plan_of(args, look, found)
+    for text in leading_lines(scan, tempdirs):
         print(text)
-    print(tempdirs_line(free, args.tmp_hours))
-    done = remove_listed(args, look, listed, (roots_of(look, scan.places), recheck))
-    for text in cleaning.closing_lines(done):
+    for text in cleaning.closing_lines(remove_listed(args, look, removing)):
         print(text)
 
 
-def kept_lines(
-    kept: Sequence[dead.Kept], used: Sequence[dead.Candidate], hours: float
-) -> Sequence[str]:
-    """The lines that say why a checkout or a tempdir is not removed.
+def plan_of(
+    args: argparse.Namespace, look: dead.Look, found: Context
+) -> tuple[deadscan.Findings, Tempdirs, Removing]:
+    """Look at the machine: the dead paths, the test tempdirs, what to remove.
 
     Args:
-        kept: the directories of the workspace the scan left, each with why.
-        used: the idle tempdirs a running process works in.
-        hours: how long a tempdir must be untouched.
+        args: the parsed arguments.
+        look: what to look at and keep.
+        found: the configuration and the API.
 
     Returns:
-        A line for each checkout kept and each tempdir used; a directory that
-        is no checkout is not named.
+        What the scan found, the test tempdirs and the removal.
     """
-    checkouts = [each for each in kept if each.why != deadscan.NOT_A_CHECKOUT]
-    why = f"untouched for {hours:g} hours, but a running process works in it"
-    return [
-        *(f"clean: kept {each.path} ({each.why})" for each in checkouts),
-        *(
-            f"clean: kept {each.path} {disk.size_text(each.size)} ({why})"
-            for each in used
+    now = found.now.timestamp()
+    cutoff = now - look.settings.idle_hours * 3600
+    scan = deadscan.scan(look, now)
+    tempdirs = tempdirs_of(args, look, found)
+    scratch = named.dead_named(look, cutoff, scan.places, scan.tickets)
+    return (
+        scan,
+        tempdirs,
+        Removing(
+            listed=dead.ordered([*scan.candidates, *scratch, *tempdirs.free]),
+            roots=roots_of(look, scan.places),
+            recheck=functools.partial(recheck_of, look, cutoff, tempdirs),
         ),
+    )
+
+
+def leading_lines(scan: deadscan.Findings, tempdirs: Tempdirs) -> Sequence[str]:
+    """What is said before the removals: fetches that failed, what is kept, tempdirs.
+
+    Args:
+        scan: what the scan found.
+        tempdirs: the test tempdirs.
+
+    Returns:
+        The lines.
+    """
+    failed = list(map(FETCH_FAILED.format, scan.unfetched))
+    checkouts = [each for each in scan.kept if each.why != dead.NOT_A_CHECKOUT]
+    size = disk.size_text(sum(each.size for each in tempdirs.free))
+    hours = f"{tempdirs.hours:g} hours"
+    counted = f"clean: {len(tempdirs.free)} test tempdirs untouched for {hours}, {size}"
+    return [
+        *failed,
+        *cleaning.kept_checkouts(checkouts),
+        counted,
+        *used_lines(tempdirs),
     ]
 
 
-def tempdirs_line(free: Sequence[dead.Candidate], hours: float) -> str:
-    """The line that counts the test tempdirs to remove, and their size.
+def used_lines(tempdirs: Tempdirs) -> Sequence[str]:
+    """The lines that name the idle tempdirs a running process works in.
 
     Args:
-        free: the idle tempdirs that may go.
-        hours: how long a tempdir must be untouched.
+        tempdirs: the test tempdirs.
 
     Returns:
-        The line.
+        A line for each.
     """
-    size = disk.size_text(sum(each.size for each in free))
-    return f"clean: {len(free)} test tempdirs untouched for {hours:g} hours, {size}"
+    why = f"untouched for {tempdirs.hours:g} hours, but a running process works in it"
+    return [
+        f"clean: kept {each.path} {disk.size_text(each.size)} ({why})"
+        for each in tempdirs.used
+    ]
 
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="clean-worktrees")

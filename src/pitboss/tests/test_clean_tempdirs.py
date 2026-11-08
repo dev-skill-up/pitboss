@@ -1,8 +1,9 @@
-"""``clean-container`` removes idle test tempdirs, counts them, names the used (pitboss#348).
+"""``clean-container`` removes idle test tempdirs, counts them, names the used.
 
 A tempdir is ``tmp*`` in a ``[clean] tmp_roots`` directory, owned by the user
 running, untouched for ``--tmp-hours`` (2 by default). One that a running
-process works in (its current directory, or its ``TMPDIR``) is named and kept.
+process works in (its current directory, or its ``TMPDIR``) is named and kept
+(pitboss#348).
 """
 
 import dataclasses
@@ -10,123 +11,169 @@ import pathlib
 import subprocess
 import sys
 import unittest
+from typing import Sequence
 
-from .. import dead, procs, tempclean
+from .. import dead, machine as machines, procs, tempclean
 from . import autocleanworld as fx
 from . import cleanruns, cleanworld, fakes, test_local, world
 
 same = cleanworld.same
 BUSY = fx.TMP / "tmpbusy"
+SLEEP = "import time; time.sleep(60)"
 
 
-def tempdir_world() -> tuple[world.World, pathlib.Path]:
-    """A world whose tempdir root holds old, young, busy and unrelated entries.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Temps:
+    """A world and its tempdir root.
 
-    Returns:
-        The world and the root. ``tmpold``, ``tmpbusy`` and ``plain-old`` are
-        10 hours old, ``tmpyoung`` is new.
+    Attributes:
+        here: the world.
+        root: the tempdir root. ``tmpold``, ``tmpbusy`` and ``plain-old`` in it
+            are 10 hours old, ``tmpyoung`` is new.
     """
-    here = world.make_world()
-    root = fakes.directory() / "temp"
-    for name in ("tmpold", "tmpbusy/inner", "plain-old"):
-        fakes.write(root / name / "file", name)
-    test_local.age(root)
-    fakes.write(root / "tmpyoung" / "file", "new")
-    settings = f'min_free_gib = 0\ntmp_roots = ["{root}"]\npressure_percent = 100\n'
-    cleanworld.rewrite(here, settings)
-    return here, root
+
+    here: world.World
+    root: pathlib.Path
 
 
-def worker_in(directory: pathlib.Path) -> subprocess.Popen[bytes]:
-    """A running process whose current directory is a directory.
+def use(here: world.World, root: pathlib.Path) -> None:
+    """Make a directory the world's only tempdir root.
 
     Args:
-        directory: the directory.
+        here: the world.
+        root: the directory.
+    """
+    settings = f'min_free_gib = 0\ntmp_roots = ["{root}"]\npressure_percent = 100\n'
+    cleanworld.rewrite(here, settings)
+
+
+def temps_of(case: unittest.TestCase) -> Temps:
+    """Make a world whose tempdir root holds old, young, busy and other entries.
+
+    A process works in ``tmpbusy/inner``, and is stopped when the test ends.
+
+    Args:
+        case: the test.
 
     Returns:
-        The process, which is stopped when the test ends.
+        The world and its root.
     """
-    code = "import time; time.sleep(60)"
-    return subprocess.Popen([sys.executable, "-c", code], cwd=directory)
+    root = fakes.directory() / "temp"
+    cleanworld.put(root, "tmpold/file", "tmpbusy/inner/file", "plain-old/file")
+    test_local.age(root)
+    cleanworld.put(root, "tmpyoung/file")
+    here = world.make_world()
+    use(here, root)
+    process = subprocess.Popen(
+        [sys.executable, "-c", SLEEP], cwd=root / "tmpbusy/inner"
+    )
+    case.addCleanup(process.wait)
+    case.addCleanup(process.kill)
+    return Temps(here=here, root=root)
+
+
+def clean_with_agent(here: world.World, path: pathlib.Path) -> str:
+    """Remove for real, one path at a time, with an agent starting in a path.
+
+    Args:
+        here: the world.
+        path: the file the agent writes just before the first ``rm``.
+
+    Returns:
+        What the command printed.
+    """
+    runner = cleanruns.Starting(inner=here.processes, path=path)
+    started = dataclasses.replace(here, processes=runner)
+    return cleanruns.clean(started, "--no-dry-run", "--batch", "1").out
 
 
 class TestTempdirsOfTheCommand(unittest.TestCase):
     """The command removes the idle tempdirs and names the one in use."""
 
-    def worker(self, directory: pathlib.Path) -> None:
-        """Start a process in a directory, to be stopped when the test ends.
-
-        Args:
-            directory: the directory.
-        """
-        process = worker_in(directory)
-        self.addCleanup(process.wait)
-        self.addCleanup(process.kill)
-
     def test_the_dry_run_counts_them_and_names_the_one_in_use(self) -> None:
         """Only the old one is listed; the young, the busy and the unrelated stay."""
-        here, root = tempdir_world()
-        self.worker(root / "tmpbusy" / "inner")
-        out = cleanruns.clean(here).out
-        same(cleanworld.lines_of(out, "REMOVED PATH"), [f"{root}/tmpold"])
+        temps = temps_of(self)
+        out = cleanruns.clean(temps.here).out
+        same(cleanworld.lines_of(out, "REMOVED PATH"), [f"{temps.root}/tmpold"])
         counted = "clean: 1 test tempdirs untouched for 2 hours, "
-        busy = f"clean: kept {root}/tmpbusy "
+        busy = f"clean: kept {temps.root}/tmpbusy "
         used = "(untouched for 2 hours, but a running process works in it)"
         same(cleanworld.absent(out, [counted, busy, used]), [])
-        same(all((root / name).exists() for name in ("tmpold", "tmpbusy")), True)
+        same((temps.root / "tmpold").exists(), True)
 
     def test_the_real_run_removes_only_the_old_one(self) -> None:
         """The path is FREED; the others are untouched."""
-        here, root = tempdir_world()
-        self.worker(root / "tmpbusy" / "inner")
-        out = cleanruns.clean(here, "--no-dry-run").out
-        same(f"REMOVED PATH {root}/tmpold" in out, True)
+        temps = temps_of(self)
+        out = cleanruns.clean(temps.here, "--no-dry-run").out
+        same(f"REMOVED PATH {temps.root}/tmpold" in out, True)
         same(out.count(" FREED"), 1)
-        kept = [(root / name).exists() for name in ("tmpbusy", "tmpyoung", "plain-old")]
-        same([(root / "tmpold").exists(), *kept], [False, True, True, True])
+        names = ("tmpold", "tmpbusy", "tmpyoung", "plain-old")
+        there = [(temps.root / name).exists() for name in names]
+        same(there, [False, True, True, True])
 
     def test_the_hours_are_an_argument(self) -> None:
         """At 0 hours the young one is idle too; the busy one is not removed."""
-        here, root = tempdir_world()
-        self.worker(root / "tmpbusy" / "inner")
-        out = cleanruns.clean(here, "--tmp-hours", "0").out
-        same(
-            cleanworld.lines_of(out, "REMOVED PATH"),
-            [f"{root}/tmpold", f"{root}/tmpyoung"],
-        )
+        temps = temps_of(self)
+        out = cleanruns.clean(temps.here, "--tmp-hours", "0").out
+        removed = cleanworld.lines_of(out, "REMOVED PATH")
+        same(removed, [f"{temps.root}/tmpold", f"{temps.root}/tmpyoung"])
         same("clean: 2 test tempdirs untouched for 0 hours, " in out, True)
 
     def test_a_tempdir_that_changes_after_the_listing_is_left(self) -> None:
         """It is looked at again just before its rm."""
-        here = tempdir_world()[0]
-        root = fakes.directory() / "second"
-        fakes.write(root / "tmpbig" / "file", "x" * 200_000)
-        fakes.write(root / "tmpsmall" / "file", "x")
-        test_local.age(root)
-        cleanworld.rewrite(
-            here,
-            f'min_free_gib = 0\ntmp_roots = ["{root}"]\npressure_percent = 100\n',
-        )
-        runner = cleanruns.Starting(inner=here.processes, path=root / "tmpsmall/agent")
-        out = cleanruns.clean(
-            dataclasses.replace(here, processes=runner), "--no-dry-run", "--batch", "1"
-        ).out
+        second = fakes.directory() / "second"
+        for name, text in (("tmpbig", "x" * 200_000), ("tmpsmall", "x")):
+            fakes.write(second / name / "file", text)
+        test_local.age(second)
+        here = temps_of(self).here
+        use(here, second)
+        out = clean_with_agent(here, second / "tmpsmall/agent")
         refused = cleanworld.lines_of(out, "COULD NOT REMOVE PATH")
-        same(refused, [f"{root}/tmpsmall"])
-        same((root / "tmpbig").exists(), False)
-        same("changed since it was listed" in out, True)
+        same(refused, [f"{second}/tmpsmall"])
+        same(
+            ((second / "tmpbig").exists(), "changed since it was listed" in out),
+            (False, True),
+        )
 
 
-def tempdir_tree() -> fx.Tree:
-    """A /tmp with two old tempdirs, one of which a process works in.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Tmp:
+    """A /tmp in memory with two old tempdirs.
+
+    Attributes:
+        tree: the tree.
+        machine: the machine of no processes that reads it.
+    """
+
+    tree: fx.Tree
+    machine: machines.Machine
+
+
+def tmp_of() -> Tmp:
+    """Make a /tmp with two old tempdirs and a machine of no processes.
 
     Returns:
-        The tree.
+        The tmp.
     """
     tree = fx.Tree()
     fx.put(tree, fx.TMP / "tmpold", 99)
     fx.put(tree, BUSY, 99)
-    return tree
+    return Tmp(tree=tree, machine=fx.machine_of(tree))
+
+
+def split(tmp: Tmp, directory: pathlib.Path) -> tuple[Sequence[str], Sequence[str]]:
+    """The names of the tempdirs that may go and of those that are used.
+
+    Args:
+        tmp: the tmp.
+        directory: where a process works.
+
+    Returns:
+        The two lists of names.
+    """
+    busy = dataclasses.replace(tmp.machine, busy=lambda: {directory})
+    free, used = tempclean.split_tempdirs(busy, fx.plain(), 2)
+    return fx.names(free), fx.names(used)
 
 
 class TestSplitting(unittest.TestCase):
@@ -134,32 +181,27 @@ class TestSplitting(unittest.TestCase):
 
     def test_a_process_inside_a_tempdir_keeps_it(self) -> None:
         """Its current directory is below the tempdir; the other one may go."""
-        machine = dataclasses.replace(
-            fx.machine_of(tempdir_tree()), busy=lambda: {BUSY / "inner"}
-        )
-        free, used = tempclean.split_tempdirs(machine, fx.plain(), 2)
-        same((fx.names(free), fx.names(used)), (["tmpold"], ["tmpbusy"]))
-        same(fx.names(tempclean.stale_tempdirs(machine, fx.plain(), 2)), ["tmpold"])
+        tmp = tmp_of()
+        same(split(tmp, BUSY / "inner"), (["tmpold"], ["tmpbusy"]))
+        stale = tempclean.stale_tempdirs(tmp.machine, fx.plain(), 2)
+        same(fx.names(stale), ["tmpbusy", "tmpold"])
 
     def test_a_tempdir_that_is_a_process_s_directory_is_used(self) -> None:
         """The directory itself counts, not only what is below it."""
-        machine = dataclasses.replace(
-            fx.machine_of(tempdir_tree()), busy=lambda: {BUSY}
-        )
-        same(fx.names(tempclean.split_tempdirs(machine, fx.plain(), 2)[1]), ["tmpbusy"])
+        same(split(tmp_of(), BUSY), (["tmpold"], ["tmpbusy"]))
 
     def test_the_look_before_the_removal(self) -> None:
         """Gone is fine; changed since, or used since, is not; otherwise fine."""
-        tree = tempdir_tree()
+        tmp = tmp_of()
         old = dead.Candidate(path=fx.TMP / "tmpold", size=1, reason="r")
-        gone = dead.Candidate(path=fx.TMP / "tmpgone", size=1, reason="r")
-        plain = fx.machine_of(tree)
-        used = dataclasses.replace(plain, busy=lambda: {old.path})
-        same(tempclean.recheck(plain, 2, old), "")
-        same(tempclean.recheck(plain, 2, gone), "")
-        same(tempclean.recheck(used, 2, old), "a running process works in it")
-        fx.put(tree, old.path, 0)
-        same(tempclean.recheck(plain, 2, old), "changed since it was listed")
+        gone = dataclasses.replace(old, path=fx.TMP / "tmpgone")
+        used = dataclasses.replace(tmp.machine, busy=lambda: {old.path})
+        cases = [(tmp.machine, old), (tmp.machine, gone), (used, old)]
+        said = [tempclean.recheck(machine, 2, each) for machine, each in cases]
+        fx.put(tmp.tree, old.path, 0)
+        said.append(tempclean.recheck(tmp.machine, 2, old))
+        busy = "a running process works in it"
+        same(said, ["", "", busy, "changed since it was listed"])
 
 
 class TestProcesses(unittest.TestCase):
@@ -175,7 +217,7 @@ class TestProcesses(unittest.TestCase):
         (proc / "self").mkdir()
         (proc / "stat").write_text("x")
         found = procs.in_use(proc)
-        same(found, {pathlib.Path("/work/a"), pathlib.Path("/tmp/t1")})
+        same(sorted(found), [pathlib.Path("/tmp/t1"), pathlib.Path("/work/a")])
 
     def test_this_process_is_one_of_them(self) -> None:
         """The real ``/proc`` names the directory this test runs in."""

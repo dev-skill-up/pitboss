@@ -6,9 +6,10 @@ branch that is a closed ticket of its repository says it (pitboss#348).
 """
 
 import json
+import pathlib
 import re
 import subprocess
-from typing import Iterable, Sequence
+from typing import AbstractSet, Iterable, Sequence
 
 from . import ghapi
 
@@ -60,3 +61,23 @@ def closed_ticket(github: ghapi.GitHub, slug: str, names: Iterable[str]) -> int:
     """
     wanted = (number for number in numbers_in(names) if is_closed(github, slug, number))
     return next(wanted, 0)
+
+
+def where(
+    workspace: pathlib.Path, checkouts: Iterable[pathlib.Path]
+) -> tuple[AbstractSet[pathlib.Path], Sequence[int]]:
+    """The directories under the workspace that hold some checkouts, and their tickets.
+
+    Args:
+        workspace: the workspace.
+        checkouts: the checkouts.
+
+    Returns:
+        The directories they are in, and the numbers in their names.
+    """
+    found = list(checkouts)
+    inside = workspace.resolve()
+    places = {
+        each.parent for each in found if each.parent.resolve().is_relative_to(inside)
+    }
+    return places, numbers_in(each.name for each in found)
