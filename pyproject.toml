@@ -73,6 +73,7 @@ module = [
     "pitboss.reviewform_commands",
     "pitboss.expand_commands",
     "pitboss.plancheck_commands",
+    "pitboss.impact_commands",
     "pitboss.body_commands",
     "pitboss.slot_commands",
     "pitboss.red_commands",
