@@ -136,8 +136,7 @@ class TestBriefs(unittest.TestCase):
     def test_the_worker_briefs_say_it_and_no_other_does(self) -> None:
         """Every worker kind, and only those."""
         found = kinds_with(WORKER_SENTENCE)
-        workers = sorted(each.name for each in brief.Kind if each not in brief.REVIEWS)
-        assert_that(found, equal_to(workers))
+        assert_that(found, equal_to(sorted(each.name for each in brief.TASKS)))
 
     def test_the_execution_reviews_make_such_a_diff_changes_needed(self) -> None:
         """Only the reviews that grade a diff carry it."""
