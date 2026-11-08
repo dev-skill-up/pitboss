@@ -16,7 +16,6 @@ from . import (
     reviews,
     shapes,
     steps,
-    tasklistrule,
 )
 from .markers import Marker
 
@@ -338,8 +337,7 @@ def reminder_lines(settings: config.Config) -> Sequence[str]:
     Returns:
         The lines.
     """
-    texts = (*settings.reminders, tasklistrule.TASK_LIST_RULE)
-    return [f"{Marker.SWEEP_REMINDER.text}: {text}" for text in texts]
+    return [f"{Marker.SWEEP_REMINDER.text}: {text}" for text in settings.reminders]
 
 
 def slot_lines(book: ledger.Ledger) -> Sequence[str]:

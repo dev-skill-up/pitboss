@@ -19,7 +19,6 @@ from . import (
     repoaccess,
     report,
     slotlog,
-    tasklist,
     ticketof,
     tracefs,
 )
@@ -52,8 +51,6 @@ class Action(enum.Enum):
         REPORT: print the share of slot time in each state (--since, --until).
         TIME: print the worker minutes of each ticket (--since, --until).
         HEARD: say a slot's agent handed back or notified (SLOT).
-        REFRESHED: say the orchestrator updated its task list (keyword:
-            task-list).
         DEVIATION: record the ``Deviation:`` lines of a review saved in a
             file on the worker's ticket (TICKET FILE; keyword: deviations).
     """
@@ -71,7 +68,6 @@ class Action(enum.Enum):
     REPORT = enum.auto()
     TIME = enum.auto()
     HEARD = enum.auto()
-    REFRESHED = enum.auto()
     DEVIATION = enum.auto()
 
     @property
@@ -124,7 +120,7 @@ def _free(
         return ledger.Refusal(
             reason="slots free needs --done AGENT: the agent that handed back"
         )
-    return tasklist.freed(book, words[0], found.args.done)
+    return ledger.free(book, words[0], found.args.done)
 
 
 def _add(
@@ -155,13 +151,9 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
     Action.FAILED: (2, _failed),
     Action.HEARD: (
         1,
-        lambda book, words, found: tasklist.heard(
-            book, words[0], found.now.isoformat()
+        lambda book, words, found: ledger.stamp(
+            book, words[0], ledger.Mark.HEARD, found.now.isoformat()
         ),
-    ),
-    Action.REFRESHED: (
-        0,
-        lambda book, _words, found: tasklist.refreshed(book, found.now.isoformat()),
     ),
     Action.WAIT: (1, lambda book, words, _: ledger.wait(book, words[0], True)),
     Action.RESUME: (1, lambda book, words, _: ledger.wait(book, words[0], False)),

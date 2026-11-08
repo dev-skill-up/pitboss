@@ -33,6 +33,7 @@ from . import (
     machine as machines,
     pulls,
     queue,
+    readyline,
     removedline,
     repoaccess,
     report,
@@ -331,9 +332,8 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     sweepline.slots(book, read, offer)
     sweepline.idle(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(book, found.now, found.args)
-    tasklist.print_lines(
-        found.github, found.settings, book, configfile.named(found.args)
-    )
+    ready = readyline.texts(found.settings, pulls.readable(read), found.now)
+    tasklist.print_block(book, list(ready), offer.items)
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, tasklist.ARGUMENT, name="sweep")

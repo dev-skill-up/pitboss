@@ -79,10 +79,6 @@ class Ledger:
         config: the path of the configuration that owns the ledger, a key put
             in the file by hand (nothing writes it when the file is made), or
             empty when the file records none.
-        refreshed: when the orchestrator last said it had updated its task
-            list (``slots refreshed``; ISO time), or empty (keyword: task-list).
-        handbacks: the tickets of the agents that handed back since then, one
-            each, in order.
         deviations: for each ticket, the deviations a review of its worker's
             work listed (keyword: deviations, pitboss#257).
     """
@@ -90,8 +86,6 @@ class Ledger:
     slots: Sequence[Slot]
     failed: Mapping[str, Sequence[str]]
     config: str = ""
-    refreshed: str = ""
-    handbacks: Sequence[str] = ()
     deviations: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
 
 
@@ -133,8 +127,6 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
         slots=tuple(Slot(**item) for item in data["slots"]),
         failed={key: tuple(value) for key, value in data["failed"].items()},
         config=data.get("config", ""),
-        refreshed=data.get("refreshed", ""),
-        handbacks=tuple(data.get("handbacks", ())),
         deviations={
             key: tuple(value) for key, value in data.get("deviations", {}).items()
         },
@@ -167,10 +159,6 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
     }
     if ledger.config:
         data["config"] = ledger.config
-    if ledger.refreshed:
-        data["refreshed"] = ledger.refreshed
-    if ledger.handbacks:
-        data["handbacks"] = list(ledger.handbacks)
     if ledger.deviations:
         data["deviations"] = {
             key: list(value) for key, value in sorted(ledger.deviations.items())
