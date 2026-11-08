@@ -288,8 +288,8 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
     def test_a_configuration_that_is_not_there_is_a_usage_error(self) -> None:
         """The path is named."""
         path = "/nonexistent/project.toml"
-        body = write_text("body.txt", "## Plan\n1. x\n")
-        done = world.invoke(real_world(), "plan-check", body, "--config", path)
+        repo = repository(self)
+        done = unconfigured(repo, "1. x\n", "--config", path)
         assert_that([done.code, path in done.err], equal_to([2, True]))
 
 
