@@ -53,7 +53,7 @@ def outcome(files: Mapping[str, str | None]) -> tuple[int, str]:
             diffrepo.commit(repo, name, content)
     done = check(repo, "1. nothing points to CI\n", "")
     case.doCleanups()
-    return done.code, done.out
+    return int(done.code), str(done.out)
 
 
 def kinds_with(sentence: str) -> Sequence[str]:
