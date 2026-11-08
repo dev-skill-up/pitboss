@@ -10,7 +10,7 @@ class Rounds:
     """What the review rounds of a PR show.
 
     Attributes:
-        merges_only: only merges of the base since an older full approval.
+        merges_only: only merges (or skill-zips/) since an older approval.
         missed_before: the findings its regular reviews up to the newest Opus
             ruling mark ``Missed earlier:`` (all of them when it has no ruling).
         missed_after: the findings the reviews after that ruling mark so.
@@ -26,7 +26,7 @@ def of(state: flowstate.PullState, merges_only: bool) -> Rounds:
 
     Args:
         state: what is recorded of the PR.
-        merges_only: only merges of the base since an older full approval.
+        merges_only: only merges (or skill-zips/) since an older approval.
 
     Returns:
         The rounds.

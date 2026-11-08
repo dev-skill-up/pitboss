@@ -353,7 +353,7 @@ class Standing(enum.Enum):
     Attributes:
         NONE: no review counts.
         APPROVED: approved, this very head.
-        APPROVED_BEFORE_MERGES: an older head approved, only merges since.
+        APPROVED_BEFORE_MERGES: an older head approved, merges or zips since.
         CHANGES_NEEDED: this very head needs changes.
         OLDER_HEAD: the review is of an older head (a fix came since).
         OLDER_BODY: the review is of this head, but the PR body is not the one

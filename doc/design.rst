@@ -50,8 +50,6 @@ What was project-specific, and where it went
        gated_form`` says; ``review-form`` prints it, the reviewer brief quotes
        it, and the sweep prints ``GATE PENDING`` while the status
        ``adversarial-review`` of the head is not success
-   * - an approval survives a merge of main, except in gated repositories
-     - built in: it is what "gated" means
    * - the 20 shared runners, and which repositories share them
      - ``[runners] repositories`` (default: the project and its libraries)
    * - the working files outside any repository (sweep configurations, the
