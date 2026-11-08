@@ -39,13 +39,13 @@ TASK_ADD_CI_QUOTES = (
 )
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
-    " only what costs something: `pitboss nox` run more than once on one head"
-    " (`--all` is not feedback), a required step you skipped, or a rule of the"
-    " owner's you broke; a heredoc instead of the Edit tool, a virtualenv, a"
-    " redirected output file or a research fetch is no deviation, and the line"
-    " is `Deviations: none` beside them; it is part of the form of the"
-    " hand-back, and a hand-back without it is NOT STARTED and is sent back"
-    " (pitboss#257, pitboss#345)."
+    " only a departure from the Plan's commands or the ticket's Done-when"
+    " (`pitboss nox` run more than once on one head is one; `--all` is not"
+    " feedback); how a file is edited (a heredoc, the Edit tool, `sed`), a"
+    " virtualenv, a redirected output file or a research fetch is never a"
+    " deviation, and the line is `Deviations: none` beside them; it is part of"
+    " the form of the hand-back, and a hand-back without it is NOT STARTED and"
+    " is sent back (pitboss#257, pitboss#345)."
 )
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"

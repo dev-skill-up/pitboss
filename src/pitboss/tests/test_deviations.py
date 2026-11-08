@@ -25,12 +25,13 @@ WORKERS = (
 ASKS = brieftextwork.DEVIATIONS
 READS = brieftextnote.DEVIATIONS_REVIEW
 HAND_BACK_NAMES = (
-    "and the `Deviations:` line (only what costs something, or `none`);"
-    " nothing else."
+    "and the `Deviations:` line (only a departure from the Plan's commands or the"
+    " ticket's Done-when, or `none`); nothing else."
 )
 HARMLESS = (
-    "PR 5\nhead abc\nI wrote one file with a heredoc, ran in a virtualenv,"
-    " redirected nox output to a file and made a research fetch.\n"
+    "PR 5\nhead abc\nI wrote one file with a heredoc, edited another with"
+    " `sed`, ran in a virtualenv, redirected nox output to a file and made a"
+    " research fetch.\n"
     "Deviations: none\n"
 )
 WITH_LINE = "PR 5\nhead abc\nDeviations: two `sed -i` runs, one `rm`\n"
@@ -81,10 +82,11 @@ class TestTheBriefs(unittest.TestCase):
         for kind in (brief.Kind.REVIEW_PLAN, brief.Kind.REVIEW_FIX_ROUND):
             assert_that(READS in text(kind), equal_to(False))
         for part in (
-            "`pitboss nox` run more than once on one head",
+            "a departure from the Plan's commands or the ticket's Done-when",
+            "`pitboss nox` run more than once on one head is one",
             "a trace in the tree that the Edit tool would not have",
-            "a heredoc, a virtualenv, a redirected output file or a research fetch"
-            " is no deviation and never fails a PR",
+            "how a file is edited (a heredoc, the Edit tool, `sed`)",
+            "is never a deviation and never fails a PR",
             "for the sweep's ledger line for the worker",
         ):
             assert_that(READS, contains_string(part))
@@ -94,19 +96,21 @@ class TestTheBriefs(unittest.TestCase):
         rule = "a hand-back without it is NOT STARTED text the orchestrator sends back"
         assert_that(words(read("rules.md")), contains_string(rule))
 
-    def test_the_sentence_keeps_only_what_costs_something(self) -> None:
-        """A heredoc, a virtualenv, a redirected file or a fetch is no deviation."""
+    def test_the_sentence_names_only_a_departure_from_the_plan_or_the_done_when(
+        self,
+    ) -> None:
+        """How a file is edited, a virtualenv, a file or a fetch is never one."""
         for part in (
-            "only what costs something",
-            "`pitboss nox` run more than once on one head",
-            "a required step you skipped",
-            "a rule of the owner's you broke",
-            "a heredoc instead of the Edit tool, a virtualenv, a redirected output"
-            " file or a research fetch is no deviation",
+            "only a departure from the Plan's commands or the ticket's Done-when",
+            "`pitboss nox` run more than once on one head is one",
+            "how a file is edited (a heredoc, the Edit tool, `sed`), a virtualenv,"
+            " a redirected output file or a research fetch is never a deviation",
             "`Deviations: none` beside them",
         ):
-            assert_that(ASKS, contains_string(part))
-        assert_that("`sed`" in ASKS, equal_to(False))
+            assert_that(words(ASKS), contains_string(part))
+        for gone in ("costs something", "rule of the owner"):
+            for each in (ASKS, READS, deviations.NOT_STARTED, HAND_BACK_NAMES):
+                assert_that(gone in each, equal_to(False))
 
 
 class TestTheHandBack(unittest.TestCase):
@@ -122,7 +126,7 @@ class TestTheHandBack(unittest.TestCase):
     def test_a_hand_back_that_lists_none_of_the_harmless_habits_is_accepted(
         self,
     ) -> None:
-        """A heredoc, a virtualenv, a file or a fetch beside `Deviations: none`."""
+        """A heredoc or `sed` edit, a virtualenv, a file or a fetch: `none`."""
         assert_that(deviations.not_started(HARMLESS), equal_to(""))
         found = world.invoke(world.make_world(), "hand-back-check", saved(HARMLESS))
         assert_that((found.code, found.out), equal_to((0, "ok\n")))
