@@ -176,6 +176,12 @@ class TestWorkerActions(unittest.TestCase):
                 (name, found.out, found.code), equal_to((name, wanted + "\n", 0))
             )
 
+    def test_a_match_only_in_the_final_report_is_found(self) -> None:
+        """No call shows the conversion; the report says it (pitboss#357)."""
+        lines, patterns, wanted = CASES["only the final report holds it"]
+        printed = run(lines, patterns).out.splitlines()
+        assert_that(printed, equal_to([wanted]))
+
     def test_a_bad_file_or_pattern_exits_2_and_says_why_on_stderr(self) -> None:
         """A file that is not there, a pattern that is no regular expression."""
         path = fakes.directory() / "output.jsonl"
