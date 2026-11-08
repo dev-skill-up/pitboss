@@ -652,7 +652,8 @@ workflow. A live run is reported with its age against ``timeout_minutes``.
 **Stragglers.** Every git checkout directly under ``workspace``: uncommitted
 files, and commits on no remote branch. Each repository is fetched once.
 
-**Worktrees** (keyword: clean-worktrees, pitboss#81). Whether a finished worktree may go is the one safety test of **Dead
+**Worktrees** (keyword: clean-worktrees, pitboss#81).
+Whether a finished worktree may go is the one safety test of **Dead
 paths** (``dead.verdict``): not live, not in use, and safe. It is written once:
 ``clean-container`` (``dead.consider`` and ``dead.recheck``) and the removal of
 worktrees (``worktrees.py``) call it (the ``DISK PRESSURE`` line runs none, it
@@ -927,7 +928,8 @@ decide the same way: systemd-tmpfiles removes by age and has entries that
 exclude a path (``x``, ``X``), ``git clean -n`` lists before it removes, and the kubelet evicts on a free-space threshold of
 the filesystem (``nodefs.available<10%``). A path is *dead* when its work is
 finished or nobody uses it, and *live* when it is marked; a dead path is *safe*
-when nothing in it exists only on this machine. A path
+when nothing in it exists only on this machine.
+A path
 is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
 depth or in a directory above it, except that for a merged checkout a marker
 (in it or above it) older than 6 hours, ``workhours.TASK_HOURS``, is not
@@ -953,7 +955,8 @@ inside, or a path that cannot be looked at. Sizes are the blocks on disk.
 ``--no-dry-run`` removes at most ``--batch`` paths at a time with ``rm -rf
 --one-file-system`` and, just before each part, looks at every path again
 (liveness, idle, safety): a path that became live, busy or unsafe in between is
-left in place and reported as ``COULD NOT REMOVE PATH``. It then prunes the worktree
+left in place and reported as ``COULD NOT REMOVE PATH``.
+It then prunes the worktree
 lists of the repositories a removed linked worktree belonged to. ``--approved
 FILE`` limits the removal to the paths in it; an entry that is not among the
 current safe candidates is refused, whatever it is. The sweep warns with
