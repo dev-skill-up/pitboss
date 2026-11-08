@@ -8,7 +8,9 @@ runs ``pitboss plan-check``, so the body is the worker's own and is never read
 from somewhere else (it is the file the caller saved, as ``expand`` reads its
 template). The Plan's CI pointers are held to the workflow files of the base and
 the head, and a spec the diff adds to the pointers and the group files of
-``[plan_check]`` (keyword: ci-pointer, pitboss#335).
+``[plan_check]`` (keyword: ci-pointer, pitboss#335). A diff that adds a line to
+a ``.md`` or ``.rst`` file is refused with a ``markup-lines:`` finding for each
+such file (keyword: markup-lines, pitboss#343): lines are only removed.
 """
 
 import argparse
@@ -206,11 +208,6 @@ def plan_check(args: argparse.Namespace) -> None:
     refused for a hit with no disposition line (``file:line: edited`` or ``not
     edited``) and for one citing a ``file:line`` that is no hit there (keyword:
     impact-list, pitboss#320).
-
-    The Plan is refused too for a diff that adds a line to a ``.md`` or ``.rst``
-    file, with a ``markup-lines:`` finding for each such file (owner rule,
-    keyword: markup-lines, pitboss#343): lines are only removed, and a rule goes
-    into a command's output or help text.
 
     Prints a row for each command (its exit status and duration, or that it did
     not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
