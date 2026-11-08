@@ -71,7 +71,7 @@ def moved(repo: Repo, head: str) -> Repo:
     return dataclasses.replace(repo, git=noxgitstub.answering(head, repo.directory, ""))
 
 
-def run(repo: Repo, now: str, *options: str) -> tuple[int, str, int]:
+def run(repo: Repo, now: str, *options: str) -> tuple[object, str, int]:
     """Run ``pitboss nox`` in the repository.
 
     Args:
