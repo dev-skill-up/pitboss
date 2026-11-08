@@ -175,8 +175,8 @@ def choose(
 
     Only a path directly in a root (the workspace, a scratch directory, the
     root of files, a tempdir root, a directory that holds a dead checkout) is
-    ever removed, and an approved path is removed only when it is one of the safe candidates now: any other
-    path of the file is refused, whatever it is.
+    ever removed, and an approved path is removed only when it is one of the
+    safe candidates now: any other path of the file is refused, whatever it is.
 
     Args:
         listed: the dead paths.
