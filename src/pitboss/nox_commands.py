@@ -9,7 +9,16 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, alsotests, expansion, noxcheck, noxgreen, selectdiff
+from . import (
+    ENTRY_DATA,
+    alsotests,
+    configsearch,
+    diskwatch,
+    expansion,
+    noxcheck,
+    noxgreen,
+    selectdiff,
+)
 from .commandarguments import NOW_ARGUMENT
 from .timing import current_time
 
@@ -81,6 +90,24 @@ def show(ran: Sequence[noxcheck.Step]) -> None:
     print(noxcheck.PROOF)
 
 
+def stop_when_short_of_disk(args: argparse.Namespace) -> None:
+    """Print the ``DISK`` line and the clean, and exit, when little is free.
+
+    Args:
+        args: the parsed arguments.
+
+    Raises:
+        SystemExit: 1 when the working directory's volume has under 5 GiB free.
+    """
+    refusal = diskwatch.nox_refusal(
+        diskwatch.read(args.usage, configsearch.working_directory(args))
+    )
+    if refusal:
+        for each in refusal:
+            print(each)
+        raise SystemExit(1)
+
+
 @ENTRY_DATA.register(
     add_argument(
         "--also",
@@ -121,7 +148,14 @@ def show(ran: Sequence[noxcheck.Step]) -> None:
 def nox(args: argparse.Namespace) -> None:
     """Run the sessions of ``noxcheck.Session``, in their order.
 
-    Each runs as ``nox -r -s SESSION`` (the rule is ``brieftextwork.NOX``), and
+    Before it starts a session it reads the free space of the volume of the
+    working directory (``build/nox`` is written there), and under 5 GiB free it
+    exits 1, printing the ``DISK`` line of ``next`` and the auto-approved
+    ``uvx pitboss clean-container --no-dry-run`` (``diskwatch.nox_refusal``,
+    pitboss#346). The tests session empties its ``TMPDIR`` when it is green and
+    keeps it when it fails, and a green run that leaves a directory there fails
+    naming the test (``test-leak``). Each session runs as ``nox -r -s SESSION``
+    (the rule is ``brieftextwork.NOX``), and
     a failing session stops the rest and exits 1 with its output. One line is
     printed for each session that ran, with the ``test-timing`` lines of a
     session that passed (pitboss#324), and on success a line says CI's
@@ -137,6 +171,7 @@ def nox(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
+    stop_when_short_of_disk(args)
     runner = functools.partial(run_command, args)
     place = noxgreen.place_of(runner)
     before = noxgreen.green_at(place) if place and not args.force else ""

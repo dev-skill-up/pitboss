@@ -1,6 +1,7 @@
 """The tests session of noxfile.py: a targeted run has no 100% report (pitboss#210)."""
 
 import contextlib
+import dataclasses
 import importlib.util
 import os
 import pathlib
@@ -9,7 +10,8 @@ import sys
 import tempfile
 import types
 import unittest
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from typing import Protocol
 
 from hamcrest import assert_that, equal_to
 
@@ -74,20 +76,143 @@ def runs_of(*posargs: str) -> Sequence[Sequence[str]]:
         Each command, whole.
     """
     ran: list[Sequence[str]] = []
-    session = types.SimpleNamespace(
-        posargs=posargs,
-        create_tmp=lambda: "/x",
-        install=lambda *_: None,
-        run=lambda *command, **_: ran.append(command),
-    )
+    with tempfile.TemporaryDirectory() as name:
+        session = types.SimpleNamespace(
+            posargs=posargs,
+            create_tmp=lambda: made_tmp(pathlib.Path(name)),
+            install=lambda *_: None,
+            run=lambda *command, **_: ran.append(command),
+        )
+        noxfile_module().tests(session)
+    return ran
+
+
+def made_tmp(root: pathlib.Path) -> str:
+    """The ``TMPDIR`` of a session, as nox makes it: ``tmp`` in the environment.
+
+    Args:
+        root: a directory to hold the environment.
+
+    Returns:
+        The path of the ``tmp`` directory, which exists.
+    """
+    tmp = root / "tests-3-13" / "tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
+    return str(tmp)
+
+
+def noxfile_module() -> types.ModuleType:
+    """Load noxfile.py with a stand-in for nox.
+
+    Returns:
+        The module.
+    """
     path = EXAMPLE.parents[1] / "noxfile.py"
     with nox_stand_in():
         spec = importlib.util.spec_from_file_location("noxfile_under_test", path)
         assert spec is not None and spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-    module.tests(session)
-    return ran
+    return module
+
+
+class RunFailed(Exception):
+    """The stand-in for a command of the session that exits with a status."""
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Left:
+    """What a run of the tests session left of the things the tests made.
+
+    Attributes:
+        names: what is in ``TMPDIR`` afterwards, sorted.
+        env: the environment the first command got (``COVERAGE_FILE`` and
+            ``TMPDIR``).
+        outside_kept: whether the directory a link in ``TMPDIR`` points at is
+            still there.
+    """
+
+    names: Sequence[str]
+    env: Mapping[str, str]
+    outside_kept: bool
+
+
+def things_left(root: pathlib.Path) -> pathlib.Path:
+    """Make what tests leave in a ``TMPDIR``: a tree, a file and a link.
+
+    Args:
+        root: a directory to hold the environment.
+
+    Returns:
+        The directory the link points at.
+    """
+    tmp = pathlib.Path(made_tmp(root))
+    (tmp / "world" / "project").mkdir(parents=True)
+    (tmp / "world" / "project" / "file").write_text("x")
+    (tmp / "loose").write_text("y")
+    outside = root / "outside"
+    outside.mkdir()
+    (tmp / "link").symlink_to(outside)
+    return outside
+
+
+def left_after(*posargs: str, fails: bool = False) -> Left:
+    """Run the tests session over a ``TMPDIR`` the tests left things in.
+
+    Args:
+        *posargs: the words after ``--``.
+        fails: whether the run of the tests fails.
+
+    Returns:
+        What was left.
+    """
+    given: list[Mapping[str, str]] = []
+
+    def run(*command: str, **kwargs: Mapping[str, str]) -> None:
+        given.append(kwargs["env"])
+        if fails and "virtue" in command:
+            raise RunFailed()
+
+    with tempfile.TemporaryDirectory() as top:
+        root = pathlib.Path(top)
+        outside = things_left(root)
+        with contextlib.suppress(RunFailed):
+            noxfile_module().tests(session_in(root, posargs, run))
+        kept = sorted(each.name for each in (root / "tests-3-13" / "tmp").iterdir())
+        return Left(names=kept, env=given[0], outside_kept=outside.is_dir())
+
+
+class Run(Protocol):
+    """What a command line of the session does."""
+
+    def __call__(self, *command: str, **kwargs: Mapping[str, str]) -> None:
+        """Run a command line.
+
+        Args:
+            *command: the words of the command.
+            **kwargs: the options, of which ``env`` is read.
+        """
+
+
+def session_in(
+    root: pathlib.Path, posargs: Sequence[str], run: Run
+) -> types.SimpleNamespace:
+    """A session whose environment is in a directory and whose commands are ``run``.
+
+    Args:
+        root: the directory.
+        posargs: the words after ``--``.
+        run: what a command line does.
+
+    Returns:
+        The session.
+    """
+    return types.SimpleNamespace(
+        posargs=posargs,
+        create_tmp=lambda: made_tmp(root),
+        install=lambda *_: None,
+        run=run,
+    )
 
 
 class TestTestsSession(unittest.TestCase):
@@ -133,6 +258,28 @@ class TestTestsSession(unittest.TestCase):
         assert_that(
             found.index(REPORTER) > found.index("--reporter=text"), equal_to(True)
         )
+
+
+class TestTestsSessionEmptiesItsTmpdir(unittest.TestCase):
+    """Only a green run removes what the tests left in TMPDIR (pitboss#346)."""
+
+    def test_a_green_run_empties_it_whole_or_targeted(self) -> None:
+        """The tree, the file and the link are gone; a link is not followed."""
+        for words in ([], ["-x", "pitboss.tests.test_gates"]):
+            found = left_after(*words)
+            assert_that((found.names, found.outside_kept), equal_to(([], True)))
+
+    def test_a_run_that_fails_keeps_it_for_debugging(self) -> None:
+        """The nearest input: the tests fail and everything is still there."""
+        found = left_after(fails=True)
+        assert_that(found.names, equal_to(["link", "loose", "world"]))
+
+    def test_the_coverage_data_is_beside_tmpdir_not_in_it(self) -> None:
+        """Emptying TMPDIR leaves the data the 100% report reads."""
+        env = left_after().env
+        tmp, data = env["TMPDIR"], env["COVERAGE_FILE"]
+        beside = os.path.join(os.path.dirname(tmp), "coverage")
+        assert_that((data, data.startswith(tmp + os.sep)), equal_to((beside, False)))
 
 
 FAILING_MODULE = """

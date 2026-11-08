@@ -92,12 +92,15 @@ class TestFourForms(unittest.TestCase):
         assert_that(results[0][2], equal_to(1))
 
 
-def missing(case: configcases.Case, directory: pathlib.Path) -> tuple[int, bool, bool]:
+def missing(
+    case: configcases.Case, directory: pathlib.Path, tools: pathlib.Path
+) -> tuple[int, bool, bool]:
     """Run a command in an empty directory with no configuration.
 
     Args:
         case: the command.
         directory: the directory it runs in.
+        tools: an empty directory, which becomes the PATH with git only.
 
     Returns:
         The exit status, and whether standard error names ``$PITBOSS_CONFIG``
@@ -105,7 +108,6 @@ def missing(case: configcases.Case, directory: pathlib.Path) -> tuple[int, bool,
     """
     env = {key: value for key, value in os.environ.items() if key != "PITBOSS_CONFIG"}
     # a PATH with git only: the fetch by name (fetched-config) finds no gh
-    tools = fakes.directory()
     (tools / "git").symlink_to(str(shutil.which("git")))
     env.update(PWD=str(directory), HOME=str(directory), PATH=str(tools))
     done = subprocess.run(
@@ -126,8 +128,11 @@ class TestMissingConfiguration(unittest.TestCase):
     def test_each_command_says_where_it_looked(self) -> None:
         """Exit 1 (the uncaught error), and the variable and the places on stderr."""
         # one process of its own for each command, which wait on their own
+        # (their directories are made here: a thread has no running test to clean up)
+        places = [fakes.directory() for _ in CASES]
+        tools = [fakes.directory() for _ in CASES]
         with concurrent.futures.ThreadPoolExecutor() as pool:
-            found = list(pool.map(lambda case: missing(case, fakes.directory()), CASES))
+            found = list(pool.map(missing, CASES, places, tools))
         assert_that(found, equal_to([(1, True, True)] * len(CASES)))
 
     def test_lint_keeps_its_generic_forms_and_says_where_it_looked(self) -> None:

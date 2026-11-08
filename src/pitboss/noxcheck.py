@@ -20,6 +20,11 @@ STOP_AFTER = "-x"
 # `rg test-timing` finds them in CI's log and `pitboss nox` can show them.
 TIMING_PREFIX = "test-timing "
 SLOWEST_COUNT = 30
+# A passing tests run that left a name in its TMPDIR fails after the suite with a
+# line for each name (keyword: test-leak, pitboss#346): the prefix, the test that
+# left it (or OUTSIDE_TESTS) and the name.
+LEAK_PREFIX = "test-leak "
+OUTSIDE_TESTS = "(outside any test)"
 PROOF = "CI's `Run Nox` step is the proof of the whole suite."
 
 

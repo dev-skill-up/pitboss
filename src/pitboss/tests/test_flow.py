@@ -13,11 +13,11 @@ from typing import AbstractSet, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import bodydigest, flow, parsing, shapes, steps
-from . import fakes
+from . import fakes, scratch
 
 HEAD = fakes.HEAD
 OLDER = fakes.OLDER
-SETTINGS = fakes.settings(fakes.directory())
+SETTINGS = fakes.settings(scratch.process_directory())
 FORM = SETTINGS.review.form
 REVIEW = dataclasses.replace(
     SETTINGS.review,

@@ -1,6 +1,7 @@
 import functools
 import os
 import re
+import shutil
 import urllib.request
 
 import nox
@@ -52,9 +53,21 @@ def _publish_twine_requirement(sha):
     return re.search(r"^twine==\S+", runtime, re.MULTILINE).group(0)
 
 
+def _empty_directory(directory):
+    for name in os.listdir(directory):
+        path = os.path.join(directory, name)
+        if os.path.isdir(path) and not os.path.islink(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+
+
 @nox.session(python=VERSIONS)
 def tests(session):
     tmpdir = session.create_tmp()
+    # The coverage data is beside the tests' TMPDIR, not in it: a green run empties
+    # TMPDIR (pitboss#346, keyword: test-leak).
+    coverage_file = os.path.join(os.path.dirname(tmpdir), "coverage")
     session.install("-r", "requirements-tests.txt")
     session.install("-e", ".")
     # `pitboss nox` passes -x (virtue stops after the first unsuccessful test,
@@ -76,8 +89,12 @@ def tests(session):
         *options,
         reporter,
         *(modules or ["pitboss.tests"]),
-        env=dict(COVERAGE_FILE=os.path.join(tmpdir, "coverage"), TMPDIR=tmpdir),
+        env=dict(COVERAGE_FILE=coverage_file, TMPDIR=tmpdir),
     )
+    # Only a green run removes what the tests left in TMPDIR: a run that fails raises
+    # above and keeps it for debugging, and the next green run removes everything.
+    # The reporter has already failed a green run that left a directory (test-leak).
+    _empty_directory(tmpdir)
     # A run of some modules covers only part of the package, so the 100% report
     # belongs to the whole run (CI's), and `pitboss nox` (pitboss#210), which selects
     # the tests from the diff (pitboss#331), passes when the named tests pass.
@@ -90,7 +107,7 @@ def tests(session):
         fail_under,
         "--show-missing",
         "--skip-covered",
-        env=dict(COVERAGE_FILE=os.path.join(tmpdir, "coverage")),
+        env=dict(COVERAGE_FILE=coverage_file),
     )
 
 

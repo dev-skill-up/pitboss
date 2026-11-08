@@ -5,13 +5,14 @@ helpers of ``fakes`` that use it add no layer to the import graph.
 """
 
 import dataclasses
-import functools
 import os
 import pathlib
 import shutil
 import subprocess
 import tempfile
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
+
+from . import scratch
 
 MERGED = "merged-work"
 # every ``origin`` that ``copy_of`` made, in order, so that a scene built by a
@@ -54,14 +55,14 @@ def commit_file(checkout: pathlib.Path, name: str) -> None:
 
 
 def directory() -> pathlib.Path:
-    """A new temporary directory.
+    """A new temporary directory, removed by the running test's cleanup.
 
     Returns:
-        Its path.
+        Its path (``scratch.directory`` says who removes it).
     """
     ceiling = os.path.realpath(tempfile.gettempdir())
     os.environ["GIT_CEILING_DIRECTORIES"] = ceiling  # no git repository above a test's
-    return pathlib.Path(tempfile.mkdtemp())
+    return scratch.directory()
 
 
 def push(checkout: pathlib.Path) -> None:
@@ -118,7 +119,7 @@ def build() -> Template:
     return Template(workspace=workspace, origin=origin)
 
 
-@functools.cache
+@scratch.built_once
 def plain() -> Template:
     """The template of a clone, built by the first test that asks.
 
@@ -128,7 +129,7 @@ def plain() -> Template:
     return build()
 
 
-@functools.cache
+@scratch.built_once
 def merged() -> Template:
     """The template of a clone with a worktree whose branch is pushed.
 

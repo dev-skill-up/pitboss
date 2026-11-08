@@ -1,7 +1,6 @@
 """Tests for stragglers and stale worktrees, on real git repositories."""
 
 import dataclasses
-import functools
 import os
 import pathlib
 import shutil
@@ -12,7 +11,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import config, local, shapes
-from . import fakes, orphans, repositories
+from . import fakes, orphans, repositories, scratch
 
 OLD = time.time() - 10 * 3600
 CUTOFF = OLD + 3600
@@ -89,7 +88,7 @@ class Stale:
     origins: Sequence[pathlib.Path]
 
 
-@functools.cache
+@scratch.built_once
 def scene_template() -> Stale:
     """A clone with a worktree for every rule, all old but ``fresh``.
 
