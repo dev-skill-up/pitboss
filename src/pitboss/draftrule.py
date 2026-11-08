@@ -30,17 +30,21 @@ _NEGATED = re.compile(
 SHOWN = 80
 
 
-def drafts_off(config: str, start: pathlib.Path) -> bool:
+def drafts_off(config: str, start: pathlib.Path, slug: str | None = None) -> bool:
     """Whether the configuration says the project's PRs are not drafts.
 
     Args:
         config: the configuration's path or name.
         start: the directory a name is looked up from.
+        slug: the repository of the PR, when it is known (keyword:
+            pitboss-exempt, pitboss#113); it has no drafts when it is pitboss or
+            listed in ``[slots.brief] no_drafts``.
 
     Returns:
-        True when ``[slots.brief] drafts`` is false.
+        True when ``[slots.brief] drafts`` is false, or the repository has none.
     """
-    return not configfile.load_brief(config, start).drafts
+    brief = configfile.load_brief(config, start)
+    return not brief.drafts or (slug is not None and slug in brief.no_drafts)
 
 
 def findings(name: str, body: str) -> Sequence[str]:

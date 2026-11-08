@@ -1,5 +1,6 @@
 """Finding, reading and parsing the configuration file a command was given."""
 
+import dataclasses
 import pathlib
 import tomllib
 from typing import AbstractSet, Mapping, Sequence
@@ -9,6 +10,7 @@ from . import (
     cleanconfig,
     config,
     configsearch,
+    exempt,
     holdconfig,
     ownerconfig,
     plancheckconfig,
@@ -72,7 +74,10 @@ def load_brief(name: str, start: pathlib.Path) -> briefconfig.Brief:
         What the project's briefs say beyond the process.
     """
     with locate(name, start).open("rb") as stream:
-        return briefconfig.from_document(tomllib.load(stream))
+        document = tomllib.load(stream)
+    brief = briefconfig.from_document(document)
+    full = exempt.slugs(brief.no_drafts, exempt.owner_of(document))
+    return dataclasses.replace(brief, no_drafts=full)
 
 
 def load_clean(name: str, start: pathlib.Path) -> cleanconfig.Clean:
@@ -274,6 +279,10 @@ def _project(document: Mapping[str, object]) -> config.Project:
         workspace=pathlib.Path(str(table.get("workspace", main_clone.parent))),
         run_by_e2e=_strings(sweep, "run_by_e2e", config.DEFAULT_RUN_BY_E2E),
         plan_review_check=str(sweep.get("plan_review_check", "")),
+        no_drafts=exempt.slugs(
+            briefconfig.from_document(document).no_drafts,
+            exempt.owner_of(document),
+        ),
     )
 
 
@@ -326,6 +335,9 @@ def _runners(
         record=pathlib.Path(_setting(document, "runners", "record", default)),
         quiet_minutes=minutes,
         held="runners" in document,
+        exempt=exempt.slugs(
+            _strings(_table(document, "runners"), "exempt", ()), project.repo.owner
+        ),
     )
 
 

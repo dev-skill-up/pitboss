@@ -16,6 +16,7 @@ from . import (
     bodydigest,
     brief,
     briefconfig,
+    briefrepo,
     config,
     diskwatch,
     fixes,
@@ -268,7 +269,12 @@ def _rules(source: Source, slug: str, head: str) -> brief.Rules:
         config=source.given,
         form=_form(source, slug, head),
         footer=footers[0] if footers else "",
-        project=source.brief,
+        project=briefrepo.of_repository(
+            source.brief,
+            slug,
+            source.settings.project.no_drafts,
+            source.settings.runners.exempt,
+        ),
         gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
         plan_check=source.settings.project.plan_review_check,
     )
