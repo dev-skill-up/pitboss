@@ -67,27 +67,6 @@ class TestGood(unittest.TestCase):
 
 This makes tests deterministic and easier to reason about.
 
-## Tests run real git on a shared repository (keyword: shared-repository)
-
-No test replaces git with a fake, a stub, a canned exit status or a recording of
-its output: `fakes.FakeProcesses` runs every command it does not answer (`gh api`,
-`curl`, the machine's `grep` and `mount`) for real, in the world's main clone, and
-refuses an answer for `git`. A test that needs git to fail gives it a repository
-that fails (a `pre-receive` hook in the origin for a refused push, an `origin` that
-is no repository for status 128).
-
-`src/pitboss/tests/repositories.py` builds a bare origin and its clone once per run
-with real git; each test gets a file copy of that directory, with the paths git keeps
-moved to the copy, and changes only its copy. A test that tests what git does calls
-git. A scene of many repositories (the cleaning worlds) is built once per run by its
-helper (`worldcopy.build`, cached with `functools.cache`) and each test gets
-`worldcopy.copy_of`: the directories and origins copied, the paths moved, the links
-pointed at the copy and the times of the files kept. `scripts/count_git_calls.py`
-counts the git processes of the whole suite, by subcommand and by the fixture that
-asked (a thread's processes are the fixture that made the thread); `--before REF`
-also runs the suite of REF in a temporary worktree and prints the totals and every
-subcommand and fixture whose count differs, as `name before after`.
-
 ## 100% Code Coverage Required
 
 The project enforces 100% code coverage with branch coverage. Any untested code must be explicitly marked:

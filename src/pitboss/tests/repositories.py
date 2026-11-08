@@ -1,6 +1,6 @@
 """Real git in temp dirs; a repository built once and copied by each test.
 
-The area is shared-repository. This module imports nothing of pitboss, so the
+This module imports nothing of pitboss, so the
 helpers of ``fakes`` that use it add no layer to the import graph.
 """
 
@@ -15,7 +15,7 @@ from typing import Mapping, MutableSequence, Sequence
 
 MERGED = "merged-work"
 # every ``origin`` that ``copy_of`` made, in order, so that a scene built by a
-# test helper can be copied with the origins it holds (keyword: shared-repository)
+# test helper can be copied with the origins it holds
 MADE: MutableSequence[pathlib.Path] = []
 IDENTITY = ("-c", "user.email=t@example.org", "-c", "user.name=T")
 

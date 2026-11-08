@@ -1,4 +1,4 @@
-"""The copy of a scene a helper built: paths, links and times (shared-repository)."""
+"""The copy of a scene a helper built: paths, links and times."""
 
 import os
 import pathlib

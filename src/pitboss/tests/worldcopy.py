@@ -1,4 +1,4 @@
-"""A world built once is copied for each test (keyword: shared-repository).
+"""A world built once is copied for each test.
 
 A scene of dead and live paths takes hundreds of git processes to build. A test
 helper builds it once for the run, with real git, and each test gets a file copy

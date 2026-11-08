@@ -238,7 +238,7 @@ def every_run() -> Mapping[tuple[str, str], Ran]:
     """Run each form of each case once, for all the tests that read them.
 
     Each run has a world of its own and its output is only read afterwards,
-    so the tests share the runs (keyword: shared-repository).
+    so the tests share the runs.
 
     Returns:
         What each run did, by its command and its form.

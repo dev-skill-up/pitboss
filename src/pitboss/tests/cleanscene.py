@@ -1,4 +1,4 @@
-"""The cleaning tests' world of every kind of dead and live path (shared-repository).
+"""The cleaning tests' world of every kind of dead and live path.
 
 It is built once for the run and each test gets a copy of it (``worldcopy``).
 """
