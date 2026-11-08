@@ -6,11 +6,13 @@ the plan-digest area (pitboss#172).
 
 import argparse
 import pathlib
+import re
 import sys
+from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, bodydigest, deviations, plandigest
+from . import ENTRY_DATA, bodydigest, deviations, plandigest, workeractions
 
 USAGE_ERROR = 2
 
@@ -68,6 +70,39 @@ def hand_back_check(args: argparse.Namespace) -> None:
     print(missing or "ok")
     if missing:
         raise SystemExit(1)
+
+
+def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:
+    try:
+        return workeractions.scan(entries, patterns)
+    except re.error as error:
+        raise _fail(f"pattern: {error}") from error
+
+
+@ENTRY_DATA.register(
+    add_argument("output", help="a worker's whole output file (JSON lines)"),
+    add_argument(
+        "pattern",
+        nargs="+",
+        help="a regular expression, searched without regard to case",
+    ),
+    name="worker-actions",
+)
+def worker_actions(args: argparse.Namespace) -> None:
+    """Print the tool calls and the final report of a worker's output that match.
+
+    This is the worker-actions area (pitboss#352). A statement about what a
+    worker did is made from this output. A line is the line number of the file,
+    the tool and its input, or the line number and ``final report:`` with the
+    report. With no match it prints ``no match in N calls and the final report``,
+    which is reported with its count and never as "it did not".
+
+    Args:
+        args: the parsed arguments (a file it cannot read as UTF-8, or a
+            pattern that is not a regular expression, exits with status 2).
+    """
+    for line in _scan(_read(args.output).splitlines(), args.pattern):
+        print(line)
 
 
 @ENTRY_DATA.register(BODY_FILE, name="plan-digest")
