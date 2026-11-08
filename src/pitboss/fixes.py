@@ -1,7 +1,7 @@
 """The tickets a PR says it fixes."""
 
 import re
-from typing import AbstractSet, Sequence
+from typing import AbstractSet
 
 from . import config, ledger, pulls
 
@@ -26,21 +26,6 @@ def fixed_tickets(pull: pulls.PullFacts) -> AbstractSet[str]:
     """
     return frozenset(
         ledger.reference(found, pull.repo) for found in _FIXES.findall(pull.pull.body)
-    )
-
-
-def named_tickets(body: str, repo: config.Repo) -> Sequence[str]:
-    """The tickets a PR body's ``Fixes`` and ``Closes`` lines name, in order.
-
-    Args:
-        body: the PR's body.
-        repo: the PR's repository, the owner of a bare ``#N``.
-
-    Returns:
-        Each ticket in full, once.
-    """
-    return tuple(
-        dict.fromkeys(ledger.reference(each, repo) for each in _FIXES.findall(body))
     )
 
 
