@@ -13,13 +13,16 @@ LINT_TEST = (
 MARKUP_LINES = (
     "Doc lines: a change never adds a line to any .md or .rst file; lines are only"
     " removed (a doc that code makes outdated is cut, not reworded, and a rule goes"
-    " into the command's output or help text); `pitboss plan-check` refuses a diff"
-    " that adds one (keyword: markup-lines, pitboss#343)."
+    " into the command's output or help text); a changed line whose text is its"
+    " removed line with characters deleted and none inserted or reordered is a"
+    " removal, so cut the span and keep the rest; `pitboss plan-check` refuses a"
+    " diff that adds any other line (keyword: markup-lines, pitboss#343, #373)."
 )
 MARKUP_LINES_REVIEW = (
     "Doc lines: a diff that adds a line to a .md or .rst file is changes needed,"
-    " whatever the ticket says; lines are only removed (keyword: markup-lines,"
-    " pitboss#343)."
+    " whatever the ticket says, except a changed line that is its removed line with"
+    " characters deleted and none inserted or reordered, which is a removal;"
+    " lines are only removed (keyword: markup-lines, pitboss#343, #373)."
 )
 PLAN_LINT = (
     "Plan lint: before every push, run `uvx pitboss lint pr-body BODYFILE`"
