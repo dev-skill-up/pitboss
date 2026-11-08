@@ -4,10 +4,14 @@ import dataclasses
 import enum
 import pathlib
 import subprocess
-from typing import Iterable, Mapping, Sequence
+import sys
+import time
+from typing import Callable, Iterable, Mapping, Sequence
 
 from . import concurrently, config, ghapi, parsing, shapes
 from .running import Run, changed_files, git
+
+SLOW_FETCH_SECONDS = 3
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -70,12 +74,32 @@ def orphaned(run: Run, checkout: pathlib.Path) -> bool:
     return not _repository_of(run, checkout)
 
 
-def fetch_each_repository(run: Run, paths: Iterable[pathlib.Path]) -> Sequence[str]:
+def _timed_fetch(run: Run, checkout: pathlib.Path, clock: Callable[[], float]) -> str:
+    began = clock()
+    try:
+        git(run, checkout, "fetch", "-q", "origin")
+    except subprocess.CalledProcessError:
+        return str(checkout)
+    took = clock() - began
+    if took > SLOW_FETCH_SECONDS:
+        print(f"[pitboss] fetch in {checkout} took {took:.0f}s", file=sys.stderr)
+    return ""
+
+
+def fetch_each_repository(
+    run: Run,
+    paths: Iterable[pathlib.Path],
+    clock: Callable[[], float] = time.monotonic,
+) -> Sequence[str]:
     """Fetch ``origin`` once per repository (worktrees share their refs).
+
+    A fetch that took more than ``SLOW_FETCH_SECONDS`` is named on stderr
+    (keyword: slow-fetch), so a slow section shows which clone is slow.
 
     Args:
         run: the runner.
         paths: the checkouts.
+        clock: the monotonic clock.
 
     Returns:
         The checkouts whose fetch failed, or whose repository git cannot read.
@@ -90,14 +114,9 @@ def fetch_each_repository(run: Run, paths: Iterable[pathlib.Path]) -> Sequence[s
         else:
             failed.append(str(checkout))
 
-    def fetch(checkout: pathlib.Path) -> str:
-        try:
-            git(run, checkout, "fetch", "-q", "origin")
-        except subprocess.CalledProcessError:
-            return str(checkout)
-        return ""
-
-    fetched = concurrently.each(fetch, by_repository.values())
+    fetched = concurrently.each(
+        lambda each: _timed_fetch(run, each, clock), by_repository.values()
+    )
     return [*failed, *(each for each in fetched if each)]
 
 
