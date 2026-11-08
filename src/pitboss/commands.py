@@ -334,7 +334,7 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     )
     slotreport.print_ledger(book, offer.occupancy)
     sweepline.slots(read, offer)
-    sweepline.idle(book, offer, found.settings.slots.log, found.now)
+    sweepline.logged(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(book, found.now, found.args)
     undrafts = readyline.texts(found.settings, pulls.readable(read), found.now)
     tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
@@ -342,7 +342,7 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
 
 @ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
 def sweep(args: argparse.Namespace) -> None:
-    """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots.
+    """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 
     Args:
         args: the parsed arguments.

@@ -67,7 +67,7 @@ right thing based on pitboss data. Check the ticket/pr it talks about and see
 what the state is. That does not excuse you from running it first. Only
 override for bugs, but do override for bugs (and then file them)".
 
-It reads, with two exceptions: it ends by syncing the working files to the
+It reads, it ends by syncing the working files to the
 `[sync]` repository's main when the configuration has the table (below), and it
 cleans first, by itself, with no prompt and no
 dry run (the finished worktrees that pass the safety test, the dead checkouts

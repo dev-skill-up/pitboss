@@ -13,6 +13,7 @@ from . import (
     holds,
     exempt,
     ledger,
+    logline,
     pulls,
     pullread,
     queue,
@@ -57,6 +58,24 @@ def idle(
     if offer.items and offer.occupancy.free:
         for line in slotidle.lines(book, slotlog.read(log), now):
             print(line)
+
+
+def logged(
+    book: ledger.Ledger, offer: work.Offered, log: pathlib.Path, now: datetime.datetime
+) -> None:
+    """Print the ``SLOT IDLE`` lines, then the ``LOG`` lines not yet printed.
+
+    Each ``LOG`` line is a hand-back or a clean-up, printed once (keyword:
+    log-line, pitboss#347); the orchestrator posts it as it is.
+
+    Args:
+        book: the ledger.
+        offer: the queued work (``offering.offered``).
+        log: the slot log, which tells how long a slot stayed empty.
+        now: the time now.
+    """
+    idle(book, offer, log, now)
+    logline.post(log)
 
 
 def pressure(

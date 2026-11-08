@@ -16,6 +16,7 @@ from . import (
     dead,
     deadscan,
     disk,
+    logline,
     named,
     tempclean,
     workhours,
@@ -222,8 +223,13 @@ def clean_container(args: argparse.Namespace) -> None:
     scan, tempdirs, removing = plan_of(args, look, found)
     for text in leading_lines(scan, tempdirs):
         print(text)
-    for text in cleaning.closing_lines(remove_listed(args, look, removing)):
+    done = remove_listed(args, look, removing)
+    for text in cleaning.closing_lines(done):
         print(text)
+    if done.removing:
+        size = sum(each.size for each in done.gone)
+        freed = logline.Freed(who="pitboss clean-container", size=size, heads=[])
+        logline.record_clean(found.settings.slots.log, freed, found.now)
 
 
 def plan_of(
@@ -303,5 +309,10 @@ def clean_worktrees(args: argparse.Namespace) -> None:
     """
     found = load_context(args)
     how = worktrees.Action(run=args.run, dry=not args.no_dry_run)
-    for text in worktrees.remove_lines(sweep_look(found), how, found.now):
+    done = worktrees.removal(sweep_look(found), how, found.now)
+    for text in done.lines:
         print(text)
+    if not how.dry:
+        who = "pitboss clean-worktrees"
+        freed = logline.Freed(who=who, size=done.freed, heads=done.heads)
+        logline.record_clean(found.settings.slots.log, freed, found.now)
