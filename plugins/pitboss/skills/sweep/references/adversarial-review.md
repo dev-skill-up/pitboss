@@ -92,7 +92,7 @@ does not count as a review at all:
   definitions.
 
 Outside a gated repository, an approval also stands when the only commits
-since are merges of the base branch or commits of nothing but `skill-zips/`; in a gated repository a new head needs
+since are merges of the base branch; in a gated repository a new head needs
 a new review.
 
 ## The Plan's precise commands

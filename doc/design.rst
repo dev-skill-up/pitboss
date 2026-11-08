@@ -50,8 +50,6 @@ What was project-specific, and where it went
        gated_form`` says; ``review-form`` prints it, the reviewer brief quotes
        it, and the sweep prints ``GATE PENDING`` while the status
        ``adversarial-review`` of the head is not success
-   * - an approval survives a merge of main, except in gated repositories
-     - built in: it is what "gated" means
    * - the 20 shared runners, and which repositories share them
      - ``[runners] repositories`` (default: the project and its libraries)
    * - the working files outside any repository (sweep configurations, the
@@ -491,7 +489,7 @@ sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
 finished and none failed, state ``clean``, in a gated repository the head's
 ``adversarial-review`` status is success (else ``GATE PENDING``), an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
-base branch or commits that change only ``skill-zips/``, or the flow's step is the merge because the newest readable Opus
+base branch, or the flow's step is the merge because the newest readable Opus
 ruling says ``execution is approved`` and no review follows it) or, in a
 ``no_auto_merge`` repository, ``MERGE BY HAND``, or
 else ``AUTO MERGE OFF`` for a PR with auto-merge off, not in the queue, nothing

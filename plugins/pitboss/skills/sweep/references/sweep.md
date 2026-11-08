@@ -24,7 +24,7 @@ owner/name#12 [clean] auto-merge=off pending=0 failed=[test (job 345)] queue=- r
 - `queue=`: the state of the PR's newest merge-queue run (`queued`,
   `in_progress`, or its conclusion), `-` when it has none.
 - `review=`: `approved-this-head`; `approved-before-merges` (an older head
-  was approved and since then came only merges of the base, and commits that change nothing but files under `skill-zips/` (the rebuilt zip, which the `skills` session of `pitboss nox` checks, so it needs no review: pitboss#323; one other file in such a commit is a review as before); never in a gated
+  was approved and only merges of the base came since; never in a gated
   repository); `changes-needed` (on this head); `plan-changes-needed` (on this
   head, and the review graded the plan changes needed: the only round is a
   revision of the plan, except that when an older review approved the Plan and
