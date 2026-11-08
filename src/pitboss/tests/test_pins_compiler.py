@@ -14,6 +14,7 @@ from . import fakes, pinsworld
 PIN = "a" * 40
 OLD = "b" * 40
 COMMAND = "bats pins-check {base} {head} --compiler /c"
+COMPILER_CALLS = ("rev-parse", "merge-base")
 OK_OUTPUT = "OK: changes only pins\n"
 
 
@@ -39,7 +40,7 @@ def fake_run(
         if cmdargs[0] == "env":
             return fakes.Output(stdout=OK_OUTPUT)
         answer = answers.get(cmdargs[3], "")
-        asks_compiler = cmdargs[3] in ("rev-parse", "merge-base")
+        asks_compiler = cmdargs[3] in COMPILER_CALLS
         if answer is None or (asks_compiler and cmdargs[2] != compiler):
             raise subprocess.CalledProcessError(1, "git")
         return fakes.Output(stdout=answer)
