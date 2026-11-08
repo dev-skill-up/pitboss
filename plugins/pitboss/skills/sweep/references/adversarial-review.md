@@ -175,11 +175,11 @@ pitboss#167 each needed an Opus ruling for it). The worker brief says:
 line, state or condition whose meaning changes, every enumeration of the sweep
 lines included), stated in the code's terms (every input the code treats the
 same way, so that an edited statement is never narrower than the code); for
-each one the exact `rg -U -n -i` command that finds the statements about it in
-the tree (`\s+` between the words of a phrase, since prose wraps lines; over
-`src/pitboss` docstrings, `plugins`, `doc` and the rest of the tree; and a
-neighbouring line name for an enumeration), with the files it found and whether
-each is edited by the change. The brief of a Plan review says: `Impact list:`
+each one a Plan row `pitboss impact PHRASE...` (the whole tree at the head, any
+case, across line breaks; `file:line:text` for each hit, so the Evidence block is
+the list) and under it a disposition line for each hit, `file:line: edited` or
+`file:line: not edited, <reason>`; `pitboss plan-check` refuses a hit with no such
+line and a cited line that is no hit at its head (pitboss#320). The brief of a Plan review says: `Impact list:`
 for this check the reviewer runs no commands, and checks the Plan's list of
 altered behaviours against the diff; a behaviour the diff alters and the list
 lacks is a finding of the Plan, and the reviewer names every statement it finds
