@@ -1073,23 +1073,6 @@ smallest model it may go to: the first of ``models`` that has not failed
 the ticket and is no smaller than a ``model_labels`` label on it. Empty
 slots are filled smallest model first, each with the first line it may take.
 
-Output
-------
-
-Every line that calls for an action says the action. The markers
-(``RUNNER PRESSURE``, ``STRAGGLER``, ``STALE WORKTREE``, ``DISK PRESSURE``, ``EMPTY SLOT``, ``SLOTS FREE``, ``SLOT IDLE`` (a slot empty over two minutes by the slot log while work is queued, ``pitboss.slotidle``), ``TASK LIST`` (a ticket merged or handed back since ``slots refreshed``, one line per ticket, ``pitboss.tasklist``), ``HOLD``, ``HELD``,
-``RULING DUE``, ``PAUSE``, ``NO HAND-BACK``, ...) are members of one enum, ``pitboss.markers.Marker``, printed as the
-member's name in words (so ``READY_TO_MERGE`` prints ``READY TO MERGE``,
-and the line with no pressure reads ``NO RUNNER PRESSURE``); a check in CI
-fails when one is not explained in the skill's references, or the
-references name one that does not exist. Timings go to stderr: each section
-of a sweep ends with a line ``[pitboss Ns] <section>: <seconds>s, <count>
-commands`` and the kinds of command it ran, and a section over 30 seconds
-names the commands it waited longest for (``pitboss.timing``,
-``pitboss.calllog``). The reads of a section that are alike (the repositories,
-the PRs, the checkouts) are made at once (``pitboss.concurrently``), and a PR
-is read once for the whole sweep.
-
 Code
 ----
 
