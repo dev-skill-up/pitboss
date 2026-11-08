@@ -1290,7 +1290,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   gate's approval and a new head needs a new review (the form is
   `pitboss review-form`). Outside a gated repository an earlier review of the
   same change holds when the only difference is a merge of the base without
-  conflicts (owner, 2026-10-20T13:58:53Z: "if a review approved and the only
+  conflicts, or a commit of nothing but `skill-zips/` (`sweep.md`, `review=`; pitboss#323) (owner, 2026-10-20T13:58:53Z: "if a review approved and the only
   thing changed was merging main and there were no conflicts except in
   generated files, the old review holds"; 2026-10-20T14:01:30Z, of the
   reviewer's brief: "a previous review is authoritative if it's only an

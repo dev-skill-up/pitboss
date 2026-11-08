@@ -491,7 +491,7 @@ sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
 finished and none failed, state ``clean``, in a gated repository the head's
 ``adversarial-review`` status is success (else ``GATE PENDING``), an approving review of this head, or for an
 ungated repository of an older head when everything since is merges of the
-base branch, or the flow's step is the merge because the newest readable Opus
+base branch or commits that change only ``skill-zips/``, or the flow's step is the merge because the newest readable Opus
 ruling says ``execution is approved`` and no review follows it) or, in a
 ``no_auto_merge`` repository, ``MERGE BY HAND``, or
 else ``AUTO MERGE OFF`` for a PR with auto-merge off, not in the queue, nothing

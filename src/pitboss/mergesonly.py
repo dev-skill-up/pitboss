@@ -1,8 +1,37 @@
-"""Whether a head differs from a reviewed head only by merges of the base."""
+"""Whether a head differs from a reviewed head only by merges of the base.
 
-from typing import Iterable
+A commit that changes only derived files (``skill-zips/``, rebuilt by
+``scripts/build_dist.py`` and checked by the ``skills`` session) counts like a
+merge (keyword: derived-only, pitboss#323).
+"""
+
+import json
+from typing import Callable, Iterable, Sequence
 
 from . import config, ghapi, parsing, shapes
+
+DERIVED = ("skill-zips/",)
+
+
+def added(
+    since_base: Iterable[shapes.Commit], reviewed_since_base: Iterable[shapes.Commit]
+) -> frozenset[str] | None:
+    """The non-merge commits a head has that a reviewed head does not.
+
+    Args:
+        since_base: the commits of ``base...head``.
+        reviewed_since_base: the commits of ``base...reviewed``.
+
+    Returns:
+        The SHAs, or None when the reviewed head has a non-merge commit the
+        head lacks.
+    """
+
+    def authored(commits: Iterable[shapes.Commit]) -> frozenset[str]:
+        return frozenset(commit.sha for commit in commits if commit.parents < 2)
+
+    head, reviewed = authored(since_base), authored(reviewed_since_base)
+    return head - reviewed if reviewed <= head else None
 
 
 def only_merges(
@@ -17,11 +46,36 @@ def only_merges(
     Returns:
         True when both have the same non-merge commits.
     """
+    return added(since_base, reviewed_since_base) == frozenset()
 
-    def authored(commits: Iterable[shapes.Commit]) -> frozenset[str]:
-        return frozenset(commit.sha for commit in commits if commit.parents < 2)
 
-    return authored(since_base) == authored(reviewed_since_base)
+def file_names(text: str) -> Sequence[str]:
+    """Parse the files a commit changes.
+
+    Args:
+        text: the response body of ``commits/<sha>``.
+
+    Returns:
+        The paths, each changed file's old path too when it was renamed.
+    """
+    return [
+        str(item[key])
+        for item in json.loads(text).get("files", [])
+        for key in ("filename", "previous_filename")
+        if item.get(key)
+    ]
+
+
+def derived_only(names: Sequence[str]) -> bool:
+    """Whether every path is a derived file.
+
+    Args:
+        names: the paths a commit changes.
+
+    Returns:
+        True when each starts with a derived prefix (and there is one).
+    """
+    return bool(names) and all(name.startswith(DERIVED) for name in names)
 
 
 def carries(
@@ -36,10 +90,15 @@ def carries(
         sha: the reviewed head.
 
     Returns:
-        True when both heads have the same non-merge commits since the base.
+        True when the head's non-merge commits since the base are the reviewed
+        head's, plus commits that change derived files only.
     """
     compare = f"repos/{repo.slug}/compare/{pull.base}..."
     heads = (pull.head.sha, sha)
-    return only_merges(
-        *(parsing.comparison(ghapi.get(github, compare + h)) for h in heads)
+    extra = added(*(parsing.comparison(ghapi.get(github, compare + h)) for h in heads))
+    fetch: Callable[[str], str] = lambda each: ghapi.get(
+        github, f"repos/{repo.slug}/commits/{each}"
+    )
+    return extra is not None and all(
+        derived_only(file_names(fetch(each))) for each in sorted(extra)
     )
