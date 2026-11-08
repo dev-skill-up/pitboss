@@ -296,6 +296,16 @@ class TestNoDrafts(unittest.TestCase):
         has_all(briefs[2], [DRAFT, "(add `--draft` for a draft PR)"])
         has_none(briefs[2], [READY])
 
+    def test_the_first_step_of_a_pitboss_ticket_is_to_open_ready(self) -> None:
+        """``next`` on a ticket of pitboss says ready, on one of the project draft."""
+        here = with_pitboss(world.make_world())
+        steps = [
+            world.again(here, "next", f"{repository}#99").out.strip()
+            for repository in ("dev-skill-up/pitboss", "owner/project")
+        ]
+        assert_that(steps[0], contains_string("open the PR ready for review"))
+        assert_that(steps[1], contains_string("open the PR as a draft"))
+
     def test_the_next_line_of_a_ticket_says_open_ready(self) -> None:
         """A ticket of pitboss is started ready; one of the project is not told so."""
         shown = next_output(held_pair())

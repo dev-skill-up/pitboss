@@ -13,8 +13,9 @@ from . import configfile
 
 SETTING = "[slots.brief] drafts = false"
 REFUSAL = (
-    f"this project's config says no drafts ({SETTING}): open the PR ready for"
-    " review and push without --draft"
+    f"this repository has no drafts (the config says {SETTING}, or lists it in"
+    " [slots.brief] no_drafts, or it is dev-skill-up/pitboss): open the PR ready"
+    " for review and push without --draft"
 )
 _SENTENCE = re.compile(r"[^.\n;]+")
 _INSTRUCTS = re.compile(
