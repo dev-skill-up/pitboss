@@ -382,7 +382,7 @@ Commands
        and is refused when the ticket cannot be named; a ``set`` with the same
        agent and ``--kind fix`` resumes the running agent as an entry. ``check`` takes ``--running NAME ...``
        and an optional number N: it exits 1 when the ledger has fewer than N rows.
-       ``free`` prints the ledger, then the ``EMPTY SLOT`` line that ``next``
+       ``free`` prints the ledger, then the line that ``next``
        gives the freed slot (one function, ``nextview.refill_line``), or
        ``no task is waiting``. ``next``, ``free`` and ``set`` exit 1 with
        ``not the orchestrator config: use PATH`` and leave the ledger alone
