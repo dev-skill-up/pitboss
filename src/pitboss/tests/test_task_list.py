@@ -62,7 +62,7 @@ class TestBlock(unittest.TestCase):
         found = task_lines(world.make_world())
         assert_that(found[0], contains_string("the task list is exactly the lines"))
         assert_that(found[0], contains_string("filed or asked for is not added"))
-        assert_that(found[0], contains_string("Next in sweep order: ...\") is not"))
+        assert_that(found[0], contains_string('Next in sweep order: ...") is not'))
         assert_that(found[0], contains_string("no placeholder entry exists"))
 
     def test_next_lines_follow_the_next_order(self) -> None:
