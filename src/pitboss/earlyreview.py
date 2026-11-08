@@ -215,6 +215,17 @@ def _premature(each: reviews.Found, why: str, done: str) -> earlyfound.Premature
     )
 
 
+def _seen(tools: Tools, repo: config.Repo, pull: shapes.Pull) -> Seen:
+    queued = repo.slug in tools.merge_queue
+    return Seen(
+        github=tools.github,
+        repo=repo,
+        pull=pull,
+        review=tools.review,
+        queued=queued,
+    )
+
+
 def split(
     tools: Tools,
     repo: config.Repo,
@@ -239,14 +250,7 @@ def split(
     written = _executions(tools, repo.slug, comments)
     if not written:
         return comments, []
-    queued = repo.slug in tools.merge_queue
-    seen = Seen(
-        github=tools.github,
-        repo=repo,
-        pull=pull,
-        review=tools.review,
-        queued=queued,
-    )
+    seen = _seen(tools, repo, pull)
     events = _timeline(seen)
     said = [(each, *_before(seen, events, each)) for each in written]
     early = [
