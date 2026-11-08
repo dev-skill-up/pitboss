@@ -27,11 +27,19 @@ class Ticket:
         open: whether it is open.
         labels: its labels' names.
         body: its text (keyword: done-when-names).
+        title: its title.
+        created_at: when it was opened (ISO 8601).
+        comments: how many comments it has.
+        pull: whether it is a PR (``issues/<number>`` answers for both).
     """
 
     open: bool
     labels: AbstractSet[str]
     body: str = ""
+    title: str = ""
+    created_at: str = ""
+    comments: int = 0
+    pull: bool = False
 
 
 def named(text: str, repo: config.Repo) -> Iterable[str]:
@@ -71,6 +79,10 @@ def read(github: ghapi.GitHub, reference: str) -> Ticket | None:
         open=item["state"] == "open",
         labels=frozenset(str(label["name"]) for label in listed),
         body=item.get("body") or "",
+        title=item.get("title") or "",
+        created_at=item.get("created_at") or "",
+        comments=int(item.get("comments") or 0),
+        pull="pull_request" in item,
     )
 
 

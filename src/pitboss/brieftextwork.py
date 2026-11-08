@@ -49,4 +49,11 @@ TEMP_RUNS = (
     " right after each run; a run that needs more than 1 GiB is left to CI"
     " (pitboss#288)."
 )
-SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN, DEVIATIONS, TEMP_RUNS)
+DEPENDENCY = (
+    "Dependency: a ticket that depends on another open ticket is not impossible in"
+    " one PR and is never ground for a split (owner, 2026-11-06): if you hand back"
+    " NOT STARTED for it, name the ticket it waits for; the orchestrator does that"
+    " ticket first, and adds a repository the mission needs (add_repo) without"
+    " asking (pitboss#280)."
+)
+SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN, DEVIATIONS, TEMP_RUNS, DEPENDENCY)
