@@ -26,7 +26,7 @@ REVIEW_SENTENCE = (
 )
 
 
-def outcome(files: Mapping[str, str | None]) -> tuple[int, str]:
+def outcome(files: Mapping[str, str | None]) -> tuple[object, str]:
     """Check a diff that writes files over the base's .md and .rst files.
 
     Args:
@@ -53,7 +53,7 @@ def outcome(files: Mapping[str, str | None]) -> tuple[int, str]:
             diffrepo.commit(repo, name, content)
     done = check(repo, "1. nothing points to CI\n", "")
     case.doCleanups()
-    return int(done.code), str(done.out)
+    return done.code, str(done.out)
 
 
 def kinds_with(sentence: str) -> Sequence[str]:
