@@ -14,7 +14,6 @@ from . import (
     reviews,
     shapes,
     steps,
-    updateline,
 )
 from .markers import Marker
 
@@ -116,6 +115,7 @@ def action_lines(
 
 # keyword: behind-approved (pitboss#369): the strict up-to-date rule held pwa#293
 # behind main after its review and checks; the merge of main is reviewed by the proof
+BEHIND_STATES = frozenset({shapes.MergeState.BEHIND})
 BEHIND_WORDS = (
     "update the branch, then the merge-main proof (bats merge-proof) is the review"
 )
@@ -123,7 +123,11 @@ BEHIND_WORDS = (
 
 def _behind_lines(pull: pulls.PullFacts) -> Sequence[str]:
     said = [f"{Marker.BEHIND.text}: {BEHIND_WORDS}"]
-    return said if updateline.behind(pull) and _approved_green(pull) else []
+    return (
+        said
+        if pull.pull.mergeable_state in BEHIND_STATES and _approved_green(pull)
+        else []
+    )
 
 
 def _approved_green(pull: pulls.PullFacts) -> bool:

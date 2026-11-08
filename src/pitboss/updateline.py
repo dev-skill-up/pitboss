@@ -6,18 +6,6 @@ from . import config, pulls, shapes
 from .markers import Marker
 
 
-def behind(facts: pulls.PullFacts) -> bool:
-    """Whether the base moved on since the PR's head.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when GitHub's merge state is ``behind``.
-    """
-    return facts.pull.mergeable_state is shapes.MergeState.BEHIND
-
-
 def needs_update(facts: pulls.PullFacts, settings: config.Config) -> bool:
     """Whether the PR is behind the base with every check finished.
 
@@ -33,7 +21,7 @@ def needs_update(facts: pulls.PullFacts, settings: config.Config) -> bool:
         True when the PR needs the base merged in.
     """
     return (
-        behind(facts)
+        facts.pull.mergeable_state is shapes.MergeState.BEHIND
         and not pulls.waiting_for_ci(facts)
         and not pulls.pending(facts)
         and facts.repo.slug not in settings.merge_queue.repositories
