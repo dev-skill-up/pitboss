@@ -6,7 +6,9 @@ runs with ``sh -c`` in a scratch worktree of the PR's base (a row that runs nox
 is not run but refused, pitboss#251), with the permissions of whoever
 runs ``pitboss plan-check``, so the body is the worker's own and is never read
 from somewhere else (it is the file the caller saved, as ``expand`` reads its
-template).
+template). The Plan's CI pointers are held to the workflow files of the base and
+the head, and a spec the diff adds to the pointers and the group files of
+``[plan_check]`` (keyword: ci-pointer, pitboss#335).
 """
 
 import argparse
@@ -21,7 +23,18 @@ from typing import Iterator, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, expansion, forms, impact, plancheck, plandigest
+from . import (
+    ENTRY_DATA,
+    cipointercheck,
+    configfile,
+    configsettle,
+    expansion,
+    forms,
+    impact,
+    plancheck,
+    plancheckconfig,
+    plandigest,
+)
 
 USAGE_ERROR = 2
 REFUSED = 1
@@ -89,11 +102,17 @@ def run_in(
     return plancheck.finished(outcome, seconds)
 
 
-def _git(args: argparse.Namespace, *words: str) -> None:
+def _git(args: argparse.Namespace, *words: str) -> str:
     try:
-        args.safe_run(["git", "-C", args.repo, *words], check=True, capture_output=True)
+        done = args.safe_run(
+            ["git", "-C", args.repo, *words],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
     except (subprocess.CalledProcessError, OSError) as error:
         raise _fail(f"git {' '.join(words)}: {error}") from error
+    return str(done.stdout)
 
 
 @contextlib.contextmanager
@@ -121,6 +140,21 @@ HEAD_OPTION = add_argument(
     default="",
     help="the PR's head, searched by an Impact command (default: the last"
     " `Head:` line of the body, else HEAD of the checkout)",
+)
+
+
+CONFIG_OPTION = add_argument(
+    "--config",
+    default=None,
+    help="the project's configuration: a path, or a name in"
+    " .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else the search, else"
+    " the copy fetched by the repository's name). Its table [plan_check] has"
+    " `specs`, patterns of the paths of a spec (e2e/*.spec.js), and `groups`, the"
+    " files that list the specs a CI job runs (tests/groups.json): a spec the diff"
+    " adds must be named by a CI pointer's greppable string (a row with a"
+    " `workflow` file and, after `job`, `step` or `greppable`, backticked names)"
+    " and by a group file; every pointer's workflow file, job and step must exist"
+    " as written. With no table, no spec is checked",
 )
 
 
@@ -153,6 +187,7 @@ def _plan_of(name: str, body: str) -> str:
         " origin/main)",
     ),
     HEAD_OPTION,
+    CONFIG_OPTION,
     add_argument(
         "--timeout",
         type=int,
@@ -162,7 +197,7 @@ def _plan_of(name: str, body: str) -> str:
     name="plan-check",
 )
 def plan_check(args: argparse.Namespace) -> None:
-    """Run a Plan's rows; refuse it for a row that did not run or an Impact finding.
+    """Run a Plan's rows; refuse it for a row that did not run or a finding.
 
     A nox row is refused unrun (pitboss#251). A row ``pitboss impact PHRASE...``
     is searched in a scratch worktree of the PR's head (``--head``, by default the
@@ -172,9 +207,10 @@ def plan_check(args: argparse.Namespace) -> None:
     impact-list, pitboss#320).
 
     Prints a row for each command (its exit status and duration, or that it did
-    not run), a line for each Impact finding, the Plan digest and the last
+    not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
+    pointer or spec the tree does not bear out), the Plan digest and the last
     line, ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did
-    not run and the number of Impact findings. The output is posted as a
+    not run and the numbers of findings. The output is posted as a
     comment on the PR (keyword: plan-check, pitboss#192); ``pitboss next``
     offers a Plan review that has commands only after a comment that says
     ``Plan check: ok`` for this Plan.
@@ -184,9 +220,10 @@ def plan_check(args: argparse.Namespace) -> None:
             section or with a directive with no command exits with status 2).
 
     Raises:
-        SystemExit: with status 1 when a row did not run or the Impact list has
-            a finding.
+        SystemExit: with status 1 when a row did not run or the Impact list or
+            a CI pointer has a finding.
     """
+    configsettle.find_or_say(args)
     output, failed = _read_and_checked(args)
     sys.stdout.write(output)
     if failed:
@@ -204,15 +241,55 @@ def _head_of(args: argparse.Namespace, body: str) -> str:
     return str(args.head or (found[-1] if found else "HEAD"))
 
 
+def _settings(args: argparse.Namespace) -> plancheckconfig.PlanCheck:
+    if args.config is None:
+        return plancheckconfig.PlanCheck()
+    start = configfile.working_directory(args)
+    with _unreadable(args.config):
+        found = configfile.load_plan_check(args.config, start)
+    return found
+
+
+@contextlib.contextmanager
+def _unreadable(name: str) -> Iterator[None]:
+    # a configuration that cannot be read is a usage error
+    try:
+        yield
+    except (OSError, ValueError) as error:
+        raise _fail(f"{name}: {error}") from error
+
+
+def _added(args: argparse.Namespace, ref: str) -> Sequence[str]:
+    # the paths the PR adds: the head against its merge base with the base
+    words = ["diff", "--name-only", "-z", "--diff-filter=A", f"{args.base}...{ref}"]
+    return [each for each in _git(args, *words).split("\0") if each]
+
+
+def _reading(tree: pathlib.Path) -> cipointercheck.Read:
+    def read(path: str) -> str | None:
+        found = tree / path
+        if not found.is_file():
+            return None
+        return found.read_text(encoding="utf-8", errors="replace")
+
+    return read
+
+
 def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
+    settings = _settings(args)
     with (
         scratch_worktree(args, args.base) as tree,
         scratch_worktree(args, ref) as head,
     ):
+        added = _added(args, ref)
         runner = functools.partial(run_in, args, tree, args.timeout)
         search = _searching(head)
         rows, refused = plancheck.report(section, runner, search)
-        found = plancheck.impact_findings(section, search)
+        files = (_reading(tree), _reading(head))
+        found = [
+            *plancheck.impact_findings(section, search),
+            *plancheck.ci_findings(section, added, settings, files),
+        ]
         return plancheck.text(section, rows, refused, found), bool(refused or found)
 
 

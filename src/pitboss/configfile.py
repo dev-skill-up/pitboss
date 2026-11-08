@@ -11,6 +11,7 @@ from . import (
     configsearch,
     holdconfig,
     ownerconfig,
+    plancheckconfig,
     scratchconfig,
     syncconfig,
 )
@@ -164,6 +165,21 @@ def load_sync(
     """
     with locate(name, start).open("rb") as stream:
         return syncconfig.from_document(tomllib.load(stream), default_checkout)
+
+
+def load_plan_check(name: str, start: pathlib.Path) -> plancheckconfig.PlanCheck:
+    """Locate, read and parse the ``[plan_check]`` table of a configuration.
+
+    Args:
+        name: a path, or a name (see ``locate``).
+        start: the directory a name is looked up from.
+
+    Returns:
+        The specs and group list files of ``plan-check``; none when the
+        configuration has no table.
+    """
+    with locate(name, start).open("rb") as stream:
+        return plancheckconfig.from_document(tomllib.load(stream))
 
 
 def load_document(name: str, start: pathlib.Path) -> Mapping[str, object]:

@@ -224,3 +224,14 @@ paths = ["/home/user/.claude/pitboss/other.toml", "/home/user/notes.md"]
 # Where it is cloned from and pushed to (main, no branch, no PR).
 # Default: https://github.com/<repository>.git
 # url = "https://github.com/moshez/claude-jsonl.git"
+
+[plan_check]
+# What `pitboss plan-check` holds a spec the PR adds to. Without the table no
+# spec is checked.
+# Patterns of the paths of a spec, with the same number of path components
+# (no `**`), e.g. "e2e/*.spec.js". Default: none.
+specs = []
+# The files, from the repository root, that list the specs a CI job runs, e.g.
+# "tests/groups.json". A spec the PR adds must be named by one of them and by a
+# CI pointer's greppable string. Default: none.
+groups = []
