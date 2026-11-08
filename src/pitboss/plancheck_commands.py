@@ -31,6 +31,7 @@ from . import (
     expansion,
     forms,
     impact,
+    markuplines,
     plancheck,
     plancheckconfig,
     plandigest,
@@ -206,6 +207,11 @@ def plan_check(args: argparse.Namespace) -> None:
     edited``) and for one citing a ``file:line`` that is no hit there (keyword:
     impact-list, pitboss#320).
 
+    The Plan is refused too for a diff that adds a line to a ``.md`` or ``.rst``
+    file, with a ``markup-lines:`` finding for each such file (owner rule,
+    keyword: markup-lines, pitboss#343): lines are only removed, and a rule goes
+    into a command's output or help text.
+
     Prints a row for each command (its exit status and duration, or that it did
     not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
     pointer or spec the tree does not bear out), the Plan digest and the last
@@ -265,6 +271,12 @@ def _added(args: argparse.Namespace, ref: str) -> Sequence[str]:
     return [each for each in _git(args, *words).split("\0") if each]
 
 
+def _numstat(args: argparse.Namespace, ref: str) -> str:
+    # keyword: markup-lines (pitboss#343): the lines the PR adds to each file
+    words = ["diff", "--numstat", "-z", "--no-renames", f"{args.base}...{ref}"]
+    return _git(args, *words)
+
+
 def _reading(tree: pathlib.Path) -> cipointercheck.Read:
     def read(path: str) -> str | None:
         found = tree / path
@@ -289,6 +301,7 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
         found = [
             *plancheck.impact_findings(section, search),
             *plancheck.ci_findings(section, added, settings, files),
+            *markuplines.findings(_numstat(args, ref)),
         ]
         return plancheck.text(section, rows, refused, found), bool(refused or found)
 

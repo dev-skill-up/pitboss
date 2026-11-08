@@ -26,6 +26,7 @@ from . import (
     expansion,
     impact,
     impactcheck,
+    markuplines,
     noxrow,
     plancheckconfig,
     steps,
@@ -200,12 +201,14 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     if not refused and not found:
         return steps.PLAN_CHECK_OK
     pointer = [each for each in found if each.startswith(f"{cipointercheck.CHECK}:")]
+    markup = [each for each in found if each.startswith(f"{markuplines.CHECK}:")]
     named = ", ".join(str(each) for each in refused)
-    impact = len(found) - len(pointer)
+    impact = len(found) - len(pointer) - len(markup)
     parts = [
         *([f"rows that did not run: {named}"] if refused else []),
         *([f"Impact findings: {impact}"] if impact else []),
         *([f"CI pointer findings: {len(pointer)}"] if pointer else []),
+        *([f"Markup line findings: {len(markup)}"] if markup else []),
     ]
     return f"Plan check: refused, {'; '.join(parts)}"
 
