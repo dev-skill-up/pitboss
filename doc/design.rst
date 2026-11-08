@@ -805,7 +805,7 @@ with ``test-timing`` (pitboss#324): ``pitboss.tests.timingreport.TimingReporter`
 is virtue's reporter with the times, given by ``noxfile.py`` after any argument,
 so CI's ``Run Nox`` log has them, and ``pitboss nox`` shows them for a session
 that passed (a failed one shows its whole output). The worker briefs tell
-the worker to run it after every edit and before every push, for iterating too,
+the worker to run it before every push,
 never a targeted test module, ``nox -s`` or the full ``nox -r``, to hand back
 its result for the pushed head (pitboss#250), never to
 run ``virtue`` by hand, to start nothing in the background that needs polling

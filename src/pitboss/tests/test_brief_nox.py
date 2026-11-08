@@ -4,14 +4,14 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief
+from .. import brief, nox_commands
 from .briefmake import has_none, pinned, text
 from .test_evidence_rules import read, words
 from .test_plan_commands import PLAN_REVIEWS
 
 NOX = (
-    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after"
-    " every edit and before every push, for iterating too (the skills, lint and"
+    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
+    " each push and when you need feedback, once for a head (the skills, lint and"
     " mypy first, then the tests of one Python version, which stop at the first"
     " failing test; it stops at the first failing session and always uses `-r`); a"
     " targeted test module, `nox -s ...` or `virtue` is never run by hand,"
@@ -61,9 +61,22 @@ class TestNoxInTheBriefs(unittest.TestCase):
         for kind in WORKERS:
             pinned(kind, [NOX])
 
-    def test_the_sentence_is_once_in_the_sweep_skill_references(self) -> None:
-        """The same sentence is once in rules.md (pitboss#250)."""
-        assert_that(words(read("rules.md")).count(NOX), equal_to(1))
+    def test_the_sentence_says_before_each_push_and_never_after_every_edit(
+        self,
+    ) -> None:
+        """The owner never said after every edit (pitboss#345)."""
+        for kind in brief.Kind:
+            assert_that("after every edit" in text(kind), equal_to(False))
+        assert_that(
+            "before each push and when you need feedback" in NOX, equal_to(True)
+        )
+        assert_that("after every edit" in NOX, equal_to(False))
+
+    def test_the_command_text_never_says_after_every_edit(self) -> None:
+        """No help text of the command says it either."""
+        assert_that(
+            "after every edit" in (nox_commands.nox.__doc__ or ""), equal_to(False)
+        )
 
     def test_every_worker_brief_asks_for_the_nox_result_of_the_head(self) -> None:
         """The hand-back names the four sessions and their status (pitboss#250)."""
