@@ -2,8 +2,8 @@
 
 On a crowded volume (90% used or more) the clean suggestion comes first; the
 first of the picks is the one the process requires, the others are the next
-ones that could start, so that a reason the model cannot name (the slot cap, a
-missing checkout) does not stop the work. The order is the one ``work.queued``
+ones that could start, so that a reason the model cannot name (a missing
+checkout) does not stop the work. The order is the one ``work.queued``
 gives, with the PRs at an Opus ruling before it: a ruling is owed first and
 takes no slot (keyword: brief, pitboss#118).
 """
@@ -27,6 +27,7 @@ from . import (
     pullfiles,
     pulls,
     reviews,
+    slotheld,
     steps,
     work,
 )
@@ -107,6 +108,7 @@ class Source:
         volume: the workspace's volume as read (keyword: disk-watch,
             pitboss#288), None when unread.
         big: the largest scratch entries, read only for a crowded volume.
+        occupancy: what holds the slots (keyword: slot-held, pitboss#291).
     """
 
     github: ghapi.GitHub
@@ -118,6 +120,7 @@ class Source:
     failed: Mapping[str, Sequence[str]]
     volume: diskwatch.Reading | None = None
     big: Sequence[diskwatch.Big] = ()
+    occupancy: slotheld.Occupancy = slotheld.UNLIMITED
 
 
 def _ruling_pick(each: pulls.PullFacts) -> Pick:
@@ -147,7 +150,8 @@ def picks(source: Source) -> Sequence[Pick]:
         source: what suggestions are made from.
 
     Returns:
-        The PRs at an Opus ruling, oldest first, then the queued work.
+        The PRs at an Opus ruling, oldest first, then the queued work; with no
+        free slot only the rounds of PRs that hold one (keyword: slot-held).
     """
     by_reference = {pulls.reference(each): each for each in source.facts}
     ruled = sorted(
@@ -156,7 +160,11 @@ def picks(source: Source) -> Sequence[Pick]:
     )
     return [
         *map(_ruling_pick, ruled),
-        *(_queued_pick(each, by_reference) for each in source.items),
+        *(
+            _queued_pick(each, by_reference)
+            for each in source.items
+            if not slotheld.waits(source.occupancy, each.reference)
+        ),
     ]
 
 

@@ -4,10 +4,23 @@ import dataclasses
 import datetime
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import blockedline, config, exempt, holds, ledger, work
+from . import blockedline, config, exempt, holds, ledger, slotheld, work
 from .markers import Marker
 
 CATEGORY_WORDS = work.CATEGORY_WORDS
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Withheld:
+    """The tickets the owner's hold keeps back.
+
+    Attributes:
+        held: the tickets.
+        standing: each held repository and its open count.
+    """
+
+    held: Sequence[work.Item] = ()
+    standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -20,12 +33,15 @@ class NextView:
         slots: the slot configuration.
         failed: each reference's failed models.
         now: the time now.
-        held: the tickets the owner's hold keeps back (keyword: pr-hold).
-        standing: each held repository and its open count.
+        withheld: the tickets the owner's hold keeps back and each held
+            repository's open count (keyword: pr-hold).
         blocked: the tickets that cannot be worked on until an open ticket or
             PR (keyword: ticket-blocked).
         ready: the texts of the NEXT lines of the drafts to mark ready, printed
-            first and numbered first (keyword: mark-ready, pitboss#273).
+            first after the running agents' line (keyword: mark-ready,
+            pitboss#273).
+        occupancy: what holds the slots beyond the ledger's agents (keyword:
+            slot-held, pitboss#291).
         no_drafts: the repositories whose PRs open ready; the line of a ticket
             there says so (keyword: pitboss-exempt, pitboss#113).
     """
@@ -35,10 +51,10 @@ class NextView:
     slots: config.Slots
     failed: Mapping[str, Sequence[str]]
     now: datetime.datetime
-    held: Sequence[work.Item] = ()
-    standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    withheld: Withheld = Withheld()
     blocked: Sequence[work.Item] = ()
     ready: Sequence[str] = ()
+    occupancy: slotheld.Occupancy = slotheld.UNLIMITED
     no_drafts: AbstractSet[str] = frozenset()
 
 
@@ -64,8 +80,17 @@ def _item_text(item: work.Item, view: NextView) -> str:
     )
 
 
+def _queued(item: work.Item, view: NextView) -> str:
+    # a step of a PR that holds a slot is that slot's own work
+    waits = slotheld.waits(view.occupancy, item.reference)
+    return f" {slotheld.QUEUED}" if waits else ""
+
+
 def next_lines(view: NextView) -> Iterable[str]:
-    """The sorted list, the held tickets, then what each empty slot takes.
+    """The running agents, the sorted list, the held tickets, then the slots.
+
+    Every step after the first waits for a free slot when no slot is free: a
+    running agent is never interrupted (keyword: slot-held, pitboss#291).
 
     Args:
         view: what to print from.
@@ -73,15 +98,20 @@ def next_lines(view: NextView) -> Iterable[str]:
     Yields:
         The lines.
     """
-    for index, text in enumerate(view.ready, start=1):
+    yield f"{Marker.NEXT.text} {slotheld.LEAD}. {slotheld.RUNNING_FIRST}"
+    first = slotheld.LEAD + 1
+    listed = [
+        *view.ready,
+        *(_item_text(each, view) + _queued(each, view) for each in view.items),
+    ]
+    for index, text in enumerate(listed, start=first):
         yield f"{Marker.NEXT.text} {index}. {text}"
-    for index, item in enumerate(view.items, start=len(view.ready) + 1):
-        yield f"{Marker.NEXT.text} {index}. {_item_text(item, view)}"
-    for item in view.held:
-        yield holds.held_line(item.reference, view.standing)
+    for item in view.withheld.held:
+        yield holds.held_line(item.reference, view.withheld.standing)
     for item in view.blocked:
         yield blockedline.line(item.reference, item.blocker)
-    if not view.assignments:
+    yield from slotheld.lines(view.occupancy)
+    if not view.assignments and not slotheld.lines(view.occupancy):
         yield "slots: the ledger says all full: start nothing"
     for slot, chosen in view.assignments:
         yield empty_slot_line(slot, chosen, view)
@@ -113,9 +143,13 @@ def refill_line(view: NextView, name: str) -> str:
 
     Returns:
         The slot's ``EMPTY SLOT`` line when an item fits it, else
-        ``no task is waiting``.
+        ``no task is waiting``; the first line of what holds the slots when
+        none is free.
     """
-    slot, chosen = next(pair for pair in view.assignments if pair[0].name == name)
+    found = next((pair for pair in view.assignments if pair[0].name == name), None)
+    if found is None:
+        return slotheld.lines(view.occupancy)[0]  # no free slot: something holds it
+    slot, chosen = found
     if chosen is None:
         return "no task is waiting"
     return empty_slot_line(slot, chosen, view)

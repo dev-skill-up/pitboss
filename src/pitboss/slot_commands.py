@@ -20,17 +20,17 @@ from . import (
     nextlist,
     pulls,
     repoaccess,
-    report,
+    slotreport,
+    slotholding,
     slotlog,
     ticketof,
     tracefs,
 )
-from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
 from .commands import (
     Context,
     load_context,
     open_pulls,
-    read_ledger,
 )
 from .markers import Marker
 
@@ -191,7 +191,13 @@ def _check(found: Context, book: ledger.Ledger) -> None:
             f" is not running: 'pitboss slots free {given} {slot.name}"
             f" --done {slot.agent}'"
         )
-    report.print_ledger(book)
+    _print(found, book)
+
+
+def _print(found: Context, book: ledger.Ledger) -> None:
+    # the PRs are not read here: only the live agents that hold no slot count
+    taken = slotholding.occupy((), book, found.args.running)
+    slotreport.print_ledger(book, taken)
 
 
 def _refuse(message: str) -> SystemExit:
@@ -203,7 +209,7 @@ def _changed(action: Action, found: Context) -> ledger.Ledger:
     count, change = CHANGES[action]
     if len(found.args.words) != count:
         raise _refuse(f"slots {action.word} takes {count} words")
-    outcome = change(read_ledger(found.settings), found.args.words, found)
+    outcome = change(ledger.configured(found.settings), found.args.words, found)
     if isinstance(outcome, ledger.Refusal):
         raise _refuse(f"refused: {outcome.reason}")
     ledger.write(found.settings.slots.ledger, outcome)
@@ -274,9 +280,9 @@ def _require_ledger(found: Context, action: Action) -> None:
 
 def _changing(found: Context, action: Action) -> None:
     # A hand-back is logged, with the head of its PR (keyword: log-line).
-    before = read_ledger(found.settings)
+    before = ledger.configured(found.settings)
     changed = _changed(action, found)
-    report.print_ledger(changed)
+    _print(found, changed)
     if action in HAND_BACKS:
         name = found.args.words[0]
         slot = ledger.find(before, name)
@@ -292,14 +298,14 @@ def _changing(found: Context, action: Action) -> None:
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
-    return read_ledger(found.settings)
+    return ledger.configured(found.settings)
 
 
 @ENTRY_DATA.register(
     add_argument("action", choices=tuple(action.word for action in Action)),
     CONFIG_ARGUMENT,
     add_argument("words", nargs="*"),
-    add_argument("--running", nargs="*", default=None),
+    RUNNING_ARGUMENT,
     add_argument(
         "--done", default=None, help="the agent that handed back, for 'slots free'"
     ),
@@ -327,7 +333,7 @@ def slots(args: argparse.Namespace) -> None:
     if action in CHANGES:
         _changing(found, action)
     elif action is Action.CHECK:
-        _check(found, read_ledger(found.settings))
+        _check(found, ledger.configured(found.settings))
     elif action is Action.REPORT:
         _report(found)
     elif action is Action.TIME:
@@ -336,4 +342,4 @@ def slots(args: argparse.Namespace) -> None:
         nextlist.show(found, open_pulls(found), _read(found))
         repoaccess.finish(found.access)
     else:
-        report.print_ledger(_read(found))
+        _print(found, _read(found))

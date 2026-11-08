@@ -18,6 +18,7 @@ from . import (
     pullread,
     queue,
     report,
+    slotreport,
     slotidle,
     slotlog,
     unreadableline,
@@ -25,15 +26,10 @@ from . import (
 )
 
 
-def slots(
-    book: ledger.Ledger,
-    open_now: Sequence[pulls.Read],
-    offer: work.Offered,
-) -> None:
+def slots(open_now: Sequence[pulls.Read], offer: work.Offered) -> None:
     """Print the withheld-tickets line, the hold, blocked and free-slots lines.
 
     Args:
-        book: the ledger.
         open_now: the open PRs, read or not.
         offer: the queued work and the tickets held back (``offering.offered``).
     """
@@ -42,11 +38,14 @@ def slots(
         print(line)
     for item in offer.blocked:
         print(blockedline.line(item.reference, item.blocker))
-    report.print_free_slots(book, len(offer.items))
+    slotreport.print_free_slots(len(offer.items), offer.occupancy)
 
 
 def idle(
-    book: ledger.Ledger, offer: work.Offered, log: pathlib.Path, now: datetime.datetime
+    book: ledger.Ledger,
+    offer: work.Offered,
+    log: pathlib.Path,
+    now: datetime.datetime,
 ) -> None:
     """Print the ``SLOT IDLE`` lines, while work is queued.
 
@@ -56,7 +55,7 @@ def idle(
         log: the slot log, which tells how long a slot stayed empty.
         now: the time now.
     """
-    if offer.items:
+    if offer.items and offer.occupancy.free:
         for line in slotidle.lines(book, slotlog.read(log), now):
             print(line)
 
