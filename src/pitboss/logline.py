@@ -14,7 +14,7 @@ import json
 import pathlib
 from typing import Sequence
 
-from . import disk, fixes, ledger, pulls, slotlog
+from . import disk, ledger, slotlog
 
 WORD = "LOG"
 NO_PR = "no open PR fixes the ticket"
@@ -68,64 +68,85 @@ def text(event: Event) -> str:
     )
 
 
-def hand_back(
-    slot: ledger.Slot, facts: Sequence[pulls.PullFacts], now: datetime.datetime
-) -> Event:
+def hand_back(slot: ledger.Slot, head: str, now: datetime.datetime) -> Event:
     """The event of an agent that handed back and whose slot is freed.
 
     Args:
         slot: the slot as it was before it was freed.
-        facts: the open PRs.
+        head: the head of the open PR that fixes the slot's ticket, or empty.
         now: the time now.
 
     Returns:
-        The event: the task that returned, the slot and agent, and the head of
-        the open PR that fixes the slot's ticket.
+        The event: the task that returned, the slot and agent, and the head.
     """
-    head = next(
-        (
-            each.pull.head.sha
-            for each in facts
-            if slot.ticket in fixes.fixed_tickets(each)
-        ),
-        NO_PR,
-    )
     return Event(
         kind="hand-back",
         time=slotlog.utc(now).isoformat(),
         who=f"slot {slot.name} agent {slot.agent}",
         what=f"returned {slot.task}",
-        head=head,
+        head=head or NO_PR,
     )
 
 
-def record_clean(
-    log: pathlib.Path,
-    who: str,
-    freed: int,
-    heads: Sequence[str],
-    now: datetime.datetime,
-) -> None:
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Freed:
+    """What a command that cleans freed.
+
+    Attributes:
+        who: the command.
+        size: the bytes it freed.
+        heads: the heads of the worktrees it removed.
+    """
+
+    who: str
+    size: int
+    heads: Sequence[str]
+
+
+def record_clean(log: pathlib.Path, freed: Freed, now: datetime.datetime) -> None:
     """Record a clean-up that freed space; one that freed none is not recorded.
 
     Args:
         log: the slot log.
-        who: the command.
-        freed: the bytes it freed.
-        heads: the heads of the worktrees it removed.
+        freed: what it freed.
         now: the time now.
     """
-    if freed:
+    if freed.size:
         record(
             log,
             Event(
                 kind="clean-up",
                 time=slotlog.utc(now).isoformat(),
-                who=who,
-                what=f"freed {disk.size_text(freed)}",
-                head=", ".join(heads) or NO_WORKTREE,
+                who=freed.who,
+                what=f"freed {disk.size_text(freed.size)}",
+                head=", ".join(freed.heads) or NO_WORKTREE,
             ),
         )
+
+
+def slurp(path: pathlib.Path) -> str:
+    """The text of a file, empty when there is none.
+
+    Args:
+        path: the file.
+
+    Returns:
+        The text.
+    """
+    return path.read_text() if path.exists() else ""
+
+
+def put(path: pathlib.Path, text: str, mode: str) -> None:
+    """Write to a file, making its directory.
+
+    Args:
+        path: the file.
+        text: what to write.
+        mode: ``a`` to append, ``w`` to replace.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open(mode) as handle:
+        handle.write(text)
 
 
 def record(log: pathlib.Path, event: Event) -> None:
@@ -135,10 +156,7 @@ def record(log: pathlib.Path, event: Event) -> None:
         log: the slot log.
         event: the event.
     """
-    path = beside(log, ".events")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a") as handle:
-        handle.write(json.dumps(dataclasses.asdict(event)) + "\n")
+    put(beside(log, ".events"), json.dumps(dataclasses.asdict(event)) + "\n", "a")
 
 
 def read(log: pathlib.Path) -> Sequence[Event]:
@@ -150,8 +168,7 @@ def read(log: pathlib.Path) -> Sequence[Event]:
     Returns:
         The events, oldest first; none when no file exists.
     """
-    path = beside(log, ".events")
-    lines = path.read_text().splitlines() if path.exists() else []
+    lines = slurp(beside(log, ".events")).splitlines()
     return [Event(**json.loads(each)) for each in lines]
 
 
@@ -165,8 +182,7 @@ def posted(log: pathlib.Path) -> int:
         The count; 0 when the file is missing or holds no number, so an event
         is said again rather than lost.
     """
-    path = beside(log, ".posted")
-    count = path.read_text() if path.exists() else ""
+    count = slurp(beside(log, ".posted"))
     return int(count) if count.isdigit() else 0
 
 
@@ -179,6 +195,4 @@ def post(log: pathlib.Path) -> None:
     events = read(log)
     for each in events[posted(log) :]:
         print(text(each))
-    path = beside(log, ".posted")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(str(len(events)))
+    put(beside(log, ".posted"), str(len(events)), "w")

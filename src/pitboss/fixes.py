@@ -1,7 +1,7 @@
 """The tickets a PR says it fixes."""
 
 import re
-from typing import AbstractSet
+from typing import AbstractSet, Sequence
 
 from . import config, ledger, pulls
 
@@ -41,3 +41,17 @@ def first_fixed(body: str, repo: config.Repo) -> str:
     """
     found = _FIXES.search(body)
     return ledger.reference(found.group(1), repo) if found else ""
+
+
+def head_fixing(ticket: str, facts: Sequence[pulls.PullFacts]) -> str:
+    """The head of the first open PR that fixes a ticket.
+
+    Args:
+        ticket: the ticket in full.
+        facts: the open PRs.
+
+    Returns:
+        The head commit, or empty when no PR fixes the ticket.
+    """
+    heads = [each.pull.head.sha for each in facts if ticket in fixed_tickets(each)]
+    return heads[0] if heads else ""

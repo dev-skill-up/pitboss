@@ -3,12 +3,12 @@
 import pathlib
 import subprocess
 import unittest
-from typing import Sequence
+from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import logline
-from . import cleanruns, cleanscene, fakes, test_autoclean_world as scenes, world
+from . import cleanscene, cleanworld, fakes, test_autoclean_world as scenes, world
 
 SET_AT = "2030-01-01T01:00:00+00:00"
 FREE_AT = "2030-01-01T02:00:00+00:00"
@@ -99,8 +99,7 @@ class TestHandBack(unittest.TestCase):
     def test_the_head_is_the_one_of_the_pr_that_fixes_the_ticket(self) -> None:
         """An open PR whose body says ``Fixes #9`` gives the head."""
         here = world.make_world()
-        branch = {"sha": fakes.HEAD, "ref": "branch-2"}
-        body = fakes.pull_body(2, body="Fixes #9", head=branch)
+        body = fakes.pull_body(2, body="Fixes #9")
         here.bodies[f"{world.PROJECT}/pulls/2"] = body
         slot_steps(here)
         found = posted(here, POSTING[0], "hand-back")
@@ -126,43 +125,16 @@ def sweeping(here: world.World) -> str:
     return tip_of(here.workspace / "merged-work")
 
 
-def run_clean(here: world.World, *extra: str) -> str:
-    """Run ``clean`` at the test's now.
-
-    Args:
-        here: the world.
-        *extra: its arguments.
-
-    Returns:
-        What it printed.
-    """
-    return scenes.swept(here, "clean", *extra)
-
-
-def run_worktrees(here: world.World, *extra: str) -> str:
-    """Run ``clean-worktrees`` at the test's now.
-
-    Args:
-        here: the world.
-        *extra: its arguments.
-
-    Returns:
-        What it printed.
-    """
-    return scenes.swept(here, "clean-worktrees", *extra)
-
-
-def run_container(here: world.World, *extra: str) -> str:
-    """Run ``clean-container``.
-
-    Args:
-        here: the world.
-        *extra: its arguments.
-
-    Returns:
-        What it printed.
-    """
-    return cleanruns.clean(here, *extra).out
+Case = tuple[Callable[[], world.World], Sequence[str], Sequence[str]]
+CASES: dict[str, Case] = {
+    "clean": (lambda: scenes.scene("99.9"), ("--dry-run",), ()),
+    "clean-worktrees": (world.make_world, (), ("--no-dry-run",)),
+    "clean-container": (
+        lambda: cleanscene.full_world().here,
+        cleanworld.NO_MARKER,
+        ("--no-dry-run", *cleanworld.NO_MARKER),
+    ),
+}
 
 
 class TestCleanUp(unittest.TestCase):
@@ -178,39 +150,22 @@ class TestCleanUp(unittest.TestCase):
         found = (len(first), first[0].startswith(prefix), first[0].endswith(head))
         assert_that((found, later), equal_to(((1, True, True), [])))
 
-    def test_each_cleaning_command_logs_its_removal_and_not_its_dry_run(self) -> None:
-        """``clean``, ``clean-worktrees`` and ``clean-container`` record for the sweep."""
-        scene, worktree = scenes.scene("99.9"), world.make_world()
-        cases = (
-            ("pitboss clean", scene, run_clean, "--dry-run", "", sweeping(scene)),
-            (
-                "pitboss clean-worktrees",
-                worktree,
-                run_worktrees,
-                "",
-                "--no-dry-run",
-                tip_of(worktree.worktree),
-            ),
-            (
-                "pitboss clean-container",
-                cleanscene.full_world().here,
-                run_container,
-                "",
-                "--no-dry-run",
-                logline.NO_WORKTREE,
-            ),
-        )
-        for who, here, run, dry, real, head in cases:
-            run(here, *filter(None, [dry]))
+    def test_each_cleaning_command_logs_its_removal_not_its_dry_run(self) -> None:
+        """``clean``, ``clean-worktrees`` and ``clean-container`` record for a sweep."""
+        for name, (make, dry, real) in CASES.items():
+            here = make()
+            head = logline.NO_WORKTREE if name.endswith("container") else sweeping(here)
+            scenes.swept(here, name, *dry)
             before = events_of(here)
-            run(here, *filter(None, [real]))
+            scenes.swept(here, name, *real)
             found = (before, events_of(here))
-            assert_that(found, equal_to(([], [(who, head)])))
+            assert_that(found, equal_to(([], [(f"pitboss {name}", head)])))
 
     def test_nothing_freed_records_nothing_and_a_bad_count_posts_again(self) -> None:
         """No bytes, no event; a posted file with no number counts as none posted."""
         log = world.make_world().ledger.with_suffix(".log")
-        logline.record_clean(log, "pitboss clean", 0, [], world.START)
-        logline.record_clean(log, "pitboss clean", 5, ["x"], world.START)
+        for size in (0, 5):
+            freed = logline.Freed(who="pitboss clean", size=size, heads=["x"])
+            logline.record_clean(log, freed, world.START)
         logline.beside(log, ".posted").write_text("not a number")
         assert_that((len(logline.read(log)), logline.posted(log)), equal_to((1, 0)))

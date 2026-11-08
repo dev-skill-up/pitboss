@@ -13,6 +13,7 @@ from . import (
     config,
     configfile,
     deviations,
+    fixes,
     ledger,
     ledgerowner,
     logline,
@@ -278,7 +279,8 @@ def _changing(found: Context, action: Action) -> None:
         slot = ledger.find(before, name)
         assert isinstance(slot, ledger.Slot)  # the free was done, so it exists
         opened = open_pulls(found)
-        event = logline.hand_back(slot, pulls.readable(opened), found.now)
+        head = fixes.head_fixing(slot.ticket, pulls.readable(opened))
+        event = logline.hand_back(slot, head, found.now)
         logline.record(found.settings.slots.log, event)
         nextlist.refill(found, opened, changed, name)
 

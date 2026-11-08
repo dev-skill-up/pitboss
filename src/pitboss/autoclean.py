@@ -278,10 +278,10 @@ def log_clean(job: Job, told: account.Account) -> None:
     """
     if not job.option.dry:
         log = job.look.settings.slots.log
-        freed = sum(told.freed)
-        logline.record_clean(
-            log, job.option.command, freed, told.heads, job.machine.now
+        freed = logline.Freed(
+            who=job.option.command, size=sum(told.freed), heads=told.heads
         )
+        logline.record_clean(log, freed, job.machine.now)
 
 
 def told_of(
