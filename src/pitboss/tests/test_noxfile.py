@@ -10,7 +10,8 @@ import sys
 import tempfile
 import types
 import unittest
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from typing import Protocol
 
 from hamcrest import assert_that, equal_to
 
@@ -181,8 +182,20 @@ def left_after(*posargs: str, fails: bool = False) -> Left:
         return Left(names=kept, env=given[0], outside_kept=outside.is_dir())
 
 
+class Run(Protocol):
+    """What a command line of the session does."""
+
+    def __call__(self, *command: str, **kwargs: Mapping[str, str]) -> None:
+        """Run a command line.
+
+        Args:
+            *command: the words of the command.
+            **kwargs: the options, of which ``env`` is read.
+        """
+
+
 def session_in(
-    root: pathlib.Path, posargs: Sequence[str], run: Callable[..., None]
+    root: pathlib.Path, posargs: Sequence[str], run: Run
 ) -> types.SimpleNamespace:
     """A session whose environment is in a directory and whose commands are ``run``.
 
