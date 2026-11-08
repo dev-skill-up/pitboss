@@ -41,6 +41,8 @@ from . import (
     summaryline,
     scratchconfig,
     shapes,
+    slotholding,
+    slotreport,
     sweepline,
     syncguard,
     syncing,
@@ -50,7 +52,7 @@ from . import (
     workhours,
 )
 from . import diskline, pulllines, pullstate, unreadableline
-from .commandarguments import CHANGING_ARGUMENTS, CONFIG_ARGUMENT, NOW_ARGUMENT
+from .commandarguments import CHANGING_ARGUMENTS, SWEEP_ARGUMENTS
 from .failures import describe, read_all
 from .markers import Marker
 
@@ -326,17 +328,19 @@ def _repository_sections(
 
 def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     report.print_reminders(found.settings)
-    book = read_ledger(found.settings)
-    report.print_ledger(book)
-    offer = offering.offered(found, read, book)
-    sweepline.slots(book, read, offer)
+    book = ledger.configured(found.settings)
+    offer = slotholding.counted(
+        offering.offered(found, read, book), read, book, found.args
+    )
+    slotreport.print_ledger(book, offer.occupancy)
+    sweepline.slots(read, offer)
     sweepline.idle(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(book, found.now, found.args)
     undrafts = readyline.texts(found.settings, pulls.readable(read), found.now)
-    tasklist.print_block(book, list(undrafts), offer.items)
+    tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
 
 
-@ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, tasklist.ARGUMENT, name="sweep")
+@ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots.
 
@@ -366,18 +370,6 @@ def sweep(args: argparse.Namespace) -> None:
     failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
     if repoaccess.say(found.access) or failed:
         raise SystemExit(1)
-
-
-def read_ledger(settings: config.Config) -> ledger.Ledger:
-    """Read the configured ledger.
-
-    Args:
-        settings: the configuration.
-
-    Returns:
-        The ledger.
-    """
-    return ledger.read(settings.slots.ledger, settings.slots.default)
 
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="cancel-stale-runs")

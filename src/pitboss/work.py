@@ -5,15 +5,14 @@ oldest first, whatever each needs. What a PR needs is the step ``flow.next_step`
 gives it (keyword: review-flow): a worker's round, whose kind is its task (a
 revision of the plan and nothing else, a fix of the CI, the Plan and Execution
 body, the resolution of a conflict, a fix of a review, or CI quotes), or a review
-by a new reviewer (a draft's plan-only review included). There is no update
-kind. The kind is a label on the line, not a rank. A PR whose step is to wait
-(for CI, an undraft or the owner), to ask Opus for a ruling, to pause for the
-owner, to undraft or to merge is none of them: it is offered for no round.
-After them come the
-new PRs, one for each open ticket with a priority label that no open PR names,
-by priority label, then oldest first. Nothing predicts which files a ticket
-will touch: work is taken in this order, every PR starts from the base branch,
-and a conflict is resolved by merging the base branch in.
+by a new reviewer (a draft's plan-only review included). The kind is a label on
+the line, not a rank. A PR whose step is to wait (for CI, an undraft or the
+owner), to ask Opus for a ruling, to pause for the owner, to undraft or to merge
+is none of them: it is offered for no round. After them come the new PRs, one for
+each open ticket with a priority label that no open PR names, by priority label,
+then oldest first. Nothing predicts which files a ticket will touch: work is
+taken in this order, every PR starts from the base branch, and a conflict is
+resolved by merging the base branch in.
 """
 
 import dataclasses
@@ -30,6 +29,7 @@ from . import (
     pulls,
     reviews,
     shapes,
+    slotheld,
     steps,
 )
 
@@ -42,14 +42,12 @@ class Category(enum.IntEnum):
 
     Attributes:
         FIX_REVIEW: an author fixes what a review asked for (a PR).
-        REVISE_PLAN: an author revises the plan a review did not approve, and
-            touches nothing else (a PR).
+        REVISE_PLAN: an author revises a Plan no review approved, nothing else (a PR).
         REVIEW: a reviewer (never the author) reviews a green head, or a
             Plan alone (a draft's, or revised after its rejection) (a PR).
         NEW_PR: a worker starts a ticket (after every PR).
         FIX_CI: an author fixes a red CI, which is no rejection (a PR).
-        FIRST_ROUND: an author writes the Plan and Execution body of a PR that
-            has none (a PR).
+        FIRST_ROUND: an author writes the Plan and Execution body of a PR (a PR).
         RESOLVE_CONFLICT: an author resolves the conflict of a head, at any
             stage except while it waits for a ruling, the owner or the restoring
             of an edited approved Plan (a PR).
@@ -331,12 +329,14 @@ class Offered:
         standing: each held repository and its open count (keyword: pr-hold).
         blocked: the tickets that say they cannot be worked on until a ticket
             or PR that is open, in the same order (keyword: ticket-blocked).
+        occupancy: what holds the slots (keyword: slot-held, pitboss#291).
     """
 
     items: Sequence[Item]
     held: Sequence[Item]
     standing: Mapping[str, int]
     blocked: Sequence[Item]
+    occupancy: slotheld.Occupancy = slotheld.UNLIMITED
 
 
 def queued(

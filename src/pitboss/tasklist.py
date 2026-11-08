@@ -2,7 +2,9 @@
 
 The block is the items the sweep says are in flight (a slot holds an agent on
 them) or next (the ``NEXT`` order of ``slots next``, pitboss#344), one line each, for
-the orchestrator to post as it is. A ticket that was filed or asked for is not
+the orchestrator to post as it is. Its ``next`` line 1 is the running workers and
+reviewers, and a step that waits for a free slot ends with the ``QUEUED`` words
+(pitboss#291). A ticket that was filed or asked for is not
 added to the list by the orchestrator: it joins only when the block names it, so a
 ticket outside the order (a priority label below the configured ones, a held or
 blocked ticket) is not in it. ``sweep --task-list FILE`` refuses a line of the
@@ -15,7 +17,7 @@ from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import config, ledger, work
+from . import config, ledger, slotheld, work
 
 ARGUMENT = add_argument(
     "--task-list",
@@ -26,7 +28,8 @@ ARGUMENT = add_argument(
 LABEL = "TASK LIST"
 HEADER = (
     f"{LABEL}: the task list is exactly the lines below, in this"
-    " order, posted as they are. A ticket that was filed or asked for is not added"
+    " order, posted as they are; next line 1 is the running workers and reviewers,"
+    " never interrupted. A ticket that was filed or asked for is not added"
     " to it; it is in the list only when a line below names it. A line that names"
     ' future tickets ("Next in sweep order: ...") is not a task: every task names'
     " one real ticket, and no placeholder entry exists"
@@ -35,14 +38,22 @@ _REFERENCE = re.compile(r"(?:[\w.-]+/[\w.-]+)?#\d+")
 
 
 def block(
-    book: ledger.Ledger, ready: Sequence[str], items: Sequence[work.Item]
+    book: ledger.Ledger,
+    ready: Sequence[str],
+    items: Sequence[work.Item],
+    taken: slotheld.Occupancy = slotheld.UNLIMITED,
 ) -> Sequence[str]:
     """The ``TASK LIST`` block: the header, what is in flight, then what is next.
+
+    Its first ``next`` line (1) is the running workers and reviewers line; the
+    items are numbered as ``slots next`` numbers them after ``ready``, and an item
+    that waits for a free slot ends with the ``QUEUED`` words.
 
     Args:
         book: the ledger; a slot with an agent is in flight.
         ready: the texts of the ``NEXT`` lines of the drafts to mark ready.
-        items: the ordered items, as ``slots next`` numbers them after ``ready``.
+        items: the ordered items.
+        taken: what holds the slots.
 
     Returns:
         The lines, one for each ticket (or PR) and no other.
@@ -54,15 +65,32 @@ def block(
                 f"{LABEL} in flight {slot.ticket or slot.task}:"
                 f" slot {slot.name} ({slot.agent})"
             )
-    for index, text in enumerate(ready, start=1):
+    return [*found, *_next_lines(ready, items, taken)]
+
+
+def _queued(each: work.Item, taken: slotheld.Occupancy) -> str:
+    return f" {slotheld.QUEUED}" if slotheld.waits(taken, each.reference) else ""
+
+
+def _next_lines(
+    ready: Sequence[str], items: Sequence[work.Item], taken: slotheld.Occupancy
+) -> Sequence[str]:
+    found = [f"{LABEL} next {slotheld.LEAD}. {slotheld.RUNNING_FIRST}"]
+    first = slotheld.LEAD + 1
+    for index, text in enumerate(ready, start=first):
         found.append(f"{LABEL} next {index}. {text}")
-    for index, each in enumerate(items, start=len(ready) + 1):
-        found.append(f"{LABEL} next {index}. {each.reference}: {each.title[:60]}")
+    for index, each in enumerate(items, start=len(ready) + first):
+        title = each.title[:60]
+        found.append(f"{LABEL} next {index}. {each.reference}: {title}")
+        found[-1] += _queued(each, taken)
     return found
 
 
 def print_block(
-    book: ledger.Ledger, ready: Sequence[str], items: Sequence[work.Item]
+    book: ledger.Ledger,
+    ready: Sequence[str],
+    items: Sequence[work.Item],
+    taken: slotheld.Occupancy = slotheld.UNLIMITED,
 ) -> None:
     """Print the ``TASK LIST`` block of a sweep.
 
@@ -70,8 +98,9 @@ def print_block(
         book: the ledger.
         ready: the texts of the ``NEXT`` lines of the drafts to mark ready.
         items: the ordered items.
+        taken: what holds the slots.
     """
-    for line in block(book, ready, items):
+    for line in block(book, ready, items, taken):
         print(line)
 
 

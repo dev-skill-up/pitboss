@@ -27,4 +27,13 @@ CONFIG_OPTION = add_argument(
 )
 NOW_ARGUMENT = add_argument("--now", default=None, help=argparse.SUPPRESS)
 DRY_RUN_ARGUMENT = add_argument("--no-dry-run", action="store_true", default=False)
+RUNNING_ARGUMENT = add_argument(
+    "--running",
+    nargs="*",
+    default=None,
+    help="the names of the agents the session runs: more of them than slots"
+    " hold an agent prints one UNRECORDED AGENT line for each that holds no slot,"
+    " and offers no start until every live agent holds one (pitboss#291)",
+)
+SWEEP_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT)
 CHANGING_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, DRY_RUN_ARGUMENT)

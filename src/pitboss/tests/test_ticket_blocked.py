@@ -318,7 +318,7 @@ class TestOrder(unittest.TestCase):
         out = sweep(here).out
         assert_that(len(BLOCKED_LINE.findall(out)), equal_to(1))
         # the world's two PRs that need work, and the dependency
-        assert_that(out, contains_string("SLOTS FREE 2: 3 queued"))
+        assert_that(out, contains_string("SLOTS FREE 1: 3 queued"))
 
     def test_a_dependency_of_a_dependency_is_offered(self) -> None:
         """Ticket 9 waits for lib#3, which waits for lib#7: lib#7 is the work."""
