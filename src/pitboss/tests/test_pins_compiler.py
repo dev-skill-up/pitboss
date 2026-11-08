@@ -118,9 +118,9 @@ class TestRefusal(unittest.TestCase):
         current, calls = verdict(CURRENT, relative="rel")
         assert_that(current.status, equal_to(pinsreading.Status.OK))
         assert_that(ran_pins_check(calls), equal_to(True))
-        older, _ = verdict(OLDER, relative="rel")
+        older, after = verdict(OLDER, relative="rel")
         assert_that(older.status, equal_to(pinsreading.Status.NOT_OK))
-        assert_that(older.detail, contains_string(os.path.join(calls[0][2], "rel")))
+        assert_that(older.detail, contains_string(os.path.join(after[0][2], "rel")))
 
     def test_an_older_compiler_says_the_two_commits_and_how_to_get_it(self) -> None:
         """The line has the local commit, the pin, the directory and the build."""
