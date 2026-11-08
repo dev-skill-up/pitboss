@@ -11,7 +11,6 @@ printed once. The orchestrator posts each ``LOG`` line to the owner as it is.
 import dataclasses
 import datetime
 import json
-import os
 import pathlib
 from typing import Sequence
 
@@ -144,8 +143,8 @@ def put(path: pathlib.Path, text: str) -> None:
         path: the file.
         text: what to write.
     """
-    os.makedirs(path.parent, exist_ok=True)
-    path.write_text(text)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(text.encode())
 
 
 def record(log: pathlib.Path, event: Event) -> None:
