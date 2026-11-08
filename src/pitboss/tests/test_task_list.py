@@ -128,6 +128,20 @@ class TestOneTicketPerLine(unittest.TestCase):
             assert_that(("line 2: names 2" in result.out), equal_to(crowded))
             assert_that(tasklist.refused(str(path), PROJECT), equal_to(crowded))
 
+    def test_the_refusal_says_one_line_per_ticket_and_no_more(self) -> None:
+        """The text asks for one line per ticket and names no merged or queue ones."""
+        found = tasklist.refusals("#1, #2\n", PROJECT)
+        assert_that(
+            found,
+            equal_to(
+                [
+                    "TASK LIST REFUSED line 1: names 2 tickets"
+                    " (owner/project#1, owner/project#2);"
+                    " one task-list line per ticket"
+                ]
+            ),
+        )
+
     def test_sweep_unreadable_file(self) -> None:
         """A file that is not there is said, not a traceback."""
         out = sweep(world.make_world(), "--task-list", "/none/tasks.txt").out

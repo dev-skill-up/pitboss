@@ -107,8 +107,7 @@ def refusals(text: str, project: config.Repo) -> Sequence[str]:
     """
     return [
         f"{LABEL} REFUSED line {number}: names {len(named)} tickets"
-        f" ({', '.join(named)}); one task-list line per ticket, merged ones"
-        " included, queue ones included"
+        f" ({', '.join(named)}); one task-list line per ticket"
         for number, named in crowded(text, project).items()
     ]
 
