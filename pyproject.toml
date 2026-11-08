@@ -61,7 +61,7 @@ placeholder = "pitboss"
 pitboss = "pitboss:ENTRY_DATA.main_command"
 
 [[tool.mypy.overrides]]
-module = ["gather.*", "commander_data.*"]
+module = ["gather.*", "commander_data.*", "virtue.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
