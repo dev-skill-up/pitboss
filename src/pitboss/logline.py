@@ -49,8 +49,9 @@ def beside(log: pathlib.Path, suffix: str) -> pathlib.Path:
             (how many events were posted).
 
     Returns:
-        The file.
+        The file, in a directory that exists.
     """
+    log.parent.mkdir(parents=True, exist_ok=True)
     return log.with_suffix(suffix)
 
 
@@ -137,13 +138,12 @@ def slurp(path: pathlib.Path) -> str:
 
 
 def put(path: pathlib.Path, text: str) -> None:
-    """Replace the text of a file, making its directory.
+    """Replace the text of a file.
 
     Args:
         path: the file.
         text: what to write.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(text.encode())
 
 
