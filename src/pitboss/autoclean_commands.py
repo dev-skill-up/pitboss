@@ -20,9 +20,9 @@ def clean(args: argparse.Namespace) -> None:
 
     It removes the test tempdirs older than ``[clean] tmp_hours`` (none that a
     running process works in), the finished worktrees and the dead checkouts,
-    and, with the disk at ``[clean] pressure_percent`` used or more, or less than ``[clean] min_free_gib``
-    free, every worktree and checkout without an open
-    PR and the package caches that regenerate. It never touches a worktree with
+    and, with the disk at ``[clean] pressure_percent`` used or more, or less
+    than ``[clean] min_free_gib`` free, every worktree and checkout without an
+    open PR and the package caches that regenerate. It never touches a worktree with
     an open PR or a running worker's directory. It also closes the open PRs of the
     ``[scratch]`` repositories whose workflow runs finished, except the kept
     fixtures, and deletes their branches. ``--dry-run`` removes and closes
