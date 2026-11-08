@@ -30,6 +30,12 @@ HONEST = (
     " fakes output) is a note: it is never a ground for changes needed, and it"
     " never starts a ruling."
 )
+OWNER = (
+    "Owner: a ticket, brief, plan or review never states what the owner cannot or"
+    " will not do, or that something is outside his reach, unless the sentence"
+    " quotes his own words and their date; without a quote the step is asked of"
+    " him as a request in the hand-back, never assumed impossible (pitboss#352)."
+)
 SUBJECT = brief.Subject(reference="o/r#3", ticket="o/r#7", repo="o/r", goal=GOAL)
 COMMITS = brief.Heads(
     head=HEAD,

@@ -97,7 +97,9 @@ class Marker(enum.Enum):
         COULD_NOT_CLOSE_SCRATCH_PR: a scratch PR that could not be closed.
         COULD_NOT_DELETE_SCRATCH_BRANCH: a branch of a closed scratch PR that
             is not deleted, and why.
-        SWEEP_REMINDER: a question each sweep ends with.
+        SWEEP_REMINDER: a line each sweep ends with: the two fixed sentences
+            (the owner's words, a worker's actions; pitboss#352), then the
+            project's questions.
         EMPTY_SLOT: a worker slot with no agent.
         SLOTS_FREE: slots are free and work is queued; a wake-up is required.
         SLOT_IDLE: a slot empty for over two minutes (by the slot log) while

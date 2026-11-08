@@ -43,6 +43,7 @@ RESOLUTION = "\n".join(
         "    Verdict: <approved or changes needed>",
         briefmake.BODY,
         HONEST,
+        briefmake.OWNER,
         "Ask for no attack, bypass or adversarial input that the goal above does"
         " not name.",
         "Do not push, merge, or edit the PR or its branch. Hand back after"

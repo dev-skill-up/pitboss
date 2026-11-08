@@ -4,6 +4,7 @@ import datetime
 from typing import Mapping, Sequence
 
 from . import (
+    brieftextowner,
     config,
     headchecks,
     local,
@@ -333,7 +334,7 @@ def print_reminders(settings: config.Config) -> None:
 
 
 def reminder_lines(settings: config.Config) -> Sequence[str]:
-    """The questions each sweep ends with.
+    """The sentences about the owner and the workers, then the project's questions.
 
     Args:
         settings: the configuration.
@@ -341,4 +342,5 @@ def reminder_lines(settings: config.Config) -> Sequence[str]:
     Returns:
         The lines.
     """
-    return [f"{Marker.SWEEP_REMINDER.text}: {text}" for text in settings.reminders]
+    kept = [*brieftextowner.REMINDERS, *settings.reminders]
+    return [f"{Marker.SWEEP_REMINDER.text}: {text}" for text in kept]
