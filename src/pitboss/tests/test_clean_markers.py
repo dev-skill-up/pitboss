@@ -4,7 +4,7 @@ import unittest
 from typing import Sequence
 
 from .. import mergetime
-from . import cleanruns, cleanworld, fakes, test_autoclean_world, world
+from . import cleanruns, cleanworld, fakes, test_autoclean_world, world, worldcopy
 
 same = cleanworld.same
 NAMES = ("stale-live", "merged-old", "merged-last", "closed-live")
@@ -30,8 +30,26 @@ def pulls() -> Sequence[object]:
     ]
 
 
+def built_scene() -> worldcopy.Made:
+    """Build the world of ``scene``: four worktrees, 99 hours old, without markers.
+
+    Returns:
+        The world, and no directory outside its workspace.
+    """
+    here = world.make_world()
+    added = [fakes.add_worktree(here.clone, name) for name in NAMES]
+    for path in added:
+        test_autoclean_world.touch_all(path, 99)
+    page = world.project_page("pulls?state=all")
+    here.bodies.update({page: pulls()})
+    return here, []
+
+
+scene_template = worldcopy.cached(built_scene)
+
+
 def scene(percent: str, marker_hours: float = 4) -> world.World:
-    """A world with four worktrees, each holding a live marker.
+    """A copy of a world with four worktrees, each holding a live marker.
 
     ``stale-live`` has no PR and its tip is in the base branch, ``merged-old``
     is a PR merged in March, ``merged-last`` one merged in October and
@@ -45,14 +63,12 @@ def scene(percent: str, marker_hours: float = 4) -> world.World:
     Returns:
         The world; every worktree but its marker is 99 hours old.
     """
-    here = world.make_world()
+    here = worldcopy.copy_of(scene_template())[0]
     settings = f"min_free_gib = 0\ntmp_roots = []\npressure_percent = {percent}\n"
     cleanworld.rewrite(here, settings)
     for name in NAMES:
-        path = fakes.add_worktree(here.clone, name)
-        test_autoclean_world.touch_all(path, 99)
-        cleanworld.mark_live_since(path, marker_hours, world.START.timestamp())
-    here.bodies[world.project_page("pulls?state=all")] = pulls()
+        marked = here.workspace / name
+        cleanworld.mark_live_since(marked, marker_hours, world.START.timestamp())
     return here
 
 
