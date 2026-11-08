@@ -62,6 +62,9 @@ def tests(session):
     # others the modules, and CI passes none, so it runs every test.
     options = [word for word in session.posargs if word.startswith("-")]
     modules = [word for word in session.posargs if not word.startswith("-")]
+    # The run always ends with the total time and the slowest tests (pitboss#324,
+    # keyword: test-timing): the reporter comes last, so no argument replaces it.
+    reporter = "--reporter=pitboss.tests.timingreport.TimingReporter"
     session.run(
         "coverage",
         "run",
@@ -71,6 +74,7 @@ def tests(session):
         "-m",
         "virtue",
         *options,
+        reporter,
         *(modules or ["pitboss.tests"]),
         env=dict(COVERAGE_FILE=os.path.join(tmpdir, "coverage"), TMPDIR=tmpdir),
     )

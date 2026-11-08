@@ -1121,7 +1121,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   lint or mypy after 221 to 246 s of passing tests), and the tests session is
   run with virtue's `-x` (pitboss#326), whatever its arguments, so a failing
   test stops the run and is reported; CI's `Run Nox` step passes no `-x` and
-  runs every test. A worker never invokes `virtue` or `python -m virtue` by
+  runs every test. The tests session always prints the total time and the 30
+  slowest tests with their times, as lines that start with `test-timing`
+  (pitboss#324, owner: "nox tests should always be run with test timing.
+  Otherwise we won't see regressions."), in CI's `Run Nox` log and, for a
+  session that passed, in `pitboss nox`'s output. A worker never invokes `virtue` or `python -m virtue` by
   hand (the nox session is the way to run tests), starts nothing in the
   background that needs polling (pitboss#175: one foreground command under
   `timeout 598`, or one `Monitor` with an `until` loop; a worker that polled

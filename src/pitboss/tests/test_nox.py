@@ -62,7 +62,12 @@ class FakeNox:
         """
         self.calls.append(list(cmdargs))
         name = cmdargs[3]
-        return Done(returncode=self.statuses.get(name, 0), stdout=f"output of {name}\n")
+        timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests\n"
+        shown = timing if name == "tests-3.13" else ""
+        return Done(
+            returncode=self.statuses.get(name, 0),
+            stdout=f"output of {name}\n{shown}",
+        )
 
 
 def run_nox(
@@ -111,9 +116,28 @@ class TestNoxCommand(unittest.TestCase):
         """Name, success, seconds; then CI's `Run Nox` step is the proof."""
         found, _ = run_nox({})
         shown = found.out.splitlines()
-        assert_that([line.split()[0:2] for line in shown[:4]], equal_to(SUCCESS_LINES))
+        lines = [line for line in shown if not line.startswith(noxcheck.TIMING_PREFIX)]
+        assert_that([line.split()[0:2] for line in lines[:4]], equal_to(SUCCESS_LINES))
         assert_that(shown[0].endswith("s"), equal_to(True))
-        assert_that(shown[4:], equal_to([noxcheck.PROOF]))
+        assert_that(lines[4:], equal_to([noxcheck.PROOF]))
+
+    def test_a_passing_run_shows_the_timing_after_the_tests_line(self) -> None:
+        """The captured output is not shown on success, the timing lines are."""
+        found, _ = run_nox({})
+        shown = found.out.splitlines()
+        timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests"
+        assert_that(shown[4], equal_to(timing))
+        assert_that(shown[3].startswith("tests-3.13 success"), equal_to(True))
+        has_none(found.out, ["output of tests-3.13"])
+
+    def test_a_failed_tests_session_shows_the_timing_once(self) -> None:
+        """Its whole output is shown, and the timing is not printed twice."""
+        found, _ = run_nox({"tests-3.13": 1})
+        timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests"
+        assert_that(found.out.count(timing), equal_to(1))
+        shown = [each for each in found.out.splitlines() if "tests-3.13" in each]
+        assert_that(shown[0].startswith("tests-3.13 failed"), equal_to(True))
+        assert_that("output of tests-3.13" in found.out, equal_to(True))
 
     def test_it_stops_at_the_first_failure(self) -> None:
         """Whichever session fails, none after it runs, and the exit is 1."""

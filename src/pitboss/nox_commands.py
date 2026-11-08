@@ -47,7 +47,8 @@ def nox(args: argparse.Namespace) -> None:
 
     Each runs as ``nox -r -s SESSION`` (the rule is ``brieftextwork.NOX``), and
     a failing session stops the rest and exits 1 with its output. One line is
-    printed for each session that ran, and on success a line says CI's
+    printed for each session that ran, with the ``test-timing`` lines of a
+    session that passed (pitboss#324), and on success a line says CI's
     ``Run Nox`` step is the proof of the whole suite. No other session runs:
     docs, dry_release and the other Python versions are CI's.
 
@@ -62,6 +63,10 @@ def nox(args: argparse.Namespace) -> None:
     )
     for each in ran:
         print(noxcheck.line_of(each))
+        # a failed session's whole output follows below, timing included
+        if not each.outcome.status:
+            for timing in noxcheck.timing_of(each):
+                print(timing)
     failed = ran[-1].outcome
     if failed.status:
         sys.stdout.write(failed.output)

@@ -13,7 +13,8 @@ from collections.abc import Iterator, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .briefmake import has_all
+from .. import noxcheck
+from .briefmake import has_all, has_none
 from .test_config import EXAMPLE
 
 
@@ -45,6 +46,9 @@ def commands_of(*posargs: str) -> Sequence[str]:
         The program and its subcommand of each run.
     """
     return [" ".join(each[:2]) for each in runs_of(*posargs)]
+
+
+REPORTER = "--reporter=pitboss.tests.timingreport.TimingReporter"
 
 
 def virtue_words_of(*posargs: str) -> Sequence[str]:
@@ -102,18 +106,33 @@ class TestTestsSession(unittest.TestCase):
     def test_a_stop_after_option_is_virtues_and_the_modules_stay_modules(self) -> None:
         """`-x` goes to virtue before the modules; the run is still targeted."""
         found = virtue_words_of("-x", "pitboss.tests.test_gates")
-        assert_that(found, equal_to(["-x", "pitboss.tests.test_gates"]))
+        assert_that(found, equal_to(["-x", REPORTER, "pitboss.tests.test_gates"]))
         targeted = commands_of("-x", "pitboss.tests.test_gates")
         assert_that(targeted, equal_to(["coverage run"]))
 
     def test_the_stop_after_option_alone_runs_every_test_and_the_report(self) -> None:
         """`pitboss nox` with no module: all the tests, stopping at a failure."""
-        assert_that(virtue_words_of("-x"), equal_to(["-x", "pitboss.tests"]))
+        assert_that(virtue_words_of("-x"), equal_to(["-x", REPORTER, "pitboss.tests"]))
         assert_that(commands_of("-x")[-1], equal_to("coverage report"))
 
     def test_ci_runs_every_test_with_no_option(self) -> None:
         """CI's run passes nothing: no -x, so every test runs and is counted."""
-        assert_that(virtue_words_of(), equal_to(["pitboss.tests"]))
+        assert_that(virtue_words_of(), equal_to([REPORTER, "pitboss.tests"]))
+
+    def test_the_timing_reporter_is_given_whatever_the_arguments(self) -> None:
+        """No argument leaves the run without the timing (pitboss#324)."""
+        for words in ([], ["-x"], ["-x", "pitboss.tests.test_gates"], ["-xx"]):
+            assert_that(REPORTER in virtue_words_of(*words), equal_to(True))
+
+    def test_an_argument_that_names_a_reporter_does_not_replace_the_timing(
+        self,
+    ) -> None:
+        """The nearest input: `--reporter=text` is an option, and ours is after it."""
+        found = virtue_words_of("--reporter=text")
+        assert_that(found, equal_to(["--reporter=text", REPORTER, "pitboss.tests"]))
+        assert_that(
+            found.index(REPORTER) > found.index("--reporter=text"), equal_to(True)
+        )
 
 
 FAILING_MODULE = """
@@ -173,3 +192,45 @@ class TestStopAfterOnAFailingTest(unittest.TestCase):
             done = run_virtue(root)
             later_ran = (root / "later-test-ran").exists()
         assert_that((done.returncode != 0, later_ran), equal_to((True, True)))
+
+
+class TestTimingOfARealRun(unittest.TestCase):
+    """virtue, given the session's reporter, ends the run with the timing."""
+
+    def test_a_run_that_passes_prints_the_total_and_the_slowest(self) -> None:
+        """The total line and a line for the test, in the output of the run."""
+        with tempfile.TemporaryDirectory() as name:
+            done = run_virtue(pathlib.Path(name), REPORTER, "-x")
+        has_all(
+            done.stdout,
+            [
+                f"\n{noxcheck.TIMING_PREFIX}total ",
+                f"\n{noxcheck.TIMING_PREFIX}slowest 1 ",
+                "twotests.TestTwo.test_a_fails",
+            ],
+        )
+
+    def test_a_run_that_fails_prints_them_too(self) -> None:
+        """The failing test stops the run (-x) and the timing is still printed."""
+        with tempfile.TemporaryDirectory() as name:
+            done = run_virtue(pathlib.Path(name), "-x", REPORTER)
+        assert_that(done.returncode != 0, equal_to(True))
+        has_all(done.stdout, ["this one fails", f"{noxcheck.TIMING_PREFIX}total "])
+
+    def test_a_run_with_the_default_reporter_prints_no_timing(self) -> None:
+        """The nearest input: virtue alone prints none, which is what this fixes."""
+        with tempfile.TemporaryDirectory() as name:
+            done = run_virtue(pathlib.Path(name), "-x")
+        has_none(done.stdout, [noxcheck.TIMING_PREFIX])
+
+
+class TestCiLogShowsTheTiming(unittest.TestCase):
+    """CI's Run Nox step keeps the slowest-test list in its log."""
+
+    def test_the_step_runs_nox_with_nothing_that_hides_its_output(self) -> None:
+        """No quiet option, no silent run, no filter on the command (pitboss#324)."""
+        workflow = (EXAMPLE.parents[1] / ".github/workflows/pr-main.yml").read_text()
+        step = workflow.split("- name: Run Nox")[1].split("- name:")[0]
+        has_all(step, ["nox --force-color --python=", "--session="])
+        command = [line for line in step.splitlines() if "nox --force-color" in line]
+        has_none(command[0], ["--quiet", " -q", "|", ">", "--no-"])
