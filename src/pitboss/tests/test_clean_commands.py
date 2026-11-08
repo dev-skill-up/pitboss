@@ -4,7 +4,7 @@ import dataclasses
 import pathlib
 import unittest
 
-from . import cleanruns, cleanworld, fakes
+from . import cleanruns, cleanscene, cleanworld, fakes
 
 SAFE = (
     "merged-work",
@@ -26,7 +26,7 @@ class TestRemoval(unittest.TestCase):
 
     def test_removes_only_the_safe_list_in_parts(self) -> None:
         """Safe paths go, ``rm`` gets at most batch paths, the rest is untouched."""
-        here, root = cleanworld.full_world()
+        here, root = cleanscene.full_world()
         before = cleanruns.listed(here)
         result = cleanruns.clean(here, "--no-dry-run", "--batch", "2")
         removed = cleanworld.lines_of(result.out, "REMOVED PATH")
@@ -49,7 +49,7 @@ class TestRemoval(unittest.TestCase):
 
     def test_approved_list_limits_the_removal(self) -> None:
         """Only approved safe paths go; an unsafe, unknown or outside one is refused."""
-        scene = cleanworld.full_world()
+        scene = cleanscene.full_world()
         here, root = scene.here, scene.root
         approved = fakes.directory() / "approved"
         merged = here.workspace / "merged-work"
@@ -66,7 +66,7 @@ class TestRemoval(unittest.TestCase):
 
     def test_an_agent_that_starts_after_the_listing_is_left_alone(self) -> None:
         """The path is looked at again just before its rm: a new file stops it."""
-        scene = cleanworld.full_world()
+        scene = cleanscene.full_world()
         root = scene.root
         agent = root / "old/agent.log"
         runner = cleanruns.Starting(inner=scene.here.processes, path=agent)

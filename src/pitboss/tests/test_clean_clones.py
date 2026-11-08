@@ -10,7 +10,7 @@ import pathlib
 import unittest
 
 from .. import deadscan, shapes
-from . import cleanruns, cleanworld, fakes, test_autoclean_world, world
+from . import cleanruns, cleanworld, fakes, test_autoclean_world, world, worldcopy
 
 same = cleanworld.same
 shows = test_autoclean_world.shows
@@ -46,18 +46,11 @@ def foreign_clone(
     return clone
 
 
-def scene(percent: str) -> world.World:
-    """A world with full clones of a repository the configuration does not name.
-
-    ``clone-open``'s branch has an open PR, ``clone-merged``'s a merged one,
-    ``clone-nopr``'s none; ``clone-unread`` is a clone of a repository whose
-    PRs cannot be read, and ``notes`` is no checkout.
-
-    Args:
-        percent: the TOML number of ``pressure_percent``.
+def built_scene() -> worldcopy.Made:
+    """Build the world of ``scene``: the clones and the notes, 99 hours old.
 
     Returns:
-        The world; everything in the workspace is 99 hours old.
+        The world, and no directory outside its workspace.
     """
     here = world.make_world()
     for name in ("clone-open", "clone-merged", "clone-nopr"):
@@ -70,10 +63,30 @@ def scene(percent: str) -> world.World:
         test_autoclean_world.pull("clone-merged", MERGED),
     ]
     here.bodies[fakes.page(f"repos/{FOREIGN}/pulls?state=all")] = pulls
-    settings = f"min_free_gib = 0\ntmp_roots = []\npressure_percent = {percent}\n"
-    cleanworld.rewrite(here, settings)
     for name in NAMES:
         test_autoclean_world.touch_all(here.workspace / name, 99)
+    return here, []
+
+
+scene_template = worldcopy.cached(built_scene)
+
+
+def scene(percent: str) -> world.World:
+    """A copy of a world with full clones of a repository the configuration lacks.
+
+    ``clone-open``'s branch has an open PR, ``clone-merged``'s a merged one,
+    ``clone-nopr``'s none; ``clone-unread`` is a clone of a repository whose
+    PRs cannot be read, and ``notes`` is no checkout.
+
+    Args:
+        percent: the TOML number of ``pressure_percent``.
+
+    Returns:
+        The world; everything in the workspace is 99 hours old.
+    """
+    here, _ = worldcopy.copy_of(scene_template())
+    settings = f"min_free_gib = 0\ntmp_roots = []\npressure_percent = {percent}\n"
+    cleanworld.rewrite(here, settings)
     return here
 
 

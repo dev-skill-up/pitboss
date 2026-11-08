@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Count the git processes the tests start, by fixture (keyword: git-census).
+"""Count the git processes the tests start, by fixture (keyword: shared-repository).
 
 A hook on ``subprocess.Popen`` counts every process whose program is ``git``,
 by its subcommand and by the fixture that asked: the first frame of the stack

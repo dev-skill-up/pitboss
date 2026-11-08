@@ -4,7 +4,7 @@ import os
 import pathlib
 import unittest
 
-from . import cleanruns, cleanworld, fakes
+from . import cleanruns, cleanscene, cleanworld, fakes
 from .test_clean_commands import KEPT, SAFE
 from .test_local import age
 
@@ -25,7 +25,7 @@ class TestDryRun(unittest.TestCase):
 
     def test_dry_run_lists_and_removes_nothing(self) -> None:
         """Dead safe paths, with sizes and reasons, and the kept ones apart."""
-        here, root = cleanworld.full_world()[:2]
+        here, root = cleanscene.full_world()[:2]
         result = cleanruns.clean(here)
         removed = cleanworld.lines_of(result.out, "REMOVED PATH")
         kept = cleanworld.lines_of(result.out, "KEPT PATH")
@@ -43,7 +43,7 @@ class TestDryRun(unittest.TestCase):
 
     def test_a_marked_scratch_directory_keeps_everything_in_it(self) -> None:
         """A marker on the directory above an entry makes the entry live."""
-        here = (scene := cleanworld.full_world()).here
+        here = (scene := cleanscene.full_world()).here
         root = scene.root
         cleanworld.mark_live(root)
         age(root.parent)
@@ -54,7 +54,7 @@ class TestDryRun(unittest.TestCase):
 
     def test_a_link_in_the_workspace_is_not_a_checkout(self) -> None:
         """A link is not judged by what it points at, nor sized through."""
-        here = cleanworld.full_world().here
+        here = cleanscene.full_world().here
         elsewhere = cleanworld.clone_of(fakes.directory(), here, "target")
         fakes.run_git(elsewhere, "checkout", "-qb", "in-base-work")
         fakes.write(elsewhere / "big", "x" * 5_000_000)

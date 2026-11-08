@@ -7,22 +7,18 @@ import unittest
 from typing import Sequence
 
 from .. import dead
-from . import cleanworld, fakes, world
+from . import cleanworld, fakes, world, worldcopy
 
 AFTER = ("--now", world.FUTURE)
 UNSAFE = ("unpushed-work", "changed-work", "live-work", "untracked-work")
 HOLDS = "is or holds the directory this command runs in"
 
 
-def scene() -> world.World:
-    """A world with a finished worktree of every kind, all with a merged PR.
-
-    ``merged-work`` is clean; ``unpushed-work`` has a commit on no remote
-    branch, ``changed-work`` a changed tracked file, ``live-work`` a live
-    marker and ``untracked-work`` an untracked file.
+def built_scene() -> worldcopy.Made:
+    """Build the world of ``scene``, with a merged PR for every worktree.
 
     Returns:
-        The world.
+        The world, and no directory outside its workspace.
     """
     here = world.make_world()
     for name in UNSAFE:
@@ -42,7 +38,23 @@ def scene() -> world.World:
     branches = ("merged-work", *UNSAFE)
     page = world.project_page("pulls?state=all")
     here.bodies[page] = [{"head": {"ref": branch}, **done} for branch in branches]
-    return here
+    return here, []
+
+
+scene_template = worldcopy.cached(built_scene)
+
+
+def scene() -> world.World:
+    """A copy of a world with a finished worktree of every kind, all with a merged PR.
+
+    ``merged-work`` is clean; ``unpushed-work`` has a commit on no remote
+    branch, ``changed-work`` a changed tracked file, ``live-work`` a live
+    marker and ``untracked-work`` an untracked file.
+
+    Returns:
+        The world.
+    """
+    return worldcopy.copy_of(scene_template())[0]
 
 
 def present(here: world.World, *names: str) -> Sequence[bool]:

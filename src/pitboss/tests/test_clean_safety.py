@@ -6,23 +6,22 @@ import unittest
 from typing import AbstractSet
 
 from .. import repocheck, survey
-from . import cleanworld, fakes, repositories
-from .cleanworld import failing, same
+from . import cleanworld, fakes, repositories, world
+from .cleanworld import same
 
 NOBODY: AbstractSet[pathlib.Path] = frozenset()
 
 
-def verdict(path: pathlib.Path, run: fakes.Processes | None = None) -> str:
+def verdict(path: pathlib.Path) -> str:
     """Why a path is not safe, by a walk of it and real git.
 
     Args:
         path: the path.
-        run: the runner; real git by default.
 
     Returns:
         The reason, or empty.
     """
-    use = fakes.FakeProcesses(bodies={}) if run is None else run
+    use = fakes.FakeProcesses(bodies={})
     return repocheck.trouble(use, path, survey.walk(path, NOBODY))
 
 
@@ -63,9 +62,10 @@ class TestOneCheckout(unittest.TestCase):
         ahead = verdict(clone)
         broken = fakes.directory()
         (broken / ".git").mkdir()
-        mute = verdict(clone, failing)
+        unreadable = fresh()
+        fakes.run_git(unreadable, "config", "core.repositoryformatversion", "99")
         found = (clean, untracked, changed, ahead, verdict(broken))
-        same(mute, f"git cannot read {clone}")
+        same(verdict(unreadable), f"git cannot read {unreadable}")
         expected = (
             "",
             "",
@@ -140,7 +140,7 @@ class TestWhatTheRemovalLoses(unittest.TestCase):
             "submodule",
             "add",
             "-q",
-            fakes.run_git(sub_origin, "remote", "get-url", "origin").strip(),
+            str(world.origin_of(sub_origin)),
             "sub",
         )
         fakes.run_git(super_project, *fakes.IDENTITY, "commit", "-qm", "add sub")

@@ -79,8 +79,14 @@ is no repository for status 128).
 `src/pitboss/tests/repositories.py` builds a bare origin and its clone once per run
 with real git; each test gets a file copy of that directory, with the paths git keeps
 moved to the copy, and changes only its copy. A test that tests what git does calls
-git. `scripts/count_git_calls.py` counts the git processes of the whole suite, by
-subcommand and by the fixture that asked.
+git. A scene of many repositories (the cleaning worlds) is built once per run by its
+helper (`worldcopy.build`, cached with `functools.cache`) and each test gets
+`worldcopy.copy_of`: the directories and origins copied, the paths moved, the links
+pointed at the copy and the times of the files kept. `scripts/count_git_calls.py`
+counts the git processes of the whole suite, by subcommand and by the fixture that
+asked (a thread's processes are the fixture that made the thread); `--before REF`
+also runs the suite of REF in a temporary worktree and prints the totals and every
+subcommand and fixture whose count differs, as `name before after`.
 
 ## 100% Code Coverage Required
 

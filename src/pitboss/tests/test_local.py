@@ -1,11 +1,13 @@
 """Tests for stragglers and stale worktrees, on real git repositories."""
 
+import dataclasses
+import functools
 import os
 import pathlib
 import shutil
 import time
 import unittest
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -70,12 +72,33 @@ def add_detached(clone: pathlib.Path, path: pathlib.Path) -> None:
     fakes.run_git(clone, "worktree", "add", "-q", "--detach", str(path))
 
 
-def scene() -> tuple[pathlib.Path, pathlib.Path]:
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Stale:
+    """A clone with a worktree for every rule, which no test changes.
+
+    Attributes:
+        workspace: the workspace.
+        clone: the main clone.
+        outside: the directory with the worktree outside the workspace.
+        origins: the origins its repositories came from.
+    """
+
+    workspace: pathlib.Path
+    clone: pathlib.Path
+    outside: pathlib.Path
+    origins: Sequence[pathlib.Path]
+
+
+@functools.cache
+def scene_template() -> Stale:
     """A clone with a worktree for every rule, all old but ``fresh``.
 
+    Built by the first test that asks, with real git.
+
     Returns:
-        The workspace and the clone.
+        The scene, which no test changes.
     """
+    start = len(repositories.MADE)
     workspace = fakes.directory()
     clone = repositories.make_repository(workspace)
     for name in PUSHED:
@@ -88,7 +111,20 @@ def scene() -> tuple[pathlib.Path, pathlib.Path]:
     shutil.rmtree(workspace / "gone")
     for path in [workspace, outside]:
         age(path)
-    return workspace, clone
+    origins = tuple(repositories.MADE[start:])
+    return Stale(workspace=workspace, clone=clone, outside=outside, origins=origins)
+
+
+def scene() -> tuple[pathlib.Path, pathlib.Path]:
+    """A copy of a clone with a worktree for every rule, all old but ``fresh``.
+
+    Returns:
+        The workspace and the clone.
+    """
+    made = scene_template()
+    moved = repositories.copied([made.workspace, made.outside.parent], made.origins)
+    workspace = repositories.shifted(made.workspace, moved)
+    return workspace, repositories.shifted(made.clone, moved)
 
 
 def reasons(

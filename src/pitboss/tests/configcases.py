@@ -9,7 +9,7 @@ import shutil
 from typing import Callable, Mapping, NamedTuple, Sequence
 
 from .. import configsettle
-from . import cleanworld, fakes, redworld, syncworld, world
+from . import cleanscene, cleanworld, fakes, redworld, syncworld, world
 
 FORMS = ("bare", "option", "positional", "variable")
 SEARCHED = "pitboss.toml"
@@ -80,7 +80,7 @@ def cleaning() -> world.World:
     Returns:
         The world.
     """
-    scene = cleanworld.full_world()
+    scene = cleanscene.full_world()
     return scene.here
 
 

@@ -3,10 +3,11 @@
 import functools
 import os
 import pathlib
+import shutil
 import unittest
 from typing import AbstractSet, Mapping, Sequence
 
-from . import cleanworld, fakes, world
+from . import cleanworld, fakes, repositories, world, worldcopy
 
 same = cleanworld.same
 MERGED = {"state": "closed", "merged_at": "x"}
@@ -138,8 +139,23 @@ def age_scene(here: world.World) -> None:
     touch_all(here.workspace / "home", 99)
 
 
+def built_scene() -> worldcopy.Made:
+    """Build the world of ``scene``: the worktrees, the clone, the tempdirs, the ages.
+
+    Returns:
+        The world, and the tempdir root, which is beside its workspace.
+    """
+    here = world.make_world()
+    populate(here)
+    age_scene(here)
+    return here, [temps_of(here)]
+
+
+scene_template = worldcopy.cached(built_scene)
+
+
 def scene(percent: str, extra: str = "") -> world.World:
-    """A world with a finished worktree, one with no PR, one with an open PR and more.
+    """A copy of a world with a finished worktree, one with no PR, one with an open PR.
 
     Args:
         percent: the TOML number of ``pressure_percent``.
@@ -151,14 +167,14 @@ def scene(percent: str, extra: str = "") -> world.World:
         hours; the tempdir root holds a tempdir 2 hours old and one 50 hours
         old, and the home holds a pip cache.
     """
-    here = world.make_world()
-    populate(here)
+    built = scene_template()
+    here, moved = worldcopy.copy_of(built)
+    shutil.move(repositories.shifted(temps_of(built.world), moved), temps_of(here))
     settings = (
         f'min_free_gib = 0\ntmp_roots = ["{temps_of(here)}"]\n'
         f"pressure_percent = {percent}\n"
     )
     cleanworld.rewrite(here, settings + extra)
-    age_scene(here)
     return here
 
 

@@ -12,7 +12,7 @@ from typing import Sequence
 
 from .. import disk
 from . import cleanruns, cleanworld, fakes, test_autoclean_world, test_clean_clones
-from . import world
+from . import world, worldcopy
 
 same = cleanworld.same
 shows = test_autoclean_world.shows
@@ -54,8 +54,32 @@ def pulls(*branches: str) -> Sequence[object]:
     ]
 
 
+def built_scene() -> worldcopy.Made:
+    """Build the world of ``two_repositories``: two repositories, 99 hours old.
+
+    Returns:
+        The world, and no directory outside its workspace.
+    """
+    here = world.make_world()
+    opened = fakes.add_worktree(here.clone, "open-work")
+    fakes.commit_file(opened, "open-work")
+    fakes.push(opened)
+    for name in ("foreign-merged", "foreign-open"):
+        test_clean_clones.foreign_clone(here, name, name)
+    foreign = fakes.page(f"repos/{test_clean_clones.FOREIGN}/pulls?state=all")
+    ours = world.project_page("pulls?state=all")
+    here.bodies.update({ours: pulls(*NAMES[:2]), foreign: pulls(*NAMES[2:])})
+    cleanworld.rewrite(here, SETTINGS)
+    for name in NAMES:
+        test_autoclean_world.touch_all(here.workspace / name, 99)
+    return here, []
+
+
+scene_template = worldcopy.cached(built_scene)
+
+
 def two_repositories(usage: disk.Usage) -> world.World:
-    """A workspace of two repositories, on a disk of a given use.
+    """A copy of a workspace of two repositories, on a disk of a given use.
 
     ``merged-work`` and ``open-work`` are worktrees of the configured
     repository, ``foreign-merged`` and ``foreign-open`` clones of another one.
@@ -66,19 +90,8 @@ def two_repositories(usage: disk.Usage) -> world.World:
     Returns:
         The world; everything in the workspace is 99 hours old.
     """
-    here = dataclasses.replace(world.make_world(), usage=lambda _: usage)
-    opened = fakes.add_worktree(here.clone, "open-work")
-    fakes.commit_file(opened, "open-work")
-    fakes.push(opened)
-    for name in ("foreign-merged", "foreign-open"):
-        test_clean_clones.foreign_clone(here, name, name)
-    foreign = fakes.page(f"repos/{test_clean_clones.FOREIGN}/pulls?state=all")
-    here.bodies[world.project_page("pulls?state=all")] = pulls(*NAMES[:2])
-    here.bodies[foreign] = pulls(*NAMES[2:])
-    cleanworld.rewrite(here, SETTINGS)
-    for name in NAMES:
-        test_autoclean_world.touch_all(here.workspace / name, 99)
-    return here
+    here = worldcopy.copy_of(scene_template())[0]
+    return dataclasses.replace(here, usage=lambda _: usage)
 
 
 def swept(usage: disk.Usage) -> tuple[world.World, str]:
