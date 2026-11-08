@@ -36,7 +36,7 @@ class Action:
             worktrees lose their markers but the one that merged last), else
             ``at_ease``.
         pressure: what ``weigh`` said of the finished worktrees; set by
-            ``remove_lines``.
+            ``removal``.
     """
 
     run: Run
@@ -252,6 +252,7 @@ class Outcome:
         kept: whether the safety test kept it.
         removed: whether it was removed.
         left: the directory, and why it is still there, when it is.
+        head: the tip of the worktree, when it was removed.
     """
 
     said: str
@@ -259,6 +260,7 @@ class Outcome:
     kept: bool
     removed: bool
     left: dead.Kept | None = None
+    head: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -269,11 +271,13 @@ class Removed:
         lines: a line for each worktree, then the totals.
         freed: the bytes freed (or, in a dry run, that would be).
         left: the finished worktrees still on disk, each with why.
+        heads: the tips of the worktrees removed (keyword: log-line).
     """
 
     lines: Sequence[str]
     freed: int
     left: Sequence[dead.Kept]
+    heads: Sequence[str] = ()
 
 
 def act(
@@ -303,28 +307,13 @@ def act(
     said, removed = removal_line(action, look, made)
     stuck = None if removed else dead.Kept(path=path, why=said, size=made.size)
     return Outcome(
-        said=said, freed=made.size * removed, kept=False, removed=removed, left=stuck
+        said=said,
+        freed=made.size * removed,
+        kept=False,
+        removed=removed,
+        left=stuck,
+        head=each.worktree.head if removed else "",
     )
-
-
-def remove_lines(
-    look: dead.Look,
-    action: Action,
-    moment: datetime.datetime,
-    decide: Decide = local.finished_reason,
-) -> Sequence[str]:
-    """Remove the finished worktrees that pass the safety test, saying what happened.
-
-    Args:
-        look: what to look at and keep.
-        action: how to remove them.
-        moment: the time now.
-        decide: whether a worktree is finished.
-
-    Returns:
-        A line for each worktree, then the totals.
-    """
-    return removal(look, action, moment, decide).lines
 
 
 def removal(
@@ -360,4 +349,5 @@ def removal(
         lines=[*(each.said for each in steps), total],
         freed=freed,
         left=[each.left for each in steps if each.left is not None],
+        heads=[each.head for each in steps if each.head],
     )

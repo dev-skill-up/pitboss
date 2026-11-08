@@ -28,6 +28,7 @@ from . import (
     headchecks,
     ledger,
     ledgerowner,
+    logline,
     localsections,
     offering,
     machine as machines,
@@ -293,6 +294,12 @@ def _clean_section(found: Context) -> account.Report:
     done = autoclean.clean_report(look, machine, option)
     for text in done.lines:
         print(text)
+    logline.record(
+        found.settings.slots.log,
+        logline.clean_up(
+            "pitboss sweep", sum(done.told.freed), done.told.heads, found.now
+        ),
+    )
     source = scratch.source_of(found.args.safe_run, found.scratch, found.now)
     for text in (scratch.listing if listed else scratch.cleaning)(source):
         print(text)
@@ -340,6 +347,13 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots.
 
+    It prints a ``LOG`` line for each hand-back (``slots free``) and each
+    clean-up (``sweep``, ``clean``, ``clean-container``, ``clean-worktrees``)
+    since the last one printed, by ``sweep``, ``next`` or ``slots next``: what
+    returned or was freed, when, from which worker or command, the PR head. Post
+    each ``LOG`` line to the owner as it is; a line is printed once (keyword:
+    log-line, pitboss#347).
+
     Args:
         args: the parsed arguments.
 
@@ -357,6 +371,7 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "cleaning done")
     broken, read = _repository_sections(found, clock, cleaned)
     _slot_section(found, read)
+    logline.post(found.settings.slots.log)
     summaryline.print_lines(
         found.github, found.settings, configfile.named(args), found.now
     )

@@ -15,7 +15,9 @@ from . import (
     deviations,
     ledger,
     ledgerowner,
+    logline,
     nextlist,
+    pulls,
     repoaccess,
     report,
     slotlog,
@@ -266,6 +268,17 @@ def _require_ledger(found: Context, action: Action) -> None:
         nextlist.require_ledger(found.settings.slots.ledger)
 
 
+def _freed(found: Context, before: ledger.Ledger, changed: ledger.Ledger) -> None:
+    # A hand-back is logged, with the head of its PR (keyword: log-line).
+    name = found.args.words[0]
+    slot = ledger.find(before, name)
+    assert isinstance(slot, ledger.Slot)  # the free was done, so the slot exists
+    opened = open_pulls(found)
+    event = logline.hand_back(slot, pulls.readable(opened), found.now)
+    logline.record(found.settings.slots.log, event)
+    nextlist.refill(found, opened, changed, name)
+
+
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
@@ -302,10 +315,11 @@ def slots(args: argparse.Namespace) -> None:
     found = load_context(args)
     _require_ledger(found, action)
     if action in CHANGES:
+        before = read_ledger(found.settings)
         changed = _changed(action, found)
         report.print_ledger(changed)
         if action is Action.FREE:
-            nextlist.refill(found, open_pulls(found), changed, found.args.words[0])
+            _freed(found, before, changed)
     elif action is Action.CHECK:
         _check(found, read_ledger(found.settings))
     elif action is Action.REPORT:

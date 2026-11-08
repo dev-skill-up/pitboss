@@ -52,12 +52,14 @@ class Part:
         gone: the paths removed, or that would be in a dry run.
         freed: the bytes freed, or that would be in a dry run.
         kept: the directories this kind of cleaning left, each with why.
+        heads: the tips of the worktrees removed (keyword: log-line).
     """
 
     lines: Sequence[str]
     gone: Sequence[dead.Candidate]
     freed: int = 0
     kept: Sequence[dead.Kept] = ()
+    heads: Sequence[str] = ()
 
 
 def nothing() -> Part:

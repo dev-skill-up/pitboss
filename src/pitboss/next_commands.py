@@ -89,6 +89,9 @@ def show_next(args: argparse.Namespace) -> None:
     ticket's Done-when names a ``brief.Kind``, a file path or a ``pitboss``
     command that does not exist (keyword: done-when-names).
 
+    With no TICKET it first prints the ``LOG`` lines of the hand-backs and
+    clean-ups not yet printed (``sweep`` says which); post each as it is.
+
     It exits 1 when no PR names the ticket but a PR could not be read, so none
     is said not to exist. It also exits 1, with an ``INCOMPLETE`` last line, when
     a repository could not be read: no statement about its PRs is true.

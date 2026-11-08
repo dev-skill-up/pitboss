@@ -54,7 +54,13 @@ def worktrees_part(job: Job) -> Part:
     weigh = judging.under_pressure if job.hot else judging.at_ease
     action = worktrees.Action(run=option.run, dry=option.dry, weigh=weigh)
     done = worktrees.removal(look, action, job.machine.now, decide)
-    return Part(lines=done.lines, gone=[], freed=done.freed, kept=done.left)
+    return Part(
+        lines=done.lines,
+        gone=[],
+        freed=done.freed,
+        kept=done.left,
+        heads=done.heads,
+    )
 
 
 def scan_checkouts(
@@ -282,5 +288,6 @@ def told_of(
         freed=[part.freed for part in parts],
         kept=[each for part in parts for each in part.kept],
         tied=tied,
+        heads=[each for part in parts for each in part.heads],
         measure=lambda path: job.machine.fs.inspect(path).size,
     )
