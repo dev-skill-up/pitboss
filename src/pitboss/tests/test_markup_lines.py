@@ -9,8 +9,6 @@ from .. import brief, markuplines
 from . import diffrepo
 from .briefmake import text
 from .repositories import IDENTITY, run_git
-from .test_brief_lint_tests import EXECUTION_REVIEWS
-from .test_brief_nox import WORKERS
 from .test_ci_pointer_check import OK, check
 
 DOC = "one\ntwo\nthree\n"
@@ -138,9 +136,10 @@ class TestBriefs(unittest.TestCase):
     def test_the_worker_briefs_say_it_and_no_other_does(self) -> None:
         """Every worker kind, and only those."""
         found = kinds_with(WORKER_SENTENCE)
-        assert_that(found, equal_to(sorted(each.name for each in WORKERS)))
+        workers = sorted(each.name for each in brief.Kind if each not in brief.REVIEWS)
+        assert_that(found, equal_to(workers))
 
     def test_the_execution_reviews_make_such_a_diff_changes_needed(self) -> None:
         """Only the reviews that grade a diff carry it."""
         found = kinds_with(REVIEW_SENTENCE)
-        assert_that(found, equal_to(sorted(each.name for each in EXECUTION_REVIEWS)))
+        assert_that(found, equal_to(["REVIEW_EXECUTION", "REVIEW_FULL"]))
