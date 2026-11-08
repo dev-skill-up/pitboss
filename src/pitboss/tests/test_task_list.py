@@ -82,7 +82,7 @@ class TestBlock(unittest.TestCase):
         found = task_lines(here)
         flying = "TASK LIST in flight owner/project#9: slot tiny (agent-1)"
         assert_that(found[1], equal_to(flying))
-        assert_that([line for line in found if "#9" in line], has_length(1))
+        assert_that(sum("#9" in line for line in found), equal_to(1))
         assert_that(tasklist.crowded("\n".join(found[1:]), PROJECT), equal_to({}))
 
     def test_a_ticket_outside_the_order_is_not_in_it(self) -> None:
