@@ -81,7 +81,8 @@ class TestBlock(unittest.TestCase):
         start(here)
         found = task_lines(here)
         assert_that(
-            found[1], equal_to("TASK LIST in flight owner/project#9: slot tiny (agent-1)")
+            found[1],
+            equal_to("TASK LIST in flight owner/project#9: slot tiny (agent-1)"),
         )
         assert_that([line for line in found if "#9" in line], has_length(1))
 
