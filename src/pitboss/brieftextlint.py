@@ -10,6 +10,17 @@ LINT_TEST = (
     " loosened rule now accepts, such as a fixed sleep whose timer handle is"
     " kept), as well as a test for the input it accepts."
 )
+MARKUP_LINES = (
+    "Doc lines: a change never adds a line to any .md or .rst file; lines are only"
+    " removed (a doc that code makes outdated is cut, not reworded, and a rule goes"
+    " into the command's output or help text); `pitboss plan-check` refuses a diff"
+    " that adds one (keyword: markup-lines, pitboss#343)."
+)
+MARKUP_LINES_REVIEW = (
+    "Doc lines: a diff that adds a line to a .md or .rst file is changes needed,"
+    " whatever the ticket says; lines are only removed (keyword: markup-lines,"
+    " pitboss#343)."
+)
 PLAN_LINT = (
     "Plan lint: before every push, run `uvx pitboss lint pr-body BODYFILE`"
     " (with the PR body's file): it prints `plan command not run as written:"

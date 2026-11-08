@@ -12,7 +12,8 @@ a Plan's command may fail on the base (a test the change makes pass). A row
 have a disposition line in the Plan, at the lines of the PR's head (keyword:
 impact-list, pitboss#320). A CI pointer that names a workflow file, job or step
 that is not there, and a spec the diff adds that no pointer or group names, are
-findings too (keyword: ci-pointer, pitboss#335). The module imports no process:
+findings too (keyword: ci-pointer, pitboss#335), and so is a line the diff adds to
+a .md or .rst file (keyword: markup-lines, pitboss#343). The module imports no process:
 the runner, the search and the readers of files are given.
 """
 
@@ -26,6 +27,7 @@ from . import (
     expansion,
     impact,
     impactcheck,
+    markuplines,
     noxrow,
     plancheckconfig,
     steps,
@@ -190,22 +192,25 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     Args:
         refused: the numbers of the rows that did not run.
         found: the findings, a line each: those of the Impact list, and those of
-            the CI pointers, which start ``ci-pointer:``.
+            the CI pointers, which start ``ci-pointer:``, and those of the diff's
+            added lines in .md and .rst files, which start ``markup-lines:``.
 
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
-        that did not run, the number of Impact findings and the number of CI
-        pointer findings.
+        that did not run, the number of Impact findings, of CI pointer findings
+        and of markup line findings.
     """
     if not refused and not found:
         return steps.PLAN_CHECK_OK
     pointer = [each for each in found if each.startswith(f"{cipointercheck.CHECK}:")]
+    markup = [each for each in found if each.startswith(f"{markuplines.CHECK}:")]
     named = ", ".join(str(each) for each in refused)
-    impact = len(found) - len(pointer)
+    impact = len(found) - len(pointer) - len(markup)
     parts = [
         *([f"rows that did not run: {named}"] if refused else []),
         *([f"Impact findings: {impact}"] if impact else []),
         *([f"CI pointer findings: {len(pointer)}"] if pointer else []),
+        *([f"Markup line findings: {len(markup)}"] if markup else []),
     ]
     return f"Plan check: refused, {'; '.join(parts)}"
 
@@ -222,8 +227,8 @@ def text(
         section: the Plan section the rows were run from.
         rows: the report's rows.
         refused: the numbers of the rows that did not run.
-        found: the findings of the Impact list and of the CI pointers, a line
-            each.
+        found: the findings of the Impact list, of the CI pointers and of the
+            lines the diff adds to .md and .rst files, a line each.
 
     Returns:
         The first line, the rows, the findings, the Plan digest and the verdict.

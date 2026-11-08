@@ -78,6 +78,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextimpact.IMPACT_REVIEW,
         *brieftextnote.EXECUTION_REVIEW,
         brieftextlint.LINT_TEST_REVIEW,
+        brieftextlint.MARKUP_LINES_REVIEW,
         brieftextorder.ORDER_REVIEW,
         text.PLAN_DIGEST,
     ],
@@ -90,6 +91,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.GREP,
         *brieftextnote.EXECUTION_REVIEW,
         brieftextlint.LINT_TEST_REVIEW,
+        brieftextlint.MARKUP_LINES_REVIEW,
         brieftextorder.ORDER_REVIEW,
     ],
     Kind.REVIEW_PLAN: [
@@ -309,6 +311,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.LOCAL,
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
+        brieftextlint.MARKUP_LINES,
         *_plan_lines(spec.kind),
         brieftextdraft.PUSHES[(project.holds, project.drafts)],
         text.NO_WAITING,
