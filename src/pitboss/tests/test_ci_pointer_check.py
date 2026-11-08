@@ -293,27 +293,41 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
         assert_that([done.code, path in done.err], equal_to([2, True]))
 
 
+def refused_by_found_table(
+    case: unittest.TestCase,
+    directory: pathlib.Path | None,
+    variables: Sequence[tuple[str, str]],
+) -> Sequence[object]:
+    """Run ``plan-check`` with no ``--config`` on a diff that adds an unlisted spec.
+
+    Args:
+        case: the test, whose end removes the repository.
+        directory: where it runs.
+        variables: more of the environment.
+
+    Returns:
+        The exit status, and whether the output names the spec.
+    """
+    repo = repository(case)
+    diffrepo.commit(repo, "e2e/unlisted.spec.js", "")
+    done = unconfigured(repo, pointer(), directory=directory, variables=variables)
+    return [done.code, "the diff adds the spec `e2e/unlisted.spec.js`" in done.out]
+
+
 class TestFoundConfiguration(unittest.TestCase):
     """With no ``--config`` the table comes from the variable or the search."""
 
-    SAID = "the diff adds the spec `e2e/unlisted.spec.js`"
-
     def test_the_variable_names_the_table(self) -> None:
         """``$PITBOSS_CONFIG`` gives the table, and its spec is refused."""
-        repo = repository(self)
-        diffrepo.commit(repo, "e2e/unlisted.spec.js", "")
         path = write_text("variable.toml", CONFIG)
-        done = unconfigured(repo, pointer(), variables=[("PITBOSS_CONFIG", path)])
-        assert_that([done.code, self.SAID in done.out], equal_to([1, True]))
+        found = refused_by_found_table(self, None, [("PITBOSS_CONFIG", path)])
+        assert_that(found, equal_to([1, True]))
 
     def test_the_search_finds_the_table(self) -> None:
         """A ``pitboss.toml`` above the working directory gives the table."""
-        repo = repository(self)
-        diffrepo.commit(repo, "e2e/unlisted.spec.js", "")
         here = fakes.directory()
         (here / "pitboss.toml").write_text(CONFIG)
-        done = unconfigured(repo, pointer(), directory=here)
-        assert_that([done.code, self.SAID in done.out], equal_to([1, True]))
+        assert_that(refused_by_found_table(self, here, []), equal_to([1, True]))
 
 
 class TestNames(unittest.TestCase):
