@@ -54,8 +54,8 @@ def block(
             )
     for index, text in enumerate(ready, start=1):
         found.append(f"{LABEL} next {index}. {text}")
-    for index, item in enumerate(items, start=len(ready) + 1):
-        found.append(f"{LABEL} next {index}. {item.reference}: {item.title[:60]}")
+    for index, each in enumerate(items, start=len(ready) + 1):
+        found.append(f"{LABEL} next {index}. {each.reference}: {each.title[:60]}")
     return found
 
 

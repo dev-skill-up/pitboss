@@ -14,7 +14,7 @@ from hamcrest import (
 )
 
 from .. import config, ledger, tasklist, work
-from . import fakes, world
+from . import fakes, test_work, world
 from .test_handback import start
 from .test_quiet import at
 
@@ -80,18 +80,10 @@ class TestBlock(unittest.TestCase):
         here = world.make_world()
         start(here)
         found = task_lines(here)
-        assert_that(
-            found[1],
-            equal_to("TASK LIST in flight owner/project#9: slot tiny (agent-1)"),
-        )
+        flying = "TASK LIST in flight owner/project#9: slot tiny (agent-1)"
+        assert_that(found[1], equal_to(flying))
         assert_that([line for line in found if "#9" in line], has_length(1))
-
-    def test_one_ticket_for_each_line(self) -> None:
-        """No line of the block names several tickets."""
-        here = world.make_world()
-        start(here)
-        found = task_lines(here)[1:]
-        assert_that(tasklist.crowded("\n".join(found), PROJECT), equal_to({}))
+        assert_that(tasklist.crowded("\n".join(found[1:]), PROJECT), equal_to({}))
 
     def test_a_ticket_outside_the_order_is_not_in_it(self) -> None:
         """A ticket under a priority label the order does not offer is no line."""
@@ -103,20 +95,15 @@ class TestBlock(unittest.TestCase):
 
     def test_ready_drafts_come_first_in_the_numbers(self) -> None:
         """A draft to mark ready is numbered first, and the items after it."""
-        item = work.Item(
-            category=work.Category.NEW_PR,
-            reference="owner/project#5",
-            created_at="2030-01-01T00:00:00Z",
-            title="Five",
-        )
+        queued = [test_work.item("owner/project#5", work.Category.NEW_PR)]
         book = ledger.Ledger(slots=(), failed={})
-        found = tasklist.block(book, ["owner/project#4 (mark the PR ready)"], [item])
+        ready = ["owner/project#4 (mark the PR ready)"]
         assert_that(
-            found[1:],
+            tasklist.block(book, ready, queued)[1:],
             equal_to(
                 [
                     "TASK LIST next 1. owner/project#4 (mark the PR ready)",
-                    "TASK LIST next 2. owner/project#5: Five",
+                    "TASK LIST next 2. owner/project#5: t",
                 ]
             ),
         )

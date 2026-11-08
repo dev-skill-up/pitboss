@@ -332,8 +332,8 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     sweepline.slots(book, read, offer)
     sweepline.idle(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(book, found.now, found.args)
-    ready = readyline.texts(found.settings, pulls.readable(read), found.now)
-    tasklist.print_block(book, list(ready), offer.items)
+    undrafts = readyline.texts(found.settings, pulls.readable(read), found.now)
+    tasklist.print_block(book, list(undrafts), offer.items)
 
 
 @ENTRY_DATA.register(CONFIG_ARGUMENT, NOW_ARGUMENT, tasklist.ARGUMENT, name="sweep")
