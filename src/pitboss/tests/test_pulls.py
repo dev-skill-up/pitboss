@@ -47,6 +47,7 @@ def compared(prefix: str, since_head: Sequence[object]) -> Mapping[str, object]:
     return {
         f"{prefix}/compare/main..." + fakes.HEAD: {"commits": since_head},
         f"{prefix}/compare/main..." + fakes.OLDER: {"commits": [AUTHORED]},
+        f"{prefix}/commits/3": {"files": [{"filename": "a.bats"}]},
     }
 
 
