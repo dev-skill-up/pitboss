@@ -9,12 +9,12 @@ from .. import brief, markuplines
 from . import diffrepo
 from .briefmake import text
 from .repositories import IDENTITY, run_git
+from .test_brief_lint_tests import EXECUTION_REVIEWS
 from .test_brief_nox import WORKERS
 from .test_ci_pointer_check import OK, check
 
 DOC = "one\ntwo\nthree\n"
 BASE = ("doc/a.md", "doc/b.rst", "doc/C.MD")
-EXECUTION = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
 WORKER_SENTENCE = (
     "Doc lines: a change never adds a line to any .md or .rst file; lines are only"
     " removed (a doc that code makes outdated is cut, not reworded, and a rule goes"
@@ -143,4 +143,4 @@ class TestBriefs(unittest.TestCase):
     def test_the_execution_reviews_make_such_a_diff_changes_needed(self) -> None:
         """Only the reviews that grade a diff carry it."""
         found = kinds_with(REVIEW_SENTENCE)
-        assert_that(found, equal_to(sorted(each.name for each in EXECUTION)))
+        assert_that(found, equal_to(sorted(each.name for each in EXECUTION_REVIEWS)))
