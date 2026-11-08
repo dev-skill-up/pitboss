@@ -9,7 +9,6 @@ from hamcrest import (
     contains_string,
     equal_to,
     has_length,
-    is_not,
     starts_with,
 )
 
@@ -91,7 +90,7 @@ class TestBlock(unittest.TestCase):
         here.bodies[fakes.page(LOWER)] = [dict(world.TICKET, number=77)]
         shown = sweep(here).out
         assert_that(shown, contains_string("TASK LIST next 3. owner/project#9"))
-        assert_that(shown, is_not(contains_string("#77")))
+        assert_that("#77" in shown, equal_to(False))
 
     def test_ready_drafts_come_first_in_the_numbers(self) -> None:
         """A draft to mark ready is numbered first, and the items after it."""
