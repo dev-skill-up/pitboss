@@ -88,7 +88,7 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         approving = review(1, OLD_LINE, verdict=APPROVED)
         here = world_with([approving], body=EDITED)
         lines = sweep(here).out.splitlines()
-        third = [line for line in lines if "project#3" in line]
+        third = [line for line in lines if "project#3 " in line]
         assert_that(len(third), equal_to(1))
         assert_that(third[0], contains_string("review=older-body"))
         assert_that(len(lines) > 1, equal_to(True))
