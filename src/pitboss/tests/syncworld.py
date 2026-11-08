@@ -1,4 +1,4 @@
-"""A world with a ``[sync]`` table, a bare origin to push to, and failing git."""
+"""A world with a ``[sync]`` table, a bare origin to push to, and ways to fail git."""
 
 import dataclasses
 import pathlib
@@ -23,38 +23,6 @@ class Synced:
     origin: pathlib.Path
     notes: pathlib.Path
     checkout: pathlib.Path
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Breaking:
-    """Runs commands, and fails the one that has a word in it.
-
-    Attributes:
-        inner: what runs the commands.
-        word: the git word that fails (``push``, ``fetch``, ...).
-        error: what the failing command raises.
-    """
-
-    inner: fakes.Processes
-    word: str
-    error: Exception
-
-    def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
-        """Run a command.
-
-        Args:
-            cmdargs: the command line.
-            **kwargs: what gather passes to ``subprocess.run``.
-
-        Returns:
-            The finished process.
-
-        Raises:
-            self.error: the configured error, for the command with the word.
-        """
-        if self.word in cmdargs:
-            raise self.error
-        return self.inner(cmdargs, **kwargs)
 
 
 def make_synced(table: str = "") -> Synced:
@@ -172,19 +140,62 @@ def commits(synced: Synced) -> int:
     return int(fakes.run_git(synced.origin, "rev-list", "--count", "main").strip())
 
 
-def with_failing(here: world.World, word: str, error: Exception) -> world.World:
-    """The world with a git command that fails.
+def refuse_pushes(synced: Synced) -> None:
+    """Make the origin refuse what is pushed to it, with a hook (``git push``: 1).
 
     Args:
-        here: the world.
-        word: the git word of the command.
-        error: what it raises.
+        synced: the world.
+    """
+    hook = synced.origin / "hooks" / "pre-receive"
+    hook.write_text("#!/bin/sh\necho refused by the origin >&2\nexit 1\n")
+    hook.chmod(0o755)
+
+
+def allow_pushes(synced: Synced) -> None:
+    """Take the refusing hook of the origin away.
+
+    Args:
+        synced: the world.
+    """
+    (synced.origin / "hooks" / "pre-receive").unlink()
+
+
+def lose_origin(synced: Synced) -> None:
+    """Point the table's ``url`` at a directory that is no repository (clone: 128).
+
+    Args:
+        synced: the world.
+    """
+    config = pathlib.Path(synced.here.config)
+    gone = synced.here.workspace / "no-such-origin"
+    config.write_text(config.read_text().replace(str(synced.origin), str(gone)))
+
+
+def break_diff(synced: Synced) -> None:
+    """Give the sync clone a setting only ``git diff`` reads, and cannot (128).
+
+    Args:
+        synced: the world, synced once.
+    """
+    fakes.run_git(synced.checkout, "config", "diff.context", "not-a-number")
+
+
+def without_git(synced: Synced) -> world.World:
+    """The world on a machine whose ``PATH`` has no programs.
+
+    Args:
+        synced: the world.
 
     Returns:
         The world.
     """
-    broken = Breaking(inner=here.processes, word=word, error=error)
-    return dataclasses.replace(here, processes=broken)
+    empty = fakes.directory() / "empty-path"
+    empty.mkdir()
+    here = synced.here
+    processes = fakes.FakeProcesses(
+        bodies=here.bodies, calls=here.calls, cwd=here.clone, path=str(empty)
+    )
+    return dataclasses.replace(here, processes=processes)
 
 
 def normalize_on_origin(synced: Synced) -> None:

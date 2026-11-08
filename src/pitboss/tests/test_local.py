@@ -1,16 +1,18 @@
 """Tests for stragglers and stale worktrees, on real git repositories."""
 
+import dataclasses
+import functools
 import os
 import pathlib
 import shutil
 import time
 import unittest
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import config, local, shapes
-from . import fakes, orphans
+from . import fakes, orphans, repositories
 
 OLD = time.time() - 10 * 3600
 CUTOFF = OLD + 3600
@@ -70,14 +72,35 @@ def add_detached(clone: pathlib.Path, path: pathlib.Path) -> None:
     fakes.run_git(clone, "worktree", "add", "-q", "--detach", str(path))
 
 
-def scene() -> tuple[pathlib.Path, pathlib.Path]:
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Stale:
+    """A clone with a worktree for every rule, which no test changes.
+
+    Attributes:
+        workspace: the workspace.
+        clone: the main clone.
+        outside: the directory with the worktree outside the workspace.
+        origins: the origins its repositories came from.
+    """
+
+    workspace: pathlib.Path
+    clone: pathlib.Path
+    outside: pathlib.Path
+    origins: Sequence[pathlib.Path]
+
+
+@functools.cache
+def scene_template() -> Stale:
     """A clone with a worktree for every rule, all old but ``fresh``.
 
+    Built by the first test that asks, with real git.
+
     Returns:
-        The workspace and the clone.
+        The scene, which no test changes.
     """
+    start = len(repositories.MADE)
     workspace = fakes.directory()
-    clone = fakes.make_repository(workspace)
+    clone = repositories.make_repository(workspace)
     for name in PUSHED:
         fakes.push(add_worktree(clone, name))
     add_worktree(clone, "unpushed")
@@ -88,7 +111,20 @@ def scene() -> tuple[pathlib.Path, pathlib.Path]:
     shutil.rmtree(workspace / "gone")
     for path in [workspace, outside]:
         age(path)
-    return workspace, clone
+    origins = tuple(repositories.MADE[start:])
+    return Stale(workspace=workspace, clone=clone, outside=outside, origins=origins)
+
+
+def scene() -> tuple[pathlib.Path, pathlib.Path]:
+    """A copy of a clone with a worktree for every rule, all old but ``fresh``.
+
+    Returns:
+        The workspace and the clone.
+    """
+    made = scene_template()
+    moved = repositories.copied([made.workspace, made.outside.parent], made.origins)
+    workspace = repositories.shifted(made.workspace, moved)
+    return workspace, repositories.shifted(made.clone, moved)
 
 
 def reasons(
@@ -121,7 +157,7 @@ class TestStragglers(unittest.TestCase):
     def test_stragglers(self) -> None:
         """A clean checkout is not one; changes and unpushed commits are."""
         workspace = fakes.directory()
-        clone = fakes.make_repository(workspace)
+        clone = repositories.make_repository(workspace)
         fakes.write(workspace / "not-a-checkout/file", "")
         runner = fakes.FakeProcesses(bodies={})
         before = (local.checkouts(workspace), local.read_straggler(runner, clone))
@@ -148,7 +184,7 @@ class TestStragglers(unittest.TestCase):
     def test_an_orphaned_checkout_is_told_from_a_readable_one(self) -> None:
         """A .git file pointing at a missing gitdir is orphaned (#98)."""
         workspace = fakes.directory()
-        clone = fakes.make_repository(workspace)
+        clone = repositories.make_repository(workspace)
         orphan = orphans.make_orphaned(workspace, "orphan")
         runner = fakes.FakeProcesses(bodies={})
         found = (local.orphaned(runner, clone), local.orphaned(runner, orphan))
@@ -157,7 +193,7 @@ class TestStragglers(unittest.TestCase):
     def test_fetch_once_per_repository(self) -> None:
         """Worktrees of one repository are fetched once; a failure is named."""
         workspace = fakes.directory()
-        clone = fakes.make_repository(workspace)
+        clone = repositories.make_repository(workspace)
         worktree = add_worktree(clone, "worktree")
         broken = fakes.make_unfetchable(workspace, "broken")
         empty = fakes.make_unfetchable(workspace, "empty")

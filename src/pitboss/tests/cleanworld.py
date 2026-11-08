@@ -4,17 +4,17 @@ import os
 import pathlib
 import re
 import subprocess
-import time
-from typing import NamedTuple, Sequence
+from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import cleanconfig, container, dead
-from . import fakes, world
+from . import fakes, repositories, world
 from .test_local import age
 
 SETTINGS = "min_free_gib = 0\ntmp_roots = []\npressure_percent = 100\n"
 NO_MARKER = ("--marker", "/nonexistent-marker")
+SCRATCH = "scratch"
 
 
 def same(found: object, expected: object) -> None:
@@ -156,7 +156,7 @@ def repository(where: pathlib.Path) -> pathlib.Path:
         The clone.
     """
     where.mkdir(parents=True)
-    return fakes.make_repository(where)
+    return repositories.make_repository(where)
 
 
 def clone_of(workspace: pathlib.Path, here: world.World, name: str) -> pathlib.Path:
@@ -212,7 +212,7 @@ def scratch_scene() -> pathlib.Path:
     Returns:
         The scratch root.
     """
-    root = fakes.directory() / "scratch"
+    root = fakes.directory() / SCRATCH
     for name in PLAIN:
         fakes.write(root / name / "file", name)
     fakes.commit_file(repository(root / "holder"), "unpushed")
@@ -305,36 +305,6 @@ def configure(here: world.World, root: pathlib.Path) -> None:
     live = f'live = ["{root}/shared", "{root}/holder2/cache", "{root.parent}/locked"]\n'
     scratch = f'scratch = ["{root}", "{root.parent}/locked"]\n'
     rewrite(here, scratch + live + SETTINGS)
-
-
-class Scene(NamedTuple):
-    """A world and the scratch root it is configured with.
-
-    Attributes:
-        here: the world.
-        root: its scratch root.
-    """
-
-    here: world.World
-    root: pathlib.Path
-
-
-def full_world() -> Scene:
-    """A world with every kind of dead and live path, all old but ``fresh``.
-
-    Returns:
-        The world and its scratch root.
-    """
-    here = world.make_world()
-    workspace_scene(here)
-    root = scratch_scene()
-    configure(here, root)
-    age(here.workspace)
-    age(root.parent)
-    # Older than the idle hours and younger than a worker's task.
-    mark_live_since(here.workspace / "pinned-work", 4, time.time())
-    (root / "fresh/touched").write_text("now")
-    return Scene(here, root)
 
 
 def mark_live(folder: pathlib.Path) -> None:

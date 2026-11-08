@@ -1,6 +1,7 @@
 """Every command that takes a configuration, in a world (keyword: default-config)."""
 
 import dataclasses
+import functools
 import os
 import pathlib
 import re
@@ -8,9 +9,8 @@ import shutil
 from typing import Callable, Mapping, NamedTuple, Sequence
 
 from .. import configsettle
-from . import cleanworld, fakes, redworld, syncworld, world
+from . import cleanscene, cleanworld, fakes, redworld, syncworld, world
 
-GIT = {"grep": 0, "mount": 1, "git": 0}
 FORMS = ("bare", "option", "positional", "variable")
 SEARCHED = "pitboss.toml"
 ELSEWHERE = "elsewhere.toml"
@@ -35,12 +35,12 @@ class Case:
 
 
 def plain() -> world.World:
-    """A world whose ``git`` is not run and whose runners have no job waiting.
+    """A world whose runners have no job waiting.
 
     Returns:
         The world.
     """
-    here = world.make_world(GIT)
+    here = world.make_world()
     here.bodies.update({world.project_page("actions/runs/11/jobs"): {"jobs": []}})
     return here
 
@@ -80,7 +80,7 @@ def cleaning() -> world.World:
     Returns:
         The world.
     """
-    scene = cleanworld.full_world()
+    scene = cleanscene.full_world()
     return scene.here
 
 
@@ -231,6 +231,21 @@ def form_run(case: Case, form: str) -> Ran:
     variables = [("PITBOSS_CONFIG", here.config)] if form == "variable" else []
     words = with_form(case.before, case.after, here, form)
     return Ran(here, run(here, words, variables))
+
+
+@functools.cache
+def every_run() -> Mapping[tuple[str, str], Ran]:
+    """Run each form of each case once, for all the tests that read them.
+
+    Each run has a world of its own and its output is only read afterwards,
+    so the tests share the runs.
+
+    Returns:
+        What each run did, by its command and its form.
+    """
+    return {
+        (case.before[0], form): form_run(case, form) for case in CASES for form in FORMS
+    }
 
 
 def deprecation(command: str) -> str:

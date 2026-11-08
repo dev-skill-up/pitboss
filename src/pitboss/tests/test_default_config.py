@@ -1,5 +1,6 @@
 """A command with no configuration argument finds one (keyword: default-config)."""
 
+import concurrent.futures
 import dataclasses
 import os
 import pathlib
@@ -58,7 +59,9 @@ class TestFourForms(unittest.TestCase):
         found = {}
         for case in CASES:
             command = case.before[0]
-            runs = [configcases.form_run(case, form) for form in configcases.FORMS]
+            runs = [
+                configcases.every_run()[command, form] for form in configcases.FORMS
+            ]
             found[command] = [
                 configcases.seen(here, result, command) for here, result in runs
             ]
@@ -70,7 +73,10 @@ class TestFourForms(unittest.TestCase):
         said = {}
         for case in CASES:
             line = configcases.deprecation(case.before[0])
-            runs = [configcases.form_run(case, form)[1] for form in configcases.FORMS]
+            runs = [
+                configcases.every_run()[case.before[0], form].result
+                for form in configcases.FORMS
+            ]
             said[case.before[0]] = [each.err.count(line) for each in runs]
         assert_that(said, equal_to({each.before[0]: [0, 0, 1, 0] for each in CASES}))
 
@@ -117,9 +123,9 @@ class TestMissingConfiguration(unittest.TestCase):
 
     def test_each_command_says_where_it_looked(self) -> None:
         """Exit 1 (the uncaught error), and the variable and the places on stderr."""
-        found = []
-        for case in CASES:
-            found.append(missing(case, fakes.directory()))
+        # one process of its own for each command, which wait on their own
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            found = list(pool.map(lambda case: missing(case, fakes.directory()), CASES))
         assert_that(found, equal_to([(1, True, True)] * len(CASES)))
 
     def test_lint_keeps_its_generic_forms_and_says_where_it_looked(self) -> None:

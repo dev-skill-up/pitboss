@@ -5,7 +5,6 @@ import os
 import json
 import pathlib
 import subprocess
-import tempfile
 from typing import (
     Callable,
     Iterable,
@@ -17,6 +16,7 @@ from typing import (
 )
 
 from .. import config, configfile, ghapi
+from . import repositories
 
 HEAD = "a" * 40
 PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -25,7 +25,13 @@ NOT_FOUND = 127
 Answers = Mapping[str, int]
 NO_STATUS: Mapping[str, object] = {"statuses": []}
 TRACEFS_FOUND: Answers = {"grep": 0, "mount": 1}
-IDENTITY = ("-c", "user.email=t@example.org", "-c", "user.name=T")
+# the git helpers are in ``repositories``, which imports nothing of pitboss
+IDENTITY = repositories.IDENTITY
+run_git = repositories.run_git
+commit_file = repositories.commit_file
+directory = repositories.directory
+push = repositories.push
+add_worktree = repositories.add_worktree
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -56,7 +62,7 @@ class Processes(Protocol):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class FakeProcesses:
-    """Answers ``gh api`` from canned bodies, and runs everything else.
+    """Answers ``gh api`` from canned bodies, and runs the rest, git too, for real.
 
     Attributes:
         bodies: each ``gh api`` path (or ``POST`` path) and its JSON body (a
@@ -64,12 +70,20 @@ class FakeProcesses:
             a missing path fails like ``gh`` does on a 404.
         calls: every command line run, in order.
         answers: the exit status of each program that is not run at all (the
-            machine's tracefs check and mount); 127 is a program not found.
+            machine's tracefs check and mount, ``curl``, ``gh``); 127 is a
+            program not found. ``git`` is never one of them: a test that needs
+            git to fail gives it a repository that makes it fail.
+        cwd: where the commands that are run for real run; None is the
+            directory of the test process.
+        path: the ``PATH`` they run with; None is the machine's (a test of a
+            machine with no git gives a directory with no programs).
     """
 
     bodies: MutableMapping[str, object]
     calls: MutableSequence[Sequence[str]] = dataclasses.field(default_factory=list)
     answers: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    cwd: pathlib.Path | None = None
+    path: str | None = None
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Output:
         """Run a command.
@@ -89,8 +103,7 @@ class FakeProcesses:
         if command[0] in self.answers:
             return answer(self.answers[command[0]], command)
         if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
-            done = subprocess.run(command, check=True, capture_output=True, text=True)
-            return Output(stdout=done.stdout)
+            return run_for_real(command, self.cwd, self.path)
         path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
         if path not in self.bodies:
             raise subprocess.CalledProcessError(
@@ -98,6 +111,26 @@ class FakeProcesses:
             )
         body = self.bodies[path]
         return Output(stdout=body if isinstance(body, str) else json.dumps(body))
+
+
+def run_for_real(
+    command: Sequence[str], cwd: pathlib.Path | None, path: str | None
+) -> Output:
+    """Run a command, ``git`` included, on the machine.
+
+    Args:
+        command: the command line.
+        cwd: where it runs; None is the directory of the test process.
+        path: its ``PATH``; None is the machine's.
+
+    Returns:
+        The finished process.
+    """
+    env = None if path is None else {**os.environ, "PATH": path}
+    done = subprocess.run(
+        command, check=True, capture_output=True, text=True, cwd=cwd, env=env
+    )
+    return Output(stdout=done.stdout)
 
 
 def answer(status: int, command: Sequence[str]) -> Output:
@@ -111,9 +144,12 @@ def answer(status: int, command: Sequence[str]) -> Output:
         The finished process.
 
     Raises:
+        ValueError: for ``git``, which is never answered.
         FileNotFoundError: for 127.
         subprocess.CalledProcessError: for any other status but 0.
     """
+    if command[0] == "git":
+        raise ValueError("git is run for real; give it a repository that fails")
     if status == NOT_FOUND:
         raise FileNotFoundError(command[0])
     if status:
@@ -199,56 +235,6 @@ def settings(directory: pathlib.Path, extra: str = "") -> config.Config:
     return configfile.load(str(path), directory)
 
 
-def run_git(directory: pathlib.Path, *arguments: str) -> str:
-    """Run git for a test's setup, never signing (the machine's config may).
-
-    Args:
-        directory: where.
-        *arguments: git's arguments.
-
-    Returns:
-        git's output.
-    """
-    done = subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "-C", str(directory), *arguments],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return done.stdout
-
-
-def commit_file(checkout: pathlib.Path, name: str) -> None:
-    """Add and commit one file.
-
-    Args:
-        checkout: the checkout.
-        name: the file's name (and its content, and the commit message).
-    """
-    (checkout / name).write_text(name)
-    run_git(checkout, "add", name)
-    run_git(checkout, *IDENTITY, "commit", "-q", "-m", name)
-
-
-def make_repository(workspace: pathlib.Path) -> pathlib.Path:
-    """Make a bare ``origin`` with one commit on ``main``, and a clone of it.
-
-    Args:
-        workspace: where the clone goes, as ``project``.
-
-    Returns:
-        The clone.
-    """
-    seed = directory()
-    run_git(seed, "init", "-q", "-b", "main")
-    commit_file(seed, "README")
-    origin = directory() / "origin.git"
-    run_git(seed, "clone", "-q", "--bare", str(seed), str(origin))
-    clone = workspace / "project"
-    run_git(workspace, "clone", "-q", str(origin), str(clone))
-    return clone
-
-
 def make_unfetchable(workspace: pathlib.Path, name: str) -> pathlib.Path:
     """Make a checkout whose ``origin`` cannot be fetched.
 
@@ -265,17 +251,6 @@ def make_unfetchable(workspace: pathlib.Path, name: str) -> pathlib.Path:
     return checkout
 
 
-def directory() -> pathlib.Path:
-    """A new temporary directory.
-
-    Returns:
-        Its path.
-    """
-    ceiling = os.path.realpath(tempfile.gettempdir())
-    os.environ["GIT_CEILING_DIRECTORIES"] = ceiling  # no git repository above a test's
-    return pathlib.Path(tempfile.mkdtemp())
-
-
 def write(path: pathlib.Path, text: str) -> None:
     """Write a file, making its directory.
 
@@ -285,15 +260,6 @@ def write(path: pathlib.Path, text: str) -> None:
     """
     os.makedirs(path.parent, exist_ok=True)
     path.write_text(text)
-
-
-def push(checkout: pathlib.Path) -> None:
-    """Push a checkout's branch to ``origin``.
-
-    Args:
-        checkout: the checkout.
-    """
-    run_git(checkout, "push", "-q", "origin", "HEAD")
 
 
 def bodies_under(
@@ -309,21 +275,6 @@ def bodies_under(
         The bodies, by paged path.
     """
     return {page(f"{prefix}/{path}"): body for path, body in bodies}
-
-
-def add_worktree(clone: pathlib.Path, name: str) -> pathlib.Path:
-    """Add a worktree beside the clone, on a new branch.
-
-    Args:
-        clone: the main clone.
-        name: the worktree's and the branch's name.
-
-    Returns:
-        The worktree.
-    """
-    path = clone.parent / name
-    run_git(clone, "worktree", "add", "-q", str(path), "-b", name)
-    return path
 
 
 def error_of(action: Callable[[], object]) -> str:

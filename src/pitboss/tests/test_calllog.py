@@ -18,7 +18,7 @@ from hamcrest import (
 )
 
 from .. import calllog, concurrently, running, timing
-from . import fakes
+from . import fakes, repositories
 
 
 def ticks() -> Callable[[], float]:
@@ -104,7 +104,8 @@ class TestLogged(unittest.TestCase):
     def test_a_phase_ends_with_the_calls_since_the_last(self) -> None:
         """The next phase starts empty, where the last one ended."""
         log = calllog.new_log(5.0)
-        run_logged(_ok, log, ["git", "status"])
+        clone = repositories.make_repository(fakes.directory())
+        run_logged(fakes.FakeProcesses(bodies={}, cwd=clone), log, ["git", "status"])
         first = calllog.end_phase(log, 9.0)
         second = calllog.end_phase(log, 12.0)
         found = [first.seconds, len(first.calls), second.seconds, len(second.calls)]
