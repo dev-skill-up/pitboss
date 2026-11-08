@@ -349,16 +349,6 @@ Commands
        pitboss#120; see **Automatic cleaning** below): removes at once, with no
        dry run unless ``--dry-run``. The answer to a denied ``rm``. It also
        closes the finished scratch PRs (see ``sweep``); ``--dry-run`` lists them.
-   * - ``nox [-- MODULE...]``
-     - The worker's local check (keyword: nox-runner, pitboss#210; see
-       **The local check** below). Runs ``nox -r -s`` for ``tests-3.13``,
-       ``skills``, ``lint`` and ``mypy``, in that order, and stops at the
-       first that fails: exit 1 with that session's output. Words after ``--``
-       are test modules, passed to the tests session only. Prints one line for
-       each session that ran (name, ``success`` or ``failed``, seconds) and, on
-       success, that CI's ``Run Nox`` step is the proof of the whole suite.
-       Runs no other session: docs, dry_release and the other Python versions
-       are CI's.
    * - ``expand TEMPLATE [--cwd DIR] [--pr OWNER/NAME#N [--limit N] [--no-dry-run]]``
      - A PR body whose evidence is produced, never typed (pitboss#117; see
        **Expanding a template** below). Without ``--pr``

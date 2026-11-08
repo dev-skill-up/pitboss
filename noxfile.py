@@ -79,8 +79,8 @@ def tests(session):
         env=dict(COVERAGE_FILE=os.path.join(tmpdir, "coverage"), TMPDIR=tmpdir),
     )
     # A run of some modules covers only part of the package, so the 100% report
-    # belongs to the whole run (CI's), and `pitboss nox -- MODULES` (pitboss#210)
-    # passes when the named tests pass.
+    # belongs to the whole run (CI's), and `pitboss nox` (pitboss#210), which selects
+    # the tests from the diff (pitboss#331), passes when the named tests pass.
     if modules:
         return
     fail_under = "--fail-under=100"
