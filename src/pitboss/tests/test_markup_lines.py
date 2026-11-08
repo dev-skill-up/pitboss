@@ -42,7 +42,10 @@ def outcome(files: Mapping[str, str | None]) -> tuple[int, str]:
     run_git(repo.root, "checkout", "-q", "main")
     for name in BASE:
         diffrepo.commit(repo, name, DOC)
-    for words in (("update-ref", "refs/remotes/origin/main", "HEAD"), ("switch", "-C", "work")):
+    for words in (
+        ("update-ref", "refs/remotes/origin/main", "HEAD"),
+        ("switch", "-C", "work"),
+    ):
         run_git(repo.root, *words)
     for name, content in files.items():
         if content is None:
