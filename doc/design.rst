@@ -362,7 +362,7 @@ Commands
        pitboss#177; see **Expanding a template**);
        a dry run unless ``--no-dry-run``; 2 on a ``--pr`` that is not
        ``OWNER/NAME#NUMBER`` or a limit the body cannot be cut to.
-   * - ``clean-container CONFIG [--approved FILE] [--batch N]``
+   * - ``clean-container CONFIG``
      - Lists, and with ``--no-dry-run`` removes, the dead paths (keyword:
        clean-container, pitboss#7; see **Dead paths** below). Also the
        regular files directly in ``--root`` (default ``/``) modified more than
@@ -382,7 +382,7 @@ Commands
        and is refused when the ticket cannot be named; a ``set`` with the same
        agent and ``--kind fix`` resumes the running agent as an entry. ``check`` takes ``--running NAME ...``
        and an optional number N: it exits 1 when the ledger has fewer than N rows.
-       ``free`` prints the ledger, then the ``EMPTY SLOT`` line that ``next``
+       ``free`` prints the ledger, then the line that ``next``
        gives the freed slot (one function, ``nextview.refill_line``), or
        ``no task is waiting``. ``next``, ``free`` and ``set`` exit 1 with
        ``not the orchestrator config: use PATH`` and leave the ledger alone
@@ -652,11 +652,7 @@ workflow. A live run is reported with its age against ``timeout_minutes``.
 **Stragglers.** Every git checkout directly under ``workspace``: uncommitted
 files, and commits on no remote branch. Each repository is fetched once.
 
-**Worktrees** (keyword: clean-worktrees, pitboss#81). A worktree of
-``main_clone`` is *finished* when it is not the main clone, is under
-``workspace``, and its branch's PR is merged or closed, or (with no PR) its tip
-is in the base branch (``local.finished_reason``); a worktree with an open PR
-never is. Whether a finished worktree may go is the one safety test of **Dead
+**Worktrees** (keyword: clean-worktrees, pitboss#81). Whether a finished worktree may go is the one safety test of **Dead
 paths** (``dead.verdict``): not live, not in use, and safe. It is written once:
 ``clean-container`` (``dead.consider`` and ``dead.recheck``) and the removal of
 worktrees (``worktrees.py``) call it (the ``DISK PRESSURE`` line runs none, it
@@ -726,10 +722,8 @@ older than 6 hours, one whose only untracked file is an ignored
 ``.pitboss-live`` marker, which that section removes with ``--force``);
 (2) the test tempdirs of ``[clean] tmp_roots`` (default ``/tmp``) whose name
 matches ``tmp_patterns`` (default ``tmp????????``, ``tmp.??????????``,
-``pytest-of-*``, ``pip-*``), owned by the user running (``os.getuid``), not a
-link, not marked ``.pitboss-live``, with no mount point in it, not the
-directory the command runs in or above it, and with nothing in it changed for
-``tmp_hours`` (default 24). At or over ``pressure_percent`` (default 90) of the
+``pytest-of-*``, ``pip-*``)
+. At or over ``pressure_percent`` (default 90) of the
 used space of any file system of the workspace, a tempdir root or a scratch
 directory, or with less than ``min_free_gib`` (default 5 GiB; 0 never) free on
 one of them, the run is aggressive: tempdirs of ``pressure_tmp_hours`` (default 1),
@@ -933,14 +927,7 @@ decide the same way: systemd-tmpfiles removes by age and has entries that
 exclude a path (``x``, ``X``), ``git clean -n`` lists before it removes, and the kubelet evicts on a free-space threshold of
 the filesystem (``nodefs.available<10%``). A path is *dead* when its work is
 finished or nobody uses it, and *live* when it is marked; a dead path is *safe*
-when nothing in it exists only on this machine. Sources of dead paths:
-``dead_checkouts`` (git checkouts: the branch's
-newest PR in the checkout's own repository merged or closed, found from the
-common git directory of ``main_clone`` or from ``remote.origin.url``, else the
-tip is in the base branch with no PR; a checkout on the base branch, on no
-branch, or whose repository could not be fetched is not judged), ``dead_scratch``
-(entries of ``[clean] scratch`` directories that are not symbolic links) and
-the root files above; the sweep's clean removes the same three sources. A path
+when nothing in it exists only on this machine. A path
 is skipped, never listed, when it is live (a file ``.pitboss-live`` in it at any
 depth or in a directory above it, except that for a merged checkout a marker
 (in it or above it) older than 6 hours, ``workhours.TASK_HOURS``, is not
@@ -966,8 +953,7 @@ inside, or a path that cannot be looked at. Sizes are the blocks on disk.
 ``--no-dry-run`` removes at most ``--batch`` paths at a time with ``rm -rf
 --one-file-system`` and, just before each part, looks at every path again
 (liveness, idle, safety): a path that became live, busy or unsafe in between is
-left in place and reported as ``COULD NOT REMOVE PATH``.
-the ``[clean]`` paths must be absolute. It then prunes the worktree
+left in place and reported as ``COULD NOT REMOVE PATH``. It then prunes the worktree
 lists of the repositories a removed linked worktree belonged to. ``--approved
 FILE`` limits the removal to the paths in it; an entry that is not among the
 current safe candidates is refused, whatever it is. The sweep warns with

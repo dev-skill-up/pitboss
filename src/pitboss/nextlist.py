@@ -25,6 +25,7 @@ from . import (
     pulls,
     pullstate,
     readyline,
+    slotholding,
     suggest,
     unreadableline,
     work,
@@ -97,7 +98,17 @@ def _ordered(
     found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
 ) -> work.Offered:
     unreadableline.print_withheld(opened)
-    return offering.offered(found, opened, book)
+    offer = offering.offered(found, opened, book)
+    return slotholding.counted(offer, opened, book, found.args)
+
+
+def _assigned(
+    ordered: work.Offered, book: ledger.Ledger, slots: config.Slots
+) -> Sequence[work.Assignment]:
+    # a PR whose round holds a slot is not given another one (keyword: slot-held)
+    taken = ordered.occupancy
+    rest = [each for each in ordered.items if each.reference not in taken.references]
+    return work.assign(rest, book, slots)[: taken.free]
 
 
 def _view(
@@ -108,12 +119,12 @@ def _view(
 ) -> nextview.NextView:
     return nextview.NextView(
         items=ordered.items,
-        assignments=work.assign(ordered.items, book, found.settings.slots),
+        assignments=_assigned(ordered, book, found.settings.slots),
+        occupancy=ordered.occupancy,
         slots=found.settings.slots,
         failed=book.failed,
         now=found.now,
-        held=ordered.held,
-        standing=ordered.standing,
+        withheld=nextview.Withheld(held=ordered.held, standing=ordered.standing),
         blocked=ordered.blocked,
         ready=list(readyline.texts(found.settings, facts, found.now)),
         no_drafts=found.settings.project.no_drafts,
@@ -147,6 +158,7 @@ def _source(
         failed=book.failed,
         volume=volume,
         big=_big(found, volume),
+        occupancy=ordered.occupancy,
     )
 
 

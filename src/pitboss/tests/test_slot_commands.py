@@ -30,18 +30,19 @@ CHECK_LINES = [
     "slot spare (large): owner/lib#1 (agent-2)",
     "slots: the ledger says all full",
 ]
+RUNNING_FIRST = (
+    "NEXT 1. running workers and reviewers: never interrupted, never stopped"
+)
 NEXT_THREE = [
-    "NEXT 1. owner/project#1",
-    "NEXT 2. owner/project#3",
-    "NEXT 3. owner/project#9",
+    RUNNING_FIRST,
+    "NEXT 2. owner/project#1",
+    "NEXT 3. owner/project#3",
+    "NEXT 4. owner/project#9",
 ]
+CONFLICT_HOLDS = "SLOT HELD: owner/project#1 (resolve the conflict)"
 TICKET_LINE = (
     "EMPTY SLOT: tiny (small): start owner/project#9 (start a PR urgent,"
     " opened 2026-09-01, 1218 days, smallest model small): A ticket"
-)
-FIX_LINE = (
-    "EMPTY SLOT: {slot}: start owner/project#1 (resolve the"
-    " conflict, opened 2026-10-01, 1188 days, smallest model {model}): PR 1"
 )
 REVIEW_LINE = (
     "EMPTY SLOT: {slot}: start owner/project#3 (review it (a reviewer that"
@@ -52,17 +53,13 @@ NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
         [],
         [
             *NEXT_THREE,
-            FIX_LINE.format(slot="tiny (small)", model="small"),
-            REVIEW_LINE.format(slot="big (large)", model="small"),
+            CONFLICT_HOLDS,
+            REVIEW_LINE.format(slot="tiny (small)", model="small"),
         ],
     ),
     (
         [("failed", "#1", "small"), ("failed", "#3", "small")],
-        [
-            *NEXT_THREE,
-            TICKET_LINE,
-            FIX_LINE.format(slot="big (large)", model="large"),
-        ],
+        [*NEXT_THREE, CONFLICT_HOLDS, TICKET_LINE],
     ),
     (
         [
@@ -78,14 +75,14 @@ NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
             ("failed", "#3", "small"),
             ("failed", "#1", "small"),
         ],
-        [*NEXT_THREE, "EMPTY SLOT: tiny (small): nothing fits it: leave it empty"],
+        [*NEXT_THREE, CONFLICT_HOLDS],
     ),
 ]
 FREE_CASES: Sequence[tuple[str, Sequence[Sequence[str]], str]] = [
     (
         "a ticket waits",
         [("remove", "big"), ("failed", "#1", "small"), ("failed", "#3", "small")],
-        TICKET_LINE,
+        CONFLICT_HOLDS,
     ),
     (
         "none waits",
@@ -95,10 +92,10 @@ FREE_CASES: Sequence[tuple[str, Sequence[Sequence[str]], str]] = [
             ("failed", "#3", "small"),
             ("failed", "#1", "small"),
         ],
-        "no task is waiting",
+        CONFLICT_HOLDS,
     ),
 ]
-MARKERS = ("NEXT", "EMPTY SLOT", "slots:")
+MARKERS = ("NEXT", "EMPTY SLOT", "SLOT HELD", "slots:")
 
 
 def run_all(
@@ -120,20 +117,23 @@ def run_all(
 
 
 def freed_world(
-    setup: Sequence[Sequence[str]], here: world.World | None = None
+    setup: Sequence[Sequence[str]],
+    here: world.World | None = None,
+    slot: str = "tiny",
 ) -> tuple[world.World, Sequence[str]]:
-    """Run ``setup``, fill ``tiny``, free it.
+    """Run ``setup``, fill ``slot``, free it.
 
     Args:
         setup: the ledger commands to run first.
         here: the world; a new one when None.
+        slot: the slot to fill and free.
 
     Returns:
         The world and the output lines of ``slots free tiny``.
     """
     here = here or world.make_world()
-    run_all(here, [*setup, ("set", "tiny", "agent-1", "#50", "--running", "agent-1")])
-    args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
+    run_all(here, [*setup, ("set", slot, "agent-1", "#50", "--running", "agent-1")])
+    args = ("slots", "free", here.config, slot, "--done", "agent-1")
     freed = world.invoke(here, *args, "--now", world.FUTURE)
     return here, tuple(freed.out.splitlines())
 

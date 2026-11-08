@@ -152,9 +152,7 @@ class TestSlotsNext(unittest.TestCase):
     def test_the_next_ticket_takes_the_slot(self) -> None:
         """The ticket of a repository that is not held fills the slot."""
         output = next_output(held_world(PROJECT_TABLE, library_ticket))
-        assert_that(
-            SLOT_LINE.findall(output), equal_to(["owner/lib#5", "owner/project#1"])
-        )
+        assert_that(SLOT_LINE.findall(output), equal_to(["owner/lib#5"]))
 
     def test_the_refill_and_the_suggestions_skip_a_held_ticket(self) -> None:
         """``slots free`` and ``next`` take the work from the same offer."""
@@ -177,8 +175,8 @@ class TestSlotsNext(unittest.TestCase):
     def test_no_table_holds_nothing(self) -> None:
         """A configuration without ``[holds]`` offers the ticket as before."""
         output = next_output(world.make_world())
-        assert_that(output, contains_string("NEXT 3. owner/project#9 (start a PR"))
-        assert_that("HELD" in output, equal_to(False))
+        assert_that(output, contains_string("NEXT 4. owner/project#9 (start a PR"))
+        assert_that(re.findall(r"(?m)^HELD .*$", output), equal_to([]))
 
 
 SWEEP_CASES: Sequence[tuple[str, str, Sequence[str]]] = [

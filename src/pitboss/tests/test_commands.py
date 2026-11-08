@@ -34,7 +34,7 @@ SWEEP_LINES = (
     "STALE WORKTREE {workspace}/merged-work [merged-work] (its PR merged)",
     "SWEEP REMINDER: Is any ticket closeable?",
     "EMPTY SLOT: tiny (small)",
-    "SLOTS FREE 2: ",
+    "SLOTS FREE 1: ",
 )
 CANCEL_LINES = (
     "CANCELLED STALE QUEUE RUN owner/project 11 (dry run",
@@ -249,7 +249,7 @@ class TestSweep(unittest.TestCase):
         assert_that(found, equal_to([False, False, True]))
 
     def test_slots_free(self) -> None:
-        """Free slots with work queued print SLOTS FREE n; busy or empty, none."""
+        """Free slots with work queued print SLOTS FREE n, a PR's round holds one."""
         found = []
         for taken, empty_queue in (
             ((), False),
@@ -262,7 +262,7 @@ class TestSweep(unittest.TestCase):
             if empty_queue:
                 clear_queue(here)
             found.append(free_lines(sweep(here)))
-        expected = [["SLOTS FREE 2: "], ["SLOTS FREE 1: "], [], []]
+        expected = [["SLOTS FREE 1: "], [], [], []]
         assert_that(found, equal_to(expected))
 
     def test_unreadable_project(self) -> None:

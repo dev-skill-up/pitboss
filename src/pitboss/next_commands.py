@@ -25,8 +25,8 @@ from . import (
     tracefs,
     unreadableline,
 )
-from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
-from .commands import Context, load_context, open_pulls, read_ledger, working_directory
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
+from .commands import Context, load_context, open_pulls, working_directory
 
 _FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
 
@@ -69,6 +69,7 @@ def _line(ticket: str, pull: pulls.PullFacts) -> str:
     CONFIG_ARGUMENT,
     add_argument("ticket", nargs="?", default=None),
     NOW_ARGUMENT,
+    RUNNING_ARGUMENT,
     name="next",
 )
 def show_next(args: argparse.Namespace) -> None:
@@ -100,7 +101,7 @@ def show_next(args: argparse.Namespace) -> None:
     found = load_context(args)
     if args.ticket is None:
         nextlist.require_ledger(found.settings.slots.ledger)
-        book = read_ledger(found.settings)
+        book = ledger.configured(found.settings)
         nextlist.show(found, open_pulls(found), book)
     else:
         _step_of(found, args.ticket)

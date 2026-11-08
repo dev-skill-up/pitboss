@@ -133,6 +133,18 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
     )
 
 
+def configured(settings: config.Config) -> Ledger:
+    """Read the configured ledger.
+
+    Args:
+        settings: the configuration.
+
+    Returns:
+        The ledger.
+    """
+    return read(settings.slots.ledger, settings.slots.default)
+
+
 def recorded_config(path: pathlib.Path) -> str:
     """Read only the configuration path a ledger file records.
 

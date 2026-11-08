@@ -173,8 +173,9 @@ def choose(
 ) -> tuple[Sequence[dead.Candidate], Sequence[pathlib.Path]]:
     """The safe candidates to remove, and the paths named that are not.
 
-    Only a path directly in a configured root is ever removed, and an approved
-    path is removed only when it is one of the safe candidates now: any other
+    Only a path directly in a root (the workspace, a scratch directory, the
+    root of files, a tempdir root, a directory that holds a dead checkout) is
+    ever removed, and an approved path is removed only when it is one of the safe candidates now: any other
     path of the file is refused, whatever it is.
 
     Args:
@@ -185,7 +186,7 @@ def choose(
     Returns:
         The candidates to remove, and the approved paths (or, with no list,
         the safe candidates) that are not removed because they are no safe
-        dead path directly in a root.
+        dead path directly in one.
     """
     safe = dead.safe(listed)
     placed = [each for each in safe if each.path.parent in roots]
@@ -315,7 +316,7 @@ def closing_lines(done: Outcome) -> Sequence[str]:
     Returns:
         The lines.
     """
-    note = "(not a safe dead path directly in a configured root)"
+    note = "(not a safe dead path directly in a place that may be removed from)"
     total = disk.size_text(sum(each.size for each in done.gone))
     held = disk.size_text(sum(each.size for each in done.kept))
     verb = "freed" if done.removing else "would be freed"
