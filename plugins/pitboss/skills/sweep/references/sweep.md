@@ -292,7 +292,7 @@ does not stop.
 `pitboss clean-container <config>` lists the dead paths of the machine and
 `--no-dry-run` removes them. A path is dead when it is one of:
 
-- a git checkout directly under the workspace whose PR merged or closed, or
+- a git checkout whose PR merged or closed, or
   whose tip is in the base branch with no PR (a checkout on the base branch or
   on no branch is never dead: it is a persistent checkout; a sweep under `auto`
   has already removed the finished worktrees of the main clone, judged as in
@@ -322,8 +322,8 @@ largest first, with its size and reason, and a last line with the total.
 
 To approve a subset, write its paths one to a line in a file and pass
 `--approved FILE`: only those paths are removed, and a path of the file that is
-not among the safe dead paths now, or not directly in the workspace, a scratch
-directory or `--root`, is `COULD NOT REMOVE PATH`. Removal runs
+not among the safe dead paths now,
+ is `COULD NOT REMOVE PATH`. Removal runs
 `rm -rf --one-file-system` on at most `--batch` paths at a time (default 5), so a
 sandbox that refuses one large delete still completes; each part is looked at
 again just before its `rm`, and a path that is live, busy or unsafe by then is

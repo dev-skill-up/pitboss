@@ -7,7 +7,7 @@ under disk pressure (keyword: auto-clean, pitboss#120; the rule is in
 
 import fnmatch
 import pathlib
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import cleanconfig, dead
 from .machine import Machine
@@ -78,6 +78,44 @@ def idle_tempdir(
     return dead.Candidate(path=path, size=seen.size, reason=reason)
 
 
+def worked_in(busy: AbstractSet[pathlib.Path], path: pathlib.Path) -> bool:
+    """Whether a running process works in a path or under it.
+
+    Args:
+        busy: the directories the running processes work in.
+        path: the path.
+
+    Returns:
+        True when removing it would take a process's directory.
+    """
+    return any(each == path or each.is_relative_to(path) for each in busy)
+
+
+def split_tempdirs(
+    machine: Machine, clean: cleanconfig.Clean, hours: float
+) -> tuple[Sequence[dead.Candidate], Sequence[dead.Candidate]]:
+    """The tempdirs of the session user that nobody has touched for a while.
+
+    Args:
+        machine: the machine.
+        clean: the settings.
+        hours: how long a tempdir must be untouched.
+
+    Returns:
+        The candidates, largest first, and the untouched tempdirs that a
+        running process works in or under, which are not to be removed.
+    """
+    cutoff = machine.now.timestamp() - hours * 3600
+    reason = f"test tempdir untouched for {hours:g} hours"
+    entries = (each for root in clean.tmp_roots for each in machine.fs.children(root))
+    mine = [each for each in entries if is_mine(machine, clean, each)]
+    made = (idle_tempdir(machine, cutoff, reason, each) for each in mine)
+    idle = dead.ordered(dead.present(made))
+    busy = machine.busy()
+    used = [each for each in idle if worked_in(busy, each.path)]
+    return [each for each in idle if each not in used], used
+
+
 def stale_tempdirs(
     machine: Machine, clean: cleanconfig.Clean, hours: float
 ) -> Sequence[dead.Candidate]:
@@ -89,14 +127,31 @@ def stale_tempdirs(
         hours: how long a tempdir must be untouched.
 
     Returns:
-        The candidates, largest first.
+        The candidates, largest first; none a running process works in.
+    """
+    return split_tempdirs(machine, clean, hours)[0]
+
+
+def recheck(machine: Machine, hours: float, each: dead.Candidate) -> str:
+    """Look again, just before the removal, at a tempdir that was listed.
+
+    Args:
+        machine: the machine.
+        hours: how long a tempdir must be untouched.
+        each: the candidate.
+
+    Returns:
+        Why it must not be removed now, or empty when it may (one already gone
+        may).
     """
     cutoff = machine.now.timestamp() - hours * 3600
-    reason = f"test tempdir untouched for {hours:g} hours"
-    entries = (each for root in clean.tmp_roots for each in machine.fs.children(root))
-    mine = [each for each in entries if is_mine(machine, clean, each)]
-    made = (idle_tempdir(machine, cutoff, reason, each) for each in mine)
-    return dead.ordered(dead.present(made))
+    if not machine.fs.exists(each.path):
+        return ""
+    if idle_tempdir(machine, cutoff, each.reason, each.path) is None:
+        return "changed since it was listed"
+    return (
+        "a running process works in it" if worked_in(machine.busy(), each.path) else ""
+    )
 
 
 def cache_candidate(machine: Machine, path: pathlib.Path) -> dead.Candidate | None:

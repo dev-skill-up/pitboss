@@ -262,7 +262,7 @@ def remove_all(
     Returns:
         The paths that are gone (all of them in a dry run).
     """
-    verb = "" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
+    verb = " FREED" if args.no_dry_run else " (dry run: --no-dry-run removes it)"
     gone = []
     how = Removal(
         run=args.run, recheck=recheck, batch=args.batch, dry=not args.no_dry_run

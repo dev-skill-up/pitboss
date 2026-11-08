@@ -205,6 +205,8 @@ class Reason(enum.Enum):
         MERGED: its PR merged.
         CLOSED: its PR was closed without merging.
         IN_BASE: it has no PR and its tip is in the base branch.
+        TICKET_CLOSED: it has no PR and a number in its name or its branch
+            names a closed ticket of its repository.
         NO_OPEN_PR: under disk pressure, it has no open PR.
         QUIET_REPOSITORY: under disk pressure, its repository has no open PR.
     """
@@ -212,6 +214,7 @@ class Reason(enum.Enum):
     MERGED = "its PR merged"
     CLOSED = "its PR was closed"
     IN_BASE = "its tip is in the base branch"
+    TICKET_CLOSED = "a ticket named in its name is closed"
     NO_OPEN_PR = "disk pressure: it has no open PR"
     QUIET_REPOSITORY = "disk pressure: its repository has no open PR"
 

@@ -934,7 +934,7 @@ exclude a path (``x``, ``X``), ``git clean -n`` lists before it removes, and the
 the filesystem (``nodefs.available<10%``). A path is *dead* when its work is
 finished or nobody uses it, and *live* when it is marked; a dead path is *safe*
 when nothing in it exists only on this machine. Sources of dead paths:
-``dead_checkouts`` (git checkouts directly under ``workspace``: the branch's
+``dead_checkouts`` (git checkouts: the branch's
 newest PR in the checkout's own repository merged or closed, found from the
 common git directory of ``main_clone`` or from ``remote.origin.url``, else the
 tip is in the base branch with no PR; a checkout on the base branch, on no
@@ -966,9 +966,8 @@ inside, or a path that cannot be looked at. Sizes are the blocks on disk.
 ``--no-dry-run`` removes at most ``--batch`` paths at a time with ``rm -rf
 --one-file-system`` and, just before each part, looks at every path again
 (liveness, idle, safety): a path that became live, busy or unsafe in between is
-left in place and reported as ``COULD NOT REMOVE PATH``. Only paths directly
-inside the workspace, a ``[clean] scratch`` directory or ``--root`` can be
-removed; the ``[clean]`` paths must be absolute. It then prunes the worktree
+left in place and reported as ``COULD NOT REMOVE PATH``.
+the ``[clean]`` paths must be absolute. It then prunes the worktree
 lists of the repositories a removed linked worktree belonged to. ``--approved
 FILE`` limits the removal to the paths in it; an entry that is not among the
 current safe candidates is refused, whatever it is. The sweep warns with
