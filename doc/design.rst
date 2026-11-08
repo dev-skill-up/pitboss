@@ -1051,8 +1051,7 @@ After them come the new PRs, ordered by ``priority_labels`` first and then
 oldest first: an open ticket of the project or a library, with a priority
 label, not referenced by an open PR, except a ticket of a repository under
 the owner's hold (``[holds] new_pull_requests``; keyword: pr-hold), which is
-printed as ``HELD`` and offered to no slot. A ticket that is blocked in the
-form of ``rules.md``, "A blocked ticket is not started", while the ticket or PR
+printed as ``HELD`` and offered to no slot. A ticket that is blocked, while the ticket or PR
 it names is open is printed as
 ``BLOCKED <ticket> by <owner/repo#n>`` by ``slots next`` and the sweep and is
 offered to no slot (keyword: ticket-blocked, ``pitboss.ticketblock``); it is

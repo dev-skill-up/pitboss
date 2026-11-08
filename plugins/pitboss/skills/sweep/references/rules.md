@@ -426,8 +426,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     impossibility forces, taken from the steps already in the ticket, each with
     the priority and labels of the original and its own `Fixes`. The original
     is closed with its body saying what it was split into; it is not kept open
-    as an umbrella. A piece that depends on another says so in the
-    form of "A blocked ticket is not started" below (keyword: ticket-blocked)
+    as an umbrella. A piece that depends on another says so
+    (keyword: ticket-blocked)
     and is worked after that one merged.
 - **A cap on open PRs is met by finishing or closing PRs, never by folding
   tickets into one PR** (keyword: fold, pitboss#171; quire#1038 closed six
