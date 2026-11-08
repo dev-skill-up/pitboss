@@ -1,7 +1,7 @@
 """What a project's briefs say beyond the process (keyword: brief, pitboss#118)."""
 
 import dataclasses
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -15,12 +15,16 @@ class Brief:
         worker_lines: facts of the project every worker brief states (for
             example the path of the compiler).
         review_lines: facts of the project every review brief states.
+        no_drafts: the repositories whose PRs open ready whatever ``drafts``
+            says, as the file names them (``configfile.load_brief`` completes
+            them; keyword: pitboss-exempt, pitboss#113).
     """
 
     drafts: bool
     holds: bool
     worker_lines: Sequence[str]
     review_lines: Sequence[str]
+    no_drafts: AbstractSet[str] = frozenset()
 
 
 def _flag(table: Mapping[str, object], key: str) -> bool:
@@ -66,4 +70,5 @@ def from_document(document: Mapping[str, object]) -> Brief:
         holds=_flag(table, "holds"),
         worker_lines=_lines(table, "worker_lines"),
         review_lines=_lines(table, "review_lines"),
+        no_drafts=frozenset(_lines(table, "no_drafts")),
     )

@@ -16,6 +16,7 @@ from . import (
     config,
     configfile,
     diskwatch,
+    exempt,
     ghapi,
     ledger,
     machine,
@@ -115,6 +116,7 @@ def _view(
         standing=ordered.standing,
         blocked=ordered.blocked,
         ready=list(readyline.texts(found.settings, facts, found.now)),
+        no_drafts=found.settings.project.no_drafts,
     )
 
 
@@ -166,6 +168,7 @@ def show(
         nextview.next_lines(_view(found, ordered, book, source.facts)),
         pullstate.lines(found.github, found.settings, source.facts),
         [diskwatch.line(source.volume)] if source.volume else [],
+        [exempt.OVERRIDE],  # keyword: pitboss-exempt (pitboss#113)
         suggest.lines(source),
     ):
         print(line)

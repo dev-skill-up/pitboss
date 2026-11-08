@@ -1,5 +1,6 @@
 """Reading every open PR of the project and its libraries (keyword: pull-read)."""
 
+import dataclasses
 import functools
 from typing import Callable, Sequence
 
@@ -70,8 +71,21 @@ def read_each(
     wanted = _open_numbers(github, settings)
     source = _source(github, settings, undraft)
     return concurrently.each(
-        lambda item: pulls.fetch_or_unreadable(source, *item), wanted
+        lambda item: pulls.fetch_or_unreadable(
+            _unheld(source, settings, item[0]), *item
+        ),
+        wanted,
     )
+
+
+def _unheld(
+    source: pulls.Source, settings: config.Config, repo: config.Repo
+) -> pulls.Source:
+    # keyword: pitboss-exempt (pitboss#113): an exempt repository's drafts are
+    # undrafted whatever the pressure, and the pressure is not looked at for them
+    if repo.slug not in settings.runners.exempt:
+        return source
+    return dataclasses.replace(source, undraft=lambda: True)
 
 
 def _source(

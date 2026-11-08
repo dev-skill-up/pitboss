@@ -202,10 +202,8 @@ def _draft_findings(args: argparse.Namespace, subject: forms.Subject) -> Sequenc
     # keyword: no-drafts (pitboss#216): a project that needs no drafts
     if args.config is None:
         return []
-    try:
-        off = draftrule.drafts_off(args.config, commands.working_directory(args))
-    except (OSError, ValueError, KeyError) as error:
-        raise _fail(f"{args.config}: {error}") from error
+    # the configuration was read (and its [slots.brief] checked) with the lint settings
+    off = draftrule.drafts_off(args.config, commands.working_directory(args))
     return draftrule.findings(subject.name, subject.body) if off else []
 
 

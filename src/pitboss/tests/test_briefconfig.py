@@ -1,5 +1,6 @@
 """Reading the ``[slots.brief]`` table (keyword: brief, pitboss#118)."""
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, equal_to
@@ -20,6 +21,7 @@ WRONG = [
     ("[slots.brief]\nholds = 1\n", "holds"),
     ('[slots.brief]\nworker_lines = "x"\n', "worker_lines"),
     ("[slots.brief]\nreview_lines = 3\n", "review_lines"),
+    ('[slots.brief]\nno_drafts = "x"\n', "no_drafts"),
     ("slots = 1\n", "[slots]"),
     ('[slots]\nbrief = "x"\n', "[slots.brief]"),
 ]
@@ -46,7 +48,12 @@ class TestBriefTable(unittest.TestCase):
 
     def test_drafts_and_holds_are_on_unless_turned_off(self) -> None:
         """An absent table is the default; lines are the project's."""
-        assert_that((brief_of(""), brief_of(GIVEN)), equal_to((PROJECT, SET_UP)))
+        found = [brief_of(""), brief_of(GIVEN)]
+        bare = [dataclasses.replace(each, no_drafts=frozenset()) for each in found]
+        assert_that(bare, equal_to([PROJECT, SET_UP]))
+        assert_that(
+            found[0].no_drafts, equal_to({"dev-skill-up/pitboss"})
+        )  # keyword: pitboss-exempt
 
     def test_a_wrong_type_is_an_error_that_names_the_key(self) -> None:
         """Each key is checked."""

@@ -16,6 +16,7 @@ from . import (
     blockers,
     config,
     contradictions,
+    exempt,
     fixes,
     forms,
     ghapi,
@@ -175,6 +176,8 @@ def lines(
     """
     for pull in facts:
         draft = "draft " if pull.pull.draft else ""
+        if pull.pull.draft and pull.repo.slug in settings.project.no_drafts:
+            draft = f"draft ({exempt.OPEN_READY}) "  # keyword: pitboss-exempt
         yield (
             f"{Marker.PR_STATE.text} {pulls.reference(pull)}: {draft}next step:"
             f" {next_step(pull)}"
