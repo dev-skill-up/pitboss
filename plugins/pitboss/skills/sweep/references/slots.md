@@ -46,7 +46,6 @@ with the configuration it names before acting on them.
 | `pitboss slots check <config> N` | Exits 1 and says the ledger has fewer rows when the ledger has fewer than N rows. |
 | `pitboss slots next <config>` | The sorted list of what to start, and what each empty slot takes. |
 | `pitboss slots heard <config> SLOT` | The agent in the slot handed back or sent a notification (it is still there): the sweep stops listing it as `NO HAND-BACK`. |
-| `pitboss slots refreshed <config>` | The orchestrator updated its task list: the ledger records the time (`refreshed`) and forgets the hand-backs since the last one. The sweep's `TASK LIST` lines name the tickets merged or handed back after it. Run it after every update of the list, before the reply. |
 | `pitboss slots wait <config> SLOT` | The agent in the slot waits (on CI, a review or an answer) and does no work. |
 | `pitboss slots resume <config> SLOT` | The agent in the slot works again. |
 | `pitboss slots report <config> [--since T] [--until T]` | The share of slot time spent running, waiting and empty, for each slot and for all, in a window (ISO times, UTC when no zone; default: the first log line to now). |

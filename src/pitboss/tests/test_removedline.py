@@ -21,6 +21,7 @@ from .. import (
     reviews,
     shapes,
     steps,
+    tasklist,
 )
 from . import fakes, test_work, world
 from .test_commands import sweep
@@ -133,7 +134,8 @@ def lines_of(here: world.World) -> Sequence[str]:
     return [
         line
         for line in sweep(here).out.splitlines()
-        if "owner/project#2" in line and not line.startswith("owner/project#2 [")
+        if "owner/project#2" in line
+        and not line.startswith(("owner/project#2 [", tasklist.LABEL))
     ]
 
 

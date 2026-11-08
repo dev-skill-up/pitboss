@@ -6,7 +6,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import mergesonly, shapes
+from .. import mergesonly, shapes, tasklist
 from . import world
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, OLDER, graded, world_with
@@ -39,7 +39,7 @@ def is_third(line: str) -> bool:
     Returns:
         True for PR 3's.
     """
-    return "project#3" in line
+    return "project#3" in line and not line.startswith(tasklist.LABEL)
 
 
 def named(*names: str) -> Sequence[Mapping[str, str]]:
