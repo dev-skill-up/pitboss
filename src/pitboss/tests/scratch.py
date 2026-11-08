@@ -86,22 +86,23 @@ def directory() -> pathlib.Path:
         neither, it stays.
     """
     path = pathlib.Path(tempfile.mkdtemp())
-    if PROCESS.get():
-        OWNED.add(path.name)
-        atexit.register(shutil.rmtree, path, ignore_errors=True)
-    else:
-        remove_after_test(path)
+    own(path)
     return path
 
 
-def remove_after_test(path: pathlib.Path) -> None:
-    """Remove a path, made by hand in the temporary directory, when the test ends.
+def own(path: pathlib.Path) -> None:
+    """Remove a path, made by hand in the temporary directory, when its owner is done.
 
     Args:
-        path: the path; it stays when no test is running.
+        path: the path; inside ``process_wide`` the process removes it when it
+            ends, else the running test's cleanup does, and when no test is
+            running it stays.
     """
     running = TEST.get()
-    if running is not None:
+    if PROCESS.get():
+        OWNED.add(path.name)
+        atexit.register(shutil.rmtree, path, ignore_errors=True)
+    elif running is not None:
         running.addCleanup(shutil.rmtree, path, ignore_errors=True)
 
 
