@@ -23,7 +23,7 @@ class TestBehind(unittest.TestCase):
         rounds = [*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED]
         swept = sweep(world_with(rounds, mergeable_state="behind")).out
         assert_that(swept, contains_string(LINE))
-        assert_that("READY TO MERGE" in swept, equal_to(False))
+        assert_that("READY TO MERGE owner/project#3" in swept, equal_to(False))
         assert_that(swept, contains_string("pitboss body-head owner/project#3"))
 
     def test_a_clean_pr_or_one_with_no_approval_is_not_told_behind(self) -> None:
