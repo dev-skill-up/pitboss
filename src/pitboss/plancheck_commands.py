@@ -16,11 +16,11 @@ import subprocess
 import sys
 import tempfile
 import time
-from typing import Iterator
+from typing import Iterator, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, expansion, plancheck, plandigest
+from . import ENTRY_DATA, expansion, impact, plancheck, plandigest
 
 USAGE_ERROR = 2
 REFUSED = 1
@@ -153,28 +153,50 @@ def _plan_of(name: str, body: str) -> str:
 def plan_check(args: argparse.Namespace) -> None:
     """Run each command of a Plan, and refuse the Plan if one does not run.
 
-    A row that runs nox is refused and not run (pitboss#251).
+    A row that runs nox is refused and not run (pitboss#251). A row ``pitboss
+    impact PHRASE...`` is searched in this process, at the head of the scratch
+    worktree, and the Plan is refused for a hit with no disposition line
+    (``file:line: edited`` or ``file:line: not edited``) and for a disposition
+    line whose ``file:line`` is not a hit there (keyword: impact-list,
+    pitboss#320).
 
     Prints a row for each command (its exit status and duration, or that it did
     not run: it could not start, it timed out, or it runs nox, which is refused
-    unrun with the sentence that gives the CI pointer, pitboss#251), the Plan
-    digest and the last
-    line, ``Plan check: ok`` or ``Plan check: refused`` naming each row that did
-    not run. The output is posted as a comment on the PR (keyword: plan-check,
-    pitboss#192); ``pitboss next`` offers a Plan review that has commands only
-    after a comment that says ``Plan check: ok`` for this Plan.
+    unrun with the sentence that gives the CI pointer, pitboss#251), a line for
+    each Impact finding, the Plan digest and the last line, ``Plan check: ok``
+    or ``Plan check: refused`` naming each row that did not run and the number
+    of Impact findings. The output is posted as a comment on the PR (keyword:
+    plan-check, pitboss#192); ``pitboss next`` offers a Plan review that has
+    commands only after a comment that says ``Plan check: ok`` for this Plan.
 
     Args:
         args: the parsed arguments (a body it cannot read, without a ``## Plan``
             section or with a directive with no command exits with status 2).
 
     Raises:
-        SystemExit: with status 1 when a row did not run.
+        SystemExit: with status 1 when a row did not run or the Impact list has
+            a finding.
     """
     section = _plan_of(args.file.name, args.file.read())
+    rows, refused, found = _checked(args, section)
+    sys.stdout.write(plancheck.text(section, rows, refused, found))
+    if refused or found:
+        raise SystemExit(REFUSED)
+
+
+def _checked(
+    args: argparse.Namespace, section: str
+) -> tuple[Sequence[str], Sequence[int], Sequence[str]]:
     with scratch_worktree(args) as tree:
         runner = functools.partial(run_in, args, tree, args.timeout)
-        rows, refused = plancheck.report(section, runner)
-    sys.stdout.write(plancheck.text(section, rows, refused))
-    if refused:
-        raise SystemExit(REFUSED)
+        search = _searching(tree)
+        rows, refused = plancheck.report(section, runner, search)
+        return rows, refused, plancheck.impact_findings(section, search)
+
+
+def _searching(tree: pathlib.Path) -> plancheck.Search:
+    @functools.cache
+    def once(phrases: tuple[str, ...]) -> Sequence[impact.Hit]:
+        return impact.hits_in(tree, phrases)
+
+    return lambda phrases: once(tuple(phrases))
