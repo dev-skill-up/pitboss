@@ -278,9 +278,13 @@ def _require_ledger(found: Context, action: Action) -> None:
         nextlist.require_ledger(found.settings.slots.ledger)
 
 
+def _book(found: Context) -> ledger.Ledger:
+    return ledger.configured(found.settings)
+
+
 def _changing(found: Context, action: Action) -> None:
     # A hand-back is logged, with the head of its PR (keyword: log-line).
-    before = ledger.configured(found.settings)
+    before = _book(found)
     changed = _changed(action, found)
     _print(found, changed)
     if action in HAND_BACKS:
