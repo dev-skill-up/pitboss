@@ -265,8 +265,7 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
         that did not run, the number of Impact findings, of CI pointer findings
-        and of markup line findings.
-        The other checks' counts follow.
+        and of markup line findings, then the other checks' counts.
     """
     if not refused and not found:
         return steps.PLAN_CHECK_OK
