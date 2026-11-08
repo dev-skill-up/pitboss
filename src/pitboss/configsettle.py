@@ -112,11 +112,11 @@ def _read_word(args: argparse.Namespace, destination: str | None) -> None:
 
 
 def find_or_say(args: argparse.Namespace) -> None:
-    """Find the configuration of ``lint`` when ``--config`` is not given.
+    """Find the configuration of ``lint`` or ``plan-check`` when none is given.
 
     ``$PITBOSS_CONFIG``, then the search, then the fetch by the repository's
     name (``configfetch``); one found is used as if it had been given. With
-    none, ``lint`` keeps its generic forms and says on standard error every
+    none, the command keeps its generic forms and says on standard error every
     place it looked.
 
     Args:
