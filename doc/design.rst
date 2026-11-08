@@ -813,7 +813,12 @@ worker running it only duplicates CI (the workers of #166 and #167 spent about
 half their time on it). ``pitboss nox`` is the one command that does the right
 thing: the tests of one Python version first (until they run there is no reason
 to lint the code), then the ``skills`` session, ``lint`` and ``mypy``, each with
-``-r``, stopping at the first failure. The worker briefs tell
+``-r``, stopping at the first failure. The tests session always ends with the
+total time of the tests and the 30 slowest with their times, as lines that start
+with ``test-timing`` (pitboss#324): ``pitboss.tests.timingreport.TimingReporter``
+is virtue's reporter with the times, given by ``noxfile.py`` after any argument,
+so CI's ``Run Nox`` log has them, and ``pitboss nox`` shows them for a session
+that passed (a failed one shows its whole output). The worker briefs tell
 the worker to run it after every edit and before every push, for iterating too,
 never a targeted test module, ``nox -s`` or the full ``nox -r``, to hand back
 its result for the pushed head (pitboss#250), never to
