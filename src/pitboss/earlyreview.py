@@ -71,12 +71,16 @@ def draft_at(
     return state
 
 
-def unfinished_checks(checks: Sequence[shapes.CheckRun], when: str) -> str:
+def unfinished_checks(
+    checks: Sequence[shapes.CheckRun], when: str, green: bool = True
+) -> str:
     """What was not complete and green of a head's check runs at a time.
 
     Args:
         checks: the check runs of the head.
         when: the time (ISO 8601).
+        green: whether a failed check counts (an approval needs the head green;
+            a review that asks for changes was fairly written on a red one).
 
     Returns:
         The empty string when every check run had completed and none failed,
@@ -86,7 +90,7 @@ def unfinished_checks(checks: Sequence[shapes.CheckRun], when: str) -> str:
     if not checks:
         return "no check run of the head existed"
     late = [each for each in checks if not each.finished or each.completed_at > when]
-    red = [each for each in checks if each.failed and each not in late]
+    red = [each for each in checks if green and each.failed and each not in late]
     return "; ".join(
         f"{len(found)} of {len(checks)} checks of the head {words}"
         for found, words in ((late, "had not completed"), (red, "had not passed"))
@@ -129,6 +133,16 @@ class Seen:
     review: config.Review
 
 
+def _head_checks(seen: Seen, sha: str, settle: bool) -> Sequence[shapes.CheckRun]:
+    # a failure that a later passing status answers is not one (settle)
+    found = headchecks.runs_of(seen.github, seen.repo, sha)
+    current = checkruns.current_checks(found, sha)
+    if not (settle and any(run.failed for run in current)):
+        return current
+    posted = headchecks.statuses(seen.github, seen.repo, sha)
+    return headchecks.checks(seen.github, seen.repo, sha, posted)
+
+
 def _before(
     seen: Seen, events: Sequence[shapes.TimelineEvent], each: reviews.Found
 ) -> tuple[str, str]:
@@ -141,13 +155,9 @@ def _before(
         )
         else ""
     )
-    path = f"repos/{seen.repo.slug}/commits/{sha}/check-runs"
-    found = ghapi.pages(seen.github, path, parsing.check_runs)
-    current = checkruns.current_checks(found, sha)
-    if any(run.failed for run in current):  # a later passing status clears it
-        posted = headchecks.statuses(seen.github, seen.repo, sha)
-        current = headchecks.checks(seen.github, seen.repo, sha, posted)
-    unfinished = unfinished_checks(current, each.when)
+    approves = each.verdict is reviews.Verdict.APPROVED
+    current = _head_checks(seen, sha, approves)
+    unfinished = unfinished_checks(current, each.when, approves)
     why = "; ".join(part for part in (drafted, unfinished) if part)
     return why, last_completed(current)
 
