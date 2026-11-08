@@ -104,11 +104,15 @@ def join(
     return listed
 
 
-def order(items: Sequence[Each]) -> Sequence[Each]:
+def order(
+    items: Sequence[Each], inherit: Callable[[Each, Each], Each]
+) -> Sequence[Each]:
     """Put each dependency that is listed after its ticket in the ticket's place.
 
     Args:
         items: the ordered items, with their blockers named.
+        inherit: the dependency as it stands in the ticket's place, with the
+            priority and the age of the ticket that waits for it.
 
     Returns:
         The items, with each open dependency ahead of its ticket.
@@ -119,5 +123,5 @@ def order(items: Sequence[Each]) -> Sequence[Each]:
         found = by_reference.get(root(waiting, by_reference))
         if found is not None and listed.index(found) > listed.index(waiting):
             listed.remove(found)
-            listed.insert(listed.index(waiting), found)
+            listed.insert(listed.index(waiting), inherit(found, waiting))
     return listed

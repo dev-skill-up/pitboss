@@ -175,6 +175,13 @@ def _dependencies_first(
     unavailable = work.taken(readable) | {s.task for s in book.slots if s.agent}
     # an unreadable PR may work on any ticket (keyword: unreadable-pull)
     if len(readable) != len(opened):
-        return dependency.order(tickets)
+        return dependency.order(tickets, _inherit)
     read = functools.partial(_open_ticket, found)
-    return dependency.order(dependency.join(tickets, read, unavailable))
+    return dependency.order(dependency.join(tickets, read, unavailable), _inherit)
+
+
+def _inherit(found: work.Item, waiting: work.Item) -> work.Item:
+    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
+    return dataclasses.replace(
+        found, priority=waiting.priority, created_at=waiting.created_at
+    )

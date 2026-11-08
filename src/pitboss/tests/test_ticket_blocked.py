@@ -19,7 +19,7 @@ from hamcrest import (
 )
 
 from .. import brief, config, ticketblock
-from . import briefmake, fakes, world
+from . import briefmake, fakes, quietworld, world
 from .test_commands import sweep
 from .test_holds import START_LINE
 from .test_slot_commands import next_output
@@ -223,6 +223,36 @@ def serve_ticket(here: world.World, number: int, found: Mapping[str, object]) ->
     here.bodies[f"{world.PROJECT}/issues/{number}"] = dict(found)
 
 
+def add_label(here: world.World, label: str, tickets: Sequence[object]) -> None:
+    """Add a priority label after urgent, with the project's tickets under it.
+
+    Args:
+        here: the world.
+        label: the label.
+        tickets: the project's open tickets with it.
+    """
+    quietworld.edit_config(
+        here, 'priority_labels = ["urgent"', f'priority_labels = ["urgent", "{label}"'
+    )
+    served = {world.PROJECT: list(tickets), world.LIBRARY: []}
+    for repository, found in served.items():
+        here.bodies[fakes.page(f"{repository}/issues?state=open&labels={label}")] = (
+            found
+        )
+
+
+def next_text(here: world.World) -> str:
+    """What ``next`` prints.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The output.
+    """
+    return world.again(here, "next", "--now", FUTURE).out
+
+
 def blocked_lines(here: world.World) -> Sequence[str]:
     """The BLOCKED lines of ``slots next``.
 
@@ -271,12 +301,15 @@ class TestOrder(unittest.TestCase):
         )
 
     def test_a_dependency_listed_later_is_moved_ahead(self) -> None:
-        """Ticket 9 depends on 11, which is listed after ticket 10."""
+        """Ticket 9 depends on 11 (label later), which is listed after ticket 10."""
         here = blocked_world("Depends on #11")
         nine = {**world.TICKET, "body": "Depends on #11"}
-        here.bodies[LIST] = [nine, LATER, THIRD]
+        here.bodies[LIST] = [nine, LATER]
+        add_label(here, "later", [{**THIRD, "labels": [{"name": "later"}]}])
         serve_ticket(here, 11, {"state": "open", "labels": []})
         assert_that(offered(here), equal_to(["owner/project#11", "owner/project#10"]))
+        inherited = "owner/project#11 (start a PR urgent, opened 2026-09-01,"
+        assert_that(next_text(here), contains_string(inherited))
 
     def test_the_sweep_prints_the_same(self) -> None:
         """The sweep has the BLOCKED line and counts the dependency as queued work."""
