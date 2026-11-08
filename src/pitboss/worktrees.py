@@ -1,8 +1,7 @@
 """Finished worktrees: found by their PR, kept or removed by the one safety test.
 
 A worktree is finished when its PR merged or closed, or its tip is in the base
-branch, or with no PR its name holds a closed ticket's number
-(``local.finished_reason``). Whether it may go is ``dead.verdict``, the
+branch (``local.finished_reason``). Whether it may go is ``dead.verdict``, the
 test ``clean-container`` uses too (the ``DISK PRESSURE`` line runs none, it
 tells what the clean did): not live, not in use, and no commit on no remote
 branch and no changed tracked file in it
