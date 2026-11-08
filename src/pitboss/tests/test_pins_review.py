@@ -70,7 +70,9 @@ def refused_for_age(here: world.World, compiler: pathlib.Path) -> None:
     pin.parent.mkdir(exist_ok=True)
     pin.write_text(PIN + "\n")
     repositories.run_git(here.clone, "add", ".github/bats-version")
-    repositories.run_git(here.clone, "commit", "--quiet", "-m", "pin")
+    repositories.run_git(
+        here.clone, *repositories.IDENTITY, "commit", "--quiet", "-m", "pin"
+    )
     head = repositories.run_git(here.clone, "rev-parse", "HEAD").strip()
     local = repositories.run_git(compiler, "rev-parse", "HEAD").strip()
     for key in [each for each in here.bodies if pw.HEAD in each]:
