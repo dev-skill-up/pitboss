@@ -27,7 +27,9 @@ LABEL = "TASK LIST"
 HEADER = (
     f"{LABEL}: the task list is exactly the lines below, in this"
     " order, posted as they are. A ticket that was filed or asked for is not added"
-    " to it; it is in the list only when a line below names it"
+    " to it; it is in the list only when a line below names it. A line that names"
+    " future tickets (\"Next in sweep order: ...\") is not a task: every task names"
+    " one real ticket, and no placeholder entry exists"
 )
 _REFERENCE = re.compile(r"(?:[\w.-]+/[\w.-]+)?#\d+")
 
