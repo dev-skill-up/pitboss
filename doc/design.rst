@@ -793,44 +793,6 @@ user id, the home directory and the file system are injected
 (``autoclean.Machine``, ``autoclean.Filesystem``), so the tests play the ages,
 the two switches (90% used, 5 GiB free), the never-touch list and the report on a fake.
 
-**The local check** (keyword: nox-runner, pitboss#210). The full ``nox -r``
-takes about seven minutes and CI's ``Run Nox`` step runs it on every push, so a
-worker running it only duplicates CI (the workers of #166 and #167 spent about
-half their time on it). ``pitboss nox`` is the one command that does the right
-thing: the tests of one Python version first (until they run there is no reason
-to lint the code), then the ``skills`` session, ``lint`` and ``mypy``, each with
-``-r``, stopping at the first failure. The tests session always ends with the
-total time of the tests and the 30 slowest with their times, as lines that start
-with ``test-timing`` (pitboss#324): ``pitboss.tests.timingreport.TimingReporter``
-is virtue's reporter with the times, given by ``noxfile.py`` after any argument,
-so CI's ``Run Nox`` log has them, and ``pitboss nox`` shows them for a session
-that passed (a failed one shows its whole output). The worker briefs tell
-the worker to run it after every edit and before every push, for iterating too,
-never a targeted test module, ``nox -s`` or the full ``nox -r``, to hand back
-its result for the pushed head (pitboss#250), never to
-run ``virtue`` by hand, to start nothing in the background that needs polling
-(one foreground command under ``timeout 598``, or one ``Monitor`` with an
-``until`` loop), and that throwing away a first design is acceptable
-(pitboss#175). The Plan never names it or any nox run as its evidence
-(pitboss#179): the suite is CI's. The Plan brief, the Plan review brief and the
-worker brief carry the CI pointer rule (pitboss#179): a Plan row whose result a
-CI run shows asks for no long local command and points to CI by workflow, step,
-a greppable string and the run for the head, the Plan review rejects a row that
-does not, and the PR body holds evidence only for what CI does not show. The worker briefs
-say that a lint, check or exemption that is new or loosened ships a test for the
-nearest input it must still reject, and the full and the Execution review briefs
-make one without it changes needed (pitboss#180). The ruling brief says that a
-ticket or ruling that changes the order in which steps are offered gives, in its
-Done-when, a table of the full order and a test per row, and the full, Plan and
-Execution review briefs make a doc row or the code that differs from that table
-changes needed (pitboss#182). The sweep prints ``POLLING`` for a running
-worker with over 40 tool calls whose last 20 are ``Monitor`` calls or ``sleep``
-commands (keyword: polling), read from the transcripts in ``[slots]
-transcripts``, matching the slot's agent to the ``name`` in the transcript's
-``.meta.json``.
-The runner and the clock are injected (``noxcheck.Runner``, ``noxcheck.Clock``),
-so the tests play the order, the stop and the flags on a fake.
-
 **Expanding a template** (keyword: expand, pitboss#117). Workers typed
 evidence from inference and got it wrong (a count of five for six commits, a
 mutation run described in prose, a block that dropped a line of output). The

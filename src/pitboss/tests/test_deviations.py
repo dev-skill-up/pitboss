@@ -7,7 +7,6 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import brief, brieftextnote, brieftextwork, deviations
 from . import fakes, world
 from .briefmake import text
-from .test_evidence_rules import read, words
 
 EXECUTION_REVIEWS = {brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION}
 WORKERS = (
@@ -25,8 +24,13 @@ WORKERS = (
 ASKS = brieftextwork.DEVIATIONS
 READS = brieftextnote.DEVIATIONS_REVIEW
 HAND_BACK_NAMES = (
-    "and the `Deviations:` line (each rule of this brief you broke, or `none`);"
+    "and the `Deviations:` line (only what costs something, or `none`);"
     " nothing else."
+)
+HARMLESS = (
+    "PR 5\nhead abc\nI wrote one file with a heredoc, ran in a virtualenv,"
+    " redirected nox output to a file and made a research fetch.\n"
+    "Deviations: none\n"
 )
 WITH_LINE = "PR 5\nhead abc\nDeviations: two `sed -i` runs, one `rm`\n"
 WITH_NONE = "PR 5\nhead abc\nDeviations: none\n"
@@ -70,22 +74,33 @@ class TestTheBriefs(unittest.TestCase):
         )
 
     def test_the_review_of_an_execution_reads_the_line_and_records_it(self) -> None:
-        """A trace in the tree is a finding, a clean tree never fails."""
+        """Only what cost something is a finding; a harmless habit never fails."""
         for kind in EXECUTION_REVIEWS:
             assert_that(text(kind), contains_string(READS))
         for kind in (brief.Kind.REVIEW_PLAN, brief.Kind.REVIEW_FIX_ROUND):
             assert_that(READS in text(kind), equal_to(False))
         for part in (
-            "only when it left a trace in the tree that the Edit tool would not have",
-            "it never fails a PR for a clean tree",
+            "`pitboss nox` run more than once on one head",
+            "a trace in the tree that the Edit tool would not have",
+            "a heredoc, a virtualenv, a redirected output file or a research fetch"
+            " is no deviation and never fails a PR",
             "for the sweep's ledger line for the worker",
         ):
             assert_that(READS, contains_string(part))
 
-    def test_the_reference_states_the_rule(self) -> None:
-        """rules.md has the check of the hand-back and the review."""
-        rule = "a hand-back without it is NOT STARTED text the orchestrator sends back"
-        assert_that(words(read("rules.md")), contains_string(rule))
+    def test_the_sentence_keeps_only_what_costs_something(self) -> None:
+        """A heredoc, a virtualenv, a redirected file or a fetch is no deviation."""
+        for part in (
+            "only what costs something",
+            "`pitboss nox` run more than once on one head",
+            "a required step you skipped",
+            "a rule of the owner's you broke",
+            "a heredoc instead of the Edit tool, a virtualenv, a redirected output"
+            " file or a research fetch is no deviation",
+            "`Deviations: none` beside them",
+        ):
+            assert_that(ASKS, contains_string(part))
+        assert_that("`sed`" in ASKS, equal_to(False))
 
 
 class TestTheHandBack(unittest.TestCase):
@@ -97,6 +112,14 @@ class TestTheHandBack(unittest.TestCase):
         assert_that(deviations.line(WITH_NONE), equal_to("none"))
         assert_that(deviations.line(WITHOUT_LINE), equal_to(""))
         assert_that(deviations.line(EMPTY_LINE), equal_to(""))
+
+    def test_a_hand_back_that_lists_none_of_the_harmless_habits_is_accepted(
+        self,
+    ) -> None:
+        """A heredoc, a virtualenv, a file or a fetch beside `Deviations: none`."""
+        assert_that(deviations.not_started(HARMLESS), equal_to(""))
+        found = world.invoke(world.make_world(), "hand-back-check", saved(HARMLESS))
+        assert_that((found.code, found.out), equal_to((0, "ok\n")))
 
     def test_without_the_line_it_is_not_started(self) -> None:
         """Only a line that says something passes."""

@@ -9,7 +9,9 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, alsotests, expansion, noxcheck, selectdiff
+from . import ENTRY_DATA, alsotests, expansion, noxcheck, noxgreen, selectdiff
+from .commandarguments import NOW_ARGUMENT
+from .timing import current_time
 
 
 def run_command(args: argparse.Namespace, command: Sequence[str]) -> expansion.Outcome:
@@ -104,6 +106,16 @@ def show(ran: Sequence[noxcheck.Step]) -> None:
         " module is deleted, when a file cannot be parsed and when git cannot"
         " say the diff; no test runs when the diff reaches none.",
     ),
+    add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="run the sessions on a head that already ran green (without it the"
+        " command prints a NOTE with the time of that run and exits 0; run it"
+        " before each push and when feedback is needed, not again on one head;"
+        " a tree with a change is never skipped).",
+    ),
+    NOW_ARGUMENT,
     name="nox",
 )
 def nox(args: argparse.Namespace) -> None:
@@ -117,13 +129,23 @@ def nox(args: argparse.Namespace) -> None:
     docs, dry_release and the other Python versions are CI's. The tests session
     runs the tests the diff can affect (``testselect``, ``selectdiff``,
     pitboss#331), printed first with the reason; a test module added with
-    ``--also MODULE=REASON`` runs besides them (``alsotests``).
+    ``--also MODULE=REASON`` runs besides them (``alsotests``). A head that
+    already ran green on a clean tree is not run again: a ``NOTE`` with the
+    time of that run is printed and the status is 0, unless ``--force`` is
+    given (``noxgreen``, pitboss#345).
 
     Args:
         args: the parsed arguments.
     """
     runner = functools.partial(run_command, args)
+    place = noxgreen.place_of(runner)
+    before = noxgreen.green_at(place) if place and not args.force else ""
+    if before:
+        print(noxgreen.note_of(before))
+        return
     lines, modules, sessions = planned(args, runner)
     for each in lines:
         print(each)
     show(noxcheck.run_sessions(runner, time.monotonic, modules, sessions))
+    if place:
+        noxgreen.record(place, current_time(args).isoformat())

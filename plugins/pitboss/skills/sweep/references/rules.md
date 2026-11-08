@@ -1015,25 +1015,6 @@ Only override for bugs, but do override for bugs (and then file them)".
   word `haven't checked verified looked` is never OK. You already have a
   rule").
 - **A hand-back has one form**: the PR, the head, one piece of evidence
-  (command and raw output) per Done-when item that CI does not show, and for
-  one that CI shows its pointer (workflow, step, greppable string, the run and
-  job URL of the head, pitboss#179). One with narration, hedging or a
-  flagged "slip" that is no rule is sent back. Where the checks are nox
-  sessions it also holds the `pitboss nox` result of the pushed head (the four
-  sessions and their status, pitboss#250), and the check of a hand-back is
-  that a hand-back without the `pitboss nox` result of the pushed head (the
-  four sessions and their status) is sent back, naming it as missing. It also
-  holds a `Deviations:` line (the rules of the brief the worker broke, an edit by
-  `sed`, a heredoc or `rm` instead of the Edit tool included, or `none`,
-  pitboss#257), and a hand-back without it is NOT STARTED text the
-  orchestrator sends back (`uvx pitboss hand-back-check FILE` prints it). The
-  review of an Execution reads the PR body's `Deviations:` line: a listed edit by
-  shell is a finding only when it left a trace in the tree that the Edit tool
-  would not have, never for a clean tree, and the reviewer records each listed
-  deviation on a `Deviation:` line of the review, and the orchestrator saves
-  the review in a file and runs `uvx pitboss slots deviation CONFIG TICKET FILE`,
-  which records the lines in the ledger's line for the worker (`slots show`
-  prints them).
   Evidence is the command and what
   it printed; a claim is never larger than its evidence, and never made smaller
   to fit it: the work is made to match the claim.
@@ -1083,36 +1064,6 @@ Only override for bugs, but do override for bugs (and then file them)".
   longer wait. A check that ends in 124 is not rerun with a longer limit: it is
   left to CI. This is the one statement of the wrapper; a project's own rules
   keep only the check commands that are specific to it.
-- **A worker's local check is `pitboss nox`** (owner, 2026-11-04, pitboss#210;
-  2026-11-05, pitboss#250: "Stop with the targeted runs for iterating. Use
-  pitboss nox for iterating too. That's what it's for."): the worker brief says
-  Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` after
-  every edit and before every push, for iterating too (the skills, lint and
-  mypy first, then the tests of one Python version, which stop at the first
-  failing test; it stops at the first failing session and always uses `-r`); a
-  targeted test module, `nox -s ...` or `virtue` is never run by hand, and
-  never the full `nox -r`: CI's `Run Nox` step runs the whole suite. The
-  skills, lint and mypy come first because they take about 23 s together and
-  most red runs are red there (twelve runs of pitboss#318: six were red in
-  lint or mypy after 221 to 246 s of passing tests), and the tests session is
-  run with virtue's `-x` (pitboss#326), whatever its arguments, so a failing
-  test stops the run and is reported; CI's `Run Nox` step passes no `-x` and
-  runs every test. The tests session always prints the total time and the 30
-  slowest tests with their times, as lines that start with `test-timing`
-  (pitboss#324, owner: "nox tests should always be run with test timing.
-  Otherwise we won't see regressions."), in CI's `Run Nox` log and, for a
-  session that passed, in `pitboss nox`'s output. A worker never invokes `virtue` or `python -m virtue` by
-  hand (the nox session is the way to run tests), starts nothing in the
-  background that needs polling (pitboss#175: one foreground command under
-  `timeout 598`, or one `Monitor` with an `until` loop; a worker that polled
-  spent 12 of 14 minutes of its checks in its own turns), and may throw away a
-  first design: that is how the work goes, not a thing to avoid. The
-  whole suite (every Python version, docs, dry_release) is CI's `Run Nox` step,
-  so a Plan never names `pitboss nox` or any nox run as its evidence (it is
-  evidence available from CI, pitboss#179), and a Plan that names one is changes
-  needed. The Plan points to CI's `Run Nox` step for the suite as the CI pointer
-  rule says (the workflow, the step, a greppable string and how the run is found
-  for the commit), and the PR body gives no evidence for it.
 - **A lint, check or exemption that is new or loosened ships a test for the
   nearest input it must still reject** (pitboss#180; the quire#1038 worker
   loosened a lint to accept a timer whose handle is kept, tested the accepted
