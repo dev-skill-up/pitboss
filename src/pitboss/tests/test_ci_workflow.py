@@ -21,6 +21,7 @@ jobs:
         run: echo "- name: not a step"
       - uses: actions/checkout@v4
         name: What this run has to run
+    timeout-minutes: 5
   static:
     name: static (${{ matrix.group }})
     runs-on: ubuntu-24.04
