@@ -1,4 +1,4 @@
-"""A head ``pitboss nox`` already ran green is not run again (keyword: nox-green, pitboss#345).
+"""A head already green is not run again (keyword: nox-green, pitboss#345).
 
 The owner's rule: ``pitboss nox`` runs before each push and when feedback is
 needed, not again on a head it already passed. A passing run on a clean tree

@@ -71,7 +71,7 @@ class TestNoxInTheBriefs(unittest.TestCase):
         )
         assert_that("after every edit" in NOX, equal_to(False))
 
-    def test_the_nox_help_text_never_says_after_every_edit(self) -> None:
+    def test_the_command_text_never_says_after_every_edit(self) -> None:
         """No help text of the command says it either."""
         assert_that(
             "after every edit" in (nox_commands.nox.__doc__ or ""), equal_to(False)
