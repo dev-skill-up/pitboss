@@ -103,7 +103,7 @@ def _body(args: argparse.Namespace) -> str:
     runners = (args.safe_run, args.run)
     store = ghstore.store_of(runners, found.group(1), int(found.group(2)))
     try:
-        done = evidencesplit.applied(store, text, args.limit)
+        done = evidencesplit.place(store, text, args.limit)
     except evidencesplit.TooLong as error:
         raise _fail(f"{args.template}: {error}") from error
     sys.stderr.write(done.notice + _merge_notice(args))

@@ -1,6 +1,6 @@
 """The numbered rows of a Plan and their backticked spans (keyword: plan-row).
 
-``planrow`` pairs the rows with the Evidence's commands, and ``planrows``
+``planrow`` pairs the rows with the Evidence's commands, and ``planpointers``
 (keyword: plan-pointer) asks each row for a command, a read or a CI pointer: both
 read the rows with this module, which imports only the Plan section and the
 prompt of a directive.

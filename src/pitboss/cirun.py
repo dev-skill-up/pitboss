@@ -39,14 +39,15 @@ def findings(section: str, head: str, head_of: HeadOf) -> Sequence[str]:
     found: list[str] = []
     for number, text in cipointer.rows(section):
         named = RUN.findall(text) if cipointer.read(text) else []
-        for slug, run in dict.fromkeys(named):
-            found.extend(_finding(number, slug, run, head, head_of))
+        for each in dict.fromkeys(named):
+            found.extend(_finding(number, each, head, head_of))
     return found
 
 
 def _finding(
-    number: int, slug: str, run: str, head: str, head_of: HeadOf
+    number: int, named: tuple[str, str], head: str, head_of: HeadOf
 ) -> Sequence[str]:
+    slug, run = named
     url = f"https://github.com/{slug}/actions/runs/{run}"
     sha = head_of(slug, int(run))
     if sha is None:

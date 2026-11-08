@@ -49,13 +49,17 @@ def impact_command(args: argparse.Namespace) -> None:
     if not root.is_dir():
         print(f"{args.root}: not a directory", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)
+    for each in _hits(root, args.phrases):
+        sys.stdout.write(f"{impact.shown(each)}\n")
+    _say_searched(root, args.phrases)
+
+
+def _hits(root: pathlib.Path, phrases: Sequence[str]) -> Sequence[impact.Hit]:
     try:
-        found = impact.hits_in(root, args.phrases)
+        return impact.hits_in(root, phrases)
     except impact.PhraseError as error:
         print(f"{error}", file=sys.stderr)
         raise SystemExit(USAGE_ERROR) from error
-    sys.stdout.write("".join(f"{impact.shown(each)}\n" for each in found))
-    _say_searched(root, args.phrases)
 
 
 def _say_searched(root: pathlib.Path, phrases: Sequence[str]) -> None:

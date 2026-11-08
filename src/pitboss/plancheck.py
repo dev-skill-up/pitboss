@@ -40,7 +40,7 @@ from . import (
     noxrow,
     plancheckconfig,
     plandonewhen,
-    planrows,
+    planpointers,
     steps,
 )
 
@@ -232,7 +232,7 @@ def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[s
         when one is (markup-claim); pitboss#317.
     """
     return [
-        *planrows.findings(section),
+        *planpointers.findings(section),
         *plandonewhen.interpretations(body),
         *markupclaim.findings(body, changed),
     ]
@@ -245,7 +245,7 @@ KINDS = (
     (cirun.CHECK, "CI run findings"),
     (markuplines.CHECK, "Markup line findings"),
     (markupclaim.CHECK, "Markup claim findings"),
-    (planrows.CHECK, "Plan pointer findings"),
+    (planpointers.CHECK, "Plan pointer findings"),
     (plandonewhen.CHECK, "Done-when findings"),
     (plandonewhen.INTERPRETATION, "Interpretation findings"),
 )
@@ -256,12 +256,9 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
 
     Args:
         refused: the numbers of the rows that did not run.
-        found: the findings, a line each, each starting with the name of its
-            check and a colon: ``impact-list`` (and ``impact-count``,
-            ``impact-phrase``), ``ci-pointer`` (and ``ci-run``), ``markup-lines``
-            (the diff's added lines in .md and .rst files but a cut span, #373;
-            and ``markup-claim``), ``plan-pointer``, ``plan-done-when`` and
-            ``plan-interpretation``.
+        found: the findings, a line each, starting with the name of its check and
+            a colon (those of ``KINDS`` are counted apart; any other is a finding
+            of the Impact list).
 
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
@@ -270,10 +267,7 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     if not refused and not found:
         return steps.PLAN_CHECK_OK
     named = ", ".join(str(each) for each in refused)
-    counts = [
-        (label, sum(1 for each in found if each.startswith(f"{check}:")))
-        for check, label in KINDS
-    ]
+    counts = _counts(found)
     # a finding of no other check is one of the Impact list (impact-list)
     other = len(found) - sum(count for _, count in counts)
     parts = [
@@ -282,6 +276,13 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
         *[f"{label}: {count}" for label, count in counts if count],
     ]
     return f"Plan check: refused, {'; '.join(parts)}"
+
+
+def _counts(found: Sequence[str]) -> Sequence[tuple[str, int]]:
+    return [
+        (label, sum(1 for each in found if each.startswith(f"{check}:")))
+        for check, label in KINDS
+    ]
 
 
 def text(
@@ -303,13 +304,6 @@ def text(
     Returns:
         The first line, the rows, the findings, the Plan digest and the verdict.
     """
-    return "\n".join(
-        [
-            steps.PLAN_CHECK_FIRST_LINE,
-            *rows,
-            *found,
-            f"{bodydigest.PLAN_PREFIX}{bodydigest.of_section(section)}",
-            verdict(refused, found),
-            "",
-        ]
-    )
+    digest = f"{bodydigest.PLAN_PREFIX}{bodydigest.of_section(section)}"
+    lines = [steps.PLAN_CHECK_FIRST_LINE, *rows, *found, digest]
+    return "\n".join([*lines, verdict(refused, found), ""])

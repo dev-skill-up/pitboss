@@ -90,9 +90,9 @@ class TestRunHead(unittest.TestCase):
 
     def test_each_case(self) -> None:
         """Done-when: another commit's run is refused, the head's passes."""
-        for name, (plan, head, heads, words) in RUNS.items():
+        for name, (plan, head, served, words) in RUNS.items():
             with self.subTest(name):
-                found = cirun.findings(plan, head, read_from(heads))
+                found = cirun.findings(plan, head, read_from(served))
                 assert_that(mentions(found, words), equal_to(True))
 
     def test_a_run_named_twice_is_read_once(self) -> None:
@@ -141,7 +141,7 @@ class TestReaders(unittest.TestCase):
 
 
 # each case: the ticket, the comments, the lines expected, in order
-TICKETS: Mapping[str, tuple[str, Sequence[str], Sequence[str]]] = {
+SCENARIOS: Mapping[str, tuple[str, Sequence[str], Sequence[str]]] = {
     "the section and each added item": (TICKET, COMMENTS, EXPECTED),
     "no section, a parenthesis never closed": (
         "Text only.",
@@ -161,7 +161,7 @@ class TestTicketWhen(unittest.TestCase):
 
     def test_each_case(self) -> None:
         """Balanced parentheses, a colon or a full stop, bullets, the footer."""
-        for name, (ticket, comments, lines) in TICKETS.items():
+        for name, (ticket, comments, lines) in SCENARIOS.items():
             with self.subTest(name):
                 found = [each for _, each in ticketwhen.expected(ticket, comments)]
                 assert_that(found, equal_to(list(lines)))

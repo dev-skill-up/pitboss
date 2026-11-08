@@ -67,7 +67,7 @@ def superseding(body: str) -> Mapping[str, str]:
     """The tests a line of the Execution says another test replaced.
 
     An Opus ruling that replaces a test the approved Plan names does not edit the
-    Plan: the Execution has a line that names both (keyword: superseded-pointer,
+    Plan, and the Execution has a line that names both (keyword: superseded-pointer,
     pitboss#317).
 
     Args:
@@ -77,15 +77,15 @@ def superseding(body: str) -> Mapping[str, str]:
         For each cited ``test_...`` name, the other name the first Execution
         line that holds it also holds.
     """
-    lines = [
+    said = [
         each
         for title, text in _titled(body)
         if title == EXECUTION
         for each in text.splitlines()
     ]
     found: dict[str, str] = {}
-    for line in lines:
-        names = list(dict.fromkeys(_CITED.findall(line)))
+    for sentence in said:
+        names = list(dict.fromkeys(_CITED.findall(sentence)))
         for old in names:
             found.setdefault(old, next((each for each in names if each != old), ""))
     return {old: new for old, new in found.items() if new}

@@ -5,7 +5,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
-from .. import bodydigest, plancheck, plancommands, plandigest, planrows
+from .. import bodydigest, plancheck, plancommands, plandigest, planpointers
 from .linting import lint, write_text
 from .test_commands import sweep
 from .test_flow_sweep import world_with
@@ -59,11 +59,11 @@ class TestRows(unittest.TestCase):
         """The rows of file names are found, the accepted forms pass."""
         for name, (plan, lacking) in CASES.items():
             with self.subTest(name):
-                assert_that(list(planrows.lacking(plan)), equal_to(list(lacking)))
+                assert_that(list(planpointers.lacking(plan)), equal_to(list(lacking)))
 
     def test_the_finding_names_the_row_and_the_three_forms(self) -> None:
         """The check name starts it, and the text says what a row may have."""
-        found = planrows.findings(FILES_ONLY)
+        found = planpointers.findings(FILES_ONLY)
         assert_that(found, has_length(3))
         assert_that(found[1], contains_string("plan-pointer: Plan row 2 has no"))
         assert_that(found[1], contains_string("command, exact read or CI pointer"))

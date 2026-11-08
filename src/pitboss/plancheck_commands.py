@@ -319,28 +319,39 @@ def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list
 def _checked(
     args: argparse.Namespace, body: str, section: str, ref: str
 ) -> tuple[str, bool]:
-    settings = _settings(args)
     with (
         scratch_worktree(args, args.base) as tree,
         scratch_worktree(args, ref) as head,
     ):
         added = _names(args, ref, "--diff-filter=A")
-        runner = functools.partial(run_in, args, tree, args.timeout)
-        search = _searching(head)
-        rows, refused = plancheck.report(section, runner, search)
-        files = (_reading(tree), _reading(head))
         stat = _diff(args, ref, "--numstat", "-z")
         patch = _diff(args, ref, "-U0", "--no-color")
+        runner = functools.partial(run_in, args, tree, args.timeout)
+        rows, refused = plancheck.report(section, runner, _searching(head))
+        diffs = (added, stat, patch)
         found = [
-            *plancheck.impact_findings(section, search),
-            *plancheck.diff_findings(section, patch, files[0]),
-            *plancheck.ci_findings(section, added, settings, files),
-            *markuplines.findings(stat, patch),
+            *_of_trees(args, section, (tree, head), diffs),
             *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
             *_remote(args, body, section, ref),
         ]
         noted = [*rows, *markuplines.notes(stat, patch)]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
+
+
+def _of_trees(
+    args: argparse.Namespace,
+    section: str,
+    trees: Sequence[pathlib.Path],
+    diffs: tuple[Sequence[str], str, str],
+) -> Sequence[str]:
+    # the findings that read the base's tree and the head's, and the diff
+    files = (_reading(trees[0]), _reading(trees[1]))
+    return [
+        *plancheck.impact_findings(section, _searching(trees[1])),
+        *plancheck.diff_findings(section, diffs[2], files[0]),
+        *plancheck.ci_findings(section, diffs[0], _settings(args), files),
+        *markuplines.findings(diffs[1], diffs[2]),
+    ]
 
 
 def _searching(tree: pathlib.Path) -> plancheck.Search:

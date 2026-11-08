@@ -136,7 +136,7 @@ class TestWanted(unittest.TestCase):
 
 
 # each case: the phrases of the Impact rows, the words of each finding expected
-ROWS: Mapping[str, tuple[Sequence[Sequence[str]], Sequence[Sequence[str]]]] = {
+COVERAGE: Mapping[str, tuple[Sequence[Sequence[str]], Sequence[Sequence[str]]]] = {
     "no row": (
         [],
         [
@@ -167,8 +167,8 @@ class TestUncovered(unittest.TestCase):
 
     def test_each_case(self) -> None:
         """Done-when: a row for each phrase; one row may hold several."""
-        got = {k: impactphrases.uncovered(WANTS, c[0]) for k, c in ROWS.items()}
-        bad = [k for k, c in ROWS.items() if not mentions(got[k], c[1])]
+        got = {k: impactphrases.uncovered(WANTS, c[0]) for k, c in COVERAGE.items()}
+        bad = [k for k, c in COVERAGE.items() if not mentions(got[k], c[1])]
         assert_that(bad, equal_to([]))
 
     def test_the_verdict_counts_the_phrases(self) -> None:

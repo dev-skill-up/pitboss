@@ -37,8 +37,7 @@ def lines(
     The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
     PLAN EDITED.
     The review-form lines are PLAN ROW (a refusal of the body), UNREADABLE REVIEW,
-    REVIEW NOTE, RULING NO ANALYSIS and GATE PENDING; SUPERSEDED POINTER follows PLAN
-    ROW (keyword: superseded-pointer, pitboss#317).
+    REVIEW NOTE, RULING NO ANALYSIS and GATE PENDING.
 
     Args:
         pull: the PR.

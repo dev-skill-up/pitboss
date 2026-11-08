@@ -81,8 +81,8 @@ def expected(ticket: str, comments: Sequence[str]) -> Sequence[tuple[str, str]]:
         and each line of each added item as ``("the comment ...", line)``.
     """
     found = [("the ticket's Done-when", each) for each in section_lines(ticket)]
-    for number, comment in enumerate(comments, 1):
-        item = added_item(comment)
+    for number, posted in enumerate(comments, 1):
+        item = added_item(posted)
         found.extend(
             (f"comment {number}'s added Done-when", each.strip())
             for each in item.splitlines()

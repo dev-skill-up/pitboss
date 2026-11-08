@@ -72,11 +72,19 @@ def done_when(
     slug = slug or repository
     if not slug:
         return [f"{plandonewhen.CHECK}: {ticket} names no repository"]
-    path = f"repos/{slug}/issues/{number}"
-    try:
-        found = json.loads(ghapi.get(github, path))
-        listed = ghapi.pages(github, f"{path}/comments", ghstore.listed)
-    except (subprocess.CalledProcessError, OSError, ValueError):
+    read = _ticket(github, f"repos/{slug}/issues/{number}")
+    if read is None:
         return [f"{plandonewhen.CHECK}: the ticket {slug}#{number} cannot be read"]
-    comments = [each.body for each in listed]
-    return plandonewhen.findings(section, str(found.get("body") or ""), comments)
+    return plandonewhen.findings(section, read[0], read[1])
+
+
+def _ticket(github: ghapi.GitHub, path: str) -> tuple[str, Sequence[str]] | None:
+    # the ticket's body and its comments' bodies; None when GitHub does not give them
+    try:
+        reply = ghapi.get(github, path)
+        found = json.loads(reply)
+        text = str(found.get("body") or "")
+        posted = ghapi.pages(github, f"{path}/comments", ghstore.listed)
+    except (subprocess.CalledProcessError, OSError, ValueError):
+        return None
+    return text, [each.body for each in posted]

@@ -339,7 +339,7 @@ def notice(count: int, limit: int, addresses: Sequence[str]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def applied(store: Store, text: str, limit: int = LIMIT) -> Applied:
+def place(store: Store, text: str, limit: int = LIMIT) -> Applied:
     """Put a body in a pull request, the later parts in comments.
 
     Args:
@@ -375,4 +375,4 @@ def apply(store: Store, text: str, limit: int = LIMIT) -> str:
     Returns:
         The description as set.
     """
-    return applied(store, text, limit).body
+    return place(store, text, limit).body

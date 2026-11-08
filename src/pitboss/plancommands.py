@@ -15,7 +15,7 @@ The Plan's numbered rows each have a command, an exact read or a CI pointer
 import re
 from typing import Sequence
 
-from . import bodydigest, expansion, noxrow, plandigest, planrow, planrows
+from . import bodydigest, expansion, noxrow, plandigest, planrow, planpointers
 
 # the Plan section as plandigest.section reads it
 PLAN_HEADING = re.compile(r"^## Plan\s*$")
@@ -98,6 +98,6 @@ def pointer_findings(name: str, body: str, approved: Sequence[str]) -> Sequence[
     if bodydigest.of_section(section) in approved:
         return []
     return [
-        f"{name}: {each.removeprefix(planrows.CHECK + ': ')} ({planrows.CHECK})"
-        for each in planrows.findings(section)
+        f"{name}: {each.removeprefix(planpointers.CHECK + ': ')} ({planpointers.CHECK})"
+        for each in planpointers.findings(section)
     ]

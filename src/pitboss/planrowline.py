@@ -2,7 +2,7 @@
 
 from typing import Sequence
 
-from . import plancommands, planrow, pulls
+from . import plancommands, planrow, pulls, sessionurl
 from .markers import Marker
 
 
@@ -20,7 +20,7 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
     """
     if pull.relock:
         return []
-    body = pulls.body_of(pull)
+    body = sessionurl.strip(pull.pull.body or "")
     approved = pull.signals.approved_plans
     found = [
         *planrow.findings("body", body, approved),

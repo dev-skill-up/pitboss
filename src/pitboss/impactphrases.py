@@ -37,7 +37,7 @@ LEADING = re.compile(r"""^[\s#*>|`"'.:-]+""")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Wanted:
+class Want:
     """A phrase the Impact list needs a row for.
 
     Attributes:
@@ -56,19 +56,19 @@ def removed(patch: str) -> Mapping[str, Sequence[tuple[int, str]]]:
         patch: the diff.
 
     Returns:
-        For each file's old path, its removed lines as ``(line in the base,
+        For each file's old name, its removed lines as ``(line in the base,
         text)``.
     """
     found: dict[str, list[tuple[int, str]]] = {}
-    path, number = "", 0
+    old, number = "", 0
     for line in patch.splitlines():
         if line.startswith("--- "):
-            path = line[4:].split("\t")[0].removeprefix("a/").strip('"')
-            path = "" if path == "/dev/null" else path
+            old = line[4:].split("\t")[0].removeprefix("a/").strip('"')
+            old = "" if old == "/dev/null" else old
         elif (header := HEADER.match(line)) is not None:
             number = int(header.group(1))
-        elif line.startswith("-") and path and not line.startswith("---"):
-            found.setdefault(path, []).append((number, line[1:]))
+        elif line.startswith("-") and old and not line.startswith("---"):
+            found.setdefault(old, []).append((number, line[1:]))
             number += 1
     return found
 
@@ -109,22 +109,22 @@ def _strings(source: str) -> Sequence[tuple[int, int, str]]:
     return found
 
 
-def _python(path: str, lines: Sequence[tuple[int, str]], source: str) -> list[Wanted]:
+def _python(path: str, lines: Sequence[tuple[int, str]], source: str) -> list[Want]:
     strings = _strings(source)
-    found: list[Wanted] = []
+    found: list[Want] = []
     for number, text in lines:
         where = f"{path}:{number}"
         for first, last, owner in strings:
             if first <= number <= last:
-                found.append(Wanted(phrase=_first_words(text), where=where))
-                found.extend(Wanted(phrase=f, where=where) for f in _name_forms(owner))
+                found.append(Want(phrase=_first_words(text), where=where))
+                found.extend(Want(phrase=f, where=where) for f in _name_forms(owner))
         names = DEFINITION.match(text) or CONSTANT.match(text)
         if names:
-            found.extend(Wanted(phrase=f, where=where) for f in _name_forms(names[1]))
+            found.extend(Want(phrase=f, where=where) for f in _name_forms(names[1]))
     return found
 
 
-def wanted(patch: str, base: Read) -> Sequence[Wanted]:
+def wanted(patch: str, base: Read) -> Sequence[Want]:
     """The phrases the diff's removed lines need a row for.
 
     Args:
@@ -134,20 +134,20 @@ def wanted(patch: str, base: Read) -> Sequence[Wanted]:
     Returns:
         Each distinct phrase (in any case), with the first line it came from.
     """
-    found: list[Wanted] = []
-    for path, lines in removed(patch).items():
-        if path.endswith(MARKUP):
+    found: list[Want] = []
+    for name, lines in removed(patch).items():
+        if name.endswith(MARKUP):
             found.extend(
-                Wanted(phrase=_first_words(t), where=f"{path}:{n}") for n, t in lines
+                Want(phrase=_first_words(t), where=f"{name}:{n}") for n, t in lines
             )
-        elif path.endswith(".py"):
-            found.extend(_python(path, lines, base(path) or ""))
+        elif name.endswith(".py"):
+            found.extend(_python(name, lines, base(name) or ""))
     kept = {each.phrase.lower(): each for each in reversed(found) if each.phrase}
     return sorted(kept.values(), key=lambda each: each.where)
 
 
 def uncovered(
-    wants: Sequence[Wanted], searched: Sequence[Sequence[str]]
+    wants: Sequence[Want], searched: Sequence[Sequence[str]]
 ) -> Sequence[str]:
     """The findings for the phrases no Impact row searches.
 

@@ -14,7 +14,7 @@ none, a ``$`` command. The module reads no file: the hits are given.
 
 import dataclasses
 import re
-from typing import AbstractSet, Callable, Sequence
+from typing import AbstractSet, Callable, Collection, Sequence
 
 from . import expansion, impact, impactcheck, planrowtext
 
@@ -150,18 +150,26 @@ def findings(section: str, search: Search) -> Sequence[str]:
     everywhere = {(h.path, h.line) for each in rows for h in search(each.phrases)}
     found: list[str] = []
     for part in rows:
-        hits = {(h.path, h.line) for h in search(part.phrases)}
-        own = _cited(section, part)
-        cited = own | _earlier(section, part, hits)
-        if len(cited) != len(hits):
-            found.append(
-                f"{CHECK}: row {part.label} has {len(hits)} hits and the Plan cites"
-                f" {len(cited)} distinct file:line dispositions under it"
-            )
-        found.extend(
-            f"{CHECK}: row {part.label} cites {path}:{line}, which is a hit of"
-            f" another row and not of row {part.label}"
-            for path, line in sorted(own - hits)
-            if (path, line) in everywhere
+        found.extend(_of_row(section, part, search, everywhere))
+    return found
+
+
+def _of_row(
+    section: str, part: Part, search: Search, everywhere: Collection[tuple[str, int]]
+) -> Sequence[str]:
+    hits = {(h.path, h.line) for h in search(part.phrases)}
+    own = _cited(section, part)
+    cited = own | _earlier(section, part, hits)
+    found = []
+    if len(cited) != len(hits):
+        found.append(
+            f"{CHECK}: row {part.label} has {len(hits)} hits and the Plan cites"
+            f" {len(cited)} distinct file:line dispositions under it"
         )
+    found.extend(
+        f"{CHECK}: row {part.label} cites {path}:{line}, which is a hit of"
+        f" another row and not of row {part.label}"
+        for path, line in sorted(own - hits)
+        if (path, line) in everywhere
+    )
     return found

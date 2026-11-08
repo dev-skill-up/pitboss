@@ -22,16 +22,13 @@ from . import (
     parsing,
     pinsask,
     pinsreading,
-    planrowtext,
     pullfiles,
     relock,
     reviews,
     rounds,
-    sessionurl,
     shapes,
     steps,
     straycomments,
-    testnames,
     unreadableform,
 )
 
@@ -53,8 +50,6 @@ class PullFacts:
         review_rounds: what its review rounds show.
         relock: whether its head branch starts with the relock prefix
             (keyword: relock).
-        gone: the tests its diff removes that its body cites with another
-            test named in the Execution (keyword: superseded-pointer, pitboss#317).
     """
 
     repo: config.Repo
@@ -71,7 +66,6 @@ class PullFacts:
     step: steps.Next
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
-    gone: Sequence[str] = ()
 
 
 def unhealthy(facts: PullFacts) -> bool:
@@ -84,19 +78,6 @@ def unhealthy(facts: PullFacts) -> bool:
         True when it is any of them.
     """
     return bool(failed_checks(facts)) or conflicted(facts) or facts.pull.draft
-
-
-def body_of(facts: PullFacts) -> str:
-    """The PR's body, as every reader of it sees it.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        The body without the session URL the harness appends (keyword:
-        session-url).
-    """
-    return sessionurl.strip(facts.pull.body or "")
 
 
 def reference(facts: PullFacts) -> str:
@@ -182,10 +163,8 @@ def approved(facts: PullFacts) -> bool:
     Returns:
         True when approved.
     """
-    return facts.standing in (
-        reviews.Standing.APPROVED,
-        reviews.Standing.APPROVED_BEFORE_MERGES,
-    )
+    counted = (reviews.Standing.APPROVED, reviews.Standing.APPROVED_BEFORE_MERGES)
+    return facts.standing in counted
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -338,11 +317,13 @@ def _signals(
     found = headchecks.signals(got.statuses, got.checks, got.labels, ruled)
     unmet = headchecks.gate(got.statuses, repo.slug, source.review.gated)
     # keyword: plan-approved (pitboss#296): the Plans that reviews approved
-    approved = flowstate.approved_digests(state.graded)
+    plans = flowstate.approved_digests(state.graded)
     # keyword: pins-only (pitboss#34): asked only where a review would be offered
     pins = pinsask.at_review(source.pins, repo, got.pull, flow.next_step(state))
+    # keyword: superseded-pointer (pitboss#317)
+    gone = pullfiles.superseded(source.github, repo.slug, got.pull)
     return dataclasses.replace(
-        found, gate=unmet, approved_plans=approved, pins=pins, fixed=got.fixed
+        found, gate=unmet, approved_plans=plans, pins=pins, fixed=got.fixed, gone=gone
     )
 
 
@@ -379,20 +360,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         step=_step(state, signals),
         review_rounds=rounds.of(state, merged),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
-        gone=_gone(source, repo, got.pull),
     )
-
-
-def _gone(source: Source, repo: config.Repo, pull: shapes.Pull) -> Sequence[str]:
-    # keyword: superseded-pointer (pitboss#317): asked only when the Execution
-    # names a test as replaced by another
-    body = pull.body or ""
-    rows = " ".join(planrowtext.rows(body).values())
-    cited = [old for old in testnames.superseding(body) if old in rows]
-    if not cited:
-        return []
-    removed = pullfiles.removed_by(source.github, repo.slug, pull.number)
-    return [each for each in removed if each in cited]
 
 
 Read = PullFacts | shapes.Unreadable

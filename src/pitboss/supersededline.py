@@ -9,7 +9,7 @@ name that is gone with no such Execution line is a ``test-name`` finding as befo
 
 from typing import Sequence
 
-from . import planrowtext, pulls, testnames
+from . import planrowtext, pulls, sessionurl, testnames
 
 TEXT = "SUPERSEDED POINTER"
 
@@ -24,7 +24,7 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         A line for each such row and test whose removal an Execution line
         explains with the new name; none for a relock PR.
     """
-    if pull.relock or not pull.gone:
+    if pull.relock or not pull.signals.gone:
         return []
     return [
         f"{TEXT} {pulls.reference(pull)}: row {number} names {old}, the Execution"
@@ -34,11 +34,10 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
 
 
 def _renamed(pull: pulls.PullFacts) -> Sequence[tuple[int, str, str]]:
-    said = testnames.superseding(pulls.body_of(pull))
-    rows = planrowtext.rows(pulls.body_of(pull))
+    raw = pull.pull.body or ""
     return [
-        (number, old, said[old])
-        for number, text in rows.items()
-        for old in pull.gone
-        if old in said and old in text
+        (number, old, new)
+        for number, text in planrowtext.rows(sessionurl.strip(raw)).items()
+        for old, new in testnames.superseding(sessionurl.strip(raw)).items()
+        if old in text and old in pull.signals.gone
     ]
