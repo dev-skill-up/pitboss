@@ -29,10 +29,10 @@ def offers(swept: str) -> Sequence[bool]:
         swept: the sweep's output.
 
     Returns:
-        One flag for each of the three lines.
+        One flag for each of the three lines of PR 3.
     """
     words = ("READY TO MERGE", "MERGE BY HAND", "AUTO MERGE OFF")
-    return [word in swept for word in words]
+    return [f"{word} owner/project#3" in swept for word in words]
 
 
 class TestBehind(unittest.TestCase):
