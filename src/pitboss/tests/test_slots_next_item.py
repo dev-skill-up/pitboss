@@ -12,7 +12,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import configfile
+from .. import configfile, ownerlabels
 from . import fakes, quietworld, test_flow_sweep, world
 from .suggestions import next_output, parsed, third
 from .test_commands import sweep
@@ -240,8 +240,5 @@ class TestOwnerPriorities(unittest.TestCase):
 
     def test_a_stated_priority_that_is_not_a_table_is_refused(self) -> None:
         """``owner_priorities = "p0"`` names no ticket."""
-        here = world.make_world()
-        quietworld.edit_config(here, "[slots]", '[slots]\nowner_priorities = "p0"')
-        with self.assertRaises(ValueError) as caught:
-            configfile.load(here.config, here.workspace)
-        assert_that(str(caught.exception), contains_string("must be a table"))
+        with self.assertRaisesRegex(ValueError, "must be a table"):
+            ownerlabels.parse({"owner_priorities": "p0"}, SOME)
