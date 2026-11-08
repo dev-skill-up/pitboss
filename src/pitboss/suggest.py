@@ -13,12 +13,14 @@ import subprocess
 from typing import Iterable, Mapping, Sequence
 
 from . import (
+    bodydigest,
     brief,
     briefconfig,
     config,
     diskwatch,
     fixes,
     gates,
+    plandigest,
     ghapi,
     parsing,
     pullfiles,
@@ -248,11 +250,14 @@ def _heads(source: Source, pull: pulls.PullFacts | None) -> brief.Heads:
     if pull is None:
         return brief.Heads(head="", base=base, approved="", findings="")
     found = pull.review
+    body = pull.pull.body
     return brief.Heads(
         head=pull.pull.head.sha,
         base=pull.pull.base,
         approved=found.sha if found else "",
         findings=found.url if found else "",
+        body_digest=bodydigest.digest(body),
+        plan_digest=bodydigest.of_section(plandigest.section(body)),
     )
 
 

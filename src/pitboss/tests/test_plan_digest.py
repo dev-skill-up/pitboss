@@ -40,6 +40,7 @@ def digest(body: str) -> str:
 LINE = f"Plan digest: {digest(PLAN)}"
 EDIT_LINE = "PLAN EDITED owner/project#3"
 RULING_WORDS = "revise the plan"
+PLAN_DIGEST_START = "Plan digest: you grade the Plan, so add "
 NO_PLAN = "## Execution\nwork\n"
 
 
@@ -250,7 +251,7 @@ class TestTheBriefs(unittest.TestCase):
                 Kind.ADD_CI_QUOTES,
             },
             brieftext.NO_PLAN_FINDING: {Kind.REVIEW_EXECUTION, Kind.REVIEW_FIX_ROUND},
-            brieftext.PLAN_DIGEST: {Kind.REVIEW_FULL, Kind.REVIEW_PLAN},
+            PLAN_DIGEST_START: {Kind.REVIEW_FULL, Kind.REVIEW_PLAN},
         }
         for sentence, kinds in belongs.items():
             found = {kind for kind in Kind if sentence in brief_text(kind)}
