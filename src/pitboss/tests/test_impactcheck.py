@@ -1,5 +1,6 @@
 """The Plan's Impact list is held to ``pitboss impact`` (pitboss#320)."""
 
+import functools
 import unittest
 from typing import Sequence
 
@@ -179,30 +180,66 @@ class TestPlanCheck(unittest.TestCase):
         assert_that(outcome(body), equal_to([0, "Plan check: ok"]))
 
 
-def on_a_head(body: str) -> Sequence[object]:
-    """The exit status and last line of a check of a PR that adds a line.
+def pr_world() -> tuple[world.World, str]:
+    """A world with a branch ``pr`` that adds a line to ``README``.
 
-    The head is a real commit on a branch of the world's clone, whose
-    ``README`` has a line before the base's one.
+    The head is a real commit; the checkout stays at the base.
+
+    Returns:
+        The world, and the commit of the head.
+    """
+    here = real_world()
+    git = functools.partial(repositories.run_git, here.clone)
+    git("checkout", "-q", "-b", "pr")
+    (here.clone / "README").write_text("intro\nREADME\n")
+    git("add", "README")
+    git(*repositories.IDENTITY, "commit", "-q", "-m", "pr")
+    sha = git("rev-parse", "pr").strip()
+    git("checkout", "-q", "-")
+    return here, sha
+
+
+def run_check(here: world.World, body: str, *options: str) -> Sequence[object]:
+    """The exit status and last line of ``plan-check`` in a world.
+
+    Args:
+        here: the world.
+        body: the PR body.
+        *options: options after the file.
+
+    Returns:
+        The two.
+    """
+    base = ("--repo", str(here.clone), "--base", "origin/main")
+    done = world.invoke(
+        here, "plan-check", write_text("body.txt", body), *base, *options
+    )
+    return [done.code, rows(done)[-1]]
+
+
+def on_a_head(body: str) -> Sequence[object]:
+    """The check of a body with ``--head pr``.
 
     Args:
         body: the PR body.
 
     Returns:
-        The two.
+        The exit status and last line.
     """
-    here = real_world()
-    repositories.run_git(here.clone, "checkout", "-q", "-b", "pr")
-    (here.clone / "README").write_text("intro\nREADME\n")
-    repositories.run_git(here.clone, "add", "README")
-    repositories.run_git(here.clone, *repositories.IDENTITY, "commit", "-q", "-m", "pr")
-    done = world.invoke(
-        here,
-        "plan-check",
-        write_text("body.txt", body),
-        *("--repo", str(here.clone), "--base", "origin/main", "--head", "pr"),
-    )
-    return [done.code, rows(done)[-1]]
+    return run_check(pr_world()[0], body, "--head", "pr")
+
+
+def by_head_line(body: str) -> Sequence[object]:
+    """The check of a body with a ``Head:`` line and no ``--head``.
+
+    Args:
+        body: the PR body.
+
+    Returns:
+        The exit status and last line.
+    """
+    here, sha = pr_world()
+    return run_check(here, f"Head: {sha}\n\n{body}")
 
 
 class TestHead(unittest.TestCase):
@@ -215,3 +252,11 @@ class TestHead(unittest.TestCase):
         assert_that(on_a_head(right), equal_to([0, "Plan check: ok"]))
         want = [1, "Plan check: refused, Impact findings: 2"]
         assert_that(on_a_head(stale), equal_to(want))
+
+    def test_the_head_line_of_the_body_names_the_head_by_default(self) -> None:
+        """No --head, the checkout at the base: the body's Head: line decides."""
+        right = README_PLAN.format("README:2: edited\n")
+        stale = README_PLAN.format("README:1: edited\n")
+        assert_that(by_head_line(right), equal_to([0, "Plan check: ok"]))
+        want = [1, "Plan check: refused, Impact findings: 2"]
+        assert_that(by_head_line(stale), equal_to(want))

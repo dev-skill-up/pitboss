@@ -21,7 +21,7 @@ from typing import Iterator, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, expansion, impact, plancheck, plandigest
+from . import ENTRY_DATA, expansion, forms, impact, plancheck, plandigest
 
 USAGE_ERROR = 2
 REFUSED = 1
@@ -118,8 +118,9 @@ def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Pat
 
 HEAD_OPTION = add_argument(
     "--head",
-    default="HEAD",
-    help="the PR's head, searched by an Impact command (default: HEAD)",
+    default="",
+    help="the PR's head, searched by an Impact command (default: the last"
+    " `Head:` line of the body, else HEAD of the checkout)",
 )
 
 
@@ -164,7 +165,8 @@ def plan_check(args: argparse.Namespace) -> None:
     """Run the commands of a Plan, and refuse it for a row that did not run.
 
     A nox row is refused unrun (pitboss#251). A row ``pitboss impact PHRASE...``
-    is searched in a scratch worktree of the PR's head (``--head``); the Plan is
+    is searched in a scratch worktree of the PR's head (``--head``, by default the
+    last ``Head:`` line of the body, else HEAD of the checkout); the Plan is
     refused for a hit with no disposition line (``file:line: edited`` or ``not
     edited``) and for one citing a ``file:line`` that is no hit there (keyword:
     impact-list, pitboss#320).
@@ -185,17 +187,27 @@ def plan_check(args: argparse.Namespace) -> None:
         SystemExit: with status 1 when a row did not run or the Impact list has
             a finding.
     """
-    section = _plan_of(args.file.name, args.file.read())
-    output, failed = _checked(args, section)
+    output, failed = _read_and_checked(args)
     sys.stdout.write(output)
     if failed:
         raise SystemExit(REFUSED)
 
 
-def _checked(args: argparse.Namespace, section: str) -> tuple[str, bool]:
+def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
+    body = args.file.read()
+    section = _plan_of(args.file.name, body)
+    return _checked(args, section, _head_of(args, body))
+
+
+def _head_of(args: argparse.Namespace, body: str) -> str:
+    found = forms.HEAD_LINE.findall(body)
+    return str(args.head or (found[-1] if found else "HEAD"))
+
+
+def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
     with (
         scratch_worktree(args, args.base) as tree,
-        scratch_worktree(args, args.head) as head,
+        scratch_worktree(args, ref) as head,
     ):
         runner = functools.partial(run_in, args, tree, args.timeout)
         search = _searching(head)
