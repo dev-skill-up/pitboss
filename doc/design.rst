@@ -87,6 +87,15 @@ What was project-specific, and where it went
        ``max_open`` (default 0: hold while more than that many of the
        repository's PRs are open). ``slots next`` prints its tickets as
        ``HELD`` and offers none; the sweep prints one ``HOLD`` line
+   * - "pitboss never needs drafts, because it uses a different runner budget"
+       (the owner, 2026-11-03)
+     - ``[slots.brief] drafts`` (default ``true``: a repository's PRs are
+       opened as drafts unless its config says ``false``; the config is one
+       repository's). With ``false`` the worker brief says to open the PR
+       ready and to push without ``--draft``, ``push --draft`` is refused
+       (exit 1, naming the setting) and ``lint brief --config`` refuses a
+       sentence that tells the worker to open a draft (pitboss#216, keyword:
+       no-drafts)
    * - the two ``SWEEP REMINDER`` questions
      - ``[sweep] reminders`` (the two questions are the default)
    * - ``.claude/pitboss/quire.toml``
@@ -180,6 +189,13 @@ Commands
        keyword: ruling-summary). The Pacific day (``America/Los_Angeles``) of
        a recorded time ends the sweep's ``OPUS RULINGS DAILY`` line for that
        day.
+   * - ``push CONFIG [--draft] [--no-dry-run] [GIT_ARGUMENTS]``
+     - The pressure check, then ``git push``; a push that goes out appends a
+       hold, a refused one appends the look it made (pitboss#215), a failed
+       one appends nothing. ``--draft`` skips both, and is refused (exit 1,
+       naming ``[slots.brief] drafts = false``) in a project whose config says
+       no drafts (pitboss#216).
+       Dry run unless ``--no-dry-run``; put ``--`` before git's options.
    * - ``cancel-stale-runs CONFIG``
      - Cancels the queue runs that are not the newest of their PR. Dry run
        unless ``--no-dry-run``.

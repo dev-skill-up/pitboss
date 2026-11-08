@@ -177,13 +177,27 @@ def of(output: str, kind: str, reference: str) -> Sequence[str]:
     return re.findall(rf"(?m)^{kind}\b.*{re.escape(reference)}\b.*$", output)
 
 
-def held_pair() -> world.World:
+def drafted_pair() -> world.World:
     """A world with a draft of an approved Plan in each of two repositories.
 
     Returns:
         The world; a job waits for a runner, so the project's draft is held.
     """
     return with_pitboss(world_with([graded(APPROVED, None, 1)], draft=True))
+
+
+def held_pair() -> world.World:
+    """A world as ``drafted_pair`` is, but pitboss's PR is open and ready.
+
+    Returns:
+        The world; a job waits for a runner, so the project's draft is held.
+    """
+    here = drafted_pair()
+    key = "repos/dev-skill-up/pitboss/pulls/3"
+    body = here.bodies[key]
+    assert isinstance(body, dict)
+    here.bodies[key] = {**body, "draft": False}
+    return here
 
 
 def swept(here: world.World) -> str:
@@ -202,13 +216,23 @@ class TestSweep(unittest.TestCase):
     """Two drafts with an approved Plan, one in quire's repository, under pressure."""
 
     def test_the_next_list_holds_the_undraft_of_the_other_repository_only(self) -> None:
-        """The pitboss draft is marked ready; the other waits for the hold's end."""
+        """The pitboss PR is not held or undrafted; the other waits for the end."""
         shown = next_output(held_pair())
         other, pitboss = of(shown, "NEXT", QUIRE), of(shown, "NEXT", PITBOSS_PR)
         assert_that("HOLD on undrafts" in other[0], equal_to(True))
         assert_that(len(pitboss), equal_to(1))
+        assert_that("HOLD" in pitboss[0], equal_to(False))
+        assert_that("mark the PR ready" in pitboss[0], equal_to(False))
+
+    def test_a_pitboss_draft_is_marked_ready_without_a_hold(self) -> None:
+        """A draft that is there all the same is marked ready, never held."""
+        shown = next_output(drafted_pair())
+        pitboss = of(shown, "NEXT", PITBOSS_PR)
+        assert_that(len(pitboss), equal_to(1))
         assert_that(pitboss[0], contains_string("mark the PR ready"))
         assert_that("HOLD" in pitboss[0], equal_to(False))
+        state = of(shown, "PR STATE", PITBOSS_PR)
+        assert_that(state[0], contains_string("draft (open ready"))
 
     def test_the_sweep_says_so_once(self) -> None:
         """The pressure line holds, pitboss is told apart, and no PR line waits."""
@@ -216,7 +240,7 @@ class TestSweep(unittest.TestCase):
         out = swept(here)
         task = of(out, "TASK LIST", PITBOSS_PR)
         state = of(next_output(here), "PR STATE", PITBOSS_PR)
-        words = ("HOLD", "WAIT_FOR_UNDRAFT", "pressure")
+        words = ("HOLD", "WAIT_FOR_UNDRAFT", "UNDRAFT", "mark the PR ready", "pressure")
         found = (
             "RUNNER PRESSURE" in out,
             out.count(SAYING),
@@ -225,8 +249,6 @@ class TestSweep(unittest.TestCase):
             of(out, "HOLD", "new"),
         )
         assert_that(found, equal_to((True, 1, [1, 1], [], [])))
-        assert_that(task[0], contains_string("mark the PR ready"))
-        assert_that(state[0], contains_string("draft (open ready"))
 
     def test_the_other_repository_still_waits(self) -> None:
         """Its PR STATE line is the wait for an undraft, with no word of drafts."""
