@@ -93,7 +93,13 @@ def with_bats(here: world.World, script: str = BATS_OK) -> world.World:
         stub = tools / "bats"
         stub.write_text(script)
         stub.chmod(0o755)
-    path = dataclasses.replace(here.processes, path=str(tools))
+    path = fakes.FakeProcesses(
+        bodies=here.bodies,
+        calls=here.calls,
+        answers=fakes.TRACEFS_FOUND,
+        cwd=here.clone,
+        path=str(tools),
+    )
     return dataclasses.replace(here, processes=path)
 
 
