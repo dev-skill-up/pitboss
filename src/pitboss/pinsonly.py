@@ -102,10 +102,10 @@ def verify(
     fetch = ["git", "-C", where, "fetch", "--quiet", "origin"]
     fetch += [pull.base, f"pull/{pull.number}/head"]
     try:
-        refuse = functools.partial(
+        why_not = functools.partial(
             pinscompiler.refusal, run, where, pull.head.sha, words
         )
-        return _ran(run, fetch, refuse, ["env", "-C", where, *words])
+        return _ran(run, fetch, why_not, ["env", "-C", where, *words])
     except subprocess.CalledProcessError as error:
         detail = _said(error)
     except FileNotFoundError as error:
@@ -116,14 +116,14 @@ def verify(
 def _ran(
     run: running.Run,
     fetch: Sequence[str],
-    refuse: Callable[[], str],
+    why_not: Callable[[], str],
     command: Sequence[str],
 ) -> pinsreading.Reading:
     with _ONE_CHECKOUT:
         run(fetch)
-        refused = refuse()
-        if refused:
-            return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=refused)
+        reason = why_not()
+        if reason:
+            return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=reason)
         return pinsreading.read(run(command).stdout)
 
 

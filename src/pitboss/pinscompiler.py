@@ -52,15 +52,25 @@ def refusal(run: running.Run, where: str, head: str, words: Sequence[str]) -> st
     required = _pin(run, where, head)
     if not required:
         return ""
+    local = _local(run, compiler)
+    if local and _contains(run, compiler, local, required):
+        return ""
+    return _line(compiler, required, local or "not a git checkout")
+
+
+def _local(run: running.Run, compiler: str) -> str:
     try:
-        local = running.git(run, compiler, "rev-parse", "HEAD").strip()
+        return running.git(run, compiler, "rev-parse", "HEAD").strip()
     except subprocess.CalledProcessError:
-        return _line(compiler, required, "not a git checkout")
+        return ""
+
+
+def _contains(run: running.Run, compiler: str, local: str, required: str) -> bool:
     try:
         running.git(run, compiler, "merge-base", "--is-ancestor", required, local)
     except subprocess.CalledProcessError:
-        return _line(compiler, required, local)
-    return ""
+        return False
+    return True
 
 
 def _pin(run: running.Run, where: str, head: str) -> str:
