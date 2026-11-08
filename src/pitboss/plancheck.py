@@ -191,12 +191,13 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     Args:
         refused: the numbers of the rows that did not run.
         found: the findings, a line each: those of the Impact list, and those of
-            the CI pointers, which start ``ci-pointer:``.
+            the CI pointers, which start ``ci-pointer:``, and those of the diff's
+            added lines in .md and .rst files, which start ``markup-lines:``.
 
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
-        that did not run, the number of Impact findings and the number of CI
-        pointer findings.
+        that did not run, the number of Impact findings, of CI pointer findings
+        and of markup line findings.
     """
     if not refused and not found:
         return steps.PLAN_CHECK_OK
