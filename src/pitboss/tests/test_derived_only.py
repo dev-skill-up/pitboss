@@ -4,7 +4,7 @@ import json
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, is_not
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import mergesonly, shapes
 from . import world
@@ -69,7 +69,7 @@ class TestSweepLines(unittest.TestCase):
         for files in mixed:
             swept = third_line(files)
             assert_that(swept, contains_string("review=older-head"))
-            assert_that(swept, is_not(contains_string("READY TO MERGE")))
+            assert_that("READY TO MERGE" in swept, equal_to(False))
 
 
 class TestParts(unittest.TestCase):
