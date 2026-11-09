@@ -6,13 +6,15 @@ from collections.abc import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import testselect
+from .. import noxcheck, testselect
 from . import diffrepo, test_nox
 from .diffrepo import Verb
 
 TESTS_COMMAND = ["nox", "-r", "-s", "tests-3.13", "--", "-x"]
 MYPY_COMMAND = ["nox", "-r", "-s", "mypy"]
 NOXCHECK = (Verb.COMMIT, "src/pitboss/noxcheck.py")
+COVER_NOXCHECK = f"{noxcheck.COVER_PREFIX}src/pitboss/noxcheck.py"
+COVER_ORPHAN = f"{noxcheck.COVER_PREFIX}src/pitboss/orphan.py"
 SELECTED = "pitboss.tests.test_nox"
 OTHER = "pitboss.tests.test_other"
 WHY = "it reads testselect"
@@ -48,7 +50,7 @@ NOX_CASES = [
         name="the tests session runs the selected modules",
         step=NOXCHECK,
         options=[],
-        last=[*TESTS_COMMAND, SELECTED],
+        last=[*TESTS_COMMAND, COVER_NOXCHECK, SELECTED],
         said=["test-selection pitboss.tests.test_nox: src/pitboss/noxcheck.py"],
         absent=["ticket-find"],
     ),
@@ -64,13 +66,13 @@ NOX_CASES = [
         step=(Verb.COMMIT, "src/pitboss/orphan.py"),
         options=[],
         last=MYPY_COMMAND,
-        said=[testselect.NONE_REACHED],
+        said=[testselect.NONE_REACHED, "tests-3.13 not run"],
     ),
     NoxCase(
         name="an extra test runs with its reason; a missed one asks for a ticket",
         step=NOXCHECK,
         options=["--also", f"{OTHER}={WHY}"],
-        last=[*TESTS_COMMAND, SELECTED, OTHER],
+        last=[*TESTS_COMMAND, COVER_NOXCHECK, SELECTED, OTHER],
         said=[
             ALSO_LINE,
             testselect.NOT_CHECKED,
@@ -83,7 +85,7 @@ NOX_CASES = [
         name="an extra test that was selected is printed and needs no ticket",
         step=NOXCHECK,
         options=["--also", f"{SELECTED}={WHY}"],
-        last=[*TESTS_COMMAND, SELECTED],
+        last=[*TESTS_COMMAND, COVER_NOXCHECK, SELECTED],
         said=[f"test-selection also {SELECTED}: {WHY}"],
         absent=["ticket-find"],
     ),
@@ -99,7 +101,7 @@ NOX_CASES = [
         name="an extra test runs alone when the diff reaches no test",
         step=(Verb.COMMIT, "src/pitboss/orphan.py"),
         options=["--also", f"{OTHER}={WHY}"],
-        last=[*TESTS_COMMAND, OTHER],
+        last=[*TESTS_COMMAND, COVER_ORPHAN, OTHER],
         said=[
             ALSO_LINE,
             "pitboss ticket-find CONFIG test selection src/pitboss/orphan.py",

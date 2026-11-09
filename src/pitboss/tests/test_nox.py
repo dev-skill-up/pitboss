@@ -58,18 +58,22 @@ class FakeNox:
         statuses: the exit status of each session by name; 0 when absent.
         calls: every ``nox`` command line run, in order.
         git: answers the command lines that are not ``nox``.
+        environments: the ``env`` each ``nox`` command line was given (none when
+            it was given no environment), in order.
     """
 
     statuses: Mapping[str, int]
     calls: MutableSequence[Sequence[str]]
     git: Callable[[Sequence[str]], Done] = cannot_say
+    environments: MutableSequence[object] = dataclasses.field(default_factory=list)
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Done:
         """Run a command.
 
         Args:
             cmdargs: the command line.
-            **kwargs: ignored (what gather passes to ``subprocess.run``).
+            **kwargs: what gather passes to ``subprocess.run``, of which ``env``
+                is kept for a ``nox`` command line.
 
         Returns:
             The finished process, which printed its session's name.
@@ -77,6 +81,7 @@ class FakeNox:
         if cmdargs[0] != "nox":
             return self.git(cmdargs)
         self.calls.append(list(cmdargs))
+        self.environments.append(kwargs.get("env"))
         name = cmdargs[3]
         timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests\n"
         shown = timing if name == "tests-3.13" else ""
@@ -153,22 +158,20 @@ class TestNoxCommand(unittest.TestCase):
         assert_that(calls, equal_to(COMMANDS))
         assert_that(found.code, equal_to(0))
 
-    def test_it_prints_a_line_for_each_session_and_names_the_proof(self) -> None:
-        """Name, success, seconds; then CI's `Run Nox` step is the proof."""
+    def test_it_names_the_proof_and_ends_with_a_line_for_each_session(self) -> None:
+        """The proof, then name, success and seconds of each: the last lines."""
         found, _ = run_nox({})
         shown = without_selection(found.out)
         lines = [line for line in shown if not line.startswith(noxcheck.TIMING_PREFIX)]
-        assert_that([line.split()[0:2] for line in lines[:4]], equal_to(SUCCESS_LINES))
-        assert_that(shown[0].endswith("s"), equal_to(True))
-        assert_that(lines[4:], equal_to([noxcheck.PROOF]))
+        assert_that(lines[0], equal_to(noxcheck.PROOF))
+        assert_that([line.split()[0:2] for line in lines[1:]], equal_to(SUCCESS_LINES))
 
-    def test_a_passing_run_shows_the_timing_after_the_tests_line(self) -> None:
+    def test_a_passing_run_shows_the_timing_before_the_summary(self) -> None:
         """The captured output is not shown on success, the timing lines are."""
         found, _ = run_nox({})
         shown = without_selection(found.out)
         timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests"
-        assert_that(shown[4], equal_to(timing))
-        assert_that(shown[3].startswith("tests-3.13 success"), equal_to(True))
+        assert_that(shown[:2], equal_to([timing, noxcheck.PROOF]))
         has_none(found.out, ["output of tests-3.13"])
 
     def test_a_failed_tests_session_shows_the_timing_once(self) -> None:
@@ -176,8 +179,6 @@ class TestNoxCommand(unittest.TestCase):
         found, _ = run_nox({"tests-3.13": 1})
         timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests"
         assert_that(found.out.count(timing), equal_to(1))
-        shown = [each for each in found.out.splitlines() if "tests-3.13" in each]
-        assert_that(shown[0].startswith("tests-3.13 failed"), equal_to(True))
         assert_that("output of tests-3.13" in found.out, equal_to(True))
 
     def test_it_stops_at_the_first_failure(self) -> None:
@@ -190,7 +191,7 @@ class TestNoxCommand(unittest.TestCase):
         """lint fails: its output, no passing session's, and no proof."""
         found, _ = run_nox({"lint": 1})
         has_all(found.out, ["lint failed", "output of lint\n"])
-        has_none(found.out, ["output of skills", "mypy", noxcheck.PROOF])
+        has_none(found.out, ["output of skills", "output of mypy", noxcheck.PROOF])
 
     def test_the_tests_command_carries_the_stop_after_option(self) -> None:
         """-x is in the tests command whatever the arguments, and in no other."""
@@ -203,7 +204,7 @@ class TestNoxCommand(unittest.TestCase):
         """Red in mypy: the 4-minute tests never start."""
         found, calls = run_nox({"mypy": 1})
         assert_that(calls, equal_to(COMMANDS[:3]))
-        has_none(found.out, ["tests-3.13", noxcheck.PROOF])
+        has_none(found.out, ["output of tests-3.13", noxcheck.PROOF])
 
 
 GIBIBYTE = 2**30

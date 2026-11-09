@@ -19,9 +19,11 @@ from . import importgraph
 SHOWN_PATHS = 3
 NONE_REACHED = "test-selection no test is reached by the change, so no test runs"
 NOT_CHECKED = (
-    "test-selection coverage of the left-out tests is not checked here; CI's"
-    " `Run Nox` step checks the whole suite at 100%"
+    "test-selection judged here: the changed src/pitboss files, for missing lines"
+    " and branches, from the tests that ran; left to CI's `Run Nox` step: the rest,"
+    " which it checks at 100% over the whole suite"
 )
+MAIN_FILE = "/__main__.py"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -46,12 +48,37 @@ class Selection:
         chosen: for each selected test module, the changed files that reach it.
         total: how many test modules there are.
         changed: the files the diff changed.
+        deleted: those of them that are gone at the head.
     """
 
     everything: str
     chosen: Mapping[str, Sequence[str]]
     total: int
     changed: Sequence[str]
+    deleted: Sequence[str] = ()
+
+
+def selection_of(
+    why: str, chosen: Mapping[str, Sequence[str]], total: int, changes: Sequence[Change]
+) -> Selection:
+    """A selection, with the files of the diff and the deleted ones named.
+
+    Args:
+        why: the reason the whole suite runs; empty when the choice was made.
+        chosen: for each selected test module, the changed files that reach it.
+        total: how many test modules there are.
+        changes: the files the diff changed.
+
+    Returns:
+        The selection.
+    """
+    return Selection(
+        everything=why,
+        chosen=chosen,
+        total=total,
+        changed=[each.path for each in changes],
+        deleted=[each.path for each in changes if each.deleted],
+    )
 
 
 def everything(
@@ -67,12 +94,7 @@ def everything(
     Returns:
         A selection that runs every test.
     """
-    return Selection(
-        everything=why,
-        chosen={},
-        total=len(importgraph.tests_of(graph)),
-        changed=[each.path for each in changes],
-    )
+    return selection_of(why, {}, len(importgraph.tests_of(graph)), changes)
 
 
 def unplaced(change: Change) -> str:
@@ -119,8 +141,28 @@ def affected_by(graph: importgraph.Graph, changes: Sequence[Change]) -> Selectio
         for test in wanted:
             if test in reached:
                 chosen.setdefault(test, []).append(each.path)
-    paths = [each.path for each in changes]
-    return Selection(everything="", chosen=chosen, total=len(wanted), changed=paths)
+    return selection_of("", chosen, len(wanted), changes)
+
+
+def judged_files(selection: Selection) -> Sequence[str]:
+    """The changed files whose coverage ``pitboss nox`` judges (pitboss#364).
+
+    These are the files CI's report counts: a ``.py`` file of ``src/pitboss``,
+    tests included, that is still there, and not a ``__main__.py`` (CI omits it).
+
+    Args:
+        selection: the selection.
+
+    Returns:
+        Their paths from the root of the repository, sorted.
+    """
+    return sorted(
+        each
+        for each in selection.changed
+        if importgraph.module_of(each)
+        and each not in selection.deleted
+        and not each.endswith(MAIN_FILE)
+    )
 
 
 def lines_of(selection: Selection) -> Sequence[str]:
