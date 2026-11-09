@@ -105,7 +105,7 @@ class TestTheCommand(unittest.TestCase):
     ) -> None:
         """The body sent is the old one with the new line; nothing else."""
         here = served(BODY)
-        done = run(here, "--no-dry-run")
+        done = run(here)
         sent = [call[-2] for call in patches(here)]
         digest = f"{bodydigest.PREFIX}{bodydigest.digest(WANTED)}"
         wanted = f"{digest}\nbats merge-proof {OLD} {NEW}\n"
@@ -113,20 +113,17 @@ class TestTheCommand(unittest.TestCase):
             [sent, done.out, done.code], equal_to([[f"body={WANTED}"], wanted, 0])
         )
 
-    def test_a_dry_run_and_a_body_that_names_the_head_change_nothing(self) -> None:
-        """The default; and the head already named."""
-        cases = [(BODY, "", OLD), (WANTED, "--no-dry-run", NEW)]
-        for body, option, named in cases:
-            with self.subTest(named=named):
-                here = served(body)
-                done = run(here, *([option] if option else []))
-                proof = f"bats merge-proof {named} {NEW}"
-                assert_that(patches(here), equal_to([]))
-                assert_that(done.out.splitlines()[1], equal_to(proof))
+    def test_a_body_that_names_the_head_is_not_changed_by_the_command(self) -> None:
+        """The head already named."""
+        here = served(WANTED)
+        done = run(here)
+        proof = f"bats merge-proof {NEW} {NEW}"
+        assert_that(patches(here), equal_to([]))
+        assert_that(done.out.splitlines()[1], equal_to(proof))
 
     def test_a_body_with_no_head_line_and_a_bad_reference_exit_2(self) -> None:
         """Nothing is changed."""
         here = served("Fixes o/p#1\n")
-        bad = world.invoke(here, "body-head", "owner/project", "--no-dry-run")
-        codes = [run(here, "--no-dry-run").code, bad.code, len(patches(here))]
+        bad = world.invoke(here, "body-head", "owner/project")
+        codes = [run(here).code, bad.code, len(patches(here))]
         assert_that(codes, equal_to([2, 2, 0]))

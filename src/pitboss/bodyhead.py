@@ -74,11 +74,11 @@ def _api(read: Run, write: Run) -> ghapi.GitHub:
 
 
 def move(read: Run, write: Run, path: str) -> Moved | None:
-    """Put the PR's head in its body (only when not a dry run).
+    """Put the PR's head in its body.
 
     Args:
         read: the runner reads go through.
-        write: the runner changes go through (a dry run unless asked).
+        write: the runner changes go through.
         path: the pull request's path.
 
     Returns:

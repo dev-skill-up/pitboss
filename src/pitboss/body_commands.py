@@ -16,7 +16,6 @@ from . import (
     ENTRY_DATA,
     bodydigest,
     bodyhead,
-    commandarguments,
     deviations,
     expand_commands,
     plandigest,
@@ -134,7 +133,6 @@ def _pull(text: str) -> tuple[str, int]:
 
 @ENTRY_DATA.register(
     add_argument("pull", help="OWNER/NAME#NUMBER: a pull request"),
-    commandarguments.DRY_RUN_ARGUMENT,
     name="body-head",
 )
 def body_head(args: argparse.Namespace) -> None:
@@ -144,9 +142,9 @@ def body_head(args: argparse.Namespace) -> None:
     merge of the base requires: a line ``Head: <the head now>`` after the last
     ``Head:`` line, nothing else changed (``text-lint`` reads the last one). It
     prints the new body's ``Body:`` digest line and the input of ``bats
-    merge-proof`` (the head the body named, then the head now). A dry run
-    unless ``--no-dry-run``; a body whose last ``Head:`` line is the head is
-    not changed.
+    merge-proof`` (the head the body named, then the head now). It changes the
+    body as it is run, with no flag; a body whose last ``Head:`` line is the
+    head is not changed.
 
     Args:
         args: the parsed arguments.
@@ -156,7 +154,7 @@ def body_head(args: argparse.Namespace) -> None:
     """
     slug, number = _pull(args.pull)
     path = f"repos/{slug}/pulls/{number}"
-    done = bodyhead.move(args.safe_run, args.run, path)
+    done = bodyhead.move(args.safe_run, args.safe_run, path)
     if done is None:
         print(f"{args.pull}: the body has no line `Head: <40 hex>`", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)
