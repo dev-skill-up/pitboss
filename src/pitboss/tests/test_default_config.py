@@ -109,7 +109,10 @@ def ran_missing(
     env = {key: value for key, value in os.environ.items() if key != "PITBOSS_CONFIG"}
     # a PATH with git only: the fetch by name (fetched-config) finds no gh
     (tools / "git").symlink_to(str(shutil.which("git")))
-    env.update(PWD=str(directory), HOME=str(directory), PATH=str(tools))
+    # the kept copy of a fetched configuration is under $XDG_CACHE_HOME, else HOME:
+    # both are this case's own, so no copy of the machine is found (keyword: flake-368)
+    own = {"PWD": str(directory), "HOME": str(directory)}
+    env.update(own, XDG_CACHE_HOME=str(directory / ".cache"), PATH=str(tools))
     return subprocess.run(
         [sys.executable, "-m", "pitboss", *case.before, *case.after],
         cwd=directory,
@@ -133,13 +136,13 @@ def missing(
     Returns:
         The exit status, and whether standard error names ``$PITBOSS_CONFIG``
         and the file ``pitboss.toml`` of the directory; when either is not as
-        expected, also the command line and the standard error, so a failure
+        expected, also the command line, the standard error and the directory, so a failure
         shows them (keyword: flake-368).
     """
     done = ran_missing(case, directory, tools)
     names = ("$PITBOSS_CONFIG", str(directory / "pitboss.toml"))
     found = (done.returncode, *(each in done.stderr for each in names))
-    return found if found == (1, True, True) else (*found, done.args, done.stderr)
+    return found if found == (1, True, True) else (*found, done.args, done.stderr, str(directory))
 
 
 class TestMissingConfiguration(unittest.TestCase):
