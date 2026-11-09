@@ -62,8 +62,15 @@ def _pairs(hunk: str) -> Sequence[tuple[int, str, str]]:
     return found
 
 
-def _hunks(patch: str) -> Sequence[tuple[str, int, str]]:
-    # (path, number of the first added line, the hunk's rows) of every hunk
+def hunks(patch: str) -> Sequence[tuple[str, int, str]]:
+    """The hunks of a patch (``lintchange`` reads them too).
+
+    Args:
+        patch: the output of ``git diff -U0 --no-renames``.
+
+    Returns:
+        The path, the number of the first added line and the rows of each hunk.
+    """
     found: list[tuple[str, int, str]] = []
     for each in re.split(r"^diff --git ", patch, flags=re.MULTILINE)[1:]:
         name = _path_of(each)
@@ -129,7 +136,7 @@ def fragments(patch: str) -> Sequence[str]:
         f"{CHECK}: `{path}` line {start + index} is a cut line that {why}:"
         f" `{new.strip()}`; cut the whole sentence, row or paragraph, with every"
         " reference to it, and leave no fragment (dangling-fragment)"
-        for path, start, rows in _hunks(patch)
+        for path, start, rows in hunks(patch)
         if path.lower().endswith(SUFFIXES)
         for index, new, old in _pairs(rows)
         for why in [_dangling(new, old)]
@@ -137,10 +144,37 @@ def fragments(patch: str) -> Sequence[str]:
     ]
 
 
+def _uncut(hunk: str) -> Sequence[tuple[int, str]]:
+    # (index among the added lines, the line) of those that are no cut line
+    cut = {index for index, _, _ in _pairs(hunk)}
+    added = [each[1:] for each in hunk.split("\n") if each.startswith("+")]
+    return [(index, text) for index, text in enumerate(added) if index not in cut]
+
+
+def added_lines(patch: str) -> Sequence[str]:
+    """The added lines of .md and .rst files that are not a cut of a removed line.
+
+    Args:
+        patch: the output of ``git diff -U0 --no-renames``.
+
+    Returns:
+        A finding for each such line, naming its file and line number and the
+        line (keyword: markup-gate, pitboss#398).
+    """
+    return [
+        f"{CHECK}: `{path}` line {start + index} is an added line: `{text.strip()}`;"
+        " a change never adds a line to a .md or .rst file (a line main deleted"
+        " takes main's side; a span cut from a line is a removal)"
+        for path, start, rows in hunks(patch)
+        if path.lower().endswith(SUFFIXES)
+        for index, text in _uncut(rows)
+    ]
+
+
 def _cuts(patch: str) -> Mapping[str, int]:
     # the added lines of each file that only cut characters from a removed line
     found: dict[str, int] = {}
-    for name, _, rows in _hunks(patch):
+    for name, _, rows in hunks(patch):
         found[name] = found.get(name, 0) + len(_pairs(rows))
     return found
 

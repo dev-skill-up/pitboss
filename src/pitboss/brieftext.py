@@ -121,12 +121,6 @@ TASK_FIX_CI = (
     "Task: PR {reference}: CI on the head {head} is red. Fix CI (a red CI is never"
     " a rejection); change only what makes it red."
 )
-TASK_RESOLVE_CONFLICT = (
-    "Task: PR {reference} conflicts with {base}. Merge {base} into its branch"
-    " (never rebase, never force-push), resolve the conflict, rebuild every"
-    " generated file that derives from the merge (a lock, a zip, a regenerated"
-    " tree), and change nothing else (but for the body, as `Conflict body:` says)."
-)
 
 TASK_RULING_STEPS = (
     "Task: PR {reference}: its newest `Opus ruling` comment rules `do these steps`."

@@ -1,4 +1,9 @@
-"""The ``nox`` command: the local check of a worker (pitboss#210)."""
+"""The ``nox`` command: the local check of a worker (pitboss#210).
+
+Before any session it exits 1, naming file and line, when ``git diff
+origin/main...HEAD`` adds a line to a ``.md`` or ``.rst`` file that is not a cut
+of a removed line (keyword: markup-gate, ``markupgate``, pitboss#398).
+"""
 
 import argparse
 import functools
@@ -16,6 +21,7 @@ from . import (
     configsearch,
     diskwatch,
     expansion,
+    markupgate,
     noxcheck,
     noxenv,
     noxgreen,
@@ -130,6 +136,25 @@ def stop_when_short_of_disk(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def stop_before_running(args: argparse.Namespace) -> None:
+    """Stop when little disk is free or the diff adds a line to a .md or .rst file.
+
+    Args:
+        args: the parsed arguments.
+
+    Raises:
+        SystemExit: 1 under 5 GiB free, or when a .md or .rst file gains a line
+            that is not a cut, naming file and line (keyword: markup-gate,
+            pitboss#398).
+    """
+    stop_when_short_of_disk(args)
+    found = markupgate.findings(functools.partial(run_command, args))
+    for each in found:
+        print(each)
+    if found:
+        raise SystemExit(1)
+
+
 def skipped_as_green(args: argparse.Namespace, place: noxgreen.Place | None) -> bool:
     """Print the NOTE and say so when this head already ran green.
 
@@ -234,7 +259,7 @@ def nox(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
-    stop_when_short_of_disk(args)
+    stop_before_running(args)
     runner = functools.partial(run_command, args)
     place = noxgreen.place_of(runner)
     if not skipped_as_green(args, place):

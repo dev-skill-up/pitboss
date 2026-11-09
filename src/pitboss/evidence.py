@@ -31,6 +31,11 @@ HEADING = re.compile(r"^ {0,3}(?P<hashes>#{1,6})(?:[ \t]+(?P<title>.*))?$")
 EVIDENCE = re.compile(r"Evidence\b", re.IGNORECASE)
 COMMAND = re.compile(r"^(?:[ \t>]|[-+*](?=[ \t])|\d{1,9}[.)](?=[ \t]))*\$(?:[ \t]|$)")
 # a row ending in `; echo $?`, `&& echo $?` or `|| echo ...` (pitboss#170)
+HEAD_CHECK = "evidence-head"
+STALE_HEAD = (
+    "{check}: the Evidence block of `{command}` (line {line}) was expanded at"
+    " {recorded} but the head is {head}: run `pitboss expand` again at the head"
+)
 ECHOED = re.compile(r"(?:[;&]\s*echo\s+[^|;&]*\$\?[^|;&]*|\|\|\s*echo\b.*)\s*$")
 LEADING_TAGS = re.compile(r"^(?:\s*<[^>]*>)*")
 
@@ -181,11 +186,13 @@ def produced(block: Block) -> bool:
 
     Returns:
         True when it is closed and its opening line carries the mark and the
-        digest of its contents; the digest is over the form a store keeps
+        digest of its contents, and the head ``expand`` ran at when it records
+        one (``expansion.recorded_head``); the digest is over the form a store keeps
         (``expansion.stored_form``: no BOM, no carriage return, a wrapped URL
         unwrapped; pitboss#164), so a stored block verifies as the file's.
     """
-    return block.closed and block.info == expansion.info(block.contents)
+    head = expansion.recorded_head(block.info)
+    return block.closed and block.info == expansion.info(block.contents, head)
 
 
 def has_section(body: str) -> bool:
@@ -271,3 +278,42 @@ def hand_typed(body: str) -> Sequence[int]:
         for number, line in enumerate(body.splitlines(), 1)
         if COMMAND.match(canonical(line)) and number not in inside
     ]
+
+
+def _stale(block: Block, head: str) -> str:
+    # the finding of a produced block whose recorded head is not the head, else ""
+    recorded = expansion.recorded_head(block.info)
+    if not recorded or recorded == head:
+        return ""
+    command = first_row(block).removeprefix(expansion.PROMPT)
+    return STALE_HEAD.format(
+        check=HEAD_CHECK,
+        command=command,
+        line=block.line,
+        recorded=recorded,
+        head=head,
+    )
+
+
+def stale_heads(body: str, head: str) -> Sequence[str]:
+    """The Evidence blocks that were expanded at another commit than the head.
+
+    The keyword is evidence-head (pitboss#398). ``pitboss expand`` records the
+    commit it ran at in the opening line of each block (``head=``); a block
+    expanded at the commit before the head shows the output of another tree. A
+    block with no recorded head (made before the record) is not judged.
+
+    Args:
+        body: the PR's body.
+        head: the head's SHA; empty when it is not known (nothing is judged).
+
+    Returns:
+        A finding for each produced block of the Evidence section whose
+        recorded head is not ``head``, naming its command and line.
+    """
+    found = [
+        _stale(each, head)
+        for each in blocks(body)
+        if head and produced(each) and each.in_evidence
+    ]
+    return [each for each in found if each]

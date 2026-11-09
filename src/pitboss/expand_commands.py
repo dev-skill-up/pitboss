@@ -58,13 +58,38 @@ def run_in(
     )
 
 
+def head_of(args: argparse.Namespace) -> str:
+    """The commit the commands run at, which each block records.
+
+    The keyword is evidence-head (pitboss#398).
+
+    Args:
+        args: the parsed arguments, whose ``cwd`` is the checkout.
+
+    Returns:
+        The 40 hex digits of its HEAD; empty when git cannot say.
+    """
+    try:
+        done = args.safe_run(
+            ["git", "-C", args.cwd, "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return ""
+    named = str(done.stdout).strip()
+    return named if re.fullmatch(r"[0-9a-f]{40}", named) else ""
+
+
 def _expanded(args: argparse.Namespace) -> str:
     directory = pathlib.Path(args.cwd)
     if not directory.is_dir():
         raise _fail(f"{args.cwd}: not a directory")
     try:
         template = pathlib.Path(args.template).read_text(encoding="utf-8")
-        return expansion.expand(template, functools.partial(run_in, args, directory))
+        shell = functools.partial(run_in, args, directory)
+        return expansion.expand(template, shell, head_of(args))
     except (OSError, UnicodeError, expansion.TemplateError) as error:
         raise _fail(f"{args.template}: {error}") from error
 
@@ -137,12 +162,13 @@ def expand(args: argparse.Namespace) -> None:
     """Print a template with each ``$ command`` line run and its output shown.
 
     Each command is printed as written and followed by its raw output, in a
-    fenced block marked as produced by expand; the exit status follows when it
-    is not zero. Nothing is trimmed or filtered, and nothing but a command
-    supplies a fact. With ``--pr`` the body is also set as the pull request's
-    description, and a body over ``--limit`` is cut on paragraph markers: the
-    later parts become comments, cited by URL in the description (keyword:
-    expand-split, pitboss#177).
+    fenced block marked as produced by expand, whose opening line records the
+    commit it ran at (``head=``; keyword: evidence-head, pitboss#398); the exit
+    status follows when it is not zero. Nothing is trimmed or filtered, and
+    nothing but a command supplies a fact. With ``--pr`` the body is also set as
+    the pull request's description, and a body over ``--limit`` is cut on
+    paragraph markers: the later parts become comments, cited by URL in the
+    description (keyword: expand-split, pitboss#177).
     Standard error then says that the overflow is the standing decision, with
     each comment's URL, and the description's section starts with the same
     sentence (keyword: expand-split, pitboss#317). When the
