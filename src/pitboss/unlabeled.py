@@ -10,7 +10,7 @@ offered, but it is a priority).
 
 import json
 import re
-from typing import Any, Sequence
+from typing import NamedTuple, Sequence
 
 from . import concurrently, config, ghapi
 
@@ -23,12 +23,30 @@ RULE = (
 _PRIORITY = re.compile(r"^p\d+$")
 
 
-def _unlabeled(item: dict[str, Any], settings: config.Config) -> bool:
-    # the issues list holds PRs too
+class _Item(NamedTuple):
+    created_at: str
+    number: int
+    labels: frozenset[str]
+    pull: bool
+
+
+def _items(text: str) -> Sequence[_Item]:
+    # raw items: the list holds PRs, so a full page with one is not the last page
+    return [
+        _Item(
+            each["created_at"],
+            each["number"],
+            frozenset(label["name"] for label in each["labels"]),
+            "pull_request" in each,
+        )
+        for each in json.loads(text)
+    ]
+
+
+def _unlabeled(item: _Item, settings: config.Config) -> bool:
     known = settings.slots.priority_labels
-    names = [label["name"] for label in item["labels"]]
-    priority = any(each in known or _PRIORITY.match(each) for each in names)
-    return "pull_request" not in item and not priority
+    priority = any(each in known or _PRIORITY.match(each) for each in item.labels)
+    return not item.pull and not priority
 
 
 def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
@@ -47,13 +65,11 @@ def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
         return []
     repos = config.repositories(settings)
 
-    def read(repo: config.Repo) -> Sequence[dict[str, Any]]:
-        # raw items: a full page with a PR among it is not the last page
-        path = f"repos/{repo.slug}/issues?state=open"
-        return ghapi.pages(github, path, json.loads)
+    def read(repo: config.Repo) -> Sequence[_Item]:
+        return ghapi.pages(github, f"repos/{repo.slug}/issues?state=open", _items)
 
     found = [
-        (each["created_at"], f"{repo.slug}#{each['number']}")
+        (each.created_at, f"{repo.slug}#{each.number}")
         for repo, opened in zip(repos, concurrently.each(read, repos))
         for each in opened
         if _unlabeled(each, settings)
