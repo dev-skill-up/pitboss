@@ -12,8 +12,13 @@ virtualenv still find what they stored.
 
 import contextlib
 import os
+import sys
 import tempfile
 from collections.abc import Iterator, Mapping
+
+from . import devpath
+
+USAGE_ERROR = 2
 
 IDENTITY = (
     "GIT_AUTHOR_NAME",
@@ -31,7 +36,15 @@ def throwaway_home() -> Iterator[str]:
 
     Yields:
         Its path; the directory is removed when the run ends.
+
+    Raises:
+        SystemExit: 2, before the directory is made, when the temporary directory
+            is under ``/dev``, where nothing is removed (#424).
     """
+    refused = devpath.temporary_under_dev()
+    if refused:
+        print(f"nox: no throwaway home, {refused}", file=sys.stderr)
+        raise SystemExit(USAGE_ERROR)
     with tempfile.TemporaryDirectory(prefix="pitboss-nox-home-") as home:
         yield home
 

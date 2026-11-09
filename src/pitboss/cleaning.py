@@ -9,7 +9,7 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Callable, Iterator, Sequence
 
-from . import dead, disk
+from . import dead, devpath, disk
 from .markers import Marker
 from .running import Run, git
 
@@ -78,6 +78,18 @@ def left_behind(each: dead.Candidate) -> str:
     return "rm left it in place" if os.path.lexists(each.path) else ""
 
 
+def under_dev(each: dead.Candidate) -> str:
+    """Why a candidate is never removed: it is under ``/dev`` (#424).
+
+    Args:
+        each: the candidate.
+
+    Returns:
+        A reason naming the path, or empty when it is not under ``/dev``.
+    """
+    return devpath.under_dev(each.path)
+
+
 def removals(
     how: Removal, paths: Sequence[dead.Candidate]
 ) -> Iterator[tuple[dead.Candidate, str]]:
@@ -96,7 +108,10 @@ def removals(
         a dry run would leave it).
     """
     for part in itertools.batched(paths, how.batch):
-        checked = [(each, "" if how.dry else how.recheck(each)) for each in part]
+        checked = [
+            (each, under_dev(each) or ("" if how.dry else how.recheck(each)))
+            for each in part
+        ]
         going = [str(each.path) for each, why in checked if not why]
         if going:
             with contextlib.suppress(subprocess.CalledProcessError):

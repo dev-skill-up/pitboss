@@ -17,7 +17,17 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Callable, Sequence
 
-from . import dead, disk, judging, local, mergetime, survey, untracked, workhours
+from . import (
+    dead,
+    devpath,
+    disk,
+    judging,
+    local,
+    mergetime,
+    survey,
+    untracked,
+    workhours,
+)
 from .judging import Finished, Judged, Pressure, at_ease
 from .markers import Marker
 from .running import Run, git
@@ -231,6 +241,9 @@ def removal_line(action: Action, look: dead.Look, each: Judged) -> tuple[str, bo
     """
     path = each.found.worktree.path
     main_clone = look.settings.project.main_clone
+    refused = devpath.under_dev(path)
+    if refused:
+        return f"{Marker.COULD_NOT_REMOVE_WORKTREE.text} {path}: {refused}", False
     try:
         forced = ("--force",) if each.ignored else ()
         git(action.run, main_clone, "worktree", "remove", *forced, str(path))

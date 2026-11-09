@@ -33,6 +33,7 @@ from . import (
     cirun,
     configfile,
     configsettle,
+    devpath,
     expansion,
     forms,
     ghapi,
@@ -151,7 +152,14 @@ def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Pat
 
     Yields:
         The worktree's directory.
+
+    Raises:
+        _fail: when the temporary directory is under ``/dev``, where nothing is
+            removed (#424).
     """
+    refused = devpath.temporary_under_dev()
+    if refused:
+        raise _fail(f"plan-check: no scratch worktree, {refused}")
     with tempfile.TemporaryDirectory(prefix="plan-check-") as scratch:
         tree = pathlib.Path(scratch) / "tree"
         _git(args, "worktree", "add", "--detach", str(tree), ref)
