@@ -7,7 +7,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import ghapi, parsing, shapes
+from .. import ghapi, issuelist, parsing, shapes
 from . import fakes
 
 FULL_PAGE = [{"number": number} for number in range(100)]
@@ -91,7 +91,7 @@ class TestParsing(unittest.TestCase):
 
     def test_lists(self) -> None:
         """Issues leave out PRs; outcomes say whether a PR merged."""
-        found = [parsing.issues(ISSUES), parsing.outcomes(OUTCOMES)]
+        found = [issuelist.issues(ISSUES), parsing.outcomes(OUTCOMES)]
         issue = shapes.Issue(
             number=1, title="t", created_at="c", labels=frozenset({"p"}), body=""
         )
