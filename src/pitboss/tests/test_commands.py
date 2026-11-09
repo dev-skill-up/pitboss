@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import cleanworld, fakes, orphans, syncworld, world
+from . import cleanworld, fakes, liveagents, orphans, syncworld, world
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -74,13 +74,15 @@ REMOVING = ("--now", world.FUTURE, "--no-dry-run")
 def sweep(here: world.World) -> world.Result:
     """Sweep a world at a time after everything in it.
 
+    The agents the ledger holds are the ones that run (pitboss#94).
+
     Args:
         here: the world.
 
     Returns:
         What the sweep did.
     """
-    return world.again(here, "sweep", "--now", world.FUTURE)
+    return world.again(here, "sweep", "--now", world.FUTURE, *liveagents.running(here))
 
 
 def unclean_third(here: world.World) -> None:

@@ -150,8 +150,7 @@ def picks(source: Source) -> Sequence[Pick]:
         source: what suggestions are made from.
 
     Returns:
-        The PRs at an Opus ruling, oldest first, then the queued work; with no
-        free slot only the rounds of PRs that hold one (keyword: slot-held).
+        The PRs at a ruling, oldest first, then the queued work (keyword: slot-held).
     """
     by_reference = {pulls.reference(each): each for each in source.facts}
     ruled = sorted(
@@ -163,7 +162,8 @@ def picks(source: Source) -> Sequence[Pick]:
         *(
             _queued_pick(each, by_reference)
             for each in source.items
-            if not slotheld.waits(source.occupancy, each.reference)
+            if source.occupancy.known
+            and not slotheld.waits(source.occupancy, each.reference)
         ),
     ]
 

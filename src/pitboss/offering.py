@@ -1,7 +1,7 @@
 """What is offered to start: the queued work, less what is kept back.
 
-Kept back are the tickets of a repository under the owner's hold (keyword:
-pr-hold) and the tickets that cannot be worked on until an open ticket or PR
+Kept back are the tickets of a repository under the owner's hold and the
+tickets that cannot be worked on until an open ticket or PR
 (keyword: ticket-blocked); the open ticket a blocked ticket waits for is offered
 ahead of it (``dependency``, pitboss#280). Shared by ``slots next``, ``next`` and
 the sweep, so the three agree on which tickets are offered.
@@ -10,7 +10,7 @@ the sweep, so the three agree on which tickets are offered.
 import argparse
 import dataclasses
 import functools
-from typing import Mapping, Protocol, Sequence
+from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
 
 from . import (
     blockers,
@@ -140,28 +140,155 @@ def offered(
     )
     held = holds.standing(owned, [_slug(each) for each in opened])
     queued = work.queued(opened, found.github, found.settings, book)
+    queued = ranked(found, opened, book, queued)
     tickets = concurrently.each(
         lambda item: marked(found.github, found.settings, item), queued
     )
     return apart(_dependencies_first(found, opened, book, tickets), held)
 
 
-def _open_ticket(found: Source, reference: str, waiting: work.Item) -> work.Item | None:
-    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
-    ticket = blockers.read(found.github, reference)
+def _read_ticket(github: ghapi.GitHub, reference: str) -> work.Item | None:
+    # an open ticket, as the item it is queued as; a PR and a closed ticket are not
+    ticket = blockers.read(github, reference)
     if ticket is None or not ticket.open or ticket.pull:
         return None
-    item = work.Item(
+    return work.Item(
         category=work.Category.NEW_PR,
         reference=reference,
-        created_at=waiting.created_at,
+        created_at=ticket.created_at,
         title=ticket.title,
-        priority=waiting.priority,
         labels=ticket.labels,
         body=ticket.body,
         comments=ticket.comments,
     )
-    return marked(found.github, found.settings, item)
+
+
+def _open_ticket(found: Source, reference: str, waiting: work.Item) -> work.Item | None:
+    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
+    item = _read_ticket(found.github, reference)
+    if item is None:
+        return None
+    return marked(found.github, found.settings, _inherit(item, waiting))
+
+
+def _configured(settings: config.Config) -> AbstractSet[str]:
+    # the slugs of the project and its libraries
+    return {each.slug for each in config.repositories(settings)}
+
+
+def _stated(
+    found: Source, busy: AbstractSet[str], items: Sequence[work.Item]
+) -> Mapping[str, work.Item]:
+    # keyword: owner-priority (pitboss#371): the tickets the owner ranks, by that rank
+    slots = found.settings.slots
+    repositories = _configured(found.settings)
+    new = work.Category.NEW_PR
+    tickets = {each.reference: each for each in items if each.category is new}
+
+    def rank(reference: str, label: str) -> work.Item | None:
+        ticket = tickets.get(reference) or _read_ticket(found.github, reference)
+        return ticket and dataclasses.replace(
+            ticket, priority=slots.priority_labels.index(label)
+        )
+
+    wanted = [
+        (reference, label)
+        for reference, label in slots.owner_priorities.items()
+        if reference not in busy and reference.rpartition("#")[0] in repositories
+    ]
+    return {ref: made for ref, label in wanted if (made := rank(ref, label))}
+
+
+def ranked(
+    found: Source,
+    opened: Sequence[pulls.Read],
+    book: ledger.Ledger,
+    items: Sequence[work.Item],
+) -> Sequence[work.Item]:
+    """The queued work, with the tickets the owner ranks given that rank.
+
+    A ticket an open PR works on, or a slot holds, keeps no rank; while a PR
+    cannot be read no ticket is offered (keyword: unreadable-pull), so none is
+    added.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        book: the ledger.
+        items: the queued work (``work.queued``).
+
+    Returns:
+        The items, in order.
+    """
+    facts = pulls.readable(opened)
+    if not found.settings.slots.owner_priorities or len(facts) != len(opened):
+        return items
+    agents = _agents(book)
+    stated = _stated(found, work.taken(facts) | set(agents), items)
+    rest = [each for each in items if each.reference not in stated]
+    return work.ordered([*rest, *stated.values()], agents)
+
+
+def _agents(book: ledger.Ledger) -> Sequence[str]:
+    return [each.task for each in book.slots if each.agent]
+
+
+UNREAD = "OWNER PRIORITY UNREAD: {reference} = {label}: {why}"
+
+
+def _stated_ticket(
+    found: Source, offer: work.Offered, reference: str
+) -> blockers.Ticket | str:
+    # the ticket the owner states a priority for, or why it cannot be read
+    if reference.rpartition("#")[0] not in _configured(found.settings):
+        return "its repository is not configured"
+    for each in [*offer.items, *offer.held, *offer.blocked]:
+        if each.reference == reference and each.category is work.Category.NEW_PR:
+            return blockers.Ticket(open=True, labels=each.labels)
+    ticket = blockers.read(found.github, reference)
+    if ticket is None:
+        return "the ticket cannot be read"
+    return "it is a PR, not a ticket" if ticket.pull else ticket
+
+
+def _disagrees(reference: str, label: str, ticket: blockers.Ticket | str) -> str:
+    # the line for one stated priority, or "" when the ticket agrees or is closed
+    if isinstance(ticket, str):
+        return UNREAD.format(reference=reference, label=label, why=ticket)
+    if not ticket.open or label in ticket.labels:
+        return ""
+    has = ", ".join(sorted(ticket.labels)) or "no label"
+    return (
+        f"LABEL DISAGREES: {reference} is labelled {has},"
+        f" the owner's stated priority is {label}"
+    )
+
+
+def disagreements(found: Source, offer: work.Offered) -> Iterable[str]:
+    """The line of each ticket whose label is not the owner's stated priority.
+
+    Every ticket the owner states a priority for is read, also one that an open
+    PR works on or a slot holds. The line has no entry in ``markers.Marker``: the
+    references explain each of those, and this change adds no line to a reference
+    (keyword: owner-priority).
+
+    Args:
+        found: the context.
+        offer: the queued work, the held and the blocked tickets.
+
+    Returns:
+        ``LABEL DISAGREES: <ticket> is labelled <labels>, the owner's stated
+        priority is <label>``, in the order of the configuration; for a stated
+        priority that cannot be used (a repository that is not configured, a
+        ticket that cannot be read or is a PR) ``OWNER PRIORITY UNREAD:
+        <ticket> = <label>: <why>``. A closed ticket has no line.
+    """
+    stated = found.settings.slots.owner_priorities.items()
+    said = (
+        _disagrees(ref, label, _stated_ticket(found, offer, ref))
+        for ref, label in stated
+    )
+    return [line for line in said if line]
 
 
 def _dependencies_first(
@@ -172,7 +299,7 @@ def _dependencies_first(
 ) -> Sequence[work.Item]:
     # keyword: ticket-blocked (pitboss#280): a dependency is offered ahead of it
     readable = pulls.readable(opened)
-    unavailable = work.taken(readable) | {s.task for s in book.slots if s.agent}
+    unavailable = work.taken(readable) | set(_agents(book))
     # an unreadable PR may work on any ticket (keyword: unreadable-pull)
     if len(readable) != len(opened):
         return dependency.order(tickets, _inherit)

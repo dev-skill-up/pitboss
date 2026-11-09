@@ -12,6 +12,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import slotheld
 from . import fakes, suggestions, test_flow_sweep as flows, world
+from .liveagents import calm, ran, said
 from .test_commands import sweep
 from .test_owner_repositories import lines_of
 from .test_slot_commands import freed_world, next_output, run_all
@@ -42,44 +43,6 @@ def incident() -> world.World:
     }
     run_all(here, [("remove", "big")])
     return here
-
-
-def calm() -> world.World:
-    """The default world with PR 1 clean, so that no PR holds a slot.
-
-    Returns:
-        The world: PR 1 is red, PR 3 waits for a review, ticket 9 can start.
-    """
-    here = world.make_world()
-    branch = {"sha": "1" * 40, "ref": "branch-1"}
-    here.bodies[f"{PROJECT}/pulls/1"] = fakes.pull_body(1, head=branch)
-    return here
-
-
-def said(output: str, start: str, wanted: Sequence[str] | int) -> None:
-    """Assert the lines that start with some words, or how many there are.
-
-    Args:
-        output: what a command printed.
-        start: the words.
-        wanted: the lines, or their number.
-    """
-    found = lines_of(output, start)
-    assert_that(len(found) if isinstance(wanted, int) else found, equal_to(wanted))
-
-
-def ran(here: world.World, command: Sequence[str], *running: str) -> str:
-    """What a command printed, given the agents the session runs.
-
-    Args:
-        here: the world.
-        command: the command's words before the configuration.
-        *running: the names of the live agents.
-
-    Returns:
-        Its output.
-    """
-    return world.invoke(here, *command, here.config, "--running", *running).out
 
 
 def kinds(output: str) -> Sequence[str]:
@@ -218,7 +181,7 @@ class TestUnrecordedAgents(unittest.TestCase):
             said(ran(here, ("slots", "show"), *running), "UNRECORDED AGENT", 0)
 
     def test_a_renamed_agent_is_left_to_gone_agent(self) -> None:
-        """As many live agents as recorded slots: the name is for GONE AGENT."""
+        """``slots check`` shows the rows as written: the name is for GONE AGENT."""
         here = calm()
         run_all(here, [("set", "tiny", "agent-1", "#9", "--running", "agent-1")])
         shown = ran(here, ("slots", "check"), "other")

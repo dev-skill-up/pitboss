@@ -17,6 +17,7 @@ QUEUED = "QUEUED: waits for a free slot; the running agent is never interrupted"
 RUNNING_FIRST = "running workers and reviewers: never interrupted, never stopped"
 LEAD = 1
 NOT_LIMITED = 10**9
+NOT_COMPUTED = "slots: not computed, --running names the agents the session runs"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -43,12 +44,15 @@ class Occupancy:
             agent is unrecorded.
         references: the PRs that hold a slot, none while a live agent holds none
             (it may be the one working on them).
+        known: whether the agents the session runs were given (``--running``);
+            when not, no slot is said to be held or empty (pitboss#94).
     """
 
     holding: Sequence[Held] = ()
     unrecorded: Sequence[str] = ()
     free: int = NOT_LIMITED
     references: AbstractSet[str] = frozenset()
+    known: bool = True
 
 
 UNLIMITED = Occupancy()
@@ -103,8 +107,11 @@ def lines(taken: Occupancy) -> Sequence[str]:
 
     Returns:
         A ``SLOT HELD`` line for each PR and an ``UNRECORDED AGENT`` line for
-        each live agent that holds no slot.
+        each live agent that holds no slot; the one line that says the slots
+        are not computed when the running agents were not given.
     """
+    if not taken.known:
+        return [NOT_COMPUTED]
     return [
         *map(held_line, taken.holding),
         *map(unrecorded_line, taken.unrecorded),

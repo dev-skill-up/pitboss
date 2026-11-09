@@ -60,7 +60,7 @@ def block(
     """
     found = [HEADER]
     for slot in book.slots:
-        if slot.agent:
+        if slot.agent and taken.known:
             found.append(
                 f"{LABEL} in flight {slot.ticket or slot.task}:"
                 f" slot {slot.name} ({slot.agent})"

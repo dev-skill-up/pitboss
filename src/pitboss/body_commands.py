@@ -12,7 +12,15 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, bodydigest, deviations, plandigest, workeractions
+from . import (
+    ENTRY_DATA,
+    bodydigest,
+    bodyhead,
+    deviations,
+    expand_commands,
+    plandigest,
+    workeractions,
+)
 
 USAGE_ERROR = 2
 
@@ -114,3 +122,41 @@ def plan_digest(args: argparse.Namespace) -> None:
             body has no ``## Plan`` section, exits with status 2).
     """
     print(f"{bodydigest.PLAN_PREFIX}{_plan_digest(args.file)}")
+
+
+PULL_ARGUMENT = add_argument("pull", help="OWNER/NAME#NUMBER: a pull request")
+
+
+def _pull(text: str) -> tuple[str, int]:
+    found = expand_commands.PULL.match(text)
+    if found is None:
+        raise _fail(f"{text}: not OWNER/NAME#NUMBER")
+    return found.group(1), int(found.group(2))
+
+
+@ENTRY_DATA.register(PULL_ARGUMENT, name="body-head")
+def body_head(args: argparse.Namespace) -> None:
+    """Add the ``Head:`` line of the PR's head to its body, after a merge of main.
+
+    This is the body-head area (pitboss#369). The one change to the body that a
+    merge of the base requires: a line ``Head: <the head now>`` after the last
+    ``Head:`` line, nothing else changed (``text-lint`` reads the last one). It
+    prints the new body's ``Body:`` digest line and the input of ``bats
+    merge-proof`` (the head the body named, then the head now). It changes the
+    body as it is run, with no flag; a body whose last ``Head:`` line is the
+    head is not changed.
+
+    Args:
+        args: the parsed arguments.
+
+    Raises:
+        SystemExit: 2 for a body with no ``Head: <40 hex>`` line.
+    """
+    slug, number = _pull(args.pull)
+    path = f"repos/{slug}/pulls/{number}"
+    done = bodyhead.move(args.safe_run, args.safe_run, path)
+    if done is None:
+        print(f"{args.pull}: the body has no line `Head: <40 hex>`", file=sys.stderr)
+        raise SystemExit(USAGE_ERROR)
+    print(f"{bodydigest.PREFIX}{done.digest}")
+    print(f"bats merge-proof {done.old} {done.new}")

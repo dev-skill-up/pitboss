@@ -308,7 +308,7 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
 
     A ruling is applied once a regular review or a check run of the head (a
     push) is newer than it; until then its own step is next, whatever the
-    newest review that counts says (keyword: ruling-posted, pitboss#294).
+    newest review that counts says (pitboss#294).
 
     Args:
         pr: the PR.

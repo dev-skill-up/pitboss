@@ -51,7 +51,7 @@ from . import (
     workerlines,
     workhours,
 )
-from . import diskline, pulllines, pullstate, unreadableline
+from . import diskline, pulllines, pullstate, unlabeled, unreadableline
 from .commandarguments import CHANGING_ARGUMENTS, SWEEP_ARGUMENTS
 from .failures import describe, read_all
 from .markers import Marker
@@ -328,15 +328,17 @@ def _repository_sections(
 
 def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     report.print_reminders(found.settings)
-    book = ledger.configured(found.settings)
+    written = ledger.configured(found.settings)
+    book = slotholding.derived(written, found.args.running)
     offer = slotholding.counted(
         offering.offered(found, read, book), read, book, found.args
     )
     slotreport.print_ledger(book, offer.occupancy)
-    sweepline.slots(read, offer)
+    sweepline.slots(read, offer, offering.disagreements(found, offer))
     sweepline.logged(book, offer, found.settings.slots.log, found.now)
-    workerlines.print_lines(book, found.now, found.args)
+    workerlines.print_lines(written, found.now, found.args)
     undrafts = readyline.texts(found.settings, pulls.readable(read), found.now)
+    unlabeled.print_lines(found.github, found.settings)
     tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
 
 

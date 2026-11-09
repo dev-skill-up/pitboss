@@ -12,7 +12,8 @@ def slot_lines(book: ledger.Ledger, taken: slotheld.Occupancy) -> Sequence[str]:
 
     An empty slot that a PR's round or an unrecorded agent holds is not free:
     its row says so, and ``SLOT HELD`` and ``UNRECORDED AGENT`` lines follow
-    (keyword: slot-held, pitboss#291).
+    (keyword: slot-held, pitboss#291). When the agents are not known no slot row
+    is printed, only the line that says so (pitboss#94).
 
     Args:
         book: the ledger.
@@ -21,6 +22,8 @@ def slot_lines(book: ledger.Ledger, taken: slotheld.Occupancy) -> Sequence[str]:
     Returns:
         The lines.
     """
+    if not taken.known:
+        return [*slotheld.lines(taken), *deviations.ledger_lines(book)]
     free = taken.free
     found = []
     for slot in book.slots:
@@ -57,7 +60,7 @@ def print_free_slots(queued: int, taken: slotheld.Occupancy) -> None:
         taken: what holds the slots beyond the ledger's agents.
     """
     free = taken.free
-    if free and queued:
+    if taken.known and free and queued:
         print(
             f"{Marker.SLOTS_FREE.text} {free}: {queued} queued; a wake-up"
             " (send_later) is required before this turn ends, or nothing starts them"

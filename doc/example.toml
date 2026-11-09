@@ -72,7 +72,7 @@ prefix = "relock/"
 # and {head} the PR's head SHA. A green PR at a review step whose branch has the
 # relock prefix, or whose changed paths are all in pin_files, is run through it:
 # when its last output line is `OK` or starts `OK:` the sweep prints
-# `PINS-ONLY OK` and `READY TO MERGE` and offers no review; any other output
+# `PINS-ONLY OK` and offers no review; any other output
 # prints `PINS-ONLY` and the PR is reviewed as before. Empty or absent means
 # the default below, never a review by an agent (pitboss#350).
 # On a relock PR whose OK is printed in a gated repository, `pitboss pins-review

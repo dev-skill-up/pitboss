@@ -9,10 +9,10 @@ by a new reviewer (a draft's plan-only review included). The kind is a label on
 the line, not a rank. A PR whose step is to wait (for CI, an undraft or the
 owner), to ask Opus for a ruling, to pause for the owner, to undraft or to merge
 is none of them: it is offered for no round. After them come the new PRs, one for
-each open ticket with a priority label that no open PR names, by priority label,
-then oldest first. Nothing predicts which files a ticket will touch: work is
-taken in this order, every PR starts from the base branch, and a conflict is
-resolved by merging the base branch in.
+each open ticket with a priority label that no open PR names, by priority label
+(the owner's if stated), then oldest first. Nothing predicts which files a ticket
+will touch: work is taken in this order, every PR starts from the base branch, and
+a conflict is resolved by merging the base branch in.
 """
 
 import dataclasses
@@ -102,7 +102,7 @@ class Item:
         reference: its ``owner/name#number``.
         created_at: when the PR or ticket was opened (ISO 8601).
         title: its title.
-        priority: the index of its priority label (0 for PRs).
+        priority: the index of its priority label, the owner's if stated (0 for PRs).
         labels: its labels.
         body: a ticket's text, to look for a blocker in.
         comments: how many comments a ticket has.
@@ -281,7 +281,7 @@ def ordered(items: Iterable[Item], held: Iterable[str]) -> Sequence[Item]:
 
     Returns:
         The items, first to take first: every open PR, oldest first, then
-        the tickets by priority label, oldest first.
+        the tickets by priority label (the owner's if stated), oldest first.
     """
     holding = frozenset(held)
     return sorted(
@@ -326,7 +326,7 @@ class Offered:
     Attributes:
         items: the ordered items to start.
         held: the tickets of held repositories, in the same order.
-        standing: each held repository and its open count (keyword: pr-hold).
+        standing: each held repository and its open count.
         blocked: the tickets that say they cannot be worked on until a ticket
             or PR that is open, in the same order (keyword: ticket-blocked).
         occupancy: what holds the slots (keyword: slot-held, pitboss#291).
@@ -349,7 +349,7 @@ def queued(
 
     A PR that could not be read may work on any ticket, so while one exists no
     ticket is offered as new work (keyword: unreadable-pull). The owner's hold
-    is applied after it (``apart``; keyword: pr-hold).
+    is applied after it (``apart``).
 
     Args:
         found: the open PRs, read or not.

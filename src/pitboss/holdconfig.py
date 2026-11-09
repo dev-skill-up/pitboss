@@ -1,4 +1,4 @@
-"""The ``[holds]`` table: the owner's holds on new pull requests (keyword: pr-hold)."""
+"""The ``[holds]`` table: the owner's holds on new pull requests."""
 
 import dataclasses
 from typing import AbstractSet, Mapping

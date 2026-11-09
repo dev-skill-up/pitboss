@@ -43,5 +43,6 @@ def lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[str]:
         return []
     return [
         f"{Marker.UPDATE.text} {pulls.reference(pull)}: merge {pull.pull.base} into"
-        f" {pull.pull.head.branch}, check, push (never rewrite history)"
+        f" {pull.pull.head.branch}, check, push (never rewrite history); then"
+        f" `pitboss body-head {pulls.reference(pull)}` puts the new head in the body"
     ]

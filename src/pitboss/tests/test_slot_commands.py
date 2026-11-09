@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import slot_refusals, world
+from . import liveagents, slot_refusals, world
 
 UNREAD_TICKETS_LINE = (
     "UNREADABLE tickets: not offered as new work, 1 open PR(s) could not be read"
@@ -21,7 +21,7 @@ LEDGER_STEPS = (
     ("check", "--running", "agent-2"),
     ("free", "tiny", "--done", "agent-1"),
     ("failed", "#9", "small"),
-    ("show",),
+    ("show", "--running", "agent-2"),
 )
 CHECK_LINES = [
     "GONE AGENT: slot tiny holds agent-1, which is not running:"
@@ -134,12 +134,13 @@ def freed_world(
     here = here or world.make_world()
     run_all(here, [*setup, ("set", slot, "agent-1", "#50", "--running", "agent-1")])
     args = ("slots", "free", here.config, slot, "--done", "agent-1")
-    freed = world.invoke(here, *args, "--now", world.FUTURE)
+    live = liveagents.running(here, "agent-1")
+    freed = world.invoke(here, *args, "--now", world.FUTURE, *live)
     return here, tuple(freed.out.splitlines())
 
 
 def next_result(here: world.World) -> world.Result:
-    """What ``slots next`` did.
+    """What ``slots next`` did, given the agents the ledger holds as the live ones.
 
     Args:
         here: the world.
@@ -147,7 +148,10 @@ def next_result(here: world.World) -> world.Result:
     Returns:
         Its output, error and exit code.
     """
-    return world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE)
+    live = liveagents.running(here)
+    return world.invoke(
+        here, "slots", "next", here.config, "--now", world.FUTURE, *live
+    )
 
 
 def next_output(here: world.World) -> str:
@@ -204,7 +208,7 @@ WAIT_STEPS = (
     ("wait", "tiny"),
     ("set", "tiny", "agent-1", "#9", "--running", "agent-1"),
     ("wait", "tiny"),
-    ("show",),
+    ("show", "--running", "agent-1"),
     ("resume", "tiny"),
     ("free", "tiny", "--done", "agent-1"),
 )

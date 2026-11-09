@@ -26,18 +26,23 @@ from . import (
 )
 
 
-def slots(open_now: Sequence[pulls.Read], offer: work.Offered) -> None:
+def slots(
+    open_now: Sequence[pulls.Read], offer: work.Offered, said: Iterable[str] = ()
+) -> None:
     """Print the withheld-tickets line, the hold, blocked and free-slots lines.
 
     Args:
         open_now: the open PRs, read or not.
         offer: the queued work and the tickets held back (``offering.offered``).
+        said: more lines, after the blocked ones (``offering.disagreements``).
     """
     unreadableline.print_withheld(open_now)
     for line in holds.sweep_lines(offer.standing):
         print(line)
     for item in offer.blocked:
         print(blockedline.line(item.reference, item.blocker))
+    for line in said:
+        print(line)
     slotreport.print_free_slots(len(offer.items), offer.occupancy)
 
 
@@ -55,7 +60,7 @@ def idle(
         log: the slot log, which tells how long a slot stayed empty.
         now: the time now.
     """
-    if offer.items and offer.occupancy.free:
+    if offer.items and offer.occupancy.known and offer.occupancy.free:
         for line in slotidle.lines(book, slotlog.read(log), now):
             print(line)
 
