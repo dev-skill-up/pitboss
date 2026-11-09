@@ -16,6 +16,7 @@ from .. import configfile, ownerlabels
 from . import fakes, quietworld, test_flow_sweep, world
 from .suggestions import next_output, parsed, third
 from .test_commands import sweep
+from .test_owner_repositories import lines_of
 
 PROJECT = world.PROJECT
 
@@ -32,19 +33,6 @@ def offered(output: str) -> Sequence[str]:
     return re.findall(r"^NEXT \d+\. (\S+#\d+) \(start a PR", output, re.MULTILINE)
 
 
-def said_in(output: str, start: str) -> Sequence[str]:
-    """The lines of an output that start so.
-
-    Args:
-        output: what a command printed.
-        start: the first characters of the lines.
-
-    Returns:
-        The lines.
-    """
-    return [line for line in output.splitlines() if line.startswith(start)]
-
-
 def printed(here: world.World, start: str) -> Sequence[Sequence[str]]:
     """The lines that start so, in what ``slots next`` and the sweep print.
 
@@ -56,7 +44,7 @@ def printed(here: world.World, start: str) -> Sequence[Sequence[str]]:
         The lines of ``slots next``, then those of the sweep.
     """
     outputs = (next_output(here), sweep(here).out)
-    return [said_in(each, start) for each in outputs]
+    return [lines_of(each, start) for each in outputs]
 
 
 def one(here: world.World, *references: str) -> world.Result:
@@ -237,7 +225,7 @@ class TestOwnerPriorities(unittest.TestCase):
             with self.subTest(index):
                 output = next_output(priorities(ranks, owner, tickets))
                 assert_that(offered(output), equal_to(order))
-                assert_that(said_in(output, "LABEL DIS"), equal_to(lines))
+                assert_that(lines_of(output, "LABEL DIS"), equal_to(lines))
 
     def test_the_sweep_prints_the_line(self) -> None:
         """The sweep and ``slots next`` say the same."""
