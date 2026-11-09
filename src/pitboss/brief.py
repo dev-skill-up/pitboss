@@ -63,7 +63,7 @@ TASKS: Mapping[Kind, str] = {
     Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
     Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
     Kind.FIX_CI: text.TASK_FIX_CI,
-    Kind.RESOLVE_CONFLICT: text.TASK_RESOLVE_CONFLICT,
+    Kind.RESOLVE_CONFLICT: brieftextfix.TASK_RESOLVE_CONFLICT,
     Kind.RULING_STEPS: text.TASK_RULING_STEPS,
     Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
     Kind.RUN_PLAN: brieftextwork.TASK_RUN_PLAN,

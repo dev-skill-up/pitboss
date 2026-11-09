@@ -128,11 +128,8 @@ def _footer(subject: Subject, footers: Sequence[str]) -> list[str]:
 
 
 def _command_rows(subject: Subject) -> list[str]:
-    # keywords: expand (pitboss#117), appended (pitboss#170)
-    return [
-        *rowchecks.typed_by_hand(subject.name, subject.body),
-        *rowchecks.appended(subject.name, subject.body),
-    ]
+    # keywords: expand (pitboss#117), appended (pitboss#170), evidence-head
+    return list(rowchecks.command_rows(subject.name, subject.body, subject.head))
 
 
 def pr_body(

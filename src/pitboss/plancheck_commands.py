@@ -36,6 +36,7 @@ from . import (
     expansion,
     forms,
     ghapi,
+    headfindings,
     markuplines,
     plancheck,
     plancheckconfig,
@@ -340,6 +341,10 @@ def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list
     ]
 
 
+def _sha(args: argparse.Namespace, ref: str) -> str:
+    return _git(args, "rev-parse", ref).strip()
+
+
 def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
     body = args.body
     with (
@@ -356,6 +361,7 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *_of_trees(args, section, (tree, head), diffs),
             *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
             *_remote(args, body, section, ref),
+            *headfindings.of_head(body, section, patch, (head, _sha(args, ref))),
         ]
         noted = [*rows, *_notes(section, runs, (stat, patch))]
         return plancheck.text(section, noted, refused, found), bool(refused or found)

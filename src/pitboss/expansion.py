@@ -14,6 +14,8 @@ from typing import Callable, Sequence
 MARK = "pitboss-expand"
 DIGEST_KEY = "sha256="
 DIGEST_LENGTH = 16
+HEAD_KEY = "head="
+HEAD_LENGTH = 40
 PROMPT = "$ "
 ESCAPED_PROMPT = "\\$ "
 NO_NEWLINE = "\\ No newline at end of output\n"
@@ -87,16 +89,33 @@ def digest(contents: str) -> str:
     return hashlib.sha256(stored_form(contents).encode()).hexdigest()[:DIGEST_LENGTH]
 
 
-def info(contents: str) -> str:
+def info(contents: str, head: str = "") -> str:
     """The text after the fence of a block ``expand`` produced.
 
     Args:
         contents: the lines between the fences.
+        head: the commit ``expand`` ran at (40 hex digits), empty when git could
+            not say (keyword: evidence-head, pitboss#398).
 
     Returns:
-        The mark and the digest.
+        The mark and the digest, and ``head=`` and the head when it is given.
     """
-    return f"{MARK} {DIGEST_KEY}{digest(contents)}"
+    named = f" {HEAD_KEY}{head}" if head else ""
+    return f"{MARK} {DIGEST_KEY}{digest(contents)}{named}"
+
+
+def recorded_head(text: str) -> str:
+    """The head a block's opening line records.
+
+    Args:
+        text: the text after the fence.
+
+    Returns:
+        The 40 hex digits after ``head=`` at its end; empty when it has none (a
+        block made before the head was recorded).
+    """
+    found = re.search(rf" {HEAD_KEY}([0-9a-f]{{{HEAD_LENGTH}}})$", text)
+    return found.group(1) if found else ""
 
 
 def contents(command: str, outcome: Outcome) -> str:
@@ -126,12 +145,13 @@ def contents(command: str, outcome: Outcome) -> str:
     )
 
 
-def block(command: str, outcome: Outcome) -> str:
+def block(command: str, outcome: Outcome, head: str = "") -> str:
     """The fenced block of a command.
 
     Args:
         command: the command line as written.
         outcome: what it did.
+        head: the commit the command ran at, recorded in the opening line.
 
     Returns:
         The block, its fence longer than any run of backticks inside it.
@@ -139,12 +159,13 @@ def block(command: str, outcome: Outcome) -> str:
     inside = contents(command, outcome)
     longest = max((len(each) for each in TICKS.findall(inside)), default=0)
     fence = "`" * max(MIN_FENCE, longest + 1)
-    return f"{fence}{info(inside)}\n{inside}{fence}\n"
+    return f"{fence}{info(inside, head)}\n{inside}{fence}\n"
 
 
 # a block `block` produced: the fence, the mark and digest, the lines, the fence
 PRODUCED = re.compile(
     rf"^(?P<fence>`{{3,}}){MARK} {DIGEST_KEY}(?P<digest>[0-9a-f]{{{DIGEST_LENGTH}}})"
+    rf"(?: {HEAD_KEY}[0-9a-f]{{{HEAD_LENGTH}}})?"
     r"[ \t]*\n(?P<inside>(?:.*\n)*?)(?P=fence)[ \t]*$",
     re.MULTILINE,
 )
@@ -243,13 +264,13 @@ def _command_of(line: str, number: int) -> str:
     return command
 
 
-def _expand_line(shell: Shell, number: int, line: str) -> str:
+def _expand_line(shell: Shell, head: str, number: int, line: str) -> str:
     if line.startswith(ESCAPED_PROMPT):
         return PROMPT + line[len(ESCAPED_PROMPT) :]
     if not line.startswith(PROMPT):
         return line
     command = _command_of(line, number)
-    return block(command, shell(command))
+    return block(command, shell(command), head)
 
 
 def commands(template: str) -> Sequence[str]:
@@ -268,7 +289,7 @@ def commands(template: str) -> Sequence[str]:
     ]
 
 
-def expand(template: str, shell: Shell) -> str:
+def expand(template: str, shell: Shell, head: str = "") -> str:
     """Fill in a template.
 
     Every line of the template that is not a directive is kept as it is; a
@@ -279,12 +300,14 @@ def expand(template: str, shell: Shell) -> str:
     Args:
         template: the template's text.
         shell: runs one command line.
+        head: the commit the commands run at, written in each block's opening
+            line (keyword: evidence-head, pitboss#398); none records none.
 
     Returns:
         The body.
     """
     commands(template)
     return "".join(
-        _expand_line(shell, number, line)
+        _expand_line(shell, head, number, line)
         for number, line in enumerate(template.splitlines(keepends=True), 1)
     )

@@ -60,9 +60,11 @@ FIX_CI = [
 ]
 CONFLICT = [
     "Task: PR o/r#3 conflicts with main. Merge main into its branch (never"
-    " rebase, never force-push), resolve the conflict, rebuild every generated"
-    " file that derives from the merge (a lock, a zip, a regenerated tree), and"
-    " change nothing else (but for the body, as `Conflict body:` says)."
+    " rebase, never force-push), resolve the conflict (a line main deleted takes"
+    " main's side, so the diff against main of every .md and .rst file adds no"
+    " line), rebuild every generated file that derives from the merge (a lock, a"
+    " zip, a regenerated tree), and change nothing else (but for the body, as"
+    " `Conflict body:` says)."
 ]
 RULING = [
     "Ruling: you are an Opus agent whose only brief is to make a ruling on PR"
