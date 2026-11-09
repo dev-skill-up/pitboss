@@ -127,16 +127,16 @@ def event(kind: str, hour: int) -> Mapping[str, str]:
 
 
 def told(*events: Mapping[str, str]) -> Sequence[str]:
-    """The draft-state lines of a sweep of a world whose PR 2 has a timeline.
+    """The draft-state lines of a sweep of a world whose PR 3 has a timeline.
 
     Args:
-        *events: the timeline of PR 2.
+        *events: the timeline of PR 3.
 
     Returns:
         The lines.
     """
     here = world.make_world()
-    timeline = [("issues/2/timeline", list(events))]
+    timeline = [("issues/3/timeline", list(events))]
     here.bodies.update(fakes.bodies_under(world.PROJECT, timeline))
     return DRAFT_LINE.findall(sweep(here).out)
 
@@ -148,7 +148,7 @@ class TestDraftMoves(unittest.TestCase):
         """The line names the event, its time and the shared account."""
         found = told(event("ready_for_review", 20), event("convert_to_draft", 21))
         expected = (
-            "DRAFT STATE CHANGED owner/project#2: convert_to_draft at"
+            "DRAFT STATE CHANGED owner/project#3: convert_to_draft at"
             " 2029-12-31T21:00:00Z came after the sweep marked the PR ready; "
         )
         assert_that(len(found), equal_to(1))
