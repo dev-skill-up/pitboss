@@ -2,12 +2,26 @@
 
 import argparse
 import sys
+from typing import Sequence
 
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, config, repoaccess, ticketcount
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import load_context
+
+
+def _shown(word: str | None) -> Sequence[str]:
+    # the priorities to print: all of them, or the one the word names
+    if word is None:
+        return ticketcount.SHOWN
+    if word not in ticketcount.PRIORITIES:
+        print(
+            f"count takes a priority of {', '.join(ticketcount.PRIORITIES)}",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return (word,)
 
 
 @ENTRY_DATA.register(
@@ -40,22 +54,16 @@ def count_tickets(args: argparse.Namespace) -> None:
     PRIORITY (``p0``, ``p1``, ``p2`` or ``p3``) it prints only that priority, so
     an answer to "how many p1 are left" is the output.
 
-    It exits 1, with an ``INCOMPLETE`` last line, when a repository could not be
-    read: no count is then complete.
+    When a repository could not be read it exits 1 with an ``INCOMPLETE`` last
+    line, since no count is complete then.
 
     Args:
         args: the parsed arguments.
     """
-    if args.priority is not None and args.priority not in ticketcount.PRIORITIES:
-        print(
-            f"count takes a priority of {', '.join(ticketcount.PRIORITIES)}",
-            file=sys.stderr,
-        )
-        raise SystemExit(2)
+    shown = _shown(args.priority)
     found = load_context(args)
     repos = config.repositories(found.settings)
     tickets = ticketcount.read(found.github, repos)
-    shown = ticketcount.SHOWN if args.priority is None else (args.priority,)
     slugs = [repo.slug for repo in repos]
     print("\n".join(ticketcount.render(slugs, tickets, shown)))
     repoaccess.finish(found.access)

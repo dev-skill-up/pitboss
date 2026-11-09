@@ -3,12 +3,17 @@
 import unittest
 from typing import Mapping
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import ticketcount
 from . import fakes, ownerbodies, world
 
 OPEN = "issues?state=open"
+OWNER_RULE = (
+    "A count of tickets given to the owner comes from this command"
+    " (Moshe, 2026-11-06: count p0, p1 and p2, and filter when the question names"
+    " one)"
+)
 
 
 def _ticket(number: int, title: str, *labels: str) -> Mapping[str, object]:
@@ -100,32 +105,40 @@ def counting() -> world.World:
     return here
 
 
+def printed(*words: str) -> tuple[str, object]:
+    """Run ``count`` in the world of three repositories.
+
+    Args:
+        *words: the words after the configuration.
+
+    Returns:
+        What it printed and its exit code.
+    """
+    done = world.again(counting(), "count", *words)
+    return done.out, done.code
+
+
 class TestCount(unittest.TestCase):
     """``pitboss count CONFIG [PRIORITY]``."""
 
-    def test_prints_every_priority_of_every_repository(self) -> None:
-        """A line for each repository and the total of each priority, then its tickets."""
-        done = world.again(counting(), "count")
-        assert_that((done.out, done.code), equal_to((FULL, 0)))
+    def test_prints_what_the_priority_names(self) -> None:
+        """No word: every priority, a line for each repository, the total, the list.
 
-    def test_a_priority_prints_only_that_priority(self) -> None:
-        """``count CONFIG p1`` has the p1 counts and list and nothing else."""
-        done = world.again(counting(), "count", "p1")
-        assert_that((done.out, done.code), equal_to((ONLY_P1, 0)))
+        ``p1``: only the p1 counts and list; the pull request labeled p0 of the
+        project's list is no ticket and is counted nowhere.
+        """
+        cases = [((), FULL), (("p1",), ONLY_P1)]
+        found = [printed(*words) for words, _ in cases]
+        assert_that(found, equal_to([(shown, 0) for _, shown in cases]))
 
-    def test_the_config_option_and_a_priority(self) -> None:
+    def test_the_priority_follows_the_config_option(self) -> None:
         """The priority is the same word after ``--config``."""
         here = counting()
         done = world.invoke(here, "count", "--config", here.config, "p1")
         assert_that((done.out, done.code), equal_to((ONLY_P1, 0)))
 
-    def test_a_pull_request_is_no_ticket(self) -> None:
-        """The labeled PR of the list is not counted."""
-        done = world.again(counting(), "count", "p0")
-        assert_that("A pull request" in done.out, equal_to(False))
-
     def test_refuses_a_word_that_is_no_priority(self) -> None:
-        """Nothing is printed or read for ``p4`` or ``unlabelled``."""
+        """Nothing is printed for ``p4`` or ``unlabelled``."""
         here = counting()
         for word in ("p4", "unlabelled"):
             with self.subTest(word):
@@ -144,17 +157,11 @@ class TestCount(unittest.TestCase):
             ("INCOMPLETE" in done.out + done.err, done.code), equal_to((True, 1))
         )
 
-    def test_the_help_text_says_where_the_owner_count_comes_from(self) -> None:
+    def test_the_usage_says_where_the_owner_count_comes_from(self) -> None:
         """A count given to the owner comes from this command, the owner's words."""
         done = world.invoke(world.make_world(), "count", "--help")
-        assert_that(
-            " ".join(done.out.split()),
-            contains_string(
-                "A count of tickets given to the owner comes from this command"
-                " (Moshe, 2026-11-06: count p0, p1 and p2, and filter when the"
-                " question names one)"
-            ),
-        )
+        said = " ".join(done.out.split())
+        assert_that(OWNER_RULE in said, equal_to(True), said)
 
 
 class TestPriority(unittest.TestCase):

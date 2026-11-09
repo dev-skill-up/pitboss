@@ -46,6 +46,20 @@ def priority_of(labels: Collection[str]) -> str:
     return next((each for each in PRIORITIES if each in labels), UNLABELLED)
 
 
+def _tickets(github: ghapi.GitHub, repo: config.Repo) -> Sequence[Counted]:
+    path = f"repos/{repo.slug}/issues?state=open"
+    issues = filter(None, ghapi.pages(github, path, issuelist.listed))
+    return [
+        Counted(
+            repo=repo.slug,
+            number=issue.number,
+            title=issue.title,
+            priority=priority_of(issue.labels),
+        )
+        for issue in sorted(issues, key=lambda issue: issue.number)
+    ]
+
+
 def read(github: ghapi.GitHub, repos: Sequence[config.Repo]) -> Sequence[Counted]:
     """Read the open tickets of the repositories, PRs left out.
 
@@ -57,23 +71,10 @@ def read(github: ghapi.GitHub, repos: Sequence[config.Repo]) -> Sequence[Counted
         Every open ticket, by repository then number.
     """
 
-    def tickets(repo: config.Repo) -> Sequence[Counted]:
-        path = f"repos/{repo.slug}/issues?state=open"
-        return [
-            Counted(
-                repo=repo.slug,
-                number=issue.number,
-                title=issue.title,
-                priority=priority_of(issue.labels),
-            )
-            for issue in filter(None, ghapi.pages(github, path, issuelist.listed))
-        ]
+    def opened(repo: config.Repo) -> Sequence[Counted]:
+        return _tickets(github, repo)
 
-    return [
-        each
-        for opened in concurrently.each(tickets, repos)
-        for each in sorted(opened, key=lambda ticket: ticket.number)
-    ]
+    return [each for found in concurrently.each(opened, repos) for each in found]
 
 
 def render(
