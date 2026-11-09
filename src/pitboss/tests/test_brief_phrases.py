@@ -8,13 +8,27 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import brief, brieftext, brieftextci, brieftextlint, brieftextwork, phrases
+from .. import (
+    brief,
+    brieftext,
+    brieftextci,
+    brieftextlint,
+    brieftextowner,
+    brieftextwork,
+    phrases,
+)
 from . import briefmake
 
 BANNED = phrases.parse(phrases.default_text(), "phrases.tsv")
 SENTENCES = [
     (f"{module.__name__}.{name}", value)
-    for module in (brieftext, brieftextci, brieftextlint, brieftextwork)
+    for module in (
+        brieftext,
+        brieftextci,
+        brieftextlint,
+        brieftextowner,
+        brieftextwork,
+    )
     for name, value in sorted(vars(module).items())
     if isinstance(value, str) and name.isupper()
 ]

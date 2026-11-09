@@ -1,6 +1,8 @@
 """Tests for stragglers and stale worktrees, on real git repositories."""
 
+import contextlib
 import dataclasses
+import io
 import os
 import pathlib
 import shutil
@@ -201,6 +203,29 @@ class TestStragglers(unittest.TestCase):
         fetches = [call for call in runner.calls if "fetch" in call]
         found = (failed, len(fetches), local.unpushed(runner, empty))
         assert_that(found, equal_to(([str(broken)], 2, 0)))
+
+    def test_a_fetch_over_three_seconds_is_named_on_stderr(self) -> None:
+        """Only a fetch over 3 seconds gets its line (keyword: slow-fetch)."""
+        workspace = fakes.directory()
+        clone = repositories.make_repository(workspace)
+        runner = fakes.FakeProcesses(bodies={})
+        said = {}
+        for took in (1, 3, 4, 9):
+            ticks = iter((0.0, float(took)))
+            with contextlib.redirect_stderr(io.StringIO()) as err:
+                local.fetch_each_repository(runner, [clone], lambda: next(ticks))
+            said[took] = err.getvalue()
+        assert_that(
+            said,
+            equal_to(
+                {
+                    1: "",
+                    3: "",
+                    4: f"[pitboss] fetch in {clone} took 4s\n",
+                    9: f"[pitboss] fetch in {clone} took 9s\n",
+                }
+            ),
+        )
 
 
 class TestWorktrees(unittest.TestCase):

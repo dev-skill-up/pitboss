@@ -24,6 +24,7 @@ from . import (
     brieftextlint,
     brieftextnote,
     brieftextorder,
+    brieftextowner,
     brieftextpins,
     brieftextwork,
 )
@@ -349,6 +350,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
         ),
         *_filled([text.BODY_DIGEST], values),
         text.HONEST,
+        brieftextowner.OWNER,
         *tail,
         text.REVIEW_END,
         *spec.rules.project.review_lines,

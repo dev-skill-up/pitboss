@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import enum
+import re
 import sys
 from typing import Callable, Mapping, Sequence
 
@@ -34,6 +35,8 @@ from .commands import (
 )
 from .markers import Marker
 
+_FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
+
 
 class Action(enum.Enum):
     """What ``slots`` does.
@@ -48,7 +51,8 @@ class Action(enum.Enum):
         FAILED: record that a model failed a ticket (TICKET MODEL).
         CHECK: list the slots whose agent is gone (--running NAME ...); an
             optional number N exits 1 when the ledger has fewer than N rows.
-        NEXT: print what to start next, and what each empty slot takes.
+        NEXT: print what to start next, and what each empty slot takes; with a
+            ticket or PR (TICKET), only its brief and its place in the order.
         WAIT: say a slot's agent waits (SLOT).
         RESUME: say a slot's agent runs again (SLOT).
         REPORT: print the share of slot time in each state (--since, --until).
@@ -307,6 +311,25 @@ def _changing(found: Context, action: Action) -> None:
             nextlist.refill(found, opened, changed, name)
 
 
+def _next(found: Context) -> None:
+    # with a ticket or PR: its brief and place, else the whole list
+    words = found.args.words
+    if len(words) > 1:
+        raise _refuse("slots next takes one ticket or PR, or none")
+    if not words:
+        nextlist.show(found, open_pulls(found), _read(found))
+        repoaccess.finish(found.access)
+        return
+    reference = ledger.reference(words[0], found.settings.project.repo)
+    if not _FULL_REFERENCE.match(reference):
+        raise _refuse("slots next takes a ticket as owner/repo#N, repo#N or #N")
+    book = ledger.configured(found.settings)
+    known = nextlist.show_item(found, open_pulls(found), book, reference)
+    repoaccess.finish(found.access)
+    if not known:
+        raise SystemExit(1)
+
+
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
@@ -316,7 +339,15 @@ def _read(found: Context) -> ledger.Ledger:
 @ENTRY_DATA.register(
     add_argument("action", choices=tuple(action.word for action in Action)),
     CONFIG_ARGUMENT,
-    add_argument("words", nargs="*"),
+    add_argument(
+        "words",
+        nargs="*",
+        help="the words of the action; for 'next', one ticket or PR (owner/repo#N,"
+        " repo#N or #N): print its brief exactly as the first suggestion's, headed"
+        " by its place in the order (NEXT 24 of 30, out of order, 22 ahead of it);"
+        " it exits 1 with UNKNOWN on standard error when slots next offers nothing"
+        " for it",
+    ),
     RUNNING_ARGUMENT,
     add_argument(
         "--done", default=None, help="the agent that handed back, for 'slots free'"
@@ -351,7 +382,6 @@ def slots(args: argparse.Namespace) -> None:
     elif action is Action.TIME:
         _time(found)
     elif action is Action.NEXT:
-        nextlist.show(found, open_pulls(found), _read(found))
-        repoaccess.finish(found.access)
+        _next(found)
     else:
         _shown(found, _read(found))

@@ -4,6 +4,8 @@ Like those of ``brieftext``, they are pinned by tests, so a change to them is a
 reviewed code change.
 """
 
+from . import brieftextowner
+
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
     " each push and when you need feedback, once for a head (the skills, lint and"
@@ -59,4 +61,12 @@ DEPENDENCY = (
     " ticket first, and adds a repository the mission needs (add_repo) without"
     " asking (pitboss#280)."
 )
-SENTENCES = (NOX, NOX_ORDER, FIRST_DESIGN, DEVIATIONS, TEMP_RUNS, DEPENDENCY)
+SENTENCES = (
+    NOX,
+    NOX_ORDER,
+    FIRST_DESIGN,
+    DEVIATIONS,
+    TEMP_RUNS,
+    DEPENDENCY,
+    brieftextowner.OWNER,
+)
