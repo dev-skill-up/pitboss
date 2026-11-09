@@ -6,7 +6,7 @@ from typing import Mapping
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import ticketrows
-from . import linting
+from . import linting, world
 
 TABLE = "| the build is reproducible | must |\n| the release is signed | {tag} |\n"
 PROMISE = "Done-when: every `must` test passes.\n"
@@ -24,6 +24,18 @@ def ticket(done: str, tag: str = "policy") -> str:
         The text.
     """
     return f"{TABLE.format(tag=tag)}\n{done}"
+
+
+def lint_ticket(done: str) -> world.Result:
+    """Run ``pitboss lint ticket`` on a ticket.
+
+    Args:
+        done: its Done-when paragraph.
+
+    Returns:
+        What the command did.
+    """
+    return linting.lint("ticket", linting.write_text("t.md", ticket(done)))
 
 
 def counts(bodies: Mapping[str, str]) -> Mapping[str, int]:
@@ -80,7 +92,7 @@ class TestLintTicket(unittest.TestCase):
 
     def test_a_refused_ticket_exits_1_and_one_in_form_prints_ok(self) -> None:
         """The command's two outcomes."""
-        refused = linting.lint("ticket", linting.write_text("r.md", ticket(PROMISE)))
-        passed = linting.lint("ticket", linting.write_text("p.md", ticket(HONEST)))
+        refused = lint_ticket(PROMISE)
+        passed = lint_ticket(HONEST)
         assert_that(refused.out, contains_string("(rows-pass)"))
         assert_that((refused.code, passed.code, passed.out), equal_to((1, 0, "ok\n")))
