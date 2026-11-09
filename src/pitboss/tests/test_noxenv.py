@@ -119,9 +119,11 @@ class TestIsolatedEnvironment(unittest.TestCase):
     def test_a_home_under_dev_is_refused_naming_the_path(self) -> None:
         """No home is made, or removed, under /dev (#424); a plain tmp is accepted."""
         seen = io.StringIO()
-        with temporary_directory_at("/dev/shm"), contextlib.redirect_stderr(seen):
-            with self.assertRaises(SystemExit) as out, noxenv.throwaway_home():
-                pass  # pragma: no cover
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(temporary_directory_at("/dev/shm"))
+            stack.enter_context(contextlib.redirect_stderr(seen))
+            out = stack.enter_context(self.assertRaises(SystemExit))
+            stack.enter_context(noxenv.throwaway_home())
         made = [each for each in os.listdir("/dev/shm") if "pitboss-nox-home-" in each]
         accepted, home = isolated({"PATH": "/bin"})
         shown = [out.exception.code, "/dev/shm is under /dev" in seen.getvalue(), made]
