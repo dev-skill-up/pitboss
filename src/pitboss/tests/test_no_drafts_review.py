@@ -95,6 +95,13 @@ class TestSweep(unittest.TestCase):
         assert_that(kind_of_third(here), equal_to(COMBINED))
         assert_that(ALONE in next_output(here), equal_to(False))
 
+    def test_drafts_off_for_the_project_gives_the_same_review(self) -> None:
+        """``[slots.brief] drafts = false`` names no repository, and covers all."""
+        here = revised()
+        quiet = "[slots.brief]\ndrafts = false\n\n[runners]"
+        quietworld.edit_config(here, "[runners]", quiet)
+        assert_that(kind_of_third(here), equal_to(COMBINED))
+
     def test_pending_ci_waits(self) -> None:
         """The same PR with no check run at its head."""
         here = listed()
