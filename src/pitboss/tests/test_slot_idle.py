@@ -89,6 +89,5 @@ class TestSlotIdle(unittest.TestCase):
         """A slot the running agents leave empty is not idle until it is freed."""
         here = world.make_world()
         start(here)
-        args = ("sweep", here.config, "--now", at(5), "--running")
-        found = TINY_IDLE.findall(world.invoke(here, *args).out)
-        assert_that(found, equal_to([]))
+        out = world.invoke(here, "sweep", here.config, "--running", "--now", at(5)).out
+        assert_that(TINY_IDLE.search(out), equal_to(None))
