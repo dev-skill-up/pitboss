@@ -66,7 +66,7 @@ NEXT_CASES: Sequence[tuple[Sequence[Sequence[str]], Sequence[str]]] = [
             ("set", "tiny", "a", "#50", "--running", "a"),
             ("set", "big", "b", "#50", "--running", "a", "b"),
         ],
-        [*NEXT_THREE, "slots: all full: start nothing"],
+        [*NEXT_THREE, "slots: the ledger says all full: start nothing"],
     ),
     (
         [

@@ -112,7 +112,7 @@ def next_lines(view: NextView) -> Iterable[str]:
         yield blockedline.line(item.reference, item.blocker)
     yield from slotheld.lines(view.occupancy)
     if not view.assignments and not slotheld.lines(view.occupancy):
-        yield "slots: all full: start nothing"
+        yield "slots: the ledger says all full: start nothing"
     for slot, chosen in view.assignments:
         yield empty_slot_line(slot, chosen, view)
 
