@@ -8,7 +8,7 @@ from typing import NoReturn, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import (
-    bodydigest,
+    expansion,
     plancheck,
     plancheck_commands,
     plandigest,
@@ -80,7 +80,7 @@ class TestPlanCheckCommand(unittest.TestCase):
     def test_a_clean_plan_passes_with_the_status_of_each_row(self) -> None:
         """A row that exits nonzero ran: it is shown and is no finding."""
         done = checked(CLEAN, "--base", "origin/main")
-        digest = bodydigest.of_section(plandigest.section(CLEAN))
+        digest = expansion.section_digest(plandigest.section(CLEAN))
         want = [
             "Plan check",
             "row 1: ran, exit status 0: test -f README",

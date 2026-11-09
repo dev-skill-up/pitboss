@@ -488,9 +488,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     changes needed. A worker who finds a Plan problem after the approval does
     not edit the Plan section; it hands back NOT PROCEEDING with the
     evidence. A review that grades the Plan records the Plan section it read as
-    a `Plan digest: <digest>` line (`uvx pitboss plan-digest FILE` prints it for
-    the body saved to a file; the digest is of the `## Plan` section without its
-    `Head:` lines). The sweep prints `PLAN EDITED` when the Plan section of the
+    a `Plan digest: <digest>` line
+    The sweep prints `PLAN EDITED` when the Plan section of the
     body differs from the digest of the newest review that approves the Plan and
     records one, and `slots next` offers the PR for no round (no fix, no review,
     no Plan revision) until a ruling `revise the plan` is recorded after that

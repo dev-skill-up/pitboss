@@ -49,11 +49,14 @@ def needs_check(
         rows = expansion.commands(section)
     except expansion.TemplateError:
         rows = ["a directive with no command"]
-    digest = bodydigest.of_section(section)
+    # keyword: plan-digest-collapse (pitboss#358, #399): a check that recorded the
+    # digest of before the expanded blocks were collapsed still counts
+    digests = expansion.accepted_digests(section)
     return bool(rows) and not any(
         is_plan_check(each.body, digest)
         for each in comments
         if each.author_association in trusted
+        for digest in digests
     )
 
 

@@ -18,6 +18,7 @@ from . import (
     bodyhead,
     deviations,
     expand_commands,
+    expansion,
     plandigest,
     workeractions,
 )
@@ -41,7 +42,7 @@ BODY_FILE = add_argument("file", help="the PR body as `gh api` printed it, in a 
 
 
 def _plan_digest(name: str) -> str:
-    found = bodydigest.of_section(plandigest.section(_read(name)))
+    found = expansion.section_digest(plandigest.section(_read(name)))
     if not found:
         raise _fail(f"{name}: no `## Plan` section")
     return found
@@ -116,6 +117,9 @@ def worker_actions(args: argparse.Namespace) -> None:
 @ENTRY_DATA.register(BODY_FILE, name="plan-digest")
 def plan_digest(args: argparse.Namespace) -> None:
     """Print the ``Plan digest:`` line a review of the Plan in a file records.
+
+    The digest takes each block ``pitboss expand`` produced as its command line
+    (keyword: plan-digest-collapse, pitboss#358).
 
     Args:
         args: the parsed arguments (a file it cannot read as UTF-8, or whose

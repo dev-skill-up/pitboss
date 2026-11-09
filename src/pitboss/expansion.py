@@ -142,6 +142,100 @@ def block(command: str, outcome: Outcome) -> str:
     return f"{fence}{info(inside)}\n{inside}{fence}\n"
 
 
+# a block `block` produced: the fence, the mark and digest, the lines, the fence
+PRODUCED = re.compile(
+    rf"^(?P<fence>`{{3,}}){MARK} {DIGEST_KEY}(?P<digest>[0-9a-f]{{{DIGEST_LENGTH}}})"
+    r"[ \t]*\n(?P<inside>(?:.*\n)*?)(?P=fence)[ \t]*$",
+    re.MULTILINE,
+)
+
+
+def _collapsed_block(found: re.Match[str]) -> str:
+    inside = found["inside"]
+    if inside.startswith(PROMPT) and digest(inside) == found["digest"]:
+        return inside.split("\n", 1)[0]
+    return found[0]
+
+
+def collapsed(text: str) -> str:
+    """The text with each block ``expand`` produced as its command line.
+
+    What a re-expansion changes (the head, a timing line) is in the output of a
+    block and not in its command (keyword: plan-digest-collapse, pitboss#358).
+
+    Args:
+        text: any text, a Plan section for one.
+
+    Returns:
+        The text in which each fenced block whose opening line carries the digest
+        of its contents is its ``$ command`` line alone; a block whose digest is
+        not that of its contents (one edited by hand), one with no closing fence
+        and every other line are kept as they are.
+    """
+    return PRODUCED.sub(_collapsed_block, text)
+
+
+def text_digest(text: str) -> str:
+    """The digest of a text that a review records (the one of ``bodydigest.digest``).
+
+    The two modules each hold the code: neither imports the other, because the
+    sweep's modules are held to an import depth (keyword: import-depth), and a
+    test pins that they agree.
+
+    Args:
+        text: the text.
+
+    Returns:
+        The first 16 hex digits of the SHA-256 of the text with ``\\n`` line
+        endings and no trailing white space.
+    """
+    plain = re.sub(r"\r\n?", "\n", text).rstrip()
+    return hashlib.new("sha256", plain.encode("utf-8")).hexdigest()[:DIGEST_LENGTH]
+
+
+def accepted_digests(text: str) -> Sequence[str]:
+    """The digests a record of a Plan section may carry to be of this section.
+
+    The first is the digest of the section with each block ``expand`` produced
+    collapsed to its command (keyword: plan-digest-collapse, pitboss#358). The
+    second is the digest of the section as it is, which records made before the
+    collapse carry: they are accepted for one published version (pitboss#399
+    drops the acceptance).
+
+    Args:
+        text: the section, empty when the body has none.
+
+    Returns:
+        Both digests; none for no section.
+    """
+    return [text_digest(collapsed(text)), text_digest(text)] if text else []
+
+
+def section_digest(text: str) -> str:
+    """The digest a review records for a Plan section.
+
+    Args:
+        text: the section, empty when the body has none.
+
+    Returns:
+        The first of ``accepted_digests``, empty for no section.
+    """
+    return next(iter(accepted_digests(text)), "")
+
+
+def section_changed(recorded: str, text: str) -> bool:
+    """Whether a Plan section is no longer the one a review recorded.
+
+    Args:
+        recorded: the digest the review records, empty when it records none.
+        text: the section now, empty when it is not checked.
+
+    Returns:
+        True when both are given and the digest is none of ``accepted_digests``.
+    """
+    return bool(text and recorded and recorded not in accepted_digests(text))
+
+
 def _command_of(line: str, number: int) -> str:
     command = line[len(PROMPT) :].rstrip("\r\n")
     if not command.strip():

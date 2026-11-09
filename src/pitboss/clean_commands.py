@@ -238,7 +238,8 @@ def log_freed(found: Context, done: cleaning.Outcome) -> None:
     """
     if done.removing:
         size = sum(each.size for each in done.gone)
-        freed = logline.Freed(who="pitboss clean-container", size=size, heads=[])
+        heads = [each.head for each in done.gone if each.head]
+        freed = logline.Freed(who="pitboss clean-container", size=size, heads=heads)
         logline.record_clean(found.settings.slots.log, freed, found.now)
 
 

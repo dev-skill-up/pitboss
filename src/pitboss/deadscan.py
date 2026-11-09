@@ -9,7 +9,7 @@ from typing import AbstractSet, Callable, Iterable, Mapping, Sequence
 from . import concurrently, dead, local, registered, shapes, ticketclosed
 from .outcomes import outcomes_of
 from .dead import Kept
-from .running import git
+from .running import Run, git
 
 Decide = Callable[
     [dead.Look, Mapping[str, Mapping[str, shapes.Outcome]], "Checkout"],
@@ -39,12 +39,31 @@ class Checkout:
         branch: its branch, or empty when detached.
         slug: its repository, or empty when unknown.
         common: its repository's git directory.
+        head: its tip, or empty when it has no commit.
     """
 
     path: pathlib.Path
     branch: str
     slug: str
     common: pathlib.Path
+    head: str = ""
+
+
+def git_or_empty(run: Run, path: pathlib.Path, *words: str) -> str:
+    """The output of a git read, empty when git fails.
+
+    Args:
+        run: the runner for reads.
+        path: the checkout.
+        *words: the git arguments.
+
+    Returns:
+        The output, or empty.
+    """
+    try:
+        return git(run, path, *words)
+    except subprocess.CalledProcessError:
+        return ""
 
 
 def read_checkout(look: dead.Look, path: pathlib.Path) -> Checkout:
@@ -63,13 +82,10 @@ def read_checkout(look: dead.Look, path: pathlib.Path) -> Checkout:
     if common == (project.main_clone / ".git").resolve():
         slug = project.repo.slug
     else:
-        try:
-            url = git(run, path, "config", "--get", "remote.origin.url")
-        except subprocess.CalledProcessError:
-            url = ""
-        slug = slug_of(url)
+        slug = slug_of(git_or_empty(run, path, "config", "--get", "remote.origin.url"))
     branch = git(run, path, "branch", "--show-current").strip()
-    return Checkout(path=path, branch=branch, slug=slug, common=common)
+    head = git_or_empty(run, path, "rev-parse", "HEAD").strip()
+    return Checkout(path=path, branch=branch, slug=slug, common=common, head=head)
 
 
 def pressure_reason(
@@ -208,7 +224,8 @@ def _judged(
     made = dead.Candidate(
         path=each.path, size=found.size, reason=reason.value, kept=kept
     )
-    return dataclasses.replace(made, prune=_linked(each))
+    linked = _linked(each)
+    return dataclasses.replace(made, prune=linked, head=each.head if linked else "")
 
 
 def _firsts(read: Sequence[Checkout]) -> registered.Firsts:

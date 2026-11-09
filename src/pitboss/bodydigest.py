@@ -32,18 +32,6 @@ def digest(body: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:LENGTH]
 
 
-def of_section(text: str) -> str:
-    """The digest of a section of a PR body (keyword: plan-digest).
-
-    Args:
-        text: the section, empty when the body has none.
-
-    Returns:
-        Its digest, empty for no section.
-    """
-    return digest(text) if text else ""
-
-
 def recorded_after(review: str, prefix: str) -> str:
     """The digest a review comment records on its first line with a prefix.
 
