@@ -157,7 +157,7 @@ def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Pat
         _fail: when the temporary directory is under ``/dev``, where nothing is
             removed (#424).
     """
-    refused = devpath.under_dev(pathlib.Path(tempfile.gettempdir()))
+    refused = devpath.temporary_under_dev()
     if refused:
         raise _fail(f"plan-check: no scratch worktree, {refused}")
     with tempfile.TemporaryDirectory(prefix="plan-check-") as scratch:

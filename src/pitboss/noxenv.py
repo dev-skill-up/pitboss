@@ -12,7 +12,6 @@ virtualenv still find what they stored.
 
 import contextlib
 import os
-import pathlib
 import sys
 import tempfile
 from collections.abc import Iterator, Mapping
@@ -42,7 +41,7 @@ def throwaway_home() -> Iterator[str]:
         SystemExit: 2, before the directory is made, when the temporary directory
             is under ``/dev``, where nothing is removed (#424).
     """
-    refused = devpath.under_dev(pathlib.Path(tempfile.gettempdir()))
+    refused = devpath.temporary_under_dev()
     if refused:
         print(f"nox: no throwaway home, {refused}", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)

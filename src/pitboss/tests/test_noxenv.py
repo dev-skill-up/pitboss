@@ -13,6 +13,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import noxenv
 from . import captured
+from .test_plan_check import temporary_directory_at
 
 GITCONFIG = "[user]\n\tname = Real Person\n\temail = real@example.org\n"
 
@@ -117,15 +118,10 @@ class TestIsolatedEnvironment(unittest.TestCase):
 
     def test_a_home_under_dev_is_refused_naming_the_path(self) -> None:
         """No home is made, or removed, under /dev (#424); a plain tmp is accepted."""
-        was = tempfile.tempdir
-        tempfile.tempdir = "/dev/shm"
         seen = io.StringIO()
-        try:
-            with contextlib.redirect_stderr(seen), self.assertRaises(SystemExit) as out:
-                with noxenv.throwaway_home():
-                    pass  # pragma: no cover
-        finally:
-            tempfile.tempdir = was
+        with temporary_directory_at("/dev/shm"), contextlib.redirect_stderr(seen):
+            with self.assertRaises(SystemExit) as out, noxenv.throwaway_home():
+                pass  # pragma: no cover
         made = [each for each in os.listdir("/dev/shm") if "pitboss-nox-home-" in each]
         accepted, home = isolated({"PATH": "/bin"})
         shown = [out.exception.code, "/dev/shm is under /dev" in seen.getvalue(), made]

@@ -7,6 +7,7 @@ of a finished worktree (``git worktree remove``), the scratch worktree of
 
 import os
 import pathlib
+import tempfile
 
 
 def under_dev(path: pathlib.Path) -> str:
@@ -22,3 +23,13 @@ def under_dev(path: pathlib.Path) -> str:
     if parts[:2] == ("/", "dev"):
         return f"{path} is under /dev, which is never removed from"
     return ""
+
+
+def temporary_under_dev() -> str:
+    """Why a temporary directory is never made: ``tempfile`` puts it under ``/dev``.
+
+    Returns:
+        A reason naming the temporary directory, or empty when it is not under
+        ``/dev``.
+    """
+    return under_dev(pathlib.Path(tempfile.gettempdir()))
