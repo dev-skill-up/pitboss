@@ -8,7 +8,6 @@ status and booleans read from the output leaves a failure with nothing to read.
 
 import ast
 from collections.abc import Iterator, Mapping, Sequence, Set
-from typing import cast
 
 from . import scanning
 
@@ -19,6 +18,7 @@ FAILURES = frozenset({"fail", "assert_that"})
 
 FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
 Function = ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+Failure = ast.Assert | ast.Raise | ast.Call
 
 
 def own_nodes(function: Function) -> Iterator[ast.AST]:
@@ -103,7 +103,7 @@ def hands_back(
     return any(x is call or (isinstance(x, ast.Name) and x.id in names) for x in given)
 
 
-def failure_texts(nodes: Sequence[ast.AST]) -> Sequence[ast.AST]:
+def failure_texts(nodes: Sequence[ast.AST]) -> Sequence[Failure]:
     """The ``raise`` and ``assert`` statements and the ``fail`` calls of a function.
 
     Args:
@@ -112,15 +112,16 @@ def failure_texts(nodes: Sequence[ast.AST]) -> Sequence[ast.AST]:
     Returns:
         Them.
     """
-    return [
-        each
-        for each in nodes
-        if isinstance(each, (ast.Raise, ast.Assert))
-        or (isinstance(each, ast.Call) and scanning.named(each.func) in FAILURES)
-    ]
+    found: list[Failure] = []
+    for each in nodes:
+        if isinstance(each, (ast.Raise, ast.Assert)) or (
+            isinstance(each, ast.Call) and scanning.named(each.func) in FAILURES
+        ):
+            found.append(each)
+    return found
 
 
-def message_parts(failure: ast.AST) -> Sequence[ast.AST]:
+def message_parts(failure: Failure) -> Sequence[ast.AST]:
     """The parts of a failure that its message shows.
 
     A plain ``assert`` shows its message and not its condition, and
@@ -140,10 +141,9 @@ def message_parts(failure: ast.AST) -> Sequence[ast.AST]:
         return [x for x in (failure.exc, failure.cause) if x is not None]
     if isinstance(failure, ast.Call) and scanning.named(failure.func) == "fail":
         return [*failure.args, *(x.value for x in failure.keywords)]
-    reason = cast(ast.Call, failure)
     return [
-        *reason.args[2:3],
-        *(x.value for x in reason.keywords if x.arg == "reason"),
+        *failure.args[2:3],
+        *(x.value for x in failure.keywords if x.arg == "reason"),
     ]
 
 
