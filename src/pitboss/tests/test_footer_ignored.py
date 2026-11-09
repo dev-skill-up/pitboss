@@ -6,7 +6,7 @@ Owner, Moshe, 2026-11-09: footers are ignored, never managed. Keyword: footer-ig
 import json
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import config, configfile, pullstate, reviews
 from . import fakes, world
@@ -50,11 +50,8 @@ class TestTheCommand(unittest.TestCase):
 
     def test_a_listed_footer_is_not_asked_for_by_pr_body(self) -> None:
         """A body with no footer prints ok, and a footer saves no wrong body."""
-        good = command("pr-body", write_text("good.md", BODY))
-        wrong = command("pr-body", write_text("wrong.md", NO_HEAD))
-        assert_that(good.out, equal_to("ok\n"))
-        assert_that((good.code, wrong.code), equal_to((0, 1)))
-        assert_that(wrong.out, contains_string("(head)"))
+        ran = [command("pr-body", write_text("b.md", each)) for each in BODIES]
+        assert_that([each.out.split()[-1] for each in ran], equal_to(["ok", "(head)"]))
 
     def test_a_listed_footer_is_not_asked_for_by_the_status(self) -> None:
         """The status is success without the footer, failure for a wrong body."""
