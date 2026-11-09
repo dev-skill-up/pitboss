@@ -153,8 +153,9 @@ class TestNoxSkipped(unittest.TestCase):
     def test_the_command_shows_the_failure_and_not_success(self) -> None:
         """Through the whole command: the exit is 1 and no line says success."""
         found = run_with(skipping_nox)
-        has_all(found.out, ["skills failed", "uv python install 3.14"])
         has_none(found.out, ["skills success", "lint success"])
+        words = ["skills failed", "uv python install 3.14"]
+        self.assertEqual([word in found.out for word in words], [True, True])
         self.assertEqual((found.code, found.out.count("skills failed")), (1, 1))
 
     def test_a_session_that_ran_and_mentions_skipped_tests_still_passes(self) -> None:
