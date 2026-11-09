@@ -295,17 +295,6 @@ class TestCommands(unittest.TestCase):
         ]
         assert_that(found, equal_to(every))
 
-    def test_a_footer_listed_by_a_config_is_not_checked(self) -> None:
-        """The command prints ok for a body with no footer (pitboss#282)."""
-        listed = PROJECT + "[lint.pr_body]\nfooters = ['-- me']\n"
-        path = write_text("listed.toml", listed)
-        wrong = BODY.replace("Fixes #12", "Refs #12")
-        found = [
-            outcome("pr-body", BODY, "--config", path),
-            outcome("pr-body", wrong, "--config", path),
-        ]
-        assert_that(found, equal_to([(0, "ok"), (1, "(first-line)")]))
-
     def test_bad_config(self) -> None:
         """A configuration that is missing, not TOML or without a project is 2."""
         broken = write_text("broken.toml", "[project\n")

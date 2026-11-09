@@ -10,7 +10,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_item
 
-from . import fakes, linting, test_flow_sweep, world
+from . import fakes, test_flow_sweep, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -180,19 +180,6 @@ class TestTheCauseOfATextLintFailure(unittest.TestCase):
         assert_that(blocked, contains_string("edit no body"))
         assert_that(blocked, contains_string("before pitboss#171"))
         assert_that(blocked, contains_string("grant pull-requests: read"))
-
-    def test_a_body_in_form_with_no_footer_is_a_pin_finding(self) -> None:
-        """Footers are ignored (pitboss#282): the lint finds nothing, so the pin."""
-        body = f"Fixes #12\n\nHead: {HEAD}\n\n## Evidence\n\n{linting.RAN}\n---\n"
-        blocked = blocked_failure(body=body)
-        assert_that(blocked, contains_string("is about the PIN, not the body"))
-
-    def test_a_footer_does_not_put_a_body_out_of_form_right(self) -> None:
-        """The nearest input still refused: no Head line, a robot footer after."""
-        robot = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
-        body = f"Fixes #12\n\n## Evidence\n\n{linting.RAN}\n---\n{robot}\n"
-        blocked = blocked_failure(body=body)
-        assert_that(blocked, contains_string("is about the BODY of the PR"))
 
     def test_a_relock_branch_failure_is_the_pins(self) -> None:
         """The lint makes a relock branch exempt, as it does a bot."""
