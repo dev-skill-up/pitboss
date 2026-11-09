@@ -155,9 +155,11 @@ class TestNoxSkipped(unittest.TestCase):
         found = run_with(skipping_nox)
         has_all(found.out, ["skills failed", "uv python install 3.14"])
         has_none(found.out, ["skills success", "lint success"])
-        self.assertEqual(found.code, 1)
+        self.assertEqual((found.code, found.out.count("skills failed")), (1, 1))
 
     def test_a_session_that_ran_and_mentions_skipped_tests_still_passes(self) -> None:
         """The nearest input: other `skipped` text is not a missing interpreter."""
-        done = expansion.Outcome(status=0, output="3 tests skipped: not found\n")
-        self.assertIs(noxcheck.judged(done), done)
+        output = "3 tests skipped: not found\n"
+        done = expansion.Outcome(status=0, output=output)
+        judged = noxcheck.judged(done)
+        self.assertEqual((judged.status, judged.output), (0, output))
