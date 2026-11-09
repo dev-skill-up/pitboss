@@ -10,7 +10,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, is_not
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, shapes, steps
 from . import test_flow, test_flow_sweep as scenes
@@ -117,7 +117,7 @@ class TestWorld(unittest.TestCase):
     def test_the_fix_round_is_listed_and_no_review(self) -> None:
         """The incident of pitboss#386: not `review the Execution`."""
         here = scenes.unfixed_after_the_ruling()
-        assert_that(sweep(here).out, is_not(contains_string("RULING DUE")))
+        assert_that(sweep(here).out.count("RULING DUE"), equal_to(0))
         assert_that(kind_of_third(here), equal_to("fix the review"))
 
     def test_the_ruling_is_due_when_none_is_recorded(self) -> None:
@@ -125,7 +125,7 @@ class TestWorld(unittest.TestCase):
         rejected = scenes.graded(scenes.APPROVED, scenes.CHANGES, 1, sha=scenes.OLDER)
         here = scenes.unfixed_rounds(rejected, scenes.graded(scenes.APPROVED, None, 3))
         assert_that(sweep(here).out, contains_string(RULING_LINE))
-        assert_that(next_output(here), is_not(contains_string("project#3 (")))
+        assert_that(next_output(here).count("project#3 ("), equal_to(0))
 
     def test_a_pushed_fix_is_reviewed_and_a_derived_file_is_no_code(self) -> None:
         """The head carries code the rejection has not seen, or only a rebuilt zip."""

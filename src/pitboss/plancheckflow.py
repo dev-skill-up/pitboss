@@ -8,7 +8,7 @@ fix-round-kind, pitboss#390).
 """
 
 import re
-from typing import AbstractSet, Any, Callable, Protocol, Sequence
+from typing import AbstractSet, Callable, Protocol, Sequence, TypeVar
 
 from . import (
     bodydigest,
@@ -187,6 +187,9 @@ class Described(Protocol):
         """
 
 
+Pull = TypeVar("Pull", bound=Described)
+
+
 def review(pr: Described, stage: steps.Stage) -> steps.Next:
     """A review that grades the Plan, once the Plan's commands were checked.
 
@@ -242,9 +245,9 @@ def write_round(pr: Described) -> steps.Next:
 
 
 def plan_unrun(
-    pr: Described,
+    pr: Pull,
     review: shapes.Graded | None,
-    readable: Callable[[Any], tuple[shapes.Comment, object] | None],
+    readable: Callable[[Pull], tuple[shapes.Comment, object] | None],
 ) -> steps.Next | None:
     """The worker round of a Plan approved alone after an Opus ruling.
 
