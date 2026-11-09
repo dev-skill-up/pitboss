@@ -16,6 +16,7 @@ from . import (
     configfile,
     draftrule,
     exempt,
+    pushdraft,
     queue,
     record,
     report,
@@ -75,7 +76,22 @@ def _free(args: argparse.Namespace, found: commands.Context, slug: str | None) -
     free = exempt.is_exempt(slug, found.settings.runners.exempt)
     if free:
         print(exempt.SAYING)
-    return free
+        return True
+    return _to_drafts(args, found, slug)
+
+
+def _to_drafts(
+    args: argparse.Namespace, found: commands.Context, slug: str | None
+) -> bool:
+    # keyword: push-draft (pitboss#355): GitHub says the branch's PR is a draft
+    if slug is None:
+        return False
+    current = pushdraft.current_branch(args.safe_run)
+    wanted = pushdraft.branches(args.git_arguments, current)
+    drafted = pushdraft.all_drafts(found.github, slug, wanted)
+    if drafted is not None:
+        print(pushdraft.SAYING.format(branch=", ".join(drafted)))
+    return drafted is not None
 
 
 def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context, bool]:
@@ -194,11 +210,11 @@ def push(args: argparse.Namespace) -> None:
     that is refused records the look it made (``none`` when nothing waits,
     ``hold`` when a job waits), so the quiet period can end; a retried push
     adds only none looks, which do not restart the wait. A push to a draft PR
-    (``--draft``) starts no costly job and is neither checked nor recorded. A
-    push to ``dev-skill-up/pitboss`` (or a repository of ``[runners] exempt``),
-    read from the URL of the remote, is never held, whatever the pressure: it
-    prints ``pitboss is exempt from holds`` once, runs ``git push`` and records
-    nothing (keyword: pitboss-exempt, pitboss#113).
+    (``--draft``, or the branch of an open draft PR) is neither checked nor
+    recorded. A push to ``dev-skill-up/pitboss`` (or a repository of
+    ``[runners] exempt``), read from the URL of the remote, is never held,
+    whatever the pressure: it prints ``pitboss is exempt from holds`` once,
+    runs ``git push`` and records nothing (keyword: pitboss-exempt, pitboss#113).
     With no ``[runners]`` table nothing is held or recorded. Put ``--`` before
     git's own options. The exit is 1 while the quiet period is not over, git's
     status when the push fails, and 2 when the push went out but its hold could

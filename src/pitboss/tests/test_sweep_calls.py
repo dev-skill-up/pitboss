@@ -23,7 +23,8 @@ FOUR_PULLS = {
     "gh api contents/.github/workflows/review-gate.yml": 2,  # one for each repository
     "gh api issues": 4,  # the priority labels' lists, and each repository's open ones
     "gh api issues/comments": 6,  # four PRs' and one feed for each repository (#239)
-    "gh api issues/timeline": 2,  # the PRs with an Execution review (#202)
+    # the 2 PRs with an Execution review (#202), and each of the 4 PRs (#355)
+    "gh api issues/timeline": 6,
     "gh api pulls": 8,
     "gh api pulls/files": 1,  # the PR at a review step: pins-only by its files (#350)
     "gh api pulls/reviews": 4,
@@ -36,6 +37,7 @@ PER_PULL = {
     "gh api pulls/reviews": 1,
     "gh api commits/check-runs": 1,
     "gh api commits/status": 1,
+    "gh api issues/timeline": 1,  # the draft-state change of the PR (#355)
 }
 
 
