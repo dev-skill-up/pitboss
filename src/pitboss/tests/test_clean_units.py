@@ -179,10 +179,7 @@ class TestCommandPieces(unittest.TestCase):
         ]
         dry = [why for _, why in cleaning.removals(how(run, allowed, True), named)]
         same(refused[-1], "")
-        same(
-            [call[4:] for call in run.calls],
-            [[str(found[0].path)]],
-        )
+        same(sum((call[4:] for call in run.calls), []), [str(found[0].path)])
         for spelled, why in zip(named, refused):
             assert_that(why, contains_string(f"{spelled.path} is under /dev"))
         same([bool(why) for why in dry], [True] * len(named))
