@@ -78,6 +78,7 @@ module = [
     "pitboss.red_commands",
     "pitboss.pressure_commands",
     "pitboss.next_commands",
+    "pitboss.count_commands",
     "pitboss.sync_commands",
     "pitboss.nox_commands",
     "pitboss.pinsreview_commands",
