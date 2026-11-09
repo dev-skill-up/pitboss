@@ -51,7 +51,7 @@ def needs_check(
         rows = ["a directive with no command"]
     # keyword: plan-digest-collapse (pitboss#358, #399): a check that recorded the
     # digest of before the expanded blocks were collapsed still counts
-    digests = expansion.section_digests(section)
+    digests = expansion.accepted_digests(section)
     return bool(rows) and not any(
         is_plan_check(each.body, digest)
         for each in comments

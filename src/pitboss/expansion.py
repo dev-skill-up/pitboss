@@ -193,7 +193,7 @@ def text_digest(text: str) -> str:
     return hashlib.new("sha256", plain.encode("utf-8")).hexdigest()[:DIGEST_LENGTH]
 
 
-def section_digests(text: str) -> Sequence[str]:
+def accepted_digests(text: str) -> Sequence[str]:
     """The digests a record of a Plan section may carry to be of this section.
 
     The first is the digest of the section with each block ``expand`` produced
@@ -218,9 +218,9 @@ def section_digest(text: str) -> str:
         text: the section, empty when the body has none.
 
     Returns:
-        The first of ``section_digests``, empty for no section.
+        The first of ``accepted_digests``, empty for no section.
     """
-    return next(iter(section_digests(text)), "")
+    return next(iter(accepted_digests(text)), "")
 
 
 def section_changed(recorded: str, text: str) -> bool:
@@ -231,9 +231,9 @@ def section_changed(recorded: str, text: str) -> bool:
         text: the section now, empty when it is not checked.
 
     Returns:
-        True when both are given and the digest is none of ``section_digests``.
+        True when both are given and the digest is none of ``accepted_digests``.
     """
-    return bool(text and recorded and recorded not in section_digests(text))
+    return bool(text and recorded and recorded not in accepted_digests(text))
 
 
 def _command_of(line: str, number: int) -> str:

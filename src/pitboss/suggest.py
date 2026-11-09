@@ -260,14 +260,13 @@ def _heads(source: Source, pull: pulls.PullFacts | None) -> brief.Heads:
     if pull is None:
         return brief.Heads(head="", base=base, approved="", findings="")
     found = pull.review
-    body = pull.pull.body
     return brief.Heads(
         head=pull.pull.head.sha,
         base=pull.pull.base,
         approved=found.sha if found else "",
         findings=found.url if found else "",
-        body_digest=bodydigest.digest(body),
-        plan_digest=expansion.section_digest(plandigest.section(body)),
+        body_digest=bodydigest.digest(pull.pull.body),
+        plan_digest=expansion.section_digest(plandigest.section(pull.pull.body)),
     )
 
 

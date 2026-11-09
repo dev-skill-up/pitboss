@@ -135,7 +135,7 @@ def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str
     # keyword: plan-approved (pitboss#296): a Plan whose digest now is one a
     # review recorded was approved as it stands
     plan = plandigest.section(body)
-    if not numbered or set(expansion.section_digests(plan)) & set(approved):
+    if not numbered or set(expansion.accepted_digests(plan)) & set(approved):
         return []
     return [
         f"{name}: " + _finding(number, numbered.get(number), command) + f" ({CHECK})"

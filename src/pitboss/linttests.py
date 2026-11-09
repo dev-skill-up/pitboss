@@ -50,7 +50,7 @@ def findings(
         of the nearest input must still reject it; none otherwise.
     """
     plan = plandigest.section(body)
-    if set(expansion.section_digests(plan)) & set(approved):
+    if set(expansion.accepted_digests(plan)) & set(approved):
         return []
     said = next(
         (n for n, line in cipointer.prose(plan) if ADDS.search(line)),
