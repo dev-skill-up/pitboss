@@ -206,7 +206,7 @@ CASES = [
         for path in [
             "noxfile.py",
             "pyproject.toml",
-            "doc/design.rst",
+            "doc/index.rst",
             "plugins/pitboss/skills/sweep/SKILL.md",
             ROOT + "phrases.tsv",
             "scripts/check_skills.py",

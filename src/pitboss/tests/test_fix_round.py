@@ -26,7 +26,7 @@ from .test_plan_check_step import (
 
 FIX_ROUND = "fix round for the findings"
 REVISE = "revise the plan"
-NAMED = "Finding: false statements in doc/design.rst\n"
+NAMED = "Finding: false statements in doc/index.rst\n"
 QUOTING = "Finding: row 3 fails: `pytest tests/test_x.py`; see https://x.org/a/b.py\n"
 PLAN_FIX = steps.worker(steps.Task.FIX_ROUND)
 PLAN_REVISION = steps.worker(steps.Task.REVISE_PLAN)
@@ -94,7 +94,7 @@ class TestFindings(unittest.TestCase):
     def test_a_file_of_the_tree_is_a_change(self) -> None:
         """A doc, a source, a test, a line of one, a directory of the tree."""
         for text in (
-            "false statements in doc/design.rst",
+            "false statements in doc/index.rst",
             "the helper in flow.py:12 is dead",
             "add a case to tests/test_flow.py",
             "src/pitboss/ must not import it",
@@ -106,8 +106,8 @@ class TestFindings(unittest.TestCase):
     def test_a_quoted_command_a_link_and_prose_are_not(self) -> None:
         """The nearest inputs: the same path in a command, a link, or none."""
         for text in (
-            "row 3 fails: `pytest doc/design.rst`",
-            "see https://github.com/o/r/blob/main/doc/design.rst",
+            "row 3 fails: `pytest doc/index.rst`",
+            "see https://github.com/o/r/blob/main/doc/index.rst",
             "row 3 asks for no evidence; owner/repo#3 is the ticket",
             "slots heard must record hand-backs",
         ):
