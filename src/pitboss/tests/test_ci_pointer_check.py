@@ -264,13 +264,13 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
         diffrepo.commit(repo, "e2e/helper.js", "")
         diffrepo.commit(repo, "e2e/sub/deep.spec.js", "")
         diffrepo.commit(repo, "e2e/old.spec.js", "changed\n")
-        verdict(repo, "1. nothing points to CI\n")
+        verdict(repo, pointer())
 
     def test_no_table_checks_no_spec(self) -> None:
         """A configuration with no ``[plan_check]`` has no spec to hold."""
         repo = repository(self)
         diffrepo.commit(repo, "e2e/unlisted.spec.js", "")
-        done = check(repo, "1. x\n", "[project]\n")
+        done = check(repo, pointer(), "[project]\n")
         assert_that([done.code, OK in done.out], equal_to([0, True]))
 
     def test_a_table_that_is_not_a_table_of_lists_is_a_usage_error(self) -> None:
@@ -288,8 +288,8 @@ class TestSpecsTheDiffAdds(unittest.TestCase):
     def test_a_configuration_that_is_not_there_is_a_usage_error(self) -> None:
         """The path is named."""
         path = "/nonexistent/project.toml"
-        body = write_text("body.txt", "## Plan\n1. x\n")
-        done = world.invoke(real_world(), "plan-check", body, "--config", path)
+        repo = repository(self)
+        done = unconfigured(repo, "1. x\n", "--config", path)
         assert_that([done.code, path in done.err], equal_to([2, True]))
 
 

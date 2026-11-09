@@ -54,7 +54,7 @@ def outcome(files: Mapping[str, str | None]) -> tuple[object, str]:
             run_git(repo.root, *IDENTITY, "commit", "-q", "-m", f"remove {name}")
         else:
             diffrepo.commit(repo, name, content)
-    done = check(repo, "1. nothing points to CI\n", "")
+    done = check(repo, "1. `rg -n x src/`\n", "")
     case.doCleanups()
     return done.code, str(done.out)
 

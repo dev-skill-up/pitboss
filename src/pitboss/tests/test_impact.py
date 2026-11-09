@@ -150,6 +150,24 @@ class TestCommand(unittest.TestCase):
         done = command(planted({"a": "b"}), "missing")
         assert_that([done.code, done.out], equal_to([0, ""]))
 
+    def test_it_says_what_it_searched_and_hints_at_an_underscore_form(self) -> None:
+        """Done-when (pitboss#317): a phrase with a space, a name with underscores."""
+        root = planted({"a.py": "def come_first():\n    pass\n"})
+        cases = {
+            "a space": (
+                "come first",
+                ["searched: `come first`", "hint:", "`come_first`"],
+            ),
+            "the name": ("come_first", ["searched: `come_first`"]),
+        }
+        for name, (phrase, said) in cases.items():
+            with self.subTest(name):
+                done = command(root, phrase)
+                assert_that(all(each in done.err for each in said), equal_to(True))
+                assert_that(("hint:" in done.err), equal_to("hint:" in said))
+        quiet = command(root, "come last", "come")
+        assert_that(quiet.err.count("hint:"), equal_to(0))
+
     def test_usage_errors_are_status_2(self) -> None:
         """A root that is no directory, and a phrase with no word."""
         root = planted({"a": "b"})
