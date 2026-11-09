@@ -24,8 +24,6 @@ trusted_associations = ["OWNER"]
 [review.form]
 lines = ["Review of {sha}: {verdict}"]
 approved = "yes"
-[lint.pr_body]
-footers = ["made by me"]
 [lint.brief]
 required = ["Overlap:"]
 [merge_queue]
@@ -62,7 +60,7 @@ def _summary(settings: config.Config) -> dict[str, object]:
             settings.review.form.approved,
             settings.review.gated_form.approved,
         ),
-        "lint": (settings.lint.footers, settings.lint.brief_lines),
+        "lint": settings.lint.brief_lines,
         "numbers": (settings.merge_queue.timeout_minutes, settings.idle_hours),
         "sweep": (settings.reminders, settings.project.run_by_e2e),
         "slots": (
@@ -82,7 +80,7 @@ DEFAULTS: Mapping[str, object] = {
     "gated": frozenset(),
     "trusted": frozenset(config.DEFAULT_ASSOCIATIONS),
     "approved": ("approved", "approved"),
-    "lint": ((), ()),
+    "lint": (),
     "numbers": (60, 3.0),
     "sweep": (config.DEFAULT_REMINDERS, ("e2e/",)),
     "slots": ((), (), (), {}),
@@ -95,7 +93,7 @@ READ: Mapping[str, object] = {
     "gated": frozenset({"owner/lib"}),
     "trusted": frozenset({"OWNER"}),
     "approved": ("yes", "yes"),
-    "lint": (("made by me",), ("Overlap:",)),
+    "lint": ("Overlap:",),
     "numbers": (30, 1.5),
     "sweep": (("one",), ("e2e/", "ui/")),
     "slots": (

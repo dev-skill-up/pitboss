@@ -24,10 +24,13 @@ class Workflow:
     Attributes:
         jobs: each job's key and its ``name:``, as written.
         steps: each step's ``name:``, as written.
+        titles: each job's ``name:`` (its key when it has none), in file order, as
+            written (keyword: next-ci-jobs, pitboss#282).
     """
 
     jobs: AbstractSet[str]
     steps: AbstractSet[str]
+    titles: Sequence[str] = ()
 
 
 def _indent(line: str) -> int:
@@ -128,4 +131,5 @@ def read(text: str) -> Workflow:
     return Workflow(
         jobs=frozenset(each for found, _ in parsed for each in found),
         steps=frozenset(each for _, found in parsed for each in found),
+        titles=[found[-1] for found, _ in parsed if found],
     )

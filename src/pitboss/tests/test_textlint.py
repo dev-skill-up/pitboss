@@ -144,8 +144,8 @@ class TestStatus(unittest.TestCase):
         ]
         assert_that(found, equal_to(["exempt", "exempt", "failure"]))
 
-    def test_configured_footers(self) -> None:
-        """No footer is required by default; ``--config`` can list one."""
+    def test_footers_are_ignored(self) -> None:
+        """A footer is not checked (pitboss#282), even when a config still lists one."""
         config = write_text(
             "p.toml",
             "[project]\nowner = 'o'\nrepository = 'r'\nmain_clone = '/c'\n"
@@ -155,7 +155,7 @@ class TestStatus(unittest.TestCase):
         _, missing, _ = posted(event(), "--config", config)
         _, present, _ = posted(event(BODY + FOOTER + "\n"), "--config", config)
         assert_that(plain["description"], equal_to("ok"))
-        assert_that(missing["description"], contains_string("(footer)"))
+        assert_that(missing["description"], equal_to("ok"))
         assert_that(present["description"], equal_to("ok"))
 
 

@@ -107,7 +107,7 @@ class TestNoxRow(unittest.TestCase):
     def test_the_form_check_carries_it(self) -> None:
         """pr_body reports the nox row."""
         subject = forms.Subject(name="body", body=PLAN_WITH_NOX, head="")
-        found = [each for each in forms.pr_body(subject, []) if "plan-nox" in each]
+        found = [each for each in forms.pr_body(subject) if "plan-nox" in each]
         assert_that(found, has_length(1))
 
     def test_the_plan_writing_briefs_say_the_same_sentence(self) -> None:

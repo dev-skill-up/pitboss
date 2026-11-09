@@ -196,7 +196,6 @@ class Rules:
     Attributes:
         config: the configuration, as given to the command.
         form: the lines of the review form, filled in for this PR.
-        footer: the line a PR body ends with, empty when none is required.
         project: what the project's briefs say beyond the process.
         gate_note: what a gated repository's gate also requires of the comment
             (keyword: review-gate, pitboss#166), empty when it is not gated.
@@ -206,7 +205,6 @@ class Rules:
 
     config: str
     form: Sequence[str]
-    footer: str
     project: briefconfig.Brief
     gate_note: str = ""
     plan_check: str = ""
@@ -252,7 +250,6 @@ def fields(spec: Spec) -> Mapping[str, str]:
         **_about(spec.subject),
         **_named(spec.heads, CHECKOUTS[spec.kind is Kind.NEW_PR]),
         "config": spec.rules.config,
-        "footer_note": _footer_note(spec.rules.footer),
         "logs": "".join(f"\nFailed check log: {each}" for each in spec.logs),
     }
 
@@ -282,10 +279,6 @@ def _named(heads: Heads, where: str) -> Mapping[str, str]:
         "body_digest": heads.body_digest,
         "plan_digest_line": brieftextwhen.plan_digest_line(heads.plan_digest),
     }
-
-
-def _footer_note(footer: str) -> str:
-    return text.FOOTER_NOTE.format(footer=footer) if footer else ""
 
 
 def _filled(sentences: Sequence[str], values: Mapping[str, str]) -> list[str]:

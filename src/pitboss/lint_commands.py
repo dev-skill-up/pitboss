@@ -150,11 +150,10 @@ def _pr_body_findings(
     args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
 ) -> Sequence[str]:
     if relock.is_relock(args.branch, settings.relock_prefix):
-        return forms.relock_pr_body(subject, settings.footers)  # keyword: relock
+        return forms.relock_pr_body(subject)  # keyword: relock
     return [
         *forms.pr_body(
             subject,
-            settings.footers,
             _rulings(args, settings),
             _approved(args, settings),
         ),
@@ -254,7 +253,6 @@ def _event(args: argparse.Namespace) -> None:
     settings = _lint_settings(args)
     form = functools.partial(
         forms.pr_body,
-        footers=settings.footers,
         rulings=_rulings(args, settings),
         approved=_approved(args, settings),
     )
@@ -318,7 +316,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         "--branch",
         default="",
         help="the PR's head branch, for pr-body: a relock branch (see [relock]"
-        " prefix) is checked for its head and footer alone",
+        " prefix) is checked for its head alone",
     ),
     add_argument(
         "--checkout",

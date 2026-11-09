@@ -88,9 +88,7 @@ def body_findings(settings: config.Config, pull: pulls.PullFacts) -> Sequence[st
     banned = phrases.parse(phrases.default_text(), "default phrases")
     pairs = contradictions.parse(contradictions.default_text(), "default pairs")
     return [
-        *forms.pr_body(
-            subject, lint.footers, pull.signals.rulings, pull.signals.approved_plans
-        ),
+        *forms.pr_body(subject, pull.signals.rulings, pull.signals.approved_plans),
         *phrases.findings(body, subject.name, banned),
         *contradictions.findings([(subject.name, body)], pairs),
     ]

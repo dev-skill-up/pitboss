@@ -273,13 +273,11 @@ Commands
        same number, and the row must hold the whole command in backticks, or
        the command followed by a pipe; a prose row, a differing string or a
        missing row is one finding, and the sweep prints it as a ``PLAN ROW``
-       line; pitboss#259) and
-       ``footer`` (only when ``[lint.pr_body] footers``
-       lists lines: one of them in the last three lines; by default none is
-       listed, so no footer is required). With ``--branch`` starting with the
+       line; pitboss#259)
+       With ``--branch`` starting with the
        ``[relock] prefix`` (default ``relock/``; pitboss#126) the PR is a relock
        PR, which fixes no ticket and has no Plan, Execution or hand-run
-       evidence: only ``head``, ``hand-typed`` and ``footer`` are checked, and
+       evidence: only ``head``, ``hand-typed`` are checked, and
        ``plan-command`` is not (``relock_pr_body`` does not call it).
        ``review``: the lines of ``[review.form]``
        (``first-line``, ``reviewed``, ``verdict``) and the reviewed SHA
