@@ -71,6 +71,8 @@ class Marker(enum.Enum):
         OPUS_RULINGS_DAILY: Opus ruling comments are dated since the last
             summary and none is recorded for the Pacific day.
         REMOVED_FROM_QUEUE: the merge queue removed a PR, and why.
+        DRAFT_STATE_CHANGED: a PR's draft state changed after the sweep marked it
+            ready (keyword: draft-moves, pitboss#355).
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
         READY_TO_MERGE: green, clean and approved; arm auto-merge.
         MERGE_BY_HAND: green, clean and approved, in a repository without
@@ -164,6 +166,7 @@ class Marker(enum.Enum):
     REVIEW_NOTE = enum.auto()
     OPUS_RULINGS_DAILY = enum.auto()
     REMOVED_FROM_QUEUE = enum.auto()
+    DRAFT_STATE_CHANGED = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
     MERGE_BY_HAND = enum.auto()
@@ -234,5 +237,6 @@ SELF_EXPLAINED = frozenset(
         Marker.READY_TO_MERGE,
         Marker.MERGE_BY_HAND,
         Marker.AUTO_MERGE_OFF,
+        Marker.DRAFT_STATE_CHANGED,
     }
 )

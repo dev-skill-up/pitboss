@@ -61,6 +61,11 @@ DEPENDENCY = (
     " ticket first, and adds a repository the mission needs (add_repo) without"
     " asking (pitboss#280)."
 )
+DRAFT_STATE = (
+    "Draft state: never change a PR's draft state, in either direction (the"
+    " sweep marks a PR ready); if your push shows a state you did not expect, say"
+    " so in your hand-back (pitboss#355)."
+)
 SENTENCES = (
     NOX,
     NOX_ORDER,
@@ -68,5 +73,6 @@ SENTENCES = (
     DEVIATIONS,
     TEMP_RUNS,
     DEPENDENCY,
+    DRAFT_STATE,
     brieftextowner.OWNER,
 )
