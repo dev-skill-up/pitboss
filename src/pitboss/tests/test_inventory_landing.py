@@ -69,7 +69,7 @@ def flagged_run(*arguments: str) -> subprocess.CompletedProcess[str]:
     Returns:
         The finished process, with its command, status and output.
     """
-    return captured.run([sys.executable, "-I", str(SCRIPT), *arguments], check=False)
+    return captured.finished([sys.executable, "-I", str(SCRIPT), *arguments])
 
 
 def flagged(done: subprocess.CompletedProcess[str]) -> tuple[int, Sequence[str]]:

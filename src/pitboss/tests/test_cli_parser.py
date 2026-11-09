@@ -72,8 +72,8 @@ def console_script(*argv: str) -> subprocess.CompletedProcess[str]:
         The finished process, with its command, status and standard error.
     """
     with tempfile.TemporaryDirectory() as directory:
-        return captured.run(
-            [sys.executable, "-c", CONSOLE_SCRIPT, *argv], check=False, cwd=directory
+        return captured.finished(
+            [sys.executable, "-c", CONSOLE_SCRIPT, *argv], cwd=directory
         )
 
 

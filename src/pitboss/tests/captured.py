@@ -1,4 +1,4 @@
-"""The one place a test runs a command and keeps what it printed (keyword: captured-run).
+"""The one place a test runs a command and keeps its output (keyword: captured-run).
 
 A failure that shows a status and nothing else is a puzzle (pitboss#402), so a
 command that fails here raises with the command, the exit status and what it
@@ -10,21 +10,8 @@ import os
 import subprocess
 from collections.abc import Mapping, Sequence
 
-
-class Failed(subprocess.CalledProcessError):
-    """A command that exited with a status, shown with the command and its output."""
-
-    def __str__(self) -> str:
-        """The command, the status and the output.
-
-        Returns:
-            The text of the failure.
-        """
-        return described(
-            subprocess.CompletedProcess(
-                self.cmd, self.returncode, self.stdout, self.stderr
-            )
-        )
+Environment = Mapping[str, str] | None
+Directory = str | os.PathLike[str] | None
 
 
 def described(done: "subprocess.CompletedProcess[str]") -> str:
@@ -42,38 +29,84 @@ def described(done: "subprocess.CompletedProcess[str]") -> str:
     )
 
 
-def run(
-    command: Sequence[str],
-    *,
-    check: bool = True,
-    merge: bool = False,
-    cwd: str | os.PathLike[str] | None = None,
-    env: Mapping[str, str] | None = None,
+def started(
+    command: Sequence[str], errors: int, cwd: Directory, env: Environment
 ) -> "subprocess.CompletedProcess[str]":
-    """Run a command and keep its output.
+    """Run a command and keep its output, whatever its status.
 
     Args:
         command: the command line.
-        check: whether a nonzero exit status raises ``Failed``.
-        merge: whether standard error is joined to standard output.
+        errors: ``subprocess.PIPE`` to keep its error output apart,
+            ``subprocess.STDOUT`` to join it to the standard output.
         cwd: where it runs; None is the directory of the test process.
         env: its environment; None is this process's.
 
     Returns:
         The finished process, with its arguments, status and output.
-
-    Raises:
-        Failed: for a nonzero exit status when ``check`` is set.
     """
-    done = subprocess.run(
+    return subprocess.run(
         list(command),
         cwd=cwd,
         env=env,
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT if merge else subprocess.PIPE,
+        stderr=errors,
         text=True,
         check=False,
     )
-    if check and done.returncode:
-        raise Failed(done.returncode, done.args, done.stdout, done.stderr)
+
+
+def finished(
+    command: Sequence[str], *, cwd: Directory = None, env: Environment = None
+) -> "subprocess.CompletedProcess[str]":
+    """Run a command and keep its output and its error output, whatever its status.
+
+    Args:
+        command: the command line.
+        cwd: where it runs; None is the directory of the test process.
+        env: its environment; None is this process's.
+
+    Returns:
+        The finished process, with its arguments, status and output.
+    """
+    return started(command, subprocess.PIPE, cwd, env)
+
+
+def merged(
+    command: Sequence[str], *, cwd: Directory = None, env: Environment = None
+) -> "subprocess.CompletedProcess[str]":
+    """Run a command and keep its output with its error output joined to it.
+
+    Args:
+        command: the command line.
+        cwd: where it runs; None is the directory of the test process.
+        env: its environment; None is this process's.
+
+    Returns:
+        The finished process, whatever its status.
+    """
+    return started(command, subprocess.STDOUT, cwd, env)
+
+
+def run(
+    command: Sequence[str], *, cwd: Directory = None, env: Environment = None
+) -> "subprocess.CompletedProcess[str]":
+    """Run a command that must succeed.
+
+    Args:
+        command: the command line.
+        cwd: where it runs; None is the directory of the test process.
+        env: its environment; None is this process's.
+
+    Returns:
+        The finished process, which exited 0.
+
+    Raises:
+        subprocess.CalledProcessError: for any other status, caused by an error
+            that says the command, the status and what it wrote.
+    """
+    done = finished(command, cwd=cwd, env=env)
+    if done.returncode:
+        raise subprocess.CalledProcessError(
+            done.returncode, done.args, done.stdout, done.stderr
+        ) from AssertionError(described(done))
     return done

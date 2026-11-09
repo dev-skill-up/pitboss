@@ -60,9 +60,7 @@ def git_user_name(
     Returns:
         The finished process, with its command, status and output.
     """
-    return captured.run(
-        ["git", "config", "user.name"], check=False, cwd=where, env=environ
-    )
+    return captured.finished(["git", "config", "user.name"], cwd=where, env=environ)
 
 
 class TestIsolatedEnvironment(unittest.TestCase):

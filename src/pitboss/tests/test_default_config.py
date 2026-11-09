@@ -113,9 +113,8 @@ def ran_missing(
     # both are this case's own, so no copy of the machine is found (keyword: flake-368)
     own = {"PWD": str(directory), "HOME": str(directory)}
     env.update(own, XDG_CACHE_HOME=str(directory / ".cache"), PATH=str(tools))
-    return captured.run(
+    return captured.finished(
         [sys.executable, "-m", "pitboss", *case.before, *case.after],
-        check=False,
         cwd=directory,
         env=env,
     )

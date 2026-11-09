@@ -55,10 +55,8 @@ def runner_in(directory: pathlib.Path, ceiling: pathlib.Path) -> noxcheck.Runner
     """
 
     def run(command: Sequence[str], /) -> expansion.Outcome:
-        done = captured.run(
+        done = captured.merged(
             command,
-            check=False,
-            merge=True,
             cwd=directory,
             env={**os.environ, "GIT_CEILING_DIRECTORIES": str(ceiling)},
         )
