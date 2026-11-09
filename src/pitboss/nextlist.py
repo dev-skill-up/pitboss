@@ -5,6 +5,7 @@ import ``commands``, so the commands can import it.
 """
 
 import argparse
+import dataclasses
 import datetime
 import itertools
 import pathlib
@@ -26,11 +27,13 @@ from . import (
     pulls,
     pullstate,
     readyline,
+    slotheld,
     slotholding,
     suggest,
     unreadableline,
     work,
 )
+from .markers import Marker
 
 
 class Found(Protocol):
@@ -95,12 +98,18 @@ def require_ledger(path: pathlib.Path) -> None:
         raise SystemExit(1)
 
 
+def _counted(
+    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
+) -> work.Offered:
+    offer = offering.offered(found, opened, book)
+    return slotholding.counted(offer, opened, book, found.args)
+
+
 def _ordered(
     found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
 ) -> work.Offered:
     unreadableline.print_withheld(opened)
-    offer = offering.offered(found, opened, book)
-    return slotholding.counted(offer, opened, book, found.args)
+    return _counted(found, opened, book)
 
 
 def _assigned(
@@ -180,12 +189,67 @@ def show(
     source = _source(found, opened, ordered, book)
     for line in itertools.chain(
         nextview.next_lines(_view(found, ordered, book, source.facts)),
+        offering.disagreements(found, ordered),
         pullstate.lines(found.github, found.settings, source.facts),
         [diskwatch.line(source.volume)] if source.volume else [],
         [exempt.OVERRIDE],  # keyword: pitboss-exempt (pitboss#113)
         suggest.lines(source),
     ):
         print(line)
+
+
+UNKNOWN = (
+    "UNKNOWN: {reference} is not in the order of slots next: no open PR is at a"
+    " step that is offered and no open ticket is queued (a held or blocked"
+    " ticket and a PR at a wait are not)"
+)
+
+
+def _place(view: nextview.NextView, pick: suggest.Pick) -> str:
+    # where the item stands in the order, so a dispatch out of order is visible
+    marker = Marker.NEXT.text
+    if pick.item is None:
+        return f"{marker} ruling, owed before every {marker} line"
+    number, last = nextview.place(view, pick.reference)
+    ahead = number - (slotheld.LEAD + 1)
+    order = f"out of order, {ahead} ahead of it" if ahead else "first in the order"
+    return f"{marker} {number} of {last}, {order}"
+
+
+def show_item(
+    found: Found,
+    opened: Sequence[pulls.Read],
+    book: ledger.Ledger,
+    reference: str,
+) -> bool:
+    """Print the brief of one PR or ticket, as if it were the first suggestion.
+
+    The first line says where the item stands in the order of ``slots next``
+    (``NEXT 24 of 30, out of order, 22 ahead of it``), then the kind, the item
+    and the model class; the brief that follows is the suggestion's own text.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        book: the slot ledger.
+        reference: ``owner/repo#N``.
+
+    Returns:
+        False, with ``UNKNOWN`` on standard error, when ``slots next`` offers
+        nothing for the item.
+    """
+    ordered = _counted(found, opened, book)
+    source = _source(found, opened, ordered, book)
+    every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
+    pick = next((each for each in every if each.reference == reference), None)
+    if pick is None:
+        print(UNKNOWN.format(reference=reference), file=sys.stderr)
+        return False
+    made = suggest.suggest(source, pick)
+    place = _place(_view(found, ordered, book, source.facts), pick)
+    print(f"{place}: {made.kind.value}: {made.reference}: {made.model}")
+    print(made.text)
+    return True
 
 
 def refill(

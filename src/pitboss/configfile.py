@@ -13,6 +13,7 @@ from . import (
     exempt,
     holdconfig,
     ownerconfig,
+    ownerlabels,
     plancheckconfig,
     scratchconfig,
     syncconfig,
@@ -310,6 +311,9 @@ def _slots(document: Mapping[str, object], project: config.Project) -> config.Sl
             str(key): str(value) for key, value in _table(table, "model_labels").items()
         },
         ledger_owner=table.get("ledger-owner") is True,
+        owner_priorities=ownerlabels.parse(
+            table, _strings(table, "priority_labels", ())
+        ),
     )
 
 

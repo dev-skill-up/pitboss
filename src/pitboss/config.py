@@ -159,6 +159,9 @@ class Slots:
         priority_labels: the ticket labels that are offered, highest first.
         model_labels: a label, and the smallest model a ticket with it goes to.
         ledger_owner: ``ledger-owner = true``: this configuration owns the ledger.
+        owner_priorities: a ticket (``owner/repo#N``) and the priority label the
+            owner states for it, one of ``priority_labels``; the ticket ranks by
+            it, and a differing GitHub label is said (keyword: owner-priority).
     """
 
     ledger: pathlib.Path
@@ -168,6 +171,7 @@ class Slots:
     priority_labels: Sequence[str]
     model_labels: Mapping[str, str]
     ledger_owner: bool = False
+    owner_priorities: Mapping[str, str] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
