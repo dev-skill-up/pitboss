@@ -74,8 +74,9 @@ class TestTheFormOfAPointer(unittest.TestCase):
         assert_that(form(text), equal_to([]))
 
     def test_the_names_of_a_row_decide_whether_it_is_judged(self) -> None:
-        """The nearest input: a workflow file with no name is not meant as one."""
-        meant = {"3. Workflow `check.yml`, job in it.\n": 0}
+        """The nearest input: a workflow file with no job, step or greppable name."""
+        meant = {"3. Run `make test` in the job.\n": 0}
+        meant["3. Workflow `check.yml`, job in it.\n"] = 1
         meant["3. The job `build` of the workflow runs.\n"] = 1
         for row, count in meant.items():
             assert_that(form(row), has_length(count))
