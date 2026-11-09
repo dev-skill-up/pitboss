@@ -5,7 +5,7 @@ import enum
 import re
 from typing import AbstractSet, Sequence
 
-from . import config, ghapi, parsing, shapes
+from . import config, ghapi, issuelist, parsing, shapes
 from .redtime import seconds
 
 
@@ -115,7 +115,7 @@ def read_tickets(
         path = (
             f"repos/{each.slug}/issues?state=open&labels={LABEL_NAMES[Label.PRIORITY]}"
         )
-        for issue in ghapi.pages(github, path, parsing.issues):
+        for issue in filter(None, ghapi.pages(github, path, issuelist.listed)):
             found.append(_read(github, each, issue, runs))
     return found
 
