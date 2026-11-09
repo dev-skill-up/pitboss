@@ -9,7 +9,7 @@ import ast
 import dataclasses
 import pathlib
 import subprocess
-from collections.abc import Mapping, Set
+from collections.abc import Mapping, Sequence, Set
 
 SUBPROCESS = "subprocess"
 
@@ -85,7 +85,57 @@ class Bindings:
     functions: Mapping[str, str]
 
 
-def bindings(tree: ast.AST) -> Bindings:
+def defs(tree: ast.AST) -> Sequence[ast.FunctionDef | ast.AsyncFunctionDef]:
+    """The ``def`` and ``async def`` of a file, wherever they are.
+
+    Args:
+        tree: the parsed file.
+
+    Returns:
+        Them.
+    """
+    return [
+        x
+        for x in ast.walk(tree)
+        if isinstance(x, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+
+
+def imported_functions(node: ast.AST) -> Mapping[str, str]:
+    """The names a ``from subprocess import`` statement binds, by the function's name.
+
+    Args:
+        node: any node.
+
+    Returns:
+        The local name of each function; ``*`` binds them all; none for any
+        other node.
+    """
+    if not (
+        isinstance(node, ast.ImportFrom)
+        and node.module == SUBPROCESS
+        and not node.level
+    ):
+        return {}
+    if any(each.name == "*" for each in node.names):
+        return {x: x for x in subprocess.__all__}
+    return {(each.asname or each.name): each.name for each in node.names}
+
+
+def imported_modules(node: ast.AST) -> Set[str]:
+    """The names an ``import subprocess`` statement binds.
+
+    Args:
+        node: any node.
+
+    Returns:
+        The local names of the module; none for any other node.
+    """
+    names = node.names if isinstance(node, ast.Import) else []
+    return {each.asname or each.name for each in names if each.name == SUBPROCESS}
+
+
+def bound_by(tree: ast.AST) -> Bindings:
     """The names a file binds to ``subprocess`` and to its functions.
 
     Args:
@@ -96,22 +146,15 @@ def bindings(tree: ast.AST) -> Bindings:
         ``from subprocess import f [as g]`` and ``from subprocess import *``,
         wherever in the file they are.
     """
-    modules: set[str] = set()
-    functions: dict[str, str] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            modules |= {x.asname or x.name for x in node.names if x.name == SUBPROCESS}
-        elif (
-            isinstance(node, ast.ImportFrom)
-            and node.module == SUBPROCESS
-            and not node.level
-        ):
-            for each in node.names:
-                if each.name == "*":
-                    functions.update({x: x for x in subprocess.__all__})
-                else:
-                    functions[each.asname or each.name] = each.name
-    return Bindings(modules=modules, functions=functions)
+    nodes = list(ast.walk(tree))
+    return Bindings(
+        modules={name for each in nodes for name in imported_modules(each)},
+        functions={
+            name: own
+            for each in nodes
+            for name, own in imported_functions(each).items()
+        },
+    )
 
 
 def calls_subprocess(node: ast.AST, names: Set[str], bound: Bindings) -> bool:
@@ -136,7 +179,9 @@ def calls_subprocess(node: ast.AST, names: Set[str], bound: Bindings) -> bool:
             and function.value.id in bound.modules
             and function.attr in names
         )
-    return isinstance(function, ast.Name) and bound.functions.get(function.id, "") in names
+    return (
+        isinstance(function, ast.Name) and bound.functions.get(function.id, "") in names
+    )
 
 
 def mentions(node: ast.AST) -> Set[str]:

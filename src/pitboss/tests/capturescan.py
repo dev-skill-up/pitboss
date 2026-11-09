@@ -140,7 +140,10 @@ def message_parts(failure: ast.AST) -> Sequence[ast.AST]:
     if isinstance(failure, ast.Call) and scanning.named(failure.func) == "fail":
         return [*failure.args, *(x.value for x in failure.keywords)]
     if isinstance(failure, ast.Call):
-        return [*failure.args[2:3], *(x.value for x in failure.keywords if x.arg == "reason")]
+        return [
+            *failure.args[2:3],
+            *(x.value for x in failure.keywords if x.arg == "reason"),
+        ]
     return []
 
 
@@ -274,16 +277,30 @@ def function_names(tree: ast.AST) -> Mapping[int, str]:
     Returns:
         The name, by the id of the node.
     """
-    found = {
-        id(x): x.name
-        for x in ast.walk(tree)
-        if isinstance(x, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
+    named = {id(x): x.name for x in scanning.defs(tree)}
     for each in ast.walk(tree):
         if isinstance(each, ast.Assign) and isinstance(each.value, ast.Lambda):
-            bound = [x.id for x in each.targets if isinstance(x, ast.Name)]
-            found[id(each.value)] = bound[0] if bound else "<lambda>"
-    return found
+            targets = [x.id for x in each.targets if isinstance(x, ast.Name)]
+            named[id(each.value)] = targets[0] if targets else "<lambda>"
+    return named
+
+
+def lossy_pairs(tree: ast.AST) -> Sequence[tuple[Function, ast.Call]]:
+    """The calls of a file that keep the output of a command and lose it.
+
+    Args:
+        tree: the parsed file.
+
+    Returns:
+        Each call with the function that holds it.
+    """
+    imports = scanning.bound_by(tree)
+    return [
+        (function, call)
+        for function in ast.walk(tree)
+        if isinstance(function, FUNCTIONS)
+        for call in lossy_calls(function, imports)
+    ]
 
 
 def lossy_functions(path: str, text: str) -> Sequence[scanning.Finding]:
@@ -300,7 +317,6 @@ def lossy_functions(path: str, text: str) -> Sequence[scanning.Finding]:
         the error in the message of a failure.
     """
     tree = ast.parse(text)
-    bound = scanning.bindings(tree)
     names = function_names(tree)
     return [
         scanning.Finding(
@@ -310,9 +326,7 @@ def lossy_functions(path: str, text: str) -> Sequence[scanning.Finding]:
             why="keeps output, and neither its result nor its failure message"
             " has the command, the exit status and the stderr",
         )
-        for function in ast.walk(tree)
-        if isinstance(function, FUNCTIONS)
-        for call in lossy_calls(function, bound)
+        for function, call in lossy_pairs(tree)
     ]
 
 

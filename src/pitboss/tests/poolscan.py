@@ -7,11 +7,10 @@ package's concurrent reads must hand none of them a function that runs one.
 """
 
 import ast
-import dataclasses
-import pathlib
 from collections.abc import Mapping, Sequence, Set
 
 from . import scanning
+from .modulescope import Key, Scope, module_of, scope_of, used_keys
 
 SUBPROCESS_CALLS = frozenset(
     {"run", "Popen", "check_output", "check_call", "call", "getoutput"}
@@ -37,104 +36,6 @@ THREAD_MODULES = frozenset({"threading", "multiprocessing"})
 POOL_MODULES = frozenset({"concurrent", "threading", "multiprocessing", "concurrently"})
 
 
-Key = tuple[str, str]
-
-
-def module_of(path: str) -> str:
-    """The name a file is imported as, by its last word.
-
-    Args:
-        path: the file's name under the package.
-
-    Returns:
-        ``gitutil`` for ``gitutil.py``; the directory's name for an ``__init__.py``.
-    """
-    each = pathlib.PurePosixPath(path)
-    return each.parent.name if each.stem == "__init__" and each.parent.name else each.stem
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Scope:
-    """What the names of one file mean (keyword: captured-run).
-
-    Attributes:
-        module: the name the file is imported as.
-        modules: the words the file imports as modules, by the name it uses.
-        functions: the names it imports from a module, as (module, function).
-        defined: the functions defined in it.
-    """
-
-    module: str
-    modules: Mapping[str, str]
-    functions: Mapping[str, Key]
-    defined: Set[str]
-
-
-def scope_of(path: str, tree: ast.AST) -> Scope:
-    """The scope of a file.
-
-    Args:
-        path: the file's name.
-        tree: the parsed file.
-
-    Returns:
-        Its scope; ``from pkg import name`` is both a module and a function.
-    """
-    modules: dict[str, str] = {}
-    functions: dict[str, Key] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for each in node.names:
-                words = each.name.split(".")
-                modules.update({word: word for word in words})
-                modules[each.asname or words[0]] = words[-1] if each.asname else words[0]
-        elif isinstance(node, ast.ImportFrom):
-            where = (node.module or "").split(".")[-1]
-            for each in node.names:
-                modules[each.asname or each.name] = each.name
-                if where:
-                    functions[each.asname or each.name] = (where, each.name)
-    defined = {
-        x.name for x in ast.walk(tree) if isinstance(x, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
-    return Scope(
-        module=module_of(path), modules=modules, functions=functions, defined=defined
-    )
-
-
-def used_keys(scope: Scope, node: ast.AST) -> Set[Key]:
-    """The functions a piece of syntax may use, each with the module it is in.
-
-    A name is a function of the file or one it imports; ``m.f`` is the ``f`` of
-    the module ``m`` when the file imports ``m``, and otherwise the ``f`` of the
-    file if it has one (a method). A name of another module's is not followed.
-
-    Args:
-        scope: the scope of the file.
-        node: the syntax.
-
-    Returns:
-        The (module, function) pairs.
-    """
-    found: set[Key] = set()
-    for each in ast.walk(node):
-        if isinstance(each, ast.Name):
-            if each.id in scope.functions:
-                found.add(scope.functions[each.id])
-            if each.id in scope.defined:
-                found.add((scope.module, each.id))
-        elif isinstance(each, ast.Attribute):
-            base = each.value
-            word = base.id if isinstance(base, ast.Name) else (
-                base.attr if isinstance(base, ast.Attribute) else ""
-            )
-            if word in scope.modules:
-                found.add((scope.modules[word], each.attr))
-            elif each.attr in scope.defined:
-                found.add((scope.module, each.attr))
-    return found
-
-
 def bodies_by_name(files: Mapping[str, ast.AST]) -> Mapping[Key, Set[Key]]:
     """What the functions of that name in that module use.
 
@@ -147,11 +48,10 @@ def bodies_by_name(files: Mapping[str, ast.AST]) -> Mapping[Key, Set[Key]]:
     found: dict[Key, set[Key]] = {}
     for path, each in files.items():
         scope = scope_of(path, each)
-        for node in ast.walk(each):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                found.setdefault((scope.module, node.name), set()).update(
-                    used_keys(scope, node)
-                )
+        for node in scanning.defs(each):
+            found.setdefault((scope.own, node.name), set()).update(
+                used_keys(scope, node)
+            )
     return found
 
 
@@ -165,7 +65,7 @@ def aliases(tree: ast.AST) -> Set[str]:
         ``subprocess``, ``sp`` after ``import subprocess as sp``, ``run`` after
         ``from subprocess import run``.
     """
-    bound = scanning.bindings(tree)
+    bound = scanning.bound_by(tree)
     return set(bound.modules) | {
         name for name, own in bound.functions.items() if own in SUBPROCESS_CALLS
     }
@@ -183,11 +83,10 @@ def direct_runners(files: Mapping[str, ast.AST]) -> Set[Key]:
     return {
         (module_of(path), node.name)
         for path, each in files.items()
-        for bound in [scanning.bindings(each)]
-        for node in ast.walk(each)
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and any(
-            scanning.calls_subprocess(x, SUBPROCESS_CALLS, bound)
+        for imports in [scanning.bound_by(each)]
+        for node in scanning.defs(each)
+        if any(
+            scanning.calls_subprocess(x, SUBPROCESS_CALLS, imports)
             for x in ast.walk(node)
         )
     }
@@ -265,7 +164,9 @@ def thread_names(tree: ast.AST) -> Set[str]:
             and (node.module or "").split(".")[0] in THREAD_MODULES
         ):
             found |= {
-                x.asname for x in node.names if x.name in THREAD_CONSTRUCTORS and x.asname
+                x.asname
+                for x in node.names
+                if x.name in THREAD_CONSTRUCTORS and x.asname
             }
     return found
 
@@ -327,10 +228,105 @@ def runs_subprocess(
     """
     return any(
         used_keys(scope, each) & running or scanning.mentions(each) & names
-        for each in node.body
-        if isinstance(each, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and each.name == "run"
+        for each in scanning.defs(node)
+        if each.name == "run"
     )
+
+
+def runners_given(
+    given: ast.AST, scope: Scope, running: Set[Key], names: Set[str]
+) -> Set[str]:
+    """The names of the runners in a function handed to a pool or a thread.
+
+    Args:
+        given: the function.
+        scope: the scope of the file.
+        running: the functions that run a subprocess.
+        names: the names of the module ``subprocess`` and its functions.
+
+    Returns:
+        The names; none when it is no runner.
+    """
+    return {name for _, name in used_keys(scope, given) & running} | (
+        scanning.mentions(given) & names
+    )
+
+
+def runner_calls(
+    parsed: ast.AST, scope: Scope, running: Set[Key]
+) -> Sequence[tuple[ast.Call, Set[str]]]:
+    """The calls of a file that hand a pool, a thread or a process a runner.
+
+    Args:
+        parsed: the parsed file.
+        scope: the scope of the file.
+        running: the functions that run a subprocess.
+
+    Returns:
+        Each call with the names of the runners it hands over.
+    """
+    own = aliases(parsed)
+    constructors = thread_names(parsed)
+    return [
+        (call, names)
+        for call in ast.walk(parsed)
+        if isinstance(call, ast.Call)
+        for given in given_to_pool(call, constructors)
+        for names in [runners_given(given, scope, running, own)]
+        if names
+    ]
+
+
+def handed_over(
+    path: str, parsed: ast.AST, scope: Scope, running: Set[Key]
+) -> Sequence[scanning.Finding]:
+    """The findings for the calls of a file that hand over a runner.
+
+    Args:
+        path: the file's name.
+        parsed: the parsed file.
+        scope: the scope of the file.
+        running: the functions that run a subprocess.
+
+    Returns:
+        A finding for each.
+    """
+    return [
+        scanning.Finding(
+            path=path,
+            line=call.lineno,
+            name=", ".join(sorted(names)),
+            why="a pool or a thread runs a subprocess",
+        )
+        for call, names in runner_calls(parsed, scope, running)
+    ]
+
+
+def subclassed(
+    path: str, parsed: ast.AST, scope: Scope, running: Set[Key]
+) -> Sequence[scanning.Finding]:
+    """The threads and processes of a file whose ``run`` runs a subprocess.
+
+    Args:
+        path: the file's name.
+        parsed: the parsed file.
+        scope: the scope of the file.
+        running: the functions that run a subprocess.
+
+    Returns:
+        A finding for each class.
+    """
+    own = aliases(parsed)
+    return [
+        scanning.Finding(
+            path=path,
+            line=each.lineno,
+            name=each.name,
+            why="a thread or a process runs a subprocess in its run",
+        )
+        for each in runs_in_thread(parsed, thread_names(parsed))
+        if runs_subprocess(each, scope, running, own)
+    ]
 
 
 def pooled_subprocesses(
@@ -351,37 +347,11 @@ def pooled_subprocesses(
     trees = {path: ast.parse(text) for path, text in texts.items()}
     others = {path: ast.parse(text) for path, text in (package or {}).items()}
     running = running_names({**others, **trees})
-    found: list[scanning.Finding] = []
-    for path, parsed in trees.items():
-        if not uses_pools(parsed):
-            continue
-        scope = scope_of(path, parsed)
-        own = aliases(parsed)
-        constructors = thread_names(parsed)
-        found += [
-            scanning.Finding(
-                path=path,
-                line=call.lineno,
-                name=", ".join(sorted(hits)),
-                why="a pool or a thread runs a subprocess",
-            )
-            for call in ast.walk(parsed)
-            if isinstance(call, ast.Call)
-            for given in given_to_pool(call, constructors)
-            for hits in [
-                {name for _, name in used_keys(scope, given) & running}
-                | (scanning.mentions(given) & own)
-            ]
-            if hits
-        ]
-        found += [
-            scanning.Finding(
-                path=path,
-                line=each.lineno,
-                name=each.name,
-                why="a thread or a process runs a subprocess in its run",
-            )
-            for each in runs_in_thread(parsed, constructors)
-            if runs_subprocess(each, scope, running, own)
-        ]
-    return found
+    pooled = {path: each for path, each in trees.items() if uses_pools(each)}
+    scopes = {path: scope_of(path, each) for path, each in pooled.items()}
+    return [
+        found
+        for path, each in pooled.items()
+        for finder in (handed_over, subclassed)
+        for found in finder(path, each, scopes[path], running)
+    ]
