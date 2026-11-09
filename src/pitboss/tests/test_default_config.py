@@ -1,6 +1,5 @@
 """A command with no configuration argument finds one (keyword: default-config)."""
 
-import concurrent.futures
 import dataclasses
 import os
 import pathlib
@@ -94,9 +93,9 @@ class TestFourForms(unittest.TestCase):
         assert_that(results[0][2], equal_to(1))
 
 
-def missing(
+def ran_missing(
     case: configcases.Case, directory: pathlib.Path, tools: pathlib.Path
-) -> tuple[int, bool, bool]:
+) -> subprocess.CompletedProcess[str]:
     """Run a command in an empty directory with no configuration.
 
     Args:
@@ -105,14 +104,16 @@ def missing(
         tools: an empty directory, which becomes the PATH with git only.
 
     Returns:
-        The exit status, and whether standard error names ``$PITBOSS_CONFIG``
-        and the file ``pitboss.toml`` of the directory.
+        The finished process, its output captured.
     """
     env = {key: value for key, value in os.environ.items() if key != "PITBOSS_CONFIG"}
     # a PATH with git only: the fetch by name (fetched-config) finds no gh
     (tools / "git").symlink_to(str(shutil.which("git")))
-    env.update(PWD=str(directory), HOME=str(directory), PATH=str(tools))
-    done = subprocess.run(
+    # the kept copy of a fetched configuration is under $XDG_CACHE_HOME, else HOME:
+    # both are this case's own, so no copy of the machine is found (keyword: flake-368)
+    own = {"PWD": str(directory), "HOME": str(directory)}
+    env.update(own, XDG_CACHE_HOME=str(directory / ".cache"), PATH=str(tools))
+    return subprocess.run(
         [sys.executable, "-m", "pitboss", *case.before, *case.after],
         cwd=directory,
         env=env,
@@ -120,8 +121,32 @@ def missing(
         text=True,
         check=False,
     )
-    place = str(directory / "pitboss.toml")
-    return (done.returncode, "$PITBOSS_CONFIG" in done.stderr, place in done.stderr)
+
+
+def missing(
+    case: configcases.Case, directory: pathlib.Path, tools: pathlib.Path
+) -> Sequence[object]:
+    """Run a command with no configuration and say what its error output names.
+
+    Args:
+        case: the command.
+        directory: the directory it runs in.
+        tools: an empty directory, which becomes the PATH with git only.
+
+    Returns:
+        The exit status, and whether standard error names ``$PITBOSS_CONFIG``
+        and the file ``pitboss.toml`` of the directory; when either is not as
+        expected, also the command line, the standard error and the directory,
+        so a failure shows them (keyword: flake-368).
+    """
+    done = ran_missing(case, directory, tools)
+    names = ("$PITBOSS_CONFIG", str(directory / "pitboss.toml"))
+    found = (done.returncode, *(each in done.stderr for each in names))
+    return (
+        found
+        if found == (1, True, True)
+        else (*found, done.args, done.stderr, str(directory))
+    )
 
 
 class TestMissingConfiguration(unittest.TestCase):
@@ -129,12 +154,9 @@ class TestMissingConfiguration(unittest.TestCase):
 
     def test_each_command_says_where_it_looked(self) -> None:
         """Exit 1 (the uncaught error), and the variable and the places on stderr."""
-        # one process of its own for each command, which wait on their own
-        # (their directories are made here: a thread has no running test to clean up)
-        places = [fakes.directory() for _ in CASES]
-        tools = [fakes.directory() for _ in CASES]
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            found = list(pool.map(missing, CASES, places, tools))
+        # one process at a time: a pool of threads forking while the others copy
+        # os.environ raced (keyword: flake-368, pitboss#368)
+        found = [missing(each, fakes.directory(), fakes.directory()) for each in CASES]
         assert_that(found, equal_to([(1, True, True)] * len(CASES)))
 
     def test_lint_keeps_its_generic_forms_and_says_where_it_looked(self) -> None:
