@@ -189,7 +189,7 @@ def show(
     source = _source(found, opened, ordered, book)
     for line in itertools.chain(
         nextview.next_lines(_view(found, ordered, book, source.facts)),
-        offering.disagreements(found.settings, ordered),
+        offering.disagreements(found, ordered),
         pullstate.lines(found.github, found.settings, source.facts),
         [diskwatch.line(source.volume)] if source.volume else [],
         [exempt.OVERRIDE],  # keyword: pitboss-exempt (pitboss#113)

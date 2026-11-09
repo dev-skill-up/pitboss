@@ -123,9 +123,8 @@ Only override for bugs, but do override for bugs (and then file them)".
    hold and its end; an action of the orchestrator, no round and no slot,
    pitboss#273); then the open pull requests
    that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
-   with the kind shown on each line, and then the tickets by priority label
-   and age (a ticket of a repository under the owner's hold is printed `HELD`
-   instead, not numbered and not offered). The kind is the step alone. A `REGULAR_REVIEW` step is `review it`, whatever its
+   with the kind shown on each line
+. The kind is the step alone. A `REGULAR_REVIEW` step is `review it`, whatever its
    stage, a plan-only review included (a draft's, or that of a Plan revised
    after its rejection on a PR that is not a draft), except that after a review
    of changes needed whose head is older than the current one (keyword:

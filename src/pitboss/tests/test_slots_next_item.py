@@ -44,6 +44,18 @@ def disagreements(output: str) -> Sequence[str]:
     return [line for line in output.splitlines() if line.startswith("LABEL DIS")]
 
 
+def unread(output: str) -> Sequence[str]:
+    """The ``OWNER PRIORITY UNREAD`` lines of an output.
+
+    Args:
+        output: what a command printed.
+
+    Returns:
+        The lines.
+    """
+    return [line for line in output.splitlines() if line.startswith("OWNER PRI")]
+
+
 def one(here: world.World, *references: str) -> world.Result:
     """Run ``slots next --config NAME REFERENCE`` at the fixed time.
 
@@ -242,3 +254,28 @@ class TestOwnerPriorities(unittest.TestCase):
         """``owner_priorities = "p0"`` names no ticket."""
         with self.assertRaisesRegex(ValueError, "must be a table"):
             ownerlabels.parse({"owner_priorities": "p0"}, SOME)
+
+    def test_a_ticket_an_open_pr_works_on_gets_the_line(self) -> None:
+        """The line is for each ticket whose label differs, taken or not."""
+        here = priorities(ALL, OWNER)
+        title = "Fixes #9"
+        here.bodies[f"{PROJECT}/pulls/2"] = fakes.pull_body(2, title=title)
+        output = next_output(here)
+        assert_that(offered(output), equal_to([TEN, ELEVEN]))
+        assert_that(disagreements(output), equal_to([SAID]))
+        assert_that(disagreements(sweep(here).out), equal_to([SAID]))
+
+    def test_a_stated_priority_nothing_can_use_is_said(self) -> None:
+        """A repository that is not configured, and a ticket that cannot be read."""
+        owner = {"elsewhere/repo#5": "p0", "owner/project#99": "p1", NINTH: "p0"}
+        here = priorities(ALL, owner)
+        said = [
+            "OWNER PRIORITY UNREAD: elsewhere/repo#5 = p0:"
+            " its repository is not configured",
+            "OWNER PRIORITY UNREAD: owner/project#99 = p1:"
+            " the ticket cannot be read",
+        ]
+        for output in (next_output(here), sweep(here).out):
+            with self.subTest(output[:20]):
+                assert_that(unread(output), equal_to(said))
+                assert_that(disagreements(output), equal_to([SAID]))

@@ -228,26 +228,53 @@ def _agents(book: ledger.Ledger) -> Sequence[str]:
     return [each.task for each in book.slots if each.agent]
 
 
-def disagreements(settings: config.Config, offer: work.Offered) -> Iterable[str]:
+UNREAD = "OWNER PRIORITY UNREAD: {reference} = {label}: {why}"
+
+
+def _stated_ticket(
+    found: Source, offer: work.Offered, reference: str
+) -> blockers.Ticket | str:
+    # the ticket the owner states a priority for, or why it cannot be read
+    if reference.rpartition("#")[0] not in {
+        each.slug for each in config.repositories(found.settings)
+    }:
+        return "its repository is not configured"
+    for each in [*offer.items, *offer.held, *offer.blocked]:
+        if each.reference == reference and each.category is work.Category.NEW_PR:
+            return blockers.Ticket(open=True, labels=each.labels)
+    ticket = blockers.read(found.github, reference)
+    if ticket is None:
+        return "the ticket cannot be read"
+    return "it is a PR, not a ticket" if ticket.pull else ticket
+
+
+def disagreements(found: Source, offer: work.Offered) -> Iterable[str]:
     """The line of each ticket whose label is not the owner's stated priority.
 
-    The line has no entry in ``markers.Marker``: the references explain each of
-    those, and this change adds no line to a reference (keyword: owner-priority).
+    Every ticket the owner states a priority for is read, also one that an open
+    PR works on or a slot holds. The line has no entry in ``markers.Marker``: the
+    references explain each of those, and this change adds no line to a reference
+    (keyword: owner-priority).
 
     Args:
-        settings: the configuration.
+        found: the context.
         offer: the queued work, the held and the blocked tickets.
 
     Yields:
         ``LABEL DISAGREES: <ticket> is labelled <labels>, the owner's stated
-        priority is <label>``, in the order of the offer.
+        priority is <label>``, in the order of the configuration; for a stated
+        priority that cannot be used (a repository that is not configured, a
+        ticket that cannot be read or is a PR) ``OWNER PRIORITY UNREAD:
+        <ticket> = <label>: <why>``. A closed ticket has no line.
     """
-    for item in [*offer.items, *offer.held, *offer.blocked]:
-        label = settings.slots.owner_priorities.get(item.reference)
-        if label and label not in item.labels:
-            has = ", ".join(sorted(item.labels)) or "no label"
+    for reference, label in found.settings.slots.owner_priorities.items():
+        ticket = _stated_ticket(found, offer, reference)
+        if isinstance(ticket, str):
+            yield UNREAD.format(reference=reference, label=label, why=ticket)
+        elif ticket.open and label not in ticket.labels:
+            has = ", ".join(sorted(ticket.labels)) or "no label"
             yield (
-                f"LABEL DISAGREES: {item.reference} is labelled {has},"
+                f"LABEL DISAGREES: {reference} is labelled {has},"
                 f" the owner's stated priority is {label}"
             )
 
