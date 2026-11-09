@@ -15,7 +15,15 @@ The Plan's numbered rows each have a command, an exact read or a CI pointer
 import re
 from typing import Sequence
 
-from . import expansion, linttests, noxrow, plandigest, planpointers, planrow, planrowtext
+from . import (
+    expansion,
+    linttests,
+    noxrow,
+    plandigest,
+    planpointers,
+    planrow,
+    planrowtext,
+)
 
 # the Plan section as plandigest.section reads it
 PLAN_HEADING = re.compile(r"^## Plan\s*$")
