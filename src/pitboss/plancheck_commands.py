@@ -361,7 +361,7 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *_of_trees(args, section, (tree, head), diffs),
             *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
             *_remote(args, body, section, ref),
-            *headfindings.of_head(body, section, patch, head, _sha(args, ref)),
+            *headfindings.of_head(body, section, patch, (head, _sha(args, ref))),
         ]
         noted = [*rows, *_notes(section, runs, (stat, patch))]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
