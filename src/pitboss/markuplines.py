@@ -98,7 +98,7 @@ def _dangling(new: str, old: str) -> str:
     if not text or not first:
         return ""
     reasons = [
-        (first[0] in ".,;:", "starts with a closing mark"),
+        (first[0] in ".,;:)]}", "starts with a closing mark"),
         (first[0].islower() and not before[:1].islower(), "starts mid-sentence"),
         (_table_row(was) and not _table_row(text), "is a table row that lost its edge"),
         (_unclosed(text, was), "has an unclosed bracket"),

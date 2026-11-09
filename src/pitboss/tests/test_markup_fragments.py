@@ -32,6 +32,10 @@ REFUSED = {
         "The NEXT list. The kind is the step alone.",
         ". The kind is the step alone.",
     ),
+    "starts with a closing mark ": (
+        "Head: lines). The sweep prints",
+        "). The sweep prints",
+    ),
     "is a table row that lost its edge": ("| a | b | c |", "| a | b"),
     "has an unclosed bracket": ("see (the NEXT list) here", "see (the list here"),
     "has an unclosed backtick": ("see `the NEXT list` here", "see `the list here"),
@@ -47,6 +51,10 @@ ACCEPTED = {
     ),
     "a row cut inside a cell": ("| a | bbb | c |", "| a | b | c |"),
     "a sentence cut whole": ("It is read. Then the NEXT list.", "It is read."),
+    "a sentence reflowed to end its line": (
+        "the body saved to a file named Head: lines). The sweep prints",
+        "the body saved to a file). The sweep prints",
+    ),
     "a line cut to nothing": ("a span", ""),
 }
 
@@ -74,7 +82,7 @@ class TestDanglingFragments(unittest.TestCase):
                 found = said(old, new)
                 assert_that(found, has_length(1))
                 assert_that(found[0], contains_string("a.md` line 1 is a cut line"))
-                assert_that(found[0], contains_string(why))
+                assert_that(found[0], contains_string(why.strip()))
 
     def test_the_nearest_cuts_that_read_as_a_whole_are_accepted(self) -> None:
         """The nearest inputs: the same kinds of cut, whole."""
