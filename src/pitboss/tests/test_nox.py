@@ -3,6 +3,7 @@
 import dataclasses
 import os
 import pathlib
+import re
 import unittest
 from typing import Callable, Mapping, MutableSequence, Sequence
 
@@ -167,8 +168,6 @@ class TestNoxCommand(unittest.TestCase):
         lines = [line for line in shown if not line.startswith(noxcheck.TIMING_PREFIX)]
         assert_that(lines[0], equal_to(noxcheck.PROOF))
         assert_that([line.split()[0:2] for line in lines[1:]], equal_to(SUCCESS_LINES))
-        assert_that(shown[-4].endswith("s"), equal_to(True))
-        assert_that(shown[-1].startswith("tests-3.13 success"), equal_to(True))
 
     def test_a_passing_run_shows_the_timing_before_the_summary(self) -> None:
         """The captured output is not shown on success, the timing lines are."""
@@ -183,9 +182,6 @@ class TestNoxCommand(unittest.TestCase):
         found, _ = run_nox({"tests-3.13": 1})
         timing = f"{noxcheck.TIMING_PREFIX}total 1.000s in 1 tests"
         assert_that(found.out.count(timing), equal_to(1))
-        assert_that(
-            found.out.splitlines()[-1].startswith("tests-3.13 failed"), equal_to(True)
-        )
         assert_that("output of tests-3.13" in found.out, equal_to(True))
 
     def test_it_stops_at_the_first_failure(self) -> None:
@@ -212,9 +208,6 @@ class TestNoxCommand(unittest.TestCase):
         found, calls = run_nox({"mypy": 1})
         assert_that(calls, equal_to(COMMANDS[:3]))
         has_none(found.out, ["output of tests-3.13", noxcheck.PROOF])
-        assert_that(
-            found.out.splitlines()[-1].startswith("tests-3.13 not run"), equal_to(True)
-        )
 
 
 GIBIBYTE = 2**30
@@ -317,135 +310,102 @@ class TestNoxSessions(unittest.TestCase):
 
 
 NAMES = [each.value for each in noxcheck.Session]
+SECONDS = re.compile(r" \d+s$")
+SUMMARIES = {
+    "": ["skills success", "lint success", "mypy success", "tests-3.13 success"],
+    "skills": ["skills failed", "lint not run", "mypy not run", "tests-3.13 not run"],
+    "lint": ["skills success", "lint failed", "mypy not run", "tests-3.13 not run"],
+    "mypy": ["skills success", "lint success", "mypy failed", "tests-3.13 not run"],
+    "tests-3.13": [
+        "skills success",
+        "lint success",
+        "mypy success",
+        "tests-3.13 failed",
+    ],
+}
 
 
-def summary_names(output: str) -> Sequence[str]:
-    """The session names of the last four lines of an output.
+def summary_of(output: str) -> Sequence[str]:
+    """The last four lines of an output, without their seconds.
 
     Args:
         output: what the command printed.
 
     Returns:
-        The first word of each.
+        The lines: a session's name and `success`, `failed` or `not run`.
     """
-    return [each.split()[0] for each in output.splitlines()[-len(NAMES) :]]
+    return [SECONDS.sub("", each) for each in output.splitlines()[-len(NAMES) :]]
 
 
 class TestNoxSummary(unittest.TestCase):
     """The last lines are one for each session, in the order they run."""
 
-    def test_a_passing_run_ends_with_each_session_as_success(self) -> None:
-        """Four lines, the last the tests session, after the proof."""
-        found, _ = run_nox({})
-        last = found.out.splitlines()[-len(NAMES) :]
-        assert_that(summary_names(found.out), equal_to(NAMES))
-        assert_that([each.split()[1] for each in last], equal_to(["success"] * 4))
-        assert_that(found.out.splitlines()[-5], equal_to(noxcheck.PROOF))
+    def test_each_run_ends_with_the_status_of_every_session(self) -> None:
+        """Success, failed for the one that failed, not run for the rest."""
+        for failing, expected in SUMMARIES.items():
+            with self.subTest(failing):
+                found, _ = run_nox({failing: 1} if failing else {})
+                assert_that(summary_of(found.out), equal_to(expected))
+                assert_that(found.code, equal_to(1 if failing else 0))
 
-    def test_a_failing_run_says_failed_and_not_run_for_the_rest(self) -> None:
-        """The failed session's status, the ones before it success, then not run."""
-        expected = {
-            "skills": ["failed", "not", "not", "not"],
-            "lint": ["success", "failed", "not", "not"],
-            "mypy": ["success", "success", "failed", "not"],
-            "tests-3.13": ["success", "success", "success", "failed"],
-        }
-        for name, words in expected.items():
-            with self.subTest(name):
-                found, _ = run_nox({name: 1})
-                last = found.out.splitlines()[-len(NAMES) :]
-                assert_that(summary_names(found.out), equal_to(NAMES))
-                assert_that([each.split()[1] for each in last], equal_to(words))
-                assert_that(found.code, equal_to(1))
-
-    def test_a_session_that_did_not_run_has_no_seconds(self) -> None:
-        """`mypy not run`, as the ticket shows it."""
-        found, _ = run_nox({"lint": 1})
-        assert_that(
-            found.out.splitlines()[-2:],
-            equal_to(["mypy not run", "tests-3.13 not run"]),
-        )
-
-    def test_summary_lines_are_the_ones_line_of_gives(self) -> None:
-        """The summary of the sessions that ran, then `not run` for the others."""
+    def test_the_summary_of_sessions_that_ran_is_followed_by_not_run(self) -> None:
+        """Two ran: their lines with the seconds, then `not run` for the others."""
         done = expansion.Outcome(status=0, output="")
-        ran = noxcheck.run_sessions(
-            lambda _: done, clock_of(0, 7, 7, 8), [], noxcheck.WITHOUT_TESTS[:2]
-        )
-        assert_that(
-            noxcheck.summary_of(ran),
-            equal_to(
-                [
-                    "skills success 7s",
-                    "lint success 1s",
-                    "mypy not run",
-                    "tests-3.13 not run",
-                ]
-            ),
-        )
+        two = noxcheck.WITHOUT_TESTS[:2]
+        ran = noxcheck.run_sessions(lambda _: done, clock_of(0, 7, 7, 8), [], two)
+        expected = ["skills success 7s", "lint success 1s"]
+        expected += ["mypy not run", "tests-3.13 not run"]
+        assert_that(noxcheck.summary_of(ran), equal_to(expected))
 
 
 class TestLintFailure(unittest.TestCase):
     """A lint failure names the command to repeat alone (pitboss#364)."""
 
     def test_lint_red_starts_no_test_and_names_the_lint_only_rerun(self) -> None:
-        """The tests session never starts; the command that ran is printed."""
+        """The tests session never starts; the command line that ran is printed."""
         found, calls = run_nox({"lint": 1})
+        rerun = noxcheck.LINT_RERUN.format(command=" ".join(calls[1]))
         assert_that(calls, equal_to(COMMANDS[:2]))
-        has_all(
-            found.out,
-            [noxcheck.LINT_RERUN.format(command="nox -r -s lint"), "output of lint"],
-        )
+        has_all(found.out, [rerun, "output of lint", "nox -r -s lint"])
         has_none(found.out, ["output of tests-3.13"])
-        assert_that(found.code, equal_to(1))
 
-    def test_the_other_sessions_failing_names_no_rerun(self) -> None:
-        """The nearest input: only lint has a rerun; none for a passing lint."""
+    def test_no_other_session_failing_names_a_rerun(self) -> None:
+        """The nearest input: only lint has one, and a passing lint prints none."""
         for name in ("skills", "mypy", "tests-3.13"):
             with self.subTest(name):
                 found, _ = run_nox({name: 1})
                 has_none(found.out, ["lint-rerun"])
 
-    def test_the_rerun_is_the_command_line_that_ran(self) -> None:
-        """The line quotes the lint session's own command line, `-r` included."""
-        found, calls = run_nox({"lint": 1})
-        line = [each for each in found.out.splitlines() if "lint-rerun" in each]
-        assert_that(" ".join(calls[1]) in line[0], equal_to(True))
+
+def snapshot() -> tuple[Mapping[str, str], bytes]:
+    """This process's environment and the text of ``~/.gitconfig``.
+
+    Returns:
+        Both; the text is empty when the file is not there.
+    """
+    gitconfig = pathlib.Path.home() / ".gitconfig"
+    text = gitconfig.read_bytes() if gitconfig.exists() else b""
+    return dict(os.environ), text
 
 
 class TestNoxHome(unittest.TestCase):
     """The sessions run with a throwaway HOME and no git identity (pitboss#364)."""
 
-    def test_each_session_gets_the_isolated_environment(self) -> None:
-        """One HOME for the four, a git config inside it, no identity variable."""
+    def test_each_session_gets_the_isolated_environment_of_one_home(self) -> None:
+        """One HOME, gone after the run; a git config inside it; no identity."""
+        before = snapshot()
         fake = FakeNox(statuses={}, calls=[])
         run_with(fake)
-        homes = {
-            each["HOME"] for each in fake.environments if isinstance(each, Mapping)
-        }
-        assert_that(len(fake.environments), equal_to(4))
-        assert_that(len(homes), equal_to(1))
-        for each in fake.environments:
-            assert isinstance(each, Mapping)
-            assert_that(
-                each["GIT_CONFIG_GLOBAL"].startswith(each["HOME"]), equal_to(True)
-            )
-            assert_that([k for k in noxenv.IDENTITY if k in each], equal_to([]))
-
-    def test_the_directory_is_gone_and_this_process_is_unchanged(self) -> None:
-        """The run removes its HOME; our environment and ~/.gitconfig stay."""
-        gitconfig = pathlib.Path.home() / ".gitconfig"
-        before = (
-            dict(os.environ),
-            gitconfig.read_bytes() if gitconfig.exists() else None,
+        environments = [each for each in fake.environments if isinstance(each, Mapping)]
+        homes = {each["HOME"] for each in environments}
+        configs = [
+            each["GIT_CONFIG_GLOBAL"].startswith(each["HOME"]) for each in environments
+        ]
+        identity = [
+            key for each in environments for key in noxenv.IDENTITY if key in each
+        ]
+        assert_that((len(environments), len(homes)), equal_to((4, 1)))
+        assert_that((configs, identity), equal_to(([True] * 4, [])))
+        assert_that(
+            (os.path.exists(homes.pop()), snapshot()), equal_to((False, before))
         )
-        fake = FakeNox(statuses={}, calls=[])
-        run_with(fake)
-        env = fake.environments[0]
-        assert isinstance(env, Mapping)
-        after = (
-            dict(os.environ),
-            gitconfig.read_bytes() if gitconfig.exists() else None,
-        )
-        assert_that(after, equal_to(before))
-        assert_that(os.path.exists(env["HOME"]), equal_to(False))

@@ -10,9 +10,8 @@ import os
 import re
 import subprocess
 import sys
-import types
 import unittest
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping, MutableSequence, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -52,7 +51,7 @@ class RunFailed(Exception):
 
 def run_in(
     repo: diffrepo.Repository,
-    shown: list[str],
+    shown: MutableSequence[str],
     command: Sequence[str],
     options: Mapping[str, Mapping[str, str]],
 ) -> None:
@@ -109,20 +108,30 @@ class RealTestsSession:
             **kwargs: ignored (what gather passes to ``subprocess.run``).
 
         Returns:
+            The finished process.
+        """
+        run = self.tests if cmdargs[0] == "nox" else self.git
+        return run(cmdargs)
+
+    def tests(self, cmdargs: Sequence[str]) -> test_nox.Done:
+        """Run a session: the tests one for real, the others pass.
+
+        Args:
+            cmdargs: the ``nox`` command line.
+
+        Returns:
             The finished process; the tests session's output is the output of the
             commands it ran, and its status 1 when one of them failed.
         """
-        if cmdargs[0] != "nox":
-            return self.git(cmdargs)
         if cmdargs[3] != "tests-3.13":
             return test_nox.Done(returncode=0, stdout="")
         shown: list[str] = []
-        session = types.SimpleNamespace(
-            posargs=cmdargs[cmdargs.index("--") + 1 :],
-            create_tmp=lambda: test_noxfile.made_tmp(self.repo.holder / "nox"),
-            install=lambda *_: None,
-            run=lambda *command, **options: run_in(self.repo, shown, command, options),
-        )
+
+        def run(*command: str, **options: Mapping[str, str]) -> None:
+            run_in(self.repo, shown, command, options)
+
+        words = " ".join(cmdargs).partition(" -- ")[2].split()
+        session = test_noxfile.session_in(self.repo.holder / "nox", words, run)
         try:
             test_noxfile.noxfile_module().tests(session)
         except RunFailed:
@@ -130,37 +139,34 @@ class RealTestsSession:
         return test_nox.Done(returncode=0, stdout="".join(shown))
 
 
+def run_diff(case: unittest.TestCase, test_text: str) -> world.Result:
+    """Run ``pitboss nox`` over a diff that adds a module and its test.
+
+    Args:
+        case: the test, whose end removes the repository.
+        test_text: the text of the test of the module.
+
+    Returns:
+        What the command did.
+    """
+    repo = diffrepo.make_repository(case)
+    diffrepo.commit(repo, MODULE_FILE, NEW_MODULE)
+    diffrepo.commit(repo, TEST_FILE, test_text)
+    return test_nox.run_with(RealTestsSession(repo=repo, git=real_git(repo)))
+
+
 class TestChangedCoverage(unittest.TestCase):
     """A changed file with a line no test ran is refused; with its test, not."""
 
-    def run_diff(self, test_text: str) -> world.Result:
-        """Run ``pitboss nox`` over a diff that adds a module and its test.
-
-        Args:
-            test_text: the text of the test of the module.
-
-        Returns:
-            What the command did.
-        """
-        repo = diffrepo.make_repository(self)
-        diffrepo.commit(repo, MODULE_FILE, NEW_MODULE)
-        diffrepo.commit(repo, TEST_FILE, test_text)
-        return test_nox.run_with(RealTestsSession(repo=repo, git=real_git(repo)))
-
-    def test_a_function_with_a_line_no_test_ran_is_refused(self) -> None:
-        """The file and the line are printed, the exit is 1, the tests failed."""
-        found = self.run_diff(ONE_TEST)
-        assert_that(MISSING.search(found.out) is not None, equal_to(True))
-        assert_that(found.code, equal_to(1))
-        assert_that(
-            found.out.splitlines()[-1].startswith("tests-3.13 failed"), equal_to(True)
-        )
-
-    def test_the_same_diff_with_the_covering_test_passes(self) -> None:
-        """Both branches run, so the changed files have nothing missing."""
-        found = self.run_diff(BOTH_TESTS)
-        assert_that(MISSING.search(found.out) is None, equal_to(True))
-        assert_that(found.code, equal_to(0))
-        assert_that(
-            found.out.splitlines()[-1].startswith("tests-3.13 success"), equal_to(True)
-        )
+    def test_the_uncovered_line_is_refused_and_the_covering_test_passes(self) -> None:
+        """The file and line are printed with exit 1; the same diff plus its test, 0."""
+        expected = {
+            ONE_TEST: (True, 1, "tests-3.13 failed"),
+            BOTH_TESTS: (False, 0, "tests-3.13 success"),
+        }
+        for text, wanted in expected.items():
+            with self.subTest(wanted[2]):
+                found = run_diff(self, text)
+                last = test_nox.SECONDS.sub("", found.out.strip().rpartition("\n")[2])
+                got = (bool(MISSING.search(found.out)), found.code, last)
+                assert_that(got, equal_to(wanted))

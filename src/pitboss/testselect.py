@@ -58,6 +58,29 @@ class Selection:
     deleted: Sequence[str] = ()
 
 
+def selection_of(
+    why: str, chosen: Mapping[str, Sequence[str]], total: int, changes: Sequence[Change]
+) -> Selection:
+    """A selection, with the files of the diff and the deleted ones named.
+
+    Args:
+        why: the reason the whole suite runs; empty when the choice was made.
+        chosen: for each selected test module, the changed files that reach it.
+        total: how many test modules there are.
+        changes: the files the diff changed.
+
+    Returns:
+        The selection.
+    """
+    return Selection(
+        everything=why,
+        chosen=chosen,
+        total=total,
+        changed=[each.path for each in changes],
+        deleted=[each.path for each in changes if each.deleted],
+    )
+
+
 def everything(
     graph: importgraph.Graph, why: str, changes: Sequence[Change]
 ) -> Selection:
@@ -71,13 +94,7 @@ def everything(
     Returns:
         A selection that runs every test.
     """
-    return Selection(
-        everything=why,
-        chosen={},
-        total=len(importgraph.tests_of(graph)),
-        changed=[each.path for each in changes],
-        deleted=[each.path for each in changes if each.deleted],
-    )
+    return selection_of(why, {}, len(importgraph.tests_of(graph)), changes)
 
 
 def unplaced(change: Change) -> str:
@@ -124,13 +141,7 @@ def affected_by(graph: importgraph.Graph, changes: Sequence[Change]) -> Selectio
         for test in wanted:
             if test in reached:
                 chosen.setdefault(test, []).append(each.path)
-    return Selection(
-        everything="",
-        chosen=chosen,
-        total=len(wanted),
-        changed=[each.path for each in changes],
-        deleted=[each.path for each in changes if each.deleted],
-    )
+    return selection_of("", chosen, len(wanted), changes)
 
 
 def judged_files(selection: Selection) -> Sequence[str]:
