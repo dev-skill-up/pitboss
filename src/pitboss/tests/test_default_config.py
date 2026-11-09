@@ -142,7 +142,11 @@ def missing(
     done = ran_missing(case, directory, tools)
     names = ("$PITBOSS_CONFIG", str(directory / "pitboss.toml"))
     found = (done.returncode, *(each in done.stderr for each in names))
-    return found if found == (1, True, True) else (*found, done.args, done.stderr, str(directory))
+    return (
+        found
+        if found == (1, True, True)
+        else (*found, done.args, done.stderr, str(directory))
+    )
 
 
 class TestMissingConfiguration(unittest.TestCase):
