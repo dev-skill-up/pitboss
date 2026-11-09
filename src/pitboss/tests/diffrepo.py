@@ -8,12 +8,12 @@ import dataclasses
 import enum
 import os
 import pathlib
-import subprocess
 import tempfile
 import unittest
 from collections.abc import Sequence
 
 from .. import expansion, noxcheck
+from . import captured
 from .repositories import IDENTITY, run_git
 
 FILES = {
@@ -55,14 +55,10 @@ def runner_in(directory: pathlib.Path, ceiling: pathlib.Path) -> noxcheck.Runner
     """
 
     def run(command: Sequence[str], /) -> expansion.Outcome:
-        done = subprocess.run(
-            list(command),
+        done = captured.merged(
+            command,
             cwd=directory,
             env={**os.environ, "GIT_CEILING_DIRECTORIES": str(ceiling)},
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            check=False,
         )
         return expansion.Outcome(status=done.returncode, output=done.stdout)
 
