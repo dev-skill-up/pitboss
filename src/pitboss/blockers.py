@@ -4,15 +4,20 @@ A failed status or a label of a PR can name the ticket that causes it
 (``text-lint`` failing on every PR of a repository because of a stale pin that
 a ticket moves). Each name is resolved with one API call and only an open ticket
 is shown, with its link (keyword: red-status).
+
+A ticket also says what it cannot be worked on until (``ticketblock``): the open
+blockers of a ticket, and of the ticket a PR fixes, are read here too (keyword:
+ticket-blocked, blocked-pull, pitboss#388).
 """
 
 import dataclasses
 import json
 import re
 import subprocess
-from typing import AbstractSet, Iterable, Mapping, Sequence
+import functools
+from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
 
-from . import config, ghapi, ledger, pulls
+from . import config, ghapi, ledger, pulls, supersedes, ticketblock
 
 NAME = re.compile(r"(?:[\w.-]+/)?[\w.-]*#\d+")
 URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
@@ -86,6 +91,20 @@ def read(github: ghapi.GitHub, reference: str) -> Ticket | None:
     )
 
 
+def open_ticket(github: ghapi.GitHub, reference: str) -> Ticket | None:
+    """Read a ticket that is open.
+
+    Args:
+        github: the API.
+        reference: ``owner/name#number``.
+
+    Returns:
+        The ticket, or None when it is closed, merged or cannot be read.
+    """
+    ticket = read(github, reference)
+    return ticket if ticket is not None and ticket.open else None
+
+
 def candidates(
     github: ghapi.GitHub,
     pull: pulls.PullFacts,
@@ -141,3 +160,136 @@ def lines(
             link = LINK.format(slug=slug, number=number)
             shown.append(f"blocked by the open ticket {link} (named by {where})")
     return shown
+
+
+def _is_open(github: ghapi.GitHub, reference: str) -> bool:
+    return open_ticket(github, reference) is not None
+
+
+def open_blockers(
+    github: ghapi.GitHub,
+    reference: str,
+    texts: Sequence[str],
+    own: AbstractSet[str] = frozenset(),
+) -> Sequence[str]:
+    """The open tickets and PRs the texts of a ticket say it waits for.
+
+    Args:
+        github: the API.
+        reference: the ticket, ``owner/name#number``.
+        texts: its body, then its trusted comments, oldest first.
+        own: references that never block it (the PR that fixes it).
+
+    Returns:
+        The blockers that are open, each once.
+    """
+    return ticketblock.open_blockers(
+        config.repo_of(reference),
+        texts,
+        functools.partial(_is_open, github),
+        own | {reference},
+    )
+
+
+class Described(Protocol):
+    """A ticket as read: its text and how many comments it has."""
+
+    @property
+    def body(self) -> str:
+        """The ticket's text.
+
+        Returns:
+            The body.
+        """
+
+    @property
+    def comments(self) -> int:
+        """How many comments the ticket has.
+
+        Returns:
+            The count.
+        """
+
+
+def _texts(
+    github: ghapi.GitHub, settings: config.Config, ticket: Described, reference: str
+) -> Sequence[str]:
+    # the body, then the trusted comments; none are read for a ticket with none
+    if not ticket.comments:
+        return [ticket.body]
+    trusted = settings.review.trusted
+    return [ticket.body, *ticketblock.comments_of(github, reference, trusted)]
+
+
+def waiting(
+    github: ghapi.GitHub, settings: config.Config, ticket: Described, reference: str
+) -> tuple[Sequence[str], bool]:
+    """What a ticket says it cannot be worked on until, and whether it is superseded.
+
+    The body and the trusted comments are read for ``Cannot be worked on until
+    <owner/repo#n>``, ``Blocked by <owner/repo#n>`` or ``Depends on
+    <owner/repo#n>``; a blocker that is closed or merged blocks nothing. A
+    tracking ticket whose newest comment says it ``closes when #a and #b have
+    merged`` is blocked by each of them that is open (keyword: closes-when). A
+    ticket the configuration or a comment line marks is superseded (keyword:
+    superseded-ticket).
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        ticket: the ticket as read.
+        reference: its ``owner/name#number``.
+
+    Returns:
+        The open blockers, and whether the ticket is superseded.
+    """
+    texts = _texts(github, settings, ticket, reference)
+    gone = reference in settings.slots.superseded or supersedes.marked(texts[1:])
+    return open_blockers(github, reference, texts), gone
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Waits:
+    """What a PR waits for because its ticket does, and how it ranks then.
+
+    Attributes:
+        blockers: the open tickets and PRs the ticket waits for.
+        created_at: when the ticket was opened.
+        priority: the index of the ticket's priority label.
+    """
+
+    blockers: Sequence[str]
+    created_at: str
+    priority: int
+
+
+def _rank(settings: config.Config, labels: AbstractSet[str]) -> int:
+    # the highest priority label a ticket has, else the lowest priority
+    ranked = settings.slots.priority_labels
+    having = [at for at, label in enumerate(ranked) if label in labels]
+    return min(having, default=max(len(ranked) - 1, 0))
+
+
+def pull_waits(
+    github: ghapi.GitHub, settings: config.Config, pull: str, ticket: str
+) -> Waits | None:
+    """What the ticket a PR fixes waits for (keyword: blocked-pull, pitboss#388).
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        pull: the PR, which never blocks its own ticket.
+        ticket: the ticket it fixes.
+
+    Returns:
+        What it waits for, or None when the ticket is closed or cannot be read.
+    """
+    found = open_ticket(github, ticket)
+    if found is None:
+        return None
+    texts = _texts(github, settings, found, ticket)
+    return Waits(
+        blockers=open_blockers(github, ticket, texts, {pull}),
+        created_at=found.created_at,
+        priority=_rank(settings, found.labels),
+    )

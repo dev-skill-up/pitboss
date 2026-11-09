@@ -16,6 +16,7 @@ from . import (
     ownerlabels,
     plancheckconfig,
     scratchconfig,
+    supersedes,
     syncconfig,
 )
 
@@ -314,6 +315,7 @@ def _slots(document: Mapping[str, object], project: config.Project) -> config.Sl
         owner_priorities=ownerlabels.parse(
             table, _strings(table, "priority_labels", ())
         ),
+        superseded=supersedes.parse(table),
     )
 
 

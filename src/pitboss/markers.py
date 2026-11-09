@@ -43,7 +43,20 @@ class Marker(enum.Enum):
         BLOCKED: a commit status of a PR's head failed; the line names the
             status, its link and, for ``text-lint``, whether the finding is about
             the body or the pin. Also ``BLOCKED <ticket> by <blocker>``: a ticket
-            that says it cannot be worked on until an open ticket or PR.
+            that says it cannot be worked on until an open ticket or PR (its blockers
+            are joined by commas), also a PR whose ticket does: the PR has no step
+            until the blocker merges (keyword: blocked-pull, pitboss#388).
+        BLOCKS: ``BLOCKS <ticket>: blocks <tickets>; ranked <label>, opened
+            <date>``: a ticket that blocks another is ranked with the label and
+            the creation time of the oldest ticket that waits for it (keyword:
+            blocks-line, pitboss#388).
+        SUPERSEDED: ``SUPERSEDED <ticket>``: a ticket marked as superseded, in
+            ``[slots] superseded`` or by a comment line; no start is offered for
+            it (keyword: superseded-ticket, pitboss#388).
+        PROMOTE: ``PROMOTE <ticket> to <label>: caused K corrections (<list>)``:
+            K other tickets and PRs say ``Caused by`` or ``Cause:`` the ticket;
+            it is ranked as the top label with its own age, and the label stays
+            the owner's to change (keyword: promote-line, pitboss#388).
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
         FIXED_ON_BASE: a PR of a merge-queue repository is red only from checks
@@ -150,6 +163,9 @@ class Marker(enum.Enum):
     PINS_ONLY_OK = enum.auto()
     PR_STATE = enum.auto()
     BLOCKED = enum.auto()
+    BLOCKS = enum.auto()
+    SUPERSEDED = enum.auto()
+    PROMOTE = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
     FIXED_ON_BASE = enum.auto()
@@ -238,5 +254,8 @@ SELF_EXPLAINED = frozenset(
         Marker.MERGE_BY_HAND,
         Marker.AUTO_MERGE_OFF,
         Marker.DRAFT_STATE_CHANGED,
+        Marker.BLOCKS,
+        Marker.SUPERSEDED,
+        Marker.PROMOTE,
     }
 )

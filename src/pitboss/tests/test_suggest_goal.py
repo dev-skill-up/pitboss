@@ -13,6 +13,7 @@ from .suggestions import next_output, parsed, third
 
 SEVEN = {
     "number": 7,
+    "state": "open",
     "title": "Seven is the goal",
     "created_at": "2026-09-01T00:00:00+00:00",
     "labels": [],

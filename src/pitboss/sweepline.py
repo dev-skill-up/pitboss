@@ -1,5 +1,6 @@
 """The runner-pressure line of the sweep: it reads the record and writes its look."""
 
+import dataclasses
 import datetime
 import functools
 import pathlib
@@ -7,7 +8,6 @@ from typing import Callable, Iterable, Sequence
 
 from .markers import Marker
 from . import (
-    blockedline,
     config,
     ghapi,
     holds,
@@ -17,6 +17,7 @@ from . import (
     pulls,
     pullread,
     queue,
+    rankline,
     report,
     slotreport,
     slotidle,
@@ -27,20 +28,24 @@ from . import (
 
 
 def slots(
-    open_now: Sequence[pulls.Read], offer: work.Offered, said: Iterable[str] = ()
+    open_now: Sequence[pulls.Read],
+    offer: work.Offered,
+    said: Iterable[str] = (),
 ) -> None:
-    """Print the withheld-tickets line, the hold, blocked and free-slots lines.
+    """Print the withheld-tickets line, the hold, rank and free-slots lines.
 
     Args:
         open_now: the open PRs, read or not.
         offer: the queued work and the tickets held back (``offering.offered``).
-        said: more lines, after the blocked ones (``offering.disagreements``).
+        said: more lines, after the rank ones (``offering.disagreements``).
     """
     unreadableline.print_withheld(open_now)
     for line in holds.sweep_lines(offer.standing):
         print(line)
-    for item in offer.blocked:
-        print(blockedline.line(item.reference, item.blocker))
+    # a blocked PR's line stands with the PR (keyword: blocked-pull)
+    tickets = [each for each in offer.blocked if each.category is work.Category.NEW_PR]
+    for line in rankline.lines(dataclasses.replace(offer, blocked=tickets)):
+        print(line)
     for line in said:
         print(line)
     slotreport.print_free_slots(len(offer.items), offer.occupancy)

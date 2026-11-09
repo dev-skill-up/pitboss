@@ -1,10 +1,12 @@
 """What is offered to start: the queued work, less what is kept back.
 
-Kept back are the tickets of a repository under the owner's hold and the
-tickets that cannot be worked on until an open ticket or PR
-(keyword: ticket-blocked); the open ticket a blocked ticket waits for is offered
-ahead of it (``dependency``, pitboss#280). Shared by ``slots next``, ``next`` and
-the sweep, so the three agree on which tickets are offered.
+Kept back are the tickets of a repository under the owner's hold, the tickets
+that cannot be worked on until an open ticket or PR (keyword: ticket-blocked)
+with the PRs of such tickets (blocked-pull), and the superseded tickets; the open
+ticket a blocked ticket or PR waits for is offered in its place (``dependency``,
+pitboss#280, pitboss#388). A ticket named as a cause by many others ranks first
+(``promotion``). Shared by ``slots next``, ``next`` and the sweep, so the three
+agree on which tickets are offered.
 """
 
 import argparse
@@ -18,71 +20,47 @@ from . import (
     config,
     configfile,
     dependency,
+    fixes,
     ghapi,
     holds,
     ledger,
+    promotion,
     pulls,
     shapes,
-    ticketblock,
     work,
 )
 
 
-def apart(items: Sequence[work.Item], standing: Mapping[str, int]) -> work.Offered:
-    """Keep apart the tickets of the repositories the owner holds, and the blocked.
+def apart(
+    items: Sequence[work.Item], standing: Mapping[str, int], gone: AbstractSet[str]
+) -> work.Offered:
+    """Keep apart the tickets of held repositories, the blocked and the superseded.
 
     Args:
         items: the ordered items (``work.queued``, with their blockers named).
         standing: the held repositories and their open counts (``holds``).
+        gone: the superseded tickets.
 
     Returns:
-        The items to start, the tickets held back and the tickets blocked.
+        The items to start, the tickets held back, the tickets (and PRs) blocked
+        and the tickets superseded.
     """
     held = [each for each in items if _is_held(each, standing)]
     rest = [each for each in items if each not in held]
     return work.Offered(
-        items=[each for each in rest if not each.blocker],
+        items=[
+            each for each in rest if not each.blockers and each.reference not in gone
+        ],
         held=held,
         standing=standing,
-        blocked=[each for each in rest if each.blocker],
+        blocked=[each for each in rest if each.blockers],
+        superseded=[each for each in rest if each.reference in gone],
     )
 
 
 def _is_held(item: work.Item, standing: Mapping[str, int]) -> bool:
     in_held = item.reference.rpartition("#")[0] in standing
     return in_held and item.category == work.Category.NEW_PR
-
-
-def marked(github: ghapi.GitHub, settings: config.Config, item: work.Item) -> work.Item:
-    """Name the open ticket or PR a ticket says it cannot be worked on until.
-
-    The body and the trusted comments of a ticket are read for ``Cannot be
-    worked on until <owner/repo#n>``, ``Blocked by <owner/repo#n>`` or
-    ``Depends on <owner/repo#n>``; a blocker that is closed or merged blocks
-    nothing.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-        item: a PR or a ticket.
-
-    Returns:
-        The item, with ``blocker`` set when it is a ticket with an open blocker.
-    """
-    if item.category is not work.Category.NEW_PR:
-        return item
-    slug = item.reference.rpartition("#")[0]
-    trusted = settings.review.trusted
-    read = ticketblock.comments_of if item.comments else None
-    found = [item.body, *(read(github, item.reference, trusted) if read else ())]
-    repo = config.make_repo(*slug.split("/", 1))
-
-    def is_open(reference: str) -> bool:
-        ticket = blockers.read(github, reference)
-        return ticket is not None and ticket.open
-
-    blocker = ticketblock.open_blocker(repo, found, is_open)
-    return dataclasses.replace(item, blocker=blocker)
 
 
 class Source(Protocol):
@@ -121,7 +99,10 @@ def _slug(each: pulls.Read) -> str:
 
 
 def offered(
-    found: Source, opened: Sequence[pulls.Read], book: ledger.Ledger
+    found: Source,
+    opened: Sequence[pulls.Read],
+    book: ledger.Ledger,
+    marks: Mapping[str, work.Item],
 ) -> work.Offered:
     """The work to start, and the tickets the hold and an open blocker keep back.
 
@@ -129,9 +110,10 @@ def offered(
         found: the context.
         opened: the open PRs, read or not.
         book: the slot ledger.
+        marks: the blocked PRs (``pullmarks.pull_marks``).
 
     Returns:
-        The queued work, the held and the blocked tickets apart.
+        The queued work, the held, blocked and superseded tickets apart.
     """
     owned = configfile.load_holds(
         configfile.named(found.args),
@@ -139,18 +121,95 @@ def offered(
         found.settings.project.repo.owner,
     )
     held = holds.standing(owned, [_slug(each) for each in opened])
-    queued = work.queued(opened, found.github, found.settings, book)
+    queued = _fixing(work.queued(opened, found.github, found.settings, book), opened)
+    queued, said = _promoted(found, opened, queued)
     queued = ranked(found, opened, book, queued)
-    tickets = concurrently.each(
-        lambda item: marked(found.github, found.settings, item), queued
+    queued = _blocked_pulls(queued, marks, book, opened)
+    named, gone = _named(found, queued)
+    settled, waiting = _dependencies_first(found, opened, book, named)
+    offer = apart(settled, held, gone)
+    labels = found.settings.slots.priority_labels
+    return dataclasses.replace(offer, promoted=said, blocks=waiting, labels=labels)
+
+
+def _fixing(
+    queued: Sequence[work.Item], opened: Sequence[pulls.Read]
+) -> Sequence[work.Item]:
+    # a PR stands for the ticket it fixes (keyword: ticket-blocked, blocked-pull)
+    named = {pulls.reference(e): fixes.of_pull(e) for e in pulls.readable(opened)}
+    return [
+        dataclasses.replace(each, ticket=named.get(each.reference, each.ticket))
+        for each in queued
+    ]
+
+
+def _marked(found: Source, item: work.Item) -> tuple[work.Item, bool]:
+    # the open blockers a ticket names, and whether it is superseded
+    if item.category is not work.Category.NEW_PR:
+        return item, False
+    found_blockers, gone = blockers.waiting(
+        found.github, found.settings, item, item.reference
     )
-    return apart(_dependencies_first(found, opened, book, tickets), held)
+    return dataclasses.replace(item, blockers=found_blockers), gone
+
+
+def _named(
+    found: Source, queued: Sequence[work.Item]
+) -> tuple[Sequence[work.Item], AbstractSet[str]]:
+    # the blockers of each ticket named, and the tickets that are superseded
+    both = concurrently.each(functools.partial(_marked, found), queued)
+    return [each for each, _ in both], {each.reference for each, gone in both if gone}
+
+
+def _promoted(
+    found: Source, opened: Sequence[pulls.Read], queued: Sequence[work.Item]
+) -> tuple[Sequence[work.Item], Sequence[str]]:
+    # keyword: promote (pitboss#388): a ticket many others name as a cause ranks first
+    slots = found.settings.slots
+    new = work.Category.NEW_PR
+    tickets = [each for each in queued if each.category is new]
+    sources = [
+        *((each.reference, each.body) for each in tickets),
+        *(
+            (pulls.reference(each), f"{each.pull.title}\n{each.pull.body or ''}")
+            for each in pulls.readable(opened)
+        ),
+    ]
+    below = [each.reference for each in tickets if each.priority > 0]
+    named = promotion.named_by(below, sources, frozenset(slots.owner_priorities))
+    items = [
+        dataclasses.replace(each, priority=0) if each.reference in named else each
+        for each in queued
+    ]
+    said = [
+        promotion.line(each, slots.priority_labels[0], by) for each, by in named.items()
+    ]
+    return work.ordered(items, ()), said
+
+
+def _blocked_pulls(
+    queued: Sequence[work.Item],
+    stands: Mapping[str, work.Item],
+    book: ledger.Ledger,
+    opened: Sequence[pulls.Read],
+) -> Sequence[work.Item]:
+    # keyword: blocked-pull: a blocked PR is an item with blockers, whatever its step;
+    # one with no round is placed among the PRs by its own age, then ranks as its ticket
+    listed = {each.reference for each in queued}
+    own = {pulls.reference(e): e.pull.created_at for e in pulls.readable(opened)}
+    extra = [
+        dataclasses.replace(each, created_at=own.get(reference, each.created_at))
+        for reference, each in stands.items()
+        if reference not in listed
+    ]
+    ordered = work.ordered([*queued, *extra], _agents(book)) if extra else queued
+    return [stands.get(each.reference, each) for each in ordered]
 
 
 def _read_ticket(github: ghapi.GitHub, reference: str) -> work.Item | None:
     # an open ticket, as the item it is queued as; a PR and a closed ticket are not
-    ticket = blockers.read(github, reference)
-    if ticket is None or not ticket.open or ticket.pull:
+    ticket = blockers.open_ticket(github, reference)
+    if ticket is None or ticket.pull:
         return None
     return work.Item(
         category=work.Category.NEW_PR,
@@ -164,11 +223,12 @@ def _read_ticket(github: ghapi.GitHub, reference: str) -> work.Item | None:
 
 
 def _open_ticket(found: Source, reference: str, waiting: work.Item) -> work.Item | None:
-    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
+    # keyword: ticket-blocked: the ticket stands in the place of the one that waits
     item = _read_ticket(found.github, reference)
     if item is None:
         return None
-    return marked(found.github, found.settings, _inherit(item, waiting))
+    named, superseded = _marked(found, item)
+    return None if superseded else named
 
 
 def _configured(settings: config.Config) -> AbstractSet[str]:
@@ -242,7 +302,7 @@ def _stated_ticket(
     # the ticket the owner states a priority for, or why it cannot be read
     if reference.rpartition("#")[0] not in _configured(found.settings):
         return "its repository is not configured"
-    for each in [*offer.items, *offer.held, *offer.blocked]:
+    for each in [*offer.items, *offer.held, *offer.blocked, *offer.superseded]:
         if each.reference == reference and each.category is work.Category.NEW_PR:
             return blockers.Ticket(open=True, labels=each.labels)
     ticket = blockers.read(found.github, reference)
@@ -296,19 +356,19 @@ def _dependencies_first(
     opened: Sequence[pulls.Read],
     book: ledger.Ledger,
     tickets: Sequence[work.Item],
-) -> Sequence[work.Item]:
+) -> tuple[Sequence[work.Item], Mapping[str, Sequence[str]]]:
     # keyword: ticket-blocked (pitboss#280): a dependency is offered ahead of it
     readable = pulls.readable(opened)
     unavailable = work.taken(readable) | set(_agents(book))
     # an unreadable PR may work on any ticket (keyword: unreadable-pull)
-    if len(readable) != len(opened):
-        return dependency.order(tickets, _inherit)
-    read = functools.partial(_open_ticket, found)
-    return dependency.order(dependency.join(tickets, read, unavailable), _inherit)
+    unread = len(readable) != len(opened)
+    read = None if unread else functools.partial(_open_ticket, found)
+    return dependency.settle(tickets, read, unavailable, _placed)
 
 
-def _inherit(found: work.Item, waiting: work.Item) -> work.Item:
-    # keyword: ticket-blocked: a blocker inherits the priority and age it blocks
+def _placed(found: work.Item, oldest: work.Item) -> work.Item:
+    # keyword: ticket-blocked: a dependency moved ahead of the oldest ticket that waits
+    # for it takes that ticket's priority and age
     return dataclasses.replace(
-        found, priority=waiting.priority, created_at=waiting.created_at
+        found, priority=oldest.priority, created_at=oldest.created_at
     )

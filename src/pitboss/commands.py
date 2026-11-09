@@ -32,6 +32,7 @@ from . import (
     localsections,
     offering,
     machine as machines,
+    pullmarks,
     pulls,
     queue,
     readyline,
@@ -70,6 +71,7 @@ class Context:
         github: the API.
         now: the time now.
         args: the parsed arguments.
+        stands: the PRs whose ticket waits for an open blocker (blocked-pull).
     """
 
     settings: config.Config
@@ -79,6 +81,7 @@ class Context:
     github: ghapi.GitHub
     now: datetime.datetime
     args: argparse.Namespace
+    stands: pullmarks.Stands = dataclasses.field(default_factory=dict)
 
 
 working_directory = configfile.working_directory
@@ -234,6 +237,8 @@ def _pull_lines(
 ) -> bool:
     pull = got.pull
     print(report.pull_line(pull, newest), flush=True)
+    if pullmarks.say_blocked(found.stands, pull):
+        return False
     latest = newest.get(pulls.reference(pull))
     queued = latest is not None and not latest.run.finished
     why = {check_id: describe(each) for check_id, each in got.failures.items()}
@@ -259,14 +264,6 @@ def _pull_section(
         else:
             broken = _pull_lines(found, newest, got) or broken
     return broken
-
-
-def _queue_section(
-    found: Context, runs: Sequence[queue.QueueRun], pressure: str
-) -> None:
-    print(pressure)
-    for line in report.queue_lines(runs, found.settings, found.now):
-        print(line)
 
 
 def sweep_look(found: Context) -> dead.Look:
@@ -307,7 +304,7 @@ def _clean_section(found: Context) -> account.Report:
 
 def _repository_sections(
     found: Context, clock: timing.Clock, cleaned: account.Report
-) -> tuple[bool, Sequence[pulls.Read]]:
+) -> tuple[Context, bool, Sequence[pulls.Read]]:
     runs = read_queue_runs(found)
     timing.lap(clock, "merge queue runs read")
     shared = functools.partial(runner_runs, found, runs)
@@ -317,9 +314,10 @@ def _repository_sections(
     )
     read = sweepline.open_pulls(found.github, found.settings, found.now, shared)
     timing.lap(clock, "pull requests read")
+    found = dataclasses.replace(found, stands=pullmarks.pull_marks(found, read))
     broken = _pull_section(found, runs, read)
     timing.lap(clock, "pull requests done")
-    _queue_section(found, runs, pressure)
+    report.print_queue(pressure, runs, found.settings, found.now)
     timing.lap(clock, "merge queue done")
     localsections.print_stragglers(
         found.args.safe_run, found.settings.project.workspace
@@ -327,7 +325,7 @@ def _repository_sections(
     for line in diskline.lines(cleaned, found.clean.min_free_gib):
         print(line)
     timing.lap(clock, "checkouts done")
-    return broken, read
+    return found, broken, read
 
 
 def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
@@ -335,13 +333,13 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     written = ledger.configured(found.settings)
     book = slotholding.derived(written, found.args.running)
     offer = slotholding.counted(
-        offering.offered(found, read, book), read, book, found.args
+        offering.offered(found, read, book, found.stands), read, book, found.args
     )
     slotreport.print_ledger(book, offer.occupancy)
     sweepline.slots(read, offer, offering.disagreements(found, offer))
     sweepline.logged(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(written, found.now, found.args)
-    undrafts = readyline.texts(found.settings, pulls.readable(read), found.now)
+    undrafts = readyline.texts(found.settings, pullmarks.awake(read, offer), found.now)
     unlabeled.print_lines(found.github, found.settings)
     tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
 
@@ -365,7 +363,7 @@ def sweep(args: argparse.Namespace) -> None:
     timing.lap(clock, "update check and configuration read")
     cleaned = _clean_section(found)
     timing.lap(clock, "cleaning done")
-    broken, read = _repository_sections(found, clock, cleaned)
+    found, broken, read = _repository_sections(found, clock, cleaned)
     _slot_section(found, read)
     summaryline.print_lines(
         found.github, found.settings, configfile.named(args), found.now

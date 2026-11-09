@@ -14,6 +14,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import configfile, ownerlabels
 from . import fakes, quietworld, test_flow_sweep, world
+from .rankworld import publish
 from .suggestions import next_output, parsed, third
 from .test_commands import sweep
 from .test_owner_repositories import lines_of
@@ -133,43 +134,6 @@ class TestOneItem(unittest.TestCase):
 Tickets = Mapping[int, tuple[str, str]]
 OPEN: Tickets = {9: ("p3", "open"), 10: ("p1", "open"), 11: ("p2", "open")}
 CLOSED_NINE: Tickets = {**OPEN, 9: ("p3", "closed")}
-
-
-def publish(here: world.World, ranks: Sequence[str], tickets: Tickets) -> None:
-    """Make the fake GitHub list and answer for these tickets.
-
-    Args:
-        here: the world.
-        ranks: the ``priority_labels``, each of which has a list.
-        tickets: each ticket's number, label and state.
-    """
-    issues = {number: issue(number, *each) for number, each in tickets.items()}
-    for wanted in ranks:
-        listed = [issues[n] for n, each in tickets.items() if each == (wanted, "open")]
-        for slug, found in ((PROJECT, listed), (world.LIBRARY, [])):
-            here.bodies[fakes.page(f"{slug}/issues?state=open&labels={wanted}")] = found
-    for number, each in issues.items():
-        here.bodies[f"{PROJECT}/issues/{number}"] = each
-
-
-def issue(number: int, label: str, state: str) -> Mapping[str, object]:
-    """A ticket as the fake GitHub gives it.
-
-    Args:
-        number: its number; the day of September it was opened is that less 8.
-        label: its label.
-        state: ``open`` or ``closed``.
-
-    Returns:
-        The JSON of the ticket.
-    """
-    return {
-        "number": number,
-        "state": state,
-        "title": "T",
-        "created_at": f"2026-09-0{number - 8}T00:00:00Z",
-        "labels": [{"name": label}],
-    }
 
 
 def priorities(
