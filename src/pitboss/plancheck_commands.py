@@ -33,17 +33,15 @@ from . import (
     cirun,
     configfile,
     configsettle,
-    evidence,
     expansion,
     forms,
     ghapi,
-    lintchange,
+    headfindings,
     markuplines,
     plancheck,
     plancheckconfig,
     plandigest,
     plantickets,
-    selectdiff,
 )
 
 USAGE_ERROR = 2
@@ -343,6 +341,10 @@ def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list
     ]
 
 
+def _sha(args: argparse.Namespace, ref: str) -> str:
+    return _git(args, "rev-parse", ref).strip()
+
+
 def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
     body = args.body
     with (
@@ -359,26 +361,10 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *_of_trees(args, section, (tree, head), diffs),
             *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
             *_remote(args, body, section, ref),
-            *_of_head(args, body, section, (patch, head, ref)),
+            *headfindings.of_head(body, section, patch, head, _sha(args, ref)),
         ]
         noted = [*rows, *_notes(section, runs, (stat, patch))]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
-
-
-def _of_head(
-    args: argparse.Namespace,
-    body: str,
-    section: str,
-    given: tuple[str, pathlib.Path, str],
-) -> Sequence[str]:
-    # keywords: evidence-head, lint-test (pitboss#398): the head's own SHA is
-    # what a block records, and the head's files are what the diff changes
-    patch, tree, ref = given
-    sha = _git(args, "rev-parse", ref).strip()
-    return [
-        *evidence.stale_heads(body, sha),
-        *lintchange.findings(section, patch, selectdiff.sources_of(str(tree))),
-    ]
 
 
 def _notes(
