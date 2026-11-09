@@ -1,10 +1,11 @@
 """The PRs whose ticket waits for an open ticket or PR (pitboss#388).
 
 A PR also waits for what its newest trusted ``Plan check`` refusal names
-(``blockers.refusal_blockers``). Such a PR is offered no step (review, fix, ruling
-or merge) until the blocker has merged, and the blocker's step stands where the
-PR's would have (keyword: blocked-pull). A PR whose step is offered for no round
-is an item of the category ``WAITING``. A blocked PR ranks with the label and the age of its ticket.
+(``blockers.refusal_blockers``). Such a PR is offered no step (review, fix,
+ruling or merge) until the blocker has merged, and the blocker's step stands
+where the PR's would have (keyword: blocked-pull). A PR whose step is offered for
+no round is an item of the category ``WAITING``. A blocked PR ranks with the label
+and the age of its ticket.
 """
 
 import dataclasses

@@ -15,7 +15,11 @@ FIRST_THREE = ["owner/project#1", "owner/project#3", NINTH]
 
 
 def promoted(here: world.World) -> None:
-    """Require the line of ticket 9 with three corrections, and its rank."""
+    """Require the line of ticket 9 with three corrections, and its rank.
+
+    Args:
+        here: the world.
+    """
     rankworld.printed(here, "PROMOTE", [SAID])
     ranked = f"{NINTH} (start a PR p0, opened 2026-09-01,"
     assert_that(rankworld.next_output(here), contains_string(ranked))
