@@ -263,9 +263,10 @@ def work_repository(case: unittest.TestCase) -> diffrepo.Repository:
 
 ROW = (
     "1. `pitboss impact come_first come-first 'come first' "
-    "'Say the come first rule.' renamed`\n"
+    "'Say the come first rule.' renamed 'Say it rule.'`\n"
     "   src/mod.py:3: not edited, a constant of the fixture\n"
     "   src/mod.py:7: edited, the function renamed\n"
+    "   src/mod.py:8: edited, the docstring line\n"
 )
 
 
@@ -277,7 +278,7 @@ class TestCommand(unittest.TestCase):
         repo = work_repository(self)
         refused = unconfigured(repo, "1. `rg -n x src/`\n")
         passed = unconfigured(repo, ROW)
-        assert_that(refused.out.count("impact-phrase:"), equal_to(5))
+        assert_that(refused.out.count("impact-phrase:"), equal_to(6))
         assert_that(passed.out.splitlines()[-1], equal_to("Plan check: ok"))
 
     def test_a_plan_without_a_row_for_an_added_docstring_line_is_refused(self) -> None:

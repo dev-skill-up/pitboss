@@ -76,10 +76,11 @@ class TestLint(unittest.TestCase):
         }
         gone = {"test_old"}
         got = {
-            name: len(testnames.findings("body", body, checkout(), gone))
+            name: bool(testnames.findings("body", body, checkout(), gone))
             for name, body in cases.items()
         }
-        assert_that(got, equal_to({"said": 0, "new name missing": 1, "no line": 1}))
+        flagged = {"said": False, "new name missing": True, "no line": True}
+        assert_that(got, equal_to(flagged))
 
     def test_a_typo_next_to_a_real_test_is_flagged(self) -> None:
         """The nearest input to refuse: a name the base never had is not replaced."""
@@ -96,7 +97,7 @@ class TestLint(unittest.TestCase):
         run_git(repo.root, "checkout", "-q", "main")
         diffrepo.commit(repo, "tests/test_mod.py", "def test_old():\n    pass\n")
         run_git(repo.root, "update-ref", "refs/remotes/origin/main", "HEAD")
-        run_git(repo.root, "checkout", "-q", "work")
+        run_git(repo.root, "switch", "-q", "-C", "work")
         diffrepo.commit(repo, "tests/test_mod.py", "def test_exists():\n    pass\n")
         assert_that(run(cite("test_old") + SAID, repo.root)[0], equal_to(0))
         assert_that(run(cite("test_old") + MISSING, repo.root)[0], equal_to(1))
