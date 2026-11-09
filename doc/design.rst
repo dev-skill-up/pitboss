@@ -273,8 +273,8 @@ Commands
        same number, and the row must hold the whole command in backticks, or
        the command followed by a pipe; a prose row, a differing string or a
        missing row is one finding, and the sweep prints it as a ``PLAN ROW``
-       line; pitboss#259
-       ). With ``--branch`` starting with the
+       line; pitboss#259)
+       With ``--branch`` starting with the
        ``[relock] prefix`` (default ``relock/``; pitboss#126) the PR is a relock
        PR, which fixes no ticket and has no Plan, Execution or hand-run
        evidence: only ``head``, ``hand-typed`` are checked, and
