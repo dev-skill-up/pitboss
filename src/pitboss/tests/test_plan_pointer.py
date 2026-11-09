@@ -5,7 +5,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
-from .. import bodydigest, plancheck, plancommands, plandigest, planpointers
+from .. import expansion, plancheck, plancommands, plandigest, planpointers
 from .linting import lint, write_text
 from .test_commands import sweep
 from .test_flow_sweep import world_with
@@ -89,7 +89,7 @@ class TestLint(unittest.TestCase):
     def test_an_approved_plan_is_not_judged(self) -> None:
         """Keyword plan-approved: the digest a review recorded."""
         body = body_of(FILES_ONLY)
-        digest = bodydigest.of_section(plandigest.section(body))
+        digest = expansion.section_digest(plandigest.section(body))
         assert_that(plancommands.pointer_findings("text", body, [digest]), empty())
 
     def test_the_command_prints_it_and_fails(self) -> None:

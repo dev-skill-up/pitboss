@@ -6,8 +6,11 @@ A CI pointer is a row of the Plan that names a workflow file (a backticked
 step `Run e2e tests`, greppable `smoke.spec.js`). A name belongs to the last
 of those words before it as long as only commas, ``and``, ``or``, ``the`` and the
 like come between; any other word ends the list. A row is a pointer only when it
-names a workflow file and at least one job, step or greppable string. The module
-reads no file: the Plan section is given.
+names a workflow file and at least one job, step or greppable string. A row under
+the heading ``CI pointer rows``, and a row that says ``workflow``, ``job`` or
+``step`` next to a backticked name, that is no pointer is ``unrecognized``
+(keyword: ci-pointer-form, pitboss#358). The module reads no file: the Plan
+section is given.
 """
 
 import dataclasses
@@ -24,8 +27,17 @@ CONNECTIVE = re.compile(
     r"|test|called|named)[\s,;:()&]*)*$",
     re.I,
 )
+HEADING = re.compile(r"^\s*(?:#+\s*|\*\*|__)?CI[ -]pointer rows\b", re.I)
+OTHER_HEADING = re.compile(r"^\s*(?:#+\s|(?:\*\*|__)?[\w ,-]+ rows\b)", re.I)
+NAMED = re.compile(r"\b(?:workflows?|jobs?|steps?)\b[\s:]*`[^`]+`", re.I)
+FORM = (
+    "a pointer names its workflow file in backticks (`check.yml`), then the job,"
+    " step or greppable names in backticks (workflow `check.yml`, job `check`,"
+    " step `Run Nox`, greppable `test_name`)"
+)
 ITEM = re.compile(r"^\s*(?:\d{1,9}[.)]|[-*])\s+")
 COMMAND = re.compile(r"^\$ ")
+FENCE = re.compile(r"^\s*`{3,}")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -59,11 +71,38 @@ def path_of(span: str) -> str:
     return span if "/" in span else DIRECTORY + span
 
 
+def _outside(section: str) -> Sequence[tuple[int, str]]:
+    # the lines outside the fenced blocks; a fence line itself reads as blank
+    found: list[tuple[int, str]] = []
+    fenced = False
+    for number, line in enumerate(section.splitlines(), 1):
+        if FENCE.match(line):
+            fenced = not fenced
+            found.append((number, ""))
+        elif not fenced:
+            found.append((number, line))
+    return found
+
+
+def prose(section: str) -> Sequence[tuple[int, str]]:
+    """The lines of a Plan section that are prose.
+
+    Args:
+        section: the Plan section.
+
+    Returns:
+        Each line's number (the heading is 1) and text, but a command line
+        (``$ ...``) and a line inside a fenced block.
+    """
+    return [(n, line) for n, line in _outside(section) if not COMMAND.match(line)]
+
+
 def rows(section: str) -> Sequence[tuple[int, str]]:
     """The rows of a Plan section.
 
     A row is a list item with its continuation lines, or a paragraph; a command
-    line (``$ ...``) is no row.
+    line (``$ ...``) is no row, and neither is a line inside a fenced block (the
+    output of a command, or a quoted text).
 
     Args:
         section: the Plan section.
@@ -73,7 +112,7 @@ def rows(section: str) -> Sequence[tuple[int, str]]:
     """
     found: list[tuple[int, list[str]]] = []
     inside = False
-    for number, line in enumerate(section.splitlines(), 1):
+    for number, line in _outside(section):
         if not line.strip() or COMMAND.match(line):
             inside = False
         elif inside and not ITEM.match(line):
@@ -139,3 +178,36 @@ def read(section: str) -> Sequence[Pointer]:
         string.
     """
     return [each for number, text in rows(section) for each in _pointer(number, text)]
+
+
+def _pointer_lines(section: str) -> frozenset[int]:
+    # the numbers of the lines under the heading `CI pointer rows`
+    found: set[int] = set()
+    inside = False
+    for number, line in enumerate(section.splitlines(), 1):
+        if HEADING.match(line):
+            inside = True
+        elif inside and OTHER_HEADING.match(line):
+            inside = False
+        elif inside:
+            found.add(number)
+    return frozenset(found)
+
+
+def unrecognized(section: str) -> Sequence[tuple[int, str]]:
+    """The rows that are meant as CI pointers and are none.
+
+    Args:
+        section: the Plan section.
+
+    Returns:
+        The line number and the text of each row that is under the heading
+        ``CI pointer rows`` or says ``workflow``, ``job`` or ``step`` next to a
+        backticked name, and that ``read`` does not take for a pointer.
+    """
+    listed = _pointer_lines(section)
+    return [
+        (number, text)
+        for number, text in rows(section)
+        if (number in listed or NAMED.search(text)) and not _pointer(number, text)
+    ]
