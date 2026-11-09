@@ -8,6 +8,9 @@ from hamcrest import assert_that, equal_to
 from . import fakes, world
 from .test_owner_repositories import lines_of
 
+PULL_ONE = f"{world.PROJECT}/pulls/1"
+CLEAN_HEAD = {"sha": "1" * 40, "ref": "branch-1"}
+
 
 def running(here: world.World, *finished: str) -> Sequence[str]:
     """The ``--running`` arguments that name the agents the ledger's rows hold.
@@ -33,8 +36,7 @@ def calm() -> world.World:
         The world.
     """
     here = world.make_world()
-    branch = {"sha": "1" * 40, "ref": "branch-1"}
-    here.bodies[f"{world.PROJECT}/pulls/1"] = fakes.pull_body(1, head=branch)
+    here.bodies.update({PULL_ONE: fakes.pull_body(1, head=CLEAN_HEAD)})
     return here
 
 
