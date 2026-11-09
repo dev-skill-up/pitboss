@@ -161,4 +161,3 @@ class TestNoxSkipped(unittest.TestCase):
         """The nearest input: other `skipped` text is not a missing interpreter."""
         done = expansion.Outcome(status=0, output="3 tests skipped: not found\n")
         assert_that(noxcheck.judged(done), equal_to(done))
-
