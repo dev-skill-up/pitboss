@@ -19,6 +19,7 @@ LISTED = (
 )
 ROBOT = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 NO_HEAD = BODY.replace(f"Head: {HEAD}", "Head: none") + ROBOT + "\n"
+BODIES = (BODY, NO_HEAD)
 PULL = {"head": {"sha": HEAD, "ref": "fix-1"}, "user": {"login": "someone"}}
 
 
@@ -58,12 +59,13 @@ class TestTheCommand(unittest.TestCase):
     def test_a_listed_footer_is_not_asked_for_by_the_status(self) -> None:
         """The status is success without the footer, failure for a wrong body."""
         written = fakes.directory() / "status.json"
-        states = []
-        for body in (BODY, NO_HEAD):
-            sent = json.dumps({"pull_request": {"body": body, **PULL}})
-            command("event", write_text("event.json", sent), str(written))
-            states.append(json.loads(written.read_text())["state"])
-        assert_that(states, equal_to(["success", "failure"]))
+        sent = [json.dumps({"pull_request": {"body": each, **PULL}}) for each in BODIES]
+        for text in sent:
+            command("event", write_text("event.json", text), str(written))
+            assert_that(
+                json.loads(written.read_text())["state"],
+                equal_to("success" if text is sent[0] else "failure"),
+            )
 
 
 class TestTheSweep(unittest.TestCase):
@@ -74,6 +76,6 @@ class TestTheSweep(unittest.TestCase):
         standing = reviews.Standing.CHANGES_NEEDED
         found = [
             pullstate.body_findings(settings(), facts(standing, body=body, **PULL))
-            for body in (BODY, NO_HEAD)
+            for body in BODIES
         ]
         assert_that([len(each) for each in found], equal_to([0, 1]))
