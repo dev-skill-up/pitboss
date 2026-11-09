@@ -10,7 +10,10 @@ from .briefmake import HEAD, HONEST, PROJECT, has_all, has_none, pinned, text
 NEW_PR_PROCESS = [
     "Task: do the whole of ticket o/r#7 in one PR: write the code, then open the PR.",
     "Worktree: work in your own `git worktree add` of o/r from origin/main after"
-    " `git fetch origin main`; never in the main clone.",
+    " `git fetch origin main`; never in the main clone. A task that changes a"
+    " repository other than the ticket's gets a `git worktree add` of that"
+    " repository, the only place to commit, and a shared clone (`main_clone`, the"
+    " repository-prototype clone) is never checked out to another branch.",
     "Done-when: read the Done-when in the body of the ticket o/r#7; only the body"
     " has it, and a comment adds nothing to it",
     "Draft: open the PR as a draft whose body has a Plan section",

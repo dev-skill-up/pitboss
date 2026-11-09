@@ -18,6 +18,7 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     alsotests,
+    cloneguard,
     configsearch,
     diskwatch,
     expansion,
@@ -137,16 +138,18 @@ def stop_when_short_of_disk(args: argparse.Namespace) -> None:
 
 
 def stop_before_running(args: argparse.Namespace) -> None:
-    """Stop when little disk is free or the diff adds a line to a .md or .rst file.
+    """Stop in a clone, when little disk is free or a .md or .rst file gains a line.
 
     Args:
         args: the parsed arguments.
 
     Raises:
-        SystemExit: 1 under 5 GiB free, or when a .md or .rst file gains a line
-            that is not a cut, naming file and line (keyword: markup-gate,
-            pitboss#398).
+        SystemExit: 1 in the main clone with an uncommitted change (keyword:
+            clone-guard, pitboss#297), under 5 GiB free, or when a .md or .rst
+            file gains a line that is not a cut, naming file and line (keyword:
+            markup-gate, pitboss#398).
     """
+    cloneguard.refuse_in_clone(args, configsearch.working_directory(args))
     stop_when_short_of_disk(args)
     found = markupgate.findings(functools.partial(run_command, args))
     for each in found:
@@ -228,6 +231,15 @@ def run_planned(
         " command prints a NOTE with the time of that run and exits 0; run it"
         " before each push and when feedback is needed, not again on one head;"
         " a tree with a change is never skipped).",
+    ),
+    add_argument(
+        "--config",
+        default=None,
+        help="the project's configuration (a path, or a name in"
+        " .claude/pitboss/<name>.toml; default: the search, no fetch), which names"
+        " the main clone: in it, with an uncommitted change, the command prints"
+        " `refused: this is the main clone; work in your own worktree` and exits 1"
+        " (clone-guard, pitboss#297)",
     ),
     NOW_ARGUMENT,
     name="nox",

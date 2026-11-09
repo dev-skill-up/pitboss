@@ -31,6 +31,7 @@ from . import (
     ENTRY_DATA,
     cipointercheck,
     cirun,
+    cloneguard,
     configfile,
     configsettle,
     devpath,
@@ -256,14 +257,21 @@ def plan_check(args: argparse.Namespace) -> None:
     offers a Plan review that has commands only after a comment that says
     ``Plan check: ok`` for this Plan.
 
+    It refuses first, with ``refused: this is the main clone; work in your own
+    worktree: ...``, when the checkout is a clone the configuration names
+    (``main_clone``) with an uncommitted change (keyword: clone-guard,
+    pitboss#297).
+
     Args:
         args: the parsed arguments (a body it cannot read, without a ``## Plan``
             section or with a directive with no command exits with status 2).
 
     Raises:
-        SystemExit: with status 1 when a row did not run or there is a finding.
+        SystemExit: with status 1 when a row did not run or there is a finding,
+            or in the main clone with an uncommitted change.
     """
     configsettle.find_or_say(args)
+    cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
     output, failed = _read_and_checked(args)
     sys.stdout.write(output)
     if failed:
