@@ -24,8 +24,8 @@ from . import (
     concurrently,
     config,
     ghapi,
+    issuelist,
     ledger,
-    parsing,
     pulls,
     reviews,
     shapes,
@@ -261,7 +261,7 @@ def _labelled(github: ghapi.GitHub, settings: config.Config) -> Iterable[Item]:
     def read(look: tuple[config.Repo, int, str]) -> Sequence[shapes.Issue]:
         repo, _, label = look
         path = f"repos/{repo.slug}/issues?state=open&labels={label}"
-        return ghapi.pages(github, path, parsing.issues)
+        return list(filter(None, ghapi.pages(github, path, issuelist.listed)))
 
     for (repo, priority, _), found in zip(asked, concurrently.each(read, asked)):
         for issue in found:

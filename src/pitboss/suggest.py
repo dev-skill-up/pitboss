@@ -24,7 +24,7 @@ from . import (
     gates,
     plandigest,
     ghapi,
-    parsing,
+    issuelist,
     pullfiles,
     pulls,
     reviews,
@@ -223,7 +223,7 @@ def _ticket_title(source: Source, ticket: str, fallback: str) -> str:
         text = ghapi.get(source.github, f"repos/{slug}/issues/{number}")
     except subprocess.CalledProcessError:
         return fallback
-    found = parsing.issue_of(text)
+    found = issuelist.issue_of(text)
     return found[0].title if found else fallback
 
 
