@@ -12,7 +12,17 @@ from .commands import load_context
 
 @ENTRY_DATA.register(
     CONFIG_ARGUMENT,
-    add_argument("priority", nargs="?", default=None),
+    add_argument(
+        "priority",
+        nargs="?",
+        default=None,
+        help="p0, p1, p2 or p3: count and list only that priority; with none, p0 to"
+        " p3 and the unlabelled tickets (those with none of p0 to p3) of every"
+        " repository of the configuration, each with a line for every repository,"
+        " a total line and its tickets. A count of tickets given to the owner comes"
+        " from this command (Moshe, 2026-11-06: count p0, p1 and p2, and filter"
+        " when the question names one), never from a search of some repositories.",
+    ),
     NOW_ARGUMENT,
     name="count",
 )
