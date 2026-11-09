@@ -10,6 +10,7 @@ a test gives a runner and a clock, so no real nox runs.
 
 import dataclasses
 import enum
+import re
 from typing import Protocol, Sequence
 
 from .expansion import Outcome
@@ -35,6 +36,13 @@ SLOWEST_COUNT = 30
 # left it (or OUTSIDE_TESTS) and the name.
 LEAK_PREFIX = "test-leak "
 OUTSIDE_TESTS = "(outside any test)"
+# nox exits 0 for a session it skipped for a missing interpreter and prints this
+# line (keyword: nox-skipped, pitboss#426): `pitboss nox` reads it as a failure.
+SKIPPED = re.compile(r"skipped: Python interpreter (\S+) not found")
+MISSING = (
+    "nox-skipped the session was skipped, not run: Python {version} is missing;"
+    " install it with `uv python install {version}` and run `pitboss nox` again"
+)
 PROOF = "CI's `Run Nox` step is the proof of the whole suite."
 
 
@@ -129,6 +137,24 @@ def command_of(name: str, modules: Sequence[str]) -> Sequence[str]:
     return ["nox", "-r", "-s", name, *wanted]
 
 
+def judged(outcome: Outcome) -> Outcome:
+    """Turn a session nox skipped for a missing interpreter into a failure.
+
+    Args:
+        outcome: what the session gave back.
+
+    Returns:
+        The outcome as it is, or when nox says it skipped the session, a failed
+        one whose output also names the missing interpreter and the command that
+        installs it.
+    """
+    found = SKIPPED.search(outcome.output)
+    if outcome.status or not found:
+        return outcome
+    message = MISSING.format(version=found.group(1))
+    return Outcome(status=1, output=f"{outcome.output}\n{message}\n")
+
+
 def run_sessions(
     runner: Runner,
     clock: Clock,
@@ -152,7 +178,7 @@ def run_sessions(
     for each in sessions:
         name = each.value
         started = clock()
-        outcome = runner(command_of(name, modules))
+        outcome = judged(runner(command_of(name, modules)))
         steps.append(Step(name=name, outcome=outcome, seconds=clock() - started))
         if outcome.status:
             break

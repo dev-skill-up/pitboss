@@ -10,7 +10,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import expansion, noxcheck, noxenv
 from .briefmake import has_all, has_none
-from .test_nox import COMMANDS, FakeNox, clock_of, run_nox, run_with
+from .test_nox import COMMANDS, Done, FakeNox, clock_of, run_nox, run_with
 
 NAMES = [each.value for each in noxcheck.Session]
 SECONDS = re.compile(r" \d+s$")
@@ -114,3 +114,51 @@ class TestNoxHome(unittest.TestCase):
         assert_that(
             (os.path.exists(homes.pop()), snapshot()), equal_to((False, before))
         )
+
+
+SKIPPED_LINE = "nox > Session skills skipped: Python interpreter 3.14 not found.\n"
+
+
+def skipping_nox(cmdargs: Sequence[str], /, **kwargs: object) -> Done:
+    """A nox whose every session is skipped for want of Python 3.14.
+
+    Args:
+        cmdargs: the command line.
+        **kwargs: what gather passes to ``subprocess.run``.
+
+    Returns:
+        Exit 0 with nox's skip line.
+    """
+    return Done(returncode=0, stdout=SKIPPED_LINE)
+
+
+class TestNoxSkipped(unittest.TestCase):
+    """A session nox skipped for a missing interpreter is a failure (pitboss#426)."""
+
+    def test_a_skipped_session_fails_naming_the_interpreter_and_its_install(
+        self,
+    ) -> None:
+        """Exit 0 from nox, but the line says skipped: failed, stops, exits 1."""
+        calls: list[Sequence[str]] = []
+
+        def runner(command: Sequence[str], /) -> expansion.Outcome:
+            calls.append(command)
+            return expansion.Outcome(status=0, output=SKIPPED_LINE)
+
+        ran = noxcheck.run_sessions(runner, clock_of(*range(8)), [])
+        assert_that(len(calls), equal_to(1))
+        assert_that(noxcheck.summary_of(ran)[0], equal_to("skills failed 1s"))
+        has_all(ran[0].outcome.output, ["Python 3.14", "`uv python install 3.14`"])
+
+    def test_the_command_shows_the_failure_and_not_success(self) -> None:
+        """Through the whole command: the exit is 1 and no line says success."""
+        found = run_with(skipping_nox)
+        has_all(found.out, ["skills failed", "uv python install 3.14"])
+        has_none(found.out, ["skills success", "lint success"])
+        assert_that(found.code, equal_to(1))
+
+    def test_a_session_that_ran_and_mentions_skipped_tests_still_passes(self) -> None:
+        """The nearest input: other `skipped` text is not a missing interpreter."""
+        done = expansion.Outcome(status=0, output="3 tests skipped: not found\n")
+        assert_that(noxcheck.judged(done), equal_to(done))
+
