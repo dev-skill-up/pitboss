@@ -212,8 +212,8 @@ def push(args: argparse.Namespace) -> None:
     adds only none looks, which do not restart the wait. A push to a draft PR
     (``--draft``, or the branch of an open draft PR) is neither checked nor
     recorded. A push to ``dev-skill-up/pitboss`` (or a repository of
-    ``[runners] exempt``), read from the URL of the remote, is never held, whatever the pressure: it
-    prints ``pitboss is exempt from holds`` once, runs ``git push`` and records
+    ``[runners] exempt``), read from the URL of the remote, is never held,
+    whatever the pressure: it prints ``pitboss is exempt from holds`` once, runs ``git push`` and records
     nothing (keyword: pitboss-exempt, pitboss#113).
     With no ``[runners]`` table nothing is held or recorded. Put ``--`` before
     git's own options. The exit is 1 while the quiet period is not over, git's
