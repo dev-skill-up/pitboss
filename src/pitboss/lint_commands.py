@@ -17,7 +17,7 @@ from . import (
     configfile,
     configsettle,
     contradictions,
-    draftrule,
+    draftfindings,
     folds,
     forms,
     gateform,
@@ -197,17 +197,10 @@ def _brief_findings(
         *forms.brief(subject, settings.brief_lines, _ticket(args)),
         *repeatruns.findings(subject.name, _ticket(args)),
         *holdwait.findings(subject.name, subject.body),  # keyword: hold-wait
-        *_draft_findings(args, subject),
+        *draftfindings.findings(
+            args.config, commands.working_directory(args), subject.name, subject.body
+        ),
     ]
-
-
-def _draft_findings(args: argparse.Namespace, subject: forms.Subject) -> Sequence[str]:
-    # keyword: no-drafts (pitboss#216): a project that needs no drafts
-    if args.config is None:
-        return []
-    # the configuration was read (and its [slots.brief] checked) with the lint settings
-    off = draftrule.drafts_off(args.config, commands.working_directory(args))
-    return draftrule.findings(subject.name, subject.body) if off else []
 
 
 def _card_findings(
