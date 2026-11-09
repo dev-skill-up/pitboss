@@ -107,21 +107,14 @@ def loaded(args: argparse.Namespace, start: pathlib.Path) -> config.Config | Non
         It; None when none was given and none is found.
 
     Raises:
-        SystemExit: 2 when the one given cannot be read.
+        FileNotFoundError: when the one given is not there.
     """
     try:
         return configfile.load(configsearch.named(args), start)
-    except FileNotFoundError as error:
-        if args.config is None:
-            return None
-        raise SystemExit(_said(args, error)) from error
-    except (OSError, ValueError, KeyError) as error:
-        raise SystemExit(_said(args, error)) from error
-
-
-def _said(args: argparse.Namespace, error: Exception) -> int:
-    print(f"{args.config}: {error}", file=sys.stderr)
-    return 2
+    except FileNotFoundError:
+        if args.config is not None:
+            raise
+        return None
 
 
 def refusals(args: argparse.Namespace, start: pathlib.Path) -> Sequence[str]:
@@ -133,8 +126,15 @@ def refusals(args: argparse.Namespace, start: pathlib.Path) -> Sequence[str]:
 
     Returns:
         The lines; none when there is no configuration.
+
+    Raises:
+        SystemExit: 2 when the configuration cannot be read.
     """
-    settings = loaded(args, start)
+    try:
+        settings = loaded(args, start)
+    except (OSError, ValueError, KeyError) as error:
+        print(f"{args.config}: {error}", file=sys.stderr)
+        raise SystemExit(2) from error
     return [] if settings is None else findings(args, settings)
 
 
@@ -167,6 +167,9 @@ def inside_dirty_clone(
 def refuse_in_clone(args: argparse.Namespace, start: pathlib.Path) -> None:
     """Print ``REFUSED`` and exit 1 when ``start`` is in a clone with a change.
 
+    A configuration that cannot be read, or a partial one, names no clone: the
+    command goes on.
+
     Args:
         args: the parsed arguments, whose ``config`` is ``--config`` or None.
         start: the directory the command works in.
@@ -174,7 +177,10 @@ def refuse_in_clone(args: argparse.Namespace, start: pathlib.Path) -> None:
     Raises:
         SystemExit: 1 when the directory is in a clone with uncommitted changes.
     """
-    settings = loaded(args, start)
+    try:
+        settings = loaded(args, start)
+    except (OSError, ValueError, KeyError):
+        return
     if settings is not None and inside_dirty_clone(args, settings, start):
         print(REFUSED)
         raise SystemExit(1)
