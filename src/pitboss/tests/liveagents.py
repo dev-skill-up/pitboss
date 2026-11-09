@@ -25,7 +25,8 @@ def running(here: world.World, *finished: str) -> Sequence[str]:
     Returns:
         ``--running`` and the name of each agent a row holds but those.
     """
-    names = re.findall(r'"agent": "([^"]+)"', here.ledger.read_text())
+    text = here.ledger.read_text() if here.ledger.exists() else ""
+    names = re.findall(r'"agent": "([^"]+)"', text)
     return ["--running", *(name for name in names if name not in finished)]
 
 
