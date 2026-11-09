@@ -9,6 +9,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 from .. import pullfiles, testnames
 from . import diffrepo, pinsworld, world
 from .repositories import run_git
+from .test_ci_pointer_check import repository
 from .test_commands import sweep
 from .test_flow_sweep import world_with
 from .test_plan_command_lint import body_of as plan_body
@@ -93,11 +94,9 @@ class TestLint(unittest.TestCase):
 
     def test_the_lint_reads_the_removal_from_the_checkout(self) -> None:
         """Against ``--base``, a removed test the Execution names is replaced."""
-        repo = diffrepo.make_repository(self)
-        run_git(repo.root, "checkout", "-q", "main")
+        repo = repository(self)
         diffrepo.commit(repo, "tests/test_mod.py", "def test_old():\n    pass\n")
         run_git(repo.root, "update-ref", "refs/remotes/origin/main", "HEAD")
-        run_git(repo.root, "switch", "-q", "-C", "work")
         diffrepo.commit(repo, "tests/test_mod.py", "def test_exists():\n    pass\n")
         assert_that(run(cite("test_old") + SAID, repo.root)[0], equal_to(0))
         assert_that(run(cite("test_old") + MISSING, repo.root)[0], equal_to(1))
