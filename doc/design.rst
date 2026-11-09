@@ -458,7 +458,8 @@ current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``,
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, which grades the
 Plan alone, and the review of a revised plan are started by its author's
-hand-back; a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
+hand-back,
+a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
 same words as ``slots next``, pitboss#156; a draft whose Plan is approved, with
 a diff that touches ``e2e/`` or a ``[sweep] run_by_e2e`` prefix and no completed
 ``workflow_dispatch`` run of ``check.yml`` at its head (a draft's own run skipped e2e, complete
@@ -467,7 +468,7 @@ instead when nothing is running at its head (while a check run of the head is un
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
-sandbox may block).
+sandbox may block)
 
 **Body fixes** (pitboss#147). A review may record the PR body it read in a
 ``Body: <digest>`` line (``pitboss body-digest FILE``, and ``pitboss plan-digest FILE`` for the ``Plan digest:`` line of the Plan section; REST has no edit time
@@ -500,7 +501,8 @@ head whose newest review asks for changes and grades the plan changes needed
 stands ``plan-changes-needed``; one whose newest review approves and has a
 ``Plan: approved`` line but no ``Execution:`` line (a review of a revised plan,
 which grades the plan alone) stands ``plan-approved``, is no approval to merge,
-is not carried over merges of the base. Both words are on the PR's line.
+is not carried over merges of the base
+. Both words are on the PR's line.
 
 **Review flow** (keyword: review-flow, pitboss#107). The step a PR is at is one
 function, ``pitboss.flow.next_step``, the owner's pseudo code branch for branch
