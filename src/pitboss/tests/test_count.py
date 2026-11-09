@@ -118,6 +118,35 @@ def printed(*words: str) -> tuple[str, object]:
     return done.out, done.code
 
 
+def printed_with_option(*words: str) -> tuple[str, object]:
+    """Run ``count`` with the configuration given as ``--config``.
+
+    Args:
+        *words: the words after it.
+
+    Returns:
+        What it printed and its exit code.
+    """
+    here = counting()
+    done = world.invoke(here, "count", "--config", here.config, *words)
+    return done.out, done.code
+
+
+def ended_without_extra(*words: str) -> tuple[object, bool]:
+    """Run ``count`` in a world where the repository ``extra`` cannot be read.
+
+    Args:
+        *words: the words after the configuration.
+
+    Returns:
+        Its exit code, and whether it said ``INCOMPLETE``.
+    """
+    here = counting()
+    del here.bodies[ownerbodies.EXTRA]
+    done = world.again(here, "count", *words)
+    return done.code, "INCOMPLETE" in done.out + done.err
+
+
 def refusal(word: str) -> bool:
     """Say whether ``count`` refuses a word on standard error.
 
@@ -157,9 +186,7 @@ class TestCount(unittest.TestCase):
 
     def test_the_priority_follows_the_config_option(self) -> None:
         """The priority is the same word after ``--config``."""
-        here = counting()
-        done = world.invoke(here, "count", "--config", here.config, "p1")
-        assert_that((done.out, done.code), equal_to((ONLY_P1, 0)))
+        assert_that(printed_with_option("p1"), equal_to((ONLY_P1, 0)))
 
     def test_refuses_a_word_that_is_no_priority(self) -> None:
         """Nothing is printed for ``p4`` or ``unlabelled``."""
@@ -169,11 +196,7 @@ class TestCount(unittest.TestCase):
 
     def test_a_repository_it_cannot_read_ends_incomplete(self) -> None:
         """The count says what it did not read and exits 1."""
-        here = counting()
-        del here.bodies[ownerbodies.EXTRA]
-        done = world.again(here, "count", "p1")
-        assert_that(done.code, equal_to(1))
-        assert_that("INCOMPLETE" in done.out + done.err, equal_to(True))
+        assert_that(ended_without_extra("p1"), equal_to((1, True)))
 
     def test_the_usage_says_where_the_owner_count_comes_from(self) -> None:
         """A count given to the owner comes from this command, the owner's words."""
