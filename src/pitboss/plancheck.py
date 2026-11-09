@@ -202,19 +202,22 @@ def ci_findings(
     ]
 
 
-def diff_findings(section: str, patch: str, base: impactphrases.Read) -> Sequence[str]:
-    """The phrases of the diff's removed lines that no Impact row searches.
+def diff_findings(
+    section: str, patch: str, base: impactphrases.Read, head: impactphrases.Read
+) -> Sequence[str]:
+    """The phrases of the diff's changed lines that no Impact row searches.
 
     Args:
         section: the Plan section of the body.
         patch: the PR's diff (``git diff -U0``).
         base: reads a file of the PR's base; None when it is not there.
+        head: reads a file of the PR's head; None when it is not there.
 
     Returns:
         A finding for each phrase the diff needs a row for (keyword:
         impact-phrase, pitboss#317).
     """
-    wants = impactphrases.wanted(patch, base)
+    wants = impactphrases.wanted(patch, base, head)
     return impactphrases.uncovered(wants, impactcount.phrases(section))
 
 

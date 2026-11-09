@@ -4,10 +4,11 @@ import json
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import pullfiles, testnames
-from . import pinsworld, world
+from . import diffrepo, pinsworld, world
+from .repositories import run_git
 from .test_commands import sweep
 from .test_flow_sweep import world_with
 from .test_plan_command_lint import body_of as plan_body
@@ -17,6 +18,7 @@ PLAN = "## Plan\n1. `rg -n test_old tests/`\n"
 SAID = "\n## Execution\nThe ruling replaced `test_old` with `test_exists`.\n"
 MISSING = "\n## Execution\nThe ruling replaced `test_old` with `test_nowhere`.\n"
 UNSAID = "\n## Execution\nRan `test_exists`.\n"
+TYPO = "\n## Execution\nRan `test_typo_nowhere` and `test_exists`.\n"
 PATCH = "@@ -1,2 +1,2 @@\n-    def test_old(self):\n+    def test_new(self):\n"
 RENAMED = "@@ -1 +1 @@\n-def test_old():\n+def test_old():\n"
 
@@ -72,8 +74,37 @@ class TestLint(unittest.TestCase):
             "new name missing": cite("test_old") + MISSING,
             "no line": cite("test_old") + UNSAID,
         }
-        got = {name: run(body, checkout())[0] for name, body in cases.items()}
+        gone = {"test_old"}
+        got = {
+            name: len(testnames.findings("body", body, checkout(), gone))
+            for name, body in cases.items()
+        }
         assert_that(got, equal_to({"said": 0, "new name missing": 1, "no line": 1}))
+
+    def test_a_typo_next_to_a_real_test_is_flagged(self) -> None:
+        """The nearest input to refuse: a name the base never had is no replaced test."""
+        body = cite("test_typo_nowhere") + TYPO
+        found = testnames.findings("body", body, checkout(), {"test_old"})
+        assert_that(found, has_length(1))
+        assert_that(found[0], contains_string("test_typo_nowhere"))
+        assert_that(found[0], contains_string("(test-name)"))
+        assert_that(run(body, checkout())[0], equal_to(1))
+
+    def test_the_lint_reads_the_removal_from_the_checkout(self) -> None:
+        """Against ``--base``, a removed test the Execution names is replaced."""
+        repo = diffrepo.make_repository(self)
+        run_git(repo.root, "checkout", "-q", "main")
+        diffrepo.commit(repo, "tests/test_mod.py", "def test_old():\n    pass\n")
+        run_git(repo.root, "update-ref", "refs/remotes/origin/main", "HEAD")
+        run_git(repo.root, "checkout", "-q", "work")
+        diffrepo.commit(repo, "tests/test_mod.py", "def test_exists():\n    pass\n")
+        assert_that(run(cite("test_old") + SAID, repo.root)[0], equal_to(0))
+        assert_that(run(cite("test_old") + MISSING, repo.root)[0], equal_to(1))
+
+    def test_the_tests_a_patch_removes(self) -> None:
+        """A removed ``def test_`` counts, unless the patch adds it back."""
+        assert_that(testnames.removed(PATCH), equal_to({"test_old"}))
+        assert_that(testnames.removed(RENAMED), equal_to(set()))
 
     def test_the_line_gives_the_other_name(self) -> None:
         """Both names of a line pair up; a line with one name pairs nothing."""

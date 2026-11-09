@@ -15,6 +15,7 @@ from typing import Collection, Iterator, Mapping, Sequence
 
 _CITED = re.compile(r"(?<![A-Za-z0-9_])test_[A-Za-z0-9_]+(?![A-Za-z0-9_])")
 _DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
+_SIGNED = re.compile(r"^([-+])[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*$", re.MULTILINE)
 _FENCED = re.compile(
     r"^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?(?:^ {0,3}\1[`~]*[ \t]*$|\Z)",
@@ -118,13 +119,32 @@ def defined(root: pathlib.Path) -> Collection[str]:
     return found
 
 
-def findings(name: str, body: str, root: pathlib.Path) -> Sequence[str]:
+def removed(patch: str) -> Collection[str]:
+    """The tests a diff removes and does not add back.
+
+    Args:
+        patch: the output of ``git diff -U0`` of the PR.
+
+    Returns:
+        The name of each ``def test_...`` a removed line has and no added line has
+        (keyword: superseded-pointer, pitboss#317).
+    """
+    signed = _SIGNED.findall(patch)
+    added = {name for sign, name in signed if sign == "+"}
+    return {name for sign, name in signed if sign == "-" and name not in added}
+
+
+def findings(
+    name: str, body: str, root: pathlib.Path, gone: Collection[str]
+) -> Sequence[str]:
     """The findings for the test names a body cites that the head lacks.
 
     Args:
         name: what to call the body in a finding.
         body: the PR's body.
         root: the head's checkout.
+        gone: the tests the PR's diff removes (``removed``): a cited name is
+            replaced only when it is one of them.
 
     Returns:
         One finding for each cited name with no ``def`` in the tree.
@@ -132,8 +152,11 @@ def findings(name: str, body: str, root: pathlib.Path) -> Sequence[str]:
     wanted = cited(body)
     there = defined(root) if wanted else ()
     # keyword: superseded-pointer (pitboss#317): a test the Execution says another
-    # replaced, which the head has, is no finding
-    replaced = {old for old, new in superseding(body).items() if new in there}
+    # replaced, which the PR removes and the head's other test stands for, is no
+    # finding; a name the base never had (a typo) is one
+    replaced = {
+        old for old, new in superseding(body).items() if new in there and old in gone
+    }
     return [
         f"{name}: the Plan or Execution cites {each}, which the head has no"
         f" `def {each}` for: cite a test the head has (test-name)"

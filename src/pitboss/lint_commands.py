@@ -4,8 +4,9 @@ import argparse
 import functools
 import json
 import pathlib
+import subprocess
 import sys
-from typing import Callable, Mapping, Sequence, TypeVar
+from typing import Callable, Collection, Mapping, Sequence, TypeVar
 
 from gather.commands import add_argument
 
@@ -167,7 +168,30 @@ def _test_names(args: argparse.Namespace, subject: forms.Subject) -> Sequence[st
     root = pathlib.Path(args.checkout)
     if not root.is_dir():
         raise _fail(f"--checkout {args.checkout}: not a directory")
-    return testnames.findings(subject.name, subject.body, root)
+    return testnames.findings(subject.name, subject.body, root, _removed(args, root))
+
+
+def _removed(args: argparse.Namespace, root: pathlib.Path) -> Collection[str]:
+    # keyword: superseded-pointer (pitboss#317): the tests the head removes from
+    # its base; a checkout with no such base removes none
+    try:
+        done = args.safe_run(
+            [
+                "git",
+                "-C",
+                str(root),
+                "diff",
+                "-U0",
+                "--no-color",
+                f"{args.base}...HEAD",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return set()
+    return testnames.removed(str(done.stdout))
 
 
 def _review_findings(
@@ -328,6 +352,13 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         default=None,
         help="pr-body: the head's checkout; every test_... name the Plan or"
         " Execution cites needs a `def` of it in the tree (not given: not checked)",
+    ),
+    add_argument(
+        "--base",
+        default="origin/main",
+        help="pr-body with --checkout: the PR's base; a test_... name the Execution"
+        " says another replaced counts as replaced only when the diff against it"
+        " removes that test",
     ),
     add_argument(
         "--config",

@@ -3,18 +3,21 @@
 A Plan's Impact list was whatever its author thought to search for, and reviews
 found the statements it missed (30 of 94 findings of one day were impact lists or
 dispositions missed). ``pitboss plan-check`` builds the phrases from the diff
-itself, from what it removes (the statements the change may make false):
+itself, from the lines it removes (the statements the change may make false) and
+the lines it adds (the statements the change makes):
 
-* each removed line of a ``.md`` or ``.rst`` file, and of a docstring or help
-  string of a ``.py`` file (its first words, as written);
-* each removed ``def``, ``class`` or constant, in the forms ``come_first``,
-  ``come-first`` and ``come first`` (``SWEEP_REMINDER`` and ``SWEEP REMINDER``);
-  a test name is one;
-* the function or class whose docstring lost a line, so its callers are searched.
+* each changed line of a ``.md`` or ``.rst`` file, and of a docstring or help
+  string of a ``.py`` file (its first words, as written; an added line is read
+  in the head's file, a removed one in the base's);
+* each ``def``, ``class`` or constant on a changed line, in the forms
+  ``come_first``, ``come-first`` and ``come first`` (``SWEEP_REMINDER`` and
+  ``SWEEP REMINDER``), whatever the length of its name; a test name is one;
+* the function or class whose docstring has a changed line, so its callers are
+  searched.
 
 ``impact-phrase`` is the finding for each phrase that no Impact row searches (a
 row searches it when one of its phrases holds it, in any case). The module reads
-no file: the patch and a reader of the base's files are given.
+no file: the patch and readers of the base's and the head's files are given.
 """
 
 import ast
@@ -26,12 +29,11 @@ from typing import Callable, Mapping, Sequence
 CHECK = "impact-phrase"
 Read = Callable[[str], str | None]
 MARKUP = (".md", ".rst")
-HEADER = re.compile(r"^@@ -(\d+)(?:,\d+)? \+\d+(?:,\d+)? @@")
+HEADER = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 DEFINITION = re.compile(r"^\s*(?:async\s+)?(?:def|class)\s+(\w+)")
 CONSTANT = re.compile(r"^([A-Z][A-Z0-9_]*)\s*(?::[^=]+)?=")
 WORDS = 6
 MIN_WORDS = 3
-MIN_NAME = 5
 LETTERS = re.compile(r"[A-Za-z]{4}")
 LEADING = re.compile(r"""^[\s#*>|`"'.:-]+""")
 
@@ -42,35 +44,55 @@ class Want:
 
     Attributes:
         phrase: the words, as written.
-        where: the ``path:line`` of the removed line it comes from.
+        where: the ``path:line`` of the changed line it comes from.
     """
 
     phrase: str
     where: str
 
 
-def removed(patch: str) -> Mapping[str, Sequence[tuple[int, str]]]:
-    """The lines a ``git diff -U0`` removes, by file.
+Lines = Mapping[str, Sequence[tuple[int, str]]]
+
+
+def _file(text: str, prefix: str) -> str:
+    # the name a "---" or "+++" line gives, without its prefix; empty for no file
+    name = text.split("\t")[0].removeprefix(prefix).strip('"')
+    return "" if name == "/dev/null" else name
+
+
+def changed(patch: str) -> tuple[Lines, Lines]:
+    """The lines a ``git diff -U0`` removes and adds, by file.
 
     Args:
         patch: the diff.
 
     Returns:
-        For each file's old name, its removed lines as ``(line in the base,
-        text)``.
+        The removed lines by their file's old name, as ``(line in the base,
+        text)``, and the added lines by their file's new name, as ``(line in
+        the head, text)``.
     """
-    found: dict[str, list[tuple[int, str]]] = {}
-    old, number = "", 0
+    gone: dict[str, list[tuple[int, str]]] = {}
+    new: dict[str, list[tuple[int, str]]] = {}
+    old = fresh = ""
+    before = after = 0
+    inside = False
     for line in patch.splitlines():
-        if line.startswith("--- "):
-            old = line[4:].split("\t")[0].removeprefix("a/").strip('"')
-            old = "" if old == "/dev/null" else old
+        if line.startswith("diff --git "):
+            inside = False
+        elif not inside and line.startswith("--- "):
+            old = _file(line[4:], "a/")
+        elif not inside and line.startswith("+++ "):
+            fresh = _file(line[4:], "b/")
         elif (header := HEADER.match(line)) is not None:
-            number = int(header.group(1))
-        elif line.startswith("-") and old and not line.startswith("---"):
-            found.setdefault(old, []).append((number, line[1:]))
-            number += 1
-    return found
+            inside = True
+            before, after = int(header.group(1)), int(header.group(2))
+        elif inside and line.startswith("-") and old:
+            gone.setdefault(old, []).append((before, line[1:]))
+            before += 1
+        elif inside and line.startswith("+") and fresh:
+            new.setdefault(fresh, []).append((after, line[1:]))
+            after += 1
+    return gone, new
 
 
 def _first_words(text: str) -> str:
@@ -82,8 +104,6 @@ def _first_words(text: str) -> str:
 
 
 def _name_forms(name: str) -> Sequence[str]:
-    if len(name) < MIN_NAME:
-        return []
     return list(dict.fromkeys([name, name.replace("_", "-"), name.replace("_", " ")]))
 
 
@@ -124,24 +144,32 @@ def _python(path: str, lines: Sequence[tuple[int, str]], source: str) -> list[Wa
     return found
 
 
-def wanted(patch: str, base: Read) -> Sequence[Want]:
-    """The phrases the diff's removed lines need a row for.
+def _phrases(lines: Lines, read: Read) -> Sequence[Want]:
+    # the phrases of one side of the diff, read in the file of that side
+    found: list[Want] = []
+    for name, each in lines.items():
+        if name.endswith(MARKUP):
+            found.extend(
+                Want(phrase=_first_words(t), where=f"{name}:{n}") for n, t in each
+            )
+        elif name.endswith(".py"):
+            found.extend(_python(name, each, read(name) or ""))
+    return found
+
+
+def wanted(patch: str, base: Read, head: Read) -> Sequence[Want]:
+    """The phrases the diff's removed and added lines need a row for.
 
     Args:
         patch: the diff (``git diff -U0``).
         base: reads a file of the PR's base; None when it is not there.
+        head: reads a file of the PR's head; None when it is not there.
 
     Returns:
         Each distinct phrase (in any case), with the first line it came from.
     """
-    found: list[Want] = []
-    for name, lines in removed(patch).items():
-        if name.endswith(MARKUP):
-            found.extend(
-                Want(phrase=_first_words(t), where=f"{name}:{n}") for n, t in lines
-            )
-        elif name.endswith(".py"):
-            found.extend(_python(name, lines, base(name) or ""))
+    gone, new = changed(patch)
+    found = [*_phrases(gone, base), *_phrases(new, head)]
     kept = {each.phrase.lower(): each for each in reversed(found) if each.phrase}
     return sorted(kept.values(), key=lambda each: each.where)
 
@@ -161,7 +189,7 @@ def uncovered(
     """
     held = [" ".join(each.lower().split()) for row in searched for each in row]
     return [
-        f"{CHECK}: the diff removes {each.where}, and no Impact row searches"
+        f"{CHECK}: the diff changes {each.where}, and no Impact row searches"
         f" `{each.phrase}`: add `pitboss impact {shlex.quote(each.phrase)}` and a"
         " disposition for each hit"
         for each in wants
