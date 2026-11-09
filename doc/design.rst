@@ -70,17 +70,6 @@ What was project-specific, and where it went
      - ``[slots] ledger`` (default ``<main_clone>/.git/pitboss-slots.json``:
        per clone, never committed); the slot log beside it is ``[slots] log``
        (default: the ledger's name ending in ``.log``)
-   * - ``sonnet1 sonnet2 haiku1``, and "haiku before sonnet"
-     - ``[slots] models`` (smallest first) and ``[[slots.default]]`` (the
-       name and model of each slot). Neither has a default: how many slots
-       there are and what runs in them is the project's, and ``slots add``
-       and ``slots remove`` change the count later
-   * - ``p0 p1 p2``, p3 never
-     - ``[slots] priority_labels`` (default none): a ticket with none of
-       them is never offered
-   * - "a ticket marked as needing a Sonnet"
-     - ``[slots] model_labels``: a label that names the smallest model a
-       ticket may go to
    * - "stop opening new quire pull requests until the existing ones are
        finished" (the owner, 2026-10-30)
      - ``[holds] new_pull_requests`` (repositories, default none) and

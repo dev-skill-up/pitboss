@@ -109,7 +109,7 @@ this file), so every row says "already there" and names what stays.
 
 `worker.md` and `reviewer.md` are the agent definitions a brief points at ("the worker rules of
 the repository"). Research for where `worker.md` lands: `rules.md`, "Briefs and workers",
-"Reviews" and "Tickets", `slots.md`, "Briefs", and `engineering.md` already hold every
+"Reviews" and "Tickets", and `engineering.md` already hold every
 paragraph of it that is not quire's, so a `worker.md` in pitboss would copy them and no file is
 new. `adversarial-review.md` is the file a started reviewer reads, so `reviewer.md` lands there.
 
