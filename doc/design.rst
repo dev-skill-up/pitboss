@@ -360,7 +360,7 @@ Commands
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
    * - ``slots show|set|free|add|remove|failed|check|next|report|time CONFIG ...``
-     - The worker-slot ledger, and the sorted list of what to start next. Every
+     - The worker-slot ledger. Every
        one but ``report`` and ``time`` exits 1 with ``LEDGER MISSING`` and writes nothing when
        the ledger file does not exist (the owner creates it; only ``sweep`` starts
        one from the configured defaults). ``set`` takes ``--kind`` (``start``,
