@@ -128,15 +128,13 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         assert_that(listed, equal_to(""))
 
     def test_new_head(self) -> None:
-        """A head that moved is older-head, with the body edit or without."""
+        """A head that moved by no code is older-head, with the body edit or without."""
         for body in (EDITED, fakes.PLAN_AND_EXECUTION):
             with self.subTest(body[-10:]):
                 swept, listed = looked_at([review(1, OLD_LINE, OLDER)], body)
                 assert_that(swept, contains_string("review=older-head"))
                 assert_that("older-body" in swept, equal_to(False))
-                assert_that(
-                    listed, contains_string("(review the fix round's findings only")
-                )
+                assert_that(listed, equal_to(""))  # no code moved: the ruling is due
 
 
 class TestTheDigest(unittest.TestCase):
