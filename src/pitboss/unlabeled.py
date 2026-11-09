@@ -1,4 +1,4 @@
-"""The tickets with no priority label, printed first (keyword: unlabeled, pitboss#94).
+"""The tickets with no priority label, printed first (pitboss#94).
 
 The work order is strict only when every ticket has a priority label: a ticket
 with none has nothing to sort by. ``slots next``, ``next`` and the sweep print a
@@ -45,7 +45,9 @@ def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
 
     def read(repo: config.Repo) -> Sequence[shapes.Issue]:
         path = f"repos/{repo.slug}/issues?state=open"
-        return ghapi.pages(github, path, parsing.issues)
+        # the list holds PRs: a full page with one among it is not the last page
+        entries = ghapi.pages(github, path, parsing.issue_entries)
+        return [each for each in entries if each is not None]
 
     found = [
         (each.created_at, f"{repo.slug}#{each.number}")

@@ -3,7 +3,7 @@
 pitboss#294: the sweep offered a fix-round review whose diff was ``git diff
 85ec0de..85ec0de`` for a PR whose Plan was approved after an Opus ruling and
 whose body was then filled in (bats-lang/zip#97 and bats-lang/quire#1060 are
-its other two reproductions). Keywords: fix-round, ruling-posted,
+its other two reproductions). Keywords: fix-round,
 unwritten-execution.
 """
 

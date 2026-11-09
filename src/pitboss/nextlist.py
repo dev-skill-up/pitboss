@@ -26,6 +26,7 @@ from . import (
     pulls,
     pullstate,
     readyline,
+    slotheld,
     slotholding,
     suggest,
     unlabeled,
@@ -97,7 +98,7 @@ def require_ledger(path: pathlib.Path) -> None:
 
 
 def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
-    # keyword: slot-derived (pitboss#94): the agents that run, not the hand's rows
+    # pitboss#94: the agents that run, not the hand's rows
     return slotholding.derived(book, getattr(found.args, "running", None))
 
 
@@ -114,6 +115,8 @@ def _assigned(
 ) -> Sequence[work.Assignment]:
     # a PR whose round holds a slot is not given another one (keyword: slot-held)
     taken = ordered.occupancy
+    if not taken.known:
+        return []
     rest = [each for each in ordered.items if each.reference not in taken.references]
     return work.assign(rest, book, slots)[: taken.free]
 
@@ -211,4 +214,8 @@ def refill(
         name: the slot.
     """
     book = _live(found, book)
-    print(nextview.refill_line(_view(found, _ordered(found, opened, book), book), name))
+    ordered = _ordered(found, opened, book)
+    if not ordered.occupancy.known:
+        print(slotheld.NOT_COMPUTED)
+        return
+    print(nextview.refill_line(_view(found, ordered, book), name))

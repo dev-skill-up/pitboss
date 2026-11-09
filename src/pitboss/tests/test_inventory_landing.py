@@ -20,13 +20,7 @@ CI_HEADING = "## CI is pinned"
 FLAGGED = ("MISSING", "STAYS-IN-QUIRE")
 TICKET_ROW = "MISSING orchestration.md Tickets one ticket, one PR, split only when "
 BLOCKED_ROW = "MISSING orchestration.md Tickets blocked is not started"
-SLOTS_ROWS = [
-    "MISSING worker.md not-done form",
-    "MISSING qsweep order of the next item",
-    "MISSING slots set and free (split)",
-    "MISSING slots check",
-    "MISSING slots check before you answer",
-]
+SLOTS_ROWS = ["MISSING worker.md not-done form"]
 
 Planter = Callable[[pathlib.Path], None]
 

@@ -34,7 +34,7 @@ class NextView:
         failed: each reference's failed models.
         now: the time now.
         withheld: the tickets the owner's hold keeps back and each held
-            repository's open count (keyword: pr-hold).
+            repository's open count.
         blocked: the tickets that cannot be worked on until an open ticket or
             PR (keyword: ticket-blocked).
         ready: the texts of the NEXT lines of the drafts to mark ready, printed
@@ -112,7 +112,7 @@ def next_lines(view: NextView) -> Iterable[str]:
         yield blockedline.line(item.reference, item.blocker)
     yield from slotheld.lines(view.occupancy)
     if not view.assignments and not slotheld.lines(view.occupancy):
-        yield "slots: the ledger says all full: start nothing"
+        yield "slots: all full: start nothing"
     for slot, chosen in view.assignments:
         yield empty_slot_line(slot, chosen, view)
 

@@ -151,18 +151,21 @@ def picks(source: Source) -> Sequence[Pick]:
 
     Returns:
         The PRs at an Opus ruling, oldest first, then the queued work; with no
-        free slot only the rounds of PRs that hold one (keyword: slot-held).
+        free slot only the rounds of PRs that hold one (keyword: slot-held), and
+        with the agents not known only the rulings.
     """
     by_reference = {pulls.reference(each): each for each in source.facts}
     ruled = sorted(
         (each for each in source.facts if each.step.step is steps.Step.OPUS_RULING),
         key=lambda each: each.pull.created_at,
     )
+    # with the agents not known no slot is known to be free: only the rulings
+    starts = source.items if source.occupancy.known else ()
     return [
         *map(_ruling_pick, ruled),
         *(
             _queued_pick(each, by_reference)
-            for each in source.items
+            for each in starts
             if not slotheld.waits(source.occupancy, each.reference)
         ),
     ]

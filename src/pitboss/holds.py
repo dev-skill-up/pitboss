@@ -1,4 +1,4 @@
-"""The owner's hold on new pull requests (keyword: pr-hold).
+"""The owner's hold on new pull requests.
 
 The owner's order (2026-10-30T00:32Z, "Why are you opening more in quire.
 Finish existing"; pitboss#151) is to open no new pull request in a repository

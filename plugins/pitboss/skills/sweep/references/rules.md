@@ -55,115 +55,6 @@ do the right thing based on pitboss data. Check the ticket/pr it talks about
 and see what the state is. That does not excuse you from running it first.
 Only override for bugs, but do override for bugs (and then file them)".
 
-1. **List the agents first.** The session's agent listing is the only truth
-   about what runs: run it before any statement about what is running, which
-   slot is free or whether a worker is alive. The ledger is kept by hand and
-   goes stale (a dead agent still shows in it); it is a note to correlate with
-   the listing. "All slots are full" is said only after the listing shows a
-   live agent for every row of the ledger. Count every running agent, workers
-   and reviewers, including one that shows as completed but still runs
-   background work.
-2. **A free slot is filled the same turn, in this order**: the open pull
-   requests that can be worked on, oldest first by their creation date across
-   every repository of the project, then the oldest ticket of the highest
-   priority. The owner's ruling (owner, 2026-10-26T13:57:38Z, bats-lang/quire
-   transcript line 105684): "No, among them oldest first."; and on which
-   pull request can be worked on (owner, 2026-10-26T14:05:11Z, line 105788):
-   "if it is not green and not red, it can't be worked on". No kind of work
-   ranks a pull request above an older one, except the merge of a ready one
-   (Order of work, 3) and then a `STALL` (below), whose fix comes before every
-   other pull request but that merge: otherwise the state of a pull
-   request says what it needs, not where it stands in the order. A pull
-   request whose review rounds hit the changes-needed limit (`RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, "Plan first", below) is outside this order: it is offered for no
-   fix, update or review round until the ruling is recorded or the owner
-   decides. On who takes a fix
-   (owner, 2026-10-21T03:18:18Z): "it doesn't have to be "the same". It just
-   has to be an author".
-   - red (a failed check or status, or a review that asked for changes at this
-     head; not a failed check that passed on the base since, in a repository
-     under `[merge_queue] repositories`: that PR is reviewed or enqueued, as
-     "Merge conflicts" says) or in conflict with the base: a fix, by any author (a conflict is
-     fixed as a red CI is: merge the base in, resolve, check, push, and for a PR
-     with a Plan or Execution body set its last `Head:` line to the merge head
-     and rerun the Plan's commands through `pitboss expand`, the body being
-     the only other change); where the
-     review did not approve the plan, the fix is a revision of the plan and
-     nothing else ("Plan first", below; kind `revise the plan` in `slots
-     next`); not when the pull request has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`;
-   - **a `STALL` is a fix taken before every other pull request but the merge of a ready one.** A relock pull request
-     (head branch starting `relock/`) whose required `check` has been red for
-     more than four hours (14400 seconds from the run's `completed_at`) is
-     fixed before any other pull request but the merge of a ready one, because the next
-     relock fails on the same errors until the fix lands. Among several
-     stalled, oldest first. It jumps the queue and interrupts no worker
-     (Order of work, 1), a merge of a ready pull request still comes before it
-     (Order of work, 3: a merge is not a fix), and its pushes keep the
-     runner-pressure hold; a stalled pull request that also has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` waits for the ruling or the owner first;
-   - behind the base, its checks finished, in a repository with no merge
-     queue: an update (merge the base in, check, push; the `UPDATE` line of a
-     sweep; `slots next` lists the PR by the flow's step alone, which has no
-     update step); where a merge queue builds each
-     entry on the current base (`[merge_queue] repositories`), behind is no
-     work, and neither is a red CI whose failed checks all passed on the base
-     since (see "Merge conflicts");
-   - green on its exact head with no review of that head, or only one that
-     approved the Plan alone: while the newest readable Opus
-     ruling is newer than every review and no check run of the head started after it
-     (keyword: ruling-posted, pitboss#294), the step is the ruling's own (`do the
-     ruling's steps`, `revise the plan`, ...), because the ruling is not applied yet;
-   - reviewed approved at its head and green: a merge; before merging, read the Notes of the newest review (pitboss#240, keyword: review-note): a note that names a case of the goal the change does not handle is a finding and starts a fix round, not a ticket (the sweep prints `REVIEW NOTE` for such a note);
-   - its checks still running: neither green nor red, so skipped until they
-     finish, and not a reason to hold the free slot; so is a pull request on
-     the orchestrator's blocked list.
-
-   Never a new ticket while a pull request that can be worked on waits (a pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` cannot be). The
-   `NEXT` lines are printed by `pitboss slots next`: a
-   line for each draft whose Plan is approved (`mark the PR ready:
-   update_pull_request draft=false`, or, while the runners show a hold, the
-   hold and its end; an action of the orchestrator, no round and no slot,
-   pitboss#273); then the open pull requests
-   that the flow's step (`pitboss.flow.next_step`) gives a round, oldest first
-   with the kind shown on each line, and then the tickets by priority label
-   and age (a ticket of a repository under the owner's hold is printed `HELD`
-   instead, not numbered and not offered). The kind is the step alone. A `REGULAR_REVIEW` step is `review it`, whatever its
-   stage, a plan-only review included (a draft's, or that of a Plan revised
-   after its rejection on a PR that is not a draft), except that after a review
-   of changes needed whose head is older than the current one (keyword:
-   fix-round, pitboss#294) it is `review the fix round's findings only`, unless
-   the review rejected the Plan, in which case it is `review it` with the Plan
-   alone graded; a body fixed at one head, or an approval, is never a fix round
-   (its diff would have one SHA twice). A red CI and a conflict are printed by the sweep as `FAILED` and
-   `CONFLICT`. `slots next` offers a red CI as the worker's round (`fix the
-   CI`) whatever the stage but a wait (below, pitboss#183) and but a red head
-   whose failed checks all passed on the base since, in a repository under
-   `[merge_queue] repositories` (`FIXED ON BASE`; its step is the one a green
-   head has), and a conflict as `resolve the conflict` at every
-   stage, a draft's and a red CI's too, before the draft, CI and review gates (a
-   dirty head runs no CI, pitboss#148). The exceptions are the waits: a pull
-   request with the paused-owner label, `RULING UNREADABLE`, `RULING DUE`,
-   `PAUSE`, `RULING ESCALATES` or `PLAN EDITED` is offered for no round (a clean
-   draft and a PR with a red CI included: `waiting_step`, pitboss#183), and its
-   conflict waits for the ruling, the owner or, for `PLAN EDITED`, until the
-   approved Plan is restored or a ruling allows the edit (`flow.next_step`,
-   `steps.WAITS`; the Opus ruling on pitboss#181, pitboss#172). A ruling's own work step (`do these steps`, `revise the
-   plan`, `split`, `reshape`, `abandon`) comes after the conflict: the conflict
-   is pushed first and the ruling's step comes back. So the pull requests the
-   sweep prints `CONFLICT` for, less those waits, are the ones `slots next` lists
-   as `resolve the conflict`, before any ticket, oldest first. A merge is only a `READY TO MERGE` or
-   `MERGE BY HAND` line of the sweep, with no `NEXT` line. A
-   merge of a ready pull request comes first (Order of work, 3), then a
-   `STALL` fix, before every `NEXT` line and every other pull request. A pull
-   request with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` has no `NEXT` line: `slots next` leaves
-   it out, and its ticket stays taken.
-   - **The order of work of 2026-10-28** (orchestrator, 2026-10-28, the
-     owner's ruling of that date): open pull requests come first, oldest
-     first, whatever each needs (a fix of a red CI, an answer to a review that
-     asked for changes, or a revision of a plan it did not approve, an update of a PR that is behind (not in a repository under `[merge_queue] repositories`), a review of a green
-     PR, a merge of a PR that is reviewed approved and green), except that a
-     merge of a ready pull request comes first (Order of work, 3) and a `STALL`
-     fix next, before every other pull request, and except a pull request with
-     `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, which is offered for no round. Only then the
-     tickets, by priority, and within a priority by age.
 3. **A reviewer starts only when every required check is finished and green
    on the exact head.** A PR whose CI is still running is not reviewed, and a
    review of a PR in progress is never started to fill a slot. A head with no
@@ -173,38 +64,6 @@ Only override for bugs, but do override for bugs (and then file them)".
    hand-back starts ("Plan first"). A Plan
    revised on a PR that is not a draft waits for CI like any review, and is then
    graded alone (pitboss#167).
-4. **The rows of the ledger are the agents that run, reviewers included**
-   (orchestrator, 2026-10-18). The ledger is authoritative on how many; only an
-   explicit instruction from the owner ("Add a slot", "Remove", "Change")
-   changes its rows (owner, 2026-10-27: "do not make assumptions: only
-   explicit requests are to change the number of slots"), and who sits in a row
-   is the orchestrator's. No text names the count, so a text cannot go stale
-   when the owner changes it. The owner's words (owner, 2026-10-18T04:35:18Z):
-   "Please fix slots to also warn about too many agents".
-   - **The cap is a hard ceiling and a target** (coordinator,
-     2026-10-29T01:19Z: "Cap is a hard ceiling. If a review is next while both
-     slots are busy, it waits for the first slot that frees. Count every
-     reviewer and every worker still running (including ones waiting on
-     background work) before dispatching."; orchestrator, 2026-10-28, the
-     owner's ruling of that date): the number of agents is never over the rows
-     and never under them. Before any spawn or resume, count the running agents
-     against the rows; a resume of a finished agent is a start.
-5. **A slot is never held idle** (owner, 2026-10-19T02:00:17Z: "Never, under
-   any circumstances, is an empty slot acceptable. This is a hard rule"). Not
-   for a fix that is coming, not for a better fit, not for a hold on pushes.
-   "Nothing fits" is not an answer: take a conflicted PR (not one with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, which waits for the ruling or the owner), or the next ticket
-   that can be worked in the project's order, which is the next one down when
-   every ticket above it is in a worker's hand, blocked or held (item 6 of the order of work; owner,
-   2026-10-26T03:03:00Z: "THE RULES SAY SLOTS ARE NEVER EMPTY";
-   2026-10-26T04:32:05Z: "IT SAT EMPTY BECAUSE YOU DIDN'T FILL IT"). Record
-   each spawn in the ledger.
-   - A `waiting for CI` line, or any wait line, is never a reason to leave a
-     slot empty: start the item the `EMPTY SLOT` line names at once. A pull
-     request that becomes ready while the slot is full waits for the slot, and
-     the running agent is never interrupted (owner, 2026-11-05: the cap is a
-     target, never under and never over; pitboss#244). The sweep prints
-     `SLOT IDLE <slot> (<n> minutes)` for a slot empty over 2 minutes while
-     work is queued.
 6. **An interrupt that killed agents is not a stop** (owner,
    2026-10-21T04:29:23Z): "Yes. Unless I explicitly say "quiesce agent",
    assume I still want agents running, just doing the right thing." A killed
@@ -238,13 +97,6 @@ Only override for bugs, but do override for bugs (and then file them)".
    exception to the "don't do predictive scheduling" that I'm willing to live
    with, because there merges cost a lot of extra churn, locally, not just CI,
    in regenerating").
-9. **Every agent takes the highest-priority, oldest ticket it can fix.** An
-   agent unsure takes the oldest top-priority ticket; it is never asked whether
-   it can. Judge by the outcome: a diff that is totally off, or a worker that
-   stops midway, is enough to decide it cannot; then the ticket goes to a more
-   capable agent and the one that could not takes the next. A ticket is never
-   skipped or reordered for a guessed conflict with an open PR: conflicts are
-   resolved at merge time.
 10. **Reviewers are separate agents from the author**, one at a time, briefed
     with the repository's own rules, the issue's goal and the kind of change.
     No invented threat models. Never say "human review". A review is never
@@ -263,9 +115,6 @@ Only override for bugs, but do override for bugs (and then file them)".
     `/session_...` suffix of the generated-by footer's link; a session URL in
     prose, and any other link, is text like any other. A body that carries the line is not a defect
     and no round is spent removing it.
-11. **The Opus agents take no row.** The ruling agent and the agent that
-    predicts the owner (below) are not rows (owner, 2026-10-26T02:31:20Z: "does
-    not take a slot and does not add a slot").
 12. **An agent that stops before the ticket is done is not given that ticket
     again** (owner, 2026-10-22T02:00:50Z: "IF IT STOPS WITHOUT COMPLETING, YOU
     BAN [the cheaper agent] FROM THE TICKET FOREVER"; 2026-10-21T10:26:18Z:
@@ -275,19 +124,9 @@ Only override for bugs, but do override for bugs (and then file them)".
     has found too weak for the ticket. An agent banned from every top-priority
     ticket takes the next priority (owner, 2026-10-22T02:16:42Z: "if it's
     banned from all p0, GO INTO P1").
-13. The ledger is `pitboss slots` (`slots.md`). Update it at every spawn and
-    every completion.
 
 ## Merge conflicts
 
-- A PR with a merge conflict is next in line for work (owner,
-  2026-10-18T20:05:02Z: "If an open PR has conflicts, that counts as "PR in
-  progress" for our rules that PRs in progress trump everything. It shouldn't
-  stop a worker, but it should be next in line for work."). It is a fix among
-  the open pull requests of Agents and slots 2, in their one list oldest first:
-  it does not stop a worker that is running, but it waits for the next free
-  slot in that order. A conflicted pull request with the paused-owner label, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` is
-  offered for no round: its conflict waits for the ruling, the owner or the restoring of the Plan.
 - Most conflicts are small: merge the base in, resolve, regenerate lockfiles
   and generated files with the repository's own tooling, check, push. For a PR
   with a Plan or Execution body, the same round sets the body's last `Head:`
@@ -350,64 +189,6 @@ Only override for bugs, but do override for bugs (and then file them)".
     73778: "I don't need tickets that comment on something with measurement.").
   - **p3:** everything else; a session may file p3 issues but does not work on
     them.
-- **Order of work.** The owner's words (owner, 2026-10-22T11:51:04Z, transcript
-  line 71275): "Worker in progress first", "Open pr second", then "P0", "P1",
-  "P2", and "Within a category, oldest wins." So:
-  1. A worker in progress is never stopped for a new priority, unless it is an
-     emergency (owner, 2026-10-20T00:50:04Z, line 47690: "If a worker works on
-     it, unless it's an emergency, it should be allowed to finish.")
-     "Prioritize" means jump the queue, not interrupt, unless the owner says to
-     stop a worker (owner, 2026-10-22T02:13:24Z, line 68885: "unless I
-     explicitly say to stop a worker, "prioritize" means jump the queue, not
-     interrupt").
-  2. An open pull request is finished, whatever its priority (owner,
-     2026-10-20T00:50:04Z, line 47690: "If a PR is open and no worker is
-     working on it, and it's still relevant, regardless of priority, it should
-     be finished."), oldest first, with nothing else ranking them except a merge of a ready
-     one (3, below) and a `STALL` (a fix taken before every other pull request
-     but that merge, above), and with no round offered for a pull request held
-     by `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` until the ruling or the owner: a fix does
-     not come before an older review (owner, 2026-10-26T13:57:38Z, line 105684:
-     "No, among them oldest first."). A pull request that is neither green nor
-     red cannot be worked on (owner, 2026-10-26T14:05:11Z, line 105788: "if it
-     is not green and not red, it can't be worked on").
-  3. A pull request that is ready to merge is merged before anything else
-     (a `STALL` fix included: a merge is not a fix),
-     still within the pressure rules (owner, 2026-10-26T19:34:21Z, line
-     109484: "merging PRs that are ready to be merged takes priority over
-     everything else"; 2026-10-26T19:37:01Z, line 109557: "first, but still
-     respectful of pressure rules").
-  4. Then tickets: p0, then p1, then p2, oldest opened first. A p1 is not
-     started while a p0 can be worked; a p0 that a worker has in hand, that
-     is blocked, or that is held (6, below), cannot be, and an agent row is never left empty for the order
-     (owner, 2026-10-26T03:03:00Z, line 100831: "THE RULES SAY SLOTS ARE NEVER
-     EMPTY"; 2026-10-21T10:45:34Z, line 61554: "I said explicitly that PRs in
-     flight trump everything else").
-  5. A blocked ticket has no priority while it is blocked, and its blockers
-     inherit its priority and its age (owner, 2026-10-22T11:52:56Z, line
-     71296: "A blocker inherits age from what it blocks."; 2026-10-26T04:49:16Z,
-     line 103163: "while it's blocked, it has NO priority. Something from 120BCE
-     with priority 0 is not worked on if it has blockers. The blockers inherit
-     the priority."). A blocked ticket is not started, not even for a piece of
-     it (owner, 2026-10-24T04:51:42Z, line 82652: "DON'T START THE AGENT").
-  6. **A hold on new pull requests** (keyword: pr-hold). The owner, on seeing
-     24 open quire pull requests (owner, 2026-10-30T00:32Z: "Why are you
-     opening more in quire. Finish existing"); the sentence of
-     dev-skill-up/pitboss#151, "stop opening new quire pull requests until the
-     existing ones are finished", is the ticket's paraphrase of it and is not
-     the owner's. In a repository the project's configuration lists under
-     `[holds] new_pull_requests`, no new pull request is started while more
-     than `max_open` (default 0) of its pull requests are open. `slots next`
-     prints each ticket of such a repository as `HELD`, with no `NEXT` number;
-     `slots free`, `next` (the suggestions) and the sweep's `SLOTS FREE` count
-     leave it out too, and the sweep prints one `HOLD` line. A held ticket is
-     not a ticket that "can be worked": it does not block a lower priority and
-     does not leave the slot idle, the next ticket takes it. The open pull
-     requests of the repository are finished as in 2 and 3, and the order of
-     everything else is unchanged. `pitboss next <config> <ticket>` with a held
-     ticket as its argument is not covered: it still prints the ticket's first
-     step, so do not start the ticket by hand. The hold is the owner's to set
-     and to lift, in the configuration; a priority does not override it.
 - **No downgrades without the owner's word.** Downgrading a ticket to p3 on
   judgement (minor impact, high cost), or to any other priority, needs the
   owner's approval. An issue's priority is the owner's call: a worker that

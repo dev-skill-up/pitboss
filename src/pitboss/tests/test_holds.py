@@ -1,4 +1,4 @@
-"""The owner's hold on new pull requests (pitboss#151, keyword: pr-hold).
+"""The owner's hold on new pull requests (pitboss#151).
 
 The cause: ``slots next`` printed ``NEXT 1. bats-lang/quire#1043 (start a PR
 ...)`` while three quire PRs were open, because the order of the list (the

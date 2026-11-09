@@ -196,13 +196,16 @@ def _check(found: Context, book: ledger.Ledger) -> None:
 
 def _print(found: Context, book: ledger.Ledger) -> None:
     # the PRs are not read here: only the live agents that hold no slot count
-    taken = slotholding.occupy((), book, found.args.running)
+    taken = slotholding.written((), book, found.args.running)
     slotreport.print_ledger(book, taken)
 
 
 def _shown(found: Context, book: ledger.Ledger) -> None:
-    # keyword: slot-derived (pitboss#94): the rows are the live agents', not the hand's
-    _print(found, slotholding.derived(book, found.args.running))
+    # pitboss#94: the rows are the live agents', not the hand's
+    running = found.args.running
+    derived = slotholding.derived(book, running)
+    taken = slotholding.occupy((), derived, running)
+    slotreport.print_ledger(derived, taken, derived=True)
 
 
 def _refuse(message: str) -> SystemExit:
@@ -266,7 +269,7 @@ HAND_BACKS = frozenset({Action.FREE, Action.HEARD})
 
 def _require_owner(found: Context) -> None:
     # The ledger is neither read nor changed by a configuration that is not
-    # the orchestrator's (keyword: ledger-owner).
+    # the orchestrator's.
     path = configfile.locate(
         configfile.named(found.args), configfile.working_directory(found.args)
     )
