@@ -109,12 +109,13 @@ class TestWorkerBriefs(unittest.TestCase):
 
     def test_the_brief_bans_removing_under_dev_and_never_writing_to_it(self) -> None:
         """Only removing files under /dev is banned; a redirect to it is fine (#424)."""
-        body = text(brief.Kind.NEW_PR)
-        has_all(
-            body,
+        pinned(
+            brief.Kind.NEW_PR,
             ["never remove files under /dev (redirecting to /dev/null is fine)."],
         )
-        has_none(body, ["never write under /dev", "write under /dev"])
+        has_none(
+            text(brief.Kind.NEW_PR), ["never write under /dev", "write under /dev"]
+        )
 
     def test_a_project_without_drafts_or_holds_says_so(self) -> None:
         """The differences between projects are the configuration's."""
