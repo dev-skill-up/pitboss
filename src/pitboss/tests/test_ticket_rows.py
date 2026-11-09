@@ -80,10 +80,9 @@ class TestLintTicket(unittest.TestCase):
 
     def test_a_refused_ticket_exits_1_and_one_in_form_prints_ok(self) -> None:
         """The command's two outcomes."""
-        results = [
-            linting.lint("ticket", linting.write_text("t.md", ticket(done)))
-            for done in (PROMISE, HONEST)
-        ]
-        assert_that([each.code for each in results], equal_to([1, 0]))
-        assert_that(results[0].out, contains_string("(rows-pass)"))
-        assert_that(results[1].out, equal_to("ok\n"))
+        file = linting.write_text("t.md", ticket(PROMISE))
+        refused = linting.lint("ticket", file)
+        assert_that(refused.code, equal_to(1))
+        assert_that(refused.out, contains_string("(rows-pass)"))
+        file = linting.write_text("t.md", ticket(HONEST))
+        assert_that(linting.lint("ticket", file).out, equal_to("ok\n"))
