@@ -118,6 +118,30 @@ def printed(*words: str) -> tuple[str, object]:
     return done.out, done.code
 
 
+def refusal(word: str) -> bool:
+    """Say whether ``count`` refuses a word on standard error.
+
+    Args:
+        word: the word after the configuration.
+
+    Returns:
+        True when it says what it takes.
+    """
+    return "count takes a priority" in world.again(counting(), "count", word).err
+
+
+def usage_of(command: str) -> str:
+    """The usage text of a command, on one line.
+
+    Args:
+        command: the command.
+
+    Returns:
+        What ``--help`` prints, its white space single.
+    """
+    return " ".join(world.invoke(world.make_world(), command, "--help").out.split())
+
+
 class TestCount(unittest.TestCase):
     """``pitboss count CONFIG [PRIORITY]``."""
 
@@ -139,14 +163,9 @@ class TestCount(unittest.TestCase):
 
     def test_refuses_a_word_that_is_no_priority(self) -> None:
         """Nothing is printed for ``p4`` or ``unlabelled``."""
-        here = counting()
-        for word in ("p4", "unlabelled"):
-            with self.subTest(word):
-                done = world.again(here, "count", word)
-                assert_that(
-                    (done.out, done.code, "count takes a priority" in done.err),
-                    equal_to(("", 2, True)),
-                )
+        words = ("p4", "unlabelled")
+        found = [(*printed(word), refusal(word)) for word in words]
+        assert_that(found, equal_to([("", 2, True)] * len(words)))
 
     def test_a_repository_it_cannot_read_ends_incomplete(self) -> None:
         """The count says what it did not read and exits 1."""
@@ -159,9 +178,7 @@ class TestCount(unittest.TestCase):
 
     def test_the_usage_says_where_the_owner_count_comes_from(self) -> None:
         """A count given to the owner comes from this command, the owner's words."""
-        done = world.invoke(world.make_world(), "count", "--help")
-        said = " ".join(done.out.split())
-        assert_that(OWNER_RULE in said, equal_to(True), said)
+        assert_that(OWNER_RULE in usage_of("count"), equal_to(True))
 
 
 class TestPriority(unittest.TestCase):
