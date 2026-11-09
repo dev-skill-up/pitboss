@@ -84,3 +84,11 @@ class TestSlotIdle(unittest.TestCase):
     def test_slot_the_log_never_saw(self) -> None:
         """A slot with no entry in the log has no time to tell."""
         assert_that(minutes_idle(world.make_world(), 5), equal_to([]))
+
+    def test_slot_whose_agent_is_gone_but_is_logged_started(self) -> None:
+        """A slot the running agents leave empty is not idle until it is freed."""
+        here = world.make_world()
+        start(here)
+        args = ("sweep", here.config, "--now", at(5), "--running")
+        found = TINY_IDLE.findall(world.invoke(here, *args).out)
+        assert_that(found, equal_to([]))
