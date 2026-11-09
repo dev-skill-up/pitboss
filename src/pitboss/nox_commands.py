@@ -102,12 +102,12 @@ def show(ran: Sequence[noxcheck.Step]) -> None:
     failed = ran[-1]
     if failed.outcome.status:
         sys.stdout.write(failed.outcome.output)
-        for each in noxcheck.rerun_of(failed):
-            print(each)
+        for line in noxcheck.rerun_of(failed):
+            print(line)
     else:
         print(noxcheck.PROOF)
-    for each in noxcheck.summary_of(ran):
-        print(each)
+    for line in noxcheck.summary_of(ran):
+        print(line)
     if failed.outcome.status:
         raise SystemExit(1)
 

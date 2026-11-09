@@ -16,6 +16,7 @@ from collections.abc import Callable, Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from . import diffrepo, test_nox, test_noxfile, world
+from .test_nox_report import SECONDS
 from .test_nox_selection import real_git
 
 NEW_MODULE = (
@@ -167,6 +168,6 @@ class TestChangedCoverage(unittest.TestCase):
         for text, wanted in expected.items():
             with self.subTest(wanted[2]):
                 found = run_diff(self, text)
-                last = test_nox.SECONDS.sub("", found.out.strip().rpartition("\n")[2])
+                last = SECONDS.sub("", found.out.strip().rpartition("\n")[2])
                 got = (bool(MISSING.search(found.out)), found.code, last)
                 assert_that(got, equal_to(wanted))
