@@ -305,6 +305,13 @@ class TestCommands(unittest.TestCase):
         assert_that([each.code for each in ran], equal_to([2, 2, 2]))
         assert_that(ran[0].err, contains_string("/no/such.toml"))
 
+    def test_a_ticket_that_asks_for_repeated_runs(self) -> None:
+        """The Done-when asks for 50 runs: the brief is refused (repeat-runs)."""
+        text = "Done when:\n\n## Done when\n- it works\n- run it 50 times\n"
+        ticket = write_text("ticket.md", text)
+        found = outcome("brief", text, "--ticket", ticket)
+        assert_that(found, equal_to((1, "(repeat-runs)")))
+
     def test_brief_with_a_ticket(self) -> None:
         """--ticket adds the Done-when lines; an unreadable ticket is 2."""
         ticket = write_text("ticket.md", TICKET)

@@ -14,6 +14,14 @@ from typing import AbstractSet, Sequence
 
 LABEL = "MISSING NAMES"
 _DONE_WHEN = re.compile(r"Done-when\s*:(.*?)(?:\n[ \t]*\n|\Z)", re.DOTALL)
+HEADING = re.compile(
+    r"^#+\s*Done when\b[^\n]*\n(.*?)(?=^#+\s|\Z)",
+    re.MULTILINE | re.DOTALL | re.IGNORECASE,
+)
+# the heading of a ticket is "Done when" or "Done-when"; the form lint reads the first
+_EITHER_HEADING = re.compile(
+    HEADING.pattern.replace("Done when", "Done[- ]when"), HEADING.flags
+)
 _SPAN = re.compile(r"`([^`\n]+)`")
 _KIND = re.compile(r"^(?:brief\.)?Kind\.([A-Z][A-Z_]*)$")
 _COMMAND = re.compile(r"^pitboss\s+([a-z][a-z-]*)\b")
@@ -47,6 +55,19 @@ def done_when(body: str) -> str:
     """
     found = _DONE_WHEN.search(body)
     return found.group(1) if found else ""
+
+
+def section(body: str) -> str:
+    """The Done-when of a ticket, as a heading or as a ``Done-when:`` paragraph.
+
+    Args:
+        body: the ticket's text.
+
+    Returns:
+        The section, or "" when there is none.
+    """
+    found = _EITHER_HEADING.search(body)
+    return found.group(1) if found else done_when(body)
 
 
 def names_in(text: str) -> Names:

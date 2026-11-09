@@ -16,9 +16,11 @@ from . import (
     donewhen,
     draftrule,
     fixes,
+    flake,
     ledger,
     nextlist,
     pulls,
+    repeatruns,
     repoaccess,
     shapes,
     steps,
@@ -116,9 +118,22 @@ def _say_missing_names(found: Context, ticket: str) -> None:
         commands=frozenset(commandscan.scanned(ENTRY_DATA.collector.collect)),
         tree=working_directory(found.args),
     )
-    said = donewhen.missing_line(ticket, read.body if read else "", known)
+    body = read.body if read else ""
+    said = donewhen.missing_line(ticket, body, known)
     if said:
         print(said)
+    if repeated := repeatruns.line(ticket, donewhen.section(body)):
+        print(repeated)  # keyword: repeat-runs (pitboss#278)
+    flaky = read is not None and flake.is_flake(read.labels, read.title, body)
+    if flaky and (unmarked := _unmarked(found, ticket)):
+        print(unmarked)
+
+
+def _unmarked(found: Context, ticket: str) -> str:
+    # keyword: flake (pitboss#278): the line is empty when the test is marked
+    tree = working_directory(found.args)
+    globs = configfile.load_brief(configfile.named(found.args), tree).quarantine_globs
+    return flake.unmarked_line(ticket, tree, globs)
 
 
 def _step_of(found: Context, named: str) -> None:

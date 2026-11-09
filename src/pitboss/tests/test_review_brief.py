@@ -7,7 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, brief, plandigest
-from . import briefmake, suggestions, test_flow_sweep, world
+from . import briefmake, fakes, suggestions, test_flow_sweep, world
 
 ONE_LINE_FORM = (
     "[review.form]\n"
@@ -117,6 +117,27 @@ class TestReviewBrief(unittest.TestCase):
         text = brief_of_third(world_with_body(edited))
         assert_that(text, contains_string(digests(edited)[0]))
         assert_that(digests(edited)[0] == digests(BODY)[0], equal_to(False))
+
+    def test_the_review_of_a_flake_ticket_has_the_projects_flake_lines(self) -> None:
+        """The brief ``slots next`` prints for a PR that fixes a p0 test ticket."""
+        line = "Quarantine check: <whether a mark citing the ticket exists>"
+        body = "Fixes owner/project#99\n" + BODY
+        here = world_with_body(
+            body, f'[slots.brief]\nflake_review_lines = ["{line}"]\n'
+        )
+        issue = f"{world.PROJECT}/issues/99"
+        for part in ("comments", "timeline"):
+            here.bodies[fakes.page(f"{issue}/{part}")] = []
+        ticket = {
+            "number": 99,
+            "created_at": "2026-01-01T00:00:00Z",
+            "state": "open",
+            "labels": [{"name": "p0"}],
+        }
+        here.bodies[issue] = {**ticket, "title": "A flaky test"}
+        assert_that(brief_of_third(here), contains_string(line))
+        here.bodies[issue] = {**ticket, "title": "A parser"}
+        assert_that(line in brief_of_third(here), equal_to(False))
 
     def test_a_body_without_a_plan_gives_no_plan_digest_line(self) -> None:
         """The brief says so instead of a digest of nothing."""

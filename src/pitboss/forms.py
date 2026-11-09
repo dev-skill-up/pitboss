@@ -18,13 +18,10 @@ import re
 from typing import Pattern, Sequence
 
 from . import config, evidence, folds, plancommands, reviews, rowchecks, sessionurl
+from .donewhen import HEADING as DONE_WHEN
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
-DONE_WHEN = re.compile(
-    r"^#+\s*Done when\b[^\n]*\n(.*?)(?=^#+\s|\Z)",
-    re.MULTILINE | re.DOTALL | re.IGNORECASE,
-)
 FOOTER_ROWS = 3
 STORE_FOOTERS = (
     "🤖 Generated with [Claude Code](https://claude.com/claude-code)",

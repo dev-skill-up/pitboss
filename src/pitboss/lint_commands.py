@@ -26,6 +26,7 @@ from . import (
     planapproved,
     planfixed,
     relock,
+    repeatruns,
     sessionurl,
     shapes,
     testnames,
@@ -193,6 +194,7 @@ def _brief_findings(
 ) -> Sequence[str]:
     return [
         *forms.brief(subject, settings.brief_lines, _ticket(args)),
+        *repeatruns.findings(subject.name, _ticket(args)),
         *holdwait.findings(subject.name, subject.body),  # keyword: hold-wait
         *_draft_findings(args, subject),
     ]
