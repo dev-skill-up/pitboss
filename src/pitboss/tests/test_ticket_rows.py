@@ -94,5 +94,6 @@ class TestLintTicket(unittest.TestCase):
         """The command's two outcomes."""
         refused = lint_ticket(PROMISE)
         passed = lint_ticket(HONEST)
-        assert_that(refused.out, contains_string("(rows-pass)"))
-        assert_that((refused.code, passed.code, passed.out), equal_to((1, 0, "ok\n")))
+        named = "(rows-pass)" in refused.out
+        outcome = (refused.code, named, passed.code, passed.out)
+        assert_that(outcome, equal_to((1, True, 0, "ok\n")))
