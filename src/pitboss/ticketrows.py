@@ -20,9 +20,9 @@ _PROMISE = re.compile(
     re.IGNORECASE,
 )
 _BARE = "|".join(TAGS)
-_CELL = re.compile(rf"^[\s`*_()\[\]]*(?:{_BARE})[\s`*_()\[\]]*$", re.IGNORECASE)
+_CELL = re.compile(rf"^\W*(?:{_BARE})\W*$", re.IGNORECASE)
 # in a list item a bare word is prose: the tag is in backticks, brackets or parentheses
-_MARK = re.compile(rf"[`(\[](?:{_BARE})[`)\]]", re.IGNORECASE)
+_MARK = re.compile("[`(\\[](?:" + _BARE + ")[`)\\]]", re.IGNORECASE)
 _ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s")
 
 
