@@ -47,6 +47,7 @@ ACCEPTED = {
     ),
     "a row cut inside a cell": ("| a | bbb | c |", "| a | b | c |"),
     "a sentence cut whole": ("It is read. Then the NEXT list.", "It is read."),
+    "a line cut to nothing": ("a span", ""),
 }
 
 
