@@ -17,3 +17,11 @@ TASK_FIX_ROUND = (
     " pitboss expand`, run `uvx pitboss plan-check <body file>` and post its whole"
     " output as a PR comment, and patch the `Head:` line."
 )
+TASK_RESOLVE_CONFLICT = (
+    "Task: PR {reference} conflicts with {base}. Merge {base} into its branch"
+    " (never rebase, never force-push), resolve the conflict (a line main deleted"
+    " takes main's side, so the diff against main of every .md and .rst file adds"
+    " no line), rebuild every generated file that derives from the merge (a lock,"
+    " a zip, a regenerated tree), and change nothing else (but for the body, as"
+    " `Conflict body:` says)."
+)

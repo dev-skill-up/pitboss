@@ -42,18 +42,20 @@ def expanded(template: str, *options: str) -> world.Result:
     return world.invoke(real_world(), "expand", write_text("t.md", template), *options)
 
 
-def block_of(command: str, output: str, status: int = 0) -> str:
+def block_of(command: str, output: str, status: int = 0, head: str = "") -> str:
     """The block expand prints, built by the module under test's own rule.
 
     Args:
         command: the command line.
         output: what it printed.
         status: its exit status.
+        head: the commit the block records, none when empty.
 
     Returns:
         The block.
     """
-    return expansion.block(command, expansion.Outcome(status=status, output=output))
+    done = expansion.Outcome(status=status, output=output)
+    return expansion.block(command, done, head)
 
 
 class TestExpandCommand(unittest.TestCase):
@@ -70,11 +72,12 @@ class TestExpandCommand(unittest.TestCase):
     def test_what_the_commands_print(self) -> None:
         """Both streams, a status, a filter, raw bytes; the default directory."""
         done = expanded(f"$ {FAILING}\n$ {COUNTED}\n$ {BINARY}\n$ echo hi\n")
+        head = expansion.recorded_head(done.out.splitlines()[0])
         expected = (
-            block_of(FAILING, "out\nerr\n", 3)
-            + block_of(COUNTED, "2\n")
-            + block_of(BINARY, "a\r\n\\xff")
-            + block_of("echo hi", "hi\n")
+            block_of(FAILING, "out\nerr\n", 3, head)
+            + block_of(COUNTED, "2\n", 0, head)
+            + block_of(BINARY, "a\r\n\\xff", 0, head)
+            + block_of("echo hi", "hi\n", 0, head)
         )
         assert_that([done.out, done.code], equal_to([expected, 0]))
 
@@ -100,17 +103,18 @@ class TestExpandCommand(unittest.TestCase):
                 assert_that(done.err, contains_string(said[name]))
 
 
-def check(evidence: str) -> world.Result:
+def check(evidence: str, head: str = HEAD) -> world.Result:
     """Lint a body whose Evidence section is the given text.
 
     Args:
         evidence: the text under the Evidence heading.
+        head: the PR's head.
 
     Returns:
         What ``lint pr-body`` did.
     """
-    body = f"Fixes #1\n\nHead: {HEAD}\n\n## Evidence\n\n{evidence}\n{FOOTER}\n"
-    return lint("pr-body", write_text("body.md", body), "--head", HEAD)
+    body = f"Fixes #1\n\nHead: {head}\n\n## Evidence\n\n{evidence}\n{FOOTER}\n"
+    return lint("pr-body", write_text("body.md", body), "--head", head)
 
 
 class TestExpandThenLint(unittest.TestCase):
@@ -118,7 +122,9 @@ class TestExpandThenLint(unittest.TestCase):
 
     def test_expanded_body_passes(self) -> None:
         """The Evidence of a template run by expand is in form."""
-        checked = check(expanded("$ echo hi\n").out)
+        printed = expanded("$ echo hi\n").out
+        head = expansion.recorded_head(printed.splitlines()[0]) or HEAD
+        checked = check(printed, head)
         assert_that([lines(checked), checked.code], equal_to([["ok"], 0]))
 
     def test_typed_body_is_refused(self) -> None:

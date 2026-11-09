@@ -49,3 +49,22 @@ def appended(name: str, body: str) -> Sequence[str]:
         One finding for each row.
     """
     return _each_line(name, "appended", evidence.appended(body), APPENDED)
+
+
+def command_rows(name: str, body: str, head: str) -> Sequence[str]:
+    """The findings about the command rows of a PR body.
+
+    Args:
+        name: what to call the text in a finding.
+        body: the text.
+        head: the PR's head SHA, empty when it is not known.
+
+    Returns:
+        The hand-typed rows, the rows that end in an echo and the blocks that
+        were expanded at another head (keyword: evidence-head, pitboss#398).
+    """
+    return [
+        *typed_by_hand(name, body),
+        *appended(name, body),
+        *[f"{name}: {each}" for each in evidence.stale_heads(body, head)],
+    ]

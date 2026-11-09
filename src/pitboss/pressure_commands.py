@@ -1,5 +1,9 @@
 """The commands of the quiet period: ``pressure``, ``queued`` and ``push``.
 
+Whatever its destination, a push is refused, naming file and line, when ``git diff
+origin/main...HEAD`` adds a line to a ``.md`` or ``.rst`` file that is not a cut of
+a removed line (keyword: markup-gate, pitboss#398).
+
 A hold lifts only after ``[runners] quiet_minutes`` in which no look saw a hold
 and no job was put on the queue (keyword: quiet-period).
 """
@@ -16,6 +20,7 @@ from . import (
     configfile,
     draftrule,
     exempt,
+    markupgate,
     pushdraft,
     queue,
     record,
@@ -117,6 +122,17 @@ def _refuse_draft(args: argparse.Namespace, slug: str | None) -> None:
     start = commands.working_directory(args)
     if args.draft and draftrule.drafts_off(configfile.named(args), start, slug):
         print(f"push refused: --draft, but {draftrule.REFUSAL}; nothing was pushed")
+        raise SystemExit(1)
+
+
+def _refuse(args: argparse.Namespace, slug: str | None) -> None:
+    # keyword: markup-gate (pitboss#398): no .md or .rst line is added, at any push
+    _refuse_draft(args, slug)
+    found = markupgate.findings(markupgate.through(args.safe_run))
+    for each in found:
+        print(each)
+    if found:
+        print("push refused: nothing was pushed; remove the added lines")
         raise SystemExit(1)
 
 
@@ -227,7 +243,7 @@ def push(args: argparse.Namespace) -> None:
     """
     tracefs.say(args.safe_run)
     slug = _pushed_repository(args)
-    _refuse_draft(args, slug)
+    _refuse(args, slug)
     found, free = _gate(args, slug)
     if not _send(args):
         return
