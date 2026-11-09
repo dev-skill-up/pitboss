@@ -13,11 +13,19 @@ ticket-blocked, blocked-pull, pitboss#388).
 import dataclasses
 import json
 import re
-import subprocess
 import functools
 from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
 
-from . import config, ghapi, ledger, planrefusal, pulls, supersedes, ticketblock
+from . import (
+    config,
+    ghapi,
+    ledger,
+    planrefusal,
+    pulls,
+    supersedes,
+    ticketblock,
+    ticketread,
+)
 
 NAME = re.compile(r"(?:[\w.-]+/)?[\w.-]*#\d+")
 URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
@@ -73,10 +81,8 @@ def read(github: ghapi.GitHub, reference: str) -> Ticket | None:
     Returns:
         The ticket, or None when the API cannot give it.
     """
-    slug, _, number = reference.rpartition("#")
-    try:
-        text = ghapi.get(github, f"repos/{slug}/issues/{number}")
-    except subprocess.CalledProcessError:
+    text = ticketread.text(github, reference)
+    if text is None:
         return None
     item = json.loads(text)
     listed = item.get("labels", ())

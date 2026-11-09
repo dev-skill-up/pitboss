@@ -9,7 +9,6 @@ takes no slot (keyword: brief, pitboss#118).
 """
 
 import dataclasses
-import subprocess
 from typing import Iterable, Mapping, Sequence
 
 from . import (
@@ -22,13 +21,14 @@ from . import (
     fixes,
     gates,
     ghapi,
-    issuelist,
     pullfiles,
     pulls,
     reviews,
     slotheld,
     steps,
+    suggestflake,
     suggestwhen,
+    ticketread,
     work,
 )
 from .markers import Marker
@@ -219,13 +219,8 @@ def kind_of(pick: Pick) -> brief.Kind:
 
 
 def _ticket_title(source: Source, ticket: str, fallback: str) -> str:
-    slug, _, number = ticket.rpartition("#")
-    try:
-        text = ghapi.get(source.github, f"repos/{slug}/issues/{number}")
-    except subprocess.CalledProcessError:
-        return fallback
-    found = issuelist.issue_of(text)
-    return found[0].title if found else fallback
+    found = ticketread.issue(source.github, ticket)
+    return found.title if found else fallback
 
 
 def goal(source: Source, pick: Pick) -> tuple[str, str]:
@@ -298,11 +293,12 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
     slug = pick.reference.rpartition("#")[0]
     heads = briefheads.of(source.settings.project.base_branch, pick.pull)
     kind = kind_of(pick)
+    rules = _rules(source, slug, heads.head)
     return brief.Spec(
         kind=kind,
         subject=suggestwhen.subject(source.github, pick.reference, about, kind),
         heads=heads,
-        rules=_rules(source, slug, heads.head),
+        rules=suggestflake.rules_of(source.github, about[0], rules),
         ready=pick.pull is not None and not pick.pull.pull.draft,
         e2e=_touches_e2e(source, pick, kind),
     )

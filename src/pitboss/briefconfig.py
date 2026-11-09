@@ -18,6 +18,13 @@ class Brief:
         no_drafts: the repositories whose PRs open ready whatever ``drafts``
             says, as the file names them (``configfile.load_brief`` completes
             them; keyword: pitboss-exempt, pitboss#113).
+        flake_worker_lines: lines a worker brief adds for a p0 ticket about a
+            failing test, before ``worker_lines`` (keyword: flake, pitboss#278).
+        flake_review_lines: lines a review brief adds for a PR that fixes such
+            a ticket, before ``review_lines``.
+        quarantine_globs: the files whose tests such a ticket may mark
+            ``.fixme``; ``pitboss next TICKET`` prints an ``NOT QUARANTINED`` line when
+            none cites the ticket.
     """
 
     drafts: bool
@@ -25,6 +32,9 @@ class Brief:
     worker_lines: Sequence[str]
     review_lines: Sequence[str]
     no_drafts: AbstractSet[str] = frozenset()
+    flake_worker_lines: Sequence[str] = ()
+    flake_review_lines: Sequence[str] = ()
+    quarantine_globs: Sequence[str] = ()
 
 
 def _flag(table: Mapping[str, object], key: str) -> bool:
@@ -71,4 +81,7 @@ def from_document(document: Mapping[str, object]) -> Brief:
         worker_lines=_lines(table, "worker_lines"),
         review_lines=_lines(table, "review_lines"),
         no_drafts=frozenset(_lines(table, "no_drafts")),
+        flake_worker_lines=_lines(table, "flake_worker_lines"),
+        flake_review_lines=_lines(table, "flake_review_lines"),
+        quarantine_globs=_lines(table, "quarantine_globs"),
     )
