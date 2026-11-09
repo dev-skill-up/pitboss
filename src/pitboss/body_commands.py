@@ -92,7 +92,8 @@ def hand_back_check(args: argparse.Namespace) -> None:
             is not on its default branch with a clean tree.
     """
     missing = deviations.not_started(_read(args.file))
-    refused = _clones_refused(args)
+    configsettle.find_or_say(args)
+    refused = cloneguard.refusals(args, configfile.working_directory(args))
     for each in (missing, *refused):
         if each:
             print(each)
@@ -100,20 +101,6 @@ def hand_back_check(args: argparse.Namespace) -> None:
         print("ok")
     else:
         raise SystemExit(1)
-
-
-def _clones_refused(args: argparse.Namespace) -> Sequence[str]:
-    # keyword: clone-guard (pitboss#297): with no configuration, no clone is known
-    configsettle.find_or_say(args)
-    if args.config is None:
-        return []
-    try:
-        settings = configfile.load(
-            configfile.named(args), configfile.working_directory(args)
-        )
-    except (OSError, ValueError, KeyError) as error:
-        raise _fail(f"{args.config}: {error}") from error
-    return cloneguard.findings(args, settings)
 
 
 def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:

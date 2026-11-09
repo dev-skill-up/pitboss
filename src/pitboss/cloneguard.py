@@ -12,6 +12,7 @@ keeps some of its own.
 
 import argparse
 import pathlib
+import sys
 from typing import Sequence
 
 from . import config, configfile, configsearch
@@ -66,9 +67,15 @@ def dirty(args: argparse.Namespace, clone: pathlib.Path) -> bool:
     return bool(_git(args, clone, "status", "--porcelain", "--untracked-files=no"))
 
 
-def findings(
-    args: argparse.Namespace, settings: config.Config
-) -> Sequence[str]:
+def _lines_of(args: argparse.Namespace, clone: pathlib.Path, base: str) -> list[str]:
+    branch = _git(args, clone, "branch", "--show-current") or "(detached HEAD)"
+    off = [f"on branch {branch}, not {base}; check out {base} there"]
+    changed = [f"(branch {branch}) has uncommitted changes"]
+    said = [*(off if branch != base else []), *(changed if dirty(args, clone) else [])]
+    return [f"refused: clone {clone} {each}" for each in said]
+
+
+def findings(args: argparse.Namespace, settings: config.Config) -> Sequence[str]:
     """The lines about the clones that are not on their default branch, clean.
 
     Args:
@@ -81,21 +88,54 @@ def findings(
         its branch; a clone that is not on disk is not judged.
     """
     base = settings.project.base_branch
-    lines: list[str] = []
-    for clone in clones_of(settings):
-        if not _is_checkout(clone):
-            continue
-        branch = _git(args, clone, "branch", "--show-current") or "(detached HEAD)"
-        if branch != base:
-            lines.append(
-                f"refused: clone {clone} is on branch {branch}, not {base};"
-                f" check out {base} there"
-            )
-        if dirty(args, clone):
-            lines.append(
-                f"refused: clone {clone} (branch {branch}) has uncommitted changes"
-            )
-    return lines
+    found = [
+        _lines_of(args, each, base)
+        for each in clones_of(settings)
+        if _is_checkout(each)
+    ]
+    return [each for lines in found for each in lines]
+
+
+def loaded(args: argparse.Namespace, start: pathlib.Path) -> config.Config | None:
+    """The configuration the command was given or finds, without a fetch.
+
+    Args:
+        args: the parsed arguments, whose ``config`` is ``--config`` or None.
+        start: the directory a name is looked up from.
+
+    Returns:
+        It; None when none was given and none is found.
+
+    Raises:
+        SystemExit: 2 when the one given cannot be read.
+    """
+    try:
+        return configfile.load(configsearch.named(args), start)
+    except FileNotFoundError as error:
+        if args.config is None:
+            return None
+        raise SystemExit(_said(args, error)) from error
+    except (OSError, ValueError, KeyError) as error:
+        raise SystemExit(_said(args, error)) from error
+
+
+def _said(args: argparse.Namespace, error: Exception) -> int:
+    print(f"{args.config}: {error}", file=sys.stderr)
+    return 2
+
+
+def refusals(args: argparse.Namespace, start: pathlib.Path) -> Sequence[str]:
+    """The ``findings`` of the configuration the command was given or finds.
+
+    Args:
+        args: the parsed arguments.
+        start: the directory a name is looked up from.
+
+    Returns:
+        The lines; none when there is no configuration.
+    """
+    settings = loaded(args, start)
+    return [] if settings is None else findings(args, settings)
 
 
 def inside_dirty_clone(
@@ -127,9 +167,6 @@ def inside_dirty_clone(
 def refuse_in_clone(args: argparse.Namespace, start: pathlib.Path) -> None:
     """Print ``REFUSED`` and exit 1 when ``start`` is in a clone with a change.
 
-    The configuration is the one given or found without a fetch; with none, or
-    one that cannot be read, nothing is refused.
-
     Args:
         args: the parsed arguments, whose ``config`` is ``--config`` or None.
         start: the directory the command works in.
@@ -137,10 +174,7 @@ def refuse_in_clone(args: argparse.Namespace, start: pathlib.Path) -> None:
     Raises:
         SystemExit: 1 when the directory is in a clone with uncommitted changes.
     """
-    try:
-        settings = configfile.load(configsearch.named(args), start)
-    except (OSError, ValueError, KeyError):
-        return
-    if inside_dirty_clone(args, settings, start):
+    settings = loaded(args, start)
+    if settings is not None and inside_dirty_clone(args, settings, start):
         print(REFUSED)
         raise SystemExit(1)
