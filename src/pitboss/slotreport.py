@@ -35,7 +35,9 @@ def slot_lines(
             free -= 1
         found.append(_slot_line(slot) if slot.agent or free >= 0 else _held_row(slot))
     if all(slot.agent for slot in book.slots):
-        found.append("slots: all full" if derived else "slots: the ledger says all full")
+        found.append(
+            "slots: all full" if derived else "slots: the ledger says all full"
+        )
     return [*found, *slotheld.lines(taken), *deviations.ledger_lines(book)]
 
 

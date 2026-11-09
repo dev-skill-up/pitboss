@@ -282,10 +282,76 @@ class TestTheSlotsAreDerived(unittest.TestCase):
         assert_that(shown, contains_string("slot tiny (small): owner/project#9"))
         said(shown, "UNRECORDED AGENT", 0)
 
-    def test_no_running_option_leaves_the_ledger_as_written(self) -> None:
-        """The agents are not known, so the ledger stands."""
-        shown = plain(stale_world(), "slots", "show")
-        assert_that(shown, contains_string("slot tiny (small): owner/project#9"))
+    def test_no_running_option_computes_no_occupancy(self) -> None:
+        """The agents are not known: no row, no held slot, the one line instead."""
+        for command in (("slots", "show"), ("sweep",), ("slots", "next")):
+            shown = plain(stale_world(), *command)
+            said(shown, "slots: not computed", [slotheld.NOT_COMPUTED])
+            for text in ("slot tiny", "EMPTY SLOT", "SLOT HELD", "SLOTS FREE"):
+                assert_that(text in shown, equal_to(False))
+            for text in ("UNRECORDED AGENT", "all full", "TASK LIST in flight"):
+                assert_that(text in shown, equal_to(False))
+
+    def test_no_running_option_marks_nothing_queued(self) -> None:
+        """The steps of ``slots next`` and of the sweep list keep no queued words."""
+        for command in (("slots", "next"), ("sweep",)):
+            assert_that(QUEUED in plain(stale_world(), *command), equal_to(False))
+
+    def test_without_running_a_ruling_is_suggested_and_no_start_is(self) -> None:
+        """No slot is known free, so no start, review or fix; the ruling stays."""
+        here = flows.world_with(flows.TWO_PLAN_REJECTIONS)
+        headers = kinds(plain(here, "slots", "next"))
+        assert_that(len(headers), equal_to(1))
+        assert_that(headers[0], contains_string("make an Opus ruling: owner/project#3"))
+        assert_that(kinds(plain(calm(), "slots", "next")), equal_to([]))
+
+    def test_without_running_the_tasks_of_the_rows_are_still_left_out(self) -> None:
+        """A ticket a row holds is not offered again, whether or not it runs."""
+        shown = plain(stale_world(), "slots", "next")
+        assert_that("NEXT 4. owner/project#9" in shown, equal_to(False))
+
+    def test_a_ticket_of_a_finished_agent_is_offered_again(self) -> None:
+        """With the agents named, the finished agent's ticket comes back."""
+        shown = ran(stale_world(), ("slots", "next"))
+        assert_that(shown, contains_string("NEXT 4. owner/project#9"))
+
+    def test_free_without_running_prints_the_rows_and_the_stand_in_line(self) -> None:
+        """No refill is computed: the rows as written, then the one line."""
+        here = stale_world()
+        args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
+        lines = world.invoke(here, *args).out.splitlines()
+        assert_that(lines[0].startswith("EMPTY SLOT: tiny"), equal_to(True))
+        assert_that(lines[-1], equal_to(slotheld.NOT_COMPUTED))
+
+    def test_a_refill_counts_another_slot_whose_agent_is_gone(self) -> None:
+        """Slot big records agent-2 on ticket 9, which no longer runs: 9 is offered."""
+        here = world.make_world()
+        steps = [
+            ("failed", "#1", "small"),
+            ("failed", "#3", "small"),
+            ("set", "big", "agent-2", "#9", "--running", "agent-2"),
+            ("set", "tiny", "agent-1", "#50", "--running", "agent-1", "agent-2"),
+        ]
+        run_all(here, steps)
+        args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
+        freed = world.invoke(here, *args, "--now", world.FUTURE, "--running")
+        refill = freed.out.splitlines()[-1]
+        assert_that(
+            refill.startswith("EMPTY SLOT: tiny (small): start "), equal_to(True)
+        )
+        assert_that("owner/project#9 (start a PR" in refill, equal_to(True))
+
+    def test_a_slot_the_derivation_empties_is_refused_by_set_until_freed(self) -> None:
+        """``set`` reads the rows as written: free the finished agent first."""
+        here = stale_world()
+        args = ("slots", "set", here.config, "tiny", "agent-3", "#9")
+        refused = world.invoke(here, *args, "--running", "agent-3")
+        freed = world.invoke(
+            here, "slots", "free", here.config, "tiny", "--done", "agent-1"
+        )
+        done = world.invoke(here, *args, "--running", "agent-3")
+        assert_that((refused.code, freed.code, done.code), equal_to((2, 0, 0)))
+        assert_that(refused.err, contains_string("free it first"))
 
     def test_reading_writes_nothing(self) -> None:
         """The finished agent's row is still in the file after ``slots next``."""

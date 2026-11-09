@@ -158,7 +158,8 @@ class TestSlotsNext(unittest.TestCase):
         """``slots free`` and ``next`` take the work from the same offer."""
         here, lines = freed_world([], held_world(PROJECT_TABLE, library_ticket))
         refill = "\n".join(lines)
-        suggested = world.invoke(here, "next", here.config, "--now", world.FUTURE).out
+        args = ("next", here.config, "--now", world.FUTURE, *world.running(here))
+        suggested = world.invoke(here, *args).out
         assert_that(refill, contains_string("start owner/lib#5 "))
         assert_that("owner/project#9" in refill, equal_to(False))
         assert_that(suggested, contains_string("start a PR: owner/lib#5:"))

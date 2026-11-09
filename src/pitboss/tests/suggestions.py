@@ -10,6 +10,8 @@ from . import world
 def run_command(here: world.World, *command: str) -> world.Result:
     """Run a command on the world's configuration, at the fixed time.
 
+    The agents its ledger holds are the ones that run (pitboss#94).
+
     Args:
         here: the world.
         *command: the command's words before the configuration.
@@ -17,7 +19,8 @@ def run_command(here: world.World, *command: str) -> world.Result:
     Returns:
         What it printed and its exit code.
     """
-    return world.invoke(here, *command, here.config, "--now", world.FUTURE)
+    live = world.running(here)
+    return world.invoke(here, *command, here.config, "--now", world.FUTURE, *live)
 
 
 def next_output(here: world.World) -> str:

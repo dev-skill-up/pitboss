@@ -390,15 +390,17 @@ def issue_entries(text: str) -> Sequence[shapes.Issue | None]:
         An entry for each raw item: the issue, or None for a PR.
     """
     return [
-        None
-        if "pull_request" in item
-        else shapes.Issue(
-            number=item["number"],
-            title=item["title"],
-            created_at=item["created_at"],
-            labels=frozenset(label["name"] for label in item["labels"]),
-            body=item.get("body") or "",
-            comments=item.get("comments") or 0,
+        (
+            None
+            if "pull_request" in item
+            else shapes.Issue(
+                number=item["number"],
+                title=item["title"],
+                created_at=item["created_at"],
+                labels=frozenset(label["name"] for label in item["labels"]),
+                body=item.get("body") or "",
+                comments=item.get("comments") or 0,
+            )
         )
         for item in json.loads(text)
     ]

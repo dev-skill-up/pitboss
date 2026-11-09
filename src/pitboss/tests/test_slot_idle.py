@@ -28,7 +28,8 @@ def minutes_idle(here: world.World, minutes: int) -> Sequence[str]:
     Returns:
         The minutes of each ``SLOT IDLE tiny`` line.
     """
-    out = world.invoke(here, "sweep", here.config, "--now", at(minutes)).out
+    args = ("sweep", here.config, "--now", at(minutes), *world.running(here))
+    out = world.invoke(here, *args).out
     return TINY_IDLE.findall(out)
 
 
@@ -83,4 +84,3 @@ class TestSlotIdle(unittest.TestCase):
     def test_slot_the_log_never_saw(self) -> None:
         """A slot with no entry in the log has no time to tell."""
         assert_that(minutes_idle(world.make_world(), 5), equal_to([]))
-

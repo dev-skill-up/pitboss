@@ -31,9 +31,11 @@ UNLABELED = [
     _ticket(13, "2026-09-05T00:00:00+00:00", "bug"),
     _ticket(11, "2026-09-03T00:00:00+00:00"),
 ]
+LIBRARY_URGENT = [_ticket(16, "2026-09-01T12:00:00+00:00", "urgent")]
 LIBRARY_OPEN = [
     _ticket(14, "2026-07-01T00:00:00+00:00", "enhancement"),
     _ticket(15, "2026-06-01T00:00:00+00:00", "p3"),
+    *LIBRARY_URGENT,
 ]
 BODIES = {
     **fakes.bodies_under(
@@ -45,7 +47,13 @@ BODIES = {
         ],
     ),
     **fakes.bodies_under(
-        world.LIBRARY, [(f"{OPEN}&labels=low", []), (OPEN, LIBRARY_OPEN)]
+        world.LIBRARY,
+        [
+            (f"{OPEN}&labels=urgent", LIBRARY_URGENT),
+            (f"{OPEN}&labels=low", []),
+            (OPEN, LIBRARY_OPEN),
+            ("issues/4/comments", []),  # no review yet: the library PR gets a round
+        ],
     ),
 }
 
@@ -94,6 +102,7 @@ WHOLE_ORDER = [
     "owner/project#1",
     "owner/project#3",
     "owner/project#9",
+    "owner/lib#16",
     "owner/project#10",
     "owner/project#12",
 ]

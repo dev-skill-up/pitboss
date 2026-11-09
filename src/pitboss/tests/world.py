@@ -5,6 +5,7 @@ import contextlib
 import dataclasses
 import datetime
 import io
+import json
 import os
 import pathlib
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
@@ -353,6 +354,24 @@ def exit_code(world: World, argv: Sequence[str], env: Mapping[str, str]) -> obje
     except SystemExit as exit_error:
         return exit_error.code
     return 0
+
+
+def running(here: World, *finished: str) -> Sequence[str]:
+    """The ``--running`` arguments that name the agents the ledger's rows hold.
+
+    A test that is not about the derived slots passes these, so the live agents
+    are the ones its ledger records (pitboss#94).
+
+    Args:
+        here: the world.
+        *finished: agents a row holds that have finished, so do not run.
+
+    Returns:
+        ``--running`` and the name of each agent a row holds but those.
+    """
+    rows = json.loads(here.ledger.read_text())["slots"]
+    names = (row["agent"] for row in rows if row.get("agent"))
+    return ["--running", *(name for name in names if name not in finished)]
 
 
 def again(here: World, *argv: str, directory: pathlib.Path | None = None) -> Result:
