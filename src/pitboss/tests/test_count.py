@@ -172,9 +172,8 @@ class TestCount(unittest.TestCase):
         here = counting()
         del here.bodies[ownerbodies.EXTRA]
         done = world.again(here, "count", "p1")
-        assert_that(
-            ("INCOMPLETE" in done.out + done.err, done.code), equal_to((True, 1))
-        )
+        assert_that(done.code, equal_to(1))
+        assert_that("INCOMPLETE" in done.out + done.err, equal_to(True))
 
     def test_the_usage_says_where_the_owner_count_comes_from(self) -> None:
         """A count given to the owner comes from this command, the owner's words."""
