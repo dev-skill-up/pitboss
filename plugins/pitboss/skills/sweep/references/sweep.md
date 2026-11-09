@@ -1,47 +1,7 @@
 # Reading a sweep
 
-`pitboss sweep` prints, in order: one line per open PR of the project and its
-libraries, each followed by its action lines (in this order: `STALL`, `UPDATE`, `FIXED ON BASE`, `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED`, `PLAN ROW`, `UNREADABLE REVIEW`, `REVIEW NOTE`, `RULING NO ANALYSIS`, `GATE PENDING`, `WAIT-FOR-CI`, `CONFLICT`, one `FAILED` for each failed check, then `PINS-ONLY OK` or `PINS-ONLY`); the runner-pressure line; the
-merge-queue runs; the stragglers; the finished worktrees (removed or kept, or with `[clean] worktrees = "list"` listed as stale); the disk pressure; the
-reminders; the slot ledger; the `OPUS RULINGS DAILY` line when a day's summary is owed. It exits 1 when any PR has a failed check (not one that passed on the base since: `FIXED ON BASE`) or a merge conflict,
+It exits 1 when any PR has a failed check or a merge conflict,
 so a loop can act on it.
-
-## The PR line
-
-```
-owner/name#12 [clean] auto-merge=off pending=0 failed=[test (job 345)] queue=- review=none Title (branch)
-```
-
-- `[state]` is GitHub's `mergeable_state`: `clean` (mergeable, every
-  requirement met), `behind` (the base moved on; in a repository with a merge queue it still queues, elsewhere see `UPDATE`), `blocked`
-  (checks pending or red, or a required review missing), `dirty` (a merge
-  conflict), `unstable` (non-required checks failing), `draft`, `has_hooks`,
-  `unknown` (GitHub is still computing it: look again later).
-- `auto-merge=on|off`: whether auto-merge is armed. A push clears it.
-- `pending=N`: checks on the head that have not finished.
-- `failed=[name (job id), ...]`: checks whose latest run on the head failed and that no newer passing commit status of the head answers (see `FAILED`). An aggregate
-  check failing usually means one of the jobs it gathers failed.
-- `queue=`: the state of the PR's newest merge-queue run (`queued`,
-  `in_progress`, or its conclusion), `-` when it has none.
-- `review=`: `approved-this-head`; `approved-before-merges` (an older head
-  was approved and only merges of the base came since; never in a gated
-  repository); `changes-needed` (on this head); `plan-changes-needed` (on this
-  head, and the review graded the plan changes needed: the only round is a
-  revision of the plan, except that when an older review approved the Plan and
-  recorded a `Plan digest:`, a Plan section revised after it is `PLAN EDITED`
-  and the PR is offered no round until a ruling `revise the plan`); `plan-approved` (on this head, a review that approved
-  the plan alone, or any review with a `Plan:` line that grades nothing and no graded `Execution:` line (the
-  gradeline reads a grade word followed by `.`, `,`, `:` or `;` and words, so `Plan: approved. The audit row ...` grades;
-  anything else after the word grades nothing): it is no approval to merge; after an Opus ruling the
-  Plan's commands are run first (the worker round `run the Plan's commands and fill the Execution`));
-  `older-head` (the review is
-  of an older head: a fix came since and needs a review); `older-body` (the
-  review is of this head and records a `Body:` digest, and the PR body is not
-  the one it recorded: the body was fixed after the review and the head did
-  not move (the `review the fix round's findings
-  only` line is only for a review of changes needed of an older head); a review of the same head that records the new digest
-  makes the standing the review's own again; a review with no `Body:` line is
-  keyed to the head alone); `none`.
 
 ## Markers
 
@@ -77,39 +37,23 @@ Each line below starts with the marker, then the PR, run or path it is about.
 | `PINS-ONLY` | `PINS-ONLY <repository>#<n>: pins-check did not print OK (<line>); review it as before`. The same PR, and the command did not print OK (`NOT OK: <path>: <reason>`, a nonzero exit, a command that cannot run, a fetch that failed). | A review as before; for a relock PR its brief (`review the relock`) says to run the command on the head and paste its output as evidence. |
 | `RUNNER PRESSURE` | A merge-queue run in a repository that shares the runners has a job waiting for a runner, or the quiet period is not over (the line says the minutes remaining). | Hold (below). With an empty or absent record and nothing waiting the line says `quiet period starts now`: the sweep's look is the record's first, and the period ends that many minutes later with no one running `pressure`. |
 | `NO RUNNER PRESSURE` | Nothing waits for a runner and the quiet period of `rules.md` is over (the sweep writes its look to the record: a `none` look when nothing waits, a `hold` when a job waits; `next`, `pressure` and a refused `push` write theirs too). With no `[runners]` table in the configuration the line says `no hold`: that project is on its own runner budget, nothing is held or recorded. | Push and merge as usual. |
-| `QUEUE RUN` | An unfinished merge-queue run, with its age against the queue's time limit. | Nothing, unless it nears the limit while runners are short: then hold. |
 | `STALE QUEUE RUN` | An unfinished run of a merge group that is no longer its PR's newest (GitHub rebuilds the groups behind a removed entry and leaves the old runs waiting). | `pitboss cancel-stale-runs <config>`, read the dry run, then again with `--no-dry-run`. If the cancel is refused, list the run ids for the owner. Never cancel a PR's newest group. |
-| `CANCELLED STALE QUEUE RUN` | A stale run was cancelled (or, with "dry run", would be). | Nothing. |
 | `COULD NOT CANCEL STALE QUEUE RUN` | GitHub refused the cancel. | It may have finished meanwhile; sweep again, and if it is still there, tell the owner. |
 | `STRAGGLER` | A checkout on this machine with uncommitted files or commits on no remote branch. | Triage it (below). |
 | `ORPHANED CHECKOUT` | A directory whose `.git` file points at a gitdir that is gone (a worktree whose main checkout was removed); git cannot read it, so it has no straggler line. | Look in the directory for files worth keeping, then delete it by hand; nothing in it is on a branch. |
-| `STALE WORKTREE` | Printed only under `[clean] worktrees = "list"`: a worktree whose work is finished and on GitHub and that passes the safety test ("Stale worktrees", below). | `pitboss clean-worktrees <config>`, read the dry run, then `--no-dry-run`. |
-| `REMOVED WORKTREE` | A finished worktree was removed (or, under `clean-worktrees` without `--no-dry-run`, would be); its branch is kept. A sweep prints it under `[clean] worktrees = "auto"` (the default), with the space freed on the last line of the section. Under disk pressure a merged worktree whose `.pitboss-live` marker was ignored prints `(...; its .pitboss-live marker is ignored: a worktree merged after it)`; at any disk level a merged worktree whose marker is older than 6 hours (a worker's task bound) prints `(...; its .pitboss-live marker is older than 6 hours, longer than a worker runs)`. | Nothing. |
+| `STALE WORKTREE` | Printed only under `[clean] worktrees = "list"`: a worktree whose work is finished and on GitHub and that passes the safety test. | `pitboss clean-worktrees <config>`, read the dry run, then `--no-dry-run`. |
 | `KEPT WORKTREE` | A finished worktree that is not removed, with the reason: commits on no remote branch, changed tracked files, a `.pitboss-live` marker or live path or `its PR merged last` (the marker of the worktree merged last, saved under disk pressure while it is under 6 hours old), the directory the command runs in or one above it, a change within the idle hours, a link, a mount point, a checkout git cannot read, or untracked files (`git worktree remove` refuses them). | Triage it like a `STRAGGLER` when the reason is work that exists only here; otherwise nothing: it is removed by a later sweep once the reason is gone. |
 | `COULD NOT REMOVE WORKTREE` | git refused (a locked worktree, for one). | Look at it: someone may still be using it. |
-| `SCRATCH PR` | An open PR of a `[scratch]` repository that is not a kept fixture, in one of two forms (keyword: scratch). `SCRATCH PR owner/repo#N: run finished, close the PR and delete its branch`: every workflow run of its head has finished (a head with no run yet counts as finished once the PR is ten minutes old); printed only under `[clean] worktrees = "list"`, since the default closes it ("Scratch PRs", below). `SCRATCH PR owner/repo#N: head branch B is not one of ...; reuse one of them for the next run`: its head branch is not in `[scratch] branches`, whether its run has finished or not. A PR whose runs are still going and whose branch is a run branch prints no line, and a fixture named in `[scratch] keep` never does. | Close the PR and delete its branch, or run `pitboss clean <config>`; next time reuse a run branch. |
-| `CLOSED SCRATCH PR` | A sweep (under `[clean] worktrees = "auto"`) or `pitboss clean` closed a scratch PR whose run finished. | Nothing. |
-| `DELETED SCRATCH BRANCH` | The head branch of a scratch PR it closed was deleted. | Nothing. |
+| `SCRATCH PR` | An open PR of a `[scratch]` repository that is not a kept fixture, in one of two forms (keyword: scratch). `SCRATCH PR owner/repo#N: run finished, close the PR and delete its branch`: every workflow run of its head has finished (a head with no run yet counts as finished once the PR is ten minutes old); printed only under `[clean] worktrees = "list"`, since the default closes it. `SCRATCH PR owner/repo#N: head branch B is not one of ...; reuse one of them for the next run`: its head branch is not in `[scratch] branches`, whether its run has finished or not. A PR whose runs are still going and whose branch is a run branch prints no line, and a fixture named in `[scratch] keep` never does. | Close the PR and delete its branch, or run `pitboss clean <config>`; next time reuse a run branch. |
 | `COULD NOT CLOSE SCRATCH PR` | GitHub refused to close a scratch PR; the line gives the HTTP status. | Close it by hand, or give the session the access; the next sweep tries again. |
-| `COULD NOT DELETE SCRATCH BRANCH` | A branch of a closed scratch PR is still there, with the reason: another open PR has it as its head (a run branch is reused), its head is in another repository, or GitHub refused (a session may not be allowed to delete a branch). | Nothing for the first two. For a refusal, leave it: the run branches are reused, and the next run force-pushes into one ("Scratch PRs", below). |
-| `clean:` | The first lines of a sweep (keyword: auto-clean): the mode (`disk under 90% used`, or `DISK OVER 90% (...)` or `DISK UNDER 5 GiB FREE (...)`: aggressive), what was removed and the space freed, what is never touched (a worktree with an open PR, a running worker's directory (a merged one's `.pitboss-live` marker counts only for 6 hours), the main clone, the directory the sweep runs in; under pressure each open-PR worktree is named), and a total. Under pressure it ends with the account below: `clean: kept PATH (WHY)`; `clean: freed by kind: worktrees X, checkouts X, test tempdirs X, package caches X` ("would be freed" in a dry run); when that is less than the disk needs to get out of the pressure, `clean: X freed, X short of the X needed to get under 90%: each directory over 500 MB that was kept` (`needed to have 5 GiB free` when the free-space rule set the need) and then `clean: kept SIZE PATH (WHY): over 500 MB` for each such directory, largest first. The sweep has removed it already. | Nothing. Never ask the owner about it ("Automatic cleaning", below). |
-| `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). Under that minimum the sweep's clean is the aggressive pass, as over `pressure_percent`, for every repository the workspace holds (each directory judged by the PRs of its own `origin`, whatever config the sweep runs with). The line says how much was free, the pass it started and the bytes it freed; when the free space is still under the minimum, further lines list each directory over 500 MB that was kept, with why. | Read the kept directories; `pitboss clean-container <config>` for the dead paths ("Disk", below). |
+| `COULD NOT DELETE SCRATCH BRANCH` | A branch of a closed scratch PR is still there, with the reason: another open PR has it as its head (a run branch is reused), its head is in another repository, or GitHub refused (a session may not be allowed to delete a branch). | Nothing for the first two. For a refusal, leave it: the run branches are reused, and the next run force-pushes into one. |
+| `DISK PRESSURE` | A filesystem of the workspace or of a `[clean] scratch` directory has less free than `[clean] min_free_gib` (default 5 GiB; 0 never warns). Under that minimum the sweep's clean is the aggressive pass, as over `pressure_percent`, for every repository the workspace holds (each directory judged by the PRs of its own `origin`, whatever config the sweep runs with). The line says how much was free, the pass it started and the bytes it freed; when the free space is still under the minimum, further lines list each directory over 500 MB that was kept, with why. | Read the kept directories; `pitboss clean-container <config>` for the dead paths. |
 | `DISK` | `next` and `slots next` print the free space of the workspace's volume (keyword: disk-watch, pitboss#288). From 85% used the line says to clean; from 90% used, or under 1 GiB free, the first suggestion is `clean the disk` (`uvx pitboss clean-container`, then `uvx pitboss clean-container --no-dry-run`, then the five largest `[clean] scratch` entries); under 1 GiB free no worker is suggested. | Run the two commands the suggestion names before starting a worker. |
-| `REMOVED PATH` | A dead path was removed by `clean-container` (or, with "dry run", would be): its size and why it is dead. | Nothing. |
 | `KEPT PATH` | A dead path with work that exists only here (commits on no remote branch, in any branch or the stash of a standalone clone; changed tracked files), or that git cannot read, a bare repository, a mount point inside it or a path that cannot be looked at; never removed. | Triage it like a `STRAGGLER`. |
 | `COULD NOT REMOVE PATH` | `rm` left the path in place, the path was looked at again just before its removal and was live, busy or unsafe, or a path of the `--approved` file is not a safe dead path now. | Look at it: someone may still be using it. |
-| `SWEEP REMINDER` |  | (below). |
-| `EMPTY SLOT` | A worker slot has no agent. | |
 | `SLOTS FREE` | `SLOTS FREE n`: fewer workers run than the slots configured (n of them free) and the queue has work. | before the turn ends set a wake-up (`send_later`): nothing else wakes an idle orchestrator until a GitHub event. |
-| `GONE AGENT` | The ledger holds an agent the session no longer runs. | |
-| `CHECK BEFORE YOU ANSWER` | The ledger is kept by hand. | |
 | `HOLD` | `HOLD new pull requests: <repository> (<n> open)`, once, while the owner's hold applies (`[holds] new_pull_requests`: more than `max_open` pull requests of a listed repository are open). | Start no new pull request in that repository: finish its open ones. |
-| `HELD` | A line of `pitboss slots next`: a ticket of a held repository, `HELD (no new pull requests in <repository>: <n> open) <ticket>`. | |
 | `SUGGESTION` | A suggestion printed by `pitboss next CONFIG` and `pitboss slots next` | Paste the brief of the first suggestion you can start, unchanged (`rules.md`, "Briefs come from pitboss"); a ruling brief has one line, `How we got here:`, that you replace with the analysis (a fact the tool cannot know) before you send it. If the first cannot start (a missing checkout), take the next one. |
-| `SLOT IDLE` | `SLOT IDLE <slot> (<n> minutes): ...`: a slot with no agent whose newest entry in the slot log (`[slots] log`) says empty over 2 minutes ago, while work is queued. A slot the log has not seen, or a full one, has none. | |
-| `NO HAND-BACK` | The ledger holds an agent started more than 10 minutes ago that has produced no hand-back or notification; the line gives its minutes. | |
-| `POLLING` | `POLLING <agent> on <task>: <n> tool calls, the last 20 are Monitor or sleep`: a running agent (not waiting) with over 40 tool calls whose last 20 are `Monitor` calls or `sleep` commands, read from `[slots] transcripts` (the directory of the workers' `agent-<id>.jsonl` and `.meta.json`; no line without it). | |
-| `SYNCED` | A sweep (or `pitboss sync`) copied a working file that changed to `notes-current` of the `[sync]` repository's main (`SYNCED <path>`). A sweep with nothing to commit (the files are identical to the remote, or a copy stages nothing) prints `sync: nothing to commit`, makes no commit and is not an error. | Nothing. |
 | `SYNC NOT CONFIGURED` | The configuration has no `[sync]` table, so nothing the orchestrator creates is kept; the line is `SYNC NOT CONFIGURED: add a [sync] table (reference: sweep.md, "The orchestrator's working files")`, and the sweep exits 1. | Add a `[sync]` table to the configuration (below), run `uvx pitboss sync <config>`, and sweep again. |
 | `NOT SYNCED` | A file beside the configuration (`*.toml`, `*.tsv`, `*.md`) or named by it (the slots file, the notes) is not in `[sync] paths`, and is not one of the files the sync keeps by itself (the configuration, the ledger, the log, the record); the line is `NOT SYNCED <path>`, one for each file, and the sweep exits 1. | Add the path to `[sync] paths` in the configuration, run `uvx pitboss sync <config>`, and sweep again; or move the file out of the configuration's directory if it is not the orchestrator's. |
 | `SYNC SOURCE MISSING` | A file the sync is told to keep (the configuration or a `[sync] paths` entry) is not there. | Restore it from `notes-current` of the repository (below), or take it out of `[sync] paths`. |
@@ -119,15 +63,6 @@ Each line below starts with the marker, then the PR, run or path it is about.
 
 ## The orchestrator's working files (keyword: sync)
 
-A container restart loses what is outside a repository: the sweep
-configurations, the slot ledger and log, the pressure record, the notes and the
-memory files. The `[sync]` table of the configuration (`repository`, default
-`moshez/claude-jsonl`; `directory`, default `notes-current`; `paths`, the
-files to keep) names them, and `pitboss sync <config>` copies the configuration,
-the ledger, the log, the record and every `paths` entry into `directory`, each
-under its own absolute path, commits and pushes straight to main. A sweep runs
-it last, so a restart loses at most one sweep's changes.
-
 - A file the orchestrator creates (a configuration, a note, a memory file) is
   added to `[sync] paths` in the same turn, and `uvx pitboss sync <config>` is
   run.
@@ -136,15 +71,6 @@ it last, so a restart loses at most one sweep's changes.
   `notes-current/<absolute path>` is copied back to `/<absolute path>`.
   The `[sync]` table itself is in the configuration, so the configuration is
   the first file to restore.
-
-## What the orchestrator reads of a PR
-
-The orchestrator dispatches a new reviewer when the sweep shows a review is
-due, and reads no PR body, diff or evidence first. The reviewer checks the Head
-line, that the Evidence is real output on the head (a row the Plan points to CI
-has the pointer instead), and the checks (`rules.md`,
-"Reviews"). The only reads the orchestrator makes of a PR are the sweep's
-markers and the review's verdict line.
 
 ## The runner-pressure hold
 
@@ -215,109 +141,14 @@ included: unpushed work can be lost, and a fix waits).
 
 ## Stale worktrees
 
-A worktree on no branch, or on the base branch, is finished once its tip
-is in the base branch (unlike a checkout of "Disk" below), so a persistent one
-carries `.pitboss-live` (under disk pressure that keeps a merged one only when its work merged last, and a marker older than 6 hours, the bound of a worker's task, keeps a merged one at no disk level). A worktree with an open PR is never finished. A finished worktree is
-removed only when it passes the safety test, the one `clean-container` and the
-sweep's clean use (the `DISK PRESSURE` line runs none, it tells what the clean did): every commit in it is on a remote branch, no tracked
-file in it is changed (untracked files are scratch), nothing in it changed in the
-configured idle hours (by file times, because a new worktree's tip is an old
-commit), it holds no `.pitboss-live` marker (below the pressure and for a
-marker under 6 hours old; the two exceptions follow) and is not a live path, it is no
-link or mount point, and it is not the directory the command runs in or a
-directory above it. A finished worktree that passes but holds untracked files is
-kept too, with their count, because `git worktree remove` refuses it, except a
-worktree whose only untracked file is a marker that was ignored (under pressure,
-or because a merged worktree's marker is older than 6 hours, the bound of a
-worker's task, which pitboss#194 chose), which is removed with `--force`. By default
-(`[clean] worktrees = "auto"`) the sweep removes
-every finished worktree that passes, printing `REMOVED WORKTREE`, and prints
-`KEPT WORKTREE` with the reason for each that fails; the section ends with a
-line giving the count removed, the space freed and the count kept. With
-`"list"` the sweep removes nothing and prints `STALE WORKTREE` for each finished
-worktree that passes; `clean-worktrees` then removes them. An agent that
-finishes removes its own worktree; the sweep is the net under that. A worktree
-an agent is starting in has files changed within the idle hours, so it is kept.
-
-## Scratch PRs
-
-A scratch repository (the `[scratch]` table, keyword: scratch) is a repository
-whose only use is a run on a real GitHub that a feature branch cannot show (a
-workflow that runs from the default branch, a fixture). Its table lists the
-repositories (`repositories`), the fixture PRs that stay open (`keep`, as
-`owner/name#N`, for example the fixture of a hold test) and the fixed branch
-names a run reuses (`branches`, for example `scratch-run-1` and
-`scratch-run-2`). The sweep reads every open PR of those repositories except the
-kept fixtures, and reads the workflow runs of each head: when all have
-finished the run is done and the PR is junk (`SCRATCH PR`, or `CLOSED SCRATCH
-PR` and `DELETED SCRATCH BRANCH` under the default `"auto"`, which closes the PR
-and deletes its branch, `pitboss clean` too; `clean --dry-run` and `"list"` only
-list). A fixture is never closed, its branch never deleted. A branch another
-open PR still has as its head, or one in a fork, is kept, with the reason. A PR
-whose runs are still going prints no line. How a run uses the table is in
-`rules.md`, "Scratch repositories".
+An agent that
+finishes removes its own worktree; the sweep is the net under that.
 
 ## Automatic cleaning
 
-A sweep starts by cleaning (`pitboss clean <config>` is the same on its own;
-`--dry-run` removes nothing), with no prompt and no dry run: the finished
-worktrees and dead checkouts, and the test tempdirs
-. At 90% or
-more of a file system used (`[clean] pressure_percent`), or with less than 5 GiB
-free on it (`[clean] min_free_gib`, `DISK PRESSURE`), it is aggressive: tempdirs
-untouched for an hour, every worktree and checkout with no open PR, and the
-package caches that regenerate. A worktree with an open PR, a running worker's
-directory (changed within the idle hours, or marked `.pitboss-live`), the main
-clone and the sweep's own directory are never touched (but under pressure a merged
-worktree's marker is ignored, except the one whose PR merged last, and at any
-disk level a merged worktree's marker older than 6 hours is ignored), and under
-pressure every other directory of the workspace, a full clone included, is
-judged by the PRs of its own `origin` and removed when its branch has none open
-(the others print `clean: kept PATH (WHY)`, and the sweep ends with the bytes
-freed by each kind and, short of the need, each kept directory over 500 MB), and a worktree with
-commits on no remote branch or a changed tracked file is kept (`KEPT WORKTREE`).
 The agent never asks the owner whether to clean, and when the classifier denies
 an `rm` it runs `uvx pitboss clean <config>` (which the allow list covers) and
 does not stop.
-
-## Disk
-
-`pitboss clean-container <config>` lists the dead paths of the machine and
-`--no-dry-run` removes them.
-
-- an entry of a `[clean] scratch` directory (not a symbolic link) with nothing
-  in it changed in the idle hours (`[worktrees] idle_hours`);
-- a regular file directly in `--root` (default `/`) written over `--hours`
-  (default 1) after `--marker` (default `/container_info.json`, skipped when
-  absent), which is judged like the others and is removed by a sweep's clean.
-
-It is never listed when it is marked live: a file named `.pitboss-live` is in
-it at any depth or in a directory above it (except in a merged checkout, where a
-marker older than 6 hours is not honored), it is, holds or lies in a path of
-`[clean] live`, it is the main clone, it is or holds the directory the command
-runs in, or its tree changed in the idle hours (a running agent's checkout;
-`.git` contents do not count). The tool walks a path
-once, never follows a symbolic link (a link is neither judged by what it
-points at nor sized through) and never enters a mount point. A dead path is
-safe when every git checkout in it, at any depth, has all its commits on a
-remote branch and no changed tracked file; untracked files are scratch. A
-standalone clone counts every ref (other local branches and the stash); a
-worktree of another repository counts its HEAD. The others, and a path with a
-checkout git cannot read, a bare repository or a mount point in it, are
-`KEPT PATH` lines and are never removed. The dry run prints each safe path as `REMOVED PATH ... (dry run)`,
-largest first, with its size and reason, and a last line with the total.
-
-To approve a subset, write its paths one to a line in a file and pass
-`--approved FILE`: only those paths are removed, and a path of the file that is
-not among the safe dead paths now
-is `COULD NOT REMOVE PATH`. Removal runs
-`rm -rf --one-file-system` on at most `--batch` paths at a time (default 5), so a
-sandbox that refuses one large delete still completes; each part is looked at
-again just before its `rm`, and a path that is live, busy or unsafe by then is
-left in place;
-the last lines give the space freed and the free space before and after.
-`clean-container` fetches each repository first and does not judge the
-checkouts of one that cannot be fetched (it says so).
 
 ## The reminders
 

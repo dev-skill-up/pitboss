@@ -14,7 +14,7 @@ from collections.abc import Iterator, Sequence
 
 from gather import commands as gather_commands
 
-from . import ENTRY_DATA, commandscan, configsettle, disk
+from . import ENTRY_DATA, commanddoc, commandscan, configsettle, disk
 
 
 @contextlib.contextmanager
@@ -44,6 +44,19 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
     """
 
     reading_intermixed = False
+
+    def set_defaults(self, **kwargs: object) -> None:
+        """Set defaults, and make a command's docstring its help text.
+
+        Args:
+            **kwargs: the defaults; ``__gather_command__`` is the function a
+                subcommand runs (keyword: command-help, pitboss#301).
+        """
+        super().set_defaults(**kwargs)
+        command = kwargs.get("__gather_command__")
+        if command is not None:
+            self.description = commanddoc.text(command)
+            self.formatter_class = argparse.RawDescriptionHelpFormatter
 
     def parse_known_args(  # type: ignore[override]
         self,
@@ -87,4 +100,6 @@ def make_parser(
         collected=collected, parser=IntermixedParser()
     )
     made.set_defaults(usage=usage)
+    made.epilog = "commands:\n" + commanddoc.listing(collected)
+    made.formatter_class = argparse.RawDescriptionHelpFormatter
     return made

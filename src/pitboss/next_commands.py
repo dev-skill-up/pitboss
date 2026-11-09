@@ -91,7 +91,10 @@ def show_next(args: argparse.Namespace) -> None:
 
     For a ticket no PR fixes it first prints a ``MISSING NAMES`` line when the
     ticket's Done-when names a ``brief.Kind``, a file path or a ``pitboss``
-    command that does not exist (keyword: done-when-names).
+    command that does not exist (keyword: done-when-names): no worker is spent
+    on that ticket, the ticket is fixed to name what exists (a file it asks to
+    create is named by its directory, not as a path) before a worker starts,
+    and a worker that sees the line hands back NOT STARTED with it.
 
     It exits 1 when no PR names the ticket but a PR could not be read, so none
     is said not to exist. It also exits 1, with an ``INCOMPLETE`` last line, when

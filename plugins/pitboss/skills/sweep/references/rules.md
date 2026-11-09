@@ -146,13 +146,7 @@ Only override for bugs, but do override for bugs (and then file them)".
 - In a repository under `[merge_queue] repositories` the base is merged into a
   PR's branch only for a conflict (`mergeable_state` dirty, `CONFLICT`), never
   to refresh a head or to clear a red CI (keyword: fixed-on-base, pitboss#314;
-  the update of PR quire#1060 cost a CI run and left a stale `Head:` line). A head whose failed checks all passed on the base after
-  the head's own run (the sweep reads the base's check runs for it) gets
-  `FIXED ON BASE`, not `FAILED`: `enqueue it (the merge queue tests it on
-  main)` when its review approves the head, `request the review` when it has
-  none, and the step a green head would have for any other state; `slots next`
-  offers it no `fix the CI`. A head red from any check the base has not passed
-  since is still `FAILED`.
+  the update of PR quire#1060 cost a CI run and left a stale `Head:` line).
 - After any branch update of a PR whose body has a `Head:` line, patch the
   line to the new head in the same step, before a review is requested: a
   review judged the stale line (orchestrator, 2026-10-27). After a merge of
@@ -223,13 +217,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   first push, and its body cites that comment's address. The first line stays
   `Fixes #N`; each other ticket has a `Fixes` or `Closes` line, and
   `pitboss next` reads both as the tickets the PR fixes, so no second PR is
-  started for one of them. `pitboss lint pr-body` refuses a body with several
-  such tickets unless it cites the address of a ruling comment of the PR
-  (given with `--ruling URL FILE` or found in `--comments FILE`), and so does
-  `pitboss lint event`, which posts the body-form status of every PR and
-  reads the PR's comments the same way, so a cited ruling makes that status
-  success. The sweep prints a `FOLDED PR` line for an open PR whose body names
-  several tickets and cites no ruling comment of the PR.
+  started for one of them.
 - **A partial fix is never merged, and a ticket is never narrowed or split to
   get a PR through, unless impossibility is verified** (owner,
   2026-10-29T04:50:34Z: "Merging it as a partial fix is your call. <-- it's not
@@ -345,33 +333,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   we still get a needs changes, that's paused owner"). The flow is stated once, as code
   (keyword: review-flow): `pitboss.flow.next_step` is the owner's pseudo code of
   2026-10-30 (pitboss#107), branch for branch, and `pitboss next CONFIG TICKET`
-  prints the one step a ticket is at. The sweep's `RULING DUE`, `PAUSE`,
-  `RULING UNREADABLE`, `RULING ESCALATES`, `PLAN EDITED`,
-  `revise the plan`, `fix the review` and `review it` lines and `slots next` take
-  that step, and this file does not state it a second time. The steps are
-  `WAIT_FOR_OWNER`, WORKER (with its task), UNDRAFT, `REGULAR_REVIEW` (with
-  its stage), `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`,
-  `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED`, `PLAN_CHECK`, `RUN_E2E` (the dispatch of `check.yml` on a draft that changes what e2e runs on, below) and MERGE. A draft whose Plan is not approved, and a PR with no review, whose Plan has
-  commands is at `PLAN_CHECK` until a trusted PR comment records a clean `pitboss plan-check` of this Plan, and only then at its plan review
-  (keyword: plan-check, pitboss#192): the orchestrator runs `uvx pitboss plan-check <body file>` on the body of such a draft and posts its whole output as a PR comment
-  (its first line is `Plan check`, it has a `Plan digest:` line and ends `Plan check: ok` or `Plan check: refused`), and the next step waits for the
-  trusted comment that says `Plan check: ok` with the digest of the Plan now in the body.
-  a draft whose Plan is approved is undrafted when `can_undraft`
-  before any CI wait, unless the newest review at its head asks for changes (a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156) or its diff touches `e2e/` or a `[sweep] run_by_e2e` prefix and no dispatched run of `check.yml` at its head has completed (a draft's own run skipped e2e): its step is `RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>` (`RUN_E2E`, pitboss#199; while a check run of its head is unfinished it is `waiting for CI at this head` instead), then the wait for that run, and only then the undraft. A red CI is never a plan
-  rejection. A ruling is recorded by a PR comment whose first line is exactly
-  `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
-  and what follows it (the table `pitboss.flowstate.AFTER`, which the flow reads) is carried out as
-  ruled, a split, a reshape or an abandon included. Only a ruling that can be
-  read (its second line is `Ruling: <word>`) counts: the newest ruling comment
-  decides, and one that cannot be read is `FIX_RULING` (`RULING UNREADABLE`;
-  an agent fixes the comment, and no second Opus agent starts). `PAUSE` is for
-  a review of changes needed posted after a readable ruling; a readable ruling
-  that no review follows gives its own step (the work it names as a worker
-  round, `RULING_ESCALATES` for `escalate to the owner`, the merge for
-  `execution is approved`), and a worker's push hands the PR back to the
-  ordinary review gate. A PR at `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`,
-  `RULING_ESCALATES`, `PLAN_EDITED` or `PLAN_CHECK` is offered for no round in `slots
-  next` (the orchestrator runs the plan-check itself), and its ticket stays taken.
+  prints the one step a ticket is at.
 - **A Done-when in conflict with an owner decision is escalated at once**
   (keyword: owner-conflict; owner, 2026-11-06T03:18Z, pitboss#283: if the
   owner's decisions make the ticket a paradox, the right thing is to escalate to
@@ -383,8 +345,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   the owner (a closed owner ticket, a rule, a recorded ruling) is `Ruling:
   escalate to the owner`, at once, with the artifact (what happened, the
   recommendation, the mitigation), and never `reshape`, `split` or `abandon`
-  around the conflict. The ruling brief carries the sentence
-  (`briefruling.OWNER_CONFLICT`), and a test pins the brief and this file.
+  around the conflict.
 - **An escalation says how the work got there** (keyword: how-we-got-here;
   owner, 2026-11-03, pitboss#168: if something is escalated, whether to an Opus
   ruling or to the owner, there has to be an analysis of how we got there;
@@ -395,19 +356,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   for each rejection before the escalation, the finding, the rule or brief line
   that should have prevented it, and the prevention filed (a pitboss ticket
   number). The orchestrator writes it before it escalates, from the reviews and
-  the PR's history, and files the prevention tickets first. Three places hold it:
-  the Opus ruling brief has the line `How we got here:` and tells the Opus agent
-  to refuse to rule without it (hand back NOT STARTED, post nothing), and the
-  ruling comment repeats the section before its steps or reasons; the
-  pause comment has the section; the owner's card has it in its
-  `reason`, whose first words are `How we got here:` and which is at most 200
-  bytes, so it names each rejection as `finding / rule / pitboss#N` and links
-  the comment that has the whole section (the card's question stays the
-  question). `uvx pitboss lint owner-card FILE` (the question and the reason
-  saved to a file) refuses a card with no such section (`how-we-got-here`);
-  post no card it refuses. The sweep prints `RULING NO ANALYSIS` for the newest
-  trusted Opus ruling comment without the section, which an agent adds by editing
-  or reposting the comment; the PR is not held for it.
+  the PR's history, and files the prevention tickets first.
 - **A question that reaches the owner comes with a markdown artifact, and the
   Opus rulings are summarized once a day** (keyword: owner-artifact; owner,
   2026-11-04, pitboss#237: "any question that gets to me must be accompanied by a
@@ -420,14 +369,7 @@ Only override for bugs, but do override for bugs (and then file them)".
      card without it is not posted. The `How we got here` section of an
      escalation belongs in `What happened`.
   2. Once a day the orchestrator summarizes every Opus ruling of the day, each
-     with a suggested mitigation, as a markdown artifact for the owner. The
-     sweep prints `OPUS RULINGS DAILY` when an Opus ruling comment (first line
-     `Opus ruling`) of a trusted author, on an open, merged or closed PR or on
-     an issue, is dated since the last summary and no summary is recorded for
-     the Pacific day (`America/Los_Angeles`), and it names each comment; the
-     orchestrator writes the summary and records it with `uvx pitboss
-     ruling-summary <config>`, which appends the time to
-     `.git/pitboss-ruling-summaries.log` of the main clone.
+     with a suggested mitigation, as a markdown artifact for the owner.
 - **A PR starts as a draft whose body is a Plan and an Execution, reviewed
   separately, unless `[slots.brief] drafts` is false** (owner, 2026-10-26T22:41:22Z: "after writing code, the agent
   creates a draft PR, splits the body into Plan and Execution" ... "the PR
@@ -450,16 +392,7 @@ Only override for bugs, but do override for bugs (and then file them)".
     The review of a head after green has a
     `Plan:` line and an `Execution:` line (`approved` or `changes needed`,
     neither line containing the word verdict followed by a colon) beside the
-    one `Verdict:` line of the form (`adversarial-review.md`). A draft whose Plan is approved is undrafted
-    when `can_undraft` holds, before any CI wait (`pitboss.flow.next_step`), unless the review
-    at its head asks for changes: it gets the fix that review asks for first (pitboss#176), or the newest review approved the Plan alone after the newest readable ruling: it gets the worker round `RUN_PLAN` first (pitboss#201), or its diff
-    changes what e2e runs on and no dispatched run of `check.yml` at its head has completed: it is at `RUN_E2E` first, the
-    dispatch of `check.yml` on its branch (pitboss#199), unless a check run of its head is unfinished: it
-    is then `waiting for CI at this head`; a draft whose
-    Plan is not approved is never undrafted: it is checked first (`plan-check`, run by the orchestrator, output posted as a PR comment, whose trusted
-    clean result for the Plan digest the plan review waits for; a Plan with no command needs none), then it gets a review of the Plan alone (or, when
-    the review at its head asks for changes, the fix that review asks for), and one whose
-    Plan is approved and has no such review waits for the window (`WAIT_FOR_UNDRAFT`).
+    one `Verdict:` line of the form (`adversarial-review.md`).
   - **After an approved Plan, every later review grades only the Execution**;
     the Plan line is printed as fixed (`Plan: approved (fixed)`, not reassessed, not
     discussed; a gap in the Plan is a request for an Opus ruling, never a Plan
@@ -480,53 +413,12 @@ Only override for bugs, but do override for bugs (and then file them)".
     not edit the Plan section; it hands back NOT PROCEEDING with the
     evidence. A review that grades the Plan records the Plan section it read as
     a `Plan digest: <digest>` line
-    The sweep prints `PLAN EDITED` when the Plan section of the
-    body differs from the digest of the newest review that approves the Plan and
-    records one, and `slots next` offers the PR for no round (no fix, no review,
-    no Plan revision) until a ruling `revise the plan` is recorded after that
-    review. The conflict of such a PR waits too (`steps.WAITS`), and its
-    `STALL`, `UPDATE`, `CONFLICT` and `FAILED` lines wait until the Plan is
-    restored or a ruling allows the edit. A review with no `Plan digest:` line is
-    not checked.
   - **While the newest review does not approve the Plan, the only round is a
     revision of the Plan, and the review of it grades the Plan alone**
     (orchestrator, 2026-10-30, pitboss#82: on a PR whose review graded the Plan
     and the Execution changes needed, with 13 defects, the fix round was told to
     fix the Execution too, and Execution fixed against a Plan that is then
-    rejected is thrown away). When the newest review of a PR has `Plan: changes
-    needed`, the only work offered for it is a revision of the Plan: `slots
-    next` prints the kind `revise the plan`, not `fix the review`, and the
-    sweep's PR line says `review=plan-changes-needed`. One exception: when an
-    older review approved the Plan and recorded a `Plan digest:`, the Plan stays
-    approved (the digest compared is that review's, not the newest one's), so a
-    Plan section revised after it is `PLAN EDITED` and the PR is offered no
-    round, not `revise the plan`, until a ruling `revise the plan` is recorded
-    after the approval. A Plan not edited is offered as above. The author edits the
-    `## Plan` section of the body (and, at the end, its `Head:` line) and nothing else: the code, the docs and the
-    tests are not touched, the Execution section stays as it is, and the
-    Execution defects the review listed are not fixed in this round. A revision
-    of the Plan is a fix: what these rules say of a fix holds for it, and a PR
-    with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` is offered for none. A conflict
-    with the base is merged in as usual. The revision ends with an empty commit
-    pushed to the draft (`git commit --allow-empty`; a push to a draft is free),
-    so that the head moves and the rejection no longer stands on it, and the
-    `Head:` line is patched to the new head; the author's hand-back then starts
-    the review of the revised Plan, as it starts a draft's first review. That
-    review is by a new reviewer and grades the Plan alone: a `Plan:` line and
-    the form's `Verdict:` line (the Plan's verdict), no `Execution:` line and no
-    Execution defect. A review that approves the Plan alone is no approval to
-    merge: the sweep's PR line says `review=plan-approved`
-    . A
-    `Plan:` line that grades nothing (`Plan: approved. The audit row now ...`
-    is a grade word and prose; a line that is neither) with no graded
-    `Execution:` line is a review of the Plan alone too (pitboss#201). When
-    that review was written after the newest readable Opus ruling, the Plan's
-    commands were never run: the next step, on a draft and on a PR that is not
-    a draft, is the worker round `run the Plan's commands and fill the
-    Execution` (`RUN_PLAN`), and only then the undraft of a draft
-    (the orchestrator undrafts it when a sweep shows `review=plan-approved` with
-    `[draft]`, after `pitboss pressure` passes, "Pushing and merging"). With no ruling before it, the orchestrator undrafts the
-    PR at once, as before.
+    rejected is thrown away).
   - **A Plan graded changes needed is a Plan rejection** (owner,
     2026-10-26T22:45:16Z: "there's no rejected outright. It's just that the
     first needs changes counts as the first plan rejection"); rejections are
@@ -566,9 +458,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   analysis ("An escalation says how the work got there"); the analysis is a fact
   the tool cannot know, and it replaces that line, it is not added to the brief.
   A ruling brief sent with the line still the template is refused by the Opus
-  agent. The text is `pitboss.brief`, and a test pins it, so a
-  change to a brief is a reviewed code change. Every brief starts with the
-  ticket's original goal in one line, from the ticket. The scope of a review
+  agent. The scope of a review
   brief is exclusive: a head that differs from the approved head only by a
   merge of the base is checked for the merge commit's resolution against both
   parents, the files regenerated from the merge and the CI on the head, and
@@ -596,19 +486,6 @@ Only override for bugs, but do override for bugs (and then file them)".
   deliberate obfuscation is hunted: those gaps are not findings and get no
   ticket. The Done-when is read from the ticket by the worker, and copied word
   for word, as the next bullet says.
-- The body digest (keyword: body-digest, pitboss#147). A review records the PR body it read in one line, `Body:
-  <digest>` (`uvx pitboss body-digest FILE` prints it for the body saved to a
-  file; the brief says how). GitHub's REST API gives a PR body no edit time
-  (`updated_at` moves with every label, push and comment), so the digest is
-  the record. When the digest in the newest review of the head is not the
-  body's now and the head did not move, the sweep prints `review=older-body`;
-  the fix-round
-  brief is never printed for a body fixed at one head, because its diff would
-  have the same SHA twice (pitboss#294): the worker who fixed
-  only the body is not sent to fix the review again, and
-  the orchestrator does not guess the next step. A review of the same head that
-  records the new digest ends it. A review that records no `Body:` line is
-  keyed to the head alone, as before.
 - A brief names the ticket, the files and docs to read, the repository's own
   rules, the kind of change, the check before pushing, and the rules here that
   apply (pitboss prints it, above; it points the worker at the ticket's own
@@ -627,68 +504,18 @@ Only override for bugs, but do override for bugs (and then file them)".
   project's pins-check command). A reviewer brief is sent
   only when the sweep says the PR is ready for review (or, for a review of a draft at its Plan stage,
   when its author hands back), and names the head SHA.
-- **Plan, Execution and grep lines** (`Plan first`, above). A worker brief
-  says (where `[slots.brief] drafts` is false, the brief says `Ready:` and
-  opens the PR ready instead of the draft): `Plan: open the PR as a draft whose body has a Plan section (what you
-  will change, and why that satisfies each Done-when line) and an Execution
-  section (what you did, with each command and its raw output for what CI does
-  not show); never mark it
-  ready.` `Plan revision: when the newest review did not approve the plan, edit
-  the ## Plan section of the PR body only; touch no code, doc or test (a merge
-  of the base for a conflict excepted), fix none of the Execution defects, end
-  with an empty commit pushed to the draft, and patch the Head: line to it.`
-  A reviewer brief says: `Plan: you are a new
-  reviewer; grade the Plan and the Execution in one review, with a Plan line
-  and an Execution line beside the one Verdict line; the PR is at its first
-  review`, or `the Plan was revised after a rejection: grade only the Plan,
-  with a Plan line and the one Verdict line, no Execution line and no
-  Execution defect`, or `the Plan is approved: grade only the Execution and
-  write the Plan line as `Plan: approved (fixed)`.`
 - **Evidence line** (keyword: expand, pitboss#117; workers typed evidence from
   inference and got counts, mutation runs and output wrong). Evidence, counts
   and file contents in a PR body come only from `pitboss expand`, never from
   the worker's hand (a row the Plan points to CI has the pointer in the Plan
-  and no row in the body, pitboss#179). A worker brief says: `Evidence: write the body as a
-  template in which every fact is a line "$ <command>" (the head is "$ git
-  rev-parse HEAD", a count is "$ git log origin/main..HEAD --oneline | wc -l",
-  a file is "$ cat < path", a mutation run is "$ sh scripts/<script>" of a
-  script committed in the PR); run pitboss expand TEMPLATE and send its output
-  as the body (a body over the store's limit, 65536 characters, is set with
-  pitboss expand TEMPLATE --pr OWNER/NAME#N --no-dry-run, which cuts it on
-  paragraph markers, posts the later parts as comments marked
-  <!-- pitboss-expand-part N of M --> and cites them in the section
-  "## Evidence in comments" of the description); never retype or abbreviate output; lint pr-body refuses a
-  hand-typed "$ " row anywhere in the body (in a quote, a list or an indented
-  block too) that is not inside a block expand produced.` A reviewer brief
-  says: `Evidence: every "$ " block in the Evidence is one pitboss expand
-  marked (lint pr-body checks the mark); a command that is not the one the
-  claim needs, or a claim with no command (one CI shows has its pointer in the
-  Plan instead), is changes needed.` The commands run with the permissions of whoever
-  runs expand, so a template is only ever the worker's own (`design.rst`,
-  "Expanding a template").
-- **Try-commands, expand-rows lines** (keyword: dry-run, pitboss#170;
-  reviewers of pwa#277 and quire#1038 found a Plan command that did not work as
-  written, an expand row with `; echo $?` appended,
-  each costing rounds). A worker brief says:
-  `Try commands:` run each command read-only before it goes into the Plan, when
-  it can be run, and say so in the Plan for one that cannot; `Expand rows:` never append
-  anything to a row of the template, because `pitboss expand` prints
-  `exit status: N` for a status that is not zero, and `pitboss lint pr-body`
-  refuses an Evidence row that ends in `; echo $?`, `&& echo $?` or `|| echo`
-  (`appended`)
-  The wording is in
-  `adversarial-review.md`, "The Plan's precise commands".
+  and no row in the body, pitboss#179).
 - **An existing comment or body is edited only with its full text in hand**
   (orchestrator, 2026-10-30: a stand-in text sent to an update-comment tool on
   a comment that had not been read overwrote the closing comment on
   bats-lang/quire#1020, rebuilt from a report). An edit of a comment or a PR
   body is made only after reading its current text in full and with the
   complete replacement text written out; a placeholder is never sent. When the
-  full original is not at hand, the comment is corrected by a new comment. A
-  worker brief says: `Edit: change an existing comment or PR body only after
-  reading its current text in full, and send the complete replacement text,
-  never a placeholder; when the full original is not at hand, correct it with
-  a new comment.`
+  full original is not at hand, the comment is corrected by a new comment.
 - **Cleaning is automatic and never asked about** (owner, 2026-10-31: "Pitboss
   sweep should *automatically* be cleaning things that can be cleaned, and we can
   enable more aggressive cleaning if the disk is over 90%. Better to delete
@@ -708,30 +535,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   form and runs that exact string. The lookup is after the denial, never before
   running (the classifier's verdict cannot be known in advance), and it is not
   pitboss output (pitboss cannot see the allow list). Only when no entry fits
-  does the agent ask the owner to widen the list. A worker brief says:
-  `Denied: when the classifier denies a command, look in the repository's
-  Claude Code settings file's allow list for an equivalent allowed form and run that
-  exact string; ask the owner to widen the list only when no entry fits.`
-- **Check line.** A reviewer brief says: `Check: the last Head line of the PR
-  body is the full SHA of the PR's head, the one this brief names; the Evidence
-  is real output (a command and what it printed) run on that head (a row the
-  Plan points to CI has the pointer instead); every
-  required check finished and passed at that head (an Execution is graded only on a
-  complete run: a draft, or a head with an unfinished check, is NOT STARTED,
-  pitboss#202); in a review of the Plan alone
-  only the Head line is checked.` The brief names the PR and
-  the head SHA and says nothing of the body, the diff or the evidence: the
-  orchestrator read none of them (Reviews, above).
-- **Design check, Push and Sample lines.** `Design check: push the ticket's
-  declarations (types and statements, no proofs or bodies) to the branch before
-  building on them and hand back with DESIGN CHECK; a reviewer reads only those
-  against the ticket and the repository's types and approves or sends back;
-  then build.` `Push: push the ticket's branch after every commit (a branch
-  push opens no pull request and starts no CI), so the work survives the
-  container and a reviewer can read it.` `Sample: a local run over a population
-  is a seeded sample; CI runs the whole population.` A reviewer reads a design
-  check as the brief for it says: only the declarations, against the ticket and
-  the repository's types. Design is reviewed (owner, 2026-10-25, agreed, haiku
+  does the agent ask the owner to widen the list.
+- **Design check, Push and Sample lines.**
+  Design is reviewed (owner, 2026-10-25, agreed, haiku
   rule 30): every sum is a datatype with named constructors; the ticket's names
   and the repository's existing types are reused; a comment that maps a number
   to a meaning is a defect except for a stored format; reviewers read the
@@ -822,23 +628,14 @@ Only override for bugs, but do override for bugs (and then file them)".
   keep only the check commands that are specific to it.
 - **A worker's local check is `pitboss nox`** (owner, 2026-11-04, pitboss#210;
   2026-11-05, pitboss#250: "Stop with the targeted runs for iterating. Use
-  pitboss nox for iterating too. That's what it's for."): the worker brief says
+  pitboss nox for iterating too. That's what it's for."):
   Nox: where the checks are nox sessions, run `timeout 598 pitboss nox`
   before every push (the skills, lint and
   mypy first, then the tests of one Python version, which stop at the first
   failing test; it stops at the first failing session and always uses `-r`); a
   targeted test module, `nox -s ...` or `virtue` is never run by hand, and
-  never the full `nox -r`: CI's `Run Nox` step runs the whole suite. The
-  skills, lint and mypy come first because they take about 23 s together and
-  most red runs are red there (twelve runs of pitboss#318: six were red in
-  lint or mypy after 221 to 246 s of passing tests), and the tests session is
-  run with virtue's `-x` (pitboss#326), whatever its arguments, so a failing
-  test stops the run and is reported; CI's `Run Nox` step passes no `-x` and
-  runs every test. The tests session always prints the total time and the 30
-  slowest tests with their times, as lines that start with `test-timing`
-  (pitboss#324, owner: "nox tests should always be run with test timing.
-  Otherwise we won't see regressions."), in CI's `Run Nox` log and, for a
-  session that passed, in `pitboss nox`'s output. A worker never invokes `virtue` or `python -m virtue` by
+  never the full `nox -r`: CI's `Run Nox` step runs the whole suite.
+  A worker never invokes `virtue` or `python -m virtue` by
   hand (the nox session is the way to run tests), starts nothing in the
   background that needs polling (pitboss#175: one foreground command under
   `timeout 598`, or one `Monitor` with an `until` loop; a worker that polled
@@ -950,18 +747,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   review** (keyword: pins-only, pitboss#34; owner, 2026-10-23T11:25:42Z: "a
   green relock pr with no changes other than the relocking itself doesn't need
   a full review"; owner, 2026-11-07T11:50Z: "Why do we need review for relock?
-  Unless it needs changes to the logic, it's mechanical"). A pull request is
-  pins-only when its head branch has the `[relock] prefix` (default `relock/`)
-  or every path it changes is in `[relock] pin_files`. The project's command is
-  `[relock] pins_check_command` (for bats projects `bats pins-check {base}
-  {head} --compiler <dir> --repository <dir>`
-  ). When CI is green and the command's last output line is the word OK
-  or starts `OK:`, the sweep prints `PINS-ONLY OK`,
-  and offers no review: the orchestrator merges it. Any
-  other output (`NOT OK: ...`, a command that cannot run, a mixed PR, a PR with
-  a non-pin file) is the line `PINS-ONLY` with the command's line, and the PR
-  is offered for a review as before, whose brief (`review the relock`) tells
-  the reviewer to run the command on the head and paste its output as evidence.
+  Unless it needs changes to the logic, it's mechanical").
 - **Before asking the owner, an Opus worker predicts the answer** (owner,
   2026-10-27T15:48:08Z: "In the future, treat it as a standing order. Before
   asking me, start an opus worker with the request to predict what I'll say. If
@@ -988,10 +774,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   queue, treat it as immediate pressure for the purposes of resetting the 15
   minute timer. The reason is that some of the later jobs take time to start,
   and if we stuff the queue, we get the ejection stuff that causes infinite
-  holds (stuff gets dequeued, and then the MQ start from scratch)"). A job put
-  on the queue is recorded at once: `pitboss push` records the push that went
-  out (a refused push records its look, and a `none` look does not restart
-  the wait, so a retried push does not keep restarting it), and the orchestrator runs `pitboss queued <config>`
+  holds (stuff gets dequeued, and then the MQ start from scratch)").
+  the orchestrator runs `pitboss queued <config>`
   after a merge, an enqueue or auto-merge armed. If the pressure check fails a
   worker hands back; it does not loop, retry or sleep for it (owner,
   haiku-rule 47, 2026-10-25). A hold that is wrong because of a known pitboss
@@ -1003,13 +787,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   an hour). Every other hold is kept, the bats-lang repositories' included.
 - **Whether a PR is opened as a draft is the config's `[slots.brief] drafts`,
   never the orchestrator's text** (default true; owner, 2026-11-03: pitboss
-  never needs drafts, because it uses a different runner budget). Where it is
-  `false` the worker brief says to open the PR ready and to push without
-  `--draft`, `pitboss push --draft` exits 1 naming the setting, and
-  `pitboss lint brief --config` refuses an appended sentence that tells the
-  worker to open a draft (pitboss#216). The first step that `pitboss next`
-  and `pitboss slots next` print for a ticket no PR fixes follows the same
-  setting (a draft by default, ready where false). Read the brief; do not copy a draft
+  never needs drafts, because it uses a different runner budget).
+  Read the brief; do not copy a draft
   rule from another repository.
 - **A PR merges only after an independent review comment for its head.** In a
   gated repository a push, an update-branch or a merge of the base voids the
@@ -1108,51 +887,11 @@ Only override for bugs, but do override for bugs (and then file them)".
   "Check locally before every push").
 - Nobody deletes the persistent checkout: the worktree a worker reuses, the one
   whose PR merged last, or the orchestrator's own; each carries a `.pitboss-live`
-  marker, because a sweep removes a finished worktree that has none (below);
+  marker, because a sweep removes a finished worktree that has none;
   under disk pressure a merged one keeps that protection only when its PR
   merged last, and a marker older than 6 hours, the bound of a worker's task,
-  protects a merged one at no disk level (the exceptions below; the 6 hours are
+  protects a merged one at no disk level (the 6 hours are
   the choice of pitboss#194, no earlier ticket sets a bound).
-  Another worktree is removed
-  only when its work is finished and on GitHub (its PR merged or closed, or its
-  tip in the default branch) and it passes the safety test below; a worktree of
-  a ticket in flight is never removed. A sweep removes such a worktree itself
-  and prints `REMOVED WORKTREE` (`[clean] worktrees = "auto"`, the default; with
-  `"list"` it prints `STALE WORKTREE` and `pitboss clean-worktrees` removes it),
-  and a finished worktree that fails the test stays and prints `KEPT WORKTREE`
-  with the reason, so no line is left for the orchestrator to act on
-  (`pitboss clean-worktrees`, `pitboss clean-container`). The test is one: no
-  commit on no remote branch, no changed tracked file, nothing changed in the
-  idle hours, nothing marked live (below the pressure and under 6 hours old; the
-  exceptions follow), no
-  symbolic link or mount point, and not the
-  directory the command runs in or a directory above it. A finished worktree
-  with untracked files is kept too, because `git worktree remove` refuses it,
-  except a worktree whose only untracked file is a marker that was ignored (under
-  pressure, or for its age), which is removed with `--force`.
-  The persistent checkout, a running agent's
-  checkout and a shared cache are marked live (a file named `.pitboss-live` in
-  the directory or anywhere in it, or in a directory above it, or a path under
-  `[clean] live`), and nothing marked is ever listed for removal (below the pressure and
-  while the marker of a merged one is under 6 hours old; the exceptions
-  follow): a persistent
-  checkout that is not marked is removed by the next sweep once its PR has
-  merged. A marker outlives its work, so under disk pressure (the aggressive
-  clean, at `[clean] pressure_percent` used or under `[clean] min_free_gib`
-  free) a merged worktree's own marker is not
-  honored, except on the one whose PR merged last: the older merged worktrees
-  are removed (`REMOVED WORKTREE` says its marker was ignored) and the last
-  merged one prints `KEPT WORKTREE` with `its PR merged last`. At any disk level
-  the marker of a merged worktree or checkout older than 6 hours is not honored,
-  not even on the one merged last (`REMOVED WORKTREE` says it is older than 6
-  hours). Under pressure the cleaner also judges every directory of the
-  workspace that is not a registered worktree, a full clone included, by the PRs
-  of its own `origin`: one whose branch has no open PR is removed, and each one
-  kept prints `clean: kept PATH (WHY)`; the clean ends with `clean: freed by
-  kind: ...` and, when that falls short of getting under the pressure, the
-  shortfall and each kept directory over 500 MB with why (`sweep.md`, the
-  `clean:` row). A symbolic link is never followed and a mount point never entered. The threshold is the orchestrator's own; a sweep warns
-  and cleans aggressively under `[clean] min_free_gib` free (`DISK PRESSURE`).
 - **Disk is a shared allowance, and cleaning it is the orchestrator's job**
   (owner, 2026-10-20T04:34:45Z: "if there's disk pressure, I expect you to look
   for stragglers"; 2026-10-24T13:23:09Z: "Aggressively clean. Qsweep clean is
@@ -1161,9 +900,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   2026-10-28T11:10:26Z: "Why are you quibbling semantics when you should be
   cleaning"). The cleaning covers the temporary directories, the caches and the
   old worktrees, and does not wait for a threshold when the disk is the reason
-  a container restarts. `pitboss clean-container <config>` is the dry run that
-  lists each dead path with its size, why it is dead and whether it is safe,
-  and `--no-dry-run` removes the safe ones in parts. Never remove a checkout
+  a container restarts.
+  Never remove a checkout
   with commits on no remote branch or changed tracked files (it is listed
   apart, `KEPT PATH`), a held directory, the shared build cache or a live
   agent's checkout.
@@ -1174,13 +912,9 @@ Only override for bugs, but do override for bugs (and then file them)".
   junk behind** (orchestrator, 2026-11-03, drawn from the owner's correction on
   bats-lang/relock-scratch#34, pitboss#142: a scratch repository held 14 open
   PRs from finished runs). A scratch repository (the `[scratch]` table of the
-  sweep's configuration, `sweep.md`, "Scratch PRs") is for runs that need a real
+  sweep's configuration) is for runs that need a real
   GitHub; the PRs it keeps open on purpose are the fixtures named in `[scratch]
-  keep` and nothing else. A worker closes the PR of its own run at hand-back. The
-  sweep flags what is left (`SCRATCH PR`) and, by default, closes the PRs whose
-  workflow runs have finished and deletes their branches (`pitboss clean` does
-  the same on its own); a fixture is never touched, and a PR whose runs are
-  still going is left.
+  keep` and nothing else. A worker closes the PR of its own run at hand-back.
 - **A scratch run reuses a small fixed set of branch names** (orchestrator,
   2026-11-03, the coordinator's relay on pitboss#142: a branch delete is blocked
   as destructive in an agent session, so a run must not make a new branch each

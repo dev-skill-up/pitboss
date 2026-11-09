@@ -250,10 +250,27 @@ SPELLED = {
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
 }
 
-# keyword: markup-lines (pitboss#343): the line of these says its own action, and
-# a reference gets no new line for them
+# keyword: markup-lines (pitboss#343, pitboss#301): the line of these says what
+# happened or what to do, and the class docstring above is their definition, so no
+# reference restates them
 SELF_EXPLAINED = frozenset(
     {
+        Marker.UNREADABLE_REVIEW,
+        Marker.QUEUE_RUN,
+        Marker.CANCELLED_STALE_QUEUE_RUN,
+        Marker.REMOVED_WORKTREE,
+        Marker.CLOSED_SCRATCH_PR,
+        Marker.DELETED_SCRATCH_BRANCH,
+        Marker.REMOVED_PATH,
+        Marker.SWEEP_REMINDER,
+        Marker.EMPTY_SLOT,
+        Marker.GONE_AGENT,
+        Marker.CHECK_BEFORE_YOU_ANSWER,
+        Marker.HELD_TICKET,
+        Marker.SLOT_IDLE,
+        Marker.NO_HAND_BACK,
+        Marker.POLLING,
+        Marker.SYNCED,
         Marker.EXECUTION_REVIEW_EARLY,
         Marker.BEHIND,
         Marker.READY_TO_MERGE,
