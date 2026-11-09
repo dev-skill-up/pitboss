@@ -19,7 +19,7 @@ from hamcrest import (
 )
 
 from .. import brief, config, ticketblock
-from . import briefmake, fakes, quietworld, world
+from . import briefmake, fakes, liveagents, quietworld, world
 from .test_commands import sweep
 from .test_holds import START_LINE
 from .test_slot_commands import next_output
@@ -163,7 +163,7 @@ class TestSlotsNext(unittest.TestCase):
     def test_the_suggestions_skip_it(self) -> None:
         """``next`` suggests the blocker and the ticket that is not blocked."""
         here = blocked_world()
-        live = world.running(here)
+        live = liveagents.running(here)
         suggested = re.findall(
             r"start a PR: (\S+#\d+):",
             world.again(here, "next", "--now", FUTURE, *live).out,
@@ -252,7 +252,7 @@ def next_text(here: world.World) -> str:
     Returns:
         The output.
     """
-    return world.again(here, "next", "--now", FUTURE, *world.running(here)).out
+    return world.again(here, "next", "--now", FUTURE, *liveagents.running(here)).out
 
 
 def blocked_lines(here: world.World) -> Sequence[str]:
@@ -371,7 +371,7 @@ class TestOrder(unittest.TestCase):
     def test_the_suggestion_starts_the_dependency(self) -> None:
         """``next`` suggests the dependency first, and its brief has the rule."""
         here = depends_world()
-        live = world.running(here)
+        live = liveagents.running(here)
         out = world.again(here, "next", "--now", world.FUTURE, *live).out
         suggested = re.findall(r"start a PR: (\S+#\d+):", out)
         assert_that(suggested, equal_to(["owner/lib#3", "owner/project#10"]))

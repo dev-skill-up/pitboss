@@ -7,9 +7,7 @@ from . import deviations, ledger, slotheld
 from .markers import Marker
 
 
-def slot_lines(
-    book: ledger.Ledger, taken: slotheld.Occupancy, derived: bool = False
-) -> Sequence[str]:
+def slot_lines(book: ledger.Ledger, taken: slotheld.Occupancy) -> Sequence[str]:
     """The ledger, with a loud line for each empty slot that is free.
 
     An empty slot that a PR's round or an unrecorded agent holds is not free:
@@ -20,8 +18,6 @@ def slot_lines(
     Args:
         book: the ledger.
         taken: what holds the slots beyond the ledger's agents.
-        derived: whether the rows are the running agents' (``slots show``, the
-            sweep) and not the ledger as written.
 
     Returns:
         The lines.
@@ -35,9 +31,7 @@ def slot_lines(
             free -= 1
         found.append(_slot_line(slot) if slot.agent or free >= 0 else _held_row(slot))
     if all(slot.agent for slot in book.slots):
-        found.append(
-            "slots: all full" if derived else "slots: the ledger says all full"
-        )
+        found.append("slots: the ledger says all full")
     return [*found, *slotheld.lines(taken), *deviations.ledger_lines(book)]
 
 
@@ -73,17 +67,14 @@ def print_free_slots(queued: int, taken: slotheld.Occupancy) -> None:
         )
 
 
-def print_ledger(
-    book: ledger.Ledger, taken: slotheld.Occupancy, derived: bool = False
-) -> None:
+def print_ledger(book: ledger.Ledger, taken: slotheld.Occupancy) -> None:
     """Print the ledger, and on stderr the reminder to check it.
 
     Args:
         book: the ledger.
         taken: what holds the slots beyond the ledger's agents.
-        derived: whether the rows are the running agents' and not as written.
     """
-    for line in slot_lines(book, taken, derived):
+    for line in slot_lines(book, taken):
         print(line)
     print(CHECK_LEDGER_LINE, file=sys.stderr)
 

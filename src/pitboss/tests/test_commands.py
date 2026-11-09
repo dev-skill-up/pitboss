@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import cleanworld, fakes, orphans, syncworld, world
+from . import cleanworld, fakes, liveagents, orphans, syncworld, world
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -82,7 +82,7 @@ def sweep(here: world.World) -> world.Result:
     Returns:
         What the sweep did.
     """
-    return world.again(here, "sweep", "--now", world.FUTURE, *world.running(here))
+    return world.again(here, "sweep", "--now", world.FUTURE, *liveagents.running(here))
 
 
 def unclean_third(here: world.World) -> None:

@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import slot_refusals, world
+from . import liveagents, slot_refusals, world
 
 UNREAD_TICKETS_LINE = (
     "UNREADABLE tickets: not offered as new work, 1 open PR(s) could not be read"
@@ -134,7 +134,7 @@ def freed_world(
     here = here or world.make_world()
     run_all(here, [*setup, ("set", slot, "agent-1", "#50", "--running", "agent-1")])
     args = ("slots", "free", here.config, slot, "--done", "agent-1")
-    live = world.running(here, "agent-1")
+    live = liveagents.running(here, "agent-1")
     freed = world.invoke(here, *args, "--now", world.FUTURE, *live)
     return here, tuple(freed.out.splitlines())
 
@@ -148,7 +148,7 @@ def next_result(here: world.World) -> world.Result:
     Returns:
         Its output, error and exit code.
     """
-    live = world.running(here)
+    live = liveagents.running(here)
     return world.invoke(
         here, "slots", "next", here.config, "--now", world.FUTURE, *live
     )

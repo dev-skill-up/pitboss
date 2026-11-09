@@ -11,7 +11,7 @@ offered, but it is a priority).
 import re
 from typing import Sequence
 
-from . import concurrently, config, ghapi, parsing, shapes
+from . import concurrently, config, ghapi, issuepages, shapes
 
 NO_LABEL = "NO PRIORITY LABEL"
 RULE = (
@@ -46,8 +46,7 @@ def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
     def read(repo: config.Repo) -> Sequence[shapes.Issue]:
         path = f"repos/{repo.slug}/issues?state=open"
         # the list holds PRs: a full page with one among it is not the last page
-        entries = ghapi.pages(github, path, parsing.issue_entries)
-        return [each for each in entries if each is not None]
+        return list(filter(None, ghapi.pages(github, path, issuepages.entries)))
 
     found = [
         (each.created_at, f"{repo.slug}#{each.number}")

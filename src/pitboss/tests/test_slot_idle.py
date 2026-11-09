@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import world
+from . import liveagents, world
 from .test_commands import clear_queue
 from .test_handback import slots, start
 from .test_quiet import at
@@ -28,7 +28,7 @@ def minutes_idle(here: world.World, minutes: int) -> Sequence[str]:
     Returns:
         The minutes of each ``SLOT IDLE tiny`` line.
     """
-    args = ("sweep", here.config, "--now", at(minutes), *world.running(here))
+    args = ("sweep", here.config, "--now", at(minutes), *liveagents.running(here))
     out = world.invoke(here, *args).out
     return TINY_IDLE.findall(out)
 

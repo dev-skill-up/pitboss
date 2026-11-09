@@ -205,7 +205,7 @@ def _shown(found: Context, book: ledger.Ledger) -> None:
     running = found.args.running
     derived = slotholding.derived(book, running)
     taken = slotholding.occupy((), derived, running)
-    slotreport.print_ledger(derived, taken, derived=True)
+    slotreport.print_ledger(derived, taken)
 
 
 def _refuse(message: str) -> SystemExit:

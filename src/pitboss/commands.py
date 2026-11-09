@@ -333,7 +333,7 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     offer = slotholding.counted(
         offering.offered(found, read, book), read, book, found.args
     )
-    slotreport.print_ledger(book, offer.occupancy, derived=True)
+    slotreport.print_ledger(book, offer.occupancy)
     sweepline.slots(read, offer)
     sweepline.logged(book, offer, found.settings.slots.log, found.now)
     workerlines.print_lines(written, found.now, found.args)

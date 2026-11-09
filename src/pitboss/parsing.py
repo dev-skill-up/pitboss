@@ -4,7 +4,7 @@ import json
 import re
 from typing import AbstractSet, Sequence
 
-from . import shapes
+from . import issuepages, shapes
 
 FAILURE = "failure"
 
@@ -376,36 +376,6 @@ def issue_of(text: str) -> Sequence[shapes.Issue]:
     return issues(f"[{text}]")
 
 
-def issue_entries(text: str) -> Sequence[shapes.Issue | None]:
-    """Parse a page of issues, one entry for each item the page holds.
-
-    The list holds PRs too. A page of 100 items is a full page whether or not
-    some are PRs, so a reader that pages on a short page counts the PRs: the
-    entry of a PR is None (pitboss#94).
-
-    Args:
-        text: the response body of ``issues``.
-
-    Returns:
-        An entry for each raw item: the issue, or None for a PR.
-    """
-    return [
-        (
-            None
-            if "pull_request" in item
-            else shapes.Issue(
-                number=item["number"],
-                title=item["title"],
-                created_at=item["created_at"],
-                labels=frozenset(label["name"] for label in item["labels"]),
-                body=item.get("body") or "",
-                comments=item.get("comments") or 0,
-            )
-        )
-        for item in json.loads(text)
-    ]
-
-
 def issues(text: str) -> Sequence[shapes.Issue]:
     """Parse a page of issues, leaving out PRs (which the list includes).
 
@@ -415,4 +385,4 @@ def issues(text: str) -> Sequence[shapes.Issue]:
     Returns:
         The issues.
     """
-    return [each for each in issue_entries(text) if each is not None]
+    return [each for each in issuepages.entries(text) if each is not None]

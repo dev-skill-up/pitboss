@@ -13,7 +13,7 @@ from typing import Callable, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import holdconfig, holds
-from . import fakes, world
+from . import fakes, liveagents, world
 from .test_commands import sweep
 from .test_slot_commands import freed_world, next_output, run_all
 
@@ -158,7 +158,7 @@ class TestSlotsNext(unittest.TestCase):
         """``slots free`` and ``next`` take the work from the same offer."""
         here, lines = freed_world([], held_world(PROJECT_TABLE, library_ticket))
         refill = "\n".join(lines)
-        args = ("next", here.config, "--now", world.FUTURE, *world.running(here))
+        args = ("next", here.config, "--now", world.FUTURE, *liveagents.running(here))
         suggested = world.invoke(here, *args).out
         assert_that(refill, contains_string("start owner/lib#5 "))
         assert_that("owner/project#9" in refill, equal_to(False))

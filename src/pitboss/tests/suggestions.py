@@ -4,7 +4,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import world
+from . import liveagents, world
 
 
 def run_command(here: world.World, *command: str) -> world.Result:
@@ -19,7 +19,7 @@ def run_command(here: world.World, *command: str) -> world.Result:
     Returns:
         What it printed and its exit code.
     """
-    live = world.running(here)
+    live = liveagents.running(here)
     return world.invoke(here, *command, here.config, "--now", world.FUTURE, *live)
 
 
