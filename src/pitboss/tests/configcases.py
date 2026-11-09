@@ -123,6 +123,7 @@ CASES = (
     Case(before=("push",), after=NOW, make=plain),
     Case(before=("sync",), after=NOW, make=syncing),
     Case(before=("next",), after=NOW, make=plain),
+    Case(before=("count",), after=NOW, make=plain),
     Case(
         before=("analyze-red",),
         after=(
