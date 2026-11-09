@@ -146,9 +146,8 @@ class Subject:
         ticket: the ticket the PR fixes, empty when its body names none.
         repo: the repository's ``owner/name``.
         goal: the ticket's original goal in one line.
-        done_when_digest: the digest of the ticket's Done-when now
-            (``ticketwhen.digest``), which the body of a new PR records; empty
-            when the brief is not for that or the ticket has none.
+        done_when_digest: the digest of the ticket's Done-when now, which the
+            body of a new PR records; empty when the brief is not for that.
     """
 
     reference: str
@@ -300,11 +299,10 @@ def _opening(spec: Spec) -> Sequence[str]:
     if spec.kind is Kind.RESOLVE_CONFLICT:
         return [brieftextconflict.CONFLICT_BODY]
     shown = spec.kind in (Kind.NEW_PR, Kind.FIRST_ROUND)
-    recorded = shown and bool(spec.subject.done_when_digest)
-    return [
-        *([text.BODY] if shown else []),
-        *([brieftextwhen.DONE_WHEN_DIGEST] if recorded else []),
-    ]
+    if not shown:
+        return []
+    recorded = [brieftextwhen.DONE_WHEN_DIGEST] if spec.subject.done_when_digest else []
+    return [text.BODY, *recorded]
 
 
 # keyword: ci-pointer (pitboss#179): the sentences of the Plan a worker writes
