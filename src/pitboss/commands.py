@@ -24,6 +24,7 @@ from . import (
     config,
     configfile,
     dead,
+    draftmoves,
     ghapi,
     headchecks,
     ledger,
@@ -206,11 +207,13 @@ class Detail:
         pull: the PR.
         failures: each failed check's id and what was read of it.
         said: what is said of the PR's removal from the merge queue.
+        moves: what is said of a draft-state change that was not the sweep's.
     """
 
     pull: pulls.PullFacts
     failures: Mapping[int, shapes.Failure]
     said: removedline.Said
+    moves: Sequence[str]
 
 
 def _detail(
@@ -222,6 +225,7 @@ def _detail(
         pull=pull,
         failures=read_all(found.github, pull),
         said=removedline.tell(found.github, found.settings, pull, runs),
+        moves=draftmoves.tell(found.github, pull),
     )
 
 
@@ -237,7 +241,7 @@ def _pull_lines(
     shown = pulllines.lines(pull, found.now, found.settings, steps)
     acts = report.action_lines(pull, found.settings, queued, why)
     blocked = pullstate.blocked_lines(found.github, found.settings, pull, ())
-    for line in (*shown, *removedline.settle(got.said, acts), *blocked):
+    for line in (*shown, *got.moves, *removedline.settle(got.said, acts), *blocked):
         print(line)
     return pulls.conflicted(pull) or bool(
         headchecks.unanswered(pull.checks, pull.signals)
