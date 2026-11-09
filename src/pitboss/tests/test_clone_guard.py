@@ -66,6 +66,15 @@ def library_on_side(here: world.World) -> None:
     repositories.run_git(here.workspace, "init", "-q", "-b", "side", str(library))
 
 
+def unreadable(here: world.World) -> None:
+    """Make the clone of the library a directory git cannot read.
+
+    Args:
+        here: the world.
+    """
+    (here.workspace / "lib" / ".git").mkdir(parents=True)
+
+
 def untracked(here: world.World) -> None:
     """Add a file git does not track to the main clone.
 
@@ -115,7 +124,12 @@ REFUSED: Mapping[str, tuple[Setup, str, Sequence[str]]] = {
     "side branch": (side_branch, WITH_NONE, ["publish-zip-95, not main"]),
     "detached": (detached, WITH_NONE, ["on branch (detached HEAD), not main"]),
     "change": (change, WITH_NONE, ["(branch main) has uncommitted changes"]),
-    "library": (library_on_side, WITH_NONE, ["lib on branch side, not main"]),
+    "library": (library_on_side, WITH_NONE, ["lib is on branch side, not main"]),
+    "unreadable": (
+        unreadable,
+        WITH_NONE,
+        ["lib is on branch (detached HEAD), not main"],
+    ),
     "both": (change, WITHOUT_LINE, ["NOT STARTED", "uncommitted"]),
 }
 PASSED: Mapping[str, Setup] = {

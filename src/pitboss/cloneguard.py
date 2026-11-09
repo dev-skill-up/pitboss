@@ -12,6 +12,7 @@ keeps some of its own.
 
 import argparse
 import pathlib
+import subprocess
 import sys
 from typing import Sequence
 
@@ -41,13 +42,16 @@ def clones_of(settings: config.Config) -> Sequence[pathlib.Path]:
 
 
 def _git(args: argparse.Namespace, clone: pathlib.Path, *words: str) -> str:
-    done = args.safe_run(
-        ["git", "-C", str(clone), *words],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return str(done.stdout).strip() if done.returncode == 0 else ""
+    try:
+        done = args.safe_run(
+            ["git", "-C", str(clone), *words],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return ""  # a clone git cannot read is judged as one on no branch
+    return str(done.stdout).strip()
 
 
 def _is_checkout(clone: pathlib.Path) -> bool:
@@ -69,7 +73,7 @@ def dirty(args: argparse.Namespace, clone: pathlib.Path) -> bool:
 
 def _lines_of(args: argparse.Namespace, clone: pathlib.Path, base: str) -> list[str]:
     branch = _git(args, clone, "branch", "--show-current") or "(detached HEAD)"
-    off = [f"on branch {branch}, not {base}; check out {base} there"]
+    off = [f"is on branch {branch}, not {base}; check out {base} there"]
     changed = [f"(branch {branch}) has uncommitted changes"]
     said = [*(off if branch != base else []), *(changed if dirty(args, clone) else [])]
     return [f"refused: clone {clone} {each}" for each in said]
