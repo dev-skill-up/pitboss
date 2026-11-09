@@ -2,10 +2,11 @@
 
 import argparse
 import functools
+import os
 import subprocess
 import sys
 import time
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
@@ -16,23 +17,31 @@ from . import (
     diskwatch,
     expansion,
     noxcheck,
+    noxenv,
     noxgreen,
     selectdiff,
+    testselect,
 )
 from .commandarguments import NOW_ARGUMENT
 from .timing import current_time
 
 
-def run_command(args: argparse.Namespace, command: Sequence[str]) -> expansion.Outcome:
+def run_command(
+    args: argparse.Namespace,
+    command: Sequence[str],
+    environment: Mapping[str, str] | None = None,
+) -> expansion.Outcome:
     """Run one command line, standard error joined to standard output.
 
     Args:
         args: the parsed arguments.
         command: the command line.
+        environment: the environment of the child; this process's when none.
 
     Returns:
         The exit status and what it printed.
     """
+    given = {} if environment is None else {"env": environment}
     done = args.safe_run(
         list(command),
         check=False,
@@ -40,13 +49,14 @@ def run_command(args: argparse.Namespace, command: Sequence[str]) -> expansion.O
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        **given,
     )
     return expansion.Outcome(status=done.returncode, output=done.stdout)
 
 
 def planned(
     args: argparse.Namespace, runner: noxcheck.Runner
-) -> tuple[Sequence[str], Sequence[str], Sequence[noxcheck.Session]]:
+) -> tuple[Sequence[str], Sequence[str], Sequence[noxcheck.Session], Sequence[str]]:
     """Decide which tests the tests session runs.
 
     Args:
@@ -54,8 +64,10 @@ def planned(
         runner: runs a command line (git, to find the diff).
 
     Returns:
-        The lines to print, the test modules (none: all of them) and the
-        sessions to run (without the tests session when the diff reaches no test).
+        The lines to print, the test modules (none: all of them), the sessions
+        to run (without the tests session when the diff reaches no test) and the
+        changed files whose coverage is judged (none for a run of all the tests,
+        whose report is CI's whole one).
     """
     lines, selection = selectdiff.choose(runner)
     extra = args.also or []
@@ -65,11 +77,17 @@ def planned(
         [*lines, *alsotests.lines_of(extra, selection)],
         [] if selection.everything else sorted(modules),
         tuple(noxcheck.Session) if reached else noxcheck.WITHOUT_TESTS,
+        [] if selection.everything else testselect.judged_files(selection),
     )
 
 
 def show(ran: Sequence[noxcheck.Step]) -> None:
-    """Print a line for each session that ran, and the output of one that failed.
+    """Print what the sessions gave, then a line for each session, last.
+
+    The timing lines of the sessions that passed come first (a failed session's
+    whole output has its own), then the output of one that failed with the
+    command to repeat when it is lint, or on success the line that names the
+    proof, and the summary (``noxcheck.summary_of``) as the last lines.
 
     Args:
         ran: the sessions that ran; a failed one is the last.
@@ -78,16 +96,20 @@ def show(ran: Sequence[noxcheck.Step]) -> None:
         SystemExit: 1 when the last session failed.
     """
     for each in ran:
-        print(noxcheck.line_of(each))
-        # a failed session's whole output follows below, timing included
         if not each.outcome.status:
             for timing in noxcheck.timing_of(each):
                 print(timing)
-    failed = ran[-1].outcome
-    if failed.status:
-        sys.stdout.write(failed.output)
+    failed = ran[-1]
+    if failed.outcome.status:
+        sys.stdout.write(failed.outcome.output)
+        for each in noxcheck.rerun_of(failed):
+            print(each)
+    else:
+        print(noxcheck.PROOF)
+    for each in noxcheck.summary_of(ran):
+        print(each)
+    if failed.outcome.status:
         raise SystemExit(1)
-    print(noxcheck.PROOF)
 
 
 def stop_when_short_of_disk(args: argparse.Namespace) -> None:
@@ -134,10 +156,14 @@ def run_planned(
         runner: runs a command line.
         place: the clean head and its record file, none when git cannot say.
     """
-    lines, modules, sessions = planned(args, runner)
+    lines, modules, sessions, judged = planned(args, runner)
     for each in lines:
         print(each)
-    show(noxcheck.run_sessions(runner, time.monotonic, modules, sessions))
+    with noxenv.throwaway_home() as home:
+        environment = noxenv.isolated(os.environ, home)
+        in_home = functools.partial(run_command, args, environment=environment)
+        ran = noxcheck.run_sessions(in_home, time.monotonic, modules, sessions, judged)
+    show(ran)
     if place:
         noxgreen.record(place, current_time(args).isoformat())
 
@@ -159,8 +185,12 @@ def run_planned(
         " modules that import a changed module of src/pitboss directly or"
         " through others, and those that name a command (as a string) that a"
         " changed module registers. It prints each with the changed files that"
-        " reach it, how many it left out, and that coverage of the left-out"
-        " tests is not checked (CI's Run Nox step checks the whole suite)."
+        " reach it, how many it left out, and what is judged and what is left to"
+        " CI: the coverage of the changed files of src/pitboss is judged here"
+        " from the tests that ran (a missing line or branch is printed for the"
+        " file, as `coverage report --show-missing` does, and the exit is 1);"
+        " the coverage of the rest is left to CI's Run Nox step, which checks the"
+        " whole suite at 100%."
         " Every test runs when a changed file is not a module of src/pitboss"
         " (a doc, a skill, a config, noxfile.py, pyproject.toml, a data file),"
         " when a shared module of the tests is changed or deleted, when a"
@@ -201,6 +231,17 @@ def nox(args: argparse.Namespace) -> None:
     already ran green on a clean tree is not run again: a ``NOTE`` with the
     time of that run is printed and the status is 0, unless ``--force`` is
     given (``noxgreen``, pitboss#345).
+
+    The sessions run with a throwaway ``HOME`` and ``GIT_CONFIG_GLOBAL`` and no
+    git identity in the environment, as on CI's runner, so a test that needs an
+    identity fails here too (``noxenv``, pitboss#364); nothing else on the
+    machine is changed and the directory is removed when the run ends. The tests
+    session of a run of some modules reports the missing lines and branches of
+    the changed ``src/pitboss`` files from the tests that ran and fails on any
+    (the rest is CI's, ``testselect.NOT_CHECKED``). The last lines of the output
+    are one for each session, in the order they run: ``success``, ``failed`` or
+    ``not run`` with the seconds (``noxcheck.summary_of``), and a lint failure
+    names the command to repeat alone (``noxcheck.LINT_RERUN``).
 
     Args:
         args: the parsed arguments.

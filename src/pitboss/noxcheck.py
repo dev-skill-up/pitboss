@@ -15,6 +15,15 @@ from typing import Protocol, Sequence
 from .expansion import Outcome
 
 STOP_AFTER = "-x"
+# The tests session reports the missing lines and branches of these changed files
+# when it runs some modules only (keyword: changed-coverage, pitboss#364).
+COVER_PREFIX = "--cover="
+# A lint failure names the command to repeat alone (pitboss#364): the one session
+# that failed, once; a session that passed on the head is not run again.
+LINT_RERUN = (
+    "lint-rerun after the fix repeat only this session: `{command}` (allowed"
+    " because lint failed; a session that passed on this head is not run again)"
+)
 # The tests session ends with these lines (keyword: test-timing, pitboss#324):
 # the total, then the slowest tests, each line starting with the prefix so that
 # `rg test-timing` finds them in CI's log and `pitboss nox` can show them.
@@ -88,20 +97,29 @@ class Clock(Protocol):
         """
 
 
-def command_of(name: str, modules: Sequence[str]) -> Sequence[str]:
+def command_of(
+    name: str, modules: Sequence[str], judged: Sequence[str] = ()
+) -> Sequence[str]:
     """The command line of a session: always ``-r``.
 
     The tests session always gets ``-x`` (virtue stops after the first
-    unsuccessful test), with the test modules after it when there are some.
+    unsuccessful test), then ``--cover=PATH`` for each changed file whose
+    coverage it judges (``noxfile.py`` reads them, keyword: changed-coverage),
+    then the test modules when there are some.
 
     Args:
         name: the session.
         modules: the test modules, for the tests session only.
+        judged: the changed files whose coverage the tests session reports, for
+            a run of some modules.
 
     Returns:
         The command line.
     """
-    wanted = ["--", STOP_AFTER, *modules] if name == Session.TESTS.value else []
+    covers = [f"{COVER_PREFIX}{each}" for each in judged]
+    wanted = (
+        ["--", STOP_AFTER, *covers, *modules] if name == Session.TESTS.value else []
+    )
     return ["nox", "-r", "-s", name, *wanted]
 
 
@@ -110,6 +128,7 @@ def run_sessions(
     clock: Clock,
     modules: Sequence[str],
     sessions: Sequence[Session] = tuple(Session),
+    judged: Sequence[str] = (),
 ) -> Sequence[Step]:
     """Run the sessions in order, up to the first that fails.
 
@@ -119,6 +138,7 @@ def run_sessions(
         modules: the test modules the tests session runs; all when empty.
         sessions: the sessions to run, in order (all of them; without the tests
             session when the diff reaches no test, pitboss#331).
+        judged: the changed files whose coverage the tests session reports.
 
     Returns:
         The sessions that ran; a failed one is the last.
@@ -127,7 +147,7 @@ def run_sessions(
     for each in sessions:
         name = each.value
         started = clock()
-        outcome = runner(command_of(name, modules))
+        outcome = runner(command_of(name, modules, judged))
         steps.append(Step(name=name, outcome=outcome, seconds=clock() - started))
         if outcome.status:
             break
@@ -161,3 +181,33 @@ def line_of(step: Step) -> str:
     """
     shown = "failed" if step.outcome.status else "success"
     return f"{step.name} {shown} {step.seconds:.0f}s"
+
+
+def summary_of(ran: Sequence[Step]) -> Sequence[str]:
+    """One line for each session, the ones that did not run included.
+
+    Args:
+        ran: the sessions that ran, in order; a failed one is the last.
+
+    Returns:
+        ``line_of`` for each session that ran and ``NAME not run`` for each
+        that did not (after a failure, or the tests when the diff reaches none),
+        in the order the sessions run.
+    """
+    done = {each.name: line_of(each) for each in ran}
+    return [done.get(each.value, f"{each.value} not run") for each in Session]
+
+
+def rerun_of(failed: Step) -> Sequence[str]:
+    """The line that names the command to repeat after a lint failure.
+
+    Args:
+        failed: the session that failed.
+
+    Returns:
+        The line with the exact command line that ran; none unless it is lint.
+    """
+    if failed.name != Session.LINT.value:
+        return []
+    command = " ".join(command_of(failed.name, []))
+    return [LINT_RERUN.format(command=command)]

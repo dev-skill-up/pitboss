@@ -10,6 +10,7 @@ nox.options.envdir = "build/nox"
 nox.options.sessions = ["lint", "tests", "mypy", "docs", "skills", "dry_release"]
 
 VERSIONS = ["3.12", "3.13", "3.14"]
+COVER = "--cover="
 
 PUBLISH_ACTION = "pypa/gh-action-pypi-publish"
 # The interpreter the publish action uploads with (its Docker base image).
@@ -73,7 +74,14 @@ def tests(session):
     # `pitboss nox` passes -x (virtue stops after the first unsuccessful test,
     # pitboss#326): the words that start with a dash are virtue's options, the
     # others the modules, and CI passes none, so it runs every test.
-    options = [word for word in session.posargs if word.startswith("-")]
+    # `--cover=PATH` words (keyword: changed-coverage, pitboss#364) are not virtue's:
+    # the changed files whose coverage a run of some modules reports.
+    covers = [word for word in session.posargs if word.startswith(COVER)]
+    options = [
+        word
+        for word in session.posargs
+        if word.startswith("-") and not word.startswith(COVER)
+    ]
     modules = [word for word in session.posargs if not word.startswith("-")]
     # The run always ends with the total time and the slowest tests (pitboss#324,
     # keyword: test-timing): the reporter comes last, so no argument replaces it.
@@ -96,9 +104,21 @@ def tests(session):
     # The reporter has already failed a green run that left a directory (test-leak).
     _empty_directory(tmpdir)
     # A run of some modules covers only part of the package, so the 100% report
-    # belongs to the whole run (CI's), and `pitboss nox` (pitboss#210), which selects
-    # the tests from the diff (pitboss#331), passes when the named tests pass.
+    # belongs to the whole run (CI's). `pitboss nox` (pitboss#210), which selects
+    # the tests from the diff (pitboss#331), reports only the changed files it names
+    # with `--cover=`: a missing line or branch there fails the session.
     if modules:
+        if covers:
+            changed = ",".join(word[len(COVER) :] for word in covers)
+            session.run(
+                "coverage",
+                "report",
+                "--fail-under=100",
+                "--show-missing",
+                "--skip-covered",
+                f"--include={changed}",
+                env=dict(COVERAGE_FILE=coverage_file),
+            )
         return
     fail_under = "--fail-under=100"
     session.run(

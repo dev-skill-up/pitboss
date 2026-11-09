@@ -367,3 +367,41 @@ class TestNames(unittest.TestCase):
         for module, wanted in TEST_NAMES.items():
             with self.subTest(module):
                 assert_that(importgraph.is_test(module), equal_to(wanted))
+
+
+JUDGED_CASES = {
+    "a module, a test and a package file are judged": (
+        [ROOT + "noxcheck.py", TESTS + "test_nox.py", ROOT + "__init__.py"],
+        [ROOT + "__init__.py", ROOT + "noxcheck.py", TESTS + "test_nox.py"],
+    ),
+    "a file that is not a module of the package is not": (
+        ["noxfile.py", "README", ROOT + "data.txt"],
+        [],
+    ),
+    "__main__.py is omitted, as CI's report omits it": (
+        [ROOT + "__main__.py", ROOT + "noxcheck.py"],
+        [ROOT + "noxcheck.py"],
+    ),
+    "main.py is judged and a __main__.py of the tests is omitted": (
+        [ROOT + "main.py", TESTS + "__main__.py"],
+        [ROOT + "main.py"],
+    ),
+}
+
+
+class TestJudgedFiles(unittest.TestCase):
+    """The changed files whose coverage ``pitboss nox`` judges (pitboss#364)."""
+
+    def test_each_case(self) -> None:
+        """The modules of src/pitboss, tests included, but not __main__.py."""
+        for name, (paths, wanted) in JUDGED_CASES.items():
+            with self.subTest(name):
+                found = selection({}, [(each, False) for each in paths])
+                assert_that(testselect.judged_files(found), equal_to(wanted))
+
+    def test_a_deleted_test_is_not_judged_and_is_kept_in_the_selection(self) -> None:
+        """The nearest input: a file that is gone has no line to miss."""
+        gone = TESTS + "test_nox.py"
+        found = selection({}, [(gone, True), (ROOT + "noxcheck.py", False)])
+        assert_that(testselect.judged_files(found), equal_to([ROOT + "noxcheck.py"]))
+        assert_that(list(found.deleted), equal_to([gone]))

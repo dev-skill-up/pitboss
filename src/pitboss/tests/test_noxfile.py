@@ -51,6 +51,7 @@ def commands_of(*posargs: str) -> Sequence[str]:
 
 
 REPORTER = "--reporter=pitboss.tests.timingreport.TimingReporter"
+COVER = noxcheck.COVER_PREFIX
 
 
 def virtue_words_of(*posargs: str) -> Sequence[str]:
@@ -234,6 +235,41 @@ class TestTestsSession(unittest.TestCase):
         assert_that(found, equal_to(["-x", REPORTER, "pitboss.tests.test_gates"]))
         targeted = commands_of("-x", "pitboss.tests.test_gates")
         assert_that(targeted, equal_to(["coverage run"]))
+
+    def test_cover_words_are_not_virtues_and_report_the_changed_files(self) -> None:
+        """`--cover=PATH` stays out of virtue's words; the report names the files."""
+        words = ["-x", f"{COVER}src/pitboss/a.py", f"{COVER}src/pitboss/b.py", "m"]
+        assert_that(virtue_words_of(*words), equal_to(["-x", REPORTER, "m"]))
+        report = runs_of(*words)[-1]
+        assert_that(
+            list(report),
+            equal_to(
+                [
+                    "coverage",
+                    "report",
+                    "--fail-under=100",
+                    "--show-missing",
+                    "--skip-covered",
+                    "--include=src/pitboss/a.py,src/pitboss/b.py",
+                ]
+            ),
+        )
+
+    def test_modules_with_no_cover_words_have_no_report(self) -> None:
+        """The nearest input: no changed file is named, so nothing is reported."""
+        assert_that(commands_of("-x", "m"), equal_to(["coverage run"]))
+
+    def test_cover_words_with_no_module_leave_the_whole_report_alone(self) -> None:
+        """A run of every test reports as CI does, over all files, not the named."""
+        report = runs_of("-x", f"{COVER}src/pitboss/a.py")[-1]
+        assert_that(
+            [each.startswith("--include") for each in report],
+            equal_to([False] * len(report)),
+        )
+        assert_that(
+            commands_of("-x", f"{COVER}src/pitboss/a.py")[-1],
+            equal_to("coverage report"),
+        )
 
     def test_the_stop_after_option_alone_runs_every_test_and_the_report(self) -> None:
         """`pitboss nox` with no module: all the tests, stopping at a failure."""
