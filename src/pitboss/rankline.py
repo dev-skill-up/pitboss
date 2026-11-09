@@ -52,6 +52,14 @@ class Ranked(Protocol):
         """
 
     @property
+    def ticket(self) -> str:
+        """The ticket a PR fixes, or "".
+
+        Returns:
+            The ticket's reference.
+        """
+
+    @property
     def priority(self) -> int:
         """The index of its priority label.
 
@@ -120,11 +128,19 @@ class Offer(Protocol):
         """
 
 
-def _blocks(item: Ranked, waits: Sequence[str], labels: Sequence[str]) -> str:
-    ranked = "ranked with the oldest of them"
-    if item.category.name == TICKET:
-        ranked = f"ranked {labels[item.priority]}, opened {item.created_at[:10]}"
-    return f"{Marker.BLOCKS.text} {item.reference}: blocks {', '.join(waits)}; {ranked}"
+def _name(item: Ranked) -> str:
+    # a ticket, or the ticket a PR fixes with the PR after it
+    if item.category.name == TICKET or not item.ticket:
+        return item.reference
+    return f"{item.ticket} (PR {item.reference})"
+
+
+def _blocks(item: Ranked, waits: Sequence[str], offer: Offer) -> str:
+    # ranked with the oldest item that waits, whether a PR stands for the blocker or not
+    waiting = [each for each in offer.blocked if each.reference in waits]
+    oldest = min(waiting, key=lambda each: each.created_at, default=item)
+    ranked = f"ranked {offer.labels[oldest.priority]}, opened {oldest.created_at[:10]}"
+    return f"{Marker.BLOCKS.text} {_name(item)}: blocks {', '.join(waits)}; {ranked}"
 
 
 def lines(offer: Offer) -> Iterable[str]:
@@ -144,5 +160,5 @@ def lines(offer: Offer) -> Iterable[str]:
         yield f"{Marker.SUPERSEDED.text} {gone.reference}"
     for first in offer.items:
         if first.reference in offer.blocks:
-            yield _blocks(first, offer.blocks[first.reference], offer.labels)
+            yield _blocks(first, offer.blocks[first.reference], offer)
     yield from offer.promoted

@@ -86,7 +86,7 @@ class TestSlotsNext(unittest.TestCase):
         rankworld.absent(out, "owner/project#3 at head")
 
     def test_the_pull_request_that_fixes_the_blocker_is_the_blocker(self) -> None:
-        """Ticket 11 is worked by PR 1: PR 1 stands for it, and nothing is added."""
+        """Ticket 11 is worked by PR 1: PR 1 stands for it, named after the ticket."""
         here = dependent_world()
         rankworld.ninth(here, "Depends on #11")
         eleven = rankworld.ticket("", number=11, labels=[])
@@ -97,8 +97,8 @@ class TestSlotsNext(unittest.TestCase):
         blocked = "BLOCKED owner/project#3 by owner/project#11"
         lines_are(output, "BLOCKED", [blocked])
         blocks = (
-            "BLOCKS owner/project#1: blocks owner/project#3;"
-            " ranked with the oldest of them"
+            "BLOCKS owner/project#11 (PR owner/project#1): blocks owner/project#3;"
+            " ranked urgent, opened 2026-09-01"
         )
         lines_are(output, "BLOCKS", [blocks])
 

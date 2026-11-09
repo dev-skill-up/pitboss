@@ -8,21 +8,54 @@ prints ``PROMOTE <ticket> to <label>: caused K corrections (<list>)`` once. The
 sweep only prints and ranks: the label on GitHub stays the owner's, an Opus
 ruling's or the coordinator's to change (keyword: promote, pitboss#388).
 
-The texts read are the bodies of the tickets that are queued (the open tickets
-with a priority label that no open PR names) and the titles and bodies of the open
-PRs that were read.
+The texts read are the titles and bodies of every ticket and PR of each configured
+repository, open or closed, merged or not, labelled or not, with or without an open
+PR, from one paginated listing of each repository (``sources``). The candidates are
+the queued tickets below the top priority, so a ticket stays counted when a naming
+ticket gets a PR, loses its label or is closed.
 """
 
+import json
 import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, ledger
+from . import config, ghapi, ledger
 from .markers import Marker
 
 CAUSE = re.compile(
     r"\b(?:caused\s+by:?|cause:)\s*((?:[\w.-]+/)?[\w.-]*#\d+)", re.IGNORECASE
 )
 MANY = 2
+
+
+def _texts(text: str) -> Sequence[tuple[int, str]]:
+    # one entry for each raw item, so that a short page is the last one
+    return [
+        (item["number"], f"{item.get('title') or ''}\n{item.get('body') or ''}")
+        for item in json.loads(text)
+    ]
+
+
+def sources(
+    github: ghapi.GitHub, repos: Iterable[config.Repo]
+) -> Sequence[tuple[str, str]]:
+    """Every ticket and PR of the repositories, with its title and body.
+
+    Args:
+        github: the API.
+        repos: the configured repositories.
+
+    Returns:
+        Each as ``owner/name#number`` with its text, read with one paginated
+        listing of ``issues?state=all`` for each repository.
+    """
+    return [
+        (f"{repo.slug}#{number}", text)
+        for repo in repos
+        for number, text in ghapi.pages(
+            github, f"repos/{repo.slug}/issues?state=all", _texts
+        )
+    ]
 
 
 def caused(text: str, repo: config.Repo) -> Sequence[str]:

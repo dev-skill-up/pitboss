@@ -44,12 +44,15 @@ class Marker(enum.Enum):
             status, its link and, for ``text-lint``, whether the finding is about
             the body or the pin. Also ``BLOCKED <ticket> by <blocker>``: a ticket
             that says it cannot be worked on until an open ticket or PR (its blockers
-            are joined by commas), also a PR whose ticket does: the PR has no step
-            until the blocker merges (keyword: blocked-pull, pitboss#388).
+            are joined by commas), also a PR whose ticket does, or whose newest
+            trusted ``Plan check`` refuses the Plan and names them: the PR has no
+            step until the blocker merges (keyword: blocked-pull, plan-refusal,
+            pitboss#388).
         BLOCKS: ``BLOCKS <ticket>: blocks <tickets>; ranked <label>, opened
-            <date>``: a ticket that blocks another is ranked with the label and
-            the creation time of the oldest ticket that waits for it (keyword:
-            blocks-line, pitboss#388).
+            <date>``, or ``BLOCKS <ticket> (PR <pr>): ...`` when an open PR
+            stands for the ticket: a ticket that blocks another is ranked with
+            the label and the creation time of the oldest item that waits for it
+            (keyword: blocks-line, pitboss#388).
         SUPERSEDED: ``SUPERSEDED <ticket>``: a ticket marked as superseded, in
             ``[slots] superseded`` or by a comment line; no start is offered for
             it (keyword: superseded-ticket, pitboss#388).

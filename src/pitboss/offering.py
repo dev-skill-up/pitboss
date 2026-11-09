@@ -122,7 +122,7 @@ def offered(
     )
     held = holds.standing(owned, [_slug(each) for each in opened])
     queued = _fixing(work.queued(opened, found.github, found.settings, book), opened)
-    queued, said = _promoted(found, opened, queued)
+    queued, said = _promoted(found, queued)
     queued = ranked(found, opened, book, queued)
     queued = _blocked_pulls(queued, marks, book, opened)
     named, gone = _named(found, queued)
@@ -162,19 +162,13 @@ def _named(
 
 
 def _promoted(
-    found: Source, opened: Sequence[pulls.Read], queued: Sequence[work.Item]
+    found: Source, queued: Sequence[work.Item]
 ) -> tuple[Sequence[work.Item], Sequence[str]]:
     # keyword: promote (pitboss#388): a ticket many others name as a cause ranks first
     slots = found.settings.slots
     new = work.Category.NEW_PR
     tickets = [each for each in queued if each.category is new]
-    sources = [
-        *((each.reference, each.body) for each in tickets),
-        *(
-            (pulls.reference(each), f"{each.pull.title}\n{each.pull.body or ''}")
-            for each in pulls.readable(opened)
-        ),
-    ]
+    sources = promotion.sources(found.github, config.repositories(found.settings))
     below = [each.reference for each in tickets if each.priority > 0]
     named = promotion.named_by(below, sources, frozenset(slots.owner_priorities))
     items = [
