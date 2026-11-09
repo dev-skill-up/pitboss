@@ -265,4 +265,38 @@ def ran(command):
 """,
         [6],
     ),
+    "a fail with all three": (
+        """
+import subprocess
+from hamcrest import fail
+
+def ran(command):
+    done = subprocess.run(command, capture_output=True, text=True)
+    if done.returncode:
+        fail(f"{command} {done.returncode} {done.stderr}")
+""",
+        [],
+    ),
+    "a fail with only the command": (
+        """
+import subprocess
+from hamcrest import fail
+
+def ran(command):
+    done = subprocess.run(command, capture_output=True, text=True)
+    if done.returncode:
+        fail(command)
+""",
+        [6],
+    ),
+    "a star import": (
+        """
+from subprocess import *
+
+def ran(command):
+    done = run(command, capture_output=True, text=True)
+    return done.returncode, "x" in done.stderr
+""",
+        [5],
+    ),
 }

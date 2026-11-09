@@ -8,6 +8,7 @@ status and booleans read from the output leaves a failure with nothing to read.
 
 import ast
 from collections.abc import Iterator, Mapping, Sequence, Set
+from typing import cast
 
 from . import scanning
 
@@ -139,12 +140,11 @@ def message_parts(failure: ast.AST) -> Sequence[ast.AST]:
         return [x for x in (failure.exc, failure.cause) if x is not None]
     if isinstance(failure, ast.Call) and scanning.named(failure.func) == "fail":
         return [*failure.args, *(x.value for x in failure.keywords)]
-    if isinstance(failure, ast.Call):
-        return [
-            *failure.args[2:3],
-            *(x.value for x in failure.keywords if x.arg == "reason"),
-        ]
-    return []
+    reason = cast(ast.Call, failure)
+    return [
+        *reason.args[2:3],
+        *(x.value for x in reason.keywords if x.arg == "reason"),
+    ]
 
 
 def names_command(parts: Sequence[ast.AST], call: ast.Call, seen: Set[str]) -> bool:
