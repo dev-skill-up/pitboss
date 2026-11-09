@@ -16,20 +16,26 @@ STREAMS = frozenset({"stdout", "stderr"})
 FAILURES = frozenset({"fail", "assert_that"})
 
 
-def own_nodes(function: ast.FunctionDef) -> Iterator[ast.AST]:
+FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
+Function = ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda
+
+
+def own_nodes(function: Function) -> Iterator[ast.AST]:
     """The nodes of a function's body that are not in a function inside it.
 
     Args:
-        function: the function.
+        function: a ``def``, an ``async def`` or a ``lambda``.
 
     Yields:
         The nodes.
     """
-    pending: list[ast.AST] = list(function.body)
+    pending: list[ast.AST] = (
+        [function.body] if isinstance(function, ast.Lambda) else list(function.body)
+    )
     while pending:
         node = pending.pop()
         yield node
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        if not isinstance(node, FUNCTIONS):
             pending.extend(ast.iter_child_nodes(node))
 
 
@@ -61,7 +67,9 @@ def result_names(nodes: Sequence[ast.AST], call: ast.Call) -> Set[str]:
     Returns:
         The names.
     """
-    assigned = [x for x in nodes if isinstance(x, (ast.Assign, ast.AnnAssign))]
+    assigned = [
+        x for x in nodes if isinstance(x, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+    ]
     targets = [
         target
         for each in assigned
@@ -71,18 +79,26 @@ def result_names(nodes: Sequence[ast.AST], call: ast.Call) -> Set[str]:
     return {each.id for each in targets if isinstance(each, ast.Name)}
 
 
-def hands_back(nodes: Sequence[ast.AST], call: ast.Call, names: Set[str]) -> bool:
+def hands_back(
+    function: Function, nodes: Sequence[ast.AST], call: ast.Call, names: Set[str]
+) -> bool:
     """Whether a function returns the finished process itself.
 
     Args:
+        function: the function.
         nodes: the nodes of the function.
         call: the call that runs it.
         names: the names the result is assigned to.
 
     Returns:
-        True when a ``return`` gives the call, or a name it was assigned to.
+        True when a ``return`` gives the call, or a name it was assigned to; the
+        body of a lambda is what it returns.
     """
-    given = [x.value for x in nodes if isinstance(x, ast.Return)]
+    given = (
+        [function.body]
+        if isinstance(function, ast.Lambda)
+        else [x.value for x in nodes if isinstance(x, ast.Return)]
+    )
     return any(x is call or (isinstance(x, ast.Name) and x.id in names) for x in given)
 
 
@@ -103,20 +119,45 @@ def failure_texts(nodes: Sequence[ast.AST]) -> Sequence[ast.AST]:
     ]
 
 
-def names_command(failure: ast.AST, call: ast.Call, seen: Set[str]) -> bool:
-    """Whether a failure names the command.
+def message_parts(failure: ast.AST) -> Sequence[ast.AST]:
+    """The parts of a failure that its message shows.
+
+    A plain ``assert`` shows its message and not its condition, and
+    ``assert_that`` shows its reason and not its value or matcher.
 
     Args:
         failure: the statement or call.
+
+    Returns:
+        The message of an ``assert``; the exception and the cause of a
+        ``raise``; the arguments of ``fail``; the third positional argument or
+        ``reason=`` of ``assert_that``.
+    """
+    if isinstance(failure, ast.Assert):
+        return [failure.msg] if failure.msg else []
+    if isinstance(failure, ast.Raise):
+        return [x for x in (failure.exc, failure.cause) if x is not None]
+    if isinstance(failure, ast.Call) and scanning.named(failure.func) == "fail":
+        return [*failure.args, *(x.value for x in failure.keywords)]
+    if isinstance(failure, ast.Call):
+        return [*failure.args[2:3], *(x.value for x in failure.keywords if x.arg == "reason")]
+    return []
+
+
+def names_command(parts: Sequence[ast.AST], call: ast.Call, seen: Set[str]) -> bool:
+    """Whether a message names the command.
+
+    Args:
+        parts: the parts of the message.
         call: the call that runs the command.
-        seen: the attributes of the result that the failure reads.
+        seen: the attributes of the result that the message reads.
 
     Returns:
         True for the ``args`` of the result, or the name the command line was
         given as to the call.
     """
     first = call.args[0] if call.args else None
-    uses = [x for x in ast.walk(failure) if isinstance(x, ast.Name) and x is not first]
+    uses = [x for each in parts for x in ast.walk(each) if isinstance(x, ast.Name)]
     return "args" in seen or (
         isinstance(first, ast.Name) and any(x.id == first.id for x in uses)
     )
@@ -139,11 +180,11 @@ def joined_errors(call: ast.Call) -> bool:
     )
 
 
-def read_from(failure: ast.AST, names: Set[str]) -> Set[str]:
-    """The attributes of the result that a failure reads.
+def read_from(parts: Sequence[ast.AST], names: Set[str]) -> Set[str]:
+    """The attributes of the result that a message reads.
 
     Args:
-        failure: the statement or call.
+        parts: the parts of the message.
         names: the names the result is assigned to.
 
     Returns:
@@ -151,7 +192,8 @@ def read_from(failure: ast.AST, names: Set[str]) -> Set[str]:
     """
     return {
         x.attr
-        for x in ast.walk(failure)
+        for each in parts
+        for x in ast.walk(each)
         if isinstance(x, ast.Attribute)
         and isinstance(x.value, ast.Name)
         and x.value.id in names
@@ -159,7 +201,7 @@ def read_from(failure: ast.AST, names: Set[str]) -> Set[str]:
 
 
 def says_all(nodes: Sequence[ast.AST], call: ast.Call, names: Set[str]) -> bool:
-    """Whether a failure of the function names the command, the status and the error.
+    """Whether a failure of the function says the command, the status and the error.
 
     Args:
         nodes: the nodes of the function.
@@ -167,22 +209,29 @@ def says_all(nodes: Sequence[ast.AST], call: ast.Call, names: Set[str]) -> bool:
         names: the names the result is assigned to.
 
     Returns:
-        True when one ``raise``, ``assert`` or ``fail``/``assert_that`` call
-        holds the command, the ``returncode`` and the ``stderr`` (the
-        ``stdout`` when the error output is joined to it).
+        True when the message of one ``raise``, ``assert`` or
+        ``fail``/``assert_that`` call holds the command, the ``returncode`` and
+        the ``stderr`` (the ``stdout`` when the error output is joined to it);
+        what a condition reads is not in the message.
     """
     output = "stdout" if joined_errors(call) else "stderr"
     for each in failure_texts(nodes):
-        seen = read_from(each, names)
-        if names_command(each, call, seen) and {"returncode", output} <= seen:
+        parts = message_parts(each)
+        seen = read_from(parts, names)
+        if names_command(parts, call, seen) and {"returncode", output} <= seen:
             return True
     return False
 
 
-def loses_output(nodes: Sequence[ast.AST], call: ast.Call) -> bool:
+def loses_output(
+    function: Function,
+    nodes: Sequence[ast.AST],
+    call: ast.Call,
+) -> bool:
     """Whether a function keeps the output of a call and does not say it.
 
     Args:
+        function: the function.
         nodes: the nodes of the function.
         call: a call of ``subprocess``.
 
@@ -192,15 +241,16 @@ def loses_output(nodes: Sequence[ast.AST], call: ast.Call) -> bool:
     """
     names = result_names(nodes, call)
     return any(keeps_output(x) for x in call.keywords) and not (
-        hands_back(nodes, call, names) or says_all(nodes, call, names)
+        hands_back(function, nodes, call, names) or says_all(nodes, call, names)
     )
 
 
-def lossy_calls(function: ast.FunctionDef) -> Sequence[ast.Call]:
+def lossy_calls(function: Function, bound: scanning.Bindings) -> Sequence[ast.Call]:
     """The calls of a function that keep the output of a command and lose it.
 
     Args:
         function: the function.
+        bound: what the file's imports bind to ``subprocess``.
 
     Returns:
         The calls of ``subprocess.run`` and ``subprocess.Popen``.
@@ -210,9 +260,30 @@ def lossy_calls(function: ast.FunctionDef) -> Sequence[ast.Call]:
         call
         for call in nodes
         if isinstance(call, ast.Call)
-        and scanning.calls_subprocess(call, RUNNERS)
-        and loses_output(nodes, call)
+        and scanning.calls_subprocess(call, RUNNERS, bound)
+        and loses_output(function, nodes, call)
     ]
+
+
+def function_names(tree: ast.AST) -> Mapping[int, str]:
+    """The name of each function of a file, a lambda by the name it is bound to.
+
+    Args:
+        tree: the parsed file.
+
+    Returns:
+        The name, by the id of the node.
+    """
+    found = {
+        id(x): x.name
+        for x in ast.walk(tree)
+        if isinstance(x, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    for each in ast.walk(tree):
+        if isinstance(each, ast.Assign) and isinstance(each.value, ast.Lambda):
+            bound = [x.id for x in each.targets if isinstance(x, ast.Name)]
+            found[id(each.value)] = bound[0] if bound else "<lambda>"
+    return found
 
 
 def lossy_functions(path: str, text: str) -> Sequence[scanning.Finding]:
@@ -224,20 +295,24 @@ def lossy_functions(path: str, text: str) -> Sequence[scanning.Finding]:
 
     Returns:
         A finding for each call of ``subprocess.run`` or ``subprocess.Popen``
-        that keeps the output, in a function that neither returns the process
-        nor says the command, the status and the error in a failure.
+        that keeps the output, in a ``def``, an ``async def`` or a ``lambda``
+        that neither returns the process nor says the command, the status and
+        the error in the message of a failure.
     """
-    functions = [x for x in ast.walk(ast.parse(text)) if isinstance(x, ast.FunctionDef)]
+    tree = ast.parse(text)
+    bound = scanning.bindings(tree)
+    names = function_names(tree)
     return [
         scanning.Finding(
             path=path,
             line=call.lineno,
-            name=function.name,
+            name=names.get(id(function), "<lambda>"),
             why="keeps output, and neither its result nor its failure message"
             " has the command, the exit status and the stderr",
         )
-        for function in functions
-        for call in lossy_calls(function)
+        for function in ast.walk(tree)
+        if isinstance(function, FUNCTIONS)
+        for call in lossy_calls(function, bound)
     ]
 
 

@@ -8,6 +8,7 @@ for a subprocess run from a pool or a thread.
 import ast
 import dataclasses
 import pathlib
+import subprocess
 from collections.abc import Mapping, Set
 
 SUBPROCESS = "subprocess"
@@ -71,23 +72,71 @@ def named(node: ast.AST) -> str:
     return node.id if isinstance(node, ast.Name) else ""
 
 
-def calls_subprocess(node: ast.AST, names: Set[str]) -> bool:
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Bindings:
+    """What a file's imports bind to the ``subprocess`` module (keyword: captured-run).
+
+    Attributes:
+        modules: the names the module is bound to (``subprocess``, ``sp``).
+        functions: the names its functions are bound to, by the function's own name.
+    """
+
+    modules: Set[str]
+    functions: Mapping[str, str]
+
+
+def bindings(tree: ast.AST) -> Bindings:
+    """The names a file binds to ``subprocess`` and to its functions.
+
+    Args:
+        tree: the parsed file.
+
+    Returns:
+        The names of ``import subprocess [as x]``, and of
+        ``from subprocess import f [as g]`` and ``from subprocess import *``,
+        wherever in the file they are.
+    """
+    modules: set[str] = set()
+    functions: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules |= {x.asname or x.name for x in node.names if x.name == SUBPROCESS}
+        elif (
+            isinstance(node, ast.ImportFrom)
+            and node.module == SUBPROCESS
+            and not node.level
+        ):
+            for each in node.names:
+                if each.name == "*":
+                    functions.update({x: x for x in subprocess.__all__})
+                else:
+                    functions[each.asname or each.name] = each.name
+    return Bindings(modules=modules, functions=functions)
+
+
+def calls_subprocess(node: ast.AST, names: Set[str], bound: Bindings) -> bool:
     """Whether a node is a call of a function of the ``subprocess`` module.
 
     Args:
         node: any node.
         names: the functions.
+        bound: what the file's imports bind to the module.
 
     Returns:
-        True for ``subprocess.run(...)`` and the like.
+        True for ``subprocess.run(...)``, ``sp.run(...)`` after
+        ``import subprocess as sp``, and ``run(...)`` after
+        ``from subprocess import run``.
     """
-    return (
-        isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and isinstance(node.func.value, ast.Name)
-        and node.func.value.id == SUBPROCESS
-        and node.func.attr in names
-    )
+    if not isinstance(node, ast.Call):
+        return False
+    function = node.func
+    if isinstance(function, ast.Attribute):
+        return (
+            isinstance(function.value, ast.Name)
+            and function.value.id in bound.modules
+            and function.attr in names
+        )
+    return isinstance(function, ast.Name) and bound.functions.get(function.id, "") in names
 
 
 def mentions(node: ast.AST) -> Set[str]:

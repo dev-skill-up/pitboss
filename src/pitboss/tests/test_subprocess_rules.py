@@ -177,6 +177,105 @@ def outer(command):
 """,
         [6],
     ),
+    "a message with all three, apart from its condition": (
+        """
+import subprocess
+
+def ran(command):
+    done = subprocess.run(command, capture_output=True, text=True)
+    assert not done.returncode, f"{command} {done.returncode} {done.stderr}"
+    return done.stdout
+""",
+        [],
+    ),
+    "a bare assert that reads all three in its condition": (
+        """
+import subprocess
+
+def ran(command):
+    done = subprocess.run(command, capture_output=True, text=True)
+    assert (done.returncode, done.stderr) == (0, ""), command
+""",
+        [5],
+    ),
+    "a lambda that is the call": (
+        """
+import subprocess
+
+ran = lambda command: subprocess.run(command, capture_output=True)
+""",
+        [],
+    ),
+    "a lambda that reads the status": (
+        """
+import subprocess
+
+missing = lambda command: subprocess.run(command, capture_output=True).returncode == 0
+""",
+        [4],
+    ),
+    "an async def that returns the status and a boolean": (
+        """
+import subprocess
+
+async def ran(command):
+    done = subprocess.run(command, capture_output=True, text=True)
+    return done.returncode, "x" in done.stderr
+""",
+        [5],
+    ),
+    "a function imported by name": (
+        """
+from subprocess import run
+
+def ran(command):
+    done = run(command, capture_output=True, text=True)
+    return done.returncode, "x" in done.stderr
+""",
+        [5],
+    ),
+    "a function imported by name as another": (
+        """
+from subprocess import Popen as start
+
+def ran(command):
+    child = start(command, stderr=-1)
+    return child.wait()
+""",
+        [],
+    ),
+    "a module imported as another name": (
+        """
+import subprocess as sp
+
+def ran(command):
+    done = sp.run(command, capture_output=True, text=True)
+    return done.returncode, "x" in done.stderr
+""",
+        [5],
+    ),
+    "an assert_that whose reason has all three": (
+        """
+import subprocess
+from hamcrest import assert_that, equal_to
+
+def ran(command):
+    done = subprocess.run(command, capture_output=True, text=True)
+    assert_that(done.returncode, equal_to(0), f"{command} {done.returncode} {done.stderr}")
+""",
+        [],
+    ),
+    "an assert_that whose value has all three": (
+        """
+import subprocess
+from hamcrest import assert_that, equal_to
+
+def ran(command):
+    done = subprocess.run(command, capture_output=True, text=True)
+    assert_that((done.returncode, done.stderr), equal_to((0, "")), command)
+""",
+        [6],
+    ),
 }
 # the line of the call that hands a function to a pool or a thread, or none
 POOLS: Mapping[str, tuple[str, Sequence[int]]] = {
@@ -317,7 +416,105 @@ def run_all(commands):
 """,
         [9],
     ),
+    "a subclass whose run does arithmetic": (
+        """
+import threading
+
+class Worker(threading.Thread):
+    def run(self):
+        self.total = sum(range(3))
+""",
+        [],
+    ),
+    "a subclass whose run runs a subprocess": (
+        """
+import subprocess
+import threading
+
+class Worker(threading.Thread):
+    def run(self):
+        subprocess.run(["x"])
+""",
+        [5],
+    ),
+    "a process subclass imported by name": (
+        """
+from multiprocessing import Process as Child
+import subprocess
+
+class Worker(Child):
+    def run(self):
+        subprocess.run(["x"])
+""",
+        [5],
+    ),
+    "a positional target": (
+        """
+import subprocess
+import threading
+
+def go():
+    subprocess.run(["x"])
+
+def start():
+    threading.Thread(None, go).start()
+""",
+        [9],
+    ),
+    "a positional target that does arithmetic": (
+        """
+import threading
+
+def go():
+    return sum(range(3))
+
+def start():
+    threading.Thread(None, go).start()
+""",
+        [],
+    ),
+    "a function imported by name": (
+        """
+import concurrent.futures
+from subprocess import run
+
+def run_all(commands):
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        return list(pool.map(run, commands))
+""",
+        [7],
+    ),
+    "a function of a module imported as another name": (
+        """
+import concurrent.futures
+import subprocess as sp
+
+def go(command):
+    return sp.run(command)
+
+def run_all(commands):
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        return list(pool.map(go, commands))
+""",
+        [10],
+    ),
 }
+# a function of the package outside the tests, and a file of the tests that maps it
+PACKAGE = """
+import subprocess
+
+def run_git(directory):
+    return subprocess.run(["git", "-C", directory, "status"])
+"""
+MAPS_PACKAGE = """
+import concurrent.futures
+
+from pitboss import gitutil
+
+def statuses(directories):
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        return list(pool.map(gitutil.run_git, directories))
+"""
 
 
 def lines_of(found: Sequence[scanning.Finding]) -> Sequence[int]:
@@ -340,7 +537,7 @@ class TestSubprocessRules(unittest.TestCase):
         texts = scanning.sources(HERE)
         found = [
             *capturescan.lossy_in_files(texts),
-            *poolscan.pooled_subprocesses(texts),
+            *poolscan.pooled_subprocesses(texts, scanning.sources(HERE.parent)),
         ]
         assert_that([scanning.shown(each) for each in found], equal_to([]))
 
@@ -361,6 +558,16 @@ class TestSubprocessRules(unittest.TestCase):
             for name, (text, _) in POOLS.items()
         }
         assert_that(found, equal_to({n: list(want) for n, (_, want) in POOLS.items()}))
+
+    def test_a_package_function_that_runs_a_subprocess_is_followed_from_a_test(
+        self,
+    ) -> None:
+        """A pool of a test mapping a function outside the tests is refused."""
+        found = poolscan.pooled_subprocesses(
+            {"t.py": MAPS_PACKAGE}, {"gitutil.py": PACKAGE}
+        )
+        assert_that(lines_of(found), equal_to([8]))
+        assert_that(lines_of(poolscan.pooled_subprocesses({"t.py": MAPS_PACKAGE})), equal_to([]))
 
     def test_a_finding_names_the_file_the_line_and_the_function(self) -> None:
         """A finding reads as ``path:line: function: reason``."""
