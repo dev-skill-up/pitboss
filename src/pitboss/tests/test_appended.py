@@ -124,6 +124,8 @@ class TestWorkerBriefs(unittest.TestCase):
     def test_the_reference_holds_the_wording(self) -> None:
         """The reference has each sentence, and the briefs the same."""
         reference = words(read("adversarial-review.md"))
-        for prefix, constant in zip(SENTENCES, CONSTANTS):
+        # the Search line is the briefs' alone: a doc gains no line (pitboss#396)
+        for prefix, constant in list(zip(SENTENCES, CONSTANTS))[:2]:
             assert_that(reference, contains_string(SENTENCES[prefix]))
             assert_that(words(constant), equal_to(prefix + SENTENCES[prefix]))
+        assert_that(words(CONSTANTS[2]), equal_to("Search: " + SENTENCES["Search: "]))
