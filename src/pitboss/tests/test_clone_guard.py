@@ -7,14 +7,13 @@ Tests for ``cloneguard``, ``hand-back-check``, ``nox`` and ``plan-check``
 import dataclasses
 import itertools
 import pathlib
-import subprocess
 import unittest
 from typing import Callable, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import cloneguard
-from . import fakes, repositories, world
+from . import captured, fakes, repositories, world
 from .briefmake import has_all, has_none
 from .linting import write_text
 from .plancheckrun import body_of
@@ -180,9 +179,7 @@ def real_git(command: Sequence[str]) -> Done:
     """
     if command[1] != "-C":
         return Done(returncode=1, stdout="")
-    done = subprocess.run(  # noqa: S603
-        list(command), check=False, capture_output=True, text=True
-    )
+    done = captured.finished(command)
     return Done(returncode=done.returncode, stdout=done.stdout)
 
 
