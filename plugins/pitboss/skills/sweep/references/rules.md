@@ -684,7 +684,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   anything to a row of the template, because `pitboss expand` prints
   `exit status: N` for a status that is not zero, and `pitboss lint pr-body`
   refuses an Evidence row that ends in `; echo $?`, `&& echo $?` or `|| echo`
-  (`appended`). The reviewers' `Dry run:` line (a Plan review tries the
+  (`appended`)
+  The reviewers' `Dry run:` line (a Plan review tries the
   Plan's commands) is another line; the worker's is `Try commands:` so no brief
   carries two lines with one label. The wording is in
   `adversarial-review.md`, "The Plan's precise commands".
