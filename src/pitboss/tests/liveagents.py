@@ -1,9 +1,12 @@
-"""The agents a test world's ledger holds, named as ``--running`` (pitboss#94)."""
+"""The agents a test world holds, and the helpers that run it by them (pitboss#94)."""
 
 import re
 from typing import Sequence
 
-from . import world
+from hamcrest import assert_that, equal_to
+
+from . import fakes, world
+from .test_owner_repositories import lines_of
 
 
 def running(here: world.World, *finished: str) -> Sequence[str]:
@@ -21,3 +24,41 @@ def running(here: world.World, *finished: str) -> Sequence[str]:
     """
     names = re.findall(r'"agent": "([^"]+)"', here.ledger.read_text())
     return ["--running", *(name for name in names if name not in finished)]
+
+
+def calm() -> world.World:
+    """The default world with PR 1 clean, so that no PR holds a slot.
+
+    Returns:
+        The world.
+    """
+    here = world.make_world()
+    branch = {"sha": "1" * 40, "ref": "branch-1"}
+    here.bodies[f"{world.PROJECT}/pulls/1"] = fakes.pull_body(1, head=branch)
+    return here
+
+
+def ran(here: world.World, command: Sequence[str], *running: str) -> str:
+    """What a command printed, given the agents the session runs.
+
+    Args:
+        here: the world.
+        command: the command's words before the configuration.
+        *running: the names of the live agents.
+
+    Returns:
+        Its output.
+    """
+    return world.invoke(here, *command, here.config, "--running", *running).out
+
+
+def said(output: str, start: str, wanted: int | Sequence[str]) -> None:
+    """Assert the lines that start with some words, or how many there are.
+
+    Args:
+        output: what a command printed.
+        start: the words.
+        wanted: the lines, or their number.
+    """
+    found = lines_of(output, start)
+    assert_that(len(found) if isinstance(wanted, int) else found, equal_to(wanted))

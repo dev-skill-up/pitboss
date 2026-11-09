@@ -1,52 +1,13 @@
 """The held slots come from the running agents, not the ledger (pitboss#94)."""
 
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import slotheld
-from . import fakes, suggestions, test_flow_sweep as flows, world
-from .test_owner_repositories import lines_of
+from . import suggestions, test_flow_sweep as flows, world
+from .liveagents import calm, ran, said
 from .test_slot_commands import run_all
-
-
-def calm() -> world.World:
-    """The default world with PR 1 clean, so that no PR holds a slot.
-
-    Returns:
-        The world.
-    """
-    here = world.make_world()
-    branch = {"sha": "1" * 40, "ref": "branch-1"}
-    here.bodies[f"{world.PROJECT}/pulls/1"] = fakes.pull_body(1, head=branch)
-    return here
-
-
-def ran(here: world.World, command: Sequence[str], *running: str) -> str:
-    """What a command printed, given the agents the session runs.
-
-    Args:
-        here: the world.
-        command: the command's words before the configuration.
-        *running: the names of the live agents.
-
-    Returns:
-        Its output.
-    """
-    return world.invoke(here, *command, here.config, "--running", *running).out
-
-
-def said(output: str, start: str, wanted: int | Sequence[str]) -> None:
-    """Assert the lines that start with some words, or how many there are.
-
-    Args:
-        output: what a command printed.
-        start: the words.
-        wanted: the lines, or their number.
-    """
-    found = lines_of(output, start)
-    assert_that(len(found) if isinstance(wanted, int) else found, equal_to(wanted))
 
 
 def plain(here: world.World, *command: str) -> str:
@@ -124,8 +85,7 @@ class TestTheSlotsAreDerived(unittest.TestCase):
 
     def test_without_running_a_ruling_is_suggested_and_no_start_is(self) -> None:
         """No slot is known free, so no start, review or fix; the ruling stays."""
-        here = flows.world_with(flows.TWO_PLAN_REJECTIONS)
-        shown = plain(here, "slots", "next")
+        shown = plain(flows.world_with(flows.TWO_PLAN_REJECTIONS), "slots", "next")
         assert_that(shown, contains_string("make an Opus ruling: owner/project#3"))
         assert_that(len(suggestions.parsed(shown)), equal_to(1))
         assert_that(suggestions.parsed(plain(calm(), "slots", "next")), equal_to([]))
