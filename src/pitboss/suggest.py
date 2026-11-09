@@ -27,6 +27,7 @@ from . import (
     slotheld,
     steps,
     suggestflake,
+    suggestlogs,
     suggestwhen,
     ticketread,
     work,
@@ -301,6 +302,9 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         rules=suggestflake.rules_of(source.github, about[0], rules),
         ready=pick.pull is not None and not pick.pull.pull.draft,
         e2e=_touches_e2e(source, pick, kind),
+        logs=(
+            suggestlogs.of(pick.pull) if pick.pull and kind is brief.Kind.FIX_CI else ()
+        ),
     )
 
 

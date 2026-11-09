@@ -26,3 +26,17 @@ DONE_WHEN_DIGEST = (
     " `pitboss plan-check` refuses a body whose line is not the ticket's digest,"
     " which is how a Done-when edited after a worker started is found."
 )
+
+
+def plan_digest_line(digest: str) -> str:
+    """The words that name the Plan digest line of a brief.
+
+    Args:
+        digest: the digest of the body's Plan section, empty when it has none.
+
+    Returns:
+        The line to add, or the statement that the body has no Plan section.
+    """
+    if digest:
+        return f"the line `Plan digest: {digest}`"
+    return "no `Plan digest:` line (the body has no `## Plan` section)"

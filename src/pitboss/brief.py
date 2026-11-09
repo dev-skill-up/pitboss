@@ -226,6 +226,8 @@ class Spec:
         e2e: whether the PR's diff touches what the e2e suite runs on, so that
             a review reads the run of its head that ran e2e, the dispatched one
             for a draft (keyword: run-e2e, pitboss#199).
+        logs: `<check name>: <url>` of each failed check, for a FIX_CI brief
+            (keyword: red-cause, pitboss#420).
     """
 
     kind: Kind
@@ -234,6 +236,7 @@ class Spec:
     rules: Rules
     ready: bool = False
     e2e: bool = False
+    logs: Sequence[str] = ()
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -250,6 +253,7 @@ def fields(spec: Spec) -> Mapping[str, str]:
         **_named(spec.heads, CHECKOUTS[spec.kind is Kind.NEW_PR]),
         "config": spec.rules.config,
         "footer_note": _footer_note(spec.rules.footer),
+        "logs": "".join(f"\nFailed check log: {each}" for each in spec.logs),
     }
 
 
@@ -276,14 +280,8 @@ def _named(heads: Heads, where: str) -> Mapping[str, str]:
         "review": review,
         "checkout": where.format(base=heads.base),
         "body_digest": heads.body_digest,
-        "plan_digest_line": _plan_digest_line(heads.plan_digest),
+        "plan_digest_line": brieftextwhen.plan_digest_line(heads.plan_digest),
     }
-
-
-def _plan_digest_line(digest: str) -> str:
-    if digest:
-        return f"the line `Plan digest: {digest}`"
-    return "no `Plan digest:` line (the body has no `## Plan` section)"
 
 
 def _footer_note(footer: str) -> str:
