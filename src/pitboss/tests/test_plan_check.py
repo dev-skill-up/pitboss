@@ -2,7 +2,6 @@
 
 import argparse
 import re
-import subprocess
 import unittest
 from typing import NoReturn, Sequence
 
@@ -15,7 +14,7 @@ from .. import (
     plandigest,
     steps,
 )
-from . import fakes, world
+from . import captured, fakes, world
 from .linting import write_text
 from .test_expand_commands import real_world
 
@@ -71,12 +70,7 @@ def worktrees(here: world.World) -> int:
     Returns:
         The count, the clone included.
     """
-    listed = subprocess.run(
-        ["git", "-C", str(here.clone), "worktree", "list"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    listed = captured.run(["git", "-C", str(here.clone), "worktree", "list"])
     return len(listed.stdout.splitlines())
 
 

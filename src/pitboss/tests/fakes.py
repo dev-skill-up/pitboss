@@ -17,7 +17,7 @@ from typing import (
 )
 
 from .. import config, configfile, ghapi
-from . import repositories
+from . import captured, repositories
 
 HEAD = "a" * 40
 PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -132,9 +132,7 @@ def run_for_real(
         The finished process.
     """
     env = None if path is None else {**os.environ, "PATH": path}
-    done = subprocess.run(
-        command, check=True, capture_output=True, text=True, cwd=cwd, env=env
-    )
+    done = captured.run(command, cwd=cwd, env=env)
     return Output(stdout=done.stdout)
 
 

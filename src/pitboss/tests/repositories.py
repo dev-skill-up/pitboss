@@ -8,11 +8,10 @@ import dataclasses
 import os
 import pathlib
 import shutil
-import subprocess
 import tempfile
 from typing import Mapping, MutableMapping, MutableSequence, Sequence
 
-from . import scratch
+from . import captured, scratch
 
 MERGED = "merged-work"
 # every ``origin`` that ``copy_of`` made, in order, so that a scene built by a
@@ -33,11 +32,8 @@ def run_git(directory: pathlib.Path, *arguments: str) -> str:
     Returns:
         git's output.
     """
-    done = subprocess.run(
-        ["git", "-c", "commit.gpgsign=false", "-C", str(directory), *arguments],
-        check=True,
-        capture_output=True,
-        text=True,
+    done = captured.run(
+        ["git", "-c", "commit.gpgsign=false", "-C", str(directory), *arguments]
     )
     return done.stdout
 

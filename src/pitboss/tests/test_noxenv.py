@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from hamcrest import assert_that, equal_to
 
 from .. import noxenv
+from . import captured
 
 GITCONFIG = "[user]\n\tname = Real Person\n\temail = real@example.org\n"
 
@@ -47,7 +48,9 @@ def isolated(environ: Mapping[str, str]) -> tuple[Mapping[str, str], str]:
         return noxenv.isolated(environ, home), home
 
 
-def git_user_name(environ: Mapping[str, str], where: str) -> tuple[int, str]:
+def git_user_name(
+    environ: Mapping[str, str], where: str
+) -> subprocess.CompletedProcess[str]:
     """Ask real git for ``user.name`` where no repository is.
 
     Args:
@@ -55,17 +58,11 @@ def git_user_name(environ: Mapping[str, str], where: str) -> tuple[int, str]:
         where: the directory it runs in.
 
     Returns:
-        Its exit status and output.
+        The finished process, with its command, status and output.
     """
-    done = subprocess.run(
-        ["git", "config", "user.name"],
-        cwd=where,
-        env=environ,
-        stdout=subprocess.PIPE,
-        text=True,
-        check=False,
+    return captured.run(
+        ["git", "config", "user.name"], check=False, cwd=where, env=environ
     )
-    return done.returncode, done.stdout
 
 
 class TestIsolatedEnvironment(unittest.TestCase):
@@ -78,8 +75,17 @@ class TestIsolatedEnvironment(unittest.TestCase):
         with noxenv.throwaway_home() as home:
             child = noxenv.isolated(environ, home)
             seen = git_user_name(child, real)
-        assert_that(git_user_name(environ, real), equal_to((0, "Real Person\n")))
-        assert_that(seen, equal_to((1, "")))
+        control = git_user_name(environ, real)
+        assert_that(
+            (control.returncode, control.stdout),
+            equal_to((0, "Real Person\n")),
+            captured.described(control),
+        )
+        assert_that(
+            (seen.returncode, seen.stdout),
+            equal_to((1, "")),
+            captured.described(seen),
+        )
 
     def test_the_layout_of_the_child_environment(self) -> None:
         """Identity left out, others kept, config in the home, caches kept."""

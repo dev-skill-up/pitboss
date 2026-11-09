@@ -13,7 +13,7 @@ from gather.api import Wrapper, unique
 from hamcrest import assert_that, equal_to, is_not
 
 from .. import ENTRY_DATA, cli_parser, commandscan, configsettle, disk
-from . import configcases, fakes, fixeddisk, world
+from . import captured, configcases, fakes, fixeddisk, world
 
 CASES = configcases.CASES
 
@@ -113,39 +113,11 @@ def ran_missing(
     # both are this case's own, so no copy of the machine is found (keyword: flake-368)
     own = {"PWD": str(directory), "HOME": str(directory)}
     env.update(own, XDG_CACHE_HOME=str(directory / ".cache"), PATH=str(tools))
-    return subprocess.run(
+    return captured.run(
         [sys.executable, "-m", "pitboss", *case.before, *case.after],
+        check=False,
         cwd=directory,
         env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def missing(
-    case: configcases.Case, directory: pathlib.Path, tools: pathlib.Path
-) -> Sequence[object]:
-    """Run a command with no configuration and say what its error output names.
-
-    Args:
-        case: the command.
-        directory: the directory it runs in.
-        tools: an empty directory, which becomes the PATH with git only.
-
-    Returns:
-        The exit status, and whether standard error names ``$PITBOSS_CONFIG``
-        and the file ``pitboss.toml`` of the directory; when either is not as
-        expected, also the command line, the standard error and the directory,
-        so a failure shows them (keyword: flake-368).
-    """
-    done = ran_missing(case, directory, tools)
-    names = ("$PITBOSS_CONFIG", str(directory / "pitboss.toml"))
-    found = (done.returncode, *(each in done.stderr for each in names))
-    return (
-        found
-        if found == (1, True, True)
-        else (*found, done.args, done.stderr, str(directory))
     )
 
 
@@ -156,8 +128,15 @@ class TestMissingConfiguration(unittest.TestCase):
         """Exit 1 (the uncaught error), and the variable and the places on stderr."""
         # one process at a time: a pool of threads forking while the others copy
         # os.environ raced (keyword: flake-368, pitboss#368)
-        found = [missing(each, fakes.directory(), fakes.directory()) for each in CASES]
-        assert_that(found, equal_to([(1, True, True)] * len(CASES)))
+        for case in CASES:
+            directory = fakes.directory()
+            done = ran_missing(case, directory, fakes.directory())
+            names = ("$PITBOSS_CONFIG", str(directory / "pitboss.toml"))
+            assert_that(
+                (done.returncode, *(each in done.stderr for each in names)),
+                equal_to((1, True, True)),
+                captured.described(done),
+            )
 
     def test_lint_keeps_its_generic_forms_and_says_where_it_looked(self) -> None:
         """``lint`` still checks with no configuration, and names the places."""
