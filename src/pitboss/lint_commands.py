@@ -215,13 +215,6 @@ def _card_findings(
     return cardform.findings(subject.name, subject.body)
 
 
-def _ticket_findings(
-    args: argparse.Namespace, subject: forms.Subject, settings: config.Lint
-) -> Sequence[str]:
-    # keyword: rows-pass (pitboss#279): a Done-when that promises rows the table excludes
-    return ticketrows.findings(subject.name, subject.body)
-
-
 def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
     def run(args: argparse.Namespace) -> None:
         texts = _read_files(args)
@@ -288,7 +281,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "review": _form_kind(_review_findings),
     "brief": _form_kind(_brief_findings),
     "owner-card": _form_kind(_card_findings),
-    "ticket": _form_kind(_ticket_findings),
+    "ticket": _form_kind(ticketrows.check),
     "event": _event,
 }
 
