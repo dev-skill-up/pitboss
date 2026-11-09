@@ -362,38 +362,3 @@ def job_results(text: str) -> Sequence[shapes.JobResult]:
         )
         for item in json.loads(text)["jobs"]
     ]
-
-
-def issue_of(text: str) -> Sequence[shapes.Issue]:
-    """Parse one issue (the response body of ``issues/<number>``).
-
-    Args:
-        text: the response body.
-
-    Returns:
-        The issue, or none when it is a PR (which the issues include).
-    """
-    return issues(f"[{text}]")
-
-
-def issues(text: str) -> Sequence[shapes.Issue]:
-    """Parse a page of issues, leaving out PRs (which the list includes).
-
-    Args:
-        text: the response body of ``issues``.
-
-    Returns:
-        The issues.
-    """
-    return [
-        shapes.Issue(
-            number=item["number"],
-            title=item["title"],
-            created_at=item["created_at"],
-            labels=frozenset(label["name"] for label in item["labels"]),
-            body=item.get("body") or "",
-            comments=item.get("comments") or 0,
-        )
-        for item in json.loads(text)
-        if "pull_request" not in item
-    ]

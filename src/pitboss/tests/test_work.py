@@ -192,6 +192,23 @@ class TestTickets(unittest.TestCase):
         found = ("owner/lib#3" in in_progress, [each.reference for each in offered])
         assert_that(found, equal_to((True, ["owner/project#5", "owner/project#6"])))
 
+    def test_a_full_first_page_with_a_pull_request_pages_on(self) -> None:
+        """The issues list holds PRs: 99 tickets and a PR are a full page."""
+        path = LISTING + "urgent"
+        full = [_issue(number, "") for number in range(100, 199)]
+        full.append({**_issue(199, ""), "pull_request": {}})
+        bodies: dict[str, object] = {
+            fakes.page(path): full,
+            fakes.page(path, 2): [_issue(200, "")],
+        }
+        settings = dataclasses.replace(
+            SETTINGS, slots=dataclasses.replace(SLOTS, priority_labels=("urgent",))
+        )
+        offered = work.ticket_items(fakes.github(bodies), settings, set())
+        found = [each.reference for each in offered]
+        expected = [f"owner/project#{n}" for n in [*range(100, 199), 200]]
+        assert_that(found, equal_to(expected))
+
 
 class TestOrderAndAssign(unittest.TestCase):
     """Sorting and filling empty slots."""

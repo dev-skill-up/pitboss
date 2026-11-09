@@ -126,7 +126,8 @@ def pages(
     Args:
         github: the API.
         path: the list's path, with or without a query.
-        parse: reads the items out of one page.
+        parse: reads the items out of one page; for an array it gives an
+            entry for each raw item, so that a short result is the last page.
         limit: the most pages read.
 
     Returns:
