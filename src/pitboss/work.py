@@ -61,6 +61,10 @@ class Category(enum.IntEnum):
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
         ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (a PR; keyword: ci-quotes).
+        WAITING: a PR that is offered for no round (it waits, or its step is a
+            ruling, a merge or an undraft) and whose ticket is blocked by an open
+            ticket: it is only listed as blocked (keyword: blocked-pull,
+            pitboss#388).
     """
 
     FIX_REVIEW = 1
@@ -75,9 +79,11 @@ class Category(enum.IntEnum):
     REVIEW_FIX_ROUND = 11
     RUN_PLAN = 12
     ADD_CI_QUOTES = 13
+    WAITING = 14
 
 
 CATEGORY_WORDS = {
+    Category.WAITING: "wait for the ticket it depends on",
     Category.FIX_REVIEW: "fix the review",
     Category.REVISE_PLAN: "revise the plan",
     Category.REVIEW: "review it (a reviewer that is not its author)",
@@ -106,8 +112,10 @@ class Item:
         labels: its labels.
         body: a ticket's text, to look for a blocker in.
         comments: how many comments a ticket has.
-        blocker: the open ticket or PR a ticket says it cannot be worked on
-            until, or "" (keyword: ticket-blocked).
+        blockers: the open tickets and PRs a ticket says it cannot be worked on
+            until (keyword: ticket-blocked), also for a PR whose ticket says it
+            (keyword: blocked-pull, pitboss#388).
+        ticket: the ticket a PR fixes, or "".
     """
 
     category: Category
@@ -118,7 +126,8 @@ class Item:
     labels: AbstractSet[str] = frozenset()
     body: str = ""
     comments: int = 0
-    blocker: str = ""
+    blockers: Sequence[str] = ()
+    ticket: str = ""
 
 
 def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
@@ -319,6 +328,9 @@ def smallest_model(
     return None
 
 
+Assignment = tuple[ledger.Slot, Item | None]
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Offered:
     """The work that is queued, and the tickets that are kept back.
@@ -330,6 +342,12 @@ class Offered:
         blocked: the tickets that say they cannot be worked on until a ticket
             or PR that is open, in the same order (keyword: ticket-blocked).
         occupancy: what holds the slots (keyword: slot-held, pitboss#291).
+        superseded: the tickets marked as superseded, which are not offered
+            (keyword: superseded-ticket, pitboss#388).
+        promoted: the ``PROMOTE`` lines (keyword: promote).
+        blocks: the references that wait for each dependency that was offered
+            ahead of them (keyword: blocks-line).
+        labels: the ``priority_labels``, for the lines about the rank.
     """
 
     items: Sequence[Item]
@@ -337,6 +355,10 @@ class Offered:
     standing: Mapping[str, int]
     blocked: Sequence[Item]
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
+    superseded: Sequence[Item] = ()
+    promoted: Sequence[str] = ()
+    blocks: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
+    labels: Sequence[str] = ()
 
 
 def queued(
@@ -367,34 +389,3 @@ def queued(
         *(tickets if len(facts) == len(found) else ()),
     ]
     return ordered(items, [slot.task for slot in book.slots if slot.agent])
-
-
-Assignment = tuple[ledger.Slot, Item | None]
-
-
-def assign(
-    items: Sequence[Item], book: ledger.Ledger, slots: config.Slots
-) -> Sequence[Assignment]:
-    """Give each empty slot, smallest model first, the first item it may take.
-
-    Args:
-        items: the ordered items.
-        book: the ledger.
-        slots: the slot configuration.
-
-    Returns:
-        Each empty slot with its item, or None when nothing fits.
-    """
-    rank = {model: index for index, model in enumerate(slots.models)}
-    left = [
-        (item, rank[model])
-        for item in items
-        if (model := smallest_model(item, slots, book.failed)) is not None
-    ]
-    found: list[Assignment] = []
-    empty = [each for each in book.slots if not each.agent]
-    for empty_slot in sorted(empty, key=lambda each: rank.get(each.model, len(rank))):
-        size = rank.get(empty_slot.model, -1)
-        index = next((at for at, pair in enumerate(left) if pair[1] <= size), None)
-        found.append((empty_slot, None if index is None else left.pop(index)[0]))
-    return found

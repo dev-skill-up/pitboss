@@ -8,7 +8,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, ledger, parsing, pulls, reviews, steps, work
+from .. import assigning, config, ledger, parsing, pulls, reviews, steps, work
 from . import fakes, test_flow
 
 REPO = config.make_repo("owner", "project")
@@ -270,7 +270,7 @@ class TestOrderAndAssign(unittest.TestCase):
             item("first", work.Category.NEW_PR),
             item("hard", work.Category.NEW_PR, labels=["hard"]),
         ]
-        found = work.assign(items, book, SLOTS)
+        found = assigning.assign(items, book, SLOTS)
         assert_that(
             [(slot.name, chosen and chosen.reference) for slot, chosen in found],
             equal_to([("tiny", "first"), ("big", "hard"), ("odd", None)]),

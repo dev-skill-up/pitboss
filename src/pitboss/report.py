@@ -375,3 +375,22 @@ def reminder_lines(settings: config.Config) -> Sequence[str]:
     """
     kept = [*brieftextowner.REMINDERS, *settings.reminders]
     return [f"{Marker.SWEEP_REMINDER.text}: {text}" for text in kept]
+
+
+def print_queue(
+    pressure: str,
+    runs: Sequence[queue.QueueRun],
+    settings: config.Config,
+    now: datetime.datetime,
+) -> None:
+    """Print the runner pressure and the merge queue lines.
+
+    Args:
+        pressure: the runner-pressure line.
+        runs: the merge queue's runs.
+        settings: the configuration.
+        now: the time now.
+    """
+    print(pressure)
+    for line in queue_lines(runs, settings, now):
+        print(line)

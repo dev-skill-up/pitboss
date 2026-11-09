@@ -11,8 +11,8 @@ NEW_PR_PROCESS = [
     "Task: do the whole of ticket o/r#7 in one PR: write the code, then open the PR.",
     "Worktree: work in your own `git worktree add` of o/r from origin/main after"
     " `git fetch origin main`; never in the main clone.",
-    "Done-when: read the ticket o/r#7 and all its comments first (they add"
-    " requirements).",
+    "Done-when: read the Done-when in the body of the ticket o/r#7; only the body"
+    " has it, and a comment adds nothing to it",
     "Draft: open the PR as a draft whose body has a Plan section",
 ]
 NEW_PR_BODY = [

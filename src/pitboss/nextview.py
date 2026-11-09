@@ -4,7 +4,7 @@ import dataclasses
 import datetime
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import blockedline, config, exempt, holds, ledger, slotheld, work
+from . import config, exempt, holds, ledger, slotheld, work
 from .markers import Marker
 
 CATEGORY_WORDS = work.CATEGORY_WORDS
@@ -35,8 +35,9 @@ class NextView:
         now: the time now.
         withheld: the tickets the owner's hold keeps back and each held
             repository's open count.
-        blocked: the tickets that cannot be worked on until an open ticket or
-            PR (keyword: ticket-blocked).
+        ranked: the ``BLOCKED``, ``SUPERSEDED``, ``BLOCKS`` and ``PROMOTE``
+            lines (``rankline``; keyword: ticket-blocked, blocked-pull,
+            superseded-ticket, blocks-line, promote).
         ready: the texts of the NEXT lines of the drafts to mark ready, printed
             first after the running agents' line (keyword: mark-ready,
             pitboss#273).
@@ -52,7 +53,7 @@ class NextView:
     failed: Mapping[str, Sequence[str]]
     now: datetime.datetime
     withheld: Withheld = Withheld()
-    blocked: Sequence[work.Item] = ()
+    ranked: Sequence[str] = ()
     ready: Sequence[str] = ()
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
     no_drafts: AbstractSet[str] = frozenset()
@@ -123,8 +124,7 @@ def next_lines(view: NextView) -> Iterable[str]:
         yield f"{Marker.NEXT.text} {index}. {text}"
     for item in view.withheld.held:
         yield holds.held_line(item.reference, view.withheld.standing)
-    for item in view.blocked:
-        yield blockedline.line(item.reference, item.blocker)
+    yield from view.ranked
     yield from slotheld.lines(view.occupancy)
     if not view.assignments and not slotheld.lines(view.occupancy):
         yield "slots: the ledger says all full: start nothing"

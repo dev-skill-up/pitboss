@@ -6,7 +6,7 @@ that no row said what would be run, read or looked up in CI. ``plan-pointer`` is
 the finding for each numbered row (``1. ...``) that has none of the three:
 
 * a command: a backticked span that starts with a program (``rg -n x``,
-  ``pitboss impact y``, ``./run``, after any ``NAME=value``), or a row that starts
+  ``pitboss expand y``, ``./run``, after any ``NAME=value``), or a row that starts
   with ``$ ``;
 * an exact read: a backticked file (``src/a.py``) and a word that says what it
   shows (``shows``, ``prints``, ``says``, ``lists``, ``holds``, ``names`` and the
@@ -14,14 +14,13 @@ the finding for each numbered row (``1. ...``) that has none of the three:
 * a CI pointer: a workflow file and a job, step or greppable string
   (``cipointer``).
 
-A disposition line (``file:line: edited``) is no row. The module reads no file:
-the Plan section is given.
+The module reads no file: the Plan section is given.
 """
 
 import re
 from typing import Sequence
 
-from . import cipointer, impactcheck, planrowtext
+from . import cipointer, planrowtext
 
 CHECK = "plan-pointer"
 PROGRAMS = frozenset(
@@ -84,12 +83,12 @@ def lacking(section: str) -> Sequence[int]:
         section: the Plan section.
 
     Returns:
-        The numbers, in order; a disposition line is no row.
+        The numbers, in order.
     """
     return [
         number
         for number, text in planrowtext.rows(section).items()
-        if not impactcheck.DISPOSITION.match(text) and not has_pointer(text)
+        if not has_pointer(text)
     ]
 
 

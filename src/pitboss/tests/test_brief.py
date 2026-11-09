@@ -70,7 +70,7 @@ FULL = [
     f"Scope: the full review of head {HEAD}: the Plan and the Execution,"
     " against the goal and the ticket's Done-when.",
     "Check: the last `Head:` line of the PR body is the full SHA of the head;",
-    "Grep: look for a statement the change makes false",
+    "Grep: look for a docstring the change makes false",
     "No exit clauses: if the Done-when is met as written",
 ]
 NO_ATTACKS = (

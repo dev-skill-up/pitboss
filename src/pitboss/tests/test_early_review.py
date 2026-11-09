@@ -327,6 +327,9 @@ class TestThePieces(unittest.TestCase):
             markers.Marker.MERGE_BY_HAND,
             markers.Marker.AUTO_MERGE_OFF,
             markers.Marker.DRAFT_STATE_CHANGED,
+            markers.Marker.BLOCKS,
+            markers.Marker.SUPERSEDED,
+            markers.Marker.PROMOTE,
         }
         assert_that(markers.SELF_EXPLAINED, equal_to(own))
 

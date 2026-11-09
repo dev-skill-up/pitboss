@@ -20,11 +20,10 @@ from typing import AbstractSet, Callable, Sequence
 from . import ciworkflow, cipointer, plancheckconfig
 
 CHECK = "ci-pointer"
-# a cited line, `path/file.py:12` (not the `file:line: edited` line of an Impact list)
+# a cited line, `path/file.py:12`
 CITED = re.compile(
     r"(?<![\w./-])(?P<path>[\w.-]+(?:/[\w.-]+)*\.[A-Za-z0-9]+):(?P<line>\d+)\b"
 )
-DISPOSITION = re.compile(r"^\s*(?:[-*]\s+)?\S+:\d+: (?:not )?edited\b")
 Read = Callable[[str], str | None]
 WILDCARD = re.compile(r"[*?\[]")
 
@@ -109,13 +108,11 @@ def citation_findings(section: str, head: Read) -> Sequence[str]:
     Returns:
         A finding (keyword: cited-line, pitboss#358) for each ``path:line`` in
         the Plan's prose whose file, at the head, is not there (a path with a
-        directory) or has fewer lines; the ``file:line: edited`` lines of an
-        Impact list are judged by the Impact check.
+        directory) or has fewer lines.
     """
     stale = (
         (number, cited[0], _gone(cited, head))
         for number, text in cipointer.prose(section)
-        if not DISPOSITION.match(text)
         for cited in CITED.finditer(text)
     )
     return [
