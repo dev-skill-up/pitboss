@@ -1,13 +1,52 @@
 """The held slots come from the running agents, not the ledger (pitboss#94)."""
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import slotheld
-from . import test_flow_sweep as flows, world
+from . import fakes, suggestions, test_flow_sweep as flows, world
+from .test_owner_repositories import lines_of
 from .test_slot_commands import run_all
-from .test_slot_held import QUEUED, calm, kinds, ran, said
+
+
+def calm() -> world.World:
+    """The default world with PR 1 clean, so that no PR holds a slot.
+
+    Returns:
+        The world.
+    """
+    here = world.make_world()
+    branch = {"sha": "1" * 40, "ref": "branch-1"}
+    here.bodies[f"{world.PROJECT}/pulls/1"] = fakes.pull_body(1, head=branch)
+    return here
+
+
+def ran(here: world.World, command: Sequence[str], *running: str) -> str:
+    """What a command printed, given the agents the session runs.
+
+    Args:
+        here: the world.
+        command: the command's words before the configuration.
+        *running: the names of the live agents.
+
+    Returns:
+        Its output.
+    """
+    return world.invoke(here, *command, here.config, "--running", *running).out
+
+
+def said(output: str, start: str, wanted: int | Sequence[str]) -> None:
+    """Assert the lines that start with some words, or how many there are.
+
+    Args:
+        output: what a command printed.
+        start: the words.
+        wanted: the lines, or their number.
+    """
+    found = lines_of(output, start)
+    assert_that(len(found) if isinstance(wanted, int) else found, equal_to(wanted))
 
 
 def plain(here: world.World, *command: str) -> str:
@@ -79,15 +118,17 @@ class TestTheSlotsAreDerived(unittest.TestCase):
     def test_no_running_option_marks_nothing_queued(self) -> None:
         """The steps of ``slots next`` and of the sweep list keep no queued words."""
         for command in (("slots", "next"), ("sweep",)):
-            assert_that(QUEUED in plain(stale_world(), *command), equal_to(False))
+            assert_that(
+                slotheld.QUEUED in plain(stale_world(), *command), equal_to(False)
+            )
 
     def test_without_running_a_ruling_is_suggested_and_no_start_is(self) -> None:
         """No slot is known free, so no start, review or fix; the ruling stays."""
         here = flows.world_with(flows.TWO_PLAN_REJECTIONS)
-        headers = "\n".join(kinds(plain(here, "slots", "next")))
-        assert_that(headers, contains_string("make an Opus ruling: owner/project#3"))
-        assert_that(headers.count("owner/project"), equal_to(1))
-        assert_that(kinds(plain(calm(), "slots", "next")), equal_to([]))
+        shown = plain(here, "slots", "next")
+        assert_that(shown, contains_string("make an Opus ruling: owner/project#3"))
+        assert_that(len(suggestions.parsed(shown)), equal_to(1))
+        assert_that(suggestions.parsed(plain(calm(), "slots", "next")), equal_to([]))
 
     def test_without_running_the_tasks_of_the_rows_are_still_left_out(self) -> None:
         """A ticket a row holds is not offered again, whether or not it runs."""
@@ -137,9 +178,10 @@ class TestTheSlotsAreDerived(unittest.TestCase):
             "agent-3",
         )
         free = ("slots", "free", here.config, "tiny", "--done", "agent-1")
-        results = [world.invoke(here, *each) for each in (take, free, take)]
-        assert_that([each.code for each in results], equal_to([2, 0, 0]))
-        assert_that(results[0].err, contains_string("free it first"))
+        refused = world.invoke(here, *take)
+        later = [world.invoke(here, *each).code for each in (free, take)]
+        assert_that([refused.code, *later], equal_to([2, 0, 0]))
+        assert_that(refused.err, contains_string("free it first"))
 
     def test_reading_writes_nothing(self) -> None:
         """The finished agent's row is still in the file after ``slots next``."""
