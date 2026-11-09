@@ -57,15 +57,3 @@ def issues(text: str) -> Sequence[shapes.Issue]:
         The issues.
     """
     return list(filter(None, listed(text)))
-
-
-def issue_of(text: str) -> Sequence[shapes.Issue]:
-    """Parse one issue (the response body of ``issues/<number>``).
-
-    Args:
-        text: the response body.
-
-    Returns:
-        The issue, or none when it is a PR (which the issues include).
-    """
-    return issues(f"[{text}]")
