@@ -31,6 +31,7 @@ from . import (
     shapes,
     testnames,
     textlint,
+    ticketrows,
 )
 
 USAGE_ERROR = 2
@@ -282,6 +283,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "review": _form_kind(_review_findings),
     "brief": _form_kind(_brief_findings),
     "owner-card": _form_kind(_card_findings),
+    "ticket": _form_kind(ticketrows.check),
     "event": _event,
 }
 
