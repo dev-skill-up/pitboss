@@ -31,6 +31,7 @@ from . import (
     ENTRY_DATA,
     cipointercheck,
     cirun,
+    cloneguard,
     configfile,
     configsettle,
     devpath,
@@ -261,9 +262,10 @@ def plan_check(args: argparse.Namespace) -> None:
             section or with a directive with no command exits with status 2).
 
     Raises:
-        SystemExit: with status 1 when a row did not run or there is a finding.
+        SystemExit: 1 when a row did not run, on a finding, or in a changed main clone.
     """
     configsettle.find_or_say(args)
+    cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
     output, failed = _read_and_checked(args)
     sys.stdout.write(output)
     if failed:
@@ -338,8 +340,7 @@ def _repository(args: argparse.Namespace) -> str:
 
 
 def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list[str]:
-    # keywords: ci-run, plan-done-when (pitboss#317): GitHub's word on the run and
-    # the ticket's body (pitboss#396)
+    # keywords: ci-run, plan-done-when (pitboss#317, #396): GitHub's word on the run
     github = ghapi.read_only(args.safe_run)
     named = forms.FIXES.search(body)
     ticket = named.group(1) if named else ""

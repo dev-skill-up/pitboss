@@ -16,6 +16,9 @@ from . import (
     ENTRY_DATA,
     bodydigest,
     bodyhead,
+    cloneguard,
+    configfile,
+    configsettle,
     deviations,
     expand_commands,
     expansion,
@@ -61,23 +64,42 @@ def body_digest(args: argparse.Namespace) -> None:
 
 @ENTRY_DATA.register(
     add_argument("file", help="the worker's hand-back, in a file"),
+    add_argument(
+        "--config",
+        default=None,
+        help="the project's configuration (a path, or a name in"
+        " .claude/pitboss/<name>.toml; default: the search, else the fetch). Every"
+        " clone it names (main_clone, and the library clones under the workspace)"
+        " must be on its default branch with no uncommitted change to a tracked"
+        " file, else a `refused` line names the clone and its branch",
+    ),
     name="hand-back-check",
 )
 def hand_back_check(args: argparse.Namespace) -> None:
-    """Print ``ok``, or the ``NOT STARTED`` text of a hand-back without the line.
+    """Print ``ok``, or why the hand-back is refused.
 
-    This is the deviations area (pitboss#257).
+    This is the deviations area (pitboss#257) and the clone-guard area
+    (pitboss#297): a hand-back without the line is ``NOT STARTED``, and a clone
+    of the configuration off its default branch or with an uncommitted change
+    is a ``refused`` line naming it and its branch.
 
     Args:
         args: the parsed arguments (a file it cannot read as UTF-8 exits with
             status 2).
 
     Raises:
-        SystemExit: 1 when the hand-back has no ``Deviations:`` line.
+        SystemExit: 1 when the hand-back has no ``Deviations:`` line or a clone
+            is not on its default branch with a clean tree.
     """
     missing = deviations.not_started(_read(args.file))
-    print(missing or "ok")
-    if missing:
+    configsettle.find_or_say(args)
+    refused = cloneguard.refusals(args, configfile.working_directory(args))
+    for each in (missing, *refused):
+        if each:
+            print(each)
+    if not (missing or refused):
+        print("ok")
+    else:
         raise SystemExit(1)
 
 
