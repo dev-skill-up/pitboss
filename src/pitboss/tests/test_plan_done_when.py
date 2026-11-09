@@ -287,3 +287,14 @@ class TestInterpretation(unittest.TestCase):
         for word in ("NOT PROCEEDING", "NOT STARTED", "hand back", "escalate"):
             assert_that(word in refused[0], equal_to(False))
         assert_that(passed, equal_to([]))
+
+    def test_the_copy_of_an_item_that_names_it_is_not_read(self) -> None:
+        """Done-when: an item may name the Interpretation it forbids."""
+        item = 'a Plan with an "Interpretation" that narrows a Done-when'
+        copied = f"## Plan\n1. {item}.\n\n## Execution\nDone.\n"
+        narrowed = copied + "\nInterpretation of Done-when item 1: less.\n"
+        counts = [
+            len(plandonewhen.interpretations(each, items))
+            for each, items in ((copied, []), (copied, [item]), (narrowed, [item]))
+        ]
+        assert_that(counts, equal_to([1, 0, 1]))

@@ -202,13 +202,11 @@ def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[s
 
     Returns:
         The findings: a numbered Plan row with no command, read or CI pointer
-        (plan-pointer), an Interpretation of a Done-when item
-        (plan-interpretation) and a sentence that no markup file is changed
-        when one is (markup-claim); pitboss#317.
+        (plan-pointer) and a sentence that no markup file is changed when one
+        is (markup-claim); pitboss#317.
     """
     return [
         *planpointers.findings(section),
-        *plandonewhen.interpretations(body),
         *markupclaim.findings(body, changed),
     ]
 

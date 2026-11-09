@@ -17,6 +17,7 @@ item (``plan-interpretation``): meet the Done-when as written, or prove it
 impossible. The module reads nothing: the texts are given.
 """
 
+import functools
 import re
 from typing import AbstractSet, Sequence
 
@@ -156,11 +157,13 @@ def edited(body: str, ticket: str) -> Sequence[str]:
     return [CHANGED.format(check=EDITED, recorded=recorded[0], now=now)]
 
 
-def interpretations(body: str) -> Sequence[str]:
+def interpretations(body: str, items: Sequence[str] = ()) -> Sequence[str]:
     """The paragraphs of the Plan and the Execution that interpret a Done-when item.
 
     Args:
         body: the PR's body.
+        items: the items of the ticket's Done-when, whose copies in the body are
+            not read (an item may say "Interpretation" itself).
 
     Returns:
         A finding for each paragraph (outside a fenced block) that has the word
@@ -169,7 +172,13 @@ def interpretations(body: str) -> Sequence[str]:
     """
     return [
         f"{INTERPRETATION}: a paragraph interprets a Done-when item"
-        f" ({_squeezed(each)[:SHOWN]}): {RULE}"
-        for each in bodytext.paragraphs(body)
-        if INTERPRET.search(each) and ABOUT.search(each)
+        f" ({each[:SHOWN]}): {RULE}"
+        for each in map(_squeezed, bodytext.paragraphs(body))
+        for rest in [_without(each, items)]
+        if INTERPRET.search(rest) and ABOUT.search(rest)
     ]
+
+
+def _without(text: str, items: Sequence[str]) -> str:
+    # the text less the copies of the items
+    return functools.reduce(lambda left, each: left.replace(each, " "), items, text)

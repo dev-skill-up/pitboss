@@ -12,7 +12,7 @@ import re
 import subprocess
 from typing import Sequence
 
-from . import cirun, ghapi, plandigest, plandonewhen
+from . import cirun, ghapi, plandigest, plandonewhen, ticketwhen
 
 ORIGIN = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
@@ -64,28 +64,32 @@ def done_when(
         body: the PR's body.
 
     Returns:
-        The findings of ``plandonewhen.findings`` and ``plandonewhen.edited``,
-        or one that says why the ticket cannot be read; none when the PR fixes
-        no ticket. Only the ticket's body is read, never its comments
-        (pitboss#396).
+        The findings of ``plandonewhen.findings``, ``plandonewhen.edited`` and
+        ``plandonewhen.interpretations`` (which do not read the copies of the
+        ticket's items), or one that says why the ticket cannot be read; only
+        the last when the PR fixes no ticket. Only the ticket's body is read,
+        never its comments (pitboss#396).
     """
-    if not ticket:
-        return []
     slug, _, number = ticket.rpartition("#")
     slug = slug or repository
-    if not slug:
-        return [f"{plandonewhen.CHECK}: {ticket} names no repository"]
-    return _of_ticket(github, f"{slug}#{number}", body)
+    if ticket and slug:
+        return _of_ticket(github, f"{slug}#{number}", body)
+    why = [f"{plandonewhen.CHECK}: {ticket} names no repository"] if ticket else []
+    return [*why, *plandonewhen.interpretations(body)]
 
 
 def _of_ticket(github: ghapi.GitHub, ticket: str, body: str) -> Sequence[str]:
     # the findings of one ticket read from its body alone
     text = body_of(github, ticket)
     if text is None:
-        return [f"{plandonewhen.CHECK}: the ticket {ticket} cannot be read"]
+        return [
+            f"{plandonewhen.CHECK}: the ticket {ticket} cannot be read",
+            *plandonewhen.interpretations(body),
+        ]
     return [
         *plandonewhen.findings(plandigest.section(body), text),
         *plandonewhen.edited(body, text),
+        *plandonewhen.interpretations(body, ticketwhen.items(text)),
     ]
 
 

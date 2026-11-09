@@ -328,6 +328,14 @@ class TestCommand(unittest.TestCase):
         assert_that(lines[0], equal_to("1"))
         assert_that("Done-when edit findings: 1" in lines[-1], equal_to(True))
 
+    def test_an_interpretation_of_an_item_is_refused(self) -> None:
+        """Done-when: a paragraph that narrows an item, beside the full Plan."""
+        narrowed = full_plan() + "\n\nInterpretation of Done-when item 2: less."
+        lines = run_check(ticket_world(), "owner/project#9", narrowed)
+        words = [["interprets a Done-when item", "prove it impossible"]]
+        assert_that(said(lines, "plan-interpretation:", words), equal_to(True))
+        assert_that("Interpretation findings: 1" in lines[-1], equal_to(True))
+
     def test_a_body_with_no_digest_line_is_refused(self) -> None:
         """Done-when: no line, no record that the Done-when was not edited."""
         lines = run_check(ticket_world(), "owner/project#9", full_plan(), digest="")
