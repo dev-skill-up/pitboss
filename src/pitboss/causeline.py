@@ -27,6 +27,19 @@ def log_location(slug: str, check: shapes.CheckRun) -> str:
     return where.format(slug=slug, run=check.run, id=check.id)
 
 
+def named_location(slug: str, check: shapes.CheckRun) -> str:
+    """A failed check and where its log is.
+
+    Args:
+        slug: the repository, ``owner/name``.
+        check: the failed check.
+
+    Returns:
+        ``<check name>: <url>``.
+    """
+    return f"{check.name}: {log_location(slug, check)}"
+
+
 def failed(
     reference: str, slug: str, check: shapes.CheckRun, why: str
 ) -> Sequence[str]:
