@@ -9,6 +9,8 @@ from typing import AbstractSet, Callable, Sequence
 from gather.commands import add_argument
 
 from . import (
+    commanddoc,
+    commandtext,
     ENTRY_DATA,
     cleaning,
     cleanjob,
@@ -195,6 +197,7 @@ ARGUMENTS = (
 
 
 @ENTRY_DATA.register(*ARGUMENTS, name="clean-container")
+@commanddoc.described(commandtext.CLEAN_CONTAINER)
 def clean_container(args: argparse.Namespace) -> None:
     """Remove the dead paths: finished checkouts, idle scratch, session files.
 

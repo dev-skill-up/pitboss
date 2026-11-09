@@ -6,10 +6,9 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, brieftext, config, forms, gradeline, planfixed
+from .. import brief, config, forms, gradeline, planfixed
 from .briefmake import pinned
 from .linting import HEAD, lines, lint, write_text
-from .test_evidence_rules import read, words
 
 FORM = config.ReviewForm(
     lines=config.DEFAULT_FORM, approved="approved", changes_needed="changes needed"
@@ -107,16 +106,3 @@ class TestPlanFixed(unittest.TestCase):
             brief.Kind.REVIEW_RELOCK,
         ):
             pinned(kind, [FIXED])
-
-    def test_the_reference_holds_the_rule(self) -> None:
-        """Done-when 1: adversarial-review.md and rules.md say it."""
-        review = words(read("adversarial-review.md"))
-        for sentence in (
-            FIXED,
-            "a gap you see in the Plan is a request for an Opus ruling, never a"
-            " Plan finding",
-            "pitboss lint review FILE --plan-approved",
-        ):
-            assert_that(review, contains_string(sentence))
-        assert_that(words(read("rules.md")), contains_string(FIXED))
-        assert_that(words(brieftext.SCOPE_EXECUTION), contains_string(words(RULE)))

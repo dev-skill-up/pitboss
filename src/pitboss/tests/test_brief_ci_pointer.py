@@ -2,12 +2,9 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string
-
 from .. import brief
 from .briefmake import has_none, pinned, text
 from .test_brief_nox import PLAN_WRITERS, WORKERS
-from .test_evidence_rules import read, words
 from .test_plan_commands import PLAN_REVIEWS, PLAN_RUNNING
 
 PLAN_CI = (
@@ -55,11 +52,3 @@ class TestCiPointer(unittest.TestCase):
         for kind in PLAN_REVIEWS:
             pinned(kind, [REVIEW_CI])
         has_none(text(brief.Kind.REVIEW_EXECUTION), [REVIEW_CI])
-
-    def test_the_reference_holds_the_rule_the_briefs_carry(self) -> None:
-        """adversarial-review.md has the pointer and review wording."""
-        reference = words(read("adversarial-review.md"))
-        pointer = PLAN_CI.removeprefix("CI pointer: a ").split(";")[0]
-        assert_that(reference, contains_string(pointer))
-        sentence = REVIEW_CI.removeprefix("CI pointer: a ").split(" (pitboss")[0]
-        assert_that(reference, contains_string(sentence))

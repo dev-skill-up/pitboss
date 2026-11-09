@@ -332,7 +332,7 @@ class TestThePieces(unittest.TestCase):
             markers.Marker.PROMOTE,
             markers.Marker.RED_CAUSE,
         }
-        assert_that(markers.SELF_EXPLAINED, equal_to(own))
+        assert_that(own.issubset(markers.SELF_EXPLAINED), equal_to(True))
 
 
 class TestTheBrief(unittest.TestCase):

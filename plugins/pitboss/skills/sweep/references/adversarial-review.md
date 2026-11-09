@@ -8,13 +8,6 @@ sets for that repository. Get the form, filled in for the repository, with:
 uvx pitboss review-form <config> <repository>
 ```
 
-It prints the form's lines, with `{sha}` standing for the head you reviewed
-and `{verdict}` for the verdict (it names the two verdict words), and says
-whether the repository is gated. A repository that has
-`.github/workflows/review-gate.yml` on its default branch is gated, whatever
-the configuration says, and `review-form` prints the form that workflow
-accepts (its first line, `Verdict:` line and `Reviewed:` line, and what else
-it refuses); it says `not gated` only for a repository with no such workflow.
 Post exactly that form: a gate that cannot read the comment keeps the status
 `adversarial-review` pending and the merge is refused.
 
@@ -37,17 +30,11 @@ Post exactly that form: a gate that cannot read the comment keeps the status
 - Record the PR body you read (keyword: body-digest). Save the body with
   `gh api repos/<repository>/pulls/<number> --jq .body > <scratchpad>/body.txt`,
   run `uvx pitboss body-digest <scratchpad>/body.txt`, and add the one line it
-  prints (`Body: <digest>`) to the comment beside the verdict line. The sweep
-  compares it with the body now: a body fixed after your review, the head not
-  having moved, is `review=older-body` (a fix
-  round's brief exists only for a head that moved after a review of changes
-  needed).
+  prints (`Body: <digest>`) to the comment beside the verdict line.
 - When you grade the Plan (a review of the Plan alone, or of the Plan and the
   Execution), also run `uvx pitboss plan-digest <scratchpad>/body.txt` on the
   same saved body and add the line it prints (`Plan digest: <digest>`) to the
-  comment beside the `Plan:` line (keyword: plan-digest, pitboss#172). The
-  sweep prints `PLAN EDITED` when the Plan section later differs from it. A
-  review of the Execution alone records none.
+  comment beside the `Plan:` line (keyword: plan-digest, pitboss#172).
 - An approved Plan is never reopened. In a review of the Execution, a finding
   that asks to edit the Plan (a row, a test or a command added to it) is not a
   finding: write it as a note for an Opus ruling, and judge the Execution
@@ -79,17 +66,6 @@ Post exactly that form: a gate that cannot read the comment keeps the status
   second sentence of the third paragraph of the body"); you never reproduce
   it, in a code span or outside one, and no label makes a reproduced phrase
   pass.
-
-In a gated repository the form is strict, and a comment that breaks any rule
-does not count as a review at all:
-
-- the first line is exactly the form's first line;
-- each line of the form appears exactly once, and its fixed text (the part
-  before `{sha}` or `{verdict}`) appears on no other line: a line such as
-  "Delta reviewed: ..." breaks a form line that starts with "Reviewed:";
-- the SHA is the full SHA;
-- the comment is plain ASCII, with no code fences, no HTML and no link
-  definitions.
 
 Outside a gated repository, an approval also stands when the only commits
 since are merges of the base branch; in a gated repository a new head needs
@@ -143,32 +119,6 @@ The order is: write a precise Plan, review the Plan, execute it as written.
   changed and reviewed first (a repository rule such as `e2e runs through a
   script` does not override an approved Plan's command).
 
-The briefs `pitboss next` prints carry these sentences. No lint checks these
-three sentences: the review does. (The reviewers' own `Dry run:` line, in the
-Plan reviews' briefs, is another line; the worker's is named `Try commands:` so
-that no brief carries two lines with one label.)
-
-Three more lines of the worker briefs (keyword: dry-run, pitboss#170). The
-second is backed by a lint (`appended`, below); the other two are checked by
-the review:
-
-- Try commands: run each command read-only before you write it into the Plan,
-  when it can be run, and see that it shows its row (a test command needs the
-  build it depends on; a filter must keep what the row needs, line numbers
-  included); for a command that cannot be run (it needs the change, CI, a
-  service or a long build), say so in the Plan.
-- Expand rows: never append anything to a row of the template (no `; echo $?`,
-  no `|| echo`): `pitboss expand` prints `exit status: N` for a status that is
-  not zero, and a row not run as the Plan wrote it is rejected.
-  `pitboss lint pr-body` refuses an Evidence row that ends in `; echo $?`,
-  `&& echo $?` or `|| echo` (`appended`).
-
-The brief that resolves a conflict says, for a PR with a Plan or Execution body
-(`Conflict body:`), to set the last `Head:` line of the body to the merge head
-and to rerun the Plan's commands through `pitboss expand` at that head,
-replacing the Evidence (the body only, no other change); `pitboss lint pr-body`
-already refuses a body whose last `Head:` line is not the head of the PR.
-
 ## A draft PR: Plan, Execution and the Plan line
 
 A fix is a draft PR whose body has a Plan section and an Execution section
@@ -217,14 +167,12 @@ after an Opus ruling, an escalation to the owner. So:
   that review read.
 - A later round that raises a finding present in the unchanged text of an earlier
   head says so: one line for each such finding, starting with `Missed earlier:`
-  and saying what the finding is. The sweep counts those lines, before and after
-  the newest Opus ruling, on the `PAUSE` line. A finding the changes since caused
+  and saying what the finding is.
+  A finding the changes since caused
   has no such line.
 - A gap against the goal or the Done-when that you can name (a case, a fixture,
   a repository kind the change does not handle) is a finding, never a note; a
-  note holds only what the change did not cause (pitboss#240). The sweep prints
-  `REVIEW NOTE` for an approved PR whose `Notes` paragraph mentions `missed`,
-  `never counted`, `not handled` or `only`.
+  note holds only what the change did not cause (pitboss#240).
 
 ## A scope in the brief is exclusive
 

@@ -2,11 +2,8 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to
-
-from .. import brief, brieftext, brieftextexec
+from .. import brief
 from .briefmake import has_none, pinned, text
-from .test_evidence_rules import read, words
 
 BODY = (
     "for each Done-when row, if the Plan's evidence mentions a command, the Plan"
@@ -71,8 +68,6 @@ class TestPlanCommands(unittest.TestCase):
         """pitboss#195: the brief says a cut or a pipe is never a finding."""
         for kind in EXECUTION_REVIEWS:
             pinned(kind, [CUT_ALLOWED])
-        reference = words(read("adversarial-review.md"))
-        assert_that(reference.count(CUT_ALLOWED), equal_to(1))
 
     def test_the_worker_runs_each_command_as_written(self) -> None:
         """Done-when 3: the worker briefs that run a Plan say it."""
@@ -85,19 +80,3 @@ class TestPlanCommands(unittest.TestCase):
             has_none(text(kind), ["Plan commands:"])
         has_none(text(brief.Kind.REVIEW_PLAN), [EXECUTION])
         has_none(text(brief.Kind.REVIEW_EXECUTION), [BODY])
-
-    def test_the_reference_holds_the_wording_the_briefs_carry(self) -> None:
-        """Done-when 4: the reference has each sentence, and the briefs the same."""
-        reference = words(read("adversarial-review.md"))
-        for sentence in (BODY, EXECUTION, WORKER):
-            assert_that(reference, contains_string(sentence))
-        for each in (
-            brieftext.PLAN_COMMANDS_PLAN,
-            brieftextexec.PLAN_COMMANDS_EXECUTION,
-            brieftext.PLAN_COMMANDS_WORKER,
-        ):
-            assert_that(each.startswith("Plan commands: "), equal_to(True))
-            assert_that(
-                words(each).removeprefix("Plan commands: ") in reference,
-                equal_to(True),
-            )

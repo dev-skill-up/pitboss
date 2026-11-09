@@ -8,6 +8,8 @@ from typing import NoReturn, Sequence
 from gather.commands import add_argument
 
 from . import (
+    commanddoc,
+    commandtext,
     ENTRY_DATA,
     blockers,
     brief,
@@ -75,6 +77,7 @@ def _line(ticket: str, pull: pulls.PullFacts) -> str:
     RUNNING_ARGUMENT,
     name="next",
 )
+@commanddoc.described(commandtext.NEXT)
 def show_next(args: argparse.Namespace) -> None:
     """Print a ticket's step, or the LOG lines to post as is and the top suggestions.
 

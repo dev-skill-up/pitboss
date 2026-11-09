@@ -16,6 +16,8 @@ from typing import Mapping, Sequence
 from gather.commands import add_argument
 
 from . import (
+    commanddoc,
+    commandtext,
     ENTRY_DATA,
     alsotests,
     cloneguard,
@@ -244,6 +246,7 @@ def run_planned(
     NOW_ARGUMENT,
     name="nox",
 )
+@commanddoc.described(commandtext.NOX)
 def nox(args: argparse.Namespace) -> None:
     """Run the sessions of ``noxcheck.Session``, in their order.
 

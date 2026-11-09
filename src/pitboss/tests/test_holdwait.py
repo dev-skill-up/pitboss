@@ -10,7 +10,7 @@ from .. import brief, holdwait
 from .briefmake import PROJECT, text
 from .linting import lint, write_text
 from .test_evidence_rules import words
-from .test_inventory_landing import ROOT, SKILL
+from .skillfiles import ROOT, SKILL
 
 WAITS = [
     "Tell running agents to hold their pushes to non-draft PRs.",

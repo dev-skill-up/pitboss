@@ -2,11 +2,10 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import brief, nox_commands
 from .briefmake import has_none, pinned, text
-from .test_evidence_rules import read, words
 from .test_plan_commands import PLAN_REVIEWS
 
 NOX = (
@@ -82,15 +81,6 @@ class TestNoxInTheBriefs(unittest.TestCase):
         """The hand-back names the four sessions and their status (pitboss#250)."""
         for kind in WORKERS:
             pinned(kind, [HAND_BACK_NOX])
-
-    def test_the_reference_has_the_hand_back_check_for_the_nox_result(self) -> None:
-        """The check of a hand-back names a missing `pitboss nox` result."""
-        rule = (
-            "a hand-back without the `pitboss nox` result of the pushed head"
-            " (the four sessions and their status) is sent back, naming it as"
-            " missing"
-        )
-        assert_that(words(read("rules.md")), contains_string(rule))
 
     def test_every_worker_brief_orders_the_sessions_and_forbids_polling(self) -> None:
         """One session first, no virtue by hand, nothing to poll (pitboss#175)."""

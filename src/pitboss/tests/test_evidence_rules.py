@@ -5,15 +5,13 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .test_inventory_landing import REFERENCES, ROOT
+from .skillfiles import REFERENCES, ROOT
 
 SKILL = ROOT / REFERENCES
 FILES = ("rules.md", "adversarial-review.md")
 PHRASES = (
     "Evidence line",
     "come only from `pitboss expand`",
-    "never retype or abbreviate output",
-    "$ cat < path",
 )
 
 

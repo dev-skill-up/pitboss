@@ -11,61 +11,6 @@ action starts with a marker in capitals and says the action. Everything about
 one project (its repositories, review format, models, labels, paths) lives in
 that project's configuration file; ``pitboss`` itself names no project.
 
-Commands
---------
-
-==============================================  =====================================================
-``pitboss sweep CONFIG``                        PRs, runner pressure, queue runs, stragglers,
-                                                worktrees (it removes the finished ones that
-                                                are safe to, ``[clean] worktrees``), disk
-                                                pressure, reminders, slots. Exits 1 on a red or
-                                                conflicted PR (not one red only from
-                                                checks that passed on the base since).
-``pitboss pressure CONFIG``                     Records a look; one line; exits 1 under runner pressure
-                                                and until the quiet period is over.
-``pitboss queued CONFIG``                       Records a queued job (restarts the quiet period).
-``pitboss push CONFIG [-- GIT_ARGUMENTS]``      Pressure check, ``git push``, record (``--no-dry-run``).
-``pitboss cancel-stale-runs CONFIG``            Cancel superseded merge-queue runs (``--no-dry-run``).
-``pitboss clean-worktrees CONFIG``              Remove the finished worktrees that are safe to
-                                                (``--no-dry-run``).
-``pitboss clean-container CONFIG``              List, then remove (``--no-dry-run``, in parts), the dead
-                                                paths: finished checkouts, idle scratch, files in ``/``
-                                                written over an hour after the container started. Work
-                                                only on this machine, links, mount points and anything
-                                                marked live are kept; each path is checked again just
-                                                before its removal.
-``pitboss review-form CONFIG REPOSITORY``       The form a review comment there must take.
-``pitboss analyze-red CONFIG ...``              Read-only: the red runs of a workflow in a window
-                                                (``REPOSITORY WORKFLOW --last N --output FILE``,
-                                                or ``--since`` and ``--until``) as one Markdown
-                                                report: summary, causes, costs, synthesis, a page
-                                                for each red run with a prompt for the judgement
-                                                items, the open p0 tickets.
-``pitboss lint text FILE... --phrases FILE``    Banned phrases: one finding per line, exit 1 on any.
-                                                The shipped list is always used; ``--phrases``
-                                                adds a project's (more than once if need be).
-``pitboss lint KIND FILE``                      The form of a PR body (``pr-body``), a review comment
-                                                (``review``), a brief (``brief``) or an owner decision
-                                                card (``owner-card``: it needs a ``How we got here``
-                                                section) (``--head SHA``, ``--config``, ``--gated``,
-                                                ``--ticket FILE``, ``--ruling URL FILE``,
-                                                ``--comments FILE``, ``--checkout DIR``): one finding per line naming its
-                                                check, exit 1 on any.
-``pitboss lint event EVENT STATUS``             The ``text-lint`` commit status of a pull request
-                                                event, written as JSON to STATUS. The reusable
-                                                workflow ``text-lint-check.yml`` posts it; callers
-                                                copy ``templates/text-lint.yml``.
-==============================================  =====================================================
-
-``sweep``, ``pressure`` and ``slots`` first mount tracefs when it is not mounted
-(``mount -t tracefs nodev /sys/kernel/tracing``) and say so on one stderr line
-(``tracefs: found mounted``, ``tracefs: mounted`` or ``tracefs: NOT MOUNTED
-(...)``); the tool makes the mount, not the environment's setup script, which
-does not run after a container restart. Stdout is unchanged.
-
-``CONFIG`` is a path, or a name looked up as ``.claude/pitboss/<name>.toml`` in
-the current directory or a parent.
-
 The sweep skill
 ---------------
 
@@ -83,11 +28,3 @@ about every line. A project enables it in its ``.claude/settings.json``:
     }
 
 ``skill-zips/sweep.zip`` is the same skill for upload to claude.ai.
-
-Development
------------
-
-``pitboss nox`` is a worker's local check (its sessions and their order are in
-the sweep skill's ``references/rules.md``; the rest is CI's). ``nox`` runs every check: ``tests`` (100% branch coverage),
-``lint`` (black and stolid), ``mypy``, ``docs``, ``skills`` (the skill's files,
-the markers against the references, and ``skill-zips/``), ``dry_release``.

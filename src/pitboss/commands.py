@@ -53,6 +53,7 @@ from . import (
     workerlines,
     workhours,
 )
+from . import commanddoc, commandtext
 from . import diskline, pulllines, pullstate, unlabeled, unreadableline
 from .commandarguments import CHANGING_ARGUMENTS, SWEEP_ARGUMENTS
 from .failures import describe, read_all
@@ -345,6 +346,7 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
 
 
 @ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
+@commanddoc.described(commandtext.SWEEP)
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 

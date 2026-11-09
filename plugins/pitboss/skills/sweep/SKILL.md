@@ -30,13 +30,9 @@ release than PyPI's: see `references/sweep.md`.
 `.claude/pitboss/<name>.toml` in the current directory or a parent, or give a
 path. It needs `gh` authenticated for every repository the file names, and
 `git`. Run it bare: no `grep`, `tail` or `timeout` in front of it, so nothing
-it prints is hidden. Timings go to stderr: each section ends with
-`[pitboss Ns] <section>: <seconds> s, <count> commands` and the kinds of command
-it ran, and a section over 30 s names the commands it waited longest for.
+it prints is hidden.
 
-On the reference machine (about 9 open PRs, 3 other repositories) it ends in
-under 30 s and prints its first lines (the cleaning, then each PR) within
-12 s, inside the 120 s limit of an agent's foreground shell call. When the
+When the
 shell tool reports `Terminated`, or the machine is slower (a slow GitHub, a very
 large `/tmp`), run it in the background with the output in a file, never with
 `timeout` in front, and read the file as it grows:
@@ -67,17 +63,7 @@ right thing based on pitboss data. Check the ticket/pr it talks about and see
 what the state is. That does not excuse you from running it first. Only
 override for bugs, but do override for bugs (and then file them)".
 
-It reads, it ends by syncing the working files to the
-`[sync]` repository's main when the configuration has the table (below), and it
-cleans first, by itself, with no prompt and no
-dry run (the finished worktrees that pass the safety test, the dead checkouts
-and the test tempdirs of `/tmp`; at 90% disk use or under 5 GiB free also every worktree and
-checkout with no open PR and the package caches), and prints what it removed and
-the space freed. It never touches a worktree with an open PR or a running
-worker's directory. The same cleaning closes the open PRs of the `[scratch]`
-repositories whose workflow runs have finished, and deletes their branches
-(`rules.md`, "Scratch repositories"); a fixture the table keeps is never
-touched. The agent never asks the owner about cleanup: when the
+The agent never asks the owner about cleanup: when the
 classifier denies an `rm`, run `uvx pitboss clean <config>` (the allow list
 covers it) and go on.
 
@@ -85,21 +71,7 @@ Other commands, all reading the same file:
 
 | Command | Use |
 | :--- | :--- |
-| `uvx pitboss pressure <config>` | Before a push to a non-draft PR, an undraft, an enqueue, a merge, a workflow dispatch or a re-run: records a look and prints one line; exit 1 under runner pressure and until the quiet period is over (the minutes remaining are in the line). The looks that are recorded are this one, a `sweep`'s, a `next`'s and a refused `push`'s; a configuration with no `[runners]` table is on its own runner budget and is never held. |
-| `uvx pitboss queued <config>` | After a merge, an enqueue or auto-merge armed: records that a job was put on the queue, which restarts the quiet period. |
-| `uvx pitboss push <config> [--draft] [--no-dry-run] [-- <git push arguments>]` | The pressure check and `git push` in one command, so the check is not left out or put in the wrong place. Under pressure or in the quiet period it prints the hold line, exits 1, pushes nothing and records the look it made (so the quiet period can end); the worker hands back at once, naming where it stopped and the SHA of what is unpushed, and never loops or sleeps for the pressure to clear (a hold that comes from a known pitboss bug with a ticket is overridden with the plain `git push origin <branch>`, the ticket cited in the hand-back). A push that goes out is recorded as a queued job. `--draft` is for a push to a draft PR: no check, nothing recorded. |
-| `uvx pitboss cancel-stale-runs <config> [--no-dry-run]` | Cancel superseded merge-queue runs. |
-| `uvx pitboss clean <config> [--dry-run]` | The cleaning a sweep does first, on its own: removes at once. Run it when the disk is tight or an `rm` is denied; never ask the owner. |
-| `uvx pitboss clean-worktrees <config> [--no-dry-run]` | Remove the finished worktrees that pass the safety test (a sweep does the same by itself under `[clean] worktrees = "auto"`, the default). |
-| `uvx pitboss clean-container <config> [--no-dry-run] [--approved FILE] [--batch N]` | List, then remove, the dead paths that fill the disk: finished checkouts, idle scratch, files the session wrote in `/`. Work that exists only here, links, mount points and anything marked live (a merged checkout's marker counts for 6 hours) are kept; each path is checked again just before its removal. |
-| `uvx pitboss review-form <config> <repository>` | The form a review comment in that repository must take. |
-| `uvx pitboss lint owner-card FILE` | Refuses the text of an owner decision card (its question and `reason`, saved to a file) that has no `How we got here` section. Every escalation, to an Opus ruling or to the owner, carries that section: for each rejection before it, the finding, the rule or brief line that should have prevented it, and the prevention filed (a pitboss ticket number) (`references/rules.md`, "An escalation says how the work got there"). |
-| `uvx pitboss ruling-summary <config>` | Records that the daily summary of the Opus rulings was written, which ends the `OPUS RULINGS DAILY` line for the Pacific day (`references/rules.md`, "A question that reaches the owner comes with a markdown artifact"). |
-| `uvx pitboss hand-back-check <file>` | Prints `ok` for a worker's hand-back saved in the file that has a `Deviations:` line, else the `NOT STARTED` text to send back and exit 1 (`references/rules.md`, "A hand-back has one form"; pitboss#257). |
-| `uvx pitboss body-digest <file>` | The `Body: <digest>` line a review records for the PR body saved in the file (`references/adversarial-review.md`); the sweep prints `review=older-body` when the body changed after the newest review of an unmoved head. `review the fix round's findings only` is printed only after a review of changes needed of an older head. |
-| `uvx pitboss plan-digest <file>` | The `Plan digest: <digest>` line a review that grades the Plan records for the `## Plan` section of the PR body saved in the file (`references/adversarial-review.md`); the sweep prints `PLAN EDITED` when the Plan section differs from the digest of the newest review that approved the Plan and recorded one, and no ruling `revise the plan` followed it (`references/rules.md`, "Plan first"). Exit 2 for a body with no `## Plan` section. |
-| `uvx pitboss next <config> <owner/repo#N>` | The one step the ticket's PR is at (`WAIT_FOR_OWNER`, WORKER with its task, UNDRAFT, `REGULAR_REVIEW` with its stage, `WAIT_FOR_UNDRAFT`, `WAIT_FOR_CI`, `OPUS_RULING`, `PAUSE_FOR_OWNER`, `FIX_RULING`, `RULING_ESCALATES`, `PLAN_EDITED`, `PLAN_CHECK`, `RUN_E2E` or MERGE), from the open PR whose body says `Fixes` or `Closes` it; for a ticket no PR fixes, its first step, preceded by a line starting MISSING NAMES (keyword: done-when-names, pitboss#231) when the ticket's Done-when names, in backticks, a `brief.Kind` member, a file path or a `pitboss` command that is not in the tree, each named in the line: do not spend a worker on that ticket; fix the ticket (name what exists; a file the ticket asks to create is named by its directory, not as a path) before the worker is started, and a worker that sees the line hands back NOT STARTED with it. The flow is `pitboss.flow.next_step` (`rules.md`, "Plan first"). |
-| `uvx pitboss sync <config>` | Copy the working files outside any repository (configurations, ledger, log, pressure record, `[sync] paths`) to main of the `[sync]` repository; a sweep does it last. A file you create is added to `[sync] paths` in the same turn; a configuration missing at session start is restored from `notes-current` (`references/sweep.md`, "The orchestrator's working files"). |
+| `uvx pitboss --help` |
 
 ## A line that is wrong because of a pitboss bug (pitboss#218)
 
