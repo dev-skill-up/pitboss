@@ -21,8 +21,9 @@ COVER_PREFIX = "--cover="
 # A lint failure names the command to repeat alone (pitboss#364): the one session
 # that failed, once; a session that passed on the head is not run again.
 LINT_RERUN = (
-    "lint-rerun after the fix repeat only this session: `{command}` (allowed"
-    " because lint failed; a session that passed on this head is not run again)"
+    "lint-rerun the lint command line that ran: `{command}`; after the fix repeat"
+    " only that session with `nox -s lint -r` (allowed because lint failed first;"
+    " a session that passed on this head is not run again)"
 )
 # The tests session ends with these lines (keyword: test-timing, pitboss#324):
 # the total, then the slowest tests, each line starting with the prefix so that

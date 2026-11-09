@@ -69,7 +69,9 @@ class TestLintFailure(unittest.TestCase):
         found, calls = run_nox({"lint": 1})
         rerun = noxcheck.LINT_RERUN.format(command=" ".join(calls[1]))
         assert_that(calls, equal_to(COMMANDS[:2]))
-        has_all(found.out, [rerun, "output of lint", "nox -r -s lint"])
+        has_all(
+            found.out, [rerun, "output of lint", "nox -r -s lint", "`nox -s lint -r`"]
+        )
         has_none(found.out, ["output of tests-3.13"])
 
     def test_no_other_session_failing_names_a_rerun(self) -> None:
