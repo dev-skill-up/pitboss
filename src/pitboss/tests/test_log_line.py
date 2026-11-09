@@ -8,7 +8,13 @@ from typing import Callable, Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import logline
-from . import cleanscene, cleanworld, fakes, test_autoclean_world as scenes, world
+from . import (
+    cleanscene,
+    cleanworld,
+    fakes,
+    test_autoclean_world as scenes,
+    world,
+)
 
 SET_AT = "2030-01-01T01:00:00+00:00"
 FREE_AT = "2030-01-01T02:00:00+00:00"
@@ -145,6 +151,19 @@ def sweeping(here: world.World) -> str:
     return tip_of(here.workspace / "merged-work")
 
 
+def containing(dry: str) -> str:
+    """The head ``clean-container`` records: the tips of the worktrees it removes.
+
+    Args:
+        dry: what its dry run printed.
+
+    Returns:
+        The commits, as the log line joins them.
+    """
+    listed = [pathlib.Path(each) for each in cleanworld.lines_of(dry, "REMOVED PATH")]
+    return ", ".join(tip_of(each) for each in listed if (each / ".git").is_file())
+
+
 Case = tuple[Callable[[], world.World], Sequence[str], Sequence[str]]
 CASES: Mapping[str, Case] = {
     "clean": (lambda: scenes.scene("99.9"), ("--dry-run",), ()),
@@ -175,12 +194,29 @@ class TestCleanUp(unittest.TestCase):
         """``clean``, ``clean-worktrees`` and ``clean-container`` record for a sweep."""
         for name, (make, dry, real) in CASES.items():
             here = make()
-            head = logline.NO_WORKTREE if name.endswith("container") else sweeping(here)
-            scenes.swept(here, name, *dry)
+            listing = scenes.swept(here, name, *dry)
+            head = containing(listing) if name.endswith("container") else sweeping(here)
             before = events_of(here)
             scenes.swept(here, name, *real)
             found = (before, events_of(here))
             assert_that(found, equal_to(([], [(f"pitboss {name}", head)])))
+
+    def test_clean_container_records_the_head_only_of_a_worktree_it_removed(
+        self,
+    ) -> None:
+        """A removed worktree's tip is the head; a scratch directory has none."""
+        found = []
+        for under, name in (("workspace", "merged-work"), ("root", "old")):
+            scene = cleanscene.full_world()
+            path = (scene.here.workspace if under == "workspace" else scene.root) / name
+            head = tip_of(path) if under == "workspace" else logline.NO_WORKTREE
+            approved = fakes.directory() / "approved"
+            approved.write_text(f"{path}\n")
+            args = ("--no-dry-run", "--approved", str(approved), *cleanworld.NO_MARKER)
+            scenes.swept(scene.here, "clean-container", *args)
+            found.append((events_of(scene.here), [("pitboss clean-container", head)]))
+        actual, expected = zip(*found)
+        assert_that(actual, equal_to(expected))
 
     def test_nothing_freed_records_nothing_and_a_bad_count_posts_again(self) -> None:
         """No bytes, no event; a posted file with no number counts as none posted."""
