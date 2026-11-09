@@ -13,6 +13,7 @@ import sys
 from typing import Protocol, Sequence
 
 from . import (
+    assigning,
     cleanconfig,
     config,
     configfile,
@@ -25,7 +26,9 @@ from . import (
     nextview,
     offering,
     pulls,
+    pullmarks,
     pullstate,
+    rankline,
     readyline,
     slotheld,
     slotholding,
@@ -107,7 +110,7 @@ def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
 def _counted(
     found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
 ) -> work.Offered:
-    offer = offering.offered(found, opened, book)
+    offer = offering.offered(found, opened, book, pullmarks.pull_marks(found, opened))
     return slotholding.counted(offer, opened, book, found.args)
 
 
@@ -126,7 +129,7 @@ def _assigned(
     if not taken.known:
         return []
     rest = [each for each in ordered.items if each.reference not in taken.references]
-    return work.assign(rest, book, slots)[: taken.free]
+    return assigning.assign(rest, book, slots)[: taken.free]
 
 
 def _view(
@@ -143,7 +146,7 @@ def _view(
         failed=book.failed,
         now=found.now,
         withheld=nextview.Withheld(held=ordered.held, standing=ordered.standing),
-        blocked=ordered.blocked,
+        ranked=list(rankline.lines(ordered)),
         ready=list(readyline.texts(found.settings, facts, found.now)),
         no_drafts=found.settings.project.no_drafts,
     )
@@ -171,7 +174,7 @@ def _source(
         brief=configfile.load_brief(
             given, pathlib.Path(found.args.env.get("PWD", "."))
         ),
-        facts=pulls.readable(opened),
+        facts=pullmarks.awake(opened, ordered),
         items=ordered.items,
         failed=book.failed,
         volume=volume,

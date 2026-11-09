@@ -55,3 +55,15 @@ def head_fixing(ticket: str, facts: Sequence[pulls.PullFacts]) -> str:
     """
     heads = [each.pull.head.sha for each in facts if ticket in fixed_tickets(each)]
     return heads[0] if heads else ""
+
+
+def of_pull(pull: pulls.PullFacts) -> str:
+    """The ticket a PR says it fixes.
+
+    Args:
+        pull: the PR.
+
+    Returns:
+        The first ticket its body fixes, as ``owner/name#number``, or "".
+    """
+    return first_fixed(pull.pull.body or "", pull.repo)

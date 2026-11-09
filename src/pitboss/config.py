@@ -59,6 +59,18 @@ def make_repo(owner: str, name: str) -> Repo:
     return Repo(owner=owner, name=name, slug=f"{owner}/{name}")
 
 
+def repo_of(reference: str) -> Repo:
+    """The repository of a ticket or PR.
+
+    Args:
+        reference: ``owner/name#number``.
+
+    Returns:
+        The repository.
+    """
+    return make_repo(*reference.rpartition("#")[0].split("/", 1))
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ReviewForm:
     """The form a review comment takes.
@@ -162,6 +174,9 @@ class Slots:
         owner_priorities: a ticket (``owner/repo#N``) and the priority label the
             owner states for it, one of ``priority_labels``; the ticket ranks by
             it, and a differing GitHub label is said (keyword: owner-priority).
+        superseded: the tickets (``owner/repo#N``) the owner marks as
+            superseded: no start is offered for them (keyword:
+            superseded-ticket, pitboss#388).
     """
 
     ledger: pathlib.Path
@@ -172,6 +187,7 @@ class Slots:
     model_labels: Mapping[str, str]
     ledger_owner: bool = False
     owner_priorities: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    superseded: Sequence[str] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

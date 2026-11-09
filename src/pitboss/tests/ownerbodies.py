@@ -95,6 +95,7 @@ def extra() -> Mapping[str, object]:
         "issues/comments": [],
         "pulls?state=all": [],
         "issues?state=open&labels=urgent": [],
+        "issues?state=all": [],
     }
     found: dict[str, object] = {EXTRA: {}}
     found.update({page(f"{EXTRA}/{path}"): got for path, got in answers.items()})

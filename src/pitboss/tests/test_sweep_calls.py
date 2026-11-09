@@ -21,7 +21,9 @@ FOUR_PULLS = {
     "gh api commits/check-runs": 6,  # four heads, two reviewed heads (#202)
     "gh api commits/status": 4,
     "gh api contents/.github/workflows/review-gate.yml": 2,  # one for each repository
-    "gh api issues": 4,  # the priority labels' lists, and each repository's open ones
+    # the priority labels' lists, each repository's open ones, and its every ticket
+    # and PR (promote, #388)
+    "gh api issues": 6,
     "gh api issues/comments": 6,  # four PRs' and one feed for each repository (#239)
     # the 2 PRs with an Execution review (#202), and each of the 4 PRs (#355)
     "gh api issues/timeline": 6,

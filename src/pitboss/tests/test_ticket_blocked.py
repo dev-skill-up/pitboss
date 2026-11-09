@@ -18,66 +18,25 @@ from hamcrest import (
     has_length,
 )
 
-from .. import brief, config, ticketblock
-from . import briefmake, fakes, liveagents, quietworld, world
+from .. import brief, ticketblock
+from . import briefmake, fakes, liveagents, quietworld, rankworld, world
 from .test_commands import sweep
 from .test_holds import START_LINE
 from .test_slot_commands import next_output
 
-ISSUES = "/".join((world.PROJECT, "issues"))
-LIST = fakes.page(ISSUES + "?state=open&labels=urgent")
-COMMENTS = fakes.page(ISSUES + "/9/comments")
+ISSUES = rankworld.ISSUES
+LIST = rankworld.LIST
+COMMENTS = rankworld.COMMENTS
 FUTURE = world.FUTURE
-BLOCKER = "repos/owner/lib/issues/3"
-LATER = {**world.TICKET, "number": 10, "created_at": "2026-09-02T00:00:00+00:00"}
+BLOCKER = rankworld.BLOCKER
+LATER = rankworld.LATER
 SENTENCE = "Cannot be worked on until owner/lib#3 has merged"
 BLOCKED_LINE = re.compile(r"^BLOCKED \S+#\d+ by .*$", re.MULTILINE)
-REPOSITORY = config.make_repo("owner", "project")
+REPOSITORY = rankworld.REPOSITORY
 
 
-def blocked_world(
-    body: str = SENTENCE,
-    state: str = "open",
-    comments: Sequence[Mapping[str, str]] = (),
-) -> world.World:
-    """A world with ticket 9 that names a blocker, and a later ticket 10.
-
-    Args:
-        body: the body of ticket 9.
-        state: the state of owner/lib#3.
-        comments: the comments of ticket 9.
-
-    Returns:
-        The world.
-    """
-    here = world.make_world()
-    ticket = {**world.TICKET, "body": body, "comments": len(comments)}
-    here.bodies[LIST] = [ticket, LATER]
-    here.bodies[COMMENTS] = list(comments)
-    here.bodies[BLOCKER] = {
-        "state": state,
-        "labels": [],
-        "title": "The blocker",
-        "created_at": "2026-09-09T00:00:00Z",
-    }
-    return here
-
-
-def comment(body: str, association: str = "MEMBER") -> Mapping[str, str]:
-    """A comment on ticket 9.
-
-    Args:
-        body: its text.
-        association: its author's association.
-
-    Returns:
-        The JSON of the comment.
-    """
-    return {
-        "body": body,
-        "author_association": association,
-        "created_at": "2026-09-03T00:00:00Z",
-    }
+blocked_world = rankworld.blocked_world
+comment = rankworld.comment
 
 
 def offered(here: world.World) -> Sequence[str]:
@@ -190,14 +149,7 @@ class TestSweep(unittest.TestCase):
 # ticket it waited for was the work to do.
 THIRD = {**world.TICKET, "number": 11, "created_at": "2026-09-03T00:00:00+00:00"}
 DEPENDS = "Depends on owner/lib#3"
-LIB_THREE = {
-    "state": "open",
-    "labels": [],
-    "title": "The dependency",
-    "created_at": "2026-09-09T00:00:00Z",
-    "body": "A ticket",
-    "comments": 0,
-}
+LIB_THREE = rankworld.LIB_THREE
 
 
 def depends_world(body: str = DEPENDS) -> world.World:
@@ -209,9 +161,7 @@ def depends_world(body: str = DEPENDS) -> world.World:
     Returns:
         The world.
     """
-    here = blocked_world(body)
-    here.bodies[BLOCKER] = dict(LIB_THREE)
-    return here
+    return rankworld.depends_world(body)
 
 
 def serve_ticket(here: world.World, number: int, found: Mapping[str, object]) -> None:
@@ -371,8 +321,7 @@ class TestOrder(unittest.TestCase):
     def test_the_suggestion_starts_the_dependency(self) -> None:
         """``next`` suggests the dependency first, and its brief has the rule."""
         here = depends_world()
-        live = liveagents.running(here)
-        out = world.again(here, "next", "--now", world.FUTURE, *live).out
+        out = rankworld.suggestions(here)
         suggested = re.findall(r"start a PR: (\S+#\d+):", out)
         assert_that(suggested, equal_to(["owner/lib#3", "owner/project#10"]))
         assert_that(out, contains_string("is never ground for a split"))

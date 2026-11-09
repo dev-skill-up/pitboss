@@ -120,6 +120,8 @@ REPOSITORY_BODIES: MutableMapping[str, object] = {
         {"head": {"ref": "merged-work"}, "state": "closed", "merged_at": "x"}
     ],
     fakes.page(f"{LIBRARY}/pulls?state=all"): [],
+    fakes.page(f"{PROJECT}/issues?state=all"): [],
+    fakes.page(f"{LIBRARY}/issues?state=all"): [],
     fakes.page(f"{PROJECT}/issues?state=open&labels=urgent"): [TICKET],
     fakes.page(f"{LIBRARY}/issues?state=open&labels=urgent"): [],
     **ticket_bodies.ISSUES,
