@@ -1,6 +1,7 @@
 """Tests for splitting an over-long body into comments (pitboss#177)."""
 
 import dataclasses
+import pathlib
 import subprocess
 import unittest
 from typing import MutableMapping, Sequence
@@ -10,6 +11,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 from .. import evidencesplit, expansion, ghstore
 from . import fakes, world
 from .memorystore import OTHER, URL, Memory, comments, store_of
+from .repositories import IDENTITY, commit_file, run_git
 
 LIMIT = 65536
 FOOTER = "🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
@@ -305,7 +307,36 @@ def invoked(template: str, *options: str) -> world.Result:
     here = dataclasses.replace(world.make_world(), processes=routed(canned()))
     path = fakes.directory() / "t.md"
     fakes.write(path, template)
-    return world.invoke(here, "expand", str(path), *options)
+    # a directory that is no checkout, so no merge notice (merge-head) is said
+    away = ("--cwd", str(fakes.directory()))
+    return world.invoke(here, "expand", str(path), *away, *options)
+
+
+def plain_repository() -> pathlib.Path:
+    """A repository with one commit.
+
+    Returns:
+        Its root.
+    """
+    root = fakes.directory()
+    run_git(root, "init", "-q", "-b", "main")
+    commit_file(root, "a")
+    return root
+
+
+def merge_repository() -> pathlib.Path:
+    """A repository whose HEAD merges a side branch into main.
+
+    Returns:
+        Its root.
+    """
+    root = plain_repository()
+    run_git(root, "checkout", "-q", "-b", "side")
+    commit_file(root, "b")
+    run_git(root, "checkout", "-q", "main")
+    commit_file(root, "c")
+    run_git(root, *IDENTITY, "merge", "-q", "--no-ff", "-m", "merge", "side")
+    return root
 
 
 class TestCommand(unittest.TestCase):
@@ -328,6 +359,29 @@ class TestCommand(unittest.TestCase):
         done = invoked("Top\n\n$ yes | head -n 3000\n\n" + FOOTER, *options)
         cited = URL + "55" in done.out
         assert_that(
-            [done.code, done.err, cited, done.out.endswith(FOOTER)],
-            equal_to([0, "", True, True]),
+            [done.code, cited, done.out.endswith(FOOTER)],
+            equal_to([0, True, True]),
         )
+
+    def test_the_overflow_is_said_to_be_by_design(self) -> None:
+        """Done-when (pitboss#317): the output and the body say it; a fit does not."""
+        options = ["--pr", "o/p#7", "--limit", "5000", "--no-dry-run"]
+        over = invoked("Top\n\n$ yes | head -n 3000\n\n" + FOOTER, *options)
+        under = invoked("Top\n\n$ echo hi\n\n" + FOOTER, *options)
+        said = "Overflowed to comments, as per the standing decision: "
+        section = f"{evidencesplit.HEADING}\n\n{said}"
+        past = "parts past the 5000-character limit, split by pitboss"
+        shown = [said in over.err, past in over.err, URL + "55" in over.err]
+        assert_that(shown + [section in over.out], equal_to([True] * 4))
+        assert_that([said in under.err, said in under.out], equal_to([False, False]))
+
+    def test_a_merge_at_the_head_says_to_check_the_plan_again(self) -> None:
+        """Done-when (pitboss#317, merge-head): plan-check against the merge head."""
+        options = ["--pr", "o/p#7"]
+        merged = invoked("Top\n", *options, "--cwd", str(merge_repository()))
+        plain = invoked("Top\n", *options, "--cwd", str(plain_repository()))
+        elsewhere = invoked("Top\n", *options)
+        said = "is a merge: if you merged main to resolve a conflict"
+        shown = [said in merged.err, "pitboss plan-check" in merged.err]
+        assert_that(shown, equal_to([True, True]))
+        assert_that([said in plain.err, said in elsewhere.err], equal_to([False] * 2))

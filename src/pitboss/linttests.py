@@ -40,7 +40,7 @@ def findings(
     Args:
         name: what to call the body in a finding.
         body: the PR's body.
-        rows: the numbered rows of its Plan (``planrow.rows``).
+        rows: the numbered rows of its Plan (``planrowtext.rows``).
         approved: the digests of the Plans that reviews approved, which this
             rule does not judge (keyword: plan-approved, pitboss#296).
 

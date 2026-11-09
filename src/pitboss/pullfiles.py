@@ -1,9 +1,12 @@
 """The files a PR changes, read only when asked (keyword: run-e2e, pitboss#199)."""
 
 import json
+import re
 from typing import Sequence
 
-from . import ghapi
+from . import ghapi, planrowtext, shapes, testnames
+
+DEFINITION = re.compile(r"^([-+])[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.M)
 
 
 def file_names(text: str) -> Sequence[str]:
@@ -21,6 +24,44 @@ def file_names(text: str) -> Sequence[str]:
         for item in items
         for key in ("filename", "previous_filename")
         if item.get(key)
+    ]
+
+
+def changed_tests(patches: str) -> Sequence[str]:
+    """The test definitions a page of the files a pull request changes touches.
+
+    Args:
+        patches: the response body of ``pulls/<number>/files``.
+
+    Returns:
+        ``-test_name`` for each ``def test_name`` a patch removes and
+        ``+test_name`` for each it adds.
+    """
+    items = json.loads(patches)
+    return [
+        sign + name
+        for item in items
+        for sign, name in DEFINITION.findall(item.get("patch", ""))
+    ]
+
+
+def removed_by(github: ghapi.GitHub, slug: str, number: int) -> Sequence[str]:
+    """The tests a pull request's diff removes and does not add back.
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        number: the PR's number.
+
+    Returns:
+        The test names (keyword: superseded-pointer, pitboss#317).
+    """
+    path = f"repos/{slug}/pulls/{number}/files"
+    changes = ghapi.pages(github, path, changed_tests)
+    return [
+        each[1:]
+        for each in dict.fromkeys(changes)
+        if each[0] == "-" and f"+{each[1:]}" not in changes
     ]
 
 
@@ -44,3 +85,26 @@ def touches(
         name.startswith(tuple(prefixes))
         for name in ghapi.pages(github, path, file_names)
     )
+
+
+def superseded(github: ghapi.GitHub, slug: str, pull: shapes.Pull) -> Sequence[str]:
+    """The tests a PR removes that its Execution says another replaced.
+
+    The files are read only when the Execution has such a line for a test a Plan
+    row cites, so a PR with none costs no call (keyword: superseded-pointer,
+    pitboss#317).
+
+    Args:
+        github: the API.
+        slug: the PR's repository, ``owner/name``.
+        pull: the PR.
+
+    Returns:
+        The names.
+    """
+    body = pull.body or ""
+    rows = " ".join(planrowtext.rows(body).values())
+    cited = [old for old in testnames.superseding(body) if old in rows]
+    if not cited:
+        return []
+    return [each for each in removed_by(github, slug, pull.number) if each in cited]

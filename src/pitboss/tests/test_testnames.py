@@ -101,7 +101,7 @@ class TestTestNames(unittest.TestCase):
     def test_a_name_cited_twice_is_one_finding(self) -> None:
         """Each identifier is named once."""
         twice = "## Plan\n\ntest_gone and test_gone\n\n## Execution\n\ntest_gone\n"
-        found = testnames.findings("body", twice, checkout())
+        found = testnames.findings("body", twice, checkout(), set())
         assert_that(found, has_length(1))
 
     def test_no_checkout_is_not_checked(self) -> None:

@@ -163,10 +163,8 @@ def approved(facts: PullFacts) -> bool:
     Returns:
         True when approved.
     """
-    return facts.standing in (
-        reviews.Standing.APPROVED,
-        reviews.Standing.APPROVED_BEFORE_MERGES,
-    )
+    counted = (reviews.Standing.APPROVED, reviews.Standing.APPROVED_BEFORE_MERGES)
+    return facts.standing in counted
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -319,11 +317,13 @@ def _signals(
     found = headchecks.signals(got.statuses, got.checks, got.labels, ruled)
     unmet = headchecks.gate(got.statuses, repo.slug, source.review.gated)
     # keyword: plan-approved (pitboss#296): the Plans that reviews approved
-    approved = flowstate.approved_digests(state.graded)
+    plans = flowstate.approved_digests(state.graded)
     # keyword: pins-only (pitboss#34): asked only where a review would be offered
     pins = pinsask.at_review(source.pins, repo, got.pull, flow.next_step(state))
+    # keyword: superseded-pointer (pitboss#317)
+    gone = pullfiles.superseded(source.github, repo.slug, got.pull)
     return dataclasses.replace(
-        found, gate=unmet, approved_plans=approved, pins=pins, fixed=got.fixed
+        found, gate=unmet, approved_plans=plans, pins=pins, fixed=got.fixed, gone=gone
     )
 
 

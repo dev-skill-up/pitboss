@@ -41,6 +41,8 @@ class HeadSignals:
         fixed: the base's later passing run of each failed check of the head,
             when it has one for every failed check, in a repository with a merge
             queue (keyword: fixed-on-base, pitboss#314).
+        gone: the tests the PR's diff removes that its Execution says another
+            replaced (keyword: superseded-pointer, pitboss#317).
     """
 
     statuses: Sequence[shapes.CommitStatus] = ()
@@ -50,6 +52,7 @@ class HeadSignals:
     approved_plans: Sequence[str] = ()
     pins: pinsreading.Reading = pinsreading.NOTHING
     fixed: Sequence[basefix.Answer] = ()
+    gone: Sequence[str] = ()
 
 
 def pending_gate(posted: Sequence[shapes.CommitStatus]) -> str:

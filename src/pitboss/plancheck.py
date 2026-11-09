@@ -17,6 +17,11 @@ pointer that is none and a line the Plan cites that the head does not have
 (pitboss#358), and a line the diff adds to a .md or .rst file, except a cut span,
 and a cut that leaves a fragment (keyword: markup-lines, #343, #373, #358). The
 module imports no process: the runner, the search and the readers of files are given.
+So are a numbered row with no command, read or CI pointer (plan-pointer), a CI run
+whose head is not the body's (ci-run), a Done-when that is not the ticket's
+(plan-done-when), an interpretation of it (plan-interpretation), an Impact row whose
+dispositions are not its hits (impact-count) and a claim that no markup file
+changed (markup-claim), all pitboss#317.
 """
 
 import dataclasses
@@ -26,12 +31,17 @@ from . import (
     bodydigest,
     cipointer,
     cipointercheck,
+    cirun,
     expansion,
     impact,
     impactcheck,
+    impactcount,
+    markupclaim,
     markuplines,
     noxrow,
     plancheckconfig,
+    plandonewhen,
+    planpointers,
     steps,
 )
 
@@ -156,10 +166,14 @@ def impact_findings(section: str, search: Search) -> Sequence[str]:
         The findings (keyword: impact-list, pitboss#320): none when the Plan has
         no Impact command.
     """
-    parsed = [impactcheck.parse(each) for each in expansion.commands(section)]
-    rows = [each for each in parsed if each is not None and not each.problem]
-    hits = [hit for each in rows for hit in search(each.phrases)]
-    return impactcheck.findings(hits, section) if rows else []
+    rows = impactcount.phrases(section)
+    hits = [hit for each in rows for hit in search(each)]
+    # keyword: impact-count (pitboss#317): the hits are cited row by row
+    return (
+        [*impactcheck.findings(hits, section), *impactcount.findings(section, search)]
+        if rows
+        else []
+    )
 
 
 def ci_findings(
@@ -193,6 +207,39 @@ def ci_findings(
     ]
 
 
+def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[str]:
+    """What the body's own words get wrong about its Plan and its diff.
+
+    Args:
+        body: the PR's body.
+        section: its Plan section.
+        changed: the paths the PR's diff changes.
+
+    Returns:
+        The findings: a numbered Plan row with no command, read or CI pointer
+        (plan-pointer), an Interpretation of a Done-when item
+        (plan-interpretation) and a sentence that no markup file is changed
+        when one is (markup-claim); pitboss#317.
+    """
+    return [
+        *planpointers.findings(section),
+        *plandonewhen.interpretations(body),
+        *markupclaim.findings(body, changed),
+    ]
+
+
+KINDS = (
+    (impactcount.CHECK, "Impact count findings"),
+    (cipointercheck.CHECK, "CI pointer findings"),
+    (cirun.CHECK, "CI run findings"),
+    (markuplines.CHECK, "Markup line findings"),
+    (markupclaim.CHECK, "Markup claim findings"),
+    (planpointers.CHECK, "Plan pointer findings"),
+    (plandonewhen.CHECK, "Done-when findings"),
+    (plandonewhen.INTERPRETATION, "Interpretation findings"),
+)
+
+
 def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     """The last line of the report.
 
@@ -201,6 +248,7 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
         found: the findings, a line each: those of the Impact list, the
             ``ci-pointer:`` ones, and the diff's added lines in .md and .rst
             files but a cut span (#373), the ``markup-lines:`` ones.
+            The other checks' start with their name (``KINDS``).
 
     Returns:
         ``Plan check: ok``, or the line that refuses the Plan and names each row
@@ -209,17 +257,23 @@ def verdict(refused: Sequence[int], found: Sequence[str] = ()) -> str:
     """
     if not refused and not found:
         return steps.PLAN_CHECK_OK
-    pointer = [each for each in found if each.startswith(f"{cipointercheck.CHECK}:")]
-    markup = [each for each in found if each.startswith(f"{markuplines.CHECK}:")]
     named = ", ".join(str(each) for each in refused)
-    impact = len(found) - len(pointer) - len(markup)
+    counts = _counts(found)  # and the count of each other check of KINDS
+    # a finding of no other check is one of the Impact list (impact-list)
+    other = len(found) - sum(count for _, count in counts)
     parts = [
         *([f"rows that did not run: {named}"] if refused else []),
-        *([f"Impact findings: {impact}"] if impact else []),
-        *([f"CI pointer findings: {len(pointer)}"] if pointer else []),
-        *([f"Markup line findings: {len(markup)}"] if markup else []),
+        *([f"Impact findings: {other}"] if other else []),
+        *[f"{label}: {count}" for label, count in counts if count],
     ]
     return f"Plan check: refused, {'; '.join(parts)}"
+
+
+def _counts(found: Sequence[str]) -> Sequence[tuple[str, int]]:
+    return [
+        (label, sum(1 for each in found if each.startswith(f"{check}:")))
+        for check, label in KINDS
+    ]
 
 
 def text(
@@ -241,13 +295,6 @@ def text(
     Returns:
         The first line, the rows, the findings, the Plan digest and the verdict.
     """
-    return "\n".join(
-        [
-            steps.PLAN_CHECK_FIRST_LINE,
-            *rows,
-            *found,
-            f"{bodydigest.PLAN_PREFIX}{expansion.section_digest(section)}",
-            verdict(refused, found),
-            "",
-        ]
-    )
+    digest = f"{bodydigest.PLAN_PREFIX}{expansion.section_digest(section)}"
+    lines = [steps.PLAN_CHECK_FIRST_LINE, *rows, *found, digest]
+    return "\n".join([*lines, verdict(refused, found), ""])

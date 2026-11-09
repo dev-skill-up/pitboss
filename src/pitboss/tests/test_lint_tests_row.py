@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import expansion, linttests, plancommands, plandigest, planrow
+from .. import expansion, linttests, plancommands, plandigest, planrowtext
 
 ADDS = "## Plan\n1. `$ make test` The new check refuses a bare sleep.\n"
 TESTED = (
@@ -25,7 +25,7 @@ def found(body: str, approved: Sequence[str] = ()) -> Sequence[str]:
     Returns:
         The findings.
     """
-    return linttests.findings("b", body, planrow.rows(body), approved)
+    return linttests.findings("b", body, planrowtext.rows(body), approved)
 
 
 class TestTheRefusalTestRow(unittest.TestCase):

@@ -26,6 +26,18 @@ class GitHub:
     mutate: Run
 
 
+def read_only(run: Run) -> GitHub:
+    """The API for a command that only reads (it never changes GitHub).
+
+    Args:
+        run: the runner reads go through.
+
+    Returns:
+        The API, whose changes go through the same runner.
+    """
+    return GitHub(run=run, mutate=run)
+
+
 def workflow_runs_path(slug: str, workflow: str) -> str:
     """The path of a workflow's runs.
 

@@ -20,6 +20,10 @@ URL_ROOM = 200
 MIN_ROOM = 1000
 TAIL_SHARE = 4
 HEADING = "## Evidence in comments"
+OVERFLOW = (
+    "Overflowed to comments, as per the standing decision: {count} parts past the"
+    " {limit}-character limit, split by pitboss, not an accident"
+)
 FENCE = re.compile(r"^(`{3,})")
 ROW = re.compile(r"^`{3,}pitboss-expand [^\n]*\n\$ ([^\n]*)", re.MULTILINE)
 
@@ -154,18 +158,28 @@ def pack(pieces: Sequence[str], first: int, others: int) -> Sequence[str]:
     return found
 
 
-def citations(later: Sequence[str], addresses: Sequence[str]) -> str:
+def citations(
+    later: Sequence[str], addresses: Sequence[str], limit: int = LIMIT
+) -> str:
     """The section that cites every later part and each row in it.
 
     Args:
         later: the later parts.
         addresses: the URL of each.
+        limit: the most characters of a body or a comment.
 
     Returns:
-        The section.
+        The section, whose first line says that the overflow is by design
+        (pitboss#317).
     """
     total = len(later) + 1
-    lines = [HEADING, "", "Part 1 is this description; the later parts are comments."]
+    lines = [
+        HEADING,
+        "",
+        OVERFLOW.format(count=len(later), limit=limit) + ".",
+        "",
+        "Part 1 is this description; the later parts are comments.",
+    ]
     for number, (text, address) in enumerate(zip(later, addresses), 2):
         lines.extend(["", f"Part {number} of {total}: {address}"])
         lines.extend(
@@ -228,7 +242,7 @@ def fitted(pieces: Sequence[str], tail: str, limit: int) -> Divided:
             raise TooLong(f"the body cannot be cut to {limit} characters")
         cuts = [each for unit in pieces for each in cut(unit, min(first, others))]
         parts = pack(cuts, first, others)
-        cited = citations(parts[1:], ["x" * URL_ROOM] * len(parts[1:]))
+        cited = citations(parts[1:], ["x" * URL_ROOM] * len(parts[1:]), limit)
         if len(joined(parts[0], cited, tail)) <= limit:
             return Divided(head=parts[0], tail=tail, later=parts[1:])
         reserve = max(reserve + 1, len(cited))
@@ -292,6 +306,64 @@ def write(store: Store, cut_up: Divided) -> Sequence[str]:
     return addresses
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Applied:
+    """A body put in a pull request.
+
+    Attributes:
+        body: the description as set.
+        notice: what ``pitboss expand`` says on standard error: empty when the
+            body fitted, else that the overflow is by design and the URL of each
+            comment (pitboss#317).
+    """
+
+    body: str
+    notice: str
+
+
+def notice(count: int, limit: int, addresses: Sequence[str]) -> str:
+    """The text that says the overflow is the standing decision, with its URLs.
+
+    Args:
+        count: how many parts went to comments.
+        limit: the most characters of a body or a comment.
+        addresses: the URL of each comment.
+
+    Returns:
+        The sentence, then a line for each comment's part and URL.
+    """
+    lines = [OVERFLOW.format(count=count, limit=limit) + ", URLs below"]
+    lines.extend(
+        f"part {n} of {count + 1}: {each}" for n, each in enumerate(addresses, 2)
+    )
+    return "\n".join(lines) + "\n"
+
+
+def place(store: Store, text: str, limit: int = LIMIT) -> Applied:
+    """Put a body in a pull request, the later parts in comments.
+
+    Args:
+        store: the pull request's store.
+        text: the expanded body.
+        limit: the most characters of a body or a comment.
+
+    Returns:
+        The description as set, and the notice of an overflow.
+
+    Raises:
+        TooLong: when the description with its citations is over the limit.
+    """
+    cut_up = divide(text, limit)
+    addresses = write(store, cut_up)
+    cited = citations(cut_up.later, addresses, limit)
+    final = joined(cut_up.head, cited, cut_up.tail) if cut_up.later else text
+    if len(final) > limit:
+        raise TooLong(f"the description is {len(final)} characters, over {limit}")
+    store.set_body(final)
+    said = notice(len(cut_up.later), limit, addresses) if cut_up.later else ""
+    return Applied(body=final, notice=said)
+
+
 def apply(store: Store, text: str, limit: int = LIMIT) -> str:
     """Put a body in a pull request, the later parts in comments.
 
@@ -302,15 +374,5 @@ def apply(store: Store, text: str, limit: int = LIMIT) -> str:
 
     Returns:
         The description as set.
-
-    Raises:
-        TooLong: when the description with its citations is over the limit.
     """
-    cut_up = divide(text, limit)
-    addresses = write(store, cut_up)
-    cited = citations(cut_up.later, addresses)
-    final = joined(cut_up.head, cited, cut_up.tail) if cut_up.later else text
-    if len(final) > limit:
-        raise TooLong(f"the description is {len(final)} characters, over {limit}")
-    store.set_body(final)
-    return final
+    return place(store, text, limit).body

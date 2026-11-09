@@ -17,6 +17,7 @@ from . import (
     reviewline,
     roundline,
     stall,
+    supersededline,
     updateline,
     work,
 )
@@ -68,6 +69,7 @@ def _branch_lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[st
 def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:
     return (
         *planrowline.lines(pull),
+        *supersededline.lines(pull),
         *reviewline.lines(pull),
         *notesline.lines(pull),
         *analysisline.lines(pull),

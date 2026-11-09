@@ -15,15 +15,13 @@ pipe, as ``same`` reads it). ``lint pr-body`` and the sweep's
 """
 
 import re
-from typing import Mapping, Sequence
+from typing import Sequence
 
-from . import evidence, expansion, plandigest
+from . import evidence, expansion, plandigest, planrowtext
 
 # a pipe after the command, which is not the `||` of an or-list
 PIPED = re.compile(r"^\s*\|(?!\|)")
 CHECK = "plan-row"
-ROW = re.compile(r"^\s*(?P<number>\d{1,9})[.)]\s+(?P<text>.*)$")
-SPAN = re.compile(r"`([^`]+)`")
 MISSING = (
     "Plan row {number} has no row for the Evidence line `{command}`: the Plan"
     " names each command of the Evidence in the row of its number"
@@ -70,46 +68,10 @@ def same(command: str, run: str) -> bool:
     )
 
 
-def rows(body: str) -> Mapping[int, str]:
-    """The numbered rows of the Plan section of a body.
-
-    Args:
-        body: the PR's body.
-
-    Returns:
-        Each row's text by its number (its continuation lines up to the next
-        row or a blank line included); the first row of a number is kept.
-    """
-    found: dict[int, str] = {}
-    current = 0
-    for line in plandigest.section(body).splitlines()[1:]:
-        match = ROW.match(line)
-        if match is not None:
-            current = int(match.group("number"))
-            found.setdefault(current, match.group("text"))
-        elif not line.strip():
-            current = 0
-        elif current and not line.startswith(expansion.PROMPT):
-            found[current] += " " + line.strip()
-    return found
-
-
-def spans(text: str) -> Sequence[str]:
-    """The backticked spans of a row.
-
-    Args:
-        text: the row.
-
-    Returns:
-        The text of each pair of backticks, in order.
-    """
-    return SPAN.findall(text)
-
-
 def _finding(number: int, row: str | None, command: str) -> str:
     if row is None:
         return MISSING.format(number=number, command=command)
-    named = spans(row)
+    named = planrowtext.spans(row)
     if not named:
         return PROSE.format(number=number, command=command)
     return DIFFERS.format(
@@ -131,7 +93,7 @@ def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str
         number lacks the whole command in backticks or names another string;
         none when the Plan has no numbered row, or is an approved Plan.
     """
-    numbered = rows(body)
+    numbered = planrowtext.rows(body)
     # keyword: plan-approved (pitboss#296): a Plan whose digest now is one a
     # review recorded was approved as it stands
     plan = plandigest.section(body)
@@ -140,5 +102,7 @@ def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str
     return [
         f"{name}: " + _finding(number, numbered.get(number), command) + f" ({CHECK})"
         for number, command in enumerate(ran(body), 1)
-        if not any(same(each, command) for each in spans(numbered.get(number, "")))
+        if not any(
+            same(each, command) for each in planrowtext.spans(numbered.get(number, ""))
+        )
     ]
