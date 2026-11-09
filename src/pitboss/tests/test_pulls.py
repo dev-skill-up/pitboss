@@ -211,21 +211,15 @@ def step_after_two_rejections(since_head: Sequence[object]) -> steps.Next:
 PLAN_BODY = "## Plan\nthe plan\n\n## Execution\nthe work\n"
 
 
-class TestFixSincePlanApproval(unittest.TestCase):
-    """A merge of the base is no fix; an authored commit is."""
+class TestRulingFirst(unittest.TestCase):
+    """A rejected Execution is ruled on first, whatever moved the head (#390)."""
 
-    def test_the_head_that_differs_by_a_merge_is_the_workers_round(self) -> None:
-        """Rejected, the base merged, rejected again: the worker's round first."""
-        assert_that(
-            step_after_two_rejections([AUTHORED, MERGE]),
-            equal_to(steps.worker(steps.Task.FIX_EXECUTION)),
-        )
-
-    def test_the_head_that_differs_by_a_fix_asks_for_a_ruling(self) -> None:
-        """Rejected, fixed, rejected again: Opus."""
-        assert_that(
-            step_after_two_rejections([AUTHORED, FIX]), equal_to(steps.opus_ruling())
-        )
+    def test_a_merge_or_a_fix_between_two_rejections_asks_for_a_ruling(self) -> None:
+        """Rejected, the base merged or a fix pushed, rejected again: Opus."""
+        for since_head in ([AUTHORED, MERGE], [AUTHORED, FIX]):
+            assert_that(
+                step_after_two_rejections(since_head), equal_to(steps.opus_ruling())
+            )
 
 
 def check(

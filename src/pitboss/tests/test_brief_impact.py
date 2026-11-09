@@ -37,6 +37,7 @@ WRITERS = [
     brief.Kind.FIRST_ROUND,
     brief.Kind.FIX_REVIEW,
     brief.Kind.REVISE_PLAN,
+    brief.Kind.FIX_ROUND,
 ]
 PLAN_REVIEWS = [brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN]
 

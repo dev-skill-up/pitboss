@@ -88,6 +88,10 @@ def _unheld(
     return dataclasses.replace(source, undraft=lambda: True)
 
 
+def _opens_ready(project: config.Project) -> Callable[[str], bool]:
+    return lambda slug: not project.drafts or slug in project.no_drafts
+
+
 def _source(
     github: ghapi.GitHub, settings: config.Config, undraft: Callable[[], bool]
 ) -> pulls.Source:
@@ -103,4 +107,5 @@ def _source(
         merge_queue=settings.merge_queue.repositories,
         early=functools.partial(earlyreview.split, tools),
         pins=pinsonly.asker(github, settings),
+        no_drafts=_opens_ready(settings.project),
     )

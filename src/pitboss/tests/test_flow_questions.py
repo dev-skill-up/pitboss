@@ -1,6 +1,5 @@
 """Each question of the review flow alone, on recorded PR data (pitboss#107)."""
 
-import dataclasses
 import unittest
 from typing import Callable, Sequence
 
@@ -153,65 +152,6 @@ class TestQuestions(unittest.TestCase):
         ]
         check(flow.readable_ruling, cases)
 
-    def test_execution_fixed_since_plan_approval(self) -> None:
-        """An execution rejection on the approved plan at another head."""
-        first = graded(APPROVED, CHANGES, 1, sha=OLDER)
-        again = graded(None, CHANGES, 2)
-        before = graded(CHANGES, CHANGES, 1, sha=OLDER)
-        short = graded(APPROVED, CHANGES, 1, sha=state().pull.head.sha[:7])
-        cases = [
-            (state(graded(APPROVED, CHANGES, 1)), False),
-            (state(first, again), True),
-            (state(first), True),
-            (state(before, again), False),
-            (state(graded(CHANGES, None, 1)), False),
-            (state(short, again), False),
-            (state(), False),
-            (test_flow.merged(state(first, again), OLDER), False),
-            (test_flow.merged(state(first, again), "1" * 40), True),
-        ]
-        check(flow.execution_fixed_since_plan_approval, cases)
-
-    def test_execution_fixed_by_the_body(self) -> None:
-        """A body edit after the approval is a round; before it, or none, is not."""
-        again = graded(None, CHANGES, 2)
-        reading = test_flow.reading
-        edited = reading(graded(APPROVED, CHANGES, 1), "before")
-        kept = reading(graded(APPROVED, CHANGES, 1), test_flow.BODY)
-        revision = reading(graded(CHANGES, CHANGES, 1), "before")
-        matching = reading(graded(APPROVED, CHANGES, 1, sha=OLDER), test_flow.BODY)
-        cases = [
-            (state(edited, again), True),
-            (state(kept, again), False),
-            (state(revision, again), False),
-            (test_flow.merged(state(matching, again), OLDER), False),
-        ]
-        check(flow.execution_fixed_since_plan_approval, cases)
-
-    def test_the_base_is_compared_only_for_a_rejection_at_another_head(
-        self,
-    ) -> None:
-        """No compare for a review that does not reject, or is of the head."""
-        calls: list[str] = []
-
-        def record(sha: str) -> bool:
-            calls.append(sha)
-            return False
-
-        plain = graded(APPROVED, None, 1, sha=OLDER)
-        edited = test_flow.reading(graded(APPROVED, CHANGES, 2), "before")
-        kept = test_flow.reading(
-            graded(APPROVED, CHANGES, 3, sha=OLDER), test_flow.BODY
-        )
-        for reviews, asked in (([plain], 0), ([plain, edited], 0), ([kept], 1)):
-            calls.clear()
-            pr = dataclasses.replace(
-                state(*reviews),
-                merges_only_since=record,
-            )
-            flow.execution_fixed_since_plan_approval(pr)
-            assert_that(len(calls), equal_to(asked))
-
     def test_plan_rejected_again(self) -> None:
         """From the second rejection on; none and one are not again."""
         rejecting = [graded(CHANGES, None, second) for second in (1, 2, 3)]
@@ -240,18 +180,3 @@ class TestQuestions(unittest.TestCase):
             (state(github), None),
         ]
         check(flow.newest_counting_review, cases)
-
-
-class TestConflictRound(unittest.TestCase):
-    """A conflict round edits the body and is no fix round (pitboss#208)."""
-
-    def test_a_merge_with_a_body_edit_is_no_fix_round(self) -> None:
-        """The body is compared only while the head is the reviewed one."""
-        again = graded(None, CHANGES, 2)
-        rewritten = test_flow.reading(graded(APPROVED, CHANGES, 1, sha=OLDER), "before")
-        cases = [
-            (test_flow.merged(state(rewritten, again), OLDER), False),
-            (state(rewritten, again), True),
-            (test_flow.merged(state(rewritten, again), "1" * 40), True),
-        ]
-        check(flow.execution_fixed_since_plan_approval, cases)

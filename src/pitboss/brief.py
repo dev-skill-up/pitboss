@@ -20,6 +20,7 @@ from . import (
     brieftextci,
     brieftextdraft,
     brieftextfailure,
+    brieftextfix,
     brieftextimpact,
     brieftextlint,
     brieftextnote,
@@ -59,6 +60,7 @@ TASKS: Mapping[Kind, str] = {
     Kind.FIRST_ROUND: text.TASK_FIRST_ROUND,
     Kind.REVISE_PLAN: text.TASK_REVISE_PLAN,
     Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
+    Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
     Kind.FIX_CI: text.TASK_FIX_CI,
     Kind.RESOLVE_CONFLICT: text.TASK_RESOLVE_CONFLICT,
     Kind.RULING_STEPS: text.TASK_RULING_STEPS,
@@ -122,7 +124,9 @@ DRY_RUNNERS: Mapping[Kind, str] = {
     Kind.REVIEW_PLAN: text.SEPARATE_DRAFT_DRY,
     Kind.REVIEW_RELOCK: brieftextpins.SEPARATE_PINS,
 }
-PLAN_RUNNERS = frozenset({Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW})
+PLAN_RUNNERS = frozenset(
+    {Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW, Kind.FIX_ROUND}
+)
 # keyword: plan-digest (pitboss#172): the Plan of these PRs is approved
 APPROVED_PLAN_WORKERS = frozenset(
     {Kind.FIX_REVIEW, Kind.FIX_CI, Kind.RESOLVE_CONFLICT, Kind.RULING_STEPS}
@@ -165,6 +169,11 @@ class Heads:
             empty for a ticket (keyword: review-brief, pitboss#338).
         plan_digest: the digest of the body's Plan section, empty when the
             body has none.
+        check: whether ``findings`` is the address of a Plan check that refused
+            the Plan, not of a review (keyword: fix-round-kind, pitboss#390).
+        quoted: the findings of that Plan check, quoted.
+        ruling: the address of the Opus ruling an Execution fix round follows,
+            empty when it follows none (keyword: unfixed-execution, pitboss#390).
     """
 
     head: str
@@ -173,6 +182,9 @@ class Heads:
     findings: str
     body_digest: str = ""
     plan_digest: str = ""
+    check: bool = False
+    quoted: str = ""
+    ruling: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -250,10 +262,11 @@ def _about(subject: Subject) -> Mapping[str, str]:
 
 
 def _named(heads: Heads, where: str) -> Mapping[str, str]:
-    review = (
-        f"the review at {heads.findings}" if heads.findings else "the newest review"
-    )
+    what = "the Plan check" if heads.check else "the review"
+    review = f"{what} at {heads.findings}" if heads.findings else "the newest review"
     return {
+        "quoted": f" ({heads.quoted})" if heads.quoted else "",
+        "ruling": heads.ruling,
         "head": heads.head,
         "base": heads.base,
         "approved": heads.approved,
@@ -300,11 +313,17 @@ def _plan_lines(kind: Kind) -> list[str]:
     ]
 
 
+def _ruling(spec: Spec) -> list[str]:
+    named = spec.kind is Kind.FIX_REVIEW and spec.heads.ruling
+    return [brieftextfix.RULING_NAMED] if named else []
+
+
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
     new = spec.kind is Kind.NEW_PR
     sentences = [
         TASKS[spec.kind],
+        *_ruling(spec),
         text.ONE_PR,
         text.WORKTREE,
         text.DONE_WHEN,

@@ -12,7 +12,7 @@ from typing import AbstractSet, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import bodydigest, flow, parsing, shapes, steps
+from .. import bodydigest, draftfacts, flow, parsing, shapes, steps
 from . import fakes, scratch
 
 HEAD = fakes.HEAD
@@ -145,17 +145,16 @@ def state(
     )
 
 
-def merged(pr: flow.PullState, *heads: str) -> flow.PullState:
-    """A PR whose current head differs from reviewed heads by merges only.
+def with_no_drafts(pr: flow.PullState) -> flow.PullState:
+    """The PR of a repository with no drafts.
 
     Args:
         pr: the PR.
-        *heads: the reviewed heads a merge of the base alone moved on from.
 
     Returns:
-        The PR with that recorded.
+        The same with that recorded.
     """
-    return dataclasses.replace(pr, merges_only_since=lambda sha: sha in heads)
+    return dataclasses.replace(pr, draft=draftfacts.Draft(no_drafts=True))
 
 
 def github_review(
@@ -211,13 +210,13 @@ class TestTable(unittest.TestCase):
         expect(want, state(graded(*PLAN_APPROVED_ALONE, 1)))
 
     def test_execution_rejected_by_the_review_that_approves_the_plan(self) -> None:
-        """The worker fixes the execution."""
-        expect(steps.worker(Task.FIX_EXECUTION), state(graded(*EXECUTION_REJECTED, 1)))
+        """Opus rules first (keyword: ruling-first, pitboss#390)."""
+        expect(steps.opus_ruling(), state(graded(*EXECUTION_REJECTED, 1)))
 
     def test_execution_rejected_by_the_first_review_after_the_approval(self) -> None:
-        """The worker fixes the execution."""
+        """Opus rules first."""
         reviews = state(graded(*PLAN_APPROVED_ALONE, 1), graded(None, CHANGES, 2))
-        expect(steps.worker(Task.FIX_EXECUTION), reviews)
+        expect(steps.opus_ruling(), reviews)
 
     def test_the_fixed_execution_rejected_again(self) -> None:
         """Opus rules."""
@@ -318,12 +317,6 @@ class TestBranches(unittest.TestCase):
         twice = state(github_review(CHANGES, 1, sha=OLDER), github_review(CHANGES, 2))
         expect(steps.regular_review(Stage.PLAN_AND_EXECUTION), twice)
 
-    def test_a_base_merge_is_no_fix(self) -> None:
-        """A rejected execution, a merge of the base, rejected again: the worker."""
-        first = graded(*EXECUTION_REJECTED, 1, sha=OLDER)
-        rejected = state(first, graded(None, CHANGES, 2))
-        expect(steps.worker(Task.FIX_EXECUTION), merged(rejected, OLDER))
-
 
 class TestRulingBranches(unittest.TestCase):
     """What a ruling that no review follows, or that cannot be read, gives."""
@@ -369,28 +362,3 @@ class TestRulingBranches(unittest.TestCase):
         labels = frozenset({steps.PAUSED_LABEL})
         comments = [ruling(5, line="no ruling line")]
         expect(steps.wait_for_owner(), state(comments=comments, labels=labels))
-
-
-class TestBodyFixRound(unittest.TestCase):
-    """A body fix between two rejections at one head is a fix round (#149)."""
-
-    def test_a_body_fix_between_two_rejections_at_one_head_is_a_round(self) -> None:
-        """Two rejections at one head, the body edited between: Opus rules."""
-        first = reading(graded(*EXECUTION_REJECTED, 1), "the body before the fix")
-        second = reading(graded(None, CHANGES, 2), BODY)
-        expect(steps.opus_ruling(), state(first, second))
-
-    def test_a_body_that_was_not_fixed_since_the_approval_is_one_round(self) -> None:
-        """Re-run review of one body, or a body edit before the plan's approval."""
-        approved = reading(graded(*EXECUTION_REJECTED, 1), BODY)
-        revised = reading(graded(CHANGES, CHANGES, 1), "the body before")
-        for first in (approved, revised):
-            second = reading(graded(APPROVED, CHANGES, 2), BODY)
-            expect(steps.worker(Task.FIX_EXECUTION), state(first, second))
-
-    def test_a_base_merge_with_the_recorded_body_is_no_fix(self) -> None:
-        """The body is still the recorded one and only the base was merged."""
-        first = reading(graded(*EXECUTION_REJECTED, 1, sha=OLDER), BODY)
-        second = reading(graded(None, CHANGES, 2), BODY)
-        rejected = merged(state(first, second), OLDER)
-        expect(steps.worker(Task.FIX_EXECUTION), rejected)

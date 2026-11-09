@@ -45,11 +45,11 @@ class PullState:
         trusted: the author associations whose comments count.
         undraft_clear: whether the runner pressure and the quiet period allow
             an undraft now (read by the caller; the flow does not look).
-        merges_only_since: says whether the current head differs from a
-            reviewed head by merge commits only (the caller reads the base).
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         draft: what the caller read for a draft (``draftfacts.Draft``).
+        unchanged_since: says whether no code moved between a reviewed head and
+            the head (the caller reads the base; keyword: unfixed-execution).
     """
 
     pull: shapes.Pull
@@ -59,9 +59,9 @@ class PullState:
     comments: Sequence[shapes.Comment]
     trusted: AbstractSet[str]
     undraft_clear: bool = False
-    merges_only_since: Callable[[str], bool] = lambda sha: False
     relock: bool = False
     draft: draftfacts.Draft = draftfacts.Draft()
+    unchanged_since: Callable[[str], bool] = lambda sha: False
 
 
 def plan_rejected_last(pr: PullState) -> bool:
@@ -75,11 +75,42 @@ def plan_rejected_last(pr: PullState) -> bool:
         pr: the PR.
 
     Returns:
-        True when the newest regular review of any head rejected the Plan.
+        True when the newest regular review of any head rejected the Plan and
+        the repository has drafts (keyword: no-drafts, pitboss#390).
     """
-    regular = (each for each in pr.graded if each.comment)
-    newest = max(regular, key=lambda each: each.when, default=None)
-    return newest is not None and newest.plan is shapes.Verdict.CHANGES_NEEDED
+    regular = regular_reviews(pr)
+    rejected = bool(regular) and regular[-1].plan is shapes.Verdict.CHANGES_NEEDED
+    return rejected and not pr.draft.no_drafts
+
+
+def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
+    """The newest Execution verdict if it rejects, unanswered (unfixed-execution).
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The Execution-graded review if it rejects and no code moved, else None.
+    """
+    graded = [each for each in regular_reviews(pr) if each.execution is not None]
+    rejecting = graded[-1] if graded else None
+    if rejecting is None or rejecting.execution is not shapes.Verdict.CHANGES_NEEDED:
+        return None
+    moved = not pr.pull.head.sha.startswith(rejecting.sha)  # else a body fix
+    return rejecting if moved and pr.unchanged_since(rejecting.sha) else None
+
+
+def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
+    """The regular reviews of a PR, oldest first (no GitHub review).
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The reviews.
+    """
+    regular = [each for each in pr.graded if each.comment]
+    return sorted(regular, key=lambda each: each.when)
 
 
 def is_ruling(body: str) -> bool:
@@ -277,32 +308,6 @@ def unreadable_ruling_comment(pr: PullState) -> str:
     """
     newest = newest_ruling(pr)
     return newest.url if newest else ""
-
-
-def plan_unrun(pr: PullState, review: shapes.Graded | None) -> steps.Next | None:
-    """The worker round of a Plan approved alone after an Opus ruling.
-
-    The ruling's worker round rewrote the Plan and left the Execution unrun,
-    and the review after it graded the Plan alone: no one ran the Plan's
-    commands (keyword: plan-alone, pitboss#201). The round ends with an edit
-    of the body, which the next review does not read (its ``Body:`` digest),
-    so the Plan review is not offered again: a draft goes on to its undraft, any
-    other PR to the next step of its Execution, the review or the round that
-    adds the CI quotes. A draft or not alike.
-
-    Args:
-        pr: the PR.
-        review: the newest review that counts.
-
-    Returns:
-        The round, or None when the newest review of the head does not approve
-        the Plan alone, or no readable ruling came before it.
-    """
-    ruled = readable_comment(pr)
-    if review is None or ruled is None or review.when <= ruled[0].created_at:
-        return None
-    alone = review.plan is shapes.Verdict.APPROVED and review.execution is None
-    return steps.worker(steps.Task.RUN_PLAN) if alone else None
 
 
 def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:

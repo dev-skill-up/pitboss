@@ -52,12 +52,13 @@ def next_step(pull: pulls.PullFacts) -> str:
 
     Returns:
         What the list says for a PR offered for a round, ``waiting for CI at
-        this head`` for a head whose CI has not finished, else the step's text.
+        this head`` for a head whose CI has not finished, else the step's text
+        (a fix round for a refused Plan check quotes its findings).
     """
     category = work.category_of(pull)
     if category is work.Category.REVIEW and pull.step.on_base:
         return steps.REQUEST_REVIEW  # keyword: fixed-on-base (pitboss#314)
-    if category is not None:
+    if category is not None and not pull.step.findings:
         return work.CATEGORY_WORDS[category]
     if pull.step.step is steps.Step.WAIT_FOR_CI:
         return "waiting for CI at this head"

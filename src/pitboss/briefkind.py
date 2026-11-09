@@ -20,6 +20,9 @@ class Kind(enum.Enum):
             fills the Execution.
         ADD_CI_QUOTES: a worker adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (keyword: ci-quotes, pitboss#277).
+        FIX_ROUND: a worker fixes the findings of a review of the Plan that name a
+            file of the tree, or of a Plan check that refused (keyword:
+            fix-round-kind, pitboss#390).
         REVIEW_FULL: a reviewer grades the Plan and the Execution of a head.
         REVIEW_EXECUTION: a reviewer grades the Execution of a head whose
             Plan is approved.
@@ -43,6 +46,7 @@ class Kind(enum.Enum):
     RULING_AS_GIVEN = "carry out the Opus ruling"
     RUN_PLAN = "run the Plan's commands and fill the Execution"
     ADD_CI_QUOTES = "add the CI quotes to the body"
+    FIX_ROUND = "fix round for the findings"
     REVIEW_FULL = "review the Plan and the Execution"
     REVIEW_EXECUTION = "review the Execution"
     REVIEW_PLAN = "review the Plan alone"

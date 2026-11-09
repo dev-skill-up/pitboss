@@ -15,6 +15,7 @@ WORKERS = (
     brief.Kind.FIRST_ROUND,
     brief.Kind.REVISE_PLAN,
     brief.Kind.FIX_REVIEW,
+    brief.Kind.FIX_ROUND,
     brief.Kind.FIX_CI,
     brief.Kind.RESOLVE_CONFLICT,
     brief.Kind.RULING_STEPS,

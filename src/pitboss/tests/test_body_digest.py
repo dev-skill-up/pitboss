@@ -110,10 +110,10 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         )
 
     def test_body_unchanged(self) -> None:
-        """The same body: the review still stands, the worker's fix is next."""
+        """The same body: the review still stands, the ruling is next."""
         swept, listed = looked_at([review(1, OLD_LINE)], fakes.PLAN_AND_EXECUTION)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, contains_string("(fix the review,"))
+        assert_that(listed, equal_to(""))
 
     def test_body_unchanged_with_other_line_endings(self) -> None:
         """A web edit's CRLF and a final newline are the same body."""
@@ -125,18 +125,16 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         """An edited body changes nothing for a review with no Body line."""
         swept, listed = looked_at([review(1, None)], EDITED)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, contains_string("(fix the review,"))
+        assert_that(listed, equal_to(""))
 
     def test_new_head(self) -> None:
-        """A head that moved is older-head, with the body edit or without."""
+        """A head that moved by no code is older-head, with the body edit or without."""
         for body in (EDITED, fakes.PLAN_AND_EXECUTION):
             with self.subTest(body[-10:]):
                 swept, listed = looked_at([review(1, OLD_LINE, OLDER)], body)
                 assert_that(swept, contains_string("review=older-head"))
                 assert_that("older-body" in swept, equal_to(False))
-                assert_that(
-                    listed, contains_string("(review the fix round's findings only")
-                )
+                assert_that(listed, equal_to(""))  # no code moved: the ruling is due
 
 
 class TestTheDigest(unittest.TestCase):

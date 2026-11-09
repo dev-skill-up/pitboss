@@ -5,8 +5,9 @@ A commit that changes only derived files (``skill-zips/``, rebuilt by
 merge (keyword: derived-only, pitboss#323).
 """
 
+import functools
 import json
-from typing import AbstractSet, Iterable, Sequence
+from typing import AbstractSet, Callable, Iterable, Sequence
 
 from . import config, ghapi, parsing, shapes
 
@@ -78,6 +79,14 @@ def derived_only(names: Sequence[str]) -> bool:
     return bool(names) and all(name.startswith(DERIVED) for name in names)
 
 
+def _extra(
+    github: ghapi.GitHub, repo: config.Repo, pull: shapes.Pull, sha: str
+) -> AbstractSet[str] | None:
+    compare = f"repos/{repo.slug}/compare/{pull.base}..."
+    heads = (pull.head.sha, sha)
+    return added(*(parsing.comparison(ghapi.get(github, compare + h)) for h in heads))
+
+
 def carries(
     github: ghapi.GitHub, repo: config.Repo, pull: shapes.Pull, sha: str
 ) -> bool:
@@ -93,11 +102,50 @@ def carries(
         True when the head's non-merge commits since the base are the reviewed
         head's, plus commits that change derived files only.
     """
-    compare = f"repos/{repo.slug}/compare/{pull.base}..."
-    heads = (pull.head.sha, sha)
-    extra = added(*(parsing.comparison(ghapi.get(github, compare + h)) for h in heads))
+    extra = _extra(github, repo, pull, sha)
     return extra is not None and all(
         derived_only(files_of(github, repo, each)) for each in sorted(extra)
+    )
+
+
+def unchanged_since(
+    github: ghapi.GitHub, repo: config.Repo, pull: shapes.Pull
+) -> Callable[[str], bool]:
+    """Says whether no code moved between a reviewed head and the PR's head.
+
+    Args:
+        github: the API.
+        repo: the PR's repository.
+        pull: the PR.
+
+    Returns:
+        The question ``unchanged`` asks, for a reviewed head.
+    """
+    return functools.partial(unchanged, github, repo, pull)
+
+
+def unchanged(
+    github: ghapi.GitHub, repo: config.Repo, pull: shapes.Pull, sha: str
+) -> bool:
+    """Whether no code moved between a reviewed head and the PR's head.
+
+    A plan revision ends with an empty commit (keyword: unfixed-execution,
+    pitboss#390), which ``carries`` does not allow.
+
+    Args:
+        github: the API.
+        repo: the PR's repository.
+        pull: the PR.
+        sha: the reviewed head.
+
+    Returns:
+        True when the head's non-merge commits since the base are the reviewed
+        head's, plus commits that change nothing or derived files only.
+    """
+    extra = _extra(github, repo, pull, sha)
+    return extra is not None and all(
+        all(name.startswith(DERIVED) for name in files_of(github, repo, each))
+        for each in sorted(extra)
     )
 
 
