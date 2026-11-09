@@ -146,8 +146,8 @@ class TestNoxSkipped(unittest.TestCase):
             return expansion.Outcome(status=0, output=SKIPPED_LINE)
 
         ran = noxcheck.run_sessions(runner, clock_of(*range(8)), [])
-        assert_that(len(calls), equal_to(1))
-        assert_that(noxcheck.summary_of(ran)[0], equal_to("skills failed 1s"))
+        first = noxcheck.summary_of(ran)[0]
+        assert_that([len(calls), first], equal_to([1, "skills failed 1s"]))
         has_all(ran[0].outcome.output, ["Python 3.14", "`uv python install 3.14`"])
 
     def test_the_command_shows_the_failure_and_not_success(self) -> None:
@@ -155,9 +155,9 @@ class TestNoxSkipped(unittest.TestCase):
         found = run_with(skipping_nox)
         has_all(found.out, ["skills failed", "uv python install 3.14"])
         has_none(found.out, ["skills success", "lint success"])
-        assert_that(found.code, equal_to(1))
+        self.assertEqual(found.code, 1)
 
     def test_a_session_that_ran_and_mentions_skipped_tests_still_passes(self) -> None:
         """The nearest input: other `skipped` text is not a missing interpreter."""
         done = expansion.Outcome(status=0, output="3 tests skipped: not found\n")
-        assert_that(noxcheck.judged(done), equal_to(done))
+        self.assertIs(noxcheck.judged(done), done)
