@@ -188,9 +188,7 @@ class TestCommandPieces(unittest.TestCase):
             assert_that(why, contains_string(f"{spelled.path} is under /dev"))
         same([bool(why) for why in dry], [True] * len(named))
         same(
-            cleaning.under_dev(
-                dead.Candidate(path=here / "dev", size=0, reason="r")
-            ),
+            cleaning.under_dev(dead.Candidate(path=here / "dev", size=0, reason="r")),
             "",
         )
 
