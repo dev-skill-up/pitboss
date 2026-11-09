@@ -38,7 +38,6 @@ LINKS_IN_PROSE = (
     f"[Claude Code]({SESSION})\n",
 )
 BANNED = "session-line\tsession_\\w+\tsession_x\tNever write the session.\n"
-ACCEPTED_FOOTERS = [ROBOT, FOOTER]
 REVIEW_FORM = config.ReviewForm(
     lines=("## Review", "Reviewed: {sha}", "Verdict: {verdict}"),
     approved="approved",
@@ -89,7 +88,7 @@ def body_findings(body: str) -> int:
     Returns:
         The number of findings.
     """
-    return len(forms.pr_body(subject_of(body), ACCEPTED_FOOTERS))
+    return len(forms.pr_body(subject_of(body)))
 
 
 def unreadable_count(body: str) -> int:
@@ -148,25 +147,26 @@ class TestBodies(unittest.TestCase):
         )
         for each in tails:
             assert_that(
-                forms.pr_body(subject_of(each), ACCEPTED_FOOTERS),
-                equal_to(forms.pr_body(subject_of(plain), ACCEPTED_FOOTERS)),
+                forms.pr_body(subject_of(each)),
+                equal_to(forms.pr_body(subject_of(plain))),
             )
 
-    def test_a_missing_footer_is_still_refused(self) -> None:
-        """The URL line is not a footer."""
-        assert_that(body_findings(BODY + URL_AFTER), equal_to(1))
-
-    def test_prose_mention_is_not_stripped(self) -> None:
-        """A footer followed by prose still passes; prose alone is no footer."""
+    def test_footers_are_ignored(self) -> None:
+        """No footer, the URL line alone, or prose: none is a finding (pitboss#282)."""
         kept = BODY + ROBOT + "\n" + PROSE + "\n"
-        assert_that(body_findings(kept), equal_to(0))
-        assert_that(body_findings(BODY + PROSE + "\n"), equal_to(1))
+        for each in (BODY, BODY + URL_AFTER, kept, BODY + PROSE + "\n"):
+            assert_that(body_findings(each), equal_to(0))
+
+    def test_a_finding_is_not_hidden_by_a_session_line(self) -> None:
+        """The nearest refused input: a body with no Head line, a URL after it."""
+        headless = BODY.replace(f"Head: {HEAD}\n", "")
+        assert_that(body_findings(headless + ROBOT + URL_AFTER), equal_to(1))
 
     def test_url_first_line_is_absent(self) -> None:
         """The first line is the first line that is not the URL."""
         assert_that(
-            forms.pr_body(subject_of(SESSION + "\nFixes #1\n"), []),
-            equal_to(forms.pr_body(subject_of("Fixes #1\n"), [])),
+            forms.pr_body(subject_of(SESSION + "\nFixes #1\n")),
+            equal_to(forms.pr_body(subject_of("Fixes #1\n"))),
         )
 
 

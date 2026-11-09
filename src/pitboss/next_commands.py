@@ -18,6 +18,7 @@ from . import (
     fixes,
     flake,
     ledger,
+    nextguide,
     nextlist,
     pulls,
     repeatruns,
@@ -124,9 +125,22 @@ def _say_missing_names(found: Context, ticket: str) -> None:
         print(said)
     if repeated := repeatruns.line(ticket, donewhen.section(body)):
         print(repeated)  # keyword: repeat-runs (pitboss#278)
+    for each in nextguide.done_when_lines(ticket, body):
+        print(each)  # keyword: next-guide (pitboss#282)
+    if jobs := nextguide.ci_jobs_line(ticket, _check_workflow(found)):
+        print(jobs)
     flaky = read is not None and flake.is_flake(read.labels, read.title, body)
     if flaky and (unmarked := _unmarked(found, ticket)):
         print(unmarked)
+
+
+def _check_workflow(found: Context) -> str | None:
+    # the text of the checkout's check workflow, None when it has none
+    path = working_directory(found.args) / nextguide.CHECK_WORKFLOW
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return None
 
 
 def _unmarked(found: Context, ticket: str) -> str:

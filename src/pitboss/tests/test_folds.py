@@ -150,15 +150,15 @@ class TestLintBody(unittest.TestCase):
 
     def test_message(self) -> None:
         """The finding names the tickets and the ruling that would allow them."""
-        message = forms.pr_body(subject(TWO), ())[0]
+        message = forms.pr_body(subject(TWO))[0]
         assert_that(message, contains_string("(#12, #13)"))
         assert_that(message, contains_string("Ruling: do these steps"))
 
     def test_ruling_allows(self) -> None:
         """A cited ruling comment of do these steps allows it; split does not."""
-        allowed = forms.pr_body(subject(CITED), (), [(URL, STEPS)])
-        split = forms.pr_body(subject(CITED), (), [(URL, SPLIT)])
-        uncited = forms.pr_body(subject(TWO), (), [(URL, STEPS)])
+        allowed = forms.pr_body(subject(CITED), [(URL, STEPS)])
+        split = forms.pr_body(subject(CITED), [(URL, SPLIT)])
+        uncited = forms.pr_body(subject(TWO), [(URL, STEPS)])
         assert_that(allowed, equal_to([]))
         assert_that(split, has_length(1))
         assert_that(uncited, has_length(1))

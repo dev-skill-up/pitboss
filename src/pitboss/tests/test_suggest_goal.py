@@ -27,7 +27,6 @@ FORM_TABLES = (
 )
 MINE = ["    ## Mine", f"    Head: {'3' * 40}", "    Is: <approved or changes needed>"]
 NEW_PR_SAYS = [
-    "It ends with only this line: THE FOOTER",
     "Ready: this project's PRs are not drafts",
     "Push: push the branch with `git push`",
 ]
@@ -87,10 +86,13 @@ class TestForms(unittest.TestCase):
         assert_that(review, equal_to(MINE))
 
     def test_a_new_pr_brief_follows_the_projects_table(self) -> None:
-        """The footer ends the body line; drafts, holds and lines follow the table."""
+        """Drafts, holds and lines follow the table; the body line has no footer."""
         here = world.make_world()
         append(here, FORM_TABLES)
         new = "\n".join(parsed(next_output(here))[-1][1])
         for wanted in NEW_PR_SAYS:
             assert_that(new, contains_string(wanted))
+        # pitboss#282: the suggestion says nothing about how the body ends
+        for unwanted in ("ends with", "THE FOOTER", "footer"):
+            assert_that(unwanted in new, equal_to(False))
         last_line(new, "Compiler: /x")

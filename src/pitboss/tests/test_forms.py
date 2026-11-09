@@ -5,13 +5,14 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import config, configfile, forms
+from .. import config, forms
 from .formchecks import body_checks, checks, subject
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
 from .test_reviews import form as review_form
 
 OTHER = "b" * 40
 WITH_FOOTER = BODY + FOOTER + "\n"
+ROBOT = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 FORM = review_form("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 ONE_LINE = review_form("Independent review of head {sha}: {verdict}")
 BARE = review_form("Hello", "world")
@@ -23,8 +24,6 @@ FORMS_TOML = PROJECT + """
 lines = ["Looked at {sha}: {verdict}"]
 [review.gated_form]
 lines = ["## Strict", "Head: {sha}", "Outcome: {verdict}"]
-[lint.pr_body]
-footers = ["-- me"]
 [lint.brief]
 required = ["Overlap:"]
 """
@@ -84,7 +83,7 @@ class TestPrBody(unittest.TestCase):
         same = BODY.replace("---\n", "fixes #12\n---\n")
         assert_that(body_checks(two), equal_to(["one-ticket"]))
         assert_that(body_checks(same), equal_to([]))
-        message = forms.pr_body(subject(two), ())[0]
+        message = forms.pr_body(subject(two))[0]
         assert_that(message, contains_string("(#12, #13)"))
 
     def test_head(self) -> None:
@@ -105,24 +104,27 @@ class TestPrBody(unittest.TestCase):
         found = [body_checks(no_heading), body_checks(no_command)]
         assert_that(found, equal_to([["evidence"], ["evidence"]]))
 
-    def test_footer(self) -> None:
-        """No footer is required by default; a configured one must end the body."""
-        far = WITH_FOOTER.replace(FOOTER, "x\ny\nz").replace(
-            "Head:", f"{FOOTER}\nHead:", 1
-        )
-        default = configfile.DEFAULT_LINT.footers
-        found = [
-            checks(forms.pr_body(subject(BODY), default)),
-            body_checks(BODY, footers=(FOOTER,)),
-            body_checks(WITH_FOOTER, footers=(FOOTER,)),
-            body_checks(BODY, footers=("thanks",)),
-            body_checks(far, footers=(FOOTER,)),
+    def test_footer_is_ignored(self) -> None:
+        """No footer is checked (pitboss#282), with the session URL or without."""
+        session = "https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT"
+        bodies = [
+            BODY,
+            BODY + ROBOT + "\n\n" + session + "\n",
+            BODY + ROBOT + "\n",
+            WITH_FOOTER,
+            BODY + "something else entirely\n",
+            WITH_FOOTER.replace(FOOTER, "x\ny\nz"),
         ]
-        assert_that(found, equal_to([[], ["footer"], [], ["footer"], ["footer"]]))
+        assert_that([body_checks(each) for each in bodies], equal_to([[]] * 6))
+
+    def test_a_footer_hides_no_other_finding(self) -> None:
+        """The nearest input still refused: a footer after a body with no Evidence."""
+        no_evidence = BODY.replace("## Evidence", "## Results") + ROBOT + "\n"
+        assert_that(body_checks(no_evidence), equal_to(["evidence"]))
 
     def test_finding_names_its_check_last(self) -> None:
         """A finding is the file, the message and the check in parentheses."""
-        found = forms.pr_body(forms.Subject(name="b.md", body="x", head=""), ())
+        found = forms.pr_body(forms.Subject(name="b.md", body="x", head=""))
         assert_that(found[0], contains_string("b.md: the first line is"))
         assert_that(found[0].endswith("(first-line)"), equal_to(True))
 
@@ -273,7 +275,7 @@ class TestCommands(unittest.TestCase):
         assert_that(found, equal_to(expected))
 
     def test_config(self) -> None:
-        """The forms are the project's: its review lines, footers and brief lines."""
+        """The forms are the project's: its review lines and brief lines."""
         path = write_text("project.toml", FORMS_TOML)
         strict = f"## Strict\nHead: {HEAD}\nOutcome: approved\n"
         mine = f"Looked at {HEAD}: approved\n"
@@ -287,7 +289,7 @@ class TestCommands(unittest.TestCase):
         every = [
             (0, "ok"),
             (0, "ok"),
-            (1, "(footer)"),
+            (0, "ok"),
             (0, "ok"),
             (1, "(required-line)"),
         ]
