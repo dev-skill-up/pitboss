@@ -18,7 +18,7 @@ impossible. The module reads nothing: the texts are given.
 """
 
 import re
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import bodytext, planrowtext, ticketwhen
 
@@ -38,6 +38,22 @@ MEASURED = re.compile(
 )
 DIGEST_LINE = re.compile(
     r"^" + re.escape(DIGEST_PREFIX) + r"([0-9a-f]{16})[ \t]*$", re.MULTILINE
+)
+UNMET = "{check}: the ticket's Done-when item {why}; the first one is: {item}; {rule}"
+UNMEASURED = (
+    "{check}: the Done-when item names the measurement `{each}` and its Plan row"
+    " does not run it (the item: {item}); the Plan uses the measurement the"
+    " Done-when names, never a substitute"
+)
+NO_LINE = (
+    "{check}: the body has no `{prefix}{now}` line: the digest of the ticket's"
+    " Done-when, as the brief printed it when the worker started, is the record"
+    " that it was not edited after"
+)
+CHANGED = (
+    "{check}: the ticket's Done-when was edited after a worker started (the body"
+    " records {recorded}, the ticket's is now {now}); the Done-when is the body's"
+    " at the start, and it is edited only before a worker starts"
 )
 INTERPRET = re.compile(r"\binterpret(?:ation|ations|ed|ing|s)?\b", re.IGNORECASE)
 ABOUT = re.compile(r"\bdone[- ]when\b|\bitems?\s+\d", re.IGNORECASE)
@@ -94,18 +110,25 @@ def findings(section: str, ticket: str) -> Sequence[str]:
     used: set[int] = set()
     paired: list[tuple[str, str]] = []
     for item in ticketwhen.items(ticket):
-        free = [at for at, row in enumerate(rows) if item in row and at not in used]
-        if not free:
-            return [
-                f"{CHECK}: the ticket's Done-when item {_why(item, section, rows)};"
-                f" the first one is: {item[:SHOWN]}; {RULE}"
-            ]
-        used.add(free[0])
-        paired.append((item, rows[free[0]].replace(item, " ", 1)))
+        at = _free(item, rows, used)
+        if at is None:
+            why = _why(item, section, rows)
+            return [UNMET.format(check=CHECK, why=why, item=item[:SHOWN], rule=RULE)]
+        used.add(at)
+        paired.append((item, rows[at].replace(item, " ", 1)))
+    return _unmeasured(paired)
+
+
+def _free(item: str, rows: Sequence[str], used: AbstractSet[int]) -> int | None:
+    # the first numbered row that holds the item and is no other item's
+    free = [at for at, row in enumerate(rows) if item in row and at not in used]
+    return free[0] if free else None
+
+
+def _unmeasured(paired: Sequence[tuple[str, str]]) -> Sequence[str]:
+    # the measurements an item names that its row (less the copy) does not run
     return [
-        f"{MEASUREMENT}: the Done-when item names the measurement `{each}` and its"
-        f" Plan row does not run it (the item: {item[:SHOWN]}); the Plan uses the"
-        " measurement the Done-when names, never a substitute"
+        UNMEASURED.format(check=MEASUREMENT, each=each, item=item[:SHOWN])
         for item, remainder in paired
         for each in measurements(item)
         if not _runs(each, remainder)
@@ -125,22 +148,12 @@ def edited(body: str, ticket: str) -> Sequence[str]:
         line is missing or is not the ticket's digest now; none otherwise.
     """
     now = ticketwhen.digest(ticket)
-    if not now:
+    recorded = DIGEST_LINE.findall(body)[-1:]
+    if not now or recorded == [now]:
         return []
-    recorded = DIGEST_LINE.findall(body)
     if not recorded:
-        return [
-            f"{EDITED}: the body has no `{DIGEST_PREFIX}{now}` line: the digest of"
-            " the ticket's Done-when, as the brief printed it when the worker"
-            " started, is the record that it was not edited after"
-        ]
-    if recorded[-1] == now:
-        return []
-    return [
-        f"{EDITED}: the ticket's Done-when was edited after a worker started (the"
-        f" body records {recorded[-1]}, the ticket's is now {now}); the Done-when"
-        " is the body's at the start, and it is edited only before a worker starts"
-    ]
+        return [NO_LINE.format(check=EDITED, prefix=DIGEST_PREFIX, now=now)]
+    return [CHANGED.format(check=EDITED, recorded=recorded[0], now=now)]
 
 
 def interpretations(body: str) -> Sequence[str]:

@@ -75,19 +75,43 @@ def done_when(
     slug = slug or repository
     if not slug:
         return [f"{plandonewhen.CHECK}: {ticket} names no repository"]
-    text = _ticket(github, f"repos/{slug}/issues/{number}")
+    return _of_ticket(github, f"{slug}#{number}", body)
+
+
+def _of_ticket(github: ghapi.GitHub, ticket: str, body: str) -> Sequence[str]:
+    # the findings of one ticket read from its body alone
+    text = body_of(github, ticket)
     if text is None:
-        return [f"{plandonewhen.CHECK}: the ticket {slug}#{number} cannot be read"]
+        return [f"{plandonewhen.CHECK}: the ticket {ticket} cannot be read"]
     return [
         *plandonewhen.findings(plandigest.section(body), text),
         *plandonewhen.edited(body, text),
     ]
 
 
-def _ticket(github: ghapi.GitHub, path: str) -> str | None:
-    # the ticket's body; None when GitHub does not give it
+def issue_path(ticket: str) -> str:
+    """The API path of a ticket.
+
+    Args:
+        ticket: the ticket as ``owner/name#N``.
+
+    Returns:
+        ``repos/owner/name/issues/N``.
+    """
+    return "repos/" + ticket.replace("#", "/issues/")
+
+
+def body_of(github: ghapi.GitHub, ticket: str) -> str | None:
+    """The body of a ticket.
+
+    Args:
+        github: the API.
+        ticket: the ticket as ``owner/name#N``.
+
+    Returns:
+        Its body, empty when it has none; None when GitHub does not give it.
+    """
     try:
-        found = json.loads(ghapi.get(github, path))
-        return str(found.get("body") or "")
-    except (subprocess.CalledProcessError, OSError, ValueError):
+        return str(json.loads(ghapi.get(github, issue_path(ticket))).get("body") or "")
+    except (subprocess.CalledProcessError, OSError, ValueError, AttributeError):
         return None

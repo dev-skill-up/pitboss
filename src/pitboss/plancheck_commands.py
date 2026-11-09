@@ -77,25 +77,32 @@ def status_in(
         evidence-size, pitboss#396).
     """
     with tempfile.TemporaryFile() as output:
-        try:
-            done = args.safe_run(
-                ["sh", "-c", command],
-                cwd=directory,
-                timeout=timeout,
-                stdout=output,
-                stderr=subprocess.STDOUT,
-                **QUIET,
-            )
-        except subprocess.TimeoutExpired:
-            return f"timed out after {timeout}s", _size(output)
-        except OSError as error:
-            return f"cannot start ({error})", 0
-        return int(done.returncode), _size(output)
+        outcome = _started(args, command, (directory, timeout), output)
+        # the file's own size, whatever the offset the command left
+        return outcome, os.fstat(output.fileno()).st_size
 
 
-def _size(output: IO[bytes]) -> int:
-    # the file's own size, whatever the offset the command left
-    return os.fstat(output.fileno()).st_size
+def _started(
+    args: argparse.Namespace,
+    command: str,
+    where: tuple[pathlib.Path, int],
+    output: IO[bytes],
+) -> int | str:
+    directory, timeout = where
+    try:
+        done = args.safe_run(
+            ["sh", "-c", command],
+            cwd=directory,
+            timeout=timeout,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            **QUIET,
+        )
+    except subprocess.TimeoutExpired:
+        return f"timed out after {timeout}s"
+    except OSError as error:
+        return f"cannot start ({error})"
+    return int(done.returncode)
 
 
 def run_in(
@@ -224,16 +231,11 @@ def plan_check(args: argparse.Namespace) -> None:
     """Run a Plan's rows; refuse it for a row that did not run or a finding.
 
     A nox row is refused unrun (pitboss#251). The Done-when is the ticket body's
-    alone, never its comments (pitboss#396): each of its bullets (a paragraph is
-    one) is copied word for word into a numbered Plan row of its own
-    (``plan-done-when``); a measurement it names as ``measured by `COMMAND```
-    (also counted, checked, shown, printed, reported or found, with ``by``,
-    ``with`` or ``using``) is a backticked command of that row outside the copy
-    (``plan-measurement``); the body has the line ``Done-when digest: DIGEST``
-    that the brief printed, and a ticket whose Done-when digest is now another
-    was edited after a worker started (``done-when-edited``). A Plan whose
-    commands print clearly more than about 64KB is warned of, naming the row that
-    prints most (keyword: evidence-size).
+    alone, never its comments (pitboss#396): each bullet is in a numbered Plan
+    row of its own (``plan-done-when``), a measurement it names is run by that
+    row (``plan-measurement``), and the body's ``Done-when digest:`` line is the
+    ticket's now (``done-when-edited``). A Plan whose commands print clearly more
+    than about 64KB is warned of (keyword: evidence-size).
 
     Prints a row for each command (its exit status and duration, or that it did
     not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
@@ -355,10 +357,18 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
             *_remote(args, body, section, ref),
         ]
-        noted = [*rows, *markuplines.notes(stat, patch)]
-        warned = plancheck.size_warnings(section, runs)
-        output = plancheck.text(section, noted, refused, found, warned)
-        return output, bool(refused or found)
+        noted = [*rows, *_notes(section, runs, (stat, patch))]
+        return plancheck.text(section, noted, refused, found), bool(refused or found)
+
+
+def _notes(
+    section: str, runs: Sequence[plancheck.Run], diff: tuple[str, str]
+) -> Sequence[str]:
+    # the notes and warnings that refuse nothing: markup lines, Evidence size
+    return [
+        *markuplines.notes(*diff),
+        *plancheck.size_warnings(section, runs),
+    ]
 
 
 def _of_trees(

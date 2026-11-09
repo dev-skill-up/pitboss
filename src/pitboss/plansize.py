@@ -30,19 +30,19 @@ MESSAGE = (
 )
 
 
-def total(printed: Sequence[tuple[str, int]]) -> int:
-    """The bytes the Evidence of a Plan's commands takes.
+def taken(row: tuple[str, int]) -> int:
+    """The bytes the Evidence of one command takes.
 
     Args:
-        printed: each command and the bytes it printed.
+        row: the command and the bytes it printed.
 
     Returns:
-        The sum of the output and the line of each command.
+        The output and the line of the command.
     """
-    return sum(size + len(command) + FRAMING for command, size in printed)
+    return row[1] + len(row[0]) + FRAMING
 
 
-def warnings(printed: Sequence[tuple[str, int]]) -> Sequence[str]:
+def over_allowance(printed: Sequence[tuple[str, int]]) -> Sequence[str]:
     """The warning for Evidence that clearly passes the allowance.
 
     Args:
@@ -52,21 +52,31 @@ def warnings(printed: Sequence[tuple[str, int]]) -> Sequence[str]:
         One warning naming the row that prints most, when the Evidence is over
         the allowance and its leeway; none otherwise.
     """
-    bytes_in_all = total(printed)
-    if bytes_in_all <= ALLOWANCE + LEEWAY:
+    everything = sum(map(taken, printed))
+    if everything <= ALLOWANCE + LEEWAY:
         return []
-    number, (command, size) = max(
-        enumerate(printed, 1), key=lambda each: each[1][1] + len(each[1][0])
+    number, biggest = max(enumerate(printed, 1), key=lambda each: taken(each[1]))
+    return [message(number, biggest, everything)]
+
+
+def message(number: int, row: tuple[str, int], everything: int) -> str:
+    """The warning that names the row that prints most.
+
+    Args:
+        number: the row's number.
+        row: its command and the bytes it printed.
+        everything: the bytes of all the Evidence.
+
+    Returns:
+        The warning.
+    """
+    return MESSAGE.format(
+        check=CHECK,
+        total=everything,
+        allowance=ALLOWANCE,
+        number=number,
+        command=" ".join(row[0].split())[:SHOWN],
+        size=row[1],
+        percent=100 * taken(row) // everything,
+        fix=FIX,
     )
-    return [
-        MESSAGE.format(
-            check=CHECK,
-            total=bytes_in_all,
-            allowance=ALLOWANCE,
-            number=number,
-            command=" ".join(command.split())[:SHOWN],
-            size=size,
-            percent=100 * (size + len(command) + FRAMING) // bytes_in_all,
-            fix=FIX,
-        )
-    ]

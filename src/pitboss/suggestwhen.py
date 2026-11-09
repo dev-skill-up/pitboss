@@ -7,10 +7,7 @@ after a worker started is found (keyword: plan-done-when). Only the briefs that
 open the body print it. The ticket is read from its body alone.
 """
 
-import json
-import subprocess
-
-from . import brief, ghapi, ticketwhen
+from . import brief, ghapi, plantickets, ticketwhen
 
 BODY_WRITERS = frozenset({brief.Kind.NEW_PR, brief.Kind.FIRST_ROUND})
 
@@ -26,33 +23,28 @@ def digest(github: ghapi.GitHub, ticket: str) -> str:
         The digest of ``ticketwhen.digest``; empty when there is no ticket, it
         cannot be read, or it has no Done-when.
     """
-    slug, _, number = ticket.rpartition("#")
-    if not slug:
+    if not ticket.rpartition("#")[0]:
         return ""
-    try:
-        found = json.loads(ghapi.get(github, f"repos/{slug}/issues/{number}"))
-    except (subprocess.CalledProcessError, OSError, ValueError):
-        return ""
-    body = found.get("body") if isinstance(found, dict) else None
-    return ticketwhen.digest(body) if isinstance(body, str) else ""
+    return ticketwhen.digest(plantickets.body_of(github, ticket) or "")
 
 
 def subject(
-    github: ghapi.GitHub, reference: str, ticket: str, goal: str, kind: brief.Kind
+    github: ghapi.GitHub, reference: str, about: tuple[str, str], kind: brief.Kind
 ) -> brief.Subject:
     """What a brief is about.
 
     Args:
         github: the API.
         reference: the PR, or the ticket of a new PR, as ``owner/name#N``.
-        ticket: the ticket the PR fixes, empty when its body names none.
-        goal: the ticket's original goal in one line.
+        about: the ticket the PR fixes, empty when its body names none, and the
+            ticket's original goal in one line.
         kind: the kind of brief.
 
     Returns:
         The subject; it has the Done-when digest only for a brief that opens
         the PR's body.
     """
+    ticket, goal = about
     return brief.Subject(
         reference=reference,
         ticket=ticket,

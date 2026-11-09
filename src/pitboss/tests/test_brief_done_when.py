@@ -55,10 +55,9 @@ class TestWorkerBriefs(unittest.TestCase):
     def test_they_offer_no_hand_back_route(self) -> None:
         """Done-when: neither sentence has a word of handing back."""
         for kind in WORKERS:
-            lines = text(kind).splitlines()
-            for line in lines:
-                if line.startswith(("One PR:", "Done-when:")):
-                    has_none(line, HAND_BACK_WORDS)
+            for sentence in text(kind).splitlines():
+                if sentence.startswith(("One PR:", "Done-when:")):
+                    has_none(sentence, HAND_BACK_WORDS)
 
     def test_the_only_hand_back_for_a_ticket_is_a_dependency(self) -> None:
         """Done-when: `NOT STARTED` is in the hand-back's form and the dependency."""

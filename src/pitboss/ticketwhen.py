@@ -32,6 +32,14 @@ def _lines(ticket: str) -> Sequence[str]:
     return [first, *found.group(2).splitlines()]
 
 
+def _top_bullet(line: str, top: int | None) -> re.Match[str] | None:
+    # a bullet that is not deeper than the first one seen
+    marked = BULLET.match(line)
+    if marked is None or (top is not None and len(marked[1]) > top):
+        return None
+    return marked
+
+
 def items(ticket: str) -> Sequence[str]:
     """The bullets and paragraphs of a ticket's own Done-when section.
 
@@ -46,25 +54,36 @@ def items(ticket: str) -> Sequence[str]:
         The text of each item, its lines joined by a space; the text after the
         colon of the heading's own line comes first.
     """
-    found: list[list[str]] = []
-    top: int | None = None
-    open_item = False
-    for line in _lines(ticket):
-        if not line.strip():
-            open_item = False
-            continue
-        marked = BULLET.match(line)
-        deeper = marked is not None and top is not None and len(marked[1]) > top
-        if marked is not None and not deeper:
-            top = len(marked[1]) if top is None else top
-            found.append([marked[2].strip()])
-            open_item = True
-        elif open_item:
-            found[-1].append(line.strip())
-        else:
-            found.append([line.strip()])
-            open_item = True
+    lines = _lines(ticket)
+    # the level of the first bullet is the top level
+    top = next((len(each[1]) for each in map(BULLET.match, lines) if each), None)
+    found = [group for block in _blocks(lines) for group in _groups(block, top)]
     return [" ".join(" ".join(each).split()) for each in found]
+
+
+def _blocks(lines: Sequence[str]) -> Sequence[Sequence[str]]:
+    # the runs of lines between blank lines
+    blocks: list[list[str]] = [[]]
+    for each in lines:
+        if each.strip():
+            blocks[-1].append(each)
+        elif blocks[-1]:
+            blocks.append([])
+    return blocks
+
+
+def _groups(block: Sequence[str], top: int | None) -> Sequence[list[str]]:
+    # a top-level bullet starts an item; a line that is none continues it
+    groups: list[list[str]] = []
+    for line in block:
+        marked = _top_bullet(line, top)
+        if marked is not None:
+            groups.append([marked[2].strip()])
+        elif groups:
+            groups[-1].append(line.strip())
+        else:
+            groups.append([line.strip()])
+    return groups
 
 
 def digest(ticket: str) -> str:

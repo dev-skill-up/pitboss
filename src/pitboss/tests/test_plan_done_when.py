@@ -94,24 +94,35 @@ class TestItems(unittest.TestCase):
         assert_that(ticketwhen.digest("Text only."), equal_to(""))
 
 
+def holds(found: Sequence[str], parts: Sequence[str], prefix: str) -> None:
+    """One finding with every part in it when parts are given, else none.
+
+    Args:
+        found: the findings.
+        parts: the texts the first finding has.
+        prefix: the check every finding starts with.
+    """
+    assert_that(len(found), equal_to(1 if parts else 0))
+    for piece in parts:
+        assert_that(found[0], contains_string(piece))
+    for each in found:
+        assert_that(each.startswith(prefix), equal_to(True))
+
+
 class TestFindings(unittest.TestCase):
     """The Plan holds each item word for word, in a numbered row of its own."""
 
     def test_each_case(self) -> None:
         """Done-when: a missing, reworded or narrowed item is refused."""
-        for name, (plan, words) in PLANS.items():
+        for name, (plan, parts) in PLANS.items():
             with self.subTest(name):
                 found = plandonewhen.findings(plan, TWO)
-                assert_that(len(found), equal_to(1 if words else 0))
-                for word in words:
-                    assert_that(found[0], contains_string(word))
+                holds(found, parts, "plan-done-when:")
                 for each in found:
                     assert_that(each, contains_string(RULE))
-                    assert_that(each.startswith("plan-done-when:"), equal_to(True))
 
     def test_the_rule_is_meet_it_or_prove_it_impossible(self) -> None:
         """Done-when: the refusal offers no hand back."""
-        assert_that(plandonewhen.RULE, equal_to(RULE))
         found = plandonewhen.findings("nothing", TWO)[0]
         for word in ("NOT PROCEEDING", "NOT STARTED", "hand back", "escalate"):
             assert_that(word in found, equal_to(False))
@@ -243,14 +254,10 @@ class TestEdited(unittest.TestCase):
 
     def test_each_case(self) -> None:
         """Done-when: the body records the digest of the start."""
-        for name, (body, words) in BODIES.items():
+        for name, (body, parts) in BODIES.items():
             with self.subTest(name):
                 found = plandonewhen.edited(body, TWO)
-                assert_that(len(found), equal_to(1 if words else 0))
-                for word in words:
-                    assert_that(found[0], contains_string(word))
-                for each in found:
-                    assert_that(each.startswith("done-when-edited:"), equal_to(True))
+                holds(found, parts, "done-when-edited:")
 
     def test_a_ticket_with_no_done_when_has_nothing_to_edit(self) -> None:
         """Done-when: no section, no digest, no finding."""

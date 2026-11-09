@@ -158,7 +158,7 @@ def size_warnings(section: str, runs: Sequence[Run]) -> Sequence[str]:
     """
     commands = expansion.commands(section)
     printed = [(each, run.printed) for each, run in zip(commands, runs)]
-    return plansize.warnings(printed)
+    return plansize.over_allowance(printed)
 
 
 def ci_findings(
@@ -260,21 +260,19 @@ def text(
     rows: Sequence[str],
     refused: Sequence[int],
     found: Sequence[str] = (),
-    warned: Sequence[str] = (),
 ) -> str:
     """The whole output, which is posted as a comment on the PR.
 
     Args:
         section: the Plan section the rows were run from.
-        rows: the report's rows.
+        rows: the report's rows, and the notes and warnings after them, which
+            refuse nothing.
         refused: the numbers of the rows that did not run.
         found: the findings, a line each.
-        warned: the warnings, a line each; they refuse nothing.
 
     Returns:
-        The first line, the rows, the findings, the warnings, the Plan digest
-        and the verdict.
+        The first line, the rows, the findings, the Plan digest and the verdict.
     """
     digest = f"{bodydigest.PLAN_PREFIX}{expansion.section_digest(section)}"
-    lines = [steps.PLAN_CHECK_FIRST_LINE, *rows, *found, *warned, digest]
+    lines = [steps.PLAN_CHECK_FIRST_LINE, *rows, *found, digest]
     return "\n".join([*lines, verdict(refused, found), ""])

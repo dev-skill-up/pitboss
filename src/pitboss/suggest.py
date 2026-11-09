@@ -309,13 +309,13 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
     Returns:
         The spec.
     """
-    ticket, text = goal(source, pick)
+    about = goal(source, pick)
     slug = pick.reference.rpartition("#")[0]
     heads = _heads(source, pick.pull)
     kind = kind_of(pick)
     return brief.Spec(
         kind=kind,
-        subject=suggestwhen.subject(source.github, pick.reference, ticket, text, kind),
+        subject=suggestwhen.subject(source.github, pick.reference, about, kind),
         heads=heads,
         rules=_rules(source, slug, heads.head),
         ready=pick.pull is not None and not pick.pull.pull.draft,

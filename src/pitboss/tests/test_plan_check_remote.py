@@ -45,6 +45,20 @@ def mentions(found: Sequence[str], words: Sequence[Sequence[str]]) -> bool:
     )
 
 
+def said(lines: Sequence[str], check: str, words: Sequence[Sequence[str]]) -> bool:
+    """Whether the lines of one check are exactly the findings expected.
+
+    Args:
+        lines: the lines plan-check printed.
+        check: the name of the check, as a finding starts with it.
+        words: for each finding expected, the words it has.
+
+    Returns:
+        The answer of ``mentions`` for the lines that start with the check.
+    """
+    return mentions([each for each in lines if each.startswith(check)], words)
+
+
 def read_from(heads: Heads) -> cirun.HeadOf:
     """A reader of the head of a run.
 
@@ -288,15 +302,15 @@ class TestCommand(unittest.TestCase):
         for name, (make, fixes, plan, options, words) in COMMANDS.items():
             with self.subTest(name):
                 lines = run_check(make(), fixes, plan(), *options)
-                found = [each for each in lines if each.startswith("plan-done-when:")]
-                assert_that(mentions(found, words), equal_to(True))
+                assert_that(said(lines, "plan-done-when:", words), equal_to(True))
 
     def test_the_comments_are_never_read(self) -> None:
         """Done-when: no call asks for the ticket's comments, and they add nothing."""
         here = ticket_world()
         lines = run_check(here, "owner/project#9", full_plan())
-        asked = [each for each in here.calls if "/comments" in " ".join(each)]
-        assert_that([lines[0], asked], equal_to(["0", []]))
+        assert_that(lines[0], equal_to("0"))
+        asked = " ".join(" ".join(each) for each in here.calls)
+        assert_that("/comments" in asked, equal_to(False))
 
     def test_the_verdict_counts_the_done_when(self) -> None:
         """Done-when: a narrowed Plan is refused, exit status 1."""
@@ -309,27 +323,23 @@ class TestCommand(unittest.TestCase):
         here = world.make_world()
         put_ticket(here, 9, TICKET + "- A third item.\n")
         lines = run_check(here, "owner/project#9", full_plan())
-        found = [each for each in lines if each.startswith("done-when-edited:")]
-        assert_that(
-            mentions(found, [["edited after a worker started", DIGEST]]), equal_to(True)
-        )
+        words = [["edited after a worker started", DIGEST]]
+        assert_that(said(lines, "done-when-edited:", words), equal_to(True))
         assert_that(lines[0], equal_to("1"))
         assert_that("Done-when edit findings: 1" in lines[-1], equal_to(True))
 
     def test_a_body_with_no_digest_line_is_refused(self) -> None:
         """Done-when: no line, no record that the Done-when was not edited."""
         lines = run_check(ticket_world(), "owner/project#9", full_plan(), digest="")
-        found = [each for each in lines if each.startswith("done-when-edited:")]
-        assert_that(
-            mentions(found, [["no `Done-when digest: " + DIGEST]]), equal_to(True)
-        )
+        words = [["no `Done-when digest: " + DIGEST]]
+        assert_that(said(lines, "done-when-edited:", words), equal_to(True))
 
     def test_a_measurement_a_row_does_not_run_is_refused(self) -> None:
         """Done-when: the second row runs another command than the ticket names."""
         plan = plan_holding().replace("Run `rg -c code src`.", "Run `rg -c other src`.")
         lines = run_check(ticket_world(), "owner/project#9", plan)
-        found = [each for each in lines if each.startswith("plan-measurement:")]
-        assert_that(mentions(found, [["`rg -c code src`"]]), equal_to(True))
+        words = [["`rg -c code src`"]]
+        assert_that(said(lines, "plan-measurement:", words), equal_to(True))
         assert_that("Measurement findings: 1" in lines[-1], equal_to(True))
 
     def test_the_run_of_another_commit_is_refused(self) -> None:
@@ -340,5 +350,4 @@ class TestCommand(unittest.TestCase):
                 shown = head or clone_head(here)
                 here.bodies["repos/owner/project/actions/runs/5"] = {"head_sha": shown}
                 lines = run_check(here, "owner/project#9", with_pointer(full_plan()))
-                found = [each for each in lines if each.startswith("ci-run:")]
-                assert_that(bool(found), equal_to(refused))
+                assert_that(said(lines, "ci-run:", [[]]), equal_to(refused))

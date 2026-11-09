@@ -16,8 +16,9 @@ BODIES: Mapping[str, object] = {
     "repos/o/r/issues/9": {"body": None},
     "repos/o/r/issues/10": ["not", "an", "issue"],
 }
+GITHUB = fakes.github(dict(BODIES))
 # each case: the ticket and the digest expected
-DIGESTS: Mapping[str, tuple[str, str]] = {
+CASES: Mapping[str, tuple[str, str]] = {
     "a ticket with a Done-when": ("o/r#7", DIGEST),
     "a ticket without one": ("o/r#8", ""),
     "a ticket with no body": ("o/r#9", ""),
@@ -33,20 +34,26 @@ class TestDigest(unittest.TestCase):
 
     def test_each_case(self) -> None:
         """Done-when: the digest of the ticket now, or none."""
-        github = fakes.github(dict(BODIES))
-        for name, (ticket, digest) in DIGESTS.items():
+        for name, (ticket, wanted) in CASES.items():
             with self.subTest(name):
-                assert_that(suggestwhen.digest(github, ticket), equal_to(digest))
+                found = suggestwhen.digest(GITHUB, ticket)
+                assert_that(found, equal_to(wanted))
 
     def test_only_the_briefs_that_open_the_body_have_it(self) -> None:
         """Done-when: a new PR and a first round, not the other kinds."""
-        github = fakes.github(dict(BODIES))
-        for kind in brief.Kind:
-            with self.subTest(kind):
-                made = suggestwhen.subject(github, "o/r#3", "o/r#7", "goal", kind)
-                wanted = DIGEST if kind in suggestwhen.BODY_WRITERS else ""
-                assert_that(made.done_when_digest, equal_to(wanted))
-                assert_that(
-                    [made.reference, made.ticket, made.repo, made.goal],
-                    equal_to(["o/r#3", "o/r#7", "o/r", "goal"]),
-                )
+        about = ("o/r#7", "goal")
+        made = {
+            kind: suggestwhen.subject(GITHUB, "o/r#3", about, kind)
+            for kind in brief.Kind
+        }
+        digests = {kind: each.done_when_digest for kind, each in made.items()}
+        wanted = {
+            kind: DIGEST if kind in suggestwhen.BODY_WRITERS else ""
+            for kind in brief.Kind
+        }
+        assert_that(digests, equal_to(wanted))
+        first = made[brief.Kind.NEW_PR]
+        assert_that(
+            [first.reference, first.ticket, first.repo, first.goal],
+            equal_to(["o/r#3", "o/r#7", "o/r", "goal"]),
+        )
