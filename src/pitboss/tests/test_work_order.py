@@ -12,6 +12,7 @@ from .test_commands import sweep
 from .test_slot_commands import next_output
 
 OPEN = "issues?state=open"
+OLDER_PULL = "2026-09-15T00:00:00+00:00"
 RULE_LINE = unlabeled.RULE
 NEXT_STEP = re.compile(r"^NEXT (\d+)\. (\S+) ")
 
@@ -71,6 +72,9 @@ def ordered_world() -> world.World:
         here, 'priority_labels = ["urgent"', 'priority_labels = ["urgent", "low"'
     )
     here.bodies.update(BODIES)
+    # the library's PR is older than the project's: the order is across repositories
+    older = dict(here.bodies[f"{world.LIBRARY}/pulls/4"], created_at=OLDER_PULL)
+    here.bodies[f"{world.LIBRARY}/pulls/4"] = older
     return here
 
 
@@ -99,6 +103,7 @@ WHOLE_ORDER = [
     "NO PRIORITY LABEL owner/project#11",
     "NO PRIORITY LABEL owner/project#13",
     RULE_LINE,
+    "owner/lib#4",
     "owner/project#1",
     "owner/project#3",
     "owner/project#9",
@@ -154,3 +159,16 @@ class TestTheWholeOrder(unittest.TestCase):
         assert_that(shown, contains_string("NO PRIORITY LABEL owner/project#13"))
         assert_that("owner/lib#15" in shown, equal_to(False))
         assert_that("NO PRIORITY LABEL owner/project#12" in shown, equal_to(False))
+
+    def test_a_full_first_page_with_a_pull_request_pages_on(self) -> None:
+        """The issues list holds PRs: 99 tickets and a PR are a full page."""
+        here = ordered_world()
+        full = [
+            _ticket(n, "2026-01-01T00:00:00+00:00", "urgent") for n in range(100, 199)
+        ]
+        full.append({**_ticket(199, "2026-01-01T00:00:00+00:00"), "pull_request": {}})
+        path = f"{world.PROJECT}/{OPEN}"
+        here.bodies[fakes.page(path)] = full
+        here.bodies[fakes.page(path, 2)] = [_ticket(200, "2026-02-01T00:00:00+00:00")]
+        found = [each for each in listed(next_output(here)) if "#200" in each]
+        assert_that(found, equal_to(["NO PRIORITY LABEL owner/project#200"]))
