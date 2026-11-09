@@ -15,7 +15,6 @@ PULLS = "repos/other/repo/pulls?head=other:{branch}&state=open"
 JOBS = world.project_page("actions/runs/11/jobs")
 HELD = "RUNNER PRESSURE"
 FREE = "the open PR of branch-1 is a draft: a push to a draft is never held"
-TIMELINE = fakes.page(world.PROJECT + "/issues/2/timeline")
 DRAFT_LINE = re.compile(r"^DRAFT STATE.*$", re.MULTILINE)
 SHARED = "actor `moshez` is the shared agent account; check the workers' rounds"
 
@@ -137,7 +136,8 @@ def told(*events: Mapping[str, str]) -> Sequence[str]:
         The lines.
     """
     here = world.make_world()
-    here.bodies[TIMELINE] = list(events)
+    timeline = [("issues/2/timeline", list(events))]
+    here.bodies.update(fakes.bodies_under(world.PROJECT, timeline))
     return DRAFT_LINE.findall(sweep(here).out)
 
 
