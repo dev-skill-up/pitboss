@@ -171,12 +171,17 @@ def _open_ticket(found: Source, reference: str, waiting: work.Item) -> work.Item
     return marked(found.github, found.settings, _inherit(item, waiting))
 
 
+def _configured(settings: config.Config) -> AbstractSet[str]:
+    # the slugs of the project and its libraries
+    return {each.slug for each in config.repositories(settings)}
+
+
 def _stated(
     found: Source, busy: AbstractSet[str], items: Sequence[work.Item]
 ) -> Mapping[str, work.Item]:
     # keyword: owner-priority (pitboss#371): the tickets the owner ranks, by that rank
     slots = found.settings.slots
-    repositories = {each.slug for each in config.repositories(found.settings)}
+    repositories = _configured(found.settings)
     new = work.Category.NEW_PR
     tickets = {each.reference: each for each in items if each.category is new}
 
@@ -235,9 +240,7 @@ def _stated_ticket(
     found: Source, offer: work.Offered, reference: str
 ) -> blockers.Ticket | str:
     # the ticket the owner states a priority for, or why it cannot be read
-    if reference.rpartition("#")[0] not in {
-        each.slug for each in config.repositories(found.settings)
-    }:
+    if reference.rpartition("#")[0] not in _configured(found.settings):
         return "its repository is not configured"
     for each in [*offer.items, *offer.held, *offer.blocked]:
         if each.reference == reference and each.category is work.Category.NEW_PR:
@@ -246,6 +249,19 @@ def _stated_ticket(
     if ticket is None:
         return "the ticket cannot be read"
     return "it is a PR, not a ticket" if ticket.pull else ticket
+
+
+def _disagrees(reference: str, label: str, ticket: blockers.Ticket | str) -> str:
+    # the line for one stated priority, or "" when the ticket agrees or is closed
+    if isinstance(ticket, str):
+        return UNREAD.format(reference=reference, label=label, why=ticket)
+    if not ticket.open or label in ticket.labels:
+        return ""
+    has = ", ".join(sorted(ticket.labels)) or "no label"
+    return (
+        f"LABEL DISAGREES: {reference} is labelled {has},"
+        f" the owner's stated priority is {label}"
+    )
 
 
 def disagreements(found: Source, offer: work.Offered) -> Iterable[str]:
@@ -260,23 +276,19 @@ def disagreements(found: Source, offer: work.Offered) -> Iterable[str]:
         found: the context.
         offer: the queued work, the held and the blocked tickets.
 
-    Yields:
+    Returns:
         ``LABEL DISAGREES: <ticket> is labelled <labels>, the owner's stated
         priority is <label>``, in the order of the configuration; for a stated
         priority that cannot be used (a repository that is not configured, a
         ticket that cannot be read or is a PR) ``OWNER PRIORITY UNREAD:
         <ticket> = <label>: <why>``. A closed ticket has no line.
     """
-    for reference, label in found.settings.slots.owner_priorities.items():
-        ticket = _stated_ticket(found, offer, reference)
-        if isinstance(ticket, str):
-            yield UNREAD.format(reference=reference, label=label, why=ticket)
-        elif ticket.open and label not in ticket.labels:
-            has = ", ".join(sorted(ticket.labels)) or "no label"
-            yield (
-                f"LABEL DISAGREES: {reference} is labelled {has},"
-                f" the owner's stated priority is {label}"
-            )
+    stated = found.settings.slots.owner_priorities.items()
+    said = (
+        _disagrees(ref, label, _stated_ticket(found, offer, ref))
+        for ref, label in stated
+    )
+    return [line for line in said if line]
 
 
 def _dependencies_first(

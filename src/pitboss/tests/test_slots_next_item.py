@@ -32,28 +32,31 @@ def offered(output: str) -> Sequence[str]:
     return re.findall(r"^NEXT \d+\. (\S+#\d+) \(start a PR", output, re.MULTILINE)
 
 
-def disagreements(output: str) -> Sequence[str]:
-    """The ``LABEL DISAGREES`` lines of an output.
+def said_in(output: str, start: str) -> Sequence[str]:
+    """The lines of an output that start so.
 
     Args:
         output: what a command printed.
+        start: the first characters of the lines.
 
     Returns:
         The lines.
     """
-    return [line for line in output.splitlines() if line.startswith("LABEL DIS")]
+    return [line for line in output.splitlines() if line.startswith(start)]
 
 
-def unread(output: str) -> Sequence[str]:
-    """The ``OWNER PRIORITY UNREAD`` lines of an output.
+def printed(here: world.World, start: str) -> Sequence[Sequence[str]]:
+    """The lines that start so, in what ``slots next`` and the sweep print.
 
     Args:
-        output: what a command printed.
+        here: the world.
+        start: the first characters of the lines.
 
     Returns:
-        The lines.
+        The lines of ``slots next``, then those of the sweep.
     """
-    return [line for line in output.splitlines() if line.startswith("OWNER PRI")]
+    outputs = (next_output(here), sweep(here).out)
+    return [said_in(each, start) for each in outputs]
 
 
 def one(here: world.World, *references: str) -> world.Result:
@@ -207,6 +210,7 @@ def priorities(
 
 NINTH = "owner/project#9"
 SAID = f"LABEL DISAGREES: {NINTH} is labelled p3, the owner's stated priority is p0"
+BOTH = [[SAID], [SAID]]
 ALL = ["p0", "p1", "p2", "p3"]
 SOME = ["p0", "p1"]
 OWNER = {NINTH: "p0"}
@@ -229,16 +233,16 @@ class TestOwnerPriorities(unittest.TestCase):
     def test_the_order_and_the_lines(self) -> None:
         """Ranked as the owner says; a line only where the label differs."""
         for index, case in enumerate(CASES):
-            ranks, owner, tickets, order, said = case
+            ranks, owner, tickets, order, lines = case
             with self.subTest(index):
                 output = next_output(priorities(ranks, owner, tickets))
                 assert_that(offered(output), equal_to(order))
-                assert_that(disagreements(output), equal_to(said))
+                assert_that(said_in(output, "LABEL DIS"), equal_to(lines))
 
     def test_the_sweep_prints_the_line(self) -> None:
         """The sweep and ``slots next`` say the same."""
         here = priorities(ALL, OWNER)
-        assert_that(disagreements(sweep(here).out), equal_to([SAID]))
+        assert_that(printed(here, "LABEL DIS"), equal_to(BOTH))
 
     def test_a_stated_priority_that_cannot_be_read_is_refused(self) -> None:
         """A label the order has not, and a ticket that names no repository."""
@@ -260,22 +264,18 @@ class TestOwnerPriorities(unittest.TestCase):
         here = priorities(ALL, OWNER)
         title = "Fixes #9"
         here.bodies[f"{PROJECT}/pulls/2"] = fakes.pull_body(2, title=title)
-        output = next_output(here)
-        assert_that(offered(output), equal_to([TEN, ELEVEN]))
-        assert_that(disagreements(output), equal_to([SAID]))
-        assert_that(disagreements(sweep(here).out), equal_to([SAID]))
+        assert_that(offered(next_output(here)), equal_to([TEN, ELEVEN]))
+        assert_that(printed(here, "LABEL DIS"), equal_to(BOTH))
 
     def test_a_stated_priority_nothing_can_use_is_said(self) -> None:
         """A repository that is not configured, and a ticket that cannot be read."""
         owner = {"elsewhere/repo#5": "p0", "owner/project#99": "p1", NINTH: "p0"}
         here = priorities(ALL, owner)
-        said = [
+        lines = [
             "OWNER PRIORITY UNREAD: elsewhere/repo#5 = p0:"
             " its repository is not configured",
             "OWNER PRIORITY UNREAD: owner/project#99 = p1:"
             " the ticket cannot be read",
         ]
-        for output in (next_output(here), sweep(here).out):
-            with self.subTest(output[:20]):
-                assert_that(unread(output), equal_to(said))
-                assert_that(disagreements(output), equal_to([SAID]))
+        assert_that(printed(here, "OWNER PRI"), equal_to([lines, lines]))
+        assert_that(printed(here, "LABEL DIS"), equal_to(BOTH))
