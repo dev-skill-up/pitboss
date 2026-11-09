@@ -173,7 +173,7 @@ class TestSweepAndNext(unittest.TestCase):
         """A rejected plan is revised, a plan approved alone is no approval to merge.
 
         A review that approves the plan and asks for changes is listed for
-        nothing: the ruling is due first (keyword: ruling-first, pitboss#390).
+        no round, as the ruling is due first (keyword: ruling-first, pitboss#390).
         """
         for grades, line, kind, ready in OUTPUT_CASES:
             swept, pull_line, listed = outputs(review_comment(*grades))

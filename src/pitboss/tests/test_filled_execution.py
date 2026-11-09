@@ -1,11 +1,10 @@
 """A filled Execution under a clean Plan check is reviewed, not run again (pitboss#390).
 
-Keyword: filled-execution. The Plan was approved alone after an Opus ruling;
+The Plan was approved alone after an Opus ruling (keyword: filled-execution);
 the worker round that runs the Plan's commands and fills the Execution is only
 for an Execution that is empty or a placeholder, or a Plan no clean check covers.
 """
 
-import dataclasses
 import unittest
 from typing import Sequence
 
@@ -13,7 +12,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import flow, plancheckflow, shapes, steps
 from . import test_flow
-from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state
+from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state, with_no_drafts
 from .test_plan_check_step import WITH_COMMANDS, check_comment, refused_comment
 
 UNWRITTEN = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nNot started: later\n"
@@ -71,7 +70,7 @@ class TestFilledExecution(unittest.TestCase):
 
     def test_a_repository_with_no_drafts_writes_the_body_instead(self) -> None:
         """It never prints `run the Plan's commands` (keyword: no-drafts)."""
-        quiet = dataclasses.replace(alone(UNWRITTEN, []), no_drafts=True)
+        quiet = with_no_drafts(alone(UNWRITTEN, []))
         expect(steps.worker(steps.Task.FIRST_ROUND), quiet)
-        filled = dataclasses.replace(alone(test_flow.BODY, []), no_drafts=True)
+        filled = with_no_drafts(alone(test_flow.BODY, []))
         expect(REVIEW, filled)

@@ -20,6 +20,7 @@ from . import (
     brieftextci,
     brieftextdraft,
     brieftextfailure,
+    brieftextfix,
     brieftextimpact,
     brieftextlint,
     brieftextnote,
@@ -59,7 +60,7 @@ TASKS: Mapping[Kind, str] = {
     Kind.FIRST_ROUND: text.TASK_FIRST_ROUND,
     Kind.REVISE_PLAN: text.TASK_REVISE_PLAN,
     Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
-    Kind.FIX_ROUND: text.TASK_FIX_ROUND,
+    Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
     Kind.FIX_CI: text.TASK_FIX_CI,
     Kind.RESOLVE_CONFLICT: text.TASK_RESOLVE_CONFLICT,
     Kind.RULING_STEPS: text.TASK_RULING_STEPS,
@@ -312,13 +313,17 @@ def _plan_lines(kind: Kind) -> list[str]:
     ]
 
 
+def _ruling(spec: Spec) -> list[str]:
+    named = spec.kind is Kind.FIX_REVIEW and spec.heads.ruling
+    return [brieftextfix.RULING_NAMED] if named else []
+
+
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
-    ruled = spec.kind is Kind.FIX_REVIEW and bool(spec.heads.ruling)
     new = spec.kind is Kind.NEW_PR
     sentences = [
         TASKS[spec.kind],
-        *([text.RULING_NAMED] if ruled else []),
+        *_ruling(spec),
         text.ONE_PR,
         text.WORKTREE,
         text.DONE_WHEN,

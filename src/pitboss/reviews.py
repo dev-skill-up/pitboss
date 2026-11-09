@@ -9,7 +9,6 @@ from . import (
     config,
     gradeline,
     missed,
-    reviewfindings,
     reviewnote,
     reviewplain,
     sessionurl,
@@ -45,8 +44,6 @@ class Found:
             records, empty with no such line (keyword: plan-digest).
         note: its ``Notes`` paragraph when that names a case not handled,
             empty otherwise (keyword: review-note).
-        names_change: whether its findings name a file of the tree (keyword:
-            fix-round-kind, pitboss#390).
     """
 
     sha: str
@@ -59,7 +56,6 @@ class Found:
     missed: int = 0
     plan_digest: str = ""
     note: str = ""
-    names_change: bool = False
 
 
 def names(found: Found, head: str) -> bool:
@@ -236,7 +232,6 @@ def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Foun
         missed=missed.count(item.body),
         plan_digest=bodydigest.recorded_after(item.body, bodydigest.PLAN_PREFIX),
         note=reviewnote.gap(item.body),
-        names_change=reviewfindings.names_change(item.body),
     )
 
 
@@ -290,7 +285,6 @@ def _as_graded(found: Found, comment: bool) -> shapes.Graded:
         body=found.body,
         missed=found.missed,
         plan_digest=found.plan_digest,
-        names_change=found.names_change,
     )
 
 

@@ -284,7 +284,6 @@ def _project(document: Mapping[str, object]) -> config.Project:
             briefconfig.from_document(document).no_drafts,
             exempt.owner_of(document),
         ),
-        drafts=briefconfig.from_document(document).drafts,
     )
 
 

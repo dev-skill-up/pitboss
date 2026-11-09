@@ -103,5 +103,5 @@ def _source(
         merge_queue=settings.merge_queue.repositories,
         early=functools.partial(earlyreview.split, tools),
         pins=pinsonly.asker(github, settings),
-        no_drafts=settings.project.opens_ready,
+        no_drafts=settings.project.no_drafts.__contains__,
     )

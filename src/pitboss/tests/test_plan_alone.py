@@ -180,13 +180,6 @@ class TestSweepAndNext(unittest.TestCase):
         """Done-when 1 with no condition on the draft: the same round."""
         assert_worker_round_not_the_review(draft=False)
 
-    def test_a_filled_execution_is_reviewed_not_run_again(self) -> None:
-        """pitboss#390: nothing to fill and no command to check, so no worker."""
-        printed = next_printed(played(PLAN_ONLY_BODY), False, test_flow.BODY)
-        assert_that(printed, contains_string("REGULAR_REVIEW: #7"))
-        run = steps.describe(steps.worker(steps.Task.RUN_PLAN))
-        assert_that(run in printed, equal_to(False))
-
     def test_the_worker_round_needs_a_ruling_before_the_approval(self) -> None:
         """With no ruling, a Plan approved alone is the ordinary draft's."""
         printed = next_printed([plan_only(PLAN_ONLY_BODY)])

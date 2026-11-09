@@ -5,8 +5,9 @@ A commit that changes only derived files (``skill-zips/``, rebuilt by
 merge (keyword: derived-only, pitboss#323).
 """
 
+import functools
 import json
-from typing import AbstractSet, Iterable, Sequence
+from typing import AbstractSet, Callable, Iterable, Sequence
 
 from . import config, ghapi, parsing, shapes
 
@@ -105,6 +106,22 @@ def carries(
     return extra is not None and all(
         derived_only(files_of(github, repo, each)) for each in sorted(extra)
     )
+
+
+def unchanged_since(
+    github: ghapi.GitHub, repo: config.Repo, pull: shapes.Pull
+) -> Callable[[str], bool]:
+    """Says whether no code moved between a reviewed head and the PR's head.
+
+    Args:
+        github: the API.
+        repo: the PR's repository.
+        pull: the PR.
+
+    Returns:
+        The question ``unchanged`` asks, for a reviewed head.
+    """
+    return functools.partial(unchanged, github, repo, pull)
 
 
 def unchanged(

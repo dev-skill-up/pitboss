@@ -360,3 +360,36 @@ class TestBodyFix(unittest.TestCase):
             next_output(here),
             contains_string("make an Opus ruling: owner/project#3: Opus agent"),
         )
+
+
+def unfixed_rounds(*recorded: shapes.Comment, files: Sequence[str] = ()) -> world.World:
+    """A world whose head moved from the rejected one by one commit.
+
+    Args:
+        *recorded: PR 3's comments.
+        files: the paths the commit changes, none for an empty commit.
+
+    Returns:
+        The world.
+    """
+    moved = {"files": [{"filename": each} for each in files]}
+    here = world_with(recorded)
+    here.bodies.update({f"{world.PROJECT}/commits/2": moved})
+    return here
+
+
+def unfixed_after_the_ruling(files: Sequence[str] = ()) -> world.World:
+    """An Execution rejected, ruled on, its Plan revised and approved alone.
+
+    PR 3's head carries no code the rejection has not seen, but for files
+    (keyword: unfixed-execution, pitboss#390).
+
+    Args:
+        files: the paths the last commit changes.
+
+    Returns:
+        The world.
+    """
+    rejected = graded(APPROVED, CHANGES, 1, sha=OLDER)
+    ruled = test_flow.ruling(2, line="Ruling: revise the plan")
+    return unfixed_rounds(rejected, ruled, graded(APPROVED, None, 3), files=files)

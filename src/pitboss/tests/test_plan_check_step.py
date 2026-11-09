@@ -49,6 +49,8 @@ def refused_comment(body: str) -> shapes.Comment:
     return dataclasses.replace(check_comment(body), body=text)
 
 
+REFUSED = refused_comment(WITH_COMMANDS)
+FIX = steps.worker(steps.Task.FIX_ROUND, REFUSED.url, QUOTED)
 NOT_COUNTED = {
     "another plan": (EDITED, check_comment(WITH_COMMANDS)),
     "untrusted": (WITH_COMMANDS, check_comment(WITH_COMMANDS, author="NONE")),
@@ -91,13 +93,9 @@ class TestPlanCheckStep(unittest.TestCase):
 
     def test_a_refusal_of_this_plan_is_the_fix_with_its_findings(self) -> None:
         """No review: the fix round quotes the findings (pitboss#390)."""
-        refused = refused_comment(WITH_COMMANDS)
-        want = steps.fix_round(refused.url, QUOTED)
-        for name, draft in (("draft", True), ("ready", False)):
-            with self.subTest(name):
-                pr = state(body=WITH_COMMANDS, draft=draft, comments=[refused])
-                expect(want, pr)
-        assert_that(steps.describe(want), contains_string(QUOTED))
+        expect(FIX, state(body=WITH_COMMANDS, draft=True, comments=[REFUSED]))
+        expect(FIX, state(body=WITH_COMMANDS, draft=False, comments=[REFUSED]))
+        assert_that(steps.describe(FIX), contains_string(QUOTED))
 
     def test_a_refusal_of_another_plan_is_a_check_to_run(self) -> None:
         """The edited Plan has no check of its own yet."""
@@ -105,14 +103,13 @@ class TestPlanCheckStep(unittest.TestCase):
         expect(steps.plan_check(), pr)
 
     def test_the_newest_check_of_this_plan_decides(self) -> None:
-        """A clean check after a refusal offers the review; a refusal after it, the fix."""
-        refused, clean = refused_comment(WITH_COMMANDS), check_comment(WITH_COMMANDS)
+        """A clean check after a refusal gives the review; before it, the fix."""
+        clean = check_comment(WITH_COMMANDS)
         later = dataclasses.replace(clean, created_at="2026-10-30T00:00:09Z")
         sooner = dataclasses.replace(clean, created_at="2026-10-30T00:00:00Z")
         pr = state(body=WITH_COMMANDS)
-        expect(BOTH, dataclasses.replace(pr, comments=[refused, later]))
-        found = dataclasses.replace(pr, comments=[refused, sooner])
-        expect(steps.fix_round(refused.url, QUOTED), found)
+        expect(BOTH, dataclasses.replace(pr, comments=[REFUSED, later]))
+        expect(FIX, dataclasses.replace(pr, comments=[REFUSED, sooner]))
 
     def test_a_directive_with_no_command_waits_for_the_check(self) -> None:
         """The check refuses it, so it is not offered for review."""

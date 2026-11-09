@@ -12,7 +12,7 @@ from typing import AbstractSet, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import bodydigest, flow, parsing, shapes, steps
+from .. import bodydigest, draftfacts, flow, parsing, shapes, steps
 from . import fakes, scratch
 
 HEAD = fakes.HEAD
@@ -145,17 +145,16 @@ def state(
     )
 
 
-def merged(pr: flow.PullState, *heads: str) -> flow.PullState:
-    """A PR whose current head differs from reviewed heads by merges only.
+def with_no_drafts(pr: flow.PullState) -> flow.PullState:
+    """The PR of a repository with no drafts.
 
     Args:
         pr: the PR.
-        *heads: the reviewed heads a merge of the base alone moved on from.
 
     Returns:
-        The PR with that recorded.
+        The same with that recorded.
     """
-    return dataclasses.replace(pr, merges_only_since=lambda sha: sha in heads)
+    return dataclasses.replace(pr, draft=draftfacts.Draft(no_drafts=True))
 
 
 def github_review(

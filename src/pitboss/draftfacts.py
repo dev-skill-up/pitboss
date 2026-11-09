@@ -20,10 +20,13 @@ class Draft:
             draft whose Plan is approved; keyword: run-e2e).
         plan_review_check: the check a draft's Plan review waits for, empty
             when none (keyword: plan-review-check, pitboss#275).
+        no_drafts: whether its repository has no drafts (keyword: no-drafts,
+            pitboss#390).
     """
 
     needs_e2e: Callable[[], bool] = lambda: False
     plan_review_check: str = ""
+    no_drafts: bool = False
 
 
 class Run(Protocol):

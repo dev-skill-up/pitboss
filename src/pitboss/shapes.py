@@ -388,8 +388,6 @@ class Graded:
             all-findings).
         plan_digest: the digest of the Plan section it records, empty when it
             records none (keyword: plan-digest).
-        names_change: whether its findings name a file of the tree (keyword:
-            fix-round-kind, pitboss#390).
     """
 
     sha: str
@@ -400,4 +398,3 @@ class Graded:
     body: str = ""
     missed: int = 0
     plan_digest: str = ""
-    names_change: bool = False

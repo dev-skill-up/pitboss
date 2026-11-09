@@ -186,8 +186,7 @@ class Source:
             PR's comments (keyword: execution-before-green, pitboss#202).
         pins: asks the pins-check command about a PR at a review step
             (keyword: pins-only, pitboss#34).
-        no_drafts: says whether a repository's PRs open ready (keyword: no-drafts,
-            pitboss#390).
+        no_drafts: says whether a repository's PRs open ready (keyword: no-drafts).
     """
 
     github: ghapi.GitHub
@@ -286,20 +285,15 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         comments=got.posted.comments,
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
-        merges_only_since=lambda sha: mergesonly.carries(
-            source.github, repo, got.pull, sha
-        ),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
-        no_drafts=source.no_drafts(repo.slug),
-        unchanged_since=lambda sha: mergesonly.unchanged(
-            source.github, repo, got.pull, sha
-        ),
+        unchanged_since=mergesonly.unchanged_since(source.github, repo, got.pull),
         draft=draftfacts.Draft(
             needs_e2e=lambda: pullfiles.touches(
                 source.github, repo.slug, got.pull.number, source.run_by_e2e
             )
             and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
             plan_review_check=source.plan_review_check,
+            no_drafts=source.no_drafts(repo.slug),
         ),
     )
 

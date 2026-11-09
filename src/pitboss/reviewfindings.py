@@ -1,4 +1,4 @@
-"""Whether a review's findings name a change to code, docs or tests (keyword: fix-round-kind).
+"""Whether a review names a change to code, docs or tests (keyword: fix-round-kind).
 
 A review that rejects the Plan gets a worker round that revises the Plan and
 touches nothing else. Findings that name a file of the tree (a source, a doc or a
@@ -8,8 +8,9 @@ subject and names no change; nor does a link.
 """
 
 import re
+from typing import AbstractSet, Sequence
 
-from . import sessionurl
+from . import sessionurl, shapes
 
 _LINK = re.compile(r"https?://\S+")
 _COMMAND = re.compile(r"`[^`\n]*\s[^`\n]*`")
@@ -30,3 +31,23 @@ def names_change(review: str) -> bool:
     """
     text = _COMMAND.sub(" ", _LINK.sub(" ", sessionurl.strip(review)))
     return bool(_FILE.search(text) or _TREE.search(text))
+
+
+def named_by(
+    comments: Sequence[shapes.Comment], trusted: AbstractSet[str], when: str
+) -> bool:
+    """Whether the review comment written at a time names a file of the tree.
+
+    Args:
+        comments: the PR's issue comments.
+        trusted: the author associations whose comments count.
+        when: when the review was written (ISO 8601).
+
+    Returns:
+        True when a trusted comment of that time names a change.
+    """
+    return any(
+        names_change(each.body)
+        for each in comments
+        if each.created_at == when and each.author_association in trusted
+    )

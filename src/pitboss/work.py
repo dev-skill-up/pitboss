@@ -61,9 +61,6 @@ class Category(enum.IntEnum):
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
         ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (a PR; keyword: ci-quotes).
-        FIX_ROUND: an author fixes findings that name a file of the tree, or the
-            refusal of the Plan check, with code, doc, test and Plan changes
-            allowed (a PR; keyword: fix-round-kind, pitboss#390).
     """
 
     FIX_REVIEW = 1
@@ -78,7 +75,6 @@ class Category(enum.IntEnum):
     REVIEW_FIX_ROUND = 11
     RUN_PLAN = 12
     ADD_CI_QUOTES = 13
-    FIX_ROUND = 14
 
 
 CATEGORY_WORDS = {
@@ -94,7 +90,6 @@ CATEGORY_WORDS = {
     Category.RULING_AS_GIVEN: "carry out the ruling",
     Category.RUN_PLAN: "run the Plan's commands and fill the Execution",
     Category.ADD_CI_QUOTES: "add the CI quotes to the body",
-    Category.FIX_ROUND: "fix round: fix the findings (code, doc and test allowed)",
 }
 
 
@@ -156,7 +151,6 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.RULING_AS_GIVEN: Category.RULING_AS_GIVEN,
     steps.Task.RUN_PLAN: Category.RUN_PLAN,
     steps.Task.ADD_CI_QUOTES: Category.ADD_CI_QUOTES,
-    steps.Task.FIX_ROUND: Category.FIX_ROUND,
 }
 
 

@@ -5,8 +5,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brieftext, suggest
-from . import fakes, test_flow_sweep, unfixed, world
+from .. import brieftextfix, suggest
+from . import fakes, test_flow_sweep, world
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
 from .suggestions import (
     default_suggestions,
@@ -240,6 +240,23 @@ class TestKindsOfReview(unittest.TestCase):
         scope_is(world_with([], draft=True), PLAN_ALONE, scope)
 
 
+def with_addresses(here: world.World) -> world.World:
+    """The world with the addresses of its review and its ruling set.
+
+    Args:
+        here: the world, whose PR 3 has a ruling and a review.
+
+    Returns:
+        The same world.
+    """
+    path = fakes.page("repos/owner/project/issues/3/comments")
+    comment = here.bodies[path]
+    assert isinstance(comment, list)
+    comment[2]["html_url"] = COMMENT_URL
+    comment[1]["html_url"] = RULING_URL
+    return here
+
+
 class TestKindsOfWork(unittest.TestCase):
     """The worker's rounds and their briefs."""
 
@@ -255,28 +272,18 @@ class TestKindsOfWork(unittest.TestCase):
 
     def test_a_rejected_execution_is_fixed_with_the_reviews_address(self) -> None:
         """The findings are in the review, whose address the brief gives."""
-        here = unfixed.after_the_ruling()
-        path = fakes.page("repos/owner/project/issues/3/comments")
-        comment = here.bodies[path]
-        assert isinstance(comment, list)
-        comment[2]["html_url"] = COMMENT_URL
-        comment[1]["html_url"] = RULING_URL
-        header, brief = third(here)
-        assert_that(header.split(": ")[1], equal_to("fix the review"))
-        task = [line for line in brief if line.startswith("Task: ")]
-        assert_that(
-            task,
-            equal_to(
-                [
-                    "Task: PR owner/project#3: fix the findings of the review at"
-                    f" {COMMENT_URL}, each one, and nothing else: make no change"
-                    " that no finding names. The Plan is approved: do not change"
-                    " it."
-                ]
-            ),
+        header, brief = third(
+            with_addresses(test_flow_sweep.unfixed_after_the_ruling())
         )
-        ruled = [line for line in brief if line.startswith("Ruling: ")]
-        assert_that(ruled, equal_to([brieftext.RULING_NAMED.format(ruling=RULING_URL)]))
+        assert_that(header.split(": ")[1], equal_to("fix the review"))
+        task = (
+            "Task: PR owner/project#3: fix the findings of the review at"
+            f" {COMMENT_URL}, each one, and nothing else: make no change"
+            " that no finding names. The Plan is approved: do not change it."
+        )
+        ruling = brieftextfix.RULING_NAMED.format(ruling=RULING_URL)
+        for word, want in (("Task: ", task), ("Ruling: ", ruling)):
+            assert_that([x for x in brief if x.startswith(word)], equal_to([want]))
 
     def test_an_approved_conflicted_head_is_resolved(self) -> None:
         """The base is merged in."""

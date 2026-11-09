@@ -8,9 +8,18 @@ fix-round-kind, pitboss#390).
 """
 
 import re
-from typing import AbstractSet, Protocol, Sequence
+from typing import AbstractSet, Any, Callable, Protocol, Sequence
 
-from . import bodydigest, expansion, plandigest, planbody, sessionurl, shapes, steps
+from . import (
+    bodydigest,
+    draftfacts,
+    expansion,
+    plandigest,
+    planbody,
+    sessionurl,
+    shapes,
+    steps,
+)
 
 QUOTED = 600
 
@@ -170,8 +179,8 @@ class Described(Protocol):
         """
 
     @property
-    def no_drafts(self) -> bool:
-        """Whether its repository has no drafts.
+    def draft(self) -> draftfacts.Draft:
+        """What the caller read for a draft.
 
         Returns:
             The value.
@@ -194,7 +203,7 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
         refused = refusal(pr.pull.body, pr.comments, pr.trusted)
         if refused is None:
             return steps.plan_check()
-        return steps.fix_round(refused.url, findings(refused))
+        return steps.worker(steps.Task.FIX_ROUND, refused.url, findings(refused))
     return steps.regular_review(stage)
 
 
@@ -224,12 +233,48 @@ def write_round(pr: Described) -> steps.Next:
         pr: the PR, whose Execution is empty or a placeholder.
 
     Returns:
-        The round that runs the Plan's commands and fills the Execution; for a
-        repository with no drafts, the one that writes the body (keyword:
-        no-drafts, pitboss#390).
+        The round that writes the body for a repository with no drafts (keyword:
+        no-drafts, pitboss#390), else the one that runs the Plan's commands and
+        fills the Execution.
     """
-    task = steps.Task.FIRST_ROUND if pr.no_drafts else steps.Task.RUN_PLAN
+    task = steps.Task.FIRST_ROUND if pr.draft.no_drafts else steps.Task.RUN_PLAN
     return steps.worker(task)
+
+
+def plan_unrun(
+    pr: Described,
+    review: shapes.Graded | None,
+    readable: Callable[[Any], tuple[shapes.Comment, object] | None],
+) -> steps.Next | None:
+    """The worker round of a Plan approved alone after an Opus ruling.
+
+    The ruling's worker round rewrote the Plan and left the Execution unrun,
+    and the review after it graded the Plan alone: no one ran the Plan's
+    commands (keyword: plan-alone, pitboss#201). The round ends with an edit
+    of the body, which the next review does not read (its ``Body:`` digest),
+    so the Plan review is not offered again: a draft goes on to its undraft, any
+    other PR to the next step of its Execution, the review or the round that
+    adds the CI quotes. A draft or not alike. An Execution that is filled under
+    a clean Plan check leaves nothing to run: the review follows (keyword:
+    filled-execution, pitboss#390).
+
+    Args:
+        pr: the PR.
+        review: the newest review that counts.
+        readable: reads the PR's readable ruling comment and what it rules.
+
+    Returns:
+        The round (for a repository with no drafts, the one that writes the body;
+        keyword: no-drafts), or None when the newest review of the head does not
+        approve the Plan alone, no readable ruling came before it, or the
+        Execution is filled and the Plan check clean.
+    """
+    ruled = readable(pr)
+    if review is None or ruled is None or review.when <= ruled[0].created_at:
+        return None
+    alone = review.plan is shapes.Verdict.APPROVED and review.execution is None
+    unrun = alone and not filled(pr.pull.body, pr.comments, pr.trusted)
+    return write_round(pr) if unrun else None
 
 
 def execution_review(pr: Described, stage: steps.Stage) -> steps.Next:
