@@ -15,7 +15,15 @@ The Plan's numbered rows each have a command, an exact read or a CI pointer
 import re
 from typing import Sequence
 
-from . import bodydigest, expansion, noxrow, plandigest, planrow, planpointers
+from . import (
+    expansion,
+    linttests,
+    noxrow,
+    plandigest,
+    planpointers,
+    planrow,
+    planrowtext,
+)
 
 # the Plan section as plandigest.section reads it
 PLAN_HEADING = re.compile(r"^## Plan\s*$")
@@ -68,7 +76,8 @@ def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str
 
     Returns:
         One finding for each Plan command with no command in the Evidence that
-        is the same, or the same with a cut or a pipe after it.
+        is the same, or the same with a cut or a pipe after it, and the findings
+        of ``planrow``, ``noxrow`` and ``linttests``.
     """
     done = planrow.ran(body)
     return [
@@ -78,6 +87,8 @@ def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str
     ] + [
         *noxrow.findings(name, planned(body)),  # keyword: plan-nox
         *planrow.findings(name, body, approved),  # keyword: plan-row (pitboss#259)
+        # keyword: lint-test (pitboss#358)
+        *linttests.findings(name, body, planrowtext.rows(body), approved),
         *pointer_findings(name, body, approved),
     ]
 
@@ -95,7 +106,7 @@ def pointer_findings(name: str, body: str, approved: Sequence[str]) -> Sequence[
         One finding for each such row (keyword: plan-pointer, pitboss#317).
     """
     section = plandigest.section(body)
-    if bodydigest.of_section(section) in approved:
+    if set(expansion.accepted_digests(section)) & set(approved):
         return []
     return [
         f"{name}: {each.removeprefix(planpointers.CHECK + ': ')} ({planpointers.CHECK})"

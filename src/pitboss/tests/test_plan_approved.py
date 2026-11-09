@@ -7,7 +7,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import bodydigest, forms, plandigest
+from .. import expansion, forms, plandigest
 from . import world
 from .formchecks import subject
 from .linting import HEAD, lint, write_text
@@ -31,7 +31,7 @@ def digest_of(body: str) -> str:
         The digest.
     """
     plan = plandigest.section(body)
-    return bodydigest.of_section(plan)
+    return expansion.section_digest(plan)
 
 
 DIGEST = digest_of(PROSE)

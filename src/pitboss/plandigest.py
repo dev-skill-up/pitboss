@@ -2,10 +2,12 @@
 
 An approved Plan is never reopened (pitboss#172): a review that grades the Plan
 records the Plan section it read as a ``Plan digest: <digest>`` line
-(``bodydigest.PLAN_PREFIX``, the digest of ``bodydigest.digest``), and the sweep
-compares it with the Plan section of the body now. The section is the text from
-the ``## Plan`` heading to the next ``## `` heading, without its ``Head:`` lines
-(the head moves with every push and is not the Plan). The module imports nothing
+(``bodydigest.PLAN_PREFIX``, the digest of ``expansion.section_digest``), and the
+sweep compares it with the Plan section of the body now. The section is the text
+from the ``## Plan`` heading to the next ``## `` heading, without its ``Head:``
+lines (the head moves with every push and is not the Plan); the digest takes each
+block ``pitboss expand`` produced as its command, so a re-expansion at a new head
+keeps it (keyword: plan-digest-collapse, pitboss#358). The module imports nothing
 of pitboss, so the flow and the command both read it.
 """
 

@@ -200,9 +200,6 @@ ledger-owner = true
 transcripts = "/home/user/.claude/projects/app/subagents"
 # The models workers run on, smallest first. Default: none.
 models = ["small-model", "large-model"]
-# The ticket labels that are offered, highest priority first; a ticket with
-# none of them is never offered. Default: none.
-priority_labels = ["urgent", "soon", "later"]
 # The slots `pitboss sweep` starts a ledger with when the ledger file does not
 # exist. Default: none. `pitboss slots` never creates the ledger: it exits 1 with
 # LEDGER MISSING, and the owner creates the file.

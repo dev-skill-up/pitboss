@@ -17,7 +17,7 @@ pipe, as ``same`` reads it). ``lint pr-body`` and the sweep's
 import re
 from typing import Sequence
 
-from . import bodydigest, evidence, expansion, plandigest, planrowtext
+from . import evidence, expansion, plandigest, planrowtext
 
 # a pipe after the command, which is not the `||` of an or-list
 PIPED = re.compile(r"^\s*\|(?!\|)")
@@ -97,7 +97,7 @@ def findings(name: str, body: str, approved: Sequence[str] = ()) -> Sequence[str
     # keyword: plan-approved (pitboss#296): a Plan whose digest now is one a
     # review recorded was approved as it stands
     plan = plandigest.section(body)
-    if not numbered or bodydigest.of_section(plan) in approved:
+    if not numbered or set(expansion.accepted_digests(plan)) & set(approved):
         return []
     return [
         f"{name}: " + _finding(number, numbered.get(number), command) + f" ({CHECK})"

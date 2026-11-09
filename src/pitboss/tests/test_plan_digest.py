@@ -10,6 +10,8 @@ from .. import bodydigest, brief, brieftext, plandigest, shapes, steps
 from . import fakes, world
 from .briefmake import text as brief_text
 from .test_commands import sweep
+from .test_plan_digest_collapse import digest, legacy_digest
+from .test_plan_digest_collapse import plan as expanded_plan
 from .test_flow_sweep import (
     APPROVED,
     CHANGES,
@@ -23,18 +25,6 @@ from .test_slot_commands import next_output
 PLAN = fakes.PLAN_AND_EXECUTION
 EDITED_PLAN = "## Plan\nthe plan, with a row added\n\n## Execution\nthe work\n"
 EDITED_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work, and more\n"
-
-
-def digest(body: str) -> str:
-    """The digest of the Plan section of a body, as a review records it.
-
-    Args:
-        body: the PR body.
-
-    Returns:
-        The digest, empty for a body with no Plan section.
-    """
-    return bodydigest.of_section(plandigest.section(body))
 
 
 LINE = f"Plan digest: {digest(PLAN)}"
@@ -222,6 +212,25 @@ class TestThePlanEditedLine(unittest.TestCase):
             with self.subTest(name):
                 out = sweep(world_with(rounds, body=EDITED_PLAN)).out
                 assert_that(out, contains_string(EDIT_LINE))
+
+
+class TestTheOldDigestIsStillAccepted(unittest.TestCase):
+    """A digest recorded before the expanded blocks were collapsed (pitboss#399)."""
+
+    def test_the_old_digest_of_the_plan_read_is_not_an_edit_and_another_is(
+        self,
+    ) -> None:
+        """The sweep prints no PLAN EDITED for the Plan the review read.
+
+        The nearest input is an old digest of a Plan that was edited since.
+        """
+        other = expanded_plan(prose="other\n")
+        for read, edited in ((expanded_plan(), False), (other, True)):
+            with self.subTest(edited):
+                line = f"Plan digest: {legacy_digest(read)}"
+                body = expanded_plan()
+                out = sweep(world_with([approving(1, line)], body=body)).out
+                assert_that(EDIT_LINE in out, equal_to(edited))
 
 
 class TestTheCommand(unittest.TestCase):

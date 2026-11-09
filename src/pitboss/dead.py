@@ -41,6 +41,7 @@ class Candidate:
         reason: why it is dead.
         kept: why it is not safe to remove, or empty when it is safe.
         prune: the git directory to prune after a linked worktree is removed.
+        head: the tip of a linked worktree (for the log), or empty.
     """
 
     path: pathlib.Path
@@ -48,6 +49,7 @@ class Candidate:
     reason: str
     kept: str = ""
     prune: pathlib.Path | None = None
+    head: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
