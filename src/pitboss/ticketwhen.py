@@ -20,7 +20,7 @@ SECTION = re.compile(
     r"(.*?)(?=^#+[ \t]|^---[ \t]*$|\Z)"
 )
 # a bullet's marker, after its indentation: `-`, `*`, `+`, `1.` or `1)`
-BULLET = re.compile(r"^(\s*)(?:[-*+]|\d{1,3}[.)])\s+(.*)$")
+BULLET = re.compile(r"^(\s*)([-*+]|\d{1,3}[.)])\s+(.*)$")
 LENGTH = 16
 
 
@@ -54,11 +54,31 @@ def items(ticket: str) -> Sequence[str]:
         The text of each item, its lines joined by a space; the text after the
         colon of the heading's own line comes first.
     """
+    return [text for _, text in _marked(ticket)]
+
+
+def bullets(ticket: str) -> Sequence[str]:
+    """The bullets of a ticket's Done-when, each with the marker it was written with.
+
+    Args:
+        ticket: the ticket's text.
+
+    Returns:
+        The items that are bullets, each as ``MARKER TEXT`` (``* `` for a ticket
+        written with ``* ``, ``1. `` for a numbered one), so a Plan copies it as
+        the ticket has it (keyword: plan-done-when, pitboss#282); an item that is a
+        paragraph has no marker and is not listed.
+    """
+    return [f"{marker} {text}" for marker, text in _marked(ticket) if marker]
+
+
+def _marked(ticket: str) -> Sequence[tuple[str, str]]:
+    # each item's marker (empty for a paragraph) and its text
     lines = _lines(ticket)
     # the level of the first bullet is the top level
     top = next((len(each[1]) for each in map(BULLET.match, lines) if each), None)
     found = [group for block in _blocks(lines) for group in _groups(block, top)]
-    return [" ".join(" ".join(each).split()) for each in found]
+    return [(marker, " ".join(" ".join(each).split())) for marker, each in found]
 
 
 def _blocks(lines: Sequence[str]) -> Sequence[Sequence[str]]:
@@ -72,17 +92,17 @@ def _blocks(lines: Sequence[str]) -> Sequence[Sequence[str]]:
     return blocks
 
 
-def _groups(block: Sequence[str], top: int | None) -> Sequence[list[str]]:
+def _groups(block: Sequence[str], top: int | None) -> Sequence[tuple[str, list[str]]]:
     # a top-level bullet starts an item; a line that is none continues it
-    groups: list[list[str]] = []
+    groups: list[tuple[str, list[str]]] = []
     for line in block:
         marked = _top_bullet(line, top)
         if marked is not None:
-            groups.append([marked[2].strip()])
+            groups.append((marked[2], [marked[3].strip()]))
         elif groups:
-            groups[-1].append(line.strip())
+            groups[-1][1].append(line.strip())
         else:
-            groups.append([line.strip()])
+            groups.append(("", [line.strip()]))
     return groups
 
 

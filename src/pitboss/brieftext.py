@@ -30,9 +30,7 @@ BODY = (
     " every PATCH of the body, fetch the stored body back (parsed with python3"
     " json) and lint that file the same way. A row the Plan points to CI has no"
     " row in the body."
-    "{footer_note}"
 )
-FOOTER_NOTE = " It ends with only this line: {footer}"
 EDIT = (
     "Edit: change files with the Edit tool only (no sed, no shell redirection, no"
     " ad hoc rm); clean up with `uvx pitboss clean-container {config}` only;"

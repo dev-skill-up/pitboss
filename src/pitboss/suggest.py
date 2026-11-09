@@ -253,12 +253,10 @@ def _form(source: Source, slug: str, head: str) -> Sequence[str]:
 
 
 def _rules(source: Source, slug: str, head: str) -> brief.Rules:
-    footers = source.settings.lint.footers
     review = source.settings.review
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
-        footer=footers[0] if footers else "",
         project=briefrepo.of_repository(
             source.brief,
             slug,

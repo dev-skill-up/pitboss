@@ -45,7 +45,7 @@ COMMITS = brief.Heads(
     body_digest=BODY_DIGEST,
     plan_digest=PLAN_DIGEST,
 )
-RULES = brief.Rules(config="proj", form=FORM, footer="THE FOOTER", project=PROJECT)
+RULES = brief.Rules(config="proj", form=FORM, project=PROJECT)
 
 Part = TypeVar("Part", brief.Subject, brief.Heads, brief.Rules)
 

@@ -1,12 +1,11 @@
 """Tests: lint pr-body on a stored body equals the file (keyword: store-form, #164)."""
 
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import evidence, expansion, forms
-from .formchecks import subject
+from .. import evidence, expansion
+from .formchecks import findings
 from .linting import HEAD
 
 URL = "https://x.example/a?b=1"
@@ -22,18 +21,6 @@ STORED_LINES = f"$ gh run view\nRedirecting to ``{URL}``\nok\n"
 STORED = (
     f"{HEADER}```{expansion.info(LINES)}\n{STORED_LINES}```\n\n---\n{STORE_FOOTER}\n"
 )
-
-
-def findings(body: str) -> Sequence[str]:
-    """The findings of the whole pr-body form on a text.
-
-    Args:
-        body: the text.
-
-    Returns:
-        What ``forms.pr_body`` finds, with only the robot footer configured.
-    """
-    return forms.pr_body(subject(body), (ROBOT,))
 
 
 class TestStoredBody(unittest.TestCase):

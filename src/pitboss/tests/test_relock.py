@@ -22,7 +22,6 @@ from .suggestions import kind_of_third, third
 RELOCK_BRANCH = "relock/2026-10-31"
 # what the relock workflow writes: no ticket, no Plan, no Evidence
 RELOCK_BODY = f"Moves the pins.\n\nHead: {HEAD}\n\n{FOOTER}\n"
-RELOCK_FOOTERS = (FOOTER,)
 RELOCK_REVIEW = "review the relock"
 
 
@@ -99,25 +98,25 @@ class TestPrefix(unittest.TestCase):
 class TestBodyForm(unittest.TestCase):
     """``lint pr-body`` for a relock PR and a normal one."""
 
-    def test_a_relock_body_needs_only_its_head_and_footer(self) -> None:
+    def test_a_relock_body_needs_only_its_head(self) -> None:
         """No Fixes line, no Plan, no Evidence: the relock's own body is in form."""
-        found = checks(forms.relock_pr_body(subject(RELOCK_BODY), RELOCK_FOOTERS))
+        found = checks(forms.relock_pr_body(subject(RELOCK_BODY)))
         assert_that(found, equal_to([]))
 
-    def test_a_relock_body_keeps_the_head_footer_and_hand_typed_checks(self) -> None:
-        """A wrong head, no footer and a typed row are still refused."""
+    def test_a_relock_body_keeps_the_head_and_hand_typed_checks(self) -> None:
+        """A wrong head and a typed row are still refused; a footer is ignored."""
         typed = RELOCK_BODY + "$ make\n"
         found = [
-            checks(forms.relock_pr_body(subject(RELOCK_BODY, "b" * 40), ())),
-            checks(forms.relock_pr_body(subject("Moves the pins.\n"), ())),
-            checks(forms.relock_pr_body(subject(RELOCK_BODY), ("other",))),
-            checks(forms.relock_pr_body(subject(typed), RELOCK_FOOTERS)),
+            checks(forms.relock_pr_body(subject(RELOCK_BODY, "b" * 40))),
+            checks(forms.relock_pr_body(subject("Moves the pins.\n"))),
+            checks(forms.relock_pr_body(subject(RELOCK_BODY.replace(FOOTER, "")))),
+            checks(forms.relock_pr_body(subject(typed))),
         ]
-        assert_that(found, equal_to([["head"], ["head"], ["footer"], ["hand-typed"]]))
+        assert_that(found, equal_to([["head"], ["head"], [], ["hand-typed"]]))
 
     def test_a_normal_body_without_the_first_line_is_refused(self) -> None:
         """The same text as a relock's, on a normal PR, fails the full form."""
-        found = body_checks(RELOCK_BODY, footers=RELOCK_FOOTERS)
+        found = body_checks(RELOCK_BODY)
         assert_that(found, equal_to(["first-line", "evidence"]))
 
     def test_the_command_reads_the_branch(self) -> None:

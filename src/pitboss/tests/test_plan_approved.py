@@ -83,7 +83,7 @@ def found(body: str, approved: Sequence[str]) -> Sequence[str]:
     Returns:
         The findings.
     """
-    return forms.pr_body(subject(body), [], (), approved)
+    return forms.pr_body(subject(body), (), approved)
 
 
 class TestApprovedPlan(unittest.TestCase):

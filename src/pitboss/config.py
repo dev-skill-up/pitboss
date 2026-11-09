@@ -133,14 +133,12 @@ class Lint:
 
     Attributes:
         review: how reviews are read (the same as ``Config.review``).
-        footers: lines a PR body must end with one of (last three); none, no footer.
         brief_lines: the line starts every brief must have.
         relock_prefix: the head branch prefix of a relock PR (keyword: relock).
         pins: how a PR that only moves pins is verified (keyword: pins-only).
     """
 
     review: Review
-    footers: Sequence[str]
     brief_lines: Sequence[str]
     relock_prefix: str = DEFAULT_RELOCK_PREFIX
     pins: Pins = Pins()

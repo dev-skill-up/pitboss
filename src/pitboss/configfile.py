@@ -259,15 +259,14 @@ def _lint(document: Mapping[str, object], owner: str) -> config.Lint:
     prefix = _setting(document, "relock", "prefix", config.DEFAULT_RELOCK_PREFIX)
     return config.Lint(
         review=_review(document, owner),
-        footers=_strings(_table(table, "pr_body"), "footers", ()),  # none required
         brief_lines=_strings(_table(table, "brief"), "required", ()),
         relock_prefix=prefix,
         pins=_pins(_table(document, "relock")),
     )
 
 
-# the form checks when a project says nothing: the generic review form, no required
-# footer and no required brief line
+# the form checks when a project says nothing: the generic review form and no
+# required brief line
 DEFAULT_LINT = _lint({}, "")
 
 

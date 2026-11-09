@@ -22,8 +22,7 @@ NEW_PR_BODY = [
     "`uvx pitboss lint pr-body BODYFILE --config proj --head <the head>`, which"
     " must print ok; after every PATCH of the body, fetch the stored body back"
     " (parsed with python3 json) and lint that file the same way."
-    " A row the Plan points to CI has no row in the body."
-    " It ends with only this line: THE FOOTER",
+    " A row the Plan points to CI has no row in the body.",
 ]
 NEW_PR_RULES = [
     "Edit: change files with the Edit tool only (no sed, no shell redirection, no"
@@ -99,8 +98,10 @@ class TestWorkerBriefs(unittest.TestCase):
         pinned(brief.Kind.NEW_PR, NEW_PR_PROCESS, reference="o/r#7")
 
     def test_a_new_pr_brief_carries_the_body_form(self) -> None:
-        """The first line, expand, lint and the footer."""
+        """The first line, expand and lint; nothing about how the body ends."""
         pinned(brief.Kind.NEW_PR, NEW_PR_BODY)
+        found = text(brief.Kind.NEW_PR)
+        has_none(found, ["ends with", "footer", "Generated with"])
 
     def test_a_new_pr_brief_carries_the_repositorys_rules(self) -> None:
         """Edit, push, no waiting, hand-back."""
@@ -117,7 +118,7 @@ class TestWorkerBriefs(unittest.TestCase):
 
     def test_a_project_without_drafts_or_holds_says_so(self) -> None:
         """The differences between projects are the configuration's."""
-        found = text(brief.Kind.NEW_PR, project=PLAIN, footer="", ticket="")
+        found = text(brief.Kind.NEW_PR, project=PLAIN, ticket="")
         has_all(
             found,
             [
@@ -127,16 +128,8 @@ class TestWorkerBriefs(unittest.TestCase):
                 "`Fixes <ticket>`",
             ],
         )
-        has_none(found, ["It ends with only this line", "pitboss push"])
+        has_none(found, ["pitboss push"])
         briefmake.last_line(found, "Compiler: /x")
-
-    def test_a_footer_with_braces_is_printed_as_it_is(self) -> None:
-        """The footer is a value, never a template."""
-        pinned(
-            brief.Kind.NEW_PR,
-            ["It ends with only this line: {x} {0}"],
-            footer="{x} {0}",
-        )
 
     def test_the_first_round_writes_the_body(self) -> None:
         """The PR exists; its body is what is written."""

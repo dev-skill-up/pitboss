@@ -32,24 +32,21 @@ def subject(body: str, head: str = HEAD) -> forms.Subject:
     return forms.Subject(name="text", body=body, head=head)
 
 
-def body_checks(
-    body: str, head: str = HEAD, footers: Sequence[str] = ()
-) -> Sequence[str]:
+def body_checks(body: str, head: str = HEAD) -> Sequence[str]:
     """The checks a PR body fails.
 
     Args:
         body: the body.
         head: the head given.
-        footers: the footers required (none by default).
 
     Returns:
         The failed checks' names.
     """
-    return checks(forms.pr_body(subject(body, head), footers))
+    return checks(forms.pr_body(subject(body, head)))
 
 
 def findings(body: str) -> Sequence[str]:
-    """The findings on a PR body, with no footer required.
+    """The findings on a PR body.
 
     Args:
         body: the body.
@@ -57,4 +54,4 @@ def findings(body: str) -> Sequence[str]:
     Returns:
         Each finding, as the lint prints it.
     """
-    return forms.pr_body(subject(body), ())
+    return forms.pr_body(subject(body))

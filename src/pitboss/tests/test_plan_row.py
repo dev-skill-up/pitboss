@@ -109,7 +109,7 @@ class TestPlanRow(unittest.TestCase):
         """pr_body reports the prose row once, in the form of every finding."""
         body = body_of(["by hand"], [COMMAND])
         subject = forms.Subject(name="body", body=body, head=HEAD)
-        found = forms.pr_body(subject, [])
+        found = forms.pr_body(subject)
         assert_that(sum("(plan-row)" in each for each in found), equal_to(1))
 
     def test_the_sweep_prints_the_line_for_a_prose_row_only(self) -> None:
