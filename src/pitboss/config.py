@@ -187,6 +187,8 @@ class Project:
         plan_review_check: the check a draft's Plan review waits for (``[sweep]``).
         no_drafts: the repositories whose PRs are opened ready: pitboss itself and
             ``[slots.brief] no_drafts`` (keyword: pitboss-exempt, pitboss#113).
+        drafts: ``[slots.brief] drafts``; false opens every PR ready (keyword:
+            no-drafts, pitboss#390).
     """
 
     repo: Repo
@@ -196,6 +198,7 @@ class Project:
     run_by_e2e: Sequence[str] = DEFAULT_RUN_BY_E2E
     plan_review_check: str = ""
     no_drafts: AbstractSet[str] = frozenset()
+    drafts: bool = True
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

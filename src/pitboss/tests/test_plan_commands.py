@@ -37,7 +37,12 @@ WORKER = (
 )
 PLAN_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN)
 EXECUTION_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
-PLAN_RUNNING = (brief.Kind.NEW_PR, brief.Kind.FIRST_ROUND, brief.Kind.FIX_REVIEW)
+PLAN_RUNNING = (
+    brief.Kind.NEW_PR,
+    brief.Kind.FIRST_ROUND,
+    brief.Kind.FIX_REVIEW,
+    brief.Kind.FIX_ROUND,
+)
 OTHERS = (
     brief.Kind.REVISE_PLAN,
     brief.Kind.FIX_CI,

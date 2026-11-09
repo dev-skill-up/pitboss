@@ -13,16 +13,14 @@ import subprocess
 from typing import Iterable, Mapping, Sequence
 
 from . import (
-    bodydigest,
     brief,
     briefconfig,
+    briefheads,
     briefrepo,
     config,
     diskwatch,
-    expansion,
     fixes,
     gates,
-    plandigest,
     ghapi,
     issuelist,
     pullfiles,
@@ -215,6 +213,8 @@ def kind_of(pick: Pick) -> brief.Kind:
     reviewed = (work.Category.REVIEW, work.Category.REVIEW_FIX_ROUND)
     if pick.category in reviewed and pick.pull is not None:
         return review_kind(pick.pull)
+    if pick.pull is not None and pick.pull.step.task is steps.Task.FIX_ROUND:
+        return brief.Kind.FIX_ROUND  # keyword: fix-round-kind (pitboss#390)
     return KIND_OF_CATEGORY[pick.category]
 
 
@@ -254,21 +254,6 @@ def _form(source: Source, slug: str, head: str) -> Sequence[str]:
     return [
         line.replace("{sha}", head).replace("{verdict}", verdict) for line in form.lines
     ]
-
-
-def _heads(source: Source, pull: pulls.PullFacts | None) -> brief.Heads:
-    base = source.settings.project.base_branch
-    if pull is None:
-        return brief.Heads(head="", base=base, approved="", findings="")
-    found = pull.review
-    return brief.Heads(
-        head=pull.pull.head.sha,
-        base=pull.pull.base,
-        approved=found.sha if found else "",
-        findings=found.url if found else "",
-        body_digest=bodydigest.digest(pull.pull.body),
-        plan_digest=expansion.section_digest(plandigest.section(pull.pull.body)),
-    )
 
 
 def _rules(source: Source, slug: str, head: str) -> brief.Rules:
@@ -311,7 +296,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
     """
     about = goal(source, pick)
     slug = pick.reference.rpartition("#")[0]
-    heads = _heads(source, pick.pull)
+    heads = briefheads.of(source.settings.project.base_branch, pick.pull)
     kind = kind_of(pick)
     return brief.Spec(
         kind=kind,

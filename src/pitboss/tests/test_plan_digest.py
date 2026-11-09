@@ -29,6 +29,7 @@ EDITED_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work, and more\n"
 
 LINE = f"Plan digest: {digest(PLAN)}"
 EDIT_LINE = "PLAN EDITED owner/project#3"
+RULING_DUE = "RULING DUE owner/project#3"
 RULING_WORDS = "revise the plan"
 PLAN_DIGEST_START = "Plan digest: you grade the Plan, so add "
 NO_PLAN = "## Execution\nwork\n"
@@ -159,25 +160,27 @@ class TestThePlanEditedLine(unittest.TestCase):
         assert_that(out, contains_string(EDIT_LINE))
         assert_that(out, contains_string("only a ruling `revise the plan`"))
 
-    def test_an_unedited_plan_has_no_line_and_the_fix_is_offered(self) -> None:
-        """The Execution is fixed against the Plan as written."""
+    def test_an_unedited_plan_has_no_line_and_the_ruling_is_due(self) -> None:
+        """The Execution rejection is ruled on against the Plan as written."""
         for body in (PLAN, EDITED_EXECUTION):
             with self.subTest(body):
-                _, listed = looked_at([approving(1)], body)
-                assert_that(listed, contains_string("(fix the review,"))
                 out = sweep(world_with([approving(1)], body=body)).out
                 assert_that(EDIT_LINE in out, equal_to(False))
+                assert_that(out, contains_string(RULING_DUE))
 
     def test_a_review_without_a_plan_digest_is_not_checked(self) -> None:
         """Reviews written before the digest keep their flow."""
-        _, listed = looked_at([approving(1, None)], EDITED_PLAN)
-        assert_that(listed, contains_string("(fix the review,"))
+        out = sweep(world_with([approving(1, None)], body=EDITED_PLAN)).out
+        assert_that(EDIT_LINE in out, equal_to(False))
+        assert_that(out, contains_string(RULING_DUE))
 
     def test_the_newest_approving_review_with_a_digest_is_compared(self) -> None:
         """A newer approving review of the edited Plan answers the edit."""
         edited = f"Plan digest: {digest(EDITED_PLAN)}"
-        _, listed = looked_at([approving(1), approving(2, edited)], EDITED_PLAN)
-        assert_that(listed, contains_string("(fix the review,"))
+        rounds = [approving(1), approving(2, edited)]
+        out = sweep(world_with(rounds, body=EDITED_PLAN)).out
+        assert_that(EDIT_LINE in out, equal_to(False))
+        assert_that(out, contains_string(RULING_DUE))
 
     def test_a_ruling_after_the_approval_allows_the_edit(self) -> None:
         """A ruling `revise the plan` written after the review lifts the line."""

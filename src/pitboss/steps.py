@@ -96,6 +96,8 @@ class Task(enum.Enum):
         ADD_CI_QUOTES: the Plan has CI-quote rows and the body lacks the quotes,
             which exist only after the PR is ready and its checks pass (keyword:
             ci-quotes, pitboss#277).
+        FIX_ROUND: findings name a file of the tree, or the Plan check refused
+            the Plan: code, doc and test may change (keyword: fix-round-kind).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -115,6 +117,7 @@ class Task(enum.Enum):
         " is empty or a placeholder)"
     )
     ADD_CI_QUOTES = "add the CI quotes to the body"
+    FIX_ROUND = "fix round: fix the findings, each one (code, doc, test, Plan)"
 
 
 class Stage(enum.Enum):
@@ -146,7 +149,9 @@ class Next:
         task: what the worker does (a WORKER step).
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
-            FIX_RULING step), empty when the API gave none.
+            FIX_RULING step), of the refused Plan check (a FIX_ROUND step) or of
+            the ruling a FIX_EXECUTION step follows, empty when there is none.
+        findings: the refused Plan check's findings, quoted (a FIX_ROUND step).
         branch: the head branch the check workflow is dispatched on (a RUN_E2E
             step).
         on_base: the head is red only from checks that passed on the base since
@@ -157,6 +162,7 @@ class Next:
     task: Task | None = None
     stage: Stage | None = None
     comment: str = ""
+    findings: str = ""
     branch: str = ""
     on_base: bool = False
 
@@ -239,6 +245,8 @@ def describe(step: Next) -> str:
     """
     if step.step is Step.MERGE and step.on_base:
         return ENQUEUE
+    if step.task is not None and step.findings:
+        return f"{step.task.value}: {step.findings}"
     if step.task is not None:
         return step.task.value
     if step.stage is not None and step.on_base:
@@ -259,16 +267,19 @@ def wait_for_owner() -> Next:
     return Next(step=Step.WAIT_FOR_OWNER)
 
 
-def worker(task: Task) -> Next:
+def worker(task: Task, comment: str = "", findings: str = "") -> Next:
     """A worker round.
 
     Args:
         task: what the worker does.
+        comment: the address a FIX_ROUND or FIX_EXECUTION round names (see
+            ``Next.comment``).
+        findings: the refused Plan check's findings, quoted (FIX_ROUND).
 
     Returns:
         The step.
     """
-    return Next(step=Step.WORKER, task=task)
+    return Next(step=Step.WORKER, task=task, comment=comment, findings=findings)
 
 
 def undraft() -> Next:

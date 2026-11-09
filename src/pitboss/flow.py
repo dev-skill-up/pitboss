@@ -12,7 +12,7 @@ when a ruling is not yet followed by a review. ``rules.md``, "Plan first",
 points here.
 """
 
-from typing import Callable, Sequence
+from typing import Sequence
 
 from . import (
     bodydigest,
@@ -20,6 +20,7 @@ from . import (
     flowstate,
     plancheckflow,
     planbody,
+    reviewfindings,
     rulingwords,
     shapes,
     steps,
@@ -36,11 +37,6 @@ readable_ruling = flowstate.readable_ruling
 has_conflict = conflicts.has_conflict
 AFTER = flowstate.AFTER
 AS_RULED = flowstate.AS_RULED
-
-
-def _regular_reviews(pr: PullState) -> Sequence[Graded]:
-    regular = [each for each in pr.graded if each.comment]
-    return sorted(regular, key=lambda each: each.when)
 
 
 def is_paused_for_owner(pr: PullState) -> bool:
@@ -77,7 +73,7 @@ def newest_counting_review(pr: PullState) -> Graded | None:
         The review, or None when no regular review names the current head or
         the newest one read another body.
     """
-    found = _of_head(pr, _regular_reviews(pr))
+    found = _of_head(pr, flowstate.regular_reviews(pr))
     newest = max(found, key=lambda each: each.when, default=None)
     if newest and bodydigest.changed(newest.body, bodydigest.digest(pr.pull.body)):
         return None
@@ -117,7 +113,7 @@ def plan_approved(pr: PullState) -> bool:
     Returns:
         True once one did; it is never graded again.
     """
-    return any(each.plan is Verdict.APPROVED for each in _regular_reviews(pr))
+    return any(each.plan is Verdict.APPROVED for each in flowstate.regular_reviews(pr))
 
 
 def get_plan_rejections(pr: PullState) -> int:
@@ -132,39 +128,11 @@ def get_plan_rejections(pr: PullState) -> int:
         The count.
     """
     rejected = [
-        each for each in _regular_reviews(pr) if each.plan is Verdict.CHANGES_NEEDED
+        each
+        for each in flowstate.regular_reviews(pr)
+        if each.plan is Verdict.CHANGES_NEEDED
     ]
     return len(rejected)
-
-
-def execution_fixed_since_plan_approval(pr: PullState) -> bool:
-    """Whether a fix round followed an execution rejection on the approved plan.
-
-    Read from the reviews: the execution was graded changes needed on the
-    approved plan, and since then the code moved by more than merge commits
-    (``merges_only_since``) or, at that review's head, the PR body no longer is
-    the one it recorded (keyword: body-digest, pitboss#149); a conflict round
-    (a merge and its body edit) is no fix.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when an earlier execution rejection names such a round.
-    """
-    approved = False
-    for each in _regular_reviews(pr):
-        approved = approved or each.plan is Verdict.APPROVED
-        rejecting = approved and each.execution is Verdict.CHANGES_NEEDED
-        if rejecting and _fixed_since(pr, each):
-            return True
-    return False
-
-
-def _fixed_since(pr: PullState, review: Graded) -> bool:
-    if _of_head(pr, [review]):
-        return bodydigest.changed(review.body, bodydigest.digest(pr.pull.body))
-    return not pr.merges_only_since(review.sha)
 
 
 def ci_result(pr: PullState) -> Ci | None:
@@ -196,30 +164,23 @@ def plan_rejected_again(pr: PullState) -> bool:
     return get_plan_rejections(pr) >= 2
 
 
-def rejected(
-    pr: PullState,
-    review: Graded,
-    task: steps.Task,
-    again: Callable[[PullState], bool],
-) -> steps.Next:
-    """The step after a rejection: the ruling's, the owner, the worker or Opus.
+def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
+    """The step after a rejection: the ruling's, the owner's or the first one.
 
     Args:
         pr: the PR.
         review: the newest review that counts, which rejects.
-        task: what the worker does on the first rejection.
-        again: says whether the rejected part was already given its round.
+        first: the step when no ruling is recorded.
 
     Returns:
         With a readable ruling: the owner when the review was posted after the
         ruling, else the ruling's own step (no review has followed it yet, and
         the table's later steps stay unwired: a worker's push moves the head
-        and the ordinary review gate takes over); with none: the worker's
-        round, else Opus.
+        and the ordinary review gate takes over); with none: ``first``.
     """
     answered = flowstate.readable_comment(pr)
     if answered is None:
-        return steps.opus_ruling() if again(pr) else steps.worker(task)
+        return first
     posted, ruled = answered
     if review.when > posted.created_at:  # the ruling was used, still rejected
         return steps.pause_for_owner()
@@ -242,6 +203,38 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
     return AFTER[ruled][0]
 
 
+def unfixed_execution(pr: PullState) -> steps.Next | None:
+    """The step of an Execution rejection that no code has answered.
+
+    Args:
+        pr: the PR, whose Plan is approved.
+
+    Returns:
+        With such a rejection (``flowstate.unfixed_rejection``): the step of
+        ``rejected``, the fix of the Execution when the ruling revised the Plan.
+    """
+    rejecting = flowstate.unfixed_rejection(pr)
+    if rejecting is None:
+        return None
+    answered = flowstate.readable_comment(pr)
+    if answered and flowstate.plan_edit_ruled(pr, rejecting.when):
+        return steps.worker(steps.Task.FIX_EXECUTION, answered[0].url)
+    return rejected(pr, rejecting, steps.opus_ruling())
+
+
+def plan_unrun(pr: PullState, review: Graded | None) -> steps.Next | None:
+    """The round of a Plan approved alone after a ruling (keyword: plan-alone).
+
+    Args:
+        pr: the PR.
+        review: the newest review that counts.
+
+    Returns:
+        ``plancheckflow.plan_unrun`` for the PR's readable ruling.
+    """
+    return plancheckflow.plan_unrun(pr, review, flowstate.readable_comment)
+
+
 def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
     """The step after a review that rejects the Plan or the Execution.
 
@@ -250,19 +243,20 @@ def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
         review: the newest review that counts.
 
     Returns:
-        With the Plan rejected: the step of ``rejected`` for the Plan (the
-        ruling used and still rejected pauses; a first rejection is the
-        worker's; a second is not converging: Opus rules). With the Execution
-        rejected, that of the Execution (once the fix was pushed or the body fixed,
-        and rejected again, Opus rules). None when the review rejects neither.
+        With the Plan rejected: the step of ``rejected`` for the Plan (a first
+        rejection is the worker's, the fix round when the findings name a file
+        of the tree, else the Plan revision; a second: Opus rules). With the
+        Execution rejected: that of the Execution, whose first step is the
+        ruling. None when the review rejects neither.
     """
+    first = steps.opus_ruling()
     if review.plan is Verdict.CHANGES_NEEDED:
-        return rejected(pr, review, steps.Task.REVISE_PLAN, plan_rejected_again)
-    if review.execution is Verdict.CHANGES_NEEDED:
-        return rejected(
-            pr, review, steps.Task.FIX_EXECUTION, execution_fixed_since_plan_approval
-        )
-    return None
+        named = reviewfindings.named_by(pr.comments, pr.trusted, review.when)
+        task = steps.Task.FIX_ROUND if named else steps.Task.REVISE_PLAN
+        first = first if plan_rejected_again(pr) else steps.worker(task)
+    elif review.execution is not Verdict.CHANGES_NEEDED:
+        return None
+    return rejected(pr, review, first)
 
 
 def next_step(pr: PullState) -> steps.Next:
@@ -323,19 +317,19 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
         The step.
     """
     if is_draft(pr):
+        ready = steps.undraft() if can_undraft(pr) else steps.wait_for_undraft()
+        if pr.draft.no_drafts:  # keyword: no-drafts (pitboss#390): never reviewed
+            return ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
         rejection = rejection_step(pr, review) if review else None
         if rejection or not plan_approved(pr):
             alone = plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
             return rejection or flowstate.draft_plan_review(pr, alone)
-        if unrun := flowstate.plan_unrun(pr, review):  # keyword: plan-alone
+        if unrun := plan_unrun(pr, review):  # keyword: plan-alone
             return unrun
         if e2e := flowstate.e2e_step(pr):  # keyword: run-e2e (pitboss#199)
             return e2e
-        if can_undraft(pr):  # pressure passes, the CI-action spacing and holds allow
-            return steps.undraft()  # the next step is the CI gate on the undrafted head
-        # plan approved but cannot be undrafted yet: wait for the window
-        return steps.wait_for_undraft()
+        return ready  # the next step is the CI gate on the undrafted head
 
     return ci_gate(pr, review)
 
@@ -360,7 +354,9 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
         if ruled := flowstate.ruling_unapplied(pr):
             return ruled_step(pr, ruled)
         if plan_approved(pr):  # approved while it was a draft
-            return plancheckflow.execution_review(pr, steps.Stage.EXECUTION_ONLY)
+            return unfixed_execution(pr) or plancheckflow.execution_review(
+                pr, steps.Stage.EXECUTION_ONLY
+            )
         alone = flowstate.plan_rejected_last(pr)
         both = steps.Stage.PLAN_AND_EXECUTION
         return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
@@ -392,9 +388,12 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
         The step.
     """
     if review.execution is None:  # plan approved by a plan-only review
-        if unrun := flowstate.plan_unrun(pr, review):  # keyword: plan-alone
-            return unrun  # the same round as a draft's: no condition on the draft
-        return plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
+        # keyword: plan-alone, the same round as a draft's: no condition on the draft
+        return (
+            plan_unrun(pr, review)
+            or unfixed_execution(pr)
+            or plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
+        )
 
     # approved: ``rejection_step`` took the Execution that needs changes
     return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed

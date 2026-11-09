@@ -205,12 +205,12 @@ class TestTheFlow(unittest.TestCase):
             step_of(REJECTED_REVIEW, True),
             step_of(APPROVED_REVIEW, True, test_flow.GREEN),
         ]
-        fix = steps.worker(steps.Task.FIX_EXECUTION)
+        ruling = steps.opus_ruling()
         wanted = [
             steps.run_e2e(branch),
             steps.undraft(),
             steps.undraft(),
-            fix,
+            ruling,
             steps.run_e2e(branch),
         ]
         assert_that(found, equal_to(wanted))

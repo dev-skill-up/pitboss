@@ -23,6 +23,7 @@ FIRST = f"## Review\nReviewed: {HEAD}\n"
 PLAN_ONLY_BODY = f"{FIRST}{PROSE_PLAN}\nVerdict: approved\n"
 UNGRADED_BODY = f"{FIRST}Plan: fine\nVerdict: approved\n"
 READY = "READY TO MERGE owner/project#3"
+UNWRITTEN = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nNot started: later\n"
 REVIEW = test_flow.REVIEW
 
 
@@ -65,17 +66,20 @@ def newest(body: str) -> reviews.Found:
     return next(iter(reviews.from_comments(posted, REVIEW.trusted, read, form)))
 
 
-def next_printed(comments: Sequence[shapes.Comment], draft: bool = True) -> str:
+def next_printed(
+    comments: Sequence[shapes.Comment], draft: bool = True, body: str = UNWRITTEN
+) -> str:
     """What ``pitboss next`` prints for PR 3 (a draft or not) with the comments.
 
     Args:
         comments: PR 3's comments.
         draft: whether PR 3 is a draft.
+        body: PR 3's body, whose Execution is a placeholder by default.
 
     Returns:
         The output.
     """
-    here = test_flow_sweep.world_with(comments, body=test_flow.BODY, draft=draft)
+    here = test_flow_sweep.world_with(comments, body=body, draft=draft)
     return world.invoke(here, "next", here.config, "#7", "--now", world.FUTURE).out
 
 
