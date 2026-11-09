@@ -124,6 +124,9 @@ def plan_digest(args: argparse.Namespace) -> None:
     print(f"{bodydigest.PLAN_PREFIX}{_plan_digest(args.file)}")
 
 
+PULL_ARGUMENT = add_argument("pull", help="OWNER/NAME#NUMBER: a pull request")
+
+
 def _pull(text: str) -> tuple[str, int]:
     found = expand_commands.PULL.match(text)
     if found is None:
@@ -131,10 +134,7 @@ def _pull(text: str) -> tuple[str, int]:
     return found.group(1), int(found.group(2))
 
 
-@ENTRY_DATA.register(
-    add_argument("pull", help="OWNER/NAME#NUMBER: a pull request"),
-    name="body-head",
-)
+@ENTRY_DATA.register(PULL_ARGUMENT, name="body-head")
 def body_head(args: argparse.Namespace) -> None:
     """Add the ``Head:`` line of the PR's head to its body, after a merge of main.
 
