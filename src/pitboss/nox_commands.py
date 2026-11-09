@@ -162,7 +162,8 @@ def run_planned(
     with noxenv.throwaway_home() as home:
         environment = noxenv.isolated(os.environ, home)
         in_home = functools.partial(run_command, args, environment=environment)
-        ran = noxcheck.run_sessions(in_home, time.monotonic, modules, sessions, judged)
+        words = [*noxcheck.covers_of(judged), *modules]
+        ran = noxcheck.run_sessions(in_home, time.monotonic, words, sessions)
     show(ran)
     if place:
         noxgreen.record(place, current_time(args).isoformat())
@@ -185,12 +186,9 @@ def run_planned(
         " modules that import a changed module of src/pitboss directly or"
         " through others, and those that name a command (as a string) that a"
         " changed module registers. It prints each with the changed files that"
-        " reach it, how many it left out, and what is judged and what is left to"
-        " CI: the coverage of the changed files of src/pitboss is judged here"
-        " from the tests that ran (a missing line or branch is printed for the"
-        " file, as `coverage report --show-missing` does, and the exit is 1);"
-        " the coverage of the rest is left to CI's Run Nox step, which checks the"
-        " whole suite at 100%."
+        " reach it, how many it left out, what is judged here (the missing lines"
+        " and branches of the changed files of src/pitboss, from the tests that"
+        " ran, exit 1) and what is left to CI (the rest, in its Run Nox step)."
         " Every test runs when a changed file is not a module of src/pitboss"
         " (a doc, a skill, a config, noxfile.py, pyproject.toml, a data file),"
         " when a shared module of the tests is changed or deleted, when a"
@@ -219,29 +217,19 @@ def nox(args: argparse.Namespace) -> None:
     pitboss#346). The tests session empties its ``TMPDIR`` when it is green and
     keeps it when it fails, and a green run that leaves a directory there fails
     naming the test (``test-leak``). Each session runs as ``nox -r -s SESSION``
-    (the rule is ``brieftextwork.NOX``), and
-    a failing session stops the rest and exits 1 with its output. One line is
-    printed for each session that ran, with the ``test-timing`` lines of a
-    session that passed (pitboss#324), and on success a line says CI's
-    ``Run Nox`` step is the proof of the whole suite. No other session runs:
-    docs, dry_release and the other Python versions are CI's. The tests session
-    runs the tests the diff can affect (``testselect``, ``selectdiff``,
-    pitboss#331), printed first with the reason; a test module added with
-    ``--also MODULE=REASON`` runs besides them (``alsotests``). A head that
-    already ran green on a clean tree is not run again: a ``NOTE`` with the
-    time of that run is printed and the status is 0, unless ``--force`` is
-    given (``noxgreen``, pitboss#345).
-
-    The sessions run with a throwaway ``HOME`` and ``GIT_CONFIG_GLOBAL`` and no
-    git identity in the environment, as on CI's runner, so a test that needs an
-    identity fails here too (``noxenv``, pitboss#364); nothing else on the
-    machine is changed and the directory is removed when the run ends. The tests
-    session of a run of some modules reports the missing lines and branches of
-    the changed ``src/pitboss`` files from the tests that ran and fails on any
-    (the rest is CI's, ``testselect.NOT_CHECKED``). The last lines of the output
-    are one for each session, in the order they run: ``success``, ``failed`` or
-    ``not run`` with the seconds (``noxcheck.summary_of``), and a lint failure
-    names the command to repeat alone (``noxcheck.LINT_RERUN``).
+    with a throwaway ``HOME`` and no git identity (``noxenv``), and a failing
+    session stops the rest and exits 1 with its output, after the command to
+    repeat alone when it is lint. The last lines are one for each session, run or
+    not (``noxcheck.summary_of``), after the ``test-timing`` lines of a session
+    that passed (pitboss#324) and, on success, a line that says CI's ``Run Nox``
+    step is the proof of the whole suite. The other sessions are CI's. The tests
+    session runs the tests the diff can affect (``testselect``, ``selectdiff``,
+    pitboss#331), printed first with the reason, and reports the missing lines
+    and branches of the changed files (pitboss#364); a test module added with
+    ``--also MODULE=REASON`` runs besides them. A head that already ran green on
+    a clean tree is not run again: a ``NOTE`` with the time of that run is
+    printed and the status is 0, unless ``--force`` is given (``noxgreen``,
+    pitboss#345).
 
     Args:
         args: the parsed arguments.

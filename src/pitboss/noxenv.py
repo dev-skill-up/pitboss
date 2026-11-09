@@ -1,4 +1,4 @@
-"""The environment ``pitboss nox`` gives the nox sessions (keyword: nox-home, pitboss#364).
+"""The environment of the nox sessions of ``pitboss nox`` (keyword: nox-home, #364).
 
 CI's runner has no git identity, so a test that needs one passes on a developer's
 machine and fails there. The sessions therefore run with a throwaway ``HOME`` and

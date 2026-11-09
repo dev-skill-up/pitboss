@@ -97,29 +97,34 @@ class Clock(Protocol):
         """
 
 
-def command_of(
-    name: str, modules: Sequence[str], judged: Sequence[str] = ()
-) -> Sequence[str]:
+def covers_of(judged: Sequence[str]) -> Sequence[str]:
+    """The words that name the changed files whose coverage is reported.
+
+    Args:
+        judged: the changed files.
+
+    Returns:
+        A ``--cover=`` word for each; ``noxfile.py`` reads them.
+    """
+    return [f"{COVER_PREFIX}{each}" for each in judged]
+
+
+def command_of(name: str, modules: Sequence[str]) -> Sequence[str]:
     """The command line of a session: always ``-r``.
 
     The tests session always gets ``-x`` (virtue stops after the first
-    unsuccessful test), then ``--cover=PATH`` for each changed file whose
-    coverage it judges (``noxfile.py`` reads them, keyword: changed-coverage),
-    then the test modules when there are some.
+    unsuccessful test), with the words it is given after it: the covers
+    (``covers_of``, keyword: changed-coverage) and the test modules, when there
+    are some.
 
     Args:
         name: the session.
-        modules: the test modules, for the tests session only.
-        judged: the changed files whose coverage the tests session reports, for
-            a run of some modules.
+        modules: the words for the tests session only.
 
     Returns:
         The command line.
     """
-    covers = [f"{COVER_PREFIX}{each}" for each in judged]
-    wanted = (
-        ["--", STOP_AFTER, *covers, *modules] if name == Session.TESTS.value else []
-    )
+    wanted = ["--", STOP_AFTER, *modules] if name == Session.TESTS.value else []
     return ["nox", "-r", "-s", name, *wanted]
 
 
@@ -128,17 +133,16 @@ def run_sessions(
     clock: Clock,
     modules: Sequence[str],
     sessions: Sequence[Session] = tuple(Session),
-    judged: Sequence[str] = (),
 ) -> Sequence[Step]:
     """Run the sessions in order, up to the first that fails.
 
     Args:
         runner: runs a command line.
         clock: reads the time.
-        modules: the test modules the tests session runs; all when empty.
+        modules: the words the tests session runs with: its covers and test
+            modules; all the tests when empty.
         sessions: the sessions to run, in order (all of them; without the tests
             session when the diff reaches no test, pitboss#331).
-        judged: the changed files whose coverage the tests session reports.
 
     Returns:
         The sessions that ran; a failed one is the last.
@@ -147,7 +151,7 @@ def run_sessions(
     for each in sessions:
         name = each.value
         started = clock()
-        outcome = runner(command_of(name, modules, judged))
+        outcome = runner(command_of(name, modules))
         steps.append(Step(name=name, outcome=outcome, seconds=clock() - started))
         if outcome.status:
             break

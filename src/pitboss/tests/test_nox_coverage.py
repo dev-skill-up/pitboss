@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 import unittest
-from collections.abc import Callable, Mapping, MutableSequence, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -51,41 +51,65 @@ class RunFailed(Exception):
 
 def run_in(
     repo: diffrepo.Repository,
-    shown: MutableSequence[str],
     command: Sequence[str],
     options: Mapping[str, Mapping[str, str]],
-) -> None:
+) -> subprocess.CompletedProcess[str]:
     """Run a command of the tests session in the repository, for real.
 
     The repository has no timing reporter, so that option is left out, and its
-    ``pitboss`` is the one to import. the program, ``coverage``, is this Python's module.
+    ``pitboss`` is the one to import. The program, ``coverage``, is a module of
+    this Python.
 
     Args:
         repo: the repository.
-        shown: what the commands printed so far, to which this adds.
         command: the command line.
         options: the options of the run, of which ``env`` is read.
 
-    Raises:
-        RunFailed: when the command exits with a status.
+    Returns:
+        The finished process, standard error joined to standard output.
     """
     words = [each for each in command if not each.startswith("--reporter=")]
-    done = subprocess.run(
+    path = {"PYTHONPATH": str(repo.root / "src")}
+    return subprocess.run(
         [sys.executable, "-m", *words],
         cwd=repo.root,
-        env={
-            **os.environ,
-            "PYTHONPATH": str(repo.root / "src"),
-            **options["env"],
-        },
+        env={**os.environ, **path, **options["env"]},
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         check=False,
     )
-    shown.append(done.stdout)
-    if done.returncode:
-        raise RunFailed()
+
+
+def run_tests_session(
+    repo: diffrepo.Repository, cmdargs: Sequence[str]
+) -> test_nox.Done:
+    """Run a session: the tests one is ``noxfile.py``'s, for real; the others pass.
+
+    Args:
+        repo: the repository.
+        cmdargs: the ``nox`` command line.
+
+    Returns:
+        The finished process; the tests session's output is the output of the
+        commands it ran, and its status 1 when one of them failed.
+    """
+    shown: list[str] = []
+
+    def run(*command: str, **options: Mapping[str, str]) -> None:
+        done = run_in(repo, command, options)
+        shown.append(done.stdout)
+        if done.returncode:
+            raise RunFailed()
+
+    words = " ".join(cmdargs).partition(" -- ")[2].split()
+    session = test_noxfile.session_in(repo.holder / "nox", words, run)
+    try:
+        if cmdargs[3] == "tests-3.13":
+            test_noxfile.noxfile_module().tests(session)
+    except RunFailed:
+        return test_nox.Done(returncode=1, stdout="".join(shown))
+    return test_nox.Done(returncode=0, stdout="".join(shown))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -110,33 +134,9 @@ class RealTestsSession:
         Returns:
             The finished process.
         """
-        run = self.tests if cmdargs[0] == "nox" else self.git
-        return run(cmdargs)
-
-    def tests(self, cmdargs: Sequence[str]) -> test_nox.Done:
-        """Run a session: the tests one for real, the others pass.
-
-        Args:
-            cmdargs: the ``nox`` command line.
-
-        Returns:
-            The finished process; the tests session's output is the output of the
-            commands it ran, and its status 1 when one of them failed.
-        """
-        if cmdargs[3] != "tests-3.13":
-            return test_nox.Done(returncode=0, stdout="")
-        shown: list[str] = []
-
-        def run(*command: str, **options: Mapping[str, str]) -> None:
-            run_in(self.repo, shown, command, options)
-
-        words = " ".join(cmdargs).partition(" -- ")[2].split()
-        session = test_noxfile.session_in(self.repo.holder / "nox", words, run)
-        try:
-            test_noxfile.noxfile_module().tests(session)
-        except RunFailed:
-            return test_nox.Done(returncode=1, stdout="".join(shown))
-        return test_nox.Done(returncode=0, stdout="".join(shown))
+        if cmdargs[0] == "nox":
+            return run_tests_session(self.repo, cmdargs)
+        return self.git(cmdargs)
 
 
 def run_diff(case: unittest.TestCase, test_text: str) -> world.Result:
