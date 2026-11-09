@@ -10,7 +10,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import planrefusal
-from . import rankworld, world
+from . import fakes, rankworld, world
 from .rankworld import lines_are, next_output, printed, starts, sweep
 
 COMMENTS = "repos/owner/project/issues/3/comments"
@@ -66,7 +66,7 @@ def refused_world(
     rankworld.serve(here, "owner/project", 9, rankworld.ticket(""))
     rankworld.fixing(here, 3, "Fixes #9")
     rankworld.serve(here, "owner/project", 7, rankworld.ticket("", seventh, 7))
-    here.bodies[world.fakes.page(COMMENTS)] = list(comments)
+    here.bodies[fakes.page(COMMENTS)] = list(comments)
     return here
 
 
