@@ -91,7 +91,8 @@ def _unheld(
 def _source(
     github: ghapi.GitHub, settings: config.Config, undraft: Callable[[], bool]
 ) -> pulls.Source:
-    tools = earlyreview.Tools(github=github, review=settings.review)
+    queue = settings.merge_queue.repositories
+    tools = earlyreview.Tools(github=github, review=settings.review, merge_queue=queue)
     return pulls.Source(
         github=github,
         review=settings.review,

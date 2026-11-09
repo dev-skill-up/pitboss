@@ -391,13 +391,8 @@ execution-before-green, pitboss#202): its timeline (``convert_to_draft`` and
 ``ready_for_review``, for whether it was a draft at the comment's time), and the
 check runs of the head each such review names (read from the API for each
 review, an abbreviated SHA that names the current head read as it), with the dispatched
-``check.yml`` runs of the head when the PR was a draft then. A review written
-while the PR was a draft with no completed dispatched run, or while a check run
-of the reviewed head had not completed (or the head had none), does not count:
-it is left out of the reviews the flow reads, so ``review=`` does not name it,
-and the sweep prints ``EXECUTION REVIEWED BEFORE GREEN <pr>: review <id> at
-<sha> does not count; <what was unfinished>``, the next step being the review
-again after green. Only when one of those runs has failed (the latest
+``check.yml`` runs of the head when the PR was a draft then.
+Only when one of those runs has failed (the latest
 run of its name) are two more reads made: the head's commit statuses (the
 newest of each context) and, for a status that does not carry the check's
 name, the workflow file of the Actions run of the status and of the check
@@ -428,8 +423,8 @@ current base), then ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``,
 ``WAIT-FOR-CI`` (no check run of the head has completed, draft or not: never
 ready for review or to merge, though a draft's first review, which grades the
 Plan alone, and the review of a revised plan are started by its author's
-hand-back (an Execution review of a draft does not count, ``EXECUTION REVIEWED
-BEFORE GREEN``, pitboss#202); a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
+hand-back,
+a draft at a round has ``DRAFT ROUND`` instead, ``pitboss.report``, the
 same words as ``slots next``, pitboss#156; a draft whose Plan is approved, with
 a diff that touches ``e2e/`` or a ``[sweep] run_by_e2e`` prefix and no completed
 ``workflow_dispatch`` run of ``check.yml`` at its head (a draft's own run skipped e2e, complete
@@ -438,20 +433,7 @@ instead when nothing is running at its head (while a check run of the head is un
 api.github.com only: the names of the job's failed steps, the check run's
 output title and summary, and its failure annotations, cut to 300 characters;
 no job log is downloaded, because the log is a redirect to blob storage that a
-sandbox may block), then ``READY TO MERGE`` (at least one check finished, all
-finished and none failed, state ``clean``, in a gated repository the head's
-``adversarial-review`` status is success (else ``GATE PENDING``), an approving review of this head, or for an
-ungated repository of an older head when everything since is merges of the
-base branch, or the flow's step is the merge because the newest readable Opus
-ruling says ``execution is approved`` and no review follows it) or, in a
-``no_auto_merge`` repository, ``MERGE BY HAND``, or
-else ``AUTO MERGE OFF`` for a PR with auto-merge off, not in the queue, nothing
-failed, no conflict and not a draft, whose newest review approved this exact head
-(``review=approved-this-head``; pitboss#85: with no review, a review of an older
-head, one asking for changes, one standing ``plan-approved`` or
-``older-body``, arming auto-merge could merge a head nobody approved, so there
-is no line; a head the Opus ruling
-approved gets ``READY TO MERGE`` instead).
+sandbox may block)
 
 **Body fixes** (pitboss#147). A review may record the PR body it read in a
 ``Body: <digest>`` line (``pitboss body-digest FILE``, and ``pitboss plan-digest FILE`` for the ``Plan digest:`` line of the Plan section; REST has no edit time
@@ -484,8 +466,8 @@ head whose newest review asks for changes and grades the plan changes needed
 stands ``plan-changes-needed``; one whose newest review approves and has a
 ``Plan: approved`` line but no ``Execution:`` line (a review of a revised plan,
 which grades the plan alone) stands ``plan-approved``, is no approval to merge,
-is not carried over merges of the base, and gets no ``AUTO MERGE OFF`` line
-(auto-merge is never armed on it, as on any head without an approving review). Both words are on the PR's line.
+is not carried over merges of the base
+. Both words are on the PR's line.
 
 **Review flow** (keyword: review-flow, pitboss#107). The step a PR is at is one
 function, ``pitboss.flow.next_step``, the owner's pseudo code branch for branch

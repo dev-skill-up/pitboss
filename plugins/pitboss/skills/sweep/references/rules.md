@@ -455,11 +455,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     Plan and the Execution together**, in one review, and it is never a reviewer
     continued from an earlier round
     (orchestrator, 2026-10-26, from the owner's corrections of that date; owner,
-    2026-10-26T23:14:17Z: "It can grade the execution as well."). It does not
-    grade the Execution while the PR is still a draft, or before every check of
-    the head has completed: such a review does not count (pitboss#202,
-    `EXECUTION REVIEWED BEFORE GREEN`), and a draft's review grades the Plan
-    alone. The review of a head after green has a
+    2026-10-26T23:14:17Z: "It can grade the execution as well.").
+    The review of a head after green has a
     `Plan:` line and an `Execution:` line (`approved` or `changes needed`,
     neither line containing the word verdict followed by a colon) beside the
     one `Verdict:` line of the form (`adversarial-review.md`). A draft whose Plan is approved is undrafted
@@ -528,9 +525,8 @@ Only override for bugs, but do override for bugs (and then file them)".
     review is by a new reviewer and grades the Plan alone: a `Plan:` line and
     the form's `Verdict:` line (the Plan's verdict), no `Execution:` line and no
     Execution defect. A review that approves the Plan alone is no approval to
-    merge: the sweep's PR line says `review=plan-approved` and the sweep prints
-    no `AUTO MERGE OFF` for it (that line is for a head whose review approved
-    it, `review=approved-this-head`), so auto-merge is never armed on it. A
+    merge: the sweep's PR line says `review=plan-approved`
+    . A
     `Plan:` line that grades nothing (`Plan: approved. The audit row now ...`
     is a grade word and prose; a line that is neither) with no graded
     `Execution:` line is a review of the Plan alone too (pitboss#201). When
@@ -1000,8 +996,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   `[relock] pins_check_command` (for bats projects `bats pins-check {base}
   {head} --compiler <dir> --repository <dir>`
   ). When CI is green and the command's last output line is the word OK
-  or starts `OK:`, the sweep prints `PINS-ONLY OK`, then `READY TO MERGE` (or
-  `MERGE BY HAND`), and offers no review: the orchestrator merges it. Any
+  or starts `OK:`, the sweep prints `PINS-ONLY OK`,
+  and offers no review: the orchestrator merges it. Any
   other output (`NOT OK: ...`, a command that cannot run, a mixed PR, a PR with
   a non-pin file) is the line `PINS-ONLY` with the command's line, and the PR
   is offered for a review as before, whose brief (`review the relock`) tells

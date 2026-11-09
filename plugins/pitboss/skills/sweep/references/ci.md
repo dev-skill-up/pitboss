@@ -121,10 +121,6 @@ enqueue, the run that gates the base branch. Undraft is for a PR whose Plan is a
 and that needs a green head for the review of its Execution (a draft has
 none); a PR is not sent back to draft
 to be undrafted again.
-- Carried by: `READY TO MERGE` and `AUTO MERGE OFF` (arm auto-merge, which
-  enqueues), `MERGE BY HAND` (repositories in `[libraries] no_auto_merge`)
-  No line tells an undraft from an enqueue; the choice
-  is the orchestrator's.
 
 **A PR that is only behind is not pushed; a real conflict gets a merge.** A
 queue builds each entry on the current base, so a PR behind the base needs no
