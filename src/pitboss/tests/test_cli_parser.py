@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import cli_parser, machine
+from . import captured
 
 
 def parsed(*argv: str) -> tuple[str, bool, bool, Sequence[str]]:
@@ -61,24 +62,19 @@ CONSOLE_SCRIPT = (
 FAILING_ORDER = ("push", "missing.toml", "--no-dry-run", "origin", "branch-1")
 
 
-def console_script_stderr(*argv: str) -> str:
+def console_script(*argv: str) -> subprocess.CompletedProcess[str]:
     """Run the installed ``pitboss`` entry point in a fresh directory.
 
     Args:
         *argv: the words after ``pitboss``.
 
     Returns:
-        What it wrote to standard error.
+        The finished process, with its command, status and standard error.
     """
     with tempfile.TemporaryDirectory() as directory:
-        ran = subprocess.run(
-            [sys.executable, "-c", CONSOLE_SCRIPT, *argv],
-            cwd=directory,
-            capture_output=True,
-            text=True,
-            check=False,
+        return captured.finished(
+            [sys.executable, "-c", CONSOLE_SCRIPT, *argv], cwd=directory
         )
-    return ran.stderr
 
 
 class TestConsoleScript(unittest.TestCase):
@@ -90,8 +86,9 @@ class TestConsoleScript(unittest.TestCase):
         The config does not exist, so a parsed command stops there; a plain
         parser stops at "unrecognized arguments" before it reads the config.
         """
-        said = console_script_stderr(*FAILING_ORDER)
+        ran = console_script(*FAILING_ORDER)
         assert_that(
-            ("FileNotFoundError" in said, "unrecognized arguments" in said),
+            ("FileNotFoundError" in ran.stderr, "unrecognized arguments" in ran.stderr),
             equal_to((True, False)),
+            captured.described(ran),
         )

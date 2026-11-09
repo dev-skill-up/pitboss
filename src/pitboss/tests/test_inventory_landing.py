@@ -10,6 +10,8 @@ from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
+from . import captured
+
 ROOT = pathlib.Path(*pathlib.Path(__file__).resolve().parts[:-4])
 SCRIPT = ROOT / "docs" / "quire-inventory-landing.py"
 SKILL = pathlib.Path("plugins/pitboss/skills/sweep")
@@ -58,32 +60,40 @@ def removing(name: str) -> Planter:
     return lambda tree: (tree / REFERENCES / name).unlink()
 
 
-def flagged_run(*arguments: str) -> tuple[int, Sequence[str]]:
-    """The exit status and the failure lines of the script.
+def flagged_run(*arguments: str) -> subprocess.CompletedProcess[str]:
+    """Run the script.
 
     Args:
         *arguments: the arguments after the script's name.
 
     Returns:
+        The finished process, with its command, status and output.
+    """
+    return captured.finished([sys.executable, "-I", str(SCRIPT), *arguments])
+
+
+def flagged(done: subprocess.CompletedProcess[str]) -> tuple[int, Sequence[str]]:
+    """The exit status and the failure lines of a run of the script.
+
+    Args:
+        done: the finished process.
+
+    Returns:
         The status, and each output line that starts with a failure word.
     """
-    run = subprocess.run(
-        [sys.executable, "-I", str(SCRIPT), *arguments],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return run.returncode, [x for x in run.stdout.splitlines() if x.startswith(FLAGGED)]
+    return done.returncode, [
+        x for x in done.stdout.splitlines() if x.startswith(FLAGGED)
+    ]
 
 
-def planted(plant: Planter) -> tuple[int, Sequence[str]]:
+def planted(plant: Planter) -> subprocess.CompletedProcess[str]:
     """The script on a copy of the skill's files that has been changed.
 
     Args:
         plant: the change made to the copy.
 
     Returns:
-        The status and the failure lines, as ``flagged_run`` gives them.
+        The finished process, as ``flagged_run`` gives it.
     """
     with tempfile.TemporaryDirectory() as directory:
         tree = pathlib.Path(directory)
@@ -97,7 +107,8 @@ class TestLanding(unittest.TestCase):
 
     def test_this_repository_lands_every_row(self) -> None:
         """The tree itself has no MISSING row and the script exits 0."""
-        assert_that(flagged_run(), equal_to((0, [])))
+        done = flagged_run()
+        assert_that(flagged(done), equal_to((0, [])), captured.described(done))
 
     def test_planted_failures_exit_one(self) -> None:
         """A missing phrase, two, a missing file and quire text are exit 1."""
@@ -110,18 +121,24 @@ class TestLanding(unittest.TestCase):
             (quire, 1, ["STAYS-IN-QUIRE"]),
         ]
         found = []
-        for plant, count, words in cases:
-            status, lines = planted(plant)
+        runs = [planted(plant) for plant, _, _ in cases]
+        for done in runs:
+            status, lines = flagged(done)
             found.append((status, len(lines), {x.split()[0] for x in lines}))
         expected = [(1, count, set(words)) for _, count, words in cases]
-        assert_that(found, equal_to(expected))
+        assert_that(
+            found,
+            equal_to(expected),
+            "\n".join(captured.described(each) for each in runs),
+        )
 
     def test_planted_rows_are_named(self) -> None:
         """The rows a change breaks are exactly the ones named in the output."""
         two = replacing("rules.md", (TICKET_RULE, "x"), (BLOCKED_RULE, "y"))
-        _, ticket_lines = planted(two)
-        _, slots_lines = planted(removing("slots.md"))
-        assert_that(len(ticket_lines), equal_to(2))
-        assert_that(ticket_lines[0].startswith(TICKET_ROW), equal_to(True))
-        assert_that(ticket_lines[1], equal_to(BLOCKED_ROW))
-        assert_that(list(slots_lines), equal_to(SLOTS_ROWS))
+        ticket, slots = planted(two), planted(removing("slots.md"))
+        ticket_lines, slots_lines = flagged(ticket)[1], flagged(slots)[1]
+        shown = captured.described(ticket)
+        assert_that(len(ticket_lines), equal_to(2), shown)
+        assert_that(ticket_lines[0].startswith(TICKET_ROW), equal_to(True), shown)
+        assert_that(ticket_lines[1], equal_to(BLOCKED_ROW), shown)
+        assert_that(list(slots_lines), equal_to(SLOTS_ROWS), captured.described(slots))

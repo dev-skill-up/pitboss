@@ -1,7 +1,6 @@
 """Tests of the ``LOG`` lines: each hand-back and each clean-up, said once (#347)."""
 
 import pathlib
-import subprocess
 import unittest
 from typing import Callable, Mapping, Sequence
 
@@ -9,6 +8,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import logline
 from . import (
+    captured,
     cleanscene,
     cleanworld,
     fakes,
@@ -83,12 +83,7 @@ def tip_of(path: pathlib.Path) -> str:
     Returns:
         The commit.
     """
-    done = subprocess.run(
-        ["git", "-C", str(path), "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    done = captured.run(["git", "-C", str(path), "rev-parse", "HEAD"])
     return done.stdout.strip()
 
 
