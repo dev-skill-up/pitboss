@@ -11,17 +11,11 @@ import subprocess
 import unittest
 from typing import Callable, Mapping, Sequence
 
-from hamcrest import (
-    all_of,
-    assert_that,
-    contains_string,
-    equal_to,
-    has_properties,
-    not_,
-)
+from hamcrest import assert_that, equal_to
 
 from .. import cloneguard
 from . import fakes, repositories, world
+from .briefmake import has_all, has_none
 from .linting import write_text
 from .plancheckrun import body_of
 from .test_deviations import WITH_NONE, WITHOUT_LINE, saved
@@ -102,11 +96,27 @@ def check(here: world.World, text: str = WITH_NONE) -> world.Result:
     return world.invoke(here, "hand-back-check", saved(text), "--config", here.config)
 
 
-REFUSED: Mapping[str, tuple[Setup, str]] = {
-    "side branch": (side_branch, "publish-zip-95, not main"),
-    "detached": (detached, "on branch (detached HEAD), not main"),
-    "change": (change, "(branch main) has uncommitted changes"),
-    "library": (library_on_side, "lib on branch side, not main"),
+def after(setup: Setup, text: str = WITH_NONE) -> world.Result:
+    """Make a world, set it up, and run ``hand-back-check`` in it.
+
+    Args:
+        setup: what is done to the world.
+        text: the hand-back.
+
+    Returns:
+        What it did.
+    """
+    here = world.make_world()
+    setup(here)
+    return check(here, text)
+
+
+REFUSED: Mapping[str, tuple[Setup, str, Sequence[str]]] = {
+    "side branch": (side_branch, WITH_NONE, ["publish-zip-95, not main"]),
+    "detached": (detached, WITH_NONE, ["on branch (detached HEAD), not main"]),
+    "change": (change, WITH_NONE, ["(branch main) has uncommitted changes"]),
+    "library": (library_on_side, WITH_NONE, ["lib on branch side, not main"]),
+    "both": (change, WITHOUT_LINE, ["NOT STARTED", "uncommitted"]),
 }
 PASSED: Mapping[str, Setup] = {
     "clean": nothing,
@@ -119,32 +129,18 @@ class TestTheHandBack(unittest.TestCase):
 
     def test_a_clone_off_main_or_with_a_change_is_refused_by_name(self) -> None:
         """The refusal prints the clone and its branch, and the status is 1."""
-        for name, (setup, wanted) in REFUSED.items():
+        for name, (setup, text, wanted) in REFUSED.items():
             with self.subTest(name):
-                here = world.make_world()
-                setup(here)
-                found = check(here)
-                said = all_of(
-                    contains_string("refused: clone "), contains_string(wanted)
-                )
-                assert_that(found, has_properties(code=1, out=said))
+                found = after(setup, text)
+                assert_that(found.code, equal_to(1))
+                has_all(found.out, ["refused: clone ", *wanted])
 
     def test_a_clone_on_main_with_no_change_passes(self) -> None:
         """A file git does not track is not a change."""
         for name, setup in PASSED.items():
             with self.subTest(name):
-                here = world.make_world()
-                setup(here)
-                found = check(here)
+                found = after(setup)
                 assert_that((found.code, found.out), equal_to((0, "ok\n")))
-
-    def test_both_the_missing_line_and_the_clone_are_said(self) -> None:
-        """The two refusals are independent."""
-        here = world.make_world()
-        change(here)
-        found = check(here, WITHOUT_LINE)
-        said = all_of(contains_string("NOT STARTED"), contains_string("uncommitted"))
-        assert_that(found, has_properties(code=1, out=said))
 
     def test_a_configuration_that_cannot_be_read_is_a_usage_error(self) -> None:
         """Given and missing, or given and not TOML: status 2, no verdict."""
@@ -237,14 +233,14 @@ class TestTheCheckout(unittest.TestCase):
         ):
             with self.subTest(run.__name__, directory=directory):
                 found = run(here, directory, "--config", here.config)
-                assert_that(found.out, not_(contains_string(REFUSAL)))
+                has_none(found.out, [REFUSAL])
 
     def test_with_no_configuration_no_clone_is_known(self) -> None:
         """``nox`` finds none from this directory, and refuses nothing."""
         here = world.make_world()
         change(here)
         found = nox_in(here, here.clone)
-        assert_that(found.out, not_(contains_string(REFUSAL)))
+        has_none(found.out, [REFUSAL])
 
     def test_the_text_is_the_tickets(self) -> None:
         """The words of the refusal are pinned."""
