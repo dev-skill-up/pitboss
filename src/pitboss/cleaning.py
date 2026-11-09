@@ -9,7 +9,7 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Callable, Iterator, Sequence
 
-from . import dead, disk
+from . import dead, devpath, disk
 from .markers import Marker
 from .running import Run, git
 
@@ -79,7 +79,7 @@ def left_behind(each: dead.Candidate) -> str:
 
 
 def under_dev(each: dead.Candidate) -> str:
-    """Why a path is never removed: it is under ``/dev`` (the owner's rule, #424).
+    """Why a candidate is never removed: it is under ``/dev`` (#424).
 
     Args:
         each: the candidate.
@@ -87,10 +87,7 @@ def under_dev(each: dead.Candidate) -> str:
     Returns:
         A reason naming the path, or empty when it is not under ``/dev``.
     """
-    parts = pathlib.PurePosixPath(os.path.normpath(each.path)).parts
-    if parts[:2] == ("/", "dev"):
-        return f"{each.path} is under /dev, which is never removed from"
-    return ""
+    return devpath.under_dev(each.path)
 
 
 def removals(

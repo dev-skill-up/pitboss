@@ -6,7 +6,9 @@ import time
 import unittest
 from typing import Sequence
 
-from .. import dead
+from hamcrest import assert_that, contains_string
+
+from .. import dead, judging, local, worktrees
 from . import cleanworld, fakes, world, worldcopy
 
 AFTER = ("--now", world.FUTURE)
@@ -174,6 +176,32 @@ class TestList(unittest.TestCase):
         here = scene()
         cleanworld.only_list_worktrees(here)
         cleanworld.same(listing(here), [[], unwanted, True])
+
+
+class TestUnderDev(unittest.TestCase):
+    """A worktree under /dev is never removed (#424)."""
+
+    def test_a_worktree_under_dev_is_refused_naming_the_path(self) -> None:
+        """No git worktree remove gets a path under /dev; its sibling gets one."""
+        top = fakes.directory()
+        look = cleanworld.look_in(top)
+        run = fakes.FakeProcesses(bodies={})
+        action = worktrees.Action(run=run, dry=False)
+
+        def removed(path: pathlib.Path) -> tuple[str, bool]:
+            tree = local.Worktree(path=path, branch="b", head="h")
+            found = judging.Finished(worktree=tree, reason=local.Reason.MERGED)
+            return worktrees.removal_line(
+                action, look, judging.Judged(found=found, size=0, why="")
+            )
+
+        said = [removed(pathlib.Path(spelled)) for spelled in ("/dev/shm/x", "/dev")]
+        cleanworld.same([flag for _, flag in said], [False, False])
+        cleanworld.same(run.calls, [])
+        for (line, _), spelled in zip(said, ("/dev/shm/x", "/dev")):
+            assert_that(line, contains_string(f"{spelled} is under /dev"))
+        removed(top / "dev")
+        cleanworld.same([call[-1] for call in run.calls], [str(top / "dev")])
 
 
 class TestWorkingDirectory(unittest.TestCase):

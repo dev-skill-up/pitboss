@@ -1,9 +1,11 @@
 """Tests for ``pitboss plan-check`` (keyword: plan-check, pitboss#192)."""
 
 import argparse
+import contextlib
 import re
+import tempfile
 import unittest
-from typing import NoReturn, Sequence
+from typing import Iterator, NoReturn, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -107,11 +109,16 @@ class TestPlanCheckCommand(unittest.TestCase):
     def test_the_scratch_worktree_is_removed(self) -> None:
         """The commands ran in a worktree of the base, which is gone after."""
         here = real_world()
-        path = write_text("body.txt", BROKEN)
-        world.invoke(
-            here, "plan-check", path, "--repo", str(here.clone), "--timeout", "1"
-        )
+        plan_checked(here)
         assert_that(worktrees(here), equal_to(2))  # the clone and the world's own
+
+    def test_a_scratch_worktree_under_dev_is_refused_naming_the_path(self) -> None:
+        """No scratch worktree is made, or removed, under /dev (#424)."""
+        here = real_world()
+        with temporary_directory_at("/dev/shm"):
+            done = plan_checked(here)
+        shown = [done.code, "/dev/shm is under /dev" in done.err, worktrees(here)]
+        assert_that(shown, equal_to([2, True, 2]))
 
     def test_what_the_command_refuses_to_start(self) -> None:
         """A usage error runs nothing: no base, no Plan, a bad row."""
@@ -130,6 +137,38 @@ class TestPlanCheckCommand(unittest.TestCase):
         missing = "/nonexistent/body.txt"
         done = world.invoke(real_world(), "plan-check", missing)
         assert_that([done.code, missing in done.err], equal_to([2, True]))
+
+
+def plan_checked(here: world.World) -> world.Result:
+    """Run ``plan-check`` on the body of a broken Plan in a world.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The result.
+    """
+    path = write_text("body.txt", BROKEN)
+    argv = ("plan-check", path, "--repo", str(here.clone), "--timeout", "1")
+    return world.invoke(here, *argv)
+
+
+@contextlib.contextmanager
+def temporary_directory_at(name: str) -> Iterator[None]:
+    """Make the temporary directory of ``tempfile`` be a path, for a block.
+
+    Args:
+        name: the path.
+
+    Yields:
+        Nothing.
+    """
+    was = tempfile.tempdir
+    tempfile.tempdir = name
+    try:
+        yield
+    finally:
+        tempfile.tempdir = was
 
 
 def cannot_start(cmdargs: Sequence[str], /, **kwargs: object) -> NoReturn:
