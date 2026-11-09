@@ -18,15 +18,16 @@ from . import (
     briefruling,
     brieftext as text,
     brieftextci,
+    brieftextconflict,
     brieftextdraft,
     brieftextfailure,
     brieftextfix,
-    brieftextimpact,
     brieftextlint,
     brieftextnote,
     brieftextorder,
     brieftextowner,
     brieftextpins,
+    brieftextwhen,
     brieftextwork,
 )
 
@@ -79,7 +80,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         *brieftextci.PLAN_CI_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_CHECK,
-        brieftextimpact.IMPACT_REVIEW,
         *brieftextnote.EXECUTION_REVIEW,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextlint.MARKUP_LINES_REVIEW,
@@ -109,7 +109,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         *brieftextci.PLAN_CI_REVIEW,
         text.PLAN_DRY_RUN,
         text.PLAN_CHECK,
-        brieftextimpact.IMPACT_REVIEW,
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
         text.PLAN_DIGEST,
@@ -147,12 +146,15 @@ class Subject:
         ticket: the ticket the PR fixes, empty when its body names none.
         repo: the repository's ``owner/name``.
         goal: the ticket's original goal in one line.
+        done_when_digest: the digest of the ticket's Done-when now, which the
+            body of a new PR records; empty when the brief is not for that.
     """
 
     reference: str
     ticket: str
     repo: str
     goal: str
+    done_when_digest: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -258,6 +260,7 @@ def _about(subject: Subject) -> Mapping[str, str]:
         "read": subject.ticket or subject.reference,
         "repo": subject.repo,
         "number": subject.reference.rpartition("#")[2],
+        "done_when_digest": subject.done_when_digest,
     }
 
 
@@ -292,11 +295,14 @@ def _filled(sentences: Sequence[str], values: Mapping[str, str]) -> list[str]:
 
 
 def _opening(spec: Spec) -> Sequence[str]:
-    # keyword: impact-list (pitboss#208): a conflict merge refreshes the body
+    # keyword: conflict-body (pitboss#208): a conflict merge refreshes the body
     if spec.kind is Kind.RESOLVE_CONFLICT:
-        return [brieftextimpact.CONFLICT_BODY]
+        return [brieftextconflict.CONFLICT_BODY]
     shown = spec.kind in (Kind.NEW_PR, Kind.FIRST_ROUND)
-    return [text.BODY] if shown else []
+    if not shown:
+        return []
+    recorded = [brieftextwhen.DONE_WHEN_DIGEST] if spec.subject.done_when_digest else []
+    return [text.BODY, *recorded]
 
 
 # keyword: ci-pointer (pitboss#179): the sentences of the Plan a worker writes
@@ -306,7 +312,6 @@ def _plan_lines(kind: Kind) -> list[str]:
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
         *(brieftextci.PLAN_ROWS if writes else []),
-        *([brieftextimpact.IMPACT_PLAN] if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),
         *([text.NO_APPEND, text.SEARCH] if runs else []),
@@ -324,9 +329,9 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     sentences = [
         TASKS[spec.kind],
         *_ruling(spec),
-        text.ONE_PR,
+        brieftextwhen.ONE_PR,
         text.WORKTREE,
-        text.DONE_WHEN,
+        brieftextwhen.DONE_WHEN,
         *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
         *([text.NO_PLAN_EDIT] if spec.kind in APPROVED_PLAN_WORKERS else []),

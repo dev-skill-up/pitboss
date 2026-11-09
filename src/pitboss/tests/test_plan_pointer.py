@@ -21,7 +21,7 @@ CASES: Mapping[str, tuple[str, Sequence[int]]] = {
     "a word that is no program": ("## Plan\n1. `hello world`\n", [1]),
     "prose": ("## Plan\n1. check that it works\n", [1]),
     "a command": ("## Plan\n1. `rg -n phrase src/`\n", []),
-    "a command after an assignment": ("## Plan\n1. `A=1 pitboss impact x`\n", []),
+    "a command after an assignment": ("## Plan\n1. `A=1 pitboss expand x`\n", []),
     "a command spelled with a dollar": ("## Plan\n1. $ rg -n phrase\n", []),
     "a program run by its path": ("## Plan\n1. `./scripts/run.sh`\n", []),
     "an exact read": ("## Plan\n1. `src/a.py` shows the `run` function\n", []),
@@ -29,7 +29,7 @@ CASES: Mapping[str, tuple[str, Sequence[int]]] = {
         "## Plan\n1. workflow `check.yml`, job `tests`, step `Run Nox`\n",
         [],
     ),
-    "a disposition is no row": ("## Plan\n1. src/a.py:3: edited\n", []),
+    "a cited line alone": ("## Plan\n1. src/a.py:3: edited\n", [1]),
     "an assignment alone is no command": ("## Plan\n1. `A=1`\n", [1]),
     "only the rows without one": (
         "## Plan\n1. `rg x`\n2. `src/b.py`\n3. `git status`\n",

@@ -162,28 +162,6 @@ the review:
   not zero, and a row not run as the Plan wrote it is rejected.
   `pitboss lint pr-body` refuses an Evidence row that ends in `; echo $?`,
   `&& echo $?` or `|| echo` (`appended`).
-- Search: before handing back, search the tree for the words of every comment,
-  rule bullet and doc the change touches, and fix each statement the change
-  makes false or contradictory (a contradiction is fixed, never documented);
-  list in the Execution only a false statement outside this tree, which you
-  cannot edit.
-
-Two lines about the statements a change makes false (keyword: impact-list,
-pitboss#208; Plan reviews found them one round at a time, and pitboss#166 and
-pitboss#167 each needed an Opus ruling for it). The worker brief says:
-`Impact list:` the Plan lists each behaviour the change alters (each output
-line, state or condition whose meaning changes, every enumeration of the sweep
-lines included), stated in the code's terms (every input the code treats the
-same way, so that an edited statement is never narrower than the code); for
-each one a Plan row `pitboss impact PHRASE...` (the whole tree at the head, any
-case, across line breaks; `file:line:text` for each hit, so the Evidence block is
-the list) and under it a disposition line for each hit, `file:line: edited` or
-`file:line: not edited, <reason>`; `pitboss plan-check` refuses a hit with no such
-line and a cited line that is no hit at its head (pitboss#320). The brief of a Plan review says: `Impact list:`
-for this check the reviewer runs no commands, and checks the Plan's list of
-altered behaviours against the diff; a behaviour the diff alters and the list
-lacks is a finding of the Plan, and the reviewer names every statement it finds
-for it in that one round (not one example).
 
 The brief that resolves a conflict says, for a PR with a Plan or Execution body
 (`Conflict body:`), to set the last `Head:` line of the body to the merge head
@@ -214,10 +192,6 @@ below and the last one:
   a request for an Opus ruling, never a Plan finding, and a review of that PR
   whose Plan line is anything but `Plan: approved (fixed)` is refused by
   `pitboss lint review FILE --plan-approved`;
-- a statement the change makes false or contradictory anywhere in the tree is
-  changes needed (the author greps the tree for them before asking for review);
-- an objection to a phrase no claim depends on is withdrawn when the author
-  removes the phrase: do not defend a phrase;
 - if your brief says the Plan was revised after a rejection, you grade the
   Plan alone: a `Plan:` line and the form's one verdict line, which is the
   Plan's verdict, no `Execution:` line and no defect of the Execution (the

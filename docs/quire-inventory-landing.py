@@ -68,7 +68,6 @@ rows = [
  ("orchestration.md Plan first long run is invalid", "rules.md", "**A plan that needs a long run for its evidence is invalid**"),
  ("orchestration.md Briefs Done-when word for word (split)", "rules.md", "**It copies the ticket's Done-when word for word**"),
  ("orchestration.md Briefs what each brief says", "rules.md", "Every worker brief says: the worker rules of the repository"),
- ("orchestration.md Briefs One PR line (replaced the No split line)", "rules.md", "**A worker and a reviewer brief begin with the one-PR check.**"),
  ("orchestration.md Briefs Design check, Push and Sample", "rules.md", "**Design check, Push and Sample lines.**"),
  ("orchestration.md Briefs Compiler line", "rules.md", "**A brief tells the worker where the compiler is**"),
  ("orchestration.md Briefs hand-back form", "rules.md", "**A hand-back has one form**"),

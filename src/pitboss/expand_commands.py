@@ -72,14 +72,13 @@ def _expanded(args: argparse.Namespace) -> str:
 MERGE_NOTICE = (
     "HEAD {head} is a merge: if you merged main to resolve a conflict, the Plan"
     " section is unchanged but its hits moved; run `pitboss plan-check` against"
-    " the merge head (`--head {head}`), which refuses a disposition line whose"
-    " file:line is not a hit of its row at that head (keyword: merge-head,"
-    " pitboss#317)\n"
+    " the merge head (`--head {head}`), which refuses a Plan line that cites a"
+    " file:line the head does not have (keyword: merge-head, pitboss#317)\n"
 )
 
 
 def _merge_notice(args: argparse.Namespace) -> str:
-    # a merge commit at the head: the hits of the Plan's Impact rows may have moved
+    # a merge commit at the head: the lines the Plan cites may have moved
     try:
         done = args.safe_run(
             ["git", "-C", args.cwd, "rev-list", "--parents", "-n", "1", "HEAD"],
