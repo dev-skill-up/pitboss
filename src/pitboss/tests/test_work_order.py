@@ -73,7 +73,8 @@ def ordered_world() -> world.World:
     )
     here.bodies.update(BODIES)
     # the library's PR is older than the project's: the order is across repositories
-    older = dict(here.bodies[f"{world.LIBRARY}/pulls/4"], created_at=OLDER_PULL)
+    head = {"sha": fakes.HEAD, "ref": "branch-4"}
+    older = fakes.pull_body(4, head=head, created_at=OLDER_PULL)
     here.bodies[f"{world.LIBRARY}/pulls/4"] = older
     return here
 
