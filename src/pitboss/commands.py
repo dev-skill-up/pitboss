@@ -225,7 +225,7 @@ def _detail(
         pull=pull,
         failures=read_all(found.github, pull),
         said=removedline.tell(found.github, found.settings, pull, runs),
-        moves=draftmoves.tell(found.github, pull),
+        moves=draftmoves.tell(found.github, pull.repo.slug, pull.pull.number),
     )
 
 

@@ -210,9 +210,9 @@ def push(args: argparse.Namespace) -> None:
     that is refused records the look it made (``none`` when nothing waits,
     ``hold`` when a job waits), so the quiet period can end; a retried push
     adds only none looks, which do not restart the wait. A push to a draft PR
-    (``--draft``, or a branch whose open PR GitHub lists as a draft, keyword:
-    push-draft, pitboss#355) starts no costly job and is neither checked nor
-    recorded. A push to ``dev-skill-up/pitboss`` (or a repository of ``[runners] exempt``),
+    (``--draft``, or a branch whose open PR is a draft on GitHub, keyword:
+    push-draft) starts no costly job and is neither checked nor recorded. A
+    push to ``dev-skill-up/pitboss`` (or a repository of ``[runners] exempt``),
     read from the URL of the remote, is never held, whatever the pressure: it
     prints ``pitboss is exempt from holds`` once, runs ``git push`` and records
     nothing (keyword: pitboss-exempt, pitboss#113).

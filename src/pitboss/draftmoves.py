@@ -1,4 +1,4 @@
-"""A change of a PR's draft state after the sweep marked it ready (keyword: draft-moves).
+"""A draft-state change after the sweep marked a PR ready (keyword: draft-moves).
 
 (Pitboss#355.) On 2026-11-08 a worker converted a Plan-approved PR back to draft,
 and the timeline named the shared ``moshez`` account, so the owner was blamed.
@@ -10,7 +10,7 @@ event is not the sweep's and is told with its time. The newest one is told.
 import subprocess
 from typing import Sequence
 
-from . import ghapi, parsing, pulls, shapes
+from . import ghapi, shapes, timelines
 from .markers import Marker
 
 READY = "ready_for_review"
@@ -38,28 +38,29 @@ def after_marked_ready(
     return later[-1] if later else None
 
 
-def line(pull: pulls.PullFacts, event: shapes.TimelineEvent) -> str:
+def line(reference: str, event: shapes.TimelineEvent) -> str:
     """The line of a draft-state change that was not the sweep's.
 
     Args:
-        pull: the PR.
+        reference: the PR's ``owner/name#number``.
         event: the change.
 
     Returns:
         The line.
     """
     return (
-        f"{Marker.DRAFT_STATE_CHANGED.text} {pulls.reference(pull)}: {event.kind}"
+        f"{Marker.DRAFT_STATE_CHANGED.text} {reference}: {event.kind}"
         f" at {event.at} came after the sweep marked the PR ready; {ACTOR}"
     )
 
 
-def tell(github: ghapi.GitHub, pull: pulls.PullFacts) -> Sequence[str]:
+def tell(github: ghapi.GitHub, slug: str, number: int) -> Sequence[str]:
     """Read a PR's timeline and say a draft-state change that was not the sweep's.
 
     Args:
         github: the API.
-        pull: the PR.
+        slug: the PR's repository, ``owner/name``.
+        number: the PR's number.
 
     Returns:
         The line, none when there is nothing to say; a timeline that cannot be
@@ -67,12 +68,8 @@ def tell(github: ghapi.GitHub, pull: pulls.PullFacts) -> Sequence[str]:
         UNREADABLE for the same call).
     """
     try:
-        events = ghapi.pages(
-            github,
-            f"repos/{pull.repo.slug}/issues/{pull.pull.number}/timeline",
-            parsing.timeline_events,
-        )
+        events = timelines.read(github, slug, number)
     except subprocess.CalledProcessError:
         return []
     found = after_marked_ready(events)
-    return [] if found is None else [line(pull, found)]
+    return [] if found is None else [line(f"{slug}#{number}", found)]

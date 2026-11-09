@@ -33,10 +33,10 @@ def branches(arguments: Sequence[str], current: str) -> Sequence[str]:
         current branch); none when a refspec names no branch.
     """
     named = [each for each in arguments if not each.startswith("-")]
-    specs = named[1:] or ["HEAD"]
+    refspecs = named[1:] or ["HEAD"]
     found = []
-    for spec in specs:
-        target = spec.lstrip("+").split(":")[-1]
+    for each in refspecs:
+        target = each.lstrip("+").split(":")[-1]
         branch = current if target == "HEAD" else target.removeprefix(_HEADS)
         if not branch:
             return []

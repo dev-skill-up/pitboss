@@ -1,76 +1,97 @@
 """A push to the branch of a draft PR is free; a changed draft state is told (#355)."""
 
+import re
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import draftmoves, pushdraft, shapes
 from . import fakes, world
 from .test_commands import sweep
-from .test_exempt import OTHER_URL, push, remote_to
-from .test_quiet import lines, pushes, waiting_world
 
+OTHER_URL = "git@github.com:other/repo.git"
 PULLS = "repos/other/repo/pulls?head=other:{branch}&state=open"
+JOBS = world.project_page("actions/runs/11/jobs")
 HELD = "RUNNER PRESSURE"
 FREE = "the open PR of branch-1 is a draft: a push to a draft is never held"
-READY = {"event": "ready_for_review", "created_at": "2029-12-31T20:00:00Z"}
-CONVERTED = {"event": "convert_to_draft", "created_at": "2029-12-31T21:00:00Z"}
-READY_AGAIN = {"event": "ready_for_review", "created_at": "2029-12-31T22:00:00Z"}
+TIMELINE = fakes.page(world.PROJECT + "/issues/2/timeline")
+DRAFT_LINE = re.compile(r"^DRAFT STATE.*$", re.MULTILINE)
 SHARED = "actor `moshez` is the shared agent account; check the workers' rounds"
 
 
-def pushed(listed: object, branch: str = "branch-1") -> tuple[world.World, object]:
-    """Push branch-1 of a held world to a repository where GitHub lists PRs.
+def held_world(listed: object, branch: str) -> world.World:
+    """A world with a job waiting for a runner, whose remote GitHub lists PRs for.
 
     Args:
         listed: the PRs GitHub lists for the branch ``branch``.
         branch: the branch the list is for.
 
     Returns:
-        The world, and what the push did.
+        The world; its remote ``elsewhere`` names another repository.
     """
-    here = waiting_world(1)
-    remote_to(here, "elsewhere", OTHER_URL)
+    here = world.make_world()
+    here.bodies[JOBS] = {"jobs": [{"status": "queued"}]}
     here.bodies[PULLS.format(branch=branch)] = listed
-    return here, push(here, "elsewhere", "branch-1")
+    fakes.run_git(here.clone, "branch", "-f", "branch-1")
+    fakes.run_git(here.clone, "remote", "add", "elsewhere", OTHER_URL)
+    target = str(world.origin_of(here.clone))
+    fakes.run_git(here.clone, "config", "remote.elsewhere.pushurl", target)
+    return here
+
+
+def pushed(here: world.World) -> world.Result:
+    """Push branch-1 to the remote of a world, without ``--draft``.
+
+    Args:
+        here: the world.
+
+    Returns:
+        What the push did.
+    """
+    when = world.START.isoformat()
+    return world.again(
+        here, "push", "--now", when, "--no-dry-run", "elsewhere", "branch-1"
+    )
+
+
+def gits(here: world.World) -> int:
+    """How many times a world ran ``git push``.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The count.
+    """
+    return sum(list(each[:2]) == ["git", "push"] for each in here.calls)
 
 
 class TestPushToDraft(unittest.TestCase):
     """``pitboss push`` without ``--draft`` under pressure."""
 
     def test_an_open_draft_is_not_held(self) -> None:
-        """The PR is a draft on GitHub: it goes out, says so and records no hold."""
-        here, result = pushed([{"draft": True}])
-        assert isinstance(result, world.Result)
-        assert_that((result.code, pushes(here), lines(here)), equal_to((0, 1, [])))
+        """The PR is a draft on GitHub: it goes out and records no hold."""
+        here = held_world([{"draft": True}], "branch-1")
+        result = pushed(here)
+        record = here.clone / ".git" / "pitboss-pressure.log"
+        assert_that((result.code, gits(here), record.exists()), equal_to((0, 1, False)))
         assert_that(result.out, equal_to(f"{FREE}\npushed\n"))
 
-    def test_no_pull_request_is_held(self) -> None:
-        """A branch with no open PR is held as before."""
-        here, result = pushed([])
-        assert isinstance(result, world.Result)
-        assert_that((result.code, pushes(here)), equal_to((1, 0)))
-        assert_that(result.out, contains_string(HELD))
-
-    def test_a_ready_pull_request_is_held(self) -> None:
-        """A PR that is not a draft is held as before."""
-        here, result = pushed([{"draft": False}])
-        assert isinstance(result, world.Result)
-        assert_that((result.code, pushes(here)), equal_to((1, 0)))
-        assert_that(result.out, contains_string(HELD))
-
-    def test_the_draft_of_another_branch_is_held(self) -> None:
-        """Only the PR of the pushed branch frees the push."""
-        here, result = pushed([{"draft": True}], "branch-2")
-        assert isinstance(result, world.Result)
-        assert_that((result.code, pushes(here)), equal_to((1, 0)))
-
-    def test_a_list_that_is_no_list_is_held(self) -> None:
-        """An answer that is not a list of PRs frees nothing."""
-        here, result = pushed({"draft": True})
-        assert isinstance(result, world.Result)
-        assert_that((result.code, pushes(here)), equal_to((1, 0)))
+    def test_every_other_answer_is_held(self) -> None:
+        """No PR, a ready PR, a draft of another branch, a non-list: held as before."""
+        cases = [
+            ([], "branch-1"),
+            ([{"draft": False}], "branch-1"),
+            ([{"draft": True}], "branch-2"),
+            ({"draft": True}, "branch-1"),
+        ]
+        found = []
+        for listed, branch in cases:
+            here = held_world(listed, branch)
+            result = pushed(here)
+            found.append((result.code, gits(here), HELD in result.out))
+        assert_that(found, equal_to([(1, 0, True)] * len(cases)))
 
 
 class TestBranches(unittest.TestCase):
@@ -84,45 +105,40 @@ class TestBranches(unittest.TestCase):
                 ["origin"],
                 ["--force", "origin", "HEAD"],
                 ["origin", "+a:refs/heads/b", "c"],
-                ["origin", "HEAD"],
             )
         ]
-        assert_that(
-            found,
-            equal_to([["now"], ["now"], ["b", "c"], ["now"]]),
-        )
+        assert_that(found, equal_to([["now"], ["now"], ["b", "c"]]))
 
     def test_a_detached_head_names_no_branch(self) -> None:
         """With no current branch there is nothing to ask GitHub."""
         assert_that(pushdraft.branches(["origin"], ""), equal_to([]))
 
 
-def timeline(*events: object) -> world.World:
-    """A world whose PR 2 has a timeline.
+def event(kind: str, hour: int) -> Mapping[str, str]:
+    """A timeline event of the day before the tests' sweep.
 
     Args:
-        *events: its events.
+        kind: GitHub's event name.
+        hour: the hour of 2029-12-31.
 
     Returns:
-        The world.
+        The event's JSON.
     """
-    here = world.make_world()
-    here.bodies[fakes.page(f"{world.PROJECT}/issues/2/timeline")] = list(events)
-    return here
+    return {"event": kind, "created_at": f"2029-12-31T{hour:02}:00:00Z"}
 
 
-def told(here: world.World) -> Sequence[str]:
-    """The draft-state lines of a sweep.
+def told(*events: Mapping[str, str]) -> Sequence[str]:
+    """The draft-state lines of a sweep of a world whose PR 2 has a timeline.
 
     Args:
-        here: the world.
+        *events: the timeline of PR 2.
 
     Returns:
         The lines.
     """
-    return [
-        each for each in sweep(here).out.splitlines() if each.startswith("DRAFT STATE")
-    ]
+    here = world.make_world()
+    here.bodies[TIMELINE] = list(events)
+    return DRAFT_LINE.findall(sweep(here).out)
 
 
 class TestDraftMoves(unittest.TestCase):
@@ -130,7 +146,7 @@ class TestDraftMoves(unittest.TestCase):
 
     def test_a_conversion_after_ready_is_told(self) -> None:
         """The line names the event, its time and the shared account."""
-        found = told(timeline(READY, CONVERTED))
+        found = told(event("ready_for_review", 20), event("convert_to_draft", 21))
         expected = (
             "DRAFT STATE CHANGED owner/project#2: convert_to_draft at"
             " 2029-12-31T21:00:00Z came after the sweep marked the PR ready; "
@@ -141,19 +157,24 @@ class TestDraftMoves(unittest.TestCase):
 
     def test_the_newest_change_is_told(self) -> None:
         """A second marking after a conversion is the one told."""
-        found = told(timeline(READY, CONVERTED, READY_AGAIN))
+        found = told(
+            event("ready_for_review", 20),
+            event("convert_to_draft", 21),
+            event("ready_for_review", 22),
+        )
         assert_that(found[0], contains_string("ready_for_review at 2029-12-31T22"))
 
-    def test_the_sweeps_own_marking_is_not_told(self) -> None:
-        """A PR marked ready once, or never, says nothing."""
-        assert_that([told(timeline(READY)), told(timeline())], equal_to([[], []]))
-
-    def test_a_conversion_before_the_marking_is_not_told(self) -> None:
-        """Only what came after the sweep's marking counts."""
-        assert_that(told(timeline(CONVERTED, READY)), equal_to([]))
+    def test_nothing_after_the_marking_is_not_told(self) -> None:
+        """A PR marked ready once, never marked, or converted first says nothing."""
+        found = [
+            told(event("ready_for_review", 20)),
+            told(),
+            told(event("convert_to_draft", 20), event("ready_for_review", 21)),
+        ]
+        assert_that(found, equal_to([[], [], []]))
 
     def test_the_events_of_a_timeline(self) -> None:
-        """The same decision, on events alone."""
+        """Events of other kinds after the marking are not changes of state."""
         make = shapes.TimelineEvent
         events = [make(kind="ready_for_review", at="a"), make(kind="labeled", at="b")]
         assert_that(draftmoves.after_marked_ready(events), equal_to(None))
