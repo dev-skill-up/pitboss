@@ -18,13 +18,31 @@ class Premature:
         url: the comment's address.
         when: when it was written (ISO 8601).
         sha: the head it reviewed (possibly abbreviated).
-        unfinished: what was not finished when it was written.
+        unfinished: what was not finished (or not green) when it was written.
+        ci_done: when the last check of the reviewed head completed, empty
+            when a check had not completed or the head had none.
     """
 
     url: str
     when: str
     sha: str
     unfinished: str
+    ci_done: str = ""
+
+
+def newer(found: Sequence[Premature], counted: str) -> Sequence[Premature]:
+    """Keep the early reviews written after the newest counted review.
+
+    One written before it decides nothing: the counted review's standing stands.
+
+    Args:
+        found: the early reviews.
+        counted: when the newest counted review was written, empty when none.
+
+    Returns:
+        The early reviews written later than that.
+    """
+    return [each for each in found if each.when > counted]
 
 
 Split = Callable[

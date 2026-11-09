@@ -16,7 +16,8 @@ RUNNING = dataclasses.replace(DONE, finished=False)
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 UPDATE_LINE = (
     "UPDATE owner/project#3: merge main into branch-3, check, push"
-    " (never rewrite history)"
+    " (never rewrite history); then `pitboss body-head owner/project#3` puts the new"
+    " head in the body"
 )
 
 

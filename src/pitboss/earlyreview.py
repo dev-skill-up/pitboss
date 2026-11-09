@@ -5,19 +5,23 @@ approved while it was a draft with no complete run, and the owner's ruling was
 given on that approval. A review that grades the Execution (an ``Execution:``
 line, or none at all) counts only when, at the comment's time, the PR was not a
 draft (or a dispatched run of ``check.yml`` of the reviewed head had completed,
-pitboss#199) and every check run of the reviewed head had completed. A review
-that grades the Plan alone is a draft's, and always counts.
+pitboss#199) and every check run of the reviewed head had completed green
+(pitboss#369: a review written before the last check completed, or while a check
+had failed, is early; a skipped check is green by design). A review that grades
+the Plan alone (``Execution: not graded`` too) is a draft's, and always counts.
 """
 
 import dataclasses
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import (
+    basefix,
     checkruns,
     config,
     dispatchruns,
     earlyfound,
     ghapi,
+    headchecks,
     parsing,
     reviews,
     shapes,
@@ -69,24 +73,40 @@ def draft_at(
 
 
 def unfinished_checks(checks: Sequence[shapes.CheckRun], when: str) -> str:
-    """What was not complete of a head's check runs at a time.
+    """What was not complete and green of a head's check runs at a time.
 
     Args:
         checks: the check runs of the head.
         when: the time (ISO 8601).
 
     Returns:
-        The empty string when every check run had completed, else how many had
-        not (a run that completed later, or has not), or that there was none.
+        The empty string when every check run had completed and none failed,
+        else how many had not completed (a run that completed later, or has
+        not) and how many failed, or that there was none.
     """
     if not checks:
         return "no check run of the head existed"
-    open_ones = [
-        each for each in checks if not each.finished or each.completed_at > when
-    ]
-    if not open_ones:
+    late = [each for each in checks if not each.finished or each.completed_at > when]
+    red = [each for each in checks if each.failed and each not in late]
+    return "; ".join(
+        f"{len(found)} of {len(checks)} checks of the head {words}"
+        for found, words in ((late, "had not completed"), (red, "had not passed"))
+        if found
+    )
+
+
+def last_completed(checks: Sequence[shapes.CheckRun]) -> str:
+    """When the last check run of a head completed.
+
+    Args:
+        checks: the check runs of the head.
+
+    Returns:
+        The time (ISO 8601); empty when there is none or one has not completed.
+    """
+    if not checks or not all(each.finished for each in checks):
         return ""
-    return f"{len(open_ones)} of {len(checks)} checks of the head had not completed"
+    return max(each.completed_at for each in checks)
 
 
 def _full(pull: shapes.Pull, sha: str) -> str:
@@ -102,17 +122,44 @@ class Seen:
         repo: the PR's repository.
         pull: the PR.
         review: how reviews are read.
+        queued: whether the repository has a merge queue.
     """
 
     github: ghapi.GitHub
     repo: config.Repo
     pull: shapes.Pull
     review: config.Review
+    queued: bool = False
+
+
+def _answers(
+    seen: Seen, current: Sequence[shapes.CheckRun]
+) -> Sequence[basefix.Answer]:
+    if not seen.queued:
+        return []
+    return headchecks.answered(seen.github, seen.repo, seen.pull.base, current)
+
+
+def _settled(
+    seen: Seen, sha: str, current: Sequence[shapes.CheckRun]
+) -> Sequence[shapes.CheckRun]:
+    # a failure that a later passing status answers is not one, nor one that the
+    # base passed since, in a merge-queue repository (fixed-on-base, pitboss#314)
+    if not any(run.failed for run in current):
+        return current
+    posted = headchecks.statuses(seen.github, seen.repo, sha)
+    settled = headchecks.checks(seen.github, seen.repo, sha, posted)
+    return basefix.settle(settled, _answers(seen, settled))
+
+
+def _unjudged(current: Sequence[shapes.CheckRun]) -> Sequence[shapes.CheckRun]:
+    # a review that asks for changes was fairly written on a red head
+    return [dataclasses.replace(run, failed=False) for run in current]
 
 
 def _before(
     seen: Seen, events: Sequence[shapes.TimelineEvent], each: reviews.Found
-) -> str:
+) -> tuple[str, str]:
     sha = _full(seen.pull, each.sha)
     drafted = (
         "the PR was a draft and no dispatched run of check.yml had completed"
@@ -122,10 +169,15 @@ def _before(
         )
         else ""
     )
-    path = f"repos/{seen.repo.slug}/commits/{sha}/check-runs"
-    found = ghapi.pages(seen.github, path, parsing.check_runs)
-    unfinished = unfinished_checks(checkruns.current_checks(found, sha), each.when)
-    return "; ".join(part for part in (drafted, unfinished) if part)
+    found = headchecks.runs_of(seen.github, seen.repo, sha)
+    current = checkruns.current_checks(found, sha)
+    if each.verdict is reviews.Verdict.APPROVED:
+        current = _settled(seen, sha, current)
+    else:
+        current = _unjudged(current)
+    unfinished = unfinished_checks(current, each.when)
+    why = "; ".join(part for part in (drafted, unfinished) if part)
+    return why, last_completed(current)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -135,10 +187,12 @@ class Tools:
     Attributes:
         github: the API.
         review: how reviews are read.
+        merge_queue: the repositories with a merge queue.
     """
 
     github: ghapi.GitHub
     review: config.Review
+    merge_queue: AbstractSet[str] = frozenset()
 
 
 def _executions(
@@ -153,6 +207,23 @@ def _executions(
 def _timeline(seen: Seen) -> Sequence[shapes.TimelineEvent]:
     path = f"repos/{seen.repo.slug}/issues/{seen.pull.number}/timeline"
     return ghapi.pages(seen.github, path, parsing.timeline_events)
+
+
+def _premature(each: reviews.Found, why: str, done: str) -> earlyfound.Premature:
+    return earlyfound.Premature(
+        url=each.url, when=each.when, sha=each.sha, unfinished=why, ci_done=done
+    )
+
+
+def _seen(tools: Tools, repo: config.Repo, pull: shapes.Pull) -> Seen:
+    queued = repo.slug in tools.merge_queue
+    return Seen(
+        github=tools.github,
+        repo=repo,
+        pull=pull,
+        review=tools.review,
+        queued=queued,
+    )
 
 
 def split(
@@ -179,13 +250,13 @@ def split(
     written = _executions(tools, repo.slug, comments)
     if not written:
         return comments, []
-    seen = Seen(github=tools.github, repo=repo, pull=pull, review=tools.review)
+    seen = _seen(tools, repo, pull)
     events = _timeline(seen)
-    said = [(each, _before(seen, events, each)) for each in written]
+    said = [(each, *_before(seen, events, each)) for each in written]
     early = [
-        earlyfound.Premature(url=each.url, when=each.when, sha=each.sha, unfinished=why)
-        for each, why in sorted(said, key=lambda pair: pair[0].when)
-        if why
+        _premature(*triple)
+        for triple in sorted(said, key=lambda triple: triple[0].when)
+        if triple[1]
     ]
     gone = {(each.when, each.url) for each in early}
     return [each for each in comments if (each.created_at, each.url) not in gone], early
