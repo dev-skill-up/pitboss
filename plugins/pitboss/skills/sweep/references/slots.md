@@ -44,7 +44,6 @@ with the configuration it names before acting on them.
 | `pitboss slots deviation <config> TICKET FILE` | Records the `Deviation:` lines of a review comment saved in FILE (a line `none` is left out) on the ledger's line for the worker of TICKET, the `deviation <ticket>: <text>` lines `slots show` prints after the slots; a line already recorded for the ticket is not recorded again, and the lines stay when the slot is freed. Run it for every review that lists one (`references/rules.md`, "A hand-back has one form"; pitboss#257). |
 | `pitboss slots check <config> --running NAME ...` | Give it the names of the agents the session runs; it prints a `GONE AGENT` line for each agent the ledger holds that is not among them. |
 | `pitboss slots check <config> N` | Exits 1 and says the ledger has fewer rows when the ledger has fewer than N rows. |
-| `pitboss slots next <config>` | The sorted list of what to start, and what each empty slot takes. |
 | `pitboss slots heard <config> SLOT` | The agent in the slot handed back or sent a notification (it is still there): the sweep stops listing it as `NO HAND-BACK`. |
 | `pitboss slots wait <config> SLOT` | The agent in the slot waits (on CI, a review or an answer) and does no work. |
 | `pitboss slots resume <config> SLOT` | The agent in the slot works again. |
@@ -110,8 +109,6 @@ estimated; the sweep reads it too, for `SLOT IDLE`.
   `timeout 598`, or one `Monitor` with an `until` loop. It needs
   `[slots] transcripts`, the directory of the workers' transcripts; the agent's
   name in the ledger is the `name` in the transcript's `.meta.json`.
-- `NEXT`: one line of the sorted list. The lines, before every start and review line, are the drafts whose Plan is approved: `mark the PR ready: update_pull_request draft=false for <PR>` (the orchestrator does it, no slot), or, while the runners show a hold, `HOLD on undrafts ...: mark ready at <time> at the earliest` (pitboss#273).
-- `SUGGESTION`: after the list and the empty slots, `slots next` (and `next` with no ticket) prints suggestions, each with its complete brief (`rules.md`, "Briefs come from pitboss"). A PR at `RULING DUE` comes before the list, as an Opus agent that takes no slot. Start the first one that can start, with the brief pasted unchanged (a ruling brief's `How we got here:` line is the one line the orchestrator replaces, with the analysis).
 
 ## The order of work
 
@@ -200,15 +197,7 @@ A PR with `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLA
 line in this list, whatever its state, and a fix or a review of it
 waits for the ruling or the owner.
 
-After the pull requests come the new PRs: **Start a PR** is an open ticket
-with one of the configured priority labels that no open PR names (in its
-title, body or branch); a ticket with none of the labels is never offered.
-The tickets are ordered by priority label (the order of `priority_labels`),
-then oldest first by the creation time of the ticket. Items a slot already
-holds are left out, and so is a ticket of a repository under the owner's hold (printed `HELD`, below): it is not a ticket that can be worked, and the next ticket takes the slot. So is a ticket that is blocked by an open ticket or PR (keyword: ticket-blocked; printed `BLOCKED <ticket> by <owner/repo#n>`): it has no `NEXT` line until the blocker closes or merges. A `STALL` line of the sweep (`rules.md`) is the one
-exception to the order: its fix is taken before every line of this list, unless the stalled PR has `RULING DUE`, `RULING UNREADABLE`, `RULING ESCALATES`, `PAUSE` or `PLAN EDITED` (then it has no line and waits).
-
-Take the lines in this order (a `STALL` fix first) and nothing else: nobody guesses which files a
+nobody guesses which files a
 ticket will touch, and no ticket is skipped or held back because another PR
 might touch the same files. The one thing that keeps a ticket back is the
 owner's hold on a repository (`rules.md`, "Order of work", 6): the configuration

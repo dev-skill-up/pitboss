@@ -70,17 +70,6 @@ What was project-specific, and where it went
      - ``[slots] ledger`` (default ``<main_clone>/.git/pitboss-slots.json``:
        per clone, never committed); the slot log beside it is ``[slots] log``
        (default: the ledger's name ending in ``.log``)
-   * - ``sonnet1 sonnet2 haiku1``, and "haiku before sonnet"
-     - ``[slots] models`` (smallest first) and ``[[slots.default]]`` (the
-       name and model of each slot). Neither has a default: how many slots
-       there are and what runs in them is the project's, and ``slots add``
-       and ``slots remove`` change the count later
-   * - ``p0 p1 p2``, p3 never
-     - ``[slots] priority_labels`` (default none): a ticket with none of
-       them is never offered
-   * - "a ticket marked as needing a Sonnet"
-     - ``[slots] model_labels``: a label that names the smallest model a
-       ticket may go to
    * - "stop opening new quire pull requests until the existing ones are
        finished" (the owner, 2026-10-30)
      - ``[holds] new_pull_requests`` (repositories, default none) and
@@ -113,9 +102,6 @@ and changed:
   reference explains how a review is read and tells the reviewer to run
   ``pitboss review-form CONFIG REPOSITORY``, which prints the form that
   repository's reviews must take, filled in from the config.
-* The order work is taken in (``slots next``) said "p0 before p1 before p2".
-  The order of the tickets, which come after the open PRs, is
-  ``priority_labels``; nothing in the code or the references names a label.
 * ``slots check`` was to list agents "the session no longer runs". Only the
   session can see its agents (``ListAgents``; subagents share one process,
   so ``ps`` cannot count them), so the session passes the names it sees:
@@ -374,7 +360,7 @@ Commands
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
    * - ``slots show|set|free|add|remove|failed|check|next|report|time CONFIG ...``
-     - The worker-slot ledger, and the sorted list of what to start next. Every
+     - The worker-slot ledger. Every
        one but ``report`` and ``time`` exits 1 with ``LEDGER MISSING`` and writes nothing when
        the ledger file does not exist (the owner creates it; only ``sweep`` starts
        one from the configured defaults). ``set`` takes ``--kind`` (``start``,
@@ -1003,15 +989,6 @@ listed at most once. The nine kinds:
   first, pitboss#201).
 
 A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (above) is listed as none of these.
-After them come the new PRs, ordered by ``priority_labels`` first and then
-oldest first: an open ticket of the project or a library, with a priority
-label, not referenced by an open PR, except a ticket of a repository under
-the owner's hold (``[holds] new_pull_requests``; keyword: pr-hold), which is
-printed as ``HELD`` and offered to no slot. A ticket that is blocked, while the ticket or PR
-it names is open is printed as
-``BLOCKED <ticket> by <owner/repo#n>`` by ``slots next`` and the sweep and is
-offered to no slot (keyword: ticket-blocked, ``pitboss.ticketblock``); it is
-listed again when the blocker closes or merges.
 
 **Slot log.** The ledger keeps only the present, and a resumed agent
 overwrites its own timestamps, so idle and waiting time could only be
@@ -1033,15 +1010,6 @@ back a ticket whose backticked paths an open PR changed; the owner dropped
 that guess on 2026-10-22). Tickets are taken in strict order, every PR
 starts from the base branch (no stacking), and a conflict is resolved by
 merging the base branch in when it arises.
-
-The open PRs are ordered oldest first by creation time, and the tickets by
-``priority_labels`` first and then oldest first by creation time (the one
-exception is a ``STALL`` line of the sweep, whose fix the skill's rules take
-before every line of this list; a PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` has no line
-in it). Each line names the
-smallest model it may go to: the first of ``models`` that has not failed
-the ticket and is no smaller than a ``model_labels`` label on it. Empty
-slots are filled smallest model first, each with the first line it may take.
 
 Code
 ----

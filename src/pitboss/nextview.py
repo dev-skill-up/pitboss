@@ -86,6 +86,21 @@ def _queued(item: work.Item, view: NextView) -> str:
     return f" {slotheld.QUEUED}" if waits else ""
 
 
+def place(view: NextView, reference: str) -> tuple[int, int]:
+    """Where an item of the view stands in the list, as ``next_lines`` numbers it.
+
+    Args:
+        view: what to print from.
+        reference: the PR or ticket, one of the view's items.
+
+    Returns:
+        The number of its ``NEXT`` line and the number of the last ``NEXT`` line.
+    """
+    first = slotheld.LEAD + 1 + len(view.ready)
+    found = [each.reference for each in view.items].index(reference)
+    return first + found, first + len(view.items) - 1
+
+
 def next_lines(view: NextView) -> Iterable[str]:
     """The running agents, the sorted list, the held tickets, then the slots.
 
