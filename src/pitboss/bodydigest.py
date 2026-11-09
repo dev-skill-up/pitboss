@@ -9,9 +9,6 @@ the newest review of the head, the head not having moved, is ``older-body``.
 
 import hashlib
 import re
-from typing import Sequence
-
-from . import plandigest
 
 PREFIX = "Body: "
 PLAN_PREFIX = "Plan digest: "  # the line of the Plan section (``plandigest``)
@@ -33,60 +30,6 @@ def digest(body: str) -> str:
     """
     text = body.replace("\r\n", "\n").replace("\r", "\n").rstrip()
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:LENGTH]
-
-
-def of_section(text: str) -> str:
-    """The digest of a section of a PR body (keyword: plan-digest).
-
-    Args:
-        text: the section, empty when the body has none.
-
-    Returns:
-        Its digest, empty for no section.
-    """
-    return digest(plandigest.collapsed(text)) if text else ""
-
-
-def legacy_of_section(text: str) -> str:
-    """The digest a Plan section had before its expanded blocks were collapsed.
-
-    Keyword: plan-digest-collapse (pitboss#358). Reviews and checks recorded
-    before that change carry this digest, and are accepted for one published
-    version (pitboss#399 drops the acceptance).
-
-    Args:
-        text: the section, empty when the body has none.
-
-    Returns:
-        The digest of the section as it is, empty for no section.
-    """
-    return digest(text) if text else ""
-
-
-def accepted(text: str) -> Sequence[str]:
-    """The digests a record of a Plan section may carry to be of this section.
-
-    Args:
-        text: the section, empty when the body has none.
-
-    Returns:
-        Its digest, and the digest it had before the blocks were collapsed
-        (``legacy_of_section``); none for no section.
-    """
-    return [each for each in (of_section(text), legacy_of_section(text)) if each]
-
-
-def section_changed(recorded_digest: str, text: str) -> bool:
-    """Whether a Plan section is no longer the one a review recorded.
-
-    Args:
-        recorded_digest: the digest the review records, empty when it records none.
-        text: the section now, empty when it is not checked.
-
-    Returns:
-        True when both are given and the digest differs from every accepted one.
-    """
-    return bool(text and recorded_digest and recorded_digest not in accepted(text))
 
 
 def recorded_after(review: str, prefix: str) -> str:

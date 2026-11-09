@@ -1,14 +1,56 @@
 """A cut line that no longer reads as a whole is a finding (pitboss#358)."""
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import markuplines
-from .test_markup_lines import counted, hunk
 
 
-def said(old: str, new: str) -> list[str]:
+def hunk(old: Sequence[str], new: Sequence[str]) -> str:
+    """A ``git diff -U0`` patch of one hunk of ``a.md``.
+
+    Args:
+        old: the removed lines.
+        new: the added lines.
+
+    Returns:
+        The patch.
+    """
+    rows = [f"-{each}" for each in old] + [f"+{each}" for each in new]
+    head = "diff --git a/a.md b/a.md\n--- a/a.md\n+++ b/a.md\n@@ -1 +1 @@\n"
+    return head + "".join(f"{each}\n" for each in rows)
+
+
+REFUSED = {
+    "starts mid-sentence": (
+        "All of the files, nobody guesses which files a",
+        "nobody guesses which files a",
+    ),
+    "starts with a closing mark": (
+        "The NEXT list. The kind is the step alone.",
+        ". The kind is the step alone.",
+    ),
+    "is a table row that lost its edge": ("| a | b | c |", "| a | b"),
+    "has an unclosed bracket": ("see (the NEXT list) here", "see (the list here"),
+    "has an unclosed backtick": ("see `the NEXT list` here", "see `the list here"),
+    "lost the end of its sentence": (
+        "It is read first, and then the NEXT list.",
+        "It is read first, and then the",
+    ),
+}
+ACCEPTED = {
+    "a span cut from the middle": (
+        "keep one, cut two, keep three",
+        "keep one, keep three",
+    ),
+    "a row cut inside a cell": ("| a | bbb | c |", "| a | b | c |"),
+    "a sentence cut whole": ("It is read. Then the NEXT list.", "It is read."),
+}
+
+
+def said(old: str, new: str) -> Sequence[str]:
     """The findings of a patch that changes one line to another.
 
     Args:
@@ -18,64 +60,26 @@ def said(old: str, new: str) -> list[str]:
     Returns:
         The findings.
     """
-    return list(markuplines.findings("1\t1\ta.md\0", hunk([old], [new])))
+    return markuplines.findings("1\t1\ta.md\0", hunk([old], [new]))
 
 
 class TestDanglingFragments(unittest.TestCase):
-    """What a cut may not leave."""
+    """What a cut may not leave, and the nearest cuts that are fine."""
 
-    def test_a_whole_line_made_of_the_rest_of_a_cut_sentence_is_refused(self) -> None:
-        """The first line of a paragraph that now starts mid-sentence."""
-        found = said(
-            "All of the files, nobody guesses which files a",
-            "nobody guesses which files a",
-        )
-        assert_that(found, has_length(1))
-        assert_that(found[0], contains_string("a.md` line 1"))
-        assert_that(found[0], contains_string("starts mid-sentence"))
+    def test_each_fragment_is_refused_and_named_with_its_line(self) -> None:
+        """Done-when: the finding names the file, the line and what is wrong."""
+        for why, (old, new) in REFUSED.items():
+            with self.subTest(why):
+                found = said(old, new)
+                assert_that(found, has_length(1))
+                assert_that(found[0], contains_string("a.md` line 1 is a cut line"))
+                assert_that(found[0], contains_string(why))
 
-    def test_a_line_that_starts_with_a_closing_mark_is_refused(self) -> None:
-        """`. The kind is the step alone.`"""
-        found = said(
-            "The NEXT list. The kind is the step alone.",
-            ". The kind is the step alone.",
-        )
-        assert_that(found[0], contains_string("starts with a closing mark"))
-
-    def test_a_table_row_that_lost_its_edge_is_refused(self) -> None:
-        """Half a row."""
-        found = said("| a | b | c |", "| a | b")
-        assert_that(found[0], contains_string("table row"))
-
-    def test_a_row_cut_inside_a_cell_is_accepted(self) -> None:
-        """The nearest input: the edges are there."""
-        assert_that(said("| a | bbb | c |", "| a | b | c |"), equal_to([]))
-
-    def test_an_unclosed_bracket_or_backtick_is_refused(self) -> None:
-        """A span lost one of its marks."""
-        assert_that(
-            said("see (the NEXT list) here", "see (the list here")[0],
-            contains_string("unclosed bracket"),
-        )
-        assert_that(
-            said("see `the NEXT list` here", "see `the list here")[0],
-            contains_string("unclosed backtick"),
-        )
-
-    def test_a_sentence_that_lost_its_end_is_refused(self) -> None:
-        """The full stop went with the span."""
-        found = said(
-            "It is read first, and then the NEXT list.",
-            "It is read first, and then the",
-        )
-        assert_that(found[0], contains_string("lost the end of its sentence"))
-
-    def test_a_clean_cut_of_a_span_is_accepted(self) -> None:
-        """The cut keeps a whole sentence."""
-        assert_that(
-            said("keep one, cut two, keep three", "keep one, keep three"), equal_to([])
-        )
-        assert_that(counted(hunk(["a red fox."], ["a fox."])), equal_to(0))
+    def test_the_nearest_cuts_that_read_as_a_whole_are_accepted(self) -> None:
+        """The nearest inputs: the same kinds of cut, whole."""
+        for name, (old, new) in ACCEPTED.items():
+            with self.subTest(name):
+                assert_that(said(old, new), equal_to([]))
 
     def test_a_deleted_line_is_no_fragment(self) -> None:
         """A removal leaves nothing."""

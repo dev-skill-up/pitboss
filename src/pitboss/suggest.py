@@ -19,6 +19,7 @@ from . import (
     briefrepo,
     config,
     diskwatch,
+    expansion,
     fixes,
     gates,
     plandigest,
@@ -266,7 +267,7 @@ def _heads(source: Source, pull: pulls.PullFacts | None) -> brief.Heads:
         approved=found.sha if found else "",
         findings=found.url if found else "",
         body_digest=bodydigest.digest(body),
-        plan_digest=bodydigest.of_section(plandigest.section(body)),
+        plan_digest=expansion.section_digest(plandigest.section(body)),
     )
 
 

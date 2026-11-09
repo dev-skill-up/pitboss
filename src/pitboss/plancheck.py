@@ -246,7 +246,7 @@ def text(
             steps.PLAN_CHECK_FIRST_LINE,
             *rows,
             *found,
-            f"{bodydigest.PLAN_PREFIX}{bodydigest.of_section(section)}",
+            f"{bodydigest.PLAN_PREFIX}{expansion.section_digest(section)}",
             verdict(refused, found),
             "",
         ]

@@ -112,26 +112,28 @@ def citation_findings(section: str, head: Read) -> Sequence[str]:
         directory) or has fewer lines; the ``file:line: edited`` lines of an
         Impact list are judged by the Impact check.
     """
-    found: list[str] = []
-    for number, text in cipointer.prose(section):
-        if DISPOSITION.match(text):
-            continue
-        for cited in CITED.finditer(text):
-            path, line = cited["path"], int(cited["line"])
-            content = head(path)
-            if content is None and "/" in path:
-                found.append(_stale(number, cited[0], "the file is not at the head"))
-            elif content is not None and line > len(content.splitlines()):
-                total = len(content.splitlines())
-                found.append(_stale(number, cited[0], f"the file has {total} lines"))
-    return found
-
-
-def _stale(number: int, cited: str, why: str) -> str:
-    return (
-        f"{CHECK}: Plan line {number} cites `{cited}`, which the head does not"
-        f" bear out ({why}); cite the line where it is at the head"
+    stale = (
+        (number, cited[0], _gone(cited, head))
+        for number, text in cipointer.prose(section)
+        if not DISPOSITION.match(text)
+        for cited in CITED.finditer(text)
     )
+    return [
+        f"{CHECK}: Plan line {number} cites `{said}`, which the head does not"
+        f" bear out ({why}); cite the line where it is at the head"
+        for number, said, why in stale
+        if why
+    ]
+
+
+def _gone(cited: re.Match[str], head: Read) -> str:
+    # why the head has not the cited line, empty when it has
+    path, line = cited["path"], int(cited["line"])
+    content = head(path)
+    if content is None:
+        return "the file is not at the head" if "/" in path else ""
+    total = len(content.splitlines())
+    return f"the file has {total} lines" if line > total else ""
 
 
 def _segments_match(path: str, pattern: str) -> bool:

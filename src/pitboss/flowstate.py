@@ -10,8 +10,8 @@ import enum
 from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import (
-    bodydigest,
     draftfacts,
+    expansion,
     plandigest,
     rulingwords,
     sessionurl,
@@ -195,7 +195,7 @@ def plan_edited_without_ruling(pr: PullState) -> bool:
     now = plandigest.section(pr.pull.body)
     # keyword: plan-digest-collapse (pitboss#358, #399): a digest recorded before
     # the expanded blocks were collapsed is still the Plan it read
-    if not bodydigest.section_changed(newest.plan_digest, now):
+    if not expansion.section_changed(newest.plan_digest, now):
         return False
     return not plan_edit_ruled(pr, newest.when)
 

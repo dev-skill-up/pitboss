@@ -10,8 +10,8 @@ fragment (a line that starts with a closing mark or in the middle of a
 sentence, a table row that lost its edge, a line that lost half of its
 brackets, a sentence that lost its end) is a finding that names the line
 (keyword: dangling-fragment, pitboss#358). The module reads no file and runs
-nothing: the output of ``git diff --numstat -z`` and of ``git diff -U0`` is
-given.
+nothing; it is given the output of ``git diff --numstat -z`` and of
+``git diff -U0``.
 """
 
 import json
@@ -62,21 +62,6 @@ def _pairs(hunk: str) -> Sequence[tuple[int, str, str]]:
     return found
 
 
-def _matched(hunk: str) -> int:
-    return len(_pairs(hunk))
-
-
-def _cuts(patch: str) -> Mapping[str, int]:
-    # the added lines of each file that only cut characters from a removed line
-    found: dict[str, int] = {}
-    for each in re.split(r"^diff --git ", patch, flags=re.MULTILINE)[1:]:
-        head, *hunks = re.split(r"^@@.*$", each, flags=re.MULTILINE)
-        name = _path_of(head)
-        if name is not None:
-            found[name] = sum(_matched(hunk) for hunk in hunks)
-    return found
-
-
 def _hunks(patch: str) -> Sequence[tuple[str, int, str]]:
     # (path, number of the first added line, the hunk's rows) of every hunk
     found: list[tuple[str, int, str]] = []
@@ -91,7 +76,7 @@ def _hunks(patch: str) -> Sequence[tuple[str, int, str]]:
 
 
 LEAD = re.compile(r"^(?:[-*+|>#]+|\d+[.)])?\s*")
-BRACKETS = ("()", "[]", "{}")
+BRACKETS = (("(", ")"), ("[", "]"), ("{", "}"))
 
 
 def _unclosed(new: str, old: str) -> bool:
@@ -152,6 +137,14 @@ def fragments(patch: str) -> Sequence[str]:
     ]
 
 
+def _cuts(patch: str) -> Mapping[str, int]:
+    # the added lines of each file that only cut characters from a removed line
+    found: dict[str, int] = {}
+    for name, _, rows in _hunks(patch):
+        found[name] = found.get(name, 0) + len(_pairs(rows))
+    return found
+
+
 def _counts(numstat: str) -> Sequence[tuple[str, int]]:
     # a record is `added TAB deleted TAB path`; a binary file has `-` for a count
     records = [each.split("\t", 2) for each in numstat.split("\0") if each]
@@ -168,6 +161,16 @@ def _left(numstat: str, patch: str) -> Sequence[tuple[str, int, int]]:
     each = [(path, added, cuts.get(path, 0)) for path, added in _counts(numstat)]
     return [
         (path, added - min(added, cut), min(added, cut)) for path, added, cut in each
+    ]
+
+
+def _added(numstat: str, patch: str) -> Sequence[str]:
+    return [
+        f"{CHECK}: `{path}` gets {added} added line{'' if added == 1 else 's'}; a"
+        " change never adds a line to a .md or .rst file (lines are only removed;"
+        " a span cut from a line is a removal)"
+        for path, added, _ in _left(numstat, patch)
+        if added
     ]
 
 
@@ -188,16 +191,7 @@ def findings(numstat: str, patch: str = "") -> Sequence[str]:
         leaves a fragment, naming the line (``fragments``); none for a file
         that only loses lines or cuts spans out of them.
     """
-    return [
-        *[
-            f"{CHECK}: `{path}` gets {added} added line{'' if added == 1 else 's'}; a"
-            " change never adds a line to a .md or .rst file (lines are only removed;"
-            " a span cut from a line is a removal)"
-            for path, added, _ in _left(numstat, patch)
-            if added
-        ],
-        *fragments(patch),
-    ]
+    return [*_added(numstat, patch), *fragments(patch)]
 
 
 def notes(numstat: str, patch: str) -> Sequence[str]:

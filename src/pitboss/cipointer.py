@@ -71,6 +71,19 @@ def path_of(span: str) -> str:
     return span if "/" in span else DIRECTORY + span
 
 
+def _outside(section: str) -> Sequence[tuple[int, str]]:
+    # the lines outside the fenced blocks; a fence line itself reads as blank
+    found: list[tuple[int, str]] = []
+    fenced = False
+    for number, line in enumerate(section.splitlines(), 1):
+        if FENCE.match(line):
+            fenced = not fenced
+            found.append((number, ""))
+        elif not fenced:
+            found.append((number, line))
+    return found
+
+
 def prose(section: str) -> Sequence[tuple[int, str]]:
     """The lines of a Plan section that are prose.
 
@@ -81,14 +94,7 @@ def prose(section: str) -> Sequence[tuple[int, str]]:
         Each line's number (the heading is 1) and text, but a command line
         (``$ ...``) and a line inside a fenced block.
     """
-    found: list[tuple[int, str]] = []
-    fenced = False
-    for number, line in enumerate(section.splitlines(), 1):
-        if FENCE.match(line):
-            fenced = not fenced
-        elif not fenced and not COMMAND.match(line):
-            found.append((number, line))
-    return found
+    return [(n, line) for n, line in _outside(section) if not COMMAND.match(line)]
 
 
 def rows(section: str) -> Sequence[tuple[int, str]]:
@@ -106,13 +112,8 @@ def rows(section: str) -> Sequence[tuple[int, str]]:
     """
     found: list[tuple[int, list[str]]] = []
     inside = False
-    fenced = False
-    for number, line in enumerate(section.splitlines(), 1):
-        if FENCE.match(line):
-            fenced, inside = not fenced, False
-        elif fenced:
-            continue
-        elif not line.strip() or COMMAND.match(line):
+    for number, line in _outside(section):
+        if not line.strip() or COMMAND.match(line):
             inside = False
         elif inside and not ITEM.match(line):
             found[-1][1].append(line.strip())
