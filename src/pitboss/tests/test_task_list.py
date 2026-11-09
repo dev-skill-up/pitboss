@@ -13,7 +13,7 @@ from hamcrest import (
 )
 
 from .. import config, ledger, tasklist, work
-from . import fakes, test_work, world
+from . import fakes, liveagents, test_work, world
 from .test_handback import start
 from .test_quiet import at
 
@@ -39,7 +39,8 @@ def sweep(here: world.World, *options: str) -> world.Result:
     Returns:
         What it did.
     """
-    return world.invoke(here, "sweep", here.config, "--now", at(30), *options)
+    live = liveagents.running(here)
+    return world.invoke(here, "sweep", here.config, "--now", at(30), *live, *options)
 
 
 def task_lines(here: world.World) -> Sequence[str]:
@@ -69,7 +70,8 @@ class TestBlock(unittest.TestCase):
         """Each item of the NEXT order is a line, numbered as ``slots next`` does."""
         here = world.make_world()
         found = task_lines(here)
-        shown = world.invoke(here, "slots", "next", here.config, "--now", at(30)).out
+        args = ("slots", "next", here.config, "--now", at(30))
+        shown = world.invoke(here, *args, *liveagents.running(here)).out
         wanted = re.findall(r"^NEXT (\d+)\. (\S+) ", shown, re.MULTILINE)[1:]
         assert_that(wanted, has_length(3))
         for (number, reference), line in zip(wanted, found[2:]):
