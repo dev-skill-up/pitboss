@@ -11,6 +11,7 @@ from . import ledger, pulls, slotheld, work
 
 HOLDING = (
     work.Category.FIX_REVIEW,
+    work.Category.FIX_ROUND,
     work.Category.FIRST_ROUND,
     work.Category.RULING_STEPS,
     work.Category.RESOLVE_CONFLICT,

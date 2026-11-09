@@ -12,6 +12,7 @@ from .test_flow import CHANGES, expect, graded, state
 WITH_COMMANDS = "Fixes #7\n\n## Plan\nthe plan\n\n$ echo hi\n\n## Execution\nx\n"
 EDITED = WITH_COMMANDS.replace("echo hi", "echo bye")
 EMPTY_DIRECTIVE = "Fixes #7\n\n## Plan\nthe plan\n\n$ \n\n## Execution\nx\n"
+QUOTED = "row 1: NOT RUN | Plan check: refused, rows that did not run: 1"
 PLAN_ALONE = steps.regular_review(steps.Stage.PLAN_ONLY)
 BOTH = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
 
@@ -50,7 +51,6 @@ def refused_comment(body: str) -> shapes.Comment:
 
 NOT_COUNTED = {
     "another plan": (EDITED, check_comment(WITH_COMMANDS)),
-    "refused": (WITH_COMMANDS, refused_comment(WITH_COMMANDS)),
     "untrusted": (WITH_COMMANDS, check_comment(WITH_COMMANDS, author="NONE")),
     "not a check": (
         WITH_COMMANDS,
@@ -88,6 +88,31 @@ class TestPlanCheckStep(unittest.TestCase):
             with self.subTest(name):
                 shown = dataclasses.replace(state(body=body), comments=[comment])
                 expect(steps.plan_check(), shown)
+
+    def test_a_refusal_of_this_plan_is_the_fix_with_its_findings(self) -> None:
+        """No review: the fix round quotes the findings (pitboss#390)."""
+        refused = refused_comment(WITH_COMMANDS)
+        want = steps.fix_round(refused.url, QUOTED)
+        for name, draft in (("draft", True), ("ready", False)):
+            with self.subTest(name):
+                pr = state(body=WITH_COMMANDS, draft=draft, comments=[refused])
+                expect(want, pr)
+        assert_that(steps.describe(want), contains_string(QUOTED))
+
+    def test_a_refusal_of_another_plan_is_a_check_to_run(self) -> None:
+        """The edited Plan has no check of its own yet."""
+        pr = state(body=EDITED, comments=[refused_comment(WITH_COMMANDS)])
+        expect(steps.plan_check(), pr)
+
+    def test_the_newest_check_of_this_plan_decides(self) -> None:
+        """A clean check after a refusal offers the review; a refusal after it, the fix."""
+        refused, clean = refused_comment(WITH_COMMANDS), check_comment(WITH_COMMANDS)
+        later = dataclasses.replace(clean, created_at="2026-10-30T00:00:09Z")
+        sooner = dataclasses.replace(clean, created_at="2026-10-30T00:00:00Z")
+        pr = state(body=WITH_COMMANDS)
+        expect(BOTH, dataclasses.replace(pr, comments=[refused, later]))
+        found = dataclasses.replace(pr, comments=[refused, sooner])
+        expect(steps.fix_round(refused.url, QUOTED), found)
 
     def test_a_directive_with_no_command_waits_for_the_check(self) -> None:
         """The check refuses it, so it is not offered for review."""

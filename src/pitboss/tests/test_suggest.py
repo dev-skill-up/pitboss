@@ -5,8 +5,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import suggest
-from . import fakes, test_flow_sweep, world
+from .. import brieftext, suggest
+from . import fakes, test_flow_sweep, unfixed, world
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
 from .suggestions import (
     default_suggestions,
@@ -20,6 +20,7 @@ from .suggestions import (
 SUGGESTIONS = f"{world.PROJECT}/issues?state=open&labels=urgent"
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 COMMENT_URL = "https://example.org/owner/project/pull/3#issuecomment-1"
+RULING_URL = "https://example.org/owner/project/pull/3#issuecomment-2"
 
 
 PLAN_ALONE = "review the Plan alone"
@@ -254,11 +255,12 @@ class TestKindsOfWork(unittest.TestCase):
 
     def test_a_rejected_execution_is_fixed_with_the_reviews_address(self) -> None:
         """The findings are in the review, whose address the brief gives."""
-        here = world_with([graded(APPROVED, CHANGES, 1)])
+        here = unfixed.after_the_ruling()
         path = fakes.page("repos/owner/project/issues/3/comments")
         comment = here.bodies[path]
         assert isinstance(comment, list)
-        comment[0]["html_url"] = COMMENT_URL
+        comment[2]["html_url"] = COMMENT_URL
+        comment[1]["html_url"] = RULING_URL
         header, brief = third(here)
         assert_that(header.split(": ")[1], equal_to("fix the review"))
         task = [line for line in brief if line.startswith("Task: ")]
@@ -273,6 +275,8 @@ class TestKindsOfWork(unittest.TestCase):
                 ]
             ),
         )
+        ruled = [line for line in brief if line.startswith("Ruling: ")]
+        assert_that(ruled, equal_to([brieftext.RULING_NAMED.format(ruling=RULING_URL)]))
 
     def test_an_approved_conflicted_head_is_resolved(self) -> None:
         """The base is merged in."""

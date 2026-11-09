@@ -96,6 +96,9 @@ class Task(enum.Enum):
         ADD_CI_QUOTES: the Plan has CI-quote rows and the body lacks the quotes,
             which exist only after the PR is ready and its checks pass (keyword:
             ci-quotes, pitboss#277).
+        FIX_ROUND: the findings of a review that rejects the Plan name a file of
+            the tree, or the Plan check of the current Plan refused it: code, doc,
+            test and Plan may change (keyword: fix-round-kind, pitboss#390).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -115,6 +118,10 @@ class Task(enum.Enum):
         " is empty or a placeholder)"
     )
     ADD_CI_QUOTES = "add the CI quotes to the body"
+    FIX_ROUND = (
+        "fix round: fix the findings, each one (code, doc, test and Plan changes"
+        " allowed); merge the base, run one nox, re-expand the Evidence"
+    )
 
 
 class Stage(enum.Enum):
@@ -146,7 +153,11 @@ class Next:
         task: what the worker does (a WORKER step).
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
-            FIX_RULING step), empty when the API gave none.
+            FIX_RULING step), of the refused Plan check (a FIX_ROUND step) or of
+            the ruling an Execution fix round follows (a FIX_EXECUTION step),
+            empty when the API gave none.
+        findings: the findings of the refused Plan check, quoted (a FIX_ROUND
+            step), empty otherwise (keyword: fix-round-kind, pitboss#390).
         branch: the head branch the check workflow is dispatched on (a RUN_E2E
             step).
         on_base: the head is red only from checks that passed on the base since
@@ -157,6 +168,7 @@ class Next:
     task: Task | None = None
     stage: Stage | None = None
     comment: str = ""
+    findings: str = ""
     branch: str = ""
     on_base: bool = False
 
@@ -239,6 +251,8 @@ def describe(step: Next) -> str:
     """
     if step.step is Step.MERGE and step.on_base:
         return ENQUEUE
+    if step.task is not None and step.findings:
+        return f"{step.task.value}: {step.findings}"
     if step.task is not None:
         return step.task.value
     if step.stage is not None and step.on_base:
@@ -269,6 +283,34 @@ def worker(task: Task) -> Next:
         The step.
     """
     return Next(step=Step.WORKER, task=task)
+
+
+def fix_round(comment: str = "", findings: str = "") -> Next:
+    """The worker round that fixes findings the Plan round cannot.
+
+    Args:
+        comment: the address of the refused Plan check, empty for a review's
+            findings.
+        findings: the refused Plan check's findings, quoted.
+
+    Returns:
+        The step.
+    """
+    found = Next(step=Step.WORKER, task=Task.FIX_ROUND)
+    return dataclasses.replace(found, comment=comment, findings=findings)
+
+
+def fix_execution(ruling: str) -> Next:
+    """The worker round that fixes a rejected Execution after a ruling.
+
+    Args:
+        ruling: the address of the Opus ruling comment, empty when the API gave
+            none.
+
+    Returns:
+        The step.
+    """
+    return dataclasses.replace(worker(Task.FIX_EXECUTION), comment=ruling)
 
 
 def undraft() -> Next:

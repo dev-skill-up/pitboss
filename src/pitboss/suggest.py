@@ -52,6 +52,7 @@ KIND_OF_CATEGORY = {
     work.Category.RULING_AS_GIVEN: brief.Kind.RULING_AS_GIVEN,
     work.Category.RUN_PLAN: brief.Kind.RUN_PLAN,
     work.Category.ADD_CI_QUOTES: brief.Kind.ADD_CI_QUOTES,
+    work.Category.FIX_ROUND: brief.Kind.FIX_ROUND,
 }
 
 
@@ -260,11 +261,15 @@ def _heads(source: Source, pull: pulls.PullFacts | None) -> brief.Heads:
     if pull is None:
         return brief.Heads(head="", base=base, approved="", findings="")
     found = pull.review
+    check = pull.step.comment if pull.step.task is steps.Task.FIX_ROUND else ""
     return brief.Heads(
         head=pull.pull.head.sha,
         base=pull.pull.base,
         approved=found.sha if found else "",
-        findings=found.url if found else "",
+        findings=check or (found.url if found else ""),
+        check=bool(check),
+        quoted=pull.step.findings,
+        ruling=pull.step.comment if pull.step.task is steps.Task.FIX_EXECUTION else "",
         body_digest=bodydigest.digest(pull.pull.body),
         plan_digest=expansion.section_digest(plandigest.section(pull.pull.body)),
     )

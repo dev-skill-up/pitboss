@@ -12,6 +12,7 @@ from typing import AbstractSet, Callable, Mapping, Sequence
 from . import (
     draftfacts,
     expansion,
+    plancheckflow,
     plandigest,
     rulingwords,
     sessionurl,
@@ -50,6 +51,11 @@ class PullState:
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         draft: what the caller read for a draft (``draftfacts.Draft``).
+        no_drafts: whether its repository has no drafts (the caller reads the
+            configuration; keyword: no-drafts, pitboss#390).
+        unchanged_since: says whether the head differs from a reviewed head by
+            merge commits, empty commits and derived files only, so that no code
+            moved (the caller reads the base; keyword: unfixed-execution).
     """
 
     pull: shapes.Pull
@@ -62,6 +68,8 @@ class PullState:
     merges_only_since: Callable[[str], bool] = lambda sha: False
     relock: bool = False
     draft: draftfacts.Draft = draftfacts.Draft()
+    no_drafts: bool = False
+    unchanged_since: Callable[[str], bool] = lambda sha: False
 
 
 def plan_rejected_last(pr: PullState) -> bool:
@@ -288,7 +296,9 @@ def plan_unrun(pr: PullState, review: shapes.Graded | None) -> steps.Next | None
     of the body, which the next review does not read (its ``Body:`` digest),
     so the Plan review is not offered again: a draft goes on to its undraft, any
     other PR to the next step of its Execution, the review or the round that
-    adds the CI quotes. A draft or not alike.
+    adds the CI quotes. A draft or not alike. Execution rows that are filled
+    under a clean Plan check leave nothing to run: the review follows
+    (keyword: filled-execution, pitboss#390).
 
     Args:
         pr: the PR.
@@ -296,13 +306,15 @@ def plan_unrun(pr: PullState, review: shapes.Graded | None) -> steps.Next | None
 
     Returns:
         The round, or None when the newest review of the head does not approve
-        the Plan alone, or no readable ruling came before it.
+        the Plan alone, no readable ruling came before it, or the Execution is
+        filled and the Plan check clean.
     """
     ruled = readable_comment(pr)
     if review is None or ruled is None or review.when <= ruled[0].created_at:
         return None
     alone = review.plan is shapes.Verdict.APPROVED and review.execution is None
-    return steps.worker(steps.Task.RUN_PLAN) if alone else None
+    filled = plancheckflow.filled(pr.pull.body, pr.comments, pr.trusted)
+    return plancheckflow.write_round(pr) if alone and not filled else None
 
 
 def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:

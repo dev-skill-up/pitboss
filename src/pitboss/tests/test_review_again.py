@@ -13,7 +13,7 @@ CASES = [
     # (the review's Plan grade, its Execution grade), the kind listed
     ((NEEDED, NEEDED), "(revise the plan,"),  # a combined review
     ((NEEDED, None), "(revise the plan,"),  # a review of the Plan alone
-    (("approved", NEEDED), "(fix the review,"),
+    (("approved", NEEDED), ""),  # the Execution is ruled on first (pitboss#390)
 ]
 
 

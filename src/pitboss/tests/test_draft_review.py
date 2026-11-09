@@ -110,21 +110,21 @@ class TestDraftsInSlotsNext(unittest.TestCase):
         here = quiet(world_with([graded(CHANGES, None, 1)], draft=True))
         assert_that(listed(here), equal_to(("revise the plan", True)))
 
-    def test_a_draft_with_changes_needed_at_its_head_is_a_fix_of_the_review(
+    def test_a_draft_with_changes_needed_at_its_head_is_a_ruling_not_a_line(
         self,
     ) -> None:
-        """Changes needed on the Execution: fix the review, before any ticket."""
+        """Changes needed on the Execution: Opus rules first, no NEXT line."""
         here = quiet(world_with([graded(None, CHANGES, 1)], draft=True))
-        assert_that(listed(here), equal_to(("fix the review", True)))
+        assert_that(listed(here), equal_to(("", False)))
 
-    def test_a_draft_with_the_plan_approved_and_changes_needed_is_a_fix(
+    def test_a_draft_with_the_plan_approved_and_changes_needed_is_a_ruling(
         self,
     ) -> None:
-        """pitboss#176: the fix round comes before the p0 ticket, quiet or busy."""
+        """pitboss#176, #390: the ruling is owed first, quiet or busy."""
         rounds = [graded(APPROVED, None, 1, sha=OLDER), graded(None, CHANGES, 2)]
         busy = world_with(rounds, draft=True)
         for here in (busy, quiet(world_with(rounds, draft=True))):
-            assert_that(listed(here), equal_to(("fix the review", True)))
+            assert_that(listed(here), equal_to(("", False)))
 
     def test_a_draft_with_the_plan_approved_is_not_a_review(self) -> None:
         """It is refused a review: its NEXT line is the hold on its undraft (#273)."""
@@ -222,20 +222,20 @@ class TestTheFlow(unittest.TestCase):
             draft = state(*rejections, checks=(), draft=True, undraft_clear=clear)
             expect(steps.opus_ruling(), draft)
 
-    def test_a_draft_with_a_rejected_execution_is_fixed(self) -> None:
-        """The worker fixes the review."""
+    def test_a_draft_with_a_rejected_execution_gets_a_ruling(self) -> None:
+        """Opus rules before any fix round."""
         review = test_flow.graded(None, FLOW_CHANGES, 1)
-        expect(steps.worker(steps.Task.FIX_EXECUTION), state(review, draft=True))
+        expect(steps.opus_ruling(), state(review, draft=True))
 
-    def test_a_draft_with_an_approved_plan_and_a_rejected_execution_is_fixed(
+    def test_a_draft_with_an_approved_plan_and_a_rejected_execution_is_ruled(
         self,
     ) -> None:
-        """pitboss#176: the fix comes before the undraft."""
+        """pitboss#176: the ruling comes before the undraft."""
         alone = test_flow.PLAN_APPROVED_ALONE
         approved = test_flow.graded(*alone, 1, sha=test_flow.OLDER)
         review = test_flow.graded(None, FLOW_CHANGES, 2)
         draft = state(approved, review, checks=(), draft=True, undraft_clear=True)
-        expect(steps.worker(steps.Task.FIX_EXECUTION), draft)
+        expect(steps.opus_ruling(), draft)
 
     def test_a_draft_with_an_approved_plan_is_undrafted_when_quiet(self) -> None:
         """The undraft comes once the Plan is approved."""

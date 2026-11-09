@@ -23,6 +23,7 @@ FIRST = f"## Review\nReviewed: {HEAD}\n"
 PLAN_ONLY_BODY = f"{FIRST}{PROSE_PLAN}\nVerdict: approved\n"
 UNGRADED_BODY = f"{FIRST}Plan: fine\nVerdict: approved\n"
 READY = "READY TO MERGE owner/project#3"
+UNWRITTEN = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nNot started: later\n"
 REVIEW = test_flow.REVIEW
 
 
@@ -65,17 +66,20 @@ def newest(body: str) -> reviews.Found:
     return next(iter(reviews.from_comments(posted, REVIEW.trusted, read, form)))
 
 
-def next_printed(comments: Sequence[shapes.Comment], draft: bool = True) -> str:
+def next_printed(
+    comments: Sequence[shapes.Comment], draft: bool = True, body: str = UNWRITTEN
+) -> str:
     """What ``pitboss next`` prints for PR 3 (a draft or not) with the comments.
 
     Args:
         comments: PR 3's comments.
         draft: whether PR 3 is a draft.
+        body: PR 3's body, whose Execution is a placeholder by default.
 
     Returns:
         The output.
     """
-    here = test_flow_sweep.world_with(comments, body=test_flow.BODY, draft=draft)
+    here = test_flow_sweep.world_with(comments, body=body, draft=draft)
     return world.invoke(here, "next", here.config, "#7", "--now", world.FUTURE).out
 
 
@@ -175,6 +179,13 @@ class TestSweepAndNext(unittest.TestCase):
     def test_next_prints_the_worker_round_for_a_pr_that_is_not_a_draft(self) -> None:
         """Done-when 1 with no condition on the draft: the same round."""
         assert_worker_round_not_the_review(draft=False)
+
+    def test_a_filled_execution_is_reviewed_not_run_again(self) -> None:
+        """pitboss#390: nothing to fill and no command to check, so no worker."""
+        printed = next_printed(played(PLAN_ONLY_BODY), False, test_flow.BODY)
+        assert_that(printed, contains_string("REGULAR_REVIEW: #7"))
+        run = steps.describe(steps.worker(steps.Task.RUN_PLAN))
+        assert_that(run in printed, equal_to(False))
 
     def test_the_worker_round_needs_a_ruling_before_the_approval(self) -> None:
         """With no ruling, a Plan approved alone is the ordinary draft's."""

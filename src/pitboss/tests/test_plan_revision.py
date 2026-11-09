@@ -159,8 +159,8 @@ NEEDED = "changes needed"
 OUTPUT_CASES = [
     # (verdict, plan, execution), the PR line, the kind listed, ready to merge
     ((NEEDED, NEEDED, NEEDED), "review=plan-changes-needed", "(revise the plan,", 0),
-    ((NEEDED, None, NEEDED), "review=changes-needed", "(fix the review,", 0),
-    ((NEEDED, "approved", NEEDED), "review=changes-needed", "(fix the review,", 0),
+    ((NEEDED, None, NEEDED), "review=changes-needed", "", 0),
+    ((NEEDED, "approved", NEEDED), "review=changes-needed", "", 0),
     (("approved", "approved", None), "review=plan-approved", "(review it", 0),
     (("approved", "approved", "approved"), "review=approved-this-head", "", 1),
 ]
@@ -172,8 +172,8 @@ class TestSweepAndNext(unittest.TestCase):
     def test_each_review_has_its_line_and_kind(self) -> None:
         """A rejected plan is revised, a plan approved alone is no approval to merge.
 
-        A review that approves the plan and asks for changes is a worker's
-        round (the flow, pitboss#107), not RULING DUE.
+        A review that approves the plan and asks for changes is listed for
+        nothing: the ruling is due first (keyword: ruling-first, pitboss#390).
         """
         for grades, line, kind, ready in OUTPUT_CASES:
             swept, pull_line, listed = outputs(review_comment(*grades))

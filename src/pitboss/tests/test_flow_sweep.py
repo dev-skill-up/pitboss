@@ -193,13 +193,14 @@ class TestSweepAndNext(unittest.TestCase):
         assert_that(swept, contains_string(PAUSE_LINE))
         assert_that(listed, equal_to(""))
 
-    def test_a_review_that_approves_the_plan_and_asks_for_changes_is_a_round(
+    def test_a_review_that_approves_the_plan_and_asks_for_changes_is_a_ruling(
         self,
     ) -> None:
-        """A worker round (fix the review), not RULING DUE."""
+        """RULING DUE, and no fix round before it (keyword: ruling-first)."""
         swept, listed = sweep_and_next([graded(APPROVED, CHANGES, 1)])
-        assert_that("RULING DUE" in swept or "PAUSE" in swept, equal_to(False))
-        assert_that(listed, contains_string("(fix the review,"))
+        assert_that(swept, contains_string(RULING_LINE))
+        assert_that("PAUSE" in swept, equal_to(False))
+        assert_that(listed, equal_to(""))
 
     def test_the_first_plan_rejection_is_a_plan_revision(self) -> None:
         """Revise the plan, no RULING DUE."""
@@ -359,28 +360,3 @@ class TestBodyFix(unittest.TestCase):
             next_output(here),
             contains_string("make an Opus ruling: owner/project#3: Opus agent"),
         )
-
-    def test_a_body_edit_before_the_plan_was_approved_is_no_execution_round(
-        self,
-    ) -> None:
-        """A plan revision: the worker's round, not RULING DUE."""
-        now = "Fixes #1\n\n## Plan\nthe revised plan\n\n## Execution\nthe work\n"
-        before = "Fixes #1\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
-        rounds = [
-            reading(graded(CHANGES, CHANGES, 1), before),
-            reading(graded(APPROVED, CHANGES, 2), now),
-        ]
-        here = world_with(rounds, body=now)
-        assert_that("RULING DUE" in sweep(here).out, equal_to(False))
-        assert_that("".join(listed_for_third(here)), contains_string("fix the review"))
-
-    def test_two_rejections_at_one_head_and_one_body_are_a_worker_round(self) -> None:
-        """No body edit between the two: nothing was fixed, the worker's round."""
-        body = "Fixes #1\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
-        rounds = [
-            reading(graded(APPROVED, CHANGES, 1), body),
-            reading(graded(APPROVED, CHANGES, 2), body),
-        ]
-        here = world_with(rounds, body=body)
-        assert_that("RULING DUE" in sweep(here).out, equal_to(False))
-        assert_that("".join(listed_for_third(here)), contains_string("fix the review"))

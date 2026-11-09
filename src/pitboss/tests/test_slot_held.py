@@ -11,7 +11,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import slotheld
-from . import fakes, suggestions, test_flow_sweep as flows, world
+from . import fakes, suggestions, test_flow_sweep as flows, unfixed, world
 from .liveagents import calm, ran, said
 from .test_commands import sweep
 from .test_owner_repositories import lines_of
@@ -31,10 +31,11 @@ def incident() -> world.World:
     """The incident: cap one, PR 3 in fix the review, PR 1 waiting for a review.
 
     Returns:
-        The world: PR 3 has a review that asks for changes, PR 1 is green and
-        clean with no review, ticket 9 can start, and one slot is left.
+        The world: PR 3 has a rejected Execution, a ruling and a head that moved
+        by an empty commit, PR 1 is green and clean with no review, ticket 9 can
+        start, and one slot is left.
     """
-    here = flows.world_with([flows.graded(flows.APPROVED, flows.CHANGES, 1)])
+    here = unfixed.after_the_ruling()
     head = "1" * 40
     branch = {"sha": head, "ref": "branch-1"}
     here.bodies[f"{PROJECT}/pulls/1"] = fakes.pull_body(1, head=branch)
