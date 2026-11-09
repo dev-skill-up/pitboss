@@ -1,8 +1,8 @@
 """The one rule of ``/dev``: no pitboss command deletes under it (#424).
 
 Every deleter asks ``under_dev`` first: ``cleaning.removals`` (``rm``), the removal
-of a finished worktree (``git worktree remove``) and the scratch worktree of
-``plan-check``.
+of a finished worktree (``git worktree remove``), the scratch worktree of
+``plan-check`` and the throwaway home of ``nox``.
 """
 
 import os
