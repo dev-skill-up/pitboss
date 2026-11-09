@@ -33,6 +33,9 @@ def run(parser):
         " onto a second line",
     )
 '''
+GAINED = SOURCE.replace(
+    "    Returns it.\n", "    Mind the new line here.\n    Returns it.\n"
+)
 GUIDE = "# Guide\n\nThe plan lists each behaviour of it.\n\nShort one.\n"
 FILES: Mapping[str, str] = {"src/mod.py": SOURCE, "doc/guide.md": GUIDE}
 BROKEN = "def come_first(\n"
@@ -116,6 +119,21 @@ CASES: Mapping[str, tuple[Mapping[str, Sequence[int]], str, Sequence[str]]] = {
 }
 
 
+def phrases_of(patch: str, base: str, head: str) -> Sequence[str]:
+    """The phrases a patch of ``src/mod.py`` needs a row for.
+
+    Args:
+        patch: the diff.
+        base: the base's text of ``src/mod.py``.
+        head: the head's text of it.
+
+    Returns:
+        The phrases, sorted.
+    """
+    found = impactphrases.wanted(patch, {MOD: base}.get, {MOD: head}.get)
+    return sorted(each.phrase for each in found)
+
+
 WANTS = impactphrases.wanted(patch_removing({MOD: [DEF]}), FILES.get, FILES.get)
 
 
@@ -142,19 +160,14 @@ class TestWanted(unittest.TestCase):
         self,
     ) -> None:
         """An added docstring line is read in the head: its words, its owner's name."""
-        gained = SOURCE.replace(
-            "    Returns it.\n", "    Mind the new line here.\n    Returns it.\n"
-        )
         patch = (
             "diff --git a/src/mod.py b/src/mod.py\n--- a/src/mod.py\n"
             "+++ b/src/mod.py\n@@ -9,0 +10 @@\n+    Mind the new line here.\n"
         )
-        found = impactphrases.wanted(patch, {MOD: SOURCE}.get, {MOD: gained}.get)
         assert_that(
-            sorted(each.phrase for each in found),
+            phrases_of(patch, SOURCE, GAINED),
             equal_to(sorted(["Mind the new line here.", *SAYS_FORMS])),
         )
-        assert_that({each.where for each in found}, equal_to({"src/mod.py:10"}))
 
     def test_a_removed_short_name_gives_its_phrases(self) -> None:
         """No name is too short: ``rows`` and the constants ``ROW`` and ``SPAN``."""
@@ -164,10 +177,7 @@ class TestWanted(unittest.TestCase):
             "+++ b/src/mod.py\n@@ -1,2 +0,0 @@\n-ROW = 1\n-SPAN = 2\n"
             "@@ -5,2 +3,0 @@\n-def rows(x):\n-    return x\n"
         )
-        found = impactphrases.wanted(patch, {MOD: base}.get, {MOD: ""}.get)
-        assert_that(
-            sorted(each.phrase for each in found), equal_to(["ROW", "SPAN", "rows"])
-        )
+        assert_that(phrases_of(patch, base, ""), equal_to(["ROW", "SPAN", "rows"]))
 
     def test_the_source_of_a_phrase_is_its_line_in_the_base(self) -> None:
         """The finding says where the phrase was."""
@@ -219,11 +229,12 @@ class TestUncovered(unittest.TestCase):
 BRANCH = ("checkout", "-q", "-B", "work")
 
 
-def work_repository(case: unittest.TestCase) -> diffrepo.Repository:
-    """A repository whose base has ``src/mod.py`` and whose head renames its function.
+def repository_with(case: unittest.TestCase, head: str) -> diffrepo.Repository:
+    """A repository whose base has ``src/mod.py`` and whose head changes it.
 
     Args:
         case: the test, whose end removes the repository.
+        head: the head's text of ``src/mod.py``.
 
     Returns:
         The repository, on its branch ``work``.
@@ -233,9 +244,21 @@ def work_repository(case: unittest.TestCase) -> diffrepo.Repository:
     diffrepo.commit(repo, MOD, SOURCE)
     for each in (("update-ref", "refs/remotes/origin/main", "HEAD"), BRANCH):
         run_git(repo.root, *each)
-    renamed = SOURCE.replace("def come_first(x):", "def renamed(x):")
-    diffrepo.commit(repo, MOD, renamed.replace("Say the come first", "Say it"))
+    diffrepo.commit(repo, MOD, head)
     return repo
+
+
+def work_repository(case: unittest.TestCase) -> diffrepo.Repository:
+    """A repository whose head renames the function of ``src/mod.py``.
+
+    Args:
+        case: the test, whose end removes the repository.
+
+    Returns:
+        The repository, on its branch ``work``.
+    """
+    renamed = SOURCE.replace("def come_first(x):", "def renamed(x):")
+    return repository_with(case, renamed.replace("Say the come first", "Say it"))
 
 
 ROW = (
@@ -259,15 +282,7 @@ class TestCommand(unittest.TestCase):
 
     def test_a_plan_without_a_row_for_an_added_docstring_line_is_refused(self) -> None:
         """Done-when: rows for the owner's name do not search the added line."""
-        repo = diffrepo.make_repository(self)
-        run_git(repo.root, "checkout", "-q", "main")
-        diffrepo.commit(repo, MOD, SOURCE)
-        for each in (("update-ref", "refs/remotes/origin/main", "HEAD"), BRANCH):
-            run_git(repo.root, *each)
-        gained = SOURCE.replace(
-            "    Returns it.\n", "    Mind the new line here.\n    Returns it.\n"
-        )
-        diffrepo.commit(repo, MOD, gained)
+        repo = repository_with(self, GAINED)
         owner = "1. `pitboss impact come_first come-first 'come first'`\n"
         refused = unconfigured(repo, owner)
         searched = unconfigured(

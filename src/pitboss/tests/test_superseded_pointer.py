@@ -82,7 +82,7 @@ class TestLint(unittest.TestCase):
         assert_that(got, equal_to({"said": 0, "new name missing": 1, "no line": 1}))
 
     def test_a_typo_next_to_a_real_test_is_flagged(self) -> None:
-        """The nearest input to refuse: a name the base never had is no replaced test."""
+        """The nearest input to refuse: a name the base never had is not replaced."""
         body = cite("test_typo_nowhere") + TYPO
         found = testnames.findings("body", body, checkout(), {"test_old"})
         assert_that(found, has_length(1))

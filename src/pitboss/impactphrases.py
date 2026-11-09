@@ -24,7 +24,7 @@ import ast
 import dataclasses
 import re
 import shlex
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Iterator, Mapping, Sequence
 
 CHECK = "impact-phrase"
 Read = Callable[[str], str | None]
@@ -32,6 +32,7 @@ MARKUP = (".md", ".rst")
 HEADER = re.compile(r"^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 DEFINITION = re.compile(r"^\s*(?:async\s+)?(?:def|class)\s+(\w+)")
 CONSTANT = re.compile(r"^([A-Z][A-Z0-9_]*)\s*(?::[^=]+)?=")
+PREFIXES = {"-": "a/", "+": "b/"}
 WORDS = 6
 MIN_WORDS = 3
 LETTERS = re.compile(r"[A-Za-z]{4}")
@@ -54,10 +55,32 @@ class Want:
 Lines = Mapping[str, Sequence[tuple[int, str]]]
 
 
-def _file(text: str, prefix: str) -> str:
-    # the name a "---" or "+++" line gives, without its prefix; empty for no file
-    name = text.split("\t")[0].removeprefix(prefix).strip('"')
-    return "" if name == "/dev/null" else name
+def _named(line: str) -> tuple[str, str] | None:
+    # the side and the name a "---" or "+++" line gives; the name is empty for no file
+    if not line.startswith(("--- ", "+++ ")):
+        return None
+    name = line[4:].split("\t")[0].removeprefix(PREFIXES[line[0]]).strip('"')
+    return line[0], "" if name == "/dev/null" else name
+
+
+def _lines(patch: str) -> Iterator[tuple[str, str, int, str]]:
+    # each line of the hunks: its sign, its file, its number there, its text
+    names = {"-": "", "+": ""}
+    at = {"-": 0, "+": 0}
+    inside = False
+    for line in patch.splitlines():
+        named = None if inside else _named(line)
+        header = HEADER.match(line)
+        if line.startswith("diff --git "):
+            inside = False
+        elif named is not None:
+            names[named[0]] = named[1]
+        elif header is not None:
+            inside = True
+            at = {"-": int(header.group(1)), "+": int(header.group(2))}
+        elif inside and line[:1] in at and names[line[0]]:
+            yield line[0], names[line[0]], at[line[0]], line[1:]
+            at[line[0]] += 1
 
 
 def changed(patch: str) -> tuple[Lines, Lines]:
@@ -71,28 +94,10 @@ def changed(patch: str) -> tuple[Lines, Lines]:
         text)``, and the added lines by their file's new name, as ``(line in
         the head, text)``.
     """
-    gone: dict[str, list[tuple[int, str]]] = {}
-    new: dict[str, list[tuple[int, str]]] = {}
-    old = fresh = ""
-    before = after = 0
-    inside = False
-    for line in patch.splitlines():
-        if line.startswith("diff --git "):
-            inside = False
-        elif not inside and line.startswith("--- "):
-            old = _file(line[4:], "a/")
-        elif not inside and line.startswith("+++ "):
-            fresh = _file(line[4:], "b/")
-        elif (header := HEADER.match(line)) is not None:
-            inside = True
-            before, after = int(header.group(1)), int(header.group(2))
-        elif inside and line.startswith("-") and old:
-            gone.setdefault(old, []).append((before, line[1:]))
-            before += 1
-        elif inside and line.startswith("+") and fresh:
-            new.setdefault(fresh, []).append((after, line[1:]))
-            after += 1
-    return gone, new
+    sides: dict[str, dict[str, list[tuple[int, str]]]] = {"-": {}, "+": {}}
+    for sign, name, number, text in _lines(patch):
+        sides[sign].setdefault(name, []).append((number, text))
+    return sides["-"], sides["+"]
 
 
 def _first_words(text: str) -> str:

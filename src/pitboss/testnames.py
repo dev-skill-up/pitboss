@@ -5,17 +5,23 @@ written before the tests were (pitboss#189); ``test-name`` is the finding for
 each such identifier. A name counts as there when the tree has a
 ``def <name>`` or a module ``<name>.py``.
 A name also counts when a line of the Execution names it with another test the
-tree has (a ruling replaced the test: superseded-pointer).
+tree has and the PR's diff removes the name (a ruling replaced the test:
+superseded-pointer).
 """
 
 import os
 import pathlib
 import re
+import subprocess
 from typing import Collection, Iterator, Mapping, Sequence
+
+from . import running
 
 _CITED = re.compile(r"(?<![A-Za-z0-9_])test_[A-Za-z0-9_]+(?![A-Za-z0-9_])")
 _DEF = re.compile(r"^[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
-_SIGNED = re.compile(r"^([-+])[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
+_REMOVED = re.compile(r"^-[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
+_ADDED = re.compile(r"^\+[ \t]*(?:async[ \t]+)?def[ \t]+(test_\w+)", re.MULTILINE)
+BASE = "origin/main"
 _HEADING = re.compile(r"^(#{1,6})[ \t]+(.*?)[ \t]*$", re.MULTILINE)
 _FENCED = re.compile(
     r"^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?(?:^ {0,3}\1[`~]*[ \t]*$|\Z)",
@@ -129,9 +135,29 @@ def removed(patch: str) -> Collection[str]:
         The name of each ``def test_...`` a removed line has and no added line has
         (keyword: superseded-pointer, pitboss#317).
     """
-    signed = _SIGNED.findall(patch)
-    added = {name for sign, name in signed if sign == "+"}
-    return {name for sign, name in signed if sign == "-" and name not in added}
+    return set(_REMOVED.findall(patch)) - set(_ADDED.findall(patch))
+
+
+def checked(
+    name: str, body: str, root: pathlib.Path, run: running.Run
+) -> Sequence[str]:
+    """The findings for the test names a body cites, the diff read from git.
+
+    Args:
+        name: what to call the body in a finding.
+        body: the PR's body.
+        root: the head's checkout.
+        run: the runner of git; a checkout git cannot diff against ``origin/main``
+            removes no test.
+
+    Returns:
+        The findings of ``findings``.
+    """
+    try:
+        patch = running.git(run, root, "diff", "-U0", "--no-color", f"{BASE}...HEAD")
+    except (subprocess.CalledProcessError, OSError):
+        patch = ""
+    return findings(name, body, root, removed(patch))
 
 
 def findings(
