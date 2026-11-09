@@ -114,4 +114,7 @@ class TestIsolatedEnvironment(unittest.TestCase):
         set_one, _ = isolated({**real_home(self), "XDG_CACHE_HOME": "/elsewhere"})
         none_set, _ = isolated({"PATH": "/bin"})
         assert_that(set_one["XDG_CACHE_HOME"], equal_to("/elsewhere"))
-        assert_that([key for key in none_set if key.startswith("XDG_C")], equal_to([]))
+        assert_that(
+            [key for key in none_set if key.endswith(("_CACHE_HOME", "_DATA_HOME"))],
+            equal_to([]),
+        )
