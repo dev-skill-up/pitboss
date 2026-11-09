@@ -72,7 +72,9 @@ class TestTheSweep(unittest.TestCase):
         """No footer, no finding; a footer does not hide the one a wrong body has."""
         standing = reviews.Standing.CHANGES_NEEDED
         found = [
-            pullstate.body_findings(settings(), facts(standing, body=body, **PULL))
+            pullstate.body_findings(
+                settings(), facts(standing, body=body, head=PULL["head"])
+            )
             for body in BODIES
         ]
         assert_that([len(each) for each in found], equal_to([0, 1]))
