@@ -90,14 +90,14 @@ def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
         pr: the PR.
 
     Returns:
-        The review with the newest Execution grade when it rejects and no code
-        moved since its head, else None.
+        The Execution-graded review if it rejects and no code moved, else None.
     """
     graded = [each for each in regular_reviews(pr) if each.execution is not None]
     rejecting = graded[-1] if graded else None
     if rejecting is None or rejecting.execution is not shapes.Verdict.CHANGES_NEEDED:
         return None
-    return rejecting if pr.unchanged_since(rejecting.sha) else None
+    moved = not pr.pull.head.sha.startswith(rejecting.sha)  # else a body fix
+    return rejecting if moved and pr.unchanged_since(rejecting.sha) else None
 
 
 def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
