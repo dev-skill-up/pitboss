@@ -45,7 +45,7 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
 
     reading_intermixed = False
 
-    def set_defaults(self, **kwargs: object) -> None:
+    def set_defaults(self, **kwargs: object) -> None:  # noqa: SLD303
         """Set defaults, and make a command's docstring its help text.
 
         Args:

@@ -1,10 +1,11 @@
-"""A command's help text is its docstring (keyword: command-help, pitboss#301)."""
+"""A command's usage text is its docstring (keyword: command-help, pitboss#301)."""
 
+import argparse
 import contextlib
 import io
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, not_
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import cli_parser, commanddoc, machine
 
@@ -36,10 +37,19 @@ def documented(command: str) -> str:
     return command
 
 
-class TestCommandHelp(unittest.TestCase):
-    """The help names every command and says what each does."""
+def unargued(args: argparse.Namespace) -> None:
+    """Do nothing.
 
-    def test_the_top_help_lists_each_command_with_its_first_line(self) -> None:
+    Args:
+        args: the parsed arguments.
+    """
+    return None
+
+
+class TestCommandUsage(unittest.TestCase):
+    """The usage names every command and says what each does."""
+
+    def test_the_top_usage_lists_each_command_with_its_first_line(self) -> None:
         """``pitboss --help`` has a line for ``nox`` and for ``review-form``."""
         found = shown("--help")
         assert_that(
@@ -56,18 +66,28 @@ class TestCommandHelp(unittest.TestCase):
             ),
         )
 
-    def test_a_command_help_has_its_whole_docstring_but_its_args(self) -> None:
+    def test_a_command_usage_has_its_whole_docstring_but_its_args(self) -> None:
         """``pitboss nox --help`` has the rest of the docstring, not ``Args:``."""
         found = shown("nox", "--help")
         assert_that(found, contains_string("Before it starts a session it reads"))
-        assert_that(found, not_(contains_string("the parsed arguments")))
+        assert_that("the parsed arguments" in found, equal_to(False))
+        assert_that(found, contains_string("CI's Run Nox step"))
 
     def test_the_text_stops_at_args(self) -> None:
         """The text of a docstring with ``Args:`` is what comes before them."""
+        assert_that(documented("given"), equal_to("given"))
         assert_that(
             commanddoc.text(documented),
             equal_to("A command with a docstring that has an ``Args:`` section."),
         )
+
+    def test_the_described_text_follows_the_docstring(
+        self,
+    ) -> None:
+        """A command described with a text has it after its docstring."""
+        made = commanddoc.described("More.")(unargued)
+        assert_that(made(argparse.Namespace()), equal_to(None))
+        assert_that(commanddoc.text(made), equal_to("Do nothing.\n\nMore."))
 
     def test_a_function_without_a_docstring_has_no_text(self) -> None:
         """A callable with no docstring gives the empty text."""

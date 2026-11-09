@@ -53,6 +53,7 @@ from . import (
     workerlines,
     workhours,
 )
+from . import commanddoc, commandtext
 from . import diskline, pulllines, pullstate, unlabeled, unreadableline
 from .commandarguments import CHANGING_ARGUMENTS, SWEEP_ARGUMENTS
 from .failures import describe, read_all
@@ -345,24 +346,9 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
 
 
 @ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
+@commanddoc.described(commandtext.SWEEP)
 def sweep(args: argparse.Namespace) -> None:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
-
-    A PR line reads ``owner/name#12 [clean] auto-merge=off pending=0
-    failed=[test (job 345)] queue=- review=none Title (branch)``. ``[state]``
-    is GitHub's ``mergeable_state``. ``auto-merge`` is whether it is armed (a
-    push clears it), ``pending`` the checks of the head not finished, and
-    ``failed`` the checks whose latest run on the head failed and that no newer
-    passing commit status of the head answers. ``queue`` is the state of the
-    PR's newest merge-queue run, ``-`` for none. ``review`` is the standing of
-    the newest review: ``approved-this-head``; ``approved-before-merges`` (an
-    older head was approved and only merges of the base came since; never in a
-    gated repository); ``changes-needed``; ``plan-changes-needed`` (the review
-    graded the Plan changes needed, so the only round is a revision of the
-    Plan); ``plan-approved`` (the Plan alone was approved, which is no approval
-    to merge); ``older-head`` (a fix came since: it needs a review);
-    ``older-body`` (the review recorded a ``Body:`` digest and the body was
-    fixed after it, the head not having moved); ``none``.
 
     Args:
         args: the parsed arguments.

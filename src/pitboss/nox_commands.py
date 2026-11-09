@@ -16,6 +16,8 @@ from typing import Mapping, Sequence
 from gather.commands import add_argument
 
 from . import (
+    commanddoc,
+    commandtext,
     ENTRY_DATA,
     alsotests,
     cloneguard,
@@ -244,15 +246,9 @@ def run_planned(
     NOW_ARGUMENT,
     name="nox",
 )
+@commanddoc.described(commandtext.NOX)
 def nox(args: argparse.Namespace) -> None:
     """Run the sessions of ``noxcheck.Session``, in their order.
-
-    The order is skills, lint and mypy (about 23 s together, and most red runs
-    are red there), then the tests of one Python version, which run with
-    virtue's ``-x`` so that the first failing test stops the run; every session
-    runs with ``-r`` and the first failing session stops the rest. A targeted
-    test module, ``nox -s ...`` or ``virtue`` is never run by hand: the whole
-    suite (every Python version, docs, dry_release) is CI's ``Run Nox`` step.
 
     Before it starts a session it reads the free space of the volume of the
     working directory (``build/nox`` is written there), and under 5 GiB free it

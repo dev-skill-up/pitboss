@@ -9,6 +9,8 @@ from typing import AbstractSet, Callable, Sequence
 from gather.commands import add_argument
 
 from . import (
+    commanddoc,
+    commandtext,
     ENTRY_DATA,
     cleaning,
     cleanjob,
@@ -195,6 +197,7 @@ ARGUMENTS = (
 
 
 @ENTRY_DATA.register(*ARGUMENTS, name="clean-container")
+@commanddoc.described(commandtext.CLEAN_CONTAINER)
 def clean_container(args: argparse.Namespace) -> None:
     """Remove the dead paths: finished checkouts, idle scratch, session files.
 
@@ -205,18 +208,6 @@ def clean_container(args: argparse.Namespace) -> None:
     each ``rm``; each path is looked at again just before its ``rm``.
     ``--approved FILE`` limits the removal to the paths listed in the file
     that are among the safe dead paths now.
-
-    A regular file directly in ``--root`` (default ``/``) written over ``--hours``
-    (default 1) after ``--marker`` (default ``/container_info.json``, skipped
-    when absent) is dead too. A path marked live is never listed: a file named
-    ``.pitboss-live`` in it at any depth or in a directory above it (not honored
-    in a merged checkout when older than 6 hours), a path of ``[clean] live``,
-    the main clone, the directory the command runs in, or a tree that changed
-    in the idle hours. A symbolic link is never followed and a mount point never
-    entered; a standalone clone counts every ref (other local branches and the
-    stash), a worktree of another repository its HEAD. It fetches each
-    repository first and does not judge the checkouts of one that cannot be
-    fetched.
 
     A checkout is found wherever git lists it under the workspace, of any
     repository, and is dead when its PR merged or closed, its tip is in the base

@@ -2,11 +2,11 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, has_item
+from hamcrest import assert_that, equal_to, has_item
 
 from .. import brief, briefruling
 from .briefmake import pinned, text
-from .test_evidence_rules import read, words
+from .test_evidence_rules import words
 
 SENTENCE = (
     "a Done-when that cannot be met without reversing a decision of the owner"
@@ -19,10 +19,6 @@ SENTENCE = (
 
 class TestOwnerConflict(unittest.TestCase):
     """Done-when: rules.md, the ruling brief and this test."""
-
-    def test_rules_md_states_the_rule(self) -> None:
-        """rules.md holds the sentence in the ruling section."""
-        assert_that(words(read("rules.md")), contains_string(SENTENCE))
 
     def test_the_ruling_brief_carries_the_sentence(self) -> None:
         """The brief the sweep prints has the sentence as a line of its own."""

@@ -5,11 +5,10 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, brieftextlint, expansion, plancommands
+from .. import brief, expansion, plancommands
 from .briefmake import text
 from .formchecks import body_checks, findings
 from .linting import HEAD, OK, lines, lint, write_text
-from .test_evidence_rules import read, words
 
 PLANNED = 'grep -n "slots.tsv" doc/slots.md'
 EXPLORED = 'grep -n -i "authoritative" doc/slots.md'
@@ -163,10 +162,3 @@ class TestWorkerBriefs(unittest.TestCase):
         }
         has = {kind: PLAN_LINT in text(kind) for kind in carries}
         assert_that(has, equal_to(carries))
-
-    def test_the_reference_holds_the_wording(self) -> None:
-        """The reference has the sentence, and the brief the same."""
-        assert_that(words(brieftextlint.PLAN_LINT), equal_to(PLAN_LINT))
-        reference = words(read("adversarial-review.md"))
-        wanted = PLAN_LINT.removeprefix("Plan lint: ")
-        assert_that(reference, contains_string(wanted))

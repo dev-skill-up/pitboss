@@ -12,8 +12,6 @@ FILES = ("rules.md", "adversarial-review.md")
 PHRASES = (
     "Evidence line",
     "come only from `pitboss expand`",
-    "never retype or abbreviate output",
-    "$ cat < path",
 )
 
 

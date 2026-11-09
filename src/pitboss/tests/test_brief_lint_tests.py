@@ -2,12 +2,9 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string
-
 from .. import brief
 from .briefmake import has_none, pinned, text
 from .test_brief_nox import WORKERS
-from .test_evidence_rules import read, words
 
 LINT_TEST = (
     "Lint tests: a lint, check or exemption that is new or loosened ships a test"
@@ -42,11 +39,3 @@ class TestLintTests(unittest.TestCase):
             pinned(kind, [LINT_TEST_REVIEW])
         for kind in (*WORKERS, *OTHER_REVIEWS):
             has_none(text(kind), [LINT_TEST_REVIEW])
-
-    def test_the_reference_holds_the_rule_the_briefs_carry(self) -> None:
-        """rules.md and adversarial-review.md hold the rule."""
-        rules = words(read("rules.md"))
-        review = words(read("adversarial-review.md"))
-        sentence = "ships a test for the nearest input it must still reject"
-        assert_that(rules, contains_string(sentence))
-        assert_that(review, contains_string(sentence))

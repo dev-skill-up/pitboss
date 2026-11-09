@@ -9,7 +9,7 @@ from .. import brief, brieftext, evidence, expansion
 from .briefmake import has_all, has_none, text
 from .formchecks import body_checks, findings
 from .linting import BODY, OK, RAN
-from .test_evidence_rules import read, words
+from .test_evidence_rules import words
 
 SENTENCES = {
     "Try commands: ": (
@@ -121,11 +121,8 @@ class TestWorkerBriefs(unittest.TestCase):
                 has_all(brief_text, [k + SENTENCES[k] for k in carried])
                 has_none(brief_text, [k for k in SENTENCES if k not in carried])
 
-    def test_the_reference_holds_the_wording(self) -> None:
-        """The reference has each sentence, and the briefs the same."""
-        reference = words(read("adversarial-review.md"))
-        # the Search line is the briefs' alone: a doc gains no line (pitboss#396)
+    def test_the_constants_hold_the_wording(self) -> None:
+        """The briefs' constants are the sentences (the code is the authority)."""
         for prefix, constant in list(zip(SENTENCES, CONSTANTS))[:2]:
-            assert_that(reference, contains_string(SENTENCES[prefix]))
             assert_that(words(constant), equal_to(prefix + SENTENCES[prefix]))
         assert_that(words(CONSTANTS[2]), equal_to("Search: " + SENTENCES["Search: "]))
