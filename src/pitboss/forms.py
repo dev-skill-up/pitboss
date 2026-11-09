@@ -17,7 +17,16 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, evidence, folds, plancommands, reviews, rowchecks, sessionurl
+from . import (
+    config,
+    evidence,
+    folds,
+    linttests,
+    plancommands,
+    reviews,
+    rowchecks,
+    sessionurl,
+)
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 HEAD_LINE = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
@@ -152,7 +161,9 @@ def pr_body(
         approved: the digests of the Plans reviews approved (plan-approved).
 
     Returns:
-        The findings.
+        The findings, among them ``lint-test``: a Plan that adds or loosens a
+        lint, check or exemption and has no row for a test of the nearest input
+        it must still reject (pitboss#358).
     """
     clean = _clean(subject)
     return [
@@ -162,6 +173,7 @@ def pr_body(
         *_evidence(clean),
         *_command_rows(clean),
         *plancommands.findings(clean.name, clean.body, approved),
+        *linttests.findings(clean.name, clean.body, approved),
         *_footer(clean, footers),
     ]
 

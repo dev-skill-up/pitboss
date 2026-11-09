@@ -12,8 +12,10 @@ a Plan's command may fail on the base (a test the change makes pass). A row
 have a disposition line in the Plan, at the lines of the PR's head (keyword:
 impact-list, pitboss#320). A CI pointer that names a workflow file, job or step
 that is not there, and a spec the diff adds that no pointer or group names, are
-findings too (keyword: ci-pointer, pitboss#335), and so is a line the diff adds to
-a .md or .rst file, except a cut span (keyword: markup-lines, #343, #373). The
+findings too (keyword: ci-pointer, pitboss#335), and so are a row meant as a CI
+pointer that is none and a line the Plan cites that the head does not have
+(pitboss#358), and a line the diff adds to a .md or .rst file, except a cut span,
+and a cut that leaves a fragment (keyword: markup-lines, #343, #373, #358). The
 module imports no process: the runner, the search and the readers of files are given.
 """
 
@@ -175,12 +177,17 @@ def ci_findings(
         files: readers of a file of the PR's base and of its head.
 
     Returns:
-        The findings: a pointer naming a workflow file, job or step that is not
-        there, and a spec the diff adds that no pointer or group names.
+        The findings: a row meant as a pointer that is none (keyword:
+        ci-pointer-form, pitboss#358), a pointer naming a workflow file, job or
+        step that is not there, a line the Plan cites that the head does not
+        have (keyword: cited-line, pitboss#358), and a spec the diff adds that
+        no pointer or group names.
     """
     base, head = files
     pointers = cipointer.read(section)
     return [
+        *cipointercheck.form_findings(section),
+        *cipointercheck.citation_findings(section, head),
         *cipointercheck.pointer_findings(pointers, base, head),
         *cipointercheck.spec_findings(added, pointers, settings, head),
     ]

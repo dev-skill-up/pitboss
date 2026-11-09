@@ -20,6 +20,11 @@ from typing import AbstractSet, Callable, Sequence
 from . import ciworkflow, cipointer, plancheckconfig
 
 CHECK = "ci-pointer"
+# a cited line, `path/file.py:12` (not the `file:line: edited` line of an Impact list)
+CITED = re.compile(
+    r"(?<![\w./-])(?P<path>[\w.-]+(?:/[\w.-]+)*\.[A-Za-z0-9]+):(?P<line>\d+)\b"
+)
+DISPOSITION = re.compile(r"^\s*(?:[-*]\s+)?\S+:\d+: (?:not )?edited\b")
 Read = Callable[[str], str | None]
 WILDCARD = re.compile(r"[*?\[]")
 
@@ -75,6 +80,58 @@ def pointer_findings(
     return [
         each for point in pointers for each in _workflow_findings(point, base, head)
     ]
+
+
+def form_findings(section: str) -> Sequence[str]:
+    """The rows of a Plan that are meant as CI pointers and are none.
+
+    Args:
+        section: the Plan section.
+
+    Returns:
+        A finding for each such row (keyword: ci-pointer-form, pitboss#358),
+        naming the row and the form a pointer needs.
+    """
+    return [
+        f"{CHECK}: Plan line {number} is under `CI pointer rows` or names a workflow,"
+        f" job or step, and is no CI pointer: `{text[:80]}`; {cipointer.FORM}"
+        for number, text in cipointer.unrecognized(section)
+    ]
+
+
+def citation_findings(section: str, head: Read) -> Sequence[str]:
+    """The lines a Plan cites that the head no longer has.
+
+    Args:
+        section: the Plan section.
+        head: reads a file of the PR's head; None when it is not there.
+
+    Returns:
+        A finding (keyword: cited-line, pitboss#358) for each ``path:line`` in
+        the Plan's prose whose file, at the head, is not there (a path with a
+        directory) or has fewer lines; the ``file:line: edited`` lines of an
+        Impact list are judged by the Impact check.
+    """
+    found: list[str] = []
+    for number, text in cipointer.prose(section):
+        if DISPOSITION.match(text):
+            continue
+        for cited in CITED.finditer(text):
+            path, line = cited["path"], int(cited["line"])
+            content = head(path)
+            if content is None and "/" in path:
+                found.append(_stale(number, cited[0], "the file is not at the head"))
+            elif content is not None and line > len(content.splitlines()):
+                total = len(content.splitlines())
+                found.append(_stale(number, cited[0], f"the file has {total} lines"))
+    return found
+
+
+def _stale(number: int, cited: str, why: str) -> str:
+    return (
+        f"{CHECK}: Plan line {number} cites `{cited}`, which the head does not"
+        f" bear out ({why}); cite the line where it is at the head"
+    )
 
 
 def _segments_match(path: str, pattern: str) -> bool:

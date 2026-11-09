@@ -119,7 +119,7 @@ The configuration file
 
 ``CONFIG`` on every command is a path, or a name that resolves to
 ``.claude/pitboss/<name>.toml`` in the current directory or the nearest
-parent that has one. ``doc/example.toml`` lists every key with its default.
+parent that has one.
 Only ``[project] owner``, ``repository`` and ``main_clone`` are required.
 
 With no ``CONFIG`` (``--config NAME``, ``$PITBOSS_CONFIG``) the command looks
