@@ -17,7 +17,7 @@ import subprocess
 import functools
 from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
 
-from . import config, ghapi, ledger, pulls, supersedes, ticketblock
+from . import config, ghapi, ledger, planrefusal, pulls, supersedes, ticketblock
 
 NAME = re.compile(r"(?:[\w.-]+/)?[\w.-]*#\d+")
 URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
@@ -293,3 +293,26 @@ def pull_waits(
         created_at=found.created_at,
         priority=_rank(settings, found.labels),
     )
+
+
+def refusal_blockers(
+    github: ghapi.GitHub, settings: config.Config, pull: str, ticket: str
+) -> Sequence[str]:
+    """The open tickets and PRs that the refused Plan check of a PR names.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        pull: the PR, ``owner/name#number``, which never blocks itself.
+        ticket: the ticket it fixes, which never blocks it either.
+
+    Returns:
+        The references, each once, in the order of the newest trusted ``Plan
+        check`` comment, when that comment refuses the Plan (keyword:
+        plan-refusal, pitboss#388).
+    """
+    trusted = settings.review.trusted
+    text = planrefusal.refusing(ticketblock.comments_of(github, pull, trusted))
+    names = named(text, config.repo_of(pull)) if text else []
+    wanted = dict.fromkeys(each for each in names if each not in {pull, ticket})
+    return [each for each in wanted if _is_open(github, each)]

@@ -1,4 +1,4 @@
-"""The open tickets and PRs that a refused Plan check names (pitboss#388).
+"""The refusal of a Plan check, which blocks a PR on what it names (pitboss#388).
 
 A PR whose newest trusted ``Plan check`` comment says ``Plan check: refused``
 waits for every open ticket or PR that comment names, as pitboss#372 was refused
@@ -7,9 +7,9 @@ in place of one (keyword: plan-refusal, blocked-pull). A newer ``Plan check: ok`
 comment ends the wait, and so does the close or the merge of what it names.
 """
 
-from typing import AbstractSet, Sequence
+from typing import Sequence
 
-from . import blockers, config, ghapi, sessionurl, steps, ticketblock
+from . import sessionurl, steps
 
 REFUSED = "Plan check: refused"
 
@@ -35,30 +35,3 @@ def refusing(texts: Sequence[str]) -> str:
     newest = checks[-1] if checks else []
     refused = any(each.startswith(REFUSED) for each in newest)
     return "\n".join(newest) if refused else ""
-
-
-def _is_open(github: ghapi.GitHub, reference: str) -> bool:
-    return blockers.open_ticket(github, reference) is not None
-
-
-def open_blockers(
-    github: ghapi.GitHub,
-    trusted: AbstractSet[str],
-    pull: str,
-    ticket: str,
-) -> Sequence[str]:
-    """The open tickets and PRs that the refusal of a PR names.
-
-    Args:
-        github: the API.
-        trusted: the author associations whose comments count.
-        pull: the PR, ``owner/name#number``, which never blocks itself.
-        ticket: the ticket it fixes, which never blocks it either.
-
-    Returns:
-        The references, each once, in the order of the comment.
-    """
-    text = refusing(ticketblock.comments_of(github, pull, trusted))
-    names = blockers.named(text, config.repo_of(pull)) if text else []
-    wanted = dict.fromkeys(each for each in names if each not in {pull, ticket})
-    return [each for each in wanted if _is_open(github, each)]

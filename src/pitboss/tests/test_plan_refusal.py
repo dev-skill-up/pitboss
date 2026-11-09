@@ -5,7 +5,7 @@ sweep still offered its review round.
 """
 
 import unittest
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -51,7 +51,7 @@ OK = check(f"Plan check\n{DIGEST}\nPlan check: ok")
 
 
 def refused_world(
-    comments: list[Mapping[str, str]], seventh: str = "open"
+    comments: Sequence[Mapping[str, str]], seventh: str = "open"
 ) -> world.World:
     """PR 3 fixes ticket 9, which names no blocker, and ticket 7 is as given.
 

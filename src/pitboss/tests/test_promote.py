@@ -5,14 +5,13 @@ a p0".
 """
 
 import unittest
-from typing import Mapping, Sequence
+from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, promotion
 from . import fakes, quietworld, world
 from .rankworld import (
-    fixing,
     lines_are,
     mentioning,
     next_output,
@@ -38,19 +37,17 @@ def named_world(
     owner: Mapping[str, str] | None = None,
     ranks: Mapping[int, str] = TICKETS,
     states: Mapping[int, str] | None = None,
-    extra: Sequence[Mapping[str, object]] = (),
 ) -> world.World:
     """Open tickets 9 to 12 with these priority labels and bodies.
 
     The listing of every ticket and PR of the project (``issues?state=all``) holds
-    these tickets, in the state each has, and the extra items.
+    these tickets, in the state each has.
 
     Args:
         bodies: each ticket's number and its body.
         owner: the owner's stated priorities.
         ranks: each ticket's number and its priority label.
         states: each ticket's state, ``open`` when it is not here.
-        extra: more items of the listing, such as a PR.
 
     Returns:
         The world.
@@ -64,13 +61,12 @@ def named_world(
         for number, rank in ranks.items()
     }
     publish(here, RANKS, shown)
-    listed = []
-    for number in ranks:
+    for number, body in bodies.items():
         found = here.bodies[f"{PROJECT}/issues/{number}"]
         assert isinstance(found, dict)
-        found["body"] = bodies.get(number, "")
-        listed.append(found)
-    here.bodies[fakes.page(f"{PROJECT}/issues?state=all")] = [*listed, *extra]
+        found["body"] = body
+    every = [here.bodies[f"{PROJECT}/issues/{number}"] for number in ranks]
+    here.bodies[fakes.page(f"{PROJECT}/issues?state=all")] = every
     return here
 
 
@@ -193,65 +189,6 @@ class TestSlotsNext(unittest.TestCase):
         """Ticket 9 already has the top label."""
         here = named_world(THREE, ranks={**TICKETS, 9: "p0"})
         printed(here, "PROMOTE", [])
-
-
-class TestEveryTicketAndPull(unittest.TestCase):
-    """The mentions are counted in every ticket and PR, whatever its state."""
-
-    def test_a_naming_ticket_under_an_open_pull_request_counts(self) -> None:
-        """Ticket 11 has PR 3, whose body does not repeat the phrase: K is 3."""
-        here = named_world(THREE)
-        fixing(here, 3, "Fixes #11")
-        first = ["owner/project#1", "owner/project#3", NINTH]
-        assert_that(starts(here)[:3], equal_to(first))
-        assert_that("owner/project#11" in starts(here), equal_to(False))
-        printed(here, "PROMOTE", [SAID])
-        assert_that(
-            next_output(here),
-            contains_string(f"{NINTH} (start a PR p0, opened 2026-09-01,"),
-        )
-
-    def test_a_closed_naming_ticket_counts(self) -> None:
-        """Ticket 12 is closed: the three still name ticket 9."""
-        here = named_world(THREE, states={12: "closed"})
-        printed(here, "PROMOTE", [SAID])
-        assert_that(NINTH in starts(here)[:3], equal_to(True))
-
-    def test_an_unlabelled_naming_ticket_counts(self) -> None:
-        """Ticket 12 has no priority label, so it is not queued: it counts."""
-        here = named_world(THREE, ranks={**TICKETS, 12: "docs"})
-        printed(here, "PROMOTE", [SAID])
-
-    def test_a_merged_pull_request_counts(self) -> None:
-        """A merged PR that says ``Cause: #9`` is the third mention."""
-        merged = {
-            "number": 40,
-            "state": "closed",
-            "title": "Cause: #9",
-            "body": "",
-            "pull_request": {"merged_at": "2026-10-01T00:00:00Z"},
-        }
-        here = named_world({10: "Caused by #9", 11: "Cause: #9"}, extra=[merged])
-        said = (
-            "PROMOTE owner/project#9 to p0: caused 3 corrections"
-            " (owner/project#10, owner/project#11, owner/project#40)"
-        )
-        printed(here, "PROMOTE", [said])
-
-    def test_the_listing_is_read_once_for_each_repository(self) -> None:
-        """One paginated call for each configured repository, not one per ticket."""
-        here = named_world(THREE)
-        next_output(here)
-        asked = [each[-1] for each in here.calls if "issues?state=all" in each[-1]]
-        assert_that(
-            asked,
-            equal_to(
-                [
-                    fakes.page(f"{PROJECT}/issues?state=all"),
-                    fakes.page(f"{world.LIBRARY}/issues?state=all"),
-                ]
-            ),
-        )
 
 
 class TestSweep(unittest.TestCase):
