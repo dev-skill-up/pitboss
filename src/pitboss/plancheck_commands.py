@@ -353,7 +353,6 @@ def _of_trees(
     files = (_reading(trees[0]), _reading(trees[1]))
     return [
         *plancheck.impact_findings(section, _searching(trees[1])),
-        *plancheck.diff_findings(section, diffs[2], files[0], files[1]),
         *plancheck.ci_findings(section, diffs[0], _settings(args), files),
         *markuplines.findings(diffs[1], diffs[2]),
     ]

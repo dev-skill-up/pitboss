@@ -18,9 +18,8 @@ module imports no process: the runner, the search and the readers of files are g
 So are a numbered row with no command, read or CI pointer (plan-pointer), a CI run
 whose head is not the body's (ci-run), a Done-when that is not the ticket's
 (plan-done-when), an interpretation of it (plan-interpretation), an Impact row whose
-dispositions are not its hits (impact-count), a diff phrase with no Impact row
-(impact-phrase) and a claim that no markup file changed (markup-claim), all
-pitboss#317.
+dispositions are not its hits (impact-count) and a claim that no markup file
+changed (markup-claim), all pitboss#317.
 """
 
 import dataclasses
@@ -35,7 +34,6 @@ from . import (
     impact,
     impactcheck,
     impactcount,
-    impactphrases,
     markupclaim,
     markuplines,
     noxrow,
@@ -202,25 +200,6 @@ def ci_findings(
     ]
 
 
-def diff_findings(
-    section: str, patch: str, base: impactphrases.Read, head: impactphrases.Read
-) -> Sequence[str]:
-    """The phrases of the diff's changed lines that no Impact row searches.
-
-    Args:
-        section: the Plan section of the body.
-        patch: the PR's diff (``git diff -U0``).
-        base: reads a file of the PR's base; None when it is not there.
-        head: reads a file of the PR's head; None when it is not there.
-
-    Returns:
-        A finding for each phrase the diff needs a row for (keyword:
-        impact-phrase, pitboss#317).
-    """
-    wants = impactphrases.wanted(patch, base, head)
-    return impactphrases.uncovered(wants, impactcount.phrases(section))
-
-
 def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[str]:
     """What the body's own words get wrong about its Plan and its diff.
 
@@ -244,7 +223,6 @@ def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[s
 
 KINDS = (
     (impactcount.CHECK, "Impact count findings"),
-    (impactphrases.CHECK, "Impact phrase findings"),
     (cipointercheck.CHECK, "CI pointer findings"),
     (cirun.CHECK, "CI run findings"),
     (markuplines.CHECK, "Markup line findings"),

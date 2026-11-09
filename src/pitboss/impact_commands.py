@@ -36,7 +36,7 @@ def impact_command(args: argparse.Namespace) -> None:
     On standard error it prints the phrases it searched, and a hint for a phrase of
     several words when the tree has the same words joined by underscores
     (``come first`` and ``come_first``), which the phrase does not match
-    (keyword: impact-phrase, pitboss#317).
+    (keyword: impact-count, pitboss#317).
 
     Args:
         args: the parsed arguments (a root that is not a directory, or a phrase
