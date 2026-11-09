@@ -72,7 +72,7 @@ rows = [
  ("orchestration.md Briefs Compiler line", "rules.md", "**A brief tells the worker where the compiler is**"),
  ("orchestration.md Briefs hand-back form", "rules.md", "**A hand-back has one form**"),
  ("orchestration.md Briefs this machine lacks X", "rules.md", "\"This machine lacks X\" is never a reason for a spec to be skipped"),
- ("orchestration.md Briefs /dev", "rules.md", "**`/dev` is not written to by a worker**"),
+ ("orchestration.md Briefs /dev", "rules.md", "**`/dev`**\n  Do not delete anything under\n  `/dev`"),
  ("orchestration.md Briefs sed", "rules.md", "**Checked-in code and YAML do not depend on sed**"),
  ("orchestration.md Briefs disk", "rules.md", "**Disk is a shared allowance, and cleaning it is the orchestrator's job**"),
  ("orchestration.md Briefs checkouts persist", "rules.md", "A worker keeps its checkout and its build output between tickets"),

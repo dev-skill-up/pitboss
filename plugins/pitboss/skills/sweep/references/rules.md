@@ -868,9 +868,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   never wait on a run); any author may take over a red, or a merge conflict.
   The Done-when as written is the standard: nobody narrows a ticket in a
   brief, in a review or in a PR.
-- **`/dev` is not written to by a worker** (owner, 2026-10-21T01:35:13Z: "I
-  agree workers shouldn't *trash* /dev/null, but that's different from
-  redirection"). Do not create, move, link, delete or truncate anything under
+- **`/dev`**
+  Do not delete anything under
   `/dev`. Redirecting output to `/dev/null` is fine. A brief says so.
 - **Checked-in code and YAML do not depend on sed** (owner,
   2026-10-19T00:08:48Z: "please don't depend on `sed` being available on the
