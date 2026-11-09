@@ -69,12 +69,12 @@ def _lines(patch: str) -> Iterator[tuple[str, str, int, str]]:
     at = {"-": 0, "+": 0}
     inside = False
     for line in patch.splitlines():
-        named = None if inside else _named(line)
+        pointed = None if inside else _named(line)
         header = HEADER.match(line)
         if line.startswith("diff --git "):
             inside = False
-        elif named is not None:
-            names[named[0]] = named[1]
+        elif pointed is not None:
+            names[pointed[0]] = pointed[1]
         elif header is not None:
             inside = True
             at = {"-": int(header.group(1)), "+": int(header.group(2))}
