@@ -60,7 +60,7 @@ def idle(
         log: the slot log, which tells how long a slot stayed empty.
         now: the time now.
     """
-    if offer.items and offer.occupancy.free:
+    if offer.items and offer.occupancy.known and offer.occupancy.free:
         for line in slotidle.lines(book, slotlog.read(log), now):
             print(line)
 

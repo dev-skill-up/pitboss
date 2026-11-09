@@ -1,4 +1,4 @@
-"""Which configuration owns the slot ledger (keyword: ledger-owner).
+"""Which configuration owns the slot ledger.
 
 Two configurations may name the same ledger file and each print a plausible
 list of what to start next; only the orchestrator's refills a slot.

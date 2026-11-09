@@ -30,6 +30,7 @@ from . import (
     slotheld,
     slotholding,
     suggest,
+    unlabeled,
     unreadableline,
     work,
 )
@@ -98,6 +99,11 @@ def require_ledger(path: pathlib.Path) -> None:
         raise SystemExit(1)
 
 
+def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
+    # pitboss#94: the agents that run, not the hand's rows
+    return slotholding.derived(book, getattr(found.args, "running", None))
+
+
 def _counted(
     found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
 ) -> work.Offered:
@@ -117,6 +123,8 @@ def _assigned(
 ) -> Sequence[work.Assignment]:
     # a PR whose round holds a slot is not given another one (keyword: slot-held)
     taken = ordered.occupancy
+    if not taken.known:
+        return []
     rest = [each for each in ordered.items if each.reference not in taken.references]
     return work.assign(rest, book, slots)[: taken.free]
 
@@ -185,9 +193,11 @@ def show(
         book: the slot ledger.
     """
     logline.post(found.settings.slots.log)
+    book = _live(found, book)
     ordered = _ordered(found, opened, book)
     source = _source(found, opened, ordered, book)
     for line in itertools.chain(
+        unlabeled.lines(found.github, found.settings),
         nextview.next_lines(_view(found, ordered, book, source.facts)),
         offering.disagreements(found, ordered),
         pullstate.lines(found.github, found.settings, source.facts),
@@ -238,6 +248,7 @@ def show_item(
         False, with ``UNKNOWN`` on standard error, when ``slots next`` offers
         nothing for the item.
     """
+    book = _live(found, book)
     ordered = _counted(found, opened, book)
     source = _source(found, opened, ordered, book)
     every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
@@ -266,5 +277,9 @@ def refill(
         book: the slot ledger, in which the slot is empty.
         name: the slot.
     """
+    book = _live(found, book)
     ordered = _ordered(found, opened, book)
+    if not ordered.occupancy.known:
+        print(slotheld.NOT_COMPUTED)
+        return
     print(nextview.refill_line(_view(found, ordered, book), name))

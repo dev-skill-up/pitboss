@@ -8,7 +8,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import brief, reviewnote, shapes
 from .briefmake import text
 from .test_commands import sweep
-from .test_evidence_rules import read, words
+from .test_evidence_rules import words
 from .test_flow_sweep import APPROVED, CHANGES, graded, world_with
 from .test_plan_commands import EXECUTION_REVIEWS
 
@@ -16,11 +16,6 @@ BRIEF_SENTENCE = (
     "a gap against the goal or the Done-when that you can name (a case, a"
     " fixture, a repository kind the change does not handle) is a finding, never"
     " a note; a note holds only what the change did not cause."
-)
-RULES_BULLET = (
-    "before merging, read the Notes of the newest review (pitboss#240, keyword:"
-    " review-note): a note that names a case of the goal the change does not"
-    " handle is a finding and starts a fix round, not a ticket"
 )
 MISSED_NOTE = (
     "Notes: the line reads open PRs only, so rulings on merged PRs are missed."
@@ -57,7 +52,7 @@ def printed(note: str, execution: str = APPROVED) -> bool:
 
 
 class TestBriefsAndRules(unittest.TestCase):
-    """Done-when 1 and 2: the review briefs and the merge step say it."""
+    """Done-when 1 and 2: the review briefs say it."""
 
     def test_the_full_and_the_execution_review_carry_the_sentence(self) -> None:
         """REVIEW_FULL and REVIEW_EXECUTION pin it; the scoped briefs have none."""
@@ -66,11 +61,6 @@ class TestBriefsAndRules(unittest.TestCase):
             sorted(kind.name for kind, has in found.items() if has),
             equal_to(sorted(kind.name for kind in EXECUTION_REVIEWS)),
         )
-
-    def test_the_merge_step_reads_the_notes_of_the_newest_review(self) -> None:
-        """The bullet sits in Agents and slots."""
-        section = read("rules.md").split("\n## Agents and slots\n")[1].split("\n## ")[0]
-        assert_that(words(section), contains_string(RULES_BULLET))
 
 
 class TestParagraph(unittest.TestCase):

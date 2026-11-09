@@ -94,7 +94,7 @@ What was project-specific, and where it went
        repository, kept by ``[sync]``) gets the configuration by the
        repository's name: see "The configuration file"
 
-Three more things in the earlier design were quire's in a less obvious way,
+more things in the earlier design were quire's in a less obvious way,
 and changed:
 
 * ``references/adversarial-review.md`` was to hold "the exact form of the
@@ -102,10 +102,6 @@ and changed:
   reference explains how a review is read and tells the reviewer to run
   ``pitboss review-form CONFIG REPOSITORY``, which prints the form that
   repository's reviews must take, filled in from the config.
-* ``slots check`` was to list agents "the session no longer runs". Only the
-  session can see its agents (``ListAgents``; subagents share one process,
-  so ``ps`` cannot count them), so the session passes the names it sees:
-  ``slots check CONFIG --running NAME ...``.
 
 Nothing else in the code is a choice: the merge-queue branch shape
 (``gh-readonly-queue/<base>/pr-<n>-<sha>``), the check-run conclusions that
@@ -359,23 +355,6 @@ Commands
        obeys the same liveness, idle and safety rules as any dead path.
    * - ``review-form CONFIG REPOSITORY``
      - Prints the form a review comment in that repository must take.
-   * - ``slots show|set|free|add|remove|failed|check|next|report|time CONFIG ...``
-     - The worker-slot ledger. Every
-       one but ``report`` and ``time`` exits 1 with ``LEDGER MISSING`` and writes nothing when
-       the ledger file does not exist (the owner creates it; only ``sweep`` starts
-       one from the configured defaults). ``set`` takes ``--kind`` (``start``,
-       ``review``, ``fix`` or ``ruling``), records the ticket the task works on
-       and is refused when the ticket cannot be named; a ``set`` with the same
-       agent and ``--kind fix`` resumes the running agent as an entry. ``check`` takes ``--running NAME ...``
-       and an optional number N: it exits 1 when the ledger has fewer than N rows.
-       ``free`` prints the ledger, then the line that ``next``
-       gives the freed slot (one function, ``nextview.refill_line``), or
-       ``no task is waiting``. ``next``, ``free`` and ``set`` exit 1 with
-       ``not the orchestrator config: use PATH`` and leave the ledger alone
-       when the configuration does not own it (``[slots] ledger-owner = true``,
-       or the ledger's ``"config"`` key is the configuration's path;
-       ``ledgerowner.owner``); a sweep of such a configuration starts with
-       ``NOT THE ORCHESTRATOR CONFIG``.
 
 Reads go through gather's ``args.safe_run``; every change on GitHub or to
 git (cancelling a run, removing a worktree) goes through ``args.run``, so it
@@ -938,79 +917,6 @@ when the free space is still under the minimum afterwards, it lists each
 directory over 500 MB that was kept, with why (pitboss#205). The free space comes from the same injected reader
 (``args.usage``), so a test gives the figure.
 
-**Slots.** The ledger is a JSON file: each slot's name, model, agent, task,
-ticket, kind, whether the agent waits, and the tickets each model has failed. ``set``
-refuses an occupied slot, except a ``--kind fix`` set with the same agent (a fix round that resumes it), ``remove`` an occupied one, ``add`` a model not in ``models``; a
-refusal exits 2 and changes nothing. ``check --running NAME ...`` lists the
-slots whose agent is not among the names (the session passes what its own
-agent listing shows). ``next`` prints one sorted list, each
-line saying why it is where it is. The open PRs that the flow's step gives a
-round come first, in one list ordered oldest first, whatever each needs; each
-line says which kind it is, the kind being the flow's step alone
-(``pitboss next`` prints the same step). A PR has exactly one step, so it is
-listed at most once. The nine kinds:
-
-* ``revise the plan``: step ``WORKER``, task ``REVISE_PLAN`` (keyword:
-  plan-revision, pitboss#82); the author edits the ``## Plan`` section of the
-  body and touches no code, doc or test until the plan is approved, and the
-  review of the revised plan grades the plan alone;
-* ``fix the review``: step ``WORKER``, any other task (``FIX_EXECUTION``): the
-  author's fix for a review that asked for changes to the execution;
-* ``fix the CI``: step ``WORKER``, task ``FIX_CI``: a red CI, which is no
-  rejection, unless the PR waits for a ruling or the owner (``steps.WAITS``,
-  pitboss#183);
-* ``write the Plan and Execution body``: step ``WORKER``, task
-  ``FIRST_ROUND``: the PR has no such body;
-* ``resolve the conflict``: step ``WORKER``, task ``RESOLVE_CONFLICT``: an
-  head that conflicts with the base, at any stage but while the PR waits for
-  a ruling, the owner or the restoring of an edited approved Plan
-  (``steps.WAITS``, ``PLAN_EDITED`` included, the ``paused-owner`` label and
-  ``RULING UNREADABLE``); its brief also has the author set the last ``Head:``
-  line of a Plan or Execution body to the merge head and rerun the Plan's
-  commands through ``expand`` at it (the body only, pitboss#208);
-* ``do the ruling's steps``: step ``WORKER``, task ``RULING_STEPS``: the
-  newest readable Opus ruling says ``do these steps`` and no review follows it;
-* ``carry out the ruling``: step ``WORKER``, task ``RULING_AS_GIVEN``: the
-  ruling says ``split``, ``reshape`` or ``abandon`` (``revise the plan`` is
-  ``revise the plan`` above);
-* ``run the Plan's commands and fill the Execution``: step ``WORKER``, task
-  ``RUN_PLAN`` (keyword: plan-alone, pitboss#201): the newest review that
-  counts approved the Plan alone, after the newest readable Opus ruling, on a
-  draft or not; the author runs the Plan's commands as written and fills the
-  Execution and Evidence, and does not change the Plan;
-* ``review it``: step ``REGULAR_REVIEW``, the reviewer never the author. On a
-  PR that is not a draft it comes once every required check finished green on
-  the head; it is the plan-only review when the newest review rejected the Plan
-  and no review names this head or body (pitboss#167). On a draft it is the
-  plan-only review, before every
-  new ticket (pitboss#156); a draft is undrafted only once its Plan is approved
-  and no review at its head asks for changes (that fix comes first, pitboss#176)
-  and none approved the Plan alone after a ruling (that worker round comes
-  first, pitboss#201).
-
-A PR with ``RULING DUE``, ``RULING UNREADABLE``, ``RULING ESCALATES``, ``PAUSE`` or ``PLAN EDITED`` (above) is listed as none of these.
-
-**Slot log.** The ledger keeps only the present, and a resumed agent
-overwrites its own timestamps, so idle and waiting time could only be
-estimated (dev-skill-up/pitboss#17). Every ``slots`` change therefore also
-appends a JSON line to ``[slots] log`` for each slot whose state (running,
-waiting or empty), agent, task, ticket or kind now differs from its last line,
-for every ``slots set`` even when it equals the last line (a ``begun`` entry,
-as a fix round that resumes the agent), or that is
-new to the log or gone from the ledger (state ``removed``, which ends its
-slot time). ``slots report CONFIG [--since T] [--until T]`` replays the log:
-each line lasts until the slot's next line (or the window's end), is cut to
-the window, and the seconds in each state are printed as shares, for each
-slot and for all slots together. ``slots time CONFIG [--since T] [--until T]``
-replays it too: the worker minutes (running, not waiting) of each ticket, the
-count of ``set`` entries behind each total, and the median and mean over tickets.
-
-Nothing predicts which files a ticket will touch (an earlier version held
-back a ticket whose backticked paths an open PR changed; the owner dropped
-that guess on 2026-10-22). Tickets are taken in strict order, every PR
-starts from the base branch (no stacking), and a conflict is resolved by
-merging the base branch in when it arises.
-
 Code
 ----
 
@@ -1032,8 +938,8 @@ The repository is also a Claude Code plugin marketplace laid out like
 ``plugins/pitboss/skills/sweep/``. The skill is named ``sweep`` (a skill
 named ``steward`` or ``babysit`` changes how every PR-watching session
 behaves). ``SKILL.md`` says when and how to run it; ``references/sweep.md``
-explains every line and the runner-pressure hold; ``references/slots.md``
-the ledger and the order of work; ``references/adversarial-review.md`` how
+explains every line and the runner-pressure hold;
+``references/adversarial-review.md`` how
 reviews are read and written. None of them names a project, a label or a
 model.
 

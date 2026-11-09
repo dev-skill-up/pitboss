@@ -1,7 +1,7 @@
 """What is offered to start: the queued work, less what is kept back.
 
-Kept back are the tickets of a repository under the owner's hold (keyword:
-pr-hold) and the tickets that cannot be worked on until an open ticket or PR
+Kept back are the tickets of a repository under the owner's hold and the
+tickets that cannot be worked on until an open ticket or PR
 (keyword: ticket-blocked); the open ticket a blocked ticket waits for is offered
 ahead of it (``dependency``, pitboss#280). Shared by ``slots next``, ``next`` and
 the sweep, so the three agree on which tickets are offered.

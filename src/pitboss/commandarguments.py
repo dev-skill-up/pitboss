@@ -31,9 +31,11 @@ RUNNING_ARGUMENT = add_argument(
     "--running",
     nargs="*",
     default=None,
-    help="the names of the agents the session runs: more of them than slots"
-    " hold an agent prints one UNRECORDED AGENT line for each that holds no slot,"
-    " and offers no start until every live agent holds one (pitboss#291)",
+    help="the names of the agents the session runs: slots next, show and the sweep"
+    " hold a slot only for an agent named here, so a ledger row of a finished agent"
+    " is an empty slot; an agent named here that holds no row prints one UNRECORDED"
+    " AGENT line, and no start is offered until every live agent holds one"
+    " (pitboss#291, pitboss#94)",
 )
 SWEEP_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT)
 CHANGING_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, DRY_RUN_ARGUMENT)

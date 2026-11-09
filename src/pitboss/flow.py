@@ -357,7 +357,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
         return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
     if review is None:
-        if ruled := flowstate.ruling_unapplied(pr):  # keyword: ruling-posted
+        if ruled := flowstate.ruling_unapplied(pr):
             return ruled_step(pr, ruled)
         if plan_approved(pr):  # approved while it was a draft
             return plancheckflow.execution_review(pr, steps.Stage.EXECUTION_ONLY)

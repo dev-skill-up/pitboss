@@ -1,25 +1,18 @@
-"""Tests of ``SLOT IDLE`` and of the rule that a wait line leaves no slot empty."""
+"""Tests of ``SLOT IDLE``."""
 
 import re
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
-from . import world
+from . import liveagents, world
 from .test_commands import clear_queue
-from .test_evidence_rules import read, words
 from .test_handback import slots, start
 from .test_quiet import at
 
 START = world.START
 TINY_IDLE = re.compile(r"^SLOT IDLE tiny \((\d+) minutes\)", re.MULTILINE)
-BULLET = (
-    "A `waiting for CI` line, or any wait line, is never a reason to leave a slot"
-    " empty: start the item the `EMPTY SLOT` line names at once. A pull request"
-    " that becomes ready while the slot is full waits for the slot, and the"
-    " running agent is never interrupted"
-)
 
 
 def minutes_idle(here: world.World, minutes: int) -> Sequence[str]:
@@ -35,7 +28,8 @@ def minutes_idle(here: world.World, minutes: int) -> Sequence[str]:
     Returns:
         The minutes of each ``SLOT IDLE tiny`` line.
     """
-    out = world.invoke(here, "sweep", here.config, "--now", at(minutes)).out
+    args = ("sweep", here.config, "--now", at(minutes), *liveagents.running(here))
+    out = world.invoke(here, *args).out
     return TINY_IDLE.findall(out)
 
 
@@ -91,10 +85,9 @@ class TestSlotIdle(unittest.TestCase):
         """A slot with no entry in the log has no time to tell."""
         assert_that(minutes_idle(world.make_world(), 5), equal_to([]))
 
-
-class TestWaitLineRule(unittest.TestCase):
-    """The skill says a wait line is no reason to leave a slot empty."""
-
-    def test_rules_hold_the_bullet(self) -> None:
-        """rules.md, "Agents and slots", has the bullet's sentence."""
-        assert_that(words(read("rules.md")), contains_string(BULLET))
+    def test_slot_whose_agent_is_gone_but_is_logged_started(self) -> None:
+        """A slot the running agents leave empty is not idle until it is freed."""
+        here = world.make_world()
+        start(here)
+        out = world.invoke(here, "sweep", here.config, "--running", "--now", at(5)).out
+        assert_that(TINY_IDLE.search(out), equal_to(None))

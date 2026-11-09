@@ -326,7 +326,7 @@ class Offered:
     Attributes:
         items: the ordered items to start.
         held: the tickets of held repositories, in the same order.
-        standing: each held repository and its open count (keyword: pr-hold).
+        standing: each held repository and its open count.
         blocked: the tickets that say they cannot be worked on until a ticket
             or PR that is open, in the same order (keyword: ticket-blocked).
         occupancy: what holds the slots (keyword: slot-held, pitboss#291).
@@ -349,7 +349,7 @@ def queued(
 
     A PR that could not be read may work on any ticket, so while one exists no
     ticket is offered as new work (keyword: unreadable-pull). The owner's hold
-    is applied after it (``apart``; keyword: pr-hold).
+    is applied after it (``apart``).
 
     Args:
         found: the open PRs, read or not.
