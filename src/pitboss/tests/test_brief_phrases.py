@@ -12,8 +12,10 @@ from .. import (
     brief,
     brieftext,
     brieftextci,
+    brieftextconflict,
     brieftextlint,
     brieftextowner,
+    brieftextwhen,
     brieftextwork,
     phrases,
 )
@@ -25,8 +27,10 @@ SENTENCES = [
     for module in (
         brieftext,
         brieftextci,
+        brieftextconflict,
         brieftextlint,
         brieftextowner,
+        brieftextwhen,
         brieftextwork,
     )
     for name, value in sorted(vars(module).items())

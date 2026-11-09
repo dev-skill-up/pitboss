@@ -5,21 +5,9 @@ Each is a template: ``{name}`` stands for a field of the PR or ticket, filled by
 code change.
 """
 
-ONE_PR = (
-    "One PR: first confirm that the ticket can be satisfied by one PR. If it can,"
-    " do the whole ticket in one PR. If it cannot, hand back NOT STARTED with the"
-    " evidence (what you searched, what you tried, why one PR is impossible) and"
-    " split nothing yourself."
-)
 WORKTREE = (
     "Worktree: work in your own `git worktree add` of {repo} {checkout}; never in"
     " the main clone."
-)
-DONE_WHEN = (
-    "Done-when: read the ticket {read} and all its comments first (they add"
-    " requirements). Its Done-when, as written, is the standard: you copy it word"
-    " for word into the Plan, and nobody narrows it or offers an alternative to"
-    " it."
 )
 DRAFT = (
     "Draft: open the PR as a draft whose body has a Plan section (what you will"
@@ -91,11 +79,9 @@ NO_APPEND = (
     " that is not zero, and a row not run as the Plan wrote it is rejected."
 )
 SEARCH = (
-    "Search: before handing back, search the tree for the words of every"
-    " comment, rule bullet and doc the change touches, and fix each statement"
-    " the change makes false or contradictory (a contradiction is fixed, never"
-    " documented); list in the Execution only a false statement outside this"
-    " tree, which you cannot edit."
+    "Search: update the docstring next to each piece of code the change alters,"
+    " and cut other text it makes false; a change never adds a line to a doc, so a"
+    " doc is cut, not reworded (pitboss#396)."
 )
 NO_WAITING = "No waiting: never wait for CI. Push, then hand back at once."
 FINISH = "Finish inside the turn. Do not merge. Do not write the review."
@@ -261,9 +247,9 @@ CHECK = (
     " check finished and passed at that head."
 )
 GREP = (
-    "Grep: look for a statement the change makes false or contradictory anywhere"
-    " in the tree; one is changes needed. An objection to a phrase no claim"
-    " depends on is answered by removing the phrase."
+    "Grep: look for a docstring the change makes false or contradictory, next to"
+    " the code it alters; one is changes needed. Other text the change makes false"
+    " is cut by the author, and a mention of it that was missed is no finding."
 )
 PLAN_COMMANDS_PLAN = (
     "Plan commands: for each Done-when row, if the Plan's evidence mentions a"

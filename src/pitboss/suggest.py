@@ -30,6 +30,7 @@ from . import (
     reviews,
     slotheld,
     steps,
+    suggestwhen,
     work,
 )
 from .markers import Marker
@@ -314,9 +315,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
     kind = kind_of(pick)
     return brief.Spec(
         kind=kind,
-        subject=brief.Subject(
-            reference=pick.reference, ticket=ticket, repo=slug, goal=text
-        ),
+        subject=suggestwhen.subject(source.github, pick.reference, ticket, text, kind),
         heads=heads,
         rules=_rules(source, slug, heads.head),
         ready=pick.pull is not None and not pick.pull.pull.draft,

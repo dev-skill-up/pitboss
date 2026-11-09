@@ -25,11 +25,9 @@ SENTENCES = {
         " not zero, and a row not run as the Plan wrote it is rejected."
     ),
     "Search: ": (
-        "before handing back, search the tree for the words of every comment,"
-        " rule bullet and doc the change touches, and fix each statement the"
-        " change makes false or contradictory (a contradiction is fixed, never"
-        " documented); list in the Execution only a false statement outside this"
-        " tree, which you cannot edit."
+        "update the docstring next to each piece of code the change alters, and"
+        " cut other text it makes false; a change never adds a line to a doc, so a"
+        " doc is cut, not reworded (pitboss#396)."
     ),
 }
 CONSTANTS = (brieftext.TRY_COMMANDS, brieftext.NO_APPEND, brieftext.SEARCH)

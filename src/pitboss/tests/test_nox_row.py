@@ -67,7 +67,7 @@ def refused(section: str) -> Sequence[int]:
     Returns:
         The numbers of the rows that did not run.
     """
-    return plancheck.report(section, ran_nothing, lambda phrases: [])[1]
+    return plancheck.report(section, ran_nothing)[1]
 
 
 class TestNoxRow(unittest.TestCase):
@@ -85,7 +85,7 @@ class TestNoxRow(unittest.TestCase):
 
     def test_plan_check_refuses_a_plan_with_a_nox_row(self) -> None:
         """The nox row did not run, the git row did."""
-        rows, bad = plancheck.report(PLAN_WITH_NOX, ran_nothing, lambda phrases: [])
+        rows, bad, _ = plancheck.report(PLAN_WITH_NOX, ran_nothing)
         assert_that(bad, equal_to([1]))
         assert_that(rows[0], contains_string(SENTENCE))
         assert_that(plancheck.verdict(bad), contains_string("refused"))

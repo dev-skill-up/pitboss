@@ -1,7 +1,6 @@
 """The ``plan-check`` command: a Plan's commands, run before it is approved.
 
-This is the plan-check area (pitboss#192). Each row of the Plan but an Impact
-command (``pitboss impact``, searched in a worktree of the PR's head, pitboss#320)
+This is the plan-check area (pitboss#192). Each row of the Plan
 runs with ``sh -c`` in a scratch worktree of the PR's base (a row that runs nox
 is not run but refused, pitboss#251), with the permissions of whoever
 runs ``pitboss plan-check``, so the body is the worker's own and is never read
@@ -11,18 +10,20 @@ the head, and a spec the diff adds to the pointers and the group files of
 ``[plan_check]`` (keyword: ci-pointer, pitboss#335). The diff is held to the rule
 that it adds no line to a .md or .rst file (keyword: markup-lines, pitboss#343).
 With ``--repository`` (or the checkout's ``origin``) it also reads, never waiting,
-the run of a CI pointer and the ticket's Done-when from GitHub (pitboss#317).
+the run of a CI pointer and the ticket's Done-when from GitHub (pitboss#317); the
+Done-when is the ticket body's alone (pitboss#396).
 """
 
 import argparse
 import contextlib
 import functools
+import os
 import pathlib
 import subprocess
 import sys
 import tempfile
 import time
-from typing import Iterator, Sequence
+from typing import IO, Iterator, Sequence
 
 from gather.commands import add_argument
 
@@ -35,7 +36,6 @@ from . import (
     expansion,
     forms,
     ghapi,
-    impact,
     markuplines,
     plancheck,
     plancheckconfig,
@@ -49,8 +49,6 @@ QUIET = {
     "check": False,
     "capture_output": False,
     "stdin": subprocess.DEVNULL,
-    "stdout": subprocess.DEVNULL,
-    "stderr": subprocess.DEVNULL,
 }
 
 
@@ -61,11 +59,11 @@ def _fail(message: str) -> SystemExit:
 
 def status_in(
     args: argparse.Namespace, directory: pathlib.Path, timeout: int, command: str
-) -> int | str:
+) -> tuple[int | str, int]:
     """Run one command line in a directory, with a time limit.
 
-    The output is discarded (a pipe a stray child holds open would outlast the
-    limit), and nothing is read from the terminal.
+    The output goes to a file that is only measured (a pipe a stray child holds
+    open would outlast the limit), and nothing is read from the terminal.
 
     Args:
         args: the parsed arguments.
@@ -74,17 +72,30 @@ def status_in(
         command: the command line, for ``sh -c``.
 
     Returns:
-        Its exit status, or the text that says why it did not finish.
+        Its exit status, or the text that says why it did not finish, and how
+        many bytes it printed, standard output and error together (keyword:
+        evidence-size, pitboss#396).
     """
-    try:
-        done = args.safe_run(
-            ["sh", "-c", command], cwd=directory, timeout=timeout, **QUIET
-        )
-    except subprocess.TimeoutExpired:
-        return f"timed out after {timeout}s"
-    except OSError as error:
-        return f"cannot start ({error})"
-    return int(done.returncode)
+    with tempfile.TemporaryFile() as output:
+        try:
+            done = args.safe_run(
+                ["sh", "-c", command],
+                cwd=directory,
+                timeout=timeout,
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                **QUIET,
+            )
+        except subprocess.TimeoutExpired:
+            return f"timed out after {timeout}s", _size(output)
+        except OSError as error:
+            return f"cannot start ({error})", 0
+        return int(done.returncode), _size(output)
+
+
+def _size(output: IO[bytes]) -> int:
+    # the file's own size, whatever the offset the command left
+    return os.fstat(output.fileno()).st_size
 
 
 def run_in(
@@ -102,11 +113,11 @@ def run_in(
         What it did.
     """
     started = time.monotonic()
-    outcome = status_in(args, directory, timeout, command)
+    outcome, printed = status_in(args, directory, timeout, command)
     seconds = time.monotonic() - started
     if isinstance(outcome, str):
         return plancheck.cut_off(outcome, seconds)
-    return plancheck.finished(outcome, seconds)
+    return plancheck.finished(outcome, seconds, printed)
 
 
 def _git(args: argparse.Namespace, *words: str) -> str:
@@ -145,8 +156,8 @@ def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Pat
 HEAD_OPTION = add_argument(
     "--head",
     default="",
-    help="the PR's head, searched by an Impact command (default: the last"
-    " `Head:` line of the body, else HEAD of the checkout)",
+    help="the PR's head, which the Plan's CI pointers and cited lines are held to"
+    " (default: the last `Head:` line of the body, else HEAD of the checkout)",
 )
 
 
@@ -212,20 +223,25 @@ def _plan_of(name: str, body: str) -> str:
 def plan_check(args: argparse.Namespace) -> None:
     """Run a Plan's rows; refuse it for a row that did not run or a finding.
 
-    A nox row is refused unrun (pitboss#251). A row ``pitboss impact PHRASE...``
-    is searched in a scratch worktree of the PR's head (``--head``, by default the
-    last ``Head:`` line of the body, else HEAD of the checkout); the Plan is
-    refused for a hit with no disposition line (``file:line: edited`` or ``not
-    edited``) and for one citing a ``file:line`` that is no hit there (keyword:
-    impact-list, pitboss#320).
+    A nox row is refused unrun (pitboss#251). The Done-when is the ticket body's
+    alone, never its comments (pitboss#396): each of its bullets (a paragraph is
+    one) is copied word for word into a numbered Plan row of its own
+    (``plan-done-when``); a measurement it names as ``measured by `COMMAND```
+    (also counted, checked, shown, printed, reported or found, with ``by``,
+    ``with`` or ``using``) is a backticked command of that row outside the copy
+    (``plan-measurement``); the body has the line ``Done-when digest: DIGEST``
+    that the brief printed, and a ticket whose Done-when digest is now another
+    was edited after a worker started (``done-when-edited``). A Plan whose
+    commands print clearly more than about 64KB is warned of, naming the row that
+    prints most (keyword: evidence-size).
 
     Prints a row for each command (its exit status and duration, or that it did
     not run), a line for each finding (keyword: ci-pointer, pitboss#335: a CI
     pointer or spec the tree does not bear out; markup-lines: a line added to a
-    .md or .rst file, not a cut span), the Plan digest and the last line,
-    ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did not
-    run and the numbers of findings. The output is posted as a comment on the PR
-    (keyword: plan-check, pitboss#192); ``pitboss next``
+    .md or .rst file, not a cut span), the warnings, the Plan digest and the last
+    line, ``Plan check: ok`` or ``Plan check: refused`` naming the rows that did
+    not run and the numbers of findings. The output is posted as a comment on the
+    PR (keyword: plan-check, pitboss#192); ``pitboss next``
     offers a Plan review that has commands only after a comment that says
     ``Plan check: ok`` for this Plan.
 
@@ -312,13 +328,13 @@ def _repository(args: argparse.Namespace) -> str:
 
 def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list[str]:
     # keywords: ci-run, plan-done-when (pitboss#317): GitHub's word on the run and
-    # the ticket
+    # the ticket's body (pitboss#396)
     github = ghapi.read_only(args.safe_run)
     named = forms.FIXES.search(body)
     ticket = named.group(1) if named else ""
     return [
         *cirun.findings(section, ref, plantickets.run_head(github)),
-        *plantickets.done_when(github, ticket, _repository(args), section),
+        *plantickets.done_when(github, ticket, _repository(args), body),
     ]
 
 
@@ -332,7 +348,7 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
         stat = _diff(args, ref, "--numstat", "-z")
         patch = _diff(args, ref, "-U0", "--no-color")
         runner = functools.partial(run_in, args, tree, args.timeout)
-        rows, refused = plancheck.report(section, runner, _searching(head))
+        rows, refused, runs = plancheck.report(section, runner)
         diffs = (added, stat, patch)
         found = [
             *_of_trees(args, section, (tree, head), diffs),
@@ -340,7 +356,9 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *_remote(args, body, section, ref),
         ]
         noted = [*rows, *markuplines.notes(stat, patch)]
-        return plancheck.text(section, noted, refused, found), bool(refused or found)
+        warned = plancheck.size_warnings(section, runs)
+        output = plancheck.text(section, noted, refused, found, warned)
+        return output, bool(refused or found)
 
 
 def _of_trees(
@@ -352,15 +370,6 @@ def _of_trees(
     # the findings that read the base's tree and the head's, and the diff
     files = (_reading(trees[0]), _reading(trees[1]))
     return [
-        *plancheck.impact_findings(section, _searching(trees[1])),
         *plancheck.ci_findings(section, diffs[0], _settings(args), files),
         *markuplines.findings(diffs[1], diffs[2]),
     ]
-
-
-def _searching(tree: pathlib.Path) -> plancheck.Search:
-    @functools.cache
-    def once(phrases: tuple[str, ...]) -> Sequence[impact.Hit]:
-        return impact.hits_in(tree, phrases)
-
-    return lambda phrases: once(tuple(phrases))

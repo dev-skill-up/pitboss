@@ -110,6 +110,5 @@ class TestACitedLine(unittest.TestCase):
         assert_that(found[0], contains_string("the file is not at the head"))
 
     def test_what_is_not_a_file_citation_is_left_alone(self) -> None:
-        """A host and port, an Impact disposition line."""
+        """A host and port."""
         assert_that(cites("See example.com:8080.\n", None), equal_to([]))
-        assert_that(cites("a/b.py:99: edited\n"), equal_to([]))

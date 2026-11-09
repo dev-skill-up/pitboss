@@ -1,7 +1,8 @@
 """What ``pitboss plan-check`` reads from GitHub (keywords: ci-run, plan-done-when).
 
-The head of a run that a CI pointer names, and the ticket the body fixes with its
-comments, whose Done-when the Plan copies (pitboss#317). Each is one read of
+The head of a run that a CI pointer names, and the ticket the body fixes, whose
+Done-when the Plan copies (pitboss#317); the ticket's comments are never read
+(pitboss#396). Each is one read of
 ``gh api``, none waits for anything. The readers return None, or a finding, for
 what cannot be read: that is a finding of the Plan, not a crash.
 """
@@ -11,7 +12,7 @@ import re
 import subprocess
 from typing import Sequence
 
-from . import cirun, ghapi, ghstore, plandonewhen
+from . import cirun, ghapi, plandigest, plandonewhen
 
 ORIGIN = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
@@ -51,7 +52,7 @@ def slug_of(origin: str) -> str:
 
 
 def done_when(
-    github: ghapi.GitHub, ticket: str, repository: str, section: str
+    github: ghapi.GitHub, ticket: str, repository: str, body: str
 ) -> Sequence[str]:
     """The findings for a Plan whose Done-when is not the fixed ticket's.
 
@@ -60,11 +61,13 @@ def done_when(
         ticket: the ticket the PR's first ``Fixes`` line names (``#7`` or
             ``owner/name#7``); empty when it fixes none.
         repository: the ``owner/name`` that owns a bare ``#N``.
-        section: the Plan section.
+        body: the PR's body.
 
     Returns:
-        The findings of ``plandonewhen.findings``, or one that says why the
-        ticket cannot be read; none when the PR fixes no ticket.
+        The findings of ``plandonewhen.findings`` and ``plandonewhen.edited``,
+        or one that says why the ticket cannot be read; none when the PR fixes
+        no ticket. Only the ticket's body is read, never its comments
+        (pitboss#396).
     """
     if not ticket:
         return []
@@ -72,19 +75,19 @@ def done_when(
     slug = slug or repository
     if not slug:
         return [f"{plandonewhen.CHECK}: {ticket} names no repository"]
-    read = _ticket(github, f"repos/{slug}/issues/{number}")
-    if read is None:
+    text = _ticket(github, f"repos/{slug}/issues/{number}")
+    if text is None:
         return [f"{plandonewhen.CHECK}: the ticket {slug}#{number} cannot be read"]
-    return plandonewhen.findings(section, read[0], read[1])
+    return [
+        *plandonewhen.findings(plandigest.section(body), text),
+        *plandonewhen.edited(body, text),
+    ]
 
 
-def _ticket(github: ghapi.GitHub, path: str) -> tuple[str, Sequence[str]] | None:
-    # the ticket's body and its comments' bodies; None when GitHub does not give them
+def _ticket(github: ghapi.GitHub, path: str) -> str | None:
+    # the ticket's body; None when GitHub does not give it
     try:
-        reply = ghapi.get(github, path)
-        found = json.loads(reply)
-        text = str(found.get("body") or "")
-        posted = ghapi.pages(github, f"{path}/comments", ghstore.listed)
+        found = json.loads(ghapi.get(github, path))
+        return str(found.get("body") or "")
     except (subprocess.CalledProcessError, OSError, ValueError):
         return None
-    return text, [each.body for each in posted]
