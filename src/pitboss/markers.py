@@ -62,6 +62,8 @@ class Marker(enum.Enum):
             the owner's to change (keyword: promote-line, pitboss#388).
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
+        RED_CAUSE: the log of a failed check and the rule that its cause is the
+            answer, never a new run (keyword: red-cause, pitboss#420).
         FIXED_ON_BASE: a PR of a merge-queue repository is red only from checks
             that passed on the base since (pitboss#314): enqueue it, or request
             its review.
@@ -171,6 +173,7 @@ class Marker(enum.Enum):
     PROMOTE = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
+    RED_CAUSE = enum.auto()
     FIXED_ON_BASE = enum.auto()
     UPDATE = enum.auto()
     BEHIND = enum.auto()
@@ -260,5 +263,6 @@ SELF_EXPLAINED = frozenset(
         Marker.BLOCKS,
         Marker.SUPERSEDED,
         Marker.PROMOTE,
+        Marker.RED_CAUSE,
     }
 )

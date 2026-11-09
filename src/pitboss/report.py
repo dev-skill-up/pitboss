@@ -5,6 +5,7 @@ from typing import Mapping, Sequence
 
 from . import (
     brieftextowner,
+    causeline,
     config,
     headchecks,
     local,
@@ -173,10 +174,11 @@ def _wait_lines(pull: pulls.PullFacts) -> Sequence[str]:
 
 
 def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[str]:
+    ref = pulls.reference(pull)  # keyword: red-cause (pitboss#420)
     return [
-        f"{Marker.FAILED.text} {pulls.reference(pull)}: {check.name}"
-        + (f": {why[check.id]}" if why.get(check.id) else "")
+        said
         for check in headchecks.unanswered(pull.checks, pull.signals)
+        for said in causeline.failed(ref, pull.repo.slug, check, why.get(check.id, ""))
     ]
 
 

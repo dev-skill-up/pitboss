@@ -330,6 +330,7 @@ class TestThePieces(unittest.TestCase):
             markers.Marker.BLOCKS,
             markers.Marker.SUPERSEDED,
             markers.Marker.PROMOTE,
+            markers.Marker.RED_CAUSE,
         }
         assert_that(markers.SELF_EXPLAINED, equal_to(own))
 

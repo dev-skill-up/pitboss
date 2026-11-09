@@ -5,6 +5,8 @@ Each is a template: ``{name}`` stands for a field of the PR or ticket, filled by
 code change.
 """
 
+from . import causetext
+
 WORKTREE = (
     "Worktree: work in your own `git worktree add` of {repo} {checkout}; never in"
     " the main clone."
@@ -119,7 +121,8 @@ TASK_FIX_REVIEW = (
 )
 TASK_FIX_CI = (
     "Task: PR {reference}: CI on the head {head} is red. Fix CI (a red CI is never"
-    " a rejection); change only what makes it red."
+    " a rejection); change only what makes it red. Read the log of each failed"
+    " check first: " + causetext.RULE + "."
 )
 
 TASK_RULING_STEPS = (
