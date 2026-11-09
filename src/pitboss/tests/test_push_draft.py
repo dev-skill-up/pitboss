@@ -1,12 +1,13 @@
 """A push to the branch of a draft PR is free; a changed draft state is told (#355)."""
 
 import re
+import subprocess
 import unittest
-from typing import Mapping, Sequence
+from typing import Mapping, NoReturn, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import draftmoves, pushdraft, shapes
+from .. import draftmoves, ghapi, pushdraft, shapes
 from . import fakes, world
 from .test_commands import sweep
 
@@ -178,3 +179,28 @@ class TestDraftMoves(unittest.TestCase):
         make = shapes.TimelineEvent
         events = [make(kind="ready_for_review", at="a"), make(kind="labeled", at="b")]
         assert_that(draftmoves.after_marked_ready(events), equal_to(None))
+
+
+def failing(command: Sequence[str], /) -> NoReturn:
+    """A runner whose every command fails.
+
+    Args:
+        command: the command line.
+
+    Raises:
+        CalledProcessError: always.
+    """
+    raise subprocess.CalledProcessError(1, list(command))
+
+
+class TestFailures(unittest.TestCase):
+    """What cannot be read says nothing, or names no branch."""
+
+    def test_an_unreadable_timeline_says_nothing(self) -> None:
+        """The failed call is not a draft-state change."""
+        github = ghapi.GitHub(run=failing, mutate=failing)
+        assert_that(draftmoves.tell(github, "o/r", 3), equal_to([]))
+
+    def test_a_failing_git_names_no_branch(self) -> None:
+        """No branch is told, so nothing is asked of GitHub."""
+        assert_that(pushdraft.current_branch(failing), equal_to(""))
