@@ -166,6 +166,34 @@ class TestCommandPieces(unittest.TestCase):
             {("rm", "-rf", "--one-file-system")},
         )
 
+    def test_a_path_under_dev_is_refused_naming_the_path(self) -> None:
+        """No rm gets a path under /dev, spelled any way; a /dev/null redirect is
+        no removal and a sibling named like it is removed (#424)."""
+        here, found = directories("devices")
+        named = [
+            dead.Candidate(path=pathlib.Path(spelled), size=0, reason="r")
+            for spelled in ("/dev/shm/x", "/dev", "/tmp/../dev/null", "/dev//null")
+        ]
+        run = fakes.FakeProcesses(bodies={})
+        refused = [
+            why for _, why in cleaning.removals(how(run, allowed), [*named, *found])
+        ]
+        dry = [why for _, why in cleaning.removals(how(run, allowed, True), named)]
+        same(refused[-1], "")
+        same(
+            [call[4:] for call in run.calls],
+            [[str(found[0].path)]],
+        )
+        for spelled, why in zip(named, refused):
+            assert_that(why, contains_string(f"{spelled.path} is under /dev"))
+        same([bool(why) for why in dry], [True] * len(named))
+        same(
+            cleaning.under_dev(
+                dead.Candidate(path=here / "dev", size=0, reason="r")
+            ),
+            "",
+        )
+
     def test_prune_skips_a_git_directory_that_is_gone(self) -> None:
         """A prune of a missing directory runs no git; an existing one does."""
         top = fakes.directory()

@@ -47,8 +47,8 @@ DENIED = (
 )
 LOCAL = (
     "Local checks: wrap each in `timeout 598`; a 124 is left to CI, never rerun"
-    " with a longer limit. Never leave a command running, and never write under"
-    " /dev."
+    " with a longer limit. Never leave a command running, and never remove files"
+    " under /dev (redirecting to /dev/null is fine)."
 )
 HOLD_BUG = (
     "A hold that comes from a known pitboss bug with a ticket is not waited out:"
