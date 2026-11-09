@@ -136,8 +136,8 @@ def missing(
     Returns:
         The exit status, and whether standard error names ``$PITBOSS_CONFIG``
         and the file ``pitboss.toml`` of the directory; when either is not as
-        expected, also the command line, the standard error and the directory, so a failure
-        shows them (keyword: flake-368).
+        expected, also the command line, the standard error and the directory,
+        so a failure shows them (keyword: flake-368).
     """
     done = ran_missing(case, directory, tools)
     names = ("$PITBOSS_CONFIG", str(directory / "pitboss.toml"))
