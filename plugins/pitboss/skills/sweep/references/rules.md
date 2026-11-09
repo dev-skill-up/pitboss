@@ -663,9 +663,7 @@ Only override for bugs, but do override for bugs (and then file them)".
   says: `Evidence: every "$ " block in the Evidence is one pitboss expand
   marked (lint pr-body checks the mark); a command that is not the one the
   claim needs, or a claim with no command (one CI shows has its pointer in the
-  Plan instead), is changes needed.` The commands run with the permissions of whoever
-  runs expand, so a template is only ever the worker's own (`design.rst`,
-  "Expanding a template").
+  Plan instead), is changes needed.`
 - **Try-commands, expand-rows lines** (keyword: dry-run, pitboss#170;
   reviewers of pwa#277 and quire#1038 found a Plan command that did not work as
   written, an expand row with `; echo $?` appended,
