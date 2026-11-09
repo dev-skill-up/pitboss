@@ -356,8 +356,8 @@ Only override for bugs, but do override for bugs (and then file them)".
   (keyword: plan-check, pitboss#192): the orchestrator runs `uvx pitboss plan-check <body file>` on the body of such a draft and posts its whole output as a PR comment
   (its first line is `Plan check`, it has a `Plan digest:` line and ends `Plan check: ok` or `Plan check: refused`), and the next step waits for the
   trusted comment that says `Plan check: ok` with the digest of the Plan now in the body.
-  a draft whose Plan is approved is undrafted when `can_undraft` (the runners are
-  quiet, `pitboss pressure`), before any CI wait, unless the newest review at its head asks for changes (a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156) or its diff touches `e2e/` or a `[sweep] run_by_e2e` prefix and no dispatched run of `check.yml` at its head has completed (a draft's own run skipped e2e): its step is `RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>` (`RUN_E2E`, pitboss#199; while a check run of its head is unfinished it is `waiting for CI at this head` instead), then the wait for that run, and only then the undraft. A red CI is never a plan
+  a draft whose Plan is approved is undrafted when `can_undraft`
+  before any CI wait, unless the newest review at its head asks for changes (a draft whose Plan is not approved is reviewed or fixed first, never undrafted: pitboss#156) or its diff touches `e2e/` or a `[sweep] run_by_e2e` prefix and no dispatched run of `check.yml` at its head has completed (a draft's own run skipped e2e): its step is `RUN E2E BEFORE APPROVAL: dispatch check.yml on <branch>` (`RUN_E2E`, pitboss#199; while a check run of its head is unfinished it is `waiting for CI at this head` instead), then the wait for that run, and only then the undraft. A red CI is never a plan
   rejection. A ruling is recorded by a PR comment whose first line is exactly
   `Opus ruling`, which the orchestrator posts with the ruling agent's ruling,
   and what follows it (the table `pitboss.flowstate.AFTER`, which the flow reads) is carried out as
