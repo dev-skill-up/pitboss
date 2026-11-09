@@ -1,6 +1,6 @@
 """The agents a test world's ledger holds, named as ``--running`` (pitboss#94)."""
 
-import json
+import re
 from typing import Sequence
 
 from . import world
@@ -19,6 +19,5 @@ def running(here: world.World, *finished: str) -> Sequence[str]:
     Returns:
         ``--running`` and the name of each agent a row holds but those.
     """
-    rows = json.loads(here.ledger.read_text())["slots"]
-    names = (row["agent"] for row in rows if row.get("agent"))
+    names = re.findall(r'"agent": "([^"]+)"', here.ledger.read_text())
     return ["--running", *(name for name in names if name not in finished)]

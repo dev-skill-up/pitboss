@@ -2,7 +2,7 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import slotheld
 from . import test_flow_sweep as flows, world
@@ -84,9 +84,9 @@ class TestTheSlotsAreDerived(unittest.TestCase):
     def test_without_running_a_ruling_is_suggested_and_no_start_is(self) -> None:
         """No slot is known free, so no start, review or fix; the ruling stays."""
         here = flows.world_with(flows.TWO_PLAN_REJECTIONS)
-        headers = kinds(plain(here, "slots", "next"))
-        assert_that(len(headers), equal_to(1))
-        assert_that(headers[0], contains_string("make an Opus ruling: owner/project#3"))
+        headers = "\n".join(kinds(plain(here, "slots", "next")))
+        assert_that(headers, contains_string("make an Opus ruling: owner/project#3"))
+        assert_that(headers.count("owner/project"), equal_to(1))
         assert_that(kinds(plain(calm(), "slots", "next")), equal_to([]))
 
     def test_without_running_the_tasks_of_the_rows_are_still_left_out(self) -> None:
@@ -104,7 +104,7 @@ class TestTheSlotsAreDerived(unittest.TestCase):
         here = stale_world()
         args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
         lines = world.invoke(here, *args).out.splitlines()
-        assert_that(lines[0].startswith("EMPTY SLOT: tiny"), equal_to(True))
+        assert_that(lines[0], starts_with("EMPTY SLOT: tiny"))
         assert_that(lines[-1], equal_to(slotheld.NOT_COMPUTED))
 
     def test_a_refill_counts_another_slot_whose_agent_is_gone(self) -> None:
@@ -120,22 +120,26 @@ class TestTheSlotsAreDerived(unittest.TestCase):
         args = ("slots", "free", here.config, "tiny", "--done", "agent-1")
         freed = world.invoke(here, *args, "--now", world.FUTURE, "--running")
         refill = freed.out.splitlines()[-1]
-        assert_that(
-            refill.startswith("EMPTY SLOT: tiny (small): start "), equal_to(True)
-        )
-        assert_that("owner/project#9 (start a PR" in refill, equal_to(True))
+        assert_that(refill, starts_with("EMPTY SLOT: tiny (small): start "))
+        assert_that(refill, contains_string("owner/project#9 (start a PR"))
 
     def test_a_slot_the_derivation_empties_is_refused_by_set_until_freed(self) -> None:
         """``set`` reads the rows as written: free the finished agent first."""
         here = stale_world()
-        args = ("slots", "set", here.config, "tiny", "agent-3", "#9")
-        refused = world.invoke(here, *args, "--running", "agent-3")
-        freed = world.invoke(
-            here, "slots", "free", here.config, "tiny", "--done", "agent-1"
+        take = (
+            "slots",
+            "set",
+            here.config,
+            "tiny",
+            "agent-3",
+            "#9",
+            "--running",
+            "agent-3",
         )
-        done = world.invoke(here, *args, "--running", "agent-3")
-        assert_that((refused.code, freed.code, done.code), equal_to((2, 0, 0)))
-        assert_that(refused.err, contains_string("free it first"))
+        free = ("slots", "free", here.config, "tiny", "--done", "agent-1")
+        results = [world.invoke(here, *each) for each in (take, free, take)]
+        assert_that([each.code for each in results], equal_to([2, 0, 0]))
+        assert_that(results[0].err, contains_string("free it first"))
 
     def test_reading_writes_nothing(self) -> None:
         """The finished agent's row is still in the file after ``slots next``."""

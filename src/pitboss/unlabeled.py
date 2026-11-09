@@ -8,10 +8,11 @@ label when it carries one of the configured ones or any ``pN`` (``p3`` is never
 offered, but it is a priority).
 """
 
+import json
 import re
-from typing import Sequence
+from typing import Any, Sequence
 
-from . import concurrently, config, ghapi, issuepages, shapes
+from . import concurrently, config, ghapi
 
 NO_LABEL = "NO PRIORITY LABEL"
 RULE = (
@@ -22,9 +23,12 @@ RULE = (
 _PRIORITY = re.compile(r"^p\d+$")
 
 
-def _has_priority(issue: shapes.Issue, settings: config.Config) -> bool:
+def _unlabeled(item: dict[str, Any], settings: config.Config) -> bool:
+    # the issues list holds PRs too
     known = settings.slots.priority_labels
-    return any(label in known or _PRIORITY.match(label) for label in issue.labels)
+    names = [label["name"] for label in item["labels"]]
+    priority = any(each in known or _PRIORITY.match(each) for each in names)
+    return "pull_request" not in item and not priority
 
 
 def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
@@ -43,16 +47,16 @@ def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
         return []
     repos = config.repositories(settings)
 
-    def read(repo: config.Repo) -> Sequence[shapes.Issue]:
+    def read(repo: config.Repo) -> Sequence[dict[str, Any]]:
+        # raw items: a full page with a PR among it is not the last page
         path = f"repos/{repo.slug}/issues?state=open"
-        # the list holds PRs: a full page with one among it is not the last page
-        return list(filter(None, ghapi.pages(github, path, issuepages.entries)))
+        return ghapi.pages(github, path, json.loads)
 
     found = [
-        (each.created_at, f"{repo.slug}#{each.number}")
+        (each["created_at"], f"{repo.slug}#{each['number']}")
         for repo, opened in zip(repos, concurrently.each(read, repos))
         for each in opened
-        if not _has_priority(each, settings)
+        if _unlabeled(each, settings)
     ]
     return [reference for _, reference in sorted(found)]
 

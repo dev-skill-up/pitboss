@@ -4,7 +4,7 @@ import json
 import re
 from typing import AbstractSet, Sequence
 
-from . import issuepages, shapes
+from . import shapes
 
 FAILURE = "failure"
 
@@ -385,4 +385,15 @@ def issues(text: str) -> Sequence[shapes.Issue]:
     Returns:
         The issues.
     """
-    return [each for each in issuepages.entries(text) if each is not None]
+    return [
+        shapes.Issue(
+            number=item["number"],
+            title=item["title"],
+            created_at=item["created_at"],
+            labels=frozenset(label["name"] for label in item["labels"]),
+            body=item.get("body") or "",
+            comments=item.get("comments") or 0,
+        )
+        for item in json.loads(text)
+        if "pull_request" not in item
+    ]
