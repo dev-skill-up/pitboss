@@ -56,6 +56,7 @@ def once(
     load: Callable[[], Context],
     free_line: Callable[[Context, ledger.Ledger, int], str],
     interval: int,
+    lister: agenttranscript.Lister = agenttranscript.agent_files,
 ) -> Report:
     """One round: read the transcripts, write the ledger, beat.
 
@@ -63,6 +64,7 @@ def once(
         load: reads the context afresh.
         free_line: makes the ``SLOT FREE`` line of a context, a ledger and a cap.
         interval: the seconds between rounds, for the heartbeat.
+        lister: lists the transcript files of the tasks directory.
 
     Returns:
         What the round found.
@@ -72,7 +74,7 @@ def once(
     if slots.watch.agents_dir is None:
         _refuse()
     started = _started(found.args)
-    agents = agenttranscript.read_all(slots.watch.agents_dir, started)
+    agents = agenttranscript.read_all(slots.watch.agents_dir, started, lister)
     made = slotwatch.read(ledger.configured(found.settings), agents, found.now, started)
     if made.changed:
         ledger.write(slots.ledger, made.book)
