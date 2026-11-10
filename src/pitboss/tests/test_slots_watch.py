@@ -5,7 +5,9 @@ from typing import Sequence
 
 from hamcrest import (
     assert_that,
+    ends_with,
     equal_to,
+    has_properties,
     starts_with,
 )
 
@@ -56,6 +58,9 @@ def worker(agent: str, number: int) -> Records:
         The records.
     """
     return [brief(agent, GOAL.format(n=number), RECENT), call("Bash", RECENT)]
+
+
+NEEDS = "needs [slots] agents-dir in the configuration\n"
 
 
 class TestWatch(unittest.TestCase):
@@ -131,6 +136,6 @@ class TestWatch(unittest.TestCase):
         """The configuration names none."""
         found = watchworld.watch(world.make_world())
         assert_that(
-            (found.code, found.err.splitlines()[-1].split()[2:5]),
-            equal_to((2, ["needs", "[slots]", "agents-dir"])),
+            found,
+            has_properties(code=2, err=ends_with(NEEDS)),
         )
