@@ -4,8 +4,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string
 
-from .. import brief
 from .briefmake import has_none, text
+from .test_brief_lint_tests import EXECUTION_REVIEWS, OTHER_REVIEWS
 
 REPOSITORIES = [
     "bats-lang/bats",
@@ -15,8 +15,6 @@ REPOSITORIES = [
     "bats-lang/capacitor-plugins",
 ]
 COMMAND = "bats prcheck --checklist"
-EXECUTION_REVIEWS = [brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION]
-OTHER_REVIEWS = sorted(brief.REVIEWS - set(EXECUTION_REVIEWS), key=lambda k: k.name)
 
 
 class TestPrcheckChecklist(unittest.TestCase):
