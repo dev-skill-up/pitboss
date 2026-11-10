@@ -14,7 +14,7 @@ from . import watchworld, world
 from .test_owner_repositories import lines_of as printed
 from .test_handback import slots
 from .transcripts import brief, call, ended, interrupted, turn_end
-from .watchworld import FREED, GOAL, MARKED, OLD, QUIET, RECENT, TAKES
+from .watchworld import FREED, GOAL, MARKED, OLD, QUIET, RECENT
 
 EARLIER = watchworld.LONG_AGO
 Records = watchworld.Records
@@ -112,7 +112,9 @@ class TestWatch(unittest.TestCase):
         self,
     ) -> None:
         """The process that held an old row is gone; a newer row stays."""
-        old = watchworld.play({}, rows=[ROW], when="2029-12-30T00:00:00+00:00")
+        old = watchworld.play(
+            {}, rows=[ROW], clock=watchworld.Clock(when="2029-12-30T00:00:00+00:00")
+        )
         new = watchworld.play({}, rows=[ROW])
         assert_that(
             (old.held, changed(old.out), new.held),
@@ -121,16 +123,30 @@ class TestWatch(unittest.TestCase):
 
     def test_a_file_that_is_not_a_transcript_is_skipped(self) -> None:
         """A task output with no agent id holds no slot."""
-        here, directory = watchworld.watched()
-        directory.mkdir()
-        (directory / "b1.output").write_text("plain output\n")
-        (directory / "b2.output").write_text("{}\n")
+        here = watchworld.planted({"b1": [], "b2": []})
+        for name, text in (("b1", "plain output\n"), ("b2", "{}\n")):
+            (here.workspace / "tasks" / f"{name}.output").write_text(text)
         assert_that(watchworld.watch(here).out, equal_to(""))
 
-    def test_a_brief_with_no_ticket_takes_a_row_naming_none(self) -> None:
-        """No reference in the brief."""
-        made = watchworld.play({"a1": [brief("a1", "do something", RECENT)]})
-        assert_that(changed(made.out), equal_to([TAKES.format("no ticket")]))
+    def test_a_brief_with_no_marker_or_goal_is_unmarked_once_and_holds_no_slot(
+        self,
+    ) -> None:
+        """No reference in the brief: an UNMARKED line, said once, and no row."""
+        made = watchworld.play(
+            {"a1": [brief("a1", "do something", RECENT), call("Bash", RECENT)]},
+            rounds="3",
+        )
+        assert_that(
+            (made.held, printed(made.out, "UNMARKED")),
+            equal_to(
+                (
+                    [],
+                    [
+                        "UNMARKED a1: its brief has no PITBOSS-SLOT or Goal line, so it holds no slot"
+                    ],
+                )
+            ),
+        )
 
     def test_without_a_directory_it_refuses(self) -> None:
         """The configuration names none."""

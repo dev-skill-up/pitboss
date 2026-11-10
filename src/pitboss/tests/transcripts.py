@@ -121,3 +121,23 @@ def write(
     directory.mkdir(parents=True, exist_ok=True)
     lines = "".join(json.dumps(each) + "\n" for each in records)
     (directory / f"{agent}.output").write_text(lines)
+
+
+REAL = pathlib.Path(__file__).parent / "realtranscripts"
+
+
+def real(agent: str) -> Sequence[Mapping[str, object]]:
+    """The records of a real agent's transcript: its brief and its last three.
+
+    The files under ``realtranscripts`` are copied, record for record, from the
+    ``tasks/*.output`` files of a real session (the first record and the last
+    three).
+
+    Args:
+        agent: the agent id.
+
+    Returns:
+        The records, as the session wrote them.
+    """
+    lines = (REAL / f"{agent}.output").read_text().splitlines()
+    return [json.loads(each) for each in lines]

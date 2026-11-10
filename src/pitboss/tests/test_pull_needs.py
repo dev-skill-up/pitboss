@@ -69,7 +69,7 @@ def settings_of(extra: str) -> config.Config:
         The configuration.
     """
     here = world.make_world()
-    lines = [extra, world.EXTRA.format(ledger=here.ledger)]
+    lines = [extra, world.EXTRA.replace("{ledger}", str(here.ledger))]
     return fakes.settings(extra="\n".join(lines), directory=here.workspace)
 
 

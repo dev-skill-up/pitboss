@@ -38,34 +38,40 @@ def watched(extra: str = "") -> tuple[world.World, pathlib.Path]:
     return here, directory
 
 
-def planted(files: Mapping[str, Sequence[Mapping[str, object]]]) -> world.World:
+def planted(
+    files: Mapping[str, Sequence[Mapping[str, object]]], extra: str = ""
+) -> world.World:
     """A watched world with these transcripts written.
 
     Args:
         files: each agent id and the records of its transcript.
+        extra: more keys of ``[slots]``.
 
     Returns:
         The world.
     """
-    here, directory = watched()
+    here, directory = watched(extra)
     for agent, records in files.items():
         write(directory, agent, records)
     return here
 
 
-def watch(here: world.World, rounds: str = "1", seconds: str = "0") -> world.Result:
+def watch(
+    here: world.World, rounds: str = "1", seconds: str = "0", start: str = PROCESS
+) -> world.Result:
     """Run ``slots watch`` for some rounds at the fixed time.
 
     Args:
         here: the world.
         rounds: how many.
         seconds: the interval between them.
+        start: when the Claude process started.
 
     Returns:
         What it did.
     """
     words = ("watch", "--rounds", rounds, "--interval", seconds, "--now", NOW)
-    return slots(here, *words, "--process-start", PROCESS)
+    return slots(here, *words, "--process-start", start)
 
 
 def held(here: world.World) -> Sequence[str]:
@@ -78,6 +84,19 @@ def held(here: world.World) -> Sequence[str]:
         Their names, for each row that has one.
     """
     return [each.agent for each in ledger.read(here.ledger, ()).slots if each.agent]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Clock:
+    """The two times a play depends on.
+
+    Attributes:
+        when: the time the ledger rows are put in.
+        start: when the Claude process started.
+    """
+
+    when: str = NOW
+    start: str = PROCESS
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -99,7 +118,7 @@ def play(
     files: Mapping[str, Sequence[Mapping[str, object]]],
     rows: Sequence[tuple[str, str, str]] = (),
     rounds: str = "1",
-    when: str = NOW,
+    clock: Clock = Clock(),
 ) -> Left:
     """Plant ledger rows and transcripts, and watch some rounds.
 
@@ -108,16 +127,16 @@ def play(
         rows: each slot, agent and pull request or ticket to put in the ledger
             at the time ``when``.
         rounds: how many rounds.
-        when: the time the rows are put in.
+        clock: the time the rows are put in and the start of the Claude process.
 
     Returns:
         What the watcher printed and left in the ledger.
     """
     here, directory = watched()
     for slot, agent, task in rows:
-        slots(here, "set", slot, agent, task, "--running", agent, "--now", when)
+        slots(here, "set", slot, agent, task, "--running", agent, "--now", clock.when)
     for agent, records in files.items():
         write(directory, agent, records)
-    out = watch(here, rounds).out
+    out = watch(here, rounds, start=clock.start).out
     kept = [each for each in ledger.read(here.ledger, ()).slots if each.agent]
     return Left(out=out, held=held(here), kinds=[each.kind for each in kept])

@@ -24,11 +24,13 @@ class Reading:
         said: a ``LEDGER CHANGED`` line for each change and an ``OVERCAP`` line
             for each live agent with no free slot.
         changed: the ledger differs from the one given.
+        unmarked: the live agents whose brief names no ticket: they hold no slot.
     """
 
     book: ledger.Ledger
     said: Sequence[str]
     changed: bool
+    unmarked: Sequence[str] = ()
 
 
 def _reason(
@@ -95,7 +97,9 @@ def _taken(
         empty = next((slot.name for slot in book.slots if not slot.agent), None)
         if each.state is not State.RUNNING or each.name in held:
             continue
-        task = each.task or "no ticket"
+        task = each.task
+        if not task:
+            continue
         if empty is None:
             said.append(f"OVERCAP {each.name} {task}")
             continue
@@ -125,7 +129,15 @@ def read(
     """
     freed, gone = _freed(book, agents, started)
     after, came = _taken(freed, agents, now)
-    return Reading(book=after, said=[*gone, *came], changed=after != book)
+    lost = [
+        f"UNMARKED {each.name}: its brief has no PITBOSS-SLOT or Goal line, so it"
+        " holds no slot"
+        for each in agents
+        if each.state is State.RUNNING and not each.task
+    ]
+    return Reading(
+        book=after, said=[*gone, *came], changed=after != book, unmarked=lost
+    )
 
 
 def running(book: ledger.Ledger) -> Sequence[str]:

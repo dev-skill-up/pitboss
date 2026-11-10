@@ -166,10 +166,35 @@ class Watch:
             transcripts (its ``tasks/*.output`` files), or None.
         serial: the repositories (``owner/repo``) whose tickets run one at a time:
             the first startable item skips them while a ledger row works on one.
+        poll_seconds: ``poll-seconds``: the seconds between two rounds.
+        remind_minutes: ``remind-minutes``: the minutes between two ``SLOT FREE``
+            lines while a slot stays free.
     """
 
     agents_dir: pathlib.Path | None = None
     serial: Sequence[str] = ()
+    poll_seconds: int = 15
+    remind_minutes: int = 5
+
+    @classmethod
+    def parse(cls, table: Mapping[str, object], serial: Sequence[str]) -> "Watch":
+        """Read the watcher's keys of the ``[slots]`` table.
+
+        Args:
+            table: the ``[slots]`` table.
+            serial: its ``serial`` key, read as a list of strings.
+
+        Returns:
+            ``agents-dir``, ``serial``, ``poll-seconds`` and ``remind-minutes``.
+        """
+        kept = cls()
+        found = table.get("agents-dir")
+        return cls(
+            agents_dir=None if found is None else pathlib.Path(str(found)),
+            serial=serial,
+            poll_seconds=int(str(table.get("poll-seconds", kept.poll_seconds))),
+            remind_minutes=int(str(table.get("remind-minutes", kept.remind_minutes))),
+        )
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -32,7 +32,6 @@ _GOAL = re.compile(
     r"^Goal:\s*(?P<kind>ticket|review|fix|ruling)\b.*?(?P<ref>[\w.-]+/[\w.-]+#\d+)",
     re.MULTILINE | re.IGNORECASE,
 )
-_REFERENCE = re.compile(r"[\w.-]+/[\w.-]+#\d+")
 KINDS = {"ticket": "start", "review": "review", "fix": "fix", "ruling": "ruling"}
 
 
@@ -140,8 +139,7 @@ def _task(brief: str) -> tuple[str, str]:
     goal = _GOAL.search(brief)
     if goal:
         return goal.group("ref"), KINDS[goal.group("kind").lower()]
-    found = _REFERENCE.search(brief)
-    return (found.group(0) if found else ""), "start"
+    return "", "start"
 
 
 def _tail(path: pathlib.Path) -> Sequence[Mapping[str, object]]:
