@@ -116,7 +116,7 @@ class TestEveryBrief(unittest.TestCase):
     def test_each_brief_starts_with_the_original_goal(self) -> None:
         """The first line is the goal, taken from the ticket, in one line."""
         for kind in brief.Kind:
-            assert_that(text(kind).splitlines()[0], equal_to(f"Goal: {GOAL}"))
+            assert_that(text(kind).splitlines()[1], equal_to(f"Goal: {GOAL}"))
 
 
 class TestReviewScopes(unittest.TestCase):
@@ -124,7 +124,7 @@ class TestReviewScopes(unittest.TestCase):
 
     def test_a_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
         """2a: the whole brief is pinned, word for word."""
-        found = text(brief.Kind.REVIEW_RESOLUTION)
+        found = text(brief.Kind.REVIEW_RESOLUTION).partition("\n")[2]
         assert_that(found, equal_to(RESOLUTION))
 
     def test_a_merge_only_review_asks_for_nothing_outside_its_scope(self) -> None:

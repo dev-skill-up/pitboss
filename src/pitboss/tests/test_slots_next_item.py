@@ -65,7 +65,7 @@ def one(here: world.World, *references: str) -> world.Result:
 
 
 def after_first(output: str) -> Sequence[str]:
-    """The lines of an output after its first.
+    """The lines of an output after its first, less the PITBOSS-SLOT marker.
 
     Args:
         output: what a command printed.
@@ -73,7 +73,7 @@ def after_first(output: str) -> Sequence[str]:
     Returns:
         The lines.
     """
-    return output.splitlines()[1:]
+    return [each for each in output.splitlines()[1:] if each[:13] != "PITBOSS-SLOT:"]
 
 
 class TestOneItem(unittest.TestCase):

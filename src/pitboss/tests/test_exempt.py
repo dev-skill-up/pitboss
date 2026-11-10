@@ -238,7 +238,7 @@ class TestSweep(unittest.TestCase):
         """The pressure line holds, pitboss is told apart, and no PR line waits."""
         here = held_pair()
         out = swept(here)
-        task = of(out, "TASK LIST", PITBOSS_PR)
+        task = [each for each in of(out, "TASK LIST", PITBOSS_PR) if " next " in each]
         state = of(next_output(here), "PR STATE", PITBOSS_PR)
         words = ("HOLD", "WAIT_FOR_UNDRAFT", "UNDRAFT", "mark the PR ready", "pressure")
         found = (

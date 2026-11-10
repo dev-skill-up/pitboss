@@ -50,6 +50,8 @@ def parsed(output: str) -> Sequence[tuple[str, Sequence[str]]]:
     for line in output.splitlines():
         if line.startswith("SUGGESTION ") and " of " in line.split(":")[0]:
             header, brief = line, []
+        elif line.startswith("PITBOSS-SLOT: "):
+            continue
         elif line.startswith("--- end of suggestion"):
             found.append((header, brief))
         else:

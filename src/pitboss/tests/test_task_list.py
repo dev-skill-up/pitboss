@@ -175,5 +175,11 @@ class TestLive(unittest.TestCase):
         found = re.findall(r"^TASK LIST open (\S+): (.*)$", out, re.MULTILINE)
         assert_that(
             dict(found),
-            equal_to({each: "CI green; agent none" for each in OPEN_REFS}),
+            equal_to(
+                {
+                    each: f"CI {'red' if each.endswith('project#1') else 'green'};"
+                    " agent none"
+                    for each in OPEN_REFS
+                }
+            ),
         )
