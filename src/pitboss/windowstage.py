@@ -144,8 +144,7 @@ def promoted(
     kept = [
         each for each in items if each.reference in listed or each.reference in below
     ]
-    top = labels[0] if labels else ""  # no label, no ticket below the top to raise
-    raised, said = promotion.raised(kept, below, top)
+    raised, said = promotion.raised(kept, below, labels)
     return work.ordered(raised, ()), said
 
 

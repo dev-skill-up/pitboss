@@ -318,8 +318,6 @@ UNKNOWN = (
 def _place(view: nextview.NextView, pick: suggest.Pick) -> str:
     # where the item stands in the order, so a dispatch out of order is visible
     marker = Marker.NEXT.text
-    if pick.item is None:
-        return placeline.RULING
     number, last = nextview.place(view, pick.reference)
     ahead = number - (slotheld.LEAD + 1)
     order = f"out of order, {ahead} ahead of it" if ahead else "first in the order"

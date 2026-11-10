@@ -198,7 +198,7 @@ def _promoted(
     sources = promotion.sources(found.github, config.repositories(found.settings))
     below = [each.reference for each in tickets if each.priority > 0]
     named = promotion.named_by(below, sources, frozenset(slots.owner_priorities))
-    items, said = promotion.raised(queued, named, slots.priority_labels[0])
+    items, said = promotion.raised(queued, named, slots.priority_labels)
     return work.ordered(items, ()), said
 
 

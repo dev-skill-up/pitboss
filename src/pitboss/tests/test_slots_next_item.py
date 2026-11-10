@@ -13,7 +13,8 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import configfile, ownerlabels
-from . import fakes, quietworld, test_flow_sweep, ticket_bodies, world
+from . import fakes, quietworld, test_flow_sweep, world
+from .itemworld import one, with_pull_issues
 from .rankworld import publish
 from .suggestions import next_output, parsed, third
 from .test_commands import sweep
@@ -48,22 +49,6 @@ def printed(here: world.World, start: str) -> Sequence[Sequence[str]]:
     return [lines_of(each, start) for each in outputs]
 
 
-def one(here: world.World, *references: str) -> world.Result:
-    """Run ``slots next --config NAME REFERENCE`` at the fixed time.
-
-    Args:
-        here: the world.
-        *references: the words after the configuration.
-
-    Returns:
-        What it did.
-    """
-    now = ("--now", world.FUTURE)
-    return world.invoke(
-        here, "slots", "next", "--config", here.config, *references, *now
-    )
-
-
 def after_first(output: str) -> Sequence[str]:
     """The lines of an output after its first, less the PITBOSS-SLOT marker.
 
@@ -74,25 +59,6 @@ def after_first(output: str) -> Sequence[str]:
         The lines.
     """
     return [each for each in output.splitlines()[1:] if each[:13] != "PITBOSS-SLOT:"]
-
-
-def with_pull_issues(here: world.World) -> world.World:
-    """Give each PR of the world the issue the API has for it.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The same world.
-    """
-    for repository, number in [
-        (PROJECT, 1),
-        (PROJECT, 2),
-        (PROJECT, 3),
-        (world.LIBRARY, 4),
-    ]:
-        here.bodies[f"{repository}/issues/{number}"] = ticket_bodies.pull_issue(number)
-    return here
 
 
 PLACES = [

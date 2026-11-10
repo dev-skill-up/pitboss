@@ -18,8 +18,15 @@ MARGIN = datetime.timedelta(minutes=5)  # a clock that is behind GitHub's
 Named = dict[str, list[str]]
 
 
-def _entry(parts: object) -> tuple[str, Named]:
-    # the time of the last read and the causes each item names, as kept
+def entry_of(parts: object) -> tuple[str, Named]:
+    """The time of the last read and the causes each item names, as kept.
+
+    Args:
+        parts: what the cache holds for a repository.
+
+    Returns:
+        The time and the causes; empty when the cache holds anything else.
+    """
     if not isinstance(parts, dict):
         return "", {}
     named, since = parts.get("named"), parts.get("since")
@@ -72,7 +79,7 @@ def causes(
     """
     since = (now - MARGIN).astimezone(datetime.timezone.utc)
     stamp = since.strftime("%Y-%m-%dT%H:%M:%SZ")
-    before = [_entry(stored.get(each.slug)) for each in repos]
+    before = [entry_of(stored.get(each.slug)) for each in repos]
     found = concurrently.each(
         lambda each: read(github, each[0], each[1]), list(zip(repos, before))
     )

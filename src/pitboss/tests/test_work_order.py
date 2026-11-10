@@ -168,6 +168,7 @@ class TestTheWholeOrder(unittest.TestCase):
             here, 'priority_labels = ["urgent", "low"', "priority_labels = ["
         )
         assert_that(unlabeled.NO_LABEL in next_output(here), equal_to(False))
+        assert_that(unlabeled.NO_LABEL in sweep(here).out, equal_to(False))
 
     def test_a_label_that_is_no_priority_leaves_the_ticket_unlabeled(self) -> None:
         """``bug`` is no priority; ``p3`` and the configured ``low`` are."""

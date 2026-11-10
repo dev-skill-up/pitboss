@@ -165,14 +165,17 @@ def named_by(
 
 
 def raised(
-    items: Sequence[workitem.Item], named: Mapping[str, Sequence[str]], label: str
+    items: Sequence[workitem.Item],
+    named: Mapping[str, Sequence[str]],
+    labels: Sequence[str],
 ) -> tuple[Sequence[workitem.Item], Sequence[str]]:
     """The items with the tickets named as a cause ranked first, and the lines.
 
     Args:
         items: the queued work.
         named: each ticket named as a cause, with who names it (``named_by``).
-        label: the top priority label.
+        labels: the priority labels, the top one first; none when the
+            configuration has none, and then no ticket is named.
 
     Returns:
         The items, those named with priority 0, and a ``PROMOTE`` line for each.
@@ -181,7 +184,7 @@ def raised(
         dataclasses.replace(each, priority=0) if each.reference in named else each
         for each in items
     ]
-    return ranked, [line(each, label, by) for each, by in named.items()]
+    return ranked, [line(each, labels[0], by) for each, by in named.items()]
 
 
 def line(reference: str, label: str, by: Sequence[str]) -> str:
