@@ -45,6 +45,9 @@ class NextView:
             slot-held, pitboss#291).
         no_drafts: the repositories whose PRs open ready; the line of a ticket
             there says so (keyword: pitboss-exempt, pitboss#113).
+        held_back: the items the first startable item skips (a ticket of a
+            serial repository while a ledger row works on one; keyword:
+            slots-watch, pitboss#415).
     """
 
     items: Sequence[work.Item]
@@ -57,6 +60,7 @@ class NextView:
     ready: Sequence[str] = ()
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
     no_drafts: AbstractSet[str] = frozenset()
+    held_back: AbstractSet[str] = frozenset()
 
 
 def _age_days(created_at: str, now: datetime.datetime) -> int:
@@ -100,6 +104,38 @@ def place(view: NextView, reference: str) -> tuple[int, int]:
     first = slotheld.LEAD + 1 + len(view.ready)
     found = [each.reference for each in view.items].index(reference)
     return first + found, first + len(view.items) - 1
+
+
+def startable(view: NextView) -> Sequence[work.Item]:
+    """The items a free slot may start, in the order of the list.
+
+    Args:
+        view: what to print from.
+
+    Returns:
+        The view's items but those held back.
+    """
+    return [each for each in view.items if each.reference not in view.held_back]
+
+
+def start_text(view: NextView) -> str | None:
+    """The first dispatchable ``NEXT`` line of the list, as printed.
+
+    Args:
+        view: what to print from.
+
+    Returns:
+        ``NEXT <n>. <text>`` of the first draft to mark ready, else of the first
+        startable item; None when the list has neither.
+    """
+    first = slotheld.LEAD + 1
+    if view.ready:
+        return f"{Marker.NEXT.text} {first}. {view.ready[0]}"
+    found = startable(view)
+    if not found:
+        return None
+    number = first + [each.reference for each in view.items].index(found[0].reference)
+    return f"{Marker.NEXT.text} {number}. {_item_text(found[0], view)}"
 
 
 def next_lines(view: NextView) -> Iterable[str]:

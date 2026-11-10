@@ -316,7 +316,15 @@ def _slots(document: Mapping[str, object], project: config.Project) -> config.Sl
             table, _strings(table, "priority_labels", ())
         ),
         superseded=supersedes.parse(table),
+        agents_dir=_directory(table, "agents-dir"),
+        agents_idle_minutes=int(str(table.get("agents-idle-minutes", 30))),
+        serial=_strings(table, "serial", ()),
     )
+
+
+def _directory(table: Mapping[str, object], key: str) -> pathlib.Path | None:
+    found = table.get(key)
+    return None if found is None else pathlib.Path(str(found))
 
 
 def _repos(

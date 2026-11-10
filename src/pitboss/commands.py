@@ -49,6 +49,7 @@ from . import (
     syncguard,
     syncing,
     tasklist,
+    watchbeat,
     timing,
     workerlines,
     workhours,
@@ -343,6 +344,10 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     undrafts = readyline.texts(found.settings, pullmarks.awake(read, offer), found.now)
     unlabeled.print_lines(found.github, found.settings)
     tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
+    if found.settings.slots.agents_dir is not None:
+        given = configfile.named(found.args)
+        for line in watchbeat.missing_line(found.settings.slots.ledger, found.now, given):
+            print(line)
 
 
 @ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")

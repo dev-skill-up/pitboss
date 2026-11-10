@@ -32,6 +32,8 @@ from . import (
     readyline,
     slotheld,
     slotholding,
+    slotlog,
+    slotsheader,
     suggest,
     unlabeled,
     unreadableline,
@@ -149,6 +151,25 @@ def _view(
         ranked=list(rankline.lines(ordered)),
         ready=list(readyline.texts(found.settings, facts, found.now)),
         no_drafts=found.settings.project.no_drafts,
+        held_back=_serial(ordered.items, book, found.settings.slots),
+    )
+
+
+def _slug(reference: str) -> str:
+    return reference.rpartition("#")[0]
+
+
+def _serial(
+    items: Sequence[work.Item], book: ledger.Ledger, slots: config.Slots
+) -> frozenset[str]:
+    # keyword: slots-watch: a serial repository takes one ticket at a time
+    busy = {_slug(slot.ticket or slot.task) for slot in slotsheader.running(book)}
+    return frozenset(
+        each.reference
+        for each in items
+        if each.category is work.Category.NEW_PR
+        and _slug(each.reference) in slots.serial
+        and _slug(each.reference) in busy
     )
 
 
@@ -196,12 +217,15 @@ def show(
         book: the slot ledger.
     """
     logline.post(found.settings.slots.log)
+    written = book
     book = _live(found, book)
     ordered = _ordered(found, opened, book)
     source = _source(found, opened, ordered, book)
+    view = _view(found, ordered, book, source.facts)
     for line in itertools.chain(
+        header(found, written, book, view),
         unlabeled.lines(found.github, found.settings),
-        nextview.next_lines(_view(found, ordered, book, source.facts)),
+        nextview.next_lines(view),
         offering.disagreements(found, ordered),
         pullstate.lines(found.github, found.settings, source.facts),
         [diskwatch.line(source.volume)] if source.volume else [],
@@ -209,6 +233,49 @@ def show(
         suggest.lines(source),
     ):
         print(line)
+
+
+def header(
+    found: Found, written: ledger.Ledger, book: ledger.Ledger, view: nextview.NextView
+) -> Sequence[str]:
+    """The lines before the list: ``LEDGER STALE``, ``SLOTS``, ``RUNNING``, ``FREE SLOT``.
+
+    Args:
+        found: the context.
+        written: the ledger as written.
+        book: the ledger as the live agents make it.
+        view: what the list prints from.
+
+    Returns:
+        The lines (keyword: slots-header, pitboss#415).
+    """
+    given = getattr(found.args, "running", None) is not None
+    path = found.settings.slots.ledger
+    cap = len(found.settings.slots.default) or len(book.slots)
+    entries = slotlog.read(found.settings.slots.log)
+    since = slotsheader.free_since(book, entries, found.now)
+    return [
+        *slotsheader.stale_line(written, given, path),
+        *slotsheader.lines(book, cap, since, nextview.start_text(view)),
+    ]
+
+
+def startable_view(
+    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
+) -> nextview.NextView:
+    """The view a free slot starts from, read afresh.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        book: the slot ledger.
+
+    Returns:
+        The view; ``nextview.startable`` gives the items in order.
+    """
+    book = _live(found, book)
+    ordered = _counted(found, opened, book)
+    return _view(found, ordered, book, pullmarks.awake(opened, ordered))
 
 
 UNKNOWN = (

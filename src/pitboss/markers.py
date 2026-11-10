@@ -130,6 +130,22 @@ class Marker(enum.Enum):
             work is queued.
         GONE_AGENT: a slot whose agent is no longer running.
         CHECK_BEFORE_YOU_ANSWER: the ledger is kept by hand; check it.
+        SLOTS: the first line of ``slots next``: the running agents against the
+            cap and the free slots (keyword: slots-header, pitboss#415).
+        RUNNING: a line for each running agent by kind (``RUNNING worker <ticket>``,
+            ``RUNNING fix round <PR>``, ``RUNNING reviewer <PR>``).
+        FREE_SLOT: ``slots next`` with fewer running agents than the cap: dispatch.
+        START: the first dispatchable ``NEXT`` line, printed when a slot is free.
+        LEDGER_STALE: ``slots next`` was given no ``--running`` and the ledger
+            holds rows nobody confirmed.
+        NOT_THE_HEAD: ``next TICKET`` prints a worker brief for a ticket that is not
+            the first startable item of ``slots next`` (keyword: not-the-head).
+        SLOT_FREE: ``slots watch`` found a free slot: the first startable item and
+            its brief command, repeated every interval until the slot is filled.
+        LEDGER_CHANGED: ``slots watch`` wrote the ledger (an agent began or ended).
+        WATCH_MISSING: the sweep found no ``slots watch`` running: the Monitor
+            invocation that starts it.
+        NO_AGENT_RUNNING: the task list has no running agent: the slot is free.
         NEXT: a line of the sorted list of work.
         SUGGESTION: one of the top suggestions of ``next`` and ``slots next``,
             with the brief to paste.
@@ -218,6 +234,16 @@ class Marker(enum.Enum):
     SLOT_IDLE = enum.auto()
     GONE_AGENT = enum.auto()
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
+    SLOTS = enum.auto()
+    RUNNING = enum.auto()
+    FREE_SLOT = enum.auto()
+    START = enum.auto()
+    LEDGER_STALE = enum.auto()
+    NOT_THE_HEAD = enum.auto()
+    SLOT_FREE = enum.auto()
+    LEDGER_CHANGED = enum.auto()
+    WATCH_MISSING = enum.auto()
+    NO_AGENT_RUNNING = enum.auto()
     NEXT = enum.auto()
     SUGGESTION = enum.auto()
     HOLD = enum.auto()
@@ -281,5 +307,15 @@ SELF_EXPLAINED = frozenset(
         Marker.SUPERSEDED,
         Marker.PROMOTE,
         Marker.RED_CAUSE,
+        Marker.SLOTS,
+        Marker.RUNNING,
+        Marker.FREE_SLOT,
+        Marker.START,
+        Marker.LEDGER_STALE,
+        Marker.NOT_THE_HEAD,
+        Marker.SLOT_FREE,
+        Marker.LEDGER_CHANGED,
+        Marker.WATCH_MISSING,
+        Marker.NO_AGENT_RUNNING,
     }
 )

@@ -175,6 +175,14 @@ class Slots:
         superseded: the tickets (``owner/repo#N``) the owner marks as
             superseded: no start is offered for them (keyword:
             superseded-ticket, pitboss#388).
+        agents_dir: ``agents-dir``: the directory of the session's agent
+            transcripts (its ``tasks/*.output`` files) that ``slots watch`` reads
+            (keyword: slots-watch, pitboss#415), or None.
+        agents_idle_minutes: ``agents-idle-minutes``: the silence after which a
+            transcript with no hand-back is ``UNCERTAIN`` (never freed).
+        serial: the repositories (``owner/repo``) whose tickets run one at a time:
+            the first startable item skips them while a ledger row works on one
+            (keyword: slots-watch).
     """
 
     ledger: pathlib.Path
@@ -186,6 +194,9 @@ class Slots:
     ledger_owner: bool = False
     owner_priorities: Mapping[str, str] = dataclasses.field(default_factory=dict)
     superseded: Sequence[str] = ()
+    agents_dir: pathlib.Path | None = None
+    agents_idle_minutes: int = 30
+    serial: Sequence[str] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
