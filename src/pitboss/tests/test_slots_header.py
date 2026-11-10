@@ -34,11 +34,16 @@ class TestHeader(unittest.TestCase):
         here = world.make_world()
         start(here)
         out = suggestions.next_output(here)
-        assert_that(out.splitlines()[:3], equal_to([
-            "SLOTS 1 of 2, free: big",
-            "RUNNING worker owner/project#9",
-            FREE.format(n=1),
-        ]))
+        assert_that(
+            out.splitlines()[:3],
+            equal_to(
+                [
+                    "SLOTS 1 of 2, free: big",
+                    "RUNNING worker owner/project#9",
+                    FREE.format(n=1),
+                ]
+            ),
+        )
         assert_that(lines_of(out, "START"), equal_to(["START " + second_next(out)]))
 
     def test_two_running_agents_free_nothing(self) -> None:
@@ -54,28 +59,58 @@ class TestHeader(unittest.TestCase):
     def test_each_kind_is_listed_by_kind(self) -> None:
         """A reviewer and a fix round are named by their PR."""
         here = world.make_world()
-        slots(here, "set", "tiny", "agent-1", "#3", "--kind", "review",
-              "--running", "agent-1")
-        slots(here, "set", "big", "agent-2", "#2", "--kind", "fix",
-              "--running", "agent-1", "agent-2")
+        slots(
+            here,
+            "set",
+            "tiny",
+            "agent-1",
+            "#3",
+            "--kind",
+            "review",
+            "--running",
+            "agent-1",
+        )
+        slots(
+            here,
+            "set",
+            "big",
+            "agent-2",
+            "#2",
+            "--kind",
+            "fix",
+            "--running",
+            "agent-1",
+            "agent-2",
+        )
         out = suggestions.next_output(here)
-        assert_that(lines_of(out, "RUNNING"), equal_to([
-            "RUNNING reviewer owner/project#3",
-            "RUNNING fix round owner/project#2",
-        ]))
+        assert_that(
+            lines_of(out, "RUNNING"),
+            equal_to(
+                [
+                    "RUNNING reviewer owner/project#3",
+                    "RUNNING fix round owner/project#2",
+                ]
+            ),
+        )
 
     def test_no_running_list_says_the_ledger_is_stale(self) -> None:
         """Rows nobody confirmed are said first."""
         here = world.make_world()
         start(here)
-        out = world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE).out
+        out = world.invoke(
+            here, "slots", "next", here.config, "--now", world.FUTURE
+        ).out
         first, second = out.splitlines()[:2]
         assert_that(first, starts_with("LEDGER STALE: last written "))
-        assert_that(first.endswith("1 rows name agents nobody has confirmed"), equal_to(True))
+        assert_that(
+            first.endswith("1 rows name agents nobody has confirmed"), equal_to(True)
+        )
         assert_that(second, equal_to("SLOTS 1 of 2, free: big"))
 
     def test_an_empty_ledger_is_not_stale(self) -> None:
         """No row, nothing to confirm."""
         here = world.make_world()
-        out = world.invoke(here, "slots", "next", here.config, "--now", world.FUTURE).out
+        out = world.invoke(
+            here, "slots", "next", here.config, "--now", world.FUTURE
+        ).out
         assert_that(lines_of(out, "LEDGER STALE"), equal_to([]))

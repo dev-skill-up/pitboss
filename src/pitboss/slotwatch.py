@@ -3,12 +3,12 @@
 Hooks do not run in a cloud session (Claude Code's "Settings in cloud sessions"),
 so a long-running command for the Monitor tool writes the ledger itself
 (pitboss#415): a transcript it has not seen becomes a row, a finished agent's row
-is freed, a silent one is said ``UNCERTAIN`` and kept.
+is freed, a dead one (written before the process started) is freed too.
 """
 
 import dataclasses
 import datetime
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from . import agenttranscript, ledger, slotsheader
 from .agenttranscript import State
@@ -22,8 +22,7 @@ class Step:
     Attributes:
         book: the ledger after it.
         lines: the lines to print: a ``LEDGER CHANGED`` line for each change,
-            an ``UNCERTAIN`` line for each silent agent a row holds, an
-            ``OVERCAP`` line for each live agent with no free slot.
+            an ``OVERCAP`` line for each live agent with no free slot.
         changed: the ledger differs from the one given.
         began: the slots a row was put in.
     """
@@ -34,34 +33,41 @@ class Step:
     began: Sequence[str] = ()
 
 
+def _reason(
+    slot: ledger.Slot,
+    states: Mapping[str, State],
+    started: datetime.datetime | None,
+) -> str:
+    # why a row is freed, or empty when it stays
+    if not slot.agent:
+        return ""
+    state = states.get(slot.agent)
+    if state in agenttranscript.LEAVING:
+        return agenttranscript.WORDS[state]
+    began = datetime.datetime.fromisoformat(slot.started) if slot.started else None
+    if state is None and started and began and began < started:
+        return "no transcript"
+    return ""
+
+
 def _freed(
-    book: ledger.Ledger, agents: Sequence[agenttranscript.Agent]
+    book: ledger.Ledger,
+    agents: Sequence[agenttranscript.Agent],
+    started: datetime.datetime | None,
 ) -> tuple[ledger.Ledger, Sequence[str]]:
-    done = {each.name for each in agents if each.state is State.FINISHED}
+    states = {each.name: each.state for each in agents}
+    why = {slot.name: _reason(slot, states, started) for slot in book.slots}
     lines = [
         f"{Marker.LEDGER_CHANGED.text}: slot {slot.name} freed from {slot.agent}"
-        f" ({slot.ticket or slot.task}): it handed back"
+        f" ({slot.ticket or slot.task}): {why[slot.name]}"
         for slot in book.slots
-        if slot.agent in done
+        if why[slot.name]
     ]
     slots = tuple(
-        ledger.Slot(name=slot.name, model=slot.model) if slot.agent in done else slot
+        ledger.Slot(name=slot.name, model=slot.model) if why[slot.name] else slot
         for slot in book.slots
     )
     return dataclasses.replace(book, slots=slots), lines
-
-
-def _uncertain(
-    book: ledger.Ledger, agents: Sequence[agenttranscript.Agent]
-) -> Sequence[str]:
-    held = {slot.agent for slot in book.slots}
-    return [
-        f"UNCERTAIN: {each.name} ({each.task or 'no ticket'}) holds a slot and has"
-        f" written nothing for {each.silent_minutes} minutes with no hand-back;"
-        " it is not freed: check it"
-        for each in agents
-        if each.state is State.SILENT and each.name in held
-    ]
 
 
 def _taken(
@@ -97,6 +103,7 @@ def step(
     book: ledger.Ledger,
     agents: Sequence[agenttranscript.Agent],
     now: datetime.datetime,
+    started: datetime.datetime | None,
 ) -> Step:
     """Bring the ledger up to the transcripts.
 
@@ -104,19 +111,14 @@ def step(
         book: the ledger.
         agents: the session's agents.
         now: the time now.
+        started: when the Claude process of the session started, or None.
 
     Returns:
         The new ledger and the lines.
     """
-    freed, said = _freed(book, agents)
+    freed, said = _freed(book, agents, started)
     taken, took, began = _taken(freed, agents, now)
-    changed = taken != book
-    return Step(
-        book=taken,
-        lines=[*said, *took, *_uncertain(taken, agents)],
-        changed=changed,
-        began=began,
-    )
+    return Step(book=taken, lines=[*said, *took], changed=taken != book, began=began)
 
 
 def running(book: ledger.Ledger) -> Sequence[str]:

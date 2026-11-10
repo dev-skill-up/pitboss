@@ -22,7 +22,9 @@ def next_for(here: world.World, ticket: str) -> world.Result:
     Returns:
         What it did.
     """
-    return world.invoke(here, "next", "--config", here.config, ticket, "--now", world.FUTURE)
+    return world.invoke(
+        here, "next", "--config", here.config, ticket, "--now", world.FUTURE
+    )
 
 
 class TestNotTheHead(unittest.TestCase):
@@ -32,10 +34,13 @@ class TestNotTheHead(unittest.TestCase):
         """The first line names the rank, the head and its brief command."""
         here = priorities(ALL, {}, QUEUE)
         first = next_for(here, TEN).out.splitlines()[0]
-        assert_that(first, equal_to(
-            f"NOT THE HEAD: {TEN} is rank 2; the head is {TWELVE} (p0, opened"
-            f" 2026-09-01); its brief: pitboss slots next {TWELVE} --config {here.config}"
-        ))
+        assert_that(
+            first,
+            equal_to(
+                f"NOT THE HEAD: {TEN} is rank 2; the head is {TWELVE} (p0, opened"
+                f" 2026-09-01); its brief: pitboss slots next {TWELVE} --config {here.config}"
+            ),
+        )
 
     def test_the_head_gets_no_such_line(self) -> None:
         """The output of the head is unchanged."""
@@ -46,4 +51,7 @@ class TestNotTheHead(unittest.TestCase):
         """A ticket the list does not offer has no rank."""
         here = priorities(ALL, {}, QUEUE)
         first = next_for(here, "owner/project#99").out.splitlines()[0]
-        assert_that(first.startswith("NOT THE HEAD: owner/project#99 is not in the order;"), equal_to(True))
+        assert_that(
+            first.startswith("NOT THE HEAD: owner/project#99 is not in the order;"),
+            equal_to(True),
+        )

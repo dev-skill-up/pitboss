@@ -1,16 +1,16 @@
-"""Reading a session's agent transcripts: who they are and whether they finished.
+"""Reading a session's agent transcripts: who they are and what state they are in.
 
 (Keyword: slots-watch, pitboss#415.) A transcript is a ``.output`` file of JSON
 lines whose first line has the brief as the user message and the ``agentId``.
-Facts checked on the session's transcripts:
-
-* a worker that handed back has, after its last assistant record, a tool_use
-  named ``SubagentHandback`` and then a tool_result with the success text; a
-  later record (a resume by ``SendMessage``) means it runs again;
-* a reviewer has no such tool and ends on an assistant message with the stop
-  reason ``end_turn`` and no tool_use;
-* anything else is running, or silent: an agent with no new line for the idle
-  minutes and no hand-back is ``UNCERTAIN`` and is never freed.
+Checked on all the transcripts of a session, the last record of a finished agent
+is exactly one of: a user record with ``toolEndsTurn`` right after a
+``SubagentHandback`` tool_use (workers and reviewers); an assistant record with
+the stop reason ``end_turn``; a user record that says ``[Request interrupted by
+user`` (stopped or killed). Any other last record is mid-turn: the agent runs, or
+it is dead because its file was last written before the Claude process of the
+session started. There is no uncertain state, and a slot is never freed on a
+guess. The brief mentions the word ``SubagentHandback``, so only the tool_use
+``name`` counts.
 """
 
 import dataclasses
@@ -39,14 +39,28 @@ class State(enum.Enum):
     """What a transcript says of its agent.
 
     Attributes:
-        RUNNING: it wrote a line within the idle minutes.
-        FINISHED: it handed back, or ended its turn.
-        SILENT: it did not hand back and wrote nothing for the idle minutes.
+        HANDED_BACK: the last record is the result of a ``SubagentHandback``.
+        ENDED: the last record is an assistant message that ended its turn.
+        STOPPED: the last record is an interruption.
+        RUNNING: it is mid-turn, written since the Claude process started.
+        DEAD: it is mid-turn, written before the Claude process started.
     """
 
+    HANDED_BACK = enum.auto()
+    ENDED = enum.auto()
+    STOPPED = enum.auto()
     RUNNING = enum.auto()
-    FINISHED = enum.auto()
-    SILENT = enum.auto()
+    DEAD = enum.auto()
+
+
+FINISHED = frozenset({State.HANDED_BACK, State.ENDED, State.STOPPED})
+LEAVING = FINISHED | {State.DEAD}
+WORDS = {
+    State.HANDED_BACK: "handback",
+    State.ENDED: "handback",
+    State.STOPPED: "stopped",
+    State.DEAD: "session restarted",
+}
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -58,14 +72,14 @@ class Agent:
         task: the ticket or PR of its brief, or empty.
         kind: the kind of task (``ledger.TASK_KINDS``).
         state: what its transcript says.
-        silent_minutes: minutes since its last line.
+        written: when its last record was written.
     """
 
     name: str
     task: str
     kind: str
     state: State
-    silent_minutes: int
+    written: datetime.datetime
 
 
 def _blocks(record: Mapping[str, object]) -> Sequence[Mapping[str, object]]:
@@ -86,31 +100,31 @@ def _text(record: Mapping[str, object]) -> str:
     return "\n".join(str(each.get("text", "")) for each in _blocks(record))
 
 
-def finished(records: Sequence[Mapping[str, object]]) -> bool:
-    """Whether the records end in a hand-back or an ended turn.
+def ending(records: Sequence[Mapping[str, object]]) -> State | None:
+    """How the records end, when they end a turn.
 
     Args:
         records: the tail of the transcript, in order.
 
     Returns:
-        True when the last record is the result of a ``SubagentHandback`` call,
-        or an assistant message that ended its turn with no tool call.
+        ``HANDED_BACK``, ``ENDED`` or ``STOPPED``; None when the agent is mid-turn.
     """
     if not records:
-        return False
+        return None
     last = records[-1]
     message = last.get("message")
     stop = message.get("stop_reason") if isinstance(message, dict) else None
     if last.get("type") == "assistant":
         asking = any(each.get("type") == "tool_use" for each in _blocks(last))
-        return stop == "end_turn" and not asking
-    if len(records) < 2:
-        return False
-    before = _blocks(records[-2])
-    return bool(last.get("toolEndsTurn")) and any(
+        return State.ENDED if stop == "end_turn" and not asking else None
+    if _text(last).startswith("[Request interrupted by user"):
+        return State.STOPPED
+    before = _blocks(records[-2]) if len(records) > 1 else []
+    called = any(
         each.get("type") == "tool_use" and each.get("name") == HANDBACK
         for each in before
     )
+    return State.HANDED_BACK if last.get("toolEndsTurn") and called else None
 
 
 def _task(brief: str) -> tuple[str, str]:
@@ -140,13 +154,13 @@ def _tail(path: pathlib.Path) -> Sequence[Mapping[str, object]]:
     return [each for each in found if isinstance(each, dict)]
 
 
-def read(path: pathlib.Path, now: datetime.datetime, idle_minutes: int) -> Agent | None:
+def read(path: pathlib.Path, started: datetime.datetime | None) -> Agent | None:
     """Read one transcript.
 
     Args:
         path: the ``.output`` file.
-        now: the time now.
-        idle_minutes: the silence after which an unfinished agent is uncertain.
+        started: when the Claude process of the session started, or None when
+            it is not known (then no mid-turn agent is dead).
 
     Returns:
         The agent, or None when the file is not an agent transcript.
@@ -162,35 +176,27 @@ def read(path: pathlib.Path, now: datetime.datetime, idle_minutes: int) -> Agent
     records = _tail(path)
     stamps = [str(each["timestamp"]) for each in records if each.get("timestamp")]
     last = datetime.datetime.fromisoformat(stamps[-1] if stamps else head["timestamp"])
-    silent = int((now - last).total_seconds() // 60)
     task, kind = _task(_text(head))
-    if finished(records):
-        state = State.FINISHED
-    else:
-        state = State.SILENT if silent >= idle_minutes else State.RUNNING
+    state = ending(records)
+    if state is None:
+        gone = started is not None and last < started
+        state = State.DEAD if gone else State.RUNNING
     return Agent(
-        name=str(head["agentId"]),
-        task=task,
-        kind=kind,
-        state=state,
-        silent_minutes=max(0, silent),
+        name=str(head["agentId"]), task=task, kind=kind, state=state, written=last
     )
 
 
 def read_all(
-    directory: pathlib.Path, now: datetime.datetime, idle_minutes: int
+    directory: pathlib.Path, started: datetime.datetime | None
 ) -> Sequence[Agent]:
     """Read the agent transcripts of a directory.
 
     Args:
         directory: the session's ``tasks`` directory.
-        now: the time now.
-        idle_minutes: the silence after which an unfinished agent is uncertain.
+        started: when the Claude process of the session started, or None.
 
     Returns:
         The agents, by file name.
     """
-    found = (
-        read(each, now, idle_minutes) for each in sorted(directory.glob("*.output"))
-    )
+    found = (read(each, started) for each in sorted(directory.glob("*.output")))
     return [each for each in found if each is not None]

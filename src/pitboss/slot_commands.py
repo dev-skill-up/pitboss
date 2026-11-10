@@ -374,6 +374,7 @@ def _read(found: Context) -> ledger.Ledger:
     add_argument(
         "--rounds", type=int, default=0, help="rounds of 'slots watch'; 0: no end"
     ),
+    add_argument("--process-start", default=None, help=argparse.SUPPRESS),
     NOW_ARGUMENT,
     name="slots",
 )

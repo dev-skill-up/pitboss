@@ -346,7 +346,9 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
     if found.settings.slots.agents_dir is not None:
         given = configfile.named(found.args)
-        for line in watchbeat.missing_line(found.settings.slots.ledger, found.now, given):
+        for line in watchbeat.missing_line(
+            found.settings.slots.ledger, found.now, given
+        ):
             print(line)
 
 

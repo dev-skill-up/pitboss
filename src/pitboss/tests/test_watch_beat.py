@@ -49,7 +49,9 @@ class TestWatchBeat(unittest.TestCase):
 
     def test_a_configuration_without_a_directory_prints_nothing(self) -> None:
         """No watcher is wanted where no tasks directory is named."""
-        assert_that(lines_of(sweeping(world.make_world(), 0), "WATCH MISSING"), equal_to([]))
+        assert_that(
+            lines_of(sweeping(world.make_world(), 0), "WATCH MISSING"), equal_to([])
+        )
 
     def test_the_path_is_beside_the_ledger(self) -> None:
         """The heartbeat file's name."""

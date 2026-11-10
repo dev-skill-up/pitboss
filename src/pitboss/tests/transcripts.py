@@ -32,7 +32,9 @@ def brief(agent: str, text: str, when: str) -> Mapping[str, object]:
     Returns:
         The record.
     """
-    return record("user", when, agentId=agent, message={"role": "user", "content": text})
+    return record(
+        "user", when, agentId=agent, message={"role": "user", "content": text}
+    )
 
 
 def call(name: str, when: str) -> Mapping[str, object]:
@@ -63,7 +65,9 @@ def result(when: str, text: str = "ok", ends: bool = False) -> Mapping[str, obje
     """
     block = {"type": "tool_result", "tool_use_id": "t", "content": text}
     message = {"role": "user", "content": [block]}
-    return record("user", when, message=message, **({"toolEndsTurn": True} if ends else {}))
+    return record(
+        "user", when, message=message, **({"toolEndsTurn": True} if ends else {})
+    )
 
 
 def ended(when: str) -> Mapping[str, object]:
@@ -81,6 +85,19 @@ def ended(when: str) -> Mapping[str, object]:
         "content": [{"type": "text", "text": "done"}],
     }
     return record("assistant", when, message=message)
+
+
+def interrupted(when: str) -> Mapping[str, object]:
+    """A user record that says the agent was stopped.
+
+    Args:
+        when: its time.
+
+    Returns:
+        The record.
+    """
+    block = {"type": "text", "text": "[Request interrupted by user]"}
+    return record("user", when, message={"role": "user", "content": [block]})
 
 
 def write(
