@@ -122,10 +122,11 @@ class TestTheWholeOrder(unittest.TestCase):
         assert_that(listed(next_output(ordered_world())), equal_to(WHOLE_ORDER))
 
     def test_the_unlabeled_lines_come_before_the_first_step(self) -> None:
-        """Nothing but the unlabeled tickets and the rule is printed first."""
+        """After the slot header, only the unlabeled tickets and the rule."""
         shown = next_output(ordered_world()).splitlines()
-        assert_that(shown[3], equal_to(RULE_LINE))
-        assert_that(shown[4].startswith("NEXT 1. "), equal_to(True))
+        assert_that(shown[0].startswith("SLOTS "), equal_to(True))
+        assert_that(shown[6], equal_to(RULE_LINE))
+        assert_that(shown[7].startswith("NEXT 1. "), equal_to(True))
 
     def test_next_with_no_ticket_prints_it_too(self) -> None:
         """``next`` is what ``slots next`` prints."""
