@@ -109,3 +109,24 @@ def _source(
         pins=pinsonly.asker(github, settings),
         no_drafts=_opens_ready(settings.project),
     )
+
+
+def read_one(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    undraft: Callable[[], bool],
+    item: tuple[config.Repo, int],
+) -> pulls.Read:
+    """Read one open PR, keeping a PR whose API call failed as a record.
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        undraft: says whether the runners allow an undraft now.
+        item: the PR's repository and number.
+
+    Returns:
+        The PR, as ``read_each`` would give it.
+    """
+    source = _source(github, settings, undraft)
+    return pulls.fetch_or_unreadable(_unheld(source, settings, item[0]), *item)

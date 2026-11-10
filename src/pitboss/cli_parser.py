@@ -82,7 +82,9 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
 
 
 def make_parser(
-    usage: disk.Reader, collect: commandscan.Collect = ENTRY_DATA.collector.collect
+    usage: disk.Reader,
+    collect: commandscan.Collect = ENTRY_DATA.collector.collect,
+    kind: type[argparse.ArgumentParser] = IntermixedParser,
 ) -> argparse.ArgumentParser:
     """The command line parser of every pitboss command.
 
@@ -91,13 +93,15 @@ def make_parser(
             ``args.usage`` (keyword: disk-injected). A test gives a figure.
         collect: the scan of the commands the parser has; it is made on the
             first call of the process only (keyword: scan-once).
+        kind: the class of the parser and of its subcommands' parsers
+            (``measured.MeasuredParser`` ends a command with its timing).
 
     Returns:
         The parser.
     """
     collected = configsettle.with_option(commandscan.scanned(collect))
     made: argparse.ArgumentParser = gather_commands.set_parser(
-        collected=collected, parser=IntermixedParser()
+        collected=collected, parser=kind()
     )
     made.set_defaults(usage=usage)
     made.epilog = "commands:\n" + commanddoc.listing(collected)

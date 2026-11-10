@@ -11,7 +11,6 @@ ticket-blocked, blocked-pull, pitboss#388).
 """
 
 import dataclasses
-import json
 import re
 import functools
 from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
@@ -24,7 +23,7 @@ from . import (
     pulls,
     supersedes,
     ticketblock,
-    ticketread,
+    ticketdata,
 )
 
 NAME = re.compile(r"(?:[\w.-]+/)?[\w.-]*#\d+")
@@ -32,27 +31,7 @@ URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
 LINK = "https://github.com/{slug}/issues/{number}"
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Ticket:
-    """A ticket as ``issues/<number>`` gives it.
-
-    Attributes:
-        open: whether it is open.
-        labels: its labels' names.
-        body: its text (keyword: done-when-names).
-        title: its title.
-        created_at: when it was opened (ISO 8601).
-        comments: how many comments it has.
-        pull: whether it is a PR (``issues/<number>`` answers for both).
-    """
-
-    open: bool
-    labels: AbstractSet[str]
-    body: str = ""
-    title: str = ""
-    created_at: str = ""
-    comments: int = 0
-    pull: bool = False
+Ticket = ticketdata.Ticket
 
 
 def named(text: str, repo: config.Repo) -> Iterable[str]:
@@ -71,44 +50,8 @@ def named(text: str, repo: config.Repo) -> Iterable[str]:
     ]
 
 
-def read(github: ghapi.GitHub, reference: str) -> Ticket | None:
-    """Read a ticket.
-
-    Args:
-        github: the API.
-        reference: ``owner/name#number``.
-
-    Returns:
-        The ticket, or None when the API cannot give it.
-    """
-    text = ticketread.text(github, reference)
-    if text is None:
-        return None
-    item = json.loads(text)
-    listed = item.get("labels", ())
-    return Ticket(
-        open=item["state"] == "open",
-        labels=frozenset(str(label["name"]) for label in listed),
-        body=item.get("body") or "",
-        title=item.get("title") or "",
-        created_at=item.get("created_at") or "",
-        comments=int(item.get("comments") or 0),
-        pull="pull_request" in item,
-    )
-
-
-def open_ticket(github: ghapi.GitHub, reference: str) -> Ticket | None:
-    """Read a ticket that is open.
-
-    Args:
-        github: the API.
-        reference: ``owner/name#number``.
-
-    Returns:
-        The ticket, or None when it is closed, merged or cannot be read.
-    """
-    ticket = read(github, reference)
-    return ticket if ticket is not None and ticket.open else None
+read = ticketdata.read
+open_ticket = ticketdata.open_ticket
 
 
 def candidates(

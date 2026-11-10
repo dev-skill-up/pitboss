@@ -15,11 +15,12 @@ the queued tickets below the top priority, so a ticket stays counted when a nami
 ticket gets a PR, loses its label or is closed.
 """
 
+import dataclasses
 import json
 import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, ghapi, ledger
+from . import config, ghapi, ledger, workitem
 from .markers import Marker
 
 CAUSE = re.compile(
@@ -34,6 +35,24 @@ def _texts(text: str) -> Sequence[tuple[int, str]]:
         (item["number"], f"{item.get('title') or ''}\n{item.get('body') or ''}")
         for item in json.loads(text)
     ]
+
+
+def listing(
+    github: ghapi.GitHub, repo: config.Repo, since: str = ""
+) -> Sequence[tuple[int, str]]:
+    """Every ticket and PR of a repository with its text, open or closed.
+
+    Args:
+        github: the API.
+        repo: the repository.
+        since: only the items updated at or after this time (ISO 8601); every
+            item when empty.
+
+    Returns:
+        Each item's number and its title and body.
+    """
+    after = f"&since={since}" if since else ""
+    return ghapi.pages(github, f"repos/{repo.slug}/issues?state=all{after}", _texts)
 
 
 def sources(
@@ -52,9 +71,7 @@ def sources(
     return [
         (f"{repo.slug}#{number}", text)
         for repo in repos
-        for number, text in ghapi.pages(
-            github, f"repos/{repo.slug}/issues?state=all", _texts
-        )
+        for number, text in listing(github, repo)
     ]
 
 
@@ -71,6 +88,28 @@ def caused(text: str, repo: config.Repo) -> Sequence[str]:
     return [ledger.reference(each, repo) for each in CAUSE.findall(text)]
 
 
+Causes = Sequence[tuple[str, Sequence[str]]]
+
+
+def tally_causes(pairs: Causes) -> Mapping[str, Sequence[str]]:
+    """Who names each ticket as a cause.
+
+    Args:
+        pairs: each ticket or PR, as ``owner/name#number``, with the tickets
+            its text names as causes.
+
+    Returns:
+        Each ticket named as a cause, with the other tickets and PRs that name
+        it, each once, in the order of the pairs.
+    """
+    found: dict[str, dict[str, None]] = {}
+    for reference, causes in pairs:
+        for target in causes:
+            if target != reference:
+                found.setdefault(target, {})[reference] = None
+    return {target: list(names) for target, names in found.items()}
+
+
 def tally(sources: Iterable[tuple[str, str]]) -> Mapping[str, Sequence[str]]:
     """Who names each ticket as a cause.
 
@@ -81,12 +120,28 @@ def tally(sources: Iterable[tuple[str, str]]) -> Mapping[str, Sequence[str]]:
         Each ticket named as a cause, with the other tickets and PRs that name
         it, each once, in the order of the sources.
     """
-    found: dict[str, dict[str, None]] = {}
-    for reference, text in sources:
-        for cause in caused(text, config.repo_of(reference)):
-            if cause != reference:
-                found.setdefault(cause, {})[reference] = None
-    return {cause: list(names) for cause, names in found.items()}
+    return tally_causes(
+        [
+            (reference, caused(text, config.repo_of(reference)))
+            for reference, text in sources
+        ]
+    )
+
+
+def heavy(pairs: Causes, stated: AbstractSet[str]) -> Mapping[str, Sequence[str]]:
+    """Every ticket that two or more others name as a cause.
+
+    Args:
+        pairs: each ticket or PR with the causes it names.
+        stated: the tickets whose priority the owner states, which keep it.
+
+    Returns:
+        Each such ticket with the tickets and PRs that name it.
+    """
+    many = tally_causes(pairs)
+    return {
+        each: by for each, by in many.items() if len(by) >= MANY and each not in stated
+    }
 
 
 def named_by(
@@ -107,6 +162,26 @@ def named_by(
     named = tally(sources)
     many = {each: named.get(each, []) for each in candidates if each not in stated}
     return {each: by for each, by in many.items() if len(by) >= MANY}
+
+
+def raised(
+    items: Sequence[workitem.Item], named: Mapping[str, Sequence[str]], label: str
+) -> tuple[Sequence[workitem.Item], Sequence[str]]:
+    """The items with the tickets named as a cause ranked first, and the lines.
+
+    Args:
+        items: the queued work.
+        named: each ticket named as a cause, with who names it (``named_by``).
+        label: the top priority label.
+
+    Returns:
+        The items, those named with priority 0, and a ``PROMOTE`` line for each.
+    """
+    ranked = [
+        dataclasses.replace(each, priority=0) if each.reference in named else each
+        for each in items
+    ]
+    return ranked, [line(each, label, by) for each, by in named.items()]
 
 
 def line(reference: str, label: str, by: Sequence[str]) -> str:

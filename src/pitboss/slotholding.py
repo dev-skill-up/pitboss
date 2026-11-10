@@ -43,6 +43,19 @@ def derived(book: ledger.Ledger, running: Iterable[str] | None) -> ledger.Ledger
     return dataclasses.replace(book, slots=slots)
 
 
+def live(args: argparse.Namespace, book: ledger.Ledger) -> ledger.Ledger:
+    """The ledger as the agents named by ``--running`` make it.
+
+    Args:
+        args: the parsed arguments; a command with no ``--running`` keeps the book.
+        book: the ledger.
+
+    Returns:
+        ``derived`` of the book and the running agents.
+    """
+    return derived(book, getattr(args, "running", None))
+
+
 def _if_running(slot: ledger.Slot, alive: AbstractSet[str]) -> ledger.Slot:
     if not slot.agent or slot.agent in alive:
         return slot

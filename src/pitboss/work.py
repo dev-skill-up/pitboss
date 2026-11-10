@@ -16,8 +16,6 @@ a conflict is resolved by merging the base branch in.
 """
 
 import dataclasses
-import enum
-import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
 from . import (
@@ -26,108 +24,18 @@ from . import (
     ghapi,
     issuelist,
     ledger,
+    pullnames,
     pulls,
     reviews,
     shapes,
     slotheld,
     steps,
+    workitem,
 )
 
-_TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
-_ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
-
-
-class Category(enum.IntEnum):
-    """The kinds of work: a label on a line, never a rank among the open PRs.
-
-    Attributes:
-        FIX_REVIEW: an author fixes what a review asked for (a PR).
-        REVISE_PLAN: an author revises a Plan no review approved, nothing else (a PR).
-        REVIEW: a reviewer (never the author) reviews a green head, or a
-            Plan alone (a draft's, or revised after its rejection) (a PR).
-        NEW_PR: a worker starts a ticket (after every PR).
-        FIX_CI: an author fixes a red CI, which is no rejection (a PR).
-        FIRST_ROUND: an author writes the Plan and Execution body of a PR (a PR).
-        RESOLVE_CONFLICT: an author resolves the conflict of a head, at any
-            stage except while it waits for a ruling, the owner or the restoring
-            of an edited approved Plan (a PR).
-        RULING_STEPS: an author does exactly the steps of an Opus ruling (a PR).
-        RULING_AS_GIVEN: an author carries out an Opus ruling that splits,
-            reshapes or abandons (a PR).
-        REVIEW_FIX_ROUND: a reviewer checks the findings of a review that
-            asked for changes at an older head, which differs from the current
-            one (a PR; keyword: fix-round).
-        RUN_PLAN: an author runs the commands of a Plan that was approved alone
-            after a ruling and fills the Execution (a PR; keyword: plan-alone).
-        ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
-            a ready PR whose checks passed (a PR; keyword: ci-quotes).
-        WAITING: a PR that is offered for no round (it waits, or its step is a
-            ruling, a merge or an undraft) and whose ticket is blocked by an open
-            ticket: it is only listed as blocked (keyword: blocked-pull,
-            pitboss#388).
-    """
-
-    FIX_REVIEW = 1
-    REVISE_PLAN = 2
-    REVIEW = 4
-    NEW_PR = 5
-    FIX_CI = 6
-    FIRST_ROUND = 7
-    RESOLVE_CONFLICT = 8
-    RULING_STEPS = 9
-    RULING_AS_GIVEN = 10
-    REVIEW_FIX_ROUND = 11
-    RUN_PLAN = 12
-    ADD_CI_QUOTES = 13
-    WAITING = 14
-
-
-CATEGORY_WORDS = {
-    Category.WAITING: "wait for the ticket it depends on",
-    Category.FIX_REVIEW: "fix the review",
-    Category.REVISE_PLAN: "revise the plan",
-    Category.REVIEW: "review it (a reviewer that is not its author)",
-    Category.REVIEW_FIX_ROUND: "review the fix round's findings only",
-    Category.NEW_PR: "start a PR",
-    Category.FIX_CI: "fix the CI (a red CI is no rejection)",
-    Category.FIRST_ROUND: "write the Plan and Execution body",
-    Category.RESOLVE_CONFLICT: "resolve the conflict",
-    Category.RULING_STEPS: "do the ruling's steps",
-    Category.RULING_AS_GIVEN: "carry out the ruling",
-    Category.RUN_PLAN: "run the Plan's commands and fill the Execution",
-    Category.ADD_CI_QUOTES: "add the CI quotes to the body",
-}
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Item:
-    """One thing a worker could start.
-
-    Attributes:
-        category: its kind.
-        reference: its ``owner/name#number``.
-        created_at: when the PR or ticket was opened (ISO 8601).
-        title: its title.
-        priority: the index of its priority label, the owner's if stated (0 for PRs).
-        labels: its labels.
-        body: a ticket's text, to look for a blocker in.
-        comments: how many comments a ticket has.
-        blockers: the open tickets and PRs a ticket says it cannot be worked on
-            until (keyword: ticket-blocked), also for a PR whose ticket says it
-            (keyword: blocked-pull, pitboss#388).
-        ticket: the ticket a PR fixes, or "".
-    """
-
-    category: Category
-    reference: str
-    created_at: str
-    title: str
-    priority: int = 0
-    labels: AbstractSet[str] = frozenset()
-    body: str = ""
-    comments: int = 0
-    blockers: Sequence[str] = ()
-    ticket: str = ""
+Category = workitem.Category
+CATEGORY_WORDS = workitem.CATEGORY_WORDS
+Item = workitem.Item
 
 
 def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
@@ -200,21 +108,6 @@ def fix_round(pull: pulls.PullFacts) -> bool:
     return asked and pull.standing is reviews.Standing.OLDER_HEAD
 
 
-def _references(pull: pulls.PullFacts) -> frozenset[str]:
-    text = f"{pull.pull.title}\n{pull.pull.body}"
-    found = {
-        ledger.reference(match.group(0), pull.repo)
-        for match in re.finditer(r"(?:[\w.-]+/)?[\w.-]*#\d+", text)
-    }
-    found.update(
-        f"{match.group(1)}#{match.group(2)}" for match in _ISSUE_URL.finditer(text)
-    )
-    trailing = _TRAILING_NUMBER.search(pull.pull.head.branch)
-    if trailing:
-        found.add(f"{pull.repo.slug}#{trailing.group(1)}")
-    return frozenset(found)
-
-
 def taken(facts: Iterable[pulls.PullFacts]) -> AbstractSet[str]:
     """The tickets open PRs already work on.
 
@@ -227,7 +120,14 @@ def taken(facts: Iterable[pulls.PullFacts]) -> AbstractSet[str]:
     Returns:
         The tickets' references.
     """
-    return frozenset().union(*(_references(pull) for pull in facts))
+    return frozenset().union(
+        *(
+            pullnames.names(
+                each.pull.title, each.pull.body, each.pull.head.branch, each.repo
+            )
+            for each in facts
+        )
+    )
 
 
 def ticket_items(
@@ -265,20 +165,7 @@ def _labelled(github: ghapi.GitHub, settings: config.Config) -> Iterable[Item]:
 
     for (repo, priority, _), found in zip(asked, concurrently.each(read, asked)):
         for issue in found:
-            yield _ticket_item(f"{repo.slug}#{issue.number}", issue, priority)
-
-
-def _ticket_item(reference: str, issue: shapes.Issue, priority: int) -> Item:
-    return Item(
-        category=Category.NEW_PR,
-        reference=reference,
-        created_at=issue.created_at,
-        title=issue.title,
-        priority=priority,
-        labels=issue.labels,
-        body=issue.body,
-        comments=issue.comments,
-    )
+            yield workitem.of_ticket(f"{repo.slug}#{issue.number}", issue, priority)
 
 
 def ordered(items: Iterable[Item], held: Iterable[str]) -> Sequence[Item]:
@@ -348,6 +235,9 @@ class Offered:
         blocks: the references that wait for each dependency that was offered
             ahead of them (keyword: blocks-line).
         labels: the ``priority_labels``, for the lines about the rank.
+        unread: whether tickets beyond the window that was read are queued, so
+            that the order ends where the window does (keyword: ticket-window,
+            pitboss#443).
     """
 
     items: Sequence[Item]
@@ -359,6 +249,7 @@ class Offered:
     promoted: Sequence[str] = ()
     blocks: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
     labels: Sequence[str] = ()
+    unread: bool = False
 
 
 def queued(
@@ -382,8 +273,24 @@ def queued(
     Returns:
         The ordered items.
     """
+    tickets = ticket_items(github, settings, taken(pulls.readable(found)))
+    return assemble(found, tickets, book)
+
+
+def assemble(
+    found: Sequence[pulls.Read], tickets: Sequence[Item], book: ledger.Ledger
+) -> Sequence[Item]:
+    """The PRs' items and the tickets that were read, in the order to start them.
+
+    Args:
+        found: the open PRs, read or not.
+        tickets: the tickets that no open PR names (``ticket_items``).
+        book: the ledger.
+
+    Returns:
+        The ordered items; no ticket while a PR cannot be read.
+    """
     facts = pulls.readable(found)
-    tickets = ticket_items(github, settings, taken(facts))
     items = [
         *pull_items(facts),
         *(tickets if len(facts) == len(found) else ()),

@@ -20,7 +20,7 @@ RULE = (
     " order below is strict: open pull requests oldest first, then tickets by"
     " priority label, oldest first"
 )
-_PRIORITY = re.compile(r"^p\d+$")
+PRIORITY = re.compile(r"^p\d+$")
 
 
 class _Item(NamedTuple):
@@ -45,7 +45,7 @@ def _items(text: str) -> Sequence[_Item]:
 
 def _unlabeled(item: _Item, settings: config.Config) -> bool:
     known = settings.slots.priority_labels
-    priority = any(each in known or _PRIORITY.match(each) for each in item.labels)
+    priority = any(each in known or PRIORITY.match(each) for each in item.labels)
     return not item.pull and not priority
 
 

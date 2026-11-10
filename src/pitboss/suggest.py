@@ -9,6 +9,7 @@ takes no slot (keyword: brief, pitboss#118).
 """
 
 import dataclasses
+import pathlib
 from typing import Iterable, Mapping, Sequence
 
 from . import (
@@ -17,16 +18,19 @@ from . import (
     briefheads,
     briefrepo,
     config,
+    configfile,
     diskwatch,
     fixes,
     gates,
     ghapi,
+    nextfound,
     pullfiles,
     pulls,
     reviews,
     slotheld,
     steps,
     suggestflake,
+    suggestkind,
     suggestlogs,
     suggestwhen,
     ticketread,
@@ -40,19 +44,6 @@ RELOCK_GOAL = (
     "relock PR {reference} ({title}): move the pins; moves of pins are safe when"
     " the lock matches and CI is green"
 )
-KIND_OF_CATEGORY = {
-    work.Category.NEW_PR: brief.Kind.NEW_PR,
-    work.Category.REVIEW_FIX_ROUND: brief.Kind.REVIEW_FIX_ROUND,
-    work.Category.FIRST_ROUND: brief.Kind.FIRST_ROUND,
-    work.Category.REVISE_PLAN: brief.Kind.REVISE_PLAN,
-    work.Category.FIX_REVIEW: brief.Kind.FIX_REVIEW,
-    work.Category.FIX_CI: brief.Kind.FIX_CI,
-    work.Category.RESOLVE_CONFLICT: brief.Kind.RESOLVE_CONFLICT,
-    work.Category.RULING_STEPS: brief.Kind.RULING_STEPS,
-    work.Category.RULING_AS_GIVEN: brief.Kind.RULING_AS_GIVEN,
-    work.Category.RUN_PLAN: brief.Kind.RUN_PLAN,
-    work.Category.ADD_CI_QUOTES: brief.Kind.ADD_CI_QUOTES,
-}
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,24 +65,7 @@ class Pick:
     pull: pulls.PullFacts | None
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Suggestion:
-    """One thing to start, with the brief to paste.
-
-    A ruling brief has one line, ``How we got here:``, that the orchestrator
-    replaces with the analysis (pitboss#168).
-
-    Attributes:
-        kind: the kind of brief.
-        reference: the PR or ticket.
-        model: the model class it goes to.
-        text: the brief.
-    """
-
-    kind: brief.Kind
-    reference: str
-    model: str
-    text: str
+Suggestion = suggestkind.Suggestion
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -122,6 +96,36 @@ class Source:
     volume: diskwatch.Reading | None = None
     big: Sequence[diskwatch.Big] = ()
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
+
+
+def sourced(
+    found: nextfound.Found,
+    facts: Sequence[pulls.PullFacts],
+    items: Sequence[work.Item],
+    failed: Mapping[str, Sequence[str]],
+) -> Source:
+    """What suggestions are made from, with the briefs the project gives.
+
+    Args:
+        found: the context.
+        facts: the open PRs that were read.
+        items: the queued work, in order.
+        failed: each reference's failed models.
+
+    Returns:
+        The source, with no volume read.
+    """
+    given = configfile.named(found.args)
+    start = pathlib.Path(found.args.env.get("PWD", "."))
+    return Source(
+        github=found.github,
+        settings=found.settings,
+        given=given,
+        brief=configfile.load_brief(given, start),
+        facts=facts,
+        items=items,
+        failed=failed,
+    )
 
 
 def _ruling_pick(each: pulls.PullFacts) -> Pick:
@@ -216,7 +220,7 @@ def kind_of(pick: Pick) -> brief.Kind:
         return review_kind(pick.pull)
     if pick.pull is not None and pick.pull.step.task is steps.Task.FIX_ROUND:
         return brief.Kind.FIX_ROUND  # keyword: fix-round-kind (pitboss#390)
-    return KIND_OF_CATEGORY[pick.category]
+    return suggestkind.OF_CATEGORY[pick.category]
 
 
 def _ticket_title(source: Source, ticket: str, fallback: str) -> str:
