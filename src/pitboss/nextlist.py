@@ -23,8 +23,8 @@ from . import (
     nextview,
     nothead,
     offering,
-    pulls,
     pullmarks,
+    pulls,
     pullstate,
     rankline,
     readyline,
@@ -41,6 +41,7 @@ from .markers import Marker
 
 Found = nextfound.Found
 require_ledger = nextfound.require_ledger
+Reads = nextview.Reads
 
 
 def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
@@ -77,8 +78,9 @@ def _view(
     found: Found,
     ordered: work.Offered,
     book: ledger.Ledger,
-    facts: Sequence[pulls.PullFacts] = (),
+    reads: Reads | None = None,
 ) -> nextview.NextView:
+    reads = reads or Reads()
     return nextview.NextView(
         items=ordered.items,
         assignments=_assigned(ordered, book, found.settings.slots),
@@ -86,32 +88,11 @@ def _view(
         slots=found.settings.slots,
         failed=book.failed,
         now=found.now,
-        withheld=nextview.Withheld(
-            held=ordered.held,
-            standing=ordered.standing,
-            serial=_serial(ordered.items, book, found.settings.slots),
-        ),
+        withheld=nextview.hold_notes(found.settings, ordered, book, reads.opened),
         ranked=list(rankline.lines(ordered)),
-        ready=list(readyline.texts(found.settings, facts, found.now)),
+        ready=list(readyline.texts(found.settings, reads.facts, found.now)),
         no_drafts=found.settings.project.no_drafts,
     )
-
-
-def _slug(reference: str) -> str:
-    return reference.rpartition("#")[0]
-
-
-def _serial(
-    items: Sequence[work.Item], book: ledger.Ledger, slots: config.Slots
-) -> frozenset[str]:
-    # keyword: slots-watch: a serial repository takes one ticket at a time
-    busy = {_slug(slot.ticket or slot.task) for slot in slotsheader.running(book)}
-    waiting = busy & set(slots.watch.serial)
-    held = set()
-    for each in items:
-        if each.category == work.Category.NEW_PR and _slug(each.reference) in waiting:
-            held.add(each.reference)
-    return frozenset(held)
 
 
 def _big(found: Found, volume: diskwatch.Reading | None) -> Sequence[diskwatch.Big]:
@@ -161,7 +142,7 @@ def show(
     book = _live(found, book)
     ordered = _ordered(found, opened, book)
     source = _source(found, opened, ordered, book)
-    view = _view(found, ordered, book, source.facts)
+    view = _view(found, ordered, book, Reads(facts=source.facts, opened=opened))
     for line in itertools.chain(
         header(found, book, view),
         unlabeled.lines(found.github, found.settings),
@@ -212,7 +193,8 @@ def startable_view(
     """
     book = _live(found, book)
     ordered = _counted(found, opened, book)
-    return _view(found, ordered, book, pullmarks.awake(opened, ordered))
+    awake = pullmarks.awake(opened, ordered)
+    return _view(found, ordered, book, Reads(facts=awake, opened=opened))
 
 
 def brief_command(given: str, item: str) -> str:
@@ -363,7 +345,7 @@ def show_item(
         print(UNKNOWN.format(reference=reference), file=sys.stderr)
         return False
     made = suggest.suggest(source, pick)
-    place = _place(_view(found, ordered, book, source.facts), pick)
+    place = _place(_view(found, ordered, book, Reads(facts=source.facts)), pick)
     print(f"{place}: {made.kind.value}: {made.reference}: {made.model}")
     print(made.text)
     return True

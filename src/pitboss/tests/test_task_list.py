@@ -102,7 +102,7 @@ class TestBlock(unittest.TestCase):
         book = ledger.Ledger(slots=(), failed={})
         ready = ["owner/project#4 (mark the PR ready)"]
         assert_that(
-            tasklist.block(book, ready, queued)[2:],
+            tasklist.block(book, ready, queued)[3:],
             equal_to(
                 [
                     "TASK LIST next 2. owner/project#4 (mark the PR ready)",
@@ -148,3 +148,32 @@ class TestOneTicketPerLine(unittest.TestCase):
         """A file that is not there is said, not a traceback."""
         out = sweep(world.make_world(), "--task-list", "/none/tasks.txt").out
         assert_that(out, contains_string("TASK LIST REFUSED: cannot read"))
+
+
+OPEN_REFS = ["owner/project#1", "owner/project#2", "owner/project#3", "owner/lib#4"]
+
+
+class TestLive(unittest.TestCase):
+    """The block from live state: open PRs with their CI, and the free slot."""
+
+    def test_an_empty_ledger_says_the_slot_is_free_and_a_held_one_does_not(
+        self,
+    ) -> None:
+        """``NO AGENT RUNNING`` only when no row holds an agent."""
+        empty = world.make_world()
+        held = world.make_world()
+        start(held)
+        said = [
+            sweep(each).out.count("NO AGENT RUNNING: the slot is free")
+            for each in (empty, held)
+        ]
+        assert_that(said, equal_to([1, 0]))
+
+    def test_each_open_pr_has_a_line_with_its_ci_and_agent(self) -> None:
+        """One line for each open PR; the agent that owns it, else none."""
+        out = sweep(world.make_world()).out
+        found = re.findall(r"^TASK LIST open (\S+): (.*)$", out, re.MULTILINE)
+        assert_that(
+            dict(found),
+            equal_to({each: "CI green; agent none" for each in OPEN_REFS}),
+        )

@@ -54,3 +54,15 @@ class Kind(enum.Enum):
     REVIEW_FIX_ROUND = "review the fix round's findings only"
     REVIEW_RELOCK = "review the relock"
     RULING = "make an Opus ruling"
+
+
+REVIEWS = frozenset(
+    {
+        Kind.REVIEW_FULL,
+        Kind.REVIEW_EXECUTION,
+        Kind.REVIEW_PLAN,
+        Kind.REVIEW_RESOLUTION,
+        Kind.REVIEW_FIX_ROUND,
+        Kind.REVIEW_RELOCK,
+    }
+)

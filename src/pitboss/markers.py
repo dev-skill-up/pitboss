@@ -145,6 +145,8 @@ class Marker(enum.Enum):
         LEDGER_CHANGED: ``slots watch`` wrote the ledger (an agent began or ended).
         WATCH_MISSING: the sweep found no ``slots watch`` running: the Monitor
             invocation that starts it.
+        PULL_NEEDS: an open PR is red or behind the base: what it needs (merge the
+            base, fix the CI, re-dispatch the relock), not a review.
         NO_AGENT_RUNNING: the task list has no running agent: the slot is free.
         NEXT: a line of the sorted list of work.
         SUGGESTION: one of the top suggestions of ``next`` and ``slots next``,
@@ -243,6 +245,7 @@ class Marker(enum.Enum):
     WATCH_SLOT_FREE = enum.auto()
     LEDGER_CHANGED = enum.auto()
     WATCH_MISSING = enum.auto()
+    PULL_NEEDS = enum.auto()
     NO_AGENT_RUNNING = enum.auto()
     NEXT = enum.auto()
     SUGGESTION = enum.auto()
@@ -269,6 +272,7 @@ class Marker(enum.Enum):
 
 
 SPELLED = {
+    Marker.PULL_NEEDS: "NEEDS",
     Marker.WATCH_SLOT_FREE: "SLOT FREE",
     Marker.HELD_TICKET: "HELD",
     Marker.PINS_ONLY: "PINS-ONLY",
@@ -317,6 +321,7 @@ SELF_EXPLAINED = frozenset(
         Marker.WATCH_SLOT_FREE,
         Marker.LEDGER_CHANGED,
         Marker.WATCH_MISSING,
+        Marker.PULL_NEEDS,
         Marker.NO_AGENT_RUNNING,
     }
 )

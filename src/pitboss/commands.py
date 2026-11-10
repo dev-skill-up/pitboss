@@ -343,6 +343,8 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     undrafts = readyline.texts(found.settings, pullmarks.awake(read, offer), found.now)
     unlabeled.print_lines(found.github, found.settings)
     tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
+    for line in tasklist.live_lines(book, read):
+        print(line)
 
 
 @ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")

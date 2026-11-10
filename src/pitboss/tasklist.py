@@ -17,7 +17,8 @@ from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import config, ledger, slotheld, work
+from . import config, ledger, pulls, slotheld, slotsheader, work
+from .markers import Marker
 
 ARGUMENT = add_argument(
     "--task-list",
@@ -45,6 +46,9 @@ def block(
 ) -> Sequence[str]:
     """The ``TASK LIST`` block: the header, what is in flight, then what is next.
 
+    ``NO AGENT RUNNING`` follows the header when the ledger holds none (keyword:
+    task-list-live, pitboss#415), so the free slot is the first thing it says.
+
     Its first ``next`` line (1) is the running workers and reviewers line; the
     items are numbered as ``slots next`` numbers them after ``ready``, and an item
     that waits for a free slot ends with the ``QUEUED`` words.
@@ -58,14 +62,53 @@ def block(
     Returns:
         The lines, one for each ticket (or PR) and no other.
     """
-    found = [HEADER]
-    for slot in book.slots:
-        if slot.agent and taken.known:
-            found.append(
-                f"{LABEL} in flight {slot.ticket or slot.task}:"
-                f" slot {slot.name} ({slot.agent})"
-            )
-    return [*found, *_next_lines(ready, items, taken)]
+    flying = slotsheader.running(book)
+    free = [] if flying else [f"{Marker.NO_AGENT_RUNNING.text}: the slot is free"]
+    return [
+        HEADER,
+        *free,
+        *(_flight(each) for each in flying if taken.known),
+        *_next_lines(ready, items, taken),
+    ]
+
+
+def _flight(slot: ledger.Slot) -> str:
+    return (
+        f"{LABEL} in flight {slot.ticket or slot.task}:"
+        f" slot {slot.name} ({slot.agent})"
+    )
+
+
+def live_lines(book: ledger.Ledger, opened: Sequence[pulls.Read]) -> Sequence[str]:
+    """A line for each open PR: its CI state and the agent that owns it.
+
+    Args:
+        book: the ledger.
+        opened: the open PRs, read or not.
+
+    Returns:
+        The lines (keyword: task-list-live, pitboss#415).
+    """
+    return [_open_line(each, book) for each in pulls.readable(opened)]
+
+
+def _ci_state(pull: pulls.PullFacts) -> str:
+    if pulls.failed_checks(pull):
+        return "red"
+    return "green" if pulls.green(pull) else "pending"
+
+
+def _open_line(pull: pulls.PullFacts, book: ledger.Ledger) -> str:
+    reference = pulls.reference(pull)
+    owner = [
+        slot.agent
+        for slot in book.slots
+        if slot.agent and reference in (slot.task, slot.ticket)
+    ]
+    return (
+        f"{LABEL} open {reference}: CI {_ci_state(pull)}; agent"
+        f" {owner[0] if owner else 'none'}"
+    )
 
 
 def _queued(each: work.Item, taken: slotheld.Occupancy) -> str:

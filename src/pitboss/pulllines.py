@@ -63,7 +63,11 @@ def lines(
 
 def _branch_lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[str]:
     # the lines about the base: UPDATE where it is merged in, FIXED ON BASE where not
-    return (*updateline.lines(pull, settings), *fixedline.lines(pull))
+    return (
+        *updateline.lines(pull, settings),
+        *fixedline.lines(pull),
+        *updateline.need_lines(pull, settings),
+    )
 
 
 def _review_lines(pull: pulls.PullFacts) -> Sequence[str]:
