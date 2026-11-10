@@ -38,6 +38,21 @@ def watched(extra: str = "") -> tuple[world.World, pathlib.Path]:
     return here, directory
 
 
+def planted(files: Mapping[str, Sequence[Mapping[str, object]]]) -> world.World:
+    """A watched world with these transcripts written.
+
+    Args:
+        files: each agent id and the records of its transcript.
+
+    Returns:
+        The world.
+    """
+    here, directory = watched()
+    for agent, records in files.items():
+        write(directory, agent, records)
+    return here
+
+
 def watch(here: world.World, rounds: str = "1", seconds: str = "0") -> world.Result:
     """Run ``slots watch`` for some rounds at the fixed time.
 

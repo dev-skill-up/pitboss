@@ -232,8 +232,12 @@ def _first(view: nextview.NextView, given: str) -> str:
     items = nextview.startable(view)
     if items:
         return f"{items[0].reference} ({brief_command(given, items[0].reference)})"
-    if view.ready:
-        return f"{view.ready[0]} ({brief_command(given, '')})"
+    if view.items:
+        held = view.items[0].reference
+        return (
+            f"{held} ({brief_command(given, held)}), offered because a ticket of"
+            " its repository is in flight"
+        )
     return "no open ticket or PR is queued: file the next ticket"
 
 

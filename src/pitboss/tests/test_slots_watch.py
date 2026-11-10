@@ -9,8 +9,10 @@ from hamcrest import (
     starts_with,
 )
 
+from .. import agenttranscript
 from . import watchworld, world
 from .test_owner_repositories import lines_of as printed
+from .test_handback import slots
 from .transcripts import brief, call, ended, interrupted, turn_end
 from .watchworld import FREED, GOAL, MARKED, OLD, QUIET, RECENT, TAKES
 
@@ -134,3 +136,18 @@ class TestWatch(unittest.TestCase):
         """The configuration names none."""
         found = watchworld.watch(world.make_world())
         assert_that((found.code, found.err.endswith(NEEDS)), equal_to((2, True)))
+
+    def test_a_damaged_line_is_read_over(self) -> None:
+        """The records around a line that is no JSON still tell the state."""
+        here = watchworld.planted({"a1": worker("a1", 7)})
+        with (here.workspace / "tasks" / "a1.output").open("a") as stream:
+            stream.write("{not json\n")
+        watchworld.watch(here)
+        assert_that(watchworld.held(here), equal_to(["a1"]))
+
+    def test_with_no_start_given_the_process_is_asked(self) -> None:
+        """No ``--process-start``: ``ps`` is read, and an empty round is quiet."""
+        here = watchworld.planted({})
+        words = ("watch", "--rounds", "1", "--interval", "0", "--now", watchworld.NOW)
+        made = slots(here, *words)
+        assert_that((made.code, agenttranscript.ending([])), equal_to((0, None)))

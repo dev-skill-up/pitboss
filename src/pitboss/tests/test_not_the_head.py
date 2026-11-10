@@ -1,6 +1,7 @@
 """``next TICKET`` says when its ticket is not the head of the queue (pitboss#415)."""
 
 import unittest
+from typing import Mapping
 
 from hamcrest import assert_that, equal_to
 
@@ -35,9 +36,21 @@ def queued() -> world.World:
     Returns:
         The world.
     """
-    here = world.make_world()
+    return fill(world.make_world(), QUEUE)
+
+
+def fill(here: world.World, tickets: Mapping[int, tuple[str, str]]) -> world.World:
+    """Give a world these tickets and no open PR.
+
+    Args:
+        here: the world.
+        tickets: each ticket's number, label and state.
+
+    Returns:
+        The world.
+    """
     quietworld.edit_config(here, '["urgent"]', str(RANKS).replace("'", '"'))
-    publish(here, RANKS, QUEUE)
+    publish(here, RANKS, tickets)
     for slug in (world.PROJECT, world.LIBRARY):
         here.bodies[fakes.page(f"{slug}/pulls?state=open")] = []
     return here
