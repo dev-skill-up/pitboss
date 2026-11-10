@@ -66,7 +66,7 @@ def state_of(agent: Real, started: str | None) -> State | None:
     Returns:
         Its state.
     """
-    when = started and datetime.datetime.fromisoformat(started)
+    when = datetime.datetime.fromisoformat(started) if started else None
     found = agenttranscript.read(transcripts.REAL / f"{IDS[agent]}.output", when)
     return found.state if found else None
 
@@ -149,7 +149,7 @@ class TestRealRows(unittest.TestCase):
     def test_a_row_is_freed_for_each_real_ending(self) -> None:
         """Handed back, ended and interrupted rows are freed with their reason."""
         found = {each: row_of(each, BEFORE) for each in ENDINGS}
-        said = {
+        said: Mapping[Real, tuple[Sequence[str], Sequence[str]]] = {
             each: ([], [FREED.format(agent=IDS[each], why=pair[1])])
             for each, pair in ENDINGS.items()
         }
