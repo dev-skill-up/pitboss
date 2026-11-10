@@ -131,6 +131,6 @@ class TestWatch(unittest.TestCase):
         """The configuration names none."""
         found = watchworld.watch(world.make_world())
         assert_that(
-            (found.code, found.err.split()[2:5]),
+            (found.code, found.err.splitlines()[-1].split()[2:5]),
             equal_to((2, ["needs", "[slots]", "agents-dir"])),
         )

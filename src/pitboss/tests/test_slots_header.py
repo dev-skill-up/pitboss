@@ -74,7 +74,7 @@ class TestHeader(unittest.TestCase):
         """A reviewer and a fix round are named by their PR."""
         cases = [
             ("review", "tiny", "#3", "RUNNING reviewer owner/project#3"),
-            ("fix", "big", "#2", "RUNNING fix round owner/project#2"),
+            ("fix", "big", "#3", "RUNNING fix round owner/project#3"),
         ]
         for kind, slot, pull, said in cases:
             with self.subTest(kind):
