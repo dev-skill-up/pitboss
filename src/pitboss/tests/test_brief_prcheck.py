@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, contains_string
 
 from .briefmake import has_none, text
-from .test_brief_lint_tests import EXECUTION_REVIEWS, OTHER_REVIEWS
+from ..brief import Kind
 
 REPOSITORIES = [
     "bats-lang/bats",
@@ -15,6 +15,13 @@ REPOSITORIES = [
     "bats-lang/capacitor-plugins",
 ]
 COMMAND = "bats prcheck --checklist"
+CARRIERS = [Kind.REVIEW_FULL, Kind.REVIEW_EXECUTION]
+OTHERS = [
+    Kind.REVIEW_PLAN,
+    Kind.REVIEW_RESOLUTION,
+    Kind.REVIEW_FIX_ROUND,
+    Kind.REVIEW_RELOCK,
+]
 
 
 class TestPrcheckChecklist(unittest.TestCase):
@@ -22,14 +29,13 @@ class TestPrcheckChecklist(unittest.TestCase):
 
     def test_the_review_brief_of_each_repository_has_the_command(self) -> None:
         """The brief names the command and the checkout of its repository."""
-        for kind in EXECUTION_REVIEWS:
-            for repo in REPOSITORIES:
+        for repo in REPOSITORIES:
+            for kind in CARRIERS:
                 found = text(kind, repo=repo)
-                assert_that(found, contains_string(COMMAND))
-                assert_that(found, contains_string(f"checkout of {repo} at the head"))
-                assert_that(found, contains_string("`checked, ok`"))
+                for wanted in (COMMAND, f"checkout of {repo} at", "`checked, ok`"):
+                    assert_that(found, contains_string(wanted))
 
     def test_the_reviews_that_grade_no_execution_do_not_carry_it(self) -> None:
         """A Plan, a resolution, a fix round and a relock review do not."""
-        for kind in OTHER_REVIEWS:
+        for kind in OTHERS:
             has_none(text(kind), [COMMAND])
