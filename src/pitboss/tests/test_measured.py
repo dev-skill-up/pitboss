@@ -17,8 +17,8 @@ from hamcrest import (
     matches_regexp,
 )
 
-from .. import breakdown, calllog, measured, startup, timing
-from . import fakes, world
+from .. import breakdown, calllog, cli_parser, measured, startup, timing
+from . import fakes, fixeddisk, world
 from .says import lacks, says
 from .test_commands import sweep
 from .test_slot_commands import next_result
@@ -186,17 +186,29 @@ class TestTheCommandsThatAreMeasured(unittest.TestCase):
         shown = world.invoke(measuring(world.make_world()), "slots", "--help")
         lacks(shown.err, PREFIX)
 
-    def test_the_names_are_those_of_the_ticket(self) -> None:
-        """The six commands of the ticket's Done-when."""
-        names = [
-            "body-digest",
-            "clean-container",
-            "lint",
-            "plan-check",
-            "slots",
-            "sweep",
-        ]
-        assert_that(sorted(measured.NAMES), equal_to(names))
+    def test_the_commands_of_the_ticket_are_measured_and_the_others_are_not(
+        self,
+    ) -> None:
+        """The six commands of the ticket's Done-when, parsed as typed."""
+        words = {
+            "slots": ["slots", "next"],
+            "sweep": ["sweep"],
+            "plan-check": ["plan-check", __file__],
+            "body-digest": ["body-digest", __file__],
+            "lint": ["lint", "text", __file__],
+            "clean-container": ["clean-container"],
+            "next": ["next"],
+        }
+        kind = measured.MeasuredParser
+        parser = cli_parser.make_parser(fixeddisk.fixed_usage, kind=kind)
+        found = {
+            name: isinstance(
+                parser.parse_args(each).__gather_command__, measured.Measured
+            )
+            for name, each in words.items()
+        }
+        assert_that(found, equal_to({**dict.fromkeys(words, True), "next": False}))
+        assert_that(sorted(measured.NAMES), equal_to(sorted(words.keys() - {"next"})))
 
     def test_a_default_that_is_not_a_command_is_left_alone(self) -> None:
         """A parser sets a default that is no function: it stays as it is."""
