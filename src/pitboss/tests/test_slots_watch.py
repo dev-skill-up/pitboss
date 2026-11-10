@@ -5,9 +5,7 @@ from typing import Sequence
 
 from hamcrest import (
     assert_that,
-    ends_with,
     equal_to,
-    has_properties,
     starts_with,
 )
 
@@ -135,7 +133,4 @@ class TestWatch(unittest.TestCase):
     def test_without_a_directory_it_refuses(self) -> None:
         """The configuration names none."""
         found = watchworld.watch(world.make_world())
-        assert_that(
-            found,
-            has_properties(code=2, err=ends_with(NEEDS)),
-        )
+        assert_that((found.code, found.err.endswith(NEEDS)), equal_to((2, True)))
