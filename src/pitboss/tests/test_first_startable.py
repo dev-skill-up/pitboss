@@ -135,15 +135,11 @@ class TestSkipped(unittest.TestCase):
 
     def test_a_serial_repository_is_held_while_a_pr_of_it_is_open(self) -> None:
         """A pending PR holds the repository's tickets; without the key none is."""
-        out = {}
-        for extra in (SERIAL, ""):
-            here, _ = watchworld.watched(extra)
-            open_pull_3(here, [PENDING])
-            out[extra] = lines_of(next_output(here), "START")
-        assert_that(
-            (
-                "owner/project#9" in "".join(out[SERIAL]),
-                "owner/project#9" in "".join(out[""]),
-            ),
-            equal_to((False, True)),
-        )
+        here, plain = watchworld.planted_each((SERIAL, ""))
+        for each in (here, plain):
+            open_pull_3(each, [PENDING])
+        found = [
+            "owner/project#9" in "".join(lines_of(next_output(each), "START"))
+            for each in (here, plain)
+        ]
+        assert_that(found, equal_to([False, True]))

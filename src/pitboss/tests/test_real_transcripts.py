@@ -9,8 +9,9 @@ and one that was mid-turn.
 import datetime
 import enum
 import unittest
+from typing import Mapping, Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, has_length
 
 from .. import agenttranscript
 from . import transcripts, watchworld
@@ -27,16 +28,23 @@ class Real(enum.Enum):
         REVIEWER: a reviewer that handed back.
         WORKER: a worker that ended its turn with a plain message.
         STOPPED: an agent that was interrupted.
-        Real.MID_TURN.value: an agent whose last record is a tool result.
+        MID_TURN: an agent whose last record is a tool result.
     """
 
-    RULING = "a2ef207d1166a873c"
-    REVIEWER = "a1bd5e47851999369"
-    WORKER = "a82dee5f1d8949f3f"
-    STOPPED = "a7ce04219a1e9baaf"
-    MID_TURN = "a8cdaf6325d11f469"
+    RULING = enum.auto()
+    REVIEWER = enum.auto()
+    WORKER = enum.auto()
+    STOPPED = enum.auto()
+    MID_TURN = enum.auto()
 
 
+IDS = {
+    Real.RULING: "a2ef207d1166a873c",
+    Real.REVIEWER: "a1bd5e47851999369",
+    Real.WORKER: "a82dee5f1d8949f3f",
+    Real.STOPPED: "a7ce04219a1e9baaf",
+    Real.MID_TURN: "a8cdaf6325d11f469",
+}
 BEFORE = "2026-11-01T00:00:00+00:00"
 AFTER = "2026-11-11T00:00:00+00:00"
 ENDINGS = {
@@ -59,7 +67,7 @@ def state_of(agent: Real, started: str | None) -> State | None:
         Its state.
     """
     when = started and datetime.datetime.fromisoformat(started)
-    found = agenttranscript.read(transcripts.REAL / f"{agent.value}.output", when)
+    found = agenttranscript.read(transcripts.REAL / f"{IDS[agent]}.output", when)
     return found.state if found else None
 
 
@@ -78,15 +86,61 @@ class TestRealStates(unittest.TestCase):
 
     def test_a_brief_that_names_the_hand_back_tool_is_not_a_finish(self) -> None:
         """The real mid-turn agent, its brief now naming SubagentHandback."""
-        first, *rest = transcripts.real(Real.MID_TURN.value)
+        first, *rest = real_mid()
         said = {"role": "user", "content": "call SubagentHandback when done\n"}
         records = [{**first, "message": said}, *rest]
-        made = watchworld.play(
-            {Real.MID_TURN.value: records},
-            rows=[("tiny", Real.MID_TURN.value, "#9")],
-            clock=watchworld.Clock(start=BEFORE),
-        )
-        assert_that(made.held, equal_to([Real.MID_TURN.value]))
+        rows = [("tiny", IDS[Real.MID_TURN], "#9")]
+        assert_that(mid_turn(records, rows).held, equal_to([IDS[Real.MID_TURN]]))
+
+
+def real_mid() -> Sequence[Mapping[str, object]]:
+    """The records of the real mid-turn agent.
+
+    Returns:
+        Its transcript.
+    """
+    return transcripts.real(IDS[Real.MID_TURN])
+
+
+def mid_turn(
+    records: Sequence[Mapping[str, object]],
+    rows: Sequence[tuple[str, str, str]],
+    rounds: str = "1",
+) -> watchworld.Left:
+    """Watch the real mid-turn agent with these records, its process older.
+
+    Args:
+        records: the records of its transcript.
+        rows: the ledger rows.
+        rounds: how many polls.
+
+    Returns:
+        What the watcher did.
+    """
+    return watchworld.play(
+        {IDS[Real.MID_TURN]: records},
+        rows=rows,
+        rounds=rounds,
+        clock=watchworld.Clock(start=BEFORE),
+    )
+
+
+def row_of(agent: Real, start: str) -> tuple[Sequence[str], Sequence[str]]:
+    """What the watcher holds and says for a row of a real agent.
+
+    Args:
+        agent: the agent the row names.
+        start: when the Claude process started, ISO 8601.
+
+    Returns:
+        The agents still held and the LEDGER CHANGED lines.
+    """
+    made = watchworld.play(
+        {IDS[agent]: transcripts.real(IDS[agent])},
+        rows=[("tiny", IDS[agent], "#9")],
+        clock=watchworld.Clock(start=start),
+    )
+    return made.held, printed(made.out, "LEDGER CHANGED")
 
 
 class TestRealRows(unittest.TestCase):
@@ -94,52 +148,21 @@ class TestRealRows(unittest.TestCase):
 
     def test_a_row_is_freed_for_each_real_ending(self) -> None:
         """Handed back, ended and interrupted rows are freed with their reason."""
-        for agent, (_, why) in ENDINGS.items():
-            with self.subTest(agent):
-                made = watchworld.play(
-                    {agent.value: transcripts.real(agent.value)},
-                    rows=[("tiny", agent.value, "#9")],
-                    clock=watchworld.Clock(start=BEFORE),
-                )
-                said = printed(made.out, "LEDGER CHANGED")
-                assert_that(
-                    (made.held, said),
-                    equal_to(([], [FREED.format(agent=agent.value, why=why)])),
-                )
+        found = {each: row_of(each, BEFORE) for each in ENDINGS}
+        said = {
+            each: ([], [FREED.format(agent=IDS[each], why=pair[1])])
+            for each, pair in ENDINGS.items()
+        }
+        assert_that(found, equal_to(said))
 
     def test_a_mid_turn_row_stays_unless_the_process_started_after_it(self) -> None:
         """The same real agent: running after one start, dead after the other."""
-        found = []
-        for start in (BEFORE, AFTER):
-            made = watchworld.play(
-                {Real.MID_TURN.value: transcripts.real(Real.MID_TURN.value)},
-                rows=[("tiny", Real.MID_TURN.value, "#9")],
-                clock=watchworld.Clock(start=start),
-            )
-            found.append((made.held, printed(made.out, "LEDGER CHANGED")))
-        assert_that(
-            found,
-            equal_to(
-                [
-                    ([Real.MID_TURN.value], []),
-                    (
-                        [],
-                        [
-                            FREED.format(
-                                agent=Real.MID_TURN.value, why="session restarted"
-                            )
-                        ],
-                    ),
-                ]
-            ),
-        )
+        found = [row_of(Real.MID_TURN, each) for each in (BEFORE, AFTER)]
+        why = FREED.format(agent=IDS[Real.MID_TURN], why="session restarted")
+        assert_that(found, equal_to([([IDS[Real.MID_TURN]], []), ([], [why])]))
 
     def test_a_real_brief_without_a_marker_is_unmarked_and_holds_no_slot(self) -> None:
         """The real running agent has no PITBOSS-SLOT or Goal line."""
-        made = watchworld.play(
-            {Real.MID_TURN.value: transcripts.real(Real.MID_TURN.value)},
-            rounds="2",
-            clock=watchworld.Clock(start=BEFORE),
-        )
-        said = printed(made.out, "UNMARKED")
-        assert_that((made.held, len(said)), equal_to(([], 1)))
+        made = mid_turn(real_mid(), [], "2")
+        assert_that(made.held, equal_to([]))
+        assert_that(printed(made.out, "UNMARKED"), has_length(1))

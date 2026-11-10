@@ -8,7 +8,7 @@ from typing import Callable, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import config, configfile, watchrun
-from . import watchworld
+from . import watchworld, world
 
 
 def played(free: Sequence[bool], every: int) -> tuple[str, Sequence[float]]:
@@ -86,12 +86,22 @@ class TestPace(unittest.TestCase):
 
     def test_the_keys_are_read_from_the_slots_table(self) -> None:
         """A configuration that sets them, and one that does not."""
-        found = []
-        for extra in ("poll-seconds = 30\nremind-minutes = 2\n", ""):
-            here, _ = watchworld.watched(extra)
-            kept = configfile.load(here.config, here.workspace).slots.watch
-            found.append((kept.poll_seconds, kept.remind_minutes))
-        assert_that(found, equal_to([(30, 2), (15, 5)]))
+        both = ("poll-seconds = 30\nremind-minutes = 2\n", "")
+        kept = map(watch_keys, watchworld.planted_each(both))
+        assert_that(list(kept), equal_to([(30, 2), (15, 5)]))
+
+
+def watch_keys(here: world.World) -> tuple[int, int]:
+    """The poll and reminder keys a world's configuration holds.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The seconds between polls and the minutes between reminders.
+    """
+    slots = configfile.load(here.config, start=here.workspace).slots
+    return slots.watch.poll_seconds, slots.watch.remind_minutes
 
 
 class TestFailure(unittest.TestCase):

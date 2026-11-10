@@ -56,6 +56,18 @@ def planted(
     return here
 
 
+def planted_each(extras: Sequence[str]) -> Sequence[world.World]:
+    """A watched world for each set of extra ``[slots]`` keys.
+
+    Args:
+        extras: the keys of each world.
+
+    Returns:
+        The worlds, in order.
+    """
+    return [planted({}, each) for each in extras]
+
+
 def watch(
     here: world.World, rounds: str = "1", seconds: str = "0", start: str = PROCESS
 ) -> world.Result:

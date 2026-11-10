@@ -142,7 +142,8 @@ class TestWatch(unittest.TestCase):
                 (
                     [],
                     [
-                        "UNMARKED a1: its brief has no PITBOSS-SLOT or Goal line, so it holds no slot"
+                        "UNMARKED a1: its brief has no PITBOSS-SLOT or Goal line, "
+                        "so it holds no slot"
                     ],
                 )
             ),
