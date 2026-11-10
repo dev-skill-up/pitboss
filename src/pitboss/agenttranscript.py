@@ -19,7 +19,7 @@ import enum
 import json
 import pathlib
 import re
-from typing import Mapping, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 HANDBACK = "SubagentHandback"
 TAIL = 400_000
@@ -189,10 +189,13 @@ def read(path: pathlib.Path, started: datetime.datetime | None) -> Agent | None:
     Returns:
         The agent, or None when the file is not an agent transcript.
     """
-    head = _head(path)
+    try:
+        head = _head(path)
+        records = _tail(path) if head is not None else []
+    except FileNotFoundError:
+        return None  # listed and gone (or a dangling link): normal in a tasks directory
     if head is None:
         return None
-    records = _tail(path)
     last = _written(records, head)
     task, kind = _task(_text(head))
     state = ending(records)
@@ -204,17 +207,38 @@ def read(path: pathlib.Path, started: datetime.datetime | None) -> Agent | None:
     )
 
 
+Lister = Callable[[pathlib.Path], Iterable[pathlib.Path]]
+
+
+def agent_files(directory: pathlib.Path) -> Sequence[pathlib.Path]:
+    """List the files whose names are an agent's: ``a`` and the id.
+
+    A tasks directory also holds the output of background commands and monitors
+    (names that start with ``b``, pitboss#441).
+
+    Args:
+        directory: the session's ``tasks`` directory.
+
+    Returns:
+        The paths, by file name.
+    """
+    return sorted(directory.glob("a*.output"))
+
+
 def read_all(
-    directory: pathlib.Path, started: datetime.datetime | None
+    directory: pathlib.Path,
+    started: datetime.datetime | None,
+    lister: Lister = agent_files,
 ) -> Sequence[Agent]:
     """Read the agent transcripts of a directory.
 
     Args:
         directory: the session's ``tasks`` directory.
         started: when the Claude process of the session started, or None.
+        lister: lists the files to read (a file may be gone when it is read).
 
     Returns:
         The agents, by file name.
     """
-    files = sorted(directory.glob("*.output"))
+    files = lister(directory)
     return [agent for each in files if (agent := read(each, started))]

@@ -123,8 +123,8 @@ class TestWatch(unittest.TestCase):
 
     def test_a_file_that_is_not_a_transcript_is_skipped(self) -> None:
         """A task output with no agent id holds no slot."""
-        here = watchworld.planted({"b1": [], "b2": []})
-        for name, text in (("b1", "plain output\n"), ("b2", "{}\n")):
+        here = watchworld.planted({"a1": [], "a2": []})
+        for name, text in (("a1", "plain output\n"), ("a2", "{}\n")):
             (here.workspace / "tasks" / f"{name}.output").write_text(text)
         assert_that(watchworld.watch(here).out, equal_to(""))
 
