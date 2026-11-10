@@ -6,8 +6,17 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import basefix, config, headchecks, pulls, reviews, shapes, updateline
-from . import fakes, test_flow, test_work, world
+from .. import (
+    basefix,
+    config,
+    configfile,
+    headchecks,
+    pulls,
+    reviews,
+    shapes,
+    updateline,
+)
+from . import quietworld, test_flow, test_work, world
 from .test_commands import sweep
 from .test_flow_sweep import TWO_PLAN_REJECTIONS, world_with
 from .test_slot_commands import next_output
@@ -69,8 +78,8 @@ def settings_of(extra: str) -> config.Config:
         The configuration.
     """
     here = world.make_world()
-    given = world.EXTRA.format(ledger=here.ledger) + extra
-    return fakes.settings(here.workspace, given)
+    quietworld.edit_config(here, "[slots]", f"{extra}\n[slots]")
+    return configfile.load(start=here.workspace, name=here.config)
 
 
 def pull_in(
