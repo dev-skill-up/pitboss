@@ -52,22 +52,30 @@ def call(name: str, when: str) -> Mapping[str, object]:
     return record("assistant", when, message=message)
 
 
-def result(when: str, text: str = "ok", ends: bool = False) -> Mapping[str, object]:
+def result(when: str, text: str = "ok") -> Mapping[str, object]:
     """A user record that carries a tool result.
 
     Args:
         when: its time.
         text: the result.
-        ends: whether the result ends the turn (a hand-back's does).
 
     Returns:
         The record.
     """
     block = {"type": "tool_result", "tool_use_id": "t", "content": text}
-    message = {"role": "user", "content": [block]}
-    return record(
-        "user", when, message=message, **({"toolEndsTurn": True} if ends else {})
-    )
+    return record("user", when, message={"role": "user", "content": [block]})
+
+
+def turn_end(when: str) -> Mapping[str, object]:
+    """The result of a hand-back, which ends the agent's turn.
+
+    Args:
+        when: its time.
+
+    Returns:
+        The record.
+    """
+    return {**result(when, HANDBACK_RESULT), "toolEndsTurn": True}
 
 
 def ended(when: str) -> Mapping[str, object]:

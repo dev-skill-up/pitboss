@@ -3,7 +3,7 @@
 Hooks do not run in a cloud session (Claude Code's "Settings in cloud sessions"),
 so a long-running command for the Monitor tool writes the ledger itself
 (pitboss#415): a transcript it has not seen becomes a row, a finished agent's row
-is freed, a dead one (written before the process started) is freed too.
+is freed, and so is a dead one (written before the process started).
 """
 
 import dataclasses
@@ -16,38 +16,42 @@ from .markers import Marker
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Step:
+class Reading:
     """What one reading of the transcripts did to the ledger.
 
     Attributes:
         book: the ledger after it.
-        lines: the lines to print: a ``LEDGER CHANGED`` line for each change,
-            an ``OVERCAP`` line for each live agent with no free slot.
+        said: a ``LEDGER CHANGED`` line for each change and an ``OVERCAP`` line
+            for each live agent with no free slot.
         changed: the ledger differs from the one given.
-        began: the slots a row was put in.
     """
 
     book: ledger.Ledger
-    lines: Sequence[str]
+    said: Sequence[str]
     changed: bool
-    began: Sequence[str] = ()
 
 
 def _reason(
     slot: ledger.Slot,
-    states: Mapping[str, State],
+    seen: Mapping[str, State],
     started: datetime.datetime | None,
 ) -> str:
     # why a row is freed, or empty when it stays
     if not slot.agent:
         return ""
-    state = states.get(slot.agent)
-    if state in agenttranscript.LEAVING:
-        return agenttranscript.WORDS[state]
+    mine = seen.get(slot.agent)
+    if mine in agenttranscript.LEAVING:
+        return agenttranscript.WORDS[mine]
     began = datetime.datetime.fromisoformat(slot.started) if slot.started else None
-    if state is None and started and began and began < started:
+    if mine is None and started and began and began < started:
         return "no transcript"
     return ""
+
+
+def _release(book: ledger.Ledger, slot: ledger.Slot) -> ledger.Ledger:
+    freed = ledger.free(book, slot.name, slot.agent)
+    assert isinstance(freed, ledger.Ledger)  # the slot holds that agent
+    return freed
 
 
 def _freed(
@@ -55,56 +59,59 @@ def _freed(
     agents: Sequence[agenttranscript.Agent],
     started: datetime.datetime | None,
 ) -> tuple[ledger.Ledger, Sequence[str]]:
-    states = {each.name: each.state for each in agents}
-    why = {slot.name: _reason(slot, states, started) for slot in book.slots}
-    lines = [
+    seen = {each.name: each.state for each in agents}
+    why = {slot.name: _reason(slot, seen, started) for slot in book.slots}
+    said = [
         f"{Marker.LEDGER_CHANGED.text}: slot {slot.name} freed from {slot.agent}"
         f" ({slot.ticket or slot.task}): {why[slot.name]}"
         for slot in book.slots
         if why[slot.name]
     ]
-    slots = tuple(
-        ledger.Slot(name=slot.name, model=slot.model) if why[slot.name] else slot
-        for slot in book.slots
+    for slot in book.slots:
+        if why[slot.name]:
+            book = _release(book, slot)
+    return book, said
+
+
+def _put(
+    book: ledger.Ledger, slot: str, each: agenttranscript.Agent, now: datetime.datetime
+) -> ledger.Ledger:
+    work = ledger.Work(
+        agent=each.name, task=each.task, ticket=each.task, kind=each.kind
     )
-    return dataclasses.replace(book, slots=slots), lines
+    taken = ledger.take(book, slot, work)
+    assert isinstance(taken, ledger.Ledger)  # the slot is empty
+    stamped = ledger.stamp(taken, slot, ledger.Mark.STARTED, now.isoformat())
+    assert isinstance(stamped, ledger.Ledger)  # the slot has its agent
+    return stamped
 
 
 def _taken(
     book: ledger.Ledger, agents: Sequence[agenttranscript.Agent], now: datetime.datetime
-) -> tuple[ledger.Ledger, Sequence[str], Sequence[str]]:
-    seen = {slot.agent for slot in book.slots}
-    lines: list[str] = []
-    began: list[str] = []
+) -> tuple[ledger.Ledger, Sequence[str]]:
+    held = {slot.agent for slot in book.slots}
+    said: list[str] = []
     for each in agents:
-        empty = next((slot for slot in book.slots if not slot.agent), None)
-        if each.state is not State.RUNNING or each.name in seen:
+        empty = next((slot.name for slot in book.slots if not slot.agent), None)
+        if each.state is not State.RUNNING or each.name in held:
             continue
+        task = each.task or "no ticket"
         if empty is None:
-            lines.append(f"OVERCAP {each.name} {each.task or 'no ticket'}")
+            said.append(f"OVERCAP {each.name} {task}")
             continue
-        work = ledger.Work(
-            agent=each.name, task=each.task, ticket=each.task, kind=each.kind
+        book = _put(book, empty, each, now)
+        said.append(
+            f"{Marker.LEDGER_CHANGED.text}: slot {empty} takes {each.name} on {task}"
         )
-        taken = ledger.take(book, empty.name, work)
-        assert isinstance(taken, ledger.Ledger)  # the slot is empty
-        stamped = ledger.stamp(taken, empty.name, ledger.Mark.STARTED, now.isoformat())
-        assert isinstance(stamped, ledger.Ledger)  # the slot has its agent
-        book = stamped
-        began.append(empty.name)
-        lines.append(
-            f"{Marker.LEDGER_CHANGED.text}: slot {empty.name} takes {each.name}"
-            f" on {each.task or 'no ticket'}"
-        )
-    return book, lines, began
+    return book, said
 
 
-def step(
+def read(
     book: ledger.Ledger,
     agents: Sequence[agenttranscript.Agent],
     now: datetime.datetime,
     started: datetime.datetime | None,
-) -> Step:
+) -> Reading:
     """Bring the ledger up to the transcripts.
 
     Args:
@@ -116,9 +123,9 @@ def step(
     Returns:
         The new ledger and the lines.
     """
-    freed, said = _freed(book, agents, started)
-    taken, took, began = _taken(freed, agents, now)
-    return Step(book=taken, lines=[*said, *took], changed=taken != book, began=began)
+    freed, gone = _freed(book, agents, started)
+    after, came = _taken(freed, agents, now)
+    return Reading(book=after, said=[*gone, *came], changed=after != book)
 
 
 def running(book: ledger.Ledger) -> Sequence[str]:

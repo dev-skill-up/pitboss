@@ -17,10 +17,14 @@ class Withheld:
     Attributes:
         held: the tickets.
         standing: each held repository and its open count.
+        serial: the items the first startable item skips (a ticket of a serial
+            repository while a ledger row works on one; keyword: slots-watch,
+            pitboss#415).
     """
 
     held: Sequence[work.Item] = ()
     standing: Mapping[str, int] = dataclasses.field(default_factory=dict)
+    serial: AbstractSet[str] = frozenset()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -45,9 +49,6 @@ class NextView:
             slot-held, pitboss#291).
         no_drafts: the repositories whose PRs open ready; the line of a ticket
             there says so (keyword: pitboss-exempt, pitboss#113).
-        held_back: the items the first startable item skips (a ticket of a
-            serial repository while a ledger row works on one; keyword:
-            slots-watch, pitboss#415).
     """
 
     items: Sequence[work.Item]
@@ -60,7 +61,6 @@ class NextView:
     ready: Sequence[str] = ()
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
     no_drafts: AbstractSet[str] = frozenset()
-    held_back: AbstractSet[str] = frozenset()
 
 
 def _age_days(created_at: str, now: datetime.datetime) -> int:
@@ -113,9 +113,9 @@ def startable(view: NextView) -> Sequence[work.Item]:
         view: what to print from.
 
     Returns:
-        The view's items but those held back.
+        The view's items but those a serial repository holds back.
     """
-    return [each for each in view.items if each.reference not in view.held_back]
+    return [each for each in view.items if each.reference not in view.withheld.serial]
 
 
 def start_text(view: NextView) -> str | None:
@@ -134,7 +134,7 @@ def start_text(view: NextView) -> str | None:
     found = startable(view)
     if not found:
         return None
-    number = first + [each.reference for each in view.items].index(found[0].reference)
+    number, _ = place(view, found[0].reference)
     return f"{Marker.NEXT.text} {number}. {_item_text(found[0], view)}"
 
 

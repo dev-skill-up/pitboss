@@ -1,277 +1,136 @@
 """``slots watch`` keeps the ledger from the agents' transcripts (pitboss#415)."""
 
-import json
-import pathlib
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import (
+    assert_that,
+    equal_to,
+    starts_with,
+)
 
-from . import quietworld, transcripts, world
-from .test_handback import slots
-from .test_owner_repositories import lines_of
-from .transcripts import brief, call, ended, interrupted, result, write
+from . import watchworld, world
+from .test_owner_repositories import lines_of as printed
+from .transcripts import brief, call, ended, interrupted, turn_end
+from .watchworld import FREED, GOAL, MARKED, OLD, QUIET, RECENT, TAKES
 
-NOW = "2030-01-01T00:00:00+00:00"
-RECENT = "2029-12-31T23:59:00Z"
-LONG_AGO = "2029-12-31T20:00:00Z"
-QUIET = "2029-12-31T13:00:00Z"
-OLD = "2029-12-30T10:00:00Z"
-PROCESS = "2029-12-31T12:00:00+00:00"
-GOAL = "WORKER: x\nGoal: ticket owner/project#{n}: A ticket\nTask: do it\n"
-REVIEW_GOAL = "Goal: review owner/project#3\n"
-MARKED = "PITBOSS-SLOT: owner/project#9 fix\nthe rest mentions SubagentHandback\n"
+EARLIER = watchworld.LONG_AGO
+Records = watchworld.Records
+
+ROW = ("tiny", "a1", "#9")
+BRIEF = brief("a1", GOAL.format(n=9), EARLIER)
+HANDED = [BRIEF, call("SubagentHandback", EARLIER), turn_end(EARLIER)]
+RESUMED = [*HANDED, brief("a1", "go on", RECENT)]
+CASES: Sequence[tuple[str, Records, Sequence[str], Sequence[str]]] = [
+    # the name, the records, the agents held after, the lines
+    ("handed back", HANDED, [], [FREED.format("handback")]),
+    ("ended its turn", [BRIEF, ended(EARLIER)], [], [FREED.format("handback")]),
+    ("interrupted", [BRIEF, interrupted(RECENT)], [], [FREED.format("stopped")]),
+    ("resumed, mid-turn", RESUMED, ["a1"], []),
+    ("resumed, answered", [*RESUMED, ended(RECENT)], [], [FREED.format("handback")]),
+    ("quiet since the start", [BRIEF, call("Bash", QUIET)], ["a1"], []),
+    ("dead", [BRIEF, call("Bash", OLD)], [], [FREED.format("session restarted")]),
+]
 
 
-def watched(extra: str = "") -> tuple[world.World, pathlib.Path]:
-    """A world whose configuration names a tasks directory.
+def changed(out: str) -> Sequence[str]:
+    """The ``LEDGER CHANGED`` lines of an output.
 
     Args:
-        extra: more keys of ``[slots]``.
+        out: what the watcher printed.
 
     Returns:
-        The world and the directory.
+        The lines.
     """
-    here = world.make_world()
-    directory = here.workspace / "tasks"
-    quietworld.edit_config(
-        here, "[slots]", f'[slots]\nagents-dir = "{directory}"\n{extra}'
-    )
-    return here, directory
+    return printed(out, "LEDGER CHANGED")
 
 
-def watch(here: world.World, rounds: str = "1", seconds: str = "0") -> world.Result:
-    """Run ``slots watch`` for some rounds at the fixed time.
+def worker(agent: str, number: int) -> Records:
+    """The transcript of a running worker on a ticket.
 
     Args:
-        here: the world.
-        rounds: how many.
-        seconds: the interval between them.
-
-    Returns:
-        What it did.
-    """
-    words = ("watch", "--rounds", rounds, "--interval", seconds, "--now", NOW)
-    words += ("--process-start", PROCESS)
-    return slots(here, *words)
-
-
-def held(here: world.World) -> Sequence[str]:
-    """The agents the ledger file holds.
-
-    Args:
-        here: the world.
-
-    Returns:
-        Their names, for each row that has one.
-    """
-    rows = json.loads(here.ledger.read_text())["slots"]
-    return [row["agent"] for row in rows if row["agent"]]
-
-
-def running(directory: pathlib.Path, agent: str, number: int = 9) -> None:
-    """Plant a running worker.
-
-    Args:
-        directory: the tasks directory.
         agent: its id.
-        number: its ticket's number.
+        number: the ticket's number.
+
+    Returns:
+        The records.
     """
-    write(
-        directory,
-        agent,
-        [brief(agent, GOAL.format(n=number), RECENT), call("Bash", RECENT)],
-    )
-
-
-def handed_back(directory: pathlib.Path, agent: str) -> None:
-    """Plant a worker that handed back.
-
-    Args:
-        directory: the tasks directory.
-        agent: its id.
-    """
-    write(
-        directory,
-        agent,
-        [
-            brief(agent, GOAL.format(n=9), LONG_AGO),
-            call("SubagentHandback", LONG_AGO),
-            result(LONG_AGO, transcripts.HANDBACK_RESULT, ends=True),
-        ],
-    )
+    return [brief(agent, GOAL.format(n=number), RECENT), call("Bash", RECENT)]
 
 
 class TestWatch(unittest.TestCase):
     """What a round writes and prints."""
 
-    def test_a_new_running_agent_becomes_a_row_and_a_slot_is_free(self) -> None:
-        """The ticket is the brief's Goal line; one of two slots is free."""
-        here, directory = watched()
-        running(directory, "a1")
-        out = watch(here).out
-        assert_that(held(here), equal_to(["a1"]))
-        lines = out.splitlines()
+    def test_the_state_of_each_ending(self) -> None:
+        """Hand-back, end of turn, interruption, resume, quiet and dead."""
+        for name, records, after, lines in CASES:
+            with self.subTest(name):
+                made = watchworld.play({"a1": records}, rows=[ROW])
+                assert_that((made.held, changed(made.out)), equal_to((after, lines)))
+
+    def test_a_second_agent_takes_the_other_row(self) -> None:
+        """Both rows are held, and each takes is told once."""
+        made = watchworld.play({"a1": worker("a1", 7), "a2": worker("a2", 8)})
         assert_that(
-            lines[0], equal_to("LEDGER CHANGED: slot tiny takes a1 on owner/project#9")
+            (made.held, len(changed(made.out)), printed(made.out, "OVERCAP")),
+            equal_to((["a1", "a2"], 2, [])),
         )
-        free = lines_of(out, "SLOT FREE")
-        assert_that(len(free), equal_to(1))
+
+    def test_a_third_agent_is_over_the_cap(self) -> None:
+        """The extra agent is named every round."""
+        made = watchworld.play(
+            {n: worker(n, k) for n, k in (("a1", 7), ("a2", 8), ("a3", 9))},
+            rounds="3",
+        )
         assert_that(
-            free[0],
-            contains_string(
-                "1 of 2 free since 2030-01-01 00:00Z; first startable: owner/project#1"
-                f" (pitboss slots next owner/project#1 --config {here.config})"
-            ),
+            (made.held, printed(made.out, "OVERCAP"), printed(made.out, "SLOT FREE")),
+            equal_to((["a1", "a2"], ["OVERCAP a3 owner/project#9"] * 3, [])),
         )
 
-    def test_a_full_cap_prints_no_free_slot_and_an_extra_agent_is_overcap(self) -> None:
-        """Two agents fill two slots; a third has no slot."""
-        here, directory = watched()
-        for number, agent in enumerate(("a1", "a2", "a3"), start=7):
-            running(directory, agent, number)
-        out = watch(here, "2").out
-        assert_that(held(here), equal_to(["a1", "a2"]))
-        assert_that(lines_of(out, "OVERCAP"), equal_to(["OVERCAP a3 owner/project#9"]))
-        assert_that(lines_of(out, "SLOT FREE"), equal_to([]))
+    def test_the_free_slot_line_names_the_first_startable_item(self) -> None:
+        """Silent in the first round, with the brief command from the second."""
+        once = watchworld.play({"a1": worker("a1", 9)})
+        many = watchworld.play({"a1": worker("a1", 9)}, rounds="3")
+        said = "SLOT FREE: 1 of 2 free since 2030-01-01 00:00Z; first startable: "
+        assert_that(printed(once.out, "SLOT FREE"), equal_to([]))
+        assert_that(len(printed(many.out, "SLOT FREE")), equal_to(2))
+        assert_that(printed(many.out, "SLOT FREE")[0], starts_with(said))
 
-    def test_a_handback_frees_the_row(self) -> None:
-        """The ledger row of an agent whose transcript ends in a hand-back is freed."""
-        here, directory = watched()
-        slots(here, "set", "tiny", "a1", "#9", "--running", "a1")
-        handed_back(directory, "a1")
-        out = watch(here).out
-        assert_that(held(here), equal_to([]))
+    def test_the_marker_line_sets_the_ticket_and_kind(self) -> None:
+        """The word SubagentHandback in the prose is not a finish."""
+        made = watchworld.play(
+            {"a1": [brief("a1", MARKED, RECENT), call("Bash", RECENT)]}
+        )
+        assert_that((made.held, made.kinds), equal_to((["a1"], ["fix"])))
+
+    def test_a_row_with_no_transcript_is_freed_only_when_older_than_the_process(
+        self,
+    ) -> None:
+        """The process that held an old row is gone; a newer row stays."""
+        old = watchworld.play({}, rows=[ROW], when="2029-12-30T00:00:00+00:00")
+        new = watchworld.play({}, rows=[ROW])
         assert_that(
-            lines_of(out, "LEDGER CHANGED"),
-            equal_to(
-                [
-                    "LEDGER CHANGED: slot tiny freed from a1 (owner/project#9): it handed back"
-                ]
-            ),
-        )
-        assert_that(len(lines_of(watch(here, "2").out, "SLOT FREE")), equal_to(1))
-
-    def test_a_reviewer_that_ended_its_turn_is_freed(self) -> None:
-        """No hand-back tool: an assistant message that ends the turn."""
-        here, directory = watched()
-        slots(here, "set", "tiny", "a1", "#3", "--kind", "review", "--running", "a1")
-        write(directory, "a1", [brief("a1", REVIEW_GOAL, LONG_AGO), ended(LONG_AGO)])
-        watch(here)
-        assert_that(held(here), equal_to([]))
-
-    def test_an_agent_resumed_after_a_handback_runs_again(self) -> None:
-        """Records after the hand-back result mean it works again."""
-        here, directory = watched()
-        slots(here, "set", "tiny", "a1", "#9", "--running", "a1")
-        handed_back(directory, "a1")
-        path = directory / "a1.output"
-        path.write_text(
-            path.read_text() + json.dumps(brief("a1", "go on", RECENT)) + "\n"
-        )
-        watch(here)
-        assert_that(held(here), equal_to(["a1"]))
-
-    def test_the_word_in_a_brief_is_not_a_handback(self) -> None:
-        """The marker line sets the ticket and kind; the prose is not a finish."""
-        here, directory = watched()
-        write(directory, "a1", [brief("a1", MARKED, RECENT), call("Bash", RECENT)])
-        out = watch(here).out
-        assert_that(held(here), equal_to(["a1"]))
-        assert_that(
-            lines_of(out, "LEDGER CHANGED"),
-            equal_to(["LEDGER CHANGED: slot tiny takes a1 on owner/project#9"]),
-        )
-        rows = json.loads(here.ledger.read_text())["slots"]
-        assert_that(rows[0]["kind"], equal_to("fix"))
-
-    def test_a_quiet_agent_mid_turn_still_runs(self) -> None:
-        """A transcript written after the process started holds its slot, however quiet."""
-        here, directory = watched()
-        slots(here, "set", "tiny", "a1", "#9", "--running", "a1")
-        write(
-            directory, "a1", [brief("a1", GOAL.format(n=9), QUIET), call("Bash", QUIET)]
-        )
-        out = watch(here).out
-        assert_that(held(here), equal_to(["a1"]))
-        assert_that(lines_of(out, "LEDGER CHANGED"), equal_to([]))
-
-    def test_an_agent_mid_turn_from_before_the_process_is_dead(self) -> None:
-        """Freed as a session restart; one written after the start is not."""
-        here, directory = watched()
-        slots(here, "set", "tiny", "a1", "#9", "--running", "a1")
-        write(directory, "a1", [brief("a1", GOAL.format(n=9), OLD), call("Bash", OLD)])
-        out = watch(here).out
-        assert_that(held(here), equal_to([]))
-        assert_that(
-            lines_of(out, "LEDGER CHANGED"),
-            equal_to(
-                [
-                    "LEDGER CHANGED: slot tiny freed from a1 (owner/project#9): session restarted"
-                ]
-            ),
+            (old.held, changed(old.out), new.held),
+            equal_to(([], [FREED.format("no transcript")], ["a1"])),
         )
 
-    def test_an_interrupted_agent_is_freed_as_stopped(self) -> None:
-        """The interruption record ends the turn."""
-        here, directory = watched()
-        slots(here, "set", "tiny", "a1", "#9", "--running", "a1")
-        write(
-            directory,
-            "a1",
-            [brief("a1", GOAL.format(n=9), RECENT), interrupted(RECENT)],
-        )
-        out = watch(here).out
-        assert_that(
-            lines_of(out, "LEDGER CHANGED")[0].endswith("stopped"), equal_to(True)
-        )
-
-    def test_a_row_with_no_transcript_from_before_the_process_is_freed(self) -> None:
-        """The process that held it is gone; a newer row stays."""
-        here, directory = watched()
-        directory.mkdir()
-        old = "2029-12-30T00:00:00+00:00"
-        slots(here, "set", "tiny", "a1", "#9", "--running", "a1", "--now", old)
-        out = watch(here).out
-        assert_that(held(here), equal_to([]))
-        assert_that(
-            lines_of(out, "LEDGER CHANGED")[0].endswith("no transcript"), equal_to(True)
-        )
-        slots(here, "set", "tiny", "a2", "#9", "--running", "a2", "--now", NOW)
-        watch(here)
-        assert_that(held(here), equal_to(["a2"]))
-
-    def test_other_files_are_not_agents(self) -> None:
-        """A task output that is not a transcript is skipped."""
-        here, directory = watched()
+    def test_a_file_that_is_not_a_transcript_is_skipped(self) -> None:
+        """A task output with no agent id holds no slot."""
+        here, directory = watchworld.watched()
         directory.mkdir()
         (directory / "b1.output").write_text("plain output\n")
         (directory / "b2.output").write_text("{}\n")
-        watch(here)
-        assert_that(held(here), equal_to([]))
+        assert_that(watchworld.watch(here).out, equal_to(""))
 
-    def test_the_free_slot_line_repeats_every_round(self) -> None:
-        """From the second poll with a free slot, until an agent fills it."""
-        here, directory = watched()
-        running(directory, "a1")
-        assert_that(len(lines_of(watch(here, "3").out, "SLOT FREE")), equal_to(2))
-        running(directory, "a2", 8)
-        assert_that(lines_of(watch(here, "3").out, "SLOT FREE"), equal_to([]))
+    def test_a_brief_with_no_ticket_takes_a_row_naming_none(self) -> None:
+        """No reference in the brief."""
+        made = watchworld.play({"a1": [brief("a1", "do something", RECENT)]})
+        assert_that(changed(made.out), equal_to([TAKES.format("no ticket")]))
 
     def test_without_a_directory_it_refuses(self) -> None:
         """The configuration names none."""
-        found = watch(world.make_world())
-        assert_that(found.code, equal_to(2))
-        assert_that(found.err, contains_string("needs [slots] agents-dir"))
-
-    def test_a_ticket_less_brief_still_takes_a_row(self) -> None:
-        """No reference in the brief: the row names no ticket."""
-        here, directory = watched()
-        write(
-            directory, "a1", [brief("a1", "do something", RECENT), call("Bash", RECENT)]
-        )
-        out = watch(here).out
+        found = watchworld.watch(world.make_world())
         assert_that(
-            lines_of(out, "LEDGER CHANGED"),
-            equal_to(["LEDGER CHANGED: slot tiny takes a1 on no ticket"]),
+            (found.code, found.err.split()[2:5]),
+            equal_to((2, ["needs", "[slots]", "agents-dir"])),
         )

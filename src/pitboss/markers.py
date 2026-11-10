@@ -140,8 +140,8 @@ class Marker(enum.Enum):
             holds rows nobody confirmed.
         NOT_THE_HEAD: ``next TICKET`` prints a worker brief for a ticket that is not
             the first startable item of ``slots next`` (keyword: not-the-head).
-        SLOT_FREE: ``slots watch`` found a free slot: the first startable item and
-            its brief command, repeated every interval until the slot is filled.
+        WATCH_SLOT_FREE: ``slots watch`` found a free slot: the first startable
+            item and its brief command, repeated each poll until it is filled.
         LEDGER_CHANGED: ``slots watch`` wrote the ledger (an agent began or ended).
         WATCH_MISSING: the sweep found no ``slots watch`` running: the Monitor
             invocation that starts it.
@@ -240,7 +240,7 @@ class Marker(enum.Enum):
     START = enum.auto()
     LEDGER_STALE = enum.auto()
     NOT_THE_HEAD = enum.auto()
-    SLOT_FREE = enum.auto()
+    WATCH_SLOT_FREE = enum.auto()
     LEDGER_CHANGED = enum.auto()
     WATCH_MISSING = enum.auto()
     NO_AGENT_RUNNING = enum.auto()
@@ -269,6 +269,7 @@ class Marker(enum.Enum):
 
 
 SPELLED = {
+    Marker.WATCH_SLOT_FREE: "SLOT FREE",
     Marker.HELD_TICKET: "HELD",
     Marker.PINS_ONLY: "PINS-ONLY",
     Marker.PINS_ONLY_OK: "PINS-ONLY OK",
@@ -313,7 +314,7 @@ SELF_EXPLAINED = frozenset(
         Marker.START,
         Marker.LEDGER_STALE,
         Marker.NOT_THE_HEAD,
-        Marker.SLOT_FREE,
+        Marker.WATCH_SLOT_FREE,
         Marker.LEDGER_CHANGED,
         Marker.WATCH_MISSING,
         Marker.NO_AGENT_RUNNING,

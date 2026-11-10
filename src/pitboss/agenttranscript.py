@@ -24,7 +24,8 @@ from typing import Mapping, Sequence
 HANDBACK = "SubagentHandback"
 TAIL = 400_000
 _MARKER = re.compile(
-    r"^PITBOSS-SLOT:\s*(?P<ref>[\w.-]+/[\w.-]+#\d+)\s+(?P<kind>start|fix|review|ruling)",
+    r"^PITBOSS-SLOT:\s*(?P<ref>[\w.-]+/[\w.-]+#\d+)"
+    r"\s+(?P<kind>start|fix|review|ruling)",
     re.MULTILINE,
 )
 _GOAL = re.compile(
@@ -82,22 +83,28 @@ class Agent:
     written: datetime.datetime
 
 
-def _blocks(record: Mapping[str, object]) -> Sequence[Mapping[str, object]]:
+def _message(record: Mapping[str, object]) -> Mapping[str, object]:
     message = record.get("message")
-    content = message.get("content") if isinstance(message, dict) else None
+    return message if isinstance(message, dict) else {}
+
+
+def _content(record: Mapping[str, object]) -> object:
+    return _message(record).get("content")
+
+
+def _blocks(record: Mapping[str, object]) -> Sequence[Mapping[str, object]]:
+    content = _content(record)
     return (
-        [each for each in content or () if isinstance(each, dict)]
-        if (isinstance(content, list))
+        [each for each in content if isinstance(each, dict)]
+        if isinstance(content, list)
         else []
     )
 
 
 def _text(record: Mapping[str, object]) -> str:
-    message = record.get("message")
-    content = message.get("content") if isinstance(message, dict) else None
-    if isinstance(content, str):
-        return content
-    return "\n".join(str(each.get("text", "")) for each in _blocks(record))
+    content = _content(record)
+    texts = [str(each.get("text", "")) for each in _blocks(record)]
+    return content if isinstance(content, str) else "\n".join(texts)
 
 
 def ending(records: Sequence[Mapping[str, object]]) -> State | None:
@@ -112,8 +119,7 @@ def ending(records: Sequence[Mapping[str, object]]) -> State | None:
     if not records:
         return None
     last = records[-1]
-    message = last.get("message")
-    stop = message.get("stop_reason") if isinstance(message, dict) else None
+    stop = _message(last).get("stop_reason")
     if last.get("type") == "assistant":
         asking = any(each.get("type") == "tool_use" for each in _blocks(last))
         return State.ENDED if stop == "end_turn" and not asking else None
@@ -146,12 +152,32 @@ def _tail(path: pathlib.Path) -> Sequence[Mapping[str, object]]:
         data = stream.read().decode("utf-8", "replace")
     lines = data.splitlines()[1 if size > TAIL else 0 :]
     found = []
-    for line in lines:
+    for text in lines:
         try:
-            found.append(json.loads(line))
+            found.append(json.loads(text))
         except ValueError:
             continue
     return [each for each in found if isinstance(each, dict)]
+
+
+def _head(path: pathlib.Path) -> Mapping[str, object] | None:
+    # the first record, when the file is an agent's transcript
+    with path.open("rb") as stream:
+        first = stream.readline().decode("utf-8", "replace")
+    try:
+        found = json.loads(first)
+    except ValueError:
+        return None
+    return found if isinstance(found, dict) and "agentId" in found else None
+
+
+def _written(
+    records: Sequence[Mapping[str, object]], head: Mapping[str, object]
+) -> datetime.datetime:
+    stamps = [str(each["timestamp"]) for each in records if each.get("timestamp")]
+    return datetime.datetime.fromisoformat(
+        stamps[-1] if stamps else str(head["timestamp"])
+    )
 
 
 def read(path: pathlib.Path, started: datetime.datetime | None) -> Agent | None:
@@ -165,17 +191,11 @@ def read(path: pathlib.Path, started: datetime.datetime | None) -> Agent | None:
     Returns:
         The agent, or None when the file is not an agent transcript.
     """
-    with path.open("rb") as stream:
-        first = stream.readline().decode("utf-8", "replace")
-    try:
-        head = json.loads(first)
-    except ValueError:
-        return None
-    if not isinstance(head, dict) or "agentId" not in head:
+    head = _head(path)
+    if head is None:
         return None
     records = _tail(path)
-    stamps = [str(each["timestamp"]) for each in records if each.get("timestamp")]
-    last = datetime.datetime.fromisoformat(stamps[-1] if stamps else head["timestamp"])
+    last = _written(records, head)
     task, kind = _task(_text(head))
     state = ending(records)
     if state is None:
@@ -198,5 +218,5 @@ def read_all(
     Returns:
         The agents, by file name.
     """
-    found = (read(each, started) for each in sorted(directory.glob("*.output")))
-    return [each for each in found if each is not None]
+    files = sorted(directory.glob("*.output"))
+    return [agent for each in files if (agent := read(each, started))]

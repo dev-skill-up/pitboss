@@ -4,11 +4,13 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from . import world
+from . import fakes, quietworld, world
+from .rankworld import publish
 from .test_owner_repositories import lines_of
-from .test_slots_next_item import ALL, TEN, priorities
 
+TEN = "owner/project#10"
 TWELVE = "owner/project#12"
+RANKS = ["p0", "p1", "p2", "p3"]
 QUEUE = {9: ("p3", "open"), 10: ("p1", "open"), 12: ("p0", "open")}
 
 
@@ -27,31 +29,43 @@ def next_for(here: world.World, ticket: str) -> world.Result:
     )
 
 
+def queued() -> world.World:
+    """A world whose tickets are a p3, a p1 and a p0.
+
+    Returns:
+        The world.
+    """
+    here = world.make_world()
+    quietworld.edit_config(here, '["urgent"]', str(RANKS).replace("'", '"'))
+    publish(here, RANKS, QUEUE)
+    for slug in (world.PROJECT, world.LIBRARY):
+        here.bodies[fakes.page(f"{slug}/pulls?state=open")] = []
+    return here
+
+
 class TestNotTheHead(unittest.TestCase):
     """A p0 filed after a p1 listing takes the head."""
 
     def test_the_p1_ticket_is_told_the_head_is_the_p0(self) -> None:
         """The first line names the rank, the head and its brief command."""
-        here = priorities(ALL, {}, QUEUE)
+        here = queued()
         first = next_for(here, TEN).out.splitlines()[0]
         assert_that(
             first,
             equal_to(
                 f"NOT THE HEAD: {TEN} is rank 2; the head is {TWELVE} (p0, opened"
-                f" 2026-09-01); its brief: pitboss slots next {TWELVE} --config {here.config}"
+                f" 2026-09-04); its brief: pitboss slots next {TWELVE}"
+                f" --config {here.config}"
             ),
         )
 
     def test_the_head_gets_no_such_line(self) -> None:
         """The output of the head is unchanged."""
-        here = priorities(ALL, {}, QUEUE)
+        here = queued()
         assert_that(lines_of(next_for(here, TWELVE).out, "NOT THE HEAD"), equal_to([]))
 
-    def test_a_ticket_outside_the_order_is_said_so(self) -> None:
-        """A ticket the list does not offer has no rank."""
-        here = priorities(ALL, {}, QUEUE)
-        first = next_for(here, "owner/project#99").out.splitlines()[0]
-        assert_that(
-            first.startswith("NOT THE HEAD: owner/project#99 is not in the order;"),
-            equal_to(True),
-        )
+    def test_a_ticket_outside_the_order_gets_no_such_line(self) -> None:
+        """A ticket the list does not offer has no rank to compare."""
+        here = queued()
+        found = next_for(here, "owner/project#99").out
+        assert_that(lines_of(found, "NOT THE HEAD"), equal_to([]))

@@ -1,12 +1,13 @@
 """The first lines of ``slots next`` and ``LEDGER STALE`` (pitboss#415)."""
 
+import re
 import unittest
 
-from hamcrest import assert_that, equal_to, starts_with
+from hamcrest import assert_that, equal_to
 
 from . import suggestions, world
 from .test_handback import slots, start
-from .test_owner_repositories import lines_of
+from .test_owner_repositories import lines_of as printed
 
 FREE = (
     "FREE SLOT: {n} of 2 free since 2030-01-01 00:00Z; dispatch before reading"
@@ -23,7 +24,20 @@ def second_next(output: str) -> str:
     Returns:
         The line.
     """
-    return lines_of(output, "NEXT 2.")[0]
+    return printed(output, "NEXT 2.")[0]
+
+
+def unconfirmed(here: world.World) -> str:
+    """What ``slots next`` prints with no ``--running``.
+
+    Args:
+        here: the world.
+
+    Returns:
+        Its output.
+    """
+    after = ("--now", world.FUTURE)
+    return world.invoke(here, "slots", "next", "--config", here.config, *after).out
 
 
 class TestHeader(unittest.TestCase):
@@ -44,7 +58,7 @@ class TestHeader(unittest.TestCase):
                 ]
             ),
         )
-        assert_that(lines_of(out, "START"), equal_to(["START " + second_next(out)]))
+        assert_that(printed(out, "START"), equal_to(["START " + second_next(out)]))
 
     def test_two_running_agents_free_nothing(self) -> None:
         """No FREE SLOT and no START under a full cap."""
@@ -53,64 +67,35 @@ class TestHeader(unittest.TestCase):
         slots(here, "set", "big", "agent-2", "#3", "--running", "agent-1", "agent-2")
         out = suggestions.next_output(here)
         assert_that(out.splitlines()[0], equal_to("SLOTS 2 of 2, free: none"))
-        assert_that(lines_of(out, "FREE SLOT"), equal_to([]))
-        assert_that(lines_of(out, "START"), equal_to([]))
+        assert_that(printed(out, "FREE SLOT"), equal_to([]))
+        assert_that(printed(out, "START"), equal_to([]))
 
     def test_each_kind_is_listed_by_kind(self) -> None:
         """A reviewer and a fix round are named by their PR."""
+        cases = [
+            ("review", "tiny", "#3", "RUNNING reviewer owner/project#3"),
+            ("fix", "big", "#2", "RUNNING fix round owner/project#2"),
+        ]
+        for kind, slot, pull, said in cases:
+            with self.subTest(kind):
+                here = world.make_world()
+                words = ("set", slot, "agent-1", pull, "--kind", kind)
+                slots(here, *words, "--running", "agent-1")
+                found = printed(suggestions.next_output(here), "RUNNING")
+                assert_that(found, equal_to([said]))
+
+    def test_the_ledger_is_stale_only_with_rows_and_no_running_list(self) -> None:
+        """Rows nobody confirmed are said first; an empty ledger has none."""
         here = world.make_world()
-        slots(
-            here,
-            "set",
-            "tiny",
-            "agent-1",
-            "#3",
-            "--kind",
-            "review",
-            "--running",
-            "agent-1",
-        )
-        slots(
-            here,
-            "set",
-            "big",
-            "agent-2",
-            "#2",
-            "--kind",
-            "fix",
-            "--running",
-            "agent-1",
-            "agent-2",
-        )
-        out = suggestions.next_output(here)
+        empty = unconfirmed(here)
+        start(here)
+        full = unconfirmed(here)
+        assert_that(printed(empty, "LEDGER STALE"), equal_to([]))
+        first, second = full.splitlines()[:2]
+        stale = re.fullmatch(r"LEDGER STALE: last written [\d-]+ [\d:]+Z, (.*)", first)
         assert_that(
-            lines_of(out, "RUNNING"),
+            (stale.group(1) if stale else None, second),
             equal_to(
-                [
-                    "RUNNING reviewer owner/project#3",
-                    "RUNNING fix round owner/project#2",
-                ]
+                ("1 rows name agents nobody has confirmed", "SLOTS 1 of 2, free: big")
             ),
         )
-
-    def test_no_running_list_says_the_ledger_is_stale(self) -> None:
-        """Rows nobody confirmed are said first."""
-        here = world.make_world()
-        start(here)
-        out = world.invoke(
-            here, "slots", "next", here.config, "--now", world.FUTURE
-        ).out
-        first, second = out.splitlines()[:2]
-        assert_that(first, starts_with("LEDGER STALE: last written "))
-        assert_that(
-            first.endswith("1 rows name agents nobody has confirmed"), equal_to(True)
-        )
-        assert_that(second, equal_to("SLOTS 1 of 2, free: big"))
-
-    def test_an_empty_ledger_is_not_stale(self) -> None:
-        """No row, nothing to confirm."""
-        here = world.make_world()
-        out = world.invoke(
-            here, "slots", "next", here.config, "--now", world.FUTURE
-        ).out
-        assert_that(lines_of(out, "LEDGER STALE"), equal_to([]))

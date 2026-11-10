@@ -22,7 +22,6 @@ from . import (
     ledger,
     nextguide,
     nextlist,
-    nothead,
     pulls,
     repeatruns,
     repoaccess,
@@ -107,9 +106,7 @@ def show_next(args: argparse.Namespace) -> None:
     tracefs.say(args.safe_run)
     found = load_context(args)
     if args.ticket is None:
-        nextlist.require_ledger(found.settings.slots.ledger)
-        book = ledger.configured(found.settings)
-        nextlist.show(found, open_pulls(found), book)
+        nextlist.show_all(found, open_pulls(found))
     else:
         _step_of(found, args.ticket)
     repoaccess.finish(found.access)
@@ -154,13 +151,6 @@ def _unmarked(found: Context, ticket: str) -> str:
     return flake.unmarked_line(ticket, tree, globs)
 
 
-def _head_lines(found: Context, ticket: str) -> Sequence[str]:
-    # keyword: not-the-head (pitboss#415): the queue is read again for a worker brief
-    book = ledger.configured(found.settings)
-    view = nextlist.startable_view(found, open_pulls(found), book)
-    return nothead.line(view, ticket, configfile.named(found.args))
-
-
 def _step_of(found: Context, named: str) -> None:
     ticket = ledger.reference(named, found.settings.project.repo)
     if not _FULL_REFERENCE.match(ticket):
@@ -173,8 +163,8 @@ def _step_of(found: Context, named: str) -> None:
         print(unreadableline.unreadable_line(each))
     if unread:
         raise SystemExit(1)
-    for said in _head_lines(found, ticket):
-        print(said)
+    for said in nextlist.head_line(found, open_pulls(found), ticket):
+        print(said)  # keyword: not-the-head (pitboss#415)
     _say_missing_names(found, ticket)
     off = draftrule.drafts_off(
         configfile.named(found.args),

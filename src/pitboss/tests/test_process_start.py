@@ -1,5 +1,6 @@
 """The start time of the Claude process (pitboss#415)."""
 
+import dataclasses
 import datetime
 import subprocess
 import unittest
@@ -10,23 +11,22 @@ from hamcrest import assert_that, equal_to
 from .. import processstart
 from .fakes import Output
 
-PS: Mapping[str, str] = {
+TABLE: Mapping[str, str] = {
     "10 ppid,comm": "  9 bash",
     "9 ppid,comm": "  7 /usr/bin/claude",
     "9 lstart": "Tue Nov 10 02:55:08 2026",
 }
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Ps:
-    """A ``ps`` that answers from a table of process, fields and output."""
+    """A ``ps`` that answers from a table of process, fields and output.
 
-    def __init__(self, table: Mapping[str, str]) -> None:
-        """Keep the table.
+    Attributes:
+        table: the output by ``"<pid> <fields>"``.
+    """
 
-        Args:
-            table: output by ``"<pid> <fields>"``.
-        """
-        self.table = table
+    table: Mapping[str, str]
 
     def __call__(self, cmdargs: Sequence[str], /) -> Output:
         """Answer one ``ps -o FIELDS= -p PID``.
@@ -52,7 +52,7 @@ class TestProcessStart(unittest.TestCase):
 
     def test_the_nearest_claude_ancestor_gives_its_start(self) -> None:
         """Walked up from the pid, read in the machine's zone."""
-        found = processstart.of_claude(Ps(PS), 10)
+        found = processstart.of_claude(Ps(table=TABLE), 10)
         local = datetime.datetime(2026, 11, 10, 2, 55, 8).astimezone(
             datetime.timezone.utc
         )
@@ -64,17 +64,17 @@ class TestProcessStart(unittest.TestCase):
             {"10 ppid,comm": "  1 bash"},
             {},
             {"10 ppid,comm": "bash"},
-            {**PS, "9 lstart": ""},
+            {**TABLE, "9 lstart": ""},
         ]
         for table in cases:
             with self.subTest(table):
-                assert_that(processstart.of_claude(Ps(table), 10), equal_to(None))
+                assert_that(processstart.of_claude(Ps(table=table), 10), equal_to(None))
 
     def test_a_loop_of_parents_ends(self) -> None:
         """A table that points to itself is cut at the depth."""
         loop = {"10 ppid,comm": "10 bash"}
-        assert_that(processstart.of_claude(Ps(loop), 10), equal_to(None))
+        assert_that(processstart.of_claude(Ps(table=loop), 10), equal_to(None))
 
     def test_the_process_itself_is_the_default(self) -> None:
         """No pid: this process, which has no claude ancestor in a fake table."""
-        assert_that(processstart.of_claude(Ps({})), equal_to(None))
+        assert_that(processstart.of_claude(Ps(table={})), equal_to(None))

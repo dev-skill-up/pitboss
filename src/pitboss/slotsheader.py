@@ -57,13 +57,13 @@ def running_line(slot: ledger.Slot) -> str:
 
 
 def free_since(
-    book: ledger.Ledger, entries: Sequence[slotlog.Entry], now: datetime.datetime
+    book: ledger.Ledger, log: pathlib.Path, now: datetime.datetime
 ) -> datetime.datetime:
     """When the oldest free slot was freed, by the slot log.
 
     Args:
         book: the ledger.
-        entries: the slot log.
+        log: the slot log file.
         now: the time now, for a slot the log has not seen.
 
     Returns:
@@ -72,7 +72,7 @@ def free_since(
     """
     empty = {slot.name for slot in book.slots if not slot.agent}
     newest: dict[str, slotlog.Entry] = {}
-    for entry in entries:
+    for entry in slotlog.read(log):
         if entry.slot in empty:
             newest[entry.slot] = entry
     times = [each.time for each in newest.values() if each.state is slotlog.State.EMPTY]
@@ -131,21 +131,18 @@ def free_slot_line(free: int, cap: int, since: datetime.datetime) -> str:
     )
 
 
-def stale_line(
-    book: ledger.Ledger, given: bool, written: pathlib.Path
-) -> Sequence[str]:
+def stale_line(book: ledger.Ledger, written: pathlib.Path) -> Sequence[str]:
     """The ``LEDGER STALE`` line of a read that was told no running agents.
 
     Args:
         book: the ledger as written.
-        given: whether ``--running`` was given.
         written: the ledger file.
 
     Returns:
-        One line when the agents were not given and a row holds one, else none.
+        One line when a row holds an agent, else none.
     """
     rows = len(running(book))
-    if given or not rows:
+    if not rows:
         return []
     when = datetime.datetime.fromtimestamp(written.stat().st_mtime, datetime.UTC)
     return [

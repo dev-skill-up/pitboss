@@ -4,26 +4,24 @@ Shared by ``slots next`` and ``next`` with no ticket (pitboss#118); it does not
 import ``commands``, so the commands can import it.
 """
 
-import argparse
 import dataclasses
-import datetime
 import itertools
 import pathlib
 import sys
-from typing import Protocol, Sequence
+from typing import Callable, Sequence, TypeVar
 
 from . import (
     assigning,
-    cleanconfig,
     config,
     configfile,
     diskwatch,
     exempt,
-    ghapi,
     ledger,
     logline,
     machine,
+    nextfound,
     nextview,
+    nothead,
     offering,
     pulls,
     pullmarks,
@@ -41,67 +39,8 @@ from . import (
 )
 from .markers import Marker
 
-
-class Found(Protocol):
-    """The part of a command's context that the list reads."""
-
-    @property
-    def github(self) -> ghapi.GitHub:
-        """The API.
-
-        Returns:
-            The API.
-        """
-
-    @property
-    def settings(self) -> config.Config:
-        """The configuration.
-
-        Returns:
-            The configuration.
-        """
-
-    @property
-    def clean(self) -> cleanconfig.Clean:
-        """What ``clean-container`` looks at and keeps.
-
-        Returns:
-            The ``[clean]`` table.
-        """
-
-    @property
-    def args(self) -> argparse.Namespace:
-        """The parsed arguments.
-
-        Returns:
-            The arguments.
-        """
-
-    @property
-    def now(self) -> datetime.datetime:
-        """The time of the run.
-
-        Returns:
-            The time.
-        """
-
-
-def require_ledger(path: pathlib.Path) -> None:
-    """Exit 1 when the ledger file is absent: it is authoritative on the slots.
-
-    Args:
-        path: the ledger file.
-
-    Raises:
-        SystemExit: 1 when the file does not exist.
-    """
-    if not path.exists():
-        print(
-            f"LEDGER MISSING: {path} does not exist. It is authoritative on"
-            " the slots and the owner creates it",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
+Found = nextfound.Found
+require_ledger = nextfound.require_ledger
 
 
 def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
@@ -147,11 +86,14 @@ def _view(
         slots=found.settings.slots,
         failed=book.failed,
         now=found.now,
-        withheld=nextview.Withheld(held=ordered.held, standing=ordered.standing),
+        withheld=nextview.Withheld(
+            held=ordered.held,
+            standing=ordered.standing,
+            serial=_serial(ordered.items, book, found.settings.slots),
+        ),
         ranked=list(rankline.lines(ordered)),
         ready=list(readyline.texts(found.settings, facts, found.now)),
         no_drafts=found.settings.project.no_drafts,
-        held_back=_serial(ordered.items, book, found.settings.slots),
     )
 
 
@@ -164,13 +106,12 @@ def _serial(
 ) -> frozenset[str]:
     # keyword: slots-watch: a serial repository takes one ticket at a time
     busy = {_slug(slot.ticket or slot.task) for slot in slotsheader.running(book)}
-    return frozenset(
-        each.reference
-        for each in items
-        if each.category is work.Category.NEW_PR
-        and _slug(each.reference) in slots.serial
-        and _slug(each.reference) in busy
-    )
+    waiting = busy & set(slots.watch.serial)
+    held = set()
+    for each in items:
+        if each.category == work.Category.NEW_PR and _slug(each.reference) in waiting:
+            held.add(each.reference)
+    return frozenset(held)
 
 
 def _big(found: Found, volume: diskwatch.Reading | None) -> Sequence[diskwatch.Big]:
@@ -217,13 +158,12 @@ def show(
         book: the slot ledger.
     """
     logline.post(found.settings.slots.log)
-    written = book
     book = _live(found, book)
     ordered = _ordered(found, opened, book)
     source = _source(found, opened, ordered, book)
     view = _view(found, ordered, book, source.facts)
     for line in itertools.chain(
-        header(found, written, book, view),
+        header(found, book, view),
         unlabeled.lines(found.github, found.settings),
         nextview.next_lines(view),
         offering.disagreements(found, ordered),
@@ -235,29 +175,26 @@ def show(
         print(line)
 
 
-def header(
-    found: Found, written: ledger.Ledger, book: ledger.Ledger, view: nextview.NextView
-) -> Sequence[str]:
-    """The lines before the list: ``LEDGER STALE``, ``SLOTS``, ``RUNNING``, ``FREE SLOT``.
+def header(found: Found, book: ledger.Ledger, view: nextview.NextView) -> Sequence[str]:
+    """The lines before the list (``LEDGER STALE``, ``SLOTS``, ``FREE SLOT``).
 
     Args:
         found: the context.
-        written: the ledger as written.
         book: the ledger as the live agents make it.
         view: what the list prints from.
 
     Returns:
         The lines (keyword: slots-header, pitboss#415).
     """
-    given = getattr(found.args, "running", None) is not None
-    path = found.settings.slots.ledger
-    cap = len(found.settings.slots.default) or len(book.slots)
-    entries = slotlog.read(found.settings.slots.log)
-    since = slotsheader.free_since(book, entries, found.now)
-    return [
-        *slotsheader.stale_line(written, given, path),
-        *slotsheader.lines(book, cap, since, nextview.start_text(view)),
-    ]
+    slots = found.settings.slots
+    stale = (
+        []
+        if getattr(found.args, "running", None) is not None
+        else slotsheader.stale_line(ledger.configured(found.settings), slots.ledger)
+    )
+    cap = len(slots.default) or len(book.slots)
+    since = slotsheader.free_since(book, slots.log, found.now)
+    return [*stale, *slotsheader.lines(book, cap, since, nextview.start_text(view))]
 
 
 def startable_view(
@@ -276,6 +213,101 @@ def startable_view(
     book = _live(found, book)
     ordered = _counted(found, opened, book)
     return _view(found, ordered, book, pullmarks.awake(opened, ordered))
+
+
+def brief_command(given: str, item: str) -> str:
+    """The command that prints the brief of an item.
+
+    Args:
+        given: the configuration as the command was given it.
+        item: the ticket or PR.
+
+    Returns:
+        The command.
+    """
+    return f"pitboss slots next {item} --config {given}"
+
+
+def _first(view: nextview.NextView, given: str) -> str:
+    items = nextview.startable(view)
+    if items:
+        return f"{items[0].reference} ({brief_command(given, items[0].reference)})"
+    if view.ready:
+        return f"{view.ready[0]} ({brief_command(given, '')})"
+    return "no open ticket or PR is queued: file the next ticket"
+
+
+def show_all(found: Found, opened: Sequence[pulls.Read]) -> None:
+    """Print the list of ``next`` with no ticket: the ledger must exist.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+    """
+    require_ledger(found.settings.slots.ledger)
+    show(found, opened, ledger.configured(found.settings))
+
+
+def head_line(found: Found, opened: Sequence[pulls.Read], ticket: str) -> Sequence[str]:
+    """The ``NOT THE HEAD`` line of a ticket, read from the queue just now.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        ticket: the ticket whose brief is printed.
+
+    Returns:
+        The line, or none when the ticket is the head.
+    """
+    given = configfile.named(found.args)
+    view = startable_view(found, opened, ledger.configured(found.settings))
+    items = nextview.startable(view)
+    return nothead.line(items, found.settings.slots.priority_labels, ticket, given)
+
+
+Context = TypeVar("Context", bound=Found)
+
+
+def free_line_by(
+    opened: Callable[[Context], Sequence[pulls.Read]],
+) -> Callable[[Context, ledger.Ledger, int], str]:
+    """The ``SLOT FREE`` line maker of a reader of the open PRs.
+
+    Args:
+        opened: reads the open PRs of a context.
+
+    Returns:
+        A function of a context, the ledger and the cap that makes the line.
+    """
+
+    def make(found: Context, book: ledger.Ledger, cap: int) -> str:
+        return free_line(found, opened(found), book, cap)
+
+    return make
+
+
+def free_line(
+    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger, cap: int
+) -> str:
+    """The ``SLOT FREE`` line, naming the first startable item.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        book: the ledger.
+        cap: the number of slots.
+
+    Returns:
+        The line.
+    """
+    view = startable_view(found, opened, book)
+    since = slotsheader.free_since(book, found.settings.slots.log, found.now)
+    free = cap - len(slotsheader.running(book))
+    return (
+        f"{Marker.WATCH_SLOT_FREE.text}: {free} of {cap} free since"
+        f" {slotlog.utc(since).strftime(slotsheader.TIME_FORMAT)}; first startable:"
+        f" {_first(view, configfile.named(found.args))}"
+    )
 
 
 UNKNOWN = (
