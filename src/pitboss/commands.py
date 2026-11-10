@@ -339,10 +339,12 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     slotreport.print_ledger(book, offer.occupancy)
     sweepline.slots(read, offer, offering.disagreements(found, offer))
     sweepline.logged(book, offer, found.settings.slots.log, found.now)
-    workerlines.print_lines(written, found.now, found.args)
+    workerlines.print_lines(written, found.now, found.args, found.settings.slots)
     undrafts = readyline.texts(found.settings, pullmarks.awake(read, offer), found.now)
     unlabeled.print_lines(found.github, found.settings)
     tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
+    for line in tasklist.live_lines(book, read):
+        print(line)
 
 
 @ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")

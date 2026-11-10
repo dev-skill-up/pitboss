@@ -39,3 +39,15 @@ RUNNING_ARGUMENT = add_argument(
 )
 SWEEP_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT)
 CHANGING_ARGUMENTS = (CONFIG_ARGUMENT, NOW_ARGUMENT, DRY_RUN_ARGUMENT)
+WATCH_ARGUMENTS = (
+    add_argument(
+        "--interval",
+        type=int,
+        default=None,
+        help="seconds between rounds of 'slots watch' ([slots] poll-seconds, 15)",
+    ),
+    add_argument(
+        "--rounds", type=int, default=0, help="rounds of 'slots watch'; 0: no end"
+    ),
+    add_argument("--process-start", default=None, help=argparse.SUPPRESS),
+)

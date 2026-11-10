@@ -158,6 +158,46 @@ class SlotSpec:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Watch:
+    """What ``slots watch`` reads (keyword: slots-watch, pitboss#415).
+
+    Attributes:
+        agents_dir: ``agents-dir``: the directory of the session's agent
+            transcripts (its ``tasks/*.output`` files), or None.
+        serial: the repositories (``owner/repo``) whose tickets run one at a time:
+            the first startable item skips them while a ledger row works on one.
+        poll_seconds: ``poll-seconds``: the seconds between two rounds.
+        remind_minutes: ``remind-minutes``: the minutes between two ``SLOT FREE``
+            lines while a slot stays free.
+    """
+
+    agents_dir: pathlib.Path | None = None
+    serial: Sequence[str] = ()
+    poll_seconds: int = 15
+    remind_minutes: int = 5
+
+    @classmethod
+    def parse(cls, table: Mapping[str, object], serial: Sequence[str]) -> "Watch":
+        """Read the watcher's keys of the ``[slots]`` table.
+
+        Args:
+            table: the ``[slots]`` table.
+            serial: its ``serial`` key, read as a list of strings.
+
+        Returns:
+            ``agents-dir``, ``serial``, ``poll-seconds`` and ``remind-minutes``.
+        """
+        kept = cls()
+        found = table.get("agents-dir")
+        return cls(
+            agents_dir=None if found is None else pathlib.Path(str(found)),
+            serial=serial,
+            poll_seconds=int(str(table.get("poll-seconds", kept.poll_seconds))),
+            remind_minutes=int(str(table.get("remind-minutes", kept.remind_minutes))),
+        )
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Slots:
     """The worker slots.
 
@@ -175,6 +215,7 @@ class Slots:
         superseded: the tickets (``owner/repo#N``) the owner marks as
             superseded: no start is offered for them (keyword:
             superseded-ticket, pitboss#388).
+        watch: what ``slots watch`` reads (keyword: slots-watch, pitboss#415).
     """
 
     ledger: pathlib.Path
@@ -186,6 +227,7 @@ class Slots:
     ledger_owner: bool = False
     owner_priorities: Mapping[str, str] = dataclasses.field(default_factory=dict)
     superseded: Sequence[str] = ()
+    watch: Watch = dataclasses.field(default_factory=Watch)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

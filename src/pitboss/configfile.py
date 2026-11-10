@@ -316,6 +316,7 @@ def _slots(document: Mapping[str, object], project: config.Project) -> config.Sl
             table, _strings(table, "priority_labels", ())
         ),
         superseded=supersedes.parse(table),
+        watch=config.Watch.parse(table, _strings(table, "serial", ())),
     )
 
 

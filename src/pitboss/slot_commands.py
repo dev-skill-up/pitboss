@@ -22,12 +22,18 @@ from . import (
     pulls,
     repoaccess,
     slotreport,
+    watchrun,
     slotholding,
     slotlog,
     ticketof,
     tracefs,
 )
-from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
+from .commandarguments import (
+    CONFIG_ARGUMENT,
+    NOW_ARGUMENT,
+    RUNNING_ARGUMENT,
+    WATCH_ARGUMENTS,
+)
 from .commands import (
     Context,
     load_context,
@@ -61,6 +67,9 @@ class Action(enum.Enum):
             logged as a hand-back (keyword: log-line).
         DEVIATION: record the ``Deviation:`` lines of a review saved in a
             file on the worker's ticket (TICKET FILE; keyword: deviations).
+        WATCH: keep the ledger from the session's agent transcripts, each
+            ``--interval`` seconds for ``--rounds`` rounds (0: until stopped); run
+            by the Monitor tool (keyword: slots-watch, pitboss#415).
     """
 
     SHOW = enum.auto()
@@ -77,6 +86,7 @@ class Action(enum.Enum):
     TIME = enum.auto()
     HEARD = enum.auto()
     DEVIATION = enum.auto()
+    WATCH = enum.auto()
 
     @property
     def word(self) -> str:
@@ -265,7 +275,7 @@ def _time(found: Context) -> None:
         print(line)
 
 
-REFILLS = frozenset({Action.SET, Action.FREE, Action.NEXT})
+REFILLS = frozenset({Action.SET, Action.FREE, Action.NEXT, Action.WATCH})
 LOG_ONLY = frozenset({Action.REPORT, Action.TIME})
 # every hand-back is logged: ``heard`` records each one, a notification too
 HAND_BACKS = frozenset({Action.FREE, Action.HEARD})
@@ -360,6 +370,7 @@ def _read(found: Context) -> ledger.Ledger:
         default=ledger.TASK_KINDS[0],
         help="the kind of task 'slots set' records",
     ),
+    *WATCH_ARGUMENTS,
     NOW_ARGUMENT,
     name="slots",
 )
@@ -383,5 +394,7 @@ def slots(args: argparse.Namespace) -> None:
         _time(found)
     elif action is Action.NEXT:
         _next(found)
+    elif action is Action.WATCH:
+        watchrun.watch(args, load_context, nextlist.free_line_by(open_pulls))
     else:
         _shown(found, _read(found))

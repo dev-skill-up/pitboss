@@ -106,9 +106,7 @@ def show_next(args: argparse.Namespace) -> None:
     tracefs.say(args.safe_run)
     found = load_context(args)
     if args.ticket is None:
-        nextlist.require_ledger(found.settings.slots.ledger)
-        book = ledger.configured(found.settings)
-        nextlist.show(found, open_pulls(found), book)
+        nextlist.show_all(found, open_pulls(found))
     else:
         _step_of(found, args.ticket)
     repoaccess.finish(found.access)
@@ -165,6 +163,8 @@ def _step_of(found: Context, named: str) -> None:
         print(unreadableline.unreadable_line(each))
     if unread:
         raise SystemExit(1)
+    for said in nextlist.head_line(found, open_pulls(found), ticket):
+        print(said)  # keyword: not-the-head (pitboss#415)
     _say_missing_names(found, ticket)
     off = draftrule.drafts_off(
         configfile.named(found.args),

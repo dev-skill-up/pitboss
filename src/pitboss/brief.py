@@ -16,6 +16,7 @@ from . import (
     briefconfig,
     briefkind,
     briefruling,
+    briefslot,
     brieftext as text,
     brieftextci,
     brieftextconflict,
@@ -35,16 +36,7 @@ from . import (
 Kind = briefkind.Kind
 
 
-REVIEWS = frozenset(
-    {
-        Kind.REVIEW_FULL,
-        Kind.REVIEW_EXECUTION,
-        Kind.REVIEW_PLAN,
-        Kind.REVIEW_RESOLUTION,
-        Kind.REVIEW_FIX_ROUND,
-        Kind.REVIEW_RELOCK,
-    }
-)
+REVIEWS = briefkind.REVIEWS
 # keyword: run-e2e (pitboss#199): the reviews that read a head's checks, so an
 # e2e result, which a draft's CI would leave without one
 E2E_KINDS = frozenset(
@@ -391,4 +383,5 @@ def build(spec: Spec) -> str:
         rules = list(briefruling.lines(values))
     else:
         rules = _worker(spec, values)
-    return "\n".join([f"Goal: {spec.subject.goal}", *rules])
+    slot = briefslot.line(spec.kind, spec.subject.reference)
+    return "\n".join([slot, f"Goal: {spec.subject.goal}", *rules])
