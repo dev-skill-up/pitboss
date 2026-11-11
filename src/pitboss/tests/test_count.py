@@ -132,8 +132,8 @@ def printed_with_option(*words: str) -> tuple[str, object]:
     return done.out, done.code
 
 
-def ended_without_extra(*words: str) -> tuple[object, bool]:
-    """Run ``count`` in a world where the repository ``extra`` cannot be read.
+def ended_without_lib(*words: str) -> tuple[object, bool]:
+    """Run ``count`` in a world where the library is not listed and cannot be read.
 
     Args:
         *words: the words after the configuration.
@@ -142,7 +142,10 @@ def ended_without_extra(*words: str) -> tuple[object, bool]:
         Its exit code, and whether it said ``INCOMPLETE``.
     """
     here = counting()
-    del here.bodies[ownerbodies.EXTRA]
+    here.bodies[ownerbodies.LISTING] = ownerbodies.listing(
+        ("owner/project", False), ("owner/extra", False)
+    )
+    del here.bodies[world.LIBRARY]
     done = world.again(here, "count", *words)
     return done.code, "INCOMPLETE" in done.out + done.err
 
@@ -196,7 +199,7 @@ class TestCount(unittest.TestCase):
 
     def test_a_repository_it_cannot_read_ends_incomplete(self) -> None:
         """The count says what it did not read and exits 1."""
-        assert_that(ended_without_extra("p1"), equal_to((1, True)))
+        assert_that(ended_without_lib("p1"), equal_to((1, True)))
 
     def test_the_usage_says_where_the_owner_count_comes_from(self) -> None:
         """A count given to the owner comes from this command, the owner's words."""

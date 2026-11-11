@@ -21,12 +21,17 @@ CLOSING = "Status. It closes when owner/lib#94 and owner/lib#369 have merged."
 
 
 def pulled(here: world.World, fixed: Mapping[int, int]) -> None:
-    """Open PRs of the library, each of which fixes a ticket of it.
+    """Open PRs of the library, each fixing a ticket of it; the project has none.
+
+    The project's own PRs are left out: they rank before the tickets, and a ticket
+    after the first five items of the order is not read (keyword: ticket-window,
+    pitboss#453).
 
     Args:
         here: the world.
         fixed: each PR's number and the ticket it fixes.
     """
+    rankworld.without_project_pulls(here)
     listing = fakes.page(f"{LIBRARY}/pulls?state=open")
     opened = here.bodies[listing]
     assert isinstance(opened, list)
@@ -65,12 +70,7 @@ class TestTrackingTicket(unittest.TestCase):
         here = tracking_world()
         pulled(here, PULLS)
         ahead = ["owner/lib#392", "owner/lib#387", "owner/lib#393", "owner/lib#384"]
-        assert_that(
-            starts(here),
-            equal_to(
-                ["owner/project#1", "owner/project#3", *ahead, "owner/project#10"]
-            ),
-        )
+        assert_that(starts(here), equal_to([*ahead, "owner/project#10"]))
 
     def test_the_sweep_prints_the_same(self) -> None:
         """The sweep has the BLOCKED line, the BLOCKS lines and no start for #9."""

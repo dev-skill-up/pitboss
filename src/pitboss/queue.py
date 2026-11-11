@@ -49,7 +49,7 @@ def read_runs(github: ghapi.GitHub, repo: config.Repo) -> Sequence[QueueRun]:
     Returns:
         The runs, newest pages first, at most ``QUEUE_PAGES`` pages.
     """
-    found = ghapi.pages(
+    found = ghapi.pages_at_once(
         github,
         f"repos/{repo.slug}/actions/runs?event=merge_group",
         parsing.workflow_runs,

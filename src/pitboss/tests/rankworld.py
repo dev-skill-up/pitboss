@@ -332,3 +332,15 @@ def absent(output: str, text: str) -> None:
         text: what must not be there.
     """
     assert_that(mentioning(output, text), equal_to([]))
+
+
+def without_project_pulls(here: world.World) -> None:
+    """Give the project no open PR, so that its tickets are the first of the order.
+
+    A PR ranks before a ticket, and a ticket after the first five items is not
+    read (keyword: ticket-window, pitboss#453).
+
+    Args:
+        here: the world.
+    """
+    here.bodies.update(dict.fromkeys([world.project_page("pulls?state=open")], []))

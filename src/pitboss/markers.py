@@ -132,6 +132,11 @@ class Marker(enum.Enum):
         SLOTS_FREE: slots are free and work is queued; a wake-up is required.
         SLOT_IDLE: a slot empty for over two minutes (by the slot log) while
             work is queued.
+        IDLE_SLOT: a slot free for over ten minutes with no agent dispatched
+            for it, and the ``slots next`` line to dispatch (keyword:
+            free-check, pitboss#450).
+        CHECK_IN_OVERDUE: the last status post of the orchestrator is over
+            thirty minutes old (keyword: check-in, pitboss#450).
         GONE_AGENT: a slot whose agent is no longer running.
         CHECK_BEFORE_YOU_ANSWER: the ledger is kept by hand; check it.
         SLOTS: the first line of ``slots next``: the running agents against the
@@ -238,6 +243,8 @@ class Marker(enum.Enum):
     EMPTY_SLOT = enum.auto()
     SLOTS_FREE = enum.auto()
     SLOT_IDLE = enum.auto()
+    IDLE_SLOT = enum.auto()
+    CHECK_IN_OVERDUE = enum.auto()
     GONE_AGENT = enum.auto()
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
     SLOTS = enum.auto()
@@ -283,6 +290,7 @@ SPELLED = {
     Marker.PINS_ONLY_OK: "PINS-ONLY OK",
     Marker.NO_HAND_BACK: "NO HAND-BACK",
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
+    Marker.CHECK_IN_OVERDUE: "CHECK-IN OVERDUE",
 }
 
 # keyword: markup-lines (pitboss#343, pitboss#301): the line of these says what
@@ -303,6 +311,8 @@ SELF_EXPLAINED = frozenset(
         Marker.CHECK_BEFORE_YOU_ANSWER,
         Marker.HELD_TICKET,
         Marker.SLOT_IDLE,
+        Marker.IDLE_SLOT,
+        Marker.CHECK_IN_OVERDUE,
         Marker.NO_HAND_BACK,
         Marker.POLLING,
         Marker.SYNCED,

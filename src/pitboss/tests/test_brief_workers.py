@@ -101,10 +101,10 @@ class TestWorkerBriefs(unittest.TestCase):
         pinned(brief.Kind.NEW_PR, NEW_PR_PROCESS, reference="o/r#7")
 
     def test_a_new_pr_brief_carries_the_body_form(self) -> None:
-        """The first line, expand and lint; nothing about how the body ends."""
+        """The first line, expand and lint; no footer of the session's own."""
         pinned(brief.Kind.NEW_PR, NEW_PR_BODY)
         found = text(brief.Kind.NEW_PR)
-        has_none(found, ["ends with", "footer", "Generated with"])
+        has_none(found, ["Generated with"])
 
     def test_a_new_pr_brief_carries_the_repositorys_rules(self) -> None:
         """Edit, push, no waiting, hand-back."""

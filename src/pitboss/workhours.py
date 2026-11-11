@@ -5,10 +5,29 @@ that belongs to no running worker: it outlived its work (pitboss#194).
 """
 
 import datetime
-
-from . import survey
+from typing import Protocol
 
 TASK_HOURS = 6
+
+
+class Marked(Protocol):
+    """What a walk of a path found about its live marker."""
+
+    @property
+    def marked(self) -> bool:
+        """Whether the path holds a marker.
+
+        Returns:
+            True when it does.
+        """
+
+    @property
+    def marked_at(self) -> float:
+        """When the newest marker was written, 0 when not known.
+
+        Returns:
+            Seconds since the epoch.
+        """
 
 
 def expiry_of(now: datetime.datetime) -> float:
@@ -23,7 +42,7 @@ def expiry_of(now: datetime.datetime) -> float:
     return now.timestamp() - TASK_HOURS * 3600
 
 
-def expired(expiry: float, found: survey.Survey) -> bool:
+def expired(expiry: float, found: Marked) -> bool:
     """Whether the newest marker in a path is older than a worker's task.
 
     Args:

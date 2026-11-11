@@ -145,6 +145,40 @@ def pages(
     return found
 
 
+def pages_at_once(
+    github: GitHub,
+    path: str,
+    parse: Callable[[str], Sequence[_Item]],
+    limit: int,
+) -> Sequence[_Item]:
+    """Read a list of at most ``limit`` pages, the pages after the first together.
+
+    The first page says whether there are more; a list known to be long is read
+    in the time of two pages, not ``limit`` (keyword: pull-read, pitboss#453).
+
+    Args:
+        github: the API.
+        path: the list's path, with or without a query.
+        parse: reads the items out of one page, an entry for each raw item.
+        limit: the most pages read.
+
+    Returns:
+        Every item read.
+    """
+    separator = "&" if "?" in path else "?"
+
+    def page(number: int) -> Sequence[_Item]:
+        return parse(
+            get(github, f"{path}{separator}per_page={PAGE_SIZE}&page={number}")
+        )
+
+    first = page(1)
+    if len(first) < PAGE_SIZE or limit < 2:
+        return first
+    rest = concurrently.each(page, range(2, limit + 1))
+    return [*first, *(item for found in rest for item in found)]
+
+
 def call_of(error: subprocess.CalledProcessError) -> str:
     """Name the API call that failed.
 

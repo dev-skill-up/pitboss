@@ -11,11 +11,9 @@ import functools
 import logging
 import os
 import pathlib
-import subprocess
 from typing import AbstractSet, Mapping, Sequence
 
 from . import (
-    ENTRY_DATA,
     account,
     autoclean,
     cleanconfig,
@@ -25,7 +23,9 @@ from . import (
     configfile,
     dead,
     draftmoves,
+    gates,
     ghapi,
+    ghmemo,
     headchecks,
     ledger,
     ledgerowner,
@@ -53,11 +53,10 @@ from . import (
     workerlines,
     workhours,
 )
-from . import commanddoc, commandtext
 from . import diskline, pulllines, pullstate, unlabeled, unreadableline
-from .commandarguments import CHANGING_ARGUMENTS, SWEEP_ARGUMENTS
 from .failures import describe, read_all
-from .markers import Marker
+from .running import KeywordRun
+from .queuereads import read_queue_runs, read_runner_runs, runner_runs
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -125,7 +124,29 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
         The PRs, a PR whose API call failed as an ``Unreadable``.
     """
     runs = functools.partial(read_runner_runs, found)
-    return sweepline.looked_pulls(found.github, found.settings, found.now, runs)
+    read = sweepline.looked_pulls(found.github, found.settings, found.now, runs)
+    timing.note(found.args, "open pull requests read", len(read), "pull requests")
+    return read
+
+
+def whole_order(found: Context) -> Context:
+    """The context with every repository's gate, which the whole order needs.
+
+    Args:
+        found: the context, with the gate of the item's repository alone.
+
+    Returns:
+        The context with every repository's gate read.
+    """
+    every = gates.settled(found.github, found.settings)
+    return dataclasses.replace(found, settings=every)
+
+
+def _reading(args: argparse.Namespace) -> KeywordRun:
+    # keyword: read-memo (pitboss#453): what `slots next` reads, it reads once
+    if getattr(args, "action", None) == "next":
+        return ghmemo.memoized(args.safe_run)
+    return args.safe_run  # type: ignore[no-any-return]
 
 
 def load_context(args: argparse.Namespace) -> Context:
@@ -139,11 +160,14 @@ def load_context(args: argparse.Namespace) -> Context:
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
-    github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
+    github = ghapi.GitHub(run=_reading(args), mutate=args.run)
     start = working_directory(args)
     given = configfile.named(args)
-    access = repoaccess.read(github, given, start)
+    access = repoaccess.read(
+        github, given, start, functools.partial(repoaccess.item_gates, args)
+    )
     owner = access.settings.project.repo.owner
+    timing.note(args, "context and configuration read")
     return Context(
         settings=access.settings,
         access=access,
@@ -153,54 +177,6 @@ def load_context(args: argparse.Namespace) -> Context:
         now=now,
         args=args,
     )
-
-
-def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
-    """Read the queue runs of every repository whose PRs or runners are swept.
-
-    Args:
-        found: the context.
-
-    Returns:
-        The runs.
-    """
-    settings = found.settings
-    repos = {
-        repo.slug: repo
-        for repo in (*settings.runners.repositories, *config.repositories(settings))
-    }
-    batches = concurrently.each(
-        lambda repo: queue.read_runs(found.github, repo), repos.values()
-    )
-    return [each for batch in batches for each in batch]
-
-
-def runner_runs(
-    found: Context, runs: Sequence[queue.QueueRun]
-) -> Sequence[queue.QueueRun]:
-    """Keep the queue runs of the repositories that share the runners.
-
-    Args:
-        found: the context.
-        runs: the runs of every repository read.
-
-    Returns:
-        The runs of the repositories under ``[runners]``.
-    """
-    sharing = {repo.slug for repo in found.settings.runners.repositories}
-    return [each for each in runs if each.repo.slug in sharing]
-
-
-def read_runner_runs(found: Context) -> Sequence[queue.QueueRun]:
-    """Read the queue runs of the repositories that share the runners.
-
-    Args:
-        found: the context.
-
-    Returns:
-        The runs.
-    """
-    return runner_runs(found, read_queue_runs(found))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -348,22 +324,20 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
         print(line)
 
 
-@ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
-@commanddoc.described(commandtext.SWEEP)
-def sweep(args: argparse.Namespace) -> None:
+def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 
     Args:
-        args: the parsed arguments.
+        found: the context, loaded with the clocked arguments.
+        clock: the sweep's clock.
 
-    Raises:
-        SystemExit: 1 for a failed check, a conflict, or an unread repository.
+    Returns:
+        True for a failed check, a conflict, or an unread repository.
     """
-    clock, args = timing.clocked(args)
+    args = found.args
     where = configfile.locate(configfile.named(args), working_directory(args))
     ledgerowner.say_sweep(load_settings(args), where)
     localsections.print_update_check(args.safe_run)
-    found = load_context(args)
     timing.lap(clock, "update check and configuration read")
     cleaned = _clean_section(found)
     timing.lap(clock, "cleaning done")
@@ -376,25 +350,4 @@ def sweep(args: argparse.Namespace) -> None:
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)
     failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
-    if repoaccess.say(found.access) or failed:
-        raise SystemExit(1)
-
-
-@ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="cancel-stale-runs")
-def cancel_stale_runs(args: argparse.Namespace) -> None:
-    """Cancel the queue runs that are not the newest group of their PR.
-
-    Args:
-        args: the parsed arguments.
-    """
-    found = load_context(args)
-    verb = "" if args.no_dry_run else " (dry run: --no-dry-run cancels it)"
-    for stale in queue.stale_runs(read_queue_runs(found)):
-        name = f"{stale.repo.slug} {stale.run.id}"
-        try:
-            path = f"repos/{stale.repo.slug}/actions/runs/{stale.run.id}/cancel"
-            ghapi.post(found.github, path)
-        except subprocess.CalledProcessError:
-            print(f"{Marker.COULD_NOT_CANCEL_STALE_QUEUE_RUN.text} {name}")
-            continue
-        print(f"{Marker.CANCELLED_STALE_QUEUE_RUN.text} {name}{verb}")
+    return bool(repoaccess.say(found.access) or failed)

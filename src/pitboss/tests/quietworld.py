@@ -1,6 +1,9 @@
 """A world's configuration, edited for the quiet-period tests."""
 
+import dataclasses
+import os
 import pathlib
+import shutil
 
 from . import fakes, world
 
@@ -41,3 +44,29 @@ def without_an_origin(here: world.World) -> pathlib.Path:
     gone = here.workspace / "no-such-origin"
     fakes.run_git(here.clone, "remote", "set-url", "origin", str(gone))
     return gone
+
+
+def git_that_pushes_nothing(here: world.World) -> world.World:
+    """A world whose ``git`` exits 0 for ``push`` and changes nothing.
+
+    Every other git command is the machine's git.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The world, on a ``PATH`` that starts with the fake ``git``.
+    """
+    real = shutil.which("git")
+    folder = fakes.directory() / "fake-git"
+    folder.mkdir()
+    script = folder / "git"
+    script.write_text(f'#!/bin/sh\n[ "$1" = push ] && exit 0\nexec {real} "$@"\n')
+    script.chmod(0o755)
+    processes = fakes.FakeProcesses(
+        bodies=here.bodies,
+        calls=here.calls,
+        cwd=here.clone,
+        path=f"{folder}{os.pathsep}{os.environ['PATH']}",
+    )
+    return dataclasses.replace(here, processes=processes)

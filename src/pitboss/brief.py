@@ -18,6 +18,7 @@ from . import (
     briefruling,
     briefslot,
     brieftext as text,
+    brieftextbody,
     brieftextci,
     brieftextconflict,
     brieftextdraft,
@@ -166,9 +167,6 @@ class Heads:
             empty for a ticket (keyword: review-brief, pitboss#338).
         plan_digest: the digest of the body's Plan section, empty when the
             body has none.
-        check: whether ``findings`` is the address of a Plan check that refused
-            the Plan, not of a review (keyword: fix-round-kind, pitboss#390).
-        quoted: the findings of that Plan check, quoted.
         ruling: the address of the Opus ruling an Execution fix round follows,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
     """
@@ -179,8 +177,6 @@ class Heads:
     findings: str
     body_digest: str = ""
     plan_digest: str = ""
-    check: bool = False
-    quoted: str = ""
     ruling: str = ""
 
 
@@ -261,10 +257,10 @@ def _about(subject: Subject) -> Mapping[str, str]:
 
 
 def _named(heads: Heads, where: str) -> Mapping[str, str]:
-    what = "the Plan check" if heads.check else "the review"
-    review = f"{what} at {heads.findings}" if heads.findings else "the newest review"
+    review = (
+        f"the review at {heads.findings}" if heads.findings else "the newest review"
+    )
     return {
-        "quoted": f" ({heads.quoted})" if heads.quoted else "",
         "ruling": heads.ruling,
         "head": heads.head,
         "base": heads.base,
@@ -297,6 +293,7 @@ def _plan_lines(kind: Kind) -> list[str]:
     runs = kind in PLAN_RUNNERS
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
+        *([brieftextbody.PLAN_ROWS_DONE_WHEN] if writes else []),
         *(brieftextci.PLAN_ROWS if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),

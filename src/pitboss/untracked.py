@@ -8,7 +8,7 @@ status`` lists is untracked.
 
 import pathlib
 
-from . import cleanconfig, local
+from . import local, survey
 from .running import Run, changed_files
 
 
@@ -49,4 +49,4 @@ def files_but_marker(run: Run, path: pathlib.Path) -> str:
     Returns:
         The reason, or empty when nothing but the marker is untracked.
     """
-    return refusal(changed_files(run, path, "--", f":!{cleanconfig.LIVE_MARKER}"))
+    return refusal(changed_files(run, path, "--", f":!{survey.LIVE_MARKER}"))

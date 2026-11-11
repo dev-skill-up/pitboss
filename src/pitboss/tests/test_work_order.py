@@ -123,8 +123,7 @@ WHOLE_ORDER = [
     "owner/project#3",
     "owner/project#9",
     "owner/lib#16",
-    "owner/project#10",
-    "owner/project#12",
+    # the tickets after the first five items are not read (pitboss#453)
 ]
 
 
