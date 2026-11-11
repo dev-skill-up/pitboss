@@ -119,6 +119,7 @@ CASES = (
     Case(before=("sweep",), after=NOW, make=plain),
     Case(before=("pressure",), after=NOW, make=plain),
     Case(before=("queued",), after=NOW, make=plain),
+    Case(before=("status-prompt",), after=(), make=plain),
     Case(before=("ruling-summary",), after=NOW, make=plain),
     Case(before=("push",), after=NOW, make=plain),
     Case(before=("sync",), after=NOW, make=syncing),

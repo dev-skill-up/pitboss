@@ -81,12 +81,15 @@ class Ledger:
             empty when the file records none.
         deviations: for each ticket, the deviations a review of its worker's
             work listed (keyword: deviations, pitboss#257).
+        checkin: when the orchestrator last posted its status (ISO time), or
+            empty when none is recorded (keyword: check-in, pitboss#450).
     """
 
     slots: Sequence[Slot]
     failed: Mapping[str, Sequence[str]]
     config: str = ""
     deviations: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
+    checkin: str = ""
 
 
 def reference(text: str, project: config.Repo) -> str:
@@ -130,6 +133,7 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
         deviations={
             key: tuple(value) for key, value in data.get("deviations", {}).items()
         },
+        checkin=data.get("checkin", ""),
     )
 
 
@@ -175,6 +179,8 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
         data["deviations"] = {
             key: list(value) for key, value in sorted(ledger.deviations.items())
         }
+    if ledger.checkin:
+        data["checkin"] = ledger.checkin
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 

@@ -12,6 +12,7 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     config,
+    checkin,
     configfile,
     deviations,
     fixes,
@@ -21,6 +22,7 @@ from . import (
     ledgerowner,
     logline,
     nextcommand,
+    freecheck,
     nextlist,
     prefetch,
     pulls,
@@ -75,6 +77,10 @@ class Action(enum.Enum):
         WATCH: keep the ledger from the session's agent transcripts, each
             ``--interval`` seconds for ``--rounds`` rounds (0: until stopped); run
             by the Monitor tool (keyword: slots-watch, pitboss#415).
+        FREE_CHECK: print ``IDLE SLOT`` when a slot has been free for over ten
+            minutes, else nothing (keyword: free-check, pitboss#450).
+        CHECKIN: record that the status was posted just now (keyword: check-in,
+            pitboss#450).
     """
 
     SHOW = enum.auto()
@@ -92,6 +98,8 @@ class Action(enum.Enum):
     HEARD = enum.auto()
     DEVIATION = enum.auto()
     WATCH = enum.auto()
+    FREE_CHECK = enum.auto()
+    CHECKIN = enum.auto()
 
     @property
     def word(self) -> str:
@@ -100,7 +108,7 @@ class Action(enum.Enum):
         Returns:
             The word.
         """
-        return self.name.lower()
+        return self.name.lower().replace("_", "-")
 
 
 Change = Callable[
@@ -178,6 +186,7 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
             book, words[0], ledger.Mark.HEARD, found.now.isoformat()
         ),
     ),
+    Action.CHECKIN: (0, lambda book, words, found: checkin.renew(book, found.now)),
     Action.WAIT: (1, lambda book, words, _: ledger.wait(book, words[0], True)),
     Action.RESUME: (1, lambda book, words, _: ledger.wait(book, words[0], False)),
 }
@@ -308,12 +317,25 @@ def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
     return fast is itemfast.Outcome.PRINTED
 
 
+def _free_check(found: Context) -> None:
+    _read(found)
+    checkin.say(
+        [
+            freecheck.line(
+                found, functools.partial(open_pulls, found), nextlist.first_startable
+            )
+        ]
+    )
+    repoaccess.finish(found.access)
+
+
 def _next(found: Context) -> None:
     # exits 1 when nothing is offered for the ticket
     reference = nextcommand.reference(found.args.words, found.settings.project.repo)
     book = _book(found)
     if reference is None:
         prefetch.start(found)
+        checkin.say([checkin.overdue(book, found.now)])
         nextlist.show(found, open_pulls(found), book)
     known = reference is None or _brief(found, book, reference)
     repoaccess.finish(found.access)
@@ -361,7 +383,7 @@ def slots(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
-    action = Action[args.action.upper()]
+    action = Action[args.action.upper().replace("-", "_")]
     tracefs.say(args.safe_run)
     found = load_context(args)
     _require_ledger(found, action)
@@ -375,6 +397,8 @@ def slots(args: argparse.Namespace) -> None:
         slotwindow.worked(found)
     elif action is Action.NEXT:
         _next(found)
+    elif action is Action.FREE_CHECK:
+        _free_check(found)
     elif action is Action.WATCH:
         watchrun.watch(args, load_context, nextlist.free_line_by(open_pulls))
     else:
