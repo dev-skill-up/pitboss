@@ -9,7 +9,7 @@ in it is live or in use and no work exists only in it (pitboss#348).
 import pathlib
 from typing import AbstractSet, Sequence
 
-from . import dead, ticketclosed
+from . import dead, deadelsewhere, ticketclosed
 
 
 def ticket_of(wanted: AbstractSet[int], entry: pathlib.Path) -> int:
@@ -47,14 +47,16 @@ def dead_named(
         The candidates.
     """
     wanted = set(tickets)
-    entries = (
-        (entry, ticket_of(wanted, entry))
+    entries = [
+        entry
         for place in sorted(places)
         for entry in sorted(place.iterdir())
         if not (entry / ".git").exists()
-    )
-    return dead.present(
-        dead.consider(look, entry, f"named for ticket {number}, finished", cutoff)
-        for entry, number in entries
+    ]
+    named = [(entry, ticket_of(wanted, entry)) for entry in entries]
+    reasons = [
+        (entry, f"named for ticket {number}, finished")
+        for entry, number in named
         if number
-    )
+    ]
+    return deadelsewhere.considered(look, reasons, cutoff)

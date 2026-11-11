@@ -7,7 +7,7 @@ import time
 import unittest
 from typing import Sequence
 
-from .. import cleanconfig, dead
+from .. import cleanconfig, dead, deadelsewhere
 from . import cleanworld, fakes, repositories
 from .test_local import CUTOFF, age
 
@@ -211,11 +211,11 @@ class TestRootFiles(unittest.TestCase):
         cleanworld.put(root, "recent")
         pinned = with_live(cleanworld.look_in(root), [], [root / "pinned"])
         look = dataclasses.replace(pinned, watch=cleanworld.watching(root))
-        found = [each.path.name for each in dead.dead_root_files(look, CUTOFF)]
+        found = [each.path.name for each in deadelsewhere.dead_root_files(look, CUTOFF)]
         elsewhere = dataclasses.replace(look.watch, marker=root / "none")
         absent = dataclasses.replace(look, watch=elsewhere)
         cleanworld.same(
-            (found, dead.dead_root_files(absent, CUTOFF)), (["written"], [])
+            (found, deadelsewhere.dead_root_files(absent, CUTOFF)), (["written"], [])
         )
 
 
@@ -232,7 +232,7 @@ class TestScratch(unittest.TestCase):
         look = with_live(
             cleanworld.look_in(scratch.parent), [scratch, scratch / "none"], []
         )
-        found = dead.dead_scratch(look, CUTOFF)
+        found = deadelsewhere.dead_scratch(look, CUTOFF)
         cleanworld.same(
             [(each.path.name, each.kept) for each in found], [("entry", "")]
         )

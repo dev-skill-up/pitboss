@@ -14,13 +14,13 @@ import pathlib
 import stat
 from typing import AbstractSet, Callable, Iterable, Mapping, Sequence
 
-from . import cleanconfig
-
 GIT = ".git"
 BLOCK = 512
 BARE_FILES = frozenset({"HEAD"})
 BARE_DIRECTORIES = frozenset({"objects", "refs"})
 
+LIVE_MARKER = ".pitboss-live"
+Inspector = Callable[[pathlib.Path], "Survey"]
 Entries = tuple[Sequence[str], Sequence[str]]
 Statuses = Mapping[str, os.stat_result | None]
 
@@ -174,74 +174,95 @@ def crosses(ground: Ground, found: os.stat_result, place: pathlib.Path) -> bool:
     return stat.S_ISDIR(found.st_mode) and (on_another or place in ground.mounts)
 
 
-def about(here: pathlib.Path, seen: Statuses, inside: bool) -> Survey:
-    """What a directory is: a checkout, a bare repository, a marker.
+def _mount(ground: Ground, here: pathlib.Path, one: str, found: os.stat_result) -> bool:
+    # the place the mount table would name is built only when a mount lies below
+    place = ground.real
+    if ground.mounts:
+        place = ground.real / here.relative_to(ground.top) / one
+    return crosses(ground, found, place)
 
-    Args:
-        here: the directory.
-        seen: the status of its subdirectories, then of the other entries.
-        inside: whether it is in a ``.git`` (a repository's own files).
 
-    Returns:
-        The survey of what it is.
-    """
-    entries = set(seen)
-    bare = BARE_FILES | BARE_DIRECTORIES <= entries
-    marker = seen.get(cleanconfig.LIVE_MARKER)
+def _statuses(here: pathlib.Path, entries: Iterable[str]) -> Statuses:
+    # a status is read by the joined text: no path is built for an entry
+    prefix = str(here) + os.sep
+    seen: dict[str, os.stat_result | None] = {}
+    for each in entries:
+        try:
+            seen[each] = os.lstat(prefix + each)
+        except OSError:
+            seen[each] = None
+    return seen
+
+
+def _held(here: pathlib.Path, seen: Statuses, inside: bool) -> Survey:
+    # what a directory is: a checkout, a bare repository, a marker, and its size
+    marker = seen.get(LIVE_MARKER)
+    present = set(seen)
+    times = [
+        one.st_mtime for each, one in seen.items() if one and each != GIT and not inside
+    ]
     return Survey(
-        marked=cleanconfig.LIVE_MARKER in entries and not inside,
+        size=sum(one.st_blocks * BLOCK for one in seen.values() if one),
+        newest=max(times, default=0.0),
+        marked=LIVE_MARKER in present and not inside,
         marked_at=marker.st_mtime if marker and not inside else 0.0,
-        repositories=(here,) if GIT in entries and not inside else (),
-        bare=(here,) if bare and not inside else (),
+        repositories=(here,) if GIT in present and not inside else (),
+        bare=(here,) if BARE_FILES | BARE_DIRECTORIES <= present and not inside else (),
+        unreadable=tuple(here / each for each, one in seen.items() if one is None),
     )
 
 
-def crossing(ground: Ground, below: pathlib.Path, seen: Statuses) -> Sequence[str]:
-    """The subdirectories of a directory that are mount points.
+def _mounted(
+    ground: Ground, here: pathlib.Path, folders: Sequence[str], seen: Statuses
+) -> AbstractSet[str]:
+    return {
+        each
+        for each in folders
+        if (one := seen[each]) is not None and _mount(ground, here, each, one)
+    }
 
-    Args:
-        ground: what the walk knows.
-        below: the directory, relative to the walked path.
-        seen: the status of each entry; subdirectories are the directories.
 
-    Returns:
-        Their names.
-    """
+def _below(
+    here: pathlib.Path,
+    folders: Sequence[str],
+    mounted: AbstractSet[str],
+    inside: bool,
+) -> Sequence[tuple[pathlib.Path, bool]]:
     return [
-        name
-        for name, one in seen.items()
-        if one is not None and crosses(ground, one, ground.real / below / name)
+        (here / each, inside or each == GIT) for each in folders if each not in mounted
     ]
 
 
-def visit(ground: Ground, here: pathlib.Path) -> tuple[Survey, Sequence[pathlib.Path]]:
-    """Look at one directory of the walk.
+def visit(
+    ground: Ground, here: pathlib.Path, inside: bool
+) -> tuple[Survey, Sequence[tuple[pathlib.Path, bool]]]:
+    """Look at one directory of the walk (keyword: walk-speed, pitboss#453).
+
+    The walk is Python's own work for every entry of a tree, so it builds no path
+    it does not need: only a directory to enter is made a path.
 
     Args:
         ground: what the walk knows.
         here: the directory.
+        inside: whether it is in a ``.git`` (a repository's own files).
 
     Returns:
-        What it holds, and its subdirectories to walk (not the mount points).
+        What it holds, and its subdirectories to walk (not the mount points)
+        with whether each is in a ``.git``.
     """
     try:
-        names, others = ground.lister(here)
+        folders, others = ground.lister(here)
     except OSError:
         return Survey(unreadable=(here,)), ()
-    below = here.relative_to(ground.top)
-    inside = GIT in below.parts
-    seen = {name: status(here / name) for name in (*names, *others)}
-    mounts = crossing(ground, below, {name: seen[name] for name in names})
-    entries = [(here / name, one) for name, one in seen.items()]
+    seen = _statuses(here, (*folders, *others))
+    mounted = _mounted(ground, here, folders, seen)
     found = merge(
         [
-            sized(entries),
-            dated([] if inside else entries),
-            about(here, seen, inside),
-            Survey(mounts=tuple(here / name for name in mounts)),
+            _held(here, seen, inside),
+            Survey(mounts=tuple(here / each for each in folders if each in mounted)),
         ]
     )
-    return found, [here / name for name in names if name not in mounts]
+    return found, _below(here, folders, mounted, inside)
 
 
 def descend(ground: Ground) -> Sequence[Survey]:
@@ -254,9 +275,9 @@ def descend(ground: Ground) -> Sequence[Survey]:
         The survey of each directory.
     """
     found = []
-    pending = [ground.top]
+    pending = [(ground.top, False)]
     while pending:
-        held, below = visit(ground, pending.pop())
+        held, below = visit(ground, *pending.pop())
         found.append(held)
         pending.extend(below)
     return found
@@ -287,7 +308,6 @@ def walk(
     real = path.resolve()
     if os.path.ismount(path) or real in mounts:
         return merge([first, Survey(mounts=(path,))])
-    ground = Ground(
-        top=path, real=real, device=top.st_dev, mounts=mounts, lister=lister
-    )
+    below = frozenset(each for each in mounts if each.is_relative_to(real))
+    ground = Ground(top=path, real=real, device=top.st_dev, mounts=below, lister=lister)
     return merge([first, *descend(ground)])

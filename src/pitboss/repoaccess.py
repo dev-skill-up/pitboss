@@ -1,10 +1,11 @@
 """The repositories this session can read (keyword: repo-access)."""
 
+import argparse
 import dataclasses
 import pathlib
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import config, configfile, gates, ghapi, ownerrepos
+from . import config, configfile, gates, ghapi, ledger, ownerrepos
 from .markers import Marker
 
 
@@ -24,6 +25,46 @@ class Access:
     settings: config.Config
     unreadable: Mapping[str, str]
     unlisted: str
+
+
+GateScope = Callable[[config.Config], AbstractSet[str] | None]
+
+
+def every_gate(settings: config.Config) -> AbstractSet[str] | None:
+    """Read the gate of every repository (the default scope).
+
+    Args:
+        settings: the configuration.
+
+    Returns:
+        None, which stands for every repository.
+    """
+    del settings
+    return None
+
+
+def item_gates(
+    args: argparse.Namespace, settings: config.Config
+) -> AbstractSet[str] | None:
+    """The repositories whose review gates a command reads.
+
+    ``slots next ITEM`` builds the brief of one item from its own repository, so
+    it reads that repository's gate and no other (keyword: item-brief,
+    pitboss#453).
+
+    Args:
+        args: the parsed arguments.
+        settings: the configuration.
+
+    Returns:
+        The one repository's ``owner/name``; None (every repository) for any
+        other command.
+    """
+    words = getattr(args, "words", None)
+    if getattr(args, "action", None) != "next" or not words or len(words) != 1:
+        return None
+    named = ledger.reference(words[0], settings.project.repo)
+    return frozenset({named.rpartition("#")[0]})
 
 
 def without(settings: config.Config, failures: Mapping[str, str]) -> config.Config:
@@ -62,24 +103,45 @@ def _say(failures: Mapping[str, str], owner: str, unlisted: str) -> None:
         )
 
 
-def read(github: ghapi.GitHub, name: str, start: pathlib.Path) -> Access:
+def read(
+    github: ghapi.GitHub,
+    name: str,
+    start: pathlib.Path,
+    gated: GateScope = every_gate,
+) -> Access:
     """Read a configuration, and what the session can read of it.
 
     Args:
         github: the API.
         name: a path, or a name (see ``configfile.locate``).
         start: the directory a name is looked up from.
+        gated: says, of the configuration with the owner's repositories, which
+            repositories' gates are read (None: every one).
 
     Returns:
         What can be swept, and what could not be read.
     """
     settings = configfile.load(name, start)
     left_out = configfile.load_exclude(name, start, settings.project.repo.owner)
-    return readable(github, settings, left_out)
+    return readable(github, settings, left_out, gated)
+
+
+def _unlisted(settings: config.Config, seen: AbstractSet[str]) -> Sequence[str]:
+    # the owner's list holds the repositories the session sees: only the others
+    # are asked about, one call each (keyword: repo-access, pitboss#453)
+    shared = settings.runners.repositories
+    return [
+        repo.slug
+        for repo in (*config.repositories(settings), *shared)
+        if repo.slug not in seen
+    ]
 
 
 def readable(
-    github: ghapi.GitHub, settings: config.Config, left_out: AbstractSet[str]
+    github: ghapi.GitHub,
+    settings: config.Config,
+    left_out: AbstractSet[str],
+    gated: GateScope = every_gate,
 ) -> Access:
     """Take in the owner's repositories, and leave out, and report, the unreadable.
 
@@ -90,6 +152,7 @@ def readable(
         settings: the configuration.
         left_out: the ``owner/name`` of the owner's repositories not to sweep
             (``[libraries] exclude``).
+        gated: says which repositories' gates are read (None: every one).
 
     Returns:
         What can be swept, and what could not be read.
@@ -97,15 +160,14 @@ def readable(
     Raises:
         SystemExit: when the project's own repository cannot be read.
     """
-    wide, unlisted = ownerrepos.widened(github, settings, left_out)
-    shared = wide.runners.repositories
-    wanted = [repo.slug for repo in (*config.repositories(wide), *shared)]
+    wide, unlisted, seen = ownerrepos.widened(github, settings, left_out)
+    wanted = _unlisted(wide, seen)
     failures = ghapi.unreadable(github, wanted)
     _say(failures, wide.project.repo.owner, unlisted)
     if wide.project.repo.slug in failures:
         raise SystemExit(f"cannot read {wide.project.repo.slug}")
     return Access(
-        settings=gates.settled(github, without(wide, failures)),
+        settings=gates.settled(github, without(wide, failures), gated(wide)),
         unreadable=failures,
         unlisted=unlisted,
     )

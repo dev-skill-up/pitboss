@@ -97,7 +97,7 @@ def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
 
 def widened(
     github: ghapi.GitHub, settings: config.Config, left_out: AbstractSet[str]
-) -> tuple[config.Config, str]:
+) -> tuple[config.Config, str, AbstractSet[str]]:
     """Add the owner's repositories the configuration does not name.
 
     A repository left out of ``[libraries] repositories`` still has open PRs,
@@ -110,18 +110,27 @@ def widened(
         left_out: the ``owner/name`` of the repositories to leave out.
 
     Returns:
-        The configuration with them as libraries, and why the owner's list could
-        not be read (empty when it was).
+        The configuration with them as libraries, why the owner's list could
+        not be read (empty when it was), and the ``owner/name`` of every
+        repository the list holds: the session sees each, so none is asked
+        about again (keyword: repo-access, pitboss#453).
     """
     owner = settings.project.repo.owner
     try:
         listed = _listing(github, owner)
     except subprocess.CalledProcessError as error:
-        return settings, ghapi.why(error)
+        return settings, ghapi.why(error), frozenset()
     named = {repo.slug for repo in config.repositories(settings)} | left_out
-    more = [
+    more = _new(listed, named, owner)
+    wide = dataclasses.replace(settings, libraries=[*settings.libraries, *more])
+    return wide, "", frozenset(slug for slug, _ in listed)
+
+
+def _new(
+    listed: Sequence[tuple[str, bool]], named: AbstractSet[str], owner: str
+) -> Sequence[config.Repo]:
+    return [
         config.parse_repo(slug, owner)
         for slug, archived in listed
         if not archived and slug not in named
     ]
-    return dataclasses.replace(settings, libraries=[*settings.libraries, *more]), ""

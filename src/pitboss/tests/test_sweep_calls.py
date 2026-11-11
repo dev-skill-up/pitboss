@@ -30,7 +30,7 @@ FOUR_PULLS = {
     "gh api pulls": 8,
     "gh api pulls/files": 1,  # the PR at a review step: pins-only by its files (#350)
     "gh api pulls/reviews": 4,
-    "gh api repository": 3,
+    "gh api repository": 1,  # only a repository the owner's list lacks (pitboss#453)
 }
 PER_PULL = {
     "gh api pulls": 1,

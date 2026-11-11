@@ -71,6 +71,24 @@ def _tagged(slug: str, issues: Iterator[shapes.Issue]) -> Iterator[Tagged]:
         yield f"{slug}#{each.number}", each
 
 
+def first_pages(
+    github: ghapi.GitHub, repos: Sequence[config.Repo], name: str
+) -> tuple[Sequence[str], Sequence[Page]]:
+    """Read the first page of the tickets with a label, in every repository at once.
+
+    Args:
+        github: the API.
+        repos: the repositories.
+        name: the label.
+
+    Returns:
+        The path of each repository's list, and its first page.
+    """
+    query = f"issues?state=open&labels={name}&sort=created&direction=asc"
+    paths = [f"repos/{each.slug}/{query}" for each in repos]
+    return paths, concurrently.each(lambda path: _page(github, path, 1), paths)
+
+
 def labelled(
     github: ghapi.GitHub, repos: Sequence[config.Repo], name: str
 ) -> Iterator[Tagged]:
@@ -87,9 +105,7 @@ def labelled(
     Returns:
         Each ticket's reference and the ticket, by creation time.
     """
-    query = f"issues?state=open&labels={name}&sort=created&direction=asc"
-    paths = [f"repos/{each.slug}/{query}" for each in repos]
-    firsts = concurrently.each(lambda path: _page(github, path, 1), paths)
+    paths, firsts = first_pages(github, repos, name)
     streams = [
         _tagged(each.slug, _stream(github, path, first))
         for each, path, first in zip(repos, paths, firsts)

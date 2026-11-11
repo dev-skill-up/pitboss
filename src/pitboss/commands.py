@@ -26,6 +26,7 @@ from . import (
     dead,
     draftmoves,
     ghapi,
+    ghmemo,
     headchecks,
     ledger,
     ledgerowner,
@@ -58,6 +59,8 @@ from . import diskline, pulllines, pullstate, unlabeled, unreadableline
 from .commandarguments import CHANGING_ARGUMENTS, SWEEP_ARGUMENTS
 from .failures import describe, read_all
 from .markers import Marker
+from .running import KeywordRun
+from .queuereads import read_queue_runs, read_runner_runs, runner_runs
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -125,7 +128,16 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
         The PRs, a PR whose API call failed as an ``Unreadable``.
     """
     runs = functools.partial(read_runner_runs, found)
-    return sweepline.looked_pulls(found.github, found.settings, found.now, runs)
+    read = sweepline.looked_pulls(found.github, found.settings, found.now, runs)
+    timing.note(found.args, "open pull requests read", len(read), "pull requests")
+    return read
+
+
+def _reading(args: argparse.Namespace) -> KeywordRun:
+    # keyword: read-memo (pitboss#453): what `slots next` reads, it reads once
+    if getattr(args, "action", None) == "next":
+        return ghmemo.memoized(args.safe_run)
+    return args.safe_run  # type: ignore[no-any-return]
 
 
 def load_context(args: argparse.Namespace) -> Context:
@@ -139,11 +151,14 @@ def load_context(args: argparse.Namespace) -> Context:
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
-    github = ghapi.GitHub(run=args.safe_run, mutate=args.run)
+    github = ghapi.GitHub(run=_reading(args), mutate=args.run)
     start = working_directory(args)
     given = configfile.named(args)
-    access = repoaccess.read(github, given, start)
+    access = repoaccess.read(
+        github, given, start, functools.partial(repoaccess.item_gates, args)
+    )
     owner = access.settings.project.repo.owner
+    timing.note(args, "context and configuration read")
     return Context(
         settings=access.settings,
         access=access,
@@ -153,54 +168,6 @@ def load_context(args: argparse.Namespace) -> Context:
         now=now,
         args=args,
     )
-
-
-def read_queue_runs(found: Context) -> Sequence[queue.QueueRun]:
-    """Read the queue runs of every repository whose PRs or runners are swept.
-
-    Args:
-        found: the context.
-
-    Returns:
-        The runs.
-    """
-    settings = found.settings
-    repos = {
-        repo.slug: repo
-        for repo in (*settings.runners.repositories, *config.repositories(settings))
-    }
-    batches = concurrently.each(
-        lambda repo: queue.read_runs(found.github, repo), repos.values()
-    )
-    return [each for batch in batches for each in batch]
-
-
-def runner_runs(
-    found: Context, runs: Sequence[queue.QueueRun]
-) -> Sequence[queue.QueueRun]:
-    """Keep the queue runs of the repositories that share the runners.
-
-    Args:
-        found: the context.
-        runs: the runs of every repository read.
-
-    Returns:
-        The runs of the repositories under ``[runners]``.
-    """
-    sharing = {repo.slug for repo in found.settings.runners.repositories}
-    return [each for each in runs if each.repo.slug in sharing]
-
-
-def read_runner_runs(found: Context) -> Sequence[queue.QueueRun]:
-    """Read the queue runs of the repositories that share the runners.
-
-    Args:
-        found: the context.
-
-    Returns:
-        The runs.
-    """
-    return runner_runs(found, read_queue_runs(found))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
