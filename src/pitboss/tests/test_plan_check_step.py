@@ -2,19 +2,44 @@
 
 import dataclasses
 import unittest
+from typing import Sequence
 
-from hamcrest import assert_that, contains_string
+from hamcrest import assert_that, contains_string, equal_to
 
-from .. import plancheck, plandigest, shapes, steps
-from . import fakes
-from .test_flow import CHANGES, expect, graded, state
+from .. import flow, plancheck, plandigest, shapes, steps
+from . import checkcomment, fakes, worldcomments
+from .test_flow import CHANGES, expect, graded
+from .test_flow import BODY
+from .test_flow import state as checked_state
 
 WITH_COMMANDS = "Fixes #7\n\n## Plan\nthe plan\n\n$ echo hi\n\n## Execution\nx\n"
 EDITED = WITH_COMMANDS.replace("echo hi", "echo bye")
 EMPTY_DIRECTIVE = "Fixes #7\n\n## Plan\nthe plan\n\n$ \n\n## Execution\nx\n"
 QUOTED = "row 1: NOT RUN | Plan check: refused, rows that did not run: 1"
+NO_COMMANDS = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nx\n"
 PLAN_ALONE = steps.regular_review(steps.Stage.PLAN_ONLY)
 BOTH = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
+
+
+def state(
+    *recorded: shapes.Graded,
+    body: str = BODY,
+    draft: bool = False,
+    comments: Sequence[shapes.Comment] = (),
+) -> flow.PullState:
+    """A PR with no recorded check but the ones the test gives.
+
+    Args:
+        *recorded: the reviews that count.
+        body: its body.
+        draft: whether it is a draft.
+        comments: its issue comments.
+
+    Returns:
+        The state.
+    """
+    pr = checked_state(*recorded, body=body, draft=draft, comments=comments)
+    return dataclasses.replace(pr, comments=pr.comments[:-1])
 
 
 def check_comment(body: str, author: str = "MEMBER") -> shapes.Comment:
@@ -115,9 +140,30 @@ class TestPlanCheckStep(unittest.TestCase):
         """The check refuses it, so it is not offered for review."""
         expect(steps.plan_check(), state(body=EMPTY_DIRECTIVE, draft=True))
 
-    def test_a_plan_without_commands_is_offered_as_before(self) -> None:
-        """Nothing to check."""
-        expect(PLAN_ALONE, state(draft=True))
+    def test_a_plan_without_commands_needs_the_check_too(self) -> None:
+        """No comment, a check of an older digest, a check of the current one."""
+        older = check_comment(NO_COMMANDS.replace("the plan", "the old plan"))
+        current = check_comment(NO_COMMANDS)
+        expect(steps.plan_check(), state(body=NO_COMMANDS, draft=True))
+        expect(
+            steps.plan_check(),
+            state(body=NO_COMMANDS, draft=True, comments=[older]),
+        )
+        expect(PLAN_ALONE, state(body=NO_COMMANDS, draft=True, comments=[current]))
+
+    def test_a_refused_plan_without_commands_is_the_fix(self) -> None:
+        """The findings of the refusal are quoted, never a review."""
+        found = "Done-when findings: the digest line is missing"
+        text = plancheck.text(plandigest.section(NO_COMMANDS), [], [], [found])
+        refused = dataclasses.replace(check_comment(NO_COMMANDS), body=text)
+        pr = state(body=NO_COMMANDS, comments=[refused])
+        assert_that(flow.next_step(pr).step, equal_to(steps.Step.WORKER))
+        assert_that(steps.describe(flow.next_step(pr)), contains_string(found))
+
+    def test_the_world_carries_the_clean_check_of_its_plan(self) -> None:
+        """The literal of the fake GitHub is the check of the default body."""
+        want = checkcomment.clean_text(fakes.PLAN_AND_EXECUTION)
+        assert_that(worldcomments.CLEAN_CHECK["body"], equal_to(want))
 
     def test_the_step_says_what_to_do(self) -> None:
         """The line `next` prints."""

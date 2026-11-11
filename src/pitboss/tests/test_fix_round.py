@@ -11,13 +11,14 @@ from typing import Tuple
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import flow, plancheckflow, reviewfindings, shapes, steps
+from .. import flow, plancheck, plancheckflow, plandigest, reviewfindings, shapes, steps
 from ..markers import Marker
 from . import test_flow, world
 from . import test_flow_sweep as sweeps
 from .suggestions import kind_of_third, next_output, third
 from .test_flow import CHANGES, OLDER, expect, graded, state
 from .test_plan_check_step import (
+    NO_COMMANDS,
     QUOTED,
     WITH_COMMANDS,
     check_comment,
@@ -176,6 +177,23 @@ class TestPlanCheckRefusal(unittest.TestCase):
         )
         assert_that(task[0], contains_string(want))
         assert_that(task[0], contains_string("run `pitboss nox` once"))
+
+    def test_a_refused_plan_with_no_command_is_a_fix_brief_with_the_findings(
+        self,
+    ) -> None:
+        """The refusal is the Plan's findings, not its commands (the slot line)."""
+        found = "Done-when findings: the digest line is missing"
+        section = plandigest.section(NO_COMMANDS)
+        refused = dataclasses.replace(
+            check_comment(NO_COMMANDS),
+            body=plancheck.text(section, [], [], [found]),
+        )
+        here = sweeps.world_with([refused], body=NO_COMMANDS)
+        assert_that(kind_of_third(here), equal_to(FIX_ROUND))
+        out = next_output(here)
+        assert_that(out, contains_string("PITBOSS-SLOT: owner/project#3 fix"))
+        assert_that("PITBOSS-SLOT: owner/project#3 review" in out, equal_to(False))
+        assert_that(" ".join(third(here)[1]), contains_string(found))
 
     def test_a_clean_check_offers_the_review_as_before(self) -> None:
         """The control: the same body with a clean check."""

@@ -6,7 +6,7 @@ from .. import brief
 from .briefmake import pinned
 
 PLAN_CHECK_BRIEF = (
-    "Plan check: before you approve a Plan that has commands, the PR needs a"
+    "Plan check: before you approve a Plan, the PR needs a"
     " comment whose first line is `Plan check` and whose last line is `Plan check:"
     " ok`, the output of `uvx pitboss plan-check <body file>` for this Plan (its"
     " `Plan digest:` line is the one you record); without it, or with a row that"

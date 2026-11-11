@@ -7,7 +7,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, rulingwords, shapes
-from . import fakes, test_flow, world
+from . import fakes, test_flow, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -76,7 +76,8 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
     """
     here = world.make_world()
     path = fakes.page("repos/owner/project/issues/3/comments")
-    here.bodies[path] = [world.comment_json(each) for each in rounds]
+    said = [world.comment_json(each) for each in rounds]
+    here.bodies[path] = [*said, worldcomments.CLEAN_CHECK]
     changes.setdefault("head", {"sha": HEAD, "ref": "branch-3"})
     here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, **changes)
     compare = f"{world.PROJECT}/compare/main..."

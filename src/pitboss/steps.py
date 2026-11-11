@@ -49,7 +49,7 @@ class Step(enum.Enum):
         PLAN_EDITED: the Plan section differs from the Plan an approving review
             read, and no Opus ruling authorises the edit (keyword: plan-digest,
             pitboss#172).
-        PLAN_CHECK: the Plan has commands and no trusted comment records a clean
+        PLAN_CHECK: no trusted comment records a clean
             ``pitboss plan-check`` of this Plan (keyword: plan-check,
             pitboss#192); no Plan review is offered before it.
         RUN_E2E: a draft whose Plan is approved, whose diff touches what the
@@ -370,7 +370,7 @@ def plan_edited() -> Next:
 
 
 def plan_check() -> Next:
-    """The step of a Plan with commands that no recorded check has run.
+    """The step of a Plan that no recorded clean check covers.
 
     Returns:
         The step.

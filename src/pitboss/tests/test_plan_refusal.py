@@ -18,7 +18,7 @@ SEVEN = "owner/project#7"
 BLOCKED = f"BLOCKED owner/project#3 by {SEVEN}"
 STEP = "PR STATE owner/project#3"
 TASK = "TASK LIST next 3. owner/project#3"
-DIGEST = "Plan digest: " + "0" * 64
+DIGEST = "Plan digest: afbee19f3c5134c8"
 
 
 def check(text: str, association: str = "MEMBER") -> Mapping[str, str]:
