@@ -23,10 +23,13 @@ from .test_flow_sweep import OLDER as WORLD_OLDER
 from .test_flow_sweep import graded as comment
 from .test_flow_sweep import reading as comment_reading
 from .test_flow_sweep import world_with
+from .test_plan_digest_collapse import digest
 
 BODY = test_flow.BODY
 EDITED = BODY + "\nEvidence added after the review.\n"
 WORLD_EDITED = fakes.PLAN_AND_EXECUTION + "\nEvidence added after the review.\n"
+EXECUTION = "## Execution\nthe work\n"
+EDITED_PLAN = BODY.replace("the plan", "the plan, edited")
 UNWRITTEN = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nNot started: later\n"
 DIFF = re.compile(r"git diff (\w+)\.\.(\w+)")
 PUSHED = dataclasses.replace(GREEN, started_at="2026-10-30T00:00:09Z")
@@ -181,6 +184,71 @@ class TestRulingJustPosted(unittest.TestCase):
         newer = graded(*test_flow.EXECUTION_REJECTED, 3, sha=OLDER)
         want = steps.regular_review(steps.Stage.EXECUTION_ONLY)
         test_flow.expect(want, state(newer, comments=[test_flow.ruling(2)]))
+
+
+def pointed(run: int) -> str:
+    """A body whose Plan has a CI pointer that names a run and its job.
+
+    Args:
+        run: the run's id (the job's is the next).
+
+    Returns:
+        The body.
+    """
+    row = f"https://github.com/o/r/actions/runs/{run}/job/{run + 1}"
+    return f"## Plan\n1. CI: workflow `check.yml`, job `check`: {row}\n\n{EXECUTION}"
+
+
+def read(body: str, sha: str = test_flow.HEAD) -> shapes.Graded:
+    """An Execution rejection that records the digest of the Plan of a body.
+
+    Args:
+        body: the body it read.
+        sha: the head it reviewed.
+
+    Returns:
+        The review.
+    """
+    review = graded(*test_flow.EXECUTION_REJECTED, 1, sha=sha)
+    return dataclasses.replace(review, plan_digest=digest(body))
+
+
+def ruled(
+    body: str, read_body: str, checks: Sequence[shapes.CheckRun], sha: str
+) -> flow.PullState:
+    """A PR whose review read one Plan, whose body now has another, and a ruling.
+
+    Args:
+        body: its body now.
+        read_body: the body the review read.
+        checks: the check runs of its head.
+        sha: the head the review named.
+
+    Returns:
+        The state.
+    """
+    comments = [test_flow.ruling(2)]
+    return state(read(read_body, sha), comments=comments, checks=checks, body=body)
+
+
+class TestRulingOfAnEditedPlan(unittest.TestCase):
+    """pitboss#475: a ruling is executed after the Plan changed."""
+
+    def test_the_ruling_due_is_offered_at_plan_edited(self) -> None:
+        """Done-when 2: edited Plan, no revision, no review or push after."""
+        pr = ruled(EDITED_PLAN, BODY, [GREEN], test_flow.HEAD)
+        test_flow.expect(steps.worker(steps.Task.RULING_STEPS), pr)
+
+    def test_a_push_after_the_ruling_leaves_the_hold(self) -> None:
+        """The nearest input: the ruling is applied, the Plan stays edited."""
+        pr = ruled(EDITED_PLAN, BODY, [PUSHED], test_flow.HEAD)
+        test_flow.expect(steps.plan_edited(), pr)
+
+    def test_the_fix_round_with_new_urls_is_re_reviewed(self) -> None:
+        """Done-when 4: ruling, new head, URL-only change, green checks."""
+        pr = ruled(pointed(7), pointed(1), [PUSHED], OLDER)
+        found = flow.next_step(pr)
+        assert_that(found, equal_to(steps.regular_review(steps.Stage.EXECUTION_ONLY)))
 
 
 class TestUnwrittenExecution(unittest.TestCase):

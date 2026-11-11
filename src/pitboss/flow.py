@@ -7,7 +7,7 @@ comments, each section ending in a call to the next. Every question it asks is
 a function of its own below, answered from what is recorded of the PR (its
 body, labels, comments, reviews and checks), so a wrong step is a bug in one
 of them and never in the flow. The pseudo code's second function is
-``rulings.after_opus_ruling``, whose table (``flowstate.AFTER``) the flow reads
+``rulings.after_opus_ruling``, whose table (``rulingafter.AFTER``) the flow reads
 when a ruling is not yet followed by a review. ``rules.md``, "Plan first",
 points here.
 """
@@ -21,6 +21,7 @@ from . import (
     plancheckflow,
     planbody,
     reviewfindings,
+    rulingafter,
     rulingwords,
     shapes,
     steps,
@@ -35,8 +36,8 @@ read_ruling = flowstate.read_ruling
 newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
 has_conflict = conflicts.has_conflict
-AFTER = flowstate.AFTER
-AS_RULED = flowstate.AS_RULED
+AFTER = rulingafter.AFTER
+AS_RULED = rulingafter.AS_RULED
 
 
 def is_paused_for_owner(pr: PullState) -> bool:
@@ -273,7 +274,7 @@ def next_step(pr: PullState) -> steps.Next:
 
     # the newest Opus ruling must be readable, and an approved Plan stays as it is
     if held := flowstate.ruling_hold(pr):  # keyword: plan-digest (pitboss#172)
-        return held
+        return rulingafter.held_step(held, flowstate.ruling_unapplied(pr))
 
     # keyword: conflict-first (pitboss#148, Opus ruling on #181): a conflict is a
     # fix at every stage but while steps.WAITS holds it (PLAN_EDITED included)

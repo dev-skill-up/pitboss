@@ -6,6 +6,7 @@ module imports nothing of pitboss, so ``flow`` and ``rulings`` both read it.
 """
 
 import enum
+from typing import Iterable
 
 RULING_LINE_PREFIX = "Ruling: "
 
@@ -49,3 +50,23 @@ def read_line(line: str) -> Ruling | None:
     if not second.startswith(RULING_LINE_PREFIX):
         return None
     return _RULINGS.get(second[len(RULING_LINE_PREFIX) :])
+
+
+def revised_after(dated: Iterable[tuple[str, Ruling | None]], after: str) -> bool:
+    """Whether some ruling says ``revise the plan`` and came after a time.
+
+    A later ruling of another word does not cancel it (keyword:
+    plan-digest-rulings, pitboss#475): the Plan is edited as the first ruling
+    allowed, and the later one is applied on the Plan as edited.
+
+    Args:
+        dated: the time (ISO 8601) and the ruling of each trusted comment, None
+            for one that rules nothing readable.
+        after: the time of the approving review.
+
+    Returns:
+        True when such a ruling was written after that time.
+    """
+    return any(
+        when > after and ruled is Ruling.REVISE_THE_PLAN for when, ruled in dated
+    )
