@@ -33,6 +33,21 @@ class Run(Protocol):
         """
 
 
+class KeywordRun(Protocol):
+    """Runs a command line and takes the keywords ``safe_run`` takes."""
+
+    def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Output:
+        """Run a command.
+
+        Args:
+            cmdargs: the command line.
+            **kwargs: its keywords (``check=True``, ``cwd=...``).
+
+        Returns:
+            The finished process.
+        """
+
+
 def git(run: Run, directory: object, *arguments: str) -> str:
     """Run git in a directory.
 
