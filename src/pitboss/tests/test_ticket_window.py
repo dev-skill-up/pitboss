@@ -6,11 +6,13 @@ order are the oldest of each priority label; the listing is sorted, so a queue
 ten times as long is read in as many pages.
 """
 
+import contextlib
+import io
 import pathlib
 import unittest
 from typing import Mapping, MutableMapping, Sequence
 
-from hamcrest import assert_that, equal_to, greater_than, has_length
+from hamcrest import assert_that, contains_string, equal_to, greater_than, has_length
 
 from .. import causecache, config, ghapi, slotcache, ticketwindow, windowrun
 from . import fakes, test_holds, test_promote, test_work_order, world
@@ -144,6 +146,15 @@ class TestTheCache(unittest.TestCase):
         listed.write_text("[1, 2]", encoding="utf-8")
         found = [dict(slotcache.read(gone)), dict(slotcache.read(listed))]
         assert_that(found, equal_to([{}, {}]))
+
+    def test_a_cache_that_cannot_be_written_is_said_on_standard_error(self) -> None:
+        """The file and the error are named."""
+        gone = pathlib.Path("/nonexistent/pitboss/cache.json")
+        said = io.StringIO()
+        with contextlib.redirect_stderr(said):
+            slotcache.write(gone, {"a": 1})
+        assert_that(said.getvalue(), contains_string(str(gone)))
+        assert_that(said.getvalue(), contains_string("cannot be written"))
 
     def test_entries_that_are_not_what_was_kept_are_read_afresh(self) -> None:
         """Junk, and an entry with no time, are an empty entry."""

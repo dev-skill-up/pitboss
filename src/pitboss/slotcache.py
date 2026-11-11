@@ -7,6 +7,7 @@ an empty cache, and the next run reads again what it needs.
 
 import json
 import pathlib
+import sys
 from typing import Mapping
 
 NAME = "slots-next-cache.json"
@@ -41,7 +42,7 @@ def read(path: pathlib.Path) -> Mapping[str, object]:
 
 
 def write(path: pathlib.Path, parts: Mapping[str, object]) -> None:
-    """Write the cache; a place that cannot be written is left alone.
+    """Write the cache; a place that cannot be written is said on standard error.
 
     Args:
         path: the cache's file.
@@ -49,5 +50,5 @@ def write(path: pathlib.Path, parts: Mapping[str, object]) -> None:
     """
     try:
         path.write_text(json.dumps(parts, sort_keys=True), encoding="utf-8")
-    except OSError:
-        return
+    except OSError as failed:
+        print(f"pitboss: the slots next cache {path} cannot be written: {failed}", file=sys.stderr)
