@@ -3,7 +3,7 @@
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
 from . import fakes, quietworld, world
 from .test_quiet import at, clear_world
@@ -11,19 +11,25 @@ from .test_quiet import at, clear_world
 MAKE_BRANCH = ["branch", "-f", "branch-1"]
 
 
-def pushed(here: world.World, given: Sequence[str]) -> world.Result:
+def pushed(
+    here: world.World, given: Sequence[str], prepare: Sequence[str] = MAKE_BRANCH
+) -> world.Result:
     """Push at minute 1 of a world, from its clone.
 
     Args:
         here: the world.
         given: git's arguments, with their options after ``--``.
+        prepare: the git command that runs in the clone first.
 
     Returns:
         What the push did.
     """
-    fakes.run_git(here.clone, *MAKE_BRANCH)
+    fakes.run_git(here.clone, *prepare)
     argv = ["push", here.config, "--now", at(1), "--no-dry-run", "--draft", *given]
     return world.invoke(here, *argv, directory=here.clone)
+
+
+DETACH = ["checkout", "-q", "--detach"]
 
 
 class TestOutcomes(unittest.TestCase):
@@ -57,10 +63,19 @@ class TestOutcomes(unittest.TestCase):
         refusing = clear_world()
         quietworld.refused_by_the_origin(refusing)
         refused = pushed(refusing, ["origin", "branch-1"])
-        first = refused.out.splitlines()[0]
-        shown = (refused.code, first, "refused by the origin" in refused.out)
-        wanted = (1, "git push failed (exit 1): nothing was recorded", True)
+        lines = refused.out.splitlines()
+        shown = (refused.code, len(lines), lines[0].split(": ")[:2])
+        wanted = (1, 1, ["git push failed (exit 1)", "nothing was recorded"])
         assert_that(shown, equal_to(wanted))
+        assert_that(lines[0], contains_string("refused by the origin"))
+
+    def test_no_ref_to_read_back(self) -> None:
+        """A push of no readable ref prints one line and exits 1, not 0."""
+        here = clear_world()
+        result = pushed(quietworld.git_that_pushes_nothing(here), [], DETACH)
+        lines = result.out.splitlines()
+        shown = (result.code, len(lines), lines[0].startswith("push NOT VERIFIED: "))
+        assert_that(shown, equal_to((1, 1, True)))
 
 
 class TestCases(unittest.TestCase):
@@ -87,9 +102,7 @@ class TestCases(unittest.TestCase):
     def test_a_detached_head_names_no_destination(self) -> None:
         """``HEAD`` as a destination from a detached head is refused by git."""
         here = clear_world()
-        fakes.run_git(here.clone, "checkout", "-q", "--detach")
-        argv = ["push", here.config, "--now", at(1), "--no-dry-run", "--draft"]
-        result = world.invoke(here, *argv, "origin", "HEAD:HEAD", directory=here.clone)
+        result = pushed(here, ["origin", "HEAD:HEAD"], DETACH)
         first = result.out.splitlines()[0]
-        wanted = "git push failed (exit 1): nothing was recorded"
-        assert_that((result.code, first), equal_to((1, wanted)))
+        wanted = "git push failed (exit 1): nothing was recorded: "
+        assert_that((result.code, first[: len(wanted)]), equal_to((1, wanted)))

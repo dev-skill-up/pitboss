@@ -19,19 +19,21 @@ UNREADABLE = "(unreadable)"
 
 
 class Kind(enum.Enum):
-    """The four things a push can come to.
+    """The five things a push can come to.
 
     Attributes:
         MOVED: the remote moved to the local head.
         ALREADY: the remote already held the local head.
         REFUSED: git refused the push.
         UNMOVED: the push ran and the remote did not move.
+        UNVERIFIED: the push ran and no ref of it can be read back.
     """
 
     MOVED = "the remote moved to the local head"
     ALREADY = "the remote already held the local head"
     REFUSED = "git refused the push"
     UNMOVED = "the push ran and the remote did not move"
+    UNVERIFIED = "the push ran and no ref of it can be read back"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -144,6 +146,18 @@ def targets(run: Run, arguments: Sequence[str], current: str) -> Sequence[Target
     ]
 
 
+def unverified(arguments: Sequence[str]) -> Outcome:
+    """The outcome of a push of which no ref can be read back.
+
+    Args:
+        arguments: the arguments after ``push``.
+
+    Returns:
+        The ``UNVERIFIED`` outcome, which keeps the arguments.
+    """
+    return Outcome(kind=Kind.UNVERIFIED, target=NOTHING, message=" ".join(arguments))
+
+
 def judge(run: Run, target: Target) -> Outcome:
     """Read the remote after a push that exited 0 and say what it came to.
 
@@ -169,20 +183,40 @@ def line(outcome: Outcome) -> str:
         outcome: the outcome.
 
     Returns:
-        The line; a refused push's line is followed by git's message.
+        The line; a refused push's line carries git's message on the same line.
     """
-    target = outcome.target
-    if outcome.kind is Kind.REFUSED:
-        return (
-            f"git push failed (exit {outcome.code}): nothing was recorded\n"
-            f"{outcome.message}"
-        )
-    where = f"{target.remote} {target.ref}"
-    if outcome.kind is Kind.MOVED:
-        return "pushed"
-    if outcome.kind is Kind.ALREADY:
-        return f"already pushed: {where} already held {target.local}"
+    return _LINES[outcome.kind](outcome)
+
+
+def _refused(outcome: Outcome) -> str:
+    said = " ".join(outcome.message.split())
+    return f"git push failed (exit {outcome.code}): nothing was recorded: {said}"
+
+
+def _unverified(outcome: Outcome) -> str:
     return (
-        f"push FAILED: git push exited 0 but {where} holds"
+        f"push NOT VERIFIED: no ref of `git push {outcome.message}` can be read"
+        " back (a tag, --all, a deletion or a detached head), so it is unproved"
+    )
+
+
+def _already(outcome: Outcome) -> str:
+    target = outcome.target
+    return f"already pushed: {target.remote} {target.ref} already held {target.local}"
+
+
+def _unmoved(outcome: Outcome) -> str:
+    target = outcome.target
+    return (
+        f"push FAILED: git push exited 0 but {target.remote} {target.ref} holds"
         f" {outcome.after or 'nothing'} and the local head is {target.local}"
     )
+
+
+_LINES = {
+    Kind.MOVED: lambda outcome: "pushed",
+    Kind.ALREADY: _already,
+    Kind.REFUSED: _refused,
+    Kind.UNMOVED: _unmoved,
+    Kind.UNVERIFIED: _unverified,
+}

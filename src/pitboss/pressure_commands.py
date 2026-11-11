@@ -227,13 +227,15 @@ def _git_push(args: argparse.Namespace) -> Sequence[pushcheck.Outcome]:
                 message=(failure.stderr or "").strip(),
             )
         ]
+    if not found:
+        return [pushcheck.unverified(wanted)]
     return [pushcheck.judge(args.safe_run, each) for each in found]
 
 
 def _went_out(outcomes: Sequence[pushcheck.Outcome]) -> bool:
     # a push that moved a ref (or one that could not be read back) queued a job
     kinds = {each.kind for each in outcomes}
-    return pushcheck.Kind.MOVED in kinds or not kinds
+    return pushcheck.Kind.MOVED in kinds or pushcheck.Kind.UNVERIFIED in kinds
 
 
 def _failed(outcomes: Sequence[pushcheck.Outcome]) -> bool:
@@ -256,7 +258,8 @@ def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
     failed = [each for each in outcomes if each.kind is pushcheck.Kind.REFUSED]
     if failed:
         raise SystemExit(failed[0].code)
-    if any(each.kind is pushcheck.Kind.UNMOVED for each in outcomes):
+    unproved = (pushcheck.Kind.UNMOVED, pushcheck.Kind.UNVERIFIED)
+    if any(each.kind in unproved for each in outcomes):
         raise SystemExit(1)
 
 
@@ -283,8 +286,9 @@ def push(args: argparse.Namespace) -> None:
     status when the push fails, 1 when it exited 0 and the remote ref, read back
     with ``git ls-remote``, is not the local commit, and 2 when the push went out
     but its hold could not be recorded. Each pushed ref prints one line for the
-    case it came to: ``pushed``, ``already pushed ...``, git's refusal or
-    ``push FAILED ...`` (keyword: push-readback, pitboss#457). With no
+    case it came to: ``pushed``, ``already pushed ...``, git's refusal,
+    ``push FAILED ...`` or, when no ref can be read back, ``push NOT VERIFIED ...``
+    with exit 1 (keyword: push-readback, pitboss#457). With no
     ``--config``, the default configuration is used
     (keyword: default-config), so ``pitboss push --no-dry-run origin branch``
     runs ``git push origin branch``.

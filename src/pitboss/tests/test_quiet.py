@@ -335,11 +335,12 @@ class TestPushRefused(unittest.TestCase):
         write(here, seed)
         result = world.again(here, "push", "--now", at(0), "--no-dry-run", "--draft")
         pushed = [list(c) for c in here.calls if list(c[:2]) == ["git", "push"]]
-        shown = [line for line in result.out.splitlines() if "git" in line]
-        expected_lines = [
-            "git push failed (exit 128): nothing was recorded",
-            f"fatal: '{gone}' does not appear to be a git repository",
-        ]
+        expected = (
+            "git push failed (exit 128): nothing was recorded:"
+            f" fatal: '{gone}' does not appear to be a git repository"
+        )
+        shown = [line[: len(expected)] for line in result.out.splitlines()]
+        expected_lines = [expected]
         found = [result.code, pushed, shown, lines(here)]
         origin_head = [["git", "push", "origin", "HEAD"]]
         wanted = [128, origin_head, expected_lines, [seed.strip()]]
