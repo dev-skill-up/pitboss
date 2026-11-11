@@ -6,11 +6,11 @@ and an Opus ruling ``do these steps`` (keyword: ruling-steps-voids).
 
 import unittest
 
-from hamcrest import assert_that, contains_string, ends_with, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, shapes, steps
 from . import fakes, test_flow, world
-from .suggestions import kind_of_third, third
+from .suggestions import kind_of_third, next_output
 from .test_flow import APPROVED, state
 from .test_flow_sweep import graded as comment
 from .test_flow_sweep import reading as comment_reading
@@ -69,11 +69,9 @@ class TestRulingVoidsApproval(unittest.TestCase):
 
     def test_the_brief_is_the_fix_round_worker_brief_with_the_ruling(self) -> None:
         """Done-when 2: the marker ends in ``fix`` and the brief names the ruling."""
-        header, brief = third(world_of(test_flow.ruling(2)))
-        marker = next(each for each in brief if each.startswith("PITBOSS-SLOT:"))
-        assert_that(marker, ends_with(" fix"))
-        assert_that("\n".join(brief), contains_string(RULING_URL))
-        assert_that(header, contains_string("project#3"))
+        out = next_output(world_of(test_flow.ruling(2)))
+        assert_that(out, contains_string("PITBOSS-SLOT: owner/project#3 fix\n"))
+        assert_that(out, contains_string(f"the comment at {RULING_URL}"))
 
     def test_a_review_after_the_ruling_restores_the_approval(self) -> None:
         """Done-when 3: the review follows the ruling, and the merge is offered."""
