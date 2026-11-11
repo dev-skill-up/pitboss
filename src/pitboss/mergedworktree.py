@@ -15,7 +15,7 @@ import pathlib
 import subprocess
 from typing import Sequence
 
-from . import cleanconfig, dead, disk, judging, local, untracked, worktrees
+from . import dead, disk, judging, local, survey, untracked, worktrees
 from .markers import Marker
 from .running import Run, git
 
@@ -60,7 +60,7 @@ def _remove_one(how: Removal, each: judging.Finished) -> tuple[str, int]:
     main_clone = how.look.settings.project.main_clone
     try:
         if not how.dry:
-            (path / cleanconfig.LIVE_MARKER).unlink(missing_ok=True)
+            (path / survey.LIVE_MARKER).unlink(missing_ok=True)
         git(how.run, main_clone, "worktree", "remove", str(path))
     except (subprocess.CalledProcessError, OSError):  # pragma: no cover
         return f"{Marker.COULD_NOT_REMOVE_WORKTREE.text} {path}", 0
