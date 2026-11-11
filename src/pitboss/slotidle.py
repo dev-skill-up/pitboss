@@ -10,9 +10,12 @@ IDLE_MINUTES = 2
 
 
 def idle_minutes(
-    slot: ledger.Slot, entries: Sequence[slotlog.Entry], now: datetime.datetime
+    slot: ledger.Slot,
+    entries: Sequence[slotlog.Entry],
+    now: datetime.datetime,
+    over: int = IDLE_MINUTES,
 ) -> int | None:
-    """How long an empty slot has been empty, when that is over ``IDLE_MINUTES``.
+    """How long an empty slot has been empty, when that is over ``over`` minutes.
 
     The time comes from the slot log (pitboss#17): the time of the slot's newest
     entry, which must say the slot is empty. A slot the log has not seen has no
@@ -22,11 +25,13 @@ def idle_minutes(
         slot: the slot.
         entries: the slot log, in file order.
         now: the time now.
+        over: the minutes it must have been empty for more than (``free-check``
+            passes ten; keyword: free-check, pitboss#450).
 
     Returns:
         The whole minutes since the slot was emptied, or None when it has an
         agent, the log has no empty entry for it as its newest, or it has been
-        empty for no more than ``IDLE_MINUTES``.
+        empty for no more than ``over`` minutes (``IDLE_MINUTES`` unless given).
     """
     mine = [entry for entry in entries if entry.slot == slot.name]
     if slot.agent or not mine:
@@ -36,7 +41,7 @@ def idle_minutes(
         return None
     elapsed = slotlog.utc(now) - newest.time
     minutes = int(elapsed.total_seconds() // 60)
-    return minutes if elapsed > datetime.timedelta(minutes=IDLE_MINUTES) else None
+    return minutes if elapsed > datetime.timedelta(minutes=over) else None
 
 
 def lines(

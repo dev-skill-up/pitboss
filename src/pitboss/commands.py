@@ -11,11 +11,9 @@ import functools
 import logging
 import os
 import pathlib
-import subprocess
 from typing import AbstractSet, Mapping, Sequence
 
 from . import (
-    ENTRY_DATA,
     account,
     autoclean,
     cleanconfig,
@@ -53,11 +51,8 @@ from . import (
     workerlines,
     workhours,
 )
-from . import commanddoc, commandtext
 from . import diskline, pulllines, pullstate, unlabeled, unreadableline
-from .commandarguments import CHANGING_ARGUMENTS, SWEEP_ARGUMENTS
 from .failures import describe, read_all
-from .markers import Marker
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -348,22 +343,20 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
         print(line)
 
 
-@ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
-@commanddoc.described(commandtext.SWEEP)
-def sweep(args: argparse.Namespace) -> None:
+def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 
     Args:
-        args: the parsed arguments.
+        found: the context, loaded with the clocked arguments.
+        clock: the sweep's clock.
 
-    Raises:
-        SystemExit: 1 for a failed check, a conflict, or an unread repository.
+    Returns:
+        True for a failed check, a conflict, or an unread repository.
     """
-    clock, args = timing.clocked(args)
+    args = found.args
     where = configfile.locate(configfile.named(args), working_directory(args))
     ledgerowner.say_sweep(load_settings(args), where)
     localsections.print_update_check(args.safe_run)
-    found = load_context(args)
     timing.lap(clock, "update check and configuration read")
     cleaned = _clean_section(found)
     timing.lap(clock, "cleaning done")
@@ -376,25 +369,4 @@ def sweep(args: argparse.Namespace) -> None:
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)
     failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
-    if repoaccess.say(found.access) or failed:
-        raise SystemExit(1)
-
-
-@ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="cancel-stale-runs")
-def cancel_stale_runs(args: argparse.Namespace) -> None:
-    """Cancel the queue runs that are not the newest group of their PR.
-
-    Args:
-        args: the parsed arguments.
-    """
-    found = load_context(args)
-    verb = "" if args.no_dry_run else " (dry run: --no-dry-run cancels it)"
-    for stale in queue.stale_runs(read_queue_runs(found)):
-        name = f"{stale.repo.slug} {stale.run.id}"
-        try:
-            path = f"repos/{stale.repo.slug}/actions/runs/{stale.run.id}/cancel"
-            ghapi.post(found.github, path)
-        except subprocess.CalledProcessError:
-            print(f"{Marker.COULD_NOT_CANCEL_STALE_QUEUE_RUN.text} {name}")
-            continue
-        print(f"{Marker.CANCELLED_STALE_QUEUE_RUN.text} {name}{verb}")
+    return bool(repoaccess.say(found.access) or failed)
