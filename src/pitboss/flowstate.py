@@ -379,10 +379,8 @@ def e2e_step(pr: PullState) -> steps.Next | None:
 
 
 # What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads
-# the first step; the second of the ``do these steps`` row is read too, once a clean
-# Plan check of the current Plan is newer than the ruling (a body-only fix round);
-# the second step of every other row is not wired (a worker's push moves the head
-# and the ordinary review gate takes over).
+# the first step; only the second of ``do these steps`` is wired, once a clean Plan
+# check newer than the ruling shows a body-only round; the other later steps are not.
 AS_RULED = (
     rulingwords.Ruling.SPLIT,
     rulingwords.Ruling.RESHAPE,
