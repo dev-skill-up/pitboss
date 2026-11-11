@@ -189,7 +189,8 @@ def _auto_merge_off(
     # keyword: auto-merge-approved (pitboss#85): AUTO MERGE OFF is printed only for
     # a head a review approved; a head the Opus ruling approved gets READY TO MERGE
     # while auto-merge is off.
-    healthy = pull.standing is reviews.Standing.APPROVED and not pulls.unhealthy(pull)
+    healthy = pull.standing is reviews.Standing.APPROVED and pulls.approved(pull)
+    healthy = healthy and not pulls.unhealthy(pull)
     return healthy and not manual and not queued and not pull.pull.auto_merge
 
 
