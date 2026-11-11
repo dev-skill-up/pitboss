@@ -4,11 +4,12 @@ GitHub gives no time for a body edit, so the clean ``Plan check`` newer than the
 ruling is the record of the round (keyword: body-only-round).
 """
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, shapes, steps
+from .. import flow, flowstate, plancheckflow, shapes, steps
 from . import test_flow, test_flow_sweep as scenes, world
 from .checkcomment import clean_text
 from .itemworld import one, with_pull_issues
@@ -73,6 +74,32 @@ class TestBodyOnlyRound(unittest.TestCase):
     def test_a_clean_check_of_another_plan_gives_the_fix(self) -> None:
         """The check names a Plan that is not the one now."""
         expect(FIX, ruled(check_after(OK, f"Plan digest: {'0' * 16}")))
+
+    def test_a_clean_check_before_the_ruling_is_not_since(self) -> None:
+        """The nearest input checked_since must still reject: a check that is older."""
+        older = dataclasses.replace(check_after(OK), created_at="2026-10-30T00:00:01Z")
+        for comments, want in [([older], False), ([check_after(OK)], True)]:
+            with self.subTest(len(comments)):
+                pr = ruled(*comments)
+                found = plancheckflow.checked_since(pr, flowstate.readable_comment)
+                assert_that(found, equal_to(want))
+
+    def test_unchecked_and_review_follow_the_check(self) -> None:
+        """A refused Plan is unchecked, and its review is the fix round."""
+        refused = ruled(check_after("Plan check: refused, rows: 1"))
+        assert_that(plancheckflow.unchecked(refused), equal_to(True))
+        assert_that(plancheckflow.unchecked(ruled(check_after(OK))), equal_to(False))
+        assert_that(
+            plancheckflow.review(ruled(check_after(OK)), steps.Stage.PLAN_ONLY),
+            equal_to(steps.regular_review(steps.Stage.PLAN_ONLY)),
+        )
+        again = plancheckflow.review(refused, steps.Stage.PLAN_ONLY)
+        assert_that(again.task, equal_to(steps.Task.FIX_ROUND))
+
+    def test_plan_unrun_needs_a_review_after_the_ruling(self) -> None:
+        """With no review that counts, no round is offered."""
+        found = plancheckflow.plan_unrun(ruled(), None, flowstate.readable_comment)
+        assert_that(found, equal_to(None))
 
 
 def ruled_world(word: str, *after: shapes.Comment) -> world.World:
