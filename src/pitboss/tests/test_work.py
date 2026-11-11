@@ -8,7 +8,17 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import assigning, config, ledger, parsing, pulls, reviews, steps, work
+from .. import (
+    assigning,
+    config,
+    ledger,
+    parsing,
+    pullstate,
+    pulls,
+    reviews,
+    steps,
+    work,
+)
 from . import fakes, test_flow
 
 REPO = config.make_repo("owner", "project")
@@ -143,6 +153,15 @@ class TestPullItems(unittest.TestCase):
         ]
         expected = [[kind] if kind else [] for _, kind in STEP_CASES]
         assert_that(found, equal_to(expected))
+
+    def test_a_refused_plan_check_is_sent_back_and_is_no_round(self) -> None:
+        """The list says the worker sends back the posted check, not a fix round."""
+        sent = steps.Next(step=steps.Step.SEND_BACK_PLAN_CHECK, findings="row 1")
+        said = pullstate.next_step(stepped(facts(1, NONE), sent))
+        assert_that(
+            ("sends back the posted check" in said, "fix round" in said.lower()),
+            equal_to((True, False)),
+        )
 
 
 def _issue(number: int, body: str) -> dict[str, object]:
