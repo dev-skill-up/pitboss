@@ -304,9 +304,7 @@ def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
 
 
 def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
-    """The draft gate of ``next_step`` (a failed check but the Plan review's is fixed first).
-
-    Keyword: draft-red-ci.
+    """The draft gate of ``next_step`` (a red check but the Plan's is fixed first).
 
     Args:
         pr: the PR.
