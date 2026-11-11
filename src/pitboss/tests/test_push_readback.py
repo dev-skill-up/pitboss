@@ -30,10 +30,11 @@ class TestOutcomes(unittest.TestCase):
     """One line for each way a push can come out."""
 
     def test_each_outcome_has_its_line(self) -> None:
-        """Moved, already held, refused by git, and exit 0 with nothing moved."""
+        """Moved, already held, and (a fake git) exit 0 with nothing moved."""
         here = clear_world()
         head = fakes.run_git(here.clone, "rev-parse", "HEAD").strip()
-        dry = pushed(here, ["--", "--dry-run", "origin", "branch-1"])
+        fake = quietworld.git_that_pushes_nothing(here)
+        dry = pushed(fake, ["origin", "branch-1"])
         moved = pushed(here, ["origin", "branch-1"])
         already = pushed(here, ["origin", "branch-1"])
         ref = "origin refs/heads/branch-1"
