@@ -125,6 +125,22 @@ def place(view: NextView, reference: str) -> tuple[int, int]:
     return first + found, first + len(view.items) - 1
 
 
+def place_line(view: NextView, reference: str) -> str:
+    """Where the item stands in the order, so a dispatch out of order is visible.
+
+    Args:
+        view: what to print from.
+        reference: the PR or ticket, one of the view's items.
+
+    Returns:
+        The ``NEXT n of m`` text with the number of items ahead of it.
+    """
+    number, last = place(view, reference)
+    ahead = number - (slotheld.LEAD + 1)
+    order = f"out of order, {ahead} ahead of it" if ahead else "first in the order"
+    return f"{Marker.NEXT.text} {number} of {last}, {order}"
+
+
 def startable(view: NextView) -> Sequence[work.Item]:
     """The items a free slot may start, in the order of the list.
 

@@ -333,15 +333,6 @@ UNKNOWN = (
 )
 
 
-def _place(view: nextview.NextView, pick: suggest.Pick) -> str:
-    # where the item stands in the order, so a dispatch out of order is visible
-    marker = Marker.NEXT.text
-    number, last = nextview.place(view, pick.reference)
-    ahead = number - (slotheld.LEAD + 1)
-    order = f"out of order, {ahead} ahead of it" if ahead else "first in the order"
-    return f"{marker} {number} of {last}, {order}"
-
-
 def show_item(
     found: Found,
     opened: Sequence[pulls.Read],
@@ -374,7 +365,8 @@ def show_item(
         print(UNKNOWN.format(reference=reference, why=why), file=sys.stderr)
         return False
     made = suggest.suggest(source, pick)
-    place = _place(_view(found, ordered, book, Reads(facts=source.facts)), pick)
+    view = _view(found, ordered, book, Reads(facts=source.facts))
+    place = nextview.place_line(view, pick.reference)
     print(f"{place}: {made.kind.value}: {made.reference}: {made.model}")
     print(made.text)
     return True
