@@ -161,7 +161,7 @@ class TestRulingJustPosted(unittest.TestCase):
 
     def test_flow_gives_the_ruling_steps(self) -> None:
         """No review counts and none followed the ruling."""
-        test_flow.expect(steps.worker(steps.Task.RULING_STEPS), ruled_pr())
+        test_flow.expect(test_flow.ruling_steps(2), ruled_pr())
 
     def test_a_push_after_the_ruling_hands_the_pr_to_the_review(self) -> None:
         """A check run of the head that started after the ruling: applied."""

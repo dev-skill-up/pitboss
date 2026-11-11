@@ -1,15 +1,11 @@
 """The review flow of a PR: the one step it is at (keyword: review-flow).
 
 ``next_step`` is the owner's pseudo code of 2026-10-30 (pitboss#107), branch
-for branch in the same order. The only changes are the syntax and what the
-lint requires: a function that long is cut at the pseudo code's own section
-comments, each section ending in a call to the next. Every question it asks is
-a function of its own below, answered from what is recorded of the PR (its
-body, labels, comments, reviews and checks), so a wrong step is a bug in one
-of them and never in the flow. The pseudo code's second function is
+for branch in the same order, cut at its own section comments. Every question
+it asks is a function of its own below, answered from what is recorded of the PR
+(its body, labels, comments, reviews and checks). The pseudo code's second function is
 ``rulings.after_opus_ruling``, whose table (``flowstate.AFTER``) the flow reads
-when a ruling is not yet followed by a review. ``rules.md``, "Plan first",
-points here.
+when a ruling is not yet followed by a review.
 """
 
 from typing import Sequence
@@ -200,6 +196,8 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
     """
     if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
         return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
+    if ruled is rulingwords.Ruling.DO_THESE_STEPS:  # names the comment (pitboss#467)
+        return steps.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
     return AFTER[ruled][0]
 
 
@@ -395,5 +393,8 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
             or plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
         )
 
-    # approved: ``rejection_step`` took the Execution that needs changes
-    return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
+    # approved; a ruling to do its steps after the approval voids it (#467)
+    do_steps = rulingwords.Ruling.DO_THESE_STEPS
+    if flowstate.ruling_unapplied(pr) is do_steps:
+        return ruled_step(pr, do_steps)
+    return conflicts.merge_unless_conflict(pr)

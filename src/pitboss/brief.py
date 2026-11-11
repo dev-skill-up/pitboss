@@ -170,7 +170,7 @@ class Heads:
         check: whether ``findings`` is the address of a Plan check that refused
             the Plan, not of a review (keyword: fix-round-kind, pitboss#390).
         quoted: the findings of that Plan check, quoted.
-        ruling: the address of the Opus ruling an Execution fix round follows,
+        ruling: the address of the Opus ruling a round follows or does,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
     """
 
@@ -307,6 +307,8 @@ def _plan_lines(kind: Kind) -> list[str]:
 
 
 def _ruling(spec: Spec) -> list[str]:
+    if spec.kind is Kind.RULING_STEPS and spec.heads.ruling:
+        return [brieftextfix.RULING_AT]
     named = spec.kind is Kind.FIX_REVIEW and spec.heads.ruling
     return [brieftextfix.RULING_NAMED] if named else []
 

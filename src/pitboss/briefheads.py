@@ -2,6 +2,8 @@
 
 from . import bodydigest, brief, expansion, plandigest, pulls, steps
 
+RULED = (steps.Task.FIX_EXECUTION, steps.Task.RULING_STEPS)
+
 
 def of(base: str, pull: pulls.PullFacts | None) -> brief.Heads:
     """What a brief names of a PR.
@@ -27,7 +29,7 @@ def of(base: str, pull: pulls.PullFacts | None) -> brief.Heads:
         findings=check or (found.url if found else ""),
         check=bool(check),
         quoted=step.findings,
-        ruling=step.comment if step.task is steps.Task.FIX_EXECUTION else "",
+        ruling=step.comment if step.task in RULED else "",
         body_digest=bodydigest.digest(pull.pull.body),
         plan_digest=expansion.section_digest(plandigest.section(pull.pull.body)),
     )
