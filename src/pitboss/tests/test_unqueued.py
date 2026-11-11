@@ -74,8 +74,8 @@ class TestWhy(unittest.TestCase):
     def test_a_ticket_with_no_label_that_blocks_nothing(self) -> None:
         """The state, the labels and the items it blocks are named."""
         here = world.make_world()
-        found = rankworld.ticket(labels=[], number=77)
-        here.bodies.update({"repos/owner/project/issues/77": found})
+        ticket = rankworld.ticket(labels=[], number=77)
+        here.bodies.update({"repos/owner/project/issues/77": ticket})
         found = one(with_pull_issues(here), "owner/project#77")
         says(found.err, "state open, labels none, blocks no item")
 
