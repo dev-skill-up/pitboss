@@ -5,7 +5,7 @@ import json
 import shutil
 from typing import Sequence
 
-from . import fakes, world
+from . import fakes, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -204,7 +204,10 @@ def with_library(here: world.World) -> world.World:
     ]
     for directory, words in commands:
         fakes.run_git(directory, *words)
-    tails = {"issues/4/comments": [], "pulls/4/files": PIN_FILES}
+    tails = {
+        "issues/4/comments": [worldcomments.CLEAN_CHECK],
+        "pulls/4/files": PIN_FILES,
+    }
     here.bodies.update(
         {fakes.page(f"{world.LIBRARY}/{k}"): v for k, v in tails.items()}
     )

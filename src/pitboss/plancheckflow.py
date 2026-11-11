@@ -1,9 +1,8 @@
 """The step before a Plan review (keyword: plan-check, pitboss#192).
 
-A Plan with commands is offered for its review only after the newest trusted
-comment that records a ``pitboss plan-check`` of this Plan is a clean one: the
-commands were run, and each of them ran as written. A Plan with no command needs
-no check. A refusal is the fix round, with its findings quoted (keyword:
+A Plan is offered for its review only after the newest trusted comment that
+records a ``pitboss plan-check`` of this Plan is a clean one (keyword:
+plan-check-always). A refusal is the fix round, with its findings quoted (keyword:
 fix-round-kind, pitboss#390).
 """
 
@@ -110,7 +109,7 @@ def findings(check: shapes.Comment) -> str:
 def needs_check(
     body: str, comments: Sequence[shapes.Comment], trusted: AbstractSet[str]
 ) -> bool:
-    """Whether the Plan has commands and its newest recorded check is not clean.
+    """Whether the newest recorded check of the Plan is not a clean one.
 
     Args:
         body: the PR body.
@@ -118,19 +117,20 @@ def needs_check(
         trusted: the author associations whose comments count.
 
     Returns:
-        True when a Plan review must wait for the check. A directive with no
-        command is a Plan that needs it too (the check refuses it).
+        True when the body has a Plan and a review must wait for the check: no
+        trusted comment
+        records one of this Plan's digest, or the newest does not say
+        ``Plan check: ok``. A Plan with no command needs it too, since the check
+        also refuses a Plan on its form and on the ticket's Done-when (keyword:
+        plan-check-always).
     """
-    try:
-        rows = expansion.commands(plandigest.section(body))
-    except expansion.TemplateError:
-        rows = ["a directive with no command"]
+    if not plandigest.section(body):
+        return False
     newest = newest_check(body, comments, trusted)
-    clean = newest is not None and any(
+    return newest is None or not any(
         is_plan_check(newest.body, digest)
         for digest in expansion.accepted_digests(plandigest.section(body))
     )
-    return bool(rows) and not clean
 
 
 def refusal(
@@ -198,8 +198,8 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
         stage: what the review grades.
 
     Returns:
-        While the Plan has commands no clean check covers: the fix round with
-        the findings quoted when the newest check of this Plan refused it, else
+        For any Plan that no clean check covers: the fix round with the
+        findings quoted when the newest check of this Plan refused it, else
         the check step; otherwise the review.
     """
     if needs_check(pr.pull.body, pr.comments, pr.trusted):
@@ -222,8 +222,8 @@ def filled(
 
     Returns:
         True when no worker has anything to fill: the Execution is neither empty
-        nor a placeholder and no Plan command lacks a clean check (keyword:
-        filled-execution, pitboss#390).
+        nor a placeholder and a clean check covers the Plan, commands or not
+        (keyword: filled-execution, pitboss#390).
     """
     unwritten = planbody.execution_unwritten(body)
     return not unwritten and not needs_check(body, comments, trusted)

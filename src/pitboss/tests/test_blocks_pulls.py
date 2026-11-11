@@ -9,7 +9,7 @@ from typing import Mapping
 
 from hamcrest import assert_that, equal_to
 
-from . import fakes, rankworld, world
+from . import fakes, rankworld, world, worldcomments
 from .rankworld import lines_are, lines_of, next_output, printed, starts, sweep
 from .test_closing_comment import BLOCKED_BY_FOUR, tracking_world
 
@@ -35,7 +35,9 @@ def pulled(here: world.World, fixed: Mapping[int, int]) -> None:
         here.bodies.update(
             world.pull_bodies("owner/lib", number, [world.GREEN], "clean")
         )
-        here.bodies[fakes.page(f"{LIBRARY}/issues/{number}/comments")] = []
+        here.bodies[fakes.page(f"{LIBRARY}/issues/{number}/comments")] = [
+            worldcomments.CLEAN_CHECK
+        ]
         found = here.bodies[f"{LIBRARY}/pulls/{number}"]
         assert isinstance(found, dict)
         found["body"] = f"Fixes #{ticket}\n\n{found['body']}"

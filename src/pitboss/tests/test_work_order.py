@@ -7,7 +7,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import unlabeled
-from . import fakes, quietworld, world
+from . import fakes, quietworld, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -67,7 +67,7 @@ BODIES = {
             (f"{OPEN}&labels=urgent", LIBRARY_URGENT),
             (f"{OPEN}&labels=low", []),
             (OPEN, LIBRARY_OPEN),
-            ("issues/4/comments", []),  # no review yet: the library PR gets a round
+            ("issues/4/comments", [worldcomments.CLEAN_CHECK]),  # no review yet
         ],
     ),
 }

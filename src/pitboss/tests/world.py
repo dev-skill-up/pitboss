@@ -12,7 +12,7 @@ from typing import Mapping, MutableMapping, MutableSequence, Sequence
 from gather import commands as gather_commands
 
 from .. import cli_parser, disk
-from . import fakes, fixeddisk, ownerbodies, repositories, ticket_bodies
+from . import fakes, fixeddisk, ownerbodies, repositories, ticket_bodies, worldcomments
 
 FUTURE = "2030-01-01T00:00:00+00:00"
 START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
@@ -74,11 +74,7 @@ APPROVAL = {
     "author_association": "MEMBER",
     "submitted_at": "2026-10-02T00:00:00Z",
 }
-COMMENT = {
-    "body": f"## Review\nReviewed: {fakes.HEAD}\nVerdict: approved\n",
-    "author_association": "MEMBER",
-    "created_at": "2026-10-02T00:00:00Z",
-}
+COMMENT = worldcomments.REVIEW
 TICKET = {
     "number": 9,
     "title": "A ticket",
@@ -200,7 +196,7 @@ def pull_bodies(
     branch = {"sha": head, "ref": f"branch-{number}"}
     details = fakes.pull_body(number, head=branch, mergeable_state=state)
     pages = [
-        (f"issues/{number}/comments", [COMMENT] if library or number == 2 else []),
+        (f"issues/{number}/comments", worldcomments.COMMENTS[library or number == 2]),
         (f"pulls/{number}/reviews", [APPROVAL] if number == 2 else []),
         (f"issues/{number}/timeline", []),
         (f"pulls/{number}/files", []),

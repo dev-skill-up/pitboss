@@ -5,6 +5,7 @@ the worker round that runs the Plan's commands and fills the Execution is only
 for an Execution that is empty or a placeholder, or a Plan no clean check covers.
 """
 
+import dataclasses
 import unittest
 from typing import Sequence
 
@@ -13,9 +14,11 @@ from hamcrest import assert_that, equal_to
 from .. import flow, plancheckflow, shapes, steps
 from . import test_flow
 from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state, with_no_drafts
+from .checkcomment import clean_check
 from .test_plan_check_step import WITH_COMMANDS, check_comment, refused_comment
 
 UNWRITTEN = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nNot started: later\n"
+DONE = UNWRITTEN.replace("Not started: later", "done")
 RUN = steps.worker(steps.Task.RUN_PLAN)
 REVIEW = steps.regular_review(steps.Stage.EXECUTION_AGAINST_PLAN)
 RULED = [test_flow.ruling(3)]
@@ -33,15 +36,17 @@ def alone(body: str, comments: Sequence[shapes.Comment]) -> flow.PullState:
     """
     rejected = (graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2))
     approved = graded(APPROVED, None, 4)
-    return state(*rejected, approved, comments=[*RULED, *comments], body=body)
+    pr = state(*rejected, approved, body=body)
+    return dataclasses.replace(pr, comments=[*RULED, *comments])
 
 
 class TestFilledExecution(unittest.TestCase):
     """The Execution rows are filled, and the Plan check matches."""
 
     def test_a_filled_execution_is_reviewed_and_an_unwritten_one_is_run(self) -> None:
-        """A Plan with no command needs no check; the placeholder is the worker's."""
-        expect(REVIEW, alone(test_flow.BODY, []))
+        """The placeholder is the worker's, a Plan with no command needs a check."""
+        expect(REVIEW, alone(test_flow.BODY, [clean_check(test_flow.BODY)]))
+        expect(RUN, alone(test_flow.BODY, []))
         expect(RUN, alone(UNWRITTEN, []))
 
     def test_a_plan_with_commands_needs_its_clean_check(self) -> None:
@@ -61,7 +66,8 @@ class TestFilledExecution(unittest.TestCase):
             (WITH_COMMANDS, [clean], True),
             (WITH_COMMANDS, [], False),
             (UNWRITTEN, [], False),
-            (UNWRITTEN.replace("Not started: later", "done"), [], True),
+            (DONE, [check_comment(DONE)], True),
+            (DONE, [], False),
         ]
         for body, comments, want in cases:
             with self.subTest(body):
@@ -72,5 +78,6 @@ class TestFilledExecution(unittest.TestCase):
         """It never prints `run the Plan's commands` (keyword: no-drafts)."""
         quiet = with_no_drafts(alone(UNWRITTEN, []))
         expect(steps.worker(steps.Task.FIRST_ROUND), quiet)
-        filled = with_no_drafts(alone(test_flow.BODY, []))
+        checked = [clean_check(test_flow.BODY)]
+        filled = with_no_drafts(alone(test_flow.BODY, checked))
         expect(REVIEW, filled)

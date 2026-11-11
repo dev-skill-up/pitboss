@@ -12,8 +12,16 @@ from typing import AbstractSet, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import bodydigest, draftfacts, flow, parsing, shapes, steps
+from .. import (
+    bodydigest,
+    draftfacts,
+    flow,
+    parsing,
+    shapes,
+    steps,
+)
 from . import fakes, scratch
+from .checkcomment import clean_check
 
 HEAD = fakes.HEAD
 OLDER = fakes.OLDER
@@ -121,7 +129,7 @@ def state(
     undraft_clear: bool = False,
     **changes: object,
 ) -> flow.PullState:
-    """The recorded data of one PR.
+    """The recorded data of one PR, whose Plan has a clean ``plan-check``.
 
     Args:
         *recorded: the reviews that count.
@@ -134,12 +142,13 @@ def state(
     Returns:
         The state.
     """
+    pull = pull_of(**changes)
     return flow.PullState(
-        pull=pull_of(**changes),
+        pull=pull,
         labels=labels,
         checks=checks,
         graded=recorded,
-        comments=comments,
+        comments=[*comments, clean_check(pull.body)],
         trusted=frozenset({"MEMBER"}),
         undraft_clear=undraft_clear,
     )
