@@ -36,11 +36,14 @@ class Run(Protocol):
 class KeywordRun(Protocol):
     """Runs a command line and takes the keywords ``safe_run`` takes."""
 
-    def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Output:
+    def __call__(
+        self, cmdargs: Sequence[str], /, *args: object, **kwargs: object
+    ) -> Output:
         """Run a command.
 
         Args:
             cmdargs: the command line.
+            *args: its other positional arguments.
             **kwargs: its keywords (``check=True``, ``cwd=...``).
 
         Returns:

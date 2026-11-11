@@ -169,8 +169,8 @@ def logging_run(
     """Wrap a runner so that every command it runs is logged.
 
     A command that raises is logged too: the time it took is the time waited.
-    Every keyword of a call (``check=True``, ``cwd=...``) goes on to the
-    runner as it came (keyword: call-log).
+    Every positional and keyword argument of a call (``check=True``,
+    ``cwd=...``) goes on to the runner as it came (keyword: call-log).
 
     Args:
         run: the runner, which takes what the callers of ``safe_run`` pass.
@@ -181,11 +181,11 @@ def logging_run(
         The runner that logs.
     """
 
-    def logged(command: Sequence[str], /, **kwargs: object) -> Output:
+    def logged(command: Sequence[str], /, *args: object, **kwargs: object) -> Output:
         with contextlib.ExitStack() as stack:
             stack.callback(lambda: record(log, command, began, clock()))
             began = clock()
-            return run(command, **kwargs)
+            return run(command, *args, **kwargs)
 
     return logged
 

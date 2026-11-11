@@ -31,11 +31,11 @@ def ticks() -> Callable[[], float]:
     return lambda: float(next(counter))
 
 
-def _ok(cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
+def _ok(cmdargs: Sequence[str], /, *args: object, **kwargs: object) -> fakes.Output:
     return fakes.Output(stdout="ok")
 
 
-def _fails(cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
+def _fails(cmdargs: Sequence[str], /, *args: object, **kwargs: object) -> fakes.Output:
     raise subprocess.CalledProcessError(1, list(cmdargs))
 
 
@@ -106,18 +106,21 @@ class TestLogged(unittest.TestCase):
     def test_the_keywords_of_a_call_reach_the_runner_and_the_call_is_logged(
         self,
     ) -> None:
-        """``check``, ``capture_output`` and ``text`` are passed on."""
-        seen: list[tuple[Sequence[str], dict[str, object]]] = []
+        """A positional argument and ``check``, ``capture_output``, ``text`` go on."""
+        seen: list[tuple[Sequence[str], tuple[object, ...], dict[str, object]]] = []
 
-        def runner(cmdargs: Sequence[str], /, **keywords: object) -> fakes.Output:
-            seen.append((cmdargs, keywords))
+        def runner(
+            cmdargs: Sequence[str], /, *more: object, **keywords: object
+        ) -> fakes.Output:
+            seen.append((cmdargs, more, keywords))
             return fakes.Output(stdout="ok")
 
         log = calllog.new_log(0.0)
         wrapped = calllog.logging_run(runner, log, ticks())
-        wrapped(["git", "status"], check=True, capture_output=True, text=True)
+        wrapped(["git", "status"], 5, check=True, capture_output=True, text=True)
         wanted = (
             ["git", "status"],
+            (5,),
             dict(check=True, capture_output=True, text=True),
         )
         assert_that(seen, equal_to([wanted]))

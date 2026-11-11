@@ -40,11 +40,14 @@ class RejectingRuns:
     inner: fakes.Processes
     seen: Seen
 
-    def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
+    def __call__(
+        self, cmdargs: Sequence[str], /, *args: object, **kwargs: object
+    ) -> fakes.Output:
         """Run a command, refusing a keyword ``subprocess.run`` does not take.
 
         Args:
             cmdargs: the command line.
+            *args: its other positional arguments.
             **kwargs: the keywords of the call.
 
         Returns:
@@ -57,7 +60,7 @@ class RejectingRuns:
         if unknown:
             raise TypeError(f"unexpected keyword argument {unknown[0]!r}")
         self.seen.append(kwargs)
-        return self.inner(cmdargs, **kwargs)
+        return self.inner(cmdargs, *args, **kwargs)
 
 
 class EveryCommandLogs(cli_parser.IntermixedParser):  # noqa: SLD504,SLD401
