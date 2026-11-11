@@ -8,7 +8,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import cleanconfig, container, dead
+from .. import cleanconfig, container, dead, survey
 from . import fakes, repositories, world
 from .test_local import age
 
@@ -313,7 +313,7 @@ def mark_live(folder: pathlib.Path) -> None:
     Args:
         folder: the folder.
     """
-    (folder / cleanconfig.LIVE_MARKER).write_text("")
+    (folder / survey.LIVE_MARKER).write_text("")
 
 
 def mark_live_since(folder: pathlib.Path, hours_ago: float, now: float) -> None:
@@ -326,7 +326,7 @@ def mark_live_since(folder: pathlib.Path, hours_ago: float, now: float) -> None:
     """
     mark_live(folder)
     stamp = now - hours_ago * 3600
-    os.utime(folder / cleanconfig.LIVE_MARKER, (stamp, stamp))
+    os.utime(folder / survey.LIVE_MARKER, (stamp, stamp))
 
 
 def crowd(here: world.World, minimum: str) -> None:

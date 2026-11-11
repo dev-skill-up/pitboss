@@ -27,6 +27,7 @@ from . import (
     pulls,
     shapes,
     ticketitem,
+    windowrun,
     work,
 )
 
@@ -161,7 +162,11 @@ def offered(found: Source, scope: Look, book: ledger.Ledger) -> work.Offered:
     queued, said, unread = _start(found, scope, book)
     queued = ranked(found, opened, book, queued)
     queued = _blocked_pulls(queued, marks, book, opened)
-    named, gone = _named(found, queued)
+    if scope.staged is None:
+        named, gone = _named(found, queued)
+    else:
+        named, gone, left = _named_top(found, queued, held)
+        unread = unread or left
     settled, waiting = _dependencies_first(found, opened, book, named)
     offer = apart(settled, held, gone)
     labels = found.settings.slots.priority_labels
@@ -186,6 +191,28 @@ def _named(
     # the blockers of each ticket named, and the tickets that are superseded
     both = concurrently.each(functools.partial(_marked, found), queued)
     return [each for each, _ in both], {each.reference for each, gone in both if gone}
+
+
+def _named_top(
+    found: Source, queued: Sequence[work.Item], held: Mapping[str, int]
+) -> tuple[Sequence[work.Item], AbstractSet[str], bool]:
+    # keyword: ticket-window (pitboss#453): the blockers and comments of a ticket are
+    # read in the order of the ranking, as many at a time as items are still wanted,
+    # and the items after the ones offered are not read, so they are left out
+    named: list[work.Item] = []
+    gone: set[str] = set()
+    offered = 0
+    while len(named) < len(queued) and offered < windowrun.TOP:
+        part = queued[len(named) : len(named) + windowrun.TOP - offered]
+        for item, superseded in concurrently.each(
+            functools.partial(_marked, found), part
+        ):
+            named.append(item)
+            if superseded:
+                gone.add(item.reference)
+            elif not item.blockers and not _is_held(item, held):
+                offered += 1
+    return named, gone, len(named) < len(queued)
 
 
 def _promoted(

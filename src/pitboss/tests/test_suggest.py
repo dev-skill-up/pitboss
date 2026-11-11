@@ -6,7 +6,7 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brieftextfix, suggest
-from . import fakes, test_flow_sweep, world
+from . import fakes, suggestions, test_flow_sweep, world
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
 from .suggestions import (
     default_suggestions,
@@ -15,26 +15,15 @@ from .suggestions import (
     parsed,
     run_command,
     third,
+    with_more_tickets,
 )
 
-SUGGESTIONS = f"{world.PROJECT}/issues?state=open&labels=urgent"
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 COMMENT_URL = "https://example.org/owner/project/pull/3#issuecomment-1"
 RULING_URL = "https://example.org/owner/project/pull/3#issuecomment-2"
 
 
 PLAN_ALONE = "review the Plan alone"
-
-
-def with_more_tickets(here: world.World, count: int) -> None:
-    """Add ``count`` more open tickets after the default one.
-
-    Args:
-        here: the world.
-        count: how many.
-    """
-    more = [dict(world.TICKET, number=number) for number in range(10, 10 + count)]
-    here.bodies[fakes.page(SUGGESTIONS)] = [world.TICKET, *more]
 
 
 class TestOrderAndTruncation(unittest.TestCase):
@@ -70,8 +59,8 @@ class TestOrderAndTruncation(unittest.TestCase):
         found = run_command(here, "next")
         assert_that((found.code, "LEDGER MISSING" in found.err), equal_to((1, True)))
 
-    def test_more_than_five_are_cut_and_counted(self) -> None:
-        """Five are shown; how many more are queued is said."""
+    def test_more_than_five_are_cut_and_the_end_of_the_list_said(self) -> None:
+        """Five are shown; the tickets after them are not read, and that is said."""
         here = world.make_world()
         with_more_tickets(here, 5)
         output = next_output(here)
@@ -80,7 +69,8 @@ class TestOrderAndTruncation(unittest.TestCase):
         assert_that(
             headers[-1].startswith("SUGGESTION 5 of 5: start a PR"), equal_to(True)
         )
-        assert_that(output, contains_string("SUGGESTION: 3 more queued, not shown\n"))
+        assert_that(output, contains_string("The list ends at its first 5 items"))
+        assert_that("more queued, not shown" in output, equal_to(False))
 
     def test_exactly_five_say_nothing_more(self) -> None:
         """No count of what is not shown."""
@@ -98,7 +88,7 @@ class TestOrderAndTruncation(unittest.TestCase):
             f"{world.LIBRARY}/pulls?state=open",
         ):
             here.bodies[fakes.page(path)] = []
-        here.bodies[fakes.page(SUGGESTIONS)] = []
+        here.bodies[fakes.page(suggestions.SUGGESTIONS)] = []
         output = next_output(here)
         assert_that(parsed(output), equal_to([]))
         assert_that(

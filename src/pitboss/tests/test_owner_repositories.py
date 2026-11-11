@@ -83,9 +83,20 @@ def with_extra(
         text = text.replace(old, new)
     pathlib.Path(here.config).write_text(text)
     here.bodies[ownerbodies.LISTING] = ownerbodies.listed(("owner/extra", False), *more)
-    here.bodies.update(ownerbodies.extra())
-    here.bodies.update(world.pull_bodies("owner/extra", 5, [world.GREEN], "clean"))
+    served(here, "extra")
     return here
+
+
+def served(here: world.World, name: str) -> None:
+    """Answer the calls of a repository of the owner that has an open PR 5.
+
+    Args:
+        here: the world.
+        name: the repository's name under the owner (``extra`` has the bodies).
+    """
+    opened = world.pull_bodies("owner/extra", 5, [world.GREEN], "clean")
+    for path, got in {**ownerbodies.extra(), **opened}.items():
+        here.bodies[path.replace("extra", name)] = got
 
 
 def bound(here: world.World) -> world.World:
@@ -189,9 +200,10 @@ class TestOwnerRepositories(unittest.TestCase):
 
     def test_without_the_exclusion_the_fixture_is_swept(self) -> None:
         """The control: the same listing, no ``exclude``, and the fixture is read."""
-        out = test_slot_commands.next_output(with_extra(("owner/fixture", False)))
-        said = [line for line in lines_of(out, "UNREADABLE") if "owner/fixture" in line]
-        assert_that(len(said), equal_to(1))
+        here = with_extra(("owner/fixture", False))
+        served(here, "fixture")
+        out = test_slot_commands.next_output(here)
+        assert_that(len(lines_of(out, "PR STATE owner/fixture#5")), equal_to(1))
 
     def test_a_repository_in_the_list_is_added_once(self) -> None:
         """``lib`` is named by the configuration and listed: one PR line."""

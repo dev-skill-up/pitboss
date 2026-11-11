@@ -11,7 +11,7 @@ import dataclasses
 import json
 import re
 import subprocess
-from typing import Iterable, Mapping, Sequence
+from typing import AbstractSet, Iterable, Mapping, Sequence
 
 from . import concurrently, config, ghapi
 from .markers import Marker
@@ -125,7 +125,11 @@ def _attempt(github: ghapi.GitHub, repo: config.Repo) -> Gate | str | None:
         return f"{WORKFLOW} answered {ghapi.status_of(error)}"
 
 
-def settled(github: ghapi.GitHub, settings: config.Config) -> config.Config:
+def settled(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    only: AbstractSet[str] | None = None,
+) -> config.Config:
     """The configuration with the gates the repositories have.
 
     A repository with a gate workflow is gated, in the form the workflow
@@ -135,11 +139,14 @@ def settled(github: ghapi.GitHub, settings: config.Config) -> config.Config:
     Args:
         github: the API.
         settings: the configuration.
+        only: the ``owner/name`` of the repositories whose gates are read, None
+            for every repository; the brief of one item reads its own
+            repository's (keyword: item-brief, pitboss#453).
 
     Returns:
         The configuration, its ``review`` and ``lint.review`` extended.
     """
-    repos = config.repositories(settings)
+    repos = chosen(settings, only)
     answers = concurrently.each(lambda repo: _attempt(github, repo), repos)
     found = {repo.slug: each for repo, each in zip(repos, answers)}
     for line in _failures(found):
@@ -150,6 +157,22 @@ def settled(github: ghapi.GitHub, settings: config.Config) -> config.Config:
     )
     checks = dataclasses.replace(settings.lint, review=review)
     return dataclasses.replace(settings, review=review, lint=checks)
+
+
+def chosen(
+    settings: config.Config, only: AbstractSet[str] | None
+) -> Sequence[config.Repo]:
+    """The repositories whose gates are read.
+
+    Args:
+        settings: the configuration.
+        only: the ``owner/name`` to read, None for every repository.
+
+    Returns:
+        The repositories.
+    """
+    everyone = config.repositories(settings)
+    return everyone if only is None else [r for r in everyone if r.slug in only]
 
 
 def _failures(found: Mapping[str, Gate | str | None]) -> Sequence[str]:
