@@ -49,6 +49,13 @@ class TestCheck(unittest.TestCase):
         """The test the control row names."""
         assert_that(rules.KINDS, has_item("open"))
 
+    def test_r1_a_row_without_tests_and_unknown_modules_are_found(self) -> None:
+        """No test listed, no such function module, no such test module."""
+        none = _findings(GOOD.replace("test_rules.test_r1_planted", ""))
+        assert_that(none[0], contains_string("unknown-test: A1"))
+        assert_that(rules_commands.function_known("nosuch.x"), equal_to(False))
+        assert_that(rules_commands.module_text("nosuch"), equal_to(None))
+
     def test_r1_a_good_row_passes(self) -> None:
         """The control of the planted rows."""
         assert_that(_findings(GOOD.replace("A1", "R1")), empty())

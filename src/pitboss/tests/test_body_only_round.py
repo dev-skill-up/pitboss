@@ -19,7 +19,7 @@ from .worldcomments import CLEAN_CHECK
 
 OK = "Plan check: ok"
 REVIEW = steps.regular_review(steps.Stage.RULING_STEPS)
-FIX = steps.worker(steps.Task.RULING_STEPS)
+FIX = steps.worker(steps.Task.RULING_STEPS, "https://example.org/ruling/3")
 REJECTIONS = (test_flow.FIRST_REJECTION, test_flow.SECOND_REJECTION)
 RULE = "--step review prints the brief of a PR only when its step is a review"
 
@@ -94,7 +94,7 @@ class TestBodyOnlyRound(unittest.TestCase):
             equal_to(steps.regular_review(steps.Stage.PLAN_ONLY)),
         )
         again = plancheckflow.review(refused, steps.Stage.PLAN_ONLY)
-        assert_that(again.task, equal_to(steps.Task.FIX_ROUND))
+        assert_that(again.step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
 
     def test_plan_unrun_needs_a_review_after_the_ruling(self) -> None:
         """With no review that counts, no round is offered."""

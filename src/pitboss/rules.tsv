@@ -5,7 +5,7 @@ A3	2026-11-11	open	A fix round is followed by a re-review slot item	-	-
 A4	2026-11-11	open	No PR has a nothing to do state	-	-
 A5	2026-11-11	open	The owner's call is labelled paused-owner at that moment	-	-
 A6	2026-11-11	open	One ruling per PR; a further rejection goes to the owner	-	-
-A7	2026-11-10	enforced	One verdict per review; a split Plan/Execution verdict counts as changes needed	reviews.from_comments	test_review_rules.test_a7_either_split_is_changes_neededtest_review_rules.test_a7_whole_approval_stays_approved
+A7	2026-11-10	enforced	One verdict per review; a split Plan/Execution verdict counts as changes needed	reviews.from_comments	test_review_rules.test_a7_either_split_is_changes_needed test_review_rules.test_a7_whole_approval_stays_approved
 A8	2026-11-08	enforced	A review never says a change makes a passage false	reviewrules.phrase_findings	test_review_rules.test_a8_makes_false_is_refused_with_its_line test_review_rules.test_a8_makes_the_comment_false_is_refused test_review_rules.test_a8_a_review_without_the_phrase_passes
 A9	2026-11-08	open	No piecemeal makes-false rounds; cut whole sections in one pass	-	-
 A10	2026-10-30	open	Plan rejected: fix; second rejection: ruling; after a ruling: the owner	-	-

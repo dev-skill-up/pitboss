@@ -58,6 +58,11 @@ class TestPointers(unittest.TestCase):
         assert_that(found, has_length(1))
         assert_that(found[0], contains_string("row 1, 2"))
 
+    def test_i25_a_body_without_execution_names_the_rows(self) -> None:
+        """No Execution at all holds no pointer."""
+        found = bodyrules.pointer_findings("## Plan\n1. CI shows a\n")
+        assert_that(found, has_length(1))
+
     def test_i25_rows_with_pointers_pass(self) -> None:
         """Each row has its run and job URL, workflow, step and string."""
         line = f"Row {{n}}: {JOB} check.yml step `Run Nox` greppable `test_x`\n"

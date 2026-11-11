@@ -3,13 +3,9 @@
 ``next_step`` is the owner's pseudo code of 2026-10-30 (pitboss#107), branch
 for branch in the same order. The only changes are the syntax and what the
 lint requires: a function that long is cut at the pseudo code's own section
-comments, each section ending in a call to the next. Every question it asks is
-a function of its own below, answered from what is recorded of the PR (its
-body, labels, comments, reviews and checks), so a wrong step is a bug in one
-of them and never in the flow. The pseudo code's second function is
-``rulings.after_opus_ruling``, whose table (``rulingafter.AFTER``) the flow reads
-when a ruling is not yet followed by a review. ``rules.md``, "Plan first",
-points here.
+comments. Every question it asks is a function of its own below, answered from
+what is recorded of the PR, so a wrong step is a bug in one of them. The pseudo
+code's second function is ``rulings.after_opus_ruling``.
 """
 
 from typing import Sequence
@@ -38,7 +34,6 @@ newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
 has_conflict = conflicts.has_conflict
 AFTER = rulingafter.AFTER
-AS_RULED = rulingafter.AS_RULED
 
 
 def is_paused_for_owner(pr: PullState) -> bool:
@@ -198,9 +193,11 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
     """
     if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
         return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
-    if ruled is rulingwords.Ruling.DO_THESE_STEPS:  # names the comment (pitboss#467)
-        return steps.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
-    return AFTER[ruled][0]
+    if ruled is not rulingwords.Ruling.DO_THESE_STEPS:
+        return AFTER[ruled][0]
+    if plancheckflow.checked_since(pr, flowstate.readable_comment):
+        return AFTER[ruled][1]  # a clean Plan check since: the review (pitboss#462)
+    return steps.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
 
 
 def unfixed_execution(pr: PullState) -> steps.Next | None:
