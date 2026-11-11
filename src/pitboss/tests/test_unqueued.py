@@ -105,9 +105,7 @@ def planned() -> world.World:
         The world.
     """
     here = rankworld.dependent_world()
-    found = here.bodies[f"{world.PROJECT}/pulls/1"]
-    assert isinstance(found, dict)
-    found["body"] = f"{found['body']}\n## Plan\nsee owner/lib#3 here\n"
+    rankworld.fixing(here, 1, "The Plan mentions owner/lib#3 and fixes nothing.")
     return with_pull_issues(here)
 
 
