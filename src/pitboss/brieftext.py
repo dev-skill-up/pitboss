@@ -367,9 +367,12 @@ RULING_WHO = (
     " code and no review."
 )
 RULING_RECORD = (
-    "Record: post a comment on the PR whose first line is exactly `Opus ruling`"
-    " and whose second line is exactly `Ruling: <word>`, where <word> is one of these"
-    " words: {words}; then a section headed `How we got here` (the analysis of"
+    "Record: write the ruling to a file and run `uvx pitboss ruling post"
+    " OWNER/NAME#NUMBER FILE` (it posts the file as a comment on the PR and"
+    " prints the comment's URL; never `gh api`), a file"
+    " whose first line is exactly `Opus ruling` and whose second line is exactly"
+    " `Ruling: <word>`, where <word> is one of these words: {words}; then a"
+    " section headed `How we got here` (the analysis of"
     " this brief's `How we got here` line, checked against the PR); then"
     " the steps or the reasons. The ruling is taken as given."
 )
