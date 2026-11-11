@@ -1,4 +1,4 @@
-"""A red ``canonical-files`` that only repository-prototype can fix (keyword: allowlist-miss).
+"""A red ``canonical-files`` that repository-prototype fixes (keyword: allowlist-miss).
 
 A PR whose failed check is ``canonical-files`` and whose log says that a file's
 sha256 is not listed in ``tools/pin-audit/allowlist.txt`` cannot be fixed in its
@@ -84,10 +84,6 @@ def wanted(github: ghapi.GitHub, pull: pulls.PullFacts) -> str:
     )
 
 
-def _same(text: str) -> str:
-    return " ".join(text.split())
-
-
 def _numbers(text: str) -> Sequence[int]:
     return [each["number"] for each in json.loads(text)]
 
@@ -97,7 +93,7 @@ def _added(text: str, line: str) -> Sequence[bool]:
     return [
         each["filename"] == ALLOWLIST
         and any(
-            _same(added[1:]) == _same(line)
+            added[1:].split() == line.split()
             for added in (each.get("patch") or "").splitlines()
             if added.startswith("+")
         )

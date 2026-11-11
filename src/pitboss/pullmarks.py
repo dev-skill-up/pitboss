@@ -22,6 +22,7 @@ from . import (
     ghapi,
     pulls,
     work,
+    workitem,
 )
 
 Stands = Mapping[str, work.Item]
@@ -84,9 +85,10 @@ def _mark(
         if item.category is work.Category.FIX_CI
         else ("", [])
     )
+    if line:
+        item = workitem.allowing(item, line)
     return dataclasses.replace(
         item,
-        allowlist=line,
         blockers=list(dict.fromkeys([*waits.blockers, *refused, *missing])),
         created_at=waits.created_at,
         priority=waits.priority,

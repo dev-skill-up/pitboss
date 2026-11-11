@@ -88,9 +88,6 @@ class Item:
             until (keyword: ticket-blocked), also for a PR whose ticket says it
             (keyword: blocked-pull, pitboss#388).
         ticket: the ticket a PR fixes, or "".
-        allowlist: the line of ``tools/pin-audit/allowlist.txt`` that a red
-            ``canonical-files`` of the PR asks for (keyword: allowlist-miss,
-            pitboss#448), or "".
     """
 
     category: Category
@@ -103,7 +100,32 @@ class Item:
     comments: int = 0
     blockers: Sequence[str] = ()
     ticket: str = ""
-    allowlist: str = ""
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Allowing(Item):
+    """A PR whose red ``canonical-files`` asks for a line of the allowlist.
+
+    Attributes:
+        allowlist: the line of ``tools/pin-audit/allowlist.txt`` that the log of
+            the failed check prints (keyword: allowlist-miss, pitboss#448).
+    """
+
+    allowlist: str
+
+
+def allowing(item: Item, line: str) -> Allowing:
+    """The item as one that asks for a line of the allowlist.
+
+    Args:
+        item: the item.
+        line: the allowlist line.
+
+    Returns:
+        The same item with the line.
+    """
+    kept = {each.name: getattr(item, each.name) for each in dataclasses.fields(item)}
+    return Allowing(**kept, allowlist=line)
 
 
 class Described(Protocol):

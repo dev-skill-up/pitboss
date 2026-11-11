@@ -1,12 +1,13 @@
-"""Why an item is not in the order of ``slots next`` (keyword: unqueued, pitboss#448)."""
+"""Why an item is not in the order of ``slots next`` (keyword: unqueued)."""
 
 import dataclasses
 import unittest
+from typing import Mapping
 
 from hamcrest import assert_that, equal_to
 
 from .. import unqueued, work
-from . import fakes, rankworld, test_item_fast
+from . import fakes, rankworld, world
 from .itemworld import one, with_pull_issues
 from .says import says
 
@@ -42,6 +43,20 @@ def waits(reference: str, *blockers: str) -> work.Item:
     )
 
 
+def said_of(found: Mapping[str, object], held: work.Offered) -> str:
+    """What is said of ``o/b#2`` when the API gives a ticket.
+
+    Args:
+        found: the ticket's JSON.
+        held: the offer.
+
+    Returns:
+        The phrase.
+    """
+    api = fakes.github({"repos/o/b/issues/2": dict(found)})
+    return unqueued.why(api, held, "o/b#2")
+
+
 class TestWaiting(unittest.TestCase):
     """The items that wait for a ticket."""
 
@@ -58,30 +73,24 @@ class TestWhy(unittest.TestCase):
 
     def test_a_ticket_with_no_label_that_blocks_nothing(self) -> None:
         """The state, the labels and the items it blocks are named."""
-        here = test_item_fast.fast_world()
+        here = world.make_world()
         found = rankworld.ticket(labels=[], number=77)
-        rankworld.serve(here, "owner/project", 77, found)
+        here.bodies.update({"repos/owner/project/issues/77": found})
         found = one(with_pull_issues(here), "owner/project#77")
         says(found.err, "state open, labels none, blocks no item")
 
     def test_a_closed_ticket_with_labels(self) -> None:
         """Its state and labels, and the item that waits for it."""
-        api = fakes.github(
-            {"repos/o/b/issues/2": rankworld.ticket(state="closed", number=2)}
-        )
-        said = unqueued.why(api, offer(waits("o/a#1", "o/b#2")), "o/b#2")
+        closed = rankworld.ticket(state="closed", number=2)
+        said = said_of(closed, offer(waits("o/a#1", "o/b#2")))
         expected = "it is a ticket, state closed, labels urgent, blocks o/a#1"
         assert_that(said, equal_to(expected))
 
     def test_a_pull_request(self) -> None:
         """A PR is said to be one."""
-        api = fakes.github(
-            {"repos/o/b/issues/2": rankworld.ticket(number=2, pull_request={})}
-        )
-        said = unqueued.why(api, offer(), "o/b#2")
-        assert_that(
-            said, equal_to("it is a PR, state open, labels urgent, blocks no item")
-        )
+        said = said_of(rankworld.ticket(number=2, pull_request={}), offer())
+        expected = "it is a PR, state open, labels urgent, blocks no item"
+        assert_that(said, equal_to(expected))
 
     def test_an_item_that_cannot_be_read(self) -> None:
         """The API gives nothing."""

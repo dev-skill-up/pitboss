@@ -2,6 +2,7 @@
 
 from typing import Protocol, Sequence
 
+from . import workitem
 from .markers import Marker
 
 
@@ -14,14 +15,6 @@ class Blocked(Protocol):
 
         Returns:
             The reference.
-        """
-
-    @property
-    def allowlist(self) -> str:
-        """The allowlist line its red ``canonical-files`` asks for, or "".
-
-        Returns:
-            The line.
         """
 
     @property
@@ -59,4 +52,6 @@ def of(item: Blocked) -> str:
         line of the allowlist, the line follows (keyword: allowlist-miss).
     """
     said = line(item.reference, *item.blockers)
-    return f"{said}; allowlist line: {item.allowlist}" if item.allowlist else said
+    if isinstance(item, workitem.Allowing):
+        return f"{said}; allowlist line: {item.allowlist}"
+    return said

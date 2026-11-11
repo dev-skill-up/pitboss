@@ -46,29 +46,22 @@ def _crossed(reference: str, repo: config.Repo) -> Callable[[str], Sequence[bool
     # in a Plan or an Evidence block does not, keyword: taken, pitboss#448)
     def parse(text: str) -> Sequence[bool]:
         return [
-            _fixing(
-                each.get("event"),
-                each.get("source", {}).get("issue", {}),
-                reference,
-                repo,
-            )
+            each.get("event") == "cross-referenced"
+            and _fixing(each["source"]["issue"], reference, repo)
             for each in json.loads(text)
         ]
 
     return parse
 
 
-def _fixing(
-    event: object, issue: Mapping[str, object], reference: str, repo: config.Repo
-) -> bool:
-    if event != "cross-referenced":
-        return False
+def _fixing(issue: Mapping[str, object], reference: str, repo: config.Repo) -> bool:
+    # an open PR, of the repository the issue names, that fixes the ticket
     if "pull_request" not in issue or issue.get("state") != "open":
         return False
-    home = str(issue.get("repository_url") or "").rpartition("repos/")[2]
+    home = f"{issue.get('repository_url')}".rpartition("repos/")[2]
     owner = config.make_repo(*home.split("/", 1)) if "/" in home else repo
-    title, body = str(issue.get("title") or ""), str(issue.get("body") or "")
-    return reference in pullnames.names(title, body, "", owner)
+    named = pullnames.names(f"{issue.get('title')}", f"{issue.get('body')}", "", owner)
+    return reference in named
 
 
 def taken(found: Found, repo: config.Repo, reference: str) -> tuple[int, bool]:
