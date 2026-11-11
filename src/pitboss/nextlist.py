@@ -333,6 +333,10 @@ UNKNOWN = (
 )
 
 
+def _placed(view: nextview.NextView, pick: suggest.Pick) -> str:
+    return nextview.place_line(view, pick.reference)
+
+
 def show_item(
     found: Found,
     opened: Sequence[pulls.Read],
@@ -365,8 +369,7 @@ def show_item(
         print(UNKNOWN.format(reference=reference, why=why), file=sys.stderr)
         return False
     made = suggest.suggest(source, pick)
-    view = _view(found, ordered, book, Reads(facts=source.facts))
-    place = nextview.place_line(view, pick.reference)
+    place = _placed(_view(found, ordered, book, Reads(facts=source.facts)), pick)
     print(f"{place}: {made.kind.value}: {made.reference}: {made.model}")
     print(made.text)
     return True
