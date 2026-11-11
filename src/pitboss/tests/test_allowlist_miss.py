@@ -5,8 +5,8 @@ CI" for a worker though only a line merged into repository-prototype's allowlist
 could fix them.
 """
 
+import dataclasses
 import unittest
-from typing import Mapping
 
 from hamcrest import assert_that, equal_to
 
@@ -25,8 +25,10 @@ CHECK = {
     "status": "completed",
     "conclusion": "failure",
 }
-ASKING = [{"number": 5, "title": "Make project's workflow and issue-template files canonical"}]
-TICKET = f"owner/repository-prototype#5"
+ASKING = [
+    {"number": 5, "title": "Make project's workflow and issue-template files canonical"}
+]
+TICKET = "owner/repository-prototype#5"
 
 
 def missing_world(log: str = LOG, asks: bool = True) -> world.World:
@@ -116,8 +118,6 @@ def pulls_with(
     Returns:
         The PR.
     """
-    import dataclasses
-
     return dataclasses.replace(found, checks=checks)
 
 
@@ -130,7 +130,9 @@ class TestMissing(unittest.TestCase):
         Returns:
             The PR.
         """
-        check = shapes.CheckRun(id=21, name="canonical-files", finished=True, failed=True)
+        check = shapes.CheckRun(
+            id=21, name="canonical-files", finished=True, failed=True
+        )
         return pulls_with(test_work.facts(3, test_work.NONE), [check, test_flow.RED])
 
     def test_the_ticket_that_asks_for_the_line(self) -> None:

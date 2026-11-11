@@ -79,7 +79,9 @@ class TestWhy(unittest.TestCase):
             {"repos/o/b/issues/2": rankworld.ticket(number=2, pull_request={})}
         )
         said = unqueued.why(api, offer(), "o/b#2")
-        assert_that(said, equal_to("it is a PR, state open, labels urgent, blocks no item"))
+        assert_that(
+            said, equal_to("it is a PR, state open, labels urgent, blocks no item")
+        )
 
     def test_an_item_that_cannot_be_read(self) -> None:
         """The API gives nothing."""

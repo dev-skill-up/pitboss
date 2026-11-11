@@ -8,7 +8,7 @@ another repository (keyword: item-brief, pitboss#443).
 """
 
 import json
-from typing import AbstractSet, Any, Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import blockers, config, ghapi, nextfound, pullnames
 
@@ -45,23 +45,30 @@ def _crossed(reference: str, repo: config.Repo) -> Callable[[str], Sequence[bool
     # whether each event is a mention by an open PR that fixes the ticket (a mention
     # in a Plan or an Evidence block does not, keyword: taken, pitboss#448)
     def parse(text: str) -> Sequence[bool]:
-        return [_fixing(each, reference, repo) for each in json.loads(text)]
+        return [
+            _fixing(
+                each.get("event"),
+                each.get("source", {}).get("issue", {}),
+                reference,
+                repo,
+            )
+            for each in json.loads(text)
+        ]
 
     return parse
 
 
-def _fixing(event: Mapping[str, Any], reference: str, repo: config.Repo) -> bool:
-    if event.get("event") != "cross-referenced":
+def _fixing(
+    event: object, issue: Mapping[str, object], reference: str, repo: config.Repo
+) -> bool:
+    if event != "cross-referenced":
         return False
-    issue = event["source"]["issue"]
-    if "pull_request" not in issue or issue["state"] != "open":
+    if "pull_request" not in issue or issue.get("state") != "open":
         return False
     home = str(issue.get("repository_url") or "").rpartition("repos/")[2]
     owner = config.make_repo(*home.split("/", 1)) if "/" in home else repo
-    named = pullnames.names(
-        issue.get("title") or "", issue.get("body") or "", "", owner
-    )
-    return reference in named
+    title, body = str(issue.get("title") or ""), str(issue.get("body") or "")
+    return reference in pullnames.names(title, body, "", owner)
 
 
 def taken(found: Found, repo: config.Repo, reference: str) -> tuple[int, bool]:
