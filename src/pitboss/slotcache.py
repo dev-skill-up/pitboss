@@ -51,4 +51,7 @@ def write(path: pathlib.Path, parts: Mapping[str, object]) -> None:
     try:
         path.write_text(json.dumps(parts, sort_keys=True), encoding="utf-8")
     except OSError as failed:
-        print(f"pitboss: the slots next cache {path} cannot be written: {failed}", file=sys.stderr)
+        print(
+            f"pitboss: the slots next cache {path} cannot be written: {failed}",
+            file=sys.stderr,
+        )
