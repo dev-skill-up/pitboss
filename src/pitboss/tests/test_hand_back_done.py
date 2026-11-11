@@ -6,8 +6,9 @@ import pathlib
 import unittest
 from typing import Mapping, Sequence
 
-from .. import handbackcheck, plancheck, plandigest
+from .. import handbackcheck, handbackrecord, plancheck, plandigest
 from . import fakes, world
+from .handbackworld import BASE, ready, unposted
 from .cleanworld import absent, same
 from .test_deviations import saved
 
@@ -42,18 +43,21 @@ def processes(top: pathlib.Path, working: Mapping[int, pathlib.Path]) -> pathlib
     return proc
 
 
-def hand_back(here: world.World, proc: pathlib.Path, *more: str) -> world.Result:
+def hand_back(
+    here: world.World, proc: pathlib.Path, *more: str, text: str = HANDED
+) -> world.Result:
     """Run ``hand-back-check`` on a deviations file against a process directory.
 
     Args:
         here: the world.
         proc: the directory of process entries.
         *more: more arguments.
+        text: the hand-back.
 
     Returns:
         What it printed and its status.
     """
-    args = ("hand-back-check", saved(HANDED), "--config", here.config)
+    args = ("hand-back-check", saved(text), "--config", here.config)
     return world.invoke(here, *args, "--processes", str(proc), *more)
 
 
@@ -89,17 +93,21 @@ class TestOnce(unittest.TestCase):
     def test_the_record_names_the_heads(self) -> None:
         """Not recorded, recorded, another head, and a directory with no record."""
         git = fakes.directory()
-        before = handbackcheck.recorded(git, HEAD)
-        handbackcheck.record(git, HEAD)
-        after = [handbackcheck.recorded(git, each) for each in (HEAD, OTHER)]
+        before = handbackrecord.recorded(git, HEAD)
+        handbackrecord.record(git, HEAD)
+        after = [handbackrecord.recorded(git, each) for each in (HEAD, OTHER)]
         same([before, *after], [False, True, False])
 
     def test_the_command_refuses_a_running_job_then_accepts_once(self) -> None:
         """A job in the worktree first; then ok; then the same head again."""
-        here = world.make_world()
+        here = ready(world.make_world())
         busy = processes(fakes.directory(), {7: here.clone.resolve()})
         quiet = processes(fakes.directory(), {})
-        done = [hand_back(here, each) for each in (busy, quiet, quiet)]
+        done = [
+            hand_back(here, busy),
+            hand_back(here, quiet, "--pr", "7"),
+            hand_back(here, quiet),
+        ]
         shown = [(each.code, each.out) for each in done]
         same(shown[0][0], 1)
         same("a job you started is still running: 7 sleep" in shown[0][1], True)
@@ -107,14 +115,52 @@ class TestOnce(unittest.TestCase):
         same(shown[2][0], 1)
         same("was already accepted" in shown[2][1], True)
 
-    def test_a_pr_that_does_not_hold_the_head_refuses_the_hand_back(self) -> None:
-        """``--pr`` reads the PR and its comments; its head is not the pushed one."""
+    def test_a_refusal_for_a_missing_line_records_nothing(self) -> None:
+        """No `Deviations:` line: refused; with it: ok; once more: the second one."""
+        here = ready(world.make_world())
+        quiet = processes(fakes.directory(), {})
+        done = [
+            hand_back(here, quiet, text="no line\n"),
+            hand_back(here, quiet),
+            hand_back(here, quiet),
+        ]
+        same([each.code for each in done], [1, 0, 1])
+        same("NOT STARTED" in done[0].out, True)
+        same("was already accepted" in done[2].out, True)
+
+    def test_the_default_invocation_checks_the_plan_check(self) -> None:
+        """With no `--pr` the branch's PR is found; an unposted check refuses."""
+        here = unposted(world.make_world())
+        done = hand_back(here, processes(fakes.directory(), {}))
+        same((done.code, "not done until the Plan check" in done.out), (1, True))
+
+    def test_a_branch_with_no_open_pr_or_an_unreadable_list_is_refused(self) -> None:
+        """Never ok without the PR; a list that cannot be read is said."""
+        quiet = processes(fakes.directory(), {})
         here = world.make_world()
-        base = "repos/owner/project"
-        here.bodies[f"{base}/pulls/7"] = json.dumps(_pull(OTHER, BODY))
-        here.bodies[f"{base}/issues/7/comments?per_page=100&page=1"] = "[]"
-        done = hand_back(here, processes(fakes.directory(), {}), "--pr", "7")
-        same("owner/project#7 holds head" in done.out, True)
+        unread = hand_back(here, quiet)
+        here.bodies[f"{BASE}/pulls?state=open&head=owner:main"] = "[]"
+        none = hand_back(here, quiet)
+        same((unread.code, none.code), (1, 1))
+        same("cannot be read" in unread.out, True)
+        same("no open PR of owner/project holds" in none.out, True)
+
+    def test_a_directory_that_is_no_worktree_is_refused(self) -> None:
+        """`--repo` names something git cannot read."""
+        here = world.make_world()
+        done = hand_back(
+            here, processes(fakes.directory(), {}), "--repo", "/nonexistent"
+        )
+        same("is not a git worktree" in done.out, True)
+
+    def test_the_repo_option_judges_another_worktree(self) -> None:
+        """The worktree's own branch and head are read, wherever the command runs."""
+        here = world.make_world()
+        other = fakes.add_worktree(here.clone, "other-work")
+        done = hand_back(ready(here, other), processes(fakes.directory(), {}))
+        same(done.code, 1)
+        done = hand_back(here, processes(fakes.directory(), {}), "--repo", str(other))
+        same((done.code, done.out), (0, "ok\n"))
 
 
 def _pull(head: str, body: str) -> Mapping[str, object]:

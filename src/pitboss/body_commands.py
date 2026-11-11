@@ -5,10 +5,8 @@ the plan-digest area (pitboss#172).
 """
 
 import argparse
-import os
 import pathlib
 import re
-import subprocess
 import sys
 from typing import Sequence
 
@@ -19,13 +17,12 @@ from . import (
     bodydigest,
     bodyhead,
     commands,
-    ghapi,
     cloneguard,
     configfile,
     configsettle,
     deviations,
     expand_commands,
-    handbackcheck,
+    handbackrun,
     expansion,
     plandigest,
     workeractions,
@@ -82,9 +79,16 @@ def body_digest(args: argparse.Namespace) -> None:
         "--pr",
         type=int,
         default=None,
-        help="the PR number in the configuration's repository: the hand-back is"
-        " refused unless the PR holds the worktree's head, its body ends with a"
-        " `Head:` line naming it and a clean Plan check is posted",
+        help="the PR number in the configuration's repository (default: the open PR"
+        " of the worktree's branch, none is a refusal): the hand-back is refused"
+        " unless the PR holds the worktree's head, its body ends with a `Head:`"
+        " line naming it and a clean Plan check is posted",
+    ),
+    add_argument(
+        "--repo",
+        default=".",
+        help="the worker's worktree (default: the current directory): its head, its"
+        " git directory and the processes under it are judged",
     ),
     add_argument(
         "--processes",
@@ -113,64 +117,14 @@ def hand_back_check(args: argparse.Namespace) -> None:
     missing = deviations.not_started(_read(args.file))
     configsettle.find_or_say(args)
     refused = list(cloneguard.refusals(args, configfile.working_directory(args)))
-    refused.extend(_worker_refusals(args))
-    for each in (missing, *refused):
-        if each:
-            print(each)
-    if not (missing or refused):
-        print("ok")
-    else:
+    refused.extend(handbackrun.refusals(args, commands.load_settings(args)))
+    lines = [each for each in (missing, *refused) if each]
+    for each in lines:
+        print(each)
+    if lines:
         raise SystemExit(1)
-
-
-def _git_out(args: argparse.Namespace, *words: str) -> str:
-    try:
-        return str(args.safe_run(["git", *words]).stdout).strip()
-    except (OSError, subprocess.CalledProcessError):  # pragma: no cover
-        return ""
-
-
-def _jobs_and_record(args: argparse.Namespace, head: str) -> Sequence[str]:
-    root, own = (
-        pathlib.Path(_git_out(args, "rev-parse", "--show-toplevel")),
-        os.getpid(),
-    )
-    jobs = handbackcheck.running_jobs(root, pathlib.Path(args.processes), own)
-    shown = [handbackcheck.jobs_line(jobs)]
-    git_directory = _git_out(args, "rev-parse", "--absolute-git-dir")
-    if handbackcheck.recorded(pathlib.Path(git_directory), head):
-        shown.append(handbackcheck.second_line(head))
-    return shown
-
-
-def _pull_lines(args: argparse.Namespace, head: str) -> Sequence[str]:
-    if args.pr is None:
-        return []
-    settings = commands.load_settings(args)
-    pushed = handbackcheck.Pushed(
-        github=ghapi.read_only(args.safe_run),
-        slug=settings.project.repo.slug,
-        number=args.pr,
-        head=head,
-        trusted=settings.review.trusted,
-    )
-    return handbackcheck.pull_lines(pushed)
-
-
-def _worker_refusals(args: argparse.Namespace) -> Sequence[str]:
-    # keyword: hand-back-done (pitboss#471): jobs ended, sent once, Plan check posted
-    head = _git_out(args, "rev-parse", "HEAD")
-    if not head:  # pragma: no cover
-        return []
-    found = [
-        each
-        for each in (*_jobs_and_record(args, head), *_pull_lines(args, head))
-        if each
-    ]
-    if not found:
-        directory = _git_out(args, "rev-parse", "--absolute-git-dir")
-        handbackcheck.record(pathlib.Path(directory), head)
-    return found
+    handbackrun.accept(args)  # recorded only when nothing at all refused
+    print("ok")
 
 
 def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:

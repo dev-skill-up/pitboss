@@ -41,13 +41,14 @@ def merged_recently(
         now: the time now.
 
     Returns:
-        A line for each; one line saying so when the list cannot be read.
+        A line for each; one line saying so, with no ``✓`` mark, when the list
+        cannot be read.
     """
     path = f"repos/{slug}/pulls?state=closed&sort=updated&direction=desc"
     try:
         listed = json.loads(ghapi.get(github, f"{path}&per_page=30"))
     except subprocess.CalledProcessError as error:
-        return [f"{DONE} merged PRs unreadable: {ghapi.why(error)}"]
+        return [f"merged PRs unreadable: {ghapi.why(error)}"]
     since = slotlog.utc(now) - datetime.timedelta(hours=MERGED_HOURS)
     found = []
     for each in listed:
@@ -119,8 +120,23 @@ def lines(
     ]
 
 
+def handed_line(slot: ledger.Slot) -> str:
+    """The ``✓`` line of a worker that handed back.
+
+    Args:
+        slot: its slot, emptied by the hand-back.
+
+    Returns:
+        The line.
+    """
+    return f"{DONE} {slotsheader.subject(slot)}: handed back (worker {slot.agent})"
+
+
 def show(
-    found: nextfound.Found, book: ledger.Ledger, items: Sequence[work.Item]
+    found: nextfound.Found,
+    book: ledger.Ledger,
+    items: Sequence[work.Item],
+    handed: Sequence[ledger.Slot] = (),
 ) -> None:
     """Print the task list of ``slots tasklist``.
 
@@ -128,8 +144,12 @@ def show(
         found: the context.
         book: the ledger as the live agents make it.
         items: the ordered items that wait.
+        handed: the slots whose worker handed back (keyword: hand-back-done).
     """
     slug = found.settings.project.repo.slug
-    merged = merged_recently(found.github, slug, found.now)
+    merged = [
+        *map(handed_line, handed),
+        *merged_recently(found.github, slug, found.now),
+    ]
     for text in lines(book, items, merged, found.now):
         print(text)

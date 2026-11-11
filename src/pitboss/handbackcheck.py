@@ -7,13 +7,14 @@ in the refusal, so the brief has no line for any of it.
 """
 
 import dataclasses
+import json
 import os
 import pathlib
+import subprocess
 from typing import AbstractSet, Protocol, Sequence
 
 from . import forms, ghapi, parsing, plancheckflow, shapes
 
-RECORD = "pitboss-hand-back"
 SHOWN = 100
 
 
@@ -86,37 +87,6 @@ def jobs_line(found: Sequence[str]) -> str:
         + "; wait for it in the foreground (a command's own timeout) and send"
         " the hand-back once, after every command has ended"
     )
-
-
-def recorded(git_directory: pathlib.Path, head: str) -> bool:
-    """Whether a hand-back was already accepted for a head.
-
-    Args:
-        git_directory: the worktree's git directory.
-        head: the head the hand-back is for.
-
-    Returns:
-        True when the record names it.
-    """
-    try:
-        text = (git_directory / RECORD).read_text(encoding="utf-8")
-    except (OSError, UnicodeError):
-        return False
-    return head in text.split()
-
-
-def record(git_directory: pathlib.Path, head: str) -> None:
-    """Record that a hand-back was accepted for a head.
-
-    Args:
-        git_directory: the worktree's git directory.
-        head: the head.
-    """
-    try:
-        with (git_directory / RECORD).open("a", encoding="utf-8") as kept:
-            kept.write(f"{head}\n")
-    except OSError:  # pragma: no cover
-        return
 
 
 def second_line(head: str) -> str:
@@ -212,6 +182,32 @@ class Subject(Protocol):
         Returns:
             The value.
         """
+
+
+def branch_pull(github: ghapi.GitHub, slug: str, branch: str) -> int | str:
+    """The open PR whose head branch is a worktree's branch.
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        branch: the worktree's branch.
+
+    Returns:
+        The PR number, or the refusal line when no open PR holds the branch or
+        the list cannot be read.
+    """
+    path = f"repos/{slug}/pulls?state=open&head={slug.partition('/')[0]}:{branch}"
+    try:
+        listed = json.loads(ghapi.get(github, path))
+    except subprocess.CalledProcessError as error:
+        why = ghapi.why(error)
+        return f"refused: the open PRs of branch {branch} cannot be read: {why}"
+    if not listed:
+        return (
+            f"refused: no open PR of {slug} holds the branch {branch}: open the PR"
+            " first, or give it with --pr"
+        )
+    return int(listed[0]["number"])
 
 
 def _head_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:

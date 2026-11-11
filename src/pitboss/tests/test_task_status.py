@@ -100,7 +100,8 @@ class TestTaskList(unittest.TestCase):
     def test_a_list_that_cannot_be_read_is_said(self) -> None:
         """No silence: one line says it."""
         found = tasklistlines.merged_recently(fakes.github({}), "o/r", NOW)
-        same(found[0].startswith("✓ merged PRs unreadable"), True)
+        same(found[0].startswith("merged PRs unreadable"), True)
+        same("✓" in "".join(found), False)
 
 
 class TestCommand(unittest.TestCase):
@@ -112,4 +113,5 @@ class TestCommand(unittest.TestCase):
         shown = found.out.splitlines()
         same(found.code, 0)
         same((shown[0].startswith("Task list: "), shown[1]), (True, ""))
-        same(all(each[:1] in "✱✓○" for each in shown[2:]), True)
+        marks = "✱✓○"
+        same(all(each[:1] in marks or "unreadable" in each for each in shown[2:]), True)

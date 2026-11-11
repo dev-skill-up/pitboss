@@ -38,22 +38,32 @@ def derived(book: ledger.Ledger, running: Iterable[str] | None) -> ledger.Ledger
     """
     if running is None:
         return book
-    alive = frozenset(running)
-    slots = tuple(_if_running(slot, alive) for slot in book.slots)
-    return dataclasses.replace(book, slots=slots)
+    return _only(book, frozenset(running))
 
 
-def live(args: argparse.Namespace, book: ledger.Ledger) -> ledger.Ledger:
+def live(
+    args: argparse.Namespace,
+    book: ledger.Ledger,
+    done: AbstractSet[str] = frozenset(),
+) -> ledger.Ledger:
     """The ledger as the agents named by ``--running`` make it.
 
     Args:
         args: the parsed arguments; a command with no ``--running`` keeps the book.
         book: the ledger.
+        done: the agents that handed back (keyword: hand-back-done): their slots
+            are empty whether the harness lists them as running or not.
 
     Returns:
-        ``derived`` of the book and the running agents.
+        ``derived`` of the book and the running agents, less the slots of ``done``.
     """
-    return derived(book, getattr(args, "running", None))
+    book = derived(book, getattr(args, "running", None))
+    return _only(book, frozenset(each.agent for each in book.slots) - done)
+
+
+def _only(book: ledger.Ledger, alive: AbstractSet[str]) -> ledger.Ledger:
+    slots = tuple(_if_running(slot, alive) for slot in book.slots)
+    return dataclasses.replace(book, slots=slots)
 
 
 def _if_running(slot: ledger.Slot, alive: AbstractSet[str]) -> ledger.Slot:

@@ -272,10 +272,10 @@ def _free_check(found: Context) -> None:
 
 
 def _tasklist(found: Context) -> None:
-    live, items = nextqueued.queued_items(
+    live, items, handed = nextqueued.queued_items(
         found, open_pulls(found), ledger.configured(found.settings)
     )
-    tasklistlines.show(found, live, items)
+    tasklistlines.show(found, live, items, handed)
     repoaccess.finish(found.access)
 
 
