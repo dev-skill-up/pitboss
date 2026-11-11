@@ -82,5 +82,7 @@ module = [
     "pitboss.sync_commands",
     "pitboss.nox_commands",
     "pitboss.pinsreview_commands",
+    "pitboss.cancel_commands",
+    "pitboss.checkinlines",
 ]
 disallow_untyped_decorators = false

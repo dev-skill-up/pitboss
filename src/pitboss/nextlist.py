@@ -297,14 +297,31 @@ def free_line(
     Returns:
         The line.
     """
-    view = startable_view(found, opened, book)
-    given = configfile.named(found.args)
     since = slotsheader.free_since(book, found.settings.slots.log, found.now)
     free = cap - len(slotsheader.running(book))
     return (
         f"{Marker.WATCH_SLOT_FREE.text}: {free} of {cap} free since"
         f" {slotlog.utc(since).strftime(slotsheader.TIME_FORMAT)}; first startable:"
-        f" {nothead.first(nextview.startable(view), view.items, given)}"
+        f" {first_startable(found, opened, book)}"
+    )
+
+
+def first_startable(
+    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
+) -> str:
+    """The first startable item with its command, as ``SLOT FREE`` names it.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        book: the ledger.
+
+    Returns:
+        The item, or that nothing is queued.
+    """
+    view = startable_view(found, opened, book)
+    return nothead.first(
+        nextview.startable(view), view.items, configfile.named(found.args)
     )
 
 
