@@ -48,6 +48,40 @@ class Run(Protocol):
             The value.
         """
 
+    @property
+    def failed(self) -> bool:
+        """Whether it completed and failed.
+
+        Returns:
+            The value.
+        """
+
+
+def named(run: Run, name: str) -> bool:
+    """Whether a check run is the one of a name (it may be ``caller / name``).
+
+    Args:
+        run: the check run.
+        name: the check's name.
+
+    Returns:
+        True when the run has that name.
+    """
+    return run.name == name or run.name.endswith(f" / {name}")
+
+
+def failed_besides(checks: Sequence[Run], name: str) -> bool:
+    """Whether a check other than the Plan review's has failed (keyword: draft-red-ci).
+
+    Args:
+        checks: the current check runs of the head.
+        name: the Plan review's check, empty when there is none.
+
+    Returns:
+        True when a run of another name completed and failed.
+    """
+    return any(each.failed and not named(each, name) for each in checks)
+
 
 def completed(checks: Sequence[Run], name: str) -> bool:
     """Whether the check run of a name has completed (keyword: plan-review-check).
@@ -63,7 +97,4 @@ def completed(checks: Sequence[Run], name: str) -> bool:
         True when a run of that name completed, green or red; False when it
         runs, is queued or has not been created.
     """
-    return any(
-        each.finished and (each.name == name or each.name.endswith(f" / {name}"))
-        for each in checks
-    )
+    return any(each.finished and named(each, name) for each in checks)

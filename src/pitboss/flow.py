@@ -17,6 +17,7 @@ from typing import Sequence
 from . import (
     bodydigest,
     conflicts,
+    draftfacts,
     flowstate,
     plancheckflow,
     planbody,
@@ -127,12 +128,8 @@ def get_plan_rejections(pr: PullState) -> int:
     Returns:
         The count.
     """
-    rejected = [
-        each
-        for each in flowstate.regular_reviews(pr)
-        if each.plan is Verdict.CHANGES_NEEDED
-    ]
-    return len(rejected)
+    reviews = flowstate.regular_reviews(pr)
+    return sum(each.plan is Verdict.CHANGES_NEEDED for each in reviews)
 
 
 def ci_result(pr: PullState) -> Ci | None:
@@ -322,14 +319,15 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
             return ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
         rejection = rejection_step(pr, review) if review else None
+        red = draftfacts.failed_besides(pr.checks, pr.draft.plan_review_check)
+        if red and not rejection:  # keyword: draft-red-ci
+            return ci_gate(pr, review)
         if rejection or not plan_approved(pr):
             alone = plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
             return rejection or flowstate.draft_plan_review(pr, alone)
-        if unrun := plan_unrun(pr, review):  # keyword: plan-alone
-            return unrun
-        if e2e := flowstate.e2e_step(pr):  # keyword: run-e2e (pitboss#199)
-            return e2e
-        return ready  # the next step is the CI gate on the undrafted head
+        unrun = plan_unrun(pr, review)  # keyword: plan-alone
+        # keyword: run-e2e (pitboss#199); else the CI gate on the undrafted head
+        return unrun or flowstate.e2e_step(pr) or ready
 
     return ci_gate(pr, review)
 
