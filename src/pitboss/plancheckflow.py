@@ -190,6 +190,21 @@ class Described(Protocol):
 Pull = TypeVar("Pull", bound=Described)
 
 
+Readable = Callable[[Pull], tuple[shapes.Comment, object] | None]
+
+
+def unchecked(pr: Described) -> bool:
+    """Whether no clean check covers the PR's Plan (``needs_check``).
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The answer of ``needs_check`` for its body and comments.
+    """
+    return needs_check(pr.pull.body, pr.comments, pr.trusted)
+
+
 def review(pr: Described, stage: steps.Stage) -> steps.Next:
     """A review that grades the Plan, once the Plan's commands were checked.
 
@@ -202,7 +217,7 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
         findings quoted when the newest check of this Plan refused it, else
         the check step; otherwise the review.
     """
-    if needs_check(pr.pull.body, pr.comments, pr.trusted):
+    if unchecked(pr):
         refused = refusal(pr.pull.body, pr.comments, pr.trusted)
         if refused is None:
             return steps.plan_check()
@@ -247,7 +262,7 @@ def write_round(pr: Described) -> steps.Next:
 def plan_unrun(
     pr: Pull,
     review: shapes.Graded | None,
-    readable: Callable[[Pull], tuple[shapes.Comment, object] | None],
+    readable: Readable[Pull],
 ) -> steps.Next | None:
     """The worker round of a Plan approved alone after an Opus ruling.
 
@@ -278,6 +293,27 @@ def plan_unrun(
     alone = review.plan is shapes.Verdict.APPROVED and review.execution is None
     unrun = alone and not filled(pr.pull.body, pr.comments, pr.trusted)
     return write_round(pr) if unrun else None
+
+
+def checked_since(pr: Pull, readable: Readable[Pull]) -> bool:
+    """Whether a clean check of the Plan came after the ruling (body-only-round).
+
+    GitHub gives no time for a body edit (``bodydigest``), and a round that edits
+    the body alone pushes nothing, so the clean ``Plan check`` the worker posts
+    after the ruling is the record that its steps are done (pitboss#462).
+
+    Args:
+        pr: the PR.
+        readable: reads the PR's readable ruling comment and what it rules.
+
+    Returns:
+        True when the newest trusted check of the Plan as it is now is clean and
+        newer than the ruling.
+    """
+    newest = newest_check(pr.pull.body, pr.comments, pr.trusted)
+    when = newest.created_at if newest and not unchecked(pr) else ""
+    posted = readable(pr)
+    return posted is not None and when > posted[0].created_at
 
 
 def execution_review(pr: Described, stage: steps.Stage) -> steps.Next:

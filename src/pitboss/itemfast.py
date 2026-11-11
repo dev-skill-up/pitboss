@@ -12,8 +12,11 @@ import enum
 import sys
 from typing import Callable, Sequence
 
+from gather.commands import add_argument
+
 from . import (
     blockers,
+    brief,
     config,
     itempick,
     ledger,
@@ -37,6 +40,20 @@ UNKNOWN = (
     "UNKNOWN: {reference} is not in the order of slots next: {why} (a held or"
     " blocked ticket and a PR at a wait are not)"
 )
+STEP_RULE = (
+    "--step review prints the brief of a PR only when its step is a review"
+    " (of the Plan, the Execution, a resolution, a fix round or a relock)"
+)
+STEP_ARGUMENT = add_argument(
+    "--step",
+    choices=("review",),
+    default=None,
+    help="for 'slots next TICKET': "
+    + STEP_RULE
+    + "; otherwise it exits 1 with UNKNOWN and the PR's actual step on standard error",
+)
+NOT_A_PULL = f"it is a ticket with no PR, which is at no review; {STEP_RULE}"
+UNKNOWN_STEP = "UNKNOWN: {reference} is not at the review step: {why}"
 
 
 class Outcome(enum.Enum):
@@ -119,15 +136,37 @@ def _picked(
     return _ticket(found, repos[slug], reference, ticket)
 
 
-def _print(found: nextfound.Found, live: ledger.Ledger, pick: suggest.Pick) -> None:
+def _print(
+    found: nextfound.Found, made: suggest.Suggestion, pick: suggest.Pick
+) -> None:
     # the place line, then the brief
-    facts = [pick.pull] if pick.pull else []
-    items = [pick.item] if pick.item else []
-    made = suggest.suggest(suggest.sourced(found, facts, items, live.failed), pick)
     ruled = pick.item is None  # a ruling is owed before the whole order
     place = placeline.RULING if ruled else placeline.line(found, pick.reference)
     print(f"{place}: {made.kind.value}: {made.reference}: {made.model}")
     print(made.text)
+
+
+def _made(
+    found: nextfound.Found, live: ledger.Ledger, pick: suggest.Pick
+) -> suggest.Suggestion:
+    facts = [pick.pull] if pick.pull else []
+    items = [pick.item] if pick.item else []
+    return suggest.suggest(suggest.sourced(found, facts, items, live.failed), pick)
+
+
+def _attempt(
+    found: nextfound.Found, book: ledger.Ledger, reference: str, runs: Runs
+) -> tuple[ledger.Ledger, suggest.Pick | Outcome]:
+    # the ledger as live, and the pick or why there is none: UNKNOWN (said on
+    # standard error) or WHOLE
+    live = slotholding.live(found.args, book)
+    try:
+        return live, _picked(found, live, reference, runs)
+    except itempick.Whole:
+        return live, Outcome.WHOLE
+    except itempick.Unknown as refused:
+        print(UNKNOWN.format(reference=reference, why=refused), file=sys.stderr)
+        return live, Outcome.UNKNOWN
 
 
 def show(
@@ -151,13 +190,45 @@ def show(
         ``PRINTED``; ``UNKNOWN`` after saying why on standard error; ``WHOLE``
         when the whole order must be read to tell.
     """
-    live = slotholding.live(found.args, book)
-    try:
-        pick = _picked(found, live, reference, runs)
-    except itempick.Whole:
-        return Outcome.WHOLE
-    except itempick.Unknown as refused:
-        print(UNKNOWN.format(reference=reference, why=refused), file=sys.stderr)
-        return Outcome.UNKNOWN
-    _print(found, live, pick)
+    live, pick = _attempt(found, book, reference, runs)
+    if isinstance(pick, Outcome):
+        return pick
+    _print(found, _made(found, live, pick), pick)
+    return Outcome.PRINTED
+
+
+def _refused(reference: str, why: str) -> Outcome:
+    print(UNKNOWN_STEP.format(reference=reference, why=why), file=sys.stderr)
+    return Outcome.UNKNOWN
+
+
+def show_review(
+    found: nextfound.Found,
+    book: ledger.Ledger,
+    reference: str,
+    runs: Runs,
+) -> Outcome:
+    """Print the brief of a PR only if its step is a review (``--step review``).
+
+    Args:
+        found: the context.
+        book: the slot ledger.
+        reference: ``owner/repo#N``.
+        runs: reads the merge-queue runs of the repositories that share runners.
+
+    Returns:
+        ``PRINTED``; ``UNKNOWN`` after saying on standard error that the PR is
+        not at the review step, with its actual step and the rule (keyword:
+        step-review, pitboss#462). Never ``WHOLE``: a ticket with no PR is at
+        no review.
+    """
+    live, pick = _attempt(found, book, reference, runs)
+    if pick is Outcome.WHOLE:
+        return _refused(reference, NOT_A_PULL)
+    if isinstance(pick, Outcome):
+        return pick
+    made = _made(found, live, pick)
+    if made.kind not in brief.REVIEWS:
+        return _refused(reference, f"its step is `{made.kind.value}`; {STEP_RULE}")
+    _print(found, made, pick)
     return Outcome.PRINTED
