@@ -15,7 +15,7 @@ def idle_minutes(
     now: datetime.datetime,
     over: int = IDLE_MINUTES,
 ) -> int | None:
-    """How long an empty slot has been empty, when that is over ``IDLE_MINUTES``.
+    """How long an empty slot has been empty, when that is over ``over`` minutes.
 
     The time comes from the slot log (pitboss#17): the time of the slot's newest
     entry, which must say the slot is empty. A slot the log has not seen has no
@@ -31,7 +31,7 @@ def idle_minutes(
     Returns:
         The whole minutes since the slot was emptied, or None when it has an
         agent, the log has no empty entry for it as its newest, or it has been
-        empty for no more than ``over`` minutes.
+        empty for no more than ``over`` minutes (``IDLE_MINUTES`` unless given).
     """
     mine = [entry for entry in entries if entry.slot == slot.name]
     if slot.agent or not mine:

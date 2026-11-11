@@ -15,12 +15,12 @@ from . import (
     configfile,
     deviations,
     fixes,
-    freecheck,
     ledger,
     itemfast,
     ledgerowner,
     logline,
     nextcommand,
+    freecheck,
     nextlist,
     pulls,
     repoaccess,
@@ -183,7 +183,7 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
             book, words[0], ledger.Mark.HEARD, found.now.isoformat()
         ),
     ),
-    Action.CHECKIN: (0, lambda book, words, found: checkin.record(book, found.now)),
+    Action.CHECKIN: (0, lambda book, words, found: checkin.renew(book, found.now)),
     Action.WAIT: (1, lambda book, words, _: ledger.wait(book, words[0], True)),
     Action.RESUME: (1, lambda book, words, _: ledger.wait(book, words[0], False)),
 }
@@ -312,12 +312,14 @@ def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
 
 
 def _free_check(found: Context) -> None:
-    book = slotholding.derived(_read(found), found.args.running)
-
-    def first() -> str:
-        return nextlist.first_startable(found, open_pulls(found), book)
-
-    checkin.say([freecheck.line(found, book, first)])
+    _read(found)
+    checkin.say(
+        [
+            freecheck.line(
+                found, functools.partial(open_pulls, found), nextlist.first_startable
+            )
+        ]
+    )
     repoaccess.finish(found.access)
 
 

@@ -41,6 +41,20 @@ def first_line(here: world.World, minute: int, *argv: str) -> str:
     return next(iter(out.out.splitlines()), "")
 
 
+def quiet(here: world.World, minute: int, word: str, *argv: str) -> None:
+    """Require that the first line of a command at a minute does not start with a word.
+
+    Args:
+        here: the world.
+        minute: minutes after the start.
+        word: the word.
+        *argv: the command and its options.
+
+    """
+    line = first_line(here, minute, *argv)
+    assert_that(line.startswith(word), equal_to(False))
+
+
 def at_(minute: int) -> Sequence[str]:
     """The ``--now`` option of a minute.
 
@@ -72,12 +86,12 @@ class TestFreeCheck(unittest.TestCase):
         assert_that(out, contains_string("pitboss slots next"))
 
     def test_sweep_starts_with_the_line(self) -> None:
-        """A sweep prints the line first when it applies, and not at nine."""
+        """A sweep's first line is the free-check line, and not at nine."""
         here = emptied()
-        assert_that(first_line(here, 11, "sweep"), starts_with(IDLE.format(11)))
-        assert_that(
-            first_line(here, 9, "sweep").startswith("IDLE SLOT"), equal_to(False)
-        )
+        checked = first_line(here, 11, "slots", "free-check")
+        assert_that(checked, starts_with(IDLE.format(11)))
+        assert_that(first_line(here, 11, "sweep"), equal_to(checked))
+        quiet(here, 9, "IDLE SLOT", "sweep")
 
 
 class TestCheckIn(unittest.TestCase):
@@ -88,9 +102,7 @@ class TestCheckIn(unittest.TestCase):
         here = checked_in()
         for argv in (("slots", "next"), ("sweep",)):
             assert_that(first_line(here, 31, *argv), equal_to(LATE.format(31)))
-            assert_that(
-                first_line(here, 30, *argv).startswith("CHECK-IN"), equal_to(False)
-            )
+            quiet(here, 30, "CHECK-IN", *argv)
 
     def test_sweep_overdue_fails(self) -> None:
         """A sweep thirty-one minutes after the check-in exits non-zero."""
@@ -100,12 +112,13 @@ class TestCheckIn(unittest.TestCase):
         )
 
     def test_none_recorded_or_renewed(self) -> None:
-        """No check-in recorded, or a new one, leaves no lapse."""
+        """No check-in recorded, or the firing's own, leaves no lapse in it."""
         renewed = checked_in()
-        slots(renewed, "checkin", *at_(31))
-        for here, minute in ((world.make_world(), 300), (renewed, 40)):
-            line = first_line(here, minute, "slots", "next")
-            assert_that(line.startswith("CHECK-IN"), equal_to(False))
+        said = first_line(renewed, 31, "slots", "checkin")
+        assert_that(said, equal_to(LATE.format(31)))
+        for here, minute in ((world.make_world(), 300), (renewed, 31), (renewed, 40)):
+            for argv in (("slots", "next"), ("sweep",)):
+                quiet(here, minute, "CHECK-IN", *argv)
 
 
 class TestStatusPrompt(unittest.TestCase):
@@ -115,13 +128,15 @@ class TestStatusPrompt(unittest.TestCase):
         """The prompt names its parts and the config."""
         here = world.make_world()
         out = world.invoke(here, "status-prompt", here.config).out
+        assert_that("Recreate" in out, equal_to(False))
         for part in (
             "what holds each slot",
             "what changed",
             "what is blocked on what",
             "next due",
             "expires",
-            "Recreate your own schedule fresh",
+            "CronList",
+            "one kept cron job",
             "slots checkin --config " + here.config,
         ):
             assert_that(out, contains_string(part))

@@ -7,9 +7,9 @@ about the slot alone: ten minutes free by the slot log, whatever the queue holds
 """
 
 import datetime
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Sequence
 
-from . import ledger, nextfound, slotidle, slotlog
+from . import ledger, nextfound, pulls, slotholding, slotidle, slotlog
 from .markers import Marker
 
 FREE_MINUTES = 10
@@ -36,21 +36,26 @@ def minutes(
 
 
 def line(
-    found: nextfound.Found, book: ledger.Ledger, first: Callable[[], str]
+    found: nextfound.Found,
+    opened: Callable[[], Sequence[pulls.Read]],
+    first: Callable[[nextfound.Found, Sequence[pulls.Read], ledger.Ledger], str],
 ) -> str | None:
-    """The ``IDLE SLOT`` line, when it applies.
+    """The ``IDLE SLOT`` line of ``sweep`` and ``slots free-check``, when it applies.
 
     Args:
         found: the context.
-        book: the ledger as the live agents make it.
-        first: says the first startable item; called only when the line applies.
+        opened: reads the open PRs; called only when the line applies.
+        first: says the first startable item (``nextlist.first_startable``).
 
     Returns:
         ``IDLE SLOT: free for N minutes, next is <the slots next line>``, or
         None when every slot is held or free for ten minutes or less.
     """
+    book = slotholding.derived(ledger.configured(found.settings), found.args.running)
     log = found.settings.slots.log
     waited = minutes(book, slotlog.read(log), found.now)
-    if waited is not None:
-        return f"{Marker.IDLE_SLOT.text}: free for {waited} minutes, next is {first()}"
-    return None
+    if waited is None:
+        return None
+    return f"{Marker.IDLE_SLOT.text}: free for {waited} minutes, next is " + first(
+        found, opened(), book
+    )

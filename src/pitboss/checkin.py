@@ -8,7 +8,7 @@ A timer that expires after 7 days is why each firing recreates its own schedule.
 
 import dataclasses
 import datetime
-from typing import Iterable, Sequence
+from typing import Iterable
 
 from . import ledger, slotlog
 from .markers import Marker
@@ -28,21 +28,6 @@ def record(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
         The ledger.
     """
     return dataclasses.replace(book, checkin=now.isoformat())
-
-
-def queue_text(references: Sequence[str], given: str) -> str:
-    """Name the first queued item and its command, for ``IDLE SLOT``.
-
-    Args:
-        references: the queued items, in order.
-        given: the configuration as the command was given it.
-
-    Returns:
-        The item with its ``slots next`` command, or that nothing is queued.
-    """
-    if not references:
-        return "no open ticket or PR is queued: file the next ticket"
-    return f"{references[0]} (pitboss slots next {references[0]} --config {given})"
 
 
 def say(lines: Iterable[str | None]) -> None:
@@ -76,20 +61,37 @@ def overdue(book: ledger.Ledger, now: datetime.datetime) -> str | None:
     return f"{Marker.CHECK_IN_OVERDUE.text}: last {minutes} minutes ago"
 
 
+def renew(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
+    """Say a lapse before this check-in, then record the check-in.
+
+    A firing records its check-in before its sweep runs, so the sweep never
+    flags the firing itself; the lapse before it is said here.
+
+    Args:
+        book: the ledger.
+        now: the time now.
+
+    Returns:
+        The ledger with a check-in just now.
+    """
+    say([overdue(book, now)])
+    return record(book, now)
+
+
 PROMPT = f"""\
 Status post, every {OVERDUE_MINUTES} minutes. Each firing of this timer does these \
 steps, in order:
-1. Run `pitboss sweep --config CONFIG` and act on its first line if it is IDLE SLOT or \
-CHECK-IN OVERDUE.
-2. Post one status message to the thread that says: what holds each slot (the \
+1. Record the check-in first: run `pitboss slots checkin --config CONFIG`. The \
+ledger keeps its time. It prints CHECK-IN OVERDUE when the check-in before this one \
+was over {OVERDUE_MINUTES} minutes ago, and `slots next` and `sweep` print it \
+the same way when no firing records one.
+2. Run `pitboss sweep --config CONFIG` and act on its first line if it is IDLE SLOT \
+or CHECK-IN OVERDUE.
+3. Post one status message to the thread that says: what holds each slot (the \
 agent and its ticket or PR), what changed since the last post, what is blocked \
 on what, when this timer is next due, and when it expires.
-3. Record the check-in: run \
-`pitboss slots checkin --config CONFIG`. The ledger keeps its time, and \
-`slots next` and `sweep` print CHECK-IN OVERDUE when the last one is over \
-{OVERDUE_MINUTES} minutes old.
-4. Recreate your own schedule fresh: create a new timer for the next \
-{OVERDUE_MINUTES} minutes, then delete the one that fired. A timer expires \
-{EXPIRY_DAYS} days after it was made, so never rely on one timer that can lapse: \
-every firing makes the next from now, and the post names the new expiry.
+4. Keep the timer you have: it is one kept cron job, never one made again at each \
+firing, because each new job gets a random offset. Run CronList and create a job \
+only if it shows none. Re-arm the job once a day, so it never nears the \
+{EXPIRY_DAYS} days after which a timer expires, and the post names its expiry.
 """

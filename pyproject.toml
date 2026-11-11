@@ -84,5 +84,6 @@ module = [
     "pitboss.pinsreview_commands",
     "pitboss.cancel_commands",
     "pitboss.checkinlines",
+    "pitboss.sweep_commands",
 ]
 disallow_untyped_decorators = false

@@ -7,25 +7,24 @@ from . import (
     ENTRY_DATA,
     checkin,
     configfile,
-    freecheck,
     ledger,
     nextfound,
 )
 from .commandarguments import CONFIG_ARGUMENT
 
 
-def print_first(found: nextfound.Found, first: Callable[[], str]) -> bool:
+def print_first(found: nextfound.Found, idle: Callable[[], str | None]) -> bool:
     """Print ``CHECK-IN OVERDUE``, then ``IDLE SLOT``, when each applies.
 
     Args:
         found: the context.
-        first: says the first startable item (``IDLE SLOT`` names it).
+        idle: says the ``IDLE SLOT`` line, or None when it does not apply.
 
     Returns:
         True when the check-in is overdue, which fails the sweep.
     """
     late = checkin.overdue(ledger.configured(found.settings), found.now)
-    checkin.say((late, freecheck.line(found, ledger.configured(found.settings), first)))
+    checkin.say((late, idle()))
     return late is not None
 
 

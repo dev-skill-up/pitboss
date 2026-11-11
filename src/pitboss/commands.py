@@ -14,7 +14,6 @@ import pathlib
 from typing import AbstractSet, Mapping, Sequence
 
 from . import (
-    ENTRY_DATA,
     account,
     autoclean,
     cleanconfig,
@@ -52,9 +51,7 @@ from . import (
     workerlines,
     workhours,
 )
-from . import checkin, checkinlines, commanddoc, commandtext
 from . import diskline, pulllines, pullstate, unlabeled, unreadableline
-from .commandarguments import SWEEP_ARGUMENTS
 from .failures import describe, read_all
 
 
@@ -327,15 +324,6 @@ def _repository_sections(
     return found, broken, read
 
 
-def _first_item(found: Context) -> str:
-    # the first queued item, read only when a slot is idle (pitboss#450)
-    scope = offering.Look(opened=open_pulls(found), marks=found.stands)
-    items = offering.offered(found, scope, ledger.configured(found.settings)).items
-    return checkin.queue_text(
-        [each.reference for each in items], configfile.named(found.args)
-    )
-
-
 def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     report.print_reminders(found.settings)
     written = ledger.configured(found.settings)
@@ -355,23 +343,21 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
         print(line)
 
 
-@ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
-@commanddoc.described(commandtext.SWEEP)
-def sweep(args: argparse.Namespace) -> None:
+def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 
     Args:
-        args: the parsed arguments.
+        found: the context, loaded with the clocked arguments.
+        clock: the sweep's clock.
 
-    Raises:
-        SystemExit: 1 for a failed check, a conflict, or an unread repository.
+    Returns:
+        True for a failed check, a conflict, or an unread repository.
     """
-    clock, args = timing.clocked(args)
+    args = found.args
     where = configfile.locate(configfile.named(args), working_directory(args))
-    found = load_context(args)
-    lapsed = checkinlines.print_first(found, functools.partial(_first_item, found))
     ledgerowner.say_sweep(load_settings(args), where)
     localsections.print_update_check(args.safe_run)
+    timing.lap(clock, "update check and configuration read")
     cleaned = _clean_section(found)
     timing.lap(clock, "cleaning done")
     found, broken, read = _repository_sections(found, clock, cleaned)
@@ -383,5 +369,4 @@ def sweep(args: argparse.Namespace) -> None:
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)
     failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
-    if repoaccess.say(found.access) or failed or lapsed:
-        raise SystemExit(1)
+    return bool(repoaccess.say(found.access) or failed)
