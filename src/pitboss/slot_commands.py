@@ -1,7 +1,6 @@
 """The ``slots`` command: the worker-slot ledger, and what to start next."""
 
 import argparse
-import enum
 import functools
 import sys
 from typing import Callable, Mapping, Sequence
@@ -19,6 +18,8 @@ from . import (
     itemfast,
     ledgerowner,
     logline,
+    mergedworktree,
+    nextqueued,
     nextcommand,
     freecheck,
     nextlist,
@@ -28,6 +29,7 @@ from . import (
     slotlog,
     slotreport,
     slotwindow,
+    tasklistlines,
     ticketof,
     timing,
     tracefs,
@@ -42,71 +44,12 @@ from .commandarguments import (
 from .commands import (
     Context,
     load_context,
+    sweep_look,
     open_pulls,
     read_runner_runs,
 )
 from .markers import Marker
-
-
-class Action(enum.Enum):
-    """What ``slots`` does.
-
-    Attributes:
-        SHOW: print the ledger.
-        SET: put an agent in an empty slot (SLOT AGENT TASK, --kind), or a
-            fix round on the agent it holds.
-        FREE: empty a slot (SLOT), then print the line ``NEXT`` gives it.
-        ADD: add a slot (SLOT MODEL).
-        REMOVE: remove an empty slot (SLOT).
-        FAILED: record that a model failed a ticket (TICKET MODEL).
-        CHECK: list the slots whose agent is gone (--running NAME ...); an
-            optional number N exits 1 when the ledger has fewer than N rows.
-        NEXT: print what to start next, and what each empty slot takes; with a
-            ticket or PR (TICKET), only its brief and its place in the order.
-        WAIT: say a slot's agent waits (SLOT).
-        RESUME: say a slot's agent runs again (SLOT).
-        REPORT: print the share of slot time in each state (--since, --until).
-        TIME: print the worker minutes of each ticket (--since, --until).
-        HEARD: say a slot's agent handed back or notified (SLOT); each is
-            logged as a hand-back (keyword: log-line).
-        DEVIATION: record the ``Deviation:`` lines of a review saved in a
-            file on the worker's ticket (TICKET FILE; keyword: deviations).
-        WATCH: keep the ledger from the session's agent transcripts, each
-            ``--interval`` seconds for ``--rounds`` rounds (0: until stopped); run
-            by the Monitor tool (keyword: slots-watch, pitboss#415).
-        FREE_CHECK: print ``IDLE SLOT`` when a slot has been free for over ten
-            minutes, else nothing (keyword: free-check, pitboss#450).
-        CHECKIN: record that the status was posted just now (keyword: check-in,
-            pitboss#450).
-    """
-
-    SHOW = enum.auto()
-    SET = enum.auto()
-    FREE = enum.auto()
-    ADD = enum.auto()
-    REMOVE = enum.auto()
-    FAILED = enum.auto()
-    CHECK = enum.auto()
-    NEXT = enum.auto()
-    WAIT = enum.auto()
-    RESUME = enum.auto()
-    REPORT = enum.auto()
-    TIME = enum.auto()
-    HEARD = enum.auto()
-    DEVIATION = enum.auto()
-    WATCH = enum.auto()
-    FREE_CHECK = enum.auto()
-    CHECKIN = enum.auto()
-
-    @property
-    def word(self) -> str:
-        """The action as typed.
-
-        Returns:
-            The word.
-        """
-        return self.name.lower().replace("_", "-")
-
+from .slotaction import Action
 
 Change = Callable[
     [ledger.Ledger, Sequence[str], Context], ledger.Ledger | ledger.Refusal
@@ -183,7 +126,12 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
             book, words[0], ledger.Mark.HEARD, found.now.isoformat()
         ),
     ),
-    Action.CHECKIN: (0, lambda book, words, found: checkin.renew(book, found.now)),
+    Action.CHECKIN: (
+        0,
+        lambda book, words, found: (
+            checkin.rearm if found.args.rearmed else checkin.renew
+        )(book, found.now),
+    ),
     Action.WAIT: (1, lambda book, words, _: ledger.wait(book, words[0], True)),
     Action.RESUME: (1, lambda book, words, _: ledger.wait(book, words[0], False)),
 }
@@ -323,6 +271,20 @@ def _free_check(found: Context) -> None:
     repoaccess.finish(found.access)
 
 
+def _tasklist(found: Context) -> None:
+    live, items = nextqueued.queued_items(
+        found, open_pulls(found), ledger.configured(found.settings)
+    )
+    tasklistlines.show(found, live, items)
+    repoaccess.finish(found.access)
+
+
+READS: Mapping[Action, Callable[[Context], None]] = {
+    Action.FREE_CHECK: _free_check,
+    Action.TASKLIST: _tasklist,
+}
+
+
 def _next(found: Context) -> None:
     # exits 1 when nothing is offered for the ticket
     reference = nextcommand.reference(found.args.words, found.settings.project.repo)
@@ -330,6 +292,7 @@ def _next(found: Context) -> None:
     if reference is None:
         checkin.say([checkin.overdue(book, found.now)])
         nextlist.show(found, open_pulls(found), book)
+        checkin.say(mergedworktree.steps(sweep_look(found), found.now))
     known = reference is None or _brief(found, book, reference)
     repoaccess.finish(found.access)
     if not known:
@@ -355,6 +318,12 @@ def _read(found: Context) -> ledger.Ledger:
         " for it",
     ),
     RUNNING_ARGUMENT,
+    add_argument(
+        "--rearmed",
+        action="store_true",
+        default=False,
+        help="for 'slots checkin': the timer job was made again",
+    ),
     add_argument(
         "--done", default=None, help="the agent that handed back, for 'slots free'"
     ),
@@ -390,8 +359,8 @@ def slots(args: argparse.Namespace) -> None:
         slotwindow.worked(found)
     elif action is Action.NEXT:
         _next(found)
-    elif action is Action.FREE_CHECK:
-        _free_check(found)
+    elif action in READS:
+        READS[action](found)
     elif action is Action.WATCH:
         watchrun.watch(args, load_context, nextlist.free_line_by(open_pulls))
     else:

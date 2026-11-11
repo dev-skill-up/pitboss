@@ -19,6 +19,7 @@ from . import (
     deadscan,
     disk,
     logline,
+    mergedworktree,
     named,
     tempclean,
     workhours,
@@ -330,3 +331,28 @@ def clean_worktrees(args: argparse.Namespace) -> None:
         who = "pitboss clean-worktrees"
         freed = logline.Freed(who=who, size=done.freed, heads=done.heads)
         logline.record_clean(found.settings.slots.log, freed, found.now)
+
+
+@ENTRY_DATA.register(
+    *CHANGING_ARGUMENTS,
+    add_argument("branch", help="the head branch of the PR that merged"),
+    name="merged",
+)
+def merged(args: argparse.Namespace) -> None:
+    """Remove the worktree of a merged PR, clean ones only, and print the bytes.
+
+    The marker of a worker whose PR merged is dropped, and the worktree goes with
+    ``git worktree remove`` and no ``--force``; a worktree with a changed or
+    untracked file, or a commit on no remote branch, is kept and says why
+    (keyword: merge-removes-worktree, pitboss#471).
+
+    Args:
+        args: the parsed arguments.
+    """
+    found = load_context(args)
+    dry = not args.no_dry_run
+    how = mergedworktree.Removal(
+        look=sweep_look(found), run=args.run, now=found.now, dry=dry
+    )
+    for text in mergedworktree.remove(how, args.branch):
+        print(text)

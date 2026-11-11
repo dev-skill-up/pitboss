@@ -115,6 +115,7 @@ CASES = (
         make=cleaning,
     ),
     Case(before=("clean-worktrees",), after=NOW, make=cleaning),
+    Case(before=("merged",), after=("merged-work", *NOW), make=cleaning),
     Case(before=("cancel-stale-runs",), after=NOW, make=plain),
     Case(before=("sweep",), after=NOW, make=plain),
     Case(before=("pressure",), after=NOW, make=plain),

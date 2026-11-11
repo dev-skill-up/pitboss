@@ -35,7 +35,15 @@ def running(book: ledger.Ledger) -> Sequence[ledger.Slot]:
     return [slot for slot in book.slots if slot.agent]
 
 
-def _subject(slot: ledger.Slot) -> str:
+def subject(slot: ledger.Slot) -> str:
+    """The ticket or PR an agent is named by.
+
+    Args:
+        slot: its slot.
+
+    Returns:
+        The ticket for a worker, the PR for a round or a review.
+    """
     # a worker is named by its ticket, a round or a review by its PR
     if (slot.kind or DEFAULT_KIND) == DEFAULT_KIND:
         return slot.ticket or slot.task or slot.agent
@@ -53,7 +61,7 @@ def running_line(slot: ledger.Slot) -> str:
         reviewer <PR>`` or ``RUNNING ruling <task>``.
     """
     word = KIND_WORDS.get(slot.kind or DEFAULT_KIND, slot.kind)
-    return f"{Marker.RUNNING.text} {word} {_subject(slot)}"
+    return f"{Marker.RUNNING.text} {word} {subject(slot)}"
 
 
 def free_since(

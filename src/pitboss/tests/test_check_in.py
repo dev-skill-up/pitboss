@@ -130,9 +130,9 @@ class TestStatusPrompt(unittest.TestCase):
         out = world.invoke(here, "status-prompt", here.config).out
         assert_that("Recreate" in out, equal_to(False))
         for part in (
-            "what holds each slot",
-            "what changed",
-            "what is blocked on what",
+            "holds commands only",
+            "slots tasklist --config " + here.config,
+            "Add no line of your own",
             "next due",
             "expires",
             "CronList",

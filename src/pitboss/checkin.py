@@ -25,9 +25,37 @@ def record(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
         now: the time now.
 
     Returns:
-        The ledger.
+        The ledger; its first check-in is kept until the job is made again.
     """
-    return dataclasses.replace(book, checkin=now.isoformat())
+    first = book.checkin_first or now.isoformat()
+    return dataclasses.replace(book, checkin=now.isoformat(), checkin_first=first)
+
+
+def status_line(book: ledger.Ledger, now: datetime.datetime) -> str:
+    """The line to paste into the status: this firing, the next, the expiry.
+
+    The times are computed from the clock and the ledger, never typed (keyword:
+    check-in, pitboss#471). The job was made at most one interval before its
+    first firing, so the expiry counted from there is never later than the
+    real one.
+
+    Args:
+        book: the ledger, with this check-in recorded.
+        now: the time now.
+
+    Returns:
+        ``check-in 10:21Z; next due 10:51Z; job expires 2026-11-18T04:22Z``.
+    """
+    here = slotlog.utc(now)
+    first = slotlog.utc(
+        datetime.datetime.fromisoformat(book.checkin_first or now.isoformat())
+    )
+    interval = datetime.timedelta(minutes=OVERDUE_MINUTES)
+    expires = first - interval + datetime.timedelta(days=EXPIRY_DAYS)
+    return (
+        f"check-in {here:%H:%M}Z; next due {here + interval:%H:%M}Z;"
+        f" job expires {expires:%Y-%m-%dT%H:%M}Z"
+    )
 
 
 def say(lines: Iterable[str | None]) -> None:
@@ -61,8 +89,12 @@ def overdue(book: ledger.Ledger, now: datetime.datetime) -> str | None:
     return f"{Marker.CHECK_IN_OVERDUE.text}: last {minutes} minutes ago"
 
 
+def _said(book: ledger.Ledger, made: ledger.Ledger, now: datetime.datetime) -> None:
+    say([overdue(book, now), status_line(made, now)])
+
+
 def renew(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
-    """Say a lapse before this check-in, then record the check-in.
+    """Record this check-in, then say a lapse before it and the status line.
 
     A firing records its check-in before its sweep runs, so the sweep never
     flags the firing itself; the lapse before it is said here.
@@ -74,24 +106,41 @@ def renew(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
     Returns:
         The ledger with a check-in just now.
     """
-    say([overdue(book, now)])
-    return record(book, now)
+    made = record(book, now)
+    _said(book, made, now)
+    return made
+
+
+def rearm(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
+    """``renew`` for a timer job that was made again: its expiry counts from here.
+
+    Args:
+        book: the ledger.
+        now: the time now.
+
+    Returns:
+        The ledger with a check-in just now and no earlier first one.
+    """
+    made = record(dataclasses.replace(book, checkin_first=""), now)
+    _said(book, made, now)
+    return made
 
 
 PROMPT = f"""\
-Status post, every {OVERDUE_MINUTES} minutes. Each firing of this timer does these \
-steps, in order:
+Status post, every {OVERDUE_MINUTES} minutes. This prompt holds commands only; \
+every fact of the status is the output of a command, never a line written here \
+or from memory. Each firing of this timer does these steps, in order:
 1. Record the check-in first: run `pitboss slots checkin --config CONFIG`. The \
 ledger keeps its time. It prints CHECK-IN OVERDUE when the check-in before this one \
-was over {OVERDUE_MINUTES} minutes ago, and `slots next` and `sweep` print it \
-the same way when no firing records one.
+was over {OVERDUE_MINUTES} minutes ago, and the line with this firing, the next due \
+time and the expiry of the job.
 2. Run `pitboss sweep --config CONFIG` and act on its first line if it is IDLE SLOT \
 or CHECK-IN OVERDUE.
-3. Post one status message to the thread that says: what holds each slot (the \
-agent and its ticket or PR), what changed since the last post, what is blocked \
-on what, when this timer is next due, and when it expires.
+3. Run `pitboss slots tasklist --config CONFIG` and post its output as it is, as the \
+status and as the checklist: the running agents, the merged PRs and what waits with \
+its next step, under a header that holds the times. Add no line of your own.
 4. Keep the timer you have: it is one kept cron job, never one made again at each \
 firing, because each new job gets a random offset. Run CronList and create a job \
-only if it shows none. Re-arm the job once a day, so it never nears the \
-{EXPIRY_DAYS} days after which a timer expires, and the post names its expiry.
+only if it shows none, then run `pitboss slots checkin --config CONFIG --rearmed`. \
+The job expires {EXPIRY_DAYS} days after it is made: re-arm it once a day.
 """

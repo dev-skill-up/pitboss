@@ -167,9 +167,6 @@ class Heads:
             empty for a ticket (keyword: review-brief, pitboss#338).
         plan_digest: the digest of the body's Plan section, empty when the
             body has none.
-        check: whether ``findings`` is the address of a Plan check that refused
-            the Plan, not of a review (keyword: fix-round-kind, pitboss#390).
-        quoted: the findings of that Plan check, quoted.
         ruling: the address of the Opus ruling an Execution fix round follows,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
     """
@@ -180,8 +177,6 @@ class Heads:
     findings: str
     body_digest: str = ""
     plan_digest: str = ""
-    check: bool = False
-    quoted: str = ""
     ruling: str = ""
 
 
@@ -262,10 +257,10 @@ def _about(subject: Subject) -> Mapping[str, str]:
 
 
 def _named(heads: Heads, where: str) -> Mapping[str, str]:
-    what = "the Plan check" if heads.check else "the review"
-    review = f"{what} at {heads.findings}" if heads.findings else "the newest review"
+    review = (
+        f"the review at {heads.findings}" if heads.findings else "the newest review"
+    )
     return {
-        "quoted": f" ({heads.quoted})" if heads.quoted else "",
         "ruling": heads.ruling,
         "head": heads.head,
         "base": heads.base,

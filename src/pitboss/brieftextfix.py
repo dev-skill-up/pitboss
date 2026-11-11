@@ -9,7 +9,7 @@ RULING_NAMED = (
     " Execution and nothing else."
 )
 TASK_FIX_ROUND = (
-    "Task: PR {reference}: fix the findings of {review}{quoted}, each one, and"
+    "Task: PR {reference}: fix the findings of {review}, each one, and"
     " nothing else: make no change that no finding names. A finding may name a"
     " code, doc or test change, and the Plan may change to match it. Merge"
     " origin/{base} into the branch (never rebase, never force-push), run"

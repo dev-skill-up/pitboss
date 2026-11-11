@@ -4,6 +4,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
+from .. import mergedworktree
 from . import liveagents, world
 
 
@@ -50,7 +51,7 @@ def parsed(output: str) -> Sequence[tuple[str, Sequence[str]]]:
     for line in output.splitlines():
         if line.startswith("SUGGESTION ") and " of " in line.split(":")[0]:
             header, brief = line, []
-        elif line.startswith("PITBOSS-SLOT: "):
+        elif line.startswith(("PITBOSS-SLOT: ", mergedworktree.REMOVE)):
             continue
         elif line.startswith("--- end of suggestion"):
             found.append((header, brief))
