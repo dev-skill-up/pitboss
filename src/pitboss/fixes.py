@@ -1,13 +1,8 @@
 """The tickets a PR says it fixes."""
 
-import re
 from typing import AbstractSet, Sequence
 
-from . import config, ledger, pulls
-
-_FIXES = re.compile(
-    r"\b(?:Fixes|Closes)\s+((?:[\w.-]+/)?[\w.-]*#\d+)(?!\w)", re.IGNORECASE
-)
+from . import fixnames, ledger, pulls
 
 
 def fixed_tickets(pull: pulls.PullFacts) -> AbstractSet[str]:
@@ -25,22 +20,12 @@ def fixed_tickets(pull: pulls.PullFacts) -> AbstractSet[str]:
         its body, in full.
     """
     return frozenset(
-        ledger.reference(found, pull.repo) for found in _FIXES.findall(pull.pull.body)
+        ledger.reference(found, pull.repo)
+        for found in fixnames.FIXES.findall(pull.pull.body)
     )
 
 
-def first_fixed(body: str, repo: config.Repo) -> str:
-    """The ticket the first ``Fixes`` line of a PR body names.
-
-    Args:
-        body: the PR's body.
-        repo: the PR's repository, the owner of a bare ``#N``.
-
-    Returns:
-        The ticket in full, or empty when the body has no ``Fixes``.
-    """
-    found = _FIXES.search(body)
-    return ledger.reference(found.group(1), repo) if found else ""
+first_fixed = fixnames.first_fixed
 
 
 def head_fixing(ticket: str, facts: Sequence[pulls.PullFacts]) -> str:

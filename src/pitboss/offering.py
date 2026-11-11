@@ -12,7 +12,7 @@ agree on which tickets are offered.
 import argparse
 import dataclasses
 import functools
-from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
+from typing import AbstractSet, Callable, Iterable, Mapping, Protocol, Sequence
 
 from . import (
     blockers,
@@ -20,13 +20,13 @@ from . import (
     config,
     configfile,
     dependency,
-    fixes,
     ghapi,
     holds,
     ledger,
     promotion,
     pulls,
     shapes,
+    ticketitem,
     work,
 )
 
@@ -98,49 +98,76 @@ def _slug(each: pulls.Read) -> str:
     return each.repo.slug
 
 
-def offered(
-    found: Source,
-    opened: Sequence[pulls.Read],
-    book: ledger.Ledger,
-    marks: Mapping[str, work.Item],
-) -> work.Offered:
-    """The work to start, and the tickets the hold and an open blocker keep back.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Look:
+    """What the offer is made from.
+
+    Attributes:
+        opened: the open PRs, read or not.
+        marks: the blocked PRs (``pullmarks.pull_marks``).
+        staged: reads the queued work of a window of tickets instead of all of
+            them (keyword: ticket-window, pitboss#443): the items, the
+            ``PROMOTE`` lines and whether tickets beyond the window are queued.
+    """
+
+    opened: Sequence[pulls.Read]
+    marks: Mapping[str, work.Item]
+    staged: Callable[[], tuple[Sequence[work.Item], Sequence[str], bool]] | None = None
+
+
+def _start(
+    found: Source, scope: Look, book: ledger.Ledger
+) -> tuple[Sequence[work.Item], Sequence[str], bool]:
+    # the queued work, ranked by the cause rule, and whether tickets were left unread
+    if scope.staged is not None:
+        return scope.staged()
+    listed = work.queued(scope.opened, found.github, found.settings, book)
+    items, said = _promoted(found, ticketitem.fixing(listed, scope.opened))
+    return items, said, False
+
+
+def standing(found: Source, slugs: Sequence[str]) -> Mapping[str, int]:
+    """The repositories the owner holds, with their open PRs.
 
     Args:
         found: the context.
-        opened: the open PRs, read or not.
-        book: the slot ledger.
-        marks: the blocked PRs (``pullmarks.pull_marks``).
+        slugs: the repository of each open PR.
 
     Returns:
-        The queued work, the held, blocked and superseded tickets apart.
+        Each held repository and its open count (``holds.standing``).
     """
     owned = configfile.load_holds(
         configfile.named(found.args),
         configfile.working_directory(found.args),
         found.settings.project.repo.owner,
     )
-    held = holds.standing(owned, [_slug(each) for each in opened])
-    queued = _fixing(work.queued(opened, found.github, found.settings, book), opened)
-    queued, said = _promoted(found, queued)
+    return holds.standing(owned, slugs)
+
+
+def offered(found: Source, scope: Look, book: ledger.Ledger) -> work.Offered:
+    """The work to start, and the tickets the hold and an open blocker keep back.
+
+    Args:
+        found: the context.
+        scope: the open PRs, the blocked ones and how to read the tickets.
+        book: the slot ledger.
+
+    Returns:
+        The queued work, the held, blocked and superseded tickets apart; its
+        ``unread`` says that tickets beyond the window were not read.
+    """
+    opened, marks = scope.opened, scope.marks
+    held = standing(found, [_slug(each) for each in opened])
+    queued, said, unread = _start(found, scope, book)
     queued = ranked(found, opened, book, queued)
     queued = _blocked_pulls(queued, marks, book, opened)
     named, gone = _named(found, queued)
     settled, waiting = _dependencies_first(found, opened, book, named)
     offer = apart(settled, held, gone)
     labels = found.settings.slots.priority_labels
-    return dataclasses.replace(offer, promoted=said, blocks=waiting, labels=labels)
-
-
-def _fixing(
-    queued: Sequence[work.Item], opened: Sequence[pulls.Read]
-) -> Sequence[work.Item]:
-    # a PR stands for the ticket it fixes (keyword: ticket-blocked, blocked-pull)
-    named = {pulls.reference(e): fixes.of_pull(e) for e in pulls.readable(opened)}
-    return [
-        dataclasses.replace(each, ticket=named.get(each.reference, each.ticket))
-        for each in queued
-    ]
+    return dataclasses.replace(
+        offer, promoted=said, blocks=waiting, labels=labels, unread=unread
+    )
 
 
 def _marked(found: Source, item: work.Item) -> tuple[work.Item, bool]:
@@ -171,13 +198,7 @@ def _promoted(
     sources = promotion.sources(found.github, config.repositories(found.settings))
     below = [each.reference for each in tickets if each.priority > 0]
     named = promotion.named_by(below, sources, frozenset(slots.owner_priorities))
-    items = [
-        dataclasses.replace(each, priority=0) if each.reference in named else each
-        for each in queued
-    ]
-    said = [
-        promotion.line(each, slots.priority_labels[0], by) for each, by in named.items()
-    ]
+    items, said = promotion.raised(queued, named, slots.priority_labels)
     return work.ordered(items, ()), said
 
 
@@ -200,34 +221,13 @@ def _blocked_pulls(
     return [stands.get(each.reference, each) for each in ordered]
 
 
-def _read_ticket(github: ghapi.GitHub, reference: str) -> work.Item | None:
-    # an open ticket, as the item it is queued as; a PR and a closed ticket are not
-    ticket = blockers.open_ticket(github, reference)
-    if ticket is None or ticket.pull:
-        return None
-    return work.Item(
-        category=work.Category.NEW_PR,
-        reference=reference,
-        created_at=ticket.created_at,
-        title=ticket.title,
-        labels=ticket.labels,
-        body=ticket.body,
-        comments=ticket.comments,
-    )
-
-
 def _open_ticket(found: Source, reference: str, waiting: work.Item) -> work.Item | None:
     # keyword: ticket-blocked: the ticket stands in the place of the one that waits
-    item = _read_ticket(found.github, reference)
+    item = ticketitem.read(found.github, reference)
     if item is None:
         return None
     named, superseded = _marked(found, item)
     return None if superseded else named
-
-
-def _configured(settings: config.Config) -> AbstractSet[str]:
-    # the slugs of the project and its libraries
-    return {each.slug for each in config.repositories(settings)}
 
 
 def _stated(
@@ -235,12 +235,11 @@ def _stated(
 ) -> Mapping[str, work.Item]:
     # keyword: owner-priority (pitboss#371): the tickets the owner ranks, by that rank
     slots = found.settings.slots
-    repositories = _configured(found.settings)
     new = work.Category.NEW_PR
     tickets = {each.reference: each for each in items if each.category is new}
 
     def rank(reference: str, label: str) -> work.Item | None:
-        ticket = tickets.get(reference) or _read_ticket(found.github, reference)
+        ticket = tickets.get(reference) or ticketitem.read(found.github, reference)
         return ticket and dataclasses.replace(
             ticket, priority=slots.priority_labels.index(label)
         )
@@ -248,7 +247,7 @@ def _stated(
     wanted = [
         (reference, label)
         for reference, label in slots.owner_priorities.items()
-        if reference not in busy and reference.rpartition("#")[0] in repositories
+        if reference not in busy and config.has(found.settings, reference)
     ]
     return {ref: made for ref, label in wanted if (made := rank(ref, label))}
 
@@ -294,7 +293,7 @@ def _stated_ticket(
     found: Source, offer: work.Offered, reference: str
 ) -> blockers.Ticket | str:
     # the ticket the owner states a priority for, or why it cannot be read
-    if reference.rpartition("#")[0] not in _configured(found.settings):
+    if not config.has(found.settings, reference):
         return "its repository is not configured"
     for each in [*offer.items, *offer.held, *offer.blocked, *offer.superseded]:
         if each.reference == reference and each.category is work.Category.NEW_PR:

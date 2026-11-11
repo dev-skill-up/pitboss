@@ -5,10 +5,10 @@ import ``commands``, so the commands can import it.
 """
 
 import dataclasses
+import functools
 import itertools
-import pathlib
 import sys
-from typing import Callable, Sequence, TypeVar
+from typing import Callable, Iterable, Sequence, TypeVar
 
 from . import (
     assigning,
@@ -23,6 +23,7 @@ from . import (
     nextview,
     nothead,
     offering,
+    placeline,
     pullmarks,
     pulls,
     pullstate,
@@ -33,8 +34,11 @@ from . import (
     slotlog,
     slotsheader,
     suggest,
-    unlabeled,
+    timing,
+    unlabeledsearch,
     unreadableline,
+    windowrun,
+    windowstage,
     work,
 )
 from .markers import Marker
@@ -46,14 +50,33 @@ Reads = nextview.Reads
 
 def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
     # pitboss#94: the agents that run, not the hand's rows
-    return slotholding.derived(book, getattr(found.args, "running", None))
+    return slotholding.live(found.args, book)
 
 
 def _counted(
     found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
 ) -> work.Offered:
-    offer = offering.offered(found, opened, book, pullmarks.pull_marks(found, opened))
+    offer = offering.offered(found, _scope(found, opened), book)
     return slotholding.counted(offer, opened, book, found.args)
+
+
+def _scope(found: Found, opened: Sequence[pulls.Read]) -> offering.Look:
+    # the open PRs and the ones whose tickets wait
+    return offering.Look(opened=opened, marks=pullmarks.pull_marks(found, opened))
+
+
+def _windowed(
+    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
+) -> work.Offered:
+    # the offer over as small a window of tickets as shows the top (windowrun)
+    scope = _scope(found, opened)
+    count = windowrun.WINDOW
+    while True:
+        staged = functools.partial(windowstage.start, found, opened, book, count)
+        offer = offering.offered(found, dataclasses.replace(scope, staged=staged), book)
+        if not offer.unread or len(offer.items) >= suggest.TOP:
+            return slotholding.counted(offer, opened, book, found.args)
+        count *= windowrun.GROWTH
 
 
 def _ordered(
@@ -109,17 +132,10 @@ def _source(
     book: ledger.Ledger,
 ) -> suggest.Source:
     volume = diskwatch.read(found.args.usage, found.settings.project.workspace)
-    given = configfile.named(found.args)
-    return suggest.Source(
-        github=found.github,
-        settings=found.settings,
-        given=given,
-        brief=configfile.load_brief(
-            given, pathlib.Path(found.args.env.get("PWD", "."))
+    return dataclasses.replace(
+        suggest.sourced(
+            found, pullmarks.awake(opened, ordered), ordered.items, book.failed
         ),
-        facts=pullmarks.awake(opened, ordered),
-        items=ordered.items,
-        failed=book.failed,
         volume=volume,
         big=_big(found, volume),
         occupancy=ordered.occupancy,
@@ -140,20 +156,41 @@ def show(
     """
     logline.post(found.settings.slots.log)
     book = _live(found, book)
-    ordered = _ordered(found, opened, book)
+    unreadableline.print_withheld(opened)
+    ordered = _windowed(found, opened, book)
+    timing.note(found.args, "ranking", len(ordered.items), "items")
     source = _source(found, opened, ordered, book)
     view = _view(found, ordered, book, Reads(facts=source.facts, opened=opened))
+    queued = [each.reference for each in view.items]
+    first = slotheld.LEAD + 1 + len(view.ready)
+    placeline.record(found, queued, first, not ordered.unread)
     for line in itertools.chain(
         header(found, book, view),
-        unlabeled.lines(found.github, found.settings),
+        unlabeledsearch.lines(found.github, found.settings),
         nextview.next_lines(view),
+        _unread(ordered, view),
         offering.disagreements(found, ordered),
+        _tail(found, source),
+    ):
+        print(line)
+    timing.note(found.args, "lists and briefs printed", suggest.TOP, "briefs at most")
+
+
+def _tail(found: Found, source: suggest.Source) -> Iterable[str]:
+    # what follows the list: the PR states, the disk, the override and the briefs
+    return itertools.chain(
         pullstate.lines(found.github, found.settings, source.facts),
         [diskwatch.line(source.volume)] if source.volume else [],
         [exempt.OVERRIDE],  # keyword: pitboss-exempt (pitboss#113)
         suggest.lines(source),
-    ):
-        print(line)
+    )
+
+
+def _unread(ordered: work.Offered, view: nextview.NextView) -> Sequence[str]:
+    # the line that says the list ends at its window
+    if not ordered.unread:
+        return []
+    return [windowrun.UNREAD.format(count=len(view.items))]
 
 
 def header(found: Found, book: ledger.Ledger, view: nextview.NextView) -> Sequence[str]:
@@ -195,32 +232,6 @@ def startable_view(
     ordered = _counted(found, opened, book)
     awake = pullmarks.awake(opened, ordered)
     return _view(found, ordered, book, Reads(facts=awake, opened=opened))
-
-
-def brief_command(given: str, item: str) -> str:
-    """The command that prints the brief of an item.
-
-    Args:
-        given: the configuration as the command was given it.
-        item: the ticket or PR.
-
-    Returns:
-        The command.
-    """
-    return f"pitboss slots next {item} --config {given}"
-
-
-def _first(view: nextview.NextView, given: str) -> str:
-    items = nextview.startable(view)
-    if items:
-        return f"{items[0].reference} ({brief_command(given, items[0].reference)})"
-    if view.items:
-        held = view.items[0].reference
-        return (
-            f"{held} ({brief_command(given, held)}), offered because a ticket of"
-            " its repository is in flight"
-        )
-    return "no open ticket or PR is queued: file the next ticket"
 
 
 def show_all(found: Found, opened: Sequence[pulls.Read]) -> None:
@@ -287,12 +298,13 @@ def free_line(
         The line.
     """
     view = startable_view(found, opened, book)
+    given = configfile.named(found.args)
     since = slotsheader.free_since(book, found.settings.slots.log, found.now)
     free = cap - len(slotsheader.running(book))
     return (
         f"{Marker.WATCH_SLOT_FREE.text}: {free} of {cap} free since"
         f" {slotlog.utc(since).strftime(slotsheader.TIME_FORMAT)}; first startable:"
-        f" {_first(view, configfile.named(found.args))}"
+        f" {nothead.first(nextview.startable(view), view.items, given)}"
     )
 
 
@@ -306,8 +318,6 @@ UNKNOWN = (
 def _place(view: nextview.NextView, pick: suggest.Pick) -> str:
     # where the item stands in the order, so a dispatch out of order is visible
     marker = Marker.NEXT.text
-    if pick.item is None:
-        return f"{marker} ruling, owed before every {marker} line"
     number, last = nextview.place(view, pick.reference)
     ahead = number - (slotheld.LEAD + 1)
     order = f"out of order, {ahead} ahead of it" if ahead else "first in the order"

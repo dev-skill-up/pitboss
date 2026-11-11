@@ -38,7 +38,21 @@ LIBRARY_OPEN = [
     _ticket(15, "2026-06-01T00:00:00+00:00", "p3"),
     *LIBRARY_URGENT,
 ]
+SEARCH = "search/issues?q=user:owner+is:issue+is:open+-label:urgent+-label:low"
+API = "https://api.github.com/repos/owner"
+
+
+def _found(
+    repository: str, tickets: Sequence[Mapping[str, object]]
+) -> Sequence[object]:
+    # what the search answers for the tickets of one repository
+    return [{**each, "repository_url": f"{API}/{repository}"} for each in tickets]
+
+
 BODIES = {
+    fakes.page(SEARCH): {
+        "items": [*_found("project", UNLABELED), *_found("lib", LIBRARY_OPEN[:2])]
+    },
     **fakes.bodies_under(
         world.PROJECT,
         [
@@ -154,6 +168,7 @@ class TestTheWholeOrder(unittest.TestCase):
             here, 'priority_labels = ["urgent", "low"', "priority_labels = ["
         )
         assert_that(unlabeled.NO_LABEL in next_output(here), equal_to(False))
+        assert_that(unlabeled.NO_LABEL in sweep(here).out, equal_to(False))
 
     def test_a_label_that_is_no_priority_leaves_the_ticket_unlabeled(self) -> None:
         """``bug`` is no priority; ``p3`` and the configured ``low`` are."""
@@ -166,11 +181,10 @@ class TestTheWholeOrder(unittest.TestCase):
         """The issues list holds PRs: 99 tickets and a PR are a full page."""
         here = ordered_world()
         full = [
-            _ticket(n, "2026-01-01T00:00:00+00:00", "urgent") for n in range(100, 199)
+            _ticket(n, "2026-02-01T00:00:00+00:00", "urgent") for n in range(100, 200)
         ]
-        full.append({**_ticket(199, "2026-01-01T00:00:00+00:00"), "pull_request": {}})
-        path = f"{world.PROJECT}/{OPEN}"
-        here.bodies[fakes.page(path)] = full
-        here.bodies[fakes.page(path, 2)] = [_ticket(200, "2026-02-01T00:00:00+00:00")]
+        here.bodies[fakes.page(SEARCH)] = {"items": _found("project", full)}
+        later = [_ticket(200, "2026-02-01T00:00:00+00:00")]
+        here.bodies[fakes.page(SEARCH, 2)] = {"items": _found("project", later)}
         found = [each for each in listed(next_output(here)) if "#200" in each]
         assert_that(found, equal_to(["NO PRIORITY LABEL owner/project#200"]))

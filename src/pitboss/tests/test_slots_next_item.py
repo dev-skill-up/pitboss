@@ -14,6 +14,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import configfile, ownerlabels
 from . import fakes, quietworld, test_flow_sweep, world
+from .itemworld import one, with_pull_issues
 from .rankworld import publish
 from .suggestions import next_output, parsed, third
 from .test_commands import sweep
@@ -48,22 +49,6 @@ def printed(here: world.World, start: str) -> Sequence[Sequence[str]]:
     return [lines_of(each, start) for each in outputs]
 
 
-def one(here: world.World, *references: str) -> world.Result:
-    """Run ``slots next --config NAME REFERENCE`` at the fixed time.
-
-    Args:
-        here: the world.
-        *references: the words after the configuration.
-
-    Returns:
-        What it did.
-    """
-    now = ("--now", world.FUTURE)
-    return world.invoke(
-        here, "slots", "next", "--config", here.config, *references, *now
-    )
-
-
 def after_first(output: str) -> Sequence[str]:
     """The lines of an output after its first, less the PITBOSS-SLOT marker.
 
@@ -76,28 +61,39 @@ def after_first(output: str) -> Sequence[str]:
     return [each for each in output.splitlines()[1:] if each[:13] != "PITBOSS-SLOT:"]
 
 
+PLACES = [
+    ("#1", "NEXT 2 of 4, first in the order (place from", "resolve the conflict"),
+    (
+        "project#3",
+        "NEXT 3 of 4, out of order, 1 ahead of it (place from",
+        "review the Plan",
+    ),
+    (
+        "owner/project#9",
+        "NEXT 4 of 4, out of order, 2 ahead of it",
+        "start a PR",
+    ),
+]
+
+
 class TestOneItem(unittest.TestCase):
     """The brief of one item is the suggestion's own text, headed by its place."""
 
     def test_each_item_gets_the_text_of_its_suggestion(self) -> None:
         """The lines after the first are those of the suggestion; it says the place."""
-        here = world.make_world()
+        here = with_pull_issues(world.make_world())
         wanted = parsed(next_output(here))
-        cases = [
-            ("#1", "NEXT 2 of 4, first in the order: resolve the conflict"),
-            ("project#3", "NEXT 3 of 4, out of order, 1 ahead of it: review the Plan"),
-            ("owner/project#9", "NEXT 4 of 4, out of order, 2 ahead of it: start a PR"),
-        ]
-        for (spelling, first), suggestion in zip(cases, wanted):
+        for (spelling, first, kind), suggestion in zip(PLACES, wanted):
             with self.subTest(spelling):
                 found = one(here, spelling).out
                 assert_that(found.splitlines()[0], contains_string(first))
+                assert_that(found.splitlines()[0], contains_string(f": {kind}"))
                 assert_that(list(after_first(found)), equal_to(list(suggestion[1])))
 
     def test_a_ruling_is_placed_before_the_list(self) -> None:
         """A PR at an Opus ruling has no NEXT line; the first line says so."""
         here = test_flow_sweep.world_with(test_flow_sweep.TWO_PLAN_REJECTIONS)
-        found = one(here, "owner/project#3").out
+        found = one(with_pull_issues(here), "owner/project#3").out
         assert_that(found, contains_string("NEXT ruling, owed before every NEXT line"))
         assert_that(list(after_first(found)), equal_to(list(third(here)[1])))
 

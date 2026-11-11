@@ -1,9 +1,8 @@
 """The ``slots`` command: the worker-slot ledger, and what to start next."""
 
 import argparse
-import datetime
 import enum
-import re
+import functools
 import sys
 from typing import Callable, Mapping, Sequence
 
@@ -16,17 +15,21 @@ from . import (
     deviations,
     fixes,
     ledger,
+    itemfast,
     ledgerowner,
     logline,
+    nextcommand,
     nextlist,
     pulls,
     repoaccess,
-    slotreport,
-    watchrun,
     slotholding,
     slotlog,
+    slotreport,
+    slotwindow,
     ticketof,
+    timing,
     tracefs,
+    watchrun,
 )
 from .commandarguments import (
     CONFIG_ARGUMENT,
@@ -38,10 +41,9 @@ from .commands import (
     Context,
     load_context,
     open_pulls,
+    read_runner_runs,
 )
 from .markers import Marker
-
-_FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
 
 
 class Action(enum.Enum):
@@ -243,38 +245,6 @@ def _changed(action: Action, found: Context) -> ledger.Ledger:
     return outcome
 
 
-def _report(found: Context) -> None:
-    for line in _window(found, "report", slotlog.lines):
-        print(line)
-
-
-Lines = Callable[
-    [Sequence[slotlog.Entry], datetime.datetime, datetime.datetime], Sequence[str]
-]
-
-
-def _window(found: Context, word: str, make: Lines) -> Sequence[str]:
-    if found.args.words:
-        raise _refuse(f"slots {word} takes no words")
-    entries = slotlog.read(found.settings.slots.log)
-    since = (
-        slotlog.utc(datetime.datetime.fromisoformat(found.args.since))
-        if found.args.since
-        else min((entry.time for entry in entries), default=slotlog.utc(found.now))
-    )
-    until = (
-        slotlog.utc(datetime.datetime.fromisoformat(found.args.until))
-        if found.args.until
-        else slotlog.utc(found.now)
-    )
-    return make(entries, since, until)
-
-
-def _time(found: Context) -> None:
-    for line in _window(found, "time", slotlog.ticket_lines):
-        print(line)
-
-
 REFILLS = frozenset({Action.SET, Action.FREE, Action.NEXT, Action.WATCH})
 LOG_ONLY = frozenset({Action.REPORT, Action.TIME})
 # every hand-back is logged: ``heard`` records each one, a notification too
@@ -321,20 +291,24 @@ def _changing(found: Context, action: Action) -> None:
             nextlist.refill(found, opened, changed, name)
 
 
+def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
+    # the item's own reads first (keyword: item-brief, pitboss#443); the whole order
+    # is read only for a ticket it must place
+    runs = functools.partial(read_runner_runs, found)
+    fast = itemfast.show(found, book, reference, runs)
+    timing.note(found.args, "item read and brief built")
+    if fast is itemfast.Outcome.WHOLE:
+        return nextlist.show_item(found, open_pulls(found), book, reference)
+    return fast is itemfast.Outcome.PRINTED
+
+
 def _next(found: Context) -> None:
-    # with a ticket or PR: its brief and place, else the whole list
-    words = found.args.words
-    if len(words) > 1:
-        raise _refuse("slots next takes one ticket or PR, or none")
-    if not words:
-        nextlist.show(found, open_pulls(found), _read(found))
-        repoaccess.finish(found.access)
-        return
-    reference = ledger.reference(words[0], found.settings.project.repo)
-    if not _FULL_REFERENCE.match(reference):
-        raise _refuse("slots next takes a ticket as owner/repo#N, repo#N or #N")
-    book = ledger.configured(found.settings)
-    known = nextlist.show_item(found, open_pulls(found), book, reference)
+    # exits 1 when nothing is offered for the ticket
+    reference = nextcommand.reference(found.args.words, found.settings.project.repo)
+    book = _book(found)
+    if reference is None:
+        nextlist.show(found, open_pulls(found), book)
+    known = reference is None or _brief(found, book, reference)
     repoaccess.finish(found.access)
     if not known:
         raise SystemExit(1)
@@ -389,9 +363,9 @@ def slots(args: argparse.Namespace) -> None:
     elif action is Action.CHECK:
         _check(found, ledger.configured(found.settings))
     elif action is Action.REPORT:
-        _report(found)
+        slotwindow.report(found)
     elif action is Action.TIME:
-        _time(found)
+        slotwindow.worked(found)
     elif action is Action.NEXT:
         _next(found)
     elif action is Action.WATCH:

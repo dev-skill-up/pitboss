@@ -41,3 +41,42 @@ def line(
         f" {head.reference} ({_label(head, labels)}, opened {head.created_at[:10]});"
         f" its brief: pitboss slots next {head.reference} --config {given}"
     ]
+
+
+def brief_command(given: str, item: str) -> str:
+    """The command that prints the brief of an item.
+
+    Args:
+        given: the configuration as the command was given it.
+        item: the ticket or PR.
+
+    Returns:
+        The command.
+    """
+    return f"pitboss slots next {item} --config {given}"
+
+
+def first(
+    startable: Sequence[work.Item], queued: Sequence[work.Item], given: str
+) -> str:
+    """Say which item a free slot starts first.
+
+    Args:
+        startable: the items a slot can start, in order.
+        queued: every queued item, in order.
+        given: the configuration as the command was given it.
+
+    Returns:
+        The item with its command, or that nothing is queued.
+    """
+    if startable:
+        return (
+            f"{startable[0].reference} ({brief_command(given, startable[0].reference)})"
+        )
+    if queued:
+        held = queued[0].reference
+        return (
+            f"{held} ({brief_command(given, held)}), offered because a ticket of"
+            " its repository is in flight"
+        )
+    return "no open ticket or PR is queued: file the next ticket"

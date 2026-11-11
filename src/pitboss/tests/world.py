@@ -148,6 +148,7 @@ class World:
         calls: every command line the commands ran.
         processes: what the commands run processes with.
         usage: reads the use of a disk; a fixed figure unless a test gives one.
+        kind: the class of the command line parser.
     """
 
     workspace: pathlib.Path
@@ -159,6 +160,7 @@ class World:
     calls: MutableSequence[Sequence[str]]
     processes: fakes.Processes
     usage: disk.Reader = fixeddisk.fixed_usage
+    kind: type[argparse.ArgumentParser] = cli_parser.IntermixedParser
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -288,7 +290,7 @@ def parser(here: World) -> argparse.ArgumentParser:
     Returns:
         The parser.
     """
-    return cli_parser.make_parser(here.usage)
+    return cli_parser.make_parser(here.usage, kind=here.kind)
 
 
 def shell_env(world: World, directory: pathlib.Path | None) -> Mapping[str, str]:

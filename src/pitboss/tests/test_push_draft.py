@@ -187,7 +187,10 @@ class TestFailures(unittest.TestCase):
 
     def test_an_unreadable_timeline_says_nothing(self) -> None:
         """The failed call is not a draft-state change."""
-        assert_that(draftmoves.tell(fakes.github({}), "o/r", 3), equal_to([]))
+        refused = fakes.github(
+            {fakes.page("repos/o/r/issues/3/timeline"): fakes.REFUSED}
+        )
+        assert_that(draftmoves.tell(refused, "o/r", 3), equal_to([]))
 
     def test_a_failing_git_names_no_branch(self) -> None:
         """No branch is told, so nothing is asked of GitHub."""

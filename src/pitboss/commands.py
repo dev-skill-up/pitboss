@@ -333,8 +333,9 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
     report.print_reminders(found.settings)
     written = ledger.configured(found.settings)
     book = slotholding.derived(written, found.args.running)
+    scope = offering.Look(opened=read, marks=found.stands)
     offer = slotholding.counted(
-        offering.offered(found, read, book, found.stands), read, book, found.args
+        offering.offered(found, scope, book), read, book, found.args
     )
     slotreport.print_ledger(book, offer.occupancy)
     sweepline.slots(read, offer, offering.disagreements(found, offer))
@@ -358,8 +359,7 @@ def sweep(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 for a failed check, a conflict, or an unread repository.
     """
-    clock = timing.start()
-    args = timing.logged_args(args, clock)
+    clock, args = timing.clocked(args)
     where = configfile.locate(configfile.named(args), working_directory(args))
     ledgerowner.say_sweep(load_settings(args), where)
     localsections.print_update_check(args.safe_run)

@@ -334,6 +334,20 @@ def repositories(settings: Config) -> Sequence[Repo]:
     return (settings.project.repo, *settings.libraries)
 
 
+def has(settings: Config, reference: str) -> bool:
+    """Whether a ticket or PR is in a repository the configuration sweeps.
+
+    Args:
+        settings: the configuration.
+        reference: ``owner/name#number``.
+
+    Returns:
+        True when the repository is the project's or one of its libraries.
+    """
+    slug = reference.rpartition("#")[0]
+    return any(each.slug == slug for each in repositories(settings))
+
+
 def merges_by_hand(settings: Config, repo: Repo) -> bool:
     """Whether a library's PRs are merged by hand (``[libraries] no_auto_merge``).
 

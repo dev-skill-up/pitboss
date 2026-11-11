@@ -201,7 +201,7 @@ class TestSweep(unittest.TestCase):
     def test_an_unreadable_timeline_is_said(self) -> None:
         """A failing timeline call is an UNREADABLE line, not silence."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
-        del here.bodies[project_page("issues/2/timeline")]
+        here.bodies[project_page("issues/2/timeline")] = fakes.REFUSED
         expected = "UNREADABLE owner/project#2: timeline answered HTTP 404"
         assert_that(expected in lines_of(here), equal_to(True))
 
