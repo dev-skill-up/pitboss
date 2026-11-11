@@ -82,7 +82,9 @@ class Item:
         title: its title.
         priority: the index of its priority label, the owner's if stated (0 for PRs).
         labels: its labels.
-        body: a ticket's text, to look for a blocker in.
+        body: a ticket's text, to look for a blocker in; for a PR at ``FIX_CI``
+            whose red ``canonical-files`` asks for a line of the allowlist, that
+            line (keyword: allowlist-miss, pitboss#448).
         comments: how many comments a ticket has.
         blockers: the open tickets and PRs a ticket says it cannot be worked on
             until (keyword: ticket-blocked), also for a PR whose ticket says it
@@ -100,32 +102,6 @@ class Item:
     comments: int = 0
     blockers: Sequence[str] = ()
     ticket: str = ""
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Allowing(Item):
-    """A PR whose red ``canonical-files`` asks for a line of the allowlist.
-
-    Attributes:
-        allowlist: the line of ``tools/pin-audit/allowlist.txt`` that the log of
-            the failed check prints (keyword: allowlist-miss, pitboss#448).
-    """
-
-    allowlist: str
-
-
-def allowing(item: Item, line: str) -> Allowing:
-    """The item as one that asks for a line of the allowlist.
-
-    Args:
-        item: the item.
-        line: the allowlist line.
-
-    Returns:
-        The same item with the line.
-    """
-    kept = {each.name: getattr(item, each.name) for each in dataclasses.fields(item)}
-    return Allowing(**kept, allowlist=line)
 
 
 class Described(Protocol):

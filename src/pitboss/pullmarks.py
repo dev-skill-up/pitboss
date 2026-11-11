@@ -22,7 +22,6 @@ from . import (
     ghapi,
     pulls,
     work,
-    workitem,
 )
 
 Stands = Mapping[str, work.Item]
@@ -86,7 +85,7 @@ def _mark(
         else ("", [])
     )
     if line:
-        item = workitem.allowing(item, line)
+        item = dataclasses.replace(item, body=line)
     return dataclasses.replace(
         item,
         blockers=list(dict.fromkeys([*waits.blockers, *refused, *missing])),

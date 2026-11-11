@@ -2,12 +2,41 @@
 
 from typing import Protocol, Sequence
 
-from . import workitem
 from .markers import Marker
+
+FIX_CI = "FIX_CI"
+
+
+class Kind(Protocol):
+    """A category of work, read by its name."""
+
+    @property
+    def name(self) -> str:
+        """The category's name.
+
+        Returns:
+            ``FIX_CI`` for a PR a worker fixes the CI of.
+        """
 
 
 class Blocked(Protocol):
     """A ticket or PR that waits for open blockers."""
+
+    @property
+    def category(self) -> Kind:
+        """The kind of work.
+
+        Returns:
+            The category.
+        """
+
+    @property
+    def body(self) -> str:
+        """A ticket's text, or the allowlist line a PR's red check asks for.
+
+        Returns:
+            The text.
+        """
 
     @property
     def reference(self) -> str:
@@ -52,6 +81,6 @@ def of(item: Blocked) -> str:
         line of the allowlist, the line follows (keyword: allowlist-miss).
     """
     said = line(item.reference, *item.blockers)
-    if isinstance(item, workitem.Allowing):
-        return f"{said}; allowlist line: {item.allowlist}"
+    if item.category.name == FIX_CI and item.body:
+        return f"{said}; allowlist line: {item.body}"
     return said
