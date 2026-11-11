@@ -248,7 +248,8 @@ def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
     # the item's own reads first (keyword: item-brief, pitboss#443); the whole order
     # is read only for a ticket it must place
     runs = functools.partial(read_runner_runs, found)
-    fast = itemfast.show(found, book, reference, runs)
+    show = itemfast.show_review if found.args.step else itemfast.show
+    fast = show(found, book, reference, runs)
     timing.note(found.args, "item read and brief built")
     if fast is itemfast.Outcome.WHOLE:
         whole = whole_order(found)
@@ -333,6 +334,7 @@ def _read(found: Context) -> ledger.Ledger:
         default=ledger.TASK_KINDS[0],
         help="the kind of task 'slots set' records",
     ),
+    itemfast.STEP_ARGUMENT,
     *WATCH_ARGUMENTS,
     NOW_ARGUMENT,
     name="slots",

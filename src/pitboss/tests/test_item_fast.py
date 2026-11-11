@@ -340,3 +340,20 @@ class TestWhatIsNotOffered(unittest.TestCase):
         )
         found = world.invoke(here, *words, "--now", world.FUTURE)
         says(found.err, "a slot already works on it")
+
+    def test_a_ticket_is_at_no_review(self) -> None:
+        """``--step review`` refuses a ticket with no PR, and says the rule."""
+        for build, reference, why in (
+            (fast_world, NINTH, "its step is `start a PR`"),
+            (unlabeled, "owner/project#50", "a ticket with no PR"),
+        ):
+            with self.subTest(reference):
+                found = one(build(), reference, "--step", "review")
+                says(found.err, "UNKNOWN", why, "--step review prints")
+                assert_that((found.out, found.code), equal_to(("", 1)))
+
+    def test_an_item_that_is_not_offered_is_refused_as_without_the_step(self) -> None:
+        """``--step review`` keeps the reason ``slots next`` gives for it."""
+        found = one(closed(), NINTH, "--step", "review")
+        says(found.err, "it is closed or cannot be read")
+        assert_that((found.out, found.code), equal_to(("", 1)))

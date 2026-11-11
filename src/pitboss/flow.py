@@ -196,8 +196,8 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
         ruled: what the ruling rules.
 
     Returns:
-        The merge (or the conflict's resolution) for ``execution is
-        approved``, else the first step of the ruling's row of ``AFTER``.
+        The merge (or its conflict) for ``execution is approved``, else the step
+        of the row of ``AFTER`` (keyword: body-only-round).
     """
     if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
         return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
