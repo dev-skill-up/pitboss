@@ -255,7 +255,7 @@ class TestNoxChecksTheDisk(unittest.TestCase):
         shown = diskwatch.line(diskwatch.Reading(place=here.workspace, usage=usage))
         assert_that((found.code, calls), equal_to((1, [])))
         assert_that(found.out.splitlines()[0], equal_to(shown))
-        has_all(found.out, ["DISK ", CLEAN, "under 5.0 GiB free"])
+        has_all(found.out, ["DISK ", CLEAN, "under 5.0 GiB free", diskwatch.NOT_RUN])
         has_none(found.out, ["test-selection", "success"])
 
     def test_the_refusal_names_the_volume_it_read_and_its_free_space(self) -> None:

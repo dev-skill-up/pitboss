@@ -13,6 +13,10 @@ from .test_slot_idle import emptied
 
 IDLE = "IDLE SLOT: free for {} minutes, next is "
 LATE = "CHECK-IN OVERDUE: last {} minutes ago"
+STATUS = (
+    "check-in 00:20Z; next due 00:50Z; job expires 2030-01-08T00:00Z",
+    "check-in 01:40Z; next due 02:10Z; job expires 2030-01-08T01:40Z",
+)
 
 
 def checked_in() -> world.World:
@@ -120,6 +124,18 @@ class TestCheckIn(unittest.TestCase):
         for here, minute in ((world.make_world(), 300), (renewed, 31), (renewed, 40)):
             for argv in (("slots", "next"), ("sweep",)):
                 quiet(here, minute, "CHECK-IN", *argv)
+
+
+class TestStatusLine(unittest.TestCase):
+    """The line to paste into the status holds the clock's times, not typed ones."""
+
+    def test_the_firing_the_next_due_and_the_expiry(self) -> None:
+        """A run of in-time check-ins keeps its expiry; a lapse starts a new run."""
+        here = checked_in()
+        for minute, wanted in ((20, STATUS[0]), (100, STATUS[1])):
+            assert_that(
+                slots(here, "checkin", *at_(minute)).out, contains_string(wanted)
+            )
 
 
 class TestStatusPrompt(unittest.TestCase):
