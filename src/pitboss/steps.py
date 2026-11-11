@@ -220,7 +220,8 @@ TEXTS: Mapping[Step, str] = {
         " or fix is offered meanwhile"
     ),
     Step.PLAN_CHECK: (
-        "run `uvx pitboss plan-check <body file>` on the PR body and post its whole"
+        "post the Plan check: run `uvx pitboss plan-check <body file>` on the PR"
+        " body and post its whole"
         f" output as a PR comment (its first line is {PLAN_CHECK_FIRST_LINE!r});"
         " the Plan review is offered once it says `Plan check: ok` for this Plan"
     ),

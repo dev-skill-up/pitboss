@@ -167,4 +167,10 @@ class TestPlanCheckStep(unittest.TestCase):
 
     def test_the_step_says_what_to_do(self) -> None:
         """The line `next` prints."""
-        assert_that(steps.describe(steps.plan_check()), contains_string("plan-check"))
+        said = steps.describe(steps.plan_check())
+        assert_that(
+            said,
+            contains_string(
+                "post the Plan check: run `uvx pitboss plan-check <body file>`"
+            ),
+        )
