@@ -1,0 +1,62 @@
+"""``pitboss push`` reads the remote back and prints one line per outcome (#457)."""
+
+import unittest
+from typing import Sequence
+
+from hamcrest import assert_that, equal_to
+
+from . import fakes, quietworld, world
+from .test_quiet import at, clear_world
+
+MAKE_BRANCH = ["branch", "-f", "branch-1"]
+
+
+def pushed(here: world.World, given: Sequence[str]) -> world.Result:
+    """Push at minute 1 of a world, from its clone.
+
+    Args:
+        here: the world.
+        given: git's arguments, with their options after ``--``.
+
+    Returns:
+        What the push did.
+    """
+    fakes.run_git(here.clone, *MAKE_BRANCH)
+    argv = ["push", here.config, "--now", at(1), "--no-dry-run", "--draft", *given]
+    return world.invoke(here, *argv, directory=here.clone)
+
+
+class TestOutcomes(unittest.TestCase):
+    """One line for each way a push can come out."""
+
+    def test_each_outcome_has_its_line(self) -> None:
+        """Moved, already held, refused by git, and exit 0 with nothing moved."""
+        here = clear_world()
+        head = fakes.run_git(here.clone, "rev-parse", "HEAD").strip()
+        dry = pushed(here, ["--", "--dry-run", "origin", "branch-1"])
+        moved = pushed(here, ["origin", "branch-1"])
+        already = pushed(here, ["origin", "branch-1"])
+        ref = "origin refs/heads/branch-1"
+        found = [(each.code, each.out.splitlines()) for each in (dry, moved, already)]
+        wanted = [
+            (
+                1,
+                [
+                    f"push FAILED: git push exited 0 but {ref} holds nothing"
+                    f" and the local head is {head}"
+                ],
+            ),
+            (0, ["pushed"]),
+            (0, [f"already pushed: {ref} already held {head}"]),
+        ]
+        assert_that(found, equal_to(wanted))
+
+    def test_git_refuses(self) -> None:
+        """A refusal shows git's status and message."""
+        refusing = clear_world()
+        quietworld.refused_by_the_origin(refusing)
+        refused = pushed(refusing, ["origin", "branch-1"])
+        first = refused.out.splitlines()[0]
+        shown = (refused.code, first, "refused by the origin" in refused.out)
+        wanted = (1, "git push failed (exit 1): nothing was recorded", True)
+        assert_that(shown, equal_to(wanted))

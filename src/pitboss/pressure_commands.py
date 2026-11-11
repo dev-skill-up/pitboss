@@ -10,6 +10,7 @@ and no job was put on the queue (keyword: quiet-period).
 
 import argparse
 import subprocess
+from typing import Sequence
 
 from gather.commands import add_argument
 
@@ -21,6 +22,7 @@ from . import (
     draftrule,
     exempt,
     markupgate,
+    pushcheck,
     pushdraft,
     queue,
     record,
@@ -99,6 +101,13 @@ def _to_drafts(
     return drafted is not None
 
 
+def _checked(args: argparse.Namespace) -> str | None:
+    # the repository pushed to, once no refusal applies
+    slug = _pushed_repository(args)
+    _refuse(args, slug)
+    return slug
+
+
 def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context, bool]:
     # the context, and whether the push is free of the hold (else it is checked)
     found = commands.load_context(args)
@@ -108,13 +117,12 @@ def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context,
     return found, free
 
 
-def _send(args: argparse.Namespace) -> bool:
-    # whether git pushed: a dry run pushes nothing
+def _send(args: argparse.Namespace) -> Sequence[pushcheck.Outcome] | None:
+    # what git's push came to, read back; None for a dry run, which pushes nothing
     if not args.no_dry_run:
         print("dry run: --no-dry-run pushes")
-        return False
-    _git_push(args)
-    return True
+        return None
+    return _git_push(args)
 
 
 def _refuse_draft(args: argparse.Namespace, slug: str | None) -> None:
@@ -201,16 +209,55 @@ def _record_push(found: commands.Context) -> None:
         raise SystemExit(2)
 
 
-def _git_push(args: argparse.Namespace) -> None:
+def _git_push(args: argparse.Namespace) -> Sequence[pushcheck.Outcome]:
     # No git arguments: push the current branch of this worktree to origin.
     wanted = args.git_arguments or ["origin", "HEAD"]
+    found = pushcheck.targets(
+        args.safe_run, wanted, pushdraft.current_branch(args.safe_run)
+    )
     try:
         args.run(["git", "push", *wanted])
     except subprocess.CalledProcessError as failure:
-        print(f"git push failed (exit {failure.returncode}): nothing was recorded")
-        print((failure.stderr or "").strip())
         # A push that git refused never exits 0, even for a signal's status.
-        raise SystemExit(failure.returncode or 1)
+        return [
+            pushcheck.Outcome(
+                kind=pushcheck.Kind.REFUSED,
+                target=pushcheck.NOTHING,
+                code=failure.returncode or 1,
+                message=(failure.stderr or "").strip(),
+            )
+        ]
+    return [pushcheck.judge(args.safe_run, each) for each in found]
+
+
+def _went_out(outcomes: Sequence[pushcheck.Outcome]) -> bool:
+    # a push that moved a ref (or one that could not be read back) queued a job
+    kinds = {each.kind for each in outcomes}
+    return pushcheck.Kind.MOVED in kinds or not kinds
+
+
+def _failed(outcomes: Sequence[pushcheck.Outcome]) -> bool:
+    bad = (pushcheck.Kind.REFUSED, pushcheck.Kind.UNMOVED)
+    return any(each.kind in bad for each in outcomes)
+
+
+def _conclude(
+    holder: commands.Context | None, outcomes: Sequence[pushcheck.Outcome]
+) -> None:
+    # holder: the context of a push that was checked against the hold, else None
+    if holder is not None and _went_out(outcomes) and not _failed(outcomes):
+        _record_push(holder)
+    _finish(outcomes)
+
+
+def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
+    for each in outcomes:
+        print(pushcheck.line(each))
+    failed = [each for each in outcomes if each.kind is pushcheck.Kind.REFUSED]
+    if failed:
+        raise SystemExit(failed[0].code)
+    if any(each.kind is pushcheck.Kind.UNMOVED for each in outcomes):
+        raise SystemExit(1)
 
 
 @ENTRY_DATA.register(
@@ -233,8 +280,12 @@ def push(args: argparse.Namespace) -> None:
     runs ``git push`` and records nothing (keyword: pitboss-exempt, pitboss#113).
     With no ``[runners]`` table nothing is held or recorded. Put ``--`` before
     git's own options. The exit is 1 while the quiet period is not over, git's
-    status when the push fails, and 2 when the push went out but its hold could
-    not be recorded. With no ``--config``, the default configuration is used
+    status when the push fails, 1 when it exited 0 and the remote ref, read back
+    with ``git ls-remote``, is not the local commit, and 2 when the push went out
+    but its hold could not be recorded. Each pushed ref prints one line for the
+    case it came to: ``pushed``, ``already pushed ...``, git's refusal or
+    ``push FAILED ...`` (keyword: push-readback, pitboss#457). With no
+    ``--config``, the default configuration is used
     (keyword: default-config), so ``pitboss push --no-dry-run origin branch``
     runs ``git push origin branch``.
 
@@ -242,11 +293,7 @@ def push(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     tracefs.say(args.safe_run)
-    slug = _pushed_repository(args)
-    _refuse(args, slug)
-    found, free = _gate(args, slug)
-    if not _send(args):
-        return
-    if not free:
-        _record_push(found)
-    print("pushed")
+    found, free = _gate(args, _checked(args))
+    outcomes = _send(args)
+    if outcomes is not None:
+        _conclude(None if free else found, outcomes)
