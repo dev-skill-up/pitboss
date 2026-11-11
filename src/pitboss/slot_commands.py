@@ -19,6 +19,7 @@ from . import (
     itemfast,
     ledgerowner,
     logline,
+    mergestep,
     nextcommand,
     freecheck,
     nextlist,
@@ -26,7 +27,9 @@ from . import (
     repoaccess,
     slotholding,
     slotlog,
-    slotreport,
+    slotcheck,
+    slotshow,
+    slottasklist,
     slotwindow,
     ticketof,
     timing,
@@ -44,6 +47,7 @@ from .commands import (
     load_context,
     open_pulls,
     read_runner_runs,
+    sweep_look,
 )
 from .markers import Marker
 
@@ -77,7 +81,11 @@ class Action(enum.Enum):
         FREE_CHECK: print ``IDLE SLOT`` when a slot has been free for over ten
             minutes, else nothing (keyword: free-check, pitboss#450).
         CHECKIN: record that the status was posted just now (keyword: check-in,
-            pitboss#450).
+            pitboss#450); it prints the line with the firing's real time, the next
+            due time and the expiry (keyword: checkin-status-from-state).
+        TASKLIST: print the task list made of the ledger and GitHub, in the format
+            ``update_progress_checklist`` takes (keyword: tasklist-state,
+            pitboss#471).
     """
 
     SHOW = enum.auto()
@@ -97,6 +105,7 @@ class Action(enum.Enum):
     WATCH = enum.auto()
     FREE_CHECK = enum.auto()
     CHECKIN = enum.auto()
+    TASKLIST = enum.auto()
 
     @property
     def word(self) -> str:
@@ -189,26 +198,8 @@ CHANGES: Mapping[Action, tuple[int, Change]] = {
 }
 
 
-def _fewer(found: Context, book: ledger.Ledger) -> None:
-    # A ledger with fewer rows than 'slots check N' expects is refused.
-    words = found.args.words
-    # int() takes only ASCII digits here, and refuses more than 4300 of them.
-    if len(words) > 1 or (
-        words
-        and not (words[0].isascii() and words[0].isdigit() and len(words[0]) < 1000)
-    ):
-        raise _refuse("slots check takes one number of rows, or none")
-    if words and int(words[0]) > len(book.slots):
-        print(
-            f"LEDGER TOO SHORT: the ledger has fewer rows ({len(book.slots)})"
-            f" than the {words[0]} expected",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-
-
 def _check(found: Context, book: ledger.Ledger) -> None:
-    _fewer(found, book)
+    slotcheck.fewer(found, book)
     given = configfile.named(found.args)
     for slot in ledger.gone(book, found.args.running or ()):
         print(
@@ -216,21 +207,9 @@ def _check(found: Context, book: ledger.Ledger) -> None:
             f" is not running: 'pitboss slots free {given} {slot.name}"
             f" --done {slot.agent}'"
         )
-    _print(found, book)  # the rows as written, beside the GONE AGENT lines
-
-
-def _print(found: Context, book: ledger.Ledger) -> None:
-    # the PRs are not read here: only the live agents that hold no slot count
-    taken = slotholding.written((), book, found.args.running)
-    slotreport.print_ledger(book, taken)
-
-
-def _shown(found: Context, book: ledger.Ledger) -> None:
-    # pitboss#94: the rows are the live agents', not the hand's
-    running = found.args.running
-    derived = slotholding.derived(book, running)
-    taken = slotholding.occupy((), derived, running)
-    slotreport.print_ledger(derived, taken)
+    slotshow.written(
+        found.args.running, book
+    )  # the rows as written, beside the GONE AGENT lines
 
 
 def _refuse(message: str) -> SystemExit:
@@ -287,7 +266,11 @@ def _changing(found: Context, action: Action) -> None:
     # A hand-back is logged, with the head of its PR (keyword: log-line).
     before = _book(found)
     changed = _changed(action, found)
-    _print(found, changed)
+    slotshow.written(found.args.running, changed)
+    if action is Action.CHECKIN:
+        print(checkin.status_line(changed))
+    if action in REPLACES_LIST:
+        _replace_list(found, changed)
     if action in HAND_BACKS:
         name = found.args.words[0]
         slot = ledger.find(before, name)
@@ -298,6 +281,15 @@ def _changing(found: Context, action: Action) -> None:
         logline.record(found.settings.slots.log, event)
         if action is Action.FREE:
             nextlist.refill(found, opened, changed, name)
+
+
+REPLACES_LIST = frozenset({Action.SET, Action.FREE, Action.HEARD})  # tasklist-state
+
+
+def _replace_list(found: Context, book: ledger.Ledger) -> None:
+    live = slotholding.live(found.args, book)
+    items = nextlist.windowed(found, open_pulls(found), live).items
+    slottasklist.print_list(found, live, items)
 
 
 def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
@@ -323,23 +315,35 @@ def _free_check(found: Context) -> None:
     repoaccess.finish(found.access)
 
 
-def _next(found: Context) -> None:
-    # exits 1 when nothing is offered for the ticket
+def _next(found: Context) -> None:  # exits 1 when nothing is offered for the ticket
     reference = nextcommand.reference(found.args.words, found.settings.project.repo)
     book = _book(found)
     if reference is None:
         checkin.say([checkin.overdue(book, found.now)])
         nextlist.show(found, open_pulls(found), book)
+        mergestep.report(sweep_look(found), found.args.safe_run, found.now)
     known = reference is None or _brief(found, book, reference)
     repoaccess.finish(found.access)
     if not known:
         raise SystemExit(1)
 
 
+def _tasklist(found: Context) -> None:
+    _replace_list(found, _read(found))
+    repoaccess.finish(found.access)
+
+
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
     return ledger.configured(found.settings)
+
+
+READS: Mapping[Action, Callable[[Context], None]] = {
+    Action.NEXT: _next,
+    Action.TASKLIST: _tasklist,
+    Action.FREE_CHECK: _free_check,
+}
 
 
 @ENTRY_DATA.register(
@@ -388,11 +392,9 @@ def slots(args: argparse.Namespace) -> None:
         slotwindow.report(found)
     elif action is Action.TIME:
         slotwindow.worked(found)
-    elif action is Action.NEXT:
-        _next(found)
-    elif action is Action.FREE_CHECK:
-        _free_check(found)
+    elif action in READS:
+        READS[action](found)
     elif action is Action.WATCH:
         watchrun.watch(args, load_context, nextlist.free_line_by(open_pulls))
     else:
-        _shown(found, _read(found))
+        slotshow.derived(found.args.running, _read(found))

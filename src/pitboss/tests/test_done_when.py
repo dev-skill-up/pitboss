@@ -4,12 +4,12 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import donewhen, steps
+from .. import donewhen, steptexts
 from . import world
 
 TICKET = "owner/project#99"
 ISSUE = f"{world.PROJECT}/issues/99"
-FIRST = f"WORKER: {TICKET}: {steps.FIRST_STEP}\n"
+FIRST = f"WORKER: {TICKET}: {steptexts.FIRST_STEP}\n"
 SEEN = "Done-when: `brief.Kind.NEW_PR`, `pitboss next` and `src/pitboss/brief.py`."
 MISSING = (
     "Done-when: `brief.Kind.TICKET_WRITING`, `pitboss ticket-brief`,"

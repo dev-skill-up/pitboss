@@ -15,7 +15,7 @@ from .. import flow, plancheck, plancheckflow, plandigest, reviewfindings, shape
 from ..markers import Marker
 from . import test_flow, world
 from . import test_flow_sweep as sweeps
-from .suggestions import kind_of_third, next_output, third
+from .suggestions import kind_of_third, next_output, parsed
 from .test_flow import CHANGES, OLDER, expect, graded, state
 from .test_plan_check_step import (
     NO_COMMANDS,
@@ -155,33 +155,29 @@ class TestFlow(unittest.TestCase):
 class TestPlanCheckRefusal(unittest.TestCase):
     """A Plan check that refused the current Plan."""
 
-    def test_the_fix_round_is_offered_with_the_findings_quoted(self) -> None:
-        """A kind of its own, a line that quotes, and no review."""
+    def test_the_worker_sends_back_the_posted_check_with_the_findings_quoted(
+        self,
+    ) -> None:
+        """A line that quotes, no fix round and no review."""
         refused, here = refused_world()
-        assert_that(kind_of_third(here), equal_to(FIX_ROUND))
         out = next_output(here)
         shown = [x for x in out.splitlines() if x.startswith(Marker.PR_STATE.text)]
         owned = [each for each in shown if "project#3" in each]
-        assert_that(owned[0], contains_string("fix round: fix the findings"))
+        assert_that(owned[0], contains_string("sends back the posted Plan check"))
         assert_that(owned[0], contains_string(QUOTED))
+        assert_that(FIX_ROUND in out, equal_to(False))
         assert_that("(review it" in out, equal_to(False))
 
-    def test_the_brief_names_the_check_and_quotes_it(self) -> None:
-        """The task points at the comment of the check, not at a review."""
+    def test_no_brief_is_made_for_a_refused_plan(self) -> None:
+        """The step has no slot, so no suggestion names the PR."""
         refused, here = refused_world()
-        brief = third(here)[1]
-        task = [line for line in brief if line.startswith("Task: ")]
-        want = (
-            "Task: PR owner/project#3: fix the findings of the Plan check at"
-            f" {refused.url} ({QUOTED}), each one,"
-        )
-        assert_that(task[0], contains_string(want))
-        assert_that(task[0], contains_string("run `pitboss nox` once"))
+        named = [h for h, _ in parsed(next_output(here)) if "project#3" in h]
+        assert_that(named, equal_to([]))
 
     def test_a_refused_plan_with_no_command_is_a_fix_brief_with_the_findings(
         self,
     ) -> None:
-        """The refusal is the Plan's findings, not its commands (the slot line)."""
+        """The refusal is sent back by its worker: no fix round, no slot, no review."""
         found = "Done-when findings: the digest line is missing"
         section = plandigest.section(NO_COMMANDS)
         refused = dataclasses.replace(
@@ -189,11 +185,11 @@ class TestPlanCheckRefusal(unittest.TestCase):
             body=plancheck.text(section, [], [], [found]),
         )
         here = sweeps.world_with([refused], body=NO_COMMANDS)
-        assert_that(kind_of_third(here), equal_to(FIX_ROUND))
         out = next_output(here)
-        assert_that(out, contains_string("PITBOSS-SLOT: owner/project#3 fix"))
-        assert_that("PITBOSS-SLOT: owner/project#3 review" in out, equal_to(False))
-        assert_that(" ".join(third(here)[1]), contains_string(found))
+        assert_that(out, contains_string(plancheckflow.SENT_BACK.split("{")[0]))
+        assert_that(out, contains_string(found))
+        assert_that(FIX_ROUND in out, equal_to(False))
+        assert_that("PITBOSS-SLOT: owner/project#3" in out, equal_to(False))
 
     def test_a_clean_check_offers_the_review_as_before(self) -> None:
         """The control: the same body with a clean check."""

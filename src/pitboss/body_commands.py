@@ -22,6 +22,7 @@ from . import (
     deviations,
     expand_commands,
     expansion,
+    handbackcheck,
     plandigest,
     workeractions,
 )
@@ -91,16 +92,49 @@ def hand_back_check(args: argparse.Namespace) -> None:
         SystemExit: 1 when the hand-back has no ``Deviations:`` line or a clone
             is not on its default branch with a clean tree.
     """
-    missing = deviations.not_started(_read(args.file))
+    text = _read(args.file)
     configsettle.find_or_say(args)
-    refused = cloneguard.refusals(args, configfile.working_directory(args))
-    for each in (missing, *refused):
-        if each:
-            print(each)
-    if not (missing or refused):
-        print("ok")
-    else:
+    start = configfile.working_directory(args)
+    lines = _judged(args, text, start)
+    for each in lines:
+        print(each)
+    if lines:
         raise SystemExit(1)
+    print("ok")
+    _accepted(args, text, start)
+
+
+def _judged(args: argparse.Namespace, text: str, start: pathlib.Path) -> Sequence[str]:
+    # the lines that refuse a hand-back: the missing line, the clones, the checkout
+    missing = deviations.not_started(text)
+    refused = [
+        *cloneguard.refusals(args, start),
+        *_checkout_refusals(args, text, start),
+    ]
+    return [each for each in (missing, *refused) if each]
+
+
+def _clone(args: argparse.Namespace, start: pathlib.Path) -> pathlib.Path | None:
+    settings = cloneguard.loaded(args, start)
+    return None if settings is None else settings.project.main_clone
+
+
+def _checkout_refusals(
+    args: argparse.Namespace, text: str, start: pathlib.Path
+) -> Sequence[str]:
+    # keyword: hand-back-done (pitboss#471): the checks of the head a hand-back names
+    head = handbackcheck.head_of(text)
+    clone = _clone(args, start) if head else None
+    if clone is None:
+        return []
+    return handbackcheck.findings(args.safe_run, clone, head, handbackcheck.proc_cwd)
+
+
+def _accepted(args: argparse.Namespace, text: str, start: pathlib.Path) -> None:
+    head = handbackcheck.head_of(text)
+    clone = _clone(args, start) if head else None
+    if clone is not None:
+        handbackcheck.accept(args.safe_run, clone, head)
 
 
 def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:

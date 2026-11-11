@@ -113,8 +113,18 @@ def ending(records: Sequence[Mapping[str, object]]) -> State | None:
         records: the tail of the transcript, in order.
 
     Returns:
-        ``HANDED_BACK``, ``ENDED`` or ``STOPPED``; None when the agent is mid-turn.
+        ``HANDED_BACK``, ``ENDED`` or ``STOPPED``; None when the agent is
+        mid-turn. An agent that went on after a hand-back it received is
+        ``HANDED_BACK`` until a new instruction resumes it (keyword:
+        hand-back-done, pitboss#471).
     """
+    found = _last_ending(records)
+    if found is None and _handed_back_this_turn(records):
+        return State.HANDED_BACK
+    return found
+
+
+def _last_ending(records: Sequence[Mapping[str, object]]) -> State | None:
     if not records:
         return None
     last = records[-1]
@@ -124,12 +134,43 @@ def ending(records: Sequence[Mapping[str, object]]) -> State | None:
         return State.ENDED if stop == "end_turn" and not asking else None
     if _text(last).startswith("[Request interrupted by user"):
         return State.STOPPED
-    before = _blocks(records[-2]) if len(records) > 1 else []
-    called = any(
+    handed = _is_handback_result(records, len(records) - 1)
+    return State.HANDED_BACK if handed else None
+
+
+def _after_handback_call(records: Sequence[Mapping[str, object]], index: int) -> bool:
+    # the record before this one calls SubagentHandback
+    before = _blocks(records[index - 1]) if index else []
+    return any(
         each.get("type") == "tool_use" and each.get("name") == HANDBACK
         for each in before
     )
-    return State.HANDED_BACK if last.get("toolEndsTurn") and called else None
+
+
+def _is_handback_result(records: Sequence[Mapping[str, object]], index: int) -> bool:
+    # a user record that ends the turn, right after a SubagentHandback call
+    return bool(records[index].get("toolEndsTurn")) and _after_handback_call(
+        records, index
+    )
+
+
+def _is_new_instruction(record: Mapping[str, object]) -> bool:
+    # a user record that is not a tool's result: the brief, or a resumption
+    blocks = _blocks(record)
+    results = any(each.get("type") == "tool_result" for each in blocks)
+    return record.get("type") == "user" and not results
+
+
+def _handed_back_this_turn(records: Sequence[Mapping[str, object]]) -> bool:
+    # keyword: hand-back-done (pitboss#471): a hand-back that was received counts
+    # even when the agent went on (it was "waiting on its own background work")
+    # until a new instruction resumes it
+    for index, each in reversed(list(enumerate(records))):
+        if _is_new_instruction(each):
+            return False
+        if _is_handback_result(records, index):
+            return True
+    return False
 
 
 def _task(brief: str) -> tuple[str, str]:

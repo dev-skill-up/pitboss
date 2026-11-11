@@ -29,7 +29,6 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
-    cipointercheck,
     cirun,
     cloneguard,
     configfile,
@@ -38,9 +37,11 @@ from . import (
     expansion,
     forms,
     ghapi,
+    handbackcheck,
     headfindings,
     markuplines,
     plancheck,
+    plancheckread,
     plancheckconfig,
     plandigest,
     plantickets,
@@ -272,11 +273,21 @@ def plan_check(args: argparse.Namespace) -> None:
         raise SystemExit(REFUSED)
 
 
+def _record_ok(args: argparse.Namespace, output: str) -> None:
+    # keyword: hand-back-done (pitboss#471): `hand-back-check` reads this record
+    head = _sha(args, _head_of(args, args.body))
+    directory = pathlib.Path(_git(args, "rev-parse", "--absolute-git-dir").strip())
+    handbackcheck.record_plan_check(directory, head, output)
+
+
 def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
     body = args.file.read()
     section = _plan_of(args.file.name, body)
     args.body = body  # the checks that read the body whole take it from here
-    return _checked(args, section, _head_of(args, body))
+    text, failed = _checked(args, section, _head_of(args, body))
+    if not failed:
+        _record_ok(args, text)
+    return text, failed
 
 
 def _head_of(args: argparse.Namespace, body: str) -> str:
@@ -317,16 +328,6 @@ def _diff(args: argparse.Namespace, ref: str, *flags: str) -> str:
     # keyword: markup-lines (pitboss#343, #373): the lines the PR adds to each
     # file (--numstat -z) and its hunks, to tell a cut span from a new line (-U0)
     return _git(args, "diff", *flags, "--no-renames", f"{args.base}...{ref}")
-
-
-def _reading(tree: pathlib.Path) -> cipointercheck.Read:
-    def read(path: str) -> str | None:
-        found = tree / path
-        if not found.is_file():
-            return None
-        return found.read_text(encoding="utf-8", errors="replace")
-
-    return read
 
 
 def _repository(args: argparse.Namespace) -> str:
@@ -372,18 +373,8 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *_remote(args, body, section, ref),
             *headfindings.of_head(body, section, patch, (head, _sha(args, ref))),
         ]
-        noted = [*rows, *_notes(section, runs, (stat, patch))]
+        noted = [*rows, *plancheckread.notes(section, runs, (stat, patch))]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
-
-
-def _notes(
-    section: str, runs: Sequence[plancheck.Run], diff: tuple[str, str]
-) -> Sequence[str]:
-    # the notes and warnings that refuse nothing: markup lines, Evidence size
-    return [
-        *markuplines.notes(*diff),
-        *plancheck.size_warnings(section, runs),
-    ]
 
 
 def _of_trees(
@@ -393,7 +384,7 @@ def _of_trees(
     diffs: tuple[Sequence[str], str, str],
 ) -> Sequence[str]:
     # the findings that read the base's tree and the head's, and the diff
-    files = (_reading(trees[0]), _reading(trees[1]))
+    files = (plancheckread.reading(trees[0]), plancheckread.reading(trees[1]))
     return [
         *plancheck.ci_findings(section, diffs[0], _settings(args), files),
         *markuplines.findings(diffs[1], diffs[2]),

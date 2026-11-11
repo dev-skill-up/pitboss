@@ -151,10 +151,10 @@ class TestSweep(unittest.TestCase):
         lines_are(out, "BLOCKED", [BLOCKED])
         rankworld.absent(out, TASK)
 
-    def test_a_closed_ticket_or_an_ok_gives_the_step_back(self) -> None:
-        """Without a standing refusal the sweep lists PR 3 as before."""
+    def test_a_closed_ticket_or_an_ok_is_no_task(self) -> None:
+        """Without the blocker the refusal is sent back by its worker, no task."""
         for comments, seventh in (([refusal()], "closed"), ([refusal(), OK], "open")):
             with self.subTest(seventh):
                 out = sweep(refused_world(comments, seventh)).out
                 lines_are(out, "BLOCKED", [])
-                assert_that(out, contains_string(TASK))
+                rankworld.absent(out, TASK)

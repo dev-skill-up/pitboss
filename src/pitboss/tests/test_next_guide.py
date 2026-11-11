@@ -5,12 +5,12 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import nextguide, steps, ticketwhen
+from .. import nextguide, steptexts, ticketwhen
 from . import world
 
 TICKET = "owner/project#99"
 ISSUE = f"{world.PROJECT}/issues/99"
-FIRST = f"WORKER: {TICKET}: {steps.FIRST_STEP}\n"
+FIRST = f"WORKER: {TICKET}: {steptexts.FIRST_STEP}\n"
 WORKFLOW = """\
 name: check
 on: push

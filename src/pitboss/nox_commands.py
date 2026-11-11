@@ -28,6 +28,7 @@ from . import (
     noxcheck,
     noxenv,
     noxgreen,
+    noxtree,
     selectdiff,
     testselect,
 )
@@ -195,6 +196,9 @@ def run_planned(
         words = [*noxcheck.covers_of(judged), *modules]
         ran = noxcheck.run_sessions(in_home, time.monotonic, words, sessions)
     show(ran)
+    noxtree.record(
+        functools.partial(run_command, args), os.environ, [each.name for each in ran]
+    )
     if place:
         noxgreen.record(place, current_time(args).isoformat())
 
@@ -262,7 +266,7 @@ def nox(args: argparse.Namespace) -> None:
     repeat alone when it is lint. The last lines are one for each session, run or
     not (``noxcheck.summary_of``), after the ``test-timing`` lines of a session
     that passed (pitboss#324) and, on success, a line that says CI's ``Run Nox``
-    step is the proof of the whole suite. The other sessions are CI's. The tests
+    step is the proof of the whole suite. The tests
     session runs the tests the diff can affect (``testselect``, ``selectdiff``,
     pitboss#331), printed first with the reason, and reports the missing lines
     and branches of the changed files (pitboss#364); a test module added with

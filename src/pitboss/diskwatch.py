@@ -146,6 +146,13 @@ def line(each: Reading) -> str:
     return text
 
 
+NOT_RUN = (
+    "nox result: NOT RUN, no session ran (skills, lint, mypy, tests-3.13 not run);"
+    " no green result is recorded, so `pitboss push` refuses this tree (keyword:"
+    " nox-tree, pitboss#471)"
+)
+
+
 def nox_refusal(each: Reading | None) -> Sequence[str]:
     """The lines that stop ``pitboss nox`` on a volume with little free space.
 
@@ -158,8 +165,9 @@ def nox_refusal(each: Reading | None) -> Sequence[str]:
 
     Returns:
         No line when the volume is unread or has at least 5 GiB free; else the
-        ``DISK`` line, the same ``line`` that ``next`` prints, and the sentence
-        with the auto-approved cleaning that the command stops for.
+        ``DISK`` line, the same ``line`` that ``next`` prints, the sentence
+        with the auto-approved cleaning that the command stops for, and the
+        result line ``NOT_RUN`` (keyword: nox-tree, pitboss#471).
     """
     if each is None or each.usage.free >= NOX_FREE:
         return []
@@ -167,6 +175,7 @@ def nox_refusal(each: Reading | None) -> Sequence[str]:
         line(each),
         f"pitboss nox starts no session under {disk.size_text(NOX_FREE)} free:"
         f" run {CLEAN_CONTAINER}",
+        NOT_RUN,
     ]
 
 

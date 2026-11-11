@@ -23,11 +23,7 @@ def silent_minutes(slot: ledger.Slot, now: datetime.datetime) -> int | None:
     """
     if not slot.agent or not slot.started or slot.heard:
         return None
-    elapsed = slotlog.utc(now) - slotlog.utc(
-        datetime.datetime.fromisoformat(slot.started)
-    )
-    minutes = int(elapsed.total_seconds() // 60)
-    return minutes if elapsed > datetime.timedelta(minutes=SILENT_MINUTES) else None
+    return slotlog.minutes_over(slot.started, now, SILENT_MINUTES)
 
 
 def lines(book: ledger.Ledger, now: datetime.datetime) -> Sequence[str]:

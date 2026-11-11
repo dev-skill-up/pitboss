@@ -17,6 +17,10 @@ OVERDUE_MINUTES = 30
 EXPIRY_DAYS = 7
 
 
+def _utc(text: str) -> datetime.datetime:
+    return slotlog.utc(datetime.datetime.fromisoformat(text))
+
+
 def record(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
     """The ledger with a check-in just now.
 
@@ -27,7 +31,31 @@ def record(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
     Returns:
         The ledger.
     """
-    return dataclasses.replace(book, checkin=now.isoformat())
+    late = overdue(book, now)
+    since = book.checkin_since if book.checkin and not late else now.isoformat()
+    return dataclasses.replace(book, checkin=now.isoformat(), checkin_since=since)
+
+
+def status_line(book: ledger.Ledger) -> str:
+    """The line to paste into the status: the check-in, the next one and the expiry.
+
+    (Keyword: checkin-status-from-state, pitboss#471.) The times are the clock's at
+    the firing, never typed from memory; the next one is 30 minutes after it, and
+    the job expires 7 days after its run of check-ins began.
+
+    Args:
+        book: the ledger, with the check-in just recorded.
+
+    Returns:
+        ``check-in HH:MMZ; next due HH:MMZ; job expires YYYY-MM-DDTHH:MMZ``.
+    """
+    now, since = _utc(book.checkin), _utc(book.checkin_since)
+    due = now + datetime.timedelta(minutes=OVERDUE_MINUTES)
+    expires = since + datetime.timedelta(days=EXPIRY_DAYS)
+    return (
+        f"check-in {now:%H:%M}Z; next due {due:%H:%M}Z;"
+        f" job expires {expires:%Y-%m-%dT%H:%M}Z"
+    )
 
 
 def say(lines: Iterable[str | None]) -> None:
@@ -53,11 +81,9 @@ def overdue(book: ledger.Ledger, now: datetime.datetime) -> str | None:
     """
     if not book.checkin:
         return None
-    last = slotlog.utc(datetime.datetime.fromisoformat(book.checkin))
-    elapsed = slotlog.utc(now) - last
-    if elapsed <= datetime.timedelta(minutes=OVERDUE_MINUTES):
+    minutes = slotlog.minutes_over(book.checkin, now, OVERDUE_MINUTES)
+    if minutes is None:
         return None
-    minutes = int(elapsed.total_seconds() // 60)
     return f"{Marker.CHECK_IN_OVERDUE.text}: last {minutes} minutes ago"
 
 
@@ -80,18 +106,16 @@ def renew(book: ledger.Ledger, now: datetime.datetime) -> ledger.Ledger:
 
 PROMPT = f"""\
 Status post, every {OVERDUE_MINUTES} minutes. Each firing of this timer does these \
-steps, in order:
-1. Record the check-in first: run `pitboss slots checkin --config CONFIG`. The \
-ledger keeps its time. It prints CHECK-IN OVERDUE when the check-in before this one \
-was over {OVERDUE_MINUTES} minutes ago, and `slots next` and `sweep` print it \
-the same way when no firing records one.
+steps, in order, and posts no line of its own:
+1. Run `pitboss slots checkin --config CONFIG`. It records the check-in and prints \
+CHECK-IN OVERDUE when the check-in before this one was over {OVERDUE_MINUTES} \
+minutes ago, the ledger, and the line with the real time of the firing, the next \
+due time and the expiry.
 2. Run `pitboss sweep --config CONFIG` and act on its first line if it is IDLE SLOT \
 or CHECK-IN OVERDUE.
-3. Post one status message to the thread that says: what holds each slot (the \
-agent and its ticket or PR), what changed since the last post, what is blocked \
-on what, when this timer is next due, and when it expires.
-4. Keep the timer you have: it is one kept cron job, never one made again at each \
-firing, because each new job gets a random offset. Run CronList and create a job \
-only if it shows none. Re-arm the job once a day, so it never nears the \
-{EXPIRY_DAYS} days after which a timer expires, and the post names its expiry.
+3. Run `pitboss slots tasklist --config CONFIG`. Post, as they are printed, the \
+line of step 1 and the task list: every running agent, open PR and queued item \
+comes from the ledger and GitHub, so the status has no text of yours.
+4. Keep the timer you have: run CronList and create a job only if it shows none. \
+Re-arm it once a day, before the {EXPIRY_DAYS} days after which a timer expires.
 """

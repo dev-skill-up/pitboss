@@ -2,8 +2,9 @@
 
 A Plan is offered for its review only after the newest trusted comment that
 records a ``pitboss plan-check`` of this Plan is a clean one (keyword:
-plan-check-always). A refusal is the fix round, with its findings quoted (keyword:
-fix-round-kind, pitboss#390).
+plan-check-always). A refusal is not a round: the worker that pushed the PR sends
+back the posted Plan check, with its findings quoted (keyword: plan-check-sent-back,
+pitboss#471).
 """
 
 import re
@@ -190,6 +191,28 @@ class Described(Protocol):
 Pull = TypeVar("Pull", bound=Described)
 
 
+SENT_BACK = (
+    "the Plan check is refused: the worker that pushed the PR sends back the posted"
+    " Plan check (not a fix round, no slot; rounds are for review findings): {found}"
+)
+
+
+def sent_back(comment: str, found: str) -> steps.Next:
+    """The step of a Plan whose newest check refused it.
+
+    Args:
+        comment: the address of the refused check's comment.
+        found: the refused check's findings, quoted.
+
+    Returns:
+        The step, whose text says the worker sends the posted check back.
+    """
+    text = SENT_BACK.format(found=found)
+    return steps.Next(
+        step=steps.Step.PLAN_CHECK_REFUSED, comment=comment, findings=text
+    )
+
+
 def review(pr: Described, stage: steps.Stage) -> steps.Next:
     """A review that grades the Plan, once the Plan's commands were checked.
 
@@ -199,14 +222,15 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
 
     Returns:
         For any Plan that no clean check covers: the fix round with the
-        findings quoted when the newest check of this Plan refused it, else
-        the check step; otherwise the review.
+        findings quoted when the newest check of this Plan refused it (the
+        worker that pushed it sends the posted check back; no round, keyword:
+        plan-check-sent-back, pitboss#471), else the check step; otherwise the review.
     """
     if needs_check(pr.pull.body, pr.comments, pr.trusted):
         refused = refusal(pr.pull.body, pr.comments, pr.trusted)
         if refused is None:
             return steps.plan_check()
-        return steps.worker(steps.Task.FIX_ROUND, refused.url, findings(refused))
+        return sent_back(refused.url, findings(refused))
     return steps.regular_review(stage)
 
 

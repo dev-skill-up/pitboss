@@ -58,10 +58,13 @@ class TestOrderAndTruncation(unittest.TestCase):
         )
 
     def test_next_without_a_ticket_prints_what_slots_next_prints(self) -> None:
-        """The same text, from either command."""
+        """The same text, from either command (the merge step's lines apart)."""
         here = world.make_world()
         found = run_command(here, "next")
-        assert_that((found.out, found.code), equal_to((next_output(here), 0)))
+        step = ("REMOVED WORKTREE", "worktrees:")
+        lines = next_output(here).splitlines()
+        kept = [each for each in lines if not each.startswith(step)]
+        assert_that((found.out.splitlines(), found.code), equal_to((kept, 0)))
 
     def test_next_without_a_ticket_needs_the_ledger(self) -> None:
         """The ledger is authoritative on the slots."""

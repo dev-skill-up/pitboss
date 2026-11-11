@@ -30,6 +30,20 @@ CASES: Sequence[tuple[str, Records, Sequence[str], Sequence[str]]] = [
     ("interrupted", [BRIEF, interrupted(RECENT)], [], [FREED.format("stopped")]),
     ("resumed, mid-turn", RESUMED, ["a1"], []),
     ("resumed, answered", [*RESUMED, ended(RECENT)], [], [FREED.format("handback")]),
+    # keyword: hand-back-done (pitboss#471): a received hand-back frees the row
+    # even when the agent went on, once or ten times
+    (
+        "went on after it",
+        [*HANDED, call("Bash", RECENT)],
+        [],
+        [FREED.format("handback")],
+    ),
+    (
+        "went on after ten",
+        [BRIEF, *(r for _ in range(10) for r in HANDED[1:]), call("Bash", RECENT)],
+        [],
+        [FREED.format("handback")],
+    ),
     ("quiet since the start", [BRIEF, call("Bash", QUIET)], ["a1"], []),
     ("dead", [BRIEF, call("Bash", OLD)], [], [FREED.format("session restarted")]),
 ]

@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import flow, plancheck, plandigest, shapes, steps
+from .. import flow, plancheck, plancheckflow, plandigest, shapes, steps
 from . import checkcomment, fakes, worldcomments
 from .test_flow import CHANGES, expect, graded
 from .test_flow import BODY
@@ -75,7 +75,7 @@ def refused_comment(body: str) -> shapes.Comment:
 
 
 REFUSED = refused_comment(WITH_COMMANDS)
-FIX = steps.worker(steps.Task.FIX_ROUND, REFUSED.url, QUOTED)
+FIX = plancheckflow.sent_back(REFUSED.url, QUOTED)
 NOT_COUNTED = {
     "another plan": (EDITED, check_comment(WITH_COMMANDS)),
     "untrusted": (WITH_COMMANDS, check_comment(WITH_COMMANDS, author="NONE")),
@@ -151,13 +151,13 @@ class TestPlanCheckStep(unittest.TestCase):
         )
         expect(PLAN_ALONE, state(body=NO_COMMANDS, draft=True, comments=[current]))
 
-    def test_a_refused_plan_without_commands_is_the_fix(self) -> None:
+    def test_a_refused_plan_without_commands_is_sent_back(self) -> None:
         """The findings of the refusal are quoted, never a review."""
         found = "Done-when findings: the digest line is missing"
         text = plancheck.text(plandigest.section(NO_COMMANDS), [], [], [found])
         refused = dataclasses.replace(check_comment(NO_COMMANDS), body=text)
         pr = state(body=NO_COMMANDS, comments=[refused])
-        assert_that(flow.next_step(pr).step, equal_to(steps.Step.WORKER))
+        assert_that(flow.next_step(pr).step, equal_to(steps.Step.PLAN_CHECK_REFUSED))
         assert_that(steps.describe(flow.next_step(pr)), contains_string(found))
 
     def test_the_world_carries_the_clean_check_of_its_plan(self) -> None:

@@ -79,11 +79,7 @@ def _windowed(
         count *= windowrun.GROWTH
 
 
-def _ordered(
-    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
-) -> work.Offered:
-    unreadableline.print_withheld(opened)
-    return _counted(found, opened, book)
+windowed = _windowed  # the task list reads the same offer (tasklist-state)
 
 
 def _assigned(
@@ -393,7 +389,8 @@ def refill(
         name: the slot.
     """
     book = _live(found, book)
-    ordered = _ordered(found, opened, book)
+    unreadableline.print_withheld(opened)
+    ordered = _counted(found, opened, book)
     if not ordered.occupancy.known:
         print(slotheld.NOT_COMPUTED)
         return

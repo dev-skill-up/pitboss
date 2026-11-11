@@ -27,6 +27,7 @@ from . import (
     repoaccess,
     shapes,
     steps,
+    steptexts,
     tracefs,
     unreadableline,
 )
@@ -171,5 +172,5 @@ def _step_of(found: Context, named: str) -> None:
         working_directory(found.args),
         ticket.rpartition("#")[0],  # keyword: pitboss-exempt (pitboss#113)
     )
-    first = steps.FIRST_STEP_READY if off else steps.FIRST_STEP
+    first = steptexts.FIRST_STEP_READY if off else steptexts.FIRST_STEP
     print(f"{steps.Step.WORKER.name}: {ticket}: {first}")

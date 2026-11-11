@@ -83,6 +83,9 @@ class Ledger:
             work listed (keyword: deviations, pitboss#257).
         checkin: when the orchestrator last posted its status (ISO time), or
             empty when none is recorded (keyword: check-in, pitboss#450).
+        checkin_since: when the check-in timer began its run of check-ins on time
+            (ISO time), which its expiry counts from (keyword: check-in,
+            pitboss#471).
     """
 
     slots: Sequence[Slot]
@@ -90,6 +93,7 @@ class Ledger:
     config: str = ""
     deviations: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
     checkin: str = ""
+    checkin_since: str = ""
 
 
 def reference(text: str, project: config.Repo) -> str:
@@ -134,6 +138,7 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
             key: tuple(value) for key, value in data.get("deviations", {}).items()
         },
         checkin=data.get("checkin", ""),
+        checkin_since=data.get("checkin_since", ""),
     )
 
 
@@ -181,6 +186,8 @@ def write(path: pathlib.Path, ledger: Ledger) -> None:
         }
     if ledger.checkin:
         data["checkin"] = ledger.checkin
+    if ledger.checkin_since:
+        data["checkin_since"] = ledger.checkin_since
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 

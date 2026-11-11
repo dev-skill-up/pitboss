@@ -54,6 +54,7 @@ def parsed(output: str) -> Sequence[tuple[str, Sequence[str]]]:
             continue
         elif line.startswith("--- end of suggestion"):
             found.append((header, brief))
+            brief = []  # lines after the end are no part of the brief (merge-step)
         else:
             brief.append(line)
     return found

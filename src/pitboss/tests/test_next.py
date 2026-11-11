@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import steps
+from .. import steps, steptexts
 from . import fakes, test_flow_sweep, world
 
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -136,12 +136,12 @@ class TestNext(unittest.TestCase):
         """``Fixes #70`` does not fix ticket 7."""
         here = world.make_world()
         fixing(here, "#70")
-        starts(next_for(here, "#7"), f"WORKER: owner/project#7: {steps.FIRST_STEP}")
+        starts(next_for(here, "#7"), f"WORKER: owner/project#7: {steptexts.FIRST_STEP}")
 
     def test_a_ticket_no_pr_fixes_starts_with_a_worker(self) -> None:
         """The first step is to write the code and the Plan and Execution body."""
         found = next_for(world.make_world(), "#99")
-        first = f"WORKER: owner/project#99: {steps.FIRST_STEP}\n"
+        first = f"WORKER: owner/project#99: {steptexts.FIRST_STEP}\n"
         assert_that((said(found), found.code), equal_to((first, 0)))
 
     def test_the_first_step_follows_the_drafts_setting(self) -> None:
@@ -157,7 +157,7 @@ class TestNext(unittest.TestCase):
             path.write_text(path.read_text() + "\n" + setting)
             lines.append(said(next_for(here, "#99")).strip())
         head = "WORKER: owner/project#99: "
-        drafted, ready = steps.FIRST_STEP, steps.FIRST_STEP_READY
+        drafted, ready = steptexts.FIRST_STEP, steptexts.FIRST_STEP_READY
         assert_that(
             lines,
             equal_to([head + drafted, head + drafted, head + ready]),

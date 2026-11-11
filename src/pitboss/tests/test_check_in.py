@@ -5,6 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
+from .. import checkin
 from . import world
 from .test_handback import slots, start
 from .test_quiet import at
@@ -130,13 +131,19 @@ class TestStatusPrompt(unittest.TestCase):
         out = world.invoke(here, "status-prompt", here.config).out
         assert_that("Recreate" in out, equal_to(False))
         for part in (
-            "what holds each slot",
-            "what changed",
-            "what is blocked on what",
-            "next due",
-            "expires",
+            "pitboss sweep --config " + here.config,
+            "pitboss slots tasklist --config " + here.config,
+            "IDLE SLOT",
+            "CHECK-IN OVERDUE",
             "CronList",
-            "one kept cron job",
             "slots checkin --config " + here.config,
         ):
             assert_that(out, contains_string(part))
+
+    def test_stale_line(self) -> None:
+        """A stale line planted in a prompt is not part of the printed status."""
+        here = world.make_world()
+        stale = "two Opus rulings (pitboss#459 and #460) await a permission decision"
+        printed = slots(here, "checkin").out
+        assert_that(printed.count(stale), equal_to(0))
+        assert_that(checkin.PROMPT.count(stale), equal_to(0))

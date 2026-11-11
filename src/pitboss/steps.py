@@ -18,16 +18,6 @@ OWNER_ARTIFACT = (
     "attach a markdown artifact with the sections 'What happened',"
     " 'Recommendation' and 'Suggested mitigation'"
 )
-FIRST_STEP = (
-    "write the code, open the PR as a draft whose body has a Plan section and an"
-    " Execution section; no open PR says it fixes this ticket"
-)
-# keyword: no-drafts (pitboss#216): the step of a project whose config has no drafts
-FIRST_STEP_READY = (
-    "write the code, open the PR ready for review (this repository has no drafts)"
-    " with a body that has a Plan section and an Execution section; no open PR"
-    " says it fixes this ticket"
-)
 
 
 class Step(enum.Enum):
@@ -52,6 +42,8 @@ class Step(enum.Enum):
         PLAN_CHECK: no trusted comment records a clean
             ``pitboss plan-check`` of this Plan (keyword: plan-check,
             pitboss#192); no Plan review is offered before it.
+        PLAN_CHECK_REFUSED: the newest ``plan-check`` of the Plan refused it; no
+            round and no slot (keyword: plan-check-sent-back, pitboss#471).
         RUN_E2E: a draft whose Plan is approved, whose diff touches what the
             e2e suite runs on, has no completed dispatched run of
             ``check.yml`` at its head (a draft's own run skipped e2e): the
@@ -72,6 +64,7 @@ class Step(enum.Enum):
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
     PLAN_CHECK = enum.auto()
+    PLAN_CHECK_REFUSED = enum.auto()
     RUN_E2E = enum.auto()
     MERGE = enum.auto()
 
@@ -96,8 +89,8 @@ class Task(enum.Enum):
         ADD_CI_QUOTES: the Plan has CI-quote rows and the body lacks the quotes,
             which exist only after the PR is ready and its checks pass (keyword:
             ci-quotes, pitboss#277).
-        FIX_ROUND: findings name a file of the tree, or the Plan check refused
-            the Plan: code, doc and test may change (keyword: fix-round-kind).
+        FIX_ROUND: findings name a file of the tree: code, doc and test may
+            change (keyword: fix-round-kind).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -149,9 +142,11 @@ class Next:
         task: what the worker does (a WORKER step).
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
-            FIX_RULING step), of the refused Plan check (a FIX_ROUND step) or of
-            the ruling a FIX_EXECUTION step follows, empty when there is none.
-        findings: the refused Plan check's findings, quoted (a FIX_ROUND step).
+            FIX_RULING step), of the refused Plan check (a PLAN_CHECK_REFUSED
+            step) or of the ruling a FIX_EXECUTION step follows, empty when there
+            is none.
+        findings: the text of a PLAN_CHECK_REFUSED step, with the refused
+            check's findings quoted.
         branch: the head branch the check workflow is dispatched on (a RUN_E2E
             step).
         on_base: the head is red only from checks that passed on the base since
@@ -192,7 +187,7 @@ TEXTS: Mapping[Step, str] = {
         " or the quiet period); wait for the window"
     ),
     Step.WAIT_FOR_CI: (
-        "CI on the current head has not finished; nobody works or reviews" " meanwhile"
+        "CI on the current head has not finished; nobody works or reviews meanwhile"
     ),
     Step.OPUS_RULING: (
         "start an Opus agent whose only brief is to make a ruling, and record it"
@@ -246,14 +241,14 @@ def describe(step: Next) -> str:
     """
     if step.step is Step.MERGE and step.on_base:
         return ENQUEUE
-    if step.task is not None and step.findings:
-        return f"{step.task.value}: {step.findings}"
     if step.task is not None:
         return step.task.value
     if step.stage is not None and step.on_base:
         return f"{REQUEST_REVIEW}: {step.stage.value}"
     if step.stage is not None:
         return step.stage.value
+    if step.step is Step.PLAN_CHECK_REFUSED:
+        return step.findings  # the sent-back text, made by plancheckflow
     if step.step is Step.RUN_E2E:
         return TEXTS[step.step].format(branch=step.branch)
     return TEXTS[step.step]
@@ -268,19 +263,18 @@ def wait_for_owner() -> Next:
     return Next(step=Step.WAIT_FOR_OWNER)
 
 
-def worker(task: Task, comment: str = "", findings: str = "") -> Next:
+def worker(task: Task, comment: str = "") -> Next:
     """A worker round.
 
     Args:
         task: what the worker does.
-        comment: the address a FIX_ROUND or FIX_EXECUTION round names (see
+        comment: the address a FIX_EXECUTION round names (see
             ``Next.comment``).
-        findings: the refused Plan check's findings, quoted (FIX_ROUND).
 
     Returns:
         The step.
     """
-    return Next(step=Step.WORKER, task=task, comment=comment, findings=findings)
+    return Next(step=Step.WORKER, task=task, comment=comment)
 
 
 def undraft() -> Next:

@@ -205,3 +205,56 @@ def refused(path: str | None, project: config.Repo) -> bool:
     for line in found:
         print(line)
     return bool(found)
+
+
+CHECKLIST_HEADER = "Task list, from the ledger and the open PRs (never kept by hand)"
+RUNNING_MARK = "\u2731"
+DONE_MARK = "\u2713"
+QUEUED_MARK = "\u25cb"
+
+
+def checklist(
+    book: ledger.Ledger,
+    items: Sequence[work.Item],
+    merged: Sequence[str],
+) -> Sequence[str]:
+    """The task list in the format ``update_progress_checklist`` takes.
+
+    (Keyword: tasklist-state, pitboss#471.) A header, a blank line, then one line
+    for each ticket or PR and none that names two: a check mark for each one
+    merged, a star for each running agent (named, with its slot), a circle for
+    each queued one with its next step. It is made from the ledger, the open PRs
+    and the merged ones, and replaced at every dispatch and hand-back, never kept
+    by hand.
+
+    Args:
+        book: the ledger.
+        items: the ordered items (the queued work).
+        merged: the PRs merged lately.
+
+    Returns:
+        The lines.
+    """
+    flying = slotsheader.running(book)
+    held = {each.ticket or each.task for each in flying}
+    done = [f"{DONE_MARK} {each}: merged" for each in merged]
+    running = [_running_line(each) for each in flying]
+    queued = [_queued_line(each) for each in items if each.reference not in held]
+    return [CHECKLIST_HEADER, "", *done, *running, *queued]
+
+
+def _running_line(slot: ledger.Slot) -> str:
+    # a star: the agent, named, with its slot
+    return (
+        f"{RUNNING_MARK} {slotsheader.running_line(slot)} by {slot.agent},"
+        f" slot {slot.name}"
+    )
+
+
+def _queued_line(each: work.Item) -> str:
+    # a circle: the item with its next step
+    title = each.title[:60]
+    return (
+        f"{QUEUED_MARK} {each.reference}: {title}; next:"
+        f" {work.CATEGORY_WORDS[each.category]}"
+    )

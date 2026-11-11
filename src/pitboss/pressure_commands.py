@@ -9,8 +9,9 @@ and no job was put on the queue (keyword: quiet-period).
 """
 
 import argparse
+import os
 import subprocess
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
@@ -21,7 +22,9 @@ from . import (
     configfile,
     draftrule,
     exempt,
+    expansion,
     markupgate,
+    noxtree,
     pushcheck,
     pushdraft,
     queue,
@@ -111,6 +114,7 @@ def _checked(args: argparse.Namespace) -> str | None:
 def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context, bool]:
     # the context, and whether the push is free of the hold (else it is checked)
     found = commands.load_context(args)
+    _refuse_unchecked(args)
     free = _free(args, found, slug)
     if not free:
         _refuse_if_held(found)
@@ -130,6 +134,24 @@ def _refuse_draft(args: argparse.Namespace, slug: str | None) -> None:
     start = commands.working_directory(args)
     if args.draft and draftrule.drafts_off(configfile.named(args), start, slug):
         print(f"push refused: --draft, but {draftrule.REFUSAL}; nothing was pushed")
+        raise SystemExit(1)
+
+
+def _refuse_unchecked(args: argparse.Namespace) -> None:
+    # keyword: nox-tree (pitboss#471): the tree pushed has a green `pitboss nox`
+    def run(
+        command: Sequence[str], environment: Mapping[str, str] | None = None
+    ) -> expansion.Outcome:
+        given = {} if environment is None else {"env": environment}
+        try:
+            done = args.safe_run(list(command), **given)
+        except subprocess.CalledProcessError:
+            return expansion.Outcome(status=1, output="")
+        return expansion.Outcome(status=0, output=done.stdout)
+
+    line = noxtree.refusal(run, os.environ)
+    if line:
+        print(line)
         raise SystemExit(1)
 
 

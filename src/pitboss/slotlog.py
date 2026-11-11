@@ -346,3 +346,19 @@ def _slot_rows(spent: Mapping[str, Mapping[State, float]]) -> Sequence[str]:
         *(f"slot {name}: {_shares(spent[name])}" for name in sorted(spent)),
         f"all slots: {_shares(every)}",
     ]
+
+
+def minutes_over(since: str, now: datetime.datetime, limit: int) -> int | None:
+    """How long ago a time was, when it was over a limit.
+
+    Args:
+        since: the ISO time.
+        now: the time now.
+        limit: the minutes it may be ago.
+
+    Returns:
+        The whole minutes since it; None when it was no more than ``limit`` ago.
+    """
+    elapsed = utc(now) - utc(datetime.datetime.fromisoformat(since))
+    over = elapsed > datetime.timedelta(minutes=limit)
+    return int(elapsed.total_seconds() // 60) if over else None
