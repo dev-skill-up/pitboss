@@ -86,13 +86,12 @@ class TestForms(unittest.TestCase):
         assert_that(review, equal_to(MINE))
 
     def test_a_new_pr_brief_follows_the_projects_table(self) -> None:
-        """Drafts, holds and lines follow the table; the body line has no footer."""
+        """Drafts, holds and lines follow the table; the footer rule is stated."""
         here = world.make_world()
         append(here, FORM_TABLES)
         new = "\n".join(parsed(next_output(here))[-1][1])
         for wanted in NEW_PR_SAYS:
             assert_that(new, contains_string(wanted))
-        # pitboss#282: the suggestion says nothing about how the body ends
-        for unwanted in ("ends with", "THE FOOTER", "footer"):
-            assert_that(unwanted in new, equal_to(False))
+        # pitboss#446: the brief states the footer rule, once
+        assert_that(new.count("Footer: the body ends with"), equal_to(1))
         last_line(new, "Compiler: /x")

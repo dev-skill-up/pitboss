@@ -18,6 +18,7 @@ from . import (
     briefruling,
     briefslot,
     brieftext as text,
+    brieftextbody,
     brieftextci,
     brieftextconflict,
     brieftextdraft,
@@ -297,6 +298,7 @@ def _plan_lines(kind: Kind) -> list[str]:
     runs = kind in PLAN_RUNNERS
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
+        *([brieftextbody.PLAN_ROWS_DONE_WHEN] if writes else []),
         *(brieftextci.PLAN_ROWS if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),
