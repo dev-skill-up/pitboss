@@ -23,6 +23,7 @@ from . import (
     configfile,
     dead,
     draftmoves,
+    gates,
     ghapi,
     ghmemo,
     headchecks,
@@ -126,6 +127,19 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
     read = sweepline.looked_pulls(found.github, found.settings, found.now, runs)
     timing.note(found.args, "open pull requests read", len(read), "pull requests")
     return read
+
+
+def whole_order(found: Context) -> Context:
+    """The context with every repository's gate, which the whole order needs.
+
+    Args:
+        found: the context, with the gate of the item's repository alone.
+
+    Returns:
+        The context with every repository's gate read.
+    """
+    every = gates.settled(found.github, found.settings)
+    return dataclasses.replace(found, settings=every)
 
 
 def _reading(args: argparse.Namespace) -> KeywordRun:

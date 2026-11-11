@@ -1,7 +1,6 @@
 """The ``slots`` command: the worker-slot ledger, and what to start next."""
 
 import argparse
-import dataclasses
 import enum
 import functools
 import sys
@@ -16,7 +15,6 @@ from . import (
     configfile,
     deviations,
     fixes,
-    gates,
     ledger,
     itemfast,
     ledgerowner,
@@ -42,11 +40,7 @@ from .commandarguments import (
     RUNNING_ARGUMENT,
     WATCH_ARGUMENTS,
 )
-from .commands import (
-    Context,
-    load_context,
-    open_pulls,
-)
+from .commands import Context, load_context, open_pulls, whole_order
 from .markers import Marker
 from .queuereads import read_runner_runs
 
@@ -310,9 +304,7 @@ def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
     fast = itemfast.show(found, book, reference, runs)
     timing.note(found.args, "item read and brief built")
     if fast is itemfast.Outcome.WHOLE:
-        # the whole order needs every repository's gate, not the item's alone
-        every = gates.settled(found.github, found.settings)
-        whole = dataclasses.replace(found, settings=every)
+        whole = whole_order(found)
         return nextlist.show_item(whole, open_pulls(whole), book, reference)
     return fast is itemfast.Outcome.PRINTED
 
