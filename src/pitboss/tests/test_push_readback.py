@@ -60,3 +60,35 @@ class TestOutcomes(unittest.TestCase):
         shown = (refused.code, first, "refused by the origin" in refused.out)
         wanted = (1, "git push failed (exit 1): nothing was recorded", True)
         assert_that(shown, equal_to(wanted))
+
+
+class TestCases(unittest.TestCase):
+    """The cases of the read-back that the outcomes above do not reach."""
+
+    def test_a_push_with_no_runners_table_records_nothing(self) -> None:
+        """With no ``[runners]`` table nothing is held: a moved ref records none."""
+        here = clear_world()
+        quietworld.edit_config(here, "[runners]\n", "")
+        fakes.run_git(here.clone, *MAKE_BRANCH)
+        argv = [
+            "push",
+            here.config,
+            "--now",
+            at(1),
+            "--no-dry-run",
+            "origin",
+            "branch-1",
+        ]
+        result = world.invoke(here, *argv, directory=here.clone)
+        last = result.out.splitlines()[-1]
+        assert_that((result.code, last), equal_to((0, "pushed")))
+
+    def test_a_detached_head_names_no_destination(self) -> None:
+        """``HEAD`` as a destination from a detached head is refused by git."""
+        here = clear_world()
+        fakes.run_git(here.clone, "checkout", "-q", "--detach")
+        argv = ["push", here.config, "--now", at(1), "--no-dry-run", "--draft"]
+        result = world.invoke(here, *argv, "origin", "HEAD:HEAD", directory=here.clone)
+        first = result.out.splitlines()[0]
+        wanted = "git push failed (exit 1): nothing was recorded"
+        assert_that((result.code, first), equal_to((1, wanted)))

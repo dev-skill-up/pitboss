@@ -291,6 +291,7 @@ class TestQueued(unittest.TestCase):
         """A push at minute 16 goes out, records a hold and holds until minute 31."""
         here = clear_world()
         exit_code(here, "queued", 0)
+        fakes.commit_file(here.clone, "pushed.txt")
         pushed = world.again(here, "push", "--now", at(16), "--no-dry-run", "origin")
         found = [
             pushed.code,
