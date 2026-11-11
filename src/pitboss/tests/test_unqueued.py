@@ -98,29 +98,30 @@ class TestWhy(unittest.TestCase):
         assert_that(said, equal_to("it cannot be read"))
 
 
+def planned() -> world.World:
+    """PR 3 waits for owner/lib#3, which the Plan of PR 1 mentions.
+
+    Returns:
+        The world.
+    """
+    here = rankworld.dependent_world()
+    found = here.bodies[f"{world.PROJECT}/pulls/1"]
+    assert isinstance(found, dict)
+    found["body"] = f"{found['body']}\n## Plan\nsee owner/lib#3 here\n"
+    return with_pull_issues(here)
+
+
 class TestBlockerMentionedInAPlan(unittest.TestCase):
     """A blocker that an open PR only mentions in its Plan is still ranked."""
 
-    def planned(self) -> world.World:
-        """PR 3 waits for owner/lib#3, which the Plan of PR 1 mentions.
-
-        Returns:
-            The world.
-        """
-        here = rankworld.dependent_world()
-        found = here.bodies[f"{world.PROJECT}/pulls/1"]
-        assert isinstance(found, dict)
-        found["body"] = f"{found['body']}\n## Plan\nsee owner/lib#3 here\n"
-        return with_pull_issues(here)
-
     def test_it_takes_the_place_of_the_ticket_that_waits(self) -> None:
         """The order has the blocker ahead of the project's next ticket."""
-        found = rankworld.starts(self.planned())
+        found = rankworld.starts(planned())
         expected = ["owner/project#1", "owner/lib#3", "owner/project#10"]
         assert_that(found, equal_to(expected))
 
     def test_its_brief_is_printed(self) -> None:
         """``slots next owner/lib#3`` prints the brief, not UNKNOWN."""
-        found = one(self.planned(), "owner/lib#3")
+        found = one(planned(), "owner/lib#3")
         says(found.out, "start a PR: owner/lib#3", "PITBOSS-SLOT: owner/lib#3 start")
         assert_that((found.code, found.err.count("UNKNOWN")), equal_to((0, 0)))
