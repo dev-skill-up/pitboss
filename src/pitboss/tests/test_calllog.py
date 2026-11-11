@@ -31,15 +31,17 @@ def ticks() -> Callable[[], float]:
     return lambda: float(next(counter))
 
 
-def _ok(cmdargs: Sequence[str], /) -> fakes.Output:
+def _ok(cmdargs: Sequence[str], /, *args: object, **kwargs: object) -> fakes.Output:
     return fakes.Output(stdout="ok")
 
 
-def _fails(cmdargs: Sequence[str], /) -> fakes.Output:
+def _fails(cmdargs: Sequence[str], /, *args: object, **kwargs: object) -> fakes.Output:
     raise subprocess.CalledProcessError(1, list(cmdargs))
 
 
-def run_logged(run: running.Run, log: calllog.Log, command: Sequence[str]) -> None:
+def run_logged(
+    run: running.KeywordRun, log: calllog.Log, command: Sequence[str]
+) -> None:
     """Run a command through a runner that logs, one second a reading.
 
     Args:
@@ -100,6 +102,29 @@ class TestLogged(unittest.TestCase):
         found = [(each.kind, each.seconds) for each in log.calls]
         expected = [("gh api pulls", 1.0), ("gh api issues", 1.0)]
         assert_that(found, equal_to(expected))
+
+    def test_the_keywords_of_a_call_reach_the_runner_and_the_call_is_logged(
+        self,
+    ) -> None:
+        """A positional argument and ``check``, ``capture_output``, ``text`` go on."""
+        seen: list[tuple[Sequence[str], tuple[object, ...], dict[str, object]]] = []
+
+        def runner(
+            cmdargs: Sequence[str], /, *more: object, **keywords: object
+        ) -> fakes.Output:
+            seen.append((cmdargs, more, keywords))
+            return fakes.Output(stdout="ok")
+
+        log = calllog.new_log(0.0)
+        wrapped = calllog.logging_run(runner, log, ticks())
+        wrapped(["git", "status"], 5, check=True, capture_output=True, text=True)
+        wanted = (
+            ["git", "status"],
+            (5,),
+            dict(check=True, capture_output=True, text=True),
+        )
+        assert_that(seen, equal_to([wanted]))
+        assert_that([each.name for each in log.calls], equal_to(["git status"]))
 
     def test_a_phase_ends_with_the_calls_since_the_last(self) -> None:
         """The next phase starts empty, where the last one ended."""

@@ -95,11 +95,14 @@ class FakeProcesses:
     cwd: pathlib.Path | None = None
     path: str | None = None
 
-    def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> Output:
+    def __call__(
+        self, cmdargs: Sequence[str], /, *args: object, **kwargs: object
+    ) -> Output:
         """Run a command.
 
         Args:
             cmdargs: the command line.
+            *args: ignored.
             **kwargs: ignored (what gather passes to ``subprocess.run``).
 
         Returns:
