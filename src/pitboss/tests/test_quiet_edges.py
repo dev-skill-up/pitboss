@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from . import test_quiet as helpers
-from . import quietworld, world
+from . import fakes, quietworld, world
 
 
 def configure_runners(here: world.World, text: str) -> None:
@@ -81,6 +81,7 @@ class TestEdges(unittest.TestCase):
         here = helpers.clear_world()
         missing = here.workspace / "missing" / "log"
         configure_runners(here, f"quiet_minutes = 0\nrecord = '{missing}'")
+        fakes.commit_file(here.clone, "pushed.txt")
         result = at_zero(here, "push", "--no-dry-run")
         said = ("push WENT OUT" in result.out, "run `pitboss queued`" in result.out)
         assert_that(
