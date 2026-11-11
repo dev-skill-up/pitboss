@@ -196,7 +196,11 @@ def run_planned(
         ran = noxcheck.run_sessions(in_home, time.monotonic, words, sessions)
     show(ran)
     if place:
-        noxgreen.record(place, current_time(args).isoformat())
+        noxgreen.record(
+            place,
+            current_time(args).isoformat(),
+            [each.value for each in sessions],
+        )
 
 
 @ENTRY_DATA.register(

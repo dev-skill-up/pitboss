@@ -75,7 +75,9 @@ def refused_comment(body: str) -> shapes.Comment:
 
 
 REFUSED = refused_comment(WITH_COMMANDS)
-FIX = steps.worker(steps.Task.FIX_ROUND, REFUSED.url, QUOTED)
+FIX = steps.Next(
+    step=steps.Step.SEND_BACK_PLAN_CHECK, comment=REFUSED.url, findings=QUOTED
+)
 NOT_COUNTED = {
     "another plan": (EDITED, check_comment(WITH_COMMANDS)),
     "untrusted": (WITH_COMMANDS, check_comment(WITH_COMMANDS, author="NONE")),
@@ -157,7 +159,7 @@ class TestPlanCheckStep(unittest.TestCase):
         text = plancheck.text(plandigest.section(NO_COMMANDS), [], [], [found])
         refused = dataclasses.replace(check_comment(NO_COMMANDS), body=text)
         pr = state(body=NO_COMMANDS, comments=[refused])
-        assert_that(flow.next_step(pr).step, equal_to(steps.Step.WORKER))
+        assert_that(flow.next_step(pr).step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
         assert_that(steps.describe(flow.next_step(pr)), contains_string(found))
 
     def test_the_world_carries_the_clean_check_of_its_plan(self) -> None:

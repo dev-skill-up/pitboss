@@ -15,6 +15,7 @@ from hamcrest import assert_that, equal_to
 from .. import cloneguard
 from . import captured, fakes, repositories, world
 from .briefmake import has_all, has_none
+from .handbackworld import ready
 from .linting import write_text
 from .plancheckrun import body_of
 from .test_deviations import WITH_NONE, WITHOUT_LINE, saved
@@ -116,7 +117,7 @@ def after(setup: Setup, text: str = WITH_NONE) -> world.Result:
     """
     here = world.make_world()
     setup(here)
-    return check(here, text)
+    return check(ready(here), text)
 
 
 REFUSED: Mapping[str, tuple[Setup, str, Sequence[str]]] = {

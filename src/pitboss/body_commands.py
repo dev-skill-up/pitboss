@@ -16,11 +16,13 @@ from . import (
     ENTRY_DATA,
     bodydigest,
     bodyhead,
+    commands,
     cloneguard,
     configfile,
     configsettle,
     deviations,
     expand_commands,
+    handbackrun,
     expansion,
     plandigest,
     workeractions,
@@ -73,6 +75,27 @@ def body_digest(args: argparse.Namespace) -> None:
         " must be on its default branch with no uncommitted change to a tracked"
         " file, else a `refused` line names the clone and its branch",
     ),
+    add_argument(
+        "--pr",
+        type=int,
+        default=None,
+        help="the PR number in the configuration's repository (default: the open PR"
+        " of the worktree's branch, none is a refusal): the hand-back is refused"
+        " unless the PR holds the worktree's head, its body ends with a `Head:`"
+        " line naming it and a clean Plan check is posted",
+    ),
+    add_argument(
+        "--repo",
+        default=".",
+        help="the worker's worktree (default: the current directory): its head, its"
+        " git directory and the processes under it are judged",
+    ),
+    add_argument(
+        "--processes",
+        default="/proc",
+        help="the directory of process entries (default: /proc): a process"
+        " running in the worktree that is not this command is a job you started",
+    ),
     name="hand-back-check",
 )
 def hand_back_check(args: argparse.Namespace) -> None:
@@ -93,14 +116,15 @@ def hand_back_check(args: argparse.Namespace) -> None:
     """
     missing = deviations.not_started(_read(args.file))
     configsettle.find_or_say(args)
-    refused = cloneguard.refusals(args, configfile.working_directory(args))
-    for each in (missing, *refused):
-        if each:
-            print(each)
-    if not (missing or refused):
-        print("ok")
-    else:
+    refused = list(cloneguard.refusals(args, configfile.working_directory(args)))
+    refused.extend(handbackrun.refusals(args, commands.load_settings(args)))
+    lines = [each for each in (missing, *refused) if each]
+    for each in lines:
+        print(each)
+    if lines:
         raise SystemExit(1)
+    handbackrun.accept(args)  # recorded only when nothing at all refused
+    print("ok")
 
 
 def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:

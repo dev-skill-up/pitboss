@@ -9,6 +9,7 @@ and no job was put on the queue (keyword: quiet-period).
 """
 
 import argparse
+import pathlib
 import subprocess
 from typing import Sequence
 
@@ -22,6 +23,8 @@ from . import (
     draftrule,
     exempt,
     markupgate,
+    noxcheck,
+    noxgreen,
     pushcheck,
     pushdraft,
     queue,
@@ -110,8 +113,10 @@ def _checked(args: argparse.Namespace) -> str | None:
 
 
 def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context, bool]:
-    # the context, and whether the push is free of the hold (else it is checked)
+    # the context, and whether the push is free of the hold (else it is checked);
+    # a repository with a noxfile.py first needs a green nox on the tree (nox-tree)
     found = commands.load_context(args)
+    _require_green_nox(args)
     free = _free(args, found, slug)
     if not free:
         _refuse_if_held(found)
@@ -261,6 +266,29 @@ def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
         raise SystemExit(failed[0].code)
     unproved = (pushcheck.Kind.UNMOVED, pushcheck.Kind.UNVERIFIED)
     if any(each.kind in unproved for each in outcomes):
+        raise SystemExit(1)
+
+
+def _require_green_nox(args: argparse.Namespace) -> None:
+    # keyword: nox-tree (pitboss#471): a repository with a noxfile.py pushes a tree
+    # that a green `pitboss nox` ran on, the tree hash and not the branch
+    def out(*words: str) -> str:
+        try:
+            return str(args.safe_run(["git", *words]).stdout).strip()
+        except (OSError, subprocess.CalledProcessError):  # pragma: no cover
+            return ""
+
+    root, tree = out("rev-parse", "--show-toplevel"), out("rev-parse", "HEAD^{tree}")
+    directory = out("rev-parse", "--absolute-git-dir")
+    if (
+        not (root and tree and directory)
+        or not (pathlib.Path(root) / "noxfile.py").exists()
+    ):
+        return
+    ran = noxgreen.ran_green(pathlib.Path(directory), tree)
+    absent = [each.value for each in noxcheck.WITHOUT_TESTS if each.value not in ran]
+    if absent:
+        print(noxgreen.missing_line(tree, absent))
         raise SystemExit(1)
 
 

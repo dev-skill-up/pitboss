@@ -1,8 +1,8 @@
-"""The fix round: findings that name a file, and a refused Plan check (pitboss#390).
+"""The fix round: findings that name a file; a refused Plan check is no round (#471).
 
 The round that revises the Plan touches no code, doc or test, so findings that
-name one are the fix round's (keyword: fix-round-kind), and so is a Plan check
-that refused the Plan.
+name one are the fix round's (keyword: fix-round-kind); a Plan check that
+refused the Plan is sent back to the worker that pushed the PR.
 """
 
 import dataclasses
@@ -15,7 +15,7 @@ from .. import flow, plancheck, plancheckflow, plandigest, reviewfindings, shape
 from ..markers import Marker
 from . import test_flow, world
 from . import test_flow_sweep as sweeps
-from .suggestions import kind_of_third, next_output, third
+from .suggestions import kind_of_third, next_output
 from .test_flow import CHANGES, OLDER, expect, graded, state
 from .test_plan_check_step import (
     NO_COMMANDS,
@@ -153,47 +153,34 @@ class TestFlow(unittest.TestCase):
 
 
 class TestPlanCheckRefusal(unittest.TestCase):
-    """A Plan check that refused the current Plan."""
+    """A Plan check that refused the current Plan is sent back, not a round."""
 
-    def test_the_fix_round_is_offered_with_the_findings_quoted(self) -> None:
-        """A kind of its own, a line that quotes, and no review."""
+    def test_the_step_is_the_worker_sending_back_the_check(self) -> None:
+        """The list quotes the findings, offers no round and starts no agent."""
         refused, here = refused_world()
-        assert_that(kind_of_third(here), equal_to(FIX_ROUND))
         out = next_output(here)
         shown = [x for x in out.splitlines() if x.startswith(Marker.PR_STATE.text)]
         owned = [each for each in shown if "project#3" in each]
-        assert_that(owned[0], contains_string("fix round: fix the findings"))
+        assert_that(owned[0], contains_string("the worker that pushed the PR sends"))
         assert_that(owned[0], contains_string(QUOTED))
-        assert_that("(review it" in out, equal_to(False))
+        assert_that(owned[0], contains_string(refused.url))
+        for round_word in (FIX_ROUND, "fix round: fix", "(review it"):
+            assert_that(round_word in out, equal_to(False))
+        assert_that("PITBOSS-SLOT: owner/project#3" in out, equal_to(False))
 
-    def test_the_brief_names_the_check_and_quotes_it(self) -> None:
-        """The task points at the comment of the check, not at a review."""
-        refused, here = refused_world()
-        brief = third(here)[1]
-        task = [line for line in brief if line.startswith("Task: ")]
-        want = (
-            "Task: PR owner/project#3: fix the findings of the Plan check at"
-            f" {refused.url} ({QUOTED}), each one,"
-        )
-        assert_that(task[0], contains_string(want))
-        assert_that(task[0], contains_string("run `pitboss nox` once"))
-
-    def test_a_refused_plan_with_no_command_is_a_fix_brief_with_the_findings(
+    def test_a_refused_plan_with_no_command_is_sent_back_with_the_findings(
         self,
     ) -> None:
-        """The refusal is the Plan's findings, not its commands (the slot line)."""
+        """The refusal is the Plan's findings, not its commands."""
         found = "Done-when findings: the digest line is missing"
         section = plandigest.section(NO_COMMANDS)
         refused = dataclasses.replace(
             check_comment(NO_COMMANDS),
             body=plancheck.text(section, [], [], [found]),
         )
-        here = sweeps.world_with([refused], body=NO_COMMANDS)
-        assert_that(kind_of_third(here), equal_to(FIX_ROUND))
-        out = next_output(here)
-        assert_that(out, contains_string("PITBOSS-SLOT: owner/project#3 fix"))
-        assert_that("PITBOSS-SLOT: owner/project#3 review" in out, equal_to(False))
-        assert_that(" ".join(third(here)[1]), contains_string(found))
+        out = next_output(sweeps.world_with([refused], body=NO_COMMANDS))
+        assert_that(out, contains_string(found))
+        assert_that("PITBOSS-SLOT: owner/project#3" in out, equal_to(False))
 
     def test_a_clean_check_offers_the_review_as_before(self) -> None:
         """The control: the same body with a clean check."""

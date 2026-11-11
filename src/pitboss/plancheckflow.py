@@ -2,8 +2,9 @@
 
 A Plan is offered for its review only after the newest trusted comment that
 records a ``pitboss plan-check`` of this Plan is a clean one (keyword:
-plan-check-always). A refusal is the fix round, with its findings quoted (keyword:
-fix-round-kind, pitboss#390).
+plan-check-always). A refusal is sent back to the worker that pushed the PR,
+with its findings quoted, never a fix round (keyword: plan-check-send-back,
+pitboss#471).
 """
 
 import re
@@ -198,7 +199,7 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
         stage: what the review grades.
 
     Returns:
-        For any Plan that no clean check covers: the fix round with the
+        For any Plan that no clean check covers: the send-back step with the
         findings quoted when the newest check of this Plan refused it, else
         the check step; otherwise the review.
     """
@@ -206,7 +207,11 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
         refused = refusal(pr.pull.body, pr.comments, pr.trusted)
         if refused is None:
             return steps.plan_check()
-        return steps.worker(steps.Task.FIX_ROUND, refused.url, findings(refused))
+        return steps.Next(
+            step=steps.Step.SEND_BACK_PLAN_CHECK,
+            comment=refused.url,
+            findings=findings(refused),
+        )
     return steps.regular_review(stage)
 
 

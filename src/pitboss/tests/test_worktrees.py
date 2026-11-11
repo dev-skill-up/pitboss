@@ -8,11 +8,12 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string
 
-from .. import dead, judging, local, worktrees
-from . import cleanworld, fakes, world, worldcopy
+from .. import dead, judging, local, mergedworktree, worktrees
+from . import cleanworld, fakes, suggestions, world, worldcopy
 
 AFTER = ("--now", world.FUTURE)
 UNSAFE = ("unpushed-work", "changed-work", "live-work", "untracked-work")
+DIRTY = ("unpushed-work", "changed-work", "untracked-work")
 HOLDS = "is or holds the directory this command runs in"
 
 
@@ -218,3 +219,74 @@ class TestWorkingDirectory(unittest.TestCase):
         names = ("a", "a/b", "other")
         found = [dead.hold(look, top / name, later)[0] for name in names]
         cleanworld.same(found, [HOLDS, HOLDS, ""])
+
+
+def merged_out(here: world.World, branch: str, *more: str) -> str:
+    """Run ``pitboss merged`` for a branch.
+
+    Args:
+        here: the world.
+        branch: the branch of the merged PR.
+        *more: more arguments.
+
+    Returns:
+        What it printed.
+    """
+    return world.again(here, "merged", branch, *AFTER, *more).out
+
+
+class TestMerged(unittest.TestCase):
+    """The merge step removes the worktree of a merged branch at once (#471)."""
+
+    def test_the_clean_worktree_goes_with_its_bytes_printed_and_no_force(self) -> None:
+        """A dry run removes none; the real run removes it."""
+        here = scene()
+        dry = merged_out(here, "merged-work")
+        before = present(here, "merged-work")
+        out = merged_out(here, "merged-work", "--no-dry-run")
+        removed = f"REMOVED WORKTREE {here.workspace}/merged-work (merged): freed "
+        cleanworld.same((before, present(here, "merged-work")), ([True], [False]))
+        cleanworld.same("--force" in str(here.calls), False)
+        wanted = {
+            dry: ["(dry run: --no-dry-run removes it)"],
+            out: [removed, " bytes\n"],
+        }
+        cleanworld.same([cleanworld.absent(k, v) for k, v in wanted.items()], [[], []])
+
+    def test_the_marker_of_a_merged_worktree_does_not_keep_it(self) -> None:
+        """The worker is done: only the marker is untracked, and it goes."""
+        here = scene()
+        out = merged_out(here, "live-work", "--no-dry-run")
+        cleanworld.same(
+            (present(here, "live-work"), "REMOVED WORKTREE" in out), ([False], True)
+        )
+
+    def test_work_that_is_not_clean_is_kept(self) -> None:
+        """A commit on no remote branch, a changed file, an untracked file."""
+        here = scene()
+        said = {}
+        for name in DIRTY:
+            said[name] = merged_out(here, name, "--no-dry-run")
+        kept = {
+            name: f"KEPT WORKTREE {here.workspace}/{name}" in out
+            for name, out in said.items()
+        }
+        cleanworld.same(kept, {name: True for name in said})
+        cleanworld.same(present(here, "merged-work", *DIRTY), [True] * 4)
+
+    def test_another_branch_is_not_touched(self) -> None:
+        """Nothing is listed for a branch with no worktree."""
+        here = scene()
+        out = merged_out(here, "no-such-branch", "--no-dry-run")
+        cleanworld.same(
+            ("worktrees: 0 listed, freed 0 bytes" in out, present(here, "merged-work")),
+            (True, [True]),
+        )
+
+    def test_slots_next_lists_each_finished_worktree_as_a_removal_step(self) -> None:
+        """Merged or closed, with the size and the command."""
+        here = scene()
+        out = suggestions.next_output(here)
+        lines = [x for x in out.splitlines() if x.startswith(mergedworktree.REMOVE)]
+        cleanworld.same(len(lines), 5)
+        cleanworld.same("run `pitboss merged --no-dry-run " in lines[0], True)
