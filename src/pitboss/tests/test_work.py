@@ -159,7 +159,7 @@ class TestPullItems(unittest.TestCase):
         sent = steps.Next(step=steps.Step.SEND_BACK_PLAN_CHECK, findings="row 1")
         said = pullstate.next_step(stepped(facts(1, NONE), sent))
         assert_that(
-            ("sends back the posted check" in said, "fix round" in said.lower()),
+            ("sends back the posted check" in said, "fix the findings" in said),
             equal_to((True, False)),
         )
 
