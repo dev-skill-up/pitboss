@@ -4,7 +4,7 @@ Like those of ``brieftext``, they are pinned by tests, so a change to them is a
 reviewed code change.
 """
 
-from . import brieftextowner
+from . import brieftextbody, brieftextowner
 
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
@@ -75,4 +75,5 @@ SENTENCES = (
     DEPENDENCY,
     DRAFT_STATE,
     brieftextowner.OWNER,
+    *brieftextbody.SENTENCES,
 )
