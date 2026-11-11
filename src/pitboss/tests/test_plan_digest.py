@@ -4,10 +4,21 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, is_not
 
-from .. import bodydigest, brief, brieftext, plandigest, shapes, steps
+from .. import (
+    bodydigest,
+    brief,
+    brieftext,
+    flow,
+    flowstate,
+    plandigest,
+    shapes,
+    steps,
+)
 from . import fakes, world
+from . import test_plan_digest_urls as urls
+from .test_plan_digest_urls import pointed
 from .briefmake import text as brief_text
 from .test_commands import sweep
 from .test_plan_digest_collapse import digest, legacy_digest
@@ -216,6 +227,25 @@ class TestThePlanEditedLine(unittest.TestCase):
         swept, listed = looked_at(rounds, EDITED_PLAN)
         assert_that(listed, contains_string("(do the ruling's steps,"))
         assert_that(EDIT_LINE in swept, equal_to(False))
+
+
+class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
+    """pitboss#475: the ids of a pointer's run and job are not the Plan."""
+
+    def test_only_the_urls_rewritten_is_no_edit_and_a_word_is(self) -> None:
+        """Done-when 3: `plan_edited_without_ruling` is false, then true."""
+        edit = urls.edited
+        base, urls_only = pointed(1, 2), pointed(77, 88)
+        found = [
+            flowstate.plan_edited_without_ruling(edit(base, now))
+            for now in (urls_only, pointed(77, 88, "test"))
+        ]
+        assert_that(found, equal_to([False, True]))
+
+    def test_a_revision_then_do_these_steps_is_not_plan_edited(self) -> None:
+        """Done-when 1: the approving review, the edited Plan, both rulings."""
+        pr = urls.edited(urls.PLAN, urls.EDITED_PLAN, urls.revised_then_steps(3))
+        assert_that(flow.next_step(pr).step, is_not(steps.Step.PLAN_EDITED))
 
 
 class TestTheOldDigestIsStillAccepted(unittest.TestCase):

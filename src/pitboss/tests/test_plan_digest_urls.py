@@ -7,9 +7,9 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to, is_not
+from hamcrest import assert_that, equal_to
 
-from .. import flow, flowstate, shapes, steps
+from .. import flow, flowstate, shapes
 from . import test_flow
 from .test_flow import state
 from .test_plan_digest_collapse import digest
@@ -83,33 +83,14 @@ def revised_then_steps(second: int) -> Sequence[shapes.Comment]:
     return [test_flow.ruling(2, line=REVISE), test_flow.ruling(second)]
 
 
-class TestTheRunUrlsAreNotThePlan(unittest.TestCase):
-    """Done-when 3: the ids of a CI pointer's run and job are not an edit."""
+class TestTheNearestInputs(unittest.TestCase):
+    """What the digest and the rulings must still treat as an edit."""
 
-    def test_only_the_urls_rewritten_is_no_edit_and_a_word_or_repository_is(
-        self,
-    ) -> None:
-        """The nearest inputs: a changed word, or another repository."""
+    def test_another_repository_in_an_address_is_an_edit(self) -> None:
+        """Only the ids go: the address of another repository is another Plan."""
         other = pointed(1, 2).replace("o/r", "o/s")
-        cases = {
-            "urls": (pointed(77, 88), False),
-            "word": (pointed(77, 88, "test"), True),
-            "repository": (other, True),
-        }
-        for name, (now, changed) in cases.items():
-            with self.subTest(name):
-                pr = edited(pointed(1, 2), now)
-                found = flowstate.plan_edited_without_ruling(pr)
-                assert_that(found, equal_to(changed))
-
-
-class TestARulingAfterTheApprovalDoesNotCancelTheRevision(unittest.TestCase):
-    """Done-when 1: `revise the plan` then `do these steps`."""
-
-    def test_the_two_rulings_in_that_order_leave_no_plan_edited(self) -> None:
-        """The step is not PLAN EDITED."""
-        pr = edited(PLAN, EDITED_PLAN, revised_then_steps(3))
-        assert_that(flow.next_step(pr).step, is_not(steps.Step.PLAN_EDITED))
+        pr = edited(pointed(1, 2), other)
+        assert_that(flowstate.plan_edited_without_ruling(pr), equal_to(True))
 
     def test_without_the_revision_or_with_it_before_the_review_it_is_edited(
         self,
