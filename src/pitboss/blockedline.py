@@ -17,6 +17,14 @@ class Blocked(Protocol):
         """
 
     @property
+    def allowlist(self) -> str:
+        """The allowlist line its red ``canonical-files`` asks for, or "".
+
+        Returns:
+            The line.
+        """
+
+    @property
     def blockers(self) -> Sequence[str]:
         """The open tickets and PRs it waits for.
 
@@ -47,6 +55,8 @@ def of(item: Blocked) -> str:
         item: a ticket or PR with its ``blockers`` named.
 
     Returns:
-        The ``BLOCKED`` line.
+        The ``BLOCKED`` line; for a PR whose red ``canonical-files`` asks for a
+        line of the allowlist, the line follows (keyword: allowlist-miss).
     """
-    return line(item.reference, *item.blockers)
+    said = line(item.reference, *item.blockers)
+    return f"{said}; allowlist line: {item.allowlist}" if item.allowlist else said

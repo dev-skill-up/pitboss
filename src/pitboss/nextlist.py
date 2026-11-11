@@ -36,6 +36,7 @@ from . import (
     suggest,
     timing,
     unlabeledsearch,
+    unqueued,
     unreadableline,
     windowrun,
     windowstage,
@@ -311,7 +312,7 @@ def free_line(
 UNKNOWN = (
     "UNKNOWN: {reference} is not in the order of slots next: no open PR is at a"
     " step that is offered and no open ticket is queued (a held or blocked"
-    " ticket and a PR at a wait are not)"
+    " ticket and a PR at a wait are not); {why}"
 )
 
 
@@ -352,7 +353,8 @@ def show_item(
     every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
     pick = next((each for each in every if each.reference == reference), None)
     if pick is None:
-        print(UNKNOWN.format(reference=reference), file=sys.stderr)
+        why = unqueued.why(found.github, ordered, reference)
+        print(UNKNOWN.format(reference=reference, why=why), file=sys.stderr)
         return False
     made = suggest.suggest(source, pick)
     place = _place(_view(found, ordered, book, Reads(facts=source.facts)), pick)

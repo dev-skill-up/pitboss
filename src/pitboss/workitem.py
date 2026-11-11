@@ -88,6 +88,9 @@ class Item:
             until (keyword: ticket-blocked), also for a PR whose ticket says it
             (keyword: blocked-pull, pitboss#388).
         ticket: the ticket a PR fixes, or "".
+        allowlist: the line of ``tools/pin-audit/allowlist.txt`` that a red
+            ``canonical-files`` of the PR asks for (keyword: allowlist-miss,
+            pitboss#448), or "".
     """
 
     category: Category
@@ -100,6 +103,7 @@ class Item:
     comments: int = 0
     blockers: Sequence[str] = ()
     ticket: str = ""
+    allowlist: str = ""
 
 
 class Described(Protocol):

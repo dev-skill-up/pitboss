@@ -8,7 +8,7 @@ another repository (keyword: item-brief, pitboss#443).
 """
 
 import json
-from typing import AbstractSet, Callable, Sequence
+from typing import AbstractSet, Any, Callable, Mapping, Sequence
 
 from . import blockers, config, ghapi, nextfound, pullnames
 
@@ -41,14 +41,27 @@ def _named(repo: config.Repo) -> Callable[[str], Sequence[frozenset[str]]]:
     return parse
 
 
-def _crossed(text: str) -> Sequence[bool]:
-    # whether each event is a mention by a PR that is open
-    return [
-        each.get("event") == "cross-referenced"
-        and "pull_request" in each["source"]["issue"]
-        and each["source"]["issue"]["state"] == "open"
-        for each in json.loads(text)
-    ]
+def _crossed(reference: str, repo: config.Repo) -> Callable[[str], Sequence[bool]]:
+    # whether each event is a mention by an open PR that fixes the ticket (a mention
+    # in a Plan or an Evidence block does not, keyword: taken, pitboss#448)
+    def parse(text: str) -> Sequence[bool]:
+        return [_fixing(each, reference, repo) for each in json.loads(text)]
+
+    return parse
+
+
+def _fixing(event: Mapping[str, Any], reference: str, repo: config.Repo) -> bool:
+    if event.get("event") != "cross-referenced":
+        return False
+    issue = event["source"]["issue"]
+    if "pull_request" not in issue or issue["state"] != "open":
+        return False
+    home = str(issue.get("repository_url") or "").rpartition("repos/")[2]
+    owner = config.make_repo(*home.split("/", 1)) if "/" in home else repo
+    named = pullnames.names(
+        issue.get("title") or "", issue.get("body") or "", "", owner
+    )
+    return reference in named
 
 
 def taken(found: Found, repo: config.Repo, reference: str) -> tuple[int, bool]:
@@ -66,7 +79,7 @@ def taken(found: Found, repo: config.Repo, reference: str) -> tuple[int, bool]:
     github = found.github
     opened = ghapi.pages(github, f"repos/{repo.slug}/pulls?state=open", _named(repo))
     path = f"repos/{repo.slug}/issues/{reference.rpartition('#')[2]}/timeline"
-    mentions = ghapi.pages(github, path, _crossed)
+    mentions = ghapi.pages(github, path, _crossed(reference, repo))
     return len(opened), any(reference in each for each in opened) or any(mentions)
 
 

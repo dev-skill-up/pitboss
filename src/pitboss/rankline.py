@@ -44,6 +44,14 @@ class Ranked(Protocol):
         """
 
     @property
+    def allowlist(self) -> str:
+        """The allowlist line its red ``canonical-files`` asks for, or "".
+
+        Returns:
+            The line.
+        """
+
+    @property
     def blockers(self) -> Sequence[str]:
         """What it waits for.
 

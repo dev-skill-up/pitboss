@@ -172,7 +172,10 @@ TICKET_BODIES = {
 }
 NAMING = {
     "title": "Fixes #1",
-    "body": "see https://github.com/owner/project/issues/2 and lib#3",
+    "body": (
+        "Fixes https://github.com/owner/project/issues/2\nCloses lib#3\n"
+        "## Plan\nsee #5 and https://github.com/owner/project/issues/6"
+    ),
     "head": {"sha": fakes.HEAD, "ref": "claude/work-4"},
 }
 
@@ -181,7 +184,7 @@ class TestTickets(unittest.TestCase):
     """Open tickets that no open PR names."""
 
     def test_taken_and_offered(self) -> None:
-        """Only a ticket an open PR names is left out; named paths do not count."""
+        """Only a ticket an open PR fixes is left out; a mention in its Plan is not."""
         named = facts(10, NONE, **NAMING)
         plain = facts(11, NONE, head={"sha": fakes.HEAD, "ref": "feature"})
         api = fakes.github(dict(TICKET_BODIES))

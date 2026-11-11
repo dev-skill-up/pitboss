@@ -47,7 +47,11 @@ class Marker(enum.Enum):
             are joined by commas), also a PR whose ticket does, or whose newest
             trusted ``Plan check`` refuses the Plan and names them: the PR has no
             step until the blocker merges (keyword: blocked-pull, plan-refusal,
-            pitboss#388).
+            pitboss#388). A PR whose failed check is ``canonical-files`` with a hash
+            that ``tools/pin-audit/allowlist.txt`` of repository-prototype does not
+            list is blocked by the open repository-prototype PR that adds the
+            line, else by the ticket that asks for it, and its line ends with
+            ``; allowlist line: <the line>`` (keyword: allowlist-miss, pitboss#448).
         BLOCKS: ``BLOCKS <ticket>: blocks <tickets>; ranked <label>, opened
             <date>``, or ``BLOCKS <ticket> (PR <pr>): ...`` when an open PR
             stands for the ticket: a ticket that blocks another is ranked with

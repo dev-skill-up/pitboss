@@ -1,4 +1,8 @@
-"""The tickets a PR names: in its title or body, or by its branch (keyword: taken)."""
+"""The tickets a PR fixes: by a ``Fixes`` line in its title or body, or by its branch.
+
+A mention in a Plan or an Evidence block names no ticket the PR works on
+(keyword: taken, pitboss#448).
+"""
 
 import re
 from typing import AbstractSet
@@ -7,11 +11,12 @@ from . import config, ledger
 
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
+_CLOSING = re.compile(r"\b(?:Fixes|Closes)\s+(\S+)", re.IGNORECASE)
 _NAME = re.compile(r"(?:[\w.-]+/)?[\w.-]*#\d+")
 
 
 def names(title: str, body: str, branch: str, repo: config.Repo) -> AbstractSet[str]:
-    """The tickets a PR names in its title, body or branch.
+    """The tickets a PR fixes in its title or body, or names by its branch.
 
     Args:
         title: the PR's title.
@@ -22,11 +27,14 @@ def names(title: str, body: str, branch: str, repo: config.Repo) -> AbstractSet[
     Returns:
         The tickets' references.
     """
-    text = f"{title}\n{body}"
-    found = {ledger.reference(match.group(0), repo) for match in _NAME.finditer(text)}
-    found.update(
-        f"{match.group(1)}#{match.group(2)}" for match in _ISSUE_URL.finditer(text)
-    )
+    found: set[str] = set()
+    for closing in _CLOSING.finditer(f"{title}\n{body}"):
+        named = _NAME.match(closing.group(1))
+        url = _ISSUE_URL.search(closing.group(1))
+        if named:
+            found.add(ledger.reference(named.group(0), repo))
+        elif url:
+            found.add(f"{url.group(1)}#{url.group(2)}")
     trailing = _TRAILING_NUMBER.search(branch)
     if trailing:
         found.add(f"{repo.slug}#{trailing.group(1)}")
