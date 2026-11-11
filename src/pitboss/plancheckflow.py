@@ -198,8 +198,8 @@ def review(pr: Described, stage: steps.Stage) -> steps.Next:
         stage: what the review grades.
 
     Returns:
-        While the Plan has commands no clean check covers: the fix round with
-        the findings quoted when the newest check of this Plan refused it, else
+        For any Plan that no clean check covers: the fix round with the
+        findings quoted when the newest check of this Plan refused it, else
         the check step; otherwise the review.
     """
     if needs_check(pr.pull.body, pr.comments, pr.trusted):
@@ -222,8 +222,8 @@ def filled(
 
     Returns:
         True when no worker has anything to fill: the Execution is neither empty
-        nor a placeholder and no Plan command lacks a clean check (keyword:
-        filled-execution, pitboss#390).
+        nor a placeholder and a clean check covers the Plan, commands or not
+        (keyword: filled-execution, pitboss#390).
     """
     unwritten = planbody.execution_unwritten(body)
     return not unwritten and not needs_check(body, comments, trusted)
