@@ -156,16 +156,16 @@ def conflicted(facts: PullFacts) -> bool:
 
 
 def approved(facts: PullFacts) -> bool:
-    """Whether the head's review approves it.
+    """Whether the head's review approves it, no ruling having voided it.
 
     Args:
         facts: the PR.
 
     Returns:
-        True when approved.
+        True when approved (keyword: ruling-voids, pitboss#467).
     """
     counted = (reviews.Standing.APPROVED, reviews.Standing.APPROVED_BEFORE_MERGES)
-    return facts.standing in counted
+    return facts.standing in counted and facts.step.task is not steps.Task.RULING_STEPS
 
 
 Source = pullsource.Source

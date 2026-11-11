@@ -294,11 +294,11 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
         ruling to allow it; None when neither holds.
     """
     if has_unreadable_ruling(pr):
-        return steps.fix_ruling(unreadable_ruling_comment(pr))
+        return steps.fix_ruling(ruling_address(pr))
     return steps.plan_edited() if plan_edited_without_ruling(pr) else None
 
 
-def unreadable_ruling_comment(pr: PullState) -> str:
+def ruling_address(pr: PullState) -> str:
     """The address of the newest Opus ruling comment.
 
     Args:

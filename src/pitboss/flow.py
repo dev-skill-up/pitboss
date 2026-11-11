@@ -201,6 +201,8 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
     """
     if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
         return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
+    if ruled is rulingwords.Ruling.DO_THESE_STEPS:  # names the comment (pitboss#467)
+        return steps.worker(steps.Task.RULING_STEPS, flowstate.ruling_address(pr))
     return AFTER[ruled][0]
 
 
@@ -396,5 +398,8 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
             or plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
         )
 
-    # approved: ``rejection_step`` took the Execution that needs changes
-    return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
+    # approved; a ruling to do its steps after the approval voids it (#467)
+    do_steps = rulingwords.Ruling.DO_THESE_STEPS
+    if flowstate.ruling_unapplied(pr) is do_steps:
+        return ruled_step(pr, do_steps)
+    return conflicts.merge_unless_conflict(pr)

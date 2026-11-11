@@ -148,7 +148,8 @@ class Next:
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
             FIX_RULING step), of the refused Plan check (SEND_BACK_PLAN_CHECK) or of
-            the ruling a FIX_EXECUTION step follows, empty when there is none.
+            the ruling a FIX_EXECUTION or RULING_STEPS step follows, empty when
+            there is none.
         findings: the refused Plan check's findings, quoted.
         branch: the head branch the check workflow is dispatched on (a RUN_E2E
             step).

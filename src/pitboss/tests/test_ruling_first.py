@@ -63,7 +63,7 @@ class TestRulingFirst(unittest.TestCase):
     def test_the_fix_round_follows_a_recorded_ruling(self) -> None:
         """Only once the ruling is recorded: the ruling's own step."""
         pr = state(REJECTED, comments=ruled("do these steps"))
-        expect(steps.worker(steps.Task.RULING_STEPS), pr)
+        expect(test_flow.ruling_steps(2), pr)
 
     def test_a_rejection_after_the_ruling_pauses(self) -> None:
         """The ruling was used and the Execution is still rejected."""
@@ -83,7 +83,7 @@ class TestUnfixedExecution(unittest.TestCase):
         """A ruling of another word gives its first step; none, the ruling is due."""
         ruling = ruled("do these steps")
         expect(
-            steps.worker(steps.Task.RULING_STEPS),
+            test_flow.ruling_steps(2),
             unmoved(state(REJECTED, PLAN_ALONE, comments=ruling)),
         )
         expect(steps.opus_ruling(), unmoved(state(REJECTED, PLAN_ALONE)))

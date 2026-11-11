@@ -8,6 +8,7 @@ RULING_NAMED = (
     "Ruling: the Opus ruling at {ruling} came first; do what it rules for the"
     " Execution and nothing else."
 )
+RULING_AT = "Ruling: the Opus ruling is the comment at {ruling}."
 TASK_FIX_ROUND = (
     "Task: PR {reference}: fix the findings of {review}, each one, and"
     " nothing else: make no change that no finding names. A finding may name a"

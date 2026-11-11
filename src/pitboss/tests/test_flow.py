@@ -327,6 +327,19 @@ class TestBranches(unittest.TestCase):
         expect(steps.regular_review(Stage.PLAN_AND_EXECUTION), twice)
 
 
+def ruling_steps(second: int) -> steps.Next:
+    """The step of the ruling written at the second.
+
+    Args:
+        second: the second of the minute it was written.
+
+    Returns:
+        The worker round that does its steps.
+    """
+    url = f"https://example.org/ruling/{second}"
+    return steps.worker(Task.RULING_STEPS, url)
+
+
 class TestRulingBranches(unittest.TestCase):
     """What a ruling that no review follows, or that cannot be read, gives."""
 
@@ -335,7 +348,7 @@ class TestRulingBranches(unittest.TestCase):
         rejected = (FIRST_REJECTION, SECOND_REJECTION)
         worker = steps.worker
         cases = [
-            ("do these steps", "clean", worker(Task.RULING_STEPS)),
+            ("do these steps", "clean", ruling_steps(5)),
             ("revise the plan", "clean", worker(Task.REVISE_PLAN)),
             ("split", "clean", worker(Task.RULING_AS_GIVEN)),
             ("reshape", "clean", worker(Task.RULING_AS_GIVEN)),

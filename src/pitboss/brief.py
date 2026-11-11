@@ -167,7 +167,7 @@ class Heads:
             empty for a ticket (keyword: review-brief, pitboss#338).
         plan_digest: the digest of the body's Plan section, empty when the
             body has none.
-        ruling: the address of the Opus ruling an Execution fix round follows,
+        ruling: the address of the Opus ruling a round follows or does,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
     """
 
@@ -302,6 +302,8 @@ def _plan_lines(kind: Kind) -> list[str]:
 
 
 def _ruling(spec: Spec) -> list[str]:
+    if spec.kind is Kind.RULING_STEPS and spec.heads.ruling:
+        return [brieftextfix.RULING_AT]
     named = spec.kind is Kind.FIX_REVIEW and spec.heads.ruling
     return [brieftextfix.RULING_NAMED] if named else []
 
