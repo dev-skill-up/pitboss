@@ -9,7 +9,7 @@ by a new reviewer (a draft's plan-only review included). The kind is a label on
 the line, not a rank. A PR whose step is to wait (for CI, an undraft or the
 owner), to ask Opus for a ruling, to pause for the owner, to undraft or to merge
 is none of them: it is offered for no round. After them come the new PRs, one for
-each open ticket with a priority label that no open PR names, by priority label
+each open ticket with a priority label that no open PR fixes, by priority label
 (the owner's if stated), then oldest first. Nothing predicts which files a ticket
 will touch: work is taken in this order, every PR starts from the base branch, and
 a conflict is resolved by merging the base branch in.
@@ -111,8 +111,10 @@ def fix_round(pull: pulls.PullFacts) -> bool:
 def taken(facts: Iterable[pulls.PullFacts]) -> AbstractSet[str]:
     """The tickets open PRs already work on.
 
-    A PR names a ticket by ``#N``, ``name#N``, ``owner/name#N`` or the
-    ticket's URL in its title or body, or by a branch ending in ``-N``.
+    A PR works on a ticket (keyword: taken) only when its title or body fixes
+    it with a ``Fixes`` or ``Closes`` form, or its branch ends in the ticket's
+    number (``pullnames.names``); a mention elsewhere, in a Plan or an
+    Evidence block, names none.
 
     Args:
         facts: the open PRs.
@@ -133,7 +135,7 @@ def taken(facts: Iterable[pulls.PullFacts]) -> AbstractSet[str]:
 def ticket_items(
     github: ghapi.GitHub, settings: config.Config, in_progress: AbstractSet[str]
 ) -> Sequence[Item]:
-    """The open tickets with a priority label that no open PR names.
+    """The open tickets with a priority label that no open PR fixes.
 
     Args:
         github: the API.
@@ -284,7 +286,7 @@ def assemble(
 
     Args:
         found: the open PRs, read or not.
-        tickets: the tickets that no open PR names (``ticket_items``).
+        tickets: the tickets that no open PR fixes (``ticket_items``).
         book: the ledger.
 
     Returns:

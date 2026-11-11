@@ -216,7 +216,7 @@ class TestRanking(unittest.TestCase):
         here = missing_world()
         output = next_output(here)
         lines_are(output, "BLOCKED", [blocked_by(TICKET)])
-        assert_that(TICKET in starts(here), equal_to(True))
+        assert_that(starts(here), equal_to(["owner/project#1", TICKET]))
         assert_that("owner/project#3 (fix the CI" in output, equal_to(False))
 
     def test_the_open_pull_request_is_a_wait(self) -> None:
