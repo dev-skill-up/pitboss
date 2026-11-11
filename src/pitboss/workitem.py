@@ -82,7 +82,9 @@ class Item:
         title: its title.
         priority: the index of its priority label, the owner's if stated (0 for PRs).
         labels: its labels.
-        body: a ticket's text, to look for a blocker in.
+        body: a ticket's text, to look for a blocker in; for a PR at ``FIX_CI``
+            whose red ``canonical-files`` asks for a line of the allowlist, that
+            line (keyword: allowlist-miss, pitboss#448).
         comments: how many comments a ticket has.
         blockers: the open tickets and PRs a ticket says it cannot be worked on
             until (keyword: ticket-blocked), also for a PR whose ticket says it

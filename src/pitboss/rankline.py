@@ -44,6 +44,14 @@ class Ranked(Protocol):
         """
 
     @property
+    def body(self) -> str:
+        """A ticket's text, or the allowlist line a PR's red check asks for.
+
+        Returns:
+            The text.
+        """
+
+    @property
     def blockers(self) -> Sequence[str]:
         """What it waits for.
 

@@ -13,6 +13,7 @@ import functools
 from typing import Mapping, Protocol, Sequence
 
 from . import (
+    allowlistmiss,
     blockedline,
     blockers,
     concurrently,
@@ -78,9 +79,16 @@ def _mark(
     if waits is None:
         return item
     refused = blockers.refusal_blockers(found.github, found.settings, reference, ticket)
+    line, missing = (  # keyword: allowlist-miss (pitboss#448)
+        allowlistmiss.missing(found.github, pull)
+        if item.category is work.Category.FIX_CI
+        else ("", [])
+    )
+    if line:
+        item = dataclasses.replace(item, body=line)
     return dataclasses.replace(
         item,
-        blockers=list(dict.fromkeys([*waits.blockers, *refused])),
+        blockers=list(dict.fromkeys([*waits.blockers, *refused, *missing])),
         created_at=waits.created_at,
         priority=waits.priority,
     )

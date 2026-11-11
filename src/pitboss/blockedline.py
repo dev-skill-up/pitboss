@@ -4,9 +4,39 @@ from typing import Protocol, Sequence
 
 from .markers import Marker
 
+FIX_CI = "FIX_CI"
+
+
+class Kind(Protocol):
+    """A category of work, read by its name."""
+
+    @property
+    def name(self) -> str:
+        """The category's name.
+
+        Returns:
+            ``FIX_CI`` for a PR a worker fixes the CI of.
+        """
+
 
 class Blocked(Protocol):
     """A ticket or PR that waits for open blockers."""
+
+    @property
+    def category(self) -> Kind:
+        """The kind of work.
+
+        Returns:
+            The category.
+        """
+
+    @property
+    def body(self) -> str:
+        """A ticket's text, or the allowlist line a PR's red check asks for.
+
+        Returns:
+            The text.
+        """
 
     @property
     def reference(self) -> str:
@@ -47,6 +77,10 @@ def of(item: Blocked) -> str:
         item: a ticket or PR with its ``blockers`` named.
 
     Returns:
-        The ``BLOCKED`` line.
+        The ``BLOCKED`` line; for a PR whose red ``canonical-files`` asks for a
+        line of the allowlist, the line follows (keyword: allowlist-miss).
     """
-    return line(item.reference, *item.blockers)
+    said = line(item.reference, *item.blockers)
+    if item.category.name == FIX_CI and item.body:
+        return f"{said}; allowlist line: {item.body}"
+    return said

@@ -146,6 +146,10 @@ class TestTheBrief(unittest.TestCase):
         quietworld.edit_config(here, "[slots]", stated)
         briefed(here, NINTH, "start a PR: owner/project#9")
 
+    def test_a_mention_in_a_plan_does_not_take_the_ticket(self) -> None:
+        """The Plan of an open PR names ticket 9, which the PR does not fix."""
+        briefed(planned(), NINTH, "start a PR: owner/project#9")
+
     def test_a_pull_request_is_briefed_by_its_step(self) -> None:
         """A PR at a round gets its brief from the PR alone."""
         here = with_pull_issues(world.make_world())
@@ -174,16 +178,58 @@ def named() -> world.World:
     return here
 
 
-def mentioned() -> world.World:
+def timeline_of(text: str, **issue: object) -> world.World:
     """A world where the timeline of ticket 9 has a mention by an open PR.
+
+    Args:
+        text: the PR's body.
+        **issue: more fields of the PR's issue.
 
     Returns:
         The world.
     """
     here = fast_world()
-    source = {"issue": {"pull_request": {}, "state": "open"}}
+    found = {"pull_request": {}, "state": "open", "body": text, **issue}
+    source = {"issue": found}
     events = [{"event": "labeled"}, {"event": "cross-referenced", "source": source}]
     here.bodies[TIMELINE] = events
+    return here
+
+
+def mentioned() -> world.World:
+    """A world where an open PR of another repository fixes ticket 9.
+
+    Returns:
+        The world.
+    """
+    url = "https://api.github.com/repos/other/place"
+    return timeline_of("Fixes owner/project#9", repository_url=url)
+
+
+def fixed_here() -> world.World:
+    """A world where an open PR with no repository fixes ticket 9 by a bare number.
+
+    Returns:
+        The world.
+    """
+    return timeline_of("Fixes #9")
+
+
+def planned() -> world.World:
+    """A world where an open PR only mentions ticket 9 in its Plan.
+
+    Returns:
+        The world.
+    """
+    here = timeline_of("Fixes #1\n## Plan\nsee #9", title="a PR")
+    events = here.bodies[TIMELINE]
+    assert isinstance(events, list)
+    fixing = {"body": "Fixes #9", "pull_request": {}}
+    for kind in ({"state": "closed"}, {"state": "open", "pull_request": None}):
+        issue = {**fixing, **kind}
+        if issue["pull_request"] is None:
+            del issue["pull_request"]
+        events.append({"event": "cross-referenced", "source": {"issue": issue}})
     return here
 
 
@@ -259,6 +305,7 @@ REFUSALS: Sequence[tuple[Build, str, str]] = [
     (fast_world, "other/place#1", "other/place is not a configured repository"),
     (named, NINTH, "an open PR already works on it"),
     (mentioned, NINTH, "an open PR already works on it"),
+    (fixed_here, NINTH, "an open PR already works on it"),
     (held, NINTH, "no new pull requests in owner/project"),
     (waiting, NINTH, "it waits for owner/lib#3"),
     (superseded, NINTH, "it is superseded"),

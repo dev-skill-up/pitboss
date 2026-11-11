@@ -37,6 +37,7 @@ from . import (
     suggest,
     timing,
     unlabeledsearch,
+    unqueued,
     unreadableline,
     windowrun,
     windowstage,
@@ -328,17 +329,12 @@ def first_startable(
 UNKNOWN = (
     "UNKNOWN: {reference} is not in the order of slots next: no open PR is at a"
     " step that is offered and no open ticket is queued (a held or blocked"
-    " ticket and a PR at a wait are not)"
+    " ticket and a PR at a wait are not); {why}"
 )
 
 
-def _place(view: nextview.NextView, pick: suggest.Pick) -> str:
-    # where the item stands in the order, so a dispatch out of order is visible
-    marker = Marker.NEXT.text
-    number, last = nextview.place(view, pick.reference)
-    ahead = number - (slotheld.LEAD + 1)
-    order = f"out of order, {ahead} ahead of it" if ahead else "first in the order"
-    return f"{marker} {number} of {last}, {order}"
+def _placed(view: nextview.NextView, pick: suggest.Pick) -> str:
+    return nextview.place_line(view, pick.reference)
 
 
 def show_item(
@@ -369,10 +365,11 @@ def show_item(
     every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
     pick = next((each for each in every if each.reference == reference), None)
     if pick is None:
-        print(UNKNOWN.format(reference=reference), file=sys.stderr)
+        why = unqueued.why(found.github, ordered, reference)
+        print(UNKNOWN.format(reference=reference, why=why), file=sys.stderr)
         return False
     made = suggest.suggest(source, pick)
-    place = _place(_view(found, ordered, book, Reads(facts=source.facts)), pick)
+    place = _placed(_view(found, ordered, book, Reads(facts=source.facts)), pick)
     print(f"{place}: {made.kind.value}: {made.reference}: {made.model}")
     print(made.text)
     return True
