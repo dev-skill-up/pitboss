@@ -21,6 +21,9 @@ ESCAPED_PROMPT = "\\$ "
 NO_NEWLINE = "\\ No newline at end of output\n"
 MIN_FENCE = 3
 TICKS = re.compile(r"`+")
+RUN_ADDRESS = re.compile(
+    r"(https://github\.com/[\w.-]+/[\w.-]+)/actions/runs/\d+(?:/job/\d+)?"
+)
 
 
 BOM = "﻿"
@@ -214,22 +217,48 @@ def text_digest(text: str) -> str:
     return hashlib.new("sha256", plain.encode("utf-8")).hexdigest()[:DIGEST_LENGTH]
 
 
+def run_urls_dropped(text: str) -> str:
+    """The text with the run and job ids of each Actions address dropped.
+
+    A CI pointer names the run of the head, and ``plan-check`` rewrites the run and
+    job addresses for every head; what the Plan says is the workflow, the job, the
+    step and the string, so a change of those ids alone is no edit of the Plan
+    (keyword: plan-digest-urls, pitboss#475).
+
+    Args:
+        text: any text, a Plan section for one.
+
+    Returns:
+        The text in which ``.../actions/runs/ID`` and ``.../actions/runs/ID/job/ID``
+        are ``.../actions/runs``.
+    """
+    return RUN_ADDRESS.sub(r"\1/actions/runs", text)
+
+
 def accepted_digests(text: str) -> Sequence[str]:
     """The digests a record of a Plan section may carry to be of this section.
 
     The first is the digest of the section with each block ``expand`` produced
-    collapsed to its command (keyword: plan-digest-collapse, pitboss#358). The
-    second is the digest of the section as it is, which records made before the
-    collapse carry: they are accepted for one published version (pitboss#399
-    drops the acceptance).
+    collapsed to its command (keyword: plan-digest-collapse, pitboss#358) and the
+    run and job ids of its Actions addresses dropped (keyword: plan-digest-urls,
+    pitboss#475). The second is the digest of the section collapsed only, which
+    records made before the ids were dropped carry, and the third the digest of the
+    section as it is, which records made before the collapse carry: they are
+    accepted for one published version (pitboss#399 drops the acceptance).
 
     Args:
         text: the section, empty when the body has none.
 
     Returns:
-        Both digests; none for no section.
+        The three digests; none for no section.
     """
-    return [text_digest(collapsed(text)), text_digest(text)] if text else []
+    if not text:
+        return []
+    return [
+        text_digest(run_urls_dropped(collapsed(text))),
+        text_digest(collapsed(text)),
+        text_digest(text),
+    ]
 
 
 def section_digest(text: str) -> str:

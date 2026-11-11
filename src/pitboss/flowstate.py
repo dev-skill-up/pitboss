@@ -7,7 +7,7 @@ ruling. ``flow`` re-exports them under their names.
 
 import dataclasses
 import enum
-from typing import AbstractSet, Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Sequence
 
 from . import (
     draftfacts,
@@ -224,11 +224,12 @@ def plan_edited_without_ruling(pr: PullState) -> bool:
     if newest is None:
         return False
     now = plandigest.section(pr.pull.body)
-    # keyword: plan-digest-collapse (pitboss#358, #399): a digest recorded before
-    # the expanded blocks were collapsed is still the Plan it read
+    # keyword: plan-digest-collapse (pitboss#358, #399): an older digest still counts
     if not expansion.section_changed(newest.plan_digest, now):
         return False
-    return not plan_edit_ruled(pr, newest.when)
+    trusted = (each for each in pr.comments if each.author_association in pr.trusted)
+    dated = [(each.created_at, read_ruling(each.body)) for each in trusted]
+    return not rulingwords.revised_after(dated, newest.when)
 
 
 def approved_digests(graded: Sequence[shapes.Graded]) -> Sequence[str]:
@@ -376,25 +377,3 @@ def e2e_step(pr: PullState) -> steps.Next | None:
         return None
     running = [each for each in pr.checks if not each.finished]
     return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)
-
-
-# What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads
-# the first step; the later ones are not wired (a worker's push moves the head and
-# the ordinary review gate takes over).
-AS_RULED = (
-    rulingwords.Ruling.SPLIT,
-    rulingwords.Ruling.RESHAPE,
-    rulingwords.Ruling.ABANDON,
-)
-AFTER: Mapping[rulingwords.Ruling, Sequence[steps.Next]] = {
-    rulingwords.Ruling.DO_THESE_STEPS: (
-        steps.worker(steps.Task.RULING_STEPS),
-        steps.regular_review(steps.Stage.RULING_STEPS),
-    ),
-    rulingwords.Ruling.REVISE_THE_PLAN: (
-        steps.worker(steps.Task.REVISE_PLAN),
-        steps.regular_review(steps.Stage.PLAN_ONLY),
-    ),
-    rulingwords.Ruling.ESCALATE: (steps.ruling_escalates(),),
-    **dict.fromkeys(AS_RULED, (steps.worker(steps.Task.RULING_AS_GIVEN),)),
-}

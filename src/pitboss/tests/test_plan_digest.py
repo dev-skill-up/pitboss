@@ -205,16 +205,17 @@ class TestThePlanEditedLine(unittest.TestCase):
         assert_that(out, contains_string("CONFLICT owner/project#3"))
         assert_that(listed_for_third(here), equal_to([]))
 
-    def test_a_ruling_before_the_approval_or_of_another_word_does_not(self) -> None:
-        """The ruling must say to edit, and come after the approval."""
-        cases = {
-            "before": [ruling(1), approving(2)],
-            "another word": [approving(1), ruling(2, "do these steps")],
-        }
-        for name, rounds in cases.items():
-            with self.subTest(name):
-                out = sweep(world_with(rounds, body=EDITED_PLAN)).out
-                assert_that(out, contains_string(EDIT_LINE))
+    def test_a_ruling_before_the_approval_does_not(self) -> None:
+        """The ruling must come after the approval."""
+        here = world_with([ruling(1), approving(2)], body=EDITED_PLAN)
+        assert_that(sweep(here).out, contains_string(EDIT_LINE))
+
+    def test_a_ruling_of_another_word_is_executed_not_held(self) -> None:
+        """pitboss#475: `do these steps` is offered at once, not PLAN EDITED."""
+        rounds = [approving(1), ruling(2, "do these steps")]
+        swept, listed = looked_at(rounds, EDITED_PLAN)
+        assert_that(listed, contains_string("(do the ruling's steps,"))
+        assert_that(EDIT_LINE in swept, equal_to(False))
 
 
 class TestTheOldDigestIsStillAccepted(unittest.TestCase):
