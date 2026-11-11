@@ -13,6 +13,7 @@ from . import (
     ENTRY_DATA,
     blockers,
     brief,
+    checkin,
     commandscan,
     configfile,
     donewhen,
@@ -20,6 +21,7 @@ from . import (
     fixes,
     flake,
     ledger,
+    mergedworktree,
     nextguide,
     nextlist,
     pulls,
@@ -31,7 +33,7 @@ from . import (
     unreadableline,
 )
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
-from .commands import Context, load_context, open_pulls, working_directory
+from .commands import Context, load_context, open_pulls, sweep_look, working_directory
 
 _FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
 
@@ -107,6 +109,7 @@ def show_next(args: argparse.Namespace) -> None:
     found = load_context(args)
     if args.ticket is None:
         nextlist.show_all(found, open_pulls(found))
+        checkin.say(mergedworktree.steps(sweep_look(found), found.now))
     else:
         _step_of(found, args.ticket)
     repoaccess.finish(found.access)

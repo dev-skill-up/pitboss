@@ -36,7 +36,7 @@ class Filesystem:
     exists: Callable[[pathlib.Path], bool]
     is_link: Callable[[pathlib.Path], bool]
     owner: Callable[[pathlib.Path], int | None]
-    inspect: Callable[[pathlib.Path], survey.Survey]
+    inspect: survey.Inspector
     changed: Callable[[pathlib.Path], float | None]
 
 

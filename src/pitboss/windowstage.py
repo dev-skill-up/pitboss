@@ -6,16 +6,15 @@
 """
 
 import dataclasses
-import datetime
-from typing import AbstractSet, Mapping, Protocol, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from . import (
     causecache,
     config,
-    ghapi,
     ledger,
     promotion,
     pulls,
+    reading,
     slotcache,
     ticketitem,
     ticketwindow,
@@ -24,35 +23,9 @@ from . import (
 )
 
 
-class Reading(Protocol):
-    """The part of a command's context that the stage reads with."""
-
-    @property
-    def github(self) -> ghapi.GitHub:
-        """The API.
-
-        Returns:
-            The API.
-        """
-
-    @property
-    def settings(self) -> config.Config:
-        """The configuration.
-
-        Returns:
-            The configuration.
-        """
-
-    @property
-    def now(self) -> datetime.datetime:
-        """The time of the run.
-
-        Returns:
-            The time.
-        """
-
-
-def tickets(found: Reading, taken: AbstractSet[str], count: int) -> Sequence[work.Item]:
+def tickets(
+    found: reading.Reading, taken: AbstractSet[str], count: int
+) -> Sequence[work.Item]:
     """The first ``count`` open tickets of the order that no open PR names.
 
     Args:
@@ -78,11 +51,12 @@ def tickets(found: Reading, taken: AbstractSet[str], count: int) -> Sequence[wor
     ]
 
 
-def _caused(found: Reading) -> Mapping[str, Sequence[str]]:
-    # the tickets two or more others name as a cause, from what changed since last time
-    slots = found.settings.slots
-    cache = slotcache.path_of(slots.ledger)
-    parts = slotcache.read(cache)
+def _read_causes(
+    found: reading.Reading,
+) -> tuple[Mapping[str, object], promotion.Causes, Mapping[str, object]]:
+    # the cache as stored, the causes read since, and the cache to store
+    ledger = found.settings.slots.ledger
+    parts = slotcache.read(slotcache.path_of(ledger))
     kept = parts.get(causecache.CAUSES)
     pairs, now = causecache.causes(
         found.github,
@@ -90,7 +64,25 @@ def _caused(found: Reading) -> Mapping[str, Sequence[str]]:
         kept if isinstance(kept, dict) else {},
         found.now,
     )
-    slotcache.write(cache, {**parts, causecache.CAUSES: now})
+    return parts, pairs, now
+
+
+def warm(found: reading.Reading) -> None:
+    """Read what ``_caused`` will ask for, so that its answers are there to take.
+
+    The cache is not written: ``_caused`` does it (keyword: prefetch).
+
+    Args:
+        found: the context.
+    """
+    _read_causes(found)
+
+
+def _caused(found: reading.Reading) -> Mapping[str, Sequence[str]]:
+    # the tickets two or more others name as a cause, from what changed since last time
+    slots = found.settings.slots
+    parts, pairs, now = _read_causes(found)
+    slotcache.write(slotcache.path_of(slots.ledger), {**parts, causecache.CAUSES: now})
     return promotion.heavy(pairs, frozenset(slots.owner_priorities))
 
 
@@ -103,7 +95,7 @@ def _ranked(slots: config.Slots, item: work.Item) -> work.Item:
 
 
 def _outside(
-    found: Reading,
+    found: reading.Reading,
     named: Mapping[str, Sequence[str]],
     listed: AbstractSet[str],
     away: AbstractSet[str],
@@ -119,7 +111,7 @@ def _outside(
 
 
 def promoted(
-    found: Reading, queued: Sequence[work.Item], away: AbstractSet[str]
+    found: reading.Reading, queued: Sequence[work.Item], away: AbstractSet[str]
 ) -> tuple[Sequence[work.Item], Sequence[str]]:
     """The queued work with the tickets named as a cause ranked first.
 
@@ -149,7 +141,10 @@ def promoted(
 
 
 def start(
-    found: Reading, opened: Sequence[pulls.Read], book: ledger.Ledger, count: int
+    found: reading.Reading,
+    opened: Sequence[pulls.Read],
+    book: ledger.Ledger,
+    count: int,
 ) -> tuple[Sequence[work.Item], Sequence[str], bool]:
     """The queued work over a window of tickets, ranked.
 

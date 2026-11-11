@@ -36,11 +36,9 @@ class Step(enum.Enum):
     Attributes:
         WAIT_FOR_OWNER: the PR is paused; the owner decides.
         WORKER: a worker does a task.
-        UNDRAFT: mark the PR ready (a draft whose Plan is approved and whose
-            newest review at its head asks for no changes, pitboss#176).
+        UNDRAFT: mark the PR ready (a draft approved at its head, pitboss#176).
         REGULAR_REVIEW: a new reviewer grades a stage.
-        WAIT_FOR_UNDRAFT: the plan is approved, no review at the head asks for
-            changes, the PR cannot be undrafted yet.
+        WAIT_FOR_UNDRAFT: approved, but the PR cannot be undrafted yet.
         WAIT_FOR_CI: CI on the head has not finished; nobody works meanwhile.
         OPUS_RULING: one Opus agent makes a binding ruling.
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
@@ -49,9 +47,10 @@ class Step(enum.Enum):
         PLAN_EDITED: the Plan section differs from the Plan an approving review
             read, and no Opus ruling authorises the edit (keyword: plan-digest,
             pitboss#172).
-        PLAN_CHECK: no trusted comment records a clean
-            ``pitboss plan-check`` of this Plan (keyword: plan-check,
-            pitboss#192); no Plan review is offered before it.
+        PLAN_CHECK: no trusted comment records a clean ``pitboss plan-check`` of
+            this Plan (keyword: plan-check, pitboss#192); no review before it.
+        SEND_BACK_PLAN_CHECK: the newest Plan check refused the Plan; the worker
+            that pushed sends it back, no round (pitboss#471).
         RUN_E2E: a draft whose Plan is approved, whose diff touches what the
             e2e suite runs on, has no completed dispatched run of
             ``check.yml`` at its head (a draft's own run skipped e2e): the
@@ -72,6 +71,7 @@ class Step(enum.Enum):
     RULING_ESCALATES = enum.auto()
     PLAN_EDITED = enum.auto()
     PLAN_CHECK = enum.auto()
+    SEND_BACK_PLAN_CHECK = enum.auto()
     RUN_E2E = enum.auto()
     MERGE = enum.auto()
 
@@ -83,21 +83,19 @@ class Task(enum.Enum):
         FIRST_ROUND: the first work on a PR with no Plan and Execution body.
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
-        RESOLVE_CONFLICT: the head conflicts with the base, at any stage except while it
-            waits for a ruling, the owner or the restoring of an edited approved
-            Plan (``WAITS``, including PLAN_EDITED).
+        RESOLVE_CONFLICT: the head conflicts with the base, at any stage but
+            while it waits (``WAITS``, including PLAN_EDITED).
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.
-        RUN_PLAN: the Plan was approved alone after a ruling, so its commands
-            were never run, or the Execution section is empty or a placeholder
-            (keyword: unwritten-execution, pitboss#294): run them as written
-            and fill the Execution (keyword: plan-alone, pitboss#201).
+        RUN_PLAN: the Plan was approved alone after a ruling, or the Execution
+            is empty or a placeholder (keyword: unwritten-execution,
+            pitboss#294, plan-alone, pitboss#201): run its commands as written.
         ADD_CI_QUOTES: the Plan has CI-quote rows and the body lacks the quotes,
             which exist only after the PR is ready and its checks pass (keyword:
             ci-quotes, pitboss#277).
-        FIX_ROUND: findings name a file of the tree, or the Plan check refused
-            the Plan: code, doc and test may change (keyword: fix-round-kind).
+        FIX_ROUND: findings name a file of the tree: code, doc and test may
+            change (keyword: fix-round-kind).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -149,9 +147,10 @@ class Next:
         task: what the worker does (a WORKER step).
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
-            FIX_RULING step), of the refused Plan check (a FIX_ROUND step) or of
-            the ruling a FIX_EXECUTION or RULING_STEPS step follows (or empty).
-        findings: the refused Plan check's findings, quoted (a FIX_ROUND step).
+            FIX_RULING step), of the refused Plan check (SEND_BACK_PLAN_CHECK) or of
+            the ruling a FIX_EXECUTION or RULING_STEPS step follows, empty when
+            there is none.
+        findings: the refused Plan check's findings, quoted.
         branch: the head branch the check workflow is dispatched on (a RUN_E2E
             step).
         on_base: the head is red only from checks that passed on the base since
@@ -225,6 +224,10 @@ TEXTS: Mapping[Step, str] = {
         f" output as a PR comment (its first line is {PLAN_CHECK_FIRST_LINE!r});"
         " the Plan review is offered once it says `Plan check: ok` for this Plan"
     ),
+    Step.SEND_BACK_PLAN_CHECK: (
+        "the Plan check is refused ({comment}): the worker that pushed the PR"
+        " sends back the posted check; this is no fix round: {findings}"
+    ),
     Step.RUN_E2E: f"{RUN_E2E_MARKER}: dispatch check.yml on {{branch}}",
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
@@ -246,17 +249,13 @@ def describe(step: Next) -> str:
     """
     if step.step is Step.MERGE and step.on_base:
         return ENQUEUE
-    if step.task is not None and step.findings:
-        return f"{step.task.value}: {step.findings}"
     if step.task is not None:
         return step.task.value
     if step.stage is not None and step.on_base:
         return f"{REQUEST_REVIEW}: {step.stage.value}"
     if step.stage is not None:
         return step.stage.value
-    if step.step is Step.RUN_E2E:
-        return TEXTS[step.step].format(branch=step.branch)
-    return TEXTS[step.step]
+    return TEXTS[step.step].format_map(dataclasses.asdict(step))
 
 
 def wait_for_owner() -> Next:
@@ -268,19 +267,17 @@ def wait_for_owner() -> Next:
     return Next(step=Step.WAIT_FOR_OWNER)
 
 
-def worker(task: Task, comment: str = "", findings: str = "") -> Next:
+def worker(task: Task, comment: str = "") -> Next:
     """A worker round.
 
     Args:
         task: what the worker does.
-        comment: the address a FIX_ROUND or FIX_EXECUTION round names (see
-            ``Next.comment``).
-        findings: the refused Plan check's findings, quoted (FIX_ROUND).
+        comment: the address a FIX_EXECUTION round names (see ``Next.comment``).
 
     Returns:
         The step.
     """
-    return Next(step=Step.WORKER, task=task, comment=comment, findings=findings)
+    return Next(step=Step.WORKER, task=task, comment=comment)
 
 
 def undraft() -> Next:

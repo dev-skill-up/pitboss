@@ -5,7 +5,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import cleanworld, fakes, liveagents, orphans, syncworld, world
+from . import cleanworld, fakes, liveagents, orphans, ownerbodies, syncworld, world
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -268,8 +268,9 @@ class TestSweep(unittest.TestCase):
         assert_that(found, equal_to(expected))
 
     def test_unreadable_project(self) -> None:
-        """A project the session cannot read stops the command."""
+        """A project the owner's list lacks and the session cannot read stops it."""
         here = world.make_world()
+        here.bodies[ownerbodies.LISTING] = ownerbodies.listing(("owner/lib", False))
         del here.bodies[world.PROJECT]
         result = world.again(here, "pressure")
         assert_that(result.code, equal_to("cannot read owner/project"))

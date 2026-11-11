@@ -24,6 +24,7 @@ def answering(
         ("git", "rev-parse", "HEAD"): head,
         ("git", "rev-parse", "--absolute-git-dir"): directory.as_posix(),
         ("git", "status", "--porcelain"): status,
+        ("git", "rev-parse", "HEAD^{tree}"): "t" + head[1:],
     }
 
     def run(cmdargs: Sequence[str]) -> Done:

@@ -17,6 +17,7 @@ from . import (
     diskwatch,
     exempt,
     ledger,
+    handedback,
     logline,
     machine,
     nextfound,
@@ -46,16 +47,15 @@ from .markers import Marker
 Found = nextfound.Found
 require_ledger = nextfound.require_ledger
 Reads = nextview.Reads
+Opened = Sequence[pulls.Read]
 
 
-def _live(found: Found, book: ledger.Ledger) -> ledger.Ledger:
-    # pitboss#94: the agents that run, not the hand's rows
-    return slotholding.live(found.args, book)
+def _live(found: Found, opened: Opened, book: ledger.Ledger) -> ledger.Ledger:
+    done = handedback.agents(found, opened, book)
+    return slotholding.live(found.args, book, done)
 
 
-def _counted(
-    found: Found, opened: Sequence[pulls.Read], book: ledger.Ledger
-) -> work.Offered:
+def _counted(found: Found, opened: Opened, book: ledger.Ledger) -> work.Offered:
     offer = offering.offered(found, _scope(found, opened), book)
     return slotholding.counted(offer, opened, book, found.args)
 
@@ -155,7 +155,7 @@ def show(
         book: the slot ledger.
     """
     logline.post(found.settings.slots.log)
-    book = _live(found, book)
+    book = _live(found, opened, book)
     unreadableline.print_withheld(opened)
     ordered = _windowed(found, opened, book)
     timing.note(found.args, "ranking", len(ordered.items), "items")
@@ -228,7 +228,7 @@ def startable_view(
     Returns:
         The view; ``nextview.startable`` gives the items in order.
     """
-    book = _live(found, book)
+    book = _live(found, opened, book)
     ordered = _counted(found, opened, book)
     awake = pullmarks.awake(opened, ordered)
     return _view(found, ordered, book, Reads(facts=awake, opened=opened))
@@ -363,7 +363,7 @@ def show_item(
         False, with ``UNKNOWN`` on standard error, when ``slots next`` offers
         nothing for the item.
     """
-    book = _live(found, book)
+    book = _live(found, opened, book)
     ordered = _counted(found, opened, book)
     source = _source(found, opened, ordered, book)
     every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
@@ -392,7 +392,7 @@ def refill(
         book: the slot ledger, in which the slot is empty.
         name: the slot.
     """
-    book = _live(found, book)
+    book = _live(found, opened, book)
     ordered = _ordered(found, opened, book)
     if not ordered.occupancy.known:
         print(slotheld.NOT_COMPUTED)

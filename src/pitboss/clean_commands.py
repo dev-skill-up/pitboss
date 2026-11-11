@@ -19,8 +19,11 @@ from . import (
     deadscan,
     disk,
     logline,
+    mergedworktree,
     named,
+    scanning,
     tempclean,
+    timing,
     workhours,
     worktrees,
 )
@@ -31,7 +34,7 @@ from .commands import (
     running_in,
     sweep_look,
 )
-from .machine import Machine, real_machine
+from .machine import Machine, real as real_filesystem, real_machine
 
 TMP_PATTERN = "tmp*"
 DEFAULT_TMP_HOURS = 2.0
@@ -53,6 +56,7 @@ def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
         root=pathlib.Path(args.root),
         hours=args.hours,
     )
+    walks = scanning.memo(real_filesystem().inspect)
     return dead.Look(
         run=args.safe_run,
         github=found.github,
@@ -61,6 +65,7 @@ def look_of(args: argparse.Namespace, found: Context) -> dead.Look:
         watch=watch,
         working=running_in(args),
         marker_expiry=workhours.expiry_of(found.now),
+        scan=scanning.Scanning(lap=functools.partial(timing.note, args), walks=walks),
     )
 
 
@@ -111,10 +116,16 @@ def tempdirs_of(args: argparse.Namespace, look: dead.Look, found: Context) -> Te
         The tempdirs.
     """
     machine = real_machine(args.env, found.now, running_in(args), args.usage)
+    # a path two lists name is walked once (keyword: walk-speed)
+    kept = dataclasses.replace(
+        machine.fs, inspect=look.scan.walks or machine.fs.inspect
+    )
+    remembering = dataclasses.replace(machine, fs=kept)
     patterns = (TMP_PATTERN, *look.clean.tmp_patterns)
     clean = dataclasses.replace(look.clean, tmp_patterns=patterns)
-    free, used = tempclean.split_tempdirs(machine, clean, args.tmp_hours)
+    free, used = tempclean.split_tempdirs(remembering, clean, args.tmp_hours)
     paths = {each.path for each in free}
+    look.scan.lap("test tempdirs judged", len(free))
     return Tempdirs(
         machine=machine, hours=args.tmp_hours, free=free, used=used, paths=paths
     )
@@ -175,6 +186,7 @@ def remove_listed(
     before = use()
     gone = cleaning.remove_all(args, removing.recheck, chosen)
     cleaning.prune(args.run, gone)
+    look.scan.lap("paths removed", len(gone), "paths")
     return cleaning.Outcome(
         gone=gone,
         kept=dead.unsafe(removing.listed),
@@ -246,6 +258,18 @@ def log_freed(found: Context, done: cleaning.Outcome) -> None:
         logline.record_clean(found.settings.slots.log, freed, found.now)
 
 
+def unwalked(look: dead.Look) -> dead.Look:
+    """The look of the removal: it looks at the disk again, not at the scan's walks.
+
+    Args:
+        look: what to look at and keep.
+
+    Returns:
+        The look without its remembered walks.
+    """
+    return dataclasses.replace(look, scan=scanning.Scanning(lap=look.scan.lap))
+
+
 def plan_of(
     args: argparse.Namespace, look: dead.Look, found: Context
 ) -> tuple[deadscan.Findings, Tempdirs, Removing]:
@@ -264,13 +288,14 @@ def plan_of(
     scan = deadscan.scan(look, now)
     tempdirs = tempdirs_of(args, look, found)
     scratch = named.dead_named(look, cutoff, scan.places, scan.tickets)
+    look.scan.lap("named scratch judged")
     return (
         scan,
         tempdirs,
         Removing(
             listed=dead.ordered([*scan.candidates, *scratch, *tempdirs.free]),
             roots=roots_of(look, scan.places),
-            recheck=functools.partial(recheck_of, look, cutoff, tempdirs),
+            recheck=functools.partial(recheck_of, unwalked(look), cutoff, tempdirs),
         ),
     )
 
@@ -330,3 +355,28 @@ def clean_worktrees(args: argparse.Namespace) -> None:
         who = "pitboss clean-worktrees"
         freed = logline.Freed(who=who, size=done.freed, heads=done.heads)
         logline.record_clean(found.settings.slots.log, freed, found.now)
+
+
+@ENTRY_DATA.register(
+    *CHANGING_ARGUMENTS,
+    add_argument("branch", help="the head branch of the PR that merged"),
+    name="merged",
+)
+def merged(args: argparse.Namespace) -> None:
+    """Remove the worktree of a merged PR, clean ones only, and print the bytes.
+
+    The marker of a worker whose PR merged is dropped, and the worktree goes with
+    ``git worktree remove`` and no ``--force``; a worktree with a changed or
+    untracked file, or a commit on no remote branch, is kept and says why
+    (keyword: merge-removes-worktree, pitboss#471).
+
+    Args:
+        args: the parsed arguments.
+    """
+    found = load_context(args)
+    dry = not args.no_dry_run
+    how = mergedworktree.Removal(
+        look=sweep_look(found), run=args.run, now=found.now, dry=dry
+    )
+    for text in mergedworktree.remove(how, args.branch):
+        print(text)

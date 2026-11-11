@@ -7,6 +7,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import brief, brieftextnote, brieftextwork, deviations
 from . import fakes, world
 from .briefmake import text
+from .handbackworld import ready
 from .test_evidence_rules import words
 
 EXECUTION_REVIEWS = {brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION}
@@ -109,6 +110,19 @@ class TestTheBriefs(unittest.TestCase):
                 assert_that(gone in each, equal_to(False))
 
 
+def checked(text: str) -> world.Result:
+    """Run ``hand-back-check`` on a hand-back in a world with the PR of its branch.
+
+    Args:
+        text: the hand-back.
+
+    Returns:
+        What it printed and its status.
+    """
+    here = ready(world.make_world())
+    return world.invoke(here, "hand-back-check", saved(text), "--config", here.config)
+
+
 class TestTheHandBack(unittest.TestCase):
     """A hand-back with and without the line."""
 
@@ -124,7 +138,7 @@ class TestTheHandBack(unittest.TestCase):
     ) -> None:
         """A heredoc or `sed` edit, a virtualenv, a file or a fetch: `none`."""
         assert_that(deviations.not_started(HARMLESS), equal_to(""))
-        found = world.invoke(world.make_world(), "hand-back-check", saved(HARMLESS))
+        found = checked(HARMLESS)
         assert_that((found.code, found.out), equal_to((0, "ok\n")))
 
     def test_without_the_line_it_is_not_started(self) -> None:
@@ -143,7 +157,7 @@ class TestTheHandBack(unittest.TestCase):
             WITHOUT_LINE: [1, deviations.NOT_STARTED + "\n"],
         }
         for handback, wanted in expected.items():
-            done = world.invoke(world.make_world(), "hand-back-check", saved(handback))
+            done = checked(handback)
             assert_that([done.code, done.out], equal_to(wanted))
 
 

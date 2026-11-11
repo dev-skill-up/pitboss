@@ -22,6 +22,7 @@ from . import (
     ghapi,
     mounts,
     repocheck,
+    scanning,
     survey,
     workhours,
 )
@@ -88,6 +89,7 @@ class Look:
             is bounded (``workhours``), so it is not honored, whether it is in
             the path or in a directory above it; 0 honors every marker
             (keyword: auto-clean).
+        scan: what the scan reports and remembers (pitboss#453).
     """
 
     run: Run
@@ -99,6 +101,7 @@ class Look:
     working: AbstractSet[pathlib.Path] = frozenset()
     unmarked: AbstractSet[pathlib.Path] = frozenset()
     marker_expiry: float = 0.0
+    scan: scanning.Scan = scanning.Scanning()
 
 
 def marker_honored(marker: pathlib.Path, expiry: float) -> bool:
@@ -131,7 +134,7 @@ def marked_above(path: pathlib.Path, expiry: float = 0.0) -> bool:
         True when any of its parents holds a marker that is honored.
     """
     return any(
-        marker_honored(above / cleanconfig.LIVE_MARKER, expiry)
+        marker_honored(above / survey.LIVE_MARKER, expiry)
         for above in path.resolve().parents
     )
 
@@ -201,7 +204,8 @@ def hold(look: Look, path: pathlib.Path, cutoff: float) -> tuple[str, survey.Sur
     Returns:
         The reason to leave it alone, or empty, and what a walk of it found.
     """
-    found = survey.walk(path, look.mount_points())
+    walks = look.scan.walks
+    found = walks(path) if walks else survey.walk(path, look.mount_points())
     reasons = (
         "is a symbolic link" if path.is_symlink() else "",
         live_reason(path, look, found),
@@ -234,6 +238,20 @@ def verdict(
     return held, kept, found
 
 
+def recent(path: pathlib.Path, cutoff: float) -> bool:
+    """Whether a path itself changed after the cutoff, so it is in use.
+
+    Args:
+        path: the path.
+        cutoff: anything changed after this time is in use.
+
+    Returns:
+        True when no walk of it can show it free.
+    """
+    top = survey.status(path)
+    return top is not None and top.st_mtime > cutoff
+
+
 def consider(
     look: Look, path: pathlib.Path, reason: str, cutoff: float
 ) -> Candidate | None:
@@ -248,6 +266,8 @@ def consider(
     Returns:
         The candidate, or None when the path is live or in use.
     """
+    if recent(path, cutoff):
+        return None  # changed within the idle hours: no walk can free it
     held, kept, found = verdict(look, path, cutoff)
     if held:
         return None
@@ -282,25 +302,6 @@ def present(made: Iterable[Candidate | None]) -> Sequence[Candidate]:
         The candidates.
     """
     return [each for each in made if each is not None]
-
-
-def dead_root_files(look: Look, cutoff: float) -> Sequence[Candidate]:
-    """The files in a container's root written well after it started.
-
-    Args:
-        look: what to look at and keep.
-        cutoff: anything changed after this time is in use.
-
-    Returns:
-        The candidates; none when the marker file is absent.
-    """
-    watch = look.watch
-    if not watch.marker.exists():
-        return []
-    after = container.cutoff(watch.marker, watch.hours)
-    reason = f"written over {watch.hours:g} hours after the container started"
-    files = container.newer_files(watch.root, after)
-    return present(consider(look, each.path, reason, cutoff) for each in files)
 
 
 def safe(found: Iterable[Candidate]) -> Sequence[Candidate]:
@@ -338,58 +339,3 @@ def ordered(found: Iterable[Candidate]) -> Sequence[Candidate]:
     """
     unique = {each.path: each for each in found}
     return sorted(unique.values(), key=lambda each: (-each.size, str(each.path)))
-
-
-def dead_scratch(look: Look, cutoff: float) -> Sequence[Candidate]:
-    """The entries of the scratch directories that nobody uses.
-
-    Args:
-        look: what to look at and keep.
-        cutoff: anything changed after this time is in use.
-
-    Returns:
-        The candidates.
-    """
-    hours = look.settings.idle_hours
-    reason = f"unreferenced scratch, untouched for {hours:g} hours"
-    entries = (
-        entry
-        for root in look.clean.scratch
-        if root.is_dir()
-        for entry in sorted(root.iterdir())
-    )
-    return present(consider(look, entry, reason, cutoff) for entry in entries)
-
-
-def plain_directories(workspace: pathlib.Path) -> Sequence[Kept]:
-    """The directories of the workspace that are not git checkouts.
-
-    They are never judged; a hidden one is not named.
-
-    Args:
-        workspace: the directory.
-
-    Returns:
-        A ``Kept`` for each, sorted.
-    """
-    return [
-        Kept(path=path, why=NOT_A_CHECKOUT)
-        for path in sorted(workspace.iterdir())
-        if path.is_dir()
-        and not path.is_symlink()
-        and not path.name.startswith(".")
-        and not (path / ".git").exists()
-    ]
-
-
-def dead_elsewhere(look: Look, cutoff: float) -> Sequence[Candidate]:
-    """The dead scratch entries and the dead files in the container's root.
-
-    Args:
-        look: what to look at and keep.
-        cutoff: anything changed after this time is in use.
-
-    Returns:
-        The candidates.
-    """
-    return [*dead_scratch(look, cutoff), *dead_root_files(look, cutoff)]

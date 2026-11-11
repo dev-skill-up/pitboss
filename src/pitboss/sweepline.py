@@ -1,9 +1,11 @@
 """The runner-pressure line of the sweep: it reads the record and writes its look."""
 
+import concurrent.futures
 import dataclasses
 import datetime
 import functools
 import pathlib
+import threading
 from typing import Callable, Iterable, Sequence
 
 from .markers import Marker
@@ -238,8 +240,14 @@ def undraft_check(
     Returns:
         The question.
     """
-    ask = functools.partial(clear, github, runs, settings.runners, now)
-    return functools.cache(ask)
+    ask = functools.cache(functools.partial(clear, github, runs, settings.runners, now))
+    turn = threading.Lock()
+
+    def once() -> bool:
+        with turn:  # the look is made once, though PRs and the run both ask
+            return ask()
+
+    return once
 
 
 def looked_pulls(
@@ -263,8 +271,13 @@ def looked_pulls(
         The PRs, a PR whose API call failed as an ``Unreadable``.
     """
     undraft = undraft_check(github, settings, now, runs)
-    undraft()  # the look, whether or not a PR asks
-    return pullread.read_each(github, settings, undraft)
+    # the look, whether or not a PR asks: it waits for the queue runs, which the
+    # PRs are read beside (keyword: pull-read, pitboss#453)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        looking = pool.submit(undraft)
+        read = pullread.read_each(github, settings, undraft)
+        looking.result()
+    return read
 
 
 def clear(

@@ -11,6 +11,7 @@ from typing import Callable, Iterable, Iterator, Sequence, TypeVar
 WORKERS = 16
 _Item = TypeVar("_Item")
 _Result = TypeVar("_Result")
+_Other = TypeVar("_Other")
 
 
 def each(
@@ -47,3 +48,21 @@ def as_ready(
     """
     with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
         yield from pool.map(function, items)
+
+
+def pair(
+    first: Callable[[], _Result], second: Callable[[], _Other]
+) -> tuple[_Result, _Other]:
+    """Run two reads that do not depend on each other at once.
+
+    Args:
+        first: the first read; it may block on a command.
+        second: the second read.
+
+    Returns:
+        The two results. The first failure is raised once both have finished.
+    """
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        one = pool.submit(first)
+        other = pool.submit(second)
+        return one.result(), other.result()

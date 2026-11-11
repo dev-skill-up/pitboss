@@ -167,6 +167,8 @@ def nox_refusal(each: Reading | None) -> Sequence[str]:
         line(each),
         f"pitboss nox starts no session under {disk.size_text(NOX_FREE)} free:"
         f" run {CLEAN_CONTAINER}",
+        "nox RESULT: NOT RUN, no session ran: this tree has no green result and"
+        " `pitboss push` refuses it (keyword: nox-tree, pitboss#471)",
     ]
 
 
