@@ -27,6 +27,7 @@ from . import (
     planfixed,
     relock,
     repeatruns,
+    reviewrules,
     sessionurl,
     shapes,
     testnames,
@@ -176,7 +177,11 @@ def _review_findings(
 ) -> Sequence[str]:
     form = _gated_form(args, settings) if args.gated else settings.review.form
     check = forms.gated_review if args.gated else forms.ordinary_review
-    return [*check(subject, form), *planfixed.required(args, subject, form)]
+    return [
+        *check(subject, form),
+        *planfixed.required(args, subject, form),
+        *reviewrules.phrase_findings(subject.body),
+    ]
 
 
 def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.ReviewForm:

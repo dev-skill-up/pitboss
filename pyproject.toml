@@ -42,7 +42,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 [tool.setuptools.package-data]
-pitboss = ["phrases.tsv", "contradictions.tsv"]
+pitboss = ["phrases.tsv", "contradictions.tsv", "rules.tsv"]
 
 [project.urls]
 Homepage = "https://github.com/dev-skill-up/pitboss"
@@ -79,6 +79,7 @@ module = [
     "pitboss.pressure_commands",
     "pitboss.next_commands",
     "pitboss.count_commands",
+    "pitboss.rules_commands",
     "pitboss.sync_commands",
     "pitboss.nox_commands",
     "pitboss.pinsreview_commands",

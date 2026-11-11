@@ -220,9 +220,11 @@ def from_comments(
 def _found(item: shapes.Comment, read: Reading, form: config.ReviewForm) -> Found:
     plan = _grade(item.body, gradeline.PLAN_PREFIX, form)
     execution = _grade(item.body, gradeline.EXECUTION_PREFIX, form)
+    # keyword: split-verdict (A7): a Plan and an Execution graded apart are changes
+    split = plan is not None and execution is not None and plan != execution
     return Found(
         sha=read[0],
-        verdict=read[1],
+        verdict=Verdict.CHANGES_NEEDED if split else read[1],
         when=item.created_at,
         plan_approved=plan,
         plan_alone=gradeline.present(item.body, gradeline.PLAN_PREFIX)

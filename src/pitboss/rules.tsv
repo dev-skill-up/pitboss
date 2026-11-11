@@ -1,0 +1,90 @@
+# id	date	kind	words	function	tests
+A1	2026-11-04	open	An approved Plan is never edited	-	-
+A2	2026-11-11	open	A posted ruling's steps are executed at once	-	-
+A3	2026-11-11	open	A fix round is followed by a re-review slot item	-	-
+A4	2026-11-11	open	No PR has a nothing to do state	-	-
+A5	2026-11-11	open	The owner's call is labelled paused-owner at that moment	-	-
+A6	2026-11-11	open	One ruling per PR; a further rejection goes to the owner	-	-
+A7	2026-11-10	enforced	One verdict per review; a split Plan/Execution verdict counts as changes needed	reviews.from_comments	test_review_rules.test_a7_plan_approved_execution_rejected_is_changes_needed test_review_rules.test_a7_execution_approved_plan_rejected_is_changes_needed test_review_rules.test_a7_whole_approval_stays_approved
+A8	2026-11-08	enforced	A review never says a change makes a passage false	reviewrules.phrase_findings	test_review_rules.test_a8_makes_false_is_refused_with_its_line test_review_rules.test_a8_makes_the_comment_false_is_refused test_review_rules.test_a8_a_review_without_the_phrase_passes
+A9	2026-11-08	open	No piecemeal makes-false rounds; cut whole sections in one pass	-	-
+A10	2026-10-30	open	Plan rejected: fix; second rejection: ruling; after a ruling: the owner	-	-
+A11	2026-11-11	open	A plan-check failure goes back to the same worker	-	-
+A12	2026-11-10	open	plan-check passes before the PR is marked ready	-	-
+A13	2026-11-04	open	An approved Plan's commands run as written	-	-
+A14	2026-10-30	open	A Plan row names the whole command of its Evidence line	-	-
+A15	2026-11-03	open	CI evidence is a pointer to the head's run	-	-
+A16	2026-11-04	open	The Execution review waits for full green CI on the reviewed head	-	-
+A17	2026-10-31	open	After a merge of main the review covers only the resolution	-	-
+A18	2026-10-29	open	Impossibility needs evidence first	-	-
+A19	2026-11-08	open	Done-when appears only in the ticket body and changes only before a worker started	-	-
+A20	2026-11-11	open	A Done-when must be X demonstrated by Y	-	-
+A21	2026-10-30	open	A PR that closes several tickets needs a recorded ruling	-	-
+A22	2026-10-30	open	An approved Plan is never judged again by the Plan-row rule	-	-
+A23	2026-10-30	open	A review lists every finding in round one	-	-
+A24	2026-10-30	open	Every escalation carries a How we got here section	-	-
+A25	2026-11-11	open	An extra file found in review is removed and gets a .gitignore line	-	-
+A26	2026-11-08	open	No line is added to any .md or .rst file	-	-
+A27	2026-11-09	open	Docs that restate code are removed	-	-
+A28	2026-10-30	open	A PR body never carries the harness's session URL footer	-	-
+A29	2026-11-07	open	A relock and zip-only head needs no review	-	-
+A30	2026-11-11	enforced	No scratch or temp file paths in Plans; the data lives in the PR or the ticket	bodyrules.scratch_findings	test_body_rules.test_a30_a_row_reading_a_scratchpad_is_refused test_body_rules.test_a30_a_row_making_its_own_directory_passes test_body_rules.test_a30_a_configured_scratch_root_is_refused
+A31	2026-11-08	open	A started PR gets nothing added	-	-
+A32	2026-10-28	open	No attribution block; never assign or request review from the owner	-	-
+A33	2026-11-09	open	Pins never move by an LLM	-	-
+A34	2026-11-06	open	No bundled shims for weak engines	-	-
+B1	2026-10-29	open	The cap is a hard ceiling; every running agent counts	-	-
+B2	2026-10-29	open	A freed slot is filled in the same turn; skip blocked items	-	-
+B3	2026-10-29	open	Never tell the owner nothing is running	-	-
+B4	2026-11-11	open	The coordinator corrects a message that says the slot is idle	-	-
+B5	2026-11-09	open	Re-run slots next before each dispatch	-	-
+B6	2026-11-10	open	Only briefs pitboss prints; no hand-typed brief paths	-	-
+B7	2026-10-29	open	One ticket, one PR, one task per ticket	-	-
+B8	2026-11-08	open	Fold the newer ticket into the older	-	-
+B9	2026-10-29	open	Order: running workers, PRs before tickets, priority, age	-	-
+B10	2026-11-11	open	A blocker inherits the blocked item's rank	-	-
+B11	2026-11-05	open	The task list is real state	-	-
+B12	2026-11-09	open	The checklist lists every running agent	-	-
+B13	2026-11-10	open	The check-in job is kept; a lapsed check-in is flagged	-	-
+B14	2026-11-04	open	Workers run pitboss nox after every edit and before every push	-	-
+B15	2026-11-11	open	Workers use their own worktree on the ticket's branch	-	-
+B16	2026-11-11	open	Workers change files with the Edit tool only	-	-
+B17	2026-11-10	open	A partial hand-back is refused unless Impossible: cmd -> output	-	-
+B18	2026-11-08	open	Every hand-back and every disk clean is logged once	-	-
+B19	2026-10-30	open	Pitboss's own PRs are never drafts	-	-
+B20	2026-10-30	open	A runner-pressure hold covers pushes, merges and dispatches	-	-
+B21	2026-11-05	open	A worker never changes a PR's draft state	-	-
+B22	2026-11-11	open	Stuck GitHub runs are root-caused, not waited on	-	-
+B23	2026-11-11	open	Another session's agents survive a restart and can duplicate a ticket	-	-
+B24	2026-10-28	open	Never sit in a long wait; no polling	-	-
+B25	-	open	After a worker opens a PR, read the body footer and the text-lint status	-	-
+B26	2026-11-11	open	A PR body edit keeps the Head: line and expand blocks in step with the head	-	-
+C1	2026-10-31	open	Clean the disk without asking, harder over 90 percent	-	-
+C2	2026-11-09	open	Never remove files under /dev	-	-
+C3	2026-11-04	open	A merged worktree goes on merge	-	-
+C4	2026-11-09	open	Never re-run CI; root-cause a failure from its log	-	-
+C5	2026-10-30	open	Failed-check details are read through the API	-	-
+C6	2026-10-30	open	A flake is never closed until addressed	-	-
+C7	2026-11-07	open	A relock with green CI and pins-check OK merges with no review and ranks last	-	-
+C8	2026-11-08	outside	An unset secret fails	-	-
+C9	2026-11-06	open	The sweep lists every org repo	-	-
+C10	2026-10-30	open	The sweep and slots run from the newest pitboss	-	-
+C11	2026-10-31	open	Everything the orchestrator creates is synced	-	-
+C12	2026-11-06	open	A stale remote branch or scratch PR is flagged and closed	-	-
+D1	2026-11-10	open	Run pitboss, check its output, override a known bug disclosed	-	-
+D2	2026-11-11	open	Do not report pitboss bugs to the coordinator; diagnose and file	-	-
+D3	2026-11-11	open	The orchestrator owns pitboss and never waits for the owner on a pitboss decision	-	-
+D4	2026-10-30	outside	Never say I haven't checked	-	-
+D5	2026-10-30	open	Every correction states its prevention	-	-
+D6	2026-11-08	open	Rules go to memory and a pitboss ticket, never a skill or an md line	-	-
+D7	2026-11-08	open	Never assume the owner acted	-	-
+D8	2026-11-05	open	Ruling comments are standing-approved	-	-
+D9	2026-11-04	open	Every question to the owner comes with a markdown artifact	-	-
+D10	-	open	Artifact and log reads of CI go through the new-environment thread	-	-
+D11	2026-10-31	open	Quiesce: nothing starts until the owner lifts it	-	-
+D12	-	outside	The owner stays private	-	-
+D13	2026-11-07	outside	The coordinator's instructions are an Opus ruling	-	-
+D14	2026-11-11	outside	A thread attaches a missing repo itself	-	-
+D15	-	open	Never resolve a human decision card	-	-
+I11	2026-11-11	enforced	A PR body keeps its Execution section once the branch has code commits	bodyrules.section_findings	test_body_rules.test_i11_a_body_without_execution_is_refused test_body_rules.test_i11_a_body_with_execution_passes
+I25	2026-11-11	enforced	A Plan row pointing to CI has its pointer in the Execution	bodyrules.pointer_findings	test_body_rules.test_i25_two_rows_without_pointers_are_named test_body_rules.test_i25_rows_with_pointers_pass

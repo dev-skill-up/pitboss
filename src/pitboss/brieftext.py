@@ -83,8 +83,8 @@ NO_APPEND = (
 )
 SEARCH = (
     "Search: update the docstring next to each piece of code the change alters,"
-    " and cut other text it makes false; a change never adds a line to a doc, so a"
-    " doc is cut, not reworded (pitboss#396)."
+    " and cut other text that no longer matches it; a change never adds a line"
+    " to a doc, so a doc is cut, not reworded (pitboss#396)."
 )
 NO_WAITING = "No waiting: never wait for CI. Push, then hand back at once."
 FINISH = "Finish inside the turn. Do not merge. Do not write the review."
@@ -245,9 +245,10 @@ CHECK = (
     " check finished and passed at that head."
 )
 GREP = (
-    "Grep: look for a docstring the change makes false or contradictory, next to"
-    " the code it alters; one is changes needed. Other text the change makes false"
-    " is cut by the author, and a mention of it that was missed is no finding."
+    "Grep: look for a docstring that contradicts the code it sits next to; one is"
+    " changes needed, said as what the text now says instead. Other text that no"
+    " longer matches the code is cut by the author, and a mention of it that was"
+    " missed is no finding."
 )
 PLAN_COMMANDS_PLAN = (
     "Plan commands: for each Done-when row, if the Plan's evidence mentions a"

@@ -29,6 +29,7 @@ from typing import Callable, Sequence
 
 from . import (
     bodydigest,
+    bodyrules,
     cipointer,
     cipointercheck,
     cirun,
@@ -210,6 +211,9 @@ def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[s
     return [
         *planpointers.findings(section),
         *markupclaim.findings(body, changed),
+        *bodyrules.scratch_findings(body),
+        *(bodyrules.section_findings(body) if changed else []),
+        *bodyrules.pointer_findings(body),
     ]
 
 
@@ -225,6 +229,9 @@ KINDS = (
     (plandonewhen.MEASUREMENT, "Measurement findings"),
     (plandonewhen.EDITED, "Done-when edit findings"),
     (plandonewhen.INTERPRETATION, "Interpretation findings"),
+    (bodyrules.SCRATCH_CHECK, "Scratch path findings"),
+    (bodyrules.SECTION_CHECK, "Execution section findings"),
+    (bodyrules.POINTER_CHECK, "Execution pointer findings"),
 )
 
 
