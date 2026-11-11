@@ -23,6 +23,7 @@ from . import (
     nextcommand,
     freecheck,
     nextlist,
+    prefetch,
     pulls,
     repoaccess,
     slotholding,
@@ -41,14 +42,9 @@ from .commandarguments import (
     RUNNING_ARGUMENT,
     WATCH_ARGUMENTS,
 )
-from .commands import (
-    Context,
-    load_context,
-    sweep_look,
-    open_pulls,
-    read_runner_runs,
-)
+from .commands import Context, load_context, open_pulls, sweep_look, whole_order
 from .markers import Marker
+from .queuereads import read_runner_runs
 from .slotaction import Action
 
 Change = Callable[
@@ -255,7 +251,8 @@ def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
     fast = itemfast.show(found, book, reference, runs)
     timing.note(found.args, "item read and brief built")
     if fast is itemfast.Outcome.WHOLE:
-        return nextlist.show_item(found, open_pulls(found), book, reference)
+        whole = whole_order(found)
+        return nextlist.show_item(whole, open_pulls(whole), book, reference)
     return fast is itemfast.Outcome.PRINTED
 
 
@@ -290,6 +287,7 @@ def _next(found: Context) -> None:
     reference = nextcommand.reference(found.args.words, found.settings.project.repo)
     book = _book(found)
     if reference is None:
+        prefetch.start(found)
         checkin.say([checkin.overdue(book, found.now)])
         nextlist.show(found, open_pulls(found), book)
         checkin.say(mergedworktree.steps(sweep_look(found), found.now))

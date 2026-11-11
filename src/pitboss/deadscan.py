@@ -7,6 +7,7 @@ import subprocess
 from typing import AbstractSet, Callable, Iterable, Mapping, Sequence
 
 from . import concurrently, dead, local, registered, shapes, ticketclosed
+from .deadelsewhere import dead_elsewhere, plain_directories
 from .outcomes import outcomes_of
 from .dead import Kept
 from .running import Run, git
@@ -237,6 +238,7 @@ def _fetched(
 ) -> tuple[Sequence[Checkout], Sequence[str]]:
     firsts = _firsts(read)
     failed = local.fetch_each_repository(look.run, firsts.values())
+    look.scan.lap("repositories fetched", len(firsts))
     return [e for e in read if str(firsts[e.common]) not in failed], sorted(failed)
 
 
@@ -298,6 +300,7 @@ def _every(
     workspace = look.settings.project.workspace
     more = registered.under_workspace(look.run, workspace, _firsts(direct), known)
     deeper, lost_deeper = _read(look, more)
+    look.scan.lap("checkouts read", len(direct) + len(deeper), "checkouts")
     return [*direct, *deeper], [*lost, *lost_deeper]
 
 
@@ -325,9 +328,8 @@ def dead_checkouts(
     """
     read, unreadable = _every(look)
     fetched, failed = _fetched(look, read)
-    slugs = {each.slug for each in fetched}
-    outcomes = outcomes_of(look.github, look.settings, slugs)
-    judging = _judging(look, decide, outcomes)
+    found_outcomes = outcomes_of(look.github, look.settings, {e.slug for e in fetched})
+    judging = _judging(look, decide, found_outcomes)
     judged = concurrently.each(
         lambda each: _judged(judging, look, cutoff, each), fetched
     )
@@ -380,7 +382,7 @@ def scan(look: dead.Look, now: float, decide: Decide = checkout_reason) -> Findi
     found, unfetched = dead_checkouts(look, cutoff, decide)
     # Only a merged checkout's marker expires, not a scratch entry's (pitboss#194).
     plain = dataclasses.replace(look, marker_expiry=0.0)
-    elsewhere = dead.dead_elsewhere(plain, cutoff)
+    elsewhere = dead_elsewhere(plain, cutoff)
     checkouts = [each for each in found if isinstance(each, dead.Candidate)]
     kept = [each for each in found if isinstance(each, Kept)]
     workspace = look.settings.project.workspace
@@ -388,7 +390,7 @@ def scan(look: dead.Look, now: float, decide: Decide = checkout_reason) -> Findi
     return Findings(
         candidates=dead.ordered([*checkouts, *elsewhere]),
         unfetched=unfetched,
-        kept=[*kept, *dead.plain_directories(workspace)],
+        kept=[*kept, *plain_directories(workspace)],
         places=places,
         tickets=tickets,
     )

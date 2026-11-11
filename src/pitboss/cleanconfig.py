@@ -5,7 +5,6 @@ import enum
 import pathlib
 from typing import Mapping, Sequence
 
-LIVE_MARKER = ".pitboss-live"
 DEFAULT_MIN_FREE_GIB = 5.0
 DEFAULT_TMP_ROOTS = (pathlib.Path("/tmp"),)
 DEFAULT_TMP_PATTERNS = ("tmp????????", "tmp.??????????", "pytest-of-*", "pip-*")

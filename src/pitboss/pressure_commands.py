@@ -28,6 +28,7 @@ from . import (
     pushcheck,
     pushdraft,
     queue,
+    queuereads,
     record,
     report,
     rulingsummary,
@@ -39,7 +40,7 @@ TIMED_CONFIG = (commandarguments.CONFIG_ARGUMENT, commandarguments.NOW_ARGUMENT)
 
 
 def _look(found: commands.Context) -> queue.Seen:
-    runs = commands.runner_runs(found, commands.read_queue_runs(found))
+    runs = queuereads.runner_runs(found, queuereads.read_queue_runs(found))
     return queue.look(found.github, runs, found.settings.runners, found.now)
 
 

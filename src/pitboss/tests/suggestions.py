@@ -5,7 +5,9 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import mergedworktree
-from . import liveagents, world
+from . import fakes, liveagents, world
+
+SUGGESTIONS = f"{world.PROJECT}/issues?state=open&labels=urgent"
 
 
 def run_command(here: world.World, *command: str) -> world.Result:
@@ -93,3 +95,14 @@ def kind_of_third(here: world.World) -> str:
         The kind, as the header says it.
     """
     return third(here)[0].split(": ")[1]
+
+
+def with_more_tickets(here: world.World, count: int) -> None:
+    """Add ``count`` more open tickets after the default one.
+
+    Args:
+        here: the world.
+        count: how many.
+    """
+    more = [dict(world.TICKET, number=number) for number in range(10, 10 + count)]
+    here.bodies[fakes.page(SUGGESTIONS)] = [world.TICKET, *more]

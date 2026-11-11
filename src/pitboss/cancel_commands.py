@@ -5,8 +5,9 @@ import subprocess
 
 from . import ENTRY_DATA, ghapi, queue
 from .commandarguments import CHANGING_ARGUMENTS
-from .commands import load_context, read_queue_runs
+from .commands import load_context
 from .markers import Marker
+from .queuereads import read_queue_runs
 
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="cancel-stale-runs")

@@ -10,7 +10,7 @@ from typing import Mapping
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, promotion
-from . import fakes, quietworld, world
+from . import fakes, quietworld, rankworld, world
 from .rankworld import (
     lines_are,
     mentioning,
@@ -135,8 +135,8 @@ class TestSlotsNext(unittest.TestCase):
     def test_a_ticket_named_by_three_is_ranked_p0(self) -> None:
         """Ticket 9 (p3) comes first with its own age; ticket 11 (named once) stays."""
         here = named_world(THREE)
+        later = ["owner/project#10", "owner/project#11"]
         first = ["owner/project#1", "owner/project#3", NINTH]
-        later = ["owner/project#10", "owner/project#11", "owner/project#12"]
         assert_that(starts(here), equal_to([*first, *later]))
         output = next_output(here)
         lines_are(output, "PROMOTE", [SAID])
@@ -151,8 +151,9 @@ class TestSlotsNext(unittest.TestCase):
     def test_without_the_mentions_the_order_is_by_label(self) -> None:
         """The same tickets with no cause named: ticket 9 is last, p3."""
         here = named_world({})
+        rankworld.without_project_pulls(here)
         assert_that(
-            starts(here)[2:],
+            starts(here),
             equal_to(
                 ["owner/project#10", "owner/project#11", "owner/project#12", NINTH]
             ),
@@ -171,6 +172,7 @@ class TestSlotsNext(unittest.TestCase):
     def test_named_once_keeps_its_label(self) -> None:
         """One ticket names ticket 9: no line, and it stays last."""
         here = named_world({10: "Caused by #9"})
+        rankworld.without_project_pulls(here)
         printed(here, "PROMOTE", [])
         assert_that(starts(here)[-1], equal_to(NINTH))
 
@@ -182,6 +184,7 @@ class TestSlotsNext(unittest.TestCase):
     def test_the_owner_states_the_priority(self) -> None:
         """The owner's p3 for ticket 9 stays, whatever names it."""
         here = named_world(THREE, {NINTH: "p3"})
+        rankworld.without_project_pulls(here)
         printed(here, "PROMOTE", [])
         assert_that(starts(here)[-1], equal_to(NINTH))
 

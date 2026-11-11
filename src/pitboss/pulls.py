@@ -2,12 +2,13 @@
 
 import dataclasses
 import subprocess
-from typing import AbstractSet, Callable, Sequence
+from typing import AbstractSet, Sequence
 
 from . import (
     analysis,
     basefix,
     bodydigest,
+    concurrently,
     config,
     conflicts,
     dispatchruns,
@@ -21,8 +22,8 @@ from . import (
     mergesonly,
     parsing,
     pinsask,
-    pinsreading,
     pullfiles,
+    pullsource,
     relock,
     reviews,
     rounds,
@@ -167,38 +168,7 @@ def approved(facts: PullFacts) -> bool:
     return facts.standing in counted
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Source:
-    """Where PRs are read from.
-
-    Attributes:
-        github: the API.
-        review: how reviews are read.
-        undraft: says whether the runners allow an undraft now; it is asked
-            only for a draft.
-        relock_prefix: the head branch prefix of a relock PR.
-        run_by_e2e: the path prefixes whose change the e2e suite runs on
-            (keyword: run-e2e).
-        plan_review_check: the check a draft's Plan review waits for
-            (keyword: plan-review-check).
-        merge_queue: the repositories with a merge queue (keyword: fixed-on-base).
-        early: takes the Execution reviews written before green out of a
-            PR's comments (keyword: execution-before-green, pitboss#202).
-        pins: asks the pins-check command about a PR at a review step
-            (keyword: pins-only, pitboss#34).
-        no_drafts: says whether a repository's PRs open ready (keyword: no-drafts).
-    """
-
-    github: ghapi.GitHub
-    review: config.Review
-    undraft: Callable[[], bool]
-    relock_prefix: str = config.DEFAULT_RELOCK_PREFIX
-    run_by_e2e: Sequence[str] = config.DEFAULT_RUN_BY_E2E
-    plan_review_check: str = ""
-    merge_queue: AbstractSet[str] = frozenset()
-    early: earlyfound.Split = earlyfound.keep_all
-    pins: pinsask.Ask = lambda repo, pull: pinsreading.NOTHING
-    no_drafts: Callable[[str], bool] = lambda slug: False
+Source = pullsource.Source
 
 
 def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
@@ -259,8 +229,10 @@ class Fetched:
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
-    posted = headchecks.statuses(source.github, repo, pull.head.sha)
-    sent = _sources(source, repo, number)
+    posted, sent = concurrently.pair(
+        lambda: headchecks.statuses(source.github, repo, pull.head.sha),
+        lambda: _sources(source, repo, number),
+    )
     kept, early = source.early(repo, pull, sent.comments)
     current = headchecks.checks(source.github, repo, pull.head.sha, posted)
     queued = repo.slug in source.merge_queue
