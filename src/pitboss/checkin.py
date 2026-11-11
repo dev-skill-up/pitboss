@@ -79,14 +79,15 @@ def overdue(book: ledger.Ledger, now: datetime.datetime) -> str | None:
 PROMPT = f"""\
 Status post, every {OVERDUE_MINUTES} minutes. Each firing of this timer does these \
 steps, in order:
-1. Run `pitboss sweep CONFIG` and act on its first line if it is IDLE SLOT or \
+1. Run `pitboss sweep --config CONFIG` and act on its first line if it is IDLE SLOT or \
 CHECK-IN OVERDUE.
 2. Post one status message to the thread that says: what holds each slot (the \
 agent and its ticket or PR), what changed since the last post, what is blocked \
 on what, when this timer is next due, and when it expires.
-3. Record the check-in: run `pitboss slots checkin CONFIG`. The ledger keeps its \
-time, and `slots next` and `sweep` print CHECK-IN OVERDUE when the last one is \
-over {OVERDUE_MINUTES} minutes old.
+3. Record the check-in: run \
+`pitboss slots checkin --config CONFIG`. The ledger keeps its time, and \
+`slots next` and `sweep` print CHECK-IN OVERDUE when the last one is over \
+{OVERDUE_MINUTES} minutes old.
 4. Recreate your own schedule fresh: create a new timer for the next \
 {OVERDUE_MINUTES} minutes, then delete the one that fired. A timer expires \
 {EXPIRY_DAYS} days after it was made, so never rely on one timer that can lapse: \

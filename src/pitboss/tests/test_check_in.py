@@ -122,6 +122,6 @@ class TestStatusPrompt(unittest.TestCase):
             "next due",
             "expires",
             "Recreate your own schedule fresh",
-            "slots checkin " + here.config,
+            "slots checkin --config " + here.config,
         ):
             assert_that(out, contains_string(part))
