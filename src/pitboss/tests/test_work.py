@@ -173,7 +173,7 @@ TICKET_BODIES = {
 NAMING = {
     "title": "Fixes #1",
     "body": (
-        "Fixes https://github.com/owner/project/issues/2\nCloses lib#3\n"
+        "Fixes https://github.com/owner/project/issues/2\nCloses lib#3\nFixes soon\n"
         "## Plan\nsee #5 and https://github.com/owner/project/issues/6"
     ),
     "head": {"sha": fakes.HEAD, "ref": "claude/work-4"},
