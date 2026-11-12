@@ -57,6 +57,7 @@ pitboss = [
   "claims.tsv",
   "clauses.tsv",
   "standing.tsv",
+  "mutation_known.tsv",
 ]
 "pitboss.tests" = ["coverage_ids.txt"]
 
@@ -112,5 +113,6 @@ module = [
     "pitboss.act_commands",
     "pitboss.envcheck_commands",
     "pitboss.hook_commands",
+    "pitboss.mutation_commands",
 ]
 disallow_untyped_decorators = false
