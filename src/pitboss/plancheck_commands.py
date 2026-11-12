@@ -134,7 +134,6 @@ def _plan_of(name: str, body: str) -> str:
 @ENTRY_DATA.register(
     add_argument(
         "file",
-        type=argparse.FileType("r", encoding="utf-8"),
         help="the PR body as `gh api` printed it, in a file",
     ),
     add_argument(
@@ -215,8 +214,11 @@ def plan_check(args: argparse.Namespace) -> None:
 def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
     configsettle.find_or_say(args)
     cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
-    body = args.file.read()
-    section = _plan_of(args.file.name, body)
+    try:
+        body = pathlib.Path(args.file).read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise _fail(f"{args.file}: {error}") from error
+    section = _plan_of(args.file, body)
     args.body = body  # the checks that read the body whole take it from here
     return _checked(args, section, _head_of(args, body))
 
