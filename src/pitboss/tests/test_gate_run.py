@@ -8,9 +8,11 @@ a timeout and a missing argument.
 import argparse
 import dataclasses
 import subprocess
+import sys
 import unittest
 from typing import Sequence
 
+from commander_data.run import Runner
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
 from .. import config, gaterun, nox_commands, prepush
@@ -131,6 +133,16 @@ class TestEachGateEachWay(unittest.TestCase):
             equal_to(Mode.EMPTY),
         )
         assert_that(pre_push(Fake(out="fine\n")), has_length(0))
+
+    def test_c32_the_runner_pitboss_runs_with_takes_the_gate(self) -> None:
+        """commander_data's own runner, which captures by default, runs a gate."""
+        words = [
+            sys.executable,
+            "-c",
+            "import sys; print('out'); print('err', file=sys.stderr)",
+        ]
+        judged = gaterun.run(Runner().safe_run, words, timeout=60)
+        assert_that((judged.passed, judged.output), equal_to((True, "out\nerr\n")))
 
     def test_c32_a_session_that_checks_its_status_still_fails(self) -> None:
         """A runner that raises for a non-zero status is a refusal too."""

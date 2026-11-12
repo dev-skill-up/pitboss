@@ -171,6 +171,7 @@ def run(
             list(command),
             check=False,
             timeout=timeout,
+            capture_output=False,  # one stream, not the runner default (gate-run)
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
