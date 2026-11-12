@@ -26,6 +26,7 @@ from . import (
     evidencepush,
     exempt,
     holdscope,
+    mechanicalpush,
     markupgate,
     noxcheck,
     noxgreen,
@@ -98,13 +99,13 @@ def _free(args: argparse.Namespace, found: commands.Context, slug: str | None) -
         print(exempt.SAYING)
         return True
     if not holdscope.applies(runners, slug):  # keyword: hold-scope (T141)
-        print(holdscope.OUTSIDE.format(slug=slug, orgs=_orgs(runners)))
+        print(
+            holdscope.OUTSIDE.format(
+                slug=slug, orgs=", ".join(holdscope.organisations(runners))
+            )
+        )
         return True
     return _to_drafts(args, found, slug)
-
-
-def _orgs(runners: config.Runners) -> str:
-    return ", ".join(holdscope.organisations(runners))
 
 
 def _wanted(args: argparse.Namespace) -> Sequence[str]:
@@ -139,7 +140,7 @@ def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context,
     found = commands.load_context(args)
     _require_green_nox(args)
     _require_execution(args, found, slug)
-    free = _free(args, found, slug)
+    free = mechanicalpush.exempt(args, found, slug) or _free(args, found, slug)
     if not free:
         _refuse_if_held(found)
     return found, free
@@ -361,6 +362,7 @@ def _require_green_nox(args: argparse.Namespace) -> None:
 @ENTRY_DATA.register(
     *commandarguments.CHANGING_ARGUMENTS,
     add_argument("--draft", action="store_true", default=False),
+    add_argument("--mechanical", action="store_true", default=False),
     ticketbranch.TICKET_ARGUMENT,
     add_argument("git_arguments", nargs="*"),
     name="push",
@@ -373,7 +375,8 @@ def push(args: argparse.Namespace) -> None:
     ``hold`` when a job waits), so the quiet period can end; a retried push
     adds only none looks, which do not restart the wait. A push to a draft PR
     (``--draft``, or the branch of an open draft PR) is neither checked nor
-    recorded. A push to ``dev-skill-up/pitboss`` (or a repository of
+    recorded. ``--mechanical`` is never held for a PR classified MECHANICAL-FIX
+    (``mechanicalpush``), else refused. A push to ``dev-skill-up/pitboss`` (or a repository of
     ``[runners] exempt``), read from the URL of the remote, is never held,
     whatever the pressure: it prints ``pitboss is exempt from holds`` once,
     runs ``git push`` and records nothing (keyword: pitboss-exempt, pitboss#113).

@@ -104,6 +104,11 @@ class Marker(enum.Enum):
             known-red, quire#1120).
         STALE_CLAIM: a PR's body names a head that is not its head, so a worker's
             claim of a push was not true (keyword: claim-readback, quire#1115).
+        MECHANICAL_FIX: a PR's red is a failed plan job or a fixture expectation
+            mismatch, which one push fixes and a push to a draft-free hold may
+            exempt (keyword: mechanical-fix, pitboss#32).
+        SLOW_MECHANICAL_FIX: a mechanical red whose fix push has not happened within
+            the configured minutes.
         DRAFT_STATE_CHANGED: a PR's draft state changed after the sweep marked it
             ready (keyword: draft-moves, pitboss#355).
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
@@ -286,6 +291,8 @@ class Marker(enum.Enum):
     INCOMPLETE = enum.auto()
     FIX_FIRST = enum.auto()
     STALE_CLAIM = enum.auto()
+    MECHANICAL_FIX = enum.auto()
+    SLOW_MECHANICAL_FIX = enum.auto()
 
     @property
     def text(self) -> str:
@@ -308,6 +315,8 @@ SPELLED = {
     Marker.WAIT_FOR_HOLD: "WAIT-FOR-HOLD",
     Marker.FIX_FIRST: "FIX FIRST",
     Marker.STALE_CLAIM: "STALE-CLAIM",
+    Marker.MECHANICAL_FIX: "MECHANICAL-FIX",
+    Marker.SLOW_MECHANICAL_FIX: "SLOW-MECHANICAL-FIX",
     Marker.CHECK_IN_OVERDUE: "CHECK-IN OVERDUE",
 }
 
@@ -340,6 +349,8 @@ SELF_EXPLAINED = frozenset(
         Marker.WAIT_FOR_HOLD,
         Marker.FIX_FIRST,
         Marker.STALE_CLAIM,
+        Marker.MECHANICAL_FIX,
+        Marker.SLOW_MECHANICAL_FIX,
         Marker.DROPPED_FROM_QUEUE,
         Marker.MERGE_BY_HAND,
         Marker.AUTO_MERGE_OFF,

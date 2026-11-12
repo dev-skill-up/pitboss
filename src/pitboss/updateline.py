@@ -63,6 +63,9 @@ def _in_shared_red(pull: pulls.PullFacts) -> bool:
     )
 
 
+RED_FIX = "the CI is red: fix it"  # the plain fix line; MECHANICAL-FIX replaces it
+
+
 def needs(pull: pulls.PullFacts, settings: config.Config) -> str:
     """What the PR needs before a reviewer or a merge.
 
@@ -88,7 +91,7 @@ def needs(pull: pulls.PullFacts, settings: config.Config) -> str:
     if pulls.failed_checks(pull):
         if _in_shared_red(pull):
             return "the CI is red from a cause others share (SHARED RED): no fix here"
-        return f"the CI is red: fix it (merge {base} first if it is behind)"
+        return f"{RED_FIX} (merge {base} first if it is behind)"
     return ""
 
 

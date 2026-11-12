@@ -12,7 +12,7 @@ import pathlib
 import unittest
 from typing import Callable, Mapping
 
-from hamcrest import assert_that, contains_string, equal_to, has_item, not_
+from hamcrest import assert_that, contains_string, equal_to, has_item
 
 from .. import (
     actions,
@@ -225,7 +225,7 @@ class TestThroughTheCommands(unittest.TestCase):
             each for each in text.splitlines() if each.startswith("READY TO MERGE")
         ]
         assert_that(shown, equal_to([]))
-        assert_that(text, not_(contains_string("re-arm")))
+        assert_that("re-arm" in text, equal_to(False))
 
 
 class TestEveryCell(unittest.TestCase):
@@ -251,7 +251,7 @@ class TestEveryCell(unittest.TestCase):
         """A head with no known red gets the step, not FIX FIRST."""
         for name in WITHHELD:
             with self.subTest(name=name):
-                assert_that(played(name, None), not_(contains_string("FIX FIRST")))
+                assert_that("FIX FIRST" in played(name, None), equal_to(False))
 
     def test_c28_the_step_is_offered_again_once_the_red_is_cleared(self) -> None:
         """The same PR before and after the status turns green."""
@@ -282,4 +282,4 @@ class TestEveryCell(unittest.TestCase):
         line = "NEEDS o/r#7: the red check passed on main since: re-dispatch x"
         shown = knownred.gate(pull, [line, "UPDATE o/r#7: x"], ())
         assert_that(shown[-1], contains_string("FIX FIRST"))
-        assert_that(shown, not_(has_item(line)))
+        assert_that(line in shown, equal_to(False))

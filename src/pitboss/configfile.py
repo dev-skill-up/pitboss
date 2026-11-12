@@ -356,6 +356,22 @@ def _merge_queue(document: Mapping[str, object], owner: str) -> config.MergeQueu
     )
 
 
+def _mechanical(document: Mapping[str, object]) -> config.Mechanical:
+    table = _table(document, "mechanical")
+    return config.Mechanical(
+        checks=_strings(table, "checks", config.DEFAULT_MECHANICAL_CHECKS),
+        patterns=_strings(table, "patterns", config.DEFAULT_MECHANICAL_PATTERNS),
+        slow_minutes=int(
+            _setting(
+                document,
+                "mechanical",
+                "slow_minutes",
+                config.DEFAULT_MECHANICAL_MINUTES,
+            )
+        ),
+    )
+
+
 def _reminders(document: Mapping[str, object]) -> Sequence[str]:
     return _strings(_table(document, "sweep"), "reminders", config.DEFAULT_REMINDERS)
 
@@ -385,4 +401,5 @@ def from_document(document: Mapping[str, object]) -> config.Config:
         idle_hours=float(_setting(document, "worktrees", "idle_hours", 3)),
         slots=_slots(document, project),
         reminders=_reminders(document),
+        mechanical=_mechanical(document),
     )

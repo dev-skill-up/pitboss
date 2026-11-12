@@ -277,6 +277,33 @@ class Runners:
     exempt: AbstractSet[str] = frozenset()
 
 
+# keyword: mechanical-fix (pitboss#32): a red that costs one cheap push to fix
+DEFAULT_MECHANICAL_CHECKS = ("plan",)
+DEFAULT_MECHANICAL_PATTERNS = (
+    r'no line ".*" in file',
+    r"rejected, but not as its expect says",
+)
+DEFAULT_MECHANICAL_MINUTES = 20
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Mechanical:
+    """What a mechanical red is (keyword: mechanical-fix, pitboss#32).
+
+    Attributes:
+        checks: the names of the checks whose failure alone is mechanical (the
+            plan job).
+        patterns: regular expressions; a failed check whose text matches one is
+            mechanical (a fixture expectation mismatch).
+        slow_minutes: how long after the red a fix push may wait before the
+            sweep says SLOW-MECHANICAL-FIX.
+    """
+
+    checks: Sequence[str] = DEFAULT_MECHANICAL_CHECKS
+    patterns: Sequence[str] = DEFAULT_MECHANICAL_PATTERNS
+    slow_minutes: int = DEFAULT_MECHANICAL_MINUTES
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class MergeQueue:
     """The merge queue: its run limit, and where only a conflict updates a branch.
@@ -308,6 +335,7 @@ class Config:
         idle_hours: how long a worktree is untouched before it may be stale.
         slots: the worker slots.
         reminders: the questions each sweep ends with.
+        mechanical: what a mechanical red is.
     """
 
     project: Project
@@ -320,6 +348,7 @@ class Config:
     idle_hours: float
     slots: Slots
     reminders: Sequence[str]
+    mechanical: Mechanical = Mechanical()
 
 
 def repositories(settings: Config) -> Sequence[Repo]:

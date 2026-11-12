@@ -10,6 +10,7 @@ from .. import markupgate
 from . import diffrepo, fakes, world
 from .test_push_draft import gits
 from .repositories import IDENTITY, run_git
+from ..expansion import Outcome
 from .test_nox import Done, FakeNox, run_with
 
 DOC = "one\ntwo\nthree\n"
@@ -135,3 +136,54 @@ class TestPushRefuses(unittest.TestCase):
         done = world.again(here, "push", "--now", when, "--no-dry-run")
         assert_that([done.code, gits(here)], equal_to([1, 0]))
         assert_that(done.out, contains_string("`doc/a.md` line 1 is an added line"))
+
+
+def reporter(patch: str, named_by: str) -> Callable[[Sequence[str]], Outcome]:
+    """A runner whose diff is a patch and whose ``git grep`` names a script.
+
+    Args:
+        patch: what ``git diff`` prints.
+        named_by: the file ``git grep`` lists, empty for none.
+
+    Returns:
+        The runner.
+    """
+
+    def go(command: Sequence[str], /) -> Outcome:
+        if command[:2] == ["git", "diff"]:
+            return Outcome(status=0, output=patch)
+        listed = bool(named_by) and "reports/r.md" in command
+        return Outcome(status=0 if listed else 1, output=named_by + "\n")
+
+    return go
+
+
+REPORT = (
+    "diff --git a/reports/r.md b/reports/r.md\n--- a/reports/r.md\n+++ b/reports/r.md\n"
+    "@@ -3 +3 @@\n-passed 10\n+passed 12\n"
+)
+
+
+class TestGeneratedReport(unittest.TestCase):
+    """A report a script writes is not hand-written markup (keyword: generated-markup)."""
+
+    def test_t433_a_generated_report_passes(self) -> None:
+        """A script that names the report makes its changed digits fine."""
+        run = reporter(REPORT, "scripts/report.py")
+        assert_that(markupgate.findings(run), equal_to([]))
+
+    def test_t433_a_hand_written_file_is_still_refused(self) -> None:
+        """No script names it, or only another .md file does."""
+        for named in ("", "docs/other.md"):
+            with self.subTest(named=named):
+                found = markupgate.findings(reporter(REPORT, named))
+                assert_that(len(found), equal_to(1))
+                assert_that(found[0], contains_string("`reports/r.md` line 3"))
+
+    def test_t433_a_hand_written_line_next_to_a_generated_file_is_refused(self) -> None:
+        """Only the generated file is exempt, in the same diff."""
+        hand = RESTORING
+        run = reporter(REPORT + hand, "scripts/report.py")
+        found = markupgate.findings(run)
+        assert_that(len(found), equal_to(1))
+        assert_that(found[0], contains_string(RESTORED))

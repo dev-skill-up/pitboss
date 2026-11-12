@@ -11,11 +11,13 @@ from . import (
     fixedline,
     foldline,
     gateline,
+    mechanical,
     knownred,
     notesline,
     planeditline,
     planrowline,
     pulls,
+    shapes,
     steps,
     reviewline,
     roundline,
@@ -35,6 +37,7 @@ def lines(
     now: datetime.datetime,
     settings: config.Config,
     steps: Mapping[int, Sequence[str]],
+    failures: Mapping[int, shapes.Failure] = {},
 ) -> Sequence[str]:
     """The STALL, UPDATE, FIXED ON BASE, waiting-for-ruling, DRAFT ROUND and form lines.
 
@@ -50,6 +53,7 @@ def lines(
         now: the time now.
         settings: the configuration.
         steps: the failed steps of each failed check.
+        failures: what is known of each failed check, for MECHANICAL-FIX.
 
     Returns:
         The lines, in that order.
@@ -59,7 +63,7 @@ def lines(
         (
             *stall.lines(pull, now, steps),
             *claimline.lines(pull),
-            *_branch_lines(pull, settings),
+            *_branch_lines(pull, settings, (now, failures)),
             *roundline.lines(pull),
             *planeditline.lines(pull),
             *_draft_lines(pull),
@@ -72,12 +76,21 @@ def lines(
     )
 
 
-def _branch_lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[str]:
-    # the lines about the base: UPDATE where it is merged in, FIXED ON BASE where not
+def _branch_lines(
+    pull: pulls.PullFacts,
+    settings: config.Config,
+    known: tuple[datetime.datetime, Mapping[int, shapes.Failure]],
+) -> Sequence[str]:
+    # the lines about the base: UPDATE where it is merged in, FIXED ON BASE where not;
+    # a mechanical red (pitboss#32) replaces the plain fix line of the NEEDS
+    fixes = mechanical.lines(pull, known[0], settings, known[1])
+    needs = updateline.need_lines(pull, settings)
+    kept = [each for each in needs if not (fixes and updateline.RED_FIX in each)]
     return (
         *updateline.lines(pull, settings),
         *fixedline.lines(pull),
-        *updateline.need_lines(pull, settings),
+        *kept,
+        *fixes,
     )
 
 

@@ -12,7 +12,13 @@ import tempfile
 import types
 import unittest
 
-from hamcrest import assert_that, contains_string, empty, equal_to, has_item
+from hamcrest import (
+    assert_that,
+    contains_string,
+    empty,
+    equal_to,
+    has_item,
+)
 
 from .. import (
     act_commands,
@@ -142,8 +148,7 @@ class TestPushClaims(unittest.TestCase):
 
     def test_c29_no_remote_slug_judges_nothing(self) -> None:
         """A remote that names no repository on GitHub."""
-        out = pushclaim.say(None, (None, "owner"), "5", [])  # type: ignore[func-returns-value]
-        assert_that(out, equal_to(None))
+        pushclaim.say(fakes.github({}), (None, "owner"), "5", [])
 
 
 class TestSweepClaim(unittest.TestCase):
@@ -174,14 +179,14 @@ class TestActClaims(unittest.TestCase):
 
     def test_c29_each_action_is_read_back(self) -> None:
         """Every action that claims a fact says NOT LANDED when GitHub differs."""
-        held = {
+        held: dict[actions.Action, dict[str, object]] = {
             actions.Action.UNDRAFT: {"draft": True},
             actions.Action.MERGE: {"merged": False},
             actions.Action.ARM: {"auto_merge": None},
             actions.Action.CLOSE: {"state": "open"},
             actions.Action.LABEL: {"labels": []},
         }
-        kept = {
+        kept: dict[actions.Action, dict[str, object]] = {
             actions.Action.UNDRAFT: {"draft": False},
             actions.Action.MERGE: {"merged": True},
             actions.Action.ARM: {"auto_merge": {"enabled_by": "x"}},
@@ -198,10 +203,8 @@ class TestActClaims(unittest.TestCase):
 
     def test_c29_a_label_without_a_name_and_a_push_claim_nothing_here(self) -> None:
         """The label's own word is needed; a push is read back by its own command."""
-        assert_that(
-            _read_back(actions.Action.LABEL, {"labels": "x"}, []),
-            has_item(contains_string("NOT LANDED")),
-        )
+        said = _read_back(actions.Action.LABEL, {"labels": "x"}, [])
+        assert_that(said[0].startswith("act NOT LANDED"), equal_to(True))
         assert_that(_read_back(actions.Action.PUSH, {}, []), empty())
         assert_that(_read_back(actions.Action.DISPATCH, {}, []), empty())
 
@@ -258,10 +261,8 @@ class TestTable(unittest.TestCase):
             found,
             has_item("invented: the test test_claims.Nothing.at_all does not exist"),
         )
-        assert_that(
-            claims.findings(text + "\nx\t \tnone.x\ty", exists),
-            has_item(contains_string("no GitHub fact")),
-        )
+        bare = claims.findings(text + "\nx\t \tnone.x\ty", exists)
+        assert_that("x: no GitHub fact to read it back from" in bare, equal_to(True))
 
     def test_c29_a_short_row_is_an_error(self) -> None:
         """Three fields are not four."""
