@@ -15,8 +15,8 @@ PLAN_CHECK_OK = "Plan check: ok"
 RUN_E2E_MARKER = "RUN E2E BEFORE APPROVAL"  # keyword: run-e2e (pitboss#199)
 # keyword: owner-artifact (pitboss#237, the owner's standing ruling of 2026-11-04)
 OWNER_ARTIFACT = (
-    "attach a markdown artifact with the sections 'What happened',"
-    " 'Recommendation' and 'Suggested mitigation'"
+    "attach a markdown artifact with the sections 'What happened', 'Recommendation' "
+    "and 'Suggested mitigation'"
 )
 FIRST_STEP = (
     "write the code, open the PR as a draft whose body has a Plan section and an"
@@ -47,8 +47,7 @@ class Step(enum.Enum):
         PLAN_EDITED: the approved Plan was edited, no ruling allows it (plan-digest).
         PLAN_CHECK: no comment records a clean ``pitboss plan-check`` (plan-check).
         SEND_BACK_PLAN_CHECK: the Plan check refused the Plan: send it back (#471).
-        RUN_E2E: a draft with an approved Plan whose diff touches the e2e suite has
-            no dispatched ``check.yml`` run at its head: dispatch it (run-e2e).
+        RUN_E2E: dispatch ``check.yml`` at the head of a draft whose diff touches e2e.
         WAIT_FOR_SHARED_RED: the PR's red check is red on others (keyword: shared-red).
         WAIT_FOR_BLOCKER: the PR waits for an open blocker (keyword: blocked-by).
         WAIT_FOR_HOLD: a runner-pressure hold withholds the merge or dispatch.
@@ -93,6 +92,7 @@ class Task(enum.Enum):
         SHARED_RED: file ONE ticket for a check red on several PRs (shared-red).
         FIX_BLOCKED_BY: a Blocked-by line names a loop or a closed blocker.
         AFTER_BLOCKER: the blockers merged since the red check (keyword: blocked-by).
+        FINISH_PARTIAL: a worker handed back a PR unfinished (keyword: finish-partial).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -105,10 +105,7 @@ class Task(enum.Enum):
         "do exactly what the Opus ruling says to the ticket and the PR (split,"
         " reshape or abandon); it is not checked against the one-ticket-one-PR rules"
     )
-    RUN_PLAN = (
-        "run the approved Plan's commands as written and fill the Execution"
-        " (approved alone, after a ruling, or the Execution is a placeholder)"
-    )
+    RUN_PLAN = "run the approved Plan's commands as written and fill the Execution"
     ADD_CI_QUOTES = "add the CI quotes to the body"
     FIX_ROUND = "fix round: fix the findings, each one (code, doc, test, Plan)"
     REFRESH_BODY = (
@@ -118,6 +115,7 @@ class Task(enum.Enum):
     SHARED_RED = "file one ticket against the shared cause of the red check; fix no PR"
     FIX_BLOCKED_BY = "correct the Blocked-by lines (a loop, or a blocker closed)"
     AFTER_BLOCKER = "the blockers merged: merge the base into the branch, check, push"
+    FINISH_PARTIAL = "finish this PR, handed back unfinished: do what the lines name"
 
 
 class Stage(enum.Enum):

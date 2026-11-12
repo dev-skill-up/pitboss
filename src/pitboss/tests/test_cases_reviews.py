@@ -33,6 +33,23 @@ def state_of(
     return model.pull_state(model.Model(history=History(reviews=reviews)))
 
 
+def named_for(body: str) -> Sequence[str]:
+    """The reviews named when the head's review has a body.
+
+    Args:
+        body: the text of the review of the second Plan approval.
+
+    Returns:
+        What ``reviewunread.without_execution`` names.
+    """
+    comment = shapes.Comment(
+        body=body, author_association="MEMBER", created_at=model.stamp(5), url=URL
+    )
+    state = state_of(TWO_PLANS)
+    state = dataclasses.replace(state, comments=[*state.comments, comment])
+    return reviewunread.without_execution(state)
+
+
 class TestUnread(unittest.TestCase):
     """The brief asks for the line; the sweep names a review without it."""
 
@@ -46,15 +63,14 @@ class TestUnread(unittest.TestCase):
 
     def test_i28_a_plan_only_review_after_an_approved_plan_is_named(self) -> None:
         """Bats 650: Plan approved earlier, then a review with no Execution line."""
-        state = state_of(TWO_PLANS)
-        comment = shapes.Comment(
-            body="x", author_association="MEMBER", created_at=model.stamp(5), url=URL
-        )
-        state = dataclasses.replace(state, comments=[*state.comments, comment])
-        assert_that(reviewunread.without_execution(state), equal_to([URL]))
+        assert_that(named_for("x"), equal_to([URL]))
         line = reviewunread.line("owner/project#5", URL)
         assert_that(line, contains_string("REVIEW UNREAD: owner/project#5"))
         assert_that(line, contains_string("has no Execution: line"))
+
+    def test_c23_a_review_with_prose_only_is_named(self) -> None:
+        """No grade line at all after an approved Plan: named, not offered silently."""
+        assert_that(named_for("Looks good.\nVerdict: approved"), equal_to([URL]))
 
     def test_i28_a_review_with_no_comment_is_named_by_its_time(self) -> None:
         """The address falls back to the review's time."""

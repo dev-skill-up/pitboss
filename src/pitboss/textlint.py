@@ -12,6 +12,7 @@ import json
 from typing import Callable, Mapping, Sequence
 
 CONTEXT = "text-lint"
+RED = frozenset({"failure", "error"})  # keyword: finish-partial
 DESCRIPTION_MAX = 140
 RELOCK_PREFIX = "relock/"
 BOT_SUFFIX = "[bot]"

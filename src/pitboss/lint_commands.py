@@ -23,6 +23,7 @@ from . import (
     folds,
     forms,
     gateform,
+    gradesrequired,
     holdwait,
     lintinput,
     phrases,
@@ -141,6 +142,7 @@ def _review_findings(
     return [
         *check(subject, form),
         *planfixed.required(args, subject, form),
+        *gradesrequired.findings(args, subject, form),
         *reviewrules.grade_findings(subject.body, form),
         *reviewrules.phrase_findings(subject.body),
         *reviewrules.piecemeal_findings(subject.body),
@@ -216,18 +218,22 @@ def _body_findings(
     ]
 
 
+def _exactly(args: argparse.Namespace, wanted: Sequence[str]) -> Sequence[str]:
+    # the texts of the files a check takes, each named in the refusal
+    if len(args.files) != len(wanted):
+        raise _fail(f"{args.kind} checks {', '.join(wanted)}, not {len(args.files)}")
+    return [_read(each) for each in args.files]
+
+
 def _change(args: argparse.Namespace) -> None:
     # keyword: flow-change (pitboss#444, item 12): `git diff` of the PR, as a file
-    if len(args.files) != 1:
-        raise _fail(f"change checks one diff, not {len(args.files)}")
-    _finish(flowfiles.findings(_read(args.files[0])), "ok")
+    (diff,) = _exactly(args, ["one diff"])
+    _finish(flowfiles.findings(diff), "ok")
 
 
 def _repo_rules(args: argparse.Namespace) -> None:
     # keyword: repo-rules (pwa#320): the diff, the repository's CLAUDE.md, the body
-    if len(args.files) != 3:
-        raise _fail("repo-rules takes the diff, the CLAUDE.md and the PR body")
-    diff, claude, body = (_read(each) for each in args.files)
+    diff, claude, body = _exactly(args, ["the diff", "the CLAUDE.md", "the PR body"])
     _finish(reporules.findings("body", claude, diff, body), "ok")
 
 
@@ -336,6 +342,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         " (with --repository, the form review-form prints for it)",
     ),
     planfixed.ARGUMENT,
+    gradesrequired.ARGUMENT,
     add_argument(
         "--repository",
         default="",

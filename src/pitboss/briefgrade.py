@@ -9,7 +9,7 @@ differ, and the check command is named in the brief.
 
 from typing import Sequence
 
-from . import briefkind, gradeline
+from . import briefkind, gradeline, gradesrequired
 
 Kind = briefkind.Kind
 CHECK_COMMAND = "uvx pitboss lint review"
@@ -22,16 +22,25 @@ _FIXED = frozenset(
         Kind.REVIEW_RELOCK,
     }
 )
+KIND_WORDS = {
+    Kind.REVIEW_FULL: gradesrequired.Review.FULL.value,
+    Kind.REVIEW_PLAN: gradesrequired.Review.PLAN.value,
+    Kind.REVIEW_EXECUTION: gradesrequired.Review.EXECUTION.value,
+    Kind.REVIEW_RESOLUTION: gradesrequired.Review.RESOLUTION.value,
+    Kind.REVIEW_FIX_ROUND: gradesrequired.Review.FIX_ROUND.value,
+    Kind.REVIEW_RELOCK: gradesrequired.Review.RELOCK.value,
+}
 GRADES = (
     "Grade lines: write exactly these lines beside the form's, with the one"
     " word of the `Verdict:` line, first on the line after the colon ({words});"
-    " the sweep reads no other spelling, and `Plan: ok` or `Plan: LGTM` grades"
-    " nothing and is no approval:"
+    " the sweep reads no other spelling, `Plan: ok` or `Plan: LGTM` grades"
+    " nothing and is no approval, and a review that lacks a line below is not"
+    " counted (the sweep says REVIEW UNREAD) and is offered again:"
 )
 CHECK_BEFORE = (
     "Check before you post: save the comment to a file and run `{command}` and"
-    " its arguments `FILE {arguments}`; post it only when it prints"
-    " nothing. A comment posted unchecked can be one the sweep does not read."
+    " its arguments `FILE {arguments} --review-kind {kind}`; post it only when it"
+    " prints nothing. A comment posted unchecked can be one the sweep does not read."
 )
 
 
@@ -72,5 +81,9 @@ def lines(kind: Kind, words: tuple[str, str], check_arguments: str) -> Sequence[
     return [
         GRADES.format(words=f"`{approved}` or `{changes_needed}`"),
         *grade_lines(kind, approved, changes_needed),
-        CHECK_BEFORE.format(command=CHECK_COMMAND, arguments=check_arguments + more),
+        CHECK_BEFORE.format(
+            command=CHECK_COMMAND,
+            arguments=check_arguments + more,
+            kind=KIND_WORDS[kind],
+        ),
     ]

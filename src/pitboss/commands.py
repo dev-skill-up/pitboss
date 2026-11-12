@@ -51,6 +51,7 @@ from . import (
     tasklist,
     timing,
     blockedby,
+    finishpartial,
     sharedred,
     workerlines,
     workhours,
@@ -138,7 +139,9 @@ def _waiting(
     # keywords: blocked-by, shared-red: a declared blocker first, then a shared red
     blocked, said = blockedby.settle(github, read)
     settled, shared = sharedred.settle(github, blocked)
-    return settled, [*said.values(), *sharedred.lines(shared).values()]
+    finished, partial = finishpartial.settle(settled)  # keyword: finish-partial
+    lines = [*said.values(), *sharedred.lines(shared).values(), *partial]
+    return finished, [*lines, *finishpartial.stranded(finished)]
 
 
 def whole_order(found: Context) -> Context:

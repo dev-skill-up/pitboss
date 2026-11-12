@@ -39,14 +39,7 @@ Kind = briefkind.Kind
 REVIEWS = briefkind.REVIEWS
 # keyword: run-e2e (pitboss#199): the reviews that read a head's checks, so an
 # e2e result, which a draft's CI would leave without one
-E2E_KINDS = frozenset(
-    {
-        Kind.REVIEW_FULL,
-        Kind.REVIEW_EXECUTION,
-        Kind.REVIEW_RESOLUTION,
-        Kind.REVIEW_FIX_ROUND,
-    }
-)
+E2E_KINDS = frozenset(REVIEWS - {Kind.REVIEW_PLAN, Kind.REVIEW_RELOCK})
 SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND, Kind.REVIEW_RELOCK})
 
 TASKS: Mapping[Kind, str] = {
@@ -65,6 +58,7 @@ TASKS: Mapping[Kind, str] = {
     Kind.SHARED_RED: brieftextwork.TASK_SHARED_RED,
     Kind.FIX_BLOCKED_BY: brieftextwork.TASK_FIX_BLOCKED_BY,
     Kind.AFTER_BLOCKER: brieftextwork.TASK_AFTER_BLOCKER,
+    Kind.FINISH_PARTIAL: brieftextwork.TASK_FINISH_PARTIAL,
 }
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [

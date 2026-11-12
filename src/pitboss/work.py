@@ -73,6 +73,7 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.SHARED_RED: Category.SHARED_RED,
     steps.Task.FIX_BLOCKED_BY: Category.FIX_BLOCKED_BY,
     steps.Task.AFTER_BLOCKER: Category.AFTER_BLOCKER,
+    steps.Task.FINISH_PARTIAL: Category.FINISH_PARTIAL,
 }
 
 

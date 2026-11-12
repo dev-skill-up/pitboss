@@ -29,4 +29,5 @@ Task.REFRESH_BODY	category
 Task.SHARED_RED	category
 Task.FIX_BLOCKED_BY	category
 Task.AFTER_BLOCKER	category
+Task.FINISH_PARTIAL	category
 Task.FIX_ROUND	category

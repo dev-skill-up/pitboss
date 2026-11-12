@@ -26,6 +26,8 @@ class Kind(enum.Enum):
             from one cause (keyword: shared-red).
         FIX_BLOCKED_BY: a worker corrects the Blocked-by lines of a PR body.
         AFTER_BLOCKER: a worker merges the base into a PR whose blockers merged.
+        FINISH_PARTIAL: a worker finishes a PR handed back unfinished (keyword:
+            finish-partial).
         FIX_ROUND: a worker fixes the findings of a review of the Plan that name a
             file of the tree, or of a Plan check that refused (keyword:
             fix-round-kind, pitboss#390).
@@ -56,6 +58,7 @@ class Kind(enum.Enum):
     SHARED_RED = "file one ticket for the red check the PRs share"
     FIX_BLOCKED_BY = "correct the Blocked-by lines of the body"
     AFTER_BLOCKER = "merge the base into the branch, the blockers merged"
+    FINISH_PARTIAL = "finish the PR handed back unfinished"
     FIX_ROUND = "fix round for the findings"
     REVIEW_FULL = "review the Plan and the Execution"
     REVIEW_EXECUTION = "review the Execution"

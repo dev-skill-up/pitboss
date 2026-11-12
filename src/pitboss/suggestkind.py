@@ -20,6 +20,7 @@ OF_CATEGORY = {
     workitem.Category.SHARED_RED: brief.Kind.SHARED_RED,
     workitem.Category.FIX_BLOCKED_BY: brief.Kind.FIX_BLOCKED_BY,
     workitem.Category.AFTER_BLOCKER: brief.Kind.AFTER_BLOCKER,
+    workitem.Category.FINISH_PARTIAL: brief.Kind.FINISH_PARTIAL,
 }
 
 

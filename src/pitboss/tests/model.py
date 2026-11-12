@@ -212,6 +212,16 @@ def pull_state(model: Model) -> flow.PullState:
     )
 
 
+_STEPS: dict[str, steps.Next] = {}
+
+
+def _step_of_key(token: str, model: Model) -> steps.Next:
+    # models of one key read the same to the flow (see ``key``)
+    if token not in _STEPS:
+        _STEPS[token] = flow.next_step(pull_state(model))
+    return _STEPS[token]
+
+
 def step_of(model: Model) -> steps.Next:
     """The step the flow gives a model.
 
@@ -221,4 +231,4 @@ def step_of(model: Model) -> steps.Next:
     Returns:
         The step.
     """
-    return flow.next_step(pull_state(model))
+    return _step_of_key(repr(key(model)), model)

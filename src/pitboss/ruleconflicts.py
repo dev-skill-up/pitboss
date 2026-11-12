@@ -238,6 +238,7 @@ def register_words() -> Mapping[str, str]:
     return dict(zip([each.id for each in rows], [each.words for each in rows]))
 
 
+@functools.cache
 def shipped() -> Sequence[Declared]:
     """The pairs pitboss ships.
 

@@ -9,7 +9,7 @@ a comment so that the reviewer is sent back to write the line (pitboss#444, case
 
 from typing import Sequence
 
-from . import flowstate, shapes
+from . import flowstate, gradeline, shapes
 
 PREFIX = "REVIEW UNREAD"
 
@@ -39,8 +39,16 @@ def _lacks_execution(
     # a Plan grade at the head, no Execution grade, after an approved Plan
     approving = shapes.Verdict.APPROVED in {before.plan for before in earlier}
     at_head = state.pull.head.sha.startswith(review.sha)
-    return (
-        approving and at_head and review.plan is not None and review.execution is None
+    plan_alone = review.plan is not None and review.execution is None
+    return approving and at_head and (plan_alone or _no_grades(state, review))
+
+
+def _no_grades(state: flowstate.PullState, review: shapes.Graded) -> bool:
+    # a prose-only or verdict-only review: its comment has neither grade line
+    bodies = [each.body for each in state.comments if each.created_at == review.when]
+    return bool(bodies) and not any(
+        gradeline.present(bodies[0], prefix)
+        for prefix in (gradeline.PLAN_PREFIX, gradeline.EXECUTION_PREFIX)
     )
 
 

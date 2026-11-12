@@ -111,3 +111,11 @@ TASK_AFTER_BLOCKER = (
     " push (never rewrite history), then `uvx pitboss body-head {reference}`: CI"
     " runs again on the new head (keyword: blocked-by)."
 )
+TASK_FINISH_PARTIAL = (
+    "Task: PR {reference}: a worker handed it back unfinished and nothing offered it"
+    " again (the FINISH PARTIAL line of `pitboss sweep` names what is missing). Resume"
+    " this PR on its own branch, never a new one: do what the line says (post the"
+    " `uvx pitboss plan-check`, fix the body until `uvx pitboss lint pr-body BODYFILE`"
+    " prints ok, push the unpushed commits), change nothing else, then stop with the"
+    " hand-back (keyword: finish-partial)."
+)

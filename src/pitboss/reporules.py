@@ -13,18 +13,21 @@ rule that the diff decides is a lint finding quoting the sentence (here: a new
 import base64
 import json
 import re
+import dataclasses
 import subprocess
 from typing import Sequence
 
-from . import ghapi
+from . import briefconfig, ghapi
 
-VERDICT = re.compile(r"Verdict:\s*`?changes needed`?", re.IGNORECASE)
-SECTION = re.compile(r"^#+\s*Adversarial review before merge\s*$", re.I | re.M)
+VERDICT = re.compile(r"verdict:\s*`?changes needed`?", re.I)
+SECTION = re.compile(r"(?im)^#+\s*adversarial review before merge\s*$")
 HEADING = re.compile(r"^#+\s", re.M)
 KIND = re.compile(r"^[*-]\s+\*\*", re.M)
 NO_SHELL = "We write bats, not shell"
 NON_BATS = "non-bats code"
 AVENUE = re.compile(r"\bavenue\b", re.IGNORECASE)
+CHAIN = re.compile(r" && |; ")
+BLOCK_MARKS = frozenset(["|", ">", "|-", ">-"])
 LIMIT = 4000  # the most characters of rules a brief takes
 HEADER = (
     "REPOSITORY RULES (this repository's CLAUDE.md; a PR that breaks one gets"
@@ -98,6 +101,25 @@ def lines(claude: str) -> Sequence[str]:
     return [text[:LIMIT] + ("..." * (len(text) > LIMIT))]
 
 
+def added(
+    github: ghapi.GitHub, slug: str, project: briefconfig.Brief
+) -> briefconfig.Brief:
+    """The project's briefs with the repository's own review rules.
+
+    Args:
+        github: the API.
+        slug: the repository.
+        project: what the project's briefs say.
+
+    Returns:
+        The same, its review lines followed by ``lines`` of the CLAUDE.md.
+    """
+    rules_lines = lines(read(github, slug))
+    return dataclasses.replace(
+        project, review_lines=[*project.review_lines, *rules_lines]
+    )
+
+
 def _added(diff: str) -> Sequence[tuple[str, bool, Sequence[str]]]:
     # each file of a unified diff: its path, whether it is new, its added lines
     files: list[tuple[str, bool, list[str]]] = []
@@ -118,15 +140,10 @@ def _steps(added: Sequence[str]) -> bool:
         step = row.strip().removeprefix("- ")
         if step.startswith("run:"):
             tail = step[4:].strip()
-            block = (
-                [each for each in added[at + 1 :] if each.strip()]
-                if tail in {"|", ">", "|-", ">-"}
-                else [tail]
-            )
+            later = [each for each in added[at + 1 :] if each.strip()]
+            block = later if tail in BLOCK_MARKS else [tail]
             commands = [each for each in block if not each.strip().startswith("#")]
-            if len(commands) > 1 or any(
-                " && " in each or "; " in each for each in commands
-            ):
+            if len(commands) > 1 or any(CHAIN.search(each) for each in commands):
                 return True
     return False
 

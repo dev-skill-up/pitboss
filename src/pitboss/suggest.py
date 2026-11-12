@@ -1,9 +1,8 @@
 """The top suggestions of ``next`` and ``slots next``, each with its brief.
 
-On a crowded volume (90% used or more) the clean suggestion comes first; the
-first pick is the one the process requires, the others could start next (a
-missing checkout does not stop the work). The order is ``work.queued``'s, Opus
-rulings first: owed, they take no slot (keyword: brief, pitboss#118).
+On a crowded volume (90% used or more) the clean suggestion comes first; the first
+pick is the one the process requires, the others could start next. The order is
+``work.queued``'s, Opus rulings first: owed, they take no slot (keyword: brief).
 """
 
 import dataclasses
@@ -11,7 +10,6 @@ import pathlib
 from typing import Iterable, Mapping, Sequence
 
 from . import (
-    reporules,
     brief,
     briefconfig,
     briefheads,
@@ -26,6 +24,7 @@ from . import (
     nextfound,
     pullfiles,
     pulls,
+    reporules,
     reviews,
     ruleconflicts,
     slotheld,
@@ -82,8 +81,7 @@ class Source:
         facts: the open PRs that were read.
         items: the queued work, in order.
         failed: each reference's failed models.
-        volume: the workspace's volume as read (keyword: disk-watch,
-            pitboss#288), None when unread.
+        volume: the workspace's volume as read (disk-watch), None when unread.
         big: the largest scratch entries, read only for a crowded volume.
         occupancy: what holds the slots (keyword: slot-held, pitboss#291).
     """
@@ -242,8 +240,7 @@ def goal(source: Source, pick: Pick) -> tuple[str, str]:
         pick: what could start.
 
     Returns:
-        The ticket (empty when none is known) and the goal: the title of the
-        ticket, else the title of the PR.
+        The ticket (empty if none) and its goal: the ticket's title, else the PR's.
     """
     if pick.pull is not None and pick.pull.relock:
         return "", RELOCK_GOAL.format(reference=pick.reference, title=pick.title)
@@ -268,12 +265,15 @@ def _rules(source: Source, slug: str, head: str) -> brief.Rules:
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
-        project=briefrepo.of_repository(
-            source.brief,
+        project=reporules.added(
+            source.github,
             slug,
-            source.settings.project.no_drafts,
-            source.settings.runners.exempt,
-            reporules.lines(reporules.read(source.github, slug)),
+            briefrepo.of_repository(
+                source.brief,
+                slug,
+                source.settings.project.no_drafts,
+                source.settings.runners.exempt,
+            ),
         ),
         gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
         plan_check=source.settings.project.plan_review_check,
@@ -328,8 +328,7 @@ def model_class(source: Source, pick: Pick) -> str:
         pick: what could start.
 
     Returns:
-        A slot and the smallest model it may go to, or the Opus agent of a
-        ruling, which takes no slot.
+        The slot and smallest model, or the Opus agent of a ruling (no slot).
     """
     if pick.item is None:
         return OPUS_MODEL
@@ -381,10 +380,9 @@ def lines(source: Source) -> Iterable[str]:
         source: what suggestions are made from.
 
     Yields:
-        The lines: up to ``TOP`` suggestions in order, then how many more
-        are queued; one line when nothing could start. On a volume 90 % used or
-        with under 1 GiB free the first suggestion is ``clean the disk``; under
-        1 GiB free no worker is suggested (keyword: disk-watch, pitboss#288).
+        Up to ``TOP`` suggestions in order, then how many more are queued; one
+        line when nothing could start. On a volume 90 % used or with under 1 GiB
+        free the first is ``clean the disk``; under 1 GiB none is a worker's.
     """
     marker = Marker.SUGGESTION.text
     every = [] if diskwatch.starved(source.volume) else picks(source)

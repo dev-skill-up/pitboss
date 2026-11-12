@@ -7,6 +7,7 @@ person typed or edited is told from one ``pitboss expand`` produced.
 """
 
 import dataclasses
+import functools
 import hashlib
 import re
 from typing import Callable, Sequence
@@ -235,6 +236,7 @@ def run_urls_dropped(text: str) -> str:
     return RUN_ADDRESS.sub(r"\1/actions/runs", text)
 
 
+@functools.cache
 def accepted_digests(text: str) -> Sequence[str]:
     """The digests a record of a Plan section may carry to be of this section.
 
