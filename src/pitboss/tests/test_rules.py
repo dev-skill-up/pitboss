@@ -4,6 +4,7 @@ Rule ids R1 and R2 are the Done-when items 1 and 2 of pitboss#444.
 """
 
 import argparse
+import dataclasses
 import io
 import pathlib
 import unittest
@@ -32,7 +33,9 @@ def _ran(register: str | None) -> tuple[int, str]:
     status = 0
     with redirect_stdout(out):
         try:
-            rules_commands.rules_check(argparse.Namespace(register=register))
+            rules_commands.rules_check(
+                argparse.Namespace(action="check", register=register)
+            )
         except SystemExit as stop:
             status = int(stop.code or 0)
     return status, out.getvalue()
@@ -101,22 +104,70 @@ class TestCheck(unittest.TestCase):
         assert_that(printed, contains_string("unknown-function"))
 
 
+def table() -> list[str]:
+    """The ids of the coverage table the package ships.
+
+    Returns:
+        The ids.
+    """
+    return phrases.shipped_text("coverage_ids.txt").split()
+
+
+def shipped_rows() -> list[rules.Row]:
+    """The rows of the register the package ships.
+
+    Returns:
+        The rows.
+    """
+    return list(rules.parse(phrases.shipped_text("rules.tsv"))[0])
+
+
 class TestIds(unittest.TestCase):
     """The register holds the ids of the coverage table."""
 
     def test_r2_the_register_has_every_id_of_the_table(self) -> None:
         """Compare the table's 87 ids with the register's."""
-        table = (HERE / "coverage_ids.txt").read_text(encoding="utf-8").split()
-        rows, _ = rules.parse(phrases.shipped_text("rules.tsv"))
-        assert_that(table, has_length(87))
-        missing = [each for each in table if each not in {row.id for row in rows}]
-        assert_that(missing, empty())
+        assert_that(table(), has_length(87))
+        assert_that(rules.coverage_findings(shipped_rows(), table()), empty())
 
     def test_r2_outside_and_output_kinds_are_the_tables(self) -> None:
-        """D4 and D12 to D14 are outside."""
-        rows, _ = rules.parse(phrases.shipped_text("rules.tsv"))
-        outside = {row.id for row in rows if row.kind == "outside"}
-        assert_that({"D4", "D12", "D13", "D14"} <= outside, equal_to(True))
+        """Exactly D4, D12, D13 and D14 are outside: a fifth, or one fewer, is found."""
+        rows = shipped_rows()
+        fifth = [
+            dataclasses.replace(r, kind="outside") if r.id == "C8" else r for r in rows
+        ]
+        fewer = [
+            dataclasses.replace(r, kind="output") if r.id == "D4" else r for r in rows
+        ]
+        assert_that(
+            rules.coverage_findings(fifth, table()),
+            has_item(contains_string("outside-set")),
+        )
+        assert_that(
+            rules.coverage_findings(fewer, table()),
+            has_item(contains_string("outside-set")),
+        )
+
+    def test_r2_an_extra_outside_row_is_found(self) -> None:
+        """A table id with no row, and one that is open, are found."""
+        rows = shipped_rows()
+        gone = [r for r in rows if r.id != "A7"]
+        opened = [
+            dataclasses.replace(r, kind="open") if r.id == "B3" else r for r in rows
+        ]
+        assert_that(
+            rules.coverage_findings(gone, table()),
+            equal_to(["table-id: A7 has no row"]),
+        )
+        assert_that(
+            rules.coverage_findings(opened, table()),
+            equal_to(["table-kind: B3 is open"]),
+        )
+
+    def test_r2_the_shipped_check_has_the_table(self) -> None:
+        """``rules check`` on the shipped register runs the table check and passes."""
+        status, printed = _ran(None)
+        assert_that([status, "outside-set" in printed], equal_to([0, False]))
 
     def test_r2_names_id_is_a_word_match(self) -> None:
         """``a7`` does not match ``a70``."""

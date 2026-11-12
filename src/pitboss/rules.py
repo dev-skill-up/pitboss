@@ -18,6 +18,7 @@ from typing import Callable, Sequence
 KINDS = ("enforced", "output", "outside", "open")
 FIELDS = 6
 CHECKED = ("enforced", "output")
+OUTSIDE = ("D4", "D12", "D13", "D14")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -159,3 +160,28 @@ def open_ids(rows: Sequence[Row]) -> Sequence[str]:
         The ids of the rows of kind ``open``.
     """
     return [row.id for row in rows if row.kind == "open"]
+
+
+def coverage_findings(rows: Sequence[Row], table: Sequence[str]) -> Sequence[str]:
+    """What the register gets wrong against the coverage table (item 2).
+
+    Args:
+        rows: the rows.
+        table: the ids of the coverage table.
+
+    Returns:
+        A finding if the rows of kind ``outside`` are not exactly ``OUTSIDE``, and
+        for each id of the table with no row or a row neither enforced nor output.
+    """
+    held = {entry.id: entry for entry in rows}
+    outside = sorted(entry.id for entry in rows if entry.kind == "outside")
+    found = [f"outside-set: {outside}"] if outside != sorted(OUTSIDE) else []
+    return [
+        *found,
+        *(f"table-id: {each} has no row" for each in table if each not in held),
+        *(
+            f"table-kind: {each} is {held[each].kind}"
+            for each in table
+            if each in held and each not in OUTSIDE and held[each].kind not in CHECKED
+        ),
+    ]

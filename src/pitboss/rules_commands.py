@@ -8,9 +8,11 @@ import sys
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, phrases, rules
+from . import ENTRY_DATA, donewhen, donewhenrun, phrases, rules
 
 REGISTER = "rules.tsv"
+TABLE = "coverage_ids.txt"
+PAIRING = "donewhen.tsv"
 
 
 def function_known(name: str) -> bool:
@@ -46,7 +48,23 @@ def module_text(module: str) -> str | None:
 
 
 @ENTRY_DATA.register(
-    add_argument("action", choices=("check",)),
+    add_argument("action", choices=("check", "done-when")),
+    add_argument(
+        "--ref",
+        default="origin/main",
+        help="done-when: the base the named tests must fail on (default: origin/main)",
+    ),
+    add_argument(
+        "--repo",
+        default=".",
+        help="done-when: a checkout of pitboss, which the base is made of",
+    ),
+    add_argument(
+        "--pairing",
+        default=None,
+        help="done-when: a file pairing the Done-when's items with their tests"
+        " (default: the one pitboss ships, donewhen.tsv)",
+    ),
     add_argument(
         "--register",
         default=None,
@@ -66,6 +84,9 @@ def rules_check(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when the register has a finding.
     """
+    if args.action == "done-when":
+        done_when(args)
+        return
     text = (
         pathlib.Path(args.register).read_text(encoding="utf-8")
         if args.register
@@ -73,6 +94,8 @@ def rules_check(args: argparse.Namespace) -> None:
     )
     rows, bad = rules.parse(text)
     found = [*bad, *rules.findings(rows, function_known, module_text)]
+    if not args.register:
+        found += rules.coverage_findings(rows, phrases.shipped_text(TABLE).split())
     for each in found:
         print(each)
     unenforced = rules.open_ids(rows)
@@ -81,3 +104,40 @@ def rules_check(args: argparse.Namespace) -> None:
         print(f"rules check: refused, {len(found)} findings", file=sys.stderr)
         raise SystemExit(1)
     print("rules check: ok")
+
+
+def done_when(args: argparse.Namespace) -> None:
+    """Print one line: whether every Done-when item is demonstrated by its tests.
+
+    Each named test must exist and pass on the head, and at least one test of each
+    item must fail on the base ``--ref``, where the head's tests are run in a scratch
+    worktree. The line is ``done-when check: ok``, or names the first finding.
+
+    Args:
+        args: the parsed arguments.
+
+    Raises:
+        SystemExit: 1 when an item is not demonstrated.
+    """
+    pairing = (
+        pathlib.Path(args.pairing).read_text(encoding="utf-8")
+        if args.pairing
+        else phrases.shipped_text(PAIRING)
+    )
+    rows, _ = rules.parse(phrases.shipped_text(REGISTER))
+    items = donewhen.parse(pairing)
+    tests = sorted(
+        {t for each in items for t in donewhen.tests_of(each, rows) if "." in t}
+    )
+    here = pathlib.Path(str(importlib.resources.files("pitboss"))).parent
+    with donewhenrun.base_source(pathlib.Path(args.repo), args.ref) as base:
+        checks = donewhen.Checks(
+            exists=donewhenrun.exists,
+            head=donewhenrun.run_all(tests, here),
+            base=donewhenrun.run_all(tests, base),
+        )
+    found = donewhen.refusals(items, rows, checks)
+    if found:
+        print(f"done-when check: refused, {len(found)} findings, first: {found[0]}")
+        raise SystemExit(1)
+    print("done-when check: ok")
