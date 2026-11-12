@@ -60,7 +60,7 @@ pitboss = [
   "enumeration/*.tsv",
   "enumeration/*.txt",
 ]
-"pitboss.tests" = ["coverage_ids.txt", "total/*.json", "total/*.tsv"]
+"pitboss.tests" = ["coverage_ids.txt", "total/*.json", "total/*.tsv", "tickets/*.txt"]
 
 [project.urls]
 Homepage = "https://github.com/dev-skill-up/pitboss"

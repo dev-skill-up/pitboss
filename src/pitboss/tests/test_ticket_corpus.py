@@ -36,7 +36,7 @@ def body(name: str) -> str:
     Returns:
         Its body as it was read.
     """
-    return (CORPUS / f"{name}.md").read_text(encoding="utf-8")
+    return (CORPUS / f"{name}.txt").read_text(encoding="utf-8")
 
 
 class TestCorpus(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestCorpus(unittest.TestCase):
 
     def test_c33_every_ticket_has_its_items_counted(self) -> None:
         """The counts of the corpus; a new file must be listed."""
-        found = sorted(each.stem for each in CORPUS.glob("*.md"))
+        found = sorted(each.stem for each in CORPUS.glob("*.txt"))
         assert_that(found, equal_to(sorted(COUNTS)))
         for name, count in COUNTS.items():
             assert_that(len(ticketwhen.items(body(name))), equal_to(count), name)
