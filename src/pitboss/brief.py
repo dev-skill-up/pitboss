@@ -26,6 +26,7 @@ from . import (
     brieftextfailure,
     brieftextfix,
     brieftextlint,
+    brieftextfolded,
     brieftextnote,
     brieftextorder,
     brieftextowner,
@@ -77,6 +78,8 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
+        *brieftextfolded.EXECUTION_REVIEW,
+        *brieftextfolded.PLAN_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
@@ -92,6 +95,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
+        *brieftextfolded.EXECUTION_REVIEW,
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,
@@ -104,11 +108,17 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.PLAN_CHECK,
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
+        *brieftextfolded.PLAN_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
     Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.NO_PLAN_FINDING, text.CARRIED],
-    Kind.REVIEW_RELOCK: [text.SCOPE_RELOCK, text.RELOCK_CHECKS, text.CARRIED],
+    Kind.REVIEW_RELOCK: [
+        text.SCOPE_RELOCK,
+        text.RELOCK_CHECKS,
+        brieftextfolded.RELOCK_TEST_FIX,
+        text.CARRIED,
+    ],
 }
 # keyword: all-findings (pitboss#169): the reviews of a Plan try its commands
 DRY_RUNNERS: Mapping[Kind, str] = {
@@ -297,6 +307,7 @@ def _plan_lines(kind: Kind) -> list[str]:
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
         *([brieftextbody.PLAN_ROWS_DONE_WHEN] if writes else []),
+        *(brieftextfolded.WORKER if writes else []),
         *(brieftextci.PLAN_ROWS if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),

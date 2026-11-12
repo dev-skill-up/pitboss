@@ -45,9 +45,9 @@ def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
 def newest_counting_review(pr: PullState) -> Graded | None:
     """The newest regular review of the current head.
 
-    A GitHub review is no regular review. A revision of the plan ends with an
-    empty commit, so the review of a plan that was revised names an older head
-    and does not count; ``plan_approved`` carries its approval. The newest
+    A GitHub review is no regular review. A revision of the plan pushes nothing, so the
+    review of a plan that was revised records an older body digest and does not
+    count; ``plan_approved`` carries its approval. The newest
     review of the head that records a body digest other than the PR body's
     does not count either (keyword: body-digest, pitboss#147).
 

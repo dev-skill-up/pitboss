@@ -110,11 +110,13 @@ TASK_FIRST_ROUND = (
 )
 TASK_REVISE_PLAN = (
     "Task: PR {reference}: {review} did not approve the Plan. Edit the `## Plan`"
-    " section of the PR body (and its `Head:` line) and change only what the"
+    " section of the PR body and change only what the"
     " findings name; touch no code, doc or test (a merge of {base} for a conflict"
-    " excepted) and fix none of the Execution defects; end with an empty commit"
-    " (`git commit --allow-empty`) pushed to the branch, and patch the `Head:`"
-    " line to it."
+    " excepted) and fix none of the Execution defects; push nothing, leave the"
+    " `Head:` line as it is, and hand back the body digest (`pitboss"
+    " body-digest`): the head has not moved, so the sweep offers the review of"
+    " the Plan again (`older-body`) and the next round is the next round of the"
+    " Plan stage (keyword: plan-revision, pitboss#221)."
 )
 TASK_FIX_REVIEW = (
     "Task: PR {reference}: fix the findings of {review}, each one, and nothing"

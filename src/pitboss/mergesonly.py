@@ -129,8 +129,9 @@ def unchanged(
 ) -> bool:
     """Whether no code moved between a reviewed head and the PR's head.
 
-    A plan revision ends with an empty commit (keyword: unfixed-execution,
-    pitboss#390), which ``carries`` does not allow.
+    A plan revision pushes nothing (keyword: plan-revision, pitboss#221); an
+    empty commit (keyword: unfixed-execution, pitboss#390) is not allowed by
+    ``carries``.
 
     Args:
         github: the API.
