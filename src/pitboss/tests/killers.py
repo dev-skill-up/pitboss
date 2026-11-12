@@ -11,12 +11,13 @@ import unittest
 from typing import cast
 
 
-def rerun(dotted: str) -> None:
+def rerun(module_name: str, class_name: str, method: str) -> None:
     """Run a test, raising what it raises.
 
     Args:
-        dotted: ``pitboss.tests.module.Class.test_name``.
+        module_name: ``pitboss.tests.module``.
+        class_name: the test case's class.
+        method: the test's name.
     """
-    module_name, class_name, method = dotted.rsplit(".", 2)
     case = getattr(importlib.import_module(module_name), class_name)
     cast(unittest.TestCase, case(method)).debug()

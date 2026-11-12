@@ -43,8 +43,11 @@ class TestCommandsWithAConfiguration(unittest.TestCase):
         # forms; lint is run below, plan-check by test_ci_pointer_check.py,
         # pins-review by test_pins_review.py, hand-back-check and nox by
         # test_clone_guard.py (they find no configuration to fetch), quiesce by
-        # test_slots_force.py (its first word is the state), act by test_act.py
+        # test_slots_force.py (its first word is the state), act by test_act.py,
+        # env-check by test_env_check.py and hook by test_hook_pre_push.py
         only_option = {
+            "env-check",
+            "hook",
             "lint",
             "plan-check",
             "pins-review",
