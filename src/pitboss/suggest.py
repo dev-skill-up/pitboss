@@ -390,8 +390,8 @@ def lines(source: Source) -> Iterable[str]:
     total = len(shown) + cleaning
     yield from diskwatch.opening(source.volume, source.big, total)
     made = [suggest(source, pick) for pick in shown]
-    yield from _ranked(made, 1 + cleaning, total)
     for found in made:
         yield _dispatch(source, found)
+    yield from _ranked(made, 1 + cleaning, total)
     if len(every) > len(shown):
         yield f"{marker}: {len(every) - len(shown)} more queued, not shown"
