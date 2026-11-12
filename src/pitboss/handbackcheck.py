@@ -241,24 +241,47 @@ def _branch_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
     ]
 
 
-def _head_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
+UNNAMED = (
+    "refused: the body of {pushed.name} has no last `Head:` line"
+    " naming {pushed.head}: edit the body"
+)
+
+
+def head_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
+    """The refusals of a PR whose head or body is not the pushed head.
+
+    Args:
+        pushed: what was pushed.
+        pull: the PR as read.
+
+    Returns:
+        WRONG-BRANCH, a held head that is not the pushed one, a body whose last
+        ``Head:`` line names another, and Evidence blocks of an older head.
+    """
     named = forms.HEAD_LINE.findall(pull.body)
-    found = list(_branch_lines(pushed, pull))
-    if pull.head.sha != pushed.head:
-        found.append(
-            f"refused: {pushed.name} holds head {pull.head.sha}, not the pushed"
-            f" head {pushed.head}: push first"
-        )
-    if not named or named[-1] != pushed.head:
-        found.append(
-            f"refused: the body of {pushed.name} has no last `Head:` line"
-            f" naming {pushed.head}: edit the body"
-        )
-    found.extend(  # case 27 (keyword: evidence-head): the blocks name the head
-        f"refused: {pushed.name}: {each}: re-run `uvx pitboss expand`"
-        for each in evidence.stale_heads(pull.body, named[-1] if named else "")
-    )
-    return found
+    last = named[-1] if named else ""
+    # case 27 (keyword: evidence-head): the blocks name the head
+    stale = evidence.stale_heads(pull.body, last)
+    unnamed = [] if named and last == pushed.head else [UNNAMED.format(pushed=pushed)]
+    return [
+        *_branch_lines(pushed, pull),
+        *_moved_lines(pushed, pull),
+        *unnamed,
+        *(
+            f"refused: {pushed.name}: {each}: re-run `uvx pitboss expand`"
+            for each in stale
+        ),
+    ]
+
+
+def _moved_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
+    # the PR holds another head than the one pushed
+    if pull.head.sha == pushed.head:
+        return []
+    return [
+        f"refused: {pushed.name} holds head {pull.head.sha}, not the pushed"
+        f" head {pushed.head}: push first"
+    ]
 
 
 def pull_lines(pushed: Subject) -> Sequence[str]:
@@ -275,7 +298,7 @@ def pull_lines(pushed: Subject) -> Sequence[str]:
     pull = parsing.pull(ghapi.get(pushed.github, f"{base}/pulls/{pushed.number}"))
     where = f"{base}/issues/{pushed.number}/comments"
     listed = ghapi.pages(pushed.github, where, parsing.comments)
-    found = list(_head_lines(pushed, pull))
+    found = list(head_lines(pushed, pull))
     if plancheckflow.needs_check(pull.body, listed, pushed.trusted):
         found.append(
             "refused: the hand-back is not done until the Plan check of this"

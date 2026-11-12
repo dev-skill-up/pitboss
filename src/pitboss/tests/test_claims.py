@@ -4,9 +4,11 @@ quire#1115: a worker pushed to ``w1113-merge`` and reported it as pushed; the PR
 stayed 75f820a while the body named 7ba2eca. Each shape is played with a fake GitHub.
 """
 
+import argparse
 import importlib
 import json
 import unittest
+from typing import Mapping, Sequence
 
 from hamcrest import (
     assert_that,
@@ -204,14 +206,10 @@ class TestActClaims(unittest.TestCase):
 
 
 def _read_back(
-    action: actions.Action, got: dict[str, object], words: list[str]
-) -> list[str]:
-    class Fake:
-        def run(self, argv: list[str]) -> object:
-            return type("Done", (), {"stdout": json.dumps(got)})()
-
-    github = type("G", (), {"run": Fake().run})()
-    return list(actback.lines(github, TARGET, action, words))  # type: ignore[arg-type]
+    action: actions.Action, got: Mapping[str, object], words: Sequence[str]
+) -> Sequence[str]:
+    github = fakes.github({f"repos/{TARGET.slug}/pulls/{TARGET.number}": dict(got)})
+    return actback.lines(github, TARGET, action, words)
 
 
 class TestTable(unittest.TestCase):
@@ -248,31 +246,30 @@ class TestTable(unittest.TestCase):
     def test_c29_the_hand_back_names_the_wrong_branch(self) -> None:
         """hand-back-check refuses a PR whose head branch is not the one pushed."""
         sha = "5" * 40
-        made = dict(
-            github=fakes.github({}),
-            slug="o/r",
-            number=3,
-            head=sha,
-            trusted=frozenset(),
+        wrong, right = (
+            handbackcheck.Pushed(
+                github=fakes.github({}),
+                slug="o/r",
+                number=3,
+                head=sha,
+                trusted=frozenset(),
+                branch=branch,
+            )
+            for branch in ("w1113-merge", "w1113")
         )
-        wrong = handbackcheck.Pushed(**made, branch="w1113-merge")  # type: ignore[arg-type]
-        right = handbackcheck.Pushed(**made, branch="w1113")  # type: ignore[arg-type]
         pull = _pull("w1113", sha)
-        said = handbackcheck._head_lines(wrong, pull)
+        said = handbackcheck.head_lines(wrong, pull)
         assert_that(said[0], contains_string("WRONG-BRANCH o/r#3"))
         assert_that(said[0], contains_string("you pushed w1113-merge"))
-        assert_that(handbackcheck._head_lines(right, pull), empty())
+        assert_that(handbackcheck.head_lines(right, pull), empty())
 
     def test_c29_the_pushed_branch_is_the_upstream_without_its_remote(self) -> None:
         """origin/worker/444 is worker/444; no upstream is none."""
 
-        class Args:
-            repo = "."
-
-            def safe_run(self, words: list[str]) -> object:
-                return type("Done", (), {"stdout": "origin/worker/444\n"})()
-
-        assert_that(handbackrun.pushed_branch(Args()), equal_to("worker/444"))  # type: ignore[arg-type]
+        args = argparse.Namespace(
+            repo=".", safe_run=lambda words: fakes.Output(stdout="origin/worker/444\n")
+        )
+        assert_that(handbackrun.pushed_branch(args), equal_to("worker/444"))
 
 
 def _pull(branch: str, sha: str) -> shapes.Pull:
