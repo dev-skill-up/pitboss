@@ -166,6 +166,11 @@ class TestRecount(unittest.TestCase):
         assert_that(rulecount.missing(rulefiles.write(ticket), ticket), empty())
 
 
+FIFTH = dispatchnext.Item(
+    ref="o/r#5", kind="ticket", created="2026-11-01", priority="p1"
+)
+
+
 class TestDispatchBrief(unittest.TestCase):
     """``act dispatch-next`` with a checkout writes the brief."""
 
@@ -173,13 +178,7 @@ class TestDispatchBrief(unittest.TestCase):
         """The item, then the rule files, then what each actor writes."""
         ticket = _planted()
         hub = made(shipped_kit())
-        state = fakehub.state(
-            items=[
-                dispatchnext.Item(
-                    ref="o/r#5", kind="ticket", created="2026-11-01", priority="p1"
-                )
-            ]
-        )
+        state = fakehub.state(items=[FIFTH])
         world = dataclasses.replace(hub.act, work=lambda: state)
         options = {
             "checkout": str(ticket.checkout),
@@ -187,12 +186,9 @@ class TestDispatchBrief(unittest.TestCase):
             "home": str(ticket.home),
         }
         said = actverbs.dispatch_next(world, actcore.Target(repo=""), options)
+        ends = said.endswith(totalroutes.instructions())
         assert_that(
-            (
-                said.startswith("o/r#5\n"),
-                "ROOT" in said,
-                said.endswith(totalroutes.instructions()),
-            ),
+            (said.startswith("o/r#5\n"), "ROOT" in said, ends),
             equal_to((True, True, True)),
         )
 

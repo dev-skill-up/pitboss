@@ -30,8 +30,21 @@ def _already(github: ghapi.GitHub, slug: str, number: int) -> str:
 HEAD_LINE = re.compile(r"^Head: ([0-9a-f]{40})\s*$", re.MULTILINE)
 
 
-def _steps(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
-    # keyword: ruling-lint (bats#654): the steps must pass the gates they lead to
+def step_findings(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
+    """What a ruling's edit steps leave failing on a PR and its ticket.
+
+    The keyword is ruling-lint (bats#654): the steps must pass the gates they
+    lead to.
+
+    Args:
+        github: the API.
+        slug: the PR's repository.
+        number: the PR.
+        text: the ruling.
+
+    Returns:
+        The findings, joined by "; "; "" when it orders no edit or none fails.
+    """
     if not rulinglint.orders_edits(text):
         return ""
     body = str(
@@ -49,7 +62,7 @@ def _steps(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
 def _check(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
     return (
         rulingform.refusal(text)
-        or _steps(github, slug, number, text)
+        or step_findings(github, slug, number, text)
         or _already(github, slug, number)
     )
 

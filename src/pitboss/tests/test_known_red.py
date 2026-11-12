@@ -42,6 +42,10 @@ RUNNERS = config.Runners(
 )
 
 
+PINS = frozenset({"pins"})
+UNREADABLE = frozenset({"unreadable"})
+
+
 def status(context: str) -> shapes.CommitStatus:
     """A failed commit status.
 
@@ -74,10 +78,10 @@ def red(pull: pulls.PullFacts, row: knownred.Row) -> pulls.PullFacts:
     if row.source.startswith(knownred.STATUS):
         context = row.source.removeprefix(knownred.STATUS)
         signals = dataclasses.replace(signals, statuses=(status(context),))
-    elif row.source == "pins":
+    elif row.source in PINS:
         reading = pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail="no")
         signals = dataclasses.replace(signals, pins=reading)
-    elif row.source == "unreadable":
+    elif row.source in UNREADABLE:
         pull = dataclasses.replace(
             pull, unreadable=straycomments.StrayComments(newer="2026-11-12T10:00Z")
         )

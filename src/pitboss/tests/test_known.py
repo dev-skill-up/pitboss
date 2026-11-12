@@ -62,9 +62,9 @@ class TestRemoval(unittest.TestCase):
 
     def test_every_removal_makes_a_case_miss(self) -> None:
         """A control whose removal misses nothing holds no case."""
-        assert_that([name for name, cases in _held().items() if not cases], empty())
+        assert_that([name for name, held in _held().items() if not held], empty())
 
     def test_every_case_misses_under_a_removal(self) -> None:
         """A case no removal makes miss is held by no control."""
-        under = {case for cases in _held().values() for case in cases}
+        under = {each for held in _held().values() for each in held}
         assert_that([name for name in CASES if name not in under], empty())

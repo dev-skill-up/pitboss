@@ -86,9 +86,9 @@ class TestOneDigest(unittest.TestCase):
         for module in (bodydigest, expansion):
             for gone in ("legacy_of_section", "accepted"):
                 assert_that(hasattr(module, gone), equal_to(False))
-        one = expansion.section_digest("## Plan\nx\n")
-        assert_that(one, equal_to(expansion.section_digest("## Plan\nx\n")))
-        assert_that(one != expansion.section_digest("## Plan\ny\n"), equal_to(True))
+        digest = expansion.section_digest("## Plan\nx\n")
+        assert_that(digest, equal_to(expansion.section_digest("## Plan\nx\n")))
+        assert_that(digest != expansion.section_digest("## Plan\ny\n"), equal_to(True))
 
     def test_t399_the_digest_before_the_collapse_is_not_accepted(self) -> None:
         """The section as it is stood in for the collapsed one until this ticket."""

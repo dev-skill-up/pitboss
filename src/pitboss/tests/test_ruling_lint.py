@@ -4,9 +4,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
-import json
 
-from .. import ghapi, ruling_commands, rulinglint
+from .. import ruling_commands, rulinglint
 from . import fakes, world
 from .test_ticket_corpus import body as corpus
 
@@ -66,25 +65,19 @@ class TestRulingLint(unittest.TestCase):
         )
 
     def test_c34_ruling_post_refuses_the_same_steps(self) -> None:
-        """``ruling post`` reads the PR and its ticket and refuses an impossible.
-
-        Step.
-        """
-        answers = {
-            "repos/o/r/pulls/5": {"body": PR_BODY.replace("Fixes #1", "Fixes #1")},
-            "repos/o/r/issues/1": {"body": TICKET},
-        }
-
-        def get(command: object, /, **kwargs: object) -> fakes.Output:
-            return fakes.Output(stdout=json.dumps(answers[list(command)[-1]]))  # type: ignore[call-overload]
-
-        github = ghapi.GitHub(mutate=get, run=get)  # type: ignore[arg-type]
+        """``ruling post`` reads the PR and its ticket; an impossible step is refused."""
+        github = fakes.github(
+            {
+                "repos/o/r/pulls/5": {"body": PR_BODY},
+                "repos/o/r/issues/1": {"body": TICKET},
+            }
+        )
         bad = ruling("1. ticket delete: nope")
         good = ruling("1. ticket delete: Found by quire#1118.")
-        assert_that(
-            ruling_commands._steps(github, "o/r", 5, bad), contains_string("step 1")
-        )
-        assert_that(ruling_commands._steps(github, "o/r", 5, good), equal_to(""))
+        found = ruling_commands.step_findings(github, "o/r", 5, bad)
+        assert_that(found, contains_string("step 1"))
+        found = ruling_commands.step_findings(github, "o/r", 5, good)
+        assert_that(found, equal_to(""))
 
     def test_c34_the_lint_kind_and_the_post_run_it(self) -> None:
         """``lint ruling`` prints the finding; ``ruling post`` refuses the same."""

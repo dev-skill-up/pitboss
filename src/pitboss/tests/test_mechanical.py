@@ -259,9 +259,9 @@ class TestPush(unittest.TestCase):
                 done = push(here, "--mechanical")
                 assert_that((done.code, gits(here)), equal_to((1, 0)))
                 assert_that(done.out, contains_string("has no single open PR"))
-        gone = pushed_world([{"number": 1}], "")
-        del gone.bodies["repos/owner/project/pulls?head=owner:branch-1&state=open"]
-        assert_that(push(gone, "--mechanical").code, equal_to(1))
+        unlisted = pushed_world([{"number": 1}], "")
+        del unlisted.bodies["repos/owner/project/pulls?head=owner:branch-1&state=open"]
+        assert_that(push(unlisted, "--mechanical").code, equal_to(1))
 
     def test_t32_a_pr_that_cannot_be_read_is_refused(self) -> None:
         """The list names PR 9, which GitHub does not have."""
