@@ -5,6 +5,7 @@ The keyword is act-verbs, pitboss#444.
 
 import json
 import subprocess
+import sys
 import unittest
 from typing import Sequence
 
@@ -311,6 +312,12 @@ class TestWiring(unittest.TestCase):
             return subprocess.CompletedProcess(list(words), 1, "out\n", "err\n")
 
         assert_that(actwiring.prepush(run)(), equal_to((1, "out\nerr\n")))
+
+    def test_c17_a_quiet_run_keeps_the_output_of_a_failed_command(self) -> None:
+        """A failing command does not raise."""
+        code = "import sys; print('said'); sys.exit(3)"
+        done = actwiring.quiet([sys.executable, "-c", code])
+        assert_that((done.returncode, done.stdout), equal_to((3, "said\n")))
 
     def test_c17_the_p90_is_read_once_and_an_unread_one_is_0(self) -> None:
         """Nine of ten sizes are at or under the percentile."""

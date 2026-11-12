@@ -37,6 +37,14 @@ REFUSED = {
     "unclosed.md": ("---\npaths:\n  - src/**\nUNCLOSED\n", "not closed"),
     "empty.md": ("---\npaths:\n---\nEMPTY\n", "no entry"),
     "loose.md": ("---\npaths:\nsrc/**\n---\nLOOSE\n", "not in a known form"),
+    "described.md": (
+        "---\ndescription: a rule\nnot indented\n---\nDESCRIBED\n",
+        "not in a known form",
+    ),
+    "keyless.md": (
+        "---\n  - src/**\npaths:\n  - src/**\n---\nKEYLESS\n",
+        "not in a known form",
+    ),
 }
 
 

@@ -177,7 +177,15 @@ def limits(github: GitHub) -> Callable[[str], int]:
     return limit
 
 
-def _quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
+def quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    """Run a command line and keep its output, whatever its status.
+
+    Args:
+        words: the command line.
+
+    Returns:
+        What it did.
+    """
     return subprocess.run(list(words), capture_output=True, text=True, check=False)
 
 
@@ -205,7 +213,7 @@ def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> A
         repos=repos,
         p90=p90,
         run=run,
-        prepush=prepush(_quiet),
+        prepush=prepush(quiet),
         work=work(hub, settings),
         controls=CONTROLS,
     )

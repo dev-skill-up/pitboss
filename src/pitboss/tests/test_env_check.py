@@ -17,7 +17,7 @@ from .. import brief, envcheck, envrules, gaterun
 from . import fakes, world
 from .briefmake import text as brief_text
 from .test_gate_run import answering
-from .says import ended
+from .says import ended, outs
 
 SLUGS = (
     "bats-lang/bats",
@@ -106,14 +106,32 @@ def verdicts(runner: gaterun.Runner, slug: str) -> Sequence[str]:
     return list(envcheck.verdicts(args, envrules.NEEDS, envrules.kinds_of(slug)))
 
 
+def env_check(owner: str) -> world.Result:
+    """``env-check`` in a world whose repository has an owner.
+
+    Args:
+        owner: the repository's owner.
+
+    Returns:
+        What the command did.
+    """
+    here = world.make_world()
+    path = pathlib.Path(here.config)
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace('"owner"', f'"{owner}"', 1), encoding="utf-8")
+    return world.invoke(here, "env-check", f"--config={here.config}")
+
+
 class TestEnvCheck(unittest.TestCase):
     """The pre-flight command and the refusal of a give-up without it."""
 
     def test_c35_the_command_reads_its_configuration(self) -> None:
         """The configuration's repository needs nothing here: ``env: ok``, exit 0."""
-        here = world.make_world()
-        done = world.invoke(here, "env-check", f"--config={here.config}")
-        ended(done, 0, f"{envrules.OK_LINE}\n")
+        ended(env_check("owner"), 0, f"{envrules.OK_LINE}\n")
+
+    def test_c35_the_command_exits_1_for_a_missing_tool(self) -> None:
+        """A bats-lang repository with no ``bats`` on the machine's PATH."""
+        outs(env_check("bats-lang"), 1, "missing bats")
 
     def test_c35_a_missing_compiler_is_named_with_the_command_to_get_it(self) -> None:
         """No bats on PATH: the line names it and the build from bootstrap/c."""

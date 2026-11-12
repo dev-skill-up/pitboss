@@ -296,7 +296,7 @@ def _findings(
     ref, head = given[0], trees[1]
     stat = plancheckgit.diff(args, ref, "--numstat", "-z")
     patch = plancheckgit.diff(args, ref, "-U0", "--no-color")
-    hand = generatedfiles.handwritten(stat, patch, _scripted(args, head))
+    hand = generatedfiles.handwritten(stat, patch, scripted_in(args, head))
     diffs = (plancheckgit.added(args, ref), *hand)
     body = args.body
     found = [
@@ -313,9 +313,19 @@ def _findings(
     return found, hand
 
 
-def _scripted(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], bool]:
-    # keyword: generated-markup (pitboss#433): a file a tracked script names is
-    # generated
+def scripted_in(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], bool]:
+    """Whether a tracked script of the head's tree names a file.
+
+    The keyword is generated-markup (pitboss#433): such a file is generated.
+
+    Args:
+        args: the parsed arguments, with the runner.
+        head: the head's tree.
+
+    Returns:
+        A function from a path to True when another tracked file names it.
+    """
+
     def grep(path: str) -> Sequence[str]:
         words = ["git", "-C", str(head), "grep", "-l", "-F", "--", path]
         try:

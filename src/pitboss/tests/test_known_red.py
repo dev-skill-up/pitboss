@@ -83,7 +83,7 @@ def red(pull: pulls.PullFacts, row: knownred.Row) -> pulls.PullFacts:
         pull = dataclasses.replace(
             pull, unreadable=straycomments.StrayComments(newer="2026-11-12T10:00Z")
         )
-    elif row.source.startswith(knownred.STEPS):
+    else:
         step = row.source.removeprefix(knownred.STEPS).split("+")[0]
         pull = dataclasses.replace(pull, step=steps.Next(step=steps.Step[step]))
     return dataclasses.replace(pull, signals=signals)
@@ -263,6 +263,15 @@ class TestEveryCell(unittest.TestCase):
         pull = ready(steps.undraft())
         assert_that(undraft(red(pull, row)), contains_string("FIX FIRST"))
         assert_that(undraft(pull), contains_string("mark the PR ready"))
+
+    def test_c28_a_failed_check_of_the_status_name_is_red(self) -> None:
+        """A check run, not a commit status, carries the row's name."""
+        row = [each for each in ROWS if each.source.startswith(knownred.STATUS)][0]
+        name = row.source.removeprefix(knownred.STATUS)
+        check = shapes.CheckRun(id=1, name=name, finished=True, failed=True)
+        pull = dataclasses.replace(ready(steps.merge()), checks=(check,))
+        said = [each.why for each in knownred.reds(pull) if each.name == row.name]
+        assert_that(said, equal_to(["a failed check"]))
 
     def test_c28_a_push_is_the_fix_and_is_never_withheld(self) -> None:
         """The workers' pushes and rounds are the fix steps."""

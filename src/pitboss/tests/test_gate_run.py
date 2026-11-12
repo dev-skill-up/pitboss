@@ -77,20 +77,6 @@ def pre_push(runner: gaterun.Runner) -> Sequence[str]:
     return prepush.refusals(runner, [check], fakes.directory())
 
 
-def session(runner: gaterun.Runner) -> gaterun.Judged:
-    """One ``nox`` session run by a runner.
-
-    Args:
-        runner: the fake.
-
-    Returns:
-        What the session's command came to, as the sessions read it.
-    """
-    args = argparse.Namespace(safe_run=runner)
-    done = nox_commands.gate_command(args, ["nox", "-r", "-s", "lint"], {})
-    return gaterun.judge(done.status, done.output)
-
-
 DECLARED = {
     "pre_push": [
         {

@@ -47,18 +47,6 @@ def starting(lines: Iterable[str], prefix: str) -> Sequence[str]:
     return [line for line in lines if line.startswith(prefix)]
 
 
-def stripped_lines(text: str) -> Sequence[str]:
-    """A text's lines with no trailing white space.
-
-    Args:
-        text: the text.
-
-    Returns:
-        Its lines.
-    """
-    return [line.rstrip() for line in text.splitlines()]
-
-
 def heads(text: str, start: str, separator: str) -> bool:
     """Whether a text is a start, or the start and a separator then more.
 

@@ -98,3 +98,8 @@ class TestApprovalCi(unittest.TestCase):
         newer = {**run("completed", "success"), "started_at": "b"}
         exits(lint("approved", [older, newer]), 0)
         assert_that(approvalci.ARGUMENTS[0] is approvalci.RUNS_ARGUMENT, equal_to(True))
+
+    def test_t55_a_runs_file_with_no_list_is_an_error(self) -> None:
+        """The file is not the JSON of check runs."""
+        with self.assertRaises(ValueError):
+            lint("approved", "not a list")

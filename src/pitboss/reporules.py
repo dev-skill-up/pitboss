@@ -100,25 +100,6 @@ def lines(claude: str) -> Sequence[str]:
     return [text[:LIMIT] + ("..." * (len(text) > LIMIT))]
 
 
-def added(
-    github: ghapi.GitHub, slug: str, project: briefconfig.Brief
-) -> briefconfig.Brief:
-    """The project's briefs with the repository's own review rules.
-
-    Args:
-        github: the API.
-        slug: the repository.
-        project: what the project's briefs say.
-
-    Returns:
-        The same, its review lines followed by ``lines`` of the CLAUDE.md.
-    """
-    rules_lines = lines(read(github, slug))
-    return dataclasses.replace(
-        project, review_lines=[*project.review_lines, *rules_lines]
-    )
-
-
 def _steps(added: Sequence[str]) -> bool:
     # a ``run:`` step of more than one command in the added lines of a workflow
     for at, row in enumerate(added):

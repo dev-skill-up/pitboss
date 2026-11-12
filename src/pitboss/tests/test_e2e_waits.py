@@ -59,6 +59,15 @@ class TestE2eWaits(unittest.TestCase):
         files = {"e2e/a.js": "await page.waitForTimeout(1);\n"}
         exits(lint(files, "e2e/a.js\t1\t#12\n"), 0)
 
+    def test_t52_the_allowlist_skips_blank_and_note_lines(self) -> None:
+        """A ``#`` line and a blank line are not entries."""
+        files = {"e2e/a.js": "await page.waitForTimeout(1);\n"}
+        exits(lint(files, "# note\n\ne2e/a.js\t1\t#12\n"), 0)
+
+    def test_t52_an_unclosed_set_timeout_is_still_counted(self) -> None:
+        """The file ends before the call's ``)``."""
+        says(lint({"e2e/a.js": "setTimeout(go, 5"}).out, "1 fixed waits")
+
     def test_t52_a_count_above_the_files_waits_is_refused(self) -> None:
         """The count only shrinks."""
         files = {"e2e/a.js": "await page.waitForTimeout(1);\n"}
