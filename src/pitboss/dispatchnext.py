@@ -146,9 +146,14 @@ def next_item(state: State, want: str = "", agent: str = "") -> Item:
     if want and want != item.ref:
         raise Refused(f"the next in the order is {item.ref}, not {want}")
     _red(state, item)
+    _own_worker(item, agent)
+    return item
+
+
+def _own_worker(item: Item, agent: str) -> None:
+    # a refused plan-check goes back to the worker that wrote the Plan
     if item.step == "plan-check-fix" and agent != item.worker:
         raise Refused(
-            f"a refused plan-check goes back to its own worker ({item.worker}), not a"
-            " new agent"
+            f"a refused plan-check goes back to its own worker ({item.worker}), not"
+            f" {agent or 'a new agent'}"
         )
-    return item

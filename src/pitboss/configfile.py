@@ -2,7 +2,7 @@
 
 import pathlib
 import tomllib
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from . import briefconfig, config, configsearch, exempt, ownerlabels, supersedes
 
@@ -291,6 +291,11 @@ def _reminders(document: Mapping[str, object]) -> Sequence[str]:
     return _strings(_table(document, "sweep"), "reminders", DEFAULT_REMINDERS)
 
 
+def _no_auto_merge(document: Mapping[str, object], owner: str) -> AbstractSet[str]:
+    named = _repos(document, "libraries", "no_auto_merge", owner)
+    return frozenset(each.slug for each in named)
+
+
 def from_document(document: Mapping[str, object]) -> config.Config:
     """Build the configuration from a parsed TOML document.
 
@@ -303,12 +308,11 @@ def from_document(document: Mapping[str, object]) -> config.Config:
     project = _project(document)
     owner = project.repo.owner
     libraries = _repos(document, "libraries", "repositories", owner)
-    no_auto_merge = _repos(document, "libraries", "no_auto_merge", owner)
     lint = _lint(document, owner)
     return config.Config(
         project=project,
         libraries=libraries,
-        no_auto_merge=frozenset(repo.slug for repo in no_auto_merge),
+        no_auto_merge=_no_auto_merge(document, owner),
         runners=_runners(document, project, libraries),
         review=lint.review,
         lint=lint,

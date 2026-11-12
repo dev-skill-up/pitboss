@@ -11,13 +11,13 @@ gives for ``repos/OWNER/NAME/commits/SHA/check-runs``; the module reads nothing 
 import argparse
 import json
 import pathlib
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
 from . import config, forms
 
-ARGUMENT = add_argument(
+RUNS_ARGUMENT = add_argument(
     "--check-runs",
     default=None,
     help="review: the check runs of the reviewed head (the JSON of `gh api"
@@ -31,7 +31,7 @@ REQUIRED_ARGUMENT = add_argument(
     help="review: the check an approval waits for (default: the configuration's"
     " `[review] required_check`, else `check`)",
 )
-ARGUMENTS = (ARGUMENT, REQUIRED_ARGUMENT)
+ARGUMENTS = (RUNS_ARGUMENT, REQUIRED_ARGUMENT)
 MISSING = (
     "{name}: the review approves, but the head has no run of the check `{check}`;"
     " write `waiting for CI` and no verdict until it is completed and green"
@@ -74,6 +74,19 @@ def _newest(runs: Sequence[object], check: str) -> dict[str, object] | None:
     return max(named, key=lambda each: str(each.get("started_at") or ""), default=None)
 
 
+def _run_findings(
+    newest: Mapping[str, object] | None, name: str, check: str
+) -> Sequence[str]:
+    # the finding of the newest run of the check, none for a completed green one
+    if newest is None:
+        return [MISSING.format(name=name, check=check)]
+    if newest.get("status") != "completed":
+        return [PENDING.format(name=name, check=check, state=newest.get("status"))]
+    if newest.get("conclusion") != "success":
+        return [RED.format(name=name, check=check, conclusion=newest.get("conclusion"))]
+    return []
+
+
 def findings(
     args: argparse.Namespace,
     subject: forms.Subject,
@@ -104,17 +117,4 @@ def findings(
     runs = json.loads(text).get("check_runs")
     if not isinstance(runs, list):
         raise ValueError(f"{args.check_runs}: no check_runs list")
-    newest = _newest(runs, check)
-    if newest is None:
-        return [MISSING.format(name=subject.name, check=check)]
-    if newest.get("status") != "completed":
-        return [
-            PENDING.format(name=subject.name, check=check, state=newest.get("status"))
-        ]
-    if newest.get("conclusion") != "success":
-        return [
-            RED.format(
-                name=subject.name, check=check, conclusion=newest.get("conclusion")
-            )
-        ]
-    return []
+    return _run_findings(_newest(runs, check), subject.name, check)

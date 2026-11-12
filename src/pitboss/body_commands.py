@@ -235,10 +235,9 @@ def body_head(args: argparse.Namespace) -> None:
     merge of the base requires: a line ``Head: <the head now>`` after the last
     ``Head:`` line, nothing else changed (``text-lint`` reads the last one). It
     prints the new body's ``Body:`` digest line and the input of ``bats
-    merge-proof`` (the head the newest approving review names, then the head now). It
-    changes the
-    body as it is run, with no flag; a body whose last ``Head:`` line is the
-    head is not changed.
+    merge-proof`` (the head the newest approving review names, then the head now).
+    It changes the body as it is run, with no flag; a body whose last ``Head:``
+    line is the head is not changed.
 
     Args:
         args: the parsed arguments.
@@ -253,10 +252,14 @@ def body_head(args: argparse.Namespace) -> None:
         print(f"{args.pull}: the body has no line `Head: <40 hex>`", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)
     print(f"{bodydigest.PREFIX}{done.digest}")
-    if done.reviewed:  # keyword: merge-proof (pitboss#394): the reviewed SHA
-        print(f"bats merge-proof {done.reviewed} {done.new}")
-    else:
-        print(
-            "no approving review names a head: `bats merge-proof` needs the SHA"
-            " of a review that approved, so get an adversarial review first"
-        )
+    print(_proof(done.reviewed, done.new))
+
+
+def _proof(reviewed: str, new: str) -> str:
+    # keyword: merge-proof (pitboss#394): the reviewed SHA, then the head now
+    if reviewed:
+        return f"bats merge-proof {reviewed} {new}"
+    return (
+        "no approving review names a head: `bats merge-proof` needs the SHA"
+        " of a review that approved, so get an adversarial review first"
+    )

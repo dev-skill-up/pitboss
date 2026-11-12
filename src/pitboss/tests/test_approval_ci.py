@@ -93,4 +93,4 @@ class TestApprovalCi(unittest.TestCase):
         older = {**run("completed", "failure"), "started_at": "a"}
         newer = {**run("completed", "success"), "started_at": "b"}
         assert_that(lint("approved", [older, newer]).code, equal_to(0))
-        assert_that(approvalci.ARGUMENTS[0] is approvalci.ARGUMENT, equal_to(True))
+        assert_that(approvalci.ARGUMENTS[0] is approvalci.RUNS_ARGUMENT, equal_to(True))

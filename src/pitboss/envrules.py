@@ -16,7 +16,7 @@ import dataclasses
 import functools
 import importlib.resources
 import re
-from typing import Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 LONG_CHECK_SECONDS = 598
 LIMIT = str(LONG_CHECK_SECONDS)
@@ -39,7 +39,7 @@ class Standing:
     """
 
     topic: str
-    kinds: frozenset[str]
+    kinds: AbstractSet[str]
     needle: str
     text: str
 
@@ -57,7 +57,7 @@ class Need:
     """
 
     name: str
-    kinds: frozenset[str]
+    kinds: AbstractSet[str]
     check: str
     why: str
     get: str
@@ -95,7 +95,7 @@ NEEDS: Sequence[Need] = (
 )
 
 
-def kinds_of(slug: str) -> frozenset[str]:
+def kinds_of(slug: str) -> AbstractSet[str]:
     """The kinds of repository a slug is.
 
     Args:
@@ -110,11 +110,16 @@ def kinds_of(slug: str) -> frozenset[str]:
     found = {ALL}
     if owner == "bats-lang":
         found.add("bats")
-    if name == "pitboss":
-        found.add("pitboss")
-    if name in ("quire", "pwa"):
-        found.add("node")
+    found.update(NAMED_KINDS.get(name, ()))
     return frozenset(found)
+
+
+# the kinds a repository is by its name
+NAMED_KINDS: Mapping[str, Sequence[str]] = {
+    "pitboss": ("pitboss",),
+    "quire": ("node",),
+    "pwa": ("node",),
+}
 
 
 @functools.cache

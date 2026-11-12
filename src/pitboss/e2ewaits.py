@@ -36,6 +36,7 @@ ZERO = re.compile(r"^\s*0+\s*$")
 BARE = re.compile(
     r"^\s*(?:async\s*)?(?:\(.*\)\s*=>|[\w$]+\s*=>|function\b|[\w$.]+\s*$)"
 )
+QUARANTINED = ("true", "")  # the conditions a quarantine holds
 
 
 def allowed(path: pathlib.Path | None) -> Mapping[str, tuple[int, str]]:
@@ -101,7 +102,7 @@ def _marks(name: str, text: str) -> Sequence[str]:
         condition = [each.strip() for each in arguments.split(",")][:1]
         if (
             condition
-            and condition[0] not in ("true", "")
+            and condition[0] not in QUARANTINED
             and not condition[0].startswith(("'", '"', "`"))
         ):
             lines.append(
@@ -109,6 +110,24 @@ def _marks(name: str, text: str) -> Sequence[str]:
                 " a quarantine holds `true` only"
             )
     return lines
+
+
+def _counted(name: str, waits: int, allowed: tuple[int, str]) -> Sequence[str]:
+    # the file's fixed waits against its allowed count and ticket
+    count, ticket = allowed
+    if waits > count:
+        return [f"{name}: {waits} fixed waits, {count} allowed; wait for an event"]
+    if waits < count:
+        return [
+            f"{name}: {waits} fixed waits, but {count} allowed for {ticket};"
+            " lower the count in the allowlist"
+        ]
+    return []
+
+
+def _test_files(base: pathlib.Path) -> Sequence[pathlib.Path]:
+    found = sorted(base.rglob("*")) if base.is_dir() else []
+    return [each for each in found if each.suffix in SUFFIXES and each.is_file()]
 
 
 def findings(
@@ -129,23 +148,11 @@ def findings(
     found: list[str] = []
     seen: set[str] = set()
     base = root / directory
-    for path in sorted(base.rglob("*")) if base.is_dir() else []:
-        if path.suffix not in SUFFIXES or not path.is_file():
-            continue
+    for path in _test_files(base):
         name = path.relative_to(root).as_posix()
         text = path.read_text(encoding="utf-8")
-        count, ticket = permitted.get(name, (0, ""))
         seen.add(name)
-        waits = _waits(text)
-        if waits > count:
-            found.append(
-                f"{name}: {waits} fixed waits, {count} allowed; wait for an event"
-            )
-        elif waits < count:
-            found.append(
-                f"{name}: {waits} fixed waits, but {count} allowed for {ticket};"
-                " lower the count in the allowlist"
-            )
+        found.extend(_counted(name, _waits(text), permitted.get(name, (0, ""))))
         found.extend(_marks(name, text))
     found.extend(
         f"{name}: allowed in the allowlist but not found under {directory}"

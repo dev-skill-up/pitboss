@@ -24,13 +24,27 @@ ROW = "find_or_say"
 def _added(patch: str) -> Mapping[str, Sequence[str]]:
     # the added lines of each file of a `git diff -U0` patch
     found: dict[str, list[str]] = {}
-    path = ""
-    for line in patch.splitlines():
-        if line.startswith("+++ b/"):
-            path = line[6:]
-        elif line.startswith("+") and not line.startswith("+++"):
-            found.setdefault(path, []).append(line[1:])
+    name = ""
+    for each in patch.splitlines():
+        if each.startswith("+++ b/"):
+            name = each[6:]
+        elif each.startswith("+") and not each.startswith("+++"):
+            found.setdefault(name, []).append(each[1:])
     return found
+
+
+def _keys(
+    added: Mapping[str, Sequence[str]], example: str
+) -> Sequence[tuple[str, str]]:
+    # each key a loader's added lines read that the example does not name
+    return [
+        (name, key)
+        for name, written in added.items()
+        if LOADER.search(name)
+        for each in written
+        for key in KEY.findall(each)
+        if not re.search(rf"\b{key}\b", example)
+    ]
 
 
 def findings(body: str, patch: str, example: str) -> Sequence[str]:
@@ -48,23 +62,20 @@ def findings(body: str, patch: str, example: str) -> Sequence[str]:
         body has no row for ``find_or_say``.
     """
     added = _added(patch)
-    keys = [
-        (path, key)
-        for path, lines in added.items()
-        if LOADER.search(path)
-        for line in lines
-        for key in KEY.findall(line)
-        if not re.search(rf"\b{key}\b", example)
-    ]
     found = [
-        f"{CHECK}: `{path}` reads the key `{key}`, which {EXAMPLE} does not list with"
+        f"{CHECK}: `{name}` reads the key `{key}`, which {EXAMPLE} does not list with"
         f" its default: add it to the example ({CHECK})"
-        for path, key in dict.fromkeys(keys)
+        for name, key in dict.fromkeys(_keys(added, example))
     ]
-    finds = any(FINDS.search(line) for lines in added.values() for line in lines)
-    if finds and ROW not in body:
-        found.append(
-            f"{FIND_CHECK}: the diff changes how a command finds its configuration"
-            f" and the Impact list has no row for `{ROW}` ({FIND_CHECK})"
-        )
-    return found
+    return [*found, *_finding_row(body, added)]
+
+
+def _finding_row(body: str, added: Mapping[str, Sequence[str]]) -> Sequence[str]:
+    # the diff adds a way to find the configuration and the body has no row for it
+    finds = any(FINDS.search(each) for written in added.values() for each in written)
+    if not finds or ROW in body:
+        return []
+    return [
+        f"{FIND_CHECK}: the diff changes how a command finds its configuration"
+        f" and the Impact list has no row for `{ROW}` ({FIND_CHECK})"
+    ]

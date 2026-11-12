@@ -126,8 +126,17 @@ def missing_line(ticket: str, body: str, known: Known) -> str:
         The line, or "" when every name exists or there are none.
     """
     text = done_when(body)
-    names = names_in(text)
-    missing = [
+    missing = _missing(names_in(text), known, text)
+    if not missing:
+        return ""
+    return (
+        f"{LABEL}: {ticket}: the Done-when names what does not exist:"
+        f" {', '.join(missing)}"
+    )
+
+
+def _missing(names: Names, known: Known, text: str) -> Sequence[str]:
+    return [
         *(f"brief.Kind.{each}" for each in names.kinds if each not in known.kinds),
         *(
             f"file {each}"
@@ -140,9 +149,3 @@ def missing_line(ticket: str, body: str, known: Known) -> str:
             if each not in known.commands
         ),
     ]
-    if not missing:
-        return ""
-    return (
-        f"{LABEL}: {ticket}: the Done-when names what does not exist:"
-        f" {', '.join(missing)}"
-    )

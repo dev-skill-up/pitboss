@@ -24,19 +24,15 @@ def verdicts(
         A line for each missing tool naming it and the command to get it; none
         when every tool is there.
     """
-    missing = []
-    for each in needs:
-        if not each.kinds & kinds:
-            continue
-        done = gaterun.run(
-            args.safe_run,
-            ["sh", "-c", each.check],
-            timeout=60,
-            directory=str(args.repo),
-        )
-        if not done.passed:
-            line = envrules.MISSING_LINE.format(
-                name=each.name, why=each.why, command=each.get
-            )
-            missing.append(line)
-    return missing
+    return [
+        envrules.MISSING_LINE.format(name=each.name, why=each.why, command=each.get)
+        for each in needs
+        if each.kinds & kinds and not _there(args, each)
+    ]
+
+
+def _there(args: argparse.Namespace, need: envrules.Need) -> bool:
+    done = gaterun.run(
+        args.safe_run, ["sh", "-c", need.check], timeout=60, directory=str(args.repo)
+    )
+    return done.passed
