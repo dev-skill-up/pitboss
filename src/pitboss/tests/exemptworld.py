@@ -5,7 +5,6 @@ from typing import Sequence
 
 from .. import config, configfile
 from . import fakes, quietworld, world
-from .test_flow_sweep import APPROVED, graded, world_with
 from .test_quiet import at
 from .test_slot_commands import next_output
 
@@ -84,15 +83,6 @@ def of(output: str, kind: str, reference: str) -> Sequence[str]:
         The lines.
     """
     return re.findall(rf"(?m)^{kind}\b.*{re.escape(reference)}\b.*$", output)
-
-
-def drafted_pair() -> world.World:
-    """A world with a draft of an approved Plan in each of two repositories.
-
-    Returns:
-        The world; a job waits for a runner, so the project's draft is held.
-    """
-    return with_pitboss(world_with([graded(APPROVED, None, 1)], draft=True))
 
 
 def swept(here: world.World) -> str:

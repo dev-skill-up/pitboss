@@ -6,6 +6,7 @@ ruling was given on a PR whose e2e suite was red.
 """
 
 import dataclasses
+import re
 import unittest
 from typing import Mapping, Sequence
 
@@ -14,7 +15,6 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import brief, dispatchruns, flow, markers, pullfiles, shapes, steps
 from . import fakes, quietworld, test_flow, world
 from .briefmake import make
-from .exemptworld import HELD_WORDS, state_line
 from .test_commands import sweep
 from .test_flow import state
 from .test_flow_sweep import APPROVED, HEAD, graded, world_with
@@ -285,4 +285,5 @@ class TestB20Dispatch(unittest.TestCase):
         clear = quietworld.unheld(held_e2e())
         shown = [LINE in sweep(each).out for each in (held, clear)]
         assert_that(shown, equal_to([False, True]))
-        assert_that(state_line(held), contains_string(HELD_WORDS))
+        waiting = " ".join(re.findall(r"PR STATE .*", next_output(held)))
+        assert_that(waiting, contains_string("HOLD: a runner-pressure"))

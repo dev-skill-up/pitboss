@@ -13,19 +13,13 @@ from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import readyline
 from . import quietworld, world
-from .test_flow_sweep import APPROVED, graded, world_with
+from .test_flow_sweep import approved_draft
 from .test_slot_commands import next_output
 
 JOBS = world.project_page("actions/runs/11/jobs")
 
 
-def held_draft() -> world.World:
-    """A world whose draft PR 3 has an approved Plan, and a job waits.
-
-    Returns:
-        The world.
-    """
-    return world_with([graded(APPROVED, None, 1)], draft=True)
+held_draft = approved_draft
 
 
 def quiet_draft() -> world.World:

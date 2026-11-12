@@ -1,6 +1,7 @@
 """``pitboss sweep`` and ``slots next`` take their lines from the flow's step."""
 
 import dataclasses
+import functools
 import unittest
 from typing import Mapping, Sequence
 
@@ -383,8 +384,7 @@ def unfixed_rounds(*recorded: shapes.Comment, files: Sequence[str] = ()) -> worl
 def unfixed_after_the_ruling(files: Sequence[str] = ()) -> world.World:
     """An Execution rejected, ruled on, its Plan revised and approved alone.
 
-    PR 3's head carries no code the rejection has not seen, but for files
-    (keyword: unfixed-execution, pitboss#390).
+    PR 3's head has no code the rejection has not seen but files (pitboss#390).
 
     Args:
         files: the paths the last commit changes.
@@ -395,3 +395,6 @@ def unfixed_after_the_ruling(files: Sequence[str] = ()) -> world.World:
     rejected = graded(APPROVED, CHANGES, 1, sha=OLDER)
     ruled = test_flow.ruling(2, line="Ruling: revise the plan")
     return unfixed_rounds(rejected, ruled, graded(APPROVED, None, 3), files=files)
+
+
+approved_draft = functools.partial(world_with, [graded(APPROVED, None, 1)], draft=True)

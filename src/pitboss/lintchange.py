@@ -36,7 +36,17 @@ def _code(row: str) -> bool:
     return bool(text) and not text.startswith("#")
 
 
-def _lines(start: int, rows: str) -> Changed:
+def changed_lines(start: int, rows: str) -> Changed:
+    """The code rows of a hunk.
+
+    Args:
+        start: the line of the new file where the hunk starts.
+        rows: the hunk's rows.
+
+    Returns:
+        (line of the new file, whether a docstring there is no change) of each
+        row that is code.
+    """
     # (line of the new file, whether a docstring there is no change) of each row
     # of a hunk that is code; a removed row stands at the line it was cut after,
     # and a row of a hunk that adds nothing is a deletion, which a docstring keeps
@@ -88,7 +98,7 @@ def _changed_in(text: str, changed: Changed) -> Mapping[str, int]:
 def _by_path(diff: str) -> Mapping[str, Changed]:
     found: dict[str, list[tuple[int, bool]]] = {}
     for file, start, rows in markuplines.hunks(diff):
-        found.setdefault(file, []).extend(_lines(start, rows))
+        found.setdefault(file, []).extend(changed_lines(start, rows))
     return found
 
 

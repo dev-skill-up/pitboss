@@ -7,7 +7,8 @@ from hamcrest import assert_that, contains_string, equal_to, starts_with
 from .. import brief, briefconfig, briefrepo, configfile, exempt
 from . import fakes, quietworld, world
 from .briefmake import has_all, has_none, text
-from .exemptworld import drafted_pair, of, push, remote_to, swept, with_pitboss
+from .exemptworld import of, push, remote_to, swept, with_pitboss
+from .test_flow_sweep import approved_draft
 from .test_quiet import clear_world, lines, pushes, record_path, waiting_world
 from .test_slot_commands import next_output
 
@@ -20,6 +21,15 @@ READY = "Ready: this project's PRs are not drafts"
 DRAFT = "Draft: open the PR as a draft"
 SAYING = "pitboss is exempt from holds"
 PITBOSS_NEW = "dev-skill-up/pitboss#9"
+
+
+def drafted_pair() -> world.World:
+    """A world with a draft of an approved Plan in each of two repositories.
+
+    Returns:
+        The world; a job waits for a runner, so the project's draft is held.
+    """
+    return with_pitboss(approved_draft())
 
 
 class TestNames(unittest.TestCase):

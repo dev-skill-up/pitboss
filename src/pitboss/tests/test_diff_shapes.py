@@ -8,6 +8,7 @@ split over lines and in another case, and markers that differ in case.
 """
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -16,7 +17,7 @@ from .. import lintchange, markercheck, markupclaim, markuplines
 PLAIN = "diff --git a/a.md b/a.md\n--- a/a.md\n+++ b/a.md\n@@ -1 +1 @@\n-x\n+y\n"
 
 
-def paths(patch: str) -> list[str]:
+def paths(patch: str) -> Sequence[str]:
     """The paths of the hunks of a patch.
 
     Args:
@@ -46,64 +47,64 @@ class TestHunks(unittest.TestCase):
 
     def test_a_quoted_path_with_a_space_or_unicode(self) -> None:
         """A path git quotes is unquoted; one with a space is kept whole."""
-        quoted = PLAIN.replace("b/a.md", '"b/caf\\303\\251 a.md"')
-        spaced = PLAIN.replace("b/a.md", "b/a b.md")
-        assert_that(paths(spaced), equal_to(["a b.md"]))
-        assert_that(paths(quoted), equal_to(["caf\u00e9 a.md"]))
+        names = {"b/a b.md": "a b.md", '"b/caf\\303\\251 a.md"': "caf\u00e9 a.md"}
+        for written, read in names.items():
+            with self.subTest(written):
+                assert_that(paths(PLAIN.replace("b/a.md", written)), equal_to([read]))
 
-    def test_two_files_and_two_hunks_are_all_read(self) -> None:
-        """Each hunk of each file, in order."""
+    def test_hunks_of_two_files_and_a_missing_final_newline(self) -> None:
+        """Each hunk of each file is read; a missing final newline adds no line."""
         second = PLAIN.replace("a.md", "b.md") + "@@ -9 +9 @@\n-p\n+q\n"
-        assert_that(paths(PLAIN + second), equal_to(["a.md", "b.md", "b.md"]))
-
-    def test_a_missing_final_newline_row_is_no_added_line(self) -> None:
-        """The ``\\ No newline`` row starts with neither + nor -."""
-        patch = PLAIN.replace("-x\n+y", "-xy\n+x") + "\\ No newline at end of file\n"
-        assert_that(markuplines.added_lines(patch), equal_to([]))
+        cut = PLAIN.replace("-x\n+y", "-xy\n+x") + "\\ No newline at end of file\n"
+        found = (paths(PLAIN + second), markuplines.added_lines(cut))
+        assert_that(found, equal_to((["a.md", "b.md", "b.md"], [])))
 
 
 class TestLintChange(unittest.TestCase):
-    """``lintchange._lines`` counts the code rows of a hunk."""
+    """``lintchange.changed_lines`` counts the code rows of a hunk."""
 
     def test_blank_and_comment_rows_are_no_code(self) -> None:
         """Only a row with code counts as a change."""
         rows = "+\n+# note\n+x = 1\n-\n-# gone\n-y = 2"
-        found = lintchange._lines(10, rows)
+        found = lintchange.changed_lines(10, rows)
         assert_that([line for line, _ in found], equal_to([12, 13]))
 
     def test_a_hunk_that_only_removes_is_a_deletion(self) -> None:
         """A docstring there is no change (``in_place`` is false)."""
-        assert_that(lintchange._lines(4, "-x = 1"), equal_to([(4, False)]))
+        assert_that(lintchange.changed_lines(4, "-x = 1"), equal_to([(4, False)]))
 
     def test_a_missing_newline_row_is_ignored(self) -> None:
         """The marker row has no sign."""
-        found = lintchange._lines(3, "+x = 1\n\\ No newline at end of file")
+        found = lintchange.changed_lines(3, "+x = 1\n\\ No newline at end of file")
         assert_that(found, equal_to([(3, True)]))
+
+
+def said(text: str) -> int:
+    """How many findings a body gets for a changed .md file.
+
+    Args:
+        text: the body.
+
+    Returns:
+        The number.
+    """
+    return len(markupclaim.findings(f"## Plan\n\n{text}\n", ["a.md"]))
 
 
 class TestMarkupClaim(unittest.TestCase):
     """``markupclaim.findings`` reads a sentence in any layout."""
 
-    def said(self, text: str) -> int:
-        """How many findings a body gets for a changed .md file.
-
-        Args:
-            text: the body.
-
-        Returns:
-            The number.
-        """
-        return len(markupclaim.findings(f"## Plan\n\n{text}\n", ["a.md"]))
-
-    def test_a_claim_in_another_case_and_over_two_lines(self) -> None:
-        """Case and a line break inside the sentence do not hide it."""
-        assert_that(self.said("NO .md or .rst file\nwas changed."), equal_to(1))
-        assert_that(self.said("No markdown file has been edited."), equal_to(1))
-
-    def test_a_sentence_that_is_no_claim(self) -> None:
-        """Another subject, and a claim about a file that is not markup."""
-        assert_that(self.said("No .py file is changed."), equal_to(0))
-        assert_that(self.said("One .md file is changed."), equal_to(0))
+    def test_each_layout_of_a_sentence(self) -> None:
+        """Case and a line break hide no claim; another subject is no claim."""
+        cases = {
+            "NO .md or .rst file\nwas changed.": 1,
+            "No markdown file has been edited.": 1,
+            "No .py file is changed.": 0,
+            "One .md file is changed.": 0,
+        }
+        for text, count in cases.items():
+            with self.subTest(text):
+                assert_that(said(text), equal_to(count))
 
     def test_no_markup_in_the_diff_means_no_finding(self) -> None:
         """The claim is true when the diff changes none."""

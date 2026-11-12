@@ -5,17 +5,17 @@ The hold is the owner's rule for the organisation whose runners are busy
 carries the row id, and each has a control with no hold that shows the action.
 """
 
-import functools
 import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import holdscope
 from . import exemptworld, quietworld, test_quiet, world
-from .exemptworld import copy_pulls, drafted_pair, of, push, remote_to
+from .exemptworld import copy_pulls, of, push, remote_to, with_pitboss
 from .exemptworld import runners_in, swept
 from .test_commands import sweep
-from .test_flow_sweep import EXECUTION_APPROVED, TWO_PLAN_REJECTIONS, world_with
+from .test_flow_sweep import EXECUTION_APPROVED, TWO_PLAN_REJECTIONS
+from .test_flow_sweep import approved_draft, world_with
 from .test_slot_commands import next_output
 
 MERGE = "READY TO MERGE owner/project#3"
@@ -44,9 +44,13 @@ class TestB20(unittest.TestCase):
 
     def test_b20_an_undraft_is_withheld_during_a_hold(self) -> None:
         """The draft waits for the window; with no hold it is marked ready."""
-        held = of(next_output(drafted_pair()), "NEXT", "owner/project#3")[0]
+        held = of(
+            next_output(with_pitboss(approved_draft())), "NEXT", "owner/project#3"
+        )[0]
         clear = of(
-            next_output(quietworld.unheld(drafted_pair())), "NEXT", "owner/project#3"
+            next_output(quietworld.unheld(with_pitboss(approved_draft()))),
+            "NEXT",
+            "owner/project#3",
         )
         assert_that(held, contains_string("HOLD on undrafts"))
         assert_that("draft=false" in held, equal_to(False))
@@ -79,7 +83,7 @@ def other_organisation() -> world.World:
         The world; the runners are owner's, a job waits, and the draft of
         ``elsewhere/lib`` is in the same state as the project's.
     """
-    here = drafted_pair()
+    here = with_pitboss(approved_draft())
     quietworld.edit_config(
         here, '"dev-skill-up/pitboss"]', '"dev-skill-up/pitboss", "elsewhere/lib"]'
     )
@@ -97,7 +101,13 @@ class TestT141(unittest.TestCase):
         here = other_organisation()
         line = world.again(here, "pressure", "--now", test_quiet.at(0)).out
         assert_that(line, contains_string("the hold covers only repositories of owner"))
-        assert_that(swept(here), contains_string(holdscope.saying(runners_in(here))))
+        runners = runners_in(here)
+        assert_that(swept(here), contains_string(holdscope.saying(runners)))
+        for slug, held in (("owner/lib", True), ("elsewhere/lib", False), (None, True)):
+            with self.subTest(slug):
+                assert_that(holdscope.applies(runners, slug), equal_to(held))
+        assert_that(holdscope.applies(runners, "x/y"), equal_to(False))
+        assert_that(holdscope.organisations(runners), equal_to(["owner"]))
 
     def test_t141_a_repository_of_another_organisation_is_not_held(self) -> None:
         """Its draft is marked ready and has no wait line; the project's waits."""
@@ -113,16 +123,6 @@ class TestT141(unittest.TestCase):
         here = other_organisation()
         remote_to(here, "elsewhere", "git@github.com:elsewhere/lib.git")
         remote_to(here, "ours", "git@github.com:owner/other.git")
-        sent = push(here, "elsewhere", "branch-1")
-        held = push(here, "ours", "branch-1")
-        assert_that((sent.code, held.code), equal_to((0, 1)))
-        assert_that(sent.out, contains_string("not held"))
-
-    def test_t141_two_organisations_in_one_config(self) -> None:
-        """The scope is a property of the configuration: owner's, not elsewhere's."""
-        here = other_organisation()
-        runners = runners_in(here)
-        slugs = ("owner/project", "owner/lib", "elsewhere/lib", "x/y", None)
-        found = list(map(functools.partial(holdscope.applies, runners), slugs))
-        assert_that(found, equal_to([True, True, False, False, True]))
-        assert_that(holdscope.organisations(runners), equal_to(["owner"]))
+        sent, held = (push(here, name, "branch-1") for name in ("elsewhere", "ours"))
+        said = "not held" in sent.out
+        assert_that([sent.code, held.code, said], equal_to([0, 1, True]))
