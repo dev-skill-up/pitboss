@@ -3,16 +3,14 @@
 import argparse
 import importlib
 import importlib.resources
-import pathlib
 import sys
+from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, donewhencheck, donewhenrun, lintinput, phrases, rules
+from . import ENTRY_DATA, lintinput, phrases, rules
 
 REGISTER = "rules.tsv"
-TABLE = "coverage_ids.txt"
-PAIRING = "donewhen.tsv"
 
 
 def function_known(name: str) -> bool:
@@ -47,24 +45,18 @@ def module_text(module: str) -> str | None:
         return None
 
 
+def table_ids() -> Sequence[str]:
+    """The ids of the coverage table.
+
+    Returns:
+        The ids, from ``tests/coverage_ids.txt``.
+    """
+    path = importlib.resources.files("pitboss") / "tests" / "coverage_ids.txt"
+    return path.read_text(encoding="utf-8").split()
+
+
 @ENTRY_DATA.register(
-    add_argument("action", choices=("check", "done-when")),
-    add_argument(
-        "--ref",
-        default="origin/main",
-        help="done-when: the base the named tests must fail on (default: origin/main)",
-    ),
-    add_argument(
-        "--repo",
-        default=".",
-        help="done-when: a checkout of pitboss, which the base is made of",
-    ),
-    add_argument(
-        "--pairing",
-        default=None,
-        help="done-when: a file pairing the Done-when's items with their tests"
-        " (default: the one pitboss ships, donewhen.tsv)",
-    ),
+    add_argument("action", choices=("check",)),
     add_argument(
         "--register",
         default=None,
@@ -84,12 +76,10 @@ def rules_check(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when the register has a finding.
     """
-    if args.action == "done-when":
-        done_when(args)  # always ends in SystemExit
     rows, bad = rules.parse(_text(args.register, REGISTER))
     found = [*bad, *rules.findings(rows, function_known, module_text)]
     if not args.register:
-        found += rules.coverage_findings(rows, phrases.shipped_text(TABLE).split())
+        found += rules.coverage_findings(rows, table_ids())
     for each in found:
         print(each)
     unenforced = rules.open_ids(rows)
@@ -104,24 +94,3 @@ def _text(path: str | None, shipped: str) -> str:
     if path is None:
         return phrases.shipped_text(shipped)
     return lintinput.read(path)
-
-
-def done_when(args: argparse.Namespace) -> None:
-    """Print one line: whether every Done-when item is demonstrated by its tests.
-
-    Each named test must exist and pass on the head, and at least one test of each
-    item must fail on the base ``--ref``, where the head's tests are run in a scratch
-    worktree. The line is ``done-when check: ok``, or names the first finding.
-
-    Args:
-        args: the parsed arguments.
-
-    Raises:
-        SystemExit: 1 when an item is not demonstrated.
-    """
-    rows, _ = rules.parse(phrases.shipped_text(REGISTER))
-    items = donewhencheck.parse(_text(args.pairing, PAIRING))
-    checks = donewhenrun.measure(items, rows, (pathlib.Path(args.repo), args.ref))
-    found = donewhencheck.refusals(items, rows, checks)
-    print(donewhencheck.one_line(found))
-    raise SystemExit(int(bool(found)))

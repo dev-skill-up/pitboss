@@ -14,7 +14,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import donewhencheck, donewhenrun, phrases
+from .. import donewhen_commands, donewhencheck, donewhenrun, phrases
 from .test_rules import ran, shipped_rows
 
 HERE = pathlib.Path(__file__)
@@ -74,12 +74,12 @@ def command(pairing: str, ref: str) -> tuple[int, str]:
         file.write(pairing)
         file.flush()
         return ran(
+            donewhen_commands.done_when_check,
             argparse.Namespace(
-                action="done-when",
                 pairing=file.name,
                 ref=ref,
                 repo=str(HERE.parents[3]),
-            )
+            ),
         )
 
 

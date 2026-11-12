@@ -9,7 +9,7 @@ import io
 import pathlib
 import unittest
 from contextlib import redirect_stdout
-from typing import Sequence
+from typing import Callable, Sequence
 
 from hamcrest import (
     assert_that,
@@ -37,10 +37,13 @@ def _findings(text: str) -> list[str]:
     ]
 
 
-def ran(args: argparse.Namespace) -> tuple[int, str]:
-    """Run ``rules`` and take its exit status and standard output.
+def ran(
+    run: Callable[[argparse.Namespace], None], args: argparse.Namespace
+) -> tuple[int, str]:
+    """Run a command and take its exit status and standard output.
 
     Args:
+        run: the command.
         args: the arguments.
 
     Returns:
@@ -50,14 +53,17 @@ def ran(args: argparse.Namespace) -> tuple[int, str]:
     status = 0
     with redirect_stdout(out):
         try:
-            rules_commands.rules_check(args)
+            run(args)
         except SystemExit as stop:
             status = int(stop.code or 0)
     return status, out.getvalue()
 
 
 def _ran(register: str | None) -> tuple[int, str]:
-    return ran(argparse.Namespace(action="check", register=register))
+    return ran(
+        rules_commands.rules_check,
+        argparse.Namespace(action="check", register=register),
+    )
 
 
 class TestCheck(unittest.TestCase):
@@ -129,7 +135,7 @@ def table() -> Sequence[str]:
     Returns:
         The ids.
     """
-    return phrases.shipped_text("coverage_ids.txt").split()
+    return rules_commands.table_ids()
 
 
 def shipped_rows() -> Sequence[rules.Row]:
