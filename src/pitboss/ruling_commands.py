@@ -6,7 +6,9 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, ghapi, pullfile, rulingform, rulingguard
+import re
+
+from . import ENTRY_DATA, folds, ghapi, pullfile, rulingform, rulinglint, rulingguard
 
 
 def _texts(page: str) -> Sequence[str]:
@@ -25,8 +27,31 @@ def _already(github: ghapi.GitHub, slug: str, number: int) -> str:
     return rulingguard.refusal(texts, labels)
 
 
+HEAD_LINE = re.compile(r"^Head: ([0-9a-f]{40})\s*$", re.MULTILINE)
+
+
+def _steps(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
+    # keyword: ruling-lint (bats#654): the steps must pass the gates they lead to
+    if not rulinglint.edits(text):
+        return ""
+    body = str(
+        json.loads(ghapi.get(github, f"repos/{slug}/pulls/{number}")).get("body")
+    )
+    ticket = ""
+    for each in folds.tickets(body)[:1]:
+        where, _, issue = each.partition("#")
+        path = f"repos/{where or slug}/issues/{issue}"
+        ticket = str(json.loads(ghapi.get(github, path)).get("body") or "")
+    head = "".join(HEAD_LINE.findall(body)[-1:])
+    return "; ".join(rulinglint.findings(text, ticket, body, head))
+
+
 def _check(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
-    return rulingform.refusal(text) or _already(github, slug, number)
+    return (
+        rulingform.refusal(text)
+        or _steps(github, slug, number, text)
+        or _already(github, slug, number)
+    )
 
 
 @ENTRY_DATA.register(

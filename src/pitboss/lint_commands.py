@@ -20,6 +20,7 @@ from . import (
     extrafile,
     flowfiles,
     reporules,
+    rulinglint,
     folds,
     forms,
     gateform,
@@ -237,6 +238,12 @@ def _repo_rules(args: argparse.Namespace) -> None:
     _finish(reporules.findings("body", claude, diff, body), "ok")
 
 
+def _ruling(args: argparse.Namespace) -> None:
+    # keyword: ruling-lint (bats#654): the ruling's steps against the gates they reach
+    ruling, ticket, body = _exactly(args, ["the ruling", "the ticket", "the PR body"])
+    _finish(rulinglint.findings(ruling, ticket, body, args.head or ""), "ok")
+
+
 def _event(args: argparse.Namespace) -> None:
     if len(args.files) != 2:
         raise _fail("event takes the event's file and the status file to write")
@@ -273,6 +280,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "event": _event,
     "change": _change,
     "repo-rules": _repo_rules,
+    "ruling": _ruling,
 }
 
 
