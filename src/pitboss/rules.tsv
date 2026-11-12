@@ -131,7 +131,7 @@ T223	2026-11-12	enforced	The PR-body lint reads the lines inside pitboss-expand 
 T286	2026-11-12	enforced	A Plan whose commands run in a scratch path must make or show that path's state, and a timed row must give its limit	brief.build	test_folded_briefs.test_t286_a_path_outside_the_checkout_needs_its_state_in_the_plan
 T399	2026-11-12	enforced	Drop the acceptance of Plan digests recorded before pitboss#358 collapsed expanded blocks	expansion.accepted_digests	test_stage_rounds.test_t399_only_the_collapsed_digest_is_compared test_stage_rounds.test_t399_the_digest_before_the_collapse_is_not_accepted
 T52	2026-11-12	enforced	Add `pitboss lint e2e-waits`: refuse fixed waits and nameless quarantine marks in end-to-end tests	e2ewaits.findings	test_e2e_waits.test_t52_wait_for_timeout_is_refused test_e2e_waits.test_t52_a_bare_function_set_timeout_is_refused test_e2e_waits.test_t52_the_accepted_forms_pass test_e2e_waits.test_t52_an_allowed_wait_with_an_exact_count_passes test_e2e_waits.test_t52_a_count_above_the_files_waits_is_refused test_e2e_waits.test_t52_a_fixme_without_a_ticket_is_refused test_e2e_waits.test_t52_a_fixme_with_a_project_condition_is_refused test_e2e_waits.test_t52_a_malformed_allowlist_is_an_error
-T53	2026-11-12	open	Rules: quarantine a failing test at its p0 ticket, and merge a race fix only with its evidence	-	-
+T53	2026-11-12	enforced	Rules: quarantine a failing test at its p0 ticket, and merge a race fix only with its evidence	brief.fields	test_rules_texts.test_t53_a_worker_brief_has_the_quarantine_and_race_lines test_rules_texts.test_t53_a_review_brief_has_the_check_lines
 T54	2026-11-12	enforced	Add the quarantine and race forms to `pitboss lint pr-body|review|brief`	quarantinerace.pr_body	test_quarantine_race.test_t54_a_failing_test_needs_a_quarantine_line test_quarantine_race.test_t54_a_leftover_mark_is_refused test_quarantine_race.test_t54_race_evidence_lines_are_each_required test_quarantine_race.test_t54_a_brief_template_span_is_read_by_the_phrase_check
 T55	2026-11-12	enforced	Add a review-comment check: refuse an approval of a head with no completed green check run	approvalci.findings	test_approval_ci.test_t55_an_approval_with_no_run_is_refused test_approval_ci.test_t55_an_approval_with_a_run_in_progress_is_refused test_approval_ci.test_t55_an_approval_with_a_failed_run_is_refused test_approval_ci.test_t55_a_green_run_and_a_changes_needed_review_pass test_approval_ci.test_t55_the_newest_run_decides
 T111	2026-11-12	open	Add `pitboss lint pins`: the CI-input pinning rules of `bats check-pins`	-	-
@@ -139,10 +139,10 @@ T336	2026-11-12	open	Remove from the sweep skill what the commands made unneeded
 T337	2026-11-12	open	Move what a command can say from the sweep skill into the commands	-	-
 T319	2026-11-12	open	The orchestrator never resolves a human decision card; the sweep skill says so	-	-
 T361	2026-11-12	open	pitboss ticket-find prints the open tickets close to a new one before it is filed, and a filing refuses a ticket with no check	-	-
-T110	2026-11-12	open	The orchestrator skill forbids ending an answer with "I haven't checked": do the check first	-	-
+T110	2026-11-12	enforced	The orchestrator skill forbids ending an answer with "I haven't checked": do the check first	phrases.findings	test_rules_texts.test_t110_each_unchecked_form_is_refused_and_removal_passes
 T4	2026-11-12	open	Generalize the orchestration rules learned on bats-lang/quire into the sweep skill	-	-
 T6	2026-11-12	open	Orchestration rules as they stand on 2026-10-24: update pitboss's defaults and docs to match	-	-
-T56	2026-11-12	open	Rules: short jobs run locally, CI runs the rest, no background runs and no sleep loops	-	-
+T56	2026-11-12	enforced	Rules: short jobs run locally, CI runs the rest, no background runs and no sleep loops	phrases.findings	test_rules_texts.test_t56_each_background_and_sleep_form_is_refused test_rules_texts.test_t56_a_worker_brief_says_runs_are_short_and_in_the_foreground
 T93	2026-11-12	open	Rules: a ticket without a priority label gets one by the criteria, then the order is strict	-	-
 T105	2026-11-12	open	rules.md "Plan first" says an Opus ruling is unrestricted	-	-
 T133	2026-11-12	open	Rules: an Opus ruling carries the owner's authority, priority change and duplicate close included	-	-

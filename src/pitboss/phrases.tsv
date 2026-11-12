@@ -86,3 +86,9 @@ half-done	\bparts? are done\b	two parts are done	The word part is not used: the 
 half-done	\bparts? are left\b	two parts are left	The word part is not used: the Done-when is met as written or the work goes on.
 half-done	\bparts? are owed\b	two parts are owed	The word part is not used: the Done-when is met as written or the work goes on.
 half-done	\bparts? are not done\b	two parts are not done	The word part is not used: the Done-when is met as written or the work goes on.
+run-in-background	\brun_in_background\b	pass run_in_background to the tool	No agent runs a command in the background: a run that takes more than a few minutes is CI's.
+run-in-background	\bnohup\b	nohup make test	No agent runs a command in the background: a run that takes more than a few minutes is CI's.
+sleep-loop	\bsleep\s+\d+\b	then sleep 60 and poll	No agent loops with sleep or polls for a run: push, hand back the head SHA, and let CI run.
+unchecked	\bhave\s+not\s+checked\b	we have not checked yet	Read it, then say what it showed.
+unchecked	\bnot\s+checked\s+yet\b	that is not checked yet	Read it, then say what it showed.
+unchecked	\bI\s+did\s+not\s+verify\b	I did not verify it	Read it, then say what it showed.

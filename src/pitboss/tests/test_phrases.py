@@ -51,7 +51,7 @@ REFUSED_CASES = [
     ("[]", "holds no character"),
     ("[^]", "holds no character"),
 ]
-DEFAULT_ROWS = 80
+DEFAULT_ROWS = 86
 PHRASE_FILE = "# a project's phrases\n\nfoo\tba+r\tbaaar\tSay baz.\n"
 
 

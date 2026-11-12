@@ -332,6 +332,15 @@ MISSED_EARLIER = (
     " after an Opus ruling. A finding caused by the changes since has no such"
     " line."
 )
+QUARANTINE_REVIEW = (
+    "Quarantine check: a PR that names a failing test needs the line `Quarantine:`"
+    " in its body (the mark that quarantines it at its p0 ticket, or `none`), and"
+    " the review has a line that starts with `Quarantine check:` saying it was read."
+    " Race check: a PR that fixes a race needs `Race:`, `Root cause:`, `Injection:`"
+    " and `CI run: <URL>` lines, and the review has a line that starts with"
+    " `Race check:` saying each was read; no new fixed wait or sleep in the tests"
+    " (keyword: quarantine-race, T53)."
+)
 PLAN_DRY_RUN = (
     "Dry run: in a review of the Plan, try each command of the Plan as a"
     " read-only dry run where it can be tried (it changes nothing in the"
