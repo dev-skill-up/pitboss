@@ -3,6 +3,7 @@
 import base64
 import re
 import unittest
+from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -27,7 +28,7 @@ OTHER = "1. `echo ok` shows ok\n"
 
 
 def repository(
-    case: unittest.TestCase, main: dict[str, str], work: dict[str, str]
+    case: unittest.TestCase, main: Mapping[str, str], work: Mapping[str, str]
 ) -> diffrepo.Repository:
     """A repository whose main has some files and whose branch ``work`` changes others.
 

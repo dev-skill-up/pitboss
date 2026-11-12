@@ -4,6 +4,7 @@ Race and local-run rules and the unchecked phrases.
 """
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
@@ -17,7 +18,7 @@ REVIEWERS = tuple(
 )
 
 
-def found(text: str) -> list[str]:
+def found(text: str) -> Sequence[str]:
     """The phrase findings of a text.
 
     Args:

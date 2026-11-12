@@ -11,7 +11,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, empty, equal_to, has_length
 
 from . import knowncases, knownextra, knownguards, knownremovals, knownseeded
-from .knownkit import Known, kit
+from .knownkit import Known, shipped_kit
 
 CASES: Mapping[str, Known] = {
     **knowncases.CASES,
@@ -23,7 +23,7 @@ CASES: Mapping[str, Known] = {
 
 @functools.cache
 def _held() -> Mapping[str, Sequence[str]]:
-    return knownremovals.held(kit(), CASES)
+    return knownremovals.held(shipped_kit(), CASES)
 
 
 class TestKnown(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestKnown(unittest.TestCase):
 
     def test_every_case_holds(self) -> None:
         """No case misses with the shipped controls."""
-        assert_that(knownremovals.missed(kit(), CASES), empty())
+        assert_that(knownremovals.missed(shipped_kit(), CASES), empty())
 
     def test_case_names(self) -> None:
         """X36 is no fault: a Plan command is run as written."""
@@ -50,7 +50,7 @@ class TestKnown(unittest.TestCase):
             raise ValueError("broken")
 
         cases = {**CASES, "Z0": Known(control="none", what="none", run=broken)}
-        assert_that(knownremovals.missed(kit(), cases), equal_to(["Z0"]))
+        assert_that(knownremovals.missed(shipped_kit(), cases), equal_to(["Z0"]))
 
 
 class TestRemoval(unittest.TestCase):

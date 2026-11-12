@@ -31,7 +31,9 @@ class Memory:
     """
 
     pulls_made: MutableMapping[Key, Pull] = dataclasses.field(default_factory=dict)
-    events: MutableMapping[Key, list[object]] = dataclasses.field(default_factory=dict)
+    events: MutableMapping[Key, MutableSequence[object]] = dataclasses.field(
+        default_factory=dict
+    )
     issues_made: MutableMapping[Key, Pull] = dataclasses.field(default_factory=dict)
     writes: MutableSequence[Change] = dataclasses.field(default_factory=list)
     identity: str = totalworld.ACT

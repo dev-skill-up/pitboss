@@ -213,7 +213,7 @@ class TestThroughTheCommands(unittest.TestCase):
 
     def test_c28_act_refuses_an_arm_while_a_known_red_stands(self) -> None:
         """The verdict stops the arm on the red status; no arm is written."""
-        given = knownkit.kit()
+        given = knownkit.shipped_kit()
         posted = {"statuses": [{"context": "canonical-files", "state": "failure"}]}
         hub = knownkit.made(given, knownkit.change(ctx=posted))
         said = knownkit.refused(lambda: knownkit.act(given, hub, "arm"))

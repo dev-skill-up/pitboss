@@ -117,7 +117,7 @@ class TestReview(unittest.TestCase):
 
     def test_c17_act_review_is_read_as_an_approval(self) -> None:
         """A review written by the verb approves this head, body and tickets."""
-        first = list(BASE.ctx["timeline"])[:1]  # type: ignore[call-overload]
+        first = knownkit.base_items("timeline")[:1]
         hub = made(GIVEN, change(ctx={"timeline": first}))
         assert_that(refusal(hub, "merge"), contains_string("review"))
         findings = "Findings: the change does what the ticket says."

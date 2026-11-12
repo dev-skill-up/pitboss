@@ -2,6 +2,7 @@
 
 import pathlib
 import unittest
+from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -9,7 +10,7 @@ from .. import e2ewaits
 from . import fakes, world
 
 
-def lint(files: dict[str, str], allowed: str | None = None) -> world.Result:
+def lint(files: Mapping[str, str], allowed: str | None = None) -> world.Result:
     """Run the lint over a checkout with files.
 
     Args:

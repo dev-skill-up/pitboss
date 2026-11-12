@@ -10,7 +10,7 @@ from .. import actcore
 from . import fakehub, knownkit
 from .totalworld import World
 
-GIVEN = knownkit.kit()
+GIVEN = knownkit.shipped_kit()
 
 
 def refusal(hub: fakehub.Made, verb: str, **options: str) -> str:

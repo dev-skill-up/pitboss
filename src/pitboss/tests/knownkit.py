@@ -7,7 +7,7 @@ every control a case runs; ``knownremovals`` takes one out at a time.
 
 import dataclasses
 import pathlib
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping, MutableMapping, Sequence
 
 from .. import (
     actcore,
@@ -22,7 +22,7 @@ from .. import (
     totalroutes,
     totalverdict,
 )
-from ..totaljson import JsonMap
+from ..totaljson import JsonMap, members
 from . import fakehub, knowngit, scratch, totalworld
 from .totalworld import World
 
@@ -80,7 +80,7 @@ class Kit:
     )
 
 
-def kit() -> Kit:
+def shipped_kit() -> Kit:
     """Every control as pitboss ships it.
 
     Returns:
@@ -203,8 +203,34 @@ def review_with(edit: Callable[[str], str]) -> object:
     Returns:
         The review event.
     """
-    made = totalworld.review(HEAD, BODY, dict(BASE.ctx["tickets"]))  # type: ignore[call-overload]
+    made = totalworld.review(HEAD, BODY, base_map("ctx", "tickets"))
     return {**made, "body": edit(str(made["body"]))}
+
+
+def base_map(part: str, key: str) -> MutableMapping[str, object]:
+    """A copy of an object of the GO world.
+
+    Args:
+        part: ``pull`` or ``ctx``.
+        key: the key in it.
+
+    Returns:
+        The object's members.
+    """
+    return dict(members(getattr(BASE, part).get(key)))
+
+
+def base_items(key: str) -> Sequence[object]:
+    """A copy of an array of the GO world's inputs.
+
+    Args:
+        key: the input.
+
+    Returns:
+        Its items.
+    """
+    value = BASE.ctx.get(key)
+    return list(value) if isinstance(value, (list, tuple)) else []
 
 
 def made(
@@ -261,7 +287,7 @@ def refused(run: Callable[[], object]) -> str:
 CHECKOUTS = fakehub.rule_checkouts(scratch.process_directory())
 
 
-def brief(given: Kit, repo: str, *paths: str) -> tuple[str, rulefiles.Ticket]:
+def brief_for(given: Kit, repo: str, *paths: str) -> tuple[str, rulefiles.Ticket]:
     """The kit's brief for a ticket of a real repository.
 
     Args:
@@ -295,7 +321,7 @@ class Known:
 
 
 def registry(
-    cases: dict[str, Known],
+    cases: MutableMapping[str, Known],
 ) -> Callable[[str, str, str], Callable[[Case], Case]]:
     """The decorator that registers a case in a module's table.
 
@@ -306,14 +332,14 @@ def registry(
         ``case(name, control, what)``, the decorator of one case.
     """
 
-    def case(name: str, control: str, what: str) -> Callable[[Case], Case]:
+    def one(name: str, control: str, what: str) -> Callable[[Case], Case]:
         def register(run: Case) -> Case:
             cases[name] = Known(control=control, what=what, run=run)
             return run
 
         return register
 
-    return case
+    return one
 
 
 def dispatch(

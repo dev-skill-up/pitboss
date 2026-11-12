@@ -10,7 +10,7 @@ import dataclasses
 import datetime
 import pathlib
 import unittest
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -79,7 +79,7 @@ def red(*checks: shapes.CheckRun) -> pulls.PullFacts:
 
 def said(
     pull: pulls.PullFacts, failures: Mapping[int, shapes.Failure] | None = None
-) -> list[str]:
+) -> Sequence[str]:
     """The lines of the sweep about the base and the fix.
 
     Args:

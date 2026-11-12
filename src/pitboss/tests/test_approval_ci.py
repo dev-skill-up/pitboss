@@ -5,6 +5,7 @@ The keyword is approval-ci, quire#1038.
 
 import json
 import unittest
+from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -47,7 +48,9 @@ def lint(verdict: str, runs: object) -> world.Result:
     return world.invoke(here, *argv, "--check-runs", str(listed))
 
 
-def run(status: str, conclusion: str | None, name: str = "check") -> dict[str, object]:
+def run(
+    status: str, conclusion: str | None, name: str = "check"
+) -> Mapping[str, object]:
     """A check run as GitHub gives it.
 
     Args:

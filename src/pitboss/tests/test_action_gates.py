@@ -129,7 +129,7 @@ class TestRearm(unittest.TestCase):
 
         (the runner-pressure hold is ``act hold --scope ci``) refuses the arm.
         """
-        given = knownkit.kit()
+        given = knownkit.shipped_kit()
         hub = knownkit.made(given)
         knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
         said = knownkit.refused(lambda: knownkit.act(given, hub, "arm"))
@@ -140,7 +140,7 @@ class TestRearm(unittest.TestCase):
 
     def test_c26_an_arm_after_the_hold_is_recorded_and_made(self) -> None:
         """The hold over, the same PR is armed, its record first."""
-        given = knownkit.kit()
+        given = knownkit.shipped_kit()
         hub = knownkit.made(given)
         knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
         number = [key[1] for key in hub.hub.issues_made][0]

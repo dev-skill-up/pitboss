@@ -4,7 +4,7 @@ The keyword is generated-markup, T433.
 """
 
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -18,7 +18,7 @@ PATCH = (
 )
 
 
-def named(paths: dict[str, Sequence[str]]):  # type: ignore[no-untyped-def]
+def named(paths: Mapping[str, Sequence[str]]):  # type: ignore[no-untyped-def]
     """A ``git grep -l -F`` that lists the files naming a path.
 
     Args:

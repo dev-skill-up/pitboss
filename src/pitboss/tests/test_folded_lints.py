@@ -1,6 +1,7 @@
 """The lints the folded tickets asked of a PR body (pitboss#444, item 6)."""
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
@@ -44,7 +45,7 @@ def body(*parts: str) -> str:
     )
 
 
-def named(text: str, check: str) -> list[str]:
+def named(text: str, check: str) -> Sequence[str]:
     """The findings of a body that end in a check's name.
 
     Args:

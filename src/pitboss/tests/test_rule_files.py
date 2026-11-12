@@ -11,7 +11,7 @@ from hamcrest import assert_that, calling, contains_string, empty, equal_to, rai
 
 from .. import actcore, actverbs, dispatchnext, rulecount, rulefiles, totalroutes
 from . import fakehub, scratch
-from .knownkit import CHECKOUTS, kit, made
+from .knownkit import CHECKOUTS, made, shipped_kit
 
 PLANTED = {
     "CLAUDE.md": "ROOT\n",
@@ -172,7 +172,7 @@ class TestDispatchBrief(unittest.TestCase):
     def test_444_the_brief_carries_the_rules_and_the_instructions(self) -> None:
         """The item, then the rule files, then what each actor writes."""
         ticket = _planted()
-        hub = made(kit())
+        hub = made(shipped_kit())
         state = fakehub.state(
             items=[
                 dispatchnext.Item(

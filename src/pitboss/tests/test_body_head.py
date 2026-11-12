@@ -1,7 +1,7 @@
 """``pitboss body-head`` adds the new head's line to a PR body (pitboss#369)."""
 
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -19,7 +19,7 @@ COMMENTS = f"{world.PROJECT}/issues/3/comments?per_page=100&page=1"
 
 def review(
     sha: str, verdict: str = "approved", when: str = "2026-11-10T00:00:00Z"
-) -> dict[str, str]:
+) -> Mapping[str, str]:
     """An adversarial review comment of a trusted author.
 
     Args:

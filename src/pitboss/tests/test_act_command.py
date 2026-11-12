@@ -12,7 +12,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_item
 
 from .. import actcore, actledger, acthub, actinputs, actwiring, ghapi
 from . import fakes, world
-from .knownkit import BASE, REPO, NUMBER, kit, made
+from .knownkit import BASE, REPO, NUMBER, made, shipped_kit
 
 PULL = "owner/project#3"
 
@@ -119,7 +119,7 @@ class TestCommand(unittest.TestCase):
 
     def test_c17_the_ledger_event_names_the_branch(self) -> None:
         """A checked write is recorded with the PR's branch and head; another is not."""
-        given = kit()
+        given = shipped_kit()
         hub = made(given)
         target = actcore.Target(repo=REPO, number=NUMBER)
         event = actledger.ledger_event(

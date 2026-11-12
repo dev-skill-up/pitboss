@@ -4,6 +4,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -23,7 +24,7 @@ TABLE = (
 LINES = [("memory:MEMORY.md", "- APPROVED PLAN"), ("memory:a.md", "description")]
 
 
-def found(table: str, corpus: list[tuple[str, str]] = LINES) -> list[str]:
+def found(table: str, corpus: Sequence[tuple[str, str]] = LINES) -> Sequence[str]:
     """The findings of a table against the fixture register.
 
     Args:
