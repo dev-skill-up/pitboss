@@ -197,7 +197,9 @@ class TestGradeSpellings(unittest.TestCase):
         self,
     ) -> None:
         """``lint review`` is the pre-post check: exit 1 naming the line, else ok."""
-        refused, passed = lint_review("ok"), lint_review("approved")
-        assert_that(refused.code, equal_to(1))
-        assert_that("review-grade" in refused.out, equal_to(True))
-        assert_that(passed.code, equal_to(0))
+        for plan, code, finding in (("ok", 1, True), ("approved", 0, False)):
+            with self.subTest(plan):
+                ran = lint_review(plan)
+                assert_that(
+                    (ran.code, "review-grade" in ran.out), equal_to((code, finding))
+                )
