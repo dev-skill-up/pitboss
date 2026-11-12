@@ -8,8 +8,7 @@ from typing import MutableMapping
 
 from ..actcore import Owner, Target
 from . import fakehub, knownkit
-from .knowngit import git, repo_pair
-
+from .knowngit import git, refusing_pair, repo_pair
 from .totalworld import ARMED, record
 
 CASES: MutableMapping[str, knownkit.Known] = {}
@@ -180,7 +179,7 @@ def _queue_failed(given: knownkit.Kit) -> bool:
 @case("X34", "act push: read back", "the origin refuses the push")
 def _origin_refuses(given: knownkit.Kit) -> bool:
     return "not pushed" in knownkit.refused(
-        lambda: knownkit.pushed(given, repo_pair(refuse=True))
+        lambda: knownkit.pushed(given, refusing_pair())
     )
 
 

@@ -7,8 +7,6 @@ where the register reads it.
 """
 
 import importlib
-import unittest
-from typing import cast
 
 
 def rerun(module_name: str, class_name: str, method: str) -> None:
@@ -20,4 +18,4 @@ def rerun(module_name: str, class_name: str, method: str) -> None:
         method: the test's name.
     """
     case = getattr(importlib.import_module(module_name), class_name)
-    cast(unittest.TestCase, case(method)).debug()
+    case(method).debug()

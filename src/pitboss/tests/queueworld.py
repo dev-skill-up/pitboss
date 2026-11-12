@@ -93,14 +93,19 @@ def removed_world(
     return quietworld.at_rest(here)
 
 
-def dropped(freeze: bool) -> world.World:
-    """A world whose approved PR 2 was armed, then dropped, under a hold or not.
-
-    Args:
-        freeze: whether a runner-pressure hold shows.
+def dropped() -> world.World:
+    """A world whose approved PR 2 was armed, then dropped.
 
     Returns:
         The world.
     """
-    here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
-    return pressureworld.held(here) if freeze else here
+    return removed_world([ENABLED, DISABLED], [FAILED_JOB])
+
+
+def dropped_held() -> world.World:
+    """The dropped world under a runner-pressure hold.
+
+    Returns:
+        The world.
+    """
+    return pressureworld.held(dropped())

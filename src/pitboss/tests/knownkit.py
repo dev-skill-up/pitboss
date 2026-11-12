@@ -246,7 +246,7 @@ def made(
     Returns:
         The hub and the verb's world.
     """
-    return fakehub.made(world, given.controls, owner)
+    return fakehub.holding(world, given.controls, owner)
 
 
 def act(given: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:

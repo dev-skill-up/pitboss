@@ -13,7 +13,7 @@ from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import actcore, actiongates, acthub, phrases
 from . import knownkit
-from .queueworld import dropped
+from .queueworld import dropped, dropped_held
 from .test_slot_commands import next_output
 from .says import says
 
@@ -154,8 +154,8 @@ class TestRearm(unittest.TestCase):
         self,
     ) -> None:
         """During the hold the PR's line is the wait; after it, the merge step."""
-        waiting = lines_about_pr_2(next_output(dropped(True)))
-        offered = lines_about_pr_2(next_output(dropped(False)))
+        waiting = lines_about_pr_2(next_output(dropped_held()))
+        offered = lines_about_pr_2(next_output(dropped()))
         assert_that(waiting, contains_string("HOLD: a runner-pressure hold withholds"))
         assert_that("HOLD" in offered, equal_to(False))
         assert_that(offered, contains_string("arm auto-merge or merge"))

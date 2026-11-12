@@ -106,7 +106,7 @@ def _comment(memory: Memory, change: Change) -> str:
     return str(identifier)
 
 
-def _issue(memory: Memory, change: Change) -> str:
+def _new_issue(memory: Memory, change: Change) -> str:
     number = 100 + len(memory.issues_made)
     memory.issues_made[(change.repo, number)] = {
         "number": number,
@@ -163,7 +163,7 @@ def _pr(memory: Memory, change: Change) -> str:
 
 WRITES: Mapping[str, Callable[[Memory, Change], str]] = {
     "comment": _comment,
-    "issue": _issue,
+    "issue": _new_issue,
     "pr": _pr,
     "issue-edit": _set(lambda change: dict(change.fields), "issues"),
     "close-issue": _set(lambda change: {"state": "closed"}, "issues"),
@@ -223,7 +223,47 @@ class Made:
     world: World
 
 
-def made(
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WorldInputs:
+    """The verdict's inputs: the world's, with the hub's timeline.
+
+    Attributes:
+        world: the world.
+        hub: the fake GitHub.
+    """
+
+    world: World
+    hub: Hub
+
+    def __call__(
+        self, where: str, which: int, pull: Pull, timeline: list[object]
+    ) -> Pull:
+        """The inputs of a PR.
+
+        Args:
+            where: the repository.
+            which: the PR's number.
+            pull: the PR, unread here.
+            timeline: its timeline, when read; the hub's when empty.
+
+        Returns:
+            The inputs.
+        """
+        return {
+            **copy.deepcopy(self.world.ctx),
+            "timeline": timeline or self.hub.timeline(where, which),
+        }
+
+
+def _memory(world: World) -> Memory:
+    # the hub's state: the world's PR and its timeline
+    key = (str(world.ctx["repo"]), int(str(world.pull["number"])))
+    memory = Memory(pulls_made={key: copy.deepcopy(world.pull)})
+    memory.events[key] = list(records(world.ctx["timeline"]))
+    return memory
+
+
+def holding(
     world: World,
     controls: Controls,
     owner: Owner | None = None,
@@ -240,22 +280,13 @@ def made(
     Returns:
         The hub and the verb's world.
     """
-    repo, number = str(world.ctx["repo"]), int(str(world.pull["number"]))
-    memory = Memory(pulls_made={(repo, number): copy.deepcopy(world.pull)})
-    memory.events[(repo, number)] = list(records(world.ctx["timeline"]))
+    memory = _memory(world)
     hub = port(memory)
-
-    def inputs(where: str, which: int, pull: Pull, timeline: list[object]) -> Pull:
-        return {
-            **copy.deepcopy(world.ctx),
-            "timeline": timeline or hub.timeline(where, which),
-        }
-
     act = Act(
         hub=hub,
-        inputs=inputs,
+        inputs=WorldInputs(world=world, hub=hub),
         owner=owner or Owner(),
-        repos=list(repos) or [repo],
+        repos=list(repos) or [str(world.ctx["repo"])],
         p90=lambda _: 2151,
         run=git_run,
         prepush=lambda: (0, "lint passed\nok\n"),
@@ -277,11 +308,11 @@ def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
     found = json.loads(
         (totalworld.FOLDER / "rulefiles.json").read_text(encoding="utf-8")
     )
-    checkouts = {}
+    written = {}
     for repo, files in members(found).items():
         checkout = root / repo.split("/")[1]
         for name, text in members(files).items():
             (checkout / name).parent.mkdir(parents=True, exist_ok=True)
             (checkout / name).write_text(str(text), encoding="utf-8")
-        checkouts[repo] = checkout
-    return checkouts
+        written[repo] = checkout
+    return written

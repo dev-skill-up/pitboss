@@ -67,7 +67,9 @@ class TestMerge(unittest.TestCase):
     def test_c17_ack_hold_holds_every_repository(self) -> None:
         """A hold of all is an issue in each repository; it refuses arm."""
         both = [REPO, "bats-lang/pwa"]
-        hub = fakehub.made(BASE, GIVEN.controls, actcore.Owner(messages=["m2"]), both)
+        hub = fakehub.holding(
+            BASE, GIVEN.controls, actcore.Owner(messages=["m2"]), both
+        )
         options = {"repo": "all", "number": "0", "message": "m2", "scope": "merges"}
         act(GIVEN, hub, "ack", kind="hold", **options)
         held = sorted(
@@ -198,7 +200,7 @@ class TestHolds(unittest.TestCase):
 
     def test_c17_a_hold_of_another_repository_holds_nothing_here(self) -> None:
         """A hold of every scope in another repository leaves this one's merge alone."""
-        hub = fakehub.made(BASE, GIVEN.controls, None, [REPO, "bats-lang/pwa"])
+        hub = fakehub.holding(BASE, GIVEN.controls, None, [REPO, "bats-lang/pwa"])
         hub.hub.issues_made[("bats-lang/pwa", 902)] = hold_issue(902, "all")
         act(GIVEN, hub, "merge")
         assert_that(kinds(hub), equal_to(["merge"]))

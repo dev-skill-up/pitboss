@@ -11,10 +11,94 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to, has_item
 
 from .. import actcore, actledger, acthub, actinputs, actwiring, ghapi
-from . import fakes, world
-from .knownkit import BASE, REPO, NUMBER, made, shipped_kit
+from ..totaljson import members
+from . import fakehub, fakes, world
+from .knownkit import NUMBER, REPO, base_map, made, shipped_kit
 
 PULL = "owner/project#3"
+
+
+LABEL_CALL = [
+    "gh",
+    "api",
+    "-X",
+    "POST",
+    "-f",
+    "labels[]=p1",
+    "repos/owner/project/issues/3/labels",
+]
+FIELDS = {
+    "body": "b",
+    "title": "t",
+    "labels": "a,b",
+    "id": "9",
+    "reason": "completed",
+    "head": "h",
+    "base": "main",
+    "name": "p 1",
+    "node_id": "N",
+    "run": "5",
+    "workflow": "check.yml",
+    "ref": "main",
+    "branch": "w/1",
+}
+ISSUE_CALL = [
+    "gh",
+    "api",
+    "-X",
+    "POST",
+    "-f",
+    "title=t",
+    "-f",
+    "body=b",
+    "-f",
+    "labels[]=a",
+    "-f",
+    "labels[]=b",
+    "--jq",
+    ".number",
+    "repos/o/r/issues",
+]
+HUB_ANSWERS = {
+    "repos/o/r/pulls/3": json.dumps({"number": 3}),
+    "repos/o/r/pulls?state=open&per_page=100": '{"number": 1}\n{"number": 2}\n',
+    "repos/o/r/issues/3/timeline?per_page=100": "[]\n",
+    "repos/o/r/issues?state=open&per_page=100&labels=pitboss-hold": "",
+    "repos/o/r": json.dumps({"default_branch": "trunk"}),
+    "repos/o/r/pulls": "7\n",
+}
+RULES = [
+    {
+        "type": "required_status_checks",
+        "parameters": {"required_status_checks": [{"context": "check"}]},
+    },
+    {"type": "merge_queue"},
+]
+INPUT_ANSWERS = {
+    "repos/o/r/rules/branches/main": json.dumps(RULES),
+    "repos/o/r": json.dumps({"default_branch": "main"}),
+    "repos/o/r/commits/h/check-runs?per_page=100": json.dumps(
+        {"check_runs": [{"name": "check"}]}
+    ),
+    "repos/o/r/issues/1": json.dumps({"state": "open"}),
+    "repos/x/y/issues/4": json.dumps({"state": "closed"}),
+    "repos/o/r/pulls/3/files?per_page=100": json.dumps([{"filename": "a"}]),
+    "repos/o/r/issues/3/timeline?per_page=100": "",
+}
+BLOCKED_PULL = {
+    "body": "Fixes #1\n\nBlocked by x/y#4 and #9\n",
+    "base": {"ref": "main"},
+    "head": {"sha": "h"},
+}
+
+
+def _events(here: world.World) -> str:
+    return "".join(each.read_text() for each in here.workspace.rglob("*.events"))
+
+
+def _recorded(hub: fakehub.Made, done: actledger.Done) -> str:
+    event = actledger.ledger_event(hub.act, done, "2026-11-12T00:00:00")
+    return event.what if event else ""
 
 
 def _here() -> world.World:
@@ -58,28 +142,14 @@ class TestCommand(unittest.TestCase):
         )
         done = _act(here, "label", PULL, "name=p1", "--no-dry-run")
         assert_that(done.code, equal_to(0))
-        assert_that(
-            here.calls,
-            has_item(
-                [
-                    "gh",
-                    "api",
-                    "-X",
-                    "POST",
-                    "-f",
-                    "labels[]=p1",
-                    "repos/owner/project/issues/3/labels",
-                ]
-            ),
-        )
-        events = "".join(each.read_text() for each in here.workspace.rglob("*.events"))
+        assert_that(here.calls, has_item(LABEL_CALL))
+        events = _events(here)
         assert_that(events, contains_string("label owner/project#3"))
         assert_that((here.ledger.parent / actwiring.OWNER).exists(), equal_to(True))
         assert_that(
             _act(here, "comment", PULL, "body=hi", "--no-dry-run").code, equal_to(0)
         )
-        again = "".join(each.read_text() for each in here.workspace.rglob("*.events"))
-        assert_that(again, equal_to(events))
+        assert_that(_events(here), equal_to(events))
 
     def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
         """The fake GitHub applies no label: the write is made, then refused."""
@@ -119,33 +189,17 @@ class TestCommand(unittest.TestCase):
 
     def test_c17_the_ledger_event_names_the_branch(self) -> None:
         """A checked write is recorded with the PR's branch and head; another is not."""
-        given = shipped_kit()
-        hub = made(given)
+        hub = made(shipped_kit())
         target = actcore.Target(repo=REPO, number=NUMBER)
-        event = actledger.ledger_event(
-            hub.act,
-            actledger.Done(verb="merge", target=target, options={}),
-            "2026-11-12T00:00:00",
+        branch = str(base_map("pull", "head")["ref"])
+        merged = _recorded(hub, actledger.Done(verb="merge", target=target, options={}))
+        assert_that(merged, equal_to(f"merge {REPO}#{NUMBER} {branch} at act"))
+        comment = actledger.Done(verb="comment", target=target, options={})
+        assert_that(actledger.ledger_event(hub.act, comment, ""), equal_to(None))
+        push = actledger.Done(
+            verb="push", target=actcore.Target(repo=REPO), options={"branch": "w"}
         )
-        branch = str(dict(BASE.pull["head"])["ref"])  # type: ignore[call-overload]
-        assert_that(
-            event.what if event else "",
-            equal_to(f"merge {REPO}#{NUMBER} {branch} at act"),
-        )
-        assert_that(
-            actledger.ledger_event(
-                hub.act, actledger.Done(verb="comment", target=target, options={}), ""
-            ),
-            equal_to(None),
-        )
-        pushed = actledger.ledger_event(
-            hub.act,
-            actledger.Done(
-                verb="push", target=actcore.Target(repo=REPO), options={"branch": "w"}
-            ),
-            "",
-        )
-        assert_that(pushed.what if pushed else "", equal_to(f"push {REPO}#0 w at act"))
+        assert_that(_recorded(hub, push), equal_to(f"push {REPO}#0 w at act"))
 
 
 def _github(answers: dict[str, str]) -> tuple[list[Sequence[str]], ghapi.GitHub]:
@@ -168,68 +222,23 @@ class TestHub(unittest.TestCase):
 
     def test_c17_every_write_kind_has_its_call(self) -> None:
         """The table covers every kind a verb writes, with the path last."""
-        fields = {
-            "body": "b",
-            "title": "t",
-            "labels": "a,b",
-            "id": "9",
-            "reason": "completed",
-            "head": "h",
-            "base": "main",
+        firsts = {
+            words(actcore.Change(kind=kind, repo="o/r", number=3, fields=FIELDS))[0]
+            for kind, words in acthub.WRITES.items()
         }
-        fields |= {
-            "name": "p 1",
-            "node_id": "N",
-            "run": "5",
-            "workflow": "check.yml",
-            "ref": "main",
-            "branch": "w/1",
-        }
-        for kind, words in acthub.WRITES.items():
-            said = list(
-                words(actcore.Change(kind=kind, repo="o/r", number=3, fields=fields))
-            )
-            assert_that(said[0], equal_to("gh"))
+        assert_that(firsts, equal_to({"gh"}))
         issue = acthub.WRITES["issue"](
-            actcore.Change(kind="issue", repo="o/r", fields=fields)
+            actcore.Change(kind="issue", repo="o/r", fields=FIELDS)
         )
         empty = acthub.WRITES["comment"](
             actcore.Change(kind="comment", repo="o/r", number=3, fields={"body": ""})
         )
         assert_that("-f" in empty, equal_to(False))
-        assert_that(
-            list(issue),
-            equal_to(
-                [
-                    "gh",
-                    "api",
-                    "-X",
-                    "POST",
-                    "-f",
-                    "title=t",
-                    "-f",
-                    "body=b",
-                    "-f",
-                    "labels[]=a",
-                    "-f",
-                    "labels[]=b",
-                    "--jq",
-                    ".number",
-                    "repos/o/r/issues",
-                ]
-            ),
-        )
+        assert_that(list(issue), equal_to(ISSUE_CALL))
 
     def test_c17_reads_and_writes(self) -> None:
         """A PR, a listing a line each, a write's answer, and a PR given its base."""
-        answers = {
-            "repos/o/r/pulls/3": json.dumps({"number": 3}),
-            "repos/o/r/pulls?state=open&per_page=100": '{"number": 1}\n{"number": 2}\n',
-            "repos/o/r/issues/3/timeline?per_page=100": "[]\n",
-            "repos/o/r/issues?state=open&per_page=100&labels=pitboss-hold": "",
-            "repos/o/r": json.dumps({"default_branch": "trunk"}),
-            "repos/o/r/pulls": "7\n",
-        }
+        answers = dict(HUB_ANSWERS)
         calls, github = _github(answers)
         hub = acthub.hub_of(github)
         assert_that(hub.pull("o/r", 3), equal_to({"number": 3}))
@@ -240,16 +249,9 @@ class TestHub(unittest.TestCase):
             (hub.timeline("o/r", 3), hub.issues("o/r", "pitboss-hold")),
             equal_to(([], [])),
         )
-        assert_that(
-            hub.write(
-                actcore.Change(
-                    kind="pr",
-                    repo="o/r",
-                    fields={"head": "h", "title": "t", "body": "b"},
-                )
-            ),
-            equal_to("7"),
-        )
+        fields = {"head": "h", "title": "t", "body": "b"}
+        made_pr = hub.write(actcore.Change(kind="pr", repo="o/r", fields=fields))
+        assert_that(made_pr, equal_to("7"))
         assert_that(calls[-1], has_item("base=trunk"))
         answers["repos/o/r/pulls/4"] = "[]"
         assert_that(hub.pull("o/r", 4), equal_to({}))
@@ -263,38 +265,12 @@ class TestInputs(unittest.TestCase):
 
         A failed read is kept.
         """
-        answers = {
-            "repos/o/r/rules/branches/main": json.dumps(
-                [
-                    {
-                        "type": "required_status_checks",
-                        "parameters": {
-                            "required_status_checks": [{"context": "check"}]
-                        },
-                    },
-                    {"type": "merge_queue"},
-                ]
-            ),
-            "repos/o/r": json.dumps({"default_branch": "main"}),
-            "repos/o/r/commits/h/check-runs?per_page=100": json.dumps(
-                {"check_runs": [{"name": "check"}]}
-            ),
-            "repos/o/r/issues/1": json.dumps({"state": "open"}),
-            "repos/x/y/issues/4": json.dumps({"state": "closed"}),
-            "repos/o/r/pulls/3/files?per_page=100": json.dumps([{"filename": "a"}]),
-            "repos/o/r/issues/3/timeline?per_page=100": "",
-        }
-        _, github = _github(answers)
+        _, github = _github(INPUT_ANSWERS)
         settings = actinputs.Settings(
             identity="bot", authors=["dependabot[bot]"], max_lines=lambda _: 400
         )
         made_ = actinputs.live_inputs(actinputs.reader(github), settings)
-        pull = {
-            "body": "Fixes #1\n\nBlocked by x/y#4 and #9\n",
-            "base": {"ref": "main"},
-            "head": {"sha": "h"},
-        }
-        ctx = made_("o/r", 3, pull, [])
+        ctx = made_("o/r", 3, dict(BLOCKED_PULL), [])
         assert_that(
             (ctx["required_checks"], ctx["merge_queue"], ctx["max_lines"]),
             equal_to((["check"], True, 400)),
@@ -304,8 +280,8 @@ class TestInputs(unittest.TestCase):
             equal_to(([{"name": "check"}], [{"filename": "a"}], [])),
         )
         assert_that(ctx["blockers"], equal_to({"x/y#4": "closed", "#9": "not read"}))
-        assert_that(list(dict(ctx["tickets"]).keys()), equal_to(["o/r#1"]))  # type: ignore[call-overload]
-        assert_that("_error" in dict(ctx["statuses"]), equal_to(True))  # type: ignore[call-overload]
+        assert_that(list(members(ctx["tickets"])), equal_to(["o/r#1"]))
+        assert_that("_error" in members(ctx["statuses"]), equal_to(True))
         assert_that(ctx["authors"], equal_to({"bot", "dependabot[bot]"}))
 
 

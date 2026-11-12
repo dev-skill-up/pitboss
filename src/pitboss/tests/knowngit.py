@@ -30,11 +30,8 @@ def git(directory: pathlib.Path, *words: str) -> str:
     return captured.run(["git", "-C", str(directory), *identity, *words]).stdout
 
 
-def repo_pair(refuse: bool = False) -> pathlib.Path:
+def repo_pair() -> pathlib.Path:
     """An origin and a worktree on ``worker/7`` with one commit of work.
-
-    Args:
-        refuse: whether the origin refuses every push.
 
     Returns:
         The worktree.
@@ -49,12 +46,21 @@ def repo_pair(refuse: bool = False) -> pathlib.Path:
     (worktree / "f").write_text("x", encoding="utf-8")
     git(worktree, "add", "f")
     git(worktree, "commit", "-q", "-m", "work")
-    if refuse:
-        hook = origin / "hooks" / "pre-receive"
-        hook.write_text(
-            "#!/bin/sh\necho refused by the origin >&2; exit 1\n", encoding="utf-8"
-        )
-        hook.chmod(0o755)
+    return worktree
+
+
+def refusing_pair() -> pathlib.Path:
+    """A pair whose origin refuses every push.
+
+    Returns:
+        The worktree.
+    """
+    worktree = repo_pair()
+    hook = worktree.parent / "origin.git" / "hooks" / "pre-receive"
+    hook.write_text(
+        "#!/bin/sh\necho refused by the origin >&2; exit 1\n", encoding="utf-8"
+    )
+    hook.chmod(0o755)
     return worktree
 
 

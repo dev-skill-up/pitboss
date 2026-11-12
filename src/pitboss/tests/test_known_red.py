@@ -224,7 +224,7 @@ class TestThroughTheCommands(unittest.TestCase):
 
     def test_c28_the_sweep_prints_fix_first_for_the_merge_and_not_ready(self) -> None:
         """The READY TO MERGE line of the PR is replaced."""
-        here = with_red_canonical_files(dropped(False))
+        here = with_red_canonical_files(dropped())
         text = sweep(here).out
         assert_that(text, contains_string("FIX FIRST owner/project#2"))
         shown = [
