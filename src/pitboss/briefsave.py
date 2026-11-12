@@ -14,7 +14,7 @@ from . import directories
 DIRECTORY = "briefs"
 SUFFIX = ".brief"
 DISPATCH = (
-    "DISPATCH: {reference} ({model}): brief saved to {path}; dispatch with that"
+    "DISPATCH: {reference} for {model}: brief saved to {path}; dispatch with that"
     " file, never a path typed by hand"
 )
 UNSAVED = "DISPATCH: {reference}: brief NOT saved ({why}); do not hand-build one"
