@@ -34,6 +34,7 @@ from . import (
     brieftextprcheck,
     brieftextwhen,
     brieftextwork,
+    envrules,
 )
 
 Kind = briefkind.Kind
@@ -344,6 +345,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.EDIT,
         text.DENIED,
         text.LOCAL,
+        *envrules.lines(values["repo"]),  # keyword: env-check
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         brieftextlint.MARKUP_LINES,

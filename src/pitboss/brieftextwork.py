@@ -5,9 +5,12 @@ reviewed code change.
 """
 
 from . import brieftextbody, brieftextowner
+from .envrules import LIMIT
 
 NOX = (
-    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
+    "Nox: where the checks are nox sessions, run `timeout "
+    + LIMIT
+    + " pitboss nox` before"
     " a push, at most once per head, after the last edit (a maximum, not a"
     " target; the skills, lint and"
     " mypy first, then the tests of one Python version, which stop at the first"
@@ -19,7 +22,7 @@ NOX_ORDER = (
     "Nox order: where the checks are nox sessions, never invoke `virtue` or"
     " `python -m virtue` by hand: the nox session is the way to run tests. Start"
     " nothing in the background that needs polling: use one foreground command"
-    " under `timeout 598`, or one `Monitor` with an `until` loop."
+    " under `timeout " + LIMIT + "`, or one `Monitor` with an `until` loop."
 )
 FIRST_DESIGN = (
     "First design: throwing away a first design is acceptable and is not a thing"

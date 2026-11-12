@@ -56,6 +56,7 @@ pitboss = [
   "knownred.tsv",
   "claims.tsv",
   "clauses.tsv",
+  "standing.tsv",
 ]
 "pitboss.tests" = ["coverage_ids.txt"]
 
@@ -109,5 +110,6 @@ module = [
     "pitboss.checkinlines",
     "pitboss.sweep_commands",
     "pitboss.act_commands",
+    "pitboss.envcheck_commands",
 ]
 disallow_untyped_decorators = false

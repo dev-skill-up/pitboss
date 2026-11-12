@@ -5,6 +5,7 @@ reviewed code change.
 """
 
 from . import noxrow
+from .envrules import LIMIT
 
 PLAN_NO_NOX_ROW = noxrow.SENTENCE  # keyword: plan-nox (pitboss#251)
 PLAN_NO_NOX = (
@@ -29,8 +30,9 @@ PLAN_POINTER_LAST = (
 )
 PLAN_CI_POINTER = (
     "CI pointer: a Plan row whose result a CI run of the commit shows asks for no"
-    " long local command (a whole suite or build, or anything over `timeout"
-    " 598`); it points to CI and names the workflow, the step of the run's log, a"
+    " long local command (a whole suite or build, or anything over `timeout "
+    + LIMIT
+    + "`); it points to CI and names the workflow, the step of the run's log, a"
     " greppable string that step prints (a test name or a line), and how the run"
     " is found for the commit (the run and job URL `actions` gives for the head)."
     " Evidence in the PR body is only for what CI does not show (pitboss#179)."
@@ -44,7 +46,9 @@ BODY_CI_POINTER = (
 )
 PLAN_CI_POINTER_REVIEW = (
     "CI pointer: a Plan row that asks for a long local command (a whole suite or"
-    " build, or anything over `timeout 598`) whose result a CI run of the commit"
+    " build, or anything over `timeout "
+    + LIMIT
+    + "`) whose result a CI run of the commit"
     " shows is changes needed; so is a row that points to CI without the"
     " workflow, the step, a greppable string and how the run is found for the"
     " commit (pitboss#179)."

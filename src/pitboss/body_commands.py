@@ -25,6 +25,7 @@ from . import (
     handbackrun,
     expansion,
     partial,
+    envrules,
     repositoryrule,
     plandigest,
     workeractions,
@@ -144,6 +145,7 @@ def _refusals(args: argparse.Namespace, text: str) -> Sequence[str]:
         *handbackrun.refusals(args, commands.load_settings(args)),
         partial.refusal(text),
         repositoryrule.refusal(text),
+        envrules.give_up_refusal(text),  # keyword: env-check (quire#1065)
     ]
     edits = _edits(args)
     for each in edits[:1]:

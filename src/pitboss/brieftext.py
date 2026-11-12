@@ -6,6 +6,7 @@ code change.
 """
 
 from . import causetext
+from .envrules import LIMIT
 
 WORKTREE = (
     "Worktree: work in your own `git worktree add` of {repo} {checkout}; never in"
@@ -47,7 +48,9 @@ DENIED = (
     " fits."
 )
 LOCAL = (
-    "Local checks: wrap each in `timeout 598`; a 124 is left to CI, never rerun"
+    "Local checks: wrap each in `timeout "
+    + LIMIT
+    + "`; a 124 is left to CI, never rerun"
     " with a longer limit. Never leave a command running, and never remove files"
     " under /dev (redirecting to /dev/null is fine)."
 )
@@ -341,7 +344,9 @@ PLAN_CHECK = (
     " ok`, the output of `uvx pitboss plan-check <body file>` for this Plan (its"
     " `Plan digest:` line is the one you record); without it, or with a row that"
     " it says was NOT RUN (a command that cannot start, that waits on a lock or a"
-    " queue, or that exceeds `timeout 598`), the Plan is changes needed and you do"
+    " queue, or that exceeds `timeout "
+    + LIMIT
+    + "`), the Plan is changes needed and you do"
     " not approve it (keyword: plan-check, pitboss#192)."
 )
 
