@@ -12,6 +12,7 @@ from . import (
     actrun,
     configsettle,
     duplicatepr,
+    knownred,
     logline,
     phrases,
     pulls,
@@ -100,6 +101,8 @@ def act(args: argparse.Namespace) -> None:
     grid = actions.parse(phrases.shipped_text("actionmatrix.tsv"))[1]
     if refusal := actions.refusal(grid, action, facts.step, standing):
         _refuse(f"{args.pull}: {refusal}")
+    if refusal := knownred.refusal(facts, action):  # keyword: known-red (quire#1120)
+        _refuse(refusal)
     _make(found, action, facts, args.words[1:])
     print(f"act: {actions.word(action)} {args.pull} at {facts.step.step.name}")
     repoaccess.finish(found.access)

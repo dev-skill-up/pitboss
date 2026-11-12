@@ -158,6 +158,12 @@ class TestReading(unittest.TestCase):
         wanted = [("close", "o/r#3"), ("label", "o/r#4"), ("undraft", "o/r#5")]
         assert_that(said, equal_to(wanted))
 
+    def test_c17_a_raw_re_arm_of_auto_merge_is_an_unledgered_arm(self) -> None:
+        """An auto_merge_enabled event with no act record is named like a merge."""
+        items = [issue_event(8, "auto_merge_enabled", 3, 12)]
+        found = unledgered.from_issue_events("o/r", json.dumps(items))
+        assert_that([actions.word(e.action) for e in found], equal_to(["arm"]))
+
     def test_c17_a_merge_is_not_also_a_close(self) -> None:
         """GitHub gives a merged and a closed event for one merge: one act."""
         items = [issue_event(1, "merged", 3, 12), issue_event(2, "closed", 3, 12)]

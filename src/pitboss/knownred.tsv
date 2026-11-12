@@ -1,0 +1,11 @@
+# id	source	fix
+# The cheap statuses and checks that are known on a head before any step spends runner time (keyword: known-red, quire#1120).
+# source: status:<context> (a failed commit status or failed check run of that name), step:<Step names, +> (the PR is at one), unreadable (a comment that tries to be a review), pins (the pins-check said NOT OK), local (a command's exit, not on the head: `where` is the gate that runs it).
+text-lint	status:text-lint	fix the body (`pitboss lint pr-body`, `pitboss body`) or the missing relock-scratch run it cites, then `pitboss push`
+adversarial-review	status:adversarial-review	the review gate failed: read the status description and fix what it names, then `pitboss push`
+canonical-files	status:canonical-files	make the file canonical (the template filled), then `pitboss push`
+plan-check	step:PLAN_CHECK+SEND_BACK_PLAN_CHECK	post a clean `pitboss plan-check` for the Plan at this head
+review-form	unreadable	rewrite the review comment in the form (`pitboss review-form`), as a new comment
+pins-check	pins	fix what `pitboss pins-review` printed, then `pitboss push`
+base-check	local	`pitboss base-check` runs in the worker's brief before every push (basecheck_commands)
+hand-back-check	local	`pitboss hand-back-check` runs before a hand-back (handedback)

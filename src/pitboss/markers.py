@@ -98,6 +98,10 @@ class Marker(enum.Enum):
             dropped-from-queue, quire#1110).
         WAIT_FOR_HOLD: a runner-pressure hold or its quiet period withholds the
             action a PR's line asks for (keyword: hold-gate, quire#1110).
+        FIX_FIRST: a cheap check of the head is red (``text-lint``, the review gate,
+            ``canonical-files``, the Plan check, the review form, the pins-check),
+            so the step that would spend runner time waits for its fix (keyword:
+            known-red, quire#1120).
         DRAFT_STATE_CHANGED: a PR's draft state changed after the sweep marked it
             ready (keyword: draft-moves, pitboss#355).
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
@@ -278,6 +282,7 @@ class Marker(enum.Enum):
     COULD_NOT_SYNC = enum.auto()
     NOT_THE_ORCHESTRATOR_CONFIG = enum.auto()
     INCOMPLETE = enum.auto()
+    FIX_FIRST = enum.auto()
 
     @property
     def text(self) -> str:
@@ -298,6 +303,7 @@ SPELLED = {
     Marker.NO_HAND_BACK: "NO HAND-BACK",
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
     Marker.WAIT_FOR_HOLD: "WAIT-FOR-HOLD",
+    Marker.FIX_FIRST: "FIX FIRST",
     Marker.CHECK_IN_OVERDUE: "CHECK-IN OVERDUE",
 }
 
@@ -328,6 +334,7 @@ SELF_EXPLAINED = frozenset(
         Marker.BEHIND,
         Marker.READY_TO_MERGE,
         Marker.WAIT_FOR_HOLD,
+        Marker.FIX_FIRST,
         Marker.DROPPED_FROM_QUEUE,
         Marker.MERGE_BY_HAND,
         Marker.AUTO_MERGE_OFF,

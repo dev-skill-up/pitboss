@@ -21,7 +21,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
-from typing import Iterator, Sequence
+from typing import Callable, Iterator, Sequence
 
 from gather.commands import add_argument
 
@@ -35,6 +35,7 @@ from . import (
     devpath,
     expansion,
     filegates,
+    generatedfiles,
     forms,
     ghapi,
     headfindings,
@@ -340,7 +341,8 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
         patch = _diff(args, ref, "-U0", "--no-color")
         runner = functools.partial(plancheckrun.run_in, args, tree, args.timeout)
         rows, refused, runs = plancheck.report(section, runner)
-        diffs = (added, stat, patch)
+        hand = generatedfiles.handwritten(stat, patch, _scripted(args, head))
+        diffs = (added, *hand)
         prior = _prior(args, body)
         found = [
             *_of_trees(args, section, (tree, head), diffs),
@@ -350,8 +352,20 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *_gated(args, section, patch, head),
         ]
         said = [plancheckprior.note(prior)] if prior else []
-        noted = [*rows, *said, *_notes(section, runs, (stat, patch))]
+        noted = [*rows, *said, *_notes(section, runs, hand)]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
+
+
+def _scripted(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], bool]:
+    # keyword: generated-markup (pitboss#433): a file a tracked script names is generated
+    def grep(path: str) -> Sequence[str]:
+        words = ["git", "-C", str(head), "grep", "-l", "-F", "--", path]
+        try:
+            return args.safe_run(words).stdout.splitlines()
+        except (subprocess.CalledProcessError, OSError):
+            return []
+
+    return generatedfiles.scripted(grep)
 
 
 def _gated(

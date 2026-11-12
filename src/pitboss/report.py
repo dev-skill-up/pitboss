@@ -9,6 +9,7 @@ from . import (
     config,
     headchecks,
     holdgate,
+    knownred,
     local,
     pinsline,
     pulls,
@@ -108,14 +109,20 @@ def action_lines(
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
     return holdgate.gate(  # keyword: hold-gate (quire#1110)
         pull,
-        [
-            *_wait_lines(pull),
-            *_conflict_lines(pull),
-            *_failure_lines(pull, why),
-            *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
-            *behind,
-            *([merge] if merge else []),
-        ],
+        knownred.gate(  # keyword: known-red (quire#1120): before the hold
+            pull,
+            [
+                *_wait_lines(pull),
+                *_conflict_lines(pull),
+                *_failure_lines(pull, why),
+                *pinsline.lines(
+                    pulls.reference(pull), pull.signals.pins, _posting(pull)
+                ),
+                *behind,
+                *([merge] if merge else []),
+            ],
+            holdgate.PREFIXES,
+        ),
     )
 
 

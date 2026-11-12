@@ -23,6 +23,7 @@ ISSUE_ACTIONS = {
     "closed": actions.Action.CLOSE,
     "ready_for_review": actions.Action.UNDRAFT,
     "labeled": actions.Action.LABEL,
+    "auto_merge_enabled": actions.Action.ARM,  # keyword: action-gates (quire#1110)
 }
 
 

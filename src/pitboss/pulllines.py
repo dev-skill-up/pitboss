@@ -10,10 +10,12 @@ from . import (
     fixedline,
     foldline,
     gateline,
+    knownred,
     notesline,
     planeditline,
     planrowline,
     pulls,
+    steps,
     reviewline,
     roundline,
     stall,
@@ -22,6 +24,9 @@ from . import (
     work,
 )
 from .markers import Marker
+
+# the lines that ask for runner time: the e2e dispatch, and a relock's re-dispatch
+SPENDING = (steps.describe(steps.Next(step=steps.Step.RUN_E2E)),)
 
 
 def lines(
@@ -48,16 +53,20 @@ def lines(
     Returns:
         The lines, in that order.
     """
-    return (
-        *stall.lines(pull, now, steps),
-        *_branch_lines(pull, settings),
-        *roundline.lines(pull),
-        *planeditline.lines(pull),
-        *_draft_lines(pull),
-        *e2eline.lines(pull),
-        *foldline.lines(pull),
-        *_review_lines(pull),
-        *gateline.lines(pull),
+    return knownred.gate(  # keyword: known-red (quire#1120)
+        pull,
+        (
+            *stall.lines(pull, now, steps),
+            *_branch_lines(pull, settings),
+            *roundline.lines(pull),
+            *planeditline.lines(pull),
+            *_draft_lines(pull),
+            *e2eline.lines(pull),
+            *foldline.lines(pull),
+            *_review_lines(pull),
+            *gateline.lines(pull),
+        ),
+        SPENDING,
     )
 
 
