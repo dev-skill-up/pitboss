@@ -33,6 +33,7 @@ from . import (
     cipointer,
     cipointercheck,
     cirun,
+    configkeys,
     evidence,
     expansion,
     filegates,
@@ -237,6 +238,8 @@ KINDS = (
     (bodyrules.SECTION_CHECK, "Execution section findings"),
     (bodyrules.POINTER_CHECK, "Execution pointer findings"),
     (filegates.CHECK, "File gate findings"),
+    (configkeys.CHECK, "Config example findings"),
+    (configkeys.FIND_CHECK, "Config find findings"),
 )
 
 

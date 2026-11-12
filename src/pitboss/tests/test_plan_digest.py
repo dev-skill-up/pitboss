@@ -259,15 +259,12 @@ class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
 class TestTheOldDigestIsStillAccepted(unittest.TestCase):
     """A digest recorded before the expanded blocks were collapsed (pitboss#399)."""
 
-    def test_the_old_digest_of_the_plan_read_is_not_an_edit_and_another_is(
-        self,
-    ) -> None:
-        """The sweep prints no PLAN EDITED for the Plan the review read.
-
-        The nearest input is an old digest of a Plan that was edited since.
-        """
-        other = expanded_plan(prose="other\n")
-        for read, edited in ((expanded_plan(), False), (other, True)):
+    def test_the_digest_before_the_collapse_is_no_longer_the_plan_read(self) -> None:
+        """pitboss#399: the sweep prints PLAN EDITED for the digest of the old form."""
+        for read, edited in (
+            (expanded_plan(), True),
+            (expanded_plan(prose="o\n"), True),
+        ):
             with self.subTest(edited):
                 line = f"Plan digest: {legacy_digest(read)}"
                 body = expanded_plan()

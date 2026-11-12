@@ -75,3 +75,9 @@ class TestOneDigest(unittest.TestCase):
         one = expansion.section_digest("## Plan\nx\n")
         assert_that(one, equal_to(expansion.section_digest("## Plan\nx\n")))
         assert_that(one != expansion.section_digest("## Plan\ny\n"), equal_to(True))
+
+    def test_t399_the_digest_before_the_collapse_is_not_accepted(self) -> None:
+        """The section as it is stood in for the collapsed one until this ticket."""
+        section = "## Plan\n```pitboss-expand sha256=0000000000000000\n$ true\nx\n```\n"
+        accepted = expansion.accepted_digests(section)
+        assert_that(expansion.text_digest(section) in accepted, equal_to(False))

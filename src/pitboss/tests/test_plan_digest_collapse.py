@@ -111,8 +111,8 @@ def legacy_digest(body: str) -> str:
     return expansion.text_digest(plandigest.section(body))
 
 
-class TestTheOldDigestIsStillAccepted(unittest.TestCase):
-    """For one published version (pitboss#399 drops it)."""
+class TestTheOldDigestIsNoLongerAccepted(unittest.TestCase):
+    """The digest before the collapse is dropped (pitboss#399)."""
 
     def test_the_old_digest_is_not_the_new_one(self) -> None:
         """The two are told apart, so the acceptance is a real overlap."""
@@ -126,15 +126,17 @@ class TestTheOldDigestIsStillAccepted(unittest.TestCase):
                     expansion.text_digest(text), equal_to(bodydigest.digest(text))
                 )
 
-    def test_the_section_changed_reads_both(self) -> None:
-        """Either digest is the section; another is not."""
+    def test_the_section_changed_reads_the_collapsed_digest_alone(self) -> None:
+        """The collapsed digest is the section; the old one and another are not."""
         section = plandigest.section(plan())
-        for given in (digest(plan()), legacy_digest(plan())):
-            assert_that(expansion.section_changed(given, section), equal_to(False))
-        assert_that(expansion.section_changed("0" * 16, section), equal_to(True))
+        assert_that(expansion.section_changed(digest(plan()), section), equal_to(False))
+        for given in (legacy_digest(plan()), "0" * 16):
+            assert_that(expansion.section_changed(given, section), equal_to(True))
 
-    def test_an_approved_old_digest_exempts_the_plan_rows(self) -> None:
-        """The Plan-row rule does not judge a Plan whose old digest was approved."""
+    def test_an_approved_old_digest_no_longer_exempts_the_plan_rows(self) -> None:
+        """The Plan-row rule judges a Plan whose old digest was approved."""
         body = plan() + "\n## Evidence\n" + run("other", "x\n")
-        assert_that(planrow.findings("b", body, [legacy_digest(body)]), equal_to([]))
+        assert_that(
+            planrow.findings("b", body, [legacy_digest(body)]), is_not(equal_to([]))
+        )
         assert_that(planrow.findings("b", body, ["0" * 16]), is_not(equal_to([])))

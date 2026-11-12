@@ -13,7 +13,7 @@ from typing import Mapping, Sequence
 
 FORBIDDEN: Mapping[str, re.Pattern[str]] = {
     "T221 no empty commit": re.compile(r"allow-empty|empty commit", re.I),
-    "C13 no re-run to clear a flake": re.compile(
+    "C13 flake rerun": re.compile(
         r"re-?run (?:the |a |that )?(?:job|ci|workflow|check)|gh run rerun", re.I
     ),
     "B16 no close and reopen": re.compile(r"close and reopen|reopen the pr", re.I),

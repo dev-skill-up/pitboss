@@ -240,26 +240,25 @@ def run_urls_dropped(text: str) -> str:
 def accepted_digests(text: str) -> Sequence[str]:
     """The digests a record of a Plan section may carry to be of this section.
 
-    The first is the digest of the section with each block ``expand`` produced
-    collapsed to its command (keyword: plan-digest-collapse, pitboss#358) and the
-    run and job ids of its Actions addresses dropped (keyword: plan-digest-urls,
+    It is the digest of the section with each block ``expand`` produced collapsed
+    to its command (keyword: plan-digest-collapse, pitboss#358) and the run and
+    job ids of its Actions addresses dropped (keyword: plan-digest-urls,
     pitboss#475). The second is the digest of the section collapsed only, which
-    records made before the ids were dropped carry, and the third the digest of the
-    section as it is, which records made before the collapse carry: they are
-    accepted for one published version (pitboss#399 drops the acceptance).
+    records made before the ids were dropped carry (it goes with pitboss#475's
+    own removal). The digest of the section as it is, which records made before
+    the collapse carry, is no longer accepted (pitboss#399).
 
     Args:
         text: the section, empty when the body has none.
 
     Returns:
-        The three digests; none for no section.
+        The two digests; none for no section.
     """
     if not text:
         return []
     return [
         text_digest(run_urls_dropped(collapsed(text))),
         text_digest(collapsed(text)),
-        text_digest(text),
     ]
 
 

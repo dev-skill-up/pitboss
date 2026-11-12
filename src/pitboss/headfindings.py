@@ -2,13 +2,13 @@
 
 (Keywords: evidence-head, lint-test.) ``plan-check`` gives the head's SHA, which
 each Evidence block records, and the head's source files, which the diff
-changes. The module reads no file and calls nothing.
+changes. The module reads only the example of the configuration.
 """
 
 import pathlib
 from typing import Sequence
 
-from . import evidence, lintchange, selectdiff
+from . import configkeys, evidence, lintchange, selectdiff
 
 
 def of_head(
@@ -27,7 +27,10 @@ def of_head(
         changed finding functions with no cited new test (``lintchange``).
     """
     tree, sha = head
+    example = tree / configkeys.EXAMPLE
+    shown = example.read_text(encoding="utf-8") if example.is_file() else ""
     return [
         *evidence.stale_heads(body, sha),
+        *configkeys.findings(body, patch, shown),
         *lintchange.findings(section, patch, selectdiff.sources_of(str(tree))),
     ]
