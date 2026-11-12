@@ -13,6 +13,7 @@ from . import fakes, quietworld, test_config, world
 PROJECT_JOBS = world.project_page("actions/runs/11/jobs")
 START = world.START
 PUSH = ("push", "--no-dry-run", "origin", "branch-1")
+SCOPE = "; the hold covers only repositories of owner"
 
 
 def at(minute: int) -> str:
@@ -170,7 +171,7 @@ class TestPressure(unittest.TestCase):
             (lasts, [result.code for result in found], written),
             equal_to(
                 (
-                    [WAITING, FIRST_LOOK, CLEAR],
+                    [WAITING + SCOPE, FIRST_LOOK + SCOPE, CLEAR],
                     [1, 1, 0],
                     [f"{at(0)} hold", f"{at(0)} none", f"{at(0)} none"],
                 )

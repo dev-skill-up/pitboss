@@ -17,197 +17,83 @@ Done-when is the ticket body's alone (pitboss#396).
 import argparse
 import contextlib
 import functools
-import os
 import pathlib
 import subprocess
 import sys
-import tempfile
-import time
-from typing import IO, Iterator, Sequence
+from typing import Callable, Iterator, Sequence
 
 from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
-    cipointercheck,
     cirun,
     cloneguard,
     configfile,
+    configloads,
     configsettle,
-    devpath,
     expansion,
+    filegates,
     forms,
+    generatedfiles,
     ghapi,
     headfindings,
     markuplines,
     plancheck,
     plancheckconfig,
+    plancheckgit,
+    plancheckprior,
+    plancheckrun,
     plandigest,
     plantickets,
+    pullfile,
+    shapes,
 )
 
-USAGE_ERROR = 2
+USAGE_ERROR = plancheckgit.USAGE_ERROR
 REFUSED = 1
-QUIET = {
-    "check": False,
-    "capture_output": False,
-    "stdin": subprocess.DEVNULL,
-}
-
-
-def _fail(message: str) -> SystemExit:
-    print(message, file=sys.stderr)
-    return SystemExit(USAGE_ERROR)
-
-
-def status_in(
-    args: argparse.Namespace, directory: pathlib.Path, timeout: int, command: str
-) -> tuple[int | str, int]:
-    """Run one command line in a directory, with a time limit.
-
-    The output goes to a file that is only measured (a pipe a stray child holds
-    open would outlast the limit), and nothing is read from the terminal.
-
-    Args:
-        args: the parsed arguments.
-        directory: the working directory.
-        timeout: the most seconds the command may run.
-        command: the command line, for ``sh -c``.
-
-    Returns:
-        Its exit status, or the text that says why it did not finish, and how
-        many bytes it printed, standard output and error together (keyword:
-        evidence-size, pitboss#396).
-    """
-    with tempfile.TemporaryFile() as output:
-        outcome = _started(args, command, (directory, timeout), output)
-        # the file's own size, whatever the offset the command left
-        return outcome, os.fstat(output.fileno()).st_size
-
-
-def _started(
-    args: argparse.Namespace,
-    command: str,
-    where: tuple[pathlib.Path, int],
-    output: IO[bytes],
-) -> int | str:
-    directory, timeout = where
-    try:
-        done = args.safe_run(
-            ["sh", "-c", command],
-            cwd=directory,
-            timeout=timeout,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            **QUIET,
-        )
-    except subprocess.TimeoutExpired:
-        return f"timed out after {timeout}s"
-    except OSError as error:
-        return f"cannot start ({error})"
-    return int(done.returncode)
-
-
-def run_in(
-    args: argparse.Namespace, directory: pathlib.Path, timeout: int, command: str
-) -> plancheck.Run:
-    """Run one command line in a directory, and time it.
-
-    Args:
-        args: the parsed arguments.
-        directory: the working directory.
-        timeout: the most seconds the command may run.
-        command: the command line, for ``sh -c``.
-
-    Returns:
-        What it did.
-    """
-    started = time.monotonic()
-    outcome, printed = status_in(args, directory, timeout, command)
-    seconds = time.monotonic() - started
-    if isinstance(outcome, str):
-        return plancheck.cut_off(outcome, seconds)
-    return plancheck.finished(outcome, seconds, printed)
-
-
-def _git(args: argparse.Namespace, *words: str) -> str:
-    try:
-        done = args.safe_run(
-            ["git", "-C", args.repo, *words],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except (subprocess.CalledProcessError, OSError) as error:
-        raise _fail(f"git {' '.join(words)}: {error}") from error
-    return str(done.stdout)
-
-
-@contextlib.contextmanager
-def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Path]:
-    """A detached worktree of a commit, removed when the block ends.
-
-    Args:
-        args: the parsed arguments (``repo``).
-        ref: the commit: the base, or the head.
-
-    Yields:
-        The worktree's directory.
-
-    Raises:
-        _fail: when the temporary directory is under ``/dev``, where nothing is
-            removed (#424).
-    """
-    refused = devpath.temporary_under_dev()
-    if refused:
-        raise _fail(f"plan-check: no scratch worktree, {refused}")
-    with tempfile.TemporaryDirectory(prefix="plan-check-") as scratch:
-        tree = pathlib.Path(scratch) / "tree"
-        _git(args, "worktree", "add", "--detach", str(tree), ref)
-        try:
-            yield tree
-        finally:
-            _git(args, "worktree", "remove", "--force", str(tree))
 
 
 HEAD_OPTION = add_argument(
     "--head",
     default="",
-    help="the PR's head, which the Plan's CI pointers and cited lines are held to"
-    " (default: the last `Head:` line of the body, else HEAD of the checkout)",
+    help=(
+        "the PR's head, which the Plan's CI pointers and cited lines are held to"
+        " (default: the last `Head:` line of the body, else HEAD of the checkout)"
+    ),
 )
 
 
 CONFIG_OPTION = add_argument(
     "--config",
     default=None,
-    help="the project's configuration: a path, or a name in"
-    " .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else the search, else"
-    " the copy fetched by the repository's name). Its table [plan_check] has"
-    " `specs`, patterns of the paths of a spec (e2e/*.spec.js), and `groups`, the"
-    " files that list the specs a CI job runs (tests/groups.json): a spec the diff"
-    " adds must be named by a CI pointer's greppable string (a row with a"
-    " `workflow` file and, after `job`, `step` or `greppable`, backticked names)"
-    " and by a group file; every pointer's workflow file, job and step must exist"
-    " as written. With no table, no spec is checked",
+    help=(
+        "the project's configuration: a path, or a name in"
+        " .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else the search, else"
+        " the copy fetched by the repository's name). Its table [plan_check] has"
+        " `specs`, patterns of the paths of a spec (e2e/*.spec.js), and `groups`, the"
+        " files that list the specs a CI job runs (tests/groups.json): a spec the diff"
+        " adds must be named by a CI pointer's greppable string (a row with a"
+        " `workflow` file and, after `job`, `step` or `greppable`, backticked names)"
+        " and by a group file; every pointer's workflow file, job and step must exist"
+        " as written. With no table, no spec is checked"
+    ),
 )
 
 
 def _plan_of(name: str, body: str) -> str:
     section = plandigest.section(body)
     if not section:
-        raise _fail(f"{name}: no `## Plan` section")
+        raise plancheckgit.usage_error(f"{name}: no `## Plan` section")
     try:
         expansion.commands(section)
     except expansion.TemplateError as error:
-        raise _fail(f"{name}: {error}") from error
+        raise plancheckgit.usage_error(f"{name}: {error}") from error
     return section
 
 
 @ENTRY_DATA.register(
     add_argument(
         "file",
-        type=argparse.FileType("r", encoding="utf-8"),
         help="the PR body as `gh api` printed it, in a file",
     ),
     add_argument(
@@ -218,16 +104,38 @@ def _plan_of(name: str, body: str) -> str:
     add_argument(
         "--base",
         default="origin/main",
-        help="the PR's base, which the scratch worktree is made of (default:"
-        " origin/main)",
+        help=(
+            "the PR's base, which the scratch worktree is made of (default:"
+            " origin/main)"
+        ),
     ),
     HEAD_OPTION,
     CONFIG_OPTION,
     add_argument(
         "--repository",
         default="",
-        help="the PR's repository as OWNER/NAME, which owns a bare `Fixes #N`"
-        " (default: the checkout's `origin`)",
+        help=(
+            "the PR's repository as OWNER/NAME, which owns a bare `Fixes #N`"
+            " (default: the checkout's `origin`)"
+        ),
+    ),
+    add_argument(
+        "--pull",
+        default="",
+        help=(
+            "the PR as OWNER/NAME#NUMBER: a Plan that an earlier `Plan check: ok`"
+            " comment on it recorded is not judged again by the run of the head or the"
+            " ticket's Done-when, and the comment relied on is named (pitboss#444)"
+        ),
+    ),
+    add_argument(
+        "--post",
+        default="",
+        help=(
+            "post the output as a comment on this PR (OWNER/NAME#NUMBER), whose"
+            " first line is `Plan check` and whose last is `Plan check: ok` or"
+            " `Plan check: refused`; the comment's address goes to standard error"
+        ),
     ),
     add_argument(
         "--timeout",
@@ -264,17 +172,21 @@ def plan_check(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a row did not run, on a finding, or in a changed main clone.
     """
-    configsettle.find_or_say(args)
-    cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
     output, failed = _read_and_checked(args)
     sys.stdout.write(output)
+    plancheckprior.post_if(args, output)  # case 14: the output's own heading
     if failed:
         raise SystemExit(REFUSED)
 
 
 def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
-    body = args.file.read()
-    section = _plan_of(args.file.name, body)
+    configsettle.find_or_say(args)
+    cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
+    try:
+        body = pathlib.Path(args.file).read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise plancheckgit.usage_error(f"{args.file}: {error}") from error
+    section = _plan_of(args.file, body)
     args.body = body  # the checks that read the body whole take it from here
     return _checked(args, section, _head_of(args, body))
 
@@ -289,7 +201,7 @@ def _settings(args: argparse.Namespace) -> plancheckconfig.PlanCheck:
         return plancheckconfig.PlanCheck()
     start = configfile.working_directory(args)
     with _unreadable(args.config):
-        found = configfile.load_plan_check(args.config, start)
+        found = configloads.load_plan_check(args.config, start)
     return found
 
 
@@ -299,34 +211,7 @@ def _unreadable(name: str) -> Iterator[None]:
     try:
         yield
     except (OSError, ValueError) as error:
-        raise _fail(f"{name}: {error}") from error
-
-
-def _added(args: argparse.Namespace, ref: str) -> Sequence[str]:
-    # the paths the PR adds: the head against its merge base with the base
-    return _names(args, ref, "--diff-filter=A")
-
-
-def _names(args: argparse.Namespace, ref: str, *flags: str) -> Sequence[str]:
-    # the paths of the head against its merge base with the base
-    words = ["diff", "--name-only", "-z", *flags, f"{args.base}...{ref}"]
-    return [each for each in _git(args, *words).split("\0") if each]
-
-
-def _diff(args: argparse.Namespace, ref: str, *flags: str) -> str:
-    # keyword: markup-lines (pitboss#343, #373): the lines the PR adds to each
-    # file (--numstat -z) and its hunks, to tell a cut span from a new line (-U0)
-    return _git(args, "diff", *flags, "--no-renames", f"{args.base}...{ref}")
-
-
-def _reading(tree: pathlib.Path) -> cipointercheck.Read:
-    def read(path: str) -> str | None:
-        found = tree / path
-        if not found.is_file():
-            return None
-        return found.read_text(encoding="utf-8", errors="replace")
-
-    return read
+        raise plancheckgit.usage_error(f"{name}: {error}") from error
 
 
 def _repository(args: argparse.Namespace) -> str:
@@ -334,46 +219,131 @@ def _repository(args: argparse.Namespace) -> str:
     if args.repository:
         return str(args.repository)
     try:
-        return plantickets.slug_of(_git(args, "remote", "get-url", "origin"))
+        return plantickets.slug_of(
+            plancheckgit.git(args, "remote", "get-url", "origin")
+        )
     except SystemExit:
         return ""
 
 
-def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list[str]:
+def _contained(args: argparse.Namespace, ref: str, sha: str) -> bool:
+    # whether the commit of a run is one the head contains (a push or a merge of
+    # main since keeps an approved Plan's run valid); keyword: plan-prior
+    try:
+        args.safe_run(
+            ["git", "-C", args.repo, "merge-base", "--is-ancestor", sha, ref],
+            check=True,
+            capture_output=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return False
+    return True
+
+
+def _prior(args: argparse.Namespace, body: str) -> shapes.Comment | None:
+    # the earlier clean check of this Plan on the PR named by --pull, if any
+    if not args.pull:
+        return None
+    slug, number = pullfile.split("plan-check", args.pull)
+    found = plancheckprior.comments(ghapi.read_only(args.safe_run), slug, number)
+    return plancheckprior.relied_on(found, body)
+
+
+# the ref of the head and the prior Plan check; the base's tree and the head's
+Given = tuple[str, shapes.Comment | None]
+Trees = Sequence[pathlib.Path]
+
+
+def _remote(
+    args: argparse.Namespace,
+    body: str,
+    section: str,
+    given: Given,
+) -> list[str]:
     # keywords: ci-run, plan-done-when (pitboss#317, #396): GitHub's word on the run
+    ref, prior = given
     github = ghapi.read_only(args.safe_run)
     named = forms.FIXES.search(body)
     ticket = named.group(1) if named else ""
-    return [
-        *cirun.findings(section, ref, plantickets.run_head(github)),
-        *plantickets.done_when(github, ticket, _repository(args), body),
-    ]
-
-
-def _sha(args: argparse.Namespace, ref: str) -> str:
-    return _git(args, "rev-parse", ref).strip()
+    earlier = functools.partial(_contained, args, ref) if prior else cirun.never
+    heads = cirun.findings(section, ref, plantickets.run_head(github), earlier)
+    if prior:  # keyword: plan-prior: approved once, not judged again by the ticket
+        return [*heads]
+    return [*heads, *plantickets.done_when(github, ticket, _repository(args), body)]
 
 
 def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
-    body = args.body
+    prior = _prior(args, args.body)
     with (
-        scratch_worktree(args, args.base) as tree,
-        scratch_worktree(args, ref) as head,
+        plancheckgit.scratch_worktree(args, args.base) as tree,
+        plancheckgit.scratch_worktree(args, ref) as head,
     ):
-        added = _added(args, ref)
-        stat = _diff(args, ref, "--numstat", "-z")
-        patch = _diff(args, ref, "-U0", "--no-color")
-        runner = functools.partial(run_in, args, tree, args.timeout)
+        runner = functools.partial(plancheckrun.run_in, args, tree, args.timeout)
         rows, refused, runs = plancheck.report(section, runner)
-        diffs = (added, stat, patch)
-        found = [
-            *_of_trees(args, section, (tree, head), diffs),
-            *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
-            *_remote(args, body, section, ref),
-            *headfindings.of_head(body, section, patch, (head, _sha(args, ref))),
-        ]
-        noted = [*rows, *_notes(section, runs, (stat, patch))]
+        found, hand = _findings(args, section, (ref, prior), (tree, head))
+        said = [plancheckprior.note(prior)] if prior else []
+        noted = [*rows, *said, *_notes(section, runs, hand)]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
+
+
+def _findings(
+    args: argparse.Namespace,
+    section: str,
+    given: Given,
+    trees: Trees,
+) -> tuple[Sequence[str], tuple[str, str]]:
+    # every finding of the head against the base, and the handwritten diff
+    ref, head = given[0], trees[1]
+    stat = plancheckgit.diff(args, ref, "--numstat", "-z")
+    patch = plancheckgit.diff(args, ref, "-U0", "--no-color")
+    hand = generatedfiles.handwritten(stat, patch, scripted_in(args, head))
+    diffs = (plancheckgit.added(args, ref), *hand)
+    body = args.body
+    found = [
+        *_of_trees(args, section, trees, diffs),
+        *plancheck.form_findings(
+            body, section, plancheckgit.names(args, ref, "--no-renames")
+        ),
+        *_remote(args, body, section, given),
+        *headfindings.of_head(
+            body, section, patch, (head, plancheckgit.sha(args, ref))
+        ),
+        *_gated(args, section, patch, head),
+    ]
+    return found, hand
+
+
+def scripted_in(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], bool]:
+    """Whether a tracked script of the head's tree names a file.
+
+    The keyword is generated-markup (pitboss#433): such a file is generated.
+
+    Args:
+        args: the parsed arguments, with the runner.
+        head: the head's tree.
+
+    Returns:
+        A function from a path to True when another tracked file names it.
+    """
+
+    def grep(path: str) -> Sequence[str]:
+        words = ["git", "-C", str(head), "grep", "-l", "-F", "--", path]
+        try:
+            out: str = args.safe_run(words).stdout
+            return out.splitlines()
+        except (subprocess.CalledProcessError, OSError):
+            return []
+
+    return generatedfiles.scripted(grep)
+
+
+def _gated(
+    args: argparse.Namespace, section: str, patch: str, head: pathlib.Path
+) -> Sequence[str]:
+    # keyword: file-gates (quire#1120): a Plan has a row for each gate of a changed file
+    text_of = plancheckgit.reading(head)
+    files = (text_of("CLAUDE.md") or "", text_of)
+    return filegates.findings(_repository(args), patch, section, files)
 
 
 def _notes(
@@ -393,7 +363,7 @@ def _of_trees(
     diffs: tuple[Sequence[str], str, str],
 ) -> Sequence[str]:
     # the findings that read the base's tree and the head's, and the diff
-    files = (_reading(trees[0]), _reading(trees[1]))
+    files = (plancheckgit.reading(trees[0]), plancheckgit.reading(trees[1]))
     return [
         *plancheck.ci_findings(section, diffs[0], _settings(args), files),
         *markuplines.findings(diffs[1], diffs[2]),

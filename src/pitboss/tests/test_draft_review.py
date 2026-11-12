@@ -17,7 +17,8 @@ from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, shapes, steps
 from . import fakes, test_flow, world
-from .briefmake import has_none, make, text
+from .briefmake import make, text
+from .says import has_none, says
 from .test_commands import sweep
 from .test_flow import CHANGES as FLOW_CHANGES, expect, state
 from .test_flow_sweep import (
@@ -105,7 +106,7 @@ class TestDraftsInSlotsNext(unittest.TestCase):
         here = quiet(world_with(rounds, draft=True))
         assert_that(listed(here), equal_to(("review it", True)))
 
-    def test_a_draft_whose_plan_is_rejected_at_its_head_is_a_fix(self) -> None:
+    def test_t132_a_draft_whose_plan_is_rejected_at_its_head_is_a_fix(self) -> None:
         """Changes needed on the Plan: revise the plan, before any ticket."""
         here = quiet(world_with([graded(CHANGES, None, 1)], draft=True))
         assert_that(listed(here), equal_to(("revise the plan", True)))
@@ -141,7 +142,7 @@ class TestDraftsInSlotsNext(unittest.TestCase):
         approved = graded(APPROVED, None, 1)
         here = quiet(world_with([approved], draft=True))
         assert_that(listed(here)[0], starts_with("mark the PR ready"))
-        assert_that(sweep(here).out, contains_string("owner/project#3"))
+        says(sweep(here).out, "owner/project#3")
 
 
 def swept(rounds: Sequence[shapes.Comment], **changes: object) -> str:
@@ -176,7 +177,9 @@ class TestDraftsInTheSweep(unittest.TestCase):
         assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
         assert_that("DRAFT ROUND owner/project#3: review it" in out, equal_to(False))
 
-    def test_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy(self) -> None:
+    def test_t132_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy(
+        self,
+    ) -> None:
         """pitboss#130: ``slots next`` offers a ruling, and no review line for PR 3."""
         rounds = [graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2)]
         here = world_with(rounds, draft=True)
@@ -250,7 +253,7 @@ class TestTheBrief(unittest.TestCase):
     def test_a_plan_review_reads_the_diff_and_the_body_only(self) -> None:
         """No hand-back NOT STARTED for a missing check run."""
         found = text(brief.Kind.REVIEW_PLAN)
-        assert_that(found, contains_string("a draft has no check run"))
+        assert_that(found, contains_string("a draft runs no CI job"))
         assert_that(found, contains_string("You read the diff and the PR body only"))
         assert_that(found, contains_string("never hand back `NOT STARTED`"))
         has_none(
@@ -263,10 +266,22 @@ class TestTheBrief(unittest.TestCase):
         found = brief.build(spec)
         assert_that(found.count(CI_LINE), equal_to(1))
         assert_that(found, contains_string("Scope (exclusive): the Plan of head"))
-        has_none(found, ["a draft has no check run, so there is no CI"])
+        has_none(
+            found,
+            [
+                "a draft runs no CI job (its check is reported skipped, never missing;"
+                " keyword: draft-ci, pitboss#321), so there is no CI"
+            ],
+        )
 
     def test_every_other_review_still_reads_the_checks(self) -> None:
         """A review of a head with a check run is refused without a finished one."""
         found = text(brief.Kind.REVIEW_FULL) + text(brief.Kind.REVIEW_EXECUTION)
         assert_that(found.count(CI_LINE), equal_to(2))
-        has_none(found, ["a draft has no check run, so there is no CI"])
+        has_none(
+            found,
+            [
+                "a draft runs no CI job (its check is reported skipped, never missing;"
+                " keyword: draft-ci, pitboss#321), so there is no CI"
+            ],
+        )

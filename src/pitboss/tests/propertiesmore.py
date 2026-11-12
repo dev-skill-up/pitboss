@@ -1,0 +1,102 @@
+"""Properties P2 and P3 of the review flow (pitboss#444, keyword: properties).
+
+P2: a ``do these steps`` ruling no review or push followed is the step, at every
+state. P3: a Plan check at a later head keeps the digest of an approved Plan.
+"""
+
+from typing import Callable
+
+from .. import expansion, plandigest, steps
+from . import model
+
+Allowed = model.Allowed
+
+
+RUNNING = ("running",)
+RED = ("red",)
+
+
+def _read(digest: Callable[[str], str], version: int, head: int) -> str:
+    # the digest of a version of the Plan as the body reads at a head
+    return digest(plandigest.section(model.body_of(version, head)))
+
+
+def unapplied(at: model.Model) -> bool:
+    """Whether the newest ruling says ``do these steps`` and nothing followed it.
+
+    Args:
+        at: the PR.
+
+    Returns:
+        True when no review and no push is newer than that ruling.
+    """
+    rulings = at.history.rulings
+    when, word = rulings[-1] if rulings else (0, None)
+    later = [each for each in at.history.reviews if each[0] > when]
+    return word is model.Ruling.DO_THESE_STEPS and not later and at.pushed < when
+
+
+def p2_ruling_steps(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
+    """P2: a ``do these steps`` ruling no review or push followed is the step.
+
+    At every state, not after a chosen last event. The only steps that come
+    before it are the ones the order of ``flow.ROWS`` puts first, each held by its
+    own cause: the pause, an edited Plan, a conflict, a CI that runs or is red.
+
+    Args:
+        at: the PR.
+        step: its step.
+        allowed: the rule for a ruling (unused).
+
+    Returns:
+        The finding, empty when the property holds.
+    """
+    edited = any(each[4] != at.plan for each in at.history.reviews)
+    first = {
+        steps.Step.WAIT_FOR_OWNER: at.paused,
+        steps.Step.PLAN_EDITED: edited,
+        steps.Step.WAIT_FOR_CI: at.ci in RUNNING,
+    }
+    ruled = step.task is steps.Task.RULING_STEPS
+    fixing = step.task is steps.Task.RESOLVE_CONFLICT and at.conflict
+    fixing = fixing or step.task is steps.Task.FIX_CI and at.ci in RED
+    ahead = first.get(step.step, False) or fixing
+    return (
+        "P2: the ruling's steps are not the step"
+        if unapplied(at) and not ruled and not ahead
+        else ""
+    )
+
+
+def p3_plan_digest(
+    at: model.Model,
+    step: steps.Next,
+    allowed: Allowed,
+    digest: Callable[[str], str] = expansion.section_digest,
+) -> str:
+    """P3: a Plan check at a later head keeps the digest of an approved Plan.
+
+    Each Plan check and review of the PR was made at a head; the digest of the
+    Plan it read, as ``digest`` gives it, is the digest of the same version of the
+    Plan at the PR's head now (only the run and job ids of the Actions addresses
+    differ), and the flow does not say the Plan was edited when no version differs.
+
+    Args:
+        at: the PR.
+        step: its step.
+        allowed: the rule for a ruling (unused).
+        digest: the digest of a Plan section (the one that reads the ids is the
+            planted violation).
+
+    Returns:
+        The finding, empty when the property holds.
+    """
+    made = [(version, head) for _, version, head in at.history.checks]
+    made += [(each[4], each[3]) for each in at.history.reviews]
+    moved = any(_read(digest, v, h) != _read(digest, v, at.head) for v, h in made)
+    edited = step.step is steps.Step.PLAN_EDITED and all(v == at.plan for v, _ in made)
+    return (
+        "P3: a later head changed the digest of an approved Plan"
+        if moved or edited
+        else ""
+    )

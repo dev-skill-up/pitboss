@@ -50,9 +50,11 @@ class Output:
 
     Attributes:
         stdout: its output.
+        returncode: its exit status.
     """
 
     stdout: str
+    returncode: int = 0
 
 
 class Processes(Protocol):
@@ -286,7 +288,20 @@ def write(path: pathlib.Path, text: str) -> None:
         text: its content.
     """
     os.makedirs(path.parent, exist_ok=True)
-    path.write_text(text)
+    path.write_text(text, encoding="utf-8")
+
+
+def calls_with(calls: Sequence[Sequence[str]], word: str) -> Sequence[Sequence[str]]:
+    """The calls that have a word.
+
+    Args:
+        calls: the calls made.
+        word: the word (``-X``, ``POST``).
+
+    Returns:
+        Those calls, in order.
+    """
+    return [call for call in calls if call.count(word)]
 
 
 def bodies_under(

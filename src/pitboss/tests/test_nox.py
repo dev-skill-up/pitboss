@@ -8,7 +8,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import disk, diskwatch, expansion, noxcheck
 from . import world
-from .briefmake import has_all, has_none
+from .says import exits, has_all, has_none
 
 COMMANDS = [
     ["nox", "-r", "-s", "skills"],
@@ -156,7 +156,7 @@ class TestNoxCommand(unittest.TestCase):
         """skills, lint and mypy first, tests-3.13 last; never without -r."""
         found, calls = run_nox({})
         assert_that(calls, equal_to(COMMANDS))
-        assert_that(found.code, equal_to(0))
+        exits(found, 0)
 
     def test_it_names_the_proof_and_ends_with_a_line_for_each_session(self) -> None:
         """The proof, then name, success and seconds of each: the last lines."""

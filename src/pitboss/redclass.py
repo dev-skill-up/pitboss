@@ -53,7 +53,8 @@ RULES = (
         RedClass.EXTERNAL_INFRASTRUCTURE,
         Field.ERROR,
         r"econnreset|etimedout|eai_again|50[234] |could not resolve host"
-        r"|rate limit|connection reset|runner has received a shutdown",
+        r"|rate limit|connection reset|runner has received a shutdown"
+        r"|temporary failure resolving",
     ),
     _rule(RedClass.PIN_MOVE, Field.BRANCH, r"^(dependabot|relock)/"),
     _rule(

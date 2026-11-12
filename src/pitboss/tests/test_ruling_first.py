@@ -10,7 +10,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import flow, shapes, steps
 from . import test_flow, test_flow_sweep as scenes
@@ -19,6 +19,7 @@ from .test_commands import sweep
 from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state
 from .test_flow_sweep import RULING_LINE
 from .test_slot_commands import next_output
+from .says import says
 
 RULING_URL = "https://example.org/ruling/2"
 PLAN_ALONE = graded(APPROVED, None, 3)
@@ -63,7 +64,7 @@ class TestRulingFirst(unittest.TestCase):
     def test_the_fix_round_follows_a_recorded_ruling(self) -> None:
         """Only once the ruling is recorded: the ruling's own step."""
         pr = state(REJECTED, comments=ruled("do these steps"))
-        expect(steps.worker(steps.Task.RULING_STEPS), pr)
+        expect(test_flow.ruling_steps(2), pr)
 
     def test_a_rejection_after_the_ruling_pauses(self) -> None:
         """The ruling was used and the Execution is still rejected."""
@@ -83,7 +84,7 @@ class TestUnfixedExecution(unittest.TestCase):
         """A ruling of another word gives its first step; none, the ruling is due."""
         ruling = ruled("do these steps")
         expect(
-            steps.worker(steps.Task.RULING_STEPS),
+            test_flow.ruling_steps(2),
             unmoved(state(REJECTED, PLAN_ALONE, comments=ruling)),
         )
         expect(steps.opus_ruling(), unmoved(state(REJECTED, PLAN_ALONE)))
@@ -124,7 +125,7 @@ class TestWorld(unittest.TestCase):
         """A rejected Execution and a Plan revised with no ruling."""
         rejected = scenes.graded(scenes.APPROVED, scenes.CHANGES, 1, sha=scenes.OLDER)
         here = scenes.unfixed_rounds(rejected, scenes.graded(scenes.APPROVED, None, 3))
-        assert_that(sweep(here).out, contains_string(RULING_LINE))
+        says(sweep(here).out, RULING_LINE)
         assert_that(next_output(here).count("project#3 ("), equal_to(0))
 
     def test_a_pushed_fix_is_reviewed_and_a_derived_file_is_no_code(self) -> None:

@@ -1,0 +1,49 @@
+# derived by derive/github_sets.py from https://docs.github.com/en/rest/pulls/pulls#create-a-pull-request (201 schema, top-level fields with their type/enum)
+# count: 47
+_links	required, object:
+active_lock_reason	string or null
+additions	required, integer
+assignees	array of `Simple User` (see above)
+author_association	required, string, enum: `COLLABORATOR`, `CONTRIBUTOR`, `FIRST_TIMER`, `FIRST_TIME_CONTRIBUTOR`, `MANNEQUIN`, `MEMBER`, `NONE`, `OWNER`
+auto_merge	required, `Auto merge`:
+base	required, object:
+body	required, string or null
+changed_files	required, integer
+closed_at	required, string or null, format: date-time
+comments	required, integer
+comments_url	required, string, format: uri
+commits	required, integer
+commits_url	required, string, format: uri
+created_at	required, string, format: date-time
+deletions	required, integer
+diff_url	required, string, format: uri
+draft	boolean
+head	required, object:
+html_url	required, string, format: uri
+id	required, integer, format: int64
+issue_url	required, string, format: uri
+labels	required, array of objects:
+locked	required, boolean
+maintainer_can_modify	required, boolean
+mergeable	required, boolean or null
+mergeable_state	required, string
+merged	required, boolean
+merged_at	required, string or null, format: date-time
+merged_by	required, any of:
+milestone	required, any of:
+node_id	required, string
+number	required, integer
+patch_url	required, string, format: uri
+rebaseable	boolean or null
+requested_reviewers	array of `Simple User` (see above)
+requested_teams	array of `Team Simple`:
+review_comment_url	required, string
+review_comments	required, integer
+review_comments_url	required, string, format: uri
+stack	`Pull Request Stack`:
+state	required, string, enum: `open`, `closed`
+statuses_url	required, string, format: uri
+title	required, string
+updated_at	required, string, format: date-time
+url	required, string, format: uri
+user	required, `Simple User`:

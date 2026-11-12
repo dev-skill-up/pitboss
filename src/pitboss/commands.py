@@ -16,13 +16,16 @@ from typing import AbstractSet, Mapping, Sequence
 from . import (
     account,
     autoclean,
+    blockedby,
     cleanconfig,
     cleanjob,
     concurrently,
     config,
     configfile,
+    configloads,
     dead,
     draftmoves,
+    finishpartial,
     gates,
     ghapi,
     ghmemo,
@@ -30,8 +33,8 @@ from . import (
     ledger,
     ledgerowner,
     localsections,
-    offering,
     machine as machines,
+    offering,
     pullmarks,
     pulls,
     queue,
@@ -40,11 +43,12 @@ from . import (
     repoaccess,
     report,
     scratch,
-    summaryline,
     scratchconfig,
     shapes,
+    sharedred,
     slotholding,
     slotreport,
+    summaryline,
     sweepline,
     syncguard,
     syncing,
@@ -53,7 +57,15 @@ from . import (
     workerlines,
     workhours,
 )
-from . import diskline, pulllines, pullstate, unlabeled, unreadableline
+from . import (
+    diskline,
+    pulllines,
+    pullstate,
+    totalroutes,
+    unlabeled,
+    unledgered,
+    unreadableline,
+)
 from .failures import describe, read_all
 from .running import KeywordRun
 from .queuereads import read_queue_runs, read_runner_runs, runner_runs
@@ -125,8 +137,20 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
     """
     runs = functools.partial(read_runner_runs, found)
     read = sweepline.looked_pulls(found.github, found.settings, found.now, runs)
+    read = _waiting(found.github, read)[0]
     timing.note(found.args, "open pull requests read", len(read), "pull requests")
     return read
+
+
+def _waiting(
+    github: ghapi.GitHub, read: Sequence[pulls.Read]
+) -> tuple[Sequence[pulls.Read], Sequence[str]]:
+    # keywords: blocked-by, shared-red: a declared blocker first, then a shared red
+    blocked, said = blockedby.settle(github, read)
+    settled, shared = sharedred.settle(github, blocked)
+    finished, partial = finishpartial.settle(settled)  # keyword: finish-partial
+    lines = [*said.values(), *sharedred.lines(shared).values(), *partial]
+    return finished, [*lines, *finishpartial.stranded(finished)]
 
 
 def whole_order(found: Context) -> Context:
@@ -171,8 +195,8 @@ def load_context(args: argparse.Namespace) -> Context:
     return Context(
         settings=access.settings,
         access=access,
-        clean=configfile.load_clean(given, start),
-        scratch=configfile.load_scratch(given, start, owner),
+        clean=configloads.load_clean(given, start),
+        scratch=configloads.load_scratch(given, start, owner),
         github=github,
         now=now,
         args=args,
@@ -220,7 +244,7 @@ def _pull_lines(
     queued = latest is not None and not latest.run.finished
     why = {check_id: describe(each) for check_id, each in got.failures.items()}
     steps = {check_id: each.steps for check_id, each in got.failures.items()}
-    shown = pulllines.lines(pull, found.now, found.settings, steps)
+    shown = pulllines.lines(pull, found.now, found.settings, (steps, got.failures))
     acts = report.action_lines(pull, found.settings, queued, why)
     blocked = pullstate.blocked_lines(found.github, found.settings, pull, ())
     for line in (*shown, *got.moves, *removedline.settle(got.said, acts), *blocked):
@@ -289,7 +313,12 @@ def _repository_sections(
     pressure = sweepline.pressure(
         found.github, shared(), found.settings.runners, found.now
     )
-    read = sweepline.open_pulls(found.github, found.settings, found.now, shared)
+    read, waiting = _waiting(
+        found.github,
+        sweepline.open_pulls(found.github, found.settings, found.now, shared),
+    )
+    for said in waiting:
+        print(said)
     timing.lap(clock, "pull requests read")
     found = dataclasses.replace(found, stands=pullmarks.pull_marks(found, read))
     broken = _pull_section(found, runs, read)
@@ -324,6 +353,15 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
         print(line)
 
 
+def _unledgered_section(found: Context) -> None:
+    # keyword: action-matrix (promise#73): events no pitboss act record answers
+    since = found.now - datetime.timedelta(days=1)
+    for said in unledgered.lines(
+        found.github, found.settings, found.settings.slots.log, since
+    ):
+        print(said)
+
+
 def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 
@@ -346,6 +384,9 @@ def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     summaryline.print_lines(
         found.github, found.settings, configfile.named(args), found.now
     )
+    _unledgered_section(found)
+    # what each actor writes, from the checker's own table (keyword: total-routes)
+    print(totalroutes.instructions(), end="")
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)

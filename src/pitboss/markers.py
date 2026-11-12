@@ -93,6 +93,11 @@ class Marker(enum.Enum):
         OPUS_RULINGS_DAILY: Opus ruling comments are dated since the last
             summary and none is recorded for the Pacific day.
         REMOVED_FROM_QUEUE: the merge queue removed a PR, and why.
+        DROPPED_FROM_QUEUE: a PR that was armed or queued lost auto-merge with no
+            removal event, and is neither queued nor merged (keyword:
+            dropped-from-queue, quire#1110).
+        WAIT_FOR_HOLD: a runner-pressure hold or its quiet period withholds the
+            action a PR's line asks for (keyword: hold-gate, quire#1110).
         DRAFT_STATE_CHANGED: a PR's draft state changed after the sweep marked it
             ready (keyword: draft-moves, pitboss#355).
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
@@ -117,8 +122,8 @@ class Marker(enum.Enum):
         KEPT_PATH: a dead path that is not safe to remove.
         COULD_NOT_REMOVE_PATH: a path that is still there, or is not a safe
             dead path.
-        SCRATCH_PR: an open PR of a scratch repository that is not a kept
-            fixture: its run finished, or its head branch is not a run branch.
+        SCRATCH_PR: an open PR of a scratch repository that is not a kept fixture: its
+            run finished, or its head branch is not a run branch.
         CLOSED_SCRATCH_PR: a scratch PR closed (or, in a dry run, one that would
             be).
         DELETED_SCRATCH_BRANCH: the head branch of a closed scratch PR deleted.
@@ -178,6 +183,19 @@ class Marker(enum.Enum):
         INCOMPLETE: the last line of a sweep that could not read a configured
             repository, or the list of the owner's repositories (keyword:
             repo-access); the exit status is 1.
+        FIX_FIRST: a cheap check of the head is red (``text-lint``, the review gate,
+            ``canonical-files``, the Plan check, the review form, the pins-check),
+            so the step that would spend runner time waits for its fix (keyword:
+            known-red, quire#1120).
+        STALE_CLAIM: a PR's body names a head that is not its head, so a worker's
+            claim of a push was not true (keyword: claim-readback, quire#1115).
+        ADOPT_REVIEW: a PR's body says the ``adopt`` script made it, so its review is
+            of the script, not of the diff (keyword: adopt-made, pitboss#423).
+        MECHANICAL_FIX: a PR's red is a failed plan job or a fixture expectation
+            mismatch, which one push fixes and a push to a draft-free hold may
+            exempt (keyword: mechanical-fix, pitboss#32).
+        SLOW_MECHANICAL_FIX: a mechanical red whose fix push has not happened within
+            the configured minutes.
     """
 
     OUTDATED = enum.auto()
@@ -215,6 +233,8 @@ class Marker(enum.Enum):
     REVIEW_NOTE = enum.auto()
     OPUS_RULINGS_DAILY = enum.auto()
     REMOVED_FROM_QUEUE = enum.auto()
+    DROPPED_FROM_QUEUE = enum.auto()
+    WAIT_FOR_HOLD = enum.auto()
     DRAFT_STATE_CHANGED = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
@@ -271,6 +291,11 @@ class Marker(enum.Enum):
     COULD_NOT_SYNC = enum.auto()
     NOT_THE_ORCHESTRATOR_CONFIG = enum.auto()
     INCOMPLETE = enum.auto()
+    FIX_FIRST = enum.auto()
+    STALE_CLAIM = enum.auto()
+    ADOPT_REVIEW = enum.auto()
+    MECHANICAL_FIX = enum.auto()
+    SLOW_MECHANICAL_FIX = enum.auto()
 
     @property
     def text(self) -> str:
@@ -290,6 +315,12 @@ SPELLED = {
     Marker.PINS_ONLY_OK: "PINS-ONLY OK",
     Marker.NO_HAND_BACK: "NO HAND-BACK",
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
+    Marker.WAIT_FOR_HOLD: "WAIT-FOR-HOLD",
+    Marker.FIX_FIRST: "FIX FIRST",
+    Marker.STALE_CLAIM: "STALE-CLAIM",
+    Marker.ADOPT_REVIEW: "ADOPT-REVIEW",
+    Marker.MECHANICAL_FIX: "MECHANICAL-FIX",
+    Marker.SLOW_MECHANICAL_FIX: "SLOW-MECHANICAL-FIX",
     Marker.CHECK_IN_OVERDUE: "CHECK-IN OVERDUE",
 }
 
@@ -319,6 +350,13 @@ SELF_EXPLAINED = frozenset(
         Marker.EXECUTION_REVIEW_EARLY,
         Marker.BEHIND,
         Marker.READY_TO_MERGE,
+        Marker.WAIT_FOR_HOLD,
+        Marker.FIX_FIRST,
+        Marker.STALE_CLAIM,
+        Marker.ADOPT_REVIEW,
+        Marker.MECHANICAL_FIX,
+        Marker.SLOW_MECHANICAL_FIX,
+        Marker.DROPPED_FROM_QUEUE,
         Marker.MERGE_BY_HAND,
         Marker.AUTO_MERGE_OFF,
         Marker.DRAFT_STATE_CHANGED,

@@ -7,7 +7,7 @@ from typing import Iterable, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, configfile
+from .. import config, configfile, configloads, configrepos
 from . import fakes
 
 EVERYTHING = """
@@ -52,7 +52,7 @@ def _summary(settings: config.Config) -> dict[str, object]:
     return {
         "libraries": _slugs(settings.libraries),
         "runners": _slugs(settings.runners.repositories),
-        "repositories": _slugs(config.repositories(settings)),
+        "repositories": _slugs(configrepos.repositories(settings)),
         "no_auto_merge": settings.no_auto_merge,
         "gated": settings.review.gated,
         "trusted": settings.review.trusted,
@@ -82,7 +82,7 @@ DEFAULTS: Mapping[str, object] = {
     "approved": ("approved", "approved"),
     "lint": (),
     "numbers": (60, 3.0),
-    "sweep": (config.DEFAULT_REMINDERS, ("e2e/",)),
+    "sweep": (configfile.DEFAULT_REMINDERS, ("e2e/",)),
     "slots": ((), (), (), {}),
 }
 READ: Mapping[str, object] = {
@@ -176,7 +176,7 @@ class TestExample(unittest.TestCase):
 
     def test_example_scratch(self) -> None:
         """Its scratch table names a repository and the fixture PR it keeps."""
-        found = configfile.load_scratch(str(EXAMPLE), EXAMPLE.parent, "example-org")
+        found = configloads.load_scratch(str(EXAMPLE), EXAMPLE.parent, "example-org")
         assert_that(sorted(found.keep), equal_to(["example-org/app-scratch#29"]))
 
 

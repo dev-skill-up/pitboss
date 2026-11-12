@@ -5,7 +5,8 @@ import unittest
 from hamcrest import assert_that, contains_string
 
 from .. import brief
-from .briefmake import has_none, pinned, text
+from .briefmake import pinned, text
+from .says import has_none
 from .test_evidence_rules import read, words
 
 ORDER_TICKET = (

@@ -5,18 +5,20 @@ import unittest
 
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, causeline, causetext, shapes
 from . import suggestions, world
-from .briefmake import has_none, make, pinned, text
+from .briefmake import make, pinned, text
+from .says import has_none
 from .test_commands import sweep
 
 SENTENCE = (
     "the answer to a red check is its cause: either the log names it (the step,"
     " the line) or the next change is the trace or state capture that would show"
     " it (a ticket or a change of its own); a push or a re-run whose only purpose"
-    " is a new run is refused"
+    " is to get rid of a flake is refused (a re-run that works around a GitHub"
+    " problem, such as a run stuck queued with no jobs, is not)"
 )
 LOG = "Failed check log: test: https://github.com/owner/project/runs/8"
 LINE = (
@@ -97,7 +99,7 @@ class TestCauseBrief(unittest.TestCase):
         """A red PR's FIX_CI brief has the log line right after its Task."""
         header, lines = suggestions.third(pr_three(world.RED))
         assert_that(header, contains_string("fix the CI"))
-        assert_that(lines[1].startswith("Task: "), equal_to(True))
+        assert_that(lines[1], starts_with("Task: "))
         assert_that(lines[2], equal_to(LOG))
         assert_that(matching(lines, "Failed check"), equal_to([LOG]))
 

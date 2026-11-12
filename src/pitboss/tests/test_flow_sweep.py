@@ -1,13 +1,14 @@
 """``pitboss sweep`` and ``slots next`` take their lines from the flow's step."""
 
 import dataclasses
+import functools
 import unittest
 from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, rulingwords, shapes
-from . import fakes, test_flow, world, worldcomments
+from . import fakes, quietworld, says, test_flow, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -90,7 +91,7 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
             f"{world.PROJECT}/commits/2": {"files": [{"filename": "a.bats"}]},
         }
     )
-    return with_complete_run(here)
+    return quietworld.at_rest(with_complete_run(here))
 
 
 def with_complete_run(here: world.World) -> world.World:
@@ -329,6 +330,7 @@ class TestRulingNoReviewFollows(unittest.TestCase):
         for changes, line, printed in cases:
             with self.subTest(line=line, changes=changes):
                 here = world_with([*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED], **changes)
+                quietworld.unheld(here)
                 swept = sweep(here).out
                 assert_that(line in swept, equal_to(printed))
                 assert_that("PAUSE owner" in swept, equal_to(False))
@@ -355,7 +357,7 @@ class TestBodyFix(unittest.TestCase):
             reading(graded(APPROVED, CHANGES, 2), now),
         ]
         here = world_with(rounds, body=now)
-        assert_that(sweep(here).out, contains_string(RULING_LINE))
+        says.says(sweep(here).out, RULING_LINE)
         assert_that(listed_for_third(here), equal_to([]))
         assert_that(
             next_output(here),
@@ -382,8 +384,7 @@ def unfixed_rounds(*recorded: shapes.Comment, files: Sequence[str] = ()) -> worl
 def unfixed_after_the_ruling(files: Sequence[str] = ()) -> world.World:
     """An Execution rejected, ruled on, its Plan revised and approved alone.
 
-    PR 3's head carries no code the rejection has not seen, but for files
-    (keyword: unfixed-execution, pitboss#390).
+    PR 3's head has no code the rejection has not seen but files (pitboss#390).
 
     Args:
         files: the paths the last commit changes.
@@ -394,3 +395,6 @@ def unfixed_after_the_ruling(files: Sequence[str] = ()) -> world.World:
     rejected = graded(APPROVED, CHANGES, 1, sha=OLDER)
     ruled = test_flow.ruling(2, line="Ruling: revise the plan")
     return unfixed_rounds(rejected, ruled, graded(APPROVED, None, 3), files=files)
+
+
+approved_draft = functools.partial(world_with, [graded(APPROVED, None, 1)], draft=True)

@@ -7,8 +7,10 @@ from typing import Callable, Sequence
 from . import (
     concurrently,
     config,
+    configrepos,
     earlyreview,
     ghapi,
+    holdscope,
     parsing,
     pinsonly,
     pulls,
@@ -42,7 +44,7 @@ def read_open(
 def _open_numbers(
     github: ghapi.GitHub, settings: config.Config
 ) -> Sequence[tuple[config.Repo, int]]:
-    repos = config.repositories(settings)
+    repos = configrepos.repositories(settings)
     listed = concurrently.each(
         lambda repo: ghapi.pages(
             github, f"repos/{repo.slug}/pulls?state=open", parsing.pull_numbers
@@ -81,9 +83,10 @@ def read_each(
 def _unheld(
     source: pulls.Source, settings: config.Config, repo: config.Repo
 ) -> pulls.Source:
-    # keyword: pitboss-exempt (pitboss#113): an exempt repository's drafts are
-    # undrafted whatever the pressure, and the pressure is not looked at for them
-    if repo.slug not in settings.runners.exempt:
+    # keyword: pitboss-exempt (pitboss#113), hold-scope (T141): an exempt repository
+    # and one of another organisation are not held, and the pressure is not looked
+    # at for them
+    if holdscope.applies(settings.runners, repo.slug):
         return source
     return dataclasses.replace(source, undraft=lambda: True)
 

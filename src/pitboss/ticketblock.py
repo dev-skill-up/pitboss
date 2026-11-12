@@ -1,9 +1,10 @@
 """The open ticket or PR that a ticket says it cannot be worked on until (pitboss#163).
 
 A ticket states in its body or in a comment ``Cannot be worked on until
-<owner/repo#n> has merged``, ``Blocked by <owner/repo#n>`` or ``Depends on
-<owner/repo#n>`` (any case; a bare ``#n`` is of the ticket's repository;
-pitboss#280). While that ticket or PR is open the ticket is not work that can
+<owner/repo#n> has merged``, ``Blocked by <owner/repo#n>``, ``Blocked on
+<owner/repo#n>`` or ``Depends on <owner/repo#n>`` (any case; a bare ``#n`` is of
+the ticket's repository; pitboss#280). While that ticket or PR is open the
+ticket is not work that can
 be started, so ``slots next`` and the sweep print ``BLOCKED <ticket> by
 <owner/repo#n>`` for it and no ``NEXT`` line, and the blocker is offered ahead
 of it (``dependency``; keyword ticket-blocked). When the blocker closes or
@@ -20,7 +21,7 @@ from . import config, ghapi, ledger, parsing
 
 # a bare ``#n`` is a ticket of the blocked ticket's own repository
 BLOCKER = re.compile(
-    r"(?:cannot\s+be\s+worked\s+on\s+until|blocked\s+by|depends\s+on):?\s+"
+    r"(?:cannot\s+be\s+worked\s+on\s+until|blocked[\s-]+(?:by|on)|depends\s+on):?\s+"
     r"((?:[\w.-]+/[\w.-]+)?#\d+)",
     re.IGNORECASE,
 )

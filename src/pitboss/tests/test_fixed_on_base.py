@@ -12,7 +12,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import basefix, fixedline, flow, headchecks, reviews, shapes, steps
-from . import fakes, syncworld, test_commands, test_flow, test_work, world
+from . import fakes, quietworld, syncworld, test_commands, test_flow, test_work, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -178,7 +178,7 @@ CASES: Sequence[Case] = [
         dict(pr=(3, "behind"), base=[BASE_PASSED], extra=""),
         {FAILED_3: True, "FIXED ON BASE": False},
         {FIX_CI_3: True},
-        False,
+        True,  # shared-red reads main's runs to see a cause main shares
     ),
     *[
         unpassed(label, base)
@@ -202,7 +202,7 @@ class TestSweep(unittest.TestCase):
         """Only a conflict is merged; a red CI the base passed is enqueued or not."""
         for label, build, said, listed, read in CASES:
             with self.subTest(label):
-                here = red_world(**build)  # type: ignore[arg-type]
+                here = quietworld.unheld(red_world(**build))  # type: ignore[arg-type]
                 out, text = sweep(here).out.splitlines(), next_output(here)
                 found = (
                     {head: any(line.startswith(head) for line in out) for head in said},

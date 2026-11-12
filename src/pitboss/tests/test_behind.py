@@ -5,20 +5,35 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from . import fakes, world
+from . import fakes, quietworld, world
 from .test_commands import sweep
 from .test_flow_sweep import (
     APPROVED,
     EXECUTION_APPROVED,
     TWO_PLAN_REJECTIONS,
     graded,
-    world_with,
 )
+from .test_flow_sweep import world_with as held_world
 
 LINE = (
     "BEHIND: update the branch, then the merge-main proof (bats merge-proof)"
     " is the review"
 )
+
+
+def world_with(*args: object, **changes: object) -> world.World:
+    """A world as ``test_flow_sweep`` makes it, with the runners quiet (B20).
+
+    Args:
+        *args: the rounds of the world.
+        **changes: the fields to replace.
+
+    Returns:
+        The world; a hold would show the HOLD wait, not BEHIND.
+    """
+    return quietworld.unheld(held_world(*args, **changes))  # type: ignore[arg-type]
+
+
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 
 

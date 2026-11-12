@@ -9,6 +9,7 @@ of its head and of its posted Plan check is never skipped (pitboss#471).
 import argparse
 import os
 import pathlib
+import re
 import subprocess
 from typing import Sequence
 
@@ -32,6 +33,20 @@ def git_out(args: argparse.Namespace, *words: str) -> str:
         return ""
 
 
+def pushed_branch(args: argparse.Namespace) -> str:
+    """The branch on the remote that the worktree's branch pushes to.
+
+    Args:
+        args: the parsed arguments; ``repo`` is the worktree.
+
+    Returns:
+        The upstream branch without its remote (``worker/444`` for
+        ``origin/worker/444``); empty when the branch has no upstream.
+    """
+    upstream = git_out(args, "rev-parse", "--abbrev-ref", "@{upstream}")
+    return upstream.partition("/")[2]
+
+
 def _path(args: argparse.Namespace, kind: str) -> pathlib.Path:
     return pathlib.Path(git_out(args, "rev-parse", kind))
 
@@ -46,11 +61,20 @@ def _jobs_and_record(args: argparse.Namespace, head: str) -> Sequence[str]:
     return shown
 
 
+ORIGIN = re.compile(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$")
+
+
+def _slug(args: argparse.Namespace, settings: config.Config) -> str:
+    # case 31 (keyword: hand-back-origin): the repository is the worktree's origin
+    found = ORIGIN.search(git_out(args, "remote", "get-url", "origin"))
+    return found.group(1) if found else settings.project.repo.slug
+
+
 def _pull_lines(
     args: argparse.Namespace, settings: config.Config, head: str
 ) -> Sequence[str]:
     github = ghapi.read_only(args.safe_run)
-    slug = settings.project.repo.slug
+    slug = _slug(args, settings)
     number = args.pr
     if number is None:
         number = handbackcheck.branch_pull(
@@ -64,6 +88,7 @@ def _pull_lines(
         number=number,
         head=head,
         trusted=settings.review.trusted,
+        branch=pushed_branch(args),
     )
     return handbackcheck.pull_lines(pushed)
 

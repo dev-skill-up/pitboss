@@ -1,10 +1,11 @@
 """A head already green is not run again (keyword: nox-green, pitboss#345).
 
-The owner's rule: ``pitboss nox`` runs before each push and when feedback is
-needed, not again on a head it already passed. A passing run on a clean tree
-writes ``pitboss-nox-green`` in the repository's git directory, with the head and
-the time; a later run on the same clean head prints ``NOTE`` and exits 0 without
-running unless ``--force`` is given. A dirty tree is never recorded or skipped:
+The owner's rule: ``pitboss nox`` runs at most once per head, after the last edit
+(plenty before a push; a maximum, not a target), not again on a head it already
+passed. A passing run on a clean tree writes ``pitboss-nox-green`` in the
+repository's git directory, with the head and the time; a later run on the same
+clean head prints ``NOTE`` and exits 0 without running unless ``--force`` is
+given. A dirty tree is never recorded or skipped:
 it is not a head. Git and the clock are injected, so the tests run no real git.
 """
 

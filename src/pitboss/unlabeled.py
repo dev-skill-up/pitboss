@@ -12,7 +12,7 @@ import json
 import re
 from typing import NamedTuple, Sequence
 
-from . import concurrently, config, ghapi
+from . import concurrently, config, configrepos, ghapi
 
 NO_LABEL = "NO PRIORITY LABEL"
 RULE = (
@@ -63,7 +63,7 @@ def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
     """
     if not settings.slots.priority_labels:
         return []
-    repos = config.repositories(settings)
+    repos = configrepos.repositories(settings)
 
     def read(repo: config.Repo) -> Sequence[_Item]:
         return ghapi.pages(github, f"repos/{repo.slug}/issues?state=open", _items)

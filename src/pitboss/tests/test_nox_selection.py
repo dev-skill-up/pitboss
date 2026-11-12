@@ -9,6 +9,7 @@ from hamcrest import assert_that, equal_to
 from .. import noxcheck, testselect
 from . import diffrepo, test_nox
 from .diffrepo import Verb
+from .says import exits
 
 TESTS_COMMAND = ["nox", "-r", "-s", "tests-3.13", "--", "-x"]
 MYPY_COMMAND = ["nox", "-r", "-s", "mypy"]
@@ -149,7 +150,7 @@ class TestNoxCommand(unittest.TestCase):
                 seen = [each in found.out for each in [*case.said, *case.absent]]
                 wanted = [True] * len(case.said) + [False] * len(case.absent)
                 assert_that(seen, equal_to(wanted))
-                assert_that(found.code, equal_to(0))
+                exits(found, 0)
 
     def test_what_is_not_an_extra_test_with_a_reason_is_refused(self) -> None:
         """No --all, no reason, an empty reason or test, no module after --."""

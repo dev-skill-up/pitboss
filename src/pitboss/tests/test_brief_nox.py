@@ -2,15 +2,17 @@
 
 import unittest
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, starts_with
 
 from .. import brief, nox_commands
-from .briefmake import has_none, pinned, text
-from .test_plan_commands import PLAN_REVIEWS
+from .briefmake import pinned, text
+from .says import has_none
+from .briefmake import PLAN_REVIEWS
 
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
-    " each push and when you need feedback, once for a head (the skills, lint and"
+    " a push, at most once per head, after the last edit (a maximum, not a"
+    " target; the skills, lint and"
     " mypy first, then the tests of one Python version, which stop at the first"
     " failing test; it stops at the first failing session and always uses `-r`); a"
     " targeted test module, `nox -s ...` or `virtue` is never run by hand,"
@@ -66,9 +68,7 @@ class TestNoxInTheBriefs(unittest.TestCase):
         """The owner never said after every edit (pitboss#345)."""
         for kind in brief.Kind:
             assert_that("after every edit" in text(kind), equal_to(False))
-        assert_that(
-            "before each push and when you need feedback" in NOX, equal_to(True)
-        )
+        assert_that("at most once per head, after the last edit" in NOX, equal_to(True))
         assert_that("after every edit" in NOX, equal_to(False))
 
     def test_the_command_text_never_says_after_every_edit(self) -> None:
@@ -89,7 +89,7 @@ class TestNoxInTheBriefs(unittest.TestCase):
 
     def test_the_order_applies_only_where_the_checks_are_nox_sessions(self) -> None:
         """Like the Nox sentence, the order is conditional (pitboss#175)."""
-        assert_that(NOX.startswith("Nox: where the checks"), equal_to(True))
+        assert_that(NOX, starts_with("Nox: where the checks"))
         assert_that(
             NOX_ORDER.startswith("Nox order: where the checks are nox sessions"),
             equal_to(True),

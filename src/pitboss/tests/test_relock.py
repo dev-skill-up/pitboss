@@ -12,6 +12,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, configfile, flow, forms, relock, shapes, steps
 from . import fakes, test_flow, world
+from .says import says
 from .formchecks import body_checks, checks, subject
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
 from .test_commands import sweep
@@ -252,3 +253,12 @@ class TestConfigDefault(unittest.TestCase):
     def test_default_lint_has_the_default_prefix(self) -> None:
         """``DEFAULT_LINT`` is what a command without --config uses."""
         assert_that(configfile.DEFAULT_LINT.relock_prefix, equal_to("relock/"))
+
+
+class TestOutsideTheSlot(unittest.TestCase):
+    """I16: the line of a relock review names the command it runs."""
+
+    def test_i16_a_relock_review_is_run_with_pins_review_outside_the_slot(self) -> None:
+        """The line of the relock PR names the command, and the PR ranks last."""
+        listed = "\n".join(listed_for_third(relocked()))
+        says(listed, "run outside the slot: pitboss pins-review", "owner/project#3")

@@ -4,7 +4,19 @@ import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commandarguments, commands, config, gateform, gates, gradeline
+from . import (
+    ENTRY_DATA,
+    checkruns,
+    commandarguments,
+    commands,
+    config,
+    gateform,
+    gates,
+    ghapi,
+    gradeline,
+    headchecks,
+    reviewci,
+)
 
 BODY_NOTE = (
     "# also one line of its own: Body: <digest> (uvx pitboss body-digest FILE, the"
@@ -23,8 +35,31 @@ def _gate_source(repo: config.Repo, gate: gates.Gate) -> str:
     )
 
 
+def _require_green(args: argparse.Namespace, repo: config.Repo) -> None:
+    # exit 1, each run and its state printed, while a CI run of --head is not green
+    if not args.head:
+        return
+    github = ghapi.read_only(args.safe_run)  # case 38 (keyword: review-ci)
+    runs = checkruns.current_checks(
+        headchecks.runs_of(github, repo, args.head), args.head
+    )
+    refused = reviewci.lines(args.head, runs)
+    for line in refused:
+        print(line)
+    if refused:
+        raise SystemExit(1)
+
+
 @ENTRY_DATA.register(
-    commandarguments.CONFIG_ARGUMENT, add_argument("repository"), name="review-form"
+    commandarguments.CONFIG_ARGUMENT,
+    add_argument("repository"),
+    add_argument(
+        "--head",
+        default=None,
+        help="the head SHA to be reviewed: refuse (exit 1, each run and its state"
+        " printed) while a CI run of it is not completed and successful",
+    ),
+    name="review-form",
 )
 def review_form(args: argparse.Namespace) -> None:
     """Print the form a review comment in a repository must take.
@@ -35,6 +70,7 @@ def review_form(args: argparse.Namespace) -> None:
     settings = commands.load_settings(args)
     found = gateform.read(args.safe_run, settings, args.repository)
     repo, workflow, review, form = found.repo, found.gate, found.review, found.form
+    _require_green(args, repo)
     gated = repo.slug in review.gated
     print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")
     if workflow is not None:

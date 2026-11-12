@@ -3,7 +3,8 @@
 import unittest
 
 from .. import brief, brieftextbody
-from .briefmake import has_none, pinned, text
+from .briefmake import pinned, text
+from .says import has_none
 from .test_brief_done_when import WORKERS
 
 ROWS = (

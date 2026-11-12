@@ -60,16 +60,3 @@ def recorded(review: str) -> str:
         review that records no body is checked against the head alone).
     """
     return recorded_after(review, PREFIX)
-
-
-def changed(recorded_digest: str, now: str) -> bool:
-    """Whether a PR body is no longer the one a review recorded.
-
-    Args:
-        recorded_digest: the digest the review records, empty when it records none.
-        now: the digest of the PR body now, empty when it is not checked.
-
-    Returns:
-        True when both are given and differ.
-    """
-    return bool(now and recorded_digest and recorded_digest != now)

@@ -16,7 +16,8 @@ from hamcrest import assert_that, equal_to
 
 from .. import noxcheck
 from . import scratch, timingreport
-from .briefmake import has_all, has_none
+from .says import has_all, has_none
+from .fakes import write
 
 REPORTER = "--reporter=pitboss.tests.timingreport.TimingReporter"
 PREFIX = noxcheck.LEAK_PREFIX
@@ -109,7 +110,7 @@ def run_module(source: str, *options: str) -> Ran:
     with tempfile.TemporaryDirectory() as name:
         root = pathlib.Path(name)
         (root / "tmp").mkdir()
-        (root / "leaktests.py").write_text(source)
+        write(root / "leaktests.py", source)
         done = virtue_in(root, options)
         left = sorted(each.name for each in (root / "tmp").iterdir())
     return Ran(failed=bool(done.returncode), out=done.stdout, left=left)

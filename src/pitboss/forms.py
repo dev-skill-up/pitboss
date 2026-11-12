@@ -17,7 +17,16 @@ import dataclasses
 import re
 from typing import Pattern, Sequence
 
-from . import config, evidence, folds, plancommands, reviews, rowchecks, sessionurl
+from . import (
+    blockedform,
+    config,
+    evidence,
+    folds,
+    plancommands,
+    reviews,
+    rowchecks,
+    sessionurl,
+)
 from .donewhen import HEADING as DONE_WHEN
 
 FIXES = re.compile(r"\bFixes\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
@@ -130,6 +139,7 @@ def pr_body(
         *_evidence(clean),
         *_command_rows(clean),
         *plancommands.findings(clean.name, clean.body, approved),
+        *blockedform.findings(clean.name, clean.body),
     ]
 
 

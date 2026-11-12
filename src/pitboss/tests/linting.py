@@ -57,3 +57,16 @@ def lines(result: world.Result) -> Sequence[str]:
         Its standard output's lines.
     """
     return result.out.splitlines()
+
+
+def block(command: str, output: str) -> str:
+    """A block as ``pitboss expand`` produced it, of a command that exited 0.
+
+    Args:
+        command: the command line.
+        output: what it printed.
+
+    Returns:
+        The fenced block.
+    """
+    return expansion.block(command, expansion.Outcome(status=0, output=output))

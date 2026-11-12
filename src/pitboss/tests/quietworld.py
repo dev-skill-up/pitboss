@@ -5,7 +5,7 @@ import os
 import pathlib
 import shutil
 
-from . import fakes, world
+from . import fakes, pressureworld, world
 
 
 def edit_config(here: world.World, old: str, new: str) -> None:
@@ -70,3 +70,8 @@ def git_that_pushes_nothing(here: world.World) -> world.World:
         path=f"{folder}{os.pathsep}{os.environ['PATH']}",
     )
     return dataclasses.replace(here, processes=processes)
+
+
+unheld = pressureworld.unheld
+at_rest = pressureworld.at_rest
+calm = pressureworld.calm

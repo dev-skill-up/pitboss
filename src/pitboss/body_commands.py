@@ -24,8 +24,12 @@ from . import (
     expand_commands,
     handbackrun,
     expansion,
+    partial,
+    envrules,
+    repositoryrule,
     plandigest,
     workeractions,
+    workeredits,
 )
 
 USAGE_ERROR = 2
@@ -69,32 +73,49 @@ def body_digest(args: argparse.Namespace) -> None:
     add_argument(
         "--config",
         default=None,
-        help="the project's configuration (a path, or a name in"
-        " .claude/pitboss/<name>.toml; default: the search, else the fetch). Every"
-        " clone it names (main_clone, and the library clones under the workspace)"
-        " must be on its default branch with no uncommitted change to a tracked"
-        " file, else a `refused` line names the clone and its branch",
+        help=(
+            "the project's configuration (a path, or a name in"
+            " .claude/pitboss/<name>.toml; default: the search, else the fetch). Every"
+            " clone it names (main_clone, and the library clones under the workspace)"
+            " must be on its default branch with no uncommitted change to a tracked"
+            " file, else a `refused` line names the clone and its branch"
+        ),
     ),
     add_argument(
         "--pr",
         type=int,
         default=None,
-        help="the PR number in the configuration's repository (default: the open PR"
-        " of the worktree's branch, none is a refusal): the hand-back is refused"
-        " unless the PR holds the worktree's head, its body ends with a `Head:`"
-        " line naming it and a clean Plan check is posted",
+        help=(
+            "the PR number in the configuration's repository (default: the open PR"
+            " of the worktree's branch, none is a refusal): the hand-back is refused"
+            " unless the PR holds the worktree's head, its body ends with a `Head:`"
+            " line naming it and a clean Plan check is posted"
+        ),
     ),
     add_argument(
         "--repo",
         default=".",
-        help="the worker's worktree (default: the current directory): its head, its"
-        " git directory and the processes under it are judged",
+        help=(
+            "the worker's worktree (default: the current directory): its head, its"
+            " git directory and the processes under it are judged"
+        ),
+    ),
+    add_argument(
+        "--output",
+        default=None,
+        help=(
+            "the worker's whole output file (JSON lines): its file edit tools are"
+            " listed, and an edit of a file outside the worktree or a shell command"
+            " that edits files is refused (B16, keyword: worker-edits)"
+        ),
     ),
     add_argument(
         "--processes",
         default="/proc",
-        help="the directory of process entries (default: /proc): a process"
-        " running in the worktree that is not this command is a job you started",
+        help=(
+            "the directory of process entries (default: /proc): a process"
+            " running in the worktree that is not this command is a job you started"
+        ),
     ),
     name="hand-back-check",
 )
@@ -114,17 +135,39 @@ def hand_back_check(args: argparse.Namespace) -> None:
         SystemExit: 1 when the hand-back has no ``Deviations:`` line or a clone
             is not on its default branch with a clean tree.
     """
-    missing = deviations.not_started(_read(args.file))
+    text = _read(args.file)
+    missing = deviations.not_started(text)
     configsettle.find_or_say(args)
-    refused = list(cloneguard.refusals(args, configfile.working_directory(args)))
-    refused.extend(handbackrun.refusals(args, commands.load_settings(args)))
-    lines = [each for each in (missing, *refused) if each]
+    lines = [each for each in (missing, *_refusals(args, text)) if each]
     for each in lines:
         print(each)
     if lines:
         raise SystemExit(1)
     handbackrun.accept(args)  # recorded only when nothing at all refused
     print("ok")
+
+
+def _refusals(args: argparse.Namespace, text: str) -> Sequence[str]:
+    # the clone's, the jobs', the partial hand-back's (B17, keyword: partial-hand-back)
+    # and the edits' (B16, keyword: worker-edits); the EDIT TOOLS line only informs
+    found = [
+        *cloneguard.refusals(args, configfile.working_directory(args)),
+        *handbackrun.refusals(args, commands.load_settings(args)),
+        partial.refusal(text),
+        repositoryrule.refusal(text),
+        envrules.give_up_refusal(text),  # keyword: env-check (quire#1065)
+    ]
+    edits = _edits(args)
+    for each in edits[:1]:
+        print(each)
+    return [*found, *edits[1:]]
+
+
+def _edits(args: argparse.Namespace) -> Sequence[str]:
+    if args.output is None:
+        return []
+    root = pathlib.Path(handbackrun.git_out(args, "rev-parse", "--show-toplevel"))
+    return workeredits.lines(_read(args.output).splitlines(), root)
 
 
 def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:
@@ -192,9 +235,9 @@ def body_head(args: argparse.Namespace) -> None:
     merge of the base requires: a line ``Head: <the head now>`` after the last
     ``Head:`` line, nothing else changed (``text-lint`` reads the last one). It
     prints the new body's ``Body:`` digest line and the input of ``bats
-    merge-proof`` (the head the body named, then the head now). It changes the
-    body as it is run, with no flag; a body whose last ``Head:`` line is the
-    head is not changed.
+    merge-proof`` (the head the newest approving review names, then the head now).
+    It changes the body as it is run, with no flag; a body whose last ``Head:``
+    line is the head is not changed.
 
     Args:
         args: the parsed arguments.
@@ -209,4 +252,14 @@ def body_head(args: argparse.Namespace) -> None:
         print(f"{args.pull}: the body has no line `Head: <40 hex>`", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)
     print(f"{bodydigest.PREFIX}{done.digest}")
-    print(f"bats merge-proof {done.old} {done.new}")
+    print(_proof(done.reviewed, done.new))
+
+
+def _proof(reviewed: str, new: str) -> str:
+    # keyword: merge-proof (pitboss#394): the reviewed SHA, then the head now
+    if reviewed:
+        return f"bats merge-proof {reviewed} {new}"
+    return (
+        "no approving review names a head: `bats merge-proof` needs the SHA"
+        " of a review that approved, so get an adversarial review first"
+    )

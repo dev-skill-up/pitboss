@@ -12,7 +12,7 @@ import pathlib
 import subprocess
 from typing import Sequence
 
-from . import config, configfile, syncconfig, syncguard
+from . import config, configfile, configloads, syncconfig, syncguard
 from .markers import Marker
 from .running import Run, git
 
@@ -180,7 +180,7 @@ def section(args: argparse.Namespace, settings: config.Config) -> bool:
     start = configfile.working_directory(args)
     checkout = settings.project.main_clone / ".git" / "pitboss-sync"
     name = configfile.named(args)
-    sync = configfile.load_sync(name, start, checkout)
+    sync = configloads.load_sync(name, start, checkout)
     if sync is None:
         return False
     given = configfile.locate(name, start).absolute()

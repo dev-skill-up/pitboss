@@ -21,6 +21,7 @@ from typing import AbstractSet, Iterable, Mapping, Sequence
 from . import (
     concurrently,
     config,
+    configrepos,
     ghapi,
     issuelist,
     ledger,
@@ -59,6 +60,7 @@ def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
     ]
 
 
+REVIEWS = frozenset({Category.REVIEW, Category.RELOCK_REVIEW})
 CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.REVISE_PLAN: Category.REVISE_PLAN,
     steps.Task.FIX_CI: Category.FIX_CI,
@@ -68,6 +70,11 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.RULING_AS_GIVEN: Category.RULING_AS_GIVEN,
     steps.Task.RUN_PLAN: Category.RUN_PLAN,
     steps.Task.ADD_CI_QUOTES: Category.ADD_CI_QUOTES,
+    steps.Task.REFRESH_BODY: Category.REFRESH_BODY,
+    steps.Task.SHARED_RED: Category.SHARED_RED,
+    steps.Task.FIX_BLOCKED_BY: Category.FIX_BLOCKED_BY,
+    steps.Task.AFTER_BLOCKER: Category.AFTER_BLOCKER,
+    steps.Task.FINISH_PARTIAL: Category.FINISH_PARTIAL,
 }
 
 
@@ -88,6 +95,8 @@ def category_of(pull: pulls.PullFacts) -> Category | None:
         return None
     alone = step.stage is steps.Stage.PLAN_ONLY  # keyword: plan-review-listed
     fixing = fix_round(pull) and not alone
+    if pull.relock:
+        return Category.RELOCK_REVIEW  # keyword: relock-last (B9)
     return Category.REVIEW_FIX_ROUND if fixing else Category.REVIEW
 
 
@@ -156,7 +165,7 @@ def _labelled(github: ghapi.GitHub, settings: config.Config) -> Iterable[Item]:
     ranked = list(enumerate(settings.slots.priority_labels))
     asked = [
         (repo, priority, label)
-        for repo in config.repositories(settings)
+        for repo in configrepos.repositories(settings)
         for priority, label in ranked
     ]
 
@@ -179,12 +188,14 @@ def ordered(items: Iterable[Item], held: Iterable[str]) -> Sequence[Item]:
 
     Returns:
         The items, first to take first: every open PR, oldest first, then
-        the tickets by priority label (the owner's if stated), oldest first.
+        the tickets by priority label (the owner's if stated), oldest first,
+        then the reviews of relock PRs (B9, keyword: relock-last).
     """
     holding = frozenset(held)
     return sorted(
         (item for item in items if item.reference not in holding),
         key=lambda item: (
+            item.category is Category.RELOCK_REVIEW,
             item.category is Category.NEW_PR,
             item.priority,
             item.created_at,

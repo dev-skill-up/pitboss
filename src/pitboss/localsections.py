@@ -2,7 +2,7 @@
 
 import pathlib
 
-from . import __version__, concurrently, local, orphanline, outdated, report, tracefs
+from . import __version__, concurrently, local, orphanline, outdated, tracefs
 from .running import Run
 
 
@@ -30,7 +30,7 @@ def straggler_line(run: Run, checkout: pathlib.Path) -> str | None:
     if local.orphaned(run, checkout):
         return orphanline.orphan_line(checkout)
     straggler = local.read_straggler(run, checkout)
-    return None if straggler is None else report.straggler_line(straggler)
+    return None if straggler is None else orphanline.straggler_line(straggler)
 
 
 def print_stragglers(run: Run, workspace: pathlib.Path) -> None:

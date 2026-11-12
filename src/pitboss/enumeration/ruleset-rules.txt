@@ -1,0 +1,20 @@
+# derived by derive/github_sets.py from https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets
+# count: 18
+Block force pushes
+Require a pull request before merging
+Require code quality results
+Require code scanning results
+Require deployments to succeed before merging
+Require license compliance results before merging
+Require linear history
+Require secret scanning alerts are resolved
+Require signed commits
+Require status checks to pass before merging
+Restrict code coverage
+Restrict creations
+Restrict deletions
+Restrict file extensions
+Restrict file path length
+Restrict file paths
+Restrict file size
+Restrict updates

@@ -10,8 +10,8 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextci, planbody, steps
-from . import test_flow, test_flow_sweep, test_plan_commands
-from .briefmake import pinned, text
+from . import test_flow, test_flow_sweep
+from .briefmake import EXECUTION_REVIEWS, pinned, text
 
 QUOTES_PLAN = "## Plan\n1. CI quote: the Run Nox step of the head\n"
 PLAN_ONLY_APPROVED = test_flow_sweep.graded("approved", None, 1)
@@ -98,7 +98,7 @@ class TestBriefs(unittest.TestCase):
     ) -> None:
         """(c): a ruling points to the run; a CI row's pointer is the evidence."""
         pinned(brief.Kind.RULING, [brieftextci.RULING_NO_CI_QUOTES])
-        for kind in test_plan_commands.EXECUTION_REVIEWS:
+        for kind in EXECUTION_REVIEWS:
             pinned(kind, [brieftextci.REVIEW_CI_ACCEPTED])
         assert_that(
             brieftextci.RULING_NO_CI_QUOTES,

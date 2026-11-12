@@ -42,7 +42,25 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 [tool.setuptools.package-data]
-pitboss = ["phrases.tsv", "contradictions.tsv"]
+pitboss = [
+  "phrases.tsv",
+  "filegates.tsv",
+  "contradictions.tsv",
+  "rules.tsv",
+  "donewhen.tsv",
+  "stepmatrix.tsv",
+  "decidable.tsv",
+  "ruleconflicts.tsv",
+  "actionmatrix.tsv",
+  "actiongates.tsv",
+  "knownred.tsv",
+  "claims.tsv",
+  "clauses.tsv",
+  "standing.tsv",
+  "enumeration/*.tsv",
+  "enumeration/*.txt",
+]
+"pitboss.tests" = ["coverage_ids.txt", "total/*.json", "total/*.tsv", "tickets/*.txt"]
 
 [project.urls]
 Homepage = "https://github.com/dev-skill-up/pitboss"
@@ -79,12 +97,22 @@ module = [
     "pitboss.pressure_commands",
     "pitboss.next_commands",
     "pitboss.count_commands",
+    "pitboss.rules_commands",
+    "pitboss.clauses_commands",
+    "pitboss.basecheck_commands",
     "pitboss.sync_commands",
     "pitboss.nox_commands",
     "pitboss.pinsreview_commands",
     "pitboss.ruling_commands",
+    "pitboss.capture_commands",
+    "pitboss.ownerpause_commands",
+    "pitboss.case_commands",
+    "pitboss.quiesce_commands",
     "pitboss.cancel_commands",
     "pitboss.checkinlines",
     "pitboss.sweep_commands",
+    "pitboss.act_commands",
+    "pitboss.envcheck_commands",
+    "pitboss.hook_commands",
 ]
 disallow_untyped_decorators = false

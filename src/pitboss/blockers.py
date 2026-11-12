@@ -17,6 +17,7 @@ from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
 
 from . import (
     config,
+    configrepos,
     ghapi,
     ledger,
     planrefusal,
@@ -133,7 +134,7 @@ def open_blockers(
         The blockers that are open, each once.
     """
     return ticketblock.open_blockers(
-        config.repo_of(reference),
+        configrepos.repo_of(reference),
         texts,
         functools.partial(_is_open, github),
         own | {reference},
@@ -220,9 +221,12 @@ def _rank(settings: config.Config, labels: AbstractSet[str]) -> int:
 
 
 def pull_waits(
-    github: ghapi.GitHub, settings: config.Config, pull: str, ticket: str
+    github: ghapi.GitHub, settings: config.Config, pull: pulls.PullFacts, ticket: str
 ) -> Waits | None:
     """What the ticket a PR fixes waits for (keyword: blocked-pull, pitboss#388).
+
+    The PR's own body counts too: a line ``Blocked on <ticket>`` there blocks the
+    PR as the same line in the ticket does (B10, keyword: blocked-body).
 
     Args:
         github: the API.
@@ -236,9 +240,9 @@ def pull_waits(
     found = open_ticket(github, ticket)
     if found is None:
         return None
-    texts = _texts(github, settings, found, ticket)
+    texts = [pull.pull.body, *_texts(github, settings, found, ticket)]
     return Waits(
-        blockers=open_blockers(github, ticket, texts, {pull}),
+        blockers=open_blockers(github, ticket, texts, {pulls.reference(pull)}),
         created_at=found.created_at,
         priority=_rank(settings, found.labels),
     )
@@ -262,6 +266,6 @@ def refusal_blockers(
     """
     trusted = settings.review.trusted
     text = planrefusal.refusing(ticketblock.comments_of(github, pull, trusted))
-    names = named(text, config.repo_of(pull)) if text else []
+    names = named(text, configrepos.repo_of(pull)) if text else []
     wanted = dict.fromkeys(each for each in names if each not in {pull, ticket})
     return [each for each in wanted if _is_open(github, each)]

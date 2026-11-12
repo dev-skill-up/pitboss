@@ -5,6 +5,8 @@ reviewed code change. ``OWNER`` is in the worker briefs, the review briefs and
 the sweep's reminders; ``WORKER_ACTIONS`` is in the sweep's reminders.
 """
 
+from . import brieftextrules
+
 OWNER = (
     "Owner: a ticket, brief, plan or review never states what the owner cannot or"
     " will not do, or that something is outside his reach, unless the sentence"
@@ -19,4 +21,4 @@ WORKER_ACTIONS = (
     " that command shows otherwise, and is never attributed to the owner"
     " (pitboss#352)."
 )
-REMINDERS = (OWNER, WORKER_ACTIONS)
+REMINDERS = (OWNER, WORKER_ACTIONS, *brieftextrules.REMINDERS)

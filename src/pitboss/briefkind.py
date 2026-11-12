@@ -20,6 +20,14 @@ class Kind(enum.Enum):
             fills the Execution.
         ADD_CI_QUOTES: a worker adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (keyword: ci-quotes, pitboss#277).
+        REFRESH_BODY: a worker rewrites the body's ``Head:`` line for the
+            head of a PR (keyword: stale-head).
+        SHARED_RED: a worker files one ticket for a check red on several PRs
+            from one cause (keyword: shared-red).
+        FIX_BLOCKED_BY: a worker corrects the Blocked-by lines of a PR body.
+        AFTER_BLOCKER: a worker merges the base into a PR whose blockers merged.
+        FINISH_PARTIAL: a worker finishes a PR handed back unfinished (keyword:
+            finish-partial).
         FIX_ROUND: a worker fixes the findings of a review of the Plan that name a
             file of the tree, or of a Plan check that refused (keyword:
             fix-round-kind, pitboss#390).
@@ -46,6 +54,11 @@ class Kind(enum.Enum):
     RULING_AS_GIVEN = "carry out the Opus ruling"
     RUN_PLAN = "run the Plan's commands and fill the Execution"
     ADD_CI_QUOTES = "add the CI quotes to the body"
+    REFRESH_BODY = "rewrite the body's Head line for the head"
+    SHARED_RED = "file one ticket for the red check the PRs share"
+    FIX_BLOCKED_BY = "correct the Blocked-by lines of the body"
+    AFTER_BLOCKER = "merge the base into the branch, the blockers merged"
+    FINISH_PARTIAL = "finish the PR handed back unfinished"
     FIX_ROUND = "fix round for the findings"
     REVIEW_FULL = "review the Plan and the Execution"
     REVIEW_EXECUTION = "review the Execution"

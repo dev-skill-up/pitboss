@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import gradeline, reviews, shapes, work
-from . import fakes, test_commands, test_pulls, world
+from . import fakes, quietworld, test_commands, test_pulls, world
 
 APPROVED = reviews.Verdict.APPROVED
 CHANGES = reviews.Verdict.CHANGES_NEEDED
@@ -54,7 +54,7 @@ def world_with(posted: shapes.Comment) -> world.World:
     """
     here = world.make_world()
     here.bodies[COMMENTS] = [world.comment_json(posted)]
-    return here
+    return quietworld.at_rest(here)
 
 
 def outputs(posted: shapes.Comment) -> tuple[str, str, str]:
@@ -66,7 +66,7 @@ def outputs(posted: shapes.Comment) -> tuple[str, str, str]:
     Returns:
         The sweep, PR 3's line of it, and PR 3's line of ``slots next``.
     """
-    here = world_with(posted)
+    here = quietworld.calm(world_with(posted))
     swept = world.invoke(here, "sweep", here.config, *AFTER).out
     listed = world.invoke(here, "slots", "next", here.config, *AFTER).out
     return (
@@ -196,7 +196,7 @@ class TestSweepAndNext(unittest.TestCase):
             review_comment("approved", "approved", None),
             review_comment("approved", "approved", "approved"),
         ):
-            here = world_with(posted)
+            here = quietworld.calm(world_with(posted))
             test_commands.unclean_third(here)
             swept = world.invoke(here, "sweep", here.config, *AFTER).out
             armed.append("AUTO MERGE OFF owner/project#3" in swept)

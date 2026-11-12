@@ -14,12 +14,14 @@ from hamcrest import assert_that, equal_to
 
 from .. import cloneguard
 from . import captured, fakes, repositories, world
-from .briefmake import has_all, has_none
+from .says import ended, exits, has_all, has_none
 from .handbackworld import ready
 from .linting import write_text
 from .plancheckrun import body_of
-from .test_deviations import WITH_NONE, WITHOUT_LINE, saved
+from .handbackrun import saved
+from .test_deviations import WITH_NONE, WITHOUT_LINE
 from .test_nox import Done, FakeNox
+from .fakes import write
 
 REFUSAL = (
     "refused: this is the main clone; work in your own worktree:"
@@ -35,7 +37,7 @@ def change(here: world.World) -> None:
         here: the world.
     """
     names = repositories.run_git(here.clone, "ls-files").split()
-    (here.clone / names[0]).write_text("changed by a worker\n", encoding="utf-8")
+    write(here.clone / names[0], "changed by a worker\n")
 
 
 def side_branch(here: world.World) -> None:
@@ -81,7 +83,7 @@ def untracked(here: world.World) -> None:
     Args:
         here: the world.
     """
-    (here.clone / "scratch.txt").write_text("x", encoding="utf-8")
+    write(here.clone / "scratch.txt", "x")
 
 
 def nothing(here: world.World) -> None:
@@ -146,7 +148,7 @@ class TestTheHandBack(unittest.TestCase):
         for name, (setup, text, wanted) in REFUSED.items():
             with self.subTest(name):
                 found = after(setup, text)
-                assert_that(found.code, equal_to(1))
+                exits(found, 1)
                 has_all(found.out, ["refused: clone ", *wanted])
 
     def test_a_clone_on_main_with_no_change_passes(self) -> None:
@@ -154,7 +156,7 @@ class TestTheHandBack(unittest.TestCase):
         for name, setup in PASSED.items():
             with self.subTest(name):
                 found = after(setup)
-                assert_that((found.code, found.out), equal_to((0, "ok\n")))
+                ended(found, 0, "ok\n")
 
     def test_a_configuration_that_cannot_be_read_is_a_usage_error(self) -> None:
         """Given and missing, or given and not TOML: status 2, no verdict."""
@@ -229,14 +231,14 @@ class TestTheCheckout(unittest.TestCase):
                 here = world.make_world()
                 change(here)
                 found = run(here, here.clone, "--config", here.config)
-                assert_that((found.code, found.out), equal_to((1, REFUSAL + "\n")))
+                ended(found, 1, REFUSAL + "\n")
 
     def test_a_worktree_a_clean_clone_or_no_checkout_is_not_refused(self) -> None:
         """Only the clone itself, with a change, is the main clone."""
         dirty, clean = world.make_world(), world.make_world()
         change(dirty)
         names = repositories.run_git(dirty.worktree, "ls-files").split()
-        (dirty.worktree / names[0]).write_text("edited\n", encoding="utf-8")
+        write(dirty.worktree / names[0], "edited\n")
         outside = fakes.directory() / "plain"
         outside.mkdir()
         places = [(dirty, dirty.worktree), (clean, clean.clone), (clean, outside)]

@@ -10,7 +10,7 @@ from .briefmake import text
 from .test_commands import sweep
 from .test_evidence_rules import words
 from .test_flow_sweep import APPROVED, CHANGES, graded, world_with
-from .test_plan_commands import EXECUTION_REVIEWS
+from .briefmake import EXECUTION_REVIEWS
 
 BRIEF_SENTENCE = (
     "a gap against the goal or the Done-when that you can name (a case, a"

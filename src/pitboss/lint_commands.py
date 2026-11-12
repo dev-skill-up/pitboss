@@ -4,8 +4,7 @@ import argparse
 import functools
 import json
 import pathlib
-import sys
-from typing import Callable, Mapping, Sequence, TypeVar
+from typing import Callable, Mapping, Sequence
 
 from gather.commands import add_argument
 
@@ -18,15 +17,24 @@ from . import (
     configsettle,
     contradictions,
     draftfindings,
+    extrafile,
+    e2ewaits,
+    lintkinds,
+    quarantinerace,
     folds,
     forms,
     gateform,
+    approvalci,
+    gradesrequired,
     holdwait,
+    lintinput,
     phrases,
     planapproved,
     planfixed,
+    quotedplan,
     relock,
     repeatruns,
+    reviewrules,
     sessionurl,
     shapes,
     testnames,
@@ -34,65 +42,18 @@ from . import (
     ticketrows,
 )
 
-USAGE_ERROR = 2
-_Rule = TypeVar("_Rule")
 FormCheck = Callable[[argparse.Namespace, forms.Subject, config.Lint], Sequence[str]]
 
 
-def _fail(message: str) -> SystemExit:
-    print(message, file=sys.stderr)
-    return SystemExit(USAGE_ERROR)
+_fail = lintinput.fail
+_read = lintinput.read
+_read_files = lintinput.read_files
+_phrases = lintinput.phrase_rules
+_pairs = lintinput.pair_rules
 
 
-def _shipped_and_given(
-    shipped: Sequence[_Rule],
-    given: Sequence[str] | None,
-    load: Callable[[pathlib.Path], Sequence[_Rule]],
-) -> list[_Rule]:
-    found = list(shipped)
-    try:
-        for path in given or ():
-            found.extend(load(pathlib.Path(path)))
-    except phrases.PhraseError as error:
-        raise _fail(str(error)) from error
-    return found
-
-
-def _phrases(args: argparse.Namespace) -> list[phrases.Phrase]:
-    shipped = (
-        []
-        if args.no_default_phrases
-        else phrases.parse(phrases.default_text(), "default phrases")
-    )
-    return _shipped_and_given(shipped, args.phrases, phrases.load)
-
-
-def _pairs(args: argparse.Namespace) -> list[contradictions.Pair]:
-    shipped = (
-        []
-        if args.no_default_pairs
-        else contradictions.parse(contradictions.default_text(), "default pairs")
-    )
-    return _shipped_and_given(shipped, args.pairs, contradictions.load)
-
-
-def _read(name: str) -> str:
-    try:
-        return phrases.read_text(pathlib.Path(name))
-    except phrases.PhraseError as error:
-        raise _fail(str(error)) from error
-
-
-def _read_files(args: argparse.Namespace) -> list[tuple[str, str]]:
-    return [(name, _read(name)) for name in args.files]
-
-
-def _finish(refused: Sequence[str], ok: str) -> None:
-    for each in refused:
-        print(each)
-    if refused:
-        raise SystemExit(1)
-    print(ok)
+_finish = lintinput.finish
+_exactly = lintinput.exactly
 
 
 def _contradictions(args: argparse.Namespace) -> None:
@@ -134,8 +95,7 @@ def _comments(args: argparse.Namespace) -> Sequence[shapes.Comment]:
 def _rulings(
     args: argparse.Namespace, settings: config.Lint
 ) -> Sequence[folds.Recorded]:
-    # keyword: fold (pitboss#171): the PR's Opus ruling comments, which a body
-    # with several tickets may cite
+    # keyword: fold (pitboss#171): the PR's Opus ruling comments, cited by a body
     given = [(url, _read(name)) for url, name in args.ruling or ()]
     found = folds.ruling_comments(_comments(args), settings.review.trusted)
     return [*given, *found]
@@ -158,6 +118,12 @@ def _pr_body_findings(
             _approved(args, settings),
         ),
         *_test_names(args, subject),
+        *quarantinerace.pr_body(
+            subject.name,
+            subject.body,
+            None if args.checkout is None else pathlib.Path(args.checkout),
+            settings.quarantine,
+        ),
     ]
 
 
@@ -176,7 +142,17 @@ def _review_findings(
 ) -> Sequence[str]:
     form = _gated_form(args, settings) if args.gated else settings.review.form
     check = forms.gated_review if args.gated else forms.ordinary_review
-    return [*check(subject, form), *planfixed.required(args, subject, form)]
+    return [
+        *check(subject, form),
+        *planfixed.required(args, subject, form),
+        *gradesrequired.findings(args, subject, form),
+        *approvalci.findings(args, subject, form, settings.review),
+        *reviewrules.grade_findings(subject.body, form),
+        *reviewrules.phrase_findings(subject.body),
+        *reviewrules.piecemeal_findings(subject.body),
+        *quarantinerace.review(subject.name, subject.body, settings.quarantine),
+        *extrafile.findings(subject.body),
+    ]
 
 
 def _gated_form(args: argparse.Namespace, settings: config.Lint) -> config.ReviewForm:
@@ -195,6 +171,7 @@ def _brief_findings(
     return [
         *forms.brief(subject, settings.brief_lines, _ticket(args)),
         *repeatruns.findings(subject.name, _ticket(args)),
+        *quarantinerace.brief(subject.name, subject.body, _phrases(args)),
         *holdwait.findings(subject.name, subject.body),  # keyword: hold-wait
         *draftfindings.findings(
             args.config, commands.working_directory(args), subject.name, subject.body
@@ -209,6 +186,11 @@ def _card_findings(
     return cardform.findings(subject.name, subject.body)
 
 
+def _read_as_written(args: argparse.Namespace, body: str) -> str:
+    # keyword: plan-quote (pitboss#444): a Plan row quotes the Done-when
+    return quotedplan.mask(body) if args.kind == "pr-body" else body
+
+
 def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
     def run(args: argparse.Namespace) -> None:
         texts = _read_files(args)
@@ -219,7 +201,7 @@ def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
         subject = forms.Subject(name=name, body=body, head=args.head)
         refused = [
             *check(args, subject, _lint_settings(args)),
-            *phrases.findings(body, name, _phrases(args)),
+            *phrases.findings(_read_as_written(args, body), name, _phrases(args)),
         ]
         _finish(refused, "ok")
 
@@ -237,7 +219,7 @@ def _body_findings(
     subject = forms.Subject(name="body", body=body, head=head)
     return [
         *form(subject),
-        *phrases.findings(body, subject.name, banned),
+        *phrases.findings(quotedplan.mask(body), subject.name, banned),
         *contradictions.findings([(subject.name, body)], pairs),
     ]
 
@@ -276,6 +258,10 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "owner-card": _form_kind(_card_findings),
     "ticket": _form_kind(ticketrows.check),
     "event": _event,
+    "change": lintkinds.change,
+    "repo-rules": lintkinds.repo_rules,
+    "ruling": lintkinds.ruling,
+    "e2e-waits": lintkinds.e2e_waits,
 }
 
 
@@ -345,6 +331,9 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
         " (with --repository, the form review-form prints for it)",
     ),
     planfixed.ARGUMENT,
+    gradesrequired.ARGUMENT,
+    *approvalci.ARGUMENTS,
+    *e2ewaits.ARGUMENTS,
     add_argument(
         "--repository",
         default="",

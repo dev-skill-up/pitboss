@@ -18,7 +18,8 @@ WORKER_SENTENCE = (
     " removed (a doc that code makes outdated is cut, not reworded, and a rule goes"
     " into the command's output or help text); a changed line whose text is its"
     " removed line with characters deleted and none inserted or reordered is a"
-    " removal, so cut the span and keep the rest; `pitboss plan-check` refuses a"
+    " removal, so cut the span and keep the rest; a blank line and inserted markup"
+    " (a bold title) are added lines; `pitboss plan-check` refuses a"
     " diff that adds any other line (keyword: markup-lines, pitboss#343, #373)."
 )
 REVIEW_SENTENCE = (
@@ -145,11 +146,9 @@ def hunk(old: Sequence[str], new: Sequence[str], path: str = "a.md") -> str:
         The patch.
     """
     head = f"diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -1 +1 @@\n"
-    return (
-        head
-        + "".join(f"-{each}\n" for each in old)
-        + "".join(f"+{each}\n" for each in new)
-    )
+    removed = [f"-{each}\n" for each in old]
+    added = [f"+{each}\n" for each in new]
+    return head + "".join([*removed, *added])
 
 
 def counted(patch: str, stat: str = "1\t1\ta.md\0") -> int:
@@ -178,6 +177,10 @@ class TestCutSpans(unittest.TestCase):
         assert_that(
             markuplines.notes("1\t1\ta.md\0", patch), equal_to([markuplines.NOTE])
         )
+
+    def test_a_line_cut_down_to_its_list_mark_is_a_removal(self) -> None:
+        """Only the mark is left: nothing dangles."""
+        assert_that(counted(hunk(["- a red fox"], ["-"])), equal_to(0))
 
     def test_the_nearest_inputs_are_still_refused(self) -> None:
         """Done-when: word replaced, character inserted, spans swapped, new line."""

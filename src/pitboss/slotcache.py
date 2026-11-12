@@ -10,6 +10,8 @@ import pathlib
 import sys
 from typing import Mapping
 
+from . import totaljson
+
 NAME = "slots-next-cache.json"
 
 
@@ -35,7 +37,7 @@ def read(path: pathlib.Path) -> Mapping[str, object]:
         Its parts by name; none when the file is missing or is not a JSON object.
     """
     try:
-        found = json.loads(path.read_text(encoding="utf-8"))
+        found = totaljson.read_file(path)
     except (OSError, ValueError):
         return {}
     return found if isinstance(found, dict) else {}

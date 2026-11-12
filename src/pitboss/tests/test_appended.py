@@ -6,7 +6,8 @@ from typing import Mapping
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftext, evidence, expansion
-from .briefmake import has_all, has_none, text
+from .briefmake import text
+from .says import has_all, has_none
 from .formchecks import body_checks, findings
 from .linting import BODY, OK, RAN
 from .test_evidence_rules import words
@@ -26,8 +27,8 @@ SENTENCES = {
     ),
     "Search: ": (
         "update the docstring next to each piece of code the change alters, and"
-        " cut other text it makes false; a change never adds a line to a doc, so a"
-        " doc is cut, not reworded (pitboss#396)."
+        " cut other text that no longer matches it; a change never adds a line"
+        " to a doc, so a doc is cut, not reworded (pitboss#396)."
     ),
 }
 CONSTANTS = (brieftext.TRY_COMMANDS, brieftext.NO_APPEND, brieftext.SEARCH)

@@ -4,7 +4,7 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, sessionurl, shapes
+from . import config, gradeline, sessionurl, shapes
 
 PatternOf = Callable[[str, config.ReviewForm], re.Pattern[str]]
 Reader = Callable[[str, config.ReviewForm], tuple[str, shapes.Verdict] | None]
@@ -50,6 +50,25 @@ def first_line_problem(
     return f"the first line is {shown!r}, not {wanted!r}"
 
 
+def _problem(
+    item: shapes.Comment, form: config.ReviewForm, pattern_of: PatternOf
+) -> str:
+    return first_line_problem(item.body, form, pattern_of) or _ungraded(item, form)
+
+
+def _ungraded(item: shapes.Comment, form: config.ReviewForm) -> str:
+    # keyword: grade-spellings (rp#684): a grade line the sweep cannot read
+    lines = gradeline.ungraded(item.body, form.approved, form.changes_needed)
+    if not lines or not form.lines:
+        return ""
+    shown = lines[0] if len(lines[0]) <= _SHOWN else lines[0][:_SHOWN] + "..."
+    return (
+        f"the line {shown!r} grades nothing: the verdict word is `{form.approved}`"
+        f" or `{form.changes_needed}`, first on the line after `Plan: ` or"
+        " `Execution: `"
+    )
+
+
 def find(
     posted: Sequence[shapes.Comment],
     trusted: AbstractSet[str],
@@ -77,9 +96,7 @@ def find(
         for item in posted
         if item.author_association in trusted and _GRADE_LINE.search(item.body)
     ]
-    problems = [
-        (item, first_line_problem(item.body, form, pattern_of)) for item in graded
-    ]
+    problems = [(item, _problem(item, form, pattern_of)) for item in graded]
     return [
         UnreadableReview(url=item.url, problem=problem)
         for item, problem in problems

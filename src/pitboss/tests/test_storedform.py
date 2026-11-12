@@ -4,8 +4,8 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import evidence, expansion
-from .formchecks import findings
+from .. import expansion
+from .formchecks import findings, typed_at
 from .linting import HEAD
 
 URL = "https://x.example/a?b=1"
@@ -34,4 +34,4 @@ class TestStoredBody(unittest.TestCase):
     def test_an_edited_stored_block_is_refused(self) -> None:
         """A changed line of the stored block is not a store rewrite."""
         edited = STORED.replace("ok\n", "fine\n")
-        assert_that(evidence.hand_typed(edited), equal_to([8]))
+        typed_at(edited, [8])

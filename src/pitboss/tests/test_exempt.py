@@ -1,54 +1,37 @@
 """Pitboss is not subject to holds, and its PRs are not drafts (pitboss#113)."""
 
-import re
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
-from .. import brief, briefconfig, briefrepo, configfile, exempt
+from .. import brief, briefconfig, briefrepo, configfile, configloads, exempt
 from . import fakes, quietworld, world
-from .briefmake import has_all, has_none, text
-from .test_flow_sweep import APPROVED, graded, world_with
-from .test_quiet import at, clear_world, lines, pushes, record_path, waiting_world
+from .briefmake import text
+from .says import has_all, has_none
+from .exemptworld import of, push, swept, with_pitboss
+from .test_flow_sweep import approved_draft
+from .test_quiet import clear_world, lines, pushes, record_path, waiting_world
 from .test_slot_commands import next_output
+from .pushworld import pushes_to_origin, remote_to
 
 PITBOSS_URL = "https://github.com/dev-skill-up/pitboss.git"
-OTHER_URL = "git@github.com:other/repo.git"
+OTHER_URL = "git@github.com:owner/other.git"
 QUIRE = "owner/project#3"
 PITBOSS_PR = "dev-skill-up/pitboss#3"
-LISTED = "other/repo"
+LISTED = "owner/other"
 READY = "Ready: this project's PRs are not drafts"
 DRAFT = "Draft: open the PR as a draft"
 SAYING = "pitboss is exempt from holds"
 PITBOSS_NEW = "dev-skill-up/pitboss#9"
 
 
-def remote_to(here: world.World, name: str, url: str) -> None:
-    """Add a remote that names a repository and pushes to the world's origin.
-
-    Args:
-        here: the world.
-        name: the remote's name.
-        url: the URL it names.
-    """
-    fakes.run_git(here.clone, "branch", "-f", "branch-1")
-    fakes.run_git(here.clone, "remote", "add", name, url)
-    target = str(world.origin_of(here.clone))
-    fakes.run_git(here.clone, "config", f"remote.{name}.pushurl", target)
-
-
-def push(here: world.World, *more: str) -> world.Result:
-    """Push at minute 1 of a world.
-
-    Args:
-        here: the world.
-        *more: the options and git's arguments.
+def drafted_pair() -> world.World:
+    """A world with a draft of an approved Plan in each of two repositories.
 
     Returns:
-        What the push did.
+        The world; a job waits for a runner, so the project's draft is held.
     """
-    return world.again(here, "push", "--now", at(1), "--no-dry-run", *more)
+    return with_pitboss(approved_draft())
 
 
 class TestNames(unittest.TestCase):
@@ -64,7 +47,7 @@ class TestNames(unittest.TestCase):
 
     def test_the_listed_and_the_built_in(self) -> None:
         """Pitboss is exempt with an empty list; another repository only if listed."""
-        listed = exempt.slugs(["repo", "x/y"], "other")
+        listed = exempt.slugs(["other", "x/y"], "owner")
         found = [
             exempt.is_exempt(exempt.PITBOSS, frozenset()),
             exempt.is_exempt(LISTED, listed),
@@ -113,7 +96,7 @@ class TestPush(unittest.TestCase):
         remote_to(here, "elsewhere", OTHER_URL)
         quietworld.edit_config(here, "[runners]", f'[runners]\nexempt = ["{LISTED}"]')
         free = push(here, "elsewhere", "branch-1")
-        assert_that((free.code, pushes(here)), equal_to((0, 1)))
+        _pushed_once(free, here)
         assert_that(free.out, contains_string(exempt.SAYING))
 
     def test_a_remote_that_names_no_repository_is_held(self) -> None:
@@ -127,10 +110,9 @@ class TestPush(unittest.TestCase):
         """With no git arguments the remote is origin, which names pitboss here."""
         here = waiting_world(1)
         fakes.run_git(here.clone, "remote", "set-url", "origin", PITBOSS_URL)
-        target = str(world.origin_of(here.clone))
-        fakes.run_git(here.clone, "config", "remote.origin.pushurl", target)
+        pushes_to_origin(here, "origin")
         found = push(here)
-        assert_that((found.code, pushes(here)), equal_to((0, 1)))
+        _pushed_once(found, here)
 
     def test_pitboss_has_no_drafts(self) -> None:
         """``--draft`` is refused for pitboss and goes out for the others."""
@@ -142,48 +124,6 @@ class TestPush(unittest.TestCase):
         allowed = push(here, "--draft", "elsewhere", "branch-1")
         assert_that((shown, allowed.code), equal_to(((1, 0), 0)))
         assert_that(refused.out, starts_with("push refused: --draft"))
-
-
-def with_pitboss(here: world.World) -> world.World:
-    """Add a pitboss repository to a world, with the PRs and tickets of the project.
-
-    Args:
-        here: the world, whose project has the PRs.
-
-    Returns:
-        The same world.
-    """
-    quietworld.edit_config(
-        here, 'repositories = ["lib"]', 'repositories = ["lib", "dev-skill-up/pitboss"]'
-    )
-    old, new = "repos/owner/project", "repos/dev-skill-up/pitboss"
-    for key, body in list(here.bodies.items()):
-        if old in key:
-            here.bodies[key.replace(old, new)] = body
-    return here
-
-
-def of(output: str, kind: str, reference: str) -> Sequence[str]:
-    """The lines of a kind that name a reference.
-
-    Args:
-        output: what a command printed.
-        kind: the line's first word.
-        reference: the PR.
-
-    Returns:
-        The lines.
-    """
-    return re.findall(rf"(?m)^{kind}\b.*{re.escape(reference)}\b.*$", output)
-
-
-def drafted_pair() -> world.World:
-    """A world with a draft of an approved Plan in each of two repositories.
-
-    Returns:
-        The world; a job waits for a runner, so the project's draft is held.
-    """
-    return with_pitboss(world_with([graded(APPROVED, None, 1)], draft=True))
 
 
 def held_pair() -> world.World:
@@ -198,18 +138,6 @@ def held_pair() -> world.World:
     assert isinstance(body, dict)
     here.bodies[key] = {**body, "draft": False}
     return here
-
-
-def swept(here: world.World) -> str:
-    """What a sweep of a world printed.
-
-    Args:
-        here: the world.
-
-    Returns:
-        Its output.
-    """
-    return world.invoke(here, "sweep", here.config, "--now", world.FUTURE).out
 
 
 class TestSweep(unittest.TestCase):
@@ -305,9 +233,9 @@ class TestNoDrafts(unittest.TestCase):
         """READY for the listed one, DRAFT for the other, from one configuration."""
         here = held_pair()
         quietworld.edit_config(
-            here, "[runners]", '[slots.brief]\nno_drafts = ["other/repo"]\n\n[runners]'
+            here, "[runners]", '[slots.brief]\nno_drafts = ["owner/other"]\n\n[runners]'
         )
-        given = configfile.load_brief(here.config, here.workspace)
+        given = configloads.load_brief(here.config, here.workspace)
         briefs = [
             text(brief.Kind.NEW_PR, project=for_repository(here, given, each))
             for each in (LISTED, exempt.PITBOSS, "owner/project")
@@ -337,3 +265,8 @@ class TestNoDrafts(unittest.TestCase):
                 ready.append((each.split()[2], exempt.OPEN_READY in each))
         expected = [(PITBOSS_NEW, True), ("owner/project#9", False)]
         assert_that(sorted(ready), equal_to(expected))
+
+
+def _pushed_once(done: world.Result, here: world.World) -> None:
+    # the push exited 0 and reached the origin once
+    assert_that((done.code, pushes(here)), equal_to((0, 1)))

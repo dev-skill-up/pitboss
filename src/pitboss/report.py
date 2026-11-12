@@ -7,8 +7,10 @@ from . import (
     brieftextowner,
     causeline,
     config,
+    configrepos,
     headchecks,
-    local,
+    holdgate,
+    knownred,
     pinsline,
     pulls,
     queue,
@@ -67,7 +69,7 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
 
 
 def _ruled(pull: pulls.PullFacts) -> bool:
-    return pull.step.step is steps.Step.MERGE and not pulls.approved(pull)
+    return pulls.at_merge(pull) and not pulls.approved(pull)
 
 
 def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
@@ -77,7 +79,7 @@ def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
     if not ready or pull.pull.auto_merge or pull.signals.gate:
         return None  # keyword: review-gate: a pending gate is no READY TO MERGE
     name = pulls.reference(pull)
-    if config.merges_by_hand(settings, pull.repo):
+    if configrepos.merges_by_hand(settings, pull.repo):
         why = "execution approved by the Opus ruling" if ruled else "approved"
         said = pinsline.why(pull.signals.pins, why)
         return f"{Marker.MERGE_BY_HAND.text} {name}: green, clean, {said}"
@@ -102,10 +104,8 @@ def action_lines(
         The lines.
     """
     behind = _behind_lines(pull, settings)
-    merge = None if behind else _ready_line(pull, settings)
-    if merge is None and not behind and _auto_merge_off(pull, settings, queued):
-        merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
-    return [
+    merge = _merge_line(pull, settings, queued) if not behind else None
+    found = [
         *_wait_lines(pull),
         *_conflict_lines(pull),
         *_failure_lines(pull, why),
@@ -113,6 +113,18 @@ def action_lines(
         *behind,
         *([merge] if merge else []),
     ]
+    # keywords: hold-gate (quire#1110), known-red (quire#1120): before the hold
+    return holdgate.gate(pull, knownred.gate(pull, found, holdgate.PREFIXES))
+
+
+def _merge_line(
+    pull: pulls.PullFacts, settings: config.Config, queued: bool
+) -> str | None:
+    # the merge line of a PR that is not behind: ready, by hand, or auto-merge off
+    merge = _ready_line(pull, settings)
+    if merge is None and _auto_merge_off(pull, settings, queued):
+        return f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
+    return merge
 
 
 # keyword: behind-approved (pitboss#369): the strict up-to-date rule held pwa#293
@@ -185,21 +197,16 @@ def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[st
 def _auto_merge_off(
     pull: pulls.PullFacts, settings: config.Config, queued: bool
 ) -> bool:
-    manual = config.merges_by_hand(settings, pull.repo)
+    manual = configrepos.merges_by_hand(settings, pull.repo)
     # keyword: auto-merge-approved (pitboss#85): AUTO MERGE OFF is printed only for
     # a head a review approved; a head the Opus ruling approved gets READY TO MERGE
     # while auto-merge is off.
-    healthy = pull.standing is reviews.Standing.APPROVED and not pulls.unhealthy(pull)
+    healthy = pull.standing is reviews.Standing.APPROVED and pulls.approved(pull)
+    healthy = healthy and not pulls.unhealthy(pull)
     return healthy and not manual and not queued and not pull.pull.auto_merge
 
 
-# keyword: hold-actions (pitboss#200): the one text of the actions a runner hold
-# covers; the skill's references/ci.md ("What costs runs") quotes it word for word.
-HOLD_ACTIONS = (
-    "HOLD pushes to non-draft PRs, undrafts, enqueues, merges,"
-    " workflow dispatches (a dispatch on a draft too) and re-runs"
-    " (pushes to drafts are free)"
-)
+HOLD_ACTIONS = holdgate.HOLD_ACTIONS  # keyword: hold-actions (pitboss#200)
 
 
 def pressure_line(waiting: int) -> str:
@@ -334,25 +341,6 @@ def _run_name(queue_run: queue.QueueRun) -> str:
     return (
         f"{queue_run.repo.slug} {queue_run.run.id}"
         f" (pr-{queue_run.number}, {queue_run.run.status})"
-    )
-
-
-def straggler_line(straggler: local.Straggler) -> str:
-    """The line of one straggler.
-
-    Args:
-        straggler: the straggler.
-
-    Returns:
-        The line.
-    """
-    branch = straggler.branch or "detached"
-    return (
-        f"{Marker.STRAGGLER.text} {straggler.path} [{branch}]"
-        f" uncommitted={straggler.uncommitted}"
-        f" commits-not-on-origin={straggler.unpushed}"
-        f" branch-on-origin={'yes' if straggler.on_origin else 'no'}"
-        f" last={straggler.last}"
     )
 
 

@@ -15,8 +15,8 @@ PLAN_CHECK_OK = "Plan check: ok"
 RUN_E2E_MARKER = "RUN E2E BEFORE APPROVAL"  # keyword: run-e2e (pitboss#199)
 # keyword: owner-artifact (pitboss#237, the owner's standing ruling of 2026-11-04)
 OWNER_ARTIFACT = (
-    "attach a markdown artifact with the sections 'What happened',"
-    " 'Recommendation' and 'Suggested mitigation'"
+    "attach a markdown artifact with the sections 'What happened', 'Recommendation' "
+    "and 'Suggested mitigation'"
 )
 FIRST_STEP = (
     "write the code, open the PR as a draft whose body has a Plan section and an"
@@ -44,18 +44,13 @@ class Step(enum.Enum):
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
         FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
         RULING_ESCALATES: the Opus ruling escalated to the owner.
-        PLAN_EDITED: the Plan section differs from the Plan an approving review
-            read, and no Opus ruling authorises the edit (keyword: plan-digest,
-            pitboss#172).
-        PLAN_CHECK: no trusted comment records a clean ``pitboss plan-check`` of
-            this Plan (keyword: plan-check, pitboss#192); no review before it.
-        SEND_BACK_PLAN_CHECK: the newest Plan check refused the Plan; the worker
-            that pushed sends it back, no round (pitboss#471).
-        RUN_E2E: a draft whose Plan is approved, whose diff touches what the
-            e2e suite runs on, has no completed dispatched run of
-            ``check.yml`` at its head (a draft's own run skipped e2e): the
-            check workflow is dispatched on its branch before any approval
-            (keyword: run-e2e, pitboss#199).
+        PLAN_EDITED: the approved Plan was edited, no ruling allows it (plan-digest).
+        PLAN_CHECK: no comment records a clean ``pitboss plan-check`` (plan-check).
+        SEND_BACK_PLAN_CHECK: the Plan check refused the Plan: send it back (#471).
+        RUN_E2E: dispatch ``check.yml`` at the head of a draft whose diff touches e2e.
+        WAIT_FOR_SHARED_RED: the PR's red check is red on others (keyword: shared-red).
+        WAIT_FOR_BLOCKER: the PR waits for an open blocker (keyword: blocked-by).
+        WAIT_FOR_HOLD: a runner-pressure hold withholds the merge or dispatch.
         MERGE: the PR merges.
     """
 
@@ -73,6 +68,9 @@ class Step(enum.Enum):
     PLAN_CHECK = enum.auto()
     SEND_BACK_PLAN_CHECK = enum.auto()
     RUN_E2E = enum.auto()
+    WAIT_FOR_SHARED_RED = enum.auto()
+    WAIT_FOR_BLOCKER = enum.auto()
+    WAIT_FOR_HOLD = enum.auto()
     MERGE = enum.auto()
 
 
@@ -83,19 +81,18 @@ class Task(enum.Enum):
         FIRST_ROUND: the first work on a PR with no Plan and Execution body.
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
-        RESOLVE_CONFLICT: the head conflicts with the base, at any stage but
-            while it waits (``WAITS``, including PLAN_EDITED).
+        RESOLVE_CONFLICT: the head conflicts with the base.
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.
-        RUN_PLAN: the Plan was approved alone after a ruling, or the Execution
-            is empty or a placeholder (keyword: unwritten-execution,
-            pitboss#294, plan-alone, pitboss#201): run its commands as written.
-        ADD_CI_QUOTES: the Plan has CI-quote rows and the body lacks the quotes,
-            which exist only after the PR is ready and its checks pass (keyword:
-            ci-quotes, pitboss#277).
-        FIX_ROUND: findings name a file of the tree: code, doc and test may
-            change (keyword: fix-round-kind).
+        RUN_PLAN: run the commands of a Plan approved alone (plan-alone).
+        ADD_CI_QUOTES: the body lacks the Plan's CI quotes (keyword: ci-quotes).
+        FIX_ROUND: findings name a file of the tree (fix-round-kind).
+        REFRESH_BODY: the body names an older head (keyword: stale-head, quire#1115).
+        SHARED_RED: file ONE ticket for a check red on several PRs (shared-red).
+        FIX_BLOCKED_BY: a Blocked-by line names a loop or a closed blocker.
+        AFTER_BLOCKER: the blockers merged since the red check (keyword: blocked-by).
+        FINISH_PARTIAL: a worker handed back a PR unfinished (keyword: finish-partial).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -106,16 +103,19 @@ class Task(enum.Enum):
     RULING_STEPS = "do exactly the steps of the Opus ruling"
     RULING_AS_GIVEN = (
         "do exactly what the Opus ruling says to the ticket and the PR (split,"
-        " reshape or abandon); it is not checked against the one-ticket-one-PR"
-        " rules"
+        " reshape or abandon); it is not checked against the one-ticket-one-PR rules"
     )
-    RUN_PLAN = (
-        "run the approved Plan's commands as written and fill the Execution"
-        " (the Plan was approved alone, after a ruling, or the Execution section"
-        " is empty or a placeholder)"
-    )
+    RUN_PLAN = "run the approved Plan's commands as written and fill the Execution"
     ADD_CI_QUOTES = "add the CI quotes to the body"
     FIX_ROUND = "fix round: fix the findings, each one (code, doc, test, Plan)"
+    REFRESH_BODY = (
+        "rewrite the body's Head line and stale Evidence for the head:"
+        " `pitboss body-head`, `pitboss expand`; `pitboss lint pr-body` must print ok"
+    )
+    SHARED_RED = "file one ticket against the shared cause of the red check; fix no PR"
+    FIX_BLOCKED_BY = "correct the Blocked-by lines (a loop, or a blocker closed)"
+    AFTER_BLOCKER = "the blockers merged: merge the base into the branch, check, push"
+    FINISH_PARTIAL = "finish this PR, handed back unfinished: do what the lines name"
 
 
 class Stage(enum.Enum):
@@ -129,9 +129,7 @@ class Stage(enum.Enum):
         RULING_STEPS: only the steps of an Opus ruling.
     """
 
-    PLAN_ONLY = (
-        "grade the Plan ONLY (no Execution line); changes needed is a Plan rejection"
-    )
+    PLAN_ONLY = "grade the Plan ONLY (no Execution line); changes needed rejects it"
     EXECUTION_ONLY = "review ONLY the Execution; the Plan is carried over as approved"
     PLAN_AND_EXECUTION = "grade Plan and Execution together"
     EXECUTION_AGAINST_PLAN = "grade the Execution against the approved Plan"
@@ -147,13 +145,16 @@ class Next:
         task: what the worker does (a WORKER step).
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
-            FIX_RULING step), of the refused Plan check (SEND_BACK_PLAN_CHECK) or of
-            the ruling a FIX_EXECUTION step follows, empty when there is none.
+            FIX_RULING step), of the refused Plan check (SEND_BACK_PLAN_CHECK) or
+            of the ruling a FIX_EXECUTION or RULING_STEPS step follows, else empty.
         findings: the refused Plan check's findings, quoted.
-        branch: the head branch the check workflow is dispatched on (a RUN_E2E
-            step).
+        branch: the head branch the check workflow is dispatched on (RUN_E2E).
         on_base: the head is red only from checks that passed on the base since
             (keyword: fixed-on-base, pitboss#314): the step is a green head's.
+        reason: why the review of a ruling's steps follows (keyword: ruling-reason,
+            case 24), empty for any other step.
+        conflict: ``FIRST SECOND``, the pair of rules an Opus ruling is to settle
+            (keyword: rule-conflicts), empty for any other step.
     """
 
     step: Step
@@ -163,11 +164,12 @@ class Next:
     findings: str = ""
     branch: str = ""
     on_base: bool = False
+    reason: str = ""
+    conflict: str = ""
 
 
-# the steps at which a PR waits for an Opus ruling or the owner (pitboss#148), or
-# for an edited approved Plan to be restored or ruled (pitboss#172): a conflict
-# is not resolved meanwhile, and the sweep prints a line for each
+# the steps at which a PR waits for a ruling or the owner (pitboss#148) or for an
+# edited approved Plan to be restored (pitboss#172): no conflict is resolved meanwhile
 WAITS = frozenset(
     {
         Step.OPUS_RULING,
@@ -176,22 +178,18 @@ WAITS = frozenset(
         Step.PLAN_EDITED,
     }
 )
-
+HELD = frozenset({Step.MERGE, Step.RUN_E2E})  # keyword: hold-scope, B20
 TEXTS: Mapping[Step, str] = {
     Step.WAIT_FOR_OWNER: (
         f"the PR is paused (label {PAUSED_LABEL}); nobody works on it until the"
         " owner decides"
     ),
-    Step.UNDRAFT: (
-        "mark the PR ready; the next step is the CI gate on the undrafted head"
-    ),
+    Step.UNDRAFT: "mark the PR ready; the next step is the CI gate on the head",
     Step.WAIT_FOR_UNDRAFT: (
         "the plan is approved but the PR cannot be undrafted yet (runner pressure"
         " or the quiet period); wait for the window"
     ),
-    Step.WAIT_FOR_CI: (
-        "CI on the current head has not finished; nobody works or reviews" " meanwhile"
-    ),
+    Step.WAIT_FOR_CI: "CI on the current head has not finished: nobody acts meanwhile",
     Step.OPUS_RULING: (
         "start an Opus agent whose only brief is to make a ruling, and record it"
         f" as a PR comment whose first line is {RULING_FIRST_LINE!r}"
@@ -228,6 +226,9 @@ TEXTS: Mapping[Step, str] = {
         " sends back the posted check; this is no fix round: {findings}"
     ),
     Step.RUN_E2E: f"{RUN_E2E_MARKER}: dispatch check.yml on {{branch}}",
+    Step.WAIT_FOR_BLOCKER: "blocked by {comment}: nobody acts until it merges",
+    Step.WAIT_FOR_SHARED_RED: "shared red (SHARED RED line): wait for its ticket",
+    Step.WAIT_FOR_HOLD: "HOLD: a runner-pressure hold withholds this merge or dispatch",
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
 
@@ -235,6 +236,7 @@ TEXTS: Mapping[Step, str] = {
 # keyword: fixed-on-base (pitboss#314): the words of a red CI the base has answered
 ENQUEUE = "enqueue it (the merge queue tests it on main)"
 REQUEST_REVIEW = "request the review"
+REFRESHED = frozenset({Step.REGULAR_REVIEW, Step.UNDRAFT, Step.MERGE})
 
 
 def describe(step: Next) -> str:

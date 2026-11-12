@@ -154,7 +154,7 @@ def parse_rows(
     return [
         build(line, f"{source}:{number}")
         for number, line in enumerate(text.split("\n"), 1)
-        if line.strip() and not line.startswith("#")
+        if line.strip() and line[:1] != "#"
     ]
 
 

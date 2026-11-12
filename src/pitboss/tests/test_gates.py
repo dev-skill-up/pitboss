@@ -8,7 +8,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, gates, ghapi, headchecks, shapes
-from . import fakes, suggestions, test_commands, test_flow_sweep, world
+from . import fakes, quietworld, suggestions, test_commands, test_flow_sweep, world
 from .gateworld import (
     FORM,
     GATE,
@@ -54,7 +54,7 @@ def swept_ungated() -> str:
     Returns:
         What the sweep printed.
     """
-    return test_commands.sweep(world.make_world()).out
+    return test_commands.sweep(quietworld.calm(world.make_world())).out
 
 
 def swept(status: object = None) -> str:
@@ -66,7 +66,7 @@ def swept(status: object = None) -> str:
     Returns:
         What the sweep printed.
     """
-    here = with_gate(world.make_world(), PROJECT_GATE)
+    here = quietworld.calm(with_gate(world.make_world(), PROJECT_GATE))
     here.bodies[THIRD_STATUS] = status or fakes.NO_STATUS
     return test_commands.sweep(here).out
 
@@ -220,7 +220,10 @@ def gated_lint(*options: str) -> tuple[object, str]:
     here = with_gate(world.make_world(), LIBRARY_GATE)
     path = fakes.directory() / "review.md"
     head = fakes.HEAD
-    path.write_text(f"## Adversarial review\nVerdict: approved\nReviewed: {head}\n")
+    graded = "Plan: approved\nExecution: approved\n"
+    path.write_text(
+        f"## Adversarial review\nVerdict: approved\nReviewed: {head}\n{graded}"
+    )
     bare = options[:1] == ("--no-config",)
     config_options = [] if bare else ["--config", here.config]
     words = ["--gated", "--head", head, *options[bare:]]

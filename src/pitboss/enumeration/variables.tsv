@@ -1,0 +1,188 @@
+pr-field	_links	docs pulls#create (201 schema)
+pr-field	active_lock_reason	docs pulls#create (201 schema)
+pr-field	additions	docs pulls#create (201 schema)
+pr-field	assignees	docs pulls#create (201 schema)
+pr-field	author_association	docs pulls#create (201 schema)
+pr-field	auto_merge	docs pulls#create (201 schema)
+pr-field	base	docs pulls#create (201 schema)
+pr-field	body	docs pulls#create (201 schema)
+pr-field	changed_files	docs pulls#create (201 schema)
+pr-field	closed_at	docs pulls#create (201 schema)
+pr-field	comments	docs pulls#create (201 schema)
+pr-field	comments_url	docs pulls#create (201 schema)
+pr-field	commits	docs pulls#create (201 schema)
+pr-field	commits_url	docs pulls#create (201 schema)
+pr-field	created_at	docs pulls#create (201 schema)
+pr-field	deletions	docs pulls#create (201 schema)
+pr-field	diff_url	docs pulls#create (201 schema)
+pr-field	draft	docs pulls#create (201 schema)
+pr-field	head	docs pulls#create (201 schema)
+pr-field	html_url	docs pulls#create (201 schema)
+pr-field	id	docs pulls#create (201 schema)
+pr-field	issue_url	docs pulls#create (201 schema)
+pr-field	labels	docs pulls#create (201 schema)
+pr-field	locked	docs pulls#create (201 schema)
+pr-field	maintainer_can_modify	docs pulls#create (201 schema)
+pr-field	mergeable	docs pulls#create (201 schema)
+pr-field	mergeable_state	docs pulls#create (201 schema)
+pr-field	merged	docs pulls#create (201 schema)
+pr-field	merged_at	docs pulls#create (201 schema)
+pr-field	merged_by	docs pulls#create (201 schema)
+pr-field	milestone	docs pulls#create (201 schema)
+pr-field	node_id	docs pulls#create (201 schema)
+pr-field	number	docs pulls#create (201 schema)
+pr-field	patch_url	docs pulls#create (201 schema)
+pr-field	rebaseable	docs pulls#create (201 schema)
+pr-field	requested_reviewers	docs pulls#create (201 schema)
+pr-field	requested_teams	docs pulls#create (201 schema)
+pr-field	review_comment_url	docs pulls#create (201 schema)
+pr-field	review_comments	docs pulls#create (201 schema)
+pr-field	review_comments_url	docs pulls#create (201 schema)
+pr-field	stack	docs pulls#create (201 schema)
+pr-field	state	docs pulls#create (201 schema)
+pr-field	statuses_url	docs pulls#create (201 schema)
+pr-field	title	docs pulls#create (201 schema)
+pr-field	updated_at	docs pulls#create (201 schema)
+pr-field	url	docs pulls#create (201 schema)
+pr-field	user	docs pulls#create (201 schema)
+pr-field	assignee	every real PR response (observed on 145 of 145)
+pr-field	merge_commit_sha	every real PR response (observed on 145 of 145)
+timeline-kind	added_to_merge_queue	docs issue-event-types, and the corpus
+timeline-kind	assigned	docs issue-event-types, and the corpus
+timeline-kind	auto_merge_disabled	docs issue-event-types, and the corpus
+timeline-kind	auto_merge_enabled	docs issue-event-types, and the corpus
+timeline-kind	automatic_base_change_failed	docs issue-event-types, and the corpus
+timeline-kind	automatic_base_change_succeeded	docs issue-event-types, and the corpus
+timeline-kind	base_ref_changed	docs issue-event-types, and the corpus
+timeline-kind	closed	docs issue-event-types, and the corpus
+timeline-kind	commented	docs issue-event-types, and the corpus
+timeline-kind	committed	docs issue-event-types, and the corpus
+timeline-kind	connected	docs issue-event-types, and the corpus
+timeline-kind	convert_to_draft	docs issue-event-types, and the corpus
+timeline-kind	converted_to_discussion	docs issue-event-types, and the corpus
+timeline-kind	cross-referenced	docs issue-event-types, and the corpus
+timeline-kind	demilestoned	docs issue-event-types, and the corpus
+timeline-kind	deployed	docs issue-event-types, and the corpus
+timeline-kind	deployment_environment_changed	docs issue-event-types, and the corpus
+timeline-kind	disconnected	docs issue-event-types, and the corpus
+timeline-kind	head_ref_deleted	docs issue-event-types, and the corpus
+timeline-kind	head_ref_force_pushed	docs issue-event-types, and the corpus
+timeline-kind	head_ref_restored	docs issue-event-types, and the corpus
+timeline-kind	labeled	docs issue-event-types, and the corpus
+timeline-kind	locked	docs issue-event-types, and the corpus
+timeline-kind	marked_as_duplicate	docs issue-event-types, and the corpus
+timeline-kind	mentioned	docs issue-event-types, and the corpus
+timeline-kind	merged	docs issue-event-types, and the corpus
+timeline-kind	milestoned	docs issue-event-types, and the corpus
+timeline-kind	pinned	docs issue-event-types, and the corpus
+timeline-kind	ready_for_review	docs issue-event-types, and the corpus
+timeline-kind	referenced	docs issue-event-types, and the corpus
+timeline-kind	removed_from_merge_queue	docs issue-event-types, and the corpus
+timeline-kind	renamed	docs issue-event-types, and the corpus
+timeline-kind	reopened	docs issue-event-types, and the corpus
+timeline-kind	review_dismissed	docs issue-event-types, and the corpus
+timeline-kind	review_request_removed	docs issue-event-types, and the corpus
+timeline-kind	review_requested	docs issue-event-types, and the corpus
+timeline-kind	reviewed	docs issue-event-types, and the corpus
+timeline-kind	subscribed	docs issue-event-types, and the corpus
+timeline-kind	transferred	docs issue-event-types, and the corpus
+timeline-kind	unassigned	docs issue-event-types, and the corpus
+timeline-kind	unlabeled	docs issue-event-types, and the corpus
+timeline-kind	unlocked	docs issue-event-types, and the corpus
+timeline-kind	unmarked_as_duplicate	docs issue-event-types, and the corpus
+timeline-kind	unpinned	docs issue-event-types, and the corpus
+timeline-kind	unsubscribed	docs issue-event-types, and the corpus
+timeline-kind	user_blocked	docs issue-event-types, and the corpus
+check-conclusion	action_required	docs checks/runs
+check-conclusion	cancelled	docs checks/runs
+check-conclusion	failure	docs checks/runs
+check-conclusion	neutral	docs checks/runs
+check-conclusion	skipped	docs checks/runs
+check-conclusion	stale	docs checks/runs
+check-conclusion	success	docs checks/runs
+check-conclusion	timed_out	docs checks/runs
+check-status	completed	docs checks/runs
+check-status	in_progress	docs checks/runs
+check-status	pending	docs checks/runs
+check-status	queued	docs checks/runs
+check-status	requested	docs checks/runs
+check-status	waiting	docs checks/runs
+status-state	error	docs commits/statuses
+status-state	failure	docs commits/statuses
+status-state	pending	docs commits/statuses
+status-state	success	docs commits/statuses
+mergeable-state	behind	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable-state	blocked	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable-state	clean	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable-state	dirty	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable-state	draft	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable-state	has_hooks	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable-state	unknown	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable-state	unstable	docs graphql MergeStateStatus (REST mergeable_state)
+mergeable	true	docs pulls#get: null while computing
+mergeable	false	docs pulls#get: null while computing
+mergeable	null	docs pulls#get: null while computing
+review-state	APPROVED	docs pulls/reviews
+review-state	CHANGES_REQUESTED	docs pulls/reviews
+review-state	COMMENTED	docs pulls/reviews
+review-state	DISMISSED	docs pulls/reviews
+review-state	PENDING	docs pulls/reviews
+review-comment	verdict-line	the review form of each repository (CLAUDE.md, 'The review comment')
+review-comment	head-line	the review form of each repository (CLAUDE.md, 'The review comment')
+review-comment	body-digest-line	the review form of each repository (CLAUDE.md, 'The review comment')
+review-comment	plan-line	the review form of each repository (CLAUDE.md, 'The review comment')
+review-comment	execution-line	the review form of each repository (CLAUDE.md, 'The review comment')
+review-comment	newest-attempt	the review form of each repository (CLAUDE.md, 'The review comment')
+ticket-state	open	docs issues#get
+ticket-state	closed	docs issues#get
+ticket-state_reason	completed	docs issues#get
+ticket-state_reason	not_planned	docs issues#get
+ticket-state_reason	reopened	docs issues#get
+ticket-state_reason	duplicate	docs issues#get
+ticket-state_reason	null	docs issues#get
+ticket-read	200	docs issues#get responses
+ticket-read	301	docs issues#get responses
+ticket-read	404	docs issues#get responses
+ticket-read	410	docs issues#get responses
+ticket-read	is-a-pull-request	docs issues#get responses
+ticket-read	locked	docs issues#get responses
+file-status	added	docs pulls#list-pull-requests-files
+file-status	removed	docs pulls#list-pull-requests-files
+file-status	modified	docs pulls#list-pull-requests-files
+file-status	renamed	docs pulls#list-pull-requests-files
+file-status	copied	docs pulls#list-pull-requests-files
+file-status	changed	docs pulls#list-pull-requests-files
+file-status	unchanged	docs pulls#list-pull-requests-files
+file-size	additions	docs pulls#list-pull-requests-files
+file-size	deletions	docs pulls#list-pull-requests-files
+file-size	changes	docs pulls#list-pull-requests-files
+file-path	.github/workflows/	docs: paths GitHub gives meaning to
+file-path	.github/CODEOWNERS	docs: paths GitHub gives meaning to
+read-outcome	200	docs: REST responses
+read-outcome	304	docs: REST responses
+read-outcome	403	docs: REST responses
+read-outcome	404	docs: REST responses
+read-outcome	410	docs: REST responses
+read-outcome	422	docs: REST responses
+read-outcome	500	docs: REST responses
+read-outcome	502	docs: REST responses
+read-outcome	503	docs: REST responses
+read-outcome	timeout	docs: REST responses
+ruleset-rule	Block force pushes	docs available-rules-for-rulesets
+ruleset-rule	Require a pull request before merging	docs available-rules-for-rulesets
+ruleset-rule	Require code quality results	docs available-rules-for-rulesets
+ruleset-rule	Require code scanning results	docs available-rules-for-rulesets
+ruleset-rule	Require deployments to succeed before merging	docs available-rules-for-rulesets
+ruleset-rule	Require license compliance results before merging	docs available-rules-for-rulesets
+ruleset-rule	Require linear history	docs available-rules-for-rulesets
+ruleset-rule	Require secret scanning alerts are resolved	docs available-rules-for-rulesets
+ruleset-rule	Require signed commits	docs available-rules-for-rulesets
+ruleset-rule	Require status checks to pass before merging	docs available-rules-for-rulesets
+ruleset-rule	Restrict code coverage	docs available-rules-for-rulesets
+ruleset-rule	Restrict creations	docs available-rules-for-rulesets
+ruleset-rule	Restrict deletions	docs available-rules-for-rulesets
+ruleset-rule	Restrict file extensions	docs available-rules-for-rulesets
+ruleset-rule	Restrict file path length	docs available-rules-for-rulesets
+ruleset-rule	Restrict file paths	docs available-rules-for-rulesets
+ruleset-rule	Restrict file size	docs available-rules-for-rulesets
+ruleset-rule	Restrict updates	docs available-rules-for-rulesets

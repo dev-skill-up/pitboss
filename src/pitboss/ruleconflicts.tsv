@@ -1,0 +1,3 @@
+# Pairs of rules of rules.tsv that contradict: forbidding id, acting id, resolution, trigger, question.
+# resolution: wins:ID (that rule governs) or ruling (an Opus ruling decides on the PR that hits the trigger).
+C14	T53	ruling	test\.fixme\(|\.fixme\(	Quire e2e rules require test.fixme('#N ...') for a known flaky or failing test filed as a p0 ticket (T53), while the general rule says never quarantine or skip a test to get green (C14). Which governs this PR: may the failing test be quarantined under its p0 ticket, and on what condition, or must the failure be fixed first?

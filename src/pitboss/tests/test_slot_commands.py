@@ -7,6 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from . import liveagents, slot_refusals, world
+from .says import exits
 
 UNREAD_TICKETS_LINE = (
     "UNREADABLE tickets: not offered as new work, 1 open PR(s) could not be read"
@@ -139,31 +140,8 @@ def freed_world(
     return here, tuple(freed.out.splitlines())
 
 
-def next_result(here: world.World) -> world.Result:
-    """What ``slots next`` did, given the agents the ledger holds as the live ones.
-
-    Args:
-        here: the world.
-
-    Returns:
-        Its output, error and exit code.
-    """
-    live = liveagents.running(here)
-    return world.invoke(
-        here, "slots", "next", here.config, "--now", world.FUTURE, *live
-    )
-
-
-def next_output(here: world.World) -> str:
-    """What ``slots next`` prints.
-
-    Args:
-        here: the world.
-
-    Returns:
-        Its output.
-    """
-    return next_result(here).out
+next_result = liveagents.next_result
+next_output = liveagents.next_output
 
 
 def next_lines(here: world.World) -> Sequence[str]:
@@ -356,7 +334,7 @@ class TestMissingLedger(unittest.TestCase):
         here = world.make_world()
         here.ledger.unlink()
         result = world.invoke(here, "slots", "report", here.config)
-        assert_that(result.code, equal_to(0))
+        exits(result, 0)
 
     def test_check_rows(self) -> None:
         """``check N`` passes at N rows and refuses at one more."""

@@ -24,15 +24,19 @@ from . import (
     configsearch,
     diskwatch,
     expansion,
+    gaterun,
     markupgate,
     noxcheck,
     noxenv,
     noxgreen,
     selectdiff,
     testselect,
+    ticketbranch,
 )
 from .commandarguments import NOW_ARGUMENT
 from .timing import current_time
+
+SESSION_SECONDS = 3600  # a session that runs longer is a hang, refused (gate-run)
 
 
 def run_command(
@@ -61,6 +65,29 @@ def run_command(
         **given,
     )
     return expansion.Outcome(status=done.returncode, output=done.stdout)
+
+
+def gate_command(
+    args: argparse.Namespace, command: Sequence[str], environment: Mapping[str, str]
+) -> expansion.Outcome:
+    """Run one session as a gate: only an explicit ok passes (keyword: gate-run).
+
+    Args:
+        args: the parsed arguments.
+        command: the session's command line.
+        environment: the environment of the child.
+
+    Returns:
+        Status 0 only when the session exited 0, printed and did not crash.
+    """
+    return gaterun.outcome(
+        gaterun.run(
+            args.safe_run,
+            gaterun.Gate(
+                command=command, timeout=SESSION_SECONDS, environment=environment
+            ),
+        )
+    )
 
 
 def planned(
@@ -152,6 +179,7 @@ def stop_before_running(args: argparse.Namespace) -> None:
             markup-gate, pitboss#398).
     """
     cloneguard.refuse_in_clone(args, configsearch.working_directory(args))
+    ticketbranch.require(args, os.environ)
     stop_when_short_of_disk(args)
     found = markupgate.findings(functools.partial(run_command, args))
     for each in found:
@@ -191,7 +219,7 @@ def run_planned(
         print(each)
     with noxenv.throwaway_home() as home:
         environment = noxenv.isolated(os.environ, home)
-        in_home = functools.partial(run_command, args, environment=environment)
+        in_home = functools.partial(gate_command, args, environment=environment)
         words = [*noxcheck.covers_of(judged), *modules]
         ran = noxcheck.run_sessions(in_home, time.monotonic, words, sessions)
     show(ran)
@@ -235,7 +263,8 @@ def run_planned(
         default=False,
         help="run the sessions on a head that already ran green (without it the"
         " command prints a NOTE with the time of that run and exits 0; run it"
-        " before each push and when feedback is needed, not again on one head;"
+        " at most once per head, after the last edit (plenty before a push; a"
+        " maximum, not a target);"
         " a tree with a change is never skipped).",
     ),
     add_argument(
@@ -247,6 +276,7 @@ def run_planned(
         " `refused: this is the main clone; work in your own worktree` and exits 1"
         " (clone-guard, pitboss#297)",
     ),
+    ticketbranch.TICKET_ARGUMENT,
     NOW_ARGUMENT,
     name="nox",
 )

@@ -12,7 +12,7 @@ import re
 import subprocess
 from typing import Sequence
 
-from . import cirun, ghapi, plandigest, plandonewhen, ticketwhen
+from . import cirun, ghapi, plandigest, plandonewhen, ticketwhen, totaljson
 
 ORIGIN = re.compile(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
@@ -32,7 +32,7 @@ def run_head(github: ghapi.GitHub) -> cirun.HeadOf:
             found = json.loads(ghapi.get(github, f"repos/{slug}/actions/runs/{run}"))
         except (subprocess.CalledProcessError, OSError, ValueError):
             return None
-        sha = found.get("head_sha") if isinstance(found, dict) else None
+        sha = totaljson.field(found, "head_sha")
         return sha if isinstance(sha, str) else None
 
     return head_of
@@ -88,6 +88,7 @@ def _of_ticket(github: ghapi.GitHub, ticket: str, body: str) -> Sequence[str]:
         ]
     return [
         *plandonewhen.findings(plandigest.section(body), text),
+        *plandonewhen.form(text),
         *plandonewhen.edited(body, text),
         *plandonewhen.interpretations(body, ticketwhen.items(text)),
     ]

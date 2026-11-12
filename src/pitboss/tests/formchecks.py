@@ -3,7 +3,9 @@
 import re
 from typing import Sequence
 
-from .. import forms
+from hamcrest import assert_that, equal_to
+
+from .. import evidence, forms
 from .linting import HEAD
 
 
@@ -55,3 +57,13 @@ def findings(body: str) -> Sequence[str]:
         Each finding, as the lint prints it.
     """
     return forms.pr_body(subject(body))
+
+
+def typed_at(text: str, rows: Sequence[int]) -> None:
+    """Assert the lines of a body that are refused as hand-typed rows.
+
+    Args:
+        text: the body.
+        rows: the line numbers refused.
+    """
+    assert_that(evidence.hand_typed(text), equal_to(list(rows)))

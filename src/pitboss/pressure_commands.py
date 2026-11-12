@@ -9,7 +9,7 @@ and no job was put on the queue (keyword: quiet-period).
 """
 
 import argparse
-import pathlib
+import os
 import subprocess
 from typing import Sequence
 
@@ -21,17 +21,21 @@ from . import (
     commands,
     configfile,
     draftrule,
+    evidencepush,
     exempt,
+    holdscope,
+    mechanicalpush,
     markupgate,
-    noxcheck,
-    noxgreen,
     pushcheck,
+    pushclaim,
     pushdraft,
+    pushrequire,
     queue,
     queuereads,
     record,
     report,
     rulingsummary,
+    ticketbranch,
     timing,
     tracefs,
 )
@@ -48,8 +52,11 @@ def _say(found: commands.Context, looked: queue.Seen) -> bool:
     if not found.settings.runners.held:
         print(report.no_hold_line())
         return False
-    print(report.seen_line(looked))
-    return bool(looked.waiting or looked.owed)
+    held = bool(looked.waiting or looked.owed)
+    # keyword: hold-scope (T141): the line names whose runners are busy
+    more = f"; {holdscope.scope(found.settings.runners)}" if held else ""
+    print(report.seen_line(looked) + more)
+    return held
 
 
 def _note_look(found: commands.Context, looked: queue.Seen) -> None:
@@ -84,11 +91,24 @@ def _free(args: argparse.Namespace, found: commands.Context, slug: str | None) -
     # checked nor recorded, as a push to a draft is not
     if args.draft:
         return True
-    free = exempt.is_exempt(slug, found.settings.runners.exempt)
-    if free:
+    runners = found.settings.runners
+    if exempt.is_exempt(slug, runners.exempt):
         print(exempt.SAYING)
         return True
+    if not holdscope.applies(runners, slug):  # keyword: hold-scope (T141)
+        print(
+            holdscope.OUTSIDE.format(
+                slug=slug, orgs=", ".join(holdscope.organisations(runners))
+            )
+        )
+        return True
     return _to_drafts(args, found, slug)
+
+
+def _wanted(args: argparse.Namespace) -> Sequence[str]:
+    # the branches the push names, the current one when it names none
+    current = pushdraft.current_branch(args.safe_run)
+    return pushdraft.branches(args.git_arguments, current)
 
 
 def _to_drafts(
@@ -97,9 +117,7 @@ def _to_drafts(
     # keyword: push-draft (pitboss#355): GitHub says the branch's PR is a draft
     if slug is None:
         return False
-    current = pushdraft.current_branch(args.safe_run)
-    wanted = pushdraft.branches(args.git_arguments, current)
-    drafted = pushdraft.all_drafts(found.github, slug, wanted)
+    drafted = pushdraft.all_drafts(found.github, slug, _wanted(args))
     if drafted is not None:
         print(pushdraft.SAYING.format(branch=", ".join(drafted)))
     return drafted is not None
@@ -107,6 +125,7 @@ def _to_drafts(
 
 def _checked(args: argparse.Namespace) -> str | None:
     # the repository pushed to, once no refusal applies
+    ticketbranch.enforce(args)
     slug = _pushed_repository(args)
     _refuse(args, slug)
     return slug
@@ -116,8 +135,11 @@ def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context,
     # the context, and whether the push is free of the hold (else it is checked);
     # a repository with a noxfile.py first needs a green nox on the tree (nox-tree)
     found = commands.load_context(args)
-    _require_green_nox(args)
-    free = _free(args, found, slug)
+    directory = commands.working_directory(args)
+    pushrequire.pre_push(args, found.settings.project.pre_push, directory)
+    pushrequire.green_nox(args)
+    pushrequire.execution(args, found.github, slug, _wanted(args))
+    free = mechanicalpush.exempt(args, found, slug) or _free(args, found, slug)
     if not free:
         _refuse_if_held(found)
     return found, free
@@ -202,8 +224,7 @@ def record_summary(args: argparse.Namespace) -> None:
 
 
 def _record_push(found: commands.Context) -> None:
-    if not found.settings.runners.held:
-        return
+    # only a push checked against a hold gets here (hold-scope: `_free` otherwise)
     try:
         record.note(found.settings.runners.record, record.Look.HOLD, found.now)
     except SystemExit as stopped:
@@ -258,6 +279,38 @@ def _conclude(
     _finish(outcomes)
 
 
+def _stale(
+    args: argparse.Namespace,
+    found: commands.Context,
+    outcomes: Sequence[pushcheck.Outcome],
+) -> None:
+    # case 27 (keyword: evidence-stale): a moved head leaves the expanded blocks old
+    if pushcheck.Kind.MOVED not in {each.kind for each in outcomes}:
+        return
+    slug = _pushed_repository(args)
+    said = {evidencepush.stale_line(found.github, slug, each) for each in _wanted(args)}
+    for line in sorted(said - {""}):
+        print(line)
+
+
+def _after(
+    args: argparse.Namespace,
+    found: commands.Context,
+    sent: tuple[bool, Sequence[pushcheck.Outcome] | None],
+) -> None:
+    free, outcomes = sent
+    if outcomes is not None:
+        _conclude(None if free else found, outcomes)
+        _stale(args, found, outcomes)
+        # keyword: claim-readback (quire#1115): the PR of the ticket holds the push
+        pushclaim.say(
+            found.github,
+            (_pushed_repository(args), found.settings.project.repo.owner),
+            ticketbranch.given(args, os.environ),
+            outcomes,
+        )
+
+
 def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
     for each in outcomes:
         print(pushcheck.line(each))
@@ -269,32 +322,11 @@ def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
         raise SystemExit(1)
 
 
-def _require_green_nox(args: argparse.Namespace) -> None:
-    # keyword: nox-tree (pitboss#471): a repository with a noxfile.py pushes a tree
-    # that a green `pitboss nox` ran on, the tree hash and not the branch
-    def out(*words: str) -> str:
-        try:
-            return str(args.safe_run(["git", *words]).stdout).strip()
-        except (OSError, subprocess.CalledProcessError):  # pragma: no cover
-            return ""
-
-    root, tree = out("rev-parse", "--show-toplevel"), out("rev-parse", "HEAD^{tree}")
-    directory = out("rev-parse", "--absolute-git-dir")
-    if (
-        not (root and tree and directory)
-        or not (pathlib.Path(root) / "noxfile.py").exists()
-    ):
-        return
-    ran = noxgreen.ran_green(pathlib.Path(directory), tree)
-    absent = [each.value for each in noxcheck.WITHOUT_TESTS if each.value not in ran]
-    if absent:
-        print(noxgreen.missing_line(tree, absent))
-        raise SystemExit(1)
-
-
 @ENTRY_DATA.register(
     *commandarguments.CHANGING_ARGUMENTS,
     add_argument("--draft", action="store_true", default=False),
+    add_argument("--mechanical", action="store_true", default=False),
+    ticketbranch.TICKET_ARGUMENT,
     add_argument("git_arguments", nargs="*"),
     name="push",
 )
@@ -306,7 +338,9 @@ def push(args: argparse.Namespace) -> None:
     ``hold`` when a job waits), so the quiet period can end; a retried push
     adds only none looks, which do not restart the wait. A push to a draft PR
     (``--draft``, or the branch of an open draft PR) is neither checked nor
-    recorded. A push to ``dev-skill-up/pitboss`` (or a repository of
+    recorded. ``--mechanical`` is never held for a PR classified MECHANICAL-FIX
+    (``mechanicalpush``), else refused. A push to ``dev-skill-up/pitboss`` (or a
+    repository of
     ``[runners] exempt``), read from the URL of the remote, is never held,
     whatever the pressure: it prints ``pitboss is exempt from holds`` once,
     runs ``git push`` and records nothing (keyword: pitboss-exempt, pitboss#113).
@@ -327,6 +361,4 @@ def push(args: argparse.Namespace) -> None:
     """
     tracefs.say(args.safe_run)
     found, free = _gate(args, _checked(args))
-    outcomes = _send(args)
-    if outcomes is not None:
-        _conclude(None if free else found, outcomes)
+    _after(args, found, (free, _send(args)))

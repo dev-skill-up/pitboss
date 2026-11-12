@@ -7,7 +7,7 @@ import pitboss
 from hamcrest import assert_that, equal_to
 
 from .. import outdated
-from . import test_commands, world
+from . import quietworld, test_commands, world
 
 INDEX = "https://pypi.org/pypi/pitboss/json"
 RUNNING = "2026.10.28.62127.dev1"
@@ -36,7 +36,7 @@ def sweep_with(index: object) -> world.Result:
     Returns:
         What the sweep did.
     """
-    here = world.make_world()
+    here = quietworld.calm(world.make_world())
     here.bodies[test_commands.OPEN_PULLS] = [{"number": 2}]
     if index is not None:
         here.bodies[INDEX] = index

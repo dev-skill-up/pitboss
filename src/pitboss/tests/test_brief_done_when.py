@@ -5,7 +5,8 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextwork, plandonewhen, ticketwhen
-from .briefmake import has_all, has_none, pinned, text
+from .briefmake import pinned, text
+from .says import has_all, has_none
 
 DIGEST = ticketwhen.digest("Done-when:\n- one\n")
 RULE = "meet the Done-when as written, or prove it impossible"
@@ -37,9 +38,10 @@ DIGEST_LINE = (
 HAND_BACK_WORDS = ("hand back", "hand-back", "NOT STARTED", "escalat")
 GREPPING = [brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION, brief.Kind.REVIEW_PLAN]
 GREP = (
-    "Grep: look for a docstring the change makes false or contradictory, next to"
-    " the code it alters; one is changes needed. Other text the change makes false"
-    " is cut by the author, and a mention of it that was missed is no finding."
+    "Grep: look for a docstring that contradicts the code it sits next to; one is"
+    " changes needed, said as what the text now says instead. Other text that no"
+    " longer matches the code is cut by the author, and a mention of it that was"
+    " missed is no finding."
 )
 
 

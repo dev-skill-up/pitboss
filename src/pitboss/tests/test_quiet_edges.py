@@ -95,7 +95,7 @@ class TestEdges(unittest.TestCase):
         result = at_zero(here, "pressure")
         line = result.out.splitlines()[-1]
         head = "RUNNER PRESSURE: 3 queue-run jobs waiting for a runner"
-        wanted = f"{head}: {helpers.HOLD}; 0 quiet minutes remain"
+        wanted = f"{head}: {helpers.HOLD}; 0 quiet minutes remain{helpers.SCOPE}"
         assert_that((result.code, line), equal_to((1, wanted)))
 
     def test_sweep_goes_on_when_the_record_cannot_be_read(self) -> None:

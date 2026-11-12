@@ -43,6 +43,18 @@ def pull(text: str) -> shapes.Pull:
     )
 
 
+def pulls_of(items: Sequence[object]) -> Sequence[shapes.Pull]:
+    """Parse pull requests GitHub listed.
+
+    Args:
+        items: each PR as listed.
+
+    Returns:
+        The pull requests, in order.
+    """
+    return [pull(json.dumps(item)) for item in items]
+
+
 def labels(text: str) -> AbstractSet[str]:
     """Parse the labels of a pull request.
 

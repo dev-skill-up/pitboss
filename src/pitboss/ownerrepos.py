@@ -6,7 +6,7 @@ import subprocess
 import urllib.parse
 from typing import AbstractSet, Sequence
 
-from . import config, ghapi
+from . import config, configrepos, ghapi
 
 # an organization, then (only after a 404) a user
 PATHS = ("orgs/{owner}/repos", "users/{owner}/repos")
@@ -120,7 +120,7 @@ def widened(
         listed = _listing(github, owner)
     except subprocess.CalledProcessError as error:
         return settings, ghapi.why(error), frozenset()
-    named = {repo.slug for repo in config.repositories(settings)} | left_out
+    named = {repo.slug for repo in configrepos.repositories(settings)} | left_out
     more = _new(listed, named, owner)
     wide = dataclasses.replace(settings, libraries=[*settings.libraries, *more])
     return wide, "", frozenset(slug for slug, _ in listed)

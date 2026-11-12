@@ -9,6 +9,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length, is_not
 from .. import phrases
 from . import fakes
 from .linting import lines, lint, write_text
+from .says import ended, exits, says
 
 ATOM_CASES = [
     ("abc", "xxABCxx", True),
@@ -51,7 +52,7 @@ REFUSED_CASES = [
     ("[]", "holds no character"),
     ("[^]", "holds no character"),
 ]
-DEFAULT_ROWS = 80
+DEFAULT_ROWS = 86
 PHRASE_FILE = "# a project's phrases\n\nfoo\tba+r\tbaaar\tSay baz.\n"
 
 
@@ -195,7 +196,7 @@ class TestCommand(unittest.TestCase):
         """A file with a shipped phrase gets a finding for it and exits 1."""
         dirty = write_text("a.md", "fine\nit passed alone\n")
         result = lint("text", dirty)
-        assert_that(result.code, equal_to(1))
+        exits(result, 1)
         assert_that(lines(result), has_length(1))
         assert_that(lines(result)[0], contains_string(f"{dirty}:2: rerun:"))
 
@@ -204,7 +205,7 @@ class TestCommand(unittest.TestCase):
         first = write_text("a.md", "frankly\n")
         second = write_text("b.md", "wait and see\n")
         result = lint("text", first, second)
-        assert_that(result.code, equal_to(1))
+        exits(result, 1)
         assert_that(lines(result), has_length(2))
 
     def test_project_phrases_are_added(self) -> None:
@@ -223,14 +224,14 @@ class TestCommand(unittest.TestCase):
         bad = write_text("bad.tsv", "one field\n")
         text = write_text("a.md", "x\n")
         result = lint("text", text, "--phrases", bad)
-        assert_that((result.code, result.out), equal_to((2, "")))
-        assert_that(result.err, contains_string("a phrase has 4 fields"))
+        ended(result, 2, "")
+        says(result.err, "a phrase has 4 fields")
 
     def test_missing_text_file(self) -> None:
         """A text file that cannot be read is a usage error naming it."""
         result = lint("text", "/no/such/file.md")
-        assert_that(result.code, equal_to(2))
-        assert_that(result.err, contains_string("/no/such/file.md: No such file"))
+        exits(result, 2)
+        says(result.err, "/no/such/file.md: No such file")
 
     def test_no_files(self) -> None:
         """The files are required."""
@@ -249,5 +250,5 @@ class TestCommand(unittest.TestCase):
             (table, lint("text", fine, "--phrases", str(table))),
         ]
         for path, outcome in ran:
-            assert_that((outcome.code, outcome.out), equal_to((2, "")))
-            assert_that(outcome.err, contains_string(f"{path}: not valid UTF-8"))
+            ended(outcome, 2, "")
+            says(outcome.err, f"{path}: not valid UTF-8")

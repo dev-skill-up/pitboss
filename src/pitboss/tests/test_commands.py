@@ -5,7 +5,18 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import cleanworld, fakes, liveagents, orphans, ownerbodies, syncworld, world
+from . import (
+    cleanworld,
+    fakes,
+    liveagents,
+    orphans,
+    ownerbodies,
+    quietworld,
+    syncworld,
+    world,
+)
+from .says import exits
+from .fakes import calls_with
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -13,7 +24,10 @@ JOBS_FAILED = "owner/project#2: jobs answered HTTP 404"
 QUEUE_CALL_FAILS = (
     [
         "partial: 1 queue run(s) not counted",
-        "READY TO MERGE owner/project#2: arm auto-merge or merge",
+        "WAIT-FOR-HOLD owner/project#2: a runner-pressure hold or its quiet period"
+        " withholds arm auto-merge or merge; wait until `pitboss pressure` is clear",
+        "WAIT-FOR-HOLD owner/lib#4: a runner-pressure hold or its quiet period"
+        " withholds the merge; wait until `pitboss pressure` is clear",
         f"UNREADABLE {JOBS_FAILED}",
     ],
     0,
@@ -23,9 +37,9 @@ SWEEP_LINES = (
     "owner/project#1 [dirty] auto-merge=off pending=0 failed=[test (job 8)]",
     "CONFLICT owner/project#1: merge main into branch-1",
     "FAILED owner/project#1: test: failed step",
-    "READY TO MERGE owner/project#2",
+    "WAIT-FOR-HOLD owner/project#2: a runner-pressure hold",  # keyword: hold-gate
     "queue=in_progress",
-    "MERGE BY HAND owner/lib#4",
+    "WAIT-FOR-HOLD owner/lib#4: a runner-pressure hold",
     "RUNNER PRESSURE: 1 queue-run jobs",
     "STALE QUEUE RUN owner/project 11 (pr-2, queued)",
     "QUEUE RUN owner/project 12 (pr-2, in_progress): 48 of 60 minutes",
@@ -114,9 +128,9 @@ def reviewed_third(reviewed: str | None) -> world.World:
     here.bodies[compare + "4" * 40] = {"commits": []}
     if reviewed:
         body = f"## Review\nReviewed: {reviewed}\nVerdict: approved\n"
-        comments = fakes.page(f"{world.PROJECT}/issues/3/comments")
+        comments = world.project_page("issues/3/comments")
         here.bodies[comments] = [dict(world.COMMENT, body=body)]
-    return here
+    return quietworld.calm(here)
 
 
 def failed_line(here: world.World) -> str:
@@ -196,7 +210,7 @@ class TestSweep(unittest.TestCase):
 
     def test_sweep_goes_on_when_one_call_fails(self) -> None:
         """One PR's failed API call is a line naming it; the others are swept (#101)."""
-        here = syncworld.make_synced().here
+        here = quietworld.calm(syncworld.make_synced().here)
         here.bodies[OPEN_PULLS] = [{"number": 1}, {"number": 2}]
         world.unread_first(here)
         result = sweep(here)
@@ -218,7 +232,7 @@ class TestSweep(unittest.TestCase):
         lines = result.out.splitlines()
         pressure = world.again(here, "pressure").code  # a failed call is no free runner
         found = [x.rsplit("; ", 1)[-1] for x in lines if "partial" in x]
-        found += [x for x in lines if "jobs answered" in x or "READY" in x]
+        found += [x for x in lines if "jobs answered" in x or "WAIT-FOR-HOLD" in x]
         assert_that((found, result.code, pressure), equal_to(QUEUE_CALL_FAILS))
 
     def test_sweep_says_why(self) -> None:
@@ -240,7 +254,7 @@ class TestSweep(unittest.TestCase):
         """With no red or conflicted PR the sweep exits 0."""
         here = syncworld.make_synced().here
         here.bodies[OPEN_PULLS] = [{"number": 2}]
-        assert_that(sweep(here).code, equal_to(0))
+        exits(sweep(here), 0)
 
     def test_auto_merge_off_needs_an_approved_head(self) -> None:
         """No review and an older head's get no AUTO MERGE OFF; approval does (#85)."""
@@ -283,7 +297,7 @@ class TestChanges(unittest.TestCase):
         """Stale runs are cancelled only with --no-dry-run; a refusal is reported."""
         here = world.make_world()
         dry = world.again(here, "cancel-stale-runs")
-        posts = [call for call in here.calls if "POST" in call]
+        posts = calls_with(here.calls, "POST")
         outputs = [dry.out]
         for remove in [False, True]:
             if remove:

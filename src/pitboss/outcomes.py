@@ -3,7 +3,7 @@
 import subprocess
 from typing import Iterable, Mapping
 
-from . import concurrently, config, ghapi, local, shapes
+from . import concurrently, config, configrepos, ghapi, local, shapes
 
 
 def outcomes_of(
@@ -23,7 +23,7 @@ def outcomes_of(
         The outcomes of each repository whose PRs could be read.
     """
     owner = settings.project.repo.owner
-    repos = {repo.slug: repo for repo in config.repositories(settings)}
+    repos = {repo.slug: repo for repo in configrepos.repositories(settings)}
     wanted = sorted({slug for slug in slugs if slug})
 
     def attempt(slug: str) -> Mapping[str, shapes.Outcome] | None:

@@ -6,8 +6,7 @@ ruling. ``flow`` re-exports them under their names.
 """
 
 import dataclasses
-import enum
-from typing import AbstractSet, Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Sequence
 
 from . import (
     draftfacts,
@@ -18,18 +17,6 @@ from . import (
     shapes,
     steps,
 )
-
-
-class Ci(enum.Enum):
-    """The result of the checks on the current head, once finished.
-
-    Attributes:
-        GREEN: every check finished and none failed.
-        RED: a check failed.
-    """
-
-    GREEN = enum.auto()
-    RED = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -64,53 +51,17 @@ class PullState:
     unchanged_since: Callable[[str], bool] = lambda sha: False
 
 
-def plan_rejected_last(pr: PullState) -> bool:
-    """Whether the newest regular review graded the Plan changes needed.
-
-    With no review of the current head, this is a Plan written after its
-    rejection, and it is graded alone, as a draft's is (keyword:
-    plan-review-listed, pitboss#167).
+def is_trusted_ruling(comment: shapes.Comment, trusted: AbstractSet[str]) -> bool:
+    """Whether a comment is a ruling of a trusted author.
 
     Args:
-        pr: the PR.
+        comment: the comment.
+        trusted: the author associations whose comments count.
 
     Returns:
-        True when the newest regular review of any head rejected the Plan and
-        the repository has drafts (keyword: no-drafts, pitboss#390).
+        True for a ruling comment of a trusted author.
     """
-    regular = regular_reviews(pr)
-    rejected = bool(regular) and regular[-1].plan is shapes.Verdict.CHANGES_NEEDED
-    return rejected and not pr.draft.no_drafts
-
-
-def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
-    """The newest Execution verdict if it rejects, unanswered (unfixed-execution).
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The Execution-graded review if it rejects and no code moved, else None.
-    """
-    graded = [each for each in regular_reviews(pr) if each.execution is not None]
-    rejecting = graded[-1] if graded else None
-    if rejecting is None or rejecting.execution is not shapes.Verdict.CHANGES_NEEDED:
-        return None
-    moved = not pr.pull.head.sha.startswith(rejecting.sha)  # else a body fix
-    return rejecting if moved and pr.unchanged_since(rejecting.sha) else None
-
-
-def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
-    """The regular reviews of a PR, oldest first (no GitHub review).
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The reviews.
-    """
-    regular = [each for each in pr.graded if each.comment]
-    return sorted(regular, key=lambda each: each.when)
+    return is_ruling(comment.body) and comment.author_association in trusted
 
 
 def is_ruling(body: str) -> bool:
@@ -122,8 +73,7 @@ def is_ruling(body: str) -> bool:
     Returns:
         True when its first line is exactly ``Opus ruling``.
     """
-    lines = sessionurl.lines(body)
-    return bool(lines) and lines[0].rstrip() == steps.RULING_FIRST_LINE
+    return sessionurl.first_line_is(body, steps.RULING_FIRST_LINE)
 
 
 def read_ruling(body: str) -> rulingwords.Ruling | None:
@@ -224,11 +174,12 @@ def plan_edited_without_ruling(pr: PullState) -> bool:
     if newest is None:
         return False
     now = plandigest.section(pr.pull.body)
-    # keyword: plan-digest-collapse (pitboss#358, #399): a digest recorded before
-    # the expanded blocks were collapsed is still the Plan it read
-    if not expansion.section_changed(newest.plan_digest, now):
+    # keyword: plan-digest-collapse (pitboss#358, #399): an older digest still counts
+    if expansion.current_for(expansion.Subject.PLAN, newest.plan_digest, now):
         return False
-    return not plan_edit_ruled(pr, newest.when)
+    trusted = (each for each in pr.comments if each.author_association in pr.trusted)
+    dated = [(each.created_at, read_ruling(each.body)) for each in trusted]
+    return not rulingwords.revised_after(dated, newest.when)
 
 
 def approved_digests(graded: Sequence[shapes.Graded]) -> Sequence[str]:
@@ -293,11 +244,11 @@ def ruling_hold(pr: PullState) -> steps.Next | None:
         ruling to allow it; None when neither holds.
     """
     if has_unreadable_ruling(pr):
-        return steps.fix_ruling(unreadable_ruling_comment(pr))
+        return steps.fix_ruling(ruling_address(pr))
     return steps.plan_edited() if plan_edited_without_ruling(pr) else None
 
 
-def unreadable_ruling_comment(pr: PullState) -> str:
+def ruling_address(pr: PullState) -> str:
     """The address of the newest Opus ruling comment.
 
     Args:
@@ -376,25 +327,3 @@ def e2e_step(pr: PullState) -> steps.Next | None:
         return None
     running = [each for each in pr.checks if not each.finished]
     return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)
-
-
-# What follows each ruling but ``EXECUTION_IS_APPROVED``, in order. The flow reads
-# the first step; the later ones are not wired (a worker's push moves the head and
-# the ordinary review gate takes over).
-AS_RULED = (
-    rulingwords.Ruling.SPLIT,
-    rulingwords.Ruling.RESHAPE,
-    rulingwords.Ruling.ABANDON,
-)
-AFTER: Mapping[rulingwords.Ruling, Sequence[steps.Next]] = {
-    rulingwords.Ruling.DO_THESE_STEPS: (
-        steps.worker(steps.Task.RULING_STEPS),
-        steps.regular_review(steps.Stage.RULING_STEPS),
-    ),
-    rulingwords.Ruling.REVISE_THE_PLAN: (
-        steps.worker(steps.Task.REVISE_PLAN),
-        steps.regular_review(steps.Stage.PLAN_ONLY),
-    ),
-    rulingwords.Ruling.ESCALATE: (steps.ruling_escalates(),),
-    **dict.fromkeys(AS_RULED, (steps.worker(steps.Task.RULING_AS_GIVEN),)),
-}

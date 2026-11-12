@@ -1,0 +1,726 @@
+{
+ "body_edits": [
+  {
+   "body": "Fixes dev-skill-up/pitboss#448\n\n## Plan\n\nRows (each Done-when bullet word for word from the ticket body, with its evidence; the commands first, the pointers to CI last).\n\n1. `git rev-parse HEAD`\n2. Done when 5: After the fix, `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config CFG 2>/dev/null | head -1` prints a `NEXT k of n` line for a ticket that an open pull request's Plan only mentions: `taken` in `work.py` counts a ticket as taken only when the pull request fixes it (the `Fixes` or `Closes` form, or its branch), never for a mention in a Plan or an Evidence block (Opus ruling 2026-11-11 00:17Z on pitboss PR 452, row 4). Run: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` (CFG is that file). Ticket 311 is closed (merged PR 454), so the live command can print nothing for it; the case is the test of row 6.\n3. CI (Done when 1): `uvx pitboss slots next` ranks pwa#313 at the place of the quire#1083 line it blocks, with the blocked ticket's priority and age. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_it_takes_the_place_of_the_ticket_that_waits`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n4. CI (Done when 2): `uvx pitboss slots next bats-lang/pwa#313 --config CFG` prints its brief, not UNKNOWN. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_its_brief_is_printed`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n5. CI (Done when 3): When a ticket is not queued, the UNKNOWN line names the reason (its labels, its state, the item it blocks). Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_ticket_with_no_label_that_blocks_nothing` and `test_a_closed_ticket_with_labels`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n6. CI (Done when 4): For a PR whose failed check is `canonical-files` and whose log has the line `not canonical: its sha256 <hash> is not listed for it in tools/pin-audit/allowlist.txt`, `slots next` prints that allowlist line from the log (the text after `the hash of this file as the next hash:`) and ranks a repository-prototype ticket for adding it at the PR's place, before any \"fix the CI\" worker line for the PR; an open repository-prototype pull request that already has the line is named instead, and the PR is a wait. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_ticket_takes_the_place_of_the_pull_request` and `test_the_open_pull_request_is_a_wait`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n7. CI (Done when 5, the case): the PR of a Plan that only mentions a ticket does not take it. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_taken_and_offered` and `test_a_mention_in_a_plan_does_not_take_the_ticket`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n\n## Execution\n\n- `pullnames.names` (the one place `work.taken` and the item brief read) counts a ticket only for a `Fixes` or `Closes` form in a title or body, or a branch ending in its number; a mention in a Plan or an Evidence block names nothing. The timeline mention of the item brief (`itempick._crossed`) counts only an open PR that fixes the ticket. This is why a blocker named in a Plan was never offered (`dependency.settle` skips the `taken` tickets).\n- `unqueued.why` adds the state, the labels and the items the ticket blocks to the UNKNOWN line of the whole order.\n- `allowlistmiss` reads the log of a failed `canonical-files` check, takes the allowlist line after `the hash of this file as the next hash:`, and `pullmarks` makes such a PR blocked by the open repository-prototype PR that adds the line, else by the open ticket `Make <repository>'s workflow and issue-template files canonical`, which the existing dependency rule ranks at the PR's place; the `BLOCKED` line ends with `; allowlist line: <line>`.\n- Ticket 311 of Done-when 5 is closed, so its command cannot print a `NEXT` line on live data; the same case is the test of row 7 (and row 4's world for an open blocker).\n- Local check: `pitboss nox` on the head: skills, lint, mypy and tests-3.13 all success.\n\nDeviations: `pitboss nox` was run more than once on the work (lint, mypy and coverage failures fixed between runs); row 2's command prints nothing because ticket 311 is closed.\n\nHead: 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n\nDone-when digest: 93a892c4a36ee3bc\n\n## Evidence\n\n```pitboss-expand sha256=5a27f83cbb1b525a head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ git rev-parse HEAD\n64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n```\n```pitboss-expand sha256=f4d593ef71d4acd0 head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1\n```\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_",
+   "created_at": "2026-11-11T04:39:33Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#448\n\n## Plan\n\nRows (each Done-when bullet word for word from the ticket body, with its evidence; the commands first, the pointers to CI last).\n\n1. `git rev-parse HEAD`\n2. Done when 5: After the fix, `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config CFG 2>/dev/null | head -1` prints a `NEXT k of n` line for a ticket that an open pull request's Plan only mentions: `taken` in `work.py` counts a ticket as taken only when the pull request fixes it (the `Fixes` or `Closes` form, or its branch), never for a mention in a Plan or an Evidence block (Opus ruling 2026-11-11 00:17Z on pitboss PR 452, row 4). Impossible: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` -> (empty output), because #311 is closed (PR 454 merged). The same thing on live data with dev-skill-up/pitboss#444, an open ticket that an open PR only mentions: on main `cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'` prints UNKNOWN (an open PR already works on it), and on the branch `uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` prints `NEXT 4 ... start a PR: dev-skill-up/pitboss#444`.\n3. CI (Done when 1): `uvx pitboss slots next` ranks pwa#313 at the place of the quire#1083 line it blocks, with the blocked ticket's priority and age. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_it_takes_the_place_of_the_ticket_that_waits`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n4. CI (Done when 2): `uvx pitboss slots next bats-lang/pwa#313 --config CFG` prints its brief, not UNKNOWN. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_its_brief_is_printed`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n5. CI (Done when 3): When a ticket is not queued, the UNKNOWN line names the reason (its labels, its state, the item it blocks). Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_ticket_with_no_label_that_blocks_nothing` and `test_a_closed_ticket_with_labels`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n6. CI (Done when 4): For a PR whose failed check is `canonical-files` and whose log has the line `not canonical: its sha256 <hash> is not listed for it in tools/pin-audit/allowlist.txt`, `slots next` prints that allowlist line from the log (the text after `the hash of this file as the next hash:`) and ranks a repository-prototype ticket for adding it at the PR's place, before any \"fix the CI\" worker line for the PR; an open repository-prototype pull request that already has the line is named instead, and the PR is a wait. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_ticket_takes_the_place_of_the_pull_request` and `test_the_open_pull_request_is_a_wait`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n7. CI (Done when 5, the case): the PR of a Plan that only mentions a ticket does not take it. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_taken_and_offered` and `test_a_mention_in_a_plan_does_not_take_the_ticket`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n\n## Execution\n\n- `pullnames.names` (the one place `work.taken` and the item brief read) counts a ticket only for a `Fixes` or `Closes` form in a title or body, or a branch ending in its number; a mention in a Plan or an Evidence block names nothing. The timeline mention of the item brief (`itempick._crossed`) counts only an open PR that fixes the ticket. This is why a blocker named in a Plan was never offered (`dependency.settle` skips the `taken` tickets).\n- `unqueued.why` adds the state, the labels and the items the ticket blocks to the UNKNOWN line of the whole order.\n- `allowlistmiss` reads the log of a failed `canonical-files` check, takes the allowlist line after `the hash of this file as the next hash:`, and `pullmarks` makes such a PR blocked by the open repository-prototype PR that adds the line, else by the open ticket `Make <repository>'s workflow and issue-template files canonical`, which the existing dependency rule ranks at the PR's place; the `BLOCKED` line ends with `; allowlist line: <line>`.\n- Ticket 311 of Done-when 5 is closed, so its command cannot print a `NEXT` line on live data (Opus ruling 6787006370: Plan row 2 revised as `Impossible: <command> -> (empty output)`); the same case is shown on live data with dev-skill-up/pitboss#444 in row 2, and is the test of row 7.\n- Local check: `pitboss nox` on the head: skills, lint, mypy and tests-3.13 all success.\n\nDeviations: `pitboss nox` was run more than once on the work (lint, mypy and coverage failures fixed between runs); row 2's command prints nothing because ticket 311 is closed.\n\nHead: 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n\nDone-when digest: 93a892c4a36ee3bc\n\n## Evidence\n\n```pitboss-expand sha256=5a27f83cbb1b525a head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ git rev-parse HEAD\n64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n```\n```pitboss-expand sha256=f4d593ef71d4acd0 head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1\n```\n```pitboss-expand sha256=6feaeddade90ba81 head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'\nUNKNOWN: dev-skill-up/pitboss#444 is not in the order of slots next: an open PR already works on it (a held or blocked ticket and a PR at a wait are not)\n```\n```pitboss-expand sha256=9e8d3961ad3cc665 head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1\nNEXT 4 of at least 27, out of order, 2 ahead of it (place from the full slots next of 2026-11-11T04:36:18.465447+00:00: run slots next for today's): start a PR: dev-skill-up/pitboss#444: slot, smallest model sonnet\n```\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n",
+   "created_at": "2026-11-11T04:39:33Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#448\n\n## Plan\n\nRows (each Done-when bullet word for word from the ticket body, with its evidence; the commands first, the pointers to CI last).\n\n1. `git rev-parse HEAD`\n2. Done when 5: After the fix, `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config CFG 2>/dev/null | head -1` prints a `NEXT k of n` line for a ticket that an open pull request's Plan only mentions: `taken` in `work.py` counts a ticket as taken only when the pull request fixes it (the `Fixes` or `Closes` form, or its branch), never for a mention in a Plan or an Evidence block (Opus ruling 2026-11-11 00:17Z on pitboss PR 452, row 4). Run as one command, the lines of its output in this order (empty for #311, UNKNOWN on main for #444, NEXT on the branch for #444): `(uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1`. Impossible: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` -> (empty output), because #311 is closed (PR 454 merged). The same thing on live data with dev-skill-up/pitboss#444, an open ticket that an open PR only mentions: on main `cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'` prints UNKNOWN (an open PR already works on it), and on the branch `uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` prints `NEXT 4 ... start a PR: dev-skill-up/pitboss#444`.\n3. CI (Done when 1): `uvx pitboss slots next` ranks pwa#313 at the place of the quire#1083 line it blocks, with the blocked ticket's priority and age. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_it_takes_the_place_of_the_ticket_that_waits`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n4. CI (Done when 2): `uvx pitboss slots next bats-lang/pwa#313 --config CFG` prints its brief, not UNKNOWN. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_its_brief_is_printed`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n5. CI (Done when 3): When a ticket is not queued, the UNKNOWN line names the reason (its labels, its state, the item it blocks). Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_ticket_with_no_label_that_blocks_nothing` and `test_a_closed_ticket_with_labels`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n6. CI (Done when 4): For a PR whose failed check is `canonical-files` and whose log has the line `not canonical: its sha256 <hash> is not listed for it in tools/pin-audit/allowlist.txt`, `slots next` prints that allowlist line from the log (the text after `the hash of this file as the next hash:`) and ranks a repository-prototype ticket for adding it at the PR's place, before any \"fix the CI\" worker line for the PR; an open repository-prototype pull request that already has the line is named instead, and the PR is a wait. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_ticket_takes_the_place_of_the_pull_request` and `test_the_open_pull_request_is_a_wait`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n7. CI (Done when 5, the case): the PR of a Plan that only mentions a ticket does not take it. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_taken_and_offered` and `test_a_mention_in_a_plan_does_not_take_the_ticket`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n\n## Execution\n\n- `pullnames.names` (the one place `work.taken` and the item brief read) counts a ticket only for a `Fixes` or `Closes` form in a title or body, or a branch ending in its number; a mention in a Plan or an Evidence block names nothing. The timeline mention of the item brief (`itempick._crossed`) counts only an open PR that fixes the ticket. This is why a blocker named in a Plan was never offered (`dependency.settle` skips the `taken` tickets).\n- `unqueued.why` adds the state, the labels and the items the ticket blocks to the UNKNOWN line of the whole order.\n- `allowlistmiss` reads the log of a failed `canonical-files` check, takes the allowlist line after `the hash of this file as the next hash:`, and `pullmarks` makes such a PR blocked by the open repository-prototype PR that adds the line, else by the open ticket `Make <repository>'s workflow and issue-template files canonical`, which the existing dependency rule ranks at the PR's place; the `BLOCKED` line ends with `; allowlist line: <line>`.\n- Ticket 311 of Done-when 5 is closed, so its command cannot print a `NEXT` line on live data (Opus ruling 6787006370: Plan row 2 revised as `Impossible: <command> -> (empty output)`); the same case is shown on live data with dev-skill-up/pitboss#444 in row 2, and is the test of row 7.\n- Local check: `pitboss nox` on the head: skills, lint, mypy and tests-3.13 all success.\n\nDeviations: `pitboss nox` was run more than once on the work (lint, mypy and coverage failures fixed between runs); row 2's command prints nothing because ticket 311 is closed.\n\nHead: 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n\nDone-when digest: 93a892c4a36ee3bc\n\n## Evidence\n\n```pitboss-expand sha256=5a27f83cbb1b525a head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ git rev-parse HEAD\n64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n```\n```pitboss-expand sha256=da7247c93bf6d062 head=64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n$ (uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1\nUNKNOWN: dev-skill-up/pitboss#444 is not in the order of slots next: an open PR already works on it (a held or blocked ticket and a PR at a wait are not)\nNEXT 4 of at least 27, out of order, 2 ahead of it (place from the full slots next of 2026-11-11T04:36:18.465447+00:00: run slots next for today's): start a PR: dev-skill-up/pitboss#444: slot, smallest model sonnet\n```\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n",
+   "created_at": "2026-11-11T04:40:53Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#448\n\n## Plan\n\nRows (each Done-when bullet word for word from the ticket body, with its evidence; the commands first, the pointers to CI last).\n\n1. `git rev-parse HEAD`\n2. Done when 5: After the fix, `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config CFG 2>/dev/null | head -1` prints a `NEXT k of n` line for a ticket that an open pull request's Plan only mentions: `taken` in `work.py` counts a ticket as taken only when the pull request fixes it (the `Fixes` or `Closes` form, or its branch), never for a mention in a Plan or an Evidence block (Opus ruling 2026-11-11 00:17Z on pitboss PR 452, row 4). Run as one command, the lines of its output in this order (empty for #311, UNKNOWN on main for #444, NEXT on the branch for #444): `(uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1`. Impossible: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` -> (empty output), because #311 is closed (PR 454 merged). The same thing on live data with dev-skill-up/pitboss#444, an open ticket that an open PR only mentions: on main `cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'` prints UNKNOWN (an open PR already works on it), and on the branch `uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` prints `NEXT 4 ... start a PR: dev-skill-up/pitboss#444`.\n3. CI (Done when 1): `uvx pitboss slots next` ranks pwa#313 at the place of the quire#1083 line it blocks, with the blocked ticket's priority and age. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_it_takes_the_place_of_the_ticket_that_waits`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n4. CI (Done when 2): `uvx pitboss slots next bats-lang/pwa#313 --config CFG` prints its brief, not UNKNOWN. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_its_brief_is_printed`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n5. CI (Done when 3): When a ticket is not queued, the UNKNOWN line names the reason (its labels, its state, the item it blocks). Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_ticket_with_no_label_that_blocks_nothing` and `test_a_closed_ticket_with_labels`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n6. CI (Done when 4): For a PR whose failed check is `canonical-files` and whose log has the line `not canonical: its sha256 <hash> is not listed for it in tools/pin-audit/allowlist.txt`, `slots next` prints that allowlist line from the log (the text after `the hash of this file as the next hash:`) and ranks a repository-prototype ticket for adding it at the PR's place, before any \"fix the CI\" worker line for the PR; an open repository-prototype pull request that already has the line is named instead, and the PR is a wait. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_ticket_takes_the_place_of_the_pull_request` and `test_the_open_pull_request_is_a_wait`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n7. CI (Done when 5, the case): the PR of a Plan that only mentions a ticket does not take it. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_taken_and_offered` and `test_a_mention_in_a_plan_does_not_take_the_ticket`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n\n## Execution\n\n- `pullnames.names` (the one place `work.taken` and the item brief read) counts a ticket only for a `Fixes` or `Closes` form in a title or body, or a branch ending in its number; a mention in a Plan or an Evidence block names nothing. The timeline mention of the item brief (`itempick._crossed`) counts only an open PR that fixes the ticket. This is why a blocker named in a Plan was never offered (`dependency.settle` skips the `taken` tickets).\n- `unqueued.why` adds the state, the labels and the items the ticket blocks to the UNKNOWN line of the whole order.\n- `allowlistmiss` reads the log of a failed `canonical-files` check, takes the allowlist line after `the hash of this file as the next hash:`, and `pullmarks` makes such a PR blocked by the open repository-prototype PR that adds the line, else by the open ticket `Make <repository>'s workflow and issue-template files canonical`, which the existing dependency rule ranks at the PR's place; the `BLOCKED` line ends with `; allowlist line: <line>`.\n- Ticket 311 of Done-when 5 is closed, so its command cannot print a `NEXT` line on live data (Opus ruling 6787006370: Plan row 2 revised as `Impossible: <command> -> (empty output)`); the same case is shown on live data with dev-skill-up/pitboss#444 in row 2, and is the test of row 7.\n- The docstrings of `taken`, `ticket_items` and `work.py` now say a PR takes a ticket only by fixing it (a `Fixes` or `Closes` form, or its branch), and `test_the_ticket_takes_the_place_of_the_pull_request` asserts the exact list of starts, `[\"owner/project#1\", TICKET]`, so the place of the ticket is tested (Opus ruling 6807088468).\n- Local check: `pitboss nox` on the head: skills, lint, mypy and tests-3.13 all success.\n\nDeviations: `pitboss nox` was run more than once on the work (lint, mypy and coverage failures fixed between runs); row 2's command prints nothing because ticket 311 is closed.\n\nHead: acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da\n\nDone-when digest: 93a892c4a36ee3bc\n\n## Evidence\n\n```pitboss-expand sha256=eded53d001ffcef8 head=acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da\n$ git rev-parse HEAD\nacd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da\n```\n```pitboss-expand sha256=9b4f93d6584b70ba head=acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da\n$ (uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1\nUNKNOWN: dev-skill-up/pitboss#444 is not in the order of slots next: an open PR already works on it (a held or blocked ticket and a PR at a wait are not)\nNEXT place unknown: dev-skill-up/pitboss#444 was not in the full slots next of 2026-11-11T21:07:35.243475+00:00: start a PR: dev-skill-up/pitboss#444: slot, smallest model sonnet\n```\n\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T21:28:00Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#448\n\n## Plan\n\nRows (each Done-when bullet word for word from the ticket body, with its evidence; the commands first, the pointers to CI last).\n\n1. `git rev-parse HEAD`\n2. Done when 5: After the fix, `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config CFG 2>/dev/null | head -1` prints a `NEXT k of n` line for a ticket that an open pull request's Plan only mentions: `taken` in `work.py` counts a ticket as taken only when the pull request fixes it (the `Fixes` or `Closes` form, or its branch), never for a mention in a Plan or an Evidence block (Opus ruling 2026-11-11 00:17Z on pitboss PR 452, row 4). Run as one command, the lines of its output in this order (empty for #311, UNKNOWN on main for #444, NEXT on the branch for #444): `(uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1`. Impossible: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` -> (empty output), because #311 is closed (PR 454 merged). The same thing on live data with dev-skill-up/pitboss#444, an open ticket that an open PR only mentions: on main `cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'` prints UNKNOWN (an open PR already works on it), and on the branch `uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` prints `NEXT 4 ... start a PR: dev-skill-up/pitboss#444`.\n3. CI (Done when 1): `uvx pitboss slots next` ranks pwa#313 at the place of the quire#1083 line it blocks, with the blocked ticket's priority and age. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_it_takes_the_place_of_the_ticket_that_waits`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n4. CI (Done when 2): `uvx pitboss slots next bats-lang/pwa#313 --config CFG` prints its brief, not UNKNOWN. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_its_brief_is_printed`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n5. CI (Done when 3): When a ticket is not queued, the UNKNOWN line names the reason (its labels, its state, the item it blocks). Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_ticket_with_no_label_that_blocks_nothing` and `test_a_closed_ticket_with_labels`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n6. CI (Done when 4): For a PR whose failed check is `canonical-files` and whose log has the line `not canonical: its sha256 <hash> is not listed for it in tools/pin-audit/allowlist.txt`, `slots next` prints that allowlist line from the log (the text after `the hash of this file as the next hash:`) and ranks a repository-prototype ticket for adding it at the PR's place, before any \"fix the CI\" worker line for the PR; an open repository-prototype pull request that already has the line is named instead, and the PR is a wait. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_ticket_takes_the_place_of_the_pull_request` and `test_the_open_pull_request_is_a_wait`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n7. CI (Done when 5, the case): the PR of a Plan that only mentions a ticket does not take it. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_taken_and_offered` and `test_a_mention_in_a_plan_does_not_take_the_ticket`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n\n## Execution\n\n- `pullnames.names` (the one place `work.taken` and the item brief read) counts a ticket only for a `Fixes` or `Closes` form in a title or body, or a branch ending in its number; a mention in a Plan or an Evidence block names nothing. The timeline mention of the item brief (`itempick._crossed`) counts only an open PR that fixes the ticket. This is why a blocker named in a Plan was never offered (`dependency.settle` skips the `taken` tickets).\n- `unqueued.why` adds the state, the labels and the items the ticket blocks to the UNKNOWN line of the whole order.\n- `allowlistmiss` reads the log of a failed `canonical-files` check, takes the allowlist line after `the hash of this file as the next hash:`, and `pullmarks` makes such a PR blocked by the open repository-prototype PR that adds the line, else by the open ticket `Make <repository>'s workflow and issue-template files canonical`, which the existing dependency rule ranks at the PR's place; the `BLOCKED` line ends with `; allowlist line: <line>`.\n- Ticket 311 of Done-when 5 is closed, so its command cannot print a `NEXT` line on live data (Opus ruling 6787006370: Plan row 2 revised as `Impossible: <command> -> (empty output)`); the same case is shown on live data with dev-skill-up/pitboss#444 in row 2, and is the test of row 7.\n- The docstrings of `taken`, `ticket_items` and `work.py` now say a PR takes a ticket only by fixing it (a `Fixes` or `Closes` form, or its branch), and `test_the_ticket_takes_the_place_of_the_pull_request` asserts the exact list of starts, `[\"owner/project#1\", TICKET]`, so the place of the ticket is tested (Opus ruling 6807088468).\n- Local check: `pitboss nox` on the head: skills, lint, mypy and tests-3.13 all success.\n\nDeviations: `pitboss nox` was run more than once on the work (lint, mypy and coverage failures fixed between runs, and the merge of main at the head); row 2's command prints nothing because ticket 311 is closed.\n\nHead: 279641802438b3e2624b8f1ed69935707789c532\n\nDone-when digest: 93a892c4a36ee3bc\n\n## Evidence\n\n```pitboss-expand sha256=e002a3fb3f2c5efc head=279641802438b3e2624b8f1ed69935707789c532\n$ git rev-parse HEAD\n279641802438b3e2624b8f1ed69935707789c532\n```\n```pitboss-expand sha256=1db9cc6bed2beba9 head=279641802438b3e2624b8f1ed69935707789c532\n$ (uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1\nUNKNOWN: dev-skill-up/pitboss#444 is not in the order of slots next: an open PR already works on it (a held or blocked ticket and a PR at a wait are not)\nNEXT place unknown: dev-skill-up/pitboss#444 was not in the full slots next of 2026-11-11T21:30:40.150272+00:00: start a PR: dev-skill-up/pitboss#444: slot, smallest model sonnet\n```\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T21:38:29Z",
+   "editor": "moshez"
+  }
+ ],
+ "checks": {
+  "126be8feba9fd8cc1cebf6a720f241ba1436ddf3": [],
+  "1c27fffb073817ebf813f8bc984e94c0911ddfb2": [],
+  "279641802438b3e2624b8f1ed69935707789c532": [
+   {
+    "completed_at": "2026-11-11T21:37:58Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804845136",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804845136,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:37Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:37:58Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804845062",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804845062,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:37:53Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804845042",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804845042,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:38:07Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804845008",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804845008,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:37:58Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804844977",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804844977,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:41:22Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804844934",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804844934,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:37Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:40:51Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804844905",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804844905,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:38:25Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804844891",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804844891,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:41:54Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104696469/job/130804844554",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804844554,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:37:54Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804810165",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804810165,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:38:20Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804810116",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804810116,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:41:03Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804810025",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804810025,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:37:54Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804809932",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804809932,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:41:56Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804809886",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804809886,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:37:48Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804809870",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804809870,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:38:07Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804809860",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804809860,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:37:50Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804809792",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804809792,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:40:37Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43104686145/job/130804809693",
+    "head_sha": "279641802438b3e2624b8f1ed69935707789c532",
+    "id": 130804809693,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:37:32Z",
+    "status": "completed"
+   }
+  ],
+  "4c2b71991910bbc2ec5344916848e2402b08faec": [],
+  "54f0c871cf2d2f0bd70e384ece6be3221b112fc4": [],
+  "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3": [
+   {
+    "completed_at": "2026-11-11T03:48:10Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073331",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073331,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:42Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:55Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073272",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073272,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:42Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:51:16Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073260",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073260,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:51:39Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073252",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073252,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:42Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:54Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073137",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073137,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:42Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:48:08Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073098",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073098,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:42Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:48:10Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073092",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073092,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:48:30Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308073051",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308073051,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:49:53Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42955060282/job/130308072840",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130308072840,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:47:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:49:39Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814792",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814792,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:57Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:10Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814656",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814656,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:56Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:34Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814639",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814639,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:57Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:50:06Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814615",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814615,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:56Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:50:48Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814581",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814581,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:57Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:16Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814564",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814564,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:57Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:44Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814477",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814477,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:57Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:26Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814368",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814368,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:56Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T03:47:16Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42954978795/job/130307814196",
+    "head_sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3",
+    "id": 130307814196,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T03:46:57Z",
+    "status": "completed"
+   }
+  ],
+  "6f691d4cf48a11a500d968284e02bc69c76bae2a": [],
+  "7ef793d9e4b76810fc93737c511566f36df0c600": [],
+  "8a7a038fc855522e3e42c7a2992edbd8d701e210": [],
+  "8fc367561812aa1dc51561cb569a8eca66cd603c": [],
+  "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da": [
+   {
+    "completed_at": "2026-11-11T21:27:11Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371593",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371593,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:24Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371590",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371590,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:29:44Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371405",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371405,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:11Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371397",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371397,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:29:34Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371343",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371343,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:22Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371298",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371298,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:48Z",
+    "conclusion": "failure",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371277",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371277,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:03Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799371160",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799371160,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:30:05Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103107697/job/130799370865",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799370865,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:00Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319640",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319640,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:44Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:29:41Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319604",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319604,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:07Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319560",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319560,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:03Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319556",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319556,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:44Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:30:28Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319502",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319502,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:44Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:09Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319499",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319499,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:05Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319478",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319478,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:44Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:27:28Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319461",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319461,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T21:28:43Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43103093599/job/130799319325",
+    "head_sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da",
+    "id": 130799319325,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T21:26:43Z",
+    "status": "completed"
+   }
+  ],
+  "c79d7f992b8a67b375baeec14141aaf33b9b580e": [],
+  "db324ebe6faccae978b0ed835c0f96826c4f7e68": []
+ },
+ "comments": [
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: afdbed20a6193034\nPlan check: ok\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T03:49:10Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6786449711",
+   "id": 6786449711
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Opus ruling\nRuling: do these steps\n\n## How we got here\n\nDone-when 5 of dev-skill-up/pitboss#448 names ticket #311, which is closed (PR 454 merged), so its written command prints nothing. The worker handed this back as impossible as written. The Plan of this PR has not been reviewed or approved, so Plan row 2 may be revised now. The Done-when text stays unedited. No rejection came before this ruling; the question is the shape of Done-when 5. The prevention filed: dev-skill-up/pitboss#458 gets the case (a Done-when that names a ticket which can close before the work runs is flagged at plan-check). This follows the PR 452 precedent and counts as a completed item, not a partial hand-back.\n\n## Steps\n\n1. Revise Plan row 2: keep the written command and record why it cannot run as written, as `Impossible: <command> -> (empty output)`, because #311 is closed (PR 454 merged).\n2. In the same row, show the same thing on live data with dev-skill-up/pitboss#444: on main `slots next dev-skill-up/pitboss#444` prints UNKNOWN (\"an open PR already works on it\"), and on the branch it prints `NEXT 2 ... start a PR: dev-skill-up/pitboss#444`. Both outputs go in the Execution exactly as captured.\n3. Rebuild the Evidence with `pitboss expand`, lint the body, run `pitboss plan-check` at the head and post its output as a PR comment.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T04:26:53Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6787006370",
+   "id": 6787006370
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: c1cfa02d65f813b9\nPlan check: ok\n\nHead: 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T04:41:11Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6787209684",
+   "id": 6787209684
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3: changes needed\n\nPlan: approved\nExecution: changes needed\nPlan digest: c1cfa02d65f813b9\nBody: fc78d9ef5e19b5f9\nVerdict: changes needed\n\nI am not the author and wrote no part of the change. Read from the PR just before posting: the head is 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3 and the last Head line of the body names it.\n\nChecks at that head, looked at on 2026-11-11: all 18 check runs (both runs of the head: lint, mypy, docs, skills, build, dry_release, tests-3.12, tests-3.13, tests-3.14) completed with success.\n\nPlan (graded for the first time; Plan check comment 6787209684 has the digest c1cfa02d65f813b9 and ends `Plan check: ok`):\n- Rows 1 and 2 give the exact commands. Row 2 keeps the Done-when 5 command word for word, records it as impossible with an empty output because #311 is closed (the Opus ruling 6787006370, step 1), and shows the same case on live data with #444 (step 2). Fine.\n- Rows 3 to 7 are CI pointers with the workflow (`pr-main.yml`), the job, the step (`Run Nox`, which exists in that file), greppable test names (all exist in the diff) and how the run is found for the head. No row asks for `pitboss nox` or a repeated run. Fine.\n- Every Done-when bullet 1 to 5 has a row. Dry run: I have no shell in this review, so the row 2 command (it reads a checkout `m448` and a config in the author's scratchpad) was not tried by me; I cannot fault it as written.\n\nExecution findings:\n1. A docstring the change makes false. `taken` in `src/pitboss/work.py` still says a PR names a ticket by `#N`, `name#N`, `owner/name#N`, or the ticket's URL anywhere in its title or body. After this change only a Fixes or Closes line (or a branch ending in the number) counts, so the docstring now contradicts `pullnames.names` it calls. Make it say what `pullnames.names` now says. Next to it, the docstrings of `ticket_items` and of the module that say \"no open PR names\" are loose for the same reason; the `taken` one is the finding.\n2. Done-when 4 says the repository-prototype ticket is ranked at the PR's place. `test_the_ticket_takes_the_place_of_the_pull_request` asserts only that the ticket is somewhere in `starts(here)` and that the PR has no fix-the-CI line. A ticket ranked last would pass it. Assert the exact list of starts (the ticket where the PR was, as `test_it_takes_the_place_of_the_ticket_that_waits` does for Done-when 1), so the place is tested.\n\nChecked and ok:\n- Done-when 1, 2, 3, 5 and the open-PR-is-a-wait case of 4 have the named tests in the diff, and they pass in CI at this head.\n- The Evidence has the two `pitboss-expand` blocks, `git rev-parse HEAD` and the row 2 command run as written; their heads are the head. Row 5's mention case: `test_taken_and_offered` and `test_a_mention_in_a_plan_does_not_take_the_ticket` cover a Plan mention, a Fixes line with no ticket, and a closed or non-PR source.\n- No .md or .rst line is added. The order of steps is changed, but the ticket gives no table of the full order, so the order-table rule has nothing to differ from.\n- A red `canonical-files` with no ticket and no PR to wait for keeps its worker line (no green conversion of a failure).\n- Lint tests: the tightened mention rule ships its rejecting input (a Plan mention), the accepted ones are tested too.\n\n`bats prcheck --checklist`: not run, this review has no shell; no line of its output is stated here.\n\nDeviation: `pitboss nox` was run more than once on the work, with lint, mypy and coverage fixes between runs (different heads, not a repeat on one head, and not a Plan command): not a finding.\nDeviation: row 2's first command prints nothing because #311 is closed, as the Opus ruling allows: not a finding.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T21:05:18Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6807014004",
+   "id": 6807014004
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Opus ruling\nRuling: do these steps\n\n## How we got here\n\nChecked against the PR, its comments and the files at head 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3:\n\n- The Plan is approved: the review comment 6807014004 says `Plan: approved` with `Plan digest: c1cfa02d65f813b9`, the digest of the Plan check comment 6787209684 at this head. The earlier ruling 6787006370 (`do these steps`) concerned Plan row 2 only, and its steps are done: row 2 holds the `Impossible: <command> -> (empty output)` form for #311 and the live case on #444.\n- The one rejection is that review's `Execution: changes needed`, with all 18 check runs of the head green. Its two findings are both true at this head:\n  1. `taken` in `src/pitboss/work.py` (lines 111 to 122) still says a PR names a ticket by `#N`, `name#N`, `owner/name#N` or the ticket's URL in its title or body. `pullnames.names`, which it calls, now counts only a `Fixes` or `Closes` form in the title or body, or a branch ending in the number (its module docstring: \"A mention in a Plan or an Evidence block names no ticket the PR works on (keyword: taken, pitboss#448)\"). The docstring of `ticket_items` (\"that no open PR names\") and the module docstring of `work.py` (\"each open ticket with a priority label that no open PR names\") are loose for the same reason. `work.py` is not among the PR's changed files, but this PR's change to `pullnames.names` is what made them false, so they are this PR's to fix.\n  2. `test_the_ticket_takes_the_place_of_the_pull_request` in `src/pitboss/tests/test_allowlist_miss.py` (line 219) asserts `TICKET in starts(here)`, membership only; a ticket ranked last would pass, so Done-when 4's \"at the PR's place\" is not tested. `test_it_takes_the_place_of_the_ticket_that_waits` in `test_unqueued.py` asserts the exact list with `equal_to`, which is the form to follow.\n- Both are mechanical, in code the worker wrote, and named exactly. `slots next` printed `label paused-owner and report to the owner`; the owner's standing rule lets a mechanical named finding have a fix round instead, so one fix round on this branch, with the Plan as approved.\n\n## Steps\n\n1. In `src/pitboss/work.py`, rewrite the docstring of `taken` to say what `pullnames.names` says: a PR works on a ticket only when its title or body fixes it with a `Fixes` or `Closes` form, or its branch ends in the ticket's number; a mention elsewhere (a Plan, an Evidence block) names none. Name the keyword `taken`.\n2. In the same file, change \"that no open PR names\" in the docstring of `ticket_items` and in the module docstring to \"that no open PR fixes\" (or the same meaning in other words). Change no code in `work.py`.\n3. In `test_the_ticket_takes_the_place_of_the_pull_request`, replace `assert_that(TICKET in starts(here), equal_to(True))` with `assert_that(starts(here), equal_to([...]))`, the list written out literally, with the repository-prototype ticket at the place PR 3 held, as `test_it_takes_the_place_of_the_ticket_that_waits` does. Keep the `BLOCKED` assertion and the no-fix-the-CI assertion. Before committing, move the ticket to the end of the expected list once and see the test fail, then put it back.\n4. Add one bullet to the Execution saying the docstrings of `taken`, `ticket_items` and `work.py` now say a PR takes a ticket only by fixing it, and that the place test asserts the exact list of starts. Change nothing in the Plan.\n5. `pitboss nox`.\n6. `pitboss push`.\n7. Make the body's last `Head:` line the new head, rebuild the two Evidence blocks at the new head with `pitboss expand`, and lint the body.\n8. Run `pitboss plan-check` at the new head and post its output as a PR comment; the Plan digest must stay `c1cfa02d65f813b9`.\n9. Run hand-back-check at the new head.\n10. One hand-back.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T21:09:18Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6807088468",
+   "id": 6807088468
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: c1cfa02d65f813b9\nPlan check: ok\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T21:28:11Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6807445445",
+   "id": 6807445445
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: c1cfa02d65f813b9\nPlan check: ok\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T21:38:44Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6807650120",
+   "id": 6807650120
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 279641802438b3e2624b8f1ed69935707789c532: approved\n\nPlan: approved (fixed)\nExecution: approved\nPlan digest: c1cfa02d65f813b9\nBody: 4ba0f5cbe5f0f0e2\nVerdict: approved\n\nI am not the author and wrote no part of the change. Scope: the fix round, the diff from 64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3 to 279641802438b3e2624b8f1ed69935707789c532 and the two findings of review 6807014004. The head was read from the PR before posting and is 279641802438b3e2624b8f1ed69935707789c532, the last Head line of the body.\n\nChecks at that head: all 18 check runs (both runs of the head: lint, mypy, docs, skills, build, dry_release, tests-3.12, tests-3.13, tests-3.14) completed with success. The newest Plan check comment (6807650120) has the digest c1cfa02d65f813b9 and ends `Plan check: ok`; the digest is unchanged, so the fixes do not touch the approved Plan.\n\nFindings of the earlier review:\n1. Docstrings: fixed. Commit acd4a0e rewrites the docstring of `taken` in `src/pitboss/work.py` to say a PR works on a ticket (keyword: taken) only when its title or body fixes it with a `Fixes` or `Closes` form, or its branch ends in the ticket's number (`pullnames.names`), and that a mention in a Plan or an Evidence block names none. \"No open PR names\" became \"no open PR fixes\" in the module docstring, in `ticket_items` and in the `assemble` argument text. Only docstrings changed in `work.py`; no code.\n2. Place of the ticket: fixed. `test_the_ticket_takes_the_place_of_the_pull_request` now asserts `starts(here)` equals the literal `[\"owner/project#1\", TICKET]`, the ticket at the place PR 3 held; the `BLOCKED` assertion and the no-fix-the-CI assertion are kept. That test passes in CI at this head.\n\nThe body has the added Execution bullet saying the docstrings and the exact-list place test (finding 4 of the ruling).\n\nOther changes in the range: a merge of main, then two refactors (`_place` moved to `nextview.place_line`, then `_placed` split out of `show_item`) that keep the printed `NEXT n of m` line and exist to keep the module under its line and complexity limits; CI is green on them. No finding is raised outside the diff.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T22:01:29Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/460#issuecomment-6808087366",
+   "id": 6808087366
+  }
+ ],
+ "commits": [
+  {
+   "date": "2026-11-11T03:27:25Z",
+   "sha": "8fc367561812aa1dc51561cb569a8eca66cd603c"
+  },
+  {
+   "date": "2026-11-11T03:28:17Z",
+   "sha": "8a7a038fc855522e3e42c7a2992edbd8d701e210"
+  },
+  {
+   "date": "2026-11-11T03:31:46Z",
+   "sha": "4c2b71991910bbc2ec5344916848e2402b08faec"
+  },
+  {
+   "date": "2026-11-11T03:32:35Z",
+   "sha": "126be8feba9fd8cc1cebf6a720f241ba1436ddf3"
+  },
+  {
+   "date": "2026-11-11T03:33:20Z",
+   "sha": "1c27fffb073817ebf813f8bc984e94c0911ddfb2"
+  },
+  {
+   "date": "2026-11-11T03:37:24Z",
+   "sha": "6f691d4cf48a11a500d968284e02bc69c76bae2a"
+  },
+  {
+   "date": "2026-11-11T03:41:36Z",
+   "sha": "c79d7f992b8a67b375baeec14141aaf33b9b580e"
+  },
+  {
+   "date": "2026-11-11T03:42:15Z",
+   "sha": "7ef793d9e4b76810fc93737c511566f36df0c600"
+  },
+  {
+   "date": "2026-11-11T03:42:53Z",
+   "sha": "64ec6181c8c4f846ba15df8eb9e3ffbd57039ea3"
+  },
+  {
+   "date": "2026-11-11T21:17:47Z",
+   "sha": "acd4a0ed2d35ce1536eeeb7a75a4f72003bbd2da"
+  },
+  {
+   "date": "2026-11-11T21:31:54Z",
+   "sha": "54f0c871cf2d2f0bd70e384ece6be3221b112fc4"
+  },
+  {
+   "date": "2026-11-11T21:32:25Z",
+   "sha": "db324ebe6faccae978b0ed835c0f96826c4f7e68"
+  },
+  {
+   "date": "2026-11-11T21:32:54Z",
+   "sha": "279641802438b3e2624b8f1ed69935707789c532"
+  }
+ ],
+ "events": [],
+ "number": 460,
+ "pull": {
+  "auto_merge": null,
+  "base": {
+   "ref": "main"
+  },
+  "body": "Fixes dev-skill-up/pitboss#448\n\n## Plan\n\nRows (each Done-when bullet word for word from the ticket body, with its evidence; the commands first, the pointers to CI last).\n\n1. `git rev-parse HEAD`\n2. Done when 5: After the fix, `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config CFG 2>/dev/null | head -1` prints a `NEXT k of n` line for a ticket that an open pull request's Plan only mentions: `taken` in `work.py` counts a ticket as taken only when the pull request fixes it (the `Fixes` or `Closes` form, or its branch), never for a mention in a Plan or an Evidence block (Opus ruling 2026-11-11 00:17Z on pitboss PR 452, row 4). Run as one command, the lines of its output in this order (empty for #311, UNKNOWN on main for #444, NEXT on the branch for #444): `(uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1`. Impossible: `uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` -> (empty output), because #311 is closed (PR 454 merged). The same thing on live data with dev-skill-up/pitboss#444, an open ticket that an open PR only mentions: on main `cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'` prints UNKNOWN (an open PR already works on it), and on the branch `uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1` prints `NEXT 4 ... start a PR: dev-skill-up/pitboss#444`.\n3. CI (Done when 1): `uvx pitboss slots next` ranks pwa#313 at the place of the quire#1083 line it blocks, with the blocked ticket's priority and age. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_it_takes_the_place_of_the_ticket_that_waits`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n4. CI (Done when 2): `uvx pitboss slots next bats-lang/pwa#313 --config CFG` prints its brief, not UNKNOWN. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_its_brief_is_printed`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n5. CI (Done when 3): When a ticket is not queued, the UNKNOWN line names the reason (its labels, its state, the item it blocks). Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_ticket_with_no_label_that_blocks_nothing` and `test_a_closed_ticket_with_labels`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n6. CI (Done when 4): For a PR whose failed check is `canonical-files` and whose log has the line `not canonical: its sha256 <hash> is not listed for it in tools/pin-audit/allowlist.txt`, `slots next` prints that allowlist line from the log (the text after `the hash of this file as the next hash:`) and ranks a repository-prototype ticket for adding it at the PR's place, before any \"fix the CI\" worker line for the PR; an open repository-prototype pull request that already has the line is named instead, and the PR is a wait. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_the_ticket_takes_the_place_of_the_pull_request` and `test_the_open_pull_request_is_a_wait`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n7. CI (Done when 5, the case): the PR of a Plan that only mentions a ticket does not take it. Workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_taken_and_offered` and `test_a_mention_in_a_plan_does_not_take_the_ticket`. The run is found for the commit by the check runs of the head SHA (`gh api repos/dev-skill-up/pitboss/commits/<head SHA>/check-runs`, or the run and job URL `actions` gives for the head): the matrix job's displayed name is `tests-3.13 on Python 3.13`.\n\n## Execution\n\n- `pullnames.names` (the one place `work.taken` and the item brief read) counts a ticket only for a `Fixes` or `Closes` form in a title or body, or a branch ending in its number; a mention in a Plan or an Evidence block names nothing. The timeline mention of the item brief (`itempick._crossed`) counts only an open PR that fixes the ticket. This is why a blocker named in a Plan was never offered (`dependency.settle` skips the `taken` tickets).\n- `unqueued.why` adds the state, the labels and the items the ticket blocks to the UNKNOWN line of the whole order.\n- `allowlistmiss` reads the log of a failed `canonical-files` check, takes the allowlist line after `the hash of this file as the next hash:`, and `pullmarks` makes such a PR blocked by the open repository-prototype PR that adds the line, else by the open ticket `Make <repository>'s workflow and issue-template files canonical`, which the existing dependency rule ranks at the PR's place; the `BLOCKED` line ends with `; allowlist line: <line>`.\n- Ticket 311 of Done-when 5 is closed, so its command cannot print a `NEXT` line on live data (Opus ruling 6787006370: Plan row 2 revised as `Impossible: <command> -> (empty output)`); the same case is shown on live data with dev-skill-up/pitboss#444 in row 2, and is the test of row 7.\n- The docstrings of `taken`, `ticket_items` and `work.py` now say a PR takes a ticket only by fixing it (a `Fixes` or `Closes` form, or its branch), and `test_the_ticket_takes_the_place_of_the_pull_request` asserts the exact list of starts, `[\"owner/project#1\", TICKET]`, so the place of the ticket is tested (Opus ruling 6807088468).\n- Local check: `pitboss nox` on the head: skills, lint, mypy and tests-3.13 all success.\n\nDeviations: `pitboss nox` was run more than once on the work (lint, mypy and coverage failures fixed between runs, and the merge of main at the head); row 2's command prints nothing because ticket 311 is closed.\n\nHead: 279641802438b3e2624b8f1ed69935707789c532\n\nDone-when digest: 93a892c4a36ee3bc\n\n## Evidence\n\n```pitboss-expand sha256=e002a3fb3f2c5efc head=279641802438b3e2624b8f1ed69935707789c532\n$ git rev-parse HEAD\n279641802438b3e2624b8f1ed69935707789c532\n```\n```pitboss-expand sha256=1db9cc6bed2beba9 head=279641802438b3e2624b8f1ed69935707789c532\n$ (uvx --from . pitboss slots next dev-skill-up/pitboss#311 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1); (cd /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/m448 && uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>&1 | grep -m1 '^UNKNOWN'); uvx --from . pitboss slots next dev-skill-up/pitboss#444 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml 2>/dev/null | head -1\nUNKNOWN: dev-skill-up/pitboss#444 is not in the order of slots next: an open PR already works on it (a held or blocked ticket and a PR at a wait are not)\nNEXT place unknown: dev-skill-up/pitboss#444 was not in the full slots next of 2026-11-11T21:30:40.150272+00:00: start a PR: dev-skill-up/pitboss#444: slot, smallest model sonnet\n```\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "created_at": "2026-11-11T03:47:35Z",
+  "draft": false,
+  "head": {
+   "ref": "worker/448",
+   "sha": "279641802438b3e2624b8f1ed69935707789c532"
+  },
+  "labels": [],
+  "mergeable_state": "unknown",
+  "merged_at": "2026-11-11T22:01:46Z",
+  "number": 460,
+  "state": "closed",
+  "title": "slots next ranks a blocker a Plan mentions, names why UNKNOWN, and waits on the allowlist (pitboss#448)",
+  "updated_at": "2026-11-11T22:01:46Z",
+  "user": {
+   "login": "moshez"
+  }
+ },
+ "reviews": [],
+ "slug": "dev-skill-up/pitboss"
+}

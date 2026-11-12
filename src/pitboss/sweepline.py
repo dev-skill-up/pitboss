@@ -14,6 +14,7 @@ from . import (
     ghapi,
     holds,
     exempt,
+    holdscope,
     ledger,
     logline,
     pulls,
@@ -114,7 +115,8 @@ def pressure(
     held = any(
         each.startswith(Marker.RUNNER_PRESSURE.text) for each in said.split("\n")
     )
-    return "\n".join([said, exempt.sweep_saying(runners.exempt)] if held else [said])
+    more = [exempt.sweep_saying(runners.exempt), holdscope.saying(runners)]
+    return "\n".join([said, *more] if held else [said])
 
 
 def looked(

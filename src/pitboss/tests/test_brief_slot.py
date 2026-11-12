@@ -3,7 +3,7 @@
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, starts_with
 
 from .. import briefkind
 from . import briefmake, watchworld, world
@@ -39,7 +39,7 @@ class TestFirstLine(unittest.TestCase):
     def test_the_marker_names_the_reference_of_the_subject(self) -> None:
         """The reference the brief is about, in the line the watcher reads."""
         line = briefmake.text(Kind.NEW_PR).splitlines()[0]
-        assert_that(line.startswith("PITBOSS-SLOT: "), equal_to(True))
+        assert_that(line, starts_with("PITBOSS-SLOT: "))
         assert_that(line.split()[1], equal_to(briefmake.SUBJECT.reference))
 
     def test_the_printed_brief_of_a_ticket_has_it_before_the_goal(self) -> None:
@@ -50,7 +50,7 @@ class TestFirstLine(unittest.TestCase):
         )
         lines = shown.out.splitlines()
         at = lines.index(f"PITBOSS-SLOT: {TEN} start")
-        assert_that(lines[at + 1].startswith("Goal: ticket "), equal_to(True))
+        assert_that(lines[at + 1], starts_with("Goal: ticket "))
 
 
 def read_as(text: str) -> tuple[Sequence[str], Sequence[str]]:

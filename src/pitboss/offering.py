@@ -19,6 +19,8 @@ from . import (
     concurrently,
     config,
     configfile,
+    configloads,
+    configrepos,
     dependency,
     ghapi,
     holds,
@@ -137,7 +139,7 @@ def standing(found: Source, slugs: Sequence[str]) -> Mapping[str, int]:
     Returns:
         Each held repository and its open count (``holds.standing``).
     """
-    owned = configfile.load_holds(
+    owned = configloads.load_holds(
         configfile.named(found.args),
         configfile.working_directory(found.args),
         found.settings.project.repo.owner,
@@ -222,7 +224,7 @@ def _promoted(
     slots = found.settings.slots
     new = work.Category.NEW_PR
     tickets = [each for each in queued if each.category is new]
-    sources = promotion.sources(found.github, config.repositories(found.settings))
+    sources = promotion.sources(found.github, configrepos.repositories(found.settings))
     below = [each.reference for each in tickets if each.priority > 0]
     named = promotion.named_by(below, sources, frozenset(slots.owner_priorities))
     items, said = promotion.raised(queued, named, slots.priority_labels)
@@ -274,7 +276,7 @@ def _stated(
     wanted = [
         (reference, label)
         for reference, label in slots.owner_priorities.items()
-        if reference not in busy and config.has(found.settings, reference)
+        if reference not in busy and configrepos.has(found.settings, reference)
     ]
     return {ref: made for ref, label in wanted if (made := rank(ref, label))}
 
@@ -320,7 +322,7 @@ def _stated_ticket(
     found: Source, offer: work.Offered, reference: str
 ) -> blockers.Ticket | str:
     # the ticket the owner states a priority for, or why it cannot be read
-    if not config.has(found.settings, reference):
+    if not configrepos.has(found.settings, reference):
         return "its repository is not configured"
     for each in [*offer.items, *offer.held, *offer.blocked, *offer.superseded]:
         if each.reference == reference and each.category is work.Category.NEW_PR:

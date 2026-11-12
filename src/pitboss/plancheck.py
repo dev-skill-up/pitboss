@@ -29,11 +29,14 @@ from typing import Callable, Sequence
 
 from . import (
     bodydigest,
+    bodyrules,
     cipointer,
     cipointercheck,
     cirun,
+    configkeys,
     evidence,
     expansion,
+    filegates,
     lintchange,
     markupclaim,
     markuplines,
@@ -210,6 +213,10 @@ def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[s
     return [
         *planpointers.findings(section),
         *markupclaim.findings(body, changed),
+        *bodyrules.scratch_findings(body),
+        *bodyrules.path_findings(body),
+        *(bodyrules.section_findings(body) if changed else []),
+        *bodyrules.pointer_findings(body),
     ]
 
 
@@ -224,7 +231,15 @@ KINDS = (
     (plandonewhen.CHECK, "Done-when findings"),
     (plandonewhen.MEASUREMENT, "Measurement findings"),
     (plandonewhen.EDITED, "Done-when edit findings"),
+    (plandonewhen.FORM, "Done-when form findings"),
     (plandonewhen.INTERPRETATION, "Interpretation findings"),
+    (bodyrules.SCRATCH_CHECK, "Scratch path findings"),
+    (bodyrules.PATH_CHECK, "Outside path findings"),
+    (bodyrules.SECTION_CHECK, "Execution section findings"),
+    (bodyrules.POINTER_CHECK, "Execution pointer findings"),
+    (filegates.CHECK, "File gate findings"),
+    (configkeys.CHECK, "Config example findings"),
+    (configkeys.FIND_CHECK, "Config find findings"),
 )
 
 

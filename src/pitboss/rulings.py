@@ -8,12 +8,12 @@ as given. The flow reads the table ``AFTER`` (``flow.AFTER``);
 
 from typing import Sequence
 
-from . import conflicts, flow, rulingwords, steps
+from . import conflicts, flow, rulingafter, rulingwords, steps
 
 RULING_LINE_PREFIX = rulingwords.RULING_LINE_PREFIX
 Ruling = rulingwords.Ruling
 read_ruling = flow.read_ruling
-AS_RULED = flow.AS_RULED
+AS_RULED = rulingafter.AS_RULED
 AFTER = flow.AFTER
 
 

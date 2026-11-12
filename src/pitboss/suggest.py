@@ -1,11 +1,8 @@
 """The top suggestions of ``next`` and ``slots next``, each with its brief.
 
-On a crowded volume (90% used or more) the clean suggestion comes first; the
-first of the picks is the one the process requires, the others are the next
-ones that could start, so that a reason the model cannot name (a missing
-checkout) does not stop the work. The order is the one ``work.queued``
-gives, with the PRs at an Opus ruling before it: a ruling is owed first and
-takes no slot (keyword: brief, pitboss#118).
+On a crowded volume (90% used or more) the clean suggestion comes first; the first
+pick is the one the process requires, the others could start next. The order is
+``work.queued``'s, Opus rulings first: owed, they take no slot (keyword: brief).
 """
 
 import dataclasses
@@ -17,8 +14,10 @@ from . import (
     briefconfig,
     briefheads,
     briefrepo,
+    briefsave,
     config,
     configfile,
+    configloads,
     diskwatch,
     fixes,
     gates,
@@ -26,8 +25,11 @@ from . import (
     nextfound,
     pullfiles,
     pulls,
+    reporules,
     reviews,
+    ruleconflicts,
     slotheld,
+    stepmatrix,
     steps,
     suggestflake,
     suggestkind,
@@ -60,9 +62,9 @@ class Pick:
 
     reference: str
     title: str
-    category: work.Category | None
-    item: work.Item | None
-    pull: pulls.PullFacts | None
+    category: work.Category | None = None
+    item: work.Item | None = None
+    pull: pulls.PullFacts | None = None
 
 
 Suggestion = suggestkind.Suggestion
@@ -80,8 +82,7 @@ class Source:
         facts: the open PRs that were read.
         items: the queued work, in order.
         failed: each reference's failed models.
-        volume: the workspace's volume as read (keyword: disk-watch,
-            pitboss#288), None when unread.
+        volume: the workspace's volume as read (disk-watch), None when unread.
         big: the largest scratch entries, read only for a crowded volume.
         occupancy: what holds the slots (keyword: slot-held, pitboss#291).
     """
@@ -121,7 +122,7 @@ def sourced(
         github=found.github,
         settings=found.settings,
         given=given,
-        brief=configfile.load_brief(given, start),
+        brief=configloads.load_brief(given, start),
         facts=facts,
         items=items,
         failed=failed,
@@ -129,13 +130,7 @@ def sourced(
 
 
 def _ruling_pick(each: pulls.PullFacts) -> Pick:
-    return Pick(
-        reference=pulls.reference(each),
-        title=each.pull.title,
-        category=None,
-        item=None,
-        pull=each,
-    )
+    return Pick(reference=pulls.reference(each), title=each.pull.title, pull=each)
 
 
 def _queued_pick(each: work.Item, by_reference: Mapping[str, pulls.PullFacts]) -> Pick:
@@ -159,7 +154,7 @@ def picks(source: Source) -> Sequence[Pick]:
     """
     by_reference = {pulls.reference(each): each for each in source.facts}
     ruled = sorted(
-        (each for each in source.facts if each.step.step is steps.Step.OPUS_RULING),
+        (each for each in source.facts if each.step.step in stepmatrix.RULINGS),
         key=lambda each: each.pull.created_at,
     )
     return [
@@ -215,7 +210,11 @@ def kind_of(pick: Pick) -> brief.Kind:
     """
     if pick.category is None:
         return brief.Kind.RULING
-    reviewed = (work.Category.REVIEW, work.Category.REVIEW_FIX_ROUND)
+    reviewed = (
+        work.Category.REVIEW,
+        work.Category.REVIEW_FIX_ROUND,
+        work.Category.RELOCK_REVIEW,
+    )
     if pick.category in reviewed and pick.pull is not None:
         return review_kind(pick.pull)
     if pick.pull is not None and pick.pull.step.task is steps.Task.FIX_ROUND:
@@ -236,8 +235,7 @@ def goal(source: Source, pick: Pick) -> tuple[str, str]:
         pick: what could start.
 
     Returns:
-        The ticket (empty when none is known) and the goal: the title of the
-        ticket, else the title of the PR.
+        The ticket (empty if none) and its goal: the ticket's title, else the PR's.
     """
     if pick.pull is not None and pick.pull.relock:
         return "", RELOCK_GOAL.format(reference=pick.reference, title=pick.title)
@@ -256,20 +254,26 @@ def _form(source: Source, slug: str, head: str) -> Sequence[str]:
     ]
 
 
-def _rules(source: Source, slug: str, head: str) -> brief.Rules:
+def _rules(source: Source, slug: str, head: str, ticket: str) -> brief.Rules:
     review = source.settings.review
+    words = reviews.rules(review, slug)[1]
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
-        project=briefrepo.of_repository(
-            source.brief,
-            slug,
-            source.settings.project.no_drafts,
-            source.settings.runners.exempt,
-        ),
+        project=_project(source, slug, ticket),
         gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
         plan_check=source.settings.project.plan_review_check,
+        verdicts=(words.approved, words.changes_needed),
     )
+
+
+def _project(source: Source, slug: str, ticket: str) -> briefconfig.Brief:
+    # the repository's brief settings, with the gates of its files
+    settings = source.settings
+    kept = briefrepo.of_repository(
+        source.brief, slug, settings.project.no_drafts, settings.runners.exempt
+    )
+    return reporules.with_gates(source.github, slug, ticket, kept)
 
 
 def _touches_e2e(source: Source, pick: Pick, kind: brief.Kind) -> bool:
@@ -293,10 +297,10 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         The spec.
     """
     about = goal(source, pick)
-    slug = pick.reference.rpartition("#")[0]
     heads = briefheads.of(source.settings.project.base_branch, pick.pull)
     kind = kind_of(pick)
-    rules = _rules(source, slug, heads.head)
+    ticket = pick.item.body if pick.item else pick.pull.pull.body if pick.pull else ""
+    rules = _rules(source, pick.reference.rpartition("#")[0], heads.head, ticket)
     return brief.Spec(
         kind=kind,
         subject=suggestwhen.subject(source.github, pick.reference, about, kind),
@@ -307,6 +311,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         logs=(
             suggestlogs.of(pick.pull) if pick.pull and kind is brief.Kind.FIX_CI else ()
         ),
+        conflict=ruleconflicts.brief_lines(pick.pull.step if pick.pull else None),
     )
 
 
@@ -318,8 +323,7 @@ def model_class(source: Source, pick: Pick) -> str:
         pick: what could start.
 
     Returns:
-        A slot and the smallest model it may go to, or the Opus agent of a
-        ruling, which takes no slot.
+        The slot and smallest model, or the Opus agent of a ruling (no slot).
     """
     if pick.item is None:
         return OPUS_MODEL
@@ -347,18 +351,21 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
     )
 
 
-def _ranked(
-    source: Source, shown: Sequence[Pick], first: int, total: int
-) -> Iterable[str]:
+def _ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
     marker = Marker.SUGGESTION.text
-    for rank, pick in enumerate(shown, start=first):
-        found = suggest(source, pick)
+    for rank, found in enumerate(made, start=first):
         yield (
             f"{marker} {rank} of {total}: {found.kind.value}:"
             f" {found.reference}: {found.model}"
         )
         yield from found.text.splitlines()
         yield f"--- end of suggestion {rank} ---"
+
+
+def _dispatch(source: Source, found: Suggestion) -> str:
+    # B6 (keyword: brief-save): the brief is a file, and the line names it
+    ledger_file = source.settings.slots.ledger
+    return briefsave.save(ledger_file, found.reference, found.model, found.text)
 
 
 def lines(source: Source) -> Iterable[str]:
@@ -368,10 +375,9 @@ def lines(source: Source) -> Iterable[str]:
         source: what suggestions are made from.
 
     Yields:
-        The lines: up to ``TOP`` suggestions in order, then how many more
-        are queued; one line when nothing could start. On a volume 90 % used or
-        with under 1 GiB free the first suggestion is ``clean the disk``; under
-        1 GiB free no worker is suggested (keyword: disk-watch, pitboss#288).
+        Up to ``TOP`` suggestions in order, then how many more are queued; one
+        line when nothing could start. On a volume 90 % used or with under 1 GiB
+        free the first is ``clean the disk``; under 1 GiB none is a worker's.
     """
     marker = Marker.SUGGESTION.text
     every = [] if diskwatch.starved(source.volume) else picks(source)
@@ -381,6 +387,9 @@ def lines(source: Source) -> Iterable[str]:
     cleaning = diskwatch.crowded(source.volume)
     total = len(shown) + cleaning
     yield from diskwatch.opening(source.volume, source.big, total)
-    yield from _ranked(source, shown, 1 + cleaning, total)
+    made = [suggest(source, pick) for pick in shown]
+    for found in made:
+        yield _dispatch(source, found)
+    yield from _ranked(made, 1 + cleaning, total)
     if len(every) > len(shown):
         yield f"{marker}: {len(every) - len(shown)} more queued, not shown"

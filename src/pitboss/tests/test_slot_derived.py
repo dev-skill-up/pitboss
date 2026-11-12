@@ -8,6 +8,7 @@ from .. import slotheld
 from . import suggestions, test_flow_sweep as flows, world
 from .liveagents import calm, ran, said
 from .test_slot_commands import run_all
+from .says import says
 
 
 def plain(here: world.World, *command: str) -> str:
@@ -141,7 +142,7 @@ class TestTheSlotsAreDerived(unittest.TestCase):
         refused = world.invoke(here, *take)
         later = [world.invoke(here, *each).code for each in (free, take)]
         assert_that([refused.code, *later], equal_to([2, 0, 0]))
-        assert_that(refused.err, contains_string("free it first"))
+        says(refused.err, "free it first")
 
     def test_reading_writes_nothing(self) -> None:
         """The finished agent's row is still in the file after ``slots next``."""

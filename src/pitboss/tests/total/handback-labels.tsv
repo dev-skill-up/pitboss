@@ -1,0 +1,32 @@
+# R5 held-out sample: 30 hand-backs drawn from the 420 distinct in the transcripts (seed sha256(frozen/MANIFEST)).
+# Label written before either lint ran: 1 = an open item is part of the conclusion (not done, not run, not verified, left, owed) with no owned next step; 0 = none.
+0	1	"Not run locally, so left to CI"
+1	1	"**Not verified** ... **After merge (not done)**"
+2	0	CI pending on a new push (a status)
+3	0	-
+4	1	"**Not verified**", leftover branches
+5	1	"**Not tested at all:**"
+6	1	"**Could not test:**"
+7	1	"merge_group is untested, as the PR says"
+8	1	"I did not rerun build-wasm ..."
+9	1	"Unverified: ... still needs one"
+10	1	"**Not completed:** ... **Not run:**"
+11	0	"Next: ..." (an owned plan)
+12	1	"still unknown ... did not open a PR"
+13	1	"**Not verified**"
+14	0	PARTIAL with resume steps
+15	1	"I did not look up the package versions"
+16	1	"not pushed, no PR ... did not re-run it"
+17	1	"**Not tested:**"
+18	1	"Not verified: ... are not done"
+19	0	-
+20	1	"I did not check whether ..."
+21	1	"**Open items** ... untested"
+22	0	-
+23	0	-
+24	1	"**Not verified**"
+25	1	"I could not exercise that here"
+26	1	"rest on CI"
+27	1	"local only (not pushed, no PR)"
+28	1	"Still tested, not proved"
+29	1	"that part is still owed"

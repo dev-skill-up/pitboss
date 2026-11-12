@@ -8,14 +8,15 @@ printed ``EMPTY SLOT`` and a ``start a PR`` suggestion, so a second worker ran.
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import slotheld
 from . import fakes, suggestions, test_flow_sweep as flows, world
 from .liveagents import calm, ran, said
 from .test_commands import sweep
-from .test_owner_repositories import lines_of
+from .ownerbodies import lines_of
 from .test_slot_commands import freed_world, next_output, run_all
+from ..textparts import having
 
 PROJECT = world.PROJECT
 FIRST_NEXT = "NEXT 1. running workers and reviewers: never interrupted, never stopped"
@@ -77,7 +78,7 @@ class TestARoundHoldsTheSlot(unittest.TestCase):
         """Every step but the held one ends with the queued words."""
         shown = lines_of(next_output(incident()), "NEXT ")
         assert_that(shown[0], equal_to(FIRST_NEXT))
-        assert_that(shown[1].startswith("NEXT 2. "), equal_to(True))
+        assert_that(shown[1], starts_with("NEXT 2. "))
         steps = {each.split(" ")[2]: each for each in shown[1:]}
         waits = {name: line.endswith(QUEUED) for name, line in steps.items()}
         held = "owner/project#3"
@@ -239,5 +240,5 @@ class TestTheSweepListWaits(unittest.TestCase):
     def test_the_round_of_a_held_pr_is_not_queued(self) -> None:
         """The fix round of PR 3 holds the slot, so its line does not wait."""
         shown = lines_of(sweep(incident()).out, "TASK LIST next ")
-        rounds = [line for line in shown if "owner/project#3" in line]
+        rounds = having(shown, "owner/project#3")
         assert_that(rounds[0].endswith(QUEUED), equal_to(False))

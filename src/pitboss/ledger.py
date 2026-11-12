@@ -26,7 +26,7 @@ class Mark(enum.Enum):
 
 # What a task is: start a PR for a ticket, review a PR, a fix round on a PR (it
 # may resume the agent that works on it), or a ruling on a ticket or PR.
-TASK_KINDS = ("start", "review", "fix", "ruling")
+TASK_KINDS = ("start", "review", "fix", "ruling", "diagnose")
 FIX_ROUND = "fix"
 
 

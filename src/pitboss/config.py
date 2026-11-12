@@ -7,12 +7,6 @@ import dataclasses
 import pathlib
 from typing import AbstractSet, Mapping, Sequence
 
-DEFAULT_REMINDERS = (
-    "Is any ticket closeable? A ticket whose work merged: read the merged PR"
-    " against the ticket's done-when, comment the evidence, close it.",
-    "Is any blocked ticket unblocked? A ticket that waits on X: check X; when"
-    " X is done, say so on the ticket.",
-)
 DEFAULT_FORM = ("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 DEFAULT_RELOCK_PREFIX = "relock/"
 DEFAULT_RUN_BY_E2E = ("e2e/",)
@@ -29,6 +23,12 @@ DEFAULT_PIN_FILES = (
     ".github/workflows/relock.yml",
     ".github/workflows/publish.yml",
 )
+DEFAULT_MECHANICAL_CHECKS = ("plan",)
+DEFAULT_MECHANICAL_PATTERNS = (
+    r'no line ".*" in file',
+    r"rejected, but not as its expect says",
+)
+DEFAULT_MECHANICAL_MINUTES = 20
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -57,18 +57,6 @@ def make_repo(owner: str, name: str) -> Repo:
         The repository.
     """
     return Repo(owner=owner, name=name, slug=f"{owner}/{name}")
-
-
-def repo_of(reference: str) -> Repo:
-    """The repository of a ticket or PR.
-
-    Args:
-        reference: ``owner/name#number``.
-
-    Returns:
-        The repository.
-    """
-    return make_repo(*reference.rpartition("#")[0].split("/", 1))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -102,6 +90,8 @@ class Review:
         form: the form in every other repository.
         gated_form: the form in a gated repository.
         gate_forms: a gated repository's form from its workflow (keyword: review-gate).
+        required_check: the check an approval of a head waits for (keyword:
+            approval-ci).
     """
 
     trusted: AbstractSet[str]
@@ -109,6 +99,7 @@ class Review:
     form: ReviewForm
     gated_form: ReviewForm
     gate_forms: Mapping[str, ReviewForm] = dataclasses.field(default_factory=dict)
+    required_check: str = "check"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -128,6 +119,23 @@ class Pins:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Quarantine:
+    """The words of the quarantine and race checks (``[lint.quarantine]``).
+
+    Attributes:
+        failing: the words that name a failing test.
+        race: the words that name a race.
+        mark: the pattern of a skip mark in a test file.
+        directory: the end-to-end test directory of the checkout.
+    """
+
+    failing: Sequence[str] = ("failing test", "flaky", "flake", "test failure")
+    race: Sequence[str] = ("race", "racy", "race condition")
+    mark: str = r"\.(?:fixme|skip)\([^)]*"
+    directory: str = "e2e"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Lint:
     """What the form checks of ``pitboss lint`` read.
 
@@ -136,12 +144,14 @@ class Lint:
         brief_lines: the line starts every brief must have.
         relock_prefix: the head branch prefix of a relock PR (keyword: relock).
         pins: how a PR that only moves pins is verified (keyword: pins-only).
+        quarantine: the words of the quarantine and race checks.
     """
 
     review: Review
     brief_lines: Sequence[str]
     relock_prefix: str = DEFAULT_RELOCK_PREFIX
     pins: Pins = Pins()
+    quarantine: Quarantine
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -212,9 +222,8 @@ class Slots:
         owner_priorities: a ticket (``owner/repo#N``) and the priority label the
             owner states for it, one of ``priority_labels``; the ticket ranks by
             it, and a differing GitHub label is said (keyword: owner-priority).
-        superseded: the tickets (``owner/repo#N``) the owner marks as
-            superseded: no start is offered for them (keyword:
-            superseded-ticket, pitboss#388).
+        superseded: the tickets (``owner/repo#N``) the owner marks as superseded: no
+            start is offered for them (keyword: superseded-ticket, pitboss#388).
         watch: what ``slots watch`` reads (keyword: slots-watch, pitboss#415).
     """
 
@@ -228,6 +237,29 @@ class Slots:
     owner_priorities: Mapping[str, str] = dataclasses.field(default_factory=dict)
     superseded: Sequence[str] = ()
     watch: Watch = dataclasses.field(default_factory=Watch)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PrePush:
+    """A check the repository declares to run before ``pitboss push`` pushes.
+
+    Attributes:
+        name: what the check is called.
+        command: the command line; ``{word}`` is replaced by the argument
+            ``word`` of ``arguments``.
+        arguments: the values of the words the command names (the bats binary,
+            the repository directory), each given and not empty.
+        ok: the text its output must hold to pass, empty for any output.
+        timeout: the most seconds it may run.
+        fix: what to do when it fails, printed by ``pitboss hook pre-push``.
+    """
+
+    name: str
+    command: Sequence[str]
+    arguments: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    ok: str = ""
+    timeout: int = 600
+    fix: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -245,6 +277,7 @@ class Project:
             ``[slots.brief] no_drafts`` (keyword: pitboss-exempt, pitboss#113).
         drafts: ``[slots.brief] drafts``; false opens every PR ready (keyword:
             no-drafts, pitboss#390).
+        pre_push: the checks of ``[[pre_push]]`` (keyword: pre-push-check).
     """
 
     repo: Repo
@@ -255,6 +288,25 @@ class Project:
     plan_review_check: str = ""
     no_drafts: AbstractSet[str] = frozenset()
     drafts: bool = True
+    pre_push: Sequence[PrePush] = ()
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Mechanical:
+    """What a mechanical red is: a red that costs one cheap push to fix.
+
+    Attributes:
+        checks: the names of the checks whose failure alone is mechanical (the
+            plan job).
+        patterns: regular expressions; a failed check whose text matches one is
+            mechanical (a fixture expectation mismatch).
+        slow_minutes: how long after the red a fix push may wait before the
+            sweep says SLOW-MECHANICAL-FIX.
+    """
+
+    checks: Sequence[str] = DEFAULT_MECHANICAL_CHECKS
+    patterns: Sequence[str] = DEFAULT_MECHANICAL_PATTERNS
+    slow_minutes: int = DEFAULT_MECHANICAL_MINUTES
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -268,6 +320,8 @@ class Runners:
         held: a ``[runners]`` table exists; without one nothing is held (#215).
         exempt: the repositories never held, whatever the pressure: pitboss itself
             and ``[runners] exempt`` (keyword: pitboss-exempt, pitboss#113).
+        mechanical: what a mechanical red is; its fix push is not held (keyword:
+            mechanical-fix, pitboss#32).
     """
 
     repositories: Sequence[Repo]
@@ -275,6 +329,7 @@ class Runners:
     quiet_minutes: int
     held: bool
     exempt: AbstractSet[str] = frozenset()
+    mechanical: Mechanical
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -320,45 +375,6 @@ class Config:
     idle_hours: float
     slots: Slots
     reminders: Sequence[str]
-
-
-def repositories(settings: Config) -> Sequence[Repo]:
-    """The project's repository, then its libraries.
-
-    Args:
-        settings: the configuration.
-
-    Returns:
-        Every repository whose PRs are swept.
-    """
-    return (settings.project.repo, *settings.libraries)
-
-
-def has(settings: Config, reference: str) -> bool:
-    """Whether a ticket or PR is in a repository the configuration sweeps.
-
-    Args:
-        settings: the configuration.
-        reference: ``owner/name#number``.
-
-    Returns:
-        True when the repository is the project's or one of its libraries.
-    """
-    slug = reference.rpartition("#")[0]
-    return any(each.slug == slug for each in repositories(settings))
-
-
-def merges_by_hand(settings: Config, repo: Repo) -> bool:
-    """Whether a library's PRs are merged by hand (``[libraries] no_auto_merge``).
-
-    Args:
-        settings: the configuration.
-        repo: the repository.
-
-    Returns:
-        True when auto-merge is not armed there.
-    """
-    return repo.slug in settings.no_auto_merge
 
 
 def parse_repo(text: str, owner: str) -> Repo:

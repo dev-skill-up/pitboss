@@ -9,6 +9,7 @@ from .. import brief, expansion, plancommands
 from .briefmake import text
 from .formchecks import body_checks, findings
 from .linting import HEAD, OK, lines, lint, write_text
+from .says import says
 
 PLANNED = 'grep -n "slots.tsv" doc/slots.md'
 EXPLORED = 'grep -n -i "authoritative" doc/slots.md'
@@ -139,7 +140,7 @@ class TestPlanCommandLint(unittest.TestCase):
         done = lint("pr-body", write_text("body.md", body))
         shown = (body_checks(body), done.code, len(lines(done)))
         assert_that(shown, equal_to((["plan-command"], 1, 1)))
-        assert_that(done.out, contains_string("not run as written: line 8 a:"))
+        says(done.out, "not run as written: line 8 a:")
 
     def test_a_body_that_ran_its_plan_passes(self) -> None:
         """The same body with the Plan's command is ok."""

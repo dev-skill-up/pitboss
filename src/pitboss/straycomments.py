@@ -19,9 +19,12 @@ class StrayComments:
             it has no ``How we got here`` section (keyword: how-we-got-here).
         premature: the Execution reviews written before green, which do not
             count (keyword: execution-before-green).
+        no_execution: the addresses of the reviews of the head that follow an
+            approved Plan and have no ``Execution:`` line (keyword: review-unread).
     """
 
     newer: str = ""
     graded: Sequence[unreadableform.UnreadableReview] = ()
     unanalysed: Sequence[str] = ()
     premature: Sequence[earlyfound.Premature] = ()
+    no_execution: Sequence[str] = ()

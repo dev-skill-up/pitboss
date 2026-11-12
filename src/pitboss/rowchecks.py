@@ -8,7 +8,7 @@ names its line and ends with the check's name in parentheses.
 
 from typing import Sequence
 
-from . import evidence
+from . import evidence, revparse
 
 HAND_TYPED = (
     'a "$ " row that pitboss expand did not produce: put the command in a'
@@ -67,4 +67,5 @@ def command_rows(name: str, body: str, head: str) -> Sequence[str]:
         *typed_by_hand(name, body),
         *appended(name, body),
         *[f"{name}: {each}" for each in evidence.stale_heads(body, head)],
+        *[f"{name}: {each}" for each in revparse.rev_parse_blocks(body, "")],
     ]

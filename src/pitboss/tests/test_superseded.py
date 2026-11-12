@@ -9,7 +9,8 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import supersedes
-from . import rankworld, quietworld, world
+from . import rankworld, world
+from .fastvariants import mark_superseded as listed
 from .rankworld import (
     lines_are,
     lines_of,
@@ -23,18 +24,7 @@ from .test_closing_comment import BLOCKED_BY_FOUR, FOUR, tracking_world
 
 NINTH = "owner/project#9"
 SAID = f"SUPERSEDED {NINTH}"
-LABELS = 'priority_labels = ["urgent"]'
 ONLY = ["owner/project#1", "owner/project#3", "owner/project#10"]
-
-
-def listed(here: world.World) -> None:
-    """Mark ticket 9 as superseded in the configuration of a world.
-
-    Args:
-        here: the world.
-    """
-    marked = LABELS + '\nsuperseded = ["owner/project#9"]'
-    quietworld.edit_config(here, LABELS, marked)
 
 
 class TestParse(unittest.TestCase):

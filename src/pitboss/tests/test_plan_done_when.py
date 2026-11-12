@@ -4,7 +4,7 @@ import itertools
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import plandonewhen, ticketwhen
 
@@ -37,9 +37,9 @@ ITEMS: Mapping[str, tuple[str, Sequence[str]]] = {
     ),
     "the footer ends the section": (TWO + FOOTER, ["First item.", "Second item."]),
     "no section": ("Text only.", []),
-    "a paragraph after the bullets is an item of the body": (
+    "a paragraph after the bullets is no item (keyword: done-when-bullets)": (
         TWO + "\nAnd a third item.\n",
-        ["First item.", "Second item.", "And a third item."],
+        ["First item.", "Second item."],
     ),
 }
 ROWS = "## Plan\n1. First item. `git status`\n2. Second item. `git log`\n"
@@ -106,7 +106,7 @@ def holds(found: Sequence[str], parts: Sequence[str], prefix: str) -> None:
     for piece in parts:
         assert_that(found[0], contains_string(piece))
     for each in found:
-        assert_that(each.startswith(prefix), equal_to(True))
+        assert_that(each, starts_with(prefix))
 
 
 class TestFindings(unittest.TestCase):
@@ -177,7 +177,7 @@ class TestMeasurement(unittest.TestCase):
                 found = plandonewhen.findings(row_of(ticket, "`rg -c y src`"), ticket)
                 assert_that(len(found), equal_to(1))
                 assert_that(found[0], contains_string(f"`{MEASURE}`"))
-                assert_that(found[0].startswith("plan-measurement:"), equal_to(True))
+                assert_that(found[0], starts_with("plan-measurement:"))
 
     def test_each_spelling_passes_when_the_row_runs_it(self) -> None:
         """Done-when: the command itself, or piped into more, in the row."""
@@ -187,6 +187,15 @@ class TestMeasurement(unittest.TestCase):
                     ticket = measured(verb, preposition, MEASURE)
                     found = plandonewhen.findings(row_of(ticket, own), ticket)
                     assert_that(list(found), equal_to([]))
+
+    def test_a36_a_demonstrated_by_command_is_the_command_the_row_runs(self) -> None:
+        """Rp 683: the item said `demonstrated by` a command; the row ran a script."""
+        ticket = measured("demonstrated", "by", "bats lint x")
+        said = [
+            [each[:16] for each in plandonewhen.findings(row_of(ticket, own), ticket)]
+            for own in ("`bash scripts/check.sh`", "`bats lint x`")
+        ]
+        assert_that(said, equal_to([["plan-measurement"], []]))
 
     def test_the_copy_alone_is_not_running_it(self) -> None:
         """Done-when: the command inside the copied item is not the row's own."""

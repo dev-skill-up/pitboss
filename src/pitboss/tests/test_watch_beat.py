@@ -7,7 +7,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import watchbeat
 from . import world
-from .test_owner_repositories import lines_of as printed
+from .ownerbodies import lines_of as printed
 from .watchworld import watch, watched
 
 

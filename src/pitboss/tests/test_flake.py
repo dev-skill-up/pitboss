@@ -15,6 +15,7 @@ from . import (
     test_done_when,
     world,
 )
+from .fakes import write
 
 TICKET = test_done_when.TICKET
 ISSUE = test_done_when.ISSUE
@@ -244,6 +245,6 @@ def flake_tree(spec: str) -> pathlib.Path:
     """
     tree = fakes.directory()
     (tree / "tests").mkdir()
-    (tree / "tests" / "a.spec.ts").write_text(spec)
+    write(tree / "tests" / "a.spec.ts", spec)
     (tree / "tests" / "b.spec.ts").mkdir()  # a directory the glob matches
     return tree

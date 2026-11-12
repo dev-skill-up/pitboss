@@ -11,6 +11,7 @@ from hamcrest import assert_that, equal_to
 from .. import cleanconfig, container, dead, survey
 from . import fakes, repositories, world
 from .test_local import age
+from .fakes import write
 
 SETTINGS = "min_free_gib = 0\ntmp_roots = []\npressure_percent = 100\n"
 NO_MARKER = ("--marker", "/nonexistent-marker")
@@ -202,7 +203,7 @@ def hidden_work(root: pathlib.Path) -> None:
     fakes.commit_file(side, "side-only")
     fakes.run_git(side, "checkout", "-q", "main")
     stash = repository(root / "stashy")
-    (stash / "README").write_text("stashed")
+    write(stash / "README", "stashed")
     fakes.run_git(stash, *fakes.IDENTITY, "stash", "push", "-q")
 
 
@@ -217,7 +218,7 @@ def scratch_scene() -> pathlib.Path:
         fakes.write(root / name / "file", name)
     fakes.commit_file(repository(root / "holder"), "unpushed")
     for name, (file, text) in EDITS.items():
-        (repository(root / name) / file).write_text(text)
+        write(repository(root / name) / file, text)
     mark_live(root / "marked")
     os.symlink(root / "old", root / "link")
     (root / "broken/.git").mkdir(parents=True)
@@ -313,7 +314,7 @@ def mark_live(folder: pathlib.Path) -> None:
     Args:
         folder: the folder.
     """
-    (folder / survey.LIVE_MARKER).write_text("")
+    write(folder / survey.LIVE_MARKER, "")
 
 
 def mark_live_since(folder: pathlib.Path, hours_ago: float, now: float) -> None:

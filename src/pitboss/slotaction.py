@@ -1,6 +1,7 @@
 """What ``slots`` does (keyword: slots)."""
 
 import enum
+from .textparts import hyphenated
 
 
 class Action(enum.Enum):
@@ -63,4 +64,4 @@ class Action(enum.Enum):
         Returns:
             The word.
         """
-        return self.name.lower().replace("_", "-")
+        return hyphenated(self.name)

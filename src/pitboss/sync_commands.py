@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from . import ENTRY_DATA
+from . import ENTRY_DATA, configloads
 from . import configfile, syncing
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import load_settings
@@ -28,7 +28,7 @@ def sync(args: argparse.Namespace) -> None:
     """
     settings = load_settings(args)
     start = configfile.working_directory(args)
-    if configfile.load_sync(configfile.named(args), start, start) is None:
+    if configloads.load_sync(configfile.named(args), start, start) is None:
         print("the configuration has no [sync] table", file=sys.stderr)
         raise SystemExit(2)
     if syncing.section(args, settings):

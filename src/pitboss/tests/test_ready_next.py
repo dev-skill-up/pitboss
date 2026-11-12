@@ -12,20 +12,14 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import readyline
-from . import world
-from .test_flow_sweep import APPROVED, graded, world_with
+from . import quietworld, world
+from .test_flow_sweep import approved_draft
 from .test_slot_commands import next_output
 
 JOBS = world.project_page("actions/runs/11/jobs")
 
 
-def held_draft() -> world.World:
-    """A world whose draft PR 3 has an approved Plan, and a job waits.
-
-    Returns:
-        The world.
-    """
-    return world_with([graded(APPROVED, None, 1)], draft=True)
+held_draft = approved_draft
 
 
 def quiet_draft() -> world.World:
@@ -34,11 +28,7 @@ def quiet_draft() -> world.World:
     Returns:
         The world.
     """
-    here = held_draft()
-    here.bodies[JOBS] = {"jobs": []}
-    record = here.clone / ".git" / "pitboss-pressure.log"
-    record.write_text("2029-12-31T23:00:00+00:00 none\n")
-    return here
+    return quietworld.unheld(held_draft())
 
 
 def next_lines(here: world.World) -> Sequence[str]:

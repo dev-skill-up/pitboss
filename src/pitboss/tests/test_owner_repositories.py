@@ -9,7 +9,8 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to, has_item
 
 from .. import configfile, ownerconfig, repoaccess
-from . import fakes, ownerbodies, test_slot_commands, world
+from . import fakes, liveagents, ownerbodies, world
+from .ownerbodies import lines_of
 
 GONE = "UNREADABLE owner/gone: gh: not found: repos/owner/gone (HTTP 404)"
 GIVE_ACCESS = ": give the session access or take it out of the configuration"
@@ -133,19 +134,6 @@ def owner_listing(result: world.Result) -> tuple[int, int, int]:
     )
 
 
-def lines_of(out: str, start: str) -> Sequence[str]:
-    """The lines of an output that start with a word.
-
-    Args:
-        out: the output.
-        start: the word.
-
-    Returns:
-        The lines.
-    """
-    return [line for line in out.splitlines() if line.startswith(start)]
-
-
 def run_next(here: world.World, *command: str) -> world.Result:
     """Run ``slots next``, or another command.
 
@@ -158,7 +146,7 @@ def run_next(here: world.World, *command: str) -> world.Result:
         What it did.
     """
     if not command:
-        return test_slot_commands.next_result(here)
+        return liveagents.next_result(here)
     return world.again(here, command[0], *command[1:], "--now", world.FUTURE)
 
 
@@ -179,7 +167,7 @@ class TestOwnerRepositories(unittest.TestCase):
 
     def test_an_unlisted_repository_with_an_open_pr_has_a_state_line(self) -> None:
         """``extra`` is not in ``[libraries] repositories``; its PR is shown."""
-        out = test_slot_commands.next_output(with_extra())
+        out = liveagents.next_output(with_extra())
         states = [line.split(":")[0] for line in lines_of(out, "PR STATE")]
         assert_that(states, has_item("PR STATE owner/extra#5"))
         assert_that(states, has_item("PR STATE owner/lib#4"))
@@ -191,7 +179,7 @@ class TestOwnerRepositories(unittest.TestCase):
             ("owner/fixture", False),
             exclude='exclude = ["fixture"]',
         )
-        out = test_slot_commands.next_output(here)
+        out = liveagents.next_output(here)
         asked = [call for call in here.calls if "owner/old" in str(call)]
         assert_that(
             ("owner/old" in out, "owner/fixture" in out, asked),
@@ -202,19 +190,19 @@ class TestOwnerRepositories(unittest.TestCase):
         """The control: the same listing, no ``exclude``, and the fixture is read."""
         here = with_extra(("owner/fixture", False))
         served(here, "fixture")
-        out = test_slot_commands.next_output(here)
+        out = liveagents.next_output(here)
         assert_that(len(lines_of(out, "PR STATE owner/fixture#5")), equal_to(1))
 
     def test_a_repository_in_the_list_is_added_once(self) -> None:
         """``lib`` is named by the configuration and listed: one PR line."""
-        out = test_slot_commands.next_output(with_extra())
+        out = liveagents.next_output(with_extra())
         assert_that(len(lines_of(out, "PR STATE owner/lib#4")), equal_to(1))
 
     def test_the_owner_may_be_a_user(self) -> None:
         """An owner with no organization of that name is listed as a user."""
         here = with_extra()
         here.bodies[ownerbodies.USERS_LISTING] = here.bodies.pop(ownerbodies.LISTING)
-        out = test_slot_commands.next_output(here)
+        out = liveagents.next_output(here)
         assert_that(len(lines_of(out, "PR STATE owner/extra#5")), equal_to(1))
         assert_that(lines_of(out, "UNREADABLE owner:"), equal_to([]))
 

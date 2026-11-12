@@ -1,0 +1,17 @@
+# topic	kinds	needle	text ({limit}: the long-check limit in seconds, envrules.LONG_CHECK_SECONDS)
+nox-once	all	at most once per head
+no-filtering	all	never filter or cut the output	No filtering: never filter or cut the output of a lint, a check or nox (no grep, head, tail or sed on it); paste the raw output, and a command that passes only when filtered did not pass.
+no-reruns	all	never rerun
+no-empty-commit	all	pushes nothing	No commit without a change: a change to the PR body only (a Plan revision, a refreshed Head line) is an edit of the body and pushes nothing; never push a commit to make a check run.
+long-checks	all	more than {limit} seconds	Long checks: a check that takes more than {limit} seconds is not run here (not in the foreground, not in the background, not split); push and let CI run it, and name CI's run as the evidence.
+hand-back-check	all	hand-back-check
+branch-naming	all	worker/	Branch: the ticket's branch is `worker/<ticket number>`; push to it and to no other.
+pr-body-form	all	lint pr-body	PR body form: when you change the PR body, its first line stays `Fixes TICKET`, its `Head:` line names the head, it ends with one footer, and `uvx pitboss lint pr-body BODYFILE --head SHA` on the body as GitHub stores it must print ok.
+disk	all	clean-container
+env-check	all	pitboss env-check	Environment: before you give up for a missing tool, run `uvx pitboss env-check --config {config}`; it prints `env: ok` or names what is missing and the exact command to get it. Hand back for a missing environment only with its output; a hand-back that gives up without it is refused.
+compiler	bats	bootstrap/c	Compiler: a bats-lang repository needs `bats` on PATH. Use a built one (`dist/debug/bats` of a checkout, or the one the project lines name), else build one from the checked-in seed: `cp -R bootstrap/c /tmp/seed && make -C /tmp/seed debug/bats`, then put `/tmp/seed/debug` on PATH. The first build of a checkout is cold (minutes): when a build or check would pass the long-check limit, leave it to CI.
+venv	pitboss	.venv	Environment: pitboss runs from the checkout's `.venv` (`.venv/bin/python -m pitboss`); make it with `uv venv && uv pip install -e '.[tests,mypy,lint]'`.
+node	node	playwright	Node: the e2e specs need the Node of `.nvmrc`, `npm ci` and `npx playwright install chromium`; a spec over the long-check limit is CI's.
+quarantine	all	Quarantine:	Quarantine: a test failure that gets a p0 ticket is quarantined in the commit that files it (the test is marked skipped with the ticket number, on every platform); the fix removes the mark, and the PR body lists it in a line `Quarantine: ...`.
+race	all	Root cause:	Race: a fix for a race (a failure that depends on the runner's speed, a fixed wait or an order of events) needs the lines `Race: ...`, `Root cause: ...` (from the captured evidence of a failing run), `Injection: ...` (a forced losing order: the old code fails, the fix passes) and `CI run: <URL>`; no test is repeated to count failures, and no new fixed wait or sleep: wait for an event.
+no-background	all	no background run	Local runs: a run is short and in the foreground (no background run, no sleep loop, no polling for a run); what takes longer is CI's. The limit is {limit} seconds (the check wrapper's `timeout {limit}` governs).

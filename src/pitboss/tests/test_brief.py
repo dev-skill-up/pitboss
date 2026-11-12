@@ -7,7 +7,8 @@ from hamcrest import assert_that, equal_to
 
 from .. import brief
 from . import briefmake
-from .briefmake import APPROVED, GOAL, HEAD, HONEST, has_none, pinned, text
+from .briefmake import APPROVED, GOAL, HEAD, HONEST, pinned, text
+from .says import has_none
 
 RESOLUTION_SCOPE = (
     f"Scope (exclusive): this head {HEAD} differs from the approved head"
@@ -41,6 +42,7 @@ RESOLUTION = "\n".join(
         "    ## Review",
         f"    Reviewed: {HEAD}",
         "    Verdict: <approved or changes needed>",
+        *briefmake.fixed_grades("resolution"),
         briefmake.BODY,
         HONEST,
         briefmake.OWNER,
@@ -70,7 +72,7 @@ FULL = [
     f"Scope: the full review of head {HEAD}: the Plan and the Execution,"
     " against the goal and the ticket's Done-when.",
     "Check: the last `Head:` line of the PR body is the full SHA of the head;",
-    "Grep: look for a docstring the change makes false",
+    "Grep: look for a docstring that contradicts the code it sits next to",
     "No exit clauses: if the Done-when is met as written",
 ]
 NO_ATTACKS = (
@@ -84,7 +86,9 @@ FULL_SCOPES = (
 )
 EXECUTION = [
     f"Scope: the Execution of head {HEAD}, against the approved Plan",
-    "write `Plan: approved (fixed)`; do not reassess or discuss the Plan.",
+    "write `Plan: approved (fixed)` and an `Execution:` line with your verdict, the"
+    " same word as the `Verdict:` line (a review with no `Execution:` line is not"
+    " read: REVIEW UNREAD); do not reassess or discuss the Plan.",
 ]
 PLAN = [
     f"Scope (exclusive): the Plan of head {HEAD}, alone,",

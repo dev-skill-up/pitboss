@@ -8,66 +8,22 @@ full ``slots next``.
 
 import re
 import unittest
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to, matches_regexp
 
 from . import (
-    fakes,
     quietworld,
     rankworld,
     test_flow_sweep,
     test_holds,
-    test_superseded,
     world,
 )
+from .fastvariants import closed, named, superseded, waiting
+from .fastworld import NINTH, PULLS, TIMELINE, fast_world, prepared
 from .itemworld import one, with_pull_issues
-from .says import says
+from .says import ended, says
 from .test_slot_commands import next_output, run_all
-
-PULLS = fakes.page("repos/owner/project/pulls?state=open")
-TIMELINE = fakes.page("repos/owner/project/issues/9/timeline")
-NINTH = "owner/project#9"
-
-
-def pull_listed(number: int, body: str = "") -> Mapping[str, object]:
-    """The raw PR the API lists for the project.
-
-    Args:
-        number: its number.
-        body: its text.
-
-    Returns:
-        The PR with a title, a text and a branch.
-    """
-    head = {"ref": f"branch-{number}"}
-    return {"number": number, "title": f"PR {number}", "body": body, "head": head}
-
-
-LISTED = [pull_listed(each) for each in (1, 2, 3)]
-
-
-def prepared(here: world.World) -> world.World:
-    """Give ticket 9 the labels the API gives it, and the project its listed PRs.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The same world.
-    """
-    rankworld.serve(here, "owner/project", 9, rankworld.ticket())
-    here.bodies[PULLS] = LISTED
-    return with_pull_issues(here)
-
-
-def fast_world() -> world.World:
-    """A world where ticket 9 has the labels the API gives it.
-
-    Returns:
-        The world.
-    """
-    return prepared(world.make_world())
 
 
 def refused(here: world.World, reference: str, reason: str) -> None:
@@ -79,7 +35,7 @@ def refused(here: world.World, reference: str, reason: str) -> None:
         reason: what standard error says; nothing is printed on standard output.
     """
     found = one(here, reference)
-    assert_that((found.code, found.out), equal_to((1, "")))
+    ended(found, 1, "")
     says(found.err, reason)
 
 
@@ -155,27 +111,10 @@ class TestTheBrief(unittest.TestCase):
         here = with_pull_issues(world.make_world())
         briefed(here, "owner/project#1", "resolve the conflict")
 
-
-def closed() -> world.World:
-    """A world where ticket 9 is closed.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    rankworld.serve(here, "owner/project", 9, rankworld.ticket(state="closed"))
-    return here
-
-
-def named() -> world.World:
-    """A world where a listed PR names ticket 9 in its text.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    here.bodies[PULLS] = [pull_listed(4, "Fixes #9")]
-    return here
+    def test_i17_a_comment_mention_of_a_ticket_does_not_take_it(self) -> None:
+        """An open PR that does not fix ticket 9 and mentions it stays no taker."""
+        here = timeline_of("Fixes #1\n\nthe ruling comment mentions #9")
+        briefed(here, NINTH, "start a PR: owner/project#9")
 
 
 def timeline_of(text: str, **issue: object) -> world.World:
@@ -240,31 +179,6 @@ def held() -> world.World:
         The world.
     """
     return prepared(test_holds.held_world(test_holds.PROJECT_TABLE))
-
-
-def waiting() -> world.World:
-    """A world where ticket 9 depends on an open ticket.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    rankworld.serve(
-        here, "owner/project", 9, rankworld.ticket("Depends on owner/lib#3")
-    )
-    here.bodies[rankworld.BLOCKER] = rankworld.LIB_THREE
-    return here
-
-
-def superseded() -> world.World:
-    """A world where the configuration marks ticket 9 as superseded.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    test_superseded.listed(here)
-    return here
 
 
 def unread() -> world.World:
@@ -340,3 +254,20 @@ class TestWhatIsNotOffered(unittest.TestCase):
         )
         found = world.invoke(here, *words, "--now", world.FUTURE)
         says(found.err, "a slot already works on it")
+
+    def test_a_ticket_is_at_no_review(self) -> None:
+        """``--step review`` refuses a ticket with no PR, and says the rule."""
+        for build, reference, why in (
+            (fast_world, NINTH, "its step is `start a PR`"),
+            (unlabeled, "owner/project#50", "a ticket with no PR"),
+        ):
+            with self.subTest(reference):
+                found = one(build(), reference, "--step", "review")
+                says(found.err, "UNKNOWN", why, "--step review prints")
+                assert_that((found.out, found.code), equal_to(("", 1)))
+
+    def test_an_item_that_is_not_offered_is_refused_as_without_the_step(self) -> None:
+        """``--step review`` keeps the reason ``slots next`` gives for it."""
+        found = one(closed(), NINTH, "--step", "review")
+        says(found.err, "it is closed or cannot be read")
+        assert_that((found.out, found.code), equal_to(("", 1)))

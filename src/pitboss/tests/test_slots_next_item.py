@@ -18,7 +18,8 @@ from .itemworld import one, with_pull_issues
 from .rankworld import publish
 from .suggestions import next_output, parsed, third
 from .test_commands import sweep
-from .test_owner_repositories import lines_of
+from .ownerbodies import lines_of
+from .says import says
 
 PROJECT = world.PROJECT
 
@@ -116,7 +117,7 @@ class TestOneItem(unittest.TestCase):
     def test_the_usage_text_states_it(self) -> None:
         """The words of ``slots`` say what ``next`` does with one."""
         found = world.invoke(world.make_world(), "slots", "--help")
-        assert_that(found.out, contains_string("for 'next', one ticket or PR"))
+        says(found.out, "for 'next', one ticket or PR")
 
     def test_the_first_and_the_next_three_have_a_brief(self) -> None:
         """So a first with an issue is not the only item dispatched from a brief."""

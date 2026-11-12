@@ -8,6 +8,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 from .. import testnames
 from . import fakes
 from .linting import BODY, lines, lint, write_text
+from .says import exits, says
 
 PLAN = "## Plan\n\nThe test `{name}` covers it.\n\n"
 TESTS = (
@@ -113,5 +114,5 @@ class TestTestNames(unittest.TestCase):
         """Exit 2 names the option."""
         missing = fakes.directory() / "absent"
         done = lint("pr-body", write_text("body.md", BODY), "--checkout", str(missing))
-        assert_that(done.code, equal_to(2))
-        assert_that(done.err, contains_string("--checkout"))
+        exits(done, 2)
+        says(done.err, "--checkout")

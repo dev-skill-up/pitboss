@@ -4,10 +4,21 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, is_not
 
-from .. import bodydigest, brief, brieftext, plandigest, shapes, steps
+from .. import (
+    bodydigest,
+    brief,
+    brieftext,
+    flow,
+    flowstate,
+    plandigest,
+    shapes,
+    steps,
+)
 from . import fakes, world
+from . import test_plan_digest_urls as urls
+from .test_plan_digest_urls import pointed
 from .briefmake import text as brief_text
 from .test_commands import sweep
 from .test_plan_digest_collapse import digest, legacy_digest
@@ -21,6 +32,7 @@ from .test_flow_sweep import (
     world_with,
 )
 from .test_slot_commands import next_output
+from .says import says
 
 PLAN = fakes.PLAN_AND_EXECUTION
 EDITED_PLAN = "## Plan\nthe plan, with a row added\n\n## Execution\nthe work\n"
@@ -149,10 +161,18 @@ class TestThePlanEditedLine(unittest.TestCase):
     """The sweep's line and the list of ``slots next``."""
 
     def test_an_edited_plan_is_named_and_offered_for_no_round(self) -> None:
-        """The sweep prints PLAN EDITED, and slots next lists nothing for the PR."""
+        """The sweep prints PLAN EDITED, and slots next prints the ruling brief for it.
+
+        Keyword plan-edited-brief, quire#1115: no brief was offered, so one was
+        built by hand.
+        """
+        here = world_with([approving(1)], body=EDITED_PLAN)
         swept, listed = looked_at([approving(1)], EDITED_PLAN)
         assert_that(swept, contains_string("review=changes-needed"))
         assert_that(listed, equal_to(""))
+        offered = next_output(here)
+        assert_that(offered, contains_string("make an Opus ruling: owner/project#3"))
+        assert_that(offered, contains_string("PITBOSS-SLOT: owner/project#3 ruling"))
 
     def test_the_sweep_prints_the_line(self) -> None:
         """The line names the PR and the way out."""
@@ -205,30 +225,47 @@ class TestThePlanEditedLine(unittest.TestCase):
         assert_that(out, contains_string("CONFLICT owner/project#3"))
         assert_that(listed_for_third(here), equal_to([]))
 
-    def test_a_ruling_before_the_approval_or_of_another_word_does_not(self) -> None:
-        """The ruling must say to edit, and come after the approval."""
-        cases = {
-            "before": [ruling(1), approving(2)],
-            "another word": [approving(1), ruling(2, "do these steps")],
-        }
-        for name, rounds in cases.items():
-            with self.subTest(name):
-                out = sweep(world_with(rounds, body=EDITED_PLAN)).out
-                assert_that(out, contains_string(EDIT_LINE))
+    def test_a_ruling_before_the_approval_does_not(self) -> None:
+        """The ruling must come after the approval."""
+        here = world_with([ruling(1), approving(2)], body=EDITED_PLAN)
+        says(sweep(here).out, EDIT_LINE)
+
+    def test_a_ruling_of_another_word_is_executed_not_held(self) -> None:
+        """pitboss#475: `do these steps` is offered at once, not PLAN EDITED."""
+        rounds = [approving(1), ruling(2, "do these steps")]
+        swept, listed = looked_at(rounds, EDITED_PLAN)
+        assert_that(listed, contains_string("(do the ruling's steps,"))
+        assert_that(EDIT_LINE in swept, equal_to(False))
+
+
+class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
+    """pitboss#475: the ids of a pointer's run and job are not the Plan."""
+
+    def test_t475_only_the_urls_rewritten_is_no_edit_and_a_word_is(self) -> None:
+        """Done-when 3: `plan_edited_without_ruling` is false, then true."""
+        edit = urls.edited
+        base, urls_only = pointed(1, 2), pointed(77, 88)
+        found = [
+            flowstate.plan_edited_without_ruling(edit(base, now))
+            for now in (urls_only, pointed(77, 88, "test"))
+        ]
+        assert_that(found, equal_to([False, True]))
+
+    def test_t475_a_revision_then_do_these_steps_is_not_plan_edited(self) -> None:
+        """Done-when 1: the approving review, the edited Plan, both rulings."""
+        pr = urls.edited(urls.PLAN, urls.EDITED_PLAN, urls.revised_then_steps(3))
+        assert_that(flow.next_step(pr).step, is_not(steps.Step.PLAN_EDITED))
 
 
 class TestTheOldDigestIsStillAccepted(unittest.TestCase):
     """A digest recorded before the expanded blocks were collapsed (pitboss#399)."""
 
-    def test_the_old_digest_of_the_plan_read_is_not_an_edit_and_another_is(
-        self,
-    ) -> None:
-        """The sweep prints no PLAN EDITED for the Plan the review read.
-
-        The nearest input is an old digest of a Plan that was edited since.
-        """
-        other = expanded_plan(prose="other\n")
-        for read, edited in ((expanded_plan(), False), (other, True)):
+    def test_the_digest_before_the_collapse_is_no_longer_the_plan_read(self) -> None:
+        """pitboss#399: the sweep prints PLAN EDITED for the digest of the old form."""
+        for read, edited in (
+            (expanded_plan(), True),
+            (expanded_plan(prose="o\n"), True),
+        ):
             with self.subTest(edited):
                 line = f"Plan digest: {legacy_digest(read)}"
                 body = expanded_plan()

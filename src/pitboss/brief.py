@@ -1,11 +1,11 @@
 """The briefs ``pitboss next`` prints (keyword: brief, pitboss#118).
 
-A brief is built from what pitboss reads of a PR or a ticket and from the
-project's own rules, and the orchestrator pastes it unchanged, but for the one
-line of a ruling brief (``How we got here:``) that it replaces with the
-analysis, a fact the tool cannot know (pitboss#168). The sentences are
-in ``brieftext`` and are pinned by tests, so a change to them is a reviewed code
-change. Every brief starts with the ticket's original goal in one line; a review
+A brief is built from what pitboss reads of a PR or a ticket and from the project's own
+rules, and the orchestrator pastes it unchanged, but for the one line of a ruling brief
+(``How we got here:``) that it replaces with the analysis, a fact the tool cannot know
+(pitboss#168). The sentences are in ``brieftext`` and are pinned by tests, so a change
+to them is a reviewed code change.
+Every brief starts with the ticket's original goal in one line; a review
 judges the change against that goal, and its scope is exclusive.
 """
 
@@ -14,6 +14,7 @@ from typing import Mapping, Sequence
 
 from . import (
     briefconfig,
+    briefgrade,
     briefkind,
     briefruling,
     briefslot,
@@ -25,6 +26,7 @@ from . import (
     brieftextfailure,
     brieftextfix,
     brieftextlint,
+    brieftextfolded,
     brieftextnote,
     brieftextorder,
     brieftextowner,
@@ -32,54 +34,37 @@ from . import (
     brieftextprcheck,
     brieftextwhen,
     brieftextwork,
+    envrules,
 )
 
 Kind = briefkind.Kind
-
-
 REVIEWS = briefkind.REVIEWS
 # keyword: run-e2e (pitboss#199): the reviews that read a head's checks, so an
 # e2e result, which a draft's CI would leave without one
-E2E_KINDS = frozenset(
-    {
-        Kind.REVIEW_FULL,
-        Kind.REVIEW_EXECUTION,
-        Kind.REVIEW_RESOLUTION,
-        Kind.REVIEW_FIX_ROUND,
-    }
-)
+E2E_KINDS = frozenset(REVIEWS - {Kind.REVIEW_PLAN, Kind.REVIEW_RELOCK})
 SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND, Kind.REVIEW_RELOCK})
 
-TASKS: Mapping[Kind, str] = {
-    Kind.NEW_PR: text.TASK_NEW_PR,
-    Kind.FIRST_ROUND: text.TASK_FIRST_ROUND,
-    Kind.REVISE_PLAN: text.TASK_REVISE_PLAN,
-    Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
-    Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
-    Kind.FIX_CI: text.TASK_FIX_CI,
-    Kind.RESOLVE_CONFLICT: brieftextfix.TASK_RESOLVE_CONFLICT,
-    Kind.RULING_STEPS: text.TASK_RULING_STEPS,
-    Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
-    Kind.RUN_PLAN: brieftextwork.TASK_RUN_PLAN,
-    Kind.ADD_CI_QUOTES: brieftextwork.TASK_ADD_CI_QUOTES,
-}
+TASKS = brieftextwork.TASKS
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [
         text.SCOPE_FULL,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
+        brieftextci.QUARANTINE_REVIEW,
         text.CHECK,
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
         *brieftextci.PLAN_CI_REVIEW,
         text.PLAN_DRY_RUN,
-        text.PLAN_CHECK,
+        brieftextci.PLAN_CHECK,
         *brieftextnote.EXECUTION_REVIEW,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextlint.MARKUP_LINES_REVIEW,
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
+        *brieftextfolded.EXECUTION_REVIEW,
+        *brieftextfolded.PLAN_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
@@ -87,6 +72,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.NO_PLAN_FINDING,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
+        brieftextci.QUARANTINE_REVIEW,
         text.CHECK,
         text.GREP,
         *brieftextnote.EXECUTION_REVIEW,
@@ -95,23 +81,31 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
+        *brieftextfolded.EXECUTION_REVIEW,
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
+        brieftextci.QUARANTINE_REVIEW,
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
         *brieftextci.PLAN_CI_REVIEW,
         text.PLAN_DRY_RUN,
-        text.PLAN_CHECK,
+        brieftextci.PLAN_CHECK,
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
+        *brieftextfolded.PLAN_REVIEW,
         text.PLAN_DIGEST,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
     Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.NO_PLAN_FINDING, text.CARRIED],
-    Kind.REVIEW_RELOCK: [text.SCOPE_RELOCK, text.RELOCK_CHECKS, text.CARRIED],
+    Kind.REVIEW_RELOCK: [
+        text.SCOPE_RELOCK,
+        text.RELOCK_CHECKS,
+        brieftextfolded.RELOCK_TEST_FIX,
+        text.CARRIED,
+    ],
 }
 # keyword: all-findings (pitboss#169): the reviews of a Plan try its commands
 DRY_RUNNERS: Mapping[Kind, str] = {
@@ -130,6 +124,7 @@ APPROVED_PLAN_WORKERS = frozenset(
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
+PUSHLESS: Mapping[Kind, Sequence[str]] = {Kind.REVISE_PLAN: [brieftextfolded.BODY_ONLY]}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
 
 
@@ -167,7 +162,7 @@ class Heads:
             empty for a ticket (keyword: review-brief, pitboss#338).
         plan_digest: the digest of the body's Plan section, empty when the
             body has none.
-        ruling: the address of the Opus ruling an Execution fix round follows,
+        ruling: the address of the Opus ruling a round follows or does,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
     """
 
@@ -192,6 +187,8 @@ class Rules:
             (keyword: review-gate, pitboss#166), empty when it is not gated.
         plan_check: the check a draft's Plan review reads first (keyword:
             plan-review-check, pitboss#275), empty when the project has none.
+        verdicts: the form's word for an approval and its word for changes
+            (keyword: grade-spellings, rp#684).
     """
 
     config: str
@@ -199,6 +196,7 @@ class Rules:
     project: briefconfig.Brief
     gate_note: str = ""
     plan_check: str = ""
+    verdicts: tuple[str, str] = ("approved", "changes needed")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -217,6 +215,8 @@ class Spec:
             for a draft (keyword: run-e2e, pitboss#199).
         logs: `<check name>: <url>` of each failed check, for a FIX_CI brief
             (keyword: red-cause, pitboss#420).
+        conflict: the lines of a rule conflict a RULING brief adds (keyword:
+            rule-conflicts, quire#1115).
     """
 
     kind: Kind
@@ -226,6 +226,7 @@ class Spec:
     ready: bool = False
     e2e: bool = False
     logs: Sequence[str] = ()
+    conflict: Sequence[str] = ()
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -294,6 +295,7 @@ def _plan_lines(kind: Kind) -> list[str]:
     return [
         *([text.TRY_COMMANDS, brieftextci.PLAN_NO_NOX] if writes else []),
         *([brieftextbody.PLAN_ROWS_DONE_WHEN] if writes else []),
+        *(brieftextfolded.WORKER if writes else []),
         *(brieftextci.PLAN_ROWS if writes else []),
         *([brieftextci.BODY_CI_POINTER] if runs else []),
         *([text.PLAN_COMMANDS_WORKER, brieftextlint.PLAN_LINT] if runs else []),
@@ -302,8 +304,16 @@ def _plan_lines(kind: Kind) -> list[str]:
 
 
 def _ruling(spec: Spec) -> list[str]:
+    if spec.kind is Kind.RULING_STEPS and spec.heads.ruling:
+        return [brieftextfix.RULING_AT]
     named = spec.kind is Kind.FIX_REVIEW and spec.heads.ruling
     return [brieftextfix.RULING_NAMED] if named else []
+
+
+def _push_lines(kind: Kind, project: briefconfig.Brief) -> Sequence[str]:
+    # keyword: plan-revision (quire#1120): a body-only revision pushes nothing
+    pushes = [brieftextdraft.PUSHES[(project.holds, project.drafts)], text.NO_WAITING]
+    return PUSHLESS.get(kind, pushes)
 
 
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
@@ -321,12 +331,12 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         text.EDIT,
         text.DENIED,
         text.LOCAL,
+        *envrules.lines(values["repo"]),  # keyword: env-check
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         brieftextlint.MARKUP_LINES,
         *_plan_lines(spec.kind),
-        brieftextdraft.PUSHES[(project.holds, project.drafts)],
-        text.NO_WAITING,
+        *_push_lines(spec.kind, project),
         text.FINISH,
         text.HAND_BACK,
     ]
@@ -335,6 +345,15 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
 
 def _e2e(spec: Spec) -> Sequence[str]:
     return [brieftextci.E2E] if spec.e2e and spec.kind in E2E_KINDS else []
+
+
+def _after_form(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
+    # keyword: grade-spellings (rp#684): the exact grade lines and the check to run
+    rules = spec.rules
+    gate = [text.GATED.format(note=rules.gate_note)] if rules.gate_note else []
+    reads = f" --gated --repository {values['repo']} --config {rules.config}"
+    arguments = f"--head {values['head']}{reads if rules.gate_note else ''}"
+    return [*gate, *briefgrade.lines(spec.kind, rules.verdicts, arguments)]
 
 
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
@@ -350,11 +369,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     return [
         *_filled(head, values),
         *(f"    {line}" for line in spec.rules.form),
-        *(
-            [text.GATED.format(note=spec.rules.gate_note)]
-            if spec.rules.gate_note
-            else []
-        ),
+        *_after_form(spec, values),
         *_filled([text.BODY_DIGEST], values),
         text.HONEST,
         brieftextowner.OWNER,
@@ -377,7 +392,7 @@ def build(spec: Spec) -> str:
     if spec.kind in REVIEWS:
         rules = _review(spec, values)
     elif spec.kind is Kind.RULING:
-        rules = list(briefruling.lines(values))
+        rules = [*briefruling.lines(values), *spec.conflict]
     else:
         rules = _worker(spec, values)
     slot = briefslot.line(spec.kind, spec.subject.reference)

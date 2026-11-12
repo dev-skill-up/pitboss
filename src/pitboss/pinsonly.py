@@ -8,12 +8,13 @@ when its head branch has the relock prefix or every path it changes is in
 ``[relock] pin_files``.
 """
 
+import contextlib
 import functools
 import pathlib
 import shlex
 import subprocess
 import threading
-from typing import Callable, Sequence
+from typing import Callable, Iterator, Sequence
 
 from . import (
     config,
@@ -25,6 +26,7 @@ from . import (
     running,
     shapes,
 )
+from .textparts import starting
 
 _ONE_CHECKOUT = threading.Lock()  # one fetch and one command at a time in a clone
 
@@ -61,7 +63,7 @@ def command_line(template: str, base: str, head: str) -> Sequence[str]:
 
 def _said(error: subprocess.CalledProcessError) -> str:
     lines = pinsreading.printed_lines(f"{error.stdout or ''}\n{error.stderr or ''}")
-    wrong = [line for line in lines if line.startswith("NOT OK")]
+    wrong = starting(lines, "NOT OK")
     return (wrong or lines or [f"exit status {error.returncode}"])[0]
 
 
@@ -105,7 +107,7 @@ def verify(
         why_not = functools.partial(
             pinscompiler.refusal, run, where, pull.head.sha, words
         )
-        return _ran(run, fetch, why_not, ["env", "-C", where, *words])
+        return _ran(run, (fetch, where), why_not, ["env", "-C", where, *words])
     except subprocess.CalledProcessError as error:
         detail = _said(error)
     except FileNotFoundError as error:
@@ -113,13 +115,34 @@ def verify(
     return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=detail)
 
 
+def _branch(run: running.Run, where: str) -> str:
+    # the branch the clone is on; empty when it is detached
+    try:
+        shown = run(["git", "-C", where, "symbolic-ref", "--short", "-q", "HEAD"])
+    except subprocess.CalledProcessError:
+        return ""
+    return str(shown.stdout).strip()
+
+
+@contextlib.contextmanager
+def _left_as_found(run: running.Run, where: str) -> Iterator[None]:
+    # case 31 (keyword: pins-review-branch): the clone is back on its branch after
+    before = _branch(run, where)
+    try:
+        yield
+    finally:
+        if before and _branch(run, where) != before:
+            run(["git", "-C", where, "checkout", "--quiet", before])
+
+
 def _ran(
     run: running.Run,
-    fetch: Sequence[str],
+    fetched: tuple[Sequence[str], str],
     why_not: Callable[[], str],
     command: Sequence[str],
 ) -> pinsreading.Reading:
-    with _ONE_CHECKOUT:
+    fetch, where = fetched
+    with _ONE_CHECKOUT, _left_as_found(run, where):
         run(fetch)
         reason = why_not()
         if reason:

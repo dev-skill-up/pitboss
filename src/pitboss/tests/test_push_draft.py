@@ -11,9 +11,10 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import draftmoves, pushdraft, shapes
 from . import fakes, world
 from .test_commands import sweep
+from .pushworld import elsewhere
 
-OTHER_URL = "git@github.com:other/repo.git"
-PULLS = "repos/other/repo/pulls?head=other:{branch}&state=open"
+OTHER_URL = "git@github.com:owner/other.git"
+PULLS = "repos/owner/other/pulls?head=owner:{branch}&state=open"
 JOBS = world.project_page("actions/runs/11/jobs")
 HELD = "RUNNER PRESSURE"
 FREE = "the open PR of branch-1 is a draft: a push to a draft is never held"
@@ -34,10 +35,7 @@ def held_world(listed: object, branch: str) -> world.World:
     here = world.make_world()
     here.bodies[JOBS] = {"jobs": [{"status": "queued"}]}
     here.bodies[PULLS.format(branch=branch)] = listed
-    fakes.run_git(here.clone, "branch", "-f", "branch-1")
-    fakes.run_git(here.clone, "remote", "add", "elsewhere", OTHER_URL)
-    target = str(world.origin_of(here.clone))
-    fakes.run_git(here.clone, "config", "remote.elsewhere.pushurl", target)
+    elsewhere(here, OTHER_URL)
     return here
 
 

@@ -5,7 +5,8 @@ import unittest
 
 from .. import brief, briefconfig
 from . import briefmake
-from .briefmake import HEAD, HONEST, PROJECT, has_all, has_none, pinned, text
+from .briefmake import HEAD, HONEST, PROJECT, pinned, text
+from .says import has_all, has_none
 
 NEW_PR_PROCESS = [
     "Task: do the whole of ticket o/r#7 in one PR: write the code, then open the PR.",
@@ -45,11 +46,13 @@ FIRST_ROUND = [
 ]
 REVISE_PLAN = [
     "Task: PR o/r#3: the review at https://example.org/c/1 did not approve the"
-    " Plan. Edit the `## Plan` section of the PR body (and its `Head:` line) and"
-    " change only what the findings name; touch no code, doc or test (a merge of"
-    " main for a conflict excepted) and fix none of the Execution defects; end"
-    " with an empty commit (`git commit --allow-empty`) pushed to the branch, and"
-    " patch the `Head:` line to it.",
+    " Plan. Edit the `## Plan` section of the PR body and change only what the"
+    " findings name; touch no code, doc or test (a merge of main for a conflict"
+    " excepted) and fix none of the Execution defects; push nothing, leave the"
+    " `Head:` line as it is, and hand back the body digest (`pitboss"
+    " body-digest`): the head has not moved, so the sweep offers the review of"
+    " the Plan again (`older-body`) and the next round is the next round of the"
+    " Plan stage (keyword: plan-revision, pitboss#221).",
 ]
 FIX_REVIEW = [
     "Task: PR o/r#3: fix the findings of the review at https://example.org/c/1,"
@@ -141,7 +144,7 @@ class TestWorkerBriefs(unittest.TestCase):
         has_none(text(brief.Kind.FIRST_ROUND), ["Draft:"])
 
     def test_a_plan_revision_changes_only_what_the_findings_name(self) -> None:
-        """The Plan section and the Head line, then an empty commit."""
+        """The Plan section only: nothing is pushed and the Head line stays."""
         pinned(brief.Kind.REVISE_PLAN, REVISE_PLAN)
         has_none(text(brief.Kind.REVISE_PLAN), ["PR body: its first line"])
 

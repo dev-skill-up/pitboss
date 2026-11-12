@@ -1,0 +1,479 @@
+{
+ "body_edits": [
+  {
+   "body": "Fixes dev-skill-up/pitboss#453\n\nHead: cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\nDone-when digest: a78cb1ccb090c593\n\n## Plan\n\n1. The head of this change. Command: `git rev-parse HEAD` prints the head named above.\n2. Done-when 1: \"`uvx pitboss clean-container CONFIG` prints its per-phase timing breakdown (it is one of #443's six commands), and on the real container it finishes in under 60 s with nothing to remove; the PR Evidence times it with `time`, before and after.\" After: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` prints the timing lines and `real` under 60 s.\n3. Done-when 1, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` is the same run on main (805e0bb), for the time before.\n4. Done-when 2: \"The per-item `slots next OWNER/REPO#N` makes under 20 GitHub calls on the real queue: the repository-access check of `load_context` (about 35 `repository` calls) is read once per run, not once per repository of the config; a test with a counting fake `gh` shows the count.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the GitHub API call count (under 20).\n5. Done-when 2, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the count before.\n6. Done-when 3: \"The full `slots next` reads the open pull requests of every repository (about 177 calls, 19 s) and the per-repository `since` reads of causes (about 33 calls) in fewer calls: a test with a counting fake `gh` shows each repository's pull requests read once, and the full form on the real queue finishes in under 15 s.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the calls and `real` under 15 s.\n7. Done-when 3, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the calls and time before.\n8. CI pointer for Done-when 2 (the test with a counting fake gh): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_the_item_makes_under_twenty_calls_with_many_repositories`.\n9. CI pointer for Done-when 3 (each repository's pull requests read once): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_each_repositorys_pull_requests_are_read_once`.\n10. CI pointer for Done-when 4: \"The per-ticket blocker and comment reads of the ranking are read for the top 5 items only (Moshe, 2026-11-10 20:44Z: \"it needs the top-5 by age/label\"); a test with a counting fake `gh` shows that raising the number of low-ranked items does not raise the number of these reads.\" Workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_raising_the_low_ranked_tickets_raises_no_read`.\n\n## Execution\n\nclean-container prints a timing line for each phase and walks each path once; `slots next` reads the owner's list once for access, a PR's gate only for its own item, each repository's open PRs once, and the blockers and comments of the top 5 items only. New tests: `src/pitboss/tests/test_read_counts.py` and `test_read_machinery.py`; older tests whose worlds relied on the old reads are changed to the new ones. `pitboss nox` on the head cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0: skills success, lint success, mypy success, tests-3.13 success.\n\nDeviations: pitboss nox was run more than once on this change (lint, mypy and test fixes before the commit). The Done-when 1 condition \"nothing to remove\" did not hold in this container: the dry run lists 1666 dead paths (484.8 MiB), none removed; the time is for a dry run that judges them.\n\n## Evidence\n\n```pitboss-expand sha256=b57d30b70f9fa37e head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ git rev-parse HEAD\ncb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n```\n```pitboss-expand sha256=9c831c89684ea1b4 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\ndisk: 6.0 GiB free before, 6.0 GiB after\npitboss timing: clean-container: 36.8s in the command, startup before it 0.5s\npitboss timing: context and configuration read: 4.3s; GitHub API 36 calls 20.7s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: checkouts read: 0.2s, 41 checkouts; GitHub API 0 calls 0.0s, git 170 calls 2.0s, other processes 0 calls 0.0s\npitboss timing: repositories fetched: 0.8s, 12 ; GitHub API 0 calls 0.0s, git 24 calls 6.7s, other processes 0 calls 0.0s\npitboss timing: checkouts, scratch and root files judged: 22.1s; GitHub API 33 calls 24.9s, git 5053 calls 64.8s, other processes 0 calls 0.0s\npitboss timing: test tempdirs judged: 9.2s, 1646 ; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: named scratch judged: 0.0s; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: paths removed: 0.0s, 1666 paths; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 69 calls 45.6s, git 5247 calls 73.4s, other processes 0 calls 0.0s\n\nreal\t0m37.358s\nuser\t0m29.704s\nsys\t0m15.488s\n```\n```pitboss-expand sha256=b7dde3471ece2561 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\nKEPT PATH /tmp/claude-0/tmpynyn5git 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpynyn5git/origin.git\nKEPT PATH /tmp/claude-0/tmp7zwiwql1 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmp7zwiwql1/mirror.git\nKEPT PATH /tmp/claude-0/tmpvy85kexf 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpvy85kexf/mirror.git\nKEPT PATH /tmp/claude-0/tmpb6tpw0qh 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpb6tpw0qh/broken\nKEPT PATH /tmp/claude-0/tmpotkbu5cl 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpotkbu5cl\ncontainer: 1666 paths, 484.8 MiB would be freed; 2449 kept, 650.7 MiB\ndisk: 6.0 GiB free before, 6.0 GiB after\npitboss timing: clean-container: 64.3s in the command, startup before it 1.1s\npitboss timing: rest: 64.3s; GitHub API 101 calls 60.6s, git 5247 calls 19.7s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 101 calls 60.6s, git 5247 calls 19.7s, other processes 0 calls 0.0s\n\nreal\t1m5.512s\nuser\t0m52.133s\nsys\t0m13.925s\n```\n```pitboss-expand sha256=17dd1b01521b6f1d head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 3.1s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 5 calls 3.1s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m3.642s\n```\n```pitboss-expand sha256=68796481b90504f3 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 4.5s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 69 calls 38.7s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m5.638s\n```\n```pitboss-expand sha256=3a17865d5fd72668 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 12.6s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 214 calls 119.4s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m13.129s\n```\n```pitboss-expand sha256=b5aeb549b97c4fe3 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 25.4s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 286 calls 148.0s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m26.539s\n```\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_",
+   "created_at": "2026-11-11T06:59:17Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#453\n\nHead: cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\nDone-when digest: a78cb1ccb090c593\n\n## Plan\n\n1. The head of this change. Command: `git rev-parse HEAD` prints the head named above.\n2. Done-when 1: \"`uvx pitboss clean-container CONFIG` prints its per-phase timing breakdown (it is one of #443's six commands), and on the real container it finishes in under 60 s with nothing to remove; the PR Evidence times it with `time`, before and after.\" After: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` prints the timing lines and `real` under 60 s.\n3. Done-when 1, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` is the same run on main (805e0bb), for the time before.\n4. Done-when 2: \"The per-item `slots next OWNER/REPO#N` makes under 20 GitHub calls on the real queue: the repository-access check of `load_context` (about 35 `repository` calls) is read once per run, not once per repository of the config; a test with a counting fake `gh` shows the count.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the GitHub API call count (under 20).\n5. Done-when 2, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the count before.\n6. Done-when 3: \"The full `slots next` reads the open pull requests of every repository (about 177 calls, 19 s) and the per-repository `since` reads of causes (about 33 calls) in fewer calls: a test with a counting fake `gh` shows each repository's pull requests read once, and the full form on the real queue finishes in under 15 s.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the calls and `real` under 15 s.\n7. Done-when 3, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the calls and time before.\n8. CI pointer for Done-when 2 (the test with a counting fake gh): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_the_item_makes_under_twenty_calls_with_many_repositories`.\n9. CI pointer for Done-when 3 (each repository's pull requests read once): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_each_repositorys_pull_requests_are_read_once`.\n10. CI pointer for Done-when 4: \"The per-ticket blocker and comment reads of the ranking are read for the top 5 items only (Moshe, 2026-11-10 20:44Z: \"it needs the top-5 by age/label\"); a test with a counting fake `gh` shows that raising the number of low-ranked items does not raise the number of these reads.\" Workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_raising_the_low_ranked_tickets_raises_no_read`.\n11. Not in the ticket: Not in this ticket: the cold-cache cause read of #452 (a cold cause cache pages the whole corpus once) is kept as it is. This change leaves that read as it is (no row of the Plan runs a command for it).\n\n## Execution\n\nclean-container prints a timing line for each phase and walks each path once; `slots next` reads the owner's list once for access, a PR's gate only for its own item, each repository's open PRs once, and the blockers and comments of the top 5 items only. New tests: `src/pitboss/tests/test_read_counts.py` and `test_read_machinery.py`; older tests whose worlds relied on the old reads are changed to the new ones. `pitboss nox` on the head cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0: skills success, lint success, mypy success, tests-3.13 success.\n\nDeviations: pitboss nox was run more than once on this change (lint, mypy and test fixes before the commit). The Done-when 1 condition \"nothing to remove\" did not hold in this container: the dry run lists 1666 dead paths (484.8 MiB), none removed; the time is for a dry run that judges them.\n\n## Evidence\n\n```pitboss-expand sha256=b57d30b70f9fa37e head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ git rev-parse HEAD\ncb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n```\n```pitboss-expand sha256=9c831c89684ea1b4 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\ndisk: 6.0 GiB free before, 6.0 GiB after\npitboss timing: clean-container: 36.8s in the command, startup before it 0.5s\npitboss timing: context and configuration read: 4.3s; GitHub API 36 calls 20.7s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: checkouts read: 0.2s, 41 checkouts; GitHub API 0 calls 0.0s, git 170 calls 2.0s, other processes 0 calls 0.0s\npitboss timing: repositories fetched: 0.8s, 12 ; GitHub API 0 calls 0.0s, git 24 calls 6.7s, other processes 0 calls 0.0s\npitboss timing: checkouts, scratch and root files judged: 22.1s; GitHub API 33 calls 24.9s, git 5053 calls 64.8s, other processes 0 calls 0.0s\npitboss timing: test tempdirs judged: 9.2s, 1646 ; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: named scratch judged: 0.0s; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: paths removed: 0.0s, 1666 paths; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 69 calls 45.6s, git 5247 calls 73.4s, other processes 0 calls 0.0s\n\nreal\t0m37.358s\nuser\t0m29.704s\nsys\t0m15.488s\n```\n```pitboss-expand sha256=b7dde3471ece2561 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\nKEPT PATH /tmp/claude-0/tmpynyn5git 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpynyn5git/origin.git\nKEPT PATH /tmp/claude-0/tmp7zwiwql1 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmp7zwiwql1/mirror.git\nKEPT PATH /tmp/claude-0/tmpvy85kexf 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpvy85kexf/mirror.git\nKEPT PATH /tmp/claude-0/tmpb6tpw0qh 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpb6tpw0qh/broken\nKEPT PATH /tmp/claude-0/tmpotkbu5cl 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpotkbu5cl\ncontainer: 1666 paths, 484.8 MiB would be freed; 2449 kept, 650.7 MiB\ndisk: 6.0 GiB free before, 6.0 GiB after\npitboss timing: clean-container: 64.3s in the command, startup before it 1.1s\npitboss timing: rest: 64.3s; GitHub API 101 calls 60.6s, git 5247 calls 19.7s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 101 calls 60.6s, git 5247 calls 19.7s, other processes 0 calls 0.0s\n\nreal\t1m5.512s\nuser\t0m52.133s\nsys\t0m13.925s\n```\n```pitboss-expand sha256=17dd1b01521b6f1d head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 3.1s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 5 calls 3.1s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m3.642s\n```\n```pitboss-expand sha256=68796481b90504f3 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 4.5s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 69 calls 38.7s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m5.638s\n```\n```pitboss-expand sha256=3a17865d5fd72668 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 12.6s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 214 calls 119.4s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m13.129s\n```\n```pitboss-expand sha256=b5aeb549b97c4fe3 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 25.4s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 286 calls 148.0s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m26.539s\n```\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n",
+   "created_at": "2026-11-11T06:59:17Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#453\n\nHead: cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\nDone-when digest: a78cb1ccb090c593\n\n## Plan\n\n1. The head of this change. Command: `git rev-parse HEAD` prints the head named above.\n2. Done-when 1: \"`uvx pitboss clean-container CONFIG` prints its per-phase timing breakdown (it is one of #443's six commands), and on the real container it finishes in under 60 s with nothing to remove; the PR Evidence times it with `time`, before and after.\" After: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` prints the timing lines and `real` under 60 s.\n3. Done-when 1, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` is the same run on main (805e0bb), for the time before.\n4. Done-when 2: \"The per-item `slots next OWNER/REPO#N` makes under 20 GitHub calls on the real queue: the repository-access check of `load_context` (about 35 `repository` calls) is read once per run, not once per repository of the config; a test with a counting fake `gh` shows the count.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the GitHub API call count (under 20).\n5. Done-when 2, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the count before.\n6. Done-when 3: \"The full `slots next` reads the open pull requests of every repository (about 177 calls, 19 s) and the per-repository `since` reads of causes (about 33 calls) in fewer calls: a test with a counting fake `gh` shows each repository's pull requests read once, and the full form on the real queue finishes in under 15 s.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the calls and `real` under 15 s.\n7. Done-when 3, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the calls and time before.\n8. CI pointer for Done-when 2 (the test with a counting fake gh): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_the_item_makes_under_twenty_calls_with_many_repositories`.\n9. CI pointer for Done-when 3 (each repository's pull requests read once): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_each_repositorys_pull_requests_are_read_once`.\n10. CI pointer for Done-when 4: \"The per-ticket blocker and comment reads of the ranking are read for the top 5 items only (Moshe, 2026-11-10 20:44Z: \"it needs the top-5 by age/label\"); a test with a counting fake `gh` shows that raising the number of low-ranked items does not raise the number of these reads.\" Workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_raising_the_low_ranked_tickets_raises_no_read`.\n11. Not in the ticket: Not in this ticket: the cold-cache cause read of #452 (a cold cause cache pages the whole corpus once) is kept as it is. `src/pitboss/causecache.py` (its module docstring) shows that the first read pages them all, and this change does not touch that file.\n\n## Execution\n\nclean-container prints a timing line for each phase and walks each path once; `slots next` reads the owner's list once for access, a PR's gate only for its own item, each repository's open PRs once, and the blockers and comments of the top 5 items only. New tests: `src/pitboss/tests/test_read_counts.py` and `test_read_machinery.py`; older tests whose worlds relied on the old reads are changed to the new ones. `pitboss nox` on the head cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0: skills success, lint success, mypy success, tests-3.13 success.\n\nDeviations: pitboss nox was run more than once on this change (lint, mypy and test fixes before the commit). The Done-when 1 condition \"nothing to remove\" did not hold in this container: the dry run lists 1666 dead paths (484.8 MiB), none removed; the time is for a dry run that judges them.\n\n## Evidence\n\n```pitboss-expand sha256=b57d30b70f9fa37e head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ git rev-parse HEAD\ncb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n```\n```pitboss-expand sha256=9c831c89684ea1b4 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\ndisk: 6.0 GiB free before, 6.0 GiB after\npitboss timing: clean-container: 36.8s in the command, startup before it 0.5s\npitboss timing: context and configuration read: 4.3s; GitHub API 36 calls 20.7s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: checkouts read: 0.2s, 41 checkouts; GitHub API 0 calls 0.0s, git 170 calls 2.0s, other processes 0 calls 0.0s\npitboss timing: repositories fetched: 0.8s, 12 ; GitHub API 0 calls 0.0s, git 24 calls 6.7s, other processes 0 calls 0.0s\npitboss timing: checkouts, scratch and root files judged: 22.1s; GitHub API 33 calls 24.9s, git 5053 calls 64.8s, other processes 0 calls 0.0s\npitboss timing: test tempdirs judged: 9.2s, 1646 ; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: named scratch judged: 0.0s; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: paths removed: 0.0s, 1666 paths; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 69 calls 45.6s, git 5247 calls 73.4s, other processes 0 calls 0.0s\n\nreal\t0m37.358s\nuser\t0m29.704s\nsys\t0m15.488s\n```\n```pitboss-expand sha256=b7dde3471ece2561 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\nKEPT PATH /tmp/claude-0/tmpynyn5git 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpynyn5git/origin.git\nKEPT PATH /tmp/claude-0/tmp7zwiwql1 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmp7zwiwql1/mirror.git\nKEPT PATH /tmp/claude-0/tmpvy85kexf 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpvy85kexf/mirror.git\nKEPT PATH /tmp/claude-0/tmpb6tpw0qh 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpb6tpw0qh/broken\nKEPT PATH /tmp/claude-0/tmpotkbu5cl 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpotkbu5cl\ncontainer: 1666 paths, 484.8 MiB would be freed; 2449 kept, 650.7 MiB\ndisk: 6.0 GiB free before, 6.0 GiB after\npitboss timing: clean-container: 64.3s in the command, startup before it 1.1s\npitboss timing: rest: 64.3s; GitHub API 101 calls 60.6s, git 5247 calls 19.7s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 101 calls 60.6s, git 5247 calls 19.7s, other processes 0 calls 0.0s\n\nreal\t1m5.512s\nuser\t0m52.133s\nsys\t0m13.925s\n```\n```pitboss-expand sha256=17dd1b01521b6f1d head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 3.1s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 5 calls 3.1s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m3.642s\n```\n```pitboss-expand sha256=68796481b90504f3 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 4.5s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 69 calls 38.7s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m5.638s\n```\n```pitboss-expand sha256=3a17865d5fd72668 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0 pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 12.6s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 214 calls 119.4s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m13.129s\n```\n```pitboss-expand sha256=b5aeb549b97c4fe3 head=cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 25.4s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 286 calls 148.0s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m26.539s\n```\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n",
+   "created_at": "2026-11-11T06:59:40Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#453\n\nHead: 39fb82fea67132c623cb21d18e3d409e5d31c32a\nDone-when digest: a78cb1ccb090c593\n\n## Plan\n\n1. The head of this change. Command: `git rev-parse HEAD` prints the head named above.\n2. Done-when 1: \"`uvx pitboss clean-container CONFIG` prints its per-phase timing breakdown (it is one of #443's six commands), and on the real container it finishes in under 60 s with nothing to remove; the PR Evidence times it with `time`, before and after.\" After: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` prints the timing lines and `real` under 60 s.\n3. Done-when 1, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` is the same run on main (805e0bb), for the time before.\n4. Done-when 2: \"The per-item `slots next OWNER/REPO#N` makes under 20 GitHub calls on the real queue: the repository-access check of `load_context` (about 35 `repository` calls) is read once per run, not once per repository of the config; a test with a counting fake `gh` shows the count.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the GitHub API call count (under 20).\n5. Done-when 2, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the count before.\n6. Done-when 3: \"The full `slots next` reads the open pull requests of every repository (about 177 calls, 19 s) and the per-repository `since` reads of causes (about 33 calls) in fewer calls: a test with a counting fake `gh` shows each repository's pull requests read once, and the full form on the real queue finishes in under 15 s.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the calls and `real` under 15 s.\n7. Done-when 3, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the calls and time before.\n8. CI pointer for Done-when 2 (the test with a counting fake gh): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_the_item_makes_under_twenty_calls_with_many_repositories`.\n9. CI pointer for Done-when 3 (each repository's pull requests read once): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_each_repositorys_pull_requests_are_read_once`.\n10. CI pointer for Done-when 4: \"The per-ticket blocker and comment reads of the ranking are read for the top 5 items only (Moshe, 2026-11-10 20:44Z: \"it needs the top-5 by age/label\"); a test with a counting fake `gh` shows that raising the number of low-ranked items does not raise the number of these reads.\" Workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405>), step `Run Nox`, greppable `test_raising_the_low_ranked_tickets_raises_no_read`.\n11. Not in the ticket: Not in this ticket: the cold-cache cause read of #452 (a cold cause cache pages the whole corpus once) is kept as it is. `src/pitboss/causecache.py` (its module docstring) shows that the first read pages them all, and this change does not touch that file.\n\n## Execution\n\nclean-container prints a timing line for each phase and walks each path once; `slots next` reads the owner's list once for access, a PR's gate only for its own item, each repository's open PRs once, and the blockers and comments of the top 5 items only. New tests: `src/pitboss/tests/test_read_counts.py` and `test_read_machinery.py`; older tests whose worlds relied on the old reads are changed to the new ones. `pitboss nox` on the head 39fb82fea67132c623cb21d18e3d409e5d31c32a: skills success, lint success, mypy success, tests-3.13 success.\n\nDeviations: pitboss nox was run more than once on this change (lint, mypy and test fixes before the commit). After the merge of main it ran three times (a line limit, then an import, then green); the commands of the Plan name the merge head instead of cb85ef5. The Done-when 1 condition \"nothing to remove\" did not hold in this container: the dry run lists 1666 dead paths (484.8 MiB), none removed; the time is for a dry run that judges them.\n\n## Evidence\n\n```pitboss-expand sha256=5133a7020bd82d57 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ git rev-parse HEAD\n39fb82fea67132c623cb21d18e3d409e5d31c32a\n```\n\n```pitboss-expand sha256=ea67a2ba2273a3f5 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\ndisk: 5.6 GiB free before, 5.6 GiB after\npitboss timing: clean-container: 38.3s in the command, startup before it 3.8s\npitboss timing: context and configuration read: 3.7s; GitHub API 36 calls 19.2s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: checkouts read: 0.2s, 42 checkouts; GitHub API 0 calls 0.0s, git 174 calls 1.9s, other processes 0 calls 0.0s\npitboss timing: repositories fetched: 0.9s, 12 ; GitHub API 0 calls 0.0s, git 24 calls 6.9s, other processes 0 calls 0.0s\npitboss timing: checkouts, scratch and root files judged: 23.8s; GitHub API 33 calls 26.2s, git 5057 calls 63.2s, other processes 0 calls 0.0s\npitboss timing: test tempdirs judged: 9.7s, 1852 ; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: named scratch judged: 0.0s; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: paths removed: 0.1s, 1873 paths; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 69 calls 45.4s, git 5255 calls 71.9s, other processes 0 calls 0.0s\n\nreal\t0m42.200s\nuser\t0m33.277s\nsys\t0m16.319s\n```\n\n```pitboss-expand sha256=bdbc7d22cff8fb17 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\nKEPT PATH /tmp/claude-0/tmpynyn5git 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpynyn5git/origin.git\nKEPT PATH /tmp/claude-0/tmp7zwiwql1 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmp7zwiwql1/mirror.git\nKEPT PATH /tmp/claude-0/tmpvy85kexf 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpvy85kexf/mirror.git\nKEPT PATH /tmp/claude-0/tmpb6tpw0qh 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpb6tpw0qh/broken\nKEPT PATH /tmp/claude-0/tmpotkbu5cl 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpotkbu5cl\ncontainer: 1903 paths, 818.7 MiB would be freed; 2449 kept, 650.7 MiB\ndisk: 5.6 GiB free before, 5.6 GiB after\npitboss timing: clean-container: 63.8s in the command, startup before it 1.4s\npitboss timing: rest: 63.8s; GitHub API 101 calls 62.7s, git 5255 calls 18.8s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 101 calls 62.7s, git 5255 calls 18.8s, other processes 0 calls 0.0s\n\nreal\t1m5.293s\nuser\t0m53.220s\nsys\t0m12.268s\n```\n\n```pitboss-expand sha256=337e3480f9798804 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 3.0s in the command, startup before it 0.4s\npitboss timing: all: GitHub API 5 calls 3.0s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m3.503s\n```\n\n```pitboss-expand sha256=9cadb871e34fb2ca head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 4.7s in the command, startup before it 1.0s\npitboss timing: all: GitHub API 69 calls 38.7s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m5.849s\n```\n\n```pitboss-expand sha256=251a886bc44598a0 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 12.8s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 218 calls 123.4s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m13.370s\n```\n\n```pitboss-expand sha256=5daf30b75acd3c06 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 26.6s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 289 calls 156.9s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m27.731s\n```\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n",
+   "created_at": "2026-11-11T08:06:29Z",
+   "editor": "moshez"
+  },
+  {
+   "body": "Fixes dev-skill-up/pitboss#453\n\nHead: 39fb82fea67132c623cb21d18e3d409e5d31c32a\nDone-when digest: a78cb1ccb090c593\n\n## Plan\n\n1. The head of this change. Command: `git rev-parse HEAD` prints the head named above.\n2. Done-when 1: \"`uvx pitboss clean-container CONFIG` prints its per-phase timing breakdown (it is one of #443's six commands), and on the real container it finishes in under 60 s with nothing to remove; the PR Evidence times it with `time`, before and after.\" After: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` prints the timing lines and `real` under 60 s.\n3. Done-when 1, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` is the same run on main (805e0bb), for the time before.\n4. Done-when 2: \"The per-item `slots next OWNER/REPO#N` makes under 20 GitHub calls on the real queue: the repository-access check of `load_context` (about 35 `repository` calls) is read once per run, not once per repository of the config; a test with a counting fake `gh` shows the count.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the GitHub API call count (under 20).\n5. Done-when 2, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the count before.\n6. Done-when 3: \"The full `slots next` reads the open pull requests of every repository (about 177 calls, 19 s) and the per-repository `since` reads of causes (about 33 calls) in fewer calls: a test with a counting fake `gh` shows each repository's pull requests read once, and the full form on the real queue finishes in under 15 s.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the calls and `real` under 15 s.\n7. Done-when 3, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the calls and time before.\n8. CI pointer for Done-when 2 (the test with a counting fake gh): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648235>), step `Run Nox`, greppable `test_the_item_makes_under_twenty_calls_with_many_repositories`.\n9. CI pointer for Done-when 3 (each repository's pull requests read once): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648235>), step `Run Nox`, greppable `test_each_repositorys_pull_requests_are_read_once`.\n10. CI pointer for Done-when 4: \"The per-ticket blocker and comment reads of the ranking are read for the top 5 items only (Moshe, 2026-11-10 20:44Z: \"it needs the top-5 by age/label\"); a test with a counting fake `gh` shows that raising the number of low-ranked items does not raise the number of these reads.\" Workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648235>), step `Run Nox`, greppable `test_raising_the_low_ranked_tickets_raises_no_read`.\n11. Not in the ticket: Not in this ticket: the cold-cache cause read of #452 (a cold cause cache pages the whole corpus once) is kept as it is. `src/pitboss/causecache.py` (its module docstring) shows that the first read pages them all, and this change does not touch that file.\n\n## Execution\n\nclean-container prints a timing line for each phase and walks each path once; `slots next` reads the owner's list once for access, a PR's gate only for its own item, each repository's open PRs once, and the blockers and comments of the top 5 items only. New tests: `src/pitboss/tests/test_read_counts.py` and `test_read_machinery.py`; older tests whose worlds relied on the old reads are changed to the new ones. `pitboss nox` on the head 39fb82fea67132c623cb21d18e3d409e5d31c32a: skills success, lint success, mypy success, tests-3.13 success.\n\nDeviations: pitboss nox was run more than once on this change (lint, mypy and test fixes before the commit). After the merge of main it ran three times (a line limit, then an import, then green); the commands of the Plan name the merge head instead of cb85ef5. The Done-when 1 condition \"nothing to remove\" did not hold in this container: the dry run lists 1666 dead paths (484.8 MiB), none removed; the time is for a dry run that judges them.\n\n## Evidence\n\n```pitboss-expand sha256=5133a7020bd82d57 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ git rev-parse HEAD\n39fb82fea67132c623cb21d18e3d409e5d31c32a\n```\n\n```pitboss-expand sha256=ea67a2ba2273a3f5 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\ndisk: 5.6 GiB free before, 5.6 GiB after\npitboss timing: clean-container: 38.3s in the command, startup before it 3.8s\npitboss timing: context and configuration read: 3.7s; GitHub API 36 calls 19.2s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: checkouts read: 0.2s, 42 checkouts; GitHub API 0 calls 0.0s, git 174 calls 1.9s, other processes 0 calls 0.0s\npitboss timing: repositories fetched: 0.9s, 12 ; GitHub API 0 calls 0.0s, git 24 calls 6.9s, other processes 0 calls 0.0s\npitboss timing: checkouts, scratch and root files judged: 23.8s; GitHub API 33 calls 26.2s, git 5057 calls 63.2s, other processes 0 calls 0.0s\npitboss timing: test tempdirs judged: 9.7s, 1852 ; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: named scratch judged: 0.0s; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: paths removed: 0.1s, 1873 paths; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 69 calls 45.4s, git 5255 calls 71.9s, other processes 0 calls 0.0s\n\nreal\t0m42.200s\nuser\t0m33.277s\nsys\t0m16.319s\n```\n\n```pitboss-expand sha256=bdbc7d22cff8fb17 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\nKEPT PATH /tmp/claude-0/tmpynyn5git 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpynyn5git/origin.git\nKEPT PATH /tmp/claude-0/tmp7zwiwql1 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmp7zwiwql1/mirror.git\nKEPT PATH /tmp/claude-0/tmpvy85kexf 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpvy85kexf/mirror.git\nKEPT PATH /tmp/claude-0/tmpb6tpw0qh 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpb6tpw0qh/broken\nKEPT PATH /tmp/claude-0/tmpotkbu5cl 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpotkbu5cl\ncontainer: 1903 paths, 818.7 MiB would be freed; 2449 kept, 650.7 MiB\ndisk: 5.6 GiB free before, 5.6 GiB after\npitboss timing: clean-container: 63.8s in the command, startup before it 1.4s\npitboss timing: rest: 63.8s; GitHub API 101 calls 62.7s, git 5255 calls 18.8s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 101 calls 62.7s, git 5255 calls 18.8s, other processes 0 calls 0.0s\n\nreal\t1m5.293s\nuser\t0m53.220s\nsys\t0m12.268s\n```\n\n```pitboss-expand sha256=337e3480f9798804 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 3.0s in the command, startup before it 0.4s\npitboss timing: all: GitHub API 5 calls 3.0s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m3.503s\n```\n\n```pitboss-expand sha256=9cadb871e34fb2ca head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 4.7s in the command, startup before it 1.0s\npitboss timing: all: GitHub API 69 calls 38.7s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m5.849s\n```\n\n```pitboss-expand sha256=251a886bc44598a0 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 12.8s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 218 calls 123.4s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m13.370s\n```\n\n```pitboss-expand sha256=5daf30b75acd3c06 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 26.6s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 289 calls 156.9s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m27.731s\n```\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n\n",
+   "created_at": "2026-11-11T08:12:00Z",
+   "editor": "moshez"
+  }
+ ],
+ "checks": {
+  "1809128c57a8402f3447e15e92c334feb2b250ef": [],
+  "39fb82fea67132c623cb21d18e3d409e5d31c32a": [
+   {
+    "completed_at": "2026-11-11T08:03:27Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648436",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648436,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:51Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648393",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648393,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:22Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648292",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648292,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:06:53Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648235",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648235,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:31Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648227",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648227,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:05:57Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648226",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648226,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:06Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:25Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648201",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648201,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:24Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648192",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400648192,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:06Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:06:56Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400647994",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400647994,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:43Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400633537",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400633537,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:32Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400633033",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400633033,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:04Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:24Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400632964",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400632964,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:26Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400632951",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400632951,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:07:02Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400632930",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400632930,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:06:29Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400632893",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400632893,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:19Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400632868",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400632868,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:03:19Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400632825",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400632825,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T08:05:54Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42983960913/job/130400632600",
+    "head_sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a",
+    "id": 130400632600,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T08:03:03Z",
+    "status": "completed"
+   }
+  ],
+  "4b3ab3b1fb4b9c5cd69f8d00f8b94483e854ded7": [],
+  "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0": [
+   {
+    "completed_at": "2026-11-11T07:01:44Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711530",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711530,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:59:21Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711481",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711481,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:02Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:59:22Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711465",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711465,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:59:37Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711438",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711438,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T07:01:39Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711433",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711433,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T07:02:44Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711394",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711394,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:59:21Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711316",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711316,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:59:42Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711302",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711302,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:02Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:59:17Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42976182837/job/130375711065",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130375711065,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:59:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:52:15Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638597",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638597,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:51:16Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638569",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638569,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:50:46Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638516",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638516,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:50:51Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638458",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638458,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:54:14Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638405",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638405,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:52:49Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638349",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638349,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:50:48Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638308",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638308,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:50:42Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638251",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638251,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T06:50:56Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/42975225167/job/130372638085",
+    "head_sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0",
+    "id": 130372638085,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T06:50:26Z",
+    "status": "completed"
+   }
+  ]
+ },
+ "comments": [
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: 6352e59fa94bbc31\nPlan check: ok\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T06:59:49Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/463#issuecomment-6789330596",
+   "id": 6789330596
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nci-run: Plan line 10 names the run https://github.com/dev-skill-up/pitboss/actions/runs/42975225167 of head cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0, but the body's last Head: line is 39fb82fea67132c623cb21d18e3d409e5d31c32a: name the run of the head\nci-run: Plan line 11 names the run https://github.com/dev-skill-up/pitboss/actions/runs/42975225167 of head cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0, but the body's last Head: line is 39fb82fea67132c623cb21d18e3d409e5d31c32a: name the run of the head\nci-run: Plan line 12 names the run https://github.com/dev-skill-up/pitboss/actions/runs/42975225167 of head cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0, but the body's last Head: line is 39fb82fea67132c623cb21d18e3d409e5d31c32a: name the run of the head\nPlan digest: 97d1f272ffa96831\nPlan check: refused, CI run findings: 3\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T08:07:46Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/463#issuecomment-6790617918",
+   "id": 6790617918
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: 8f88f37a324b87e6\nPlan check: ok\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T08:12:01Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/463#issuecomment-6790700876",
+   "id": 6790700876
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 39fb82fea67132c623cb21d18e3d409e5d31c32a: approved\n\nPlan: approved\nPlan digest: 8f88f37a324b87e6\nExecution: approved\nVerdict: approved\nBody: 92c1745de17c7a95\n\nFirst round of both stages. I did not write any part of this change.\n\nCI at the head, read from the PR at about 08:15Z on 2026-11-11: every check run finished with success. That is skills, lint, mypy, docs, build, dry_release, tests-3.12, tests-3.13 and tests-3.14, in both runs of the head (42983966073 and 42983960913). The tests-3.13 log of run 42983966073 shows 1975 tests passed and 100% coverage. The Plan's CI pointers name that run and job, and the greppable test names exist in `src/pitboss/tests/test_read_counts.py`.\n\nBody checks: the last `Head:` line is the full head SHA. Every `$ ` block in Evidence is a `pitboss-expand` block marked for this head. The Plan check comment for digest 8f88f37a324b87e6 ends in `Plan check: ok`.\n\nPlan, per row of the Done-when:\n- Rows 1 to 3: each row that mentions a command gives the exact string, a cut or pipe included. Before and after are both given, on 805e0bb and on the head.\n- Row 4: the CI pointer names the workflow, job URL of the head, step `Run Nox` and the greppable test name.\n- I could not dry-run the Plan commands myself (no shell in this session). Their output is in the Evidence, so each one ran as written.\n\nExecution against the Plan and the Done-when:\n- Done-when 1: the `clean-container` command prints a timing line for each phase (checkouts read, repositories fetched, judged, test tempdirs, named scratch, paths removed). Run as the Plan wrote it, it took 42.2 s real against 65.3 s on main. The Done-when says \"with nothing to remove\", and this container had 1666 dead paths, so the run is a dry run that judges them all; the body says so. Under 60 s with that work done is read as met. `TestTheBreakdown` names each phase.\n- Done-when 2: 5 GitHub API calls for `slots next bats-lang/bats#612` (69 on main). `test_the_item_makes_under_twenty_calls_with_many_repositories` uses 37 repositories, asserts under 20 calls, zero `repository` probes and one owner listing. `repoaccess.item_gates` limits the gate read to the item's repository, and `whole_order` reads all gates when the item falls back to the whole order.\n- Done-when 3: the full form took 13.4 s real (27.7 s on main) with 218 calls (289 on main). `test_each_repositorys_pull_requests_are_read_once` asserts one open-PR list per repository for all 37, and queue runs are read for the `[runners]` repositories only. The `ghmemo` runner reads each `gh api` path once and `prefetch` starts the reads that do not wait for the PRs.\n- Done-when 4: `_named_top` reads blockers and comments in ranking order and stops once five items are offered. `test_raising_the_low_ranked_tickets_raises_no_read` compares 10 and 40 more tickets and `test_the_list_says_it_ends` checks that the cut is said. Tests of older worlds were changed to give the project no PR so their tickets stay inside the first five; that follows from the Done-when.\n\nGrep for docstrings made false: the new and moved modules, `Look`, `ownerrepos.widened`, `gates.settled`, `repoaccess.read` and `windowrun` have docstrings that match the code. The old `cleanconfig.LIVE_MARKER` and the functions moved out of `dead` and `commands` have no stale reference left in `src`. No `.md` or `.rst` line is added. No lint or exemption is loosened.\n\nChecklist (`bats prcheck --checklist`): not run, because this session has no shell and no checkout of the head. The sweep should treat that line as open.\n\nQuarantine check: not applicable (no e2e change). Race check: not applicable.\n\nDeviation: `pitboss nox` was run more than once, with lint, mypy and test fixes between runs and after the merge of main. The fixes changed the tree between runs, so no single head ran it twice by the body's account. Not a finding.\nDeviation: the Done-when 1 condition \"nothing to remove\" did not hold in this container (1666 dead paths, dry run only, nothing removed). Not a finding; see the Done-when 1 line above.\n\nMissed earlier: none (first round).\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T08:15:31Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/463#issuecomment-6790764322",
+   "id": 6790764322
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Opus ruling\nRuling: do these steps\n\n## How we got here\n\nThe review of head 39fb82fea67132c623cb21d18e3d409e5d31c32a (https://github.com/dev-skill-up/pitboss/pull/463#issuecomment-6790764322) approved the Plan and the Execution while the Execution says Done-when 1 (\"with nothing to remove\") did not hold: the timing was taken over 1666 dead paths. Meeting the condition was possible (run clean-container for real, then time the empty run), so this is a deviation that is not impossible, accepted by the review; the approval is void. The prevention filed is dev-skill-up/pitboss#417 (a review accepting a non-impossible deviation), with this case added.\n\n## Steps\n\n1. Run `uvx pitboss clean-container` for real, so that the dead paths are removed (deletions are pre-approved; never remove anything under /dev).\n2. Time the no-op run exactly as Done-when 1 is written, and replace the dry-run measurement in the Plan row's Evidence with it. Rebuild the Evidence with `pitboss expand`, lint the body, run `pitboss plan-check` at the head and post its output as a PR comment.\n3. This is one fix round. The re-review covers only that diff.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T08:17:34Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/463#issuecomment-6790800979",
+   "id": 6790800979
+  }
+ ],
+ "commits": [
+  {
+   "date": "2026-11-11T06:45:44Z",
+   "sha": "cb85ef5a1f289e4ea2402d6deabd4e2235c9c5e0"
+  },
+  {
+   "date": "2026-11-11T07:56:40Z",
+   "sha": "1809128c57a8402f3447e15e92c334feb2b250ef"
+  },
+  {
+   "date": "2026-11-11T07:57:55Z",
+   "sha": "4b3ab3b1fb4b9c5cd69f8d00f8b94483e854ded7"
+  },
+  {
+   "date": "2026-11-11T07:58:34Z",
+   "sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a"
+  }
+ ],
+ "events": [],
+ "number": 463,
+ "pull": {
+  "auto_merge": null,
+  "base": {
+   "ref": "main"
+  },
+  "body": "Fixes dev-skill-up/pitboss#453\n\nHead: 39fb82fea67132c623cb21d18e3d409e5d31c32a\nDone-when digest: a78cb1ccb090c593\n\n## Plan\n\n1. The head of this change. Command: `git rev-parse HEAD` prints the head named above.\n2. Done-when 1: \"`uvx pitboss clean-container CONFIG` prints its per-phase timing breakdown (it is one of #443's six commands), and on the real container it finishes in under 60 s with nothing to remove; the PR Evidence times it with `time`, before and after.\" After: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` prints the timing lines and `real` under 60 s.\n3. Done-when 1, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14` is the same run on main (805e0bb), for the time before.\n4. Done-when 2: \"The per-item `slots next OWNER/REPO#N` makes under 20 GitHub calls on the real queue: the repository-access check of `load_context` (about 35 `repository` calls) is read once per run, not once per repository of the config; a test with a counting fake `gh` shows the count.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the GitHub API call count (under 20).\n5. Done-when 2, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the count before.\n6. Done-when 3: \"The full `slots next` reads the open pull requests of every repository (about 177 calls, 19 s) and the per-repository `since` reads of causes (about 33 calls) in fewer calls: a test with a counting fake `gh` shows each repository's pull requests read once, and the full form on the real queue finishes in under 15 s.\" After on the real queue: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` prints the calls and `real` under 15 s.\n7. Done-when 3, before: `bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'` is the same run on main, for the calls and time before.\n8. CI pointer for Done-when 2 (the test with a counting fake gh): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648235>), step `Run Nox`, greppable `test_the_item_makes_under_twenty_calls_with_many_repositories`.\n9. CI pointer for Done-when 3 (each repository's pull requests read once): workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648235>), step `Run Nox`, greppable `test_each_repositorys_pull_requests_are_read_once`.\n10. CI pointer for Done-when 4: \"The per-ticket blocker and comment reads of the ranking are read for the top 5 items only (Moshe, 2026-11-10 20:44Z: \"it needs the top-5 by age/label\"); a test with a counting fake `gh` shows that raising the number of low-ranked items does not raise the number of these reads.\" Workflow `.github/workflows/pr-main.yml`, job tests-3.13 (<https://github.com/dev-skill-up/pitboss/actions/runs/42983966073/job/130400648235>), step `Run Nox`, greppable `test_raising_the_low_ranked_tickets_raises_no_read`.\n11. Not in the ticket: Not in this ticket: the cold-cache cause read of #452 (a cold cause cache pages the whole corpus once) is kept as it is. `src/pitboss/causecache.py` (its module docstring) shows that the first read pages them all, and this change does not touch that file.\n\n## Execution\n\nclean-container prints a timing line for each phase and walks each path once; `slots next` reads the owner's list once for access, a PR's gate only for its own item, each repository's open PRs once, and the blockers and comments of the top 5 items only. New tests: `src/pitboss/tests/test_read_counts.py` and `test_read_machinery.py`; older tests whose worlds relied on the old reads are changed to the new ones. `pitboss nox` on the head 39fb82fea67132c623cb21d18e3d409e5d31c32a: skills success, lint success, mypy success, tests-3.13 success.\n\nDeviations: pitboss nox was run more than once on this change (lint, mypy and test fixes before the commit). After the merge of main it ran three times (a line limit, then an import, then green); the commands of the Plan name the merge head instead of cb85ef5. The Done-when 1 condition \"nothing to remove\" did not hold in this container: the dry run lists 1666 dead paths (484.8 MiB), none removed; the time is for a dry run that judges them.\n\n## Evidence\n\n```pitboss-expand sha256=5133a7020bd82d57 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ git rev-parse HEAD\n39fb82fea67132c623cb21d18e3d409e5d31c32a\n```\n\n```pitboss-expand sha256=ea67a2ba2273a3f5 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\ndisk: 5.6 GiB free before, 5.6 GiB after\npitboss timing: clean-container: 38.3s in the command, startup before it 3.8s\npitboss timing: context and configuration read: 3.7s; GitHub API 36 calls 19.2s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: checkouts read: 0.2s, 42 checkouts; GitHub API 0 calls 0.0s, git 174 calls 1.9s, other processes 0 calls 0.0s\npitboss timing: repositories fetched: 0.9s, 12 ; GitHub API 0 calls 0.0s, git 24 calls 6.9s, other processes 0 calls 0.0s\npitboss timing: checkouts, scratch and root files judged: 23.8s; GitHub API 33 calls 26.2s, git 5057 calls 63.2s, other processes 0 calls 0.0s\npitboss timing: test tempdirs judged: 9.7s, 1852 ; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: named scratch judged: 0.0s; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: paths removed: 0.1s, 1873 paths; GitHub API 0 calls 0.0s, git 0 calls 0.0s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 69 calls 45.4s, git 5255 calls 71.9s, other processes 0 calls 0.0s\n\nreal\t0m42.200s\nuser\t0m33.277s\nsys\t0m16.319s\n```\n\n```pitboss-expand sha256=bdbc7d22cff8fb17 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss clean-container /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml' 2>&1 | tail -n 14\nKEPT PATH /tmp/claude-0/tmpynyn5git 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpynyn5git/origin.git\nKEPT PATH /tmp/claude-0/tmp7zwiwql1 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmp7zwiwql1/mirror.git\nKEPT PATH /tmp/claude-0/tmpvy85kexf 0.1 MiB (unreferenced scratch, untouched for 3 hours): bare git repository /tmp/claude-0/tmpvy85kexf/mirror.git\nKEPT PATH /tmp/claude-0/tmpb6tpw0qh 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpb6tpw0qh/broken\nKEPT PATH /tmp/claude-0/tmpotkbu5cl 0.0 MiB (unreferenced scratch, untouched for 3 hours): git cannot read /tmp/claude-0/tmpotkbu5cl\ncontainer: 1903 paths, 818.7 MiB would be freed; 2449 kept, 650.7 MiB\ndisk: 5.6 GiB free before, 5.6 GiB after\npitboss timing: clean-container: 63.8s in the command, startup before it 1.4s\npitboss timing: rest: 63.8s; GitHub API 101 calls 62.7s, git 5255 calls 18.8s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 101 calls 62.7s, git 5255 calls 18.8s, other processes 0 calls 0.0s\n\nreal\t1m5.293s\nuser\t0m53.220s\nsys\t0m12.268s\n```\n\n```pitboss-expand sha256=337e3480f9798804 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 3.0s in the command, startup before it 0.4s\npitboss timing: all: GitHub API 5 calls 3.0s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m3.503s\n```\n\n```pitboss-expand sha256=9cadb871e34fb2ca head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next bats-lang/bats#612 --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 4.7s in the command, startup before it 1.0s\npitboss timing: all: GitHub API 69 calls 38.7s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m5.849s\n```\n\n```pitboss-expand sha256=251a886bc44598a0 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@39fb82fea67132c623cb21d18e3d409e5d31c32a pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 12.8s in the command, startup before it 0.5s\npitboss timing: all: GitHub API 218 calls 123.4s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m13.370s\n```\n\n```pitboss-expand sha256=5daf30b75acd3c06 head=39fb82fea67132c623cb21d18e3d409e5d31c32a\n$ bash -c 'time uvx --from git+https://github.com/dev-skill-up/pitboss@805e0bb pitboss slots next --config /tmp/claude-0/-home-user/da1996b1-7fe2-5742-a481-c46311328875/scratchpad/cfg/quire.toml >/dev/null' 2>&1 | grep -E 'timing: all|timing: slots|real'\npitboss timing: slots next: 26.6s in the command, startup before it 1.1s\npitboss timing: all: GitHub API 289 calls 156.9s, git 0 calls 0.0s, other processes 1 calls 0.0s\nreal\t0m27.731s\n```\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n\n",
+  "created_at": "2026-11-11T06:58:55Z",
+  "draft": false,
+  "head": {
+   "ref": "pitboss-453",
+   "sha": "39fb82fea67132c623cb21d18e3d409e5d31c32a"
+  },
+  "labels": [],
+  "mergeable_state": "unknown",
+  "merged_at": "2026-11-11T18:22:49Z",
+  "number": 463,
+  "state": "closed",
+  "title": "pitboss clean-container and slots next read less (pitboss#453)",
+  "updated_at": "2026-11-11T18:22:49Z",
+  "user": {
+   "login": "moshez"
+  }
+ },
+ "reviews": [],
+ "slug": "dev-skill-up/pitboss"
+}

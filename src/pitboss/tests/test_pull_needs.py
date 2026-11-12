@@ -4,7 +4,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import (
     basefix,
@@ -14,6 +14,7 @@ from .. import (
     pulls,
     reviews,
     shapes,
+    steps,
     updateline,
 )
 from . import quietworld, test_flow, test_work, world
@@ -128,6 +129,13 @@ class TestNeeds(unittest.TestCase):
         ]
         assert_that(found, equal_to([True, False]))
 
+    def test_c20_a_red_pr_in_a_shared_red_is_told_no_fix_is_here(self) -> None:
+        """The one ticket is the step; the PR is not told to fix the check."""
+        pull = pull_in("clean", False, (RED,), OPEN)
+        step = steps.worker(steps.Task.SHARED_RED)
+        found = updateline.needs(dataclasses.replace(pull, step=step), settings_of(""))
+        assert_that(found, contains_string("(SHARED RED): no fix here"))
+
 
 class TestListed(unittest.TestCase):
     """The need reaches ``slots next`` and the sweep."""
@@ -144,3 +152,19 @@ class TestListed(unittest.TestCase):
             ],
             equal_to([True, True]),
         )
+
+
+class TestB20Relock(unittest.TestCase):
+    """The hold withholds the re-dispatch of relock.yml (B20)."""
+
+    def test_b20_a_relock_dispatch_is_withheld_during_a_hold(self) -> None:
+        """The re-dispatch of relock.yml a PR needs is held, with the reason."""
+        pull = pull_in("clean", True, (RED,), ANSWERED)
+        held = dataclasses.replace(
+            pull, signals=dataclasses.replace(pull.signals, hold=lambda: True)
+        )
+        settings = settings_of("")
+        free, withheld = (updateline.needs(each, settings) for each in (pull, held))
+        assert_that(free, contains_string("re-dispatch owner/project's relock.yml"))
+        assert_that(withheld, contains_string("HOLD: re-dispatch"))
+        assert_that(withheld, contains_string("withheld while the RUNNER PRESSURE"))

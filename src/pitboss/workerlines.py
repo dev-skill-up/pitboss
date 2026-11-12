@@ -3,7 +3,7 @@
 import argparse
 import datetime
 
-from . import config, configfile, handback, ledger, polling, watchbeat
+from . import config, configfile, configloads, handback, ledger, polling, watchbeat
 
 
 def print_lines(
@@ -21,7 +21,7 @@ def print_lines(
         slots: the slot configuration; a tasks directory asks for a watcher.
     """
     handback.print_lines(book, now)
-    root = configfile.load_transcripts(
+    root = configloads.load_transcripts(
         configfile.named(args), configfile.working_directory(args)
     )
     polling.print_lines(book, root)

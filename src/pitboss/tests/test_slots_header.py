@@ -7,7 +7,7 @@ from hamcrest import assert_that, equal_to
 
 from . import suggestions, world
 from .test_handback import slots, start
-from .test_owner_repositories import lines_of as printed
+from .ownerbodies import lines_of as printed
 
 FREE = (
     "FREE SLOT: {n} of 2 free since 2030-01-01 00:00Z; dispatch before reading"

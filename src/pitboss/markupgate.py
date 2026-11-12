@@ -8,9 +8,9 @@ that is not a cut of a removed line. It calls git through the runner it is given
 """
 
 import subprocess
-from typing import Sequence
+from typing import Callable, Sequence
 
-from . import markuplines, running
+from . import generatedfiles, markuplines, running
 from .expansion import Outcome
 from .noxcheck import Runner
 
@@ -32,7 +32,25 @@ def findings(run: Runner) -> Sequence[str]:
     done = run(DIFF)
     if done.status:
         return []
-    return [*markuplines.added_lines(done.output), *markuplines.fragments(done.output)]
+    _, patch = generatedfiles.handwritten("", done.output, scripted(run))
+    return [*markuplines.added_lines(patch), *markuplines.fragments(patch)]
+
+
+def scripted(run: Runner) -> Callable[[str], bool]:
+    """Whether a tracked script of the checkout names a file (``generatedfiles``).
+
+    Args:
+        run: runs a command line.
+
+    Returns:
+        The function from a path to True for a file a script generates.
+    """
+
+    def grep(path: str) -> Sequence[str]:
+        done = run(["git", "grep", "-l", "-F", "--", path])
+        return done.output.splitlines() if not done.status else []
+
+    return generatedfiles.scripted(grep)
 
 
 def through(run: running.Run) -> Runner:

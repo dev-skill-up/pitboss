@@ -5,7 +5,7 @@ import json
 import shutil
 from typing import Sequence
 
-from . import fakes, world, worldcomments
+from . import fakes, quietworld, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -60,7 +60,7 @@ def make(
     table = relock_table(command, extra)
     fakes.settings(here.workspace, world.EXTRA.format(ledger=here.ledger) + table)
     fakes.run_git(world.origin_of(here.clone), "update-ref", "refs/pull/3/head", "main")
-    return here
+    return quietworld.calm(here)
 
 
 def relock(command: str) -> world.World:

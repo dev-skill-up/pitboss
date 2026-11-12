@@ -9,6 +9,7 @@ from typing import NamedTuple
 
 from . import cleanworld, repositories, world, worldcopy
 from .test_local import age
+from .fakes import write
 
 
 class Scene(NamedTuple):
@@ -37,7 +38,7 @@ def built_world() -> worldcopy.Made:
     age(root.parent)
     # Older than the idle hours and younger than a worker's task.
     cleanworld.mark_live_since(here.workspace / "pinned-work", 4, time.time())
-    (root / "fresh/touched").write_text("now")
+    write(root / "fresh/touched", "now")
     return here, [root.parent]
 
 

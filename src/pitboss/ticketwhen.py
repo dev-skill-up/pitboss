@@ -77,7 +77,14 @@ def _marked(ticket: str) -> Sequence[tuple[str, str]]:
     lines = _lines(ticket)
     # the level of the first bullet is the top level
     top = next((len(each[1]) for each in map(BULLET.match, lines) if each), None)
-    found = [group for block in _blocks(lines) for group in _groups(block, top)]
+    found: list[tuple[str, list[str]]] = []
+    for block in _blocks(lines):
+        groups = _groups(block, top)
+        # keyword: done-when-bullets (bats#654): once the list has begun, a paragraph
+        # after it ("Found by ...", "Not in this ticket ...", "Priority: p0") is
+        # not a Done-when item; a lead line before the first bullet is
+        listed = any(marker for marker, _ in found)
+        found.extend(groups[1:] if listed and groups and not groups[0][0] else groups)
     return [(marker, " ".join(" ".join(each).split())) for marker, each in found]
 
 

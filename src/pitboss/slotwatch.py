@@ -10,7 +10,7 @@ import dataclasses
 import datetime
 from typing import Mapping, Sequence
 
-from . import agenttranscript, ledger, slotsheader
+from . import agenttranscript, ledger, slotholder, slotsheader
 from .agenttranscript import State
 from .markers import Marker
 
@@ -91,7 +91,7 @@ def _put(
 def _taken(
     book: ledger.Ledger, agents: Sequence[agenttranscript.Agent], now: datetime.datetime
 ) -> tuple[ledger.Ledger, Sequence[str]]:
-    held = {slot.agent for slot in book.slots}
+    held = slotholder.agents(book)
     said: list[str] = []
     for each in agents:
         empty = next((slot.name for slot in book.slots if not slot.agent), None)

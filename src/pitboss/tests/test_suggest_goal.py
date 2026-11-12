@@ -25,7 +25,13 @@ FORM_TABLES = (
     "[slots.brief]\ndrafts = false\nholds = false\n"
     'worker_lines = ["Compiler: /x"]\n'
 )
-MINE = ["    ## Mine", f"    Head: {'3' * 40}", "    Is: <approved or changes needed>"]
+MINE = [
+    "    ## Mine",
+    f"    Head: {'3' * 40}",
+    "    Is: <approved or changes needed>",
+    "    Plan: <approved or changes needed>",
+    "    Execution: <approved or changes needed>",
+]
 NEW_PR_SAYS = [
     "Ready: this project's PRs are not drafts",
     "Push: push the branch with `git push`",

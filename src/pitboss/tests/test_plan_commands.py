@@ -3,7 +3,8 @@
 import unittest
 
 from .. import brief
-from .briefmake import has_none, pinned, text
+from .briefmake import EXECUTION_REVIEWS, PLAN_REVIEWS, pinned, text
+from .says import has_none
 
 BODY = (
     "for each Done-when row, if the Plan's evidence mentions a command, the Plan"
@@ -32,8 +33,6 @@ WORKER = (
     "run each precise command of the Plan as written; if the Plan's command"
     " cannot show its row, change the Plan first and ask for its review."
 )
-PLAN_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN)
-EXECUTION_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
 PLAN_RUNNING = (
     brief.Kind.NEW_PR,
     brief.Kind.FIRST_ROUND,

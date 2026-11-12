@@ -8,18 +8,20 @@ from typing import NoReturn, Sequence
 from gather.commands import add_argument
 
 from . import (
-    commanddoc,
-    commandtext,
     ENTRY_DATA,
     blockers,
     brief,
     checkin,
+    commanddoc,
     commandscan,
+    commandtext,
     configfile,
+    configloads,
     donewhen,
     draftrule,
     fixes,
     flake,
+    hopedfigure,
     ledger,
     mergedworktree,
     nextguide,
@@ -127,6 +129,8 @@ def _say_missing_names(found: Context, ticket: str) -> None:
     said = donewhen.missing_line(ticket, body, known)
     if said:
         print(said)
+    for each in hopedfigure.findings(body):
+        print(each)  # keyword: hoped-figure (T419)
     if repeated := repeatruns.line(ticket, donewhen.section(body)):
         print(repeated)  # keyword: repeat-runs (pitboss#278)
     for each in nextguide.done_when_lines(ticket, body):
@@ -150,7 +154,7 @@ def _check_workflow(found: Context) -> str | None:
 def _unmarked(found: Context, ticket: str) -> str:
     # keyword: flake (pitboss#278): the line is empty when the test is marked
     tree = working_directory(found.args)
-    globs = configfile.load_brief(configfile.named(found.args), tree).quarantine_globs
+    globs = configloads.load_brief(configfile.named(found.args), tree).quarantine_globs
     return flake.unmarked_line(ticket, tree, globs)
 
 

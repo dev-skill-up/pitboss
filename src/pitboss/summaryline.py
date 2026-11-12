@@ -4,7 +4,7 @@ import datetime
 import subprocess
 from typing import Sequence
 
-from . import concurrently, config, ghapi, parsing, rulingsummary
+from . import concurrently, config, configrepos, ghapi, parsing, rulingsummary
 
 
 def _feed(
@@ -12,7 +12,7 @@ def _feed(
 ) -> Sequence[rulingsummary.Ruling]:
     # The repository's comments of every PR (open, merged or closed) and issue.
     query = f"?since={since}" if since else ""
-    repos = config.repositories(settings)
+    repos = configrepos.repositories(settings)
     found = concurrently.each(
         lambda repo: ghapi.pages(
             github, f"repos/{repo.slug}/issues/comments{query}", parsing.comments

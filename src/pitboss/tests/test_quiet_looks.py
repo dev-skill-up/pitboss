@@ -64,7 +64,7 @@ class TestRecordedLooks(unittest.TestCase):
             if draft:
                 here.bodies[f"{world.PROJECT}/pulls/3"] = fakes.pull_body(3, draft=True)
             first = world.again(here, command, "--now", helpers.at(0))
-            said = (helpers.FIRST_LOOK in first.out, "PRESSURE" in first.out)
+            said = (helpers.FIRST_LOOK in first.out, "PRESSURE:" in first.out)
             assert_that(said, equal_to((command == "sweep",) * 2))
             assert_that(helpers.lines(here), equal_to([f"{helpers.at(0)} none"]))
             assert_that(helpers.exit_code(here, "pressure", 15), equal_to(0))

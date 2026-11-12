@@ -5,7 +5,8 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import brief, brieftextci
-from .briefmake import has_none, pinned, text
+from .briefmake import pinned, text
+from .says import has_none
 
 SENTENCE = (
     "Number the Plan rows with every command row first and the CI-pointer rows"

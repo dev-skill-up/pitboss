@@ -4,7 +4,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string
 
-from .briefmake import has_none, text
+from .briefmake import text
+from .says import has_none
 from ..brief import Kind
 
 REPOSITORIES = [

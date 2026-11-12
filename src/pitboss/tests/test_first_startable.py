@@ -10,7 +10,7 @@ from . import fakes
 from .rankworld import blocked_world
 from .test_slot_commands import next_output
 from .test_not_the_head import QUEUE, fill
-from .test_owner_repositories import lines_of
+from .ownerbodies import lines_of
 from .test_slots_watch import worker
 from .transcripts import write
 

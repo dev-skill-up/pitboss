@@ -7,6 +7,8 @@ from hamcrest import assert_that, equal_to
 
 from .. import evidence, expansion
 from .linting import RAN as GENERATED
+from .linting import block
+from .formchecks import typed_at
 
 TYPED = "```\n$ nox -s tests\nOK\n```\n"
 FORGED = TYPED.replace("```\n", "```pitboss-expand sha256=0000000000000000\n", 1)
@@ -116,8 +118,7 @@ CASES: Mapping[str, tuple[str, Sequence[int]]] = {
         [4],
     ),
     "a no-break space in produced output": (
-        "## Evidence\n\n"
-        + expansion.block("cat f", expansion.Outcome(status=0, output="$\u00a0x\n")),
+        "## Evidence\n\n" + block("cat f", "$\u00a0x\n"),
         [],
     ),
 }
@@ -177,7 +178,7 @@ class TestHandTyped(unittest.TestCase):
         """A command row is refused unless it is in a block expand produced."""
         for name, (text, refused) in CASES.items():
             with self.subTest(name):
-                assert_that(evidence.hand_typed(text), equal_to(refused))
+                typed_at(text, refused)
 
 
 class TestSection(unittest.TestCase):

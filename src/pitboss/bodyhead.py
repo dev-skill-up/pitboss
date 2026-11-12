@@ -8,26 +8,16 @@ The module reads no file and calls nothing.
 
 import dataclasses
 import re
+from typing import Sequence
 
-from . import bodydigest, ghapi, ghstore, parsing
+from . import bodydigest, ghapi, ghstore, headline, parsing, shapes
 from .running import Run
 
-LINE = re.compile(r"Head: ([0-9a-f]{40})")
+LINE = headline.LINE
 ENDING = "\r\n"
 
 
-def last_head(body: str) -> str:
-    """The head the last ``Head:`` line of a body names.
-
-    Args:
-        body: the PR body.
-
-    Returns:
-        The 40 hex digits; empty when the body has no such line.
-    """
-    found = [LINE.fullmatch(each.rstrip()) for each in body.splitlines()]
-    heads = [each.group(1) for each in found if each]
-    return heads[-1] if heads else ""
+last_head = headline.last_head
 
 
 def with_head(body: str, head: str) -> str:
@@ -54,6 +44,34 @@ def with_head(body: str, head: str) -> str:
     return "".join(lines)
 
 
+TRUSTED = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
+APPROVAL = re.compile(r"(?m)^Verdict: approved$")
+REVIEWED = re.compile(r"(?m)^Reviewed: ([0-9a-f]{40})$")
+
+
+def approved_head(comments: Sequence[shapes.Comment]) -> str:
+    """The head the newest approving review of a PR names (keyword: merge-proof).
+
+    ``pwa/CLAUDE.md`` names the reviewed SHA as the first argument of ``bats
+    merge-proof``, not the body's last ``Head:`` line (pitboss#394): a PR merged
+    with main twice has moved its body's head past the review.
+
+    Args:
+        comments: the PR's issue comments.
+
+    Returns:
+        The ``Reviewed:`` SHA of the newest review comment by a trusted author
+        that says ``Verdict: approved``; empty when no review does.
+    """
+    reviews = [
+        (each.created_at, REVIEWED.search(each.body))
+        for each in comments
+        if each.author_association in TRUSTED and APPROVAL.search(each.body)
+    ]
+    named = [(when, found.group(1)) for when, found in reviews if found]
+    return max(named, default=("", ""))[1]
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Moved:
     """What the move of a PR's body to its head gave.
@@ -62,11 +80,14 @@ class Moved:
         old: the head the body named before.
         new: the head now.
         digest: the digest of the new body.
+        reviewed: the head the newest approving review names, empty when none
+            does (pitboss#394).
     """
 
     old: str
     new: str
     digest: str
+    reviewed: str = ""
 
 
 def _api(read: Run, write: Run) -> ghapi.GitHub:
@@ -90,5 +111,13 @@ def move(read: Run, write: Run, path: str) -> Moved | None:
     new = with_head(pull.body, pull.head.sha) if old else pull.body
     if old and new != pull.body:
         ghstore.set_body(github, path, new)
-    found = Moved(old=old, new=pull.head.sha, digest=bodydigest.digest(new))
+    posted = ghapi.pages(
+        github, path.replace("/pulls/", "/issues/") + "/comments", parsing.comments
+    )
+    found = Moved(
+        old=old,
+        new=pull.head.sha,
+        digest=bodydigest.digest(new),
+        reviewed=approved_head(posted),
+    )
     return found if old else None

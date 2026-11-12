@@ -5,6 +5,7 @@ reviewed code change.
 """
 
 from . import noxrow
+from .envrules import LIMIT
 
 PLAN_NO_NOX_ROW = noxrow.SENTENCE  # keyword: plan-nox (pitboss#251)
 PLAN_NO_NOX = (
@@ -29,8 +30,9 @@ PLAN_POINTER_LAST = (
 )
 PLAN_CI_POINTER = (
     "CI pointer: a Plan row whose result a CI run of the commit shows asks for no"
-    " long local command (a whole suite or build, or anything over `timeout"
-    " 598`); it points to CI and names the workflow, the step of the run's log, a"
+    " long local command (a whole suite or build, or anything over `timeout "
+    + LIMIT
+    + "`); it points to CI and names the workflow, the step of the run's log, a"
     " greppable string that step prints (a test name or a line), and how the run"
     " is found for the commit (the run and job URL `actions` gives for the head)."
     " Evidence in the PR body is only for what CI does not show (pitboss#179)."
@@ -44,7 +46,9 @@ BODY_CI_POINTER = (
 )
 PLAN_CI_POINTER_REVIEW = (
     "CI pointer: a Plan row that asks for a long local command (a whole suite or"
-    " build, or anything over `timeout 598`) whose result a CI run of the commit"
+    " build, or anything over `timeout "
+    + LIMIT
+    + "`) whose result a CI run of the commit"
     " shows is changes needed; so is a row that points to CI without the"
     " workflow, the step, a greppable string and how the run is found for the"
     " commit (pitboss#179)."
@@ -68,4 +72,25 @@ E2E = (
     " whose CI skips e2e, the run dispatched on its branch (`RUN E2E BEFORE"
     " APPROVAL`). A head with no complete run is `NOT STARTED: e2e has not run at"
     " {head}`, not a verdict (pitboss#199)."
+)
+
+QUARANTINE_REVIEW = (
+    "Quarantine check: a PR that names a failing test needs the line `Quarantine:`"
+    " in its body (the mark that quarantines it at its p0 ticket, or `none`), and"
+    " the review has a line that starts with `Quarantine check:` saying it was read."
+    " Race check: a PR that fixes a race needs `Race:`, `Root cause:`, `Injection:`"
+    " and `CI run: <URL>` lines, and the review has a line that starts with"
+    " `Race check:` saying each was read; no new fixed wait or sleep in the tests"
+    " (keyword: quarantine-race, T53)."
+)
+
+
+PLAN_CHECK = (
+    "Plan check: before you approve a Plan, the PR needs a"
+    " comment whose first line is `Plan check` and whose last line is `Plan check:"
+    " ok`, the output of `uvx pitboss plan-check <body file>` for this Plan (its"
+    " `Plan digest:` line is the one you record); without it, or with a row that"
+    " it says was NOT RUN (a command that cannot start, that waits on a lock or a"
+    f" queue, or that exceeds `timeout {LIMIT}`), the Plan is changes needed and"
+    " you do not approve it (keyword: plan-check, pitboss#192)."
 )

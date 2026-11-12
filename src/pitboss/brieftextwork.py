@@ -4,11 +4,17 @@ Like those of ``brieftext``, they are pinned by tests, so a change to them is a
 reviewed code change.
 """
 
-from . import brieftextbody, brieftextowner
+from typing import Mapping
+
+from . import briefkind, brieftext as text, brieftextbody, brieftextfix, brieftextowner
+from .envrules import LIMIT
 
 NOX = (
-    "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
-    " each push and when you need feedback, once for a head (the skills, lint and"
+    "Nox: where the checks are nox sessions, run `timeout "
+    + LIMIT
+    + " pitboss nox` before"
+    " a push, at most once per head, after the last edit (a maximum, not a"
+    " target; the skills, lint and"
     " mypy first, then the tests of one Python version, which stop at the first"
     " failing test; it stops at the first failing session and always uses `-r`); a"
     " targeted test module, `nox -s ...` or `virtue` is never run by hand,"
@@ -18,7 +24,7 @@ NOX_ORDER = (
     "Nox order: where the checks are nox sessions, never invoke `virtue` or"
     " `python -m virtue` by hand: the nox session is the way to run tests. Start"
     " nothing in the background that needs polling: use one foreground command"
-    " under `timeout 598`, or one `Monitor` with an `until` loop."
+    " under `timeout " + LIMIT + "`, or one `Monitor` with an `until` loop."
 )
 FIRST_DESIGN = (
     "First design: throwing away a first design is acceptable and is not a thing"
@@ -38,6 +44,25 @@ TASK_ADD_CI_QUOTES = (
     " the head, the step and a greppable string that step prints), as the CI"
     " pointer rule says; paste no log output. Change nothing else; the Plan is"
     " approved (pitboss#277)."
+)
+TASK_REFRESH_BODY = (
+    "Task: PR {reference}: its body names an older head than the PR's (the last"
+    " `Head:` line, or an Evidence block expanded at another commit), so `text-lint`"
+    " is red. Run `uvx pitboss body-head {reference}` (it adds the `Head:` line for"
+    " the head and changes nothing else) and `uvx pitboss expand` again for each"
+    " stale Evidence block, then `uvx pitboss lint pr-body BODYFILE` on the body as"
+    " `gh api` prints it, which must print ok. Change no code (keyword: stale-head,"
+    " quire#1115)."
+)
+TASK_SHARED_RED = (
+    "Task: PR {reference}: its failed check is red on other PRs of the repository"
+    " (or on main) with the same first error line, so the cause is shared (the"
+    " SHARED RED line of `pitboss sweep` names the check, the PRs and the line)."
+    " Fix no PR: search the open tickets for the check name, and file ONE ticket"
+    " against the shared cause (a stale pin, a stale lock or a runner outage is"
+    " the cause, not any PR), or add the PRs to the ticket that exists, then stop."
+    " Each PR goes back to its own step when the shared red is closed (keyword:"
+    " shared-red)."
 )
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
@@ -77,3 +102,45 @@ SENTENCES = (
     brieftextowner.OWNER,
     *brieftextbody.SENTENCES,
 )
+TASK_FIX_BLOCKED_BY = (
+    "Task: PR {reference}: its `Blocked-by:` lines name a loop (each PR waits for"
+    " the next) or a blocker that closed without merging (the `BLOCKER LOOP` or"
+    " `BLOCKER GONE` line of `pitboss sweep` names it). Correct the lines of the"
+    " body: drop the one that is wrong, or name the PR or ticket that now carries"
+    " the change, then `uvx pitboss lint pr-body BODYFILE` on the body as `gh api`"
+    " prints it must print ok. Change no code (keyword: blocked-by)."
+)
+TASK_AFTER_BLOCKER = (
+    "Task: PR {reference}: the PRs it was blocked by have merged since its red check"
+    " finished (the `BLOCKER MERGED` line). Merge the base into the branch, check,"
+    " push (never rewrite history), then `uvx pitboss body-head {reference}`: CI"
+    " runs again on the new head (keyword: blocked-by)."
+)
+TASK_FINISH_PARTIAL = (
+    "Task: PR {reference}: a worker handed it back unfinished and nothing offered it"
+    " again (the FINISH PARTIAL line of `pitboss sweep` names what is missing). Resume"
+    " this PR on its own branch, never a new one: do what the line says (post the"
+    " `uvx pitboss plan-check`, fix the body until `uvx pitboss lint pr-body BODYFILE`"
+    " prints ok, push the unpushed commits), change nothing else, then stop with the"
+    " hand-back (keyword: finish-partial)."
+)
+
+Kind = briefkind.Kind
+TASKS: Mapping[Kind, str] = {
+    Kind.NEW_PR: text.TASK_NEW_PR,
+    Kind.FIRST_ROUND: text.TASK_FIRST_ROUND,
+    Kind.REVISE_PLAN: text.TASK_REVISE_PLAN,
+    Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
+    Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
+    Kind.FIX_CI: text.TASK_FIX_CI,
+    Kind.RESOLVE_CONFLICT: brieftextfix.TASK_RESOLVE_CONFLICT,
+    Kind.RULING_STEPS: text.TASK_RULING_STEPS,
+    Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
+    Kind.RUN_PLAN: TASK_RUN_PLAN,
+    Kind.ADD_CI_QUOTES: TASK_ADD_CI_QUOTES,
+    Kind.REFRESH_BODY: TASK_REFRESH_BODY,
+    Kind.SHARED_RED: TASK_SHARED_RED,
+    Kind.FIX_BLOCKED_BY: TASK_FIX_BLOCKED_BY,
+    Kind.AFTER_BLOCKER: TASK_AFTER_BLOCKER,
+    Kind.FINISH_PARTIAL: TASK_FINISH_PARTIAL,
+}

@@ -6,12 +6,13 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, brieftextowner, brieftextwork, report
+from .. import brief, brieftextowner, brieftextrules, brieftextwork, report
 from . import fakes, world
 from .briefmake import OWNER, pinned
 from .test_evidence_rules import words
 from .test_commands import sweep
 from .test_deviations import WORKERS
+from .says import ended, says
 
 WORKER_ACTIONS = (
     "Worker actions: a statement about what a worker did is made from the output"
@@ -54,7 +55,8 @@ class TestTheSentenceIsInThreeTexts(unittest.TestCase):
         where = fakes.directory()
         settings = fakes.settings(where, '[sweep]\nreminders = ["one"]\n')
         lines = report.reminder_lines(settings)
-        wanted = [f"SWEEP REMINDER: {each}" for each in (OWNER, WORKER_ACTIONS, "one")]
+        kept = (OWNER, WORKER_ACTIONS, *brieftextrules.REMINDERS, "one")
+        wanted = [f"SWEEP REMINDER: {each}" for each in kept]
         assert_that(lines, equal_to(wanted))
 
 
@@ -196,5 +198,5 @@ class TestWorkerActions(unittest.TestCase):
             ("pattern", [path.as_posix(), "("]),
         ):
             found = world.invoke(world.make_world(), "worker-actions", *argv)
-            assert_that((found.code, found.out), equal_to((2, "")))
-            assert_that(found.err, contains_string(name))
+            ended(found, 2, "")
+            says(found.err, name)

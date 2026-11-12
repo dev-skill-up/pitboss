@@ -5,10 +5,12 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextnote, brieftextwork, deviations
-from . import fakes, world
+from . import world
 from .briefmake import text
+from .handbackrun import saved
 from .handbackworld import ready
 from .test_evidence_rules import words
+from .says import ended
 
 EXECUTION_REVIEWS = {brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION}
 WORKERS = (
@@ -40,20 +42,6 @@ WITH_LINE = "PR 5\nhead abc\nDeviations: two `sed -i` runs, one `rm`\n"
 WITH_NONE = "PR 5\nhead abc\nDeviations: none\n"
 WITHOUT_LINE = "PR 5\nhead abc\nI used the Edit tool.\n"
 EMPTY_LINE = "PR 5\nDeviations:\n"
-
-
-def saved(handback: str) -> str:
-    """Save a hand-back to a file.
-
-    Args:
-        handback: the hand-back text.
-
-    Returns:
-        The file's name.
-    """
-    path = fakes.directory() / "handback.txt"
-    path.write_text(handback, encoding="utf-8")
-    return path.as_posix()
 
 
 class TestTheBriefs(unittest.TestCase):
@@ -139,7 +127,7 @@ class TestTheHandBack(unittest.TestCase):
         """A heredoc or `sed` edit, a virtualenv, a file or a fetch: `none`."""
         assert_that(deviations.not_started(HARMLESS), equal_to(""))
         found = checked(HARMLESS)
-        assert_that((found.code, found.out), equal_to((0, "ok\n")))
+        ended(found, 0, "ok\n")
 
     def test_without_the_line_it_is_not_started(self) -> None:
         """Only a line that says something passes."""

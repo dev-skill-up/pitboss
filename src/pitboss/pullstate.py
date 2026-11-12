@@ -56,10 +56,10 @@ def next_step(pull: pulls.PullFacts) -> str:
         (a refused Plan check quotes its findings).
     """
     category = work.category_of(pull)
-    if category is work.Category.REVIEW and pull.step.on_base:
+    if category in work.REVIEWS and pull.step.on_base:
         return steps.REQUEST_REVIEW  # keyword: fixed-on-base (pitboss#314)
     if category is not None:
-        return work.CATEGORY_WORDS[category]
+        return work.CATEGORY_WORDS[category] + pull.step.reason
     if pull.step.step is steps.Step.WAIT_FOR_CI:
         return "waiting for CI at this head"
     return steps.describe(pull.step)

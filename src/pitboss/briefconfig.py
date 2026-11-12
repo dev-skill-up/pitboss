@@ -16,7 +16,7 @@ class Brief:
             example the path of the compiler).
         review_lines: facts of the project every review brief states.
         no_drafts: the repositories whose PRs open ready whatever ``drafts``
-            says, as the file names them (``configfile.load_brief`` completes
+            says, as the file names them (``configloads.load_brief`` completes
             them; keyword: pitboss-exempt, pitboss#113).
         flake_worker_lines: lines a worker brief adds for a p0 ticket about a
             failing test, before ``worker_lines`` (keyword: flake, pitboss#278).

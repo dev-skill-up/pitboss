@@ -75,7 +75,7 @@ def _mark(
     )
     ticket = fixes.of_pull(pull)
     item = dataclasses.replace(rounds.get(reference, idle), ticket=ticket)
-    waits = blockers.pull_waits(found.github, found.settings, reference, ticket)
+    waits = blockers.pull_waits(found.github, found.settings, pull, ticket)
     if waits is None:
         return item
     refused = blockers.refusal_blockers(found.github, found.settings, reference, ticket)

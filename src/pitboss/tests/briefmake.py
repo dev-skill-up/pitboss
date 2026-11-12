@@ -3,14 +3,45 @@
 import dataclasses
 from typing import Sequence, TypeVar
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import brief, briefconfig
+from .says import has_all
 
 HEAD = "3" * 40
 APPROVED = "2" * 40
 PROJECT = briefconfig.Brief(drafts=True, holds=True, worker_lines=(), review_lines=())
 FORM = ("## Review", f"Reviewed: {HEAD}", "Verdict: <approved or changes needed>")
+GRADES = (
+    "Grade lines: write exactly these lines beside the form's, with the one word"
+    " of the `Verdict:` line, first on the line after the colon (`approved` or"
+    " `changes needed`); the sweep reads no other spelling, `Plan: ok` or"
+    " `Plan: LGTM` grades nothing and is no approval, and a review that lacks a"
+    " line below is not counted (the sweep says REVIEW UNREAD) and is offered"
+    " again:"
+)
+
+
+def fixed_grades(kind: str) -> Sequence[str]:
+    """The grade lines of a brief that fixes the Plan line.
+
+    Args:
+        kind: the ``--review-kind`` word.
+
+    Returns:
+        The lines.
+    """
+    return (
+        GRADES,
+        "    Plan: approved (fixed)",
+        "    Execution: <approved or changes needed>",
+        "Check before you post: save the comment to a file and run `uvx pitboss"
+        f" lint review` and its arguments `FILE --head {HEAD} --plan-approved"
+        f" --review-kind {kind}`; post it only when it prints nothing. A comment"
+        " posted unchecked can be one the sweep does not read.",
+    )
+
+
 GOAL = "ticket o/r#7: Do the thing"
 BODY_DIGEST = "d" * 16
 PLAN_DIGEST = "e" * 16
@@ -46,6 +77,8 @@ COMMITS = brief.Heads(
     plan_digest=PLAN_DIGEST,
 )
 RULES = brief.Rules(config="proj", form=FORM, project=PROJECT)
+PLAN_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN)
+EXECUTION_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
 
 Part = TypeVar("Part", brief.Subject, brief.Heads, brief.Rules)
 
@@ -85,28 +118,6 @@ def text(kind: brief.Kind, **changes: object) -> str:
         The text.
     """
     return brief.build(make(kind, **changes))
-
-
-def has_all(found: str, wanted: Sequence[str]) -> None:
-    """Check that a text contains each wanted text.
-
-    Args:
-        found: the text.
-        wanted: the texts it must contain.
-    """
-    for each in wanted:
-        assert_that(found, contains_string(each))
-
-
-def has_none(found: str, unwanted: Sequence[str]) -> None:
-    """Check that a text contains none of the unwanted texts.
-
-    Args:
-        found: the text.
-        unwanted: the texts it must not contain.
-    """
-    for each in unwanted:
-        assert_that(each in found, equal_to(False))
 
 
 def pinned(kind: brief.Kind, wanted: Sequence[str], **changes: object) -> None:

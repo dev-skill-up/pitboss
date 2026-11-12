@@ -5,7 +5,16 @@ import dataclasses
 import pathlib
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import config, configfile, gates, ghapi, ledger, ownerrepos
+from . import (
+    config,
+    configfile,
+    configloads,
+    configrepos,
+    gates,
+    ghapi,
+    ledger,
+    ownerrepos,
+)
 from .markers import Marker
 
 
@@ -122,7 +131,7 @@ def read(
         What can be swept, and what could not be read.
     """
     settings = configfile.load(name, start)
-    left_out = configfile.load_exclude(name, start, settings.project.repo.owner)
+    left_out = configloads.load_exclude(name, start, settings.project.repo.owner)
     return readable(github, settings, left_out, gated)
 
 
@@ -132,7 +141,7 @@ def _unlisted(settings: config.Config, seen: AbstractSet[str]) -> Sequence[str]:
     shared = settings.runners.repositories
     return [
         repo.slug
-        for repo in (*config.repositories(settings), *shared)
+        for repo in (*configrepos.repositories(settings), *shared)
         if repo.slug not in seen
     ]
 

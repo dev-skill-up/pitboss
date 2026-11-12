@@ -9,10 +9,11 @@ import json
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, starts_with
 
 from .. import (
     config,
+    finishpartial,
     parsing,
     pulls,
     queue,
@@ -23,103 +24,33 @@ from .. import (
     steps,
     tasklist,
 )
-from . import fakes, test_work, world
+from . import fakes, pressureworld, quietworld, test_work, world
+from .queueworld import (
+    DISABLED,
+    ENABLED,
+    FAILED_JOB,
+    PASSED_JOB,
+    QUEUE_BRANCH,
+    project_page,
+    removed_world,
+)
 from .test_commands import sweep
 
 ADDED = {"event": "added_to_merge_queue", "created_at": "2029-12-31T22:44:11Z"}
 REMOVED = {"event": "removed_from_merge_queue", "created_at": "2029-12-31T23:28:52Z"}
 ADDED_AGAIN = {"event": "added_to_merge_queue", "created_at": "2029-12-31T23:40:00Z"}
+DROPPED_LINE = "DROPPED FROM QUEUE owner/project#2: 2029-12-31T23:30:00Z, "
+WAIT_LINE = "WAIT-FOR-HOLD owner/project#2: a runner-pressure hold or its quiet period"
 LABELED = {"event": "labeled", "created_at": "2029-12-31T20:00:00Z"}
 COMMITTED = {"event": "committed"}
-QUEUE_BRANCH = "gh-readonly-queue/main/pr-2-"
-MERGE_QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 REMOVED_LINE = "REMOVED FROM QUEUE owner/project#2: 2029-12-31T23:28:52Z, "
 FAILED_TEXT = (
     "failed job of its last queue run: android / build-android: Fetch dependencies"
 )
 READY_LINE = "READY TO MERGE owner/project#2: arm auto-merge"
 STANDARD_LINE = READY_LINE + " or merge"
-FAILED_JOB = {
-    "name": "android / build-android",
-    "conclusion": "failure",
-    "steps": [
-        {"name": "Set up job", "conclusion": "success"},
-        {"name": "Fetch dependencies", "conclusion": "failure"},
-    ],
-}
-PASSED_JOB = {"name": "check / check", "conclusion": "success", "steps": []}
 CANCELLED_JOB = {"name": "android / build-android", "conclusion": "cancelled"}
 BARE_FAILED_JOB = {"name": "check / test", "conclusion": "failure"}
-
-
-def project_page(path: str, number: int = 1) -> str:
-    """The paged path of a list under the project.
-
-    Args:
-        path: the list's path under the project.
-        number: the page.
-
-    Returns:
-        The path ``ghapi.pages`` asks for.
-    """
-    return fakes.page(f"{world.PROJECT}/{path}", number)
-
-
-def _run(identifier: int, branch: str, minute: int) -> dict[str, object]:
-    return {
-        "id": identifier,
-        "status": "completed",
-        "conclusion": "failure",
-        "created_at": f"2029-12-31T23:{minute:02d}:00+00:00",
-        "head_branch": QUEUE_BRANCH + branch,
-    }
-
-
-def queue_bodies(
-    events: Sequence[object], jobs: Sequence[object]
-) -> Mapping[str, object]:
-    """The timelines, queue runs and jobs of the world.
-
-    Args:
-        events: the timeline of PR 2.
-        jobs: the jobs of its last group's first run.
-
-    Returns:
-        The canned bodies.
-    """
-    runs = {
-        "workflow_runs": [_run(11, "old", 10), _run(12, "new", 28), _run(13, "new", 29)]
-    }
-    pages = [
-        ("issues/1/timeline", []),
-        ("issues/2/timeline", list(events)),
-        ("issues/3/timeline", []),
-        ("actions/runs?event=merge_group", runs),
-        ("actions/runs/12/jobs", {"jobs": jobs}),
-        ("actions/runs/13/jobs", {"jobs": [PASSED_JOB]}),
-    ]
-    return fakes.bodies_under(world.PROJECT, pages)
-
-
-def removed_world(
-    events: Sequence[object],
-    jobs: Sequence[object],
-    extra: str = MERGE_QUEUE,
-) -> world.World:
-    """A world whose approved, green, clean PR 2 has a queue timeline and runs.
-
-    Args:
-        events: the timeline of PR 2.
-        jobs: the jobs of its last group's first run.
-        extra: more TOML appended to the configuration.
-
-    Returns:
-        The world.
-    """
-    here = world.make_world()
-    here.bodies.update(queue_bodies(events, jobs))
-    fakes.settings(here.workspace, world.EXTRA.format(ledger=here.ledger) + extra)
-    return here
 
 
 def lines_of(here: world.World) -> Sequence[str]:
@@ -129,13 +60,15 @@ def lines_of(here: world.World) -> Sequence[str]:
         here: the world.
 
     Returns:
-        The lines that start with a marker and name the PR, without its summary.
+        The lines that name the PR, without its summary and the finishing line.
     """
     return [
         line
         for line in sweep(here).out.splitlines()
         if "owner/project#2" in line
-        and not line.startswith(("owner/project#2 [", tasklist.LABEL))
+        and not line.startswith(
+            ("owner/project#2 [", tasklist.LABEL, finishpartial.PREFIX)
+        )
     ]
 
 
@@ -151,16 +84,17 @@ class TestSweep(unittest.TestCase):
     def test_removal_with_no_failed_job_is_cancelled_by_the_queue(self) -> None:
         """No job failed in the run: it says cancelled by the queue."""
         here = removed_world([ADDED, REMOVED], [PASSED_JOB, CANCELLED_JOB])
-        expected = REMOVED_LINE + (
-            "no failed job in its last queue run: cancelled by the queue"
+        expected = (
+            REMOVED_LINE + "no failed job in its last queue run: cancelled by the queue"
         )
         assert_that(lines_of(here), equal_to([expected, READY_LINE]))
 
     def test_a_failed_job_with_no_failed_step(self) -> None:
         """A failed job whose steps were not read says so."""
         here = removed_world([ADDED, REMOVED], [BARE_FAILED_JOB])
-        expected = REMOVED_LINE + (
-            "failed job of its last queue run: check / test: no failed step read"
+        expected = (
+            REMOVED_LINE
+            + "failed job of its last queue run: check / test: no failed step read"
         )
         assert_that(lines_of(here), equal_to([expected, READY_LINE]))
 
@@ -183,6 +117,7 @@ class TestSweep(unittest.TestCase):
             for events in ([], [COMMITTED, LABELED], [REMOVED], [ADDED])
         ]
         assert_that(found, equal_to([[], [], [], []]))
+        assert_that(removedline.removed_at([]), equal_to(None))
 
     def test_a_repository_without_a_queue_reads_no_timeline(self) -> None:
         """Outside ``[merge_queue] repositories`` the timeline is not asked for."""
@@ -264,6 +199,74 @@ class TestStanding(unittest.TestCase):
         """A PR nobody reviewed is not told to arm auto-merge."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
         assert_that(lines_of(reviewed(here, [])), equal_to([ALONE]))
+
+
+held = pressureworld.held
+
+
+class TestDropped(unittest.TestCase):
+    """A PR armed and then dropped with no removal is named and re-armed.
+
+    Quire#1110.
+    """
+
+    def test_c26_a_pr_whose_auto_merge_was_switched_off_is_dropped_from_the_queue(
+        self,
+    ) -> None:
+        """Enabled, then disabled, not in the queue and not merged."""
+        here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
+        found = lines_of(here)
+        assert_that(found[0], starts_with(DROPPED_LINE))
+        assert_that(found[1:], equal_to([READY_LINE]))
+
+    def test_c26_a_removal_is_a_removal_even_when_auto_merge_was_switched_off_too(
+        self,
+    ) -> None:
+        """The queue's own removal event is the cause that is named."""
+        here = removed_world([ADDED, REMOVED, DISABLED], [FAILED_JOB])
+        assert_that(lines_of(here)[0].startswith(REMOVED_LINE), equal_to(True))
+
+    def test_c26_a_pr_armed_again_after_the_switch_off_is_not_dropped(self) -> None:
+        """The newest arming ends the drop."""
+        here = removed_world([ENABLED, DISABLED, ADDED_AGAIN], [FAILED_JOB])
+        assert_that(lines_of(here), equal_to([STANDARD_LINE]))
+
+    def test_c26_a_switched_off_auto_merge_of_an_unapproved_head_is_not_a_drop(
+        self,
+    ) -> None:
+        """A push turns auto-merge off; a head nobody approved has nothing to re-arm."""
+        here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
+        assert_that(lines_of(reviewed(here, [])), equal_to([]))
+
+    def test_c26_the_hold_withholds_the_re_arm_and_says_wait(self) -> None:
+        """During the hold the line is WAIT-FOR-HOLD, never the arm."""
+        here = held(removed_world([ENABLED, DISABLED], [FAILED_JOB]))
+        found = lines_of(here)
+        assert_that(found[0], starts_with(DROPPED_LINE))
+        assert_that(len(found), equal_to(2))
+        assert_that(found[1], starts_with(WAIT_LINE))
+        assert_that(READY_LINE in found, equal_to(False))
+
+    def test_c26_the_hold_withholds_the_re_arm_of_a_removal_too(self) -> None:
+        """A removal's act is gated like the drop's."""
+        here = held(removed_world([ADDED, REMOVED], [FAILED_JOB]))
+        found = lines_of(here)
+        assert_that(
+            [READY_LINE in found, found[-1].startswith(WAIT_LINE)],
+            equal_to([False, True]),
+        )
+
+    def test_c26_the_re_arm_is_offered_again_once_the_hold_ends(self) -> None:
+        """The same PR, the record clear: the arm line is there."""
+        here = held(removed_world([ENABLED, DISABLED], [FAILED_JOB]))
+        assert_that(lines_of(quietworld.at_rest(here))[1:], equal_to([READY_LINE]))
+
+    def test_c26_the_hold_withholds_a_ready_pr_and_a_behind_pr_alike(self) -> None:
+        """READY TO MERGE and AUTO MERGE OFF are not offered during the hold."""
+        here = held(removed_world([], []))
+        found = lines_of(here)
+        assert_that(found, equal_to([found[0]]))
+        assert_that(found[0], starts_with(WAIT_LINE))
 
 
 class TestUnits(unittest.TestCase):

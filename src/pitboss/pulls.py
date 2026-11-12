@@ -11,6 +11,7 @@ from . import (
     concurrently,
     config,
     conflicts,
+    expansion,
     dispatchruns,
     draftfacts,
     earlyfound,
@@ -23,9 +24,12 @@ from . import (
     parsing,
     pinsask,
     pullfiles,
+    pullref,
     pullsource,
     relock,
     reviews,
+    reviewunread,
+    rulingreason,
     rounds,
     shapes,
     steps,
@@ -69,6 +73,10 @@ class PullFacts:
     relock: bool = False
 
 
+reference = pullref.reference
+failed_checks = pullref.failed_checks
+
+
 def unhealthy(facts: PullFacts) -> bool:
     """Whether the PR has a failed check, a conflict or is a draft.
 
@@ -79,30 +87,6 @@ def unhealthy(facts: PullFacts) -> bool:
         True when it is any of them.
     """
     return bool(failed_checks(facts)) or conflicted(facts) or facts.pull.draft
-
-
-def reference(facts: PullFacts) -> str:
-    """The PR's ``owner/name#number``.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        The reference.
-    """
-    return f"{facts.repo.slug}#{facts.pull.number}"
-
-
-def failed_checks(facts: PullFacts) -> Sequence[shapes.CheckRun]:
-    """The head's failed checks.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        The checks.
-    """
-    return [check for check in facts.checks if check.failed]
 
 
 def pending(facts: PullFacts) -> int:
@@ -156,16 +140,28 @@ def conflicted(facts: PullFacts) -> bool:
 
 
 def approved(facts: PullFacts) -> bool:
-    """Whether the head's review approves it.
+    """Whether the head's review approves it, no ruling having voided it.
 
     Args:
         facts: the PR.
 
     Returns:
-        True when approved.
+        True when approved (keyword: ruling-voids, pitboss#467).
     """
     counted = (reviews.Standing.APPROVED, reviews.Standing.APPROVED_BEFORE_MERGES)
-    return facts.standing in counted
+    return facts.standing in counted and facts.step.task is not steps.Task.RULING_STEPS
+
+
+def at_merge(facts: PullFacts) -> bool:
+    """Whether the PR's step is the merge.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True at the merge.
+    """
+    return facts.step.step is steps.Step.MERGE
 
 
 Source = pullsource.Source
@@ -188,7 +184,9 @@ def _standing(
 ) -> tuple[reviews.Standing, bool]:
     standing = reviews.head_standing(found, pull.head.sha)
     if found and standing is not reviews.Standing.OLDER_HEAD:
-        if bodydigest.changed(found.body, bodydigest.digest(pull.body)):
+        if not expansion.current_for(
+            expansion.Subject.BODY, found.body, bodydigest.digest(pull.body)
+        ):
             standing = reviews.Standing.OLDER_BODY  # keyword: body-digest
     merged = (
         found is not None
@@ -266,13 +264,18 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
             and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
             plan_review_check=source.plan_review_check,
             no_drafts=source.no_drafts(repo.slug),
+            hold=lambda: not source.undraft(),
         ),
     )
 
 
 def _unreadable(
-    source: Source, repo: config.Repo, got: Fetched, found: reviews.Found | None
+    source: Source,
+    repo: config.Repo,
+    got: Fetched,
+    read: tuple[reviews.Found | None, flow.PullState],
 ) -> straycomments.StrayComments:
+    found, state = read
     rules = reviews.rules(source.review, repo.slug)
     seen = (got.posted.comments, source.review.trusted)
     return straycomments.StrayComments(
@@ -280,6 +283,7 @@ def _unreadable(
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
         unanalysed=analysis.unanalysed(*seen),
         premature=earlyfound.newer(got.premature, found.when if found else ""),
+        no_execution=reviewunread.without_execution(state),
     )
 
 
@@ -296,14 +300,25 @@ def _signals(
     # keyword: superseded-pointer (pitboss#317)
     gone = pullfiles.superseded(source.github, repo.slug, got.pull)
     return dataclasses.replace(
-        found, gate=unmet, approved_plans=plans, pins=pins, fixed=got.fixed, gone=gone
+        found,
+        gate=unmet,
+        approved_plans=plans,
+        pins=pins,
+        fixed=got.fixed,
+        gone=gone,
+        hold=state.draft.hold,
     )
 
 
-def _step(state: flow.PullState, signals: headchecks.HeadSignals) -> steps.Next:
+def _step(
+    state: flow.PullState, signals: headchecks.HeadSignals, trusted: AbstractSet[str]
+) -> steps.Next:
     # keyword: fixed-on-base: the flow read the answered failures as passed
     step = pinsask.unreviewed(flow.next_step(state), signals.pins)
-    return dataclasses.replace(step, on_base=bool(signals.fixed))
+    ruled = rulingreason.times(state.comments, trusted, step)  # keyword: ruling-reason
+    return dataclasses.replace(
+        step, on_base=bool(signals.fixed), reason=rulingreason.reason(ruled)
+    )
 
 
 def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
@@ -329,8 +344,8 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         review=found,
         standing=standing,
         signals=signals,
-        unreadable=_unreadable(source, repo, got, found),
-        step=_step(state, signals),
+        unreadable=_unreadable(source, repo, got, (found, state)),
+        step=_step(state, signals, source.review.trusted),
         review_rounds=rounds.of(state, merged),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
     )

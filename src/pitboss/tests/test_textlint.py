@@ -15,6 +15,7 @@ from hamcrest import (
 
 from .fakes import directory
 from .linting import BODY, FOOTER, HEAD, lines, lint, write_text
+from .says import says
 
 URL = "https://example.test/run/1"
 
@@ -111,7 +112,7 @@ class TestStatus(unittest.TestCase):
         phrase = BODY + "\nmy provisional verdict is approved\n"
         _, status, shown = posted(event(phrase))
         _, empty, _ = posted(event(None))
-        assert_that(" ".join(shown), contains_string("provisional verdict"))
+        says(" ".join(shown), "provisional verdict")
         assert_that(status["state"], equal_to("failure"))
         assert_that(empty["description"], contains_string("first-line"))
 
@@ -190,5 +191,5 @@ class TestRefusals(unittest.TestCase):
         ]
         codes = [lint("event", *each).code for each in cases]
         assert_that(codes, equal_to([2, 2, 2]))
-        assert_that(lint("event", *cases[0]).err, contains_string("takes the event"))
-        assert_that(lint("event", *cases[2]).err, contains_string("/no/such/dir"))
+        says(lint("event", *cases[0]).err, "takes the event")
+        says(lint("event", *cases[2]).err, "/no/such/dir")

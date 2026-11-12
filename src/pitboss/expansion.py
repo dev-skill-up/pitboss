@@ -7,9 +7,11 @@ person typed or edited is told from one ``pitboss expand`` produced.
 """
 
 import dataclasses
+import enum
+import functools
 import hashlib
 import re
-from typing import Callable, Sequence
+from typing import Callable, Mapping, Sequence
 
 MARK = "pitboss-expand"
 DIGEST_KEY = "sha256="
@@ -21,6 +23,9 @@ ESCAPED_PROMPT = "\\$ "
 NO_NEWLINE = "\\ No newline at end of output\n"
 MIN_FENCE = 3
 TICKS = re.compile(r"`+")
+RUN_ADDRESS = re.compile(
+    r"(https://github\.com/[\w.-]+/[\w.-]+)/actions/runs/\d+(?:/job/\d+)?"
+)
 
 
 BOM = "﻿"
@@ -214,22 +219,48 @@ def text_digest(text: str) -> str:
     return hashlib.new("sha256", plain.encode("utf-8")).hexdigest()[:DIGEST_LENGTH]
 
 
+def run_urls_dropped(text: str) -> str:
+    """The text with the run and job ids of each Actions address dropped.
+
+    A CI pointer names the run of the head, and ``plan-check`` rewrites the run and
+    job addresses for every head; what the Plan says is the workflow, the job, the
+    step and the string, so a change of those ids alone is no edit of the Plan
+    (keyword: plan-digest-urls, pitboss#475).
+
+    Args:
+        text: any text, a Plan section for one.
+
+    Returns:
+        The text in which ``.../actions/runs/ID`` and ``.../actions/runs/ID/job/ID``
+        are ``.../actions/runs``.
+    """
+    return RUN_ADDRESS.sub(r"\1/actions/runs", text)
+
+
+@functools.cache
 def accepted_digests(text: str) -> Sequence[str]:
     """The digests a record of a Plan section may carry to be of this section.
 
-    The first is the digest of the section with each block ``expand`` produced
-    collapsed to its command (keyword: plan-digest-collapse, pitboss#358). The
-    second is the digest of the section as it is, which records made before the
-    collapse carry: they are accepted for one published version (pitboss#399
-    drops the acceptance).
+    It is the digest of the section with each block ``expand`` produced collapsed
+    to its command (keyword: plan-digest-collapse, pitboss#358) and the run and
+    job ids of its Actions addresses dropped (keyword: plan-digest-urls,
+    pitboss#475). The second is the digest of the section collapsed only, which
+    records made before the ids were dropped carry (it goes with pitboss#475's
+    own removal). The digest of the section as it is, which records made before
+    the collapse carry, is no longer accepted (pitboss#399).
 
     Args:
         text: the section, empty when the body has none.
 
     Returns:
-        Both digests; none for no section.
+        The two digests; none for no section.
     """
-    return [text_digest(collapsed(text)), text_digest(text)] if text else []
+    if not text:
+        return []
+    return [
+        text_digest(run_urls_dropped(collapsed(text))),
+        text_digest(collapsed(text)),
+    ]
 
 
 def section_digest(text: str) -> str:
@@ -255,6 +286,52 @@ def section_changed(recorded: str, text: str) -> bool:
         True when both are given and the digest is none of ``accepted_digests``.
     """
     return bool(text and recorded and recorded not in accepted_digests(text))
+
+
+class Subject(enum.Enum):
+    """What an approval, verdict or check was recorded against (keyword: current-for).
+
+    dev-skill-up/pitboss, bats-lang/quire#1120: a Plan approved at one digest stayed
+    "approved" after the Plan was revised. Every verdict, check or approval the
+    code stores against a digest or a head is read through ``current_for``, so none
+    outlives the subject it was about. An approval of an older head is current only
+    when ``bats merge-proof`` of the reviewed SHA and the head says ``OK``
+    (``mergesonly.carries``); the caller states that proof.
+
+    Attributes:
+        PLAN: the digest of the Plan section.
+        HEAD: the SHA of the PR's head.
+        BODY: the digest of the PR body.
+    """
+
+    PLAN = enum.auto()
+    HEAD = enum.auto()
+    BODY = enum.auto()
+
+
+CURRENT: Mapping[Subject, Callable[[str, str], bool]] = {
+    Subject.PLAN: lambda recorded, now: not section_changed(recorded, now),
+    Subject.HEAD: lambda recorded, now: bool(recorded) and now.startswith(recorded),
+    Subject.BODY: lambda recorded, now: not (now and recorded and recorded != now),
+}
+
+
+def current_for(subject: Subject, recorded: str, now: str) -> bool:
+    """Whether something recorded against a subject is current for it.
+
+    Args:
+        subject: what was recorded against.
+        recorded: the digest or SHA it records, empty when it records none.
+        now: the digest or SHA of the subject now, empty when it is not known.
+
+    Returns:
+        PLAN: not ``section_changed`` (an unrecorded digest counts, as an older
+        review's does; a digest from before the expanded blocks were collapsed
+        counts, keyword: plan-digest-collapse). HEAD: the head starts with the
+        recorded SHA, which must be given. BODY: the two digests do not differ
+        when both are given.
+    """
+    return CURRENT[subject](recorded, now)
 
 
 def _command_of(line: str, number: int) -> str:

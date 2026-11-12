@@ -25,16 +25,24 @@ class Event(enum.Enum):
     Attributes:
         ADDED: the PR entered the queue.
         REMOVED: the queue removed it.
+        ENABLED: auto-merge was armed on it.
+        DISABLED: auto-merge was switched off on it (keyword: dropped-from-queue,
+            quire#1110).
     """
 
     ADDED = enum.auto()
     REMOVED = enum.auto()
+    ENABLED = enum.auto()
+    DISABLED = enum.auto()
 
 
 EVENTS = {
     "added_to_merge_queue": Event.ADDED,
     "removed_from_merge_queue": Event.REMOVED,
+    "auto_merge_enabled": Event.ENABLED,
+    "auto_merge_disabled": Event.DISABLED,
 }
+ARMING = (Event.ADDED, Event.ENABLED)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -45,11 +53,13 @@ class Removal:
         at: when it was removed (ISO 8601).
         runs: how many runs of the PR's last queue group were read.
         failed: the failed jobs of those runs.
+        kind: ``REMOVED``, or ``DISABLED`` for a PR dropped with no removal.
     """
 
     at: str
     runs: int
     failed: Sequence[shapes.JobResult]
+    kind: Event = Event.REMOVED
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -68,22 +78,24 @@ class Said:
     act: str = ""
 
 
-def removed_at(events: Sequence[shapes.TimelineEvent]) -> str | None:
-    """When the queue last removed a PR that it had added, else nothing.
+def removed_at(events: Sequence[shapes.TimelineEvent]) -> tuple[Event, str] | None:
+    """When a PR that was armed or queued lost both, and how.
 
     Args:
         events: the PR's timeline.
 
     Returns:
-        The time of the newest removal when it is the newest queue event and
-        an addition came before it; None otherwise (never queued, queued now
-        or queued again after a removal).
+        ``(REMOVED, time)`` when the queue removed it after the newest arming,
+        ``(DISABLED, time)`` when auto-merge was switched off after it with no
+        removal (the PR was dropped silently); None when it was never armed or
+        queued, or was armed or queued last.
     """
-    queued = [(EVENTS[each.kind], each.at) for each in events if each.kind in EVENTS]
-    kinds = [kind for kind, _ in queued]
-    if kinds[-1:] != [Event.REMOVED] or Event.ADDED not in kinds:
-        return None
-    return queued[-1][1]
+    seen = [(EVENTS[each.kind], each.at) for each in events if each.kind in EVENTS]
+    armed = [at for at, (kind, _) in enumerate(seen) if kind in ARMING]
+    later = seen[armed[-1] + 1 :] if armed else []
+    ends = [(kind, when) for kind, when in later if kind is not Event.DISABLED]
+    off = [(kind, when) for kind, when in later if kind is Event.DISABLED]
+    return (ends or off or [None])[-1]
 
 
 def last_group(
@@ -124,7 +136,9 @@ def _failed_jobs(
     ]
 
 
-def _removed_when(github: ghapi.GitHub, pull: pulls.PullFacts) -> str | None:
+def _removed_when(
+    github: ghapi.GitHub, pull: pulls.PullFacts
+) -> tuple[Event, str] | None:
     events = ghapi.pages(
         github,
         f"repos/{pull.repo.slug}/issues/{pull.pull.number}/timeline",
@@ -133,14 +147,19 @@ def _removed_when(github: ghapi.GitHub, pull: pulls.PullFacts) -> str | None:
     return None if pull.pull.auto_merge else removed_at(events)
 
 
+def _meant_to_merge(pull: pulls.PullFacts) -> bool:
+    return pulls.approved(pull) or pulls.at_merge(pull)
+
+
 def _removal(
     github: ghapi.GitHub, pull: pulls.PullFacts, runs: Sequence[queue.QueueRun]
 ) -> Removal | None:
-    when = _removed_when(github, pull)
-    if when is None:
-        return None
+    ended = _removed_when(github, pull)
+    if ended is None or (ended[0] is Event.DISABLED and not _meant_to_merge(pull)):
+        return None  # a switched-off auto-merge of a head nobody approved is no drop
     group = last_group(runs, pull)
-    return Removal(at=when, runs=len(group), failed=_failed_jobs(github, group))
+    failed = _failed_jobs(github, group)
+    return Removal(at=ended[1], runs=len(group), failed=failed, kind=ended[0])
 
 
 def _job_text(job: shapes.JobResult) -> str:
@@ -155,7 +174,7 @@ def _why(removal: Removal) -> str:
 
 
 def line(pull: pulls.PullFacts, removal: Removal) -> str:
-    """The REMOVED FROM QUEUE line.
+    """The REMOVED FROM QUEUE line, or DROPPED FROM QUEUE for a silent drop.
 
     Args:
         pull: the PR.
@@ -165,7 +184,12 @@ def line(pull: pulls.PullFacts, removal: Removal) -> str:
         The line.
     """
     name = pulls.reference(pull)
-    return f"{Marker.REMOVED_FROM_QUEUE.text} {name}: {removal.at}, {_why(removal)}"
+    marker = (
+        Marker.DROPPED_FROM_QUEUE
+        if removal.kind is Event.DISABLED
+        else Marker.REMOVED_FROM_QUEUE
+    )
+    return f"{marker.text} {name}: {removal.at}, {_why(removal)}"
 
 
 def _unreadable(pull: pulls.PullFacts, error: subprocess.CalledProcessError) -> Said:

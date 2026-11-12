@@ -16,8 +16,9 @@ from typing import Protocol
 from hamcrest import assert_that, equal_to
 
 from .. import noxcheck
-from .briefmake import has_all, has_none
+from .says import has_all, has_none
 from .test_config import EXAMPLE
+from .fakes import write
 
 
 @contextlib.contextmanager
@@ -148,8 +149,8 @@ def things_left(root: pathlib.Path) -> pathlib.Path:
     """
     tmp = pathlib.Path(made_tmp(root))
     (tmp / "world" / "project").mkdir(parents=True)
-    (tmp / "world" / "project" / "file").write_text("x")
-    (tmp / "loose").write_text("y")
+    write(tmp / "world" / "project" / "file", "x")
+    write(tmp / "loose", "y")
     outside = root / "outside"
     outside.mkdir()
     (tmp / "link").symlink_to(outside)
@@ -308,7 +309,7 @@ def run_virtue(root: pathlib.Path, *options: str) -> subprocess.CompletedProcess
     Returns:
         The finished process, standard error joined to standard output.
     """
-    (root / "twotests.py").write_text(FAILING_MODULE)
+    write(root / "twotests.py", FAILING_MODULE)
     return subprocess.run(
         [sys.executable, "-m", "virtue", *options, "twotests"],
         cwd=root,

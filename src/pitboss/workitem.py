@@ -33,10 +33,21 @@ class Category(enum.IntEnum):
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
         ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (a PR; keyword: ci-quotes).
-        WAITING: a PR that is offered for no round (it waits, or its step is a
-            ruling, a merge or an undraft) and whose ticket is blocked by an open
-            ticket: it is only listed as blocked (keyword: blocked-pull,
-            pitboss#388).
+        WAITING: a PR that is offered for no round (it waits, or its step is a ruling, a
+            merge or an undraft) and whose ticket is blocked by an open ticket: it is
+            only listed as blocked (keyword: blocked-pull, pitboss#388).
+        RELOCK_REVIEW: a reviewer checks a relock PR, a mechanical review that
+            ranks after every other item (a PR; keyword: relock-last, B9).
+        REFRESH_BODY: an author rewrites the body's ``Head:`` line for the
+            head (a PR; keyword: stale-head).
+        SHARED_RED: an author files the one ticket for a check that is red on
+            several PRs from one cause (a PR; keyword: shared-red).
+        FIX_BLOCKED_BY: an author corrects the Blocked-by lines of a PR (a loop, or
+            a blocker closed unmerged; keyword: blocked-by).
+        AFTER_BLOCKER: an author merges the base into a PR whose blockers merged
+            (keyword: blocked-by).
+        FINISH_PARTIAL: an author finishes a PR a worker handed back unfinished (a
+            PR; keyword: finish-partial).
     """
 
     FIX_REVIEW = 1
@@ -52,6 +63,12 @@ class Category(enum.IntEnum):
     RUN_PLAN = 12
     ADD_CI_QUOTES = 13
     WAITING = 14
+    RELOCK_REVIEW = 15
+    REFRESH_BODY = 16
+    SHARED_RED = 17
+    FIX_BLOCKED_BY = 18
+    AFTER_BLOCKER = 19
+    FINISH_PARTIAL = 20
 
 
 CATEGORY_WORDS = {
@@ -60,6 +77,7 @@ CATEGORY_WORDS = {
     Category.REVISE_PLAN: "revise the plan",
     Category.REVIEW: "review it (a reviewer that is not its author)",
     Category.REVIEW_FIX_ROUND: "review the fix round's findings only",
+    Category.RELOCK_REVIEW: "review it (a reviewer that is not its author)",
     Category.NEW_PR: "start a PR",
     Category.FIX_CI: "fix the CI (a red CI is no rejection)",
     Category.FIRST_ROUND: "write the Plan and Execution body",
@@ -68,6 +86,11 @@ CATEGORY_WORDS = {
     Category.RULING_AS_GIVEN: "carry out the ruling",
     Category.RUN_PLAN: "run the Plan's commands and fill the Execution",
     Category.ADD_CI_QUOTES: "add the CI quotes to the body",
+    Category.REFRESH_BODY: "rewrite the body's Head line for the head",
+    Category.SHARED_RED: "file one ticket for the red check the PRs share",
+    Category.FIX_BLOCKED_BY: "correct the Blocked-by lines of the body",
+    Category.AFTER_BLOCKER: "merge the base into the branch, the blockers merged",
+    Category.FINISH_PARTIAL: "finish the PR a worker handed back unfinished",
 }
 
 

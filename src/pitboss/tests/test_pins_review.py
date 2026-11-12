@@ -11,6 +11,7 @@ from . import fakes, repositories, world
 from . import gateworld as gate_fixture
 from . import pinsworld as pw
 from .formchecks import subject
+from .says import says
 
 PULL = "owner/project#3"
 COMMENTS = f"POST {world.PROJECT}/issues/3/comments"
@@ -208,7 +209,7 @@ class TestPost(unittest.TestCase):
             assert_that(text, contains_string(part))
         assert_that(text, contains_string(pinsreview.RULING))
         for shown in (text, f"# {POSTED['html_url']}"):
-            assert_that(said.out, contains_string(shown))
+            says(said.out, shown)
 
     def test_the_form_is_the_repositorys_own(self) -> None:
         """A repository with no gate gets the configured form's lines."""
@@ -223,7 +224,7 @@ class TestPost(unittest.TestCase):
         done = review(here)
         assert_that(posts(here), equal_to([]))
         for shown in ("Verdict: approved", "# (dry run: no URL yet)"):
-            assert_that(done.out, contains_string(shown))
+            says(done.out, shown)
 
     def test_no_agent_is_dispatched(self) -> None:
         """The only change the command makes is the one POST."""

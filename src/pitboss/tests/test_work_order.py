@@ -4,7 +4,7 @@ import re
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import unlabeled
 from . import fakes, quietworld, world, worldcomments
@@ -137,9 +137,9 @@ class TestTheWholeOrder(unittest.TestCase):
     def test_the_unlabeled_lines_come_before_the_first_step(self) -> None:
         """After the slot header, only the unlabeled tickets and the rule."""
         shown = next_output(ordered_world()).splitlines()
-        assert_that(shown[0].startswith("SLOTS "), equal_to(True))
+        assert_that(shown[0], starts_with("SLOTS "))
         assert_that(shown[6], equal_to(RULE_LINE))
-        assert_that(shown[7].startswith("NEXT 1. "), equal_to(True))
+        assert_that(shown[7], starts_with("NEXT 1. "))
 
     def test_next_with_no_ticket_prints_it_too(self) -> None:
         """``next`` is what ``slots next`` prints."""

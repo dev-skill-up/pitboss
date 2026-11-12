@@ -1,6 +1,7 @@
 """Reading GitHub through ``gh api``, with the session's own auth and proxy."""
 
 import dataclasses
+import json
 import re
 import subprocess
 import urllib.parse
@@ -63,6 +64,69 @@ def get(github: GitHub, path: str) -> str:
         The response body.
     """
     return github.run(["gh", "api", path]).stdout
+
+
+def get_json(github: GitHub, path: str) -> object:
+    """Read one URL's JSON.
+
+    Args:
+        github: the API.
+        path: the path under ``https://api.github.com/``.
+
+    Returns:
+        The parsed response body.
+    """
+    return json.loads(get(github, path))
+
+
+def get_object(github: GitHub, path: str) -> Mapping[str, object]:
+    """Read one URL's JSON object.
+
+    Args:
+        github: the API.
+        path: the path under ``https://api.github.com/``.
+
+    Returns:
+        Its members; none when the body is not an object.
+    """
+    found = get_json(github, path)
+    return found if isinstance(found, dict) else {}
+
+
+def run_json(github: GitHub, words: Sequence[str]) -> object:
+    """Run a ``gh`` read and parse its JSON.
+
+    Args:
+        github: the API.
+        words: the command.
+
+    Returns:
+        The parsed output.
+    """
+    return json.loads(github.run(words).stdout)
+
+
+def branch_pulls(
+    github: GitHub, slug: str, branch: str
+) -> Sequence[Mapping[str, object]]:
+    """The open PRs whose head is a branch of the repository's owner.
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        branch: the branch.
+
+    Returns:
+        The PRs GitHub lists; none when the list cannot be read.
+    """
+    head = urllib.parse.quote(f"{slug.split('/')[0]}:{branch}", safe=":/")
+    try:
+        found = get_json(github, f"repos/{slug}/pulls?head={head}&state=open")
+    except (subprocess.CalledProcessError, ValueError):
+        return []
+    if not isinstance(found, list):
+        return []
+    return [each for each in found if isinstance(each, dict)]
 
 
 def post(github: GitHub, path: str) -> str:

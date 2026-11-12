@@ -9,13 +9,17 @@ from .. import cirun, plantickets, ticketwhen
 from . import fakes, world
 from .linting import write_text
 from .repositories import run_git
+from ..textparts import starting
 
 HEAD = "a" * 40
 OTHER = "b" * 40
 ADDRESS = "https://github.com/owner/project/actions/runs/{run}"
 POINTER = "workflow `check.yml`, job `tests`, step `Run Nox`, " + ADDRESS + "/job/9"
 PLAN = "## Plan\n1. " + POINTER.format(run=5) + "\n"
-ITEMS = ["First item.", "Second item, counted by `rg -c code src`."]
+ITEMS = [
+    "First item, demonstrated by a test.",
+    "Second item, counted by `rg -c code src`, demonstrated by a test.",
+]
 # the command each item's row runs: the second item names its measurement
 ROW_COMMANDS = {1: "git status", 2: "rg -c code src"}
 TICKET = "Text.\n\n## Done when\n\n" + "".join(f"- {each}\n" for each in ITEMS)
@@ -41,7 +45,7 @@ def mentions(found: Sequence[str], words: Sequence[Sequence[str]]) -> bool:
         True when there are as many findings, each with its words.
     """
     return len(found) == len(words) and all(
-        all(word in each for word in some) for each, some in zip(found, words)
+        not any(word not in each for word in some) for each, some in zip(found, words)
     )
 
 
@@ -56,7 +60,7 @@ def said(lines: Sequence[str], check: str, words: Sequence[Sequence[str]]) -> bo
     Returns:
         The answer of ``mentions`` for the lines that start with the check.
     """
-    return mentions([each for each in lines if each.startswith(check)], words)
+    return mentions(starting(lines, check), words)
 
 
 def read_from(heads: Heads) -> cirun.HeadOf:
@@ -269,7 +273,7 @@ COMMANDS: Mapping[str, Case] = {
         "#9",
         lambda: plan_holding(1),
         OPTION,
-        [["First item."]],
+        [["First item, demonstrated by a test."]],
     ),
     "a ticket that cannot be read": (
         world.make_world,
