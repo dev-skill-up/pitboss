@@ -24,4 +24,5 @@ def quiesce_command(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     ledger = commands.load_settings(args).slots.ledger
-    print(quiesce.set_to(ledger, args.state == "on"))
+    switch = quiesce.switch_on if args.state == "on" else quiesce.switch_off
+    print(switch(ledger))

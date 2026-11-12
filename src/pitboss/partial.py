@@ -9,7 +9,7 @@ partial-hand-back).
 
 import re
 
-NOT_DONE = re.compile(r"^\W*(?:items\s+)?(?:not\s+done|partial)\b(.*)$", re.I | re.M)
+NOT_DONE = re.compile(r"(?im)^\W*(?:items\s+)?(?:not\s+done|partial)\b(.*)$")
 IMPOSSIBLE = re.compile(r"^\W*Impossible:\s*\S.*->\s*\S", re.M)
 NOTHING = {"", "none", "-", "n/a", "no"}
 REFUSED = (

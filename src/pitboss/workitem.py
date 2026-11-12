@@ -37,6 +37,8 @@ class Category(enum.IntEnum):
             ruling, a merge or an undraft) and whose ticket is blocked by an open
             ticket: it is only listed as blocked (keyword: blocked-pull,
             pitboss#388).
+        RELOCK_REVIEW: a reviewer checks a relock PR, a mechanical review that
+            ranks after every other item (a PR; keyword: relock-last, B9).
     """
 
     FIX_REVIEW = 1
@@ -52,6 +54,7 @@ class Category(enum.IntEnum):
     RUN_PLAN = 12
     ADD_CI_QUOTES = 13
     WAITING = 14
+    RELOCK_REVIEW = 15
 
 
 CATEGORY_WORDS = {
@@ -60,6 +63,7 @@ CATEGORY_WORDS = {
     Category.REVISE_PLAN: "revise the plan",
     Category.REVIEW: "review it (a reviewer that is not its author)",
     Category.REVIEW_FIX_ROUND: "review the fix round's findings only",
+    Category.RELOCK_REVIEW: "review it (a reviewer that is not its author)",
     Category.NEW_PR: "start a PR",
     Category.FIX_CI: "fix the CI (a red CI is no rejection)",
     Category.FIRST_ROUND: "write the Plan and Execution body",
@@ -90,8 +94,6 @@ class Item:
             until (keyword: ticket-blocked), also for a PR whose ticket says it
             (keyword: blocked-pull, pitboss#388).
         ticket: the ticket a PR fixes, or "".
-        mechanical: whether it is the review of a relock PR, which ranks last
-            (B9, keyword: relock-last).
     """
 
     category: Category
@@ -104,7 +106,6 @@ class Item:
     comments: int = 0
     blockers: Sequence[str] = ()
     ticket: str = ""
-    mechanical: bool = False
 
 
 class Described(Protocol):

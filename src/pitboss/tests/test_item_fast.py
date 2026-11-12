@@ -8,66 +8,22 @@ full ``slots next``.
 
 import re
 import unittest
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to, matches_regexp
 
 from . import (
-    fakes,
     quietworld,
     rankworld,
     test_flow_sweep,
     test_holds,
-    test_superseded,
     world,
 )
+from .fastvariants import closed, named, superseded, waiting
+from .fastworld import NINTH, PULLS, TIMELINE, fast_world, prepared
 from .itemworld import one, with_pull_issues
 from .says import says
 from .test_slot_commands import next_output, run_all
-
-PULLS = fakes.page("repos/owner/project/pulls?state=open")
-TIMELINE = fakes.page("repos/owner/project/issues/9/timeline")
-NINTH = "owner/project#9"
-
-
-def pull_listed(number: int, body: str = "") -> Mapping[str, object]:
-    """The raw PR the API lists for the project.
-
-    Args:
-        number: its number.
-        body: its text.
-
-    Returns:
-        The PR with a title, a text and a branch.
-    """
-    head = {"ref": f"branch-{number}"}
-    return {"number": number, "title": f"PR {number}", "body": body, "head": head}
-
-
-LISTED = [pull_listed(each) for each in (1, 2, 3)]
-
-
-def prepared(here: world.World) -> world.World:
-    """Give ticket 9 the labels the API gives it, and the project its listed PRs.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The same world.
-    """
-    rankworld.serve(here, "owner/project", 9, rankworld.ticket())
-    here.bodies[PULLS] = LISTED
-    return with_pull_issues(here)
-
-
-def fast_world() -> world.World:
-    """A world where ticket 9 has the labels the API gives it.
-
-    Returns:
-        The world.
-    """
-    return prepared(world.make_world())
 
 
 def refused(here: world.World, reference: str, reason: str) -> None:
@@ -156,28 +112,6 @@ class TestTheBrief(unittest.TestCase):
         briefed(here, "owner/project#1", "resolve the conflict")
 
 
-def closed() -> world.World:
-    """A world where ticket 9 is closed.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    rankworld.serve(here, "owner/project", 9, rankworld.ticket(state="closed"))
-    return here
-
-
-def named() -> world.World:
-    """A world where a listed PR names ticket 9 in its text.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    here.bodies[PULLS] = [pull_listed(4, "Fixes #9")]
-    return here
-
-
 def timeline_of(text: str, **issue: object) -> world.World:
     """A world where the timeline of ticket 9 has a mention by an open PR.
 
@@ -240,31 +174,6 @@ def held() -> world.World:
         The world.
     """
     return prepared(test_holds.held_world(test_holds.PROJECT_TABLE))
-
-
-def waiting() -> world.World:
-    """A world where ticket 9 depends on an open ticket.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    rankworld.serve(
-        here, "owner/project", 9, rankworld.ticket("Depends on owner/lib#3")
-    )
-    here.bodies[rankworld.BLOCKER] = rankworld.LIB_THREE
-    return here
-
-
-def superseded() -> world.World:
-    """A world where the configuration marks ticket 9 as superseded.
-
-    Returns:
-        The world.
-    """
-    here = fast_world()
-    test_superseded.listed(here)
-    return here
 
 
 def unread() -> world.World:

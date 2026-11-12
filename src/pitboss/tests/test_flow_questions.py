@@ -52,7 +52,10 @@ class TestQuestions(unittest.TestCase):
     def test_is_paused_for_owner(self) -> None:
         """The paused-owner label pauses a PR."""
         labelled = state(labels=frozenset({"paused-owner", "x"}))
-        check(flow.is_paused_for_owner, [(labelled, True), (state(), False)])
+        check(
+            lambda each: "paused-owner" in each.labels,
+            [(labelled, True), (state(), False)],
+        )
 
     def test_has_plan_execution_body(self) -> None:
         """Both sections are needed, each as a heading of its own."""
@@ -64,12 +67,14 @@ class TestQuestions(unittest.TestCase):
 
     def test_is_draft(self) -> None:
         """A draft is the PR's flag."""
-        check(flow.is_draft, [(state(draft=True), True), (state(), False)])
+        check(
+            lambda each: each.pull.draft, [(state(draft=True), True), (state(), False)]
+        )
 
     def test_can_undraft(self) -> None:
         """Undrafting is the runners' say, read by the caller."""
         clear = state(undraft_clear=True)
-        check(flow.can_undraft, [(clear, True), (state(), False)])
+        check(lambda each: each.undraft_clear, [(clear, True), (state(), False)])
 
     def test_has_conflict(self) -> None:
         """Only a dirty merge state is a conflict."""

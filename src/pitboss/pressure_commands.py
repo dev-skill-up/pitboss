@@ -9,7 +9,6 @@ and no job was put on the queue (keyword: quiet-period).
 """
 
 import argparse
-import os
 import pathlib
 import subprocess
 from typing import Sequence
@@ -109,6 +108,7 @@ def _to_drafts(
 
 def _checked(args: argparse.Namespace) -> str | None:
     # the repository pushed to, once no refusal applies
+    ticketbranch.enforce(args)
     slug = _pushed_repository(args)
     _refuse(args, slug)
     return slug
@@ -329,7 +329,6 @@ def push(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     tracefs.say(args.safe_run)
-    ticketbranch.require(args, os.environ)
     found, free = _gate(args, _checked(args))
     outcomes = _send(args)
     if outcomes is not None:

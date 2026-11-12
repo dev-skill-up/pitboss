@@ -8,13 +8,13 @@ what is recorded of the PR, so a wrong step is a bug in one of them. The pseudo
 code's second function is ``rulings.after_opus_ruling``.
 """
 
-import dataclasses
-from typing import Callable, Mapping, Sequence
+from typing import Sequence
 
 from . import (
     bodydigest,
     conflicts,
     draftfacts,
+    floworder,
     flowstate,
     plancheckflow,
     planbody,
@@ -35,18 +35,7 @@ newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
 has_conflict = conflicts.has_conflict
 AFTER = rulingafter.AFTER
-
-
-def is_paused_for_owner(pr: PullState) -> bool:
-    """Whether the PR carries the pause label.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when it is paused for the owner.
-    """
-    return steps.PAUSED_LABEL in pr.labels
+Row = floworder.Row[PullState, steps.Next]
 
 
 def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
@@ -56,13 +45,11 @@ def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
 def newest_counting_review(pr: PullState) -> Graded | None:
     """The newest regular review of the current head.
 
-    A GitHub review is no regular review (the pseudo code reads regular
-    reviews only, as every other question here does). A revision of the plan
-    ends with an empty commit, so the review of a plan that was revised names
-    an older head and does not count; ``plan_approved`` carries its approval.
-    The newest review of the head that records a body digest other than the
-    PR body's now does not count either (keyword: body-digest, pitboss#147):
-    a body fix is answered by a re-review or, while CI quotes are missing, by theirs.
+    A GitHub review is no regular review. A revision of the plan ends with an
+    empty commit, so the review of a plan that was revised names an older head
+    and does not count; ``plan_approved`` carries its approval. The newest
+    review of the head that records a body digest other than the PR body's
+    does not count either (keyword: body-digest, pitboss#147).
 
     Args:
         pr: the PR.
@@ -76,30 +63,6 @@ def newest_counting_review(pr: PullState) -> Graded | None:
     if newest and bodydigest.changed(newest.body, bodydigest.digest(pr.pull.body)):
         return None
     return newest
-
-
-def is_draft(pr: PullState) -> bool:
-    """Whether the PR is a draft.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True for a draft.
-    """
-    return pr.pull.draft
-
-
-def can_undraft(pr: PullState) -> bool:
-    """Whether the runner pressure, the quiet period and the holds allow it.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when marking the PR ready may be done now.
-    """
-    return pr.undraft_clear
 
 
 def plan_approved(pr: PullState) -> bool:
@@ -298,8 +261,8 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
     Returns:
         The step.
     """
-    if is_draft(pr):
-        ready = steps.undraft() if can_undraft(pr) else steps.wait_for_undraft()
+    if pr.pull.draft:
+        ready = steps.undraft() if pr.undraft_clear else steps.wait_for_undraft()
         if pr.draft.no_drafts:  # keyword: no-drafts (pitboss#390): never reviewed
             return ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
@@ -385,21 +348,6 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
     return conflicts.merge_unless_conflict(pr)
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Row:
-    """A row of the order in which ``next_step`` decides.
-
-    Attributes:
-        name: the row's name, as ``STATED`` names it.
-        holds: whether the row decides this PR's step.
-        step: the step it decides.
-    """
-
-    name: str
-    holds: Callable[[PullState], bool]
-    step: Callable[[PullState], steps.Next]
-
-
 def _ruling_held(pr: PullState) -> steps.Next:
     # the newest Opus ruling must be readable, and an approved Plan stays as it is
     # (keyword: plan-digest, pitboss#172)
@@ -428,7 +376,7 @@ def _no_body(pr: PullState) -> bool:
 ROWS: Sequence[Row] = (
     Row(
         name="paused-owner",
-        holds=is_paused_for_owner,
+        holds=lambda pr: steps.PAUSED_LABEL in pr.labels,
         step=lambda pr: steps.wait_for_owner(),
     ),
     Row(
@@ -448,16 +396,4 @@ ROWS: Sequence[Row] = (
         step=lambda pr: draft_gate(pr, newest_counting_review(pr)),
     ),
 )
-STATED: Mapping[tuple[str, str], str] = {
-    ("paused-owner", "ruling-hold"): "a PR paused for the owner is owed nothing else",
-    ("paused-owner", "conflict"): "the owner decides before any fix of a conflict",
-    ("paused-owner", "first-round"): "the owner decides before any first round",
-    ("paused-owner", "gates"): "the owner decides before any gate",
-    ("ruling-hold", "conflict"): "a ruling that is unreadable or edits an approved"
-    " Plan holds the PR before a conflict is fixed (plan-digest)",
-    ("ruling-hold", "first-round"): "a held ruling is answered before a first round",
-    ("ruling-hold", "gates"): "a held ruling is answered before the CI gate",
-    ("conflict", "first-round"): "a conflict is resolved first (conflict-first)",
-    ("conflict", "gates"): "a conflict is a fix at every stage (conflict-first)",
-    ("first-round", "gates"): "a PR with no body gets its first round before review",
-}
+STATED = floworder.STATED

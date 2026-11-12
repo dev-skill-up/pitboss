@@ -216,7 +216,11 @@ def kind_of(pick: Pick) -> brief.Kind:
     """
     if pick.category is None:
         return brief.Kind.RULING
-    reviewed = (work.Category.REVIEW, work.Category.REVIEW_FIX_ROUND)
+    reviewed = (
+        work.Category.REVIEW,
+        work.Category.REVIEW_FIX_ROUND,
+        work.Category.RELOCK_REVIEW,
+    )
     if pick.category in reviewed and pick.pull is not None:
         return review_kind(pick.pull)
     if pick.pull is not None and pick.pull.step.task is steps.Task.FIX_ROUND:
@@ -348,27 +352,21 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
     )
 
 
-def _ranked(
-    source: Source,
-    shown: Sequence[Pick],
-    first: int,
-    total: int,
-    dispatched: list[str],
-) -> Iterable[str]:
+def _ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
     marker = Marker.SUGGESTION.text
-    for rank, pick in enumerate(shown, start=first):
-        found = suggest(source, pick)
-        dispatched.append(
-            briefsave.save(
-                source.settings.slots.ledger, found.reference, found.model, found.text
-            )
-        )
+    for rank, found in enumerate(made, start=first):
         yield (
             f"{marker} {rank} of {total}: {found.kind.value}:"
             f" {found.reference}: {found.model}"
         )
         yield from found.text.splitlines()
         yield f"--- end of suggestion {rank} ---"
+
+
+def _dispatch(source: Source, found: Suggestion) -> str:
+    # B6 (keyword: brief-save): the brief is a file, and the line names it
+    ledger_file = source.settings.slots.ledger
+    return briefsave.save(ledger_file, found.reference, found.model, found.text)
 
 
 def lines(source: Source) -> Iterable[str]:
@@ -391,8 +389,9 @@ def lines(source: Source) -> Iterable[str]:
     cleaning = diskwatch.crowded(source.volume)
     total = len(shown) + cleaning
     yield from diskwatch.opening(source.volume, source.big, total)
-    dispatched: list[str] = []
-    yield from _ranked(source, shown, 1 + cleaning, total, dispatched)
-    yield from dispatched  # B6 (keyword: brief-save): each brief is a file
+    made = [suggest(source, pick) for pick in shown]
+    yield from _ranked(made, 1 + cleaning, total)
+    for found in made:
+        yield _dispatch(source, found)
     if len(every) > len(shown):
         yield f"{marker}: {len(every) - len(shown)} more queued, not shown"

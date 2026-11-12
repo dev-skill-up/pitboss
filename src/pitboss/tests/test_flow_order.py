@@ -78,15 +78,15 @@ class TestFlowOrder(unittest.TestCase):
 
     def test_flow_order_deleting_one_pairs_order_is_found(self) -> None:
         """For each pair that holds at once, the table without it fails."""
-        pairs = {
-            pair for holds in reached() for pair in itertools.combinations(holds, 2)
+        together = {
+            each for holds in reached() for each in itertools.combinations(holds, 2)
         }
-        assert_that(len(pairs) > 0, equal_to(True))
-        for pair in sorted(pairs):
-            with self.subTest(pair):
-                fewer = {key: why for key, why in flow.STATED.items() if key != pair}
+        assert_that(len(together) > 0, equal_to(True))
+        for deleted in sorted(together):
+            with self.subTest(deleted):
+                fewer = {key: why for key, why in flow.STATED.items() if key != deleted}
                 found = [each for holds in reached() for each in unstated(holds, fewer)]
-                assert_that(found, has_item(pair))
+                assert_that(found, has_item(deleted))
 
     def test_flow_order_the_statements_are_the_pairs_of_the_table(self) -> None:
         """Each pair of rows has a reason, in table order, and no other has."""

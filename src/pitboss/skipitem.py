@@ -9,7 +9,7 @@ list). ``--skip`` takes an item out of the list for this run, says so in a
 
 import argparse
 import dataclasses
-from typing import Sequence
+from typing import Callable, Sequence
 
 from gather.commands import add_argument
 
@@ -52,6 +52,27 @@ def without(offer: work.Offered, skipped: Sequence[str]) -> work.Offered:
     """
     kept = [each for each in offer.items if each.reference not in skipped]
     return dataclasses.replace(offer, items=kept)
+
+
+def apply(
+    args: argparse.Namespace, repo: config.Repo
+) -> Callable[[work.Offered], tuple[work.Offered, Sequence[str]]]:
+    """The skip of the command line, as a step on the offer.
+
+    Args:
+        args: the parsed arguments.
+        repo: the project's repository, the owner of a bare ``#N``.
+
+    Returns:
+        A function from the offer to the offer without the skipped items and the
+        ``SKIPPED`` lines of those it had.
+    """
+    skipped = named(args, repo)
+
+    def skip(offer: work.Offered) -> tuple[work.Offered, Sequence[str]]:
+        return without(offer, skipped), lines(offer, skipped)
+
+    return skip
 
 
 def lines(offer: work.Offered, skipped: Sequence[str]) -> Sequence[str]:

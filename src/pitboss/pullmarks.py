@@ -75,15 +75,9 @@ def _mark(
     )
     ticket = fixes.of_pull(pull)
     item = dataclasses.replace(rounds.get(reference, idle), ticket=ticket)
-    waits = blockers.pull_waits(found.github, found.settings, reference, ticket)
-    # B10 (keyword: blocked-body): a line ``Blocked on <ticket>`` in the PR's own body
-    own = blockers.open_blockers(
-        found.github, reference, [pull.pull.body], {reference, ticket}
-    )
-    if waits is None and not own:
-        return item
+    waits = blockers.pull_waits(found.github, found.settings, pull, ticket)
     if waits is None:
-        return dataclasses.replace(item, blockers=list(own))
+        return item
     refused = blockers.refusal_blockers(found.github, found.settings, reference, ticket)
     line, missing = (  # keyword: allowlist-miss (pitboss#448)
         allowlistmiss.missing(found.github, pull)
@@ -94,7 +88,7 @@ def _mark(
         item = dataclasses.replace(item, body=line)
     return dataclasses.replace(
         item,
-        blockers=list(dict.fromkeys([*waits.blockers, *own, *refused, *missing])),
+        blockers=list(dict.fromkeys([*waits.blockers, *refused, *missing])),
         created_at=waits.created_at,
         priority=waits.priority,
     )

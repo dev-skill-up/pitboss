@@ -8,24 +8,14 @@ there ``slots next`` offers no start, no brief and no empty slot, and says so.
 
 import pathlib
 
+from . import directories
+
 NAME = "quiesced"
 LINE = (
     "QUIESCED: nothing starts until the owner lifts it (pitboss quiesce off): no"
     " NEXT line, no brief, no empty slot"
 )
 REFUSED = "UNKNOWN: {reference} is not offered: " + LINE
-
-
-def path_of(ledger: pathlib.Path) -> pathlib.Path:
-    """Where the quiesce record of a ledger is.
-
-    Args:
-        ledger: the ledger's file.
-
-    Returns:
-        The record's file, beside it.
-    """
-    return ledger.with_name(NAME)
 
 
 def is_on(ledger: pathlib.Path) -> bool:
@@ -37,23 +27,46 @@ def is_on(ledger: pathlib.Path) -> bool:
     Returns:
         True when the record exists.
     """
-    return path_of(ledger).exists()
+    return ledger.with_name(NAME).exists()
 
 
-def set_to(ledger: pathlib.Path, on: bool) -> str:
-    """Switch the quiesce on or off.
+def switch_on(ledger: pathlib.Path) -> str:
+    """Switch the quiesce on.
 
     Args:
         ledger: the ledger's file.
-        on: the new state.
 
     Returns:
-        The line that says the new state.
+        The line that says it is on.
     """
-    target = path_of(ledger)
-    if on:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("quiesced\n", encoding="utf-8")
-        return LINE
-    target.unlink(missing_ok=True)
+    directories.made(ledger.parent)
+    ledger.with_name(NAME).touch()
+    return LINE
+
+
+def switch_off(ledger: pathlib.Path) -> str:
+    """Switch the quiesce off.
+
+    Args:
+        ledger: the ledger's file.
+
+    Returns:
+        The line that says it is off.
+    """
+    ledger.with_name(NAME).unlink(missing_ok=True)
     return "quiesce is off: slots next offers work again"
+
+
+def say(ledger: pathlib.Path) -> bool:
+    """Print the quiesce line when work is quiesced.
+
+    Args:
+        ledger: the ledger's file.
+
+    Returns:
+        Whether work is quiesced, so that nothing else is offered.
+    """
+    quiesced = is_on(ledger)
+    if quiesced:
+        print(LINE)
+    return quiesced

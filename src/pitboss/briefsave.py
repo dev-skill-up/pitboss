@@ -9,6 +9,8 @@ prints that path (keyword: brief-save).
 import pathlib
 import re
 
+from . import directories
+
 DIRECTORY = "briefs"
 SUFFIX = ".brief"
 DISPATCH = (
@@ -30,6 +32,11 @@ def name_of(reference: str) -> str:
     return re.sub(r"[^\w.-]+", "-", reference) + SUFFIX
 
 
+def _put(target: pathlib.Path, text: str) -> None:
+    directories.made(target.parent)
+    target.write_text(text + "\n", encoding="utf-8")
+
+
 def save(ledger: pathlib.Path, reference: str, model: str, text: str) -> str:
     """Write a brief and say where.
 
@@ -44,8 +51,7 @@ def save(ledger: pathlib.Path, reference: str, model: str, text: str) -> str:
     """
     target = ledger.parent / DIRECTORY / name_of(reference)
     try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(text + "\n", encoding="utf-8")
+        _put(target, text)
     except OSError as error:
         return UNSAVED.format(reference=reference, why=error.strerror or error)
     return DISPATCH.format(reference=reference, model=model, path=target)

@@ -5,8 +5,9 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextnote, brieftextwork, deviations
-from . import fakes, world
+from . import world
 from .briefmake import text
+from .handbackrun import saved
 from .handbackworld import ready
 from .test_evidence_rules import words
 
@@ -40,20 +41,6 @@ WITH_LINE = "PR 5\nhead abc\nDeviations: two `sed -i` runs, one `rm`\n"
 WITH_NONE = "PR 5\nhead abc\nDeviations: none\n"
 WITHOUT_LINE = "PR 5\nhead abc\nI used the Edit tool.\n"
 EMPTY_LINE = "PR 5\nDeviations:\n"
-
-
-def saved(handback: str) -> str:
-    """Save a hand-back to a file.
-
-    Args:
-        handback: the hand-back text.
-
-    Returns:
-        The file's name.
-    """
-    path = fakes.directory() / "handback.txt"
-    path.write_text(handback, encoding="utf-8")
-    return path.as_posix()
 
 
 class TestTheBriefs(unittest.TestCase):

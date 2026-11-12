@@ -8,6 +8,7 @@ or on the default branch. Without a ticket nothing is judged.
 """
 
 import argparse
+import os
 import re
 import subprocess
 from typing import Mapping
@@ -53,7 +54,7 @@ def names(branch: str, number: str) -> bool:
         True for ``worker/444`` and ``pitboss-444-fix`` and 444; not for
         ``worker/4440``, ``main`` or an empty (detached) branch.
     """
-    return bool(number) and re.search(rf"(?<!\d){number}(?!\d)", branch) is not None
+    return bool(number) and number in re.findall(r"\d+", branch)
 
 
 def refusal(ticket: str, branch: str) -> str:
@@ -109,3 +110,12 @@ def require(args: argparse.Namespace, env: Mapping[str, str]) -> None:
     if said:
         print(said)
         raise SystemExit(1)
+
+
+def enforce(args: argparse.Namespace) -> None:
+    """Exit 1 when the worktree's branch is not the ticket's, by the environment.
+
+    Args:
+        args: the parsed arguments.
+    """
+    require(args, os.environ)

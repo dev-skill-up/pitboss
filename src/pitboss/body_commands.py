@@ -126,19 +126,27 @@ def hand_back_check(args: argparse.Namespace) -> None:
     text = _read(args.file)
     missing = deviations.not_started(text)
     configsettle.find_or_say(args)
-    refused = list(cloneguard.refusals(args, configfile.working_directory(args)))
-    refused.extend(handbackrun.refusals(args, commands.load_settings(args)))
-    refused.append(partial.refusal(text))  # B17, keyword: partial-hand-back
-    edits = _edits(args)
-    if edits:
-        print(edits[0])  # the EDIT TOOLS line informs; the others refuse
-    lines = [each for each in (missing, *refused, *edits[1:]) if each]
+    lines = [each for each in (missing, *_refusals(args, text)) if each]
     for each in lines:
         print(each)
     if lines:
         raise SystemExit(1)
     handbackrun.accept(args)  # recorded only when nothing at all refused
     print("ok")
+
+
+def _refusals(args: argparse.Namespace, text: str) -> Sequence[str]:
+    # the clone's, the jobs', the partial hand-back's (B17, keyword: partial-hand-back)
+    # and the edits' (B16, keyword: worker-edits); the EDIT TOOLS line only informs
+    found = [
+        *cloneguard.refusals(args, configfile.working_directory(args)),
+        *handbackrun.refusals(args, commands.load_settings(args)),
+        partial.refusal(text),
+    ]
+    edits = _edits(args)
+    for each in edits[:1]:
+        print(each)
+    return [*found, *edits[1:]]
 
 
 def _edits(args: argparse.Namespace) -> Sequence[str]:

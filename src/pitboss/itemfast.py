@@ -82,28 +82,7 @@ class Outcome(enum.Enum):
     WHOLE = enum.auto()
 
 
-def _ticket(
-    found: nextfound.Found,
-    repo: config.Repo,
-    reference: str,
-    ticket: blockers.Ticket,
-    forced: bool = False,
-) -> suggest.Pick:
-    # raises Unknown for a ticket a hold, a PR, a blocker or a supersession keeps back,
-    # unless forced (D3, keyword: force-brief), which builds the pick all the same
-    try:
-        ranked = itempick.priority(found.settings, reference, ticket.labels)
-    except itempick.Whole:
-        if not forced:
-            raise
-        ranked = 0
-    if not forced:
-        count, named = itempick.taken(found, repo, reference)
-        if repo.slug in offering.standing(found, [repo.slug] * count):
-            raise itempick.Unknown(f"no new pull requests in {repo.slug}: it is held")
-        if named:
-            raise itempick.Unknown(f"an open PR already works on it: {named}")
-        itempick.kept_back(found, reference, ticket)
+def _ticket_pick(reference: str, ticket: blockers.Ticket, ranked: int) -> suggest.Pick:
     item = workitem.of_ticket(reference, ticket, ranked)
     return suggest.Pick(
         reference=reference,
@@ -114,12 +93,37 @@ def _ticket(
     )
 
 
-def _step(
-    read: pulls.PullFacts, found: nextfound.Found, forced: bool = False
+def _ticket(
+    found: nextfound.Found,
+    repo: config.Repo,
+    reference: str,
+    ticket: blockers.Ticket,
 ) -> suggest.Pick:
+    # raises Unknown for a ticket a hold, a PR, a blocker or a supersession keeps back
+    ranked = itempick.priority(found.settings, reference, ticket.labels)
+    count, named = itempick.taken(found, repo, reference)
+    if repo.slug in offering.standing(found, [repo.slug] * count):
+        raise itempick.Unknown(f"no new pull requests in {repo.slug}: it is held")
+    if named:
+        raise itempick.Unknown(f"an open PR already works on it: {named}")
+    itempick.kept_back(found, reference, ticket)
+    return _ticket_pick(reference, ticket, ranked)
+
+
+def _ticket_forced(
+    found: nextfound.Found, reference: str, ticket: blockers.Ticket
+) -> suggest.Pick:
+    # D3 (keyword: force-brief): the pick of a ticket whatever keeps it back; a
+    # ticket with no priority label is ranked 0
+    try:
+        ranked = itempick.priority(found.settings, reference, ticket.labels)
+    except itempick.Whole:
+        ranked = 0
+    return _ticket_pick(reference, ticket, ranked)
+
+
+def _chosen(read: pulls.PullFacts, found: nextfound.Found) -> suggest.Pick:
     # the pick of a PR that was read: a ruling, a round, or nothing
-    if not forced and pulls.reference(read) in pullmarks.pull_marks(found, [read]):
-        raise itempick.Unknown("its ticket waits for an open ticket or PR")
     source = suggest.sourced(found, [read], work.pull_items([read]), {})
     chosen = suggest.picks(source)
     if not chosen:
@@ -127,44 +131,58 @@ def _step(
     return chosen[0]
 
 
-def _pull(
-    found: nextfound.Found,
-    repo: config.Repo,
-    reference: str,
-    runs: Runs,
-    forced: bool = False,
-) -> suggest.Pick:
+def _step(read: pulls.PullFacts, found: nextfound.Found) -> suggest.Pick:
+    if pulls.reference(read) in pullmarks.pull_marks(found, [read]):
+        raise itempick.Unknown("its ticket waits for an open ticket or PR")
+    return _chosen(read, found)
+
+
+def _read_pull(
+    found: nextfound.Found, repo: config.Repo, reference: str, runs: Runs
+) -> pulls.PullFacts:
     undraft = sweepline.undraft_check(found.github, found.settings, found.now, runs)
     undraft()  # the look at the runners is made whether or not this PR asks
     number = int(reference.rpartition("#")[2])
     read = pullread.read_one(found.github, found.settings, undraft, (repo, number))
     if isinstance(read, shapes.Unreadable):
         raise itempick.Unknown(f"the PR cannot be read ({read.call}: {read.status})")
-    return _step(read, found, forced)
+    return read
 
 
-def _picked(
-    found: nextfound.Found,
-    live: ledger.Ledger,
-    reference: str,
-    runs: Runs,
-    forced: bool = False,
-) -> suggest.Pick:
-    # what one item is: raises Unknown when slots next offers nothing for it, and
-    # Whole when only the whole order can tell
-    held = reference in {each.task for each in live.slots if each.agent}
-    if held and not forced:
-        raise itempick.Unknown("a slot already works on it")
-    slug = reference.rpartition("#")[0]
+def _located(
+    found: nextfound.Found, reference: str
+) -> tuple[config.Repo, blockers.Ticket]:
+    # the repository and the open ticket (or PR) of an item; raises Unknown
+    slug = reference.split("#")[0]
     repos = {each.slug: each for each in config.repositories(found.settings)}
     if slug not in repos:
         raise itempick.Unknown(f"{slug} is not a configured repository")
     ticket = blockers.read(found.github, reference)
     if ticket is None or not ticket.open:
         raise itempick.Unknown("it is closed or cannot be read")
+    return repos[slug], ticket
+
+
+def _picked(
+    found: nextfound.Found, live: ledger.Ledger, reference: str, runs: Runs
+) -> suggest.Pick:
+    # what one item is: raises Unknown when slots next offers nothing for it, and
+    # Whole when only the whole order can tell
+    if reference in {each.task for each in live.slots if each.agent}:
+        raise itempick.Unknown("a slot already works on it")
+    repo, ticket = _located(found, reference)
     if ticket.pull:
-        return _pull(found, repos[slug], reference, runs, forced)
-    return _ticket(found, repos[slug], reference, ticket, forced)
+        return _step(_read_pull(found, repo, reference, runs), found)
+    return _ticket(found, repo, reference, ticket)
+
+
+def _forced(found: nextfound.Found, reference: str, runs: Runs) -> suggest.Pick:
+    # D3 (keyword: force-brief): the pick the plain command refused, without the
+    # slot, the PR, the hold, the blocker and the supersession it checks
+    repo, ticket = _located(found, reference)
+    if ticket.pull:
+        return _chosen(_read_pull(found, repo, reference, runs), found)
+    return _ticket_forced(found, reference, ticket)
 
 
 def _print(
@@ -189,13 +207,13 @@ def _made(
 
 
 def _overridden(
-    found: nextfound.Found, live: ledger.Ledger, reference: str, runs: Runs
+    found: nextfound.Found, reference: str, runs: Runs
 ) -> suggest.Pick | None:
-    # the pick the plain command refused (D3, keyword: force-brief); none when the
-    # item has no step to brief (a PR at a wait) or cannot be read
+    # the pick the plain command refused; none when the item has no step to brief
+    # (a PR at a wait) or cannot be read
     try:
-        return _picked(found, live, reference, runs, True)
-    except (itempick.Whole, itempick.Unknown):
+        return _forced(found, reference, runs)
+    except itempick.Unknown:
         return None
 
 
@@ -215,7 +233,7 @@ def _attempt(
     except itempick.Unknown as refused:
         text = UNKNOWN.format(reference=reference, why=refused)
         if getattr(found.args, "force", False):
-            overridden = _overridden(found, live, reference, runs)
+            overridden = _overridden(found, reference, runs)
             if overridden is not None:
                 print(FORCED.format(text=text), file=sys.stderr)
                 return live, overridden

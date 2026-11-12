@@ -220,9 +220,12 @@ def _rank(settings: config.Config, labels: AbstractSet[str]) -> int:
 
 
 def pull_waits(
-    github: ghapi.GitHub, settings: config.Config, pull: str, ticket: str
+    github: ghapi.GitHub, settings: config.Config, pull: pulls.PullFacts, ticket: str
 ) -> Waits | None:
     """What the ticket a PR fixes waits for (keyword: blocked-pull, pitboss#388).
+
+    The PR's own body counts too: a line ``Blocked on <ticket>`` there blocks the
+    PR as the same line in the ticket does (B10, keyword: blocked-body).
 
     Args:
         github: the API.
@@ -236,9 +239,9 @@ def pull_waits(
     found = open_ticket(github, ticket)
     if found is None:
         return None
-    texts = _texts(github, settings, found, ticket)
+    texts = [pull.pull.body, *_texts(github, settings, found, ticket)]
     return Waits(
-        blockers=open_blockers(github, ticket, texts, {pull}),
+        blockers=open_blockers(github, ticket, texts, {pulls.reference(pull)}),
         created_at=found.created_at,
         priority=_rank(settings, found.labels),
     )

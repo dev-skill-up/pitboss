@@ -18,26 +18,15 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import draftmoves, partial, ticketbranch, workeredits
 from . import fakes, world
 from .cleanworld import same
+from .says import says
+from .handbackrun import hand_back, no_jobs
 from .handbackworld import ready
-from .test_hand_back_done import hand_back, processes
 from .test_push_draft import held_world
 
 ROOT = pathlib.Path("/work/tree")
 COMPLETE = "Deviations: none\nNot done: none\n"
 PARTIAL = "Deviations: none\nNot done: item 9\n"
 IMPOSSIBLE = "Impossible: nox -s tests -> No module named gather\n"
-
-
-class Done:
-    """What a fake ``git branch --show-current`` answered."""
-
-    def __init__(self, stdout: str) -> None:
-        """Keep the output.
-
-        Args:
-            stdout: what the command printed.
-        """
-        self.stdout = stdout
 
 
 def branch_of(name: str) -> argparse.Namespace:
@@ -50,9 +39,9 @@ def branch_of(name: str) -> argparse.Namespace:
         The arguments, with the ticket 444.
     """
 
-    def run(command: Sequence[str]) -> Done:
+    def run(command: Sequence[str]) -> fakes.Output:
         assert_that(list(command), equal_to(["git", "branch", "--show-current"]))
-        return Done(name + "\n")
+        return fakes.Output(stdout=name + "\n")
 
     return argparse.Namespace(ticket="owner/pitboss#444", safe_run=run)
 
@@ -67,7 +56,7 @@ def fails(error: BaseException) -> argparse.Namespace:
         The arguments, with the ticket 444.
     """
 
-    def run(command: Sequence[str]) -> Done:
+    def run(command: Sequence[str]) -> fakes.Output:
         raise error
 
     return argparse.Namespace(ticket="444", safe_run=run)
@@ -146,15 +135,18 @@ class TestTicketBranch(unittest.TestCase):
     def test_b15_push_refuses_the_main_clone_branch_for_a_ticket(self) -> None:
         """``pitboss push --ticket`` stops before any push; its own branch pushes."""
         other = held_world([{"draft": True}], "branch-1")
-        when = world.START.isoformat()
-        words = ("push", "--now", when, "--no-dry-run", "--ticket", "444")
-        done = world.again(other, *words, "elsewhere", "branch-1")
+        stamp = world.START.isoformat()
+        words = ("push", "--now", stamp, "--no-dry-run", "--ticket", "444")
+
+        def push() -> world.Result:
+            return world.again(other, *words, "elsewhere", "branch-1")
+
+        done = push()
         same(done.code, 1)
         assert_that(done.out, contains_string("does not name ticket 444"))
         same([each for each in other.calls if list(each[:2]) == ["git", "push"]], [])
         fakes.run_git(other.clone, "checkout", "-b", "worker/444")
-        again = world.again(other, *words, "elsewhere", "branch-1")
-        same(again.code, 0)
+        same(push().code, 0)
 
 
 def entry(name: str, **given: object) -> str:
@@ -167,8 +159,20 @@ def entry(name: str, **given: object) -> str:
     Returns:
         The JSON line.
     """
-    use = {"type": "tool_use", "name": name, "input": given}
-    return json.dumps({"message": {"content": [use]}})
+    use = dict(type="tool_use", name=name, input=given)
+    return json.dumps(dict(message=dict(content=[use])))
+
+
+def edits_of(*calls: str) -> Sequence[str]:
+    """What ``workeredits`` says of tool calls in the fixed worktree.
+
+    Args:
+        *calls: the transcript lines.
+
+    Returns:
+        The lines it gives.
+    """
+    return workeredits.lines(list(calls), ROOT)
 
 
 class TestWorkerEdits(unittest.TestCase):
@@ -184,20 +188,20 @@ class TestWorkerEdits(unittest.TestCase):
             entry("Read", file_path=inside),
             "not json",
         ]
-        same(workeredits.lines(output, ROOT), ["EDIT TOOLS: Edit 2, Write 1"])
-        same(workeredits.lines([], ROOT), ["EDIT TOOLS: none"])
+        same(edits_of(*output), ["EDIT TOOLS: Edit 2, Write 1"])
+        same(edits_of(), ["EDIT TOOLS: none"])
 
     def test_b16_a_file_in_another_worktree_is_refused(self) -> None:
         """The path is outside the worker's worktree; a sibling prefix is too."""
         for path in ("/work/other/a.py", "/work/tree2/a.py"):
             with self.subTest(path):
-                found = workeredits.lines([entry("Write", file_path=path)], ROOT)
+                found = edits_of(entry("Write", file_path=path))
                 assert_that(found[1], contains_string("line 1: Write changed " + path))
                 assert_that(found[1], contains_string("outside the worktree"))
-        same(workeredits.lines([entry("Edit", file_path="/work/tree")], ROOT)[1:], [])
-        found = workeredits.lines([entry("NotebookEdit", notebook_path="/x/n")], ROOT)
+        same(edits_of(entry("Edit", file_path="/work/tree"))[1:], [])
+        found = edits_of(entry("NotebookEdit", notebook_path="/x/n"))
         assert_that(found[1], contains_string("NotebookEdit changed /x/n"))
-        same(workeredits.lines([entry("Edit")], ROOT)[1:], [])
+        same(edits_of(entry("Edit"))[1:], [])
 
     def test_b16_a_shell_command_that_edits_files_is_refused(self) -> None:
         """sed -i, a heredoc, tee, a redirected cat and python -c; not ls or sed -n."""
@@ -210,18 +214,18 @@ class TestWorkerEdits(unittest.TestCase):
             "perl -pi -e s/a/b/ f.py",
         ]
         plain = ["ls -l", "sed -n 1p f.py", "git status", "cat f.py | head"]
-        for command in edits:
+        for command in [*edits, *plain]:
             with self.subTest(command):
-                found = workeredits.lines([entry("Bash", command=command)], ROOT)
-                assert_that(found[1], contains_string("a shell command edits files"))
-        for command in plain:
-            with self.subTest(command):
-                same(workeredits.lines([entry("Bash", command=command)], ROOT)[1:], [])
+                found = edits_of(entry("Bash", command=command))[1:]
+                if command in edits:
+                    assert_that(found[0], contains_string("a shell command edits"))
+                else:
+                    same(found, [])
 
     def test_b16_hand_back_check_reads_the_output_file(self) -> None:
         """An output with an edit outside the worktree is refused; inside, ok."""
         here = ready(world.make_world())
-        quiet = processes(fakes.directory(), {})
+        quiet = no_jobs()
         top = here.clone.resolve()
         good = [entry("Edit", file_path=str(top / "a.py"))]
         bad = [entry("Edit", file_path="/elsewhere/b.py")]
@@ -232,8 +236,7 @@ class TestWorkerEdits(unittest.TestCase):
             shown.append(hand_back(here, quiet, "--output", path.as_posix()))
         same((shown[0].code, shown[0].out), (0, "EDIT TOOLS: Edit 1\nok\n"))
         same(shown[1].code, 1)
-        assert_that(shown[1].out, contains_string("EDIT TOOLS: Edit 1"))
-        assert_that(shown[1].out, contains_string("outside the worktree"))
+        says(shown[1].out, "EDIT TOOLS: Edit 1", "outside the worktree")
 
 
 class TestPartialHandBack(unittest.TestCase):
@@ -261,12 +264,13 @@ class TestPartialHandBack(unittest.TestCase):
     def test_b17_hand_back_check_refuses_a_partial_hand_back(self) -> None:
         """Refused, nothing recorded; with the line it is accepted."""
         here = ready(world.make_world())
-        quiet = processes(fakes.directory(), {})
+        quiet = no_jobs()
         refused = hand_back(here, quiet, text=PARTIAL)
         same(refused.code, 1)
-        assert_that(refused.out, contains_string("send it back to the worker"))
+        says(refused.out, "send it back to the worker")
         accepted = hand_back(here, quiet, text=PARTIAL + IMPOSSIBLE)
-        same((accepted.code, accepted.out), (0, "ok\n"))
+        same(accepted.code, 0)
+        same(accepted.out, "ok\n")
 
 
 class TestDraftState(unittest.TestCase):

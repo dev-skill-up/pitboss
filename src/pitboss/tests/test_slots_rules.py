@@ -11,6 +11,7 @@ can be overridden (keywords: unknown-data, force-brief, quiesce); pitboss#444.
 import argparse
 import dataclasses
 import datetime
+import json
 import unittest
 from typing import Sequence
 
@@ -19,7 +20,8 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import (
     briefsave,
     duplicatepr,
-    quiesce,
+    parsing,
+    pulls,
     shapes,
     skipitem,
     steps,
@@ -31,41 +33,16 @@ from .cleanworld import same
 from .itemworld import one, with_pull_issues
 from .says import lacks, says
 from .rankworld import (
-    dependent_world,
     fixing,
     lines_are,
     mentioning,
     next_output,
     starts,
 )
-from .test_case_post import BODY, CASE, case_world, post, started
-from .test_item_fast import (
-    NINTH,
-    closed,
-    fast_world,
-    named,
-    superseded,
-    waiting,
-)
+from .fastworld import NINTH, fast_world, listed
 from .test_work import NONE, REPO, facts, item, stepped
-from . import refused
 
 NOW = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.timezone.utc)
-SLOT = "tiny"
-
-
-def listed(here: world.World, *more: str) -> world.Result:
-    """Run ``slots next`` at the fixed time, the ledger's agents live.
-
-    Args:
-        here: the world.
-        *more: more arguments.
-
-    Returns:
-        What it did.
-    """
-    words = ["slots", "next", here.config, "--now", world.FUTURE]
-    return world.invoke(here, *words, *rankworld.running(here), *more)
 
 
 def briefs_of(here: world.World) -> Sequence[str]:
@@ -109,7 +86,7 @@ class TestSkip(unittest.TestCase):
         said = [each for each in done.out.splitlines() if each.startswith("SKIPPED")]
         same(said, ["SKIPPED: owner/project#3 is left out of this list by --skip"])
 
-    def test_b2_the_pure_helpers_keep_the_order_of_the_rest(self) -> None:
+    def test_b2_items_without_the_skipped_ones_keep_their_order(self) -> None:
         """Items without the skipped ones; no skip is no line and no change."""
         offer = work.Offered(
             items=[
@@ -121,7 +98,7 @@ class TestSkip(unittest.TestCase):
             blocked=[],
         )
         two = skipitem.without(offer, ["owner/project#1"])
-        same([each.reference for each in two.items], ["owner/project#2"])
+        same({each.reference for each in two.items}, {"owner/project#2"})
         same(skipitem.lines(offer, []), [])
         same(skipitem.named(argparse.Namespace(), REPO), [])
 
@@ -162,58 +139,76 @@ class TestBriefs(unittest.TestCase):
         same(briefsave.name_of("owner/lib#12"), "owner-lib-12.brief")
 
 
+def relocking(*step: steps.Next) -> pulls.PullFacts:
+    """The oldest PR, a relock PR, at a step (the review when none is given).
+
+    Args:
+        *step: the step to give it, if any.
+
+    Returns:
+        The PR.
+    """
+    oldest = facts(2, NONE, created_at="2026-01-01T00:00:00+00:00")
+    relock = dataclasses.replace(oldest, relock=True)
+    return stepped(relock, step[0]) if step else relock
+
+
+def order_of(*every: work.Item) -> Sequence[str]:
+    """The references of the items, ordered.
+
+    Args:
+        *every: the items.
+
+    Returns:
+        The references.
+    """
+    return tuple(each.reference for each in work.ordered(list(every), []))
+
+
 class TestRelockLast(unittest.TestCase):
     """B9: the review of a relock PR ranks after the other work."""
 
     def test_b9_a_relock_review_is_last(self) -> None:
         """Even oldest, it stands after another PR and a ticket."""
-        relock = facts(2, NONE, created_at="2026-01-01T00:00:00+00:00")
-        relock = dataclasses.replace(relock, relock=True)
-        other = facts(3, NONE)
-        every = [
-            *work.pull_items([relock, other]),
-            item("owner/project#9", work.Category.NEW_PR),
-        ]
-        refs = [each.reference for each in work.ordered(every, [])]
-        same(refs, ["owner/project#3", "owner/project#9", "owner/project#2"])
+        new = item("owner/project#9", work.Category.NEW_PR)
+        pulled = work.pull_items([relocking(), facts(3, NONE)])
+        same(
+            order_of(*pulled, new),
+            ("owner/project#3", "owner/project#9", "owner/project#2"),
+        )
 
     def test_b9_a_relock_pr_at_another_step_keeps_its_place(self) -> None:
         """The nearest input it must still keep first: a relock PR to fix."""
-        relock = facts(2, NONE, created_at="2026-01-01T00:00:00+00:00")
-        relock = dataclasses.replace(relock, relock=True)
-        relock = stepped(relock, steps.worker(steps.Task.FIX_CI))
-        every = [
-            item("owner/project#9", work.Category.NEW_PR),
-            *work.pull_items([relock]),
-        ]
-        refs = [each.reference for each in work.ordered(every, [])]
-        same(refs, ["owner/project#2", "owner/project#9"])
+        fix = relocking(steps.worker(steps.Task.FIX_CI))
+        pulled = work.pull_items([facts(3, NONE), fix])
+        same(order_of(*pulled), ("owner/project#2", "owner/project#3"))
+
+
+def blocked(line: str, state: str = "open") -> world.World:
+    """A world where PR 3 fixes ticket 9 and its body has a line.
+
+    Args:
+        line: the line the body has.
+        state: the state of ``owner/lib#3``.
+
+    Returns:
+        The world.
+    """
+    here = rankworld.depends_world("")
+    fixing(here, 3, f"Fixes #9\n\n{line}")
+    here.bodies[rankworld.BLOCKER] = {**rankworld.LIB_THREE, "state": state}
+    rankworld.serve(here, "owner/project", 9, rankworld.ticket())
+    return here
 
 
 class TestBlockedBody(unittest.TestCase):
     """B10: a PR whose body says it is blocked on a ticket is not offered a step."""
 
-    def blocked(self, line: str, state: str = "open") -> world.World:
-        """A world where PR 3 fixes ticket 9 and its body has a line.
-
-        Args:
-            line: the line the body has.
-            state: the state of ``owner/lib#3``.
-
-        Returns:
-            The world.
-        """
-        here = rankworld.depends_world("")
-        here.bodies[rankworld.BLOCKER] = {**rankworld.LIB_THREE, "state": state}
-        rankworld.serve(here, "owner/project", 9, rankworld.ticket(""))
-        fixing(here, 3, f"Fixes #9\n\n{line}")
-        return here
-
     def test_b10_a_pr_blocked_on_another_ticket_has_no_step(self) -> None:
         """``Blocked on`` and ``Blocked by`` in the PR's body: BLOCKED, no PR STATE."""
         for line in ("Blocked on owner/lib#3", "blocked by owner/lib#3"):
             with self.subTest(line):
-                output = next_output(self.blocked(line))
+                output = next_output(blocked(line))
                 lines_are(output, "BLOCKED", ["BLOCKED owner/project#3 by owner/lib#3"])
                 rankworld.absent(output, "PR STATE owner/project#3")
 
@@ -224,54 +219,63 @@ class TestBlockedBody(unittest.TestCase):
             ("Blocked on #9", "open"),
         ):
             with self.subTest(line, state=state):
-                output = next_output(self.blocked(line, state))
+                output = next_output(blocked(line, state))
                 lines_are(output, "BLOCKED", [])
+
+
+def run_of(number: int, status: str, minute: int) -> shapes.WorkflowRun:
+    """A run created some minutes before now, as the API lists it.
+
+    Args:
+        number: its id.
+        status: its status.
+        minute: minutes before now.
+
+    Returns:
+        The run.
+    """
+    page = json.dumps({"workflow_runs": [_run_json(number, status, minute)]})
+    return parsing.workflow_runs(page)[0]
+
+
+def stuck_among(
+    queued: shapes.WorkflowRun, other: shapes.WorkflowRun
+) -> Sequence[tuple[shapes.WorkflowRun, int, int]]:
+    """The stuck runs among a queued run and another.
+
+    Args:
+        queued: the run that may be stuck.
+        other: another run of the same project.
+
+    Returns:
+        What ``stuckci.stuck`` finds, at the fixed time.
+    """
+    return stuckci.stuck([queued], [queued, other], NOW)
 
 
 class TestStuckRun(unittest.TestCase):
     """B22: a run queued for long while later runs finished gets a diagnosis."""
 
-    def run_of(self, number: int, status: str, minute: int) -> shapes.WorkflowRun:
-        """A run created some minutes before now.
-
-        Args:
-            number: its id.
-            status: its status.
-            minute: minutes before now.
-
-        Returns:
-            The run.
-        """
-        created = NOW - datetime.timedelta(minutes=minute)
-        return shapes.WorkflowRun(
-            id=number,
-            status=status,
-            conclusion=None if status != "completed" else "success",
-            finished=status == "completed",
-            created_at=created.isoformat(),
-            head_branch="b",
-        )
-
     def test_b22_a_queued_run_with_later_completed_runs_is_stuck(self) -> None:
         """Queued over the limit and a later run completed."""
-        queued = self.run_of(1, "queued", 120)
-        later = self.run_of(2, "completed", 60)
-        found = stuckci.stuck([queued], [queued, later], NOW)
+        queued = run_of(1, "queued", 120)
+        later = run_of(2, "completed", 60)
+        found = stuck_among(queued, later)
         same([(each[0].id, each[1], each[2]) for each in found], [(1, 120, 1)])
-        text = stuckci.line("o/r", 7, "a" * 40, found[0])
+        text = stuckci.warning("o/r", 7, "a" * 40, found[0])
         says(text, "STUCK CI o/r#7: run 1 queued 120 minutes", "1 later runs")
         says(text, "gh api repos/o/r/actions/runs?head_sha=", "no empty commit")
 
     def test_b22_a_recent_run_or_one_without_later_runs_is_not_stuck(self) -> None:
         """The nearest inputs it must still pass."""
-        fresh = self.run_of(1, "queued", stuckci.MINUTES - 1)
-        later = self.run_of(2, "completed", 0)
-        old = self.run_of(3, "queued", 120)
-        earlier = self.run_of(4, "completed", 200)
-        running = self.run_of(5, "in_progress", 120)
-        same(stuckci.stuck([fresh], [fresh, later], NOW), [])
-        same(stuckci.stuck([old], [old, earlier], NOW), [])
-        same(stuckci.stuck([running], [running, later], NOW), [])
+        fresh = run_of(1, "queued", stuckci.MINUTES - 1)
+        later = run_of(2, "completed", 0)
+        old = run_of(3, "queued", 120)
+        earlier = run_of(4, "completed", 200)
+        running = run_of(5, "in_progress", 120)
+        same(stuck_among(fresh, later), [])
+        same(stuck_among(old, earlier), [])
+        same(stuck_among(running, later), [])
 
     def test_b22_only_a_pr_waiting_for_ci_is_read(self) -> None:
         """The runs are read for a PR at the wait; a read that fails says nothing."""
@@ -332,151 +336,3 @@ class TestDuplicate(unittest.TestCase):
         found = mentioning(listed(here).out, "DUPLICATE PR")
         same(len(found), 1)
         says(found[0], "work ticket owner/project#9", "close the newer")
-
-
-class TestUnknownData(unittest.TestCase):
-    """D1: an UNKNOWN says the rule and the data that decided it."""
-
-    def test_d1_the_pr_that_names_the_ticket_is_in_the_reason(self) -> None:
-        """The PR's number, and the rule: title, body or branch."""
-        found = one(with_pull_issues(named()), NINTH)
-        same((found.code, found.out), (1, ""))
-        says(
-            found.err,
-            "an open PR already works on it: PR owner/project#4 names it in its",
-            "title, body or branch",
-        )
-
-    def test_d1_a_hold_and_a_blocker_say_their_data(self) -> None:
-        """The blocker's reference, the superseding, the hold."""
-        for build, why in (
-            (waiting, "it waits for owner/lib#3"),
-            (superseded, "it is superseded"),
-        ):
-            with self.subTest(why):
-                says(one(with_pull_issues(build()), NINTH).err, why)
-
-
-class TestForce(unittest.TestCase):
-    """D2 and D3: ``--force`` prints the brief the plain command refuses."""
-
-    def test_d2_d3_force_prints_the_brief_and_says_what_it_overrode(self) -> None:
-        """The brief on standard output, the refusal on standard error."""
-        here = with_pull_issues(named())
-        before = here.ledger.read_text()
-        plain = one(here, NINTH)
-        done = one(here, NINTH, "--force")
-        same((plain.code, plain.out), (1, ""))
-        same(done.code, 0)
-        assert_that(len(done.out) > 0, equal_to(True))
-        says(
-            done.err,
-            "FORCED: the plain command refuses: UNKNOWN: owner/project#9",
-            "PR owner/project#4 names it",
-        )
-        same(here.ledger.read_text(), before)
-
-    def test_d2_d3_force_overrides_a_blocker_a_supersession_and_a_blocked_pr(
-        self,
-    ) -> None:
-        """A ticket that waits, a superseded one, and a PR whose ticket waits."""
-        for build, reference in (
-            (waiting, NINTH),
-            (superseded, NINTH),
-            (dependent_world, "owner/project#3"),
-        ):
-            with self.subTest(build.__name__):
-                here = with_pull_issues(build())
-                plain = one(here, reference)
-                done = one(here, reference, "--force")
-                same(plain.code, 1)
-                same(done.code, 0)
-                says(done.err, "FORCED: the plain command refuses")
-
-    def test_d2_d3_force_does_not_open_a_closed_ticket(self) -> None:
-        """The nearest input it must still refuse: nothing to brief."""
-        done = one(with_pull_issues(closed()), NINTH, "--force")
-        same((done.code, done.out), (1, ""))
-        says(done.err, "it is closed or cannot be read")
-        lacks(done.err, "FORCED")
-
-    def test_d2_d3_force_prices_a_ticket_with_no_label_at_zero(self) -> None:
-        """A slot works on an unlabeled ticket: forced, its brief is printed."""
-        here = with_pull_issues(world.make_world())
-        ticket = "owner/project#50"
-        steps_run = [
-            ["set", SLOT, "agent-1", "#50", "--running", "agent-1"],
-        ]
-        for words in steps_run:
-            world.invoke(here, "slots", words[0], here.config, *words[1:])
-        base = ["slots", "next", "--config", here.config, ticket]
-        tail = ["--running", "agent-1", "--now", world.FUTURE]
-        plain = world.invoke(here, *base, *tail)
-        done = world.invoke(here, *base, "--force", *tail)
-        same(plain.code, 1)
-        same(done.code, 0)
-        says(
-            done.err, "FORCED: the plain command refuses", "a slot already works on it"
-        )
-
-
-class TestCorrection(unittest.TestCase):
-    """D5 and D6: a correction is recorded against its ticket, in its body."""
-
-    def test_d5_d6_a_correction_is_added_to_the_ticket_body(self) -> None:
-        """The case follows the body; no comment is made."""
-        here = case_world([])
-        done = post(here, CASE)
-        same(done.code, 0)
-        same(refused.bodies(here), [BODY + "\n" + CASE])
-        same([each for each in here.calls if "comments" in each[-1]], [])
-
-    def test_d5_d6_a_correction_to_a_started_ticket_is_refused(self) -> None:
-        """The nearest input it must still refuse: a PR already fixes the ticket."""
-        here = case_world(started())
-        refused.assert_refused(post(here, CASE), "PR #4 says it fixes", here)
-        same(refused.bodies(here), [])
-
-
-class TestQuiesce(unittest.TestCase):
-    """D11: nothing starts until the owner lifts the quiesce."""
-
-    def switch(self, here: world.World, state: str) -> world.Result:
-        """Run ``quiesce on`` or ``off``.
-
-        Args:
-            here: the world.
-            state: ``on`` or ``off``.
-
-        Returns:
-            What it did.
-        """
-        return world.invoke(here, "quiesce", state, "--config", here.config)
-
-    def test_d11_slots_next_offers_nothing_while_quiesced(self) -> None:
-        """No NEXT, no brief, no empty slot; off, and the list is back."""
-        here = world.make_world()
-        on = self.switch(here, "on")
-        same((on.code, on.out), (0, quiesce.LINE + "\n"))
-        quiet = listed(here)
-        same(quiet.code, 0)
-        says(quiet.out, quiesce.LINE)
-        same(rankworld.NEXT_LINE.findall(quiet.out), [])
-        same(mentioning(quiet.out, "EMPTY SLOT"), [])
-        same(mentioning(quiet.out, "DISPATCH"), [])
-        off = self.switch(here, "off")
-        says(off.out, "quiesce is off")
-        back = listed(here)
-        assert_that(len(rankworld.NEXT_LINE.findall(back.out)) > 0, equal_to(True))
-        lacks(back.out, "QUIESCED")
-        self.switch(here, "off")
-
-    def test_d11_the_brief_of_one_item_is_refused_while_quiesced(self) -> None:
-        """UNKNOWN with the quiesce line; control: off, it is briefed."""
-        here = with_pull_issues(fast_world())
-        self.switch(here, "on")
-        done = one(here, NINTH)
-        same((done.code, done.out), (1, ""))
-        says(done.err, "UNKNOWN: owner/project#9 is not offered: QUIESCED")
-        self.switch(here, "off")
-        same(one(here, NINTH).code, 0)

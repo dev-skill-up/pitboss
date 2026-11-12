@@ -1,64 +1,21 @@
 """A hand-back is sent once, after its jobs ended, with the Plan check posted."""
 
 import json
-import os
-import pathlib
 import unittest
 from typing import Mapping, Sequence
 
 from .. import handbackcheck, handbackrecord, plancheck, plandigest
 from . import fakes, world
+from .handbackrun import hand_back, processes
 from .handbackworld import BASE, ready, unposted
 from .cleanworld import absent, same
-from .test_deviations import saved
 
-HANDED = "Deviations: none\n"
 HEAD = "a" * 40
 OTHER = "b" * 40
 BODY = (
     f"Fixes #7\n\n## Plan\nthe plan\n\n$ echo hi\n\n## Execution\nx\n\nHead: {HEAD}\n"
 )
 JOB = "sleep 100"
-
-
-def processes(top: pathlib.Path, working: Mapping[int, pathlib.Path]) -> pathlib.Path:
-    """A directory of process entries: a shell (5, child of 4) and the jobs.
-
-    Args:
-        top: where to make it.
-        working: the working directory of each job by process id.
-
-    Returns:
-        The directory.
-    """
-    proc = top / "proc"
-    own = [(4, 1, top), (5, 4, top)]
-    for pid, parent, cwd in (*own, *[(p, 4, w) for p, w in working.items()]):
-        entry = proc / str(pid)
-        entry.mkdir(parents=True)
-        (entry / "stat").write_text(f"{pid} (name) S {parent} 0\n", encoding="utf-8")
-        (entry / "cmdline").write_bytes(b"sleep\x00100\x00")
-        os.symlink(cwd, entry / "cwd")
-    (proc / "self").mkdir()
-    return proc
-
-
-def hand_back(
-    here: world.World, proc: pathlib.Path, *more: str, text: str = HANDED
-) -> world.Result:
-    """Run ``hand-back-check`` on a deviations file against a process directory.
-
-    Args:
-        here: the world.
-        proc: the directory of process entries.
-        *more: more arguments.
-        text: the hand-back.
-
-    Returns:
-        What it printed and its status.
-    """
-    args = ("hand-back-check", saved(text), "--config", here.config)
-    return world.invoke(here, *args, "--processes", str(proc), *more)
 
 
 class TestJobs(unittest.TestCase):

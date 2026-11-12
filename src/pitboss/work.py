@@ -53,14 +53,13 @@ def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
             reference=pulls.reference(pull),
             created_at=pull.pull.created_at,
             title=pull.pull.title,
-            mechanical=pull.relock and category in RELOCK_REVIEWS,
         )
         for pull in facts
         if (category := category_of(pull)) is not None
     ]
 
 
-RELOCK_REVIEWS = frozenset({Category.REVIEW, Category.REVIEW_FIX_ROUND})
+REVIEWS = frozenset({Category.REVIEW, Category.RELOCK_REVIEW})
 CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.REVISE_PLAN: Category.REVISE_PLAN,
     steps.Task.FIX_CI: Category.FIX_CI,
@@ -90,6 +89,8 @@ def category_of(pull: pulls.PullFacts) -> Category | None:
         return None
     alone = step.stage is steps.Stage.PLAN_ONLY  # keyword: plan-review-listed
     fixing = fix_round(pull) and not alone
+    if pull.relock:
+        return Category.RELOCK_REVIEW  # keyword: relock-last (B9)
     return Category.REVIEW_FIX_ROUND if fixing else Category.REVIEW
 
 
@@ -188,7 +189,7 @@ def ordered(items: Iterable[Item], held: Iterable[str]) -> Sequence[Item]:
     return sorted(
         (item for item in items if item.reference not in holding),
         key=lambda item: (
-            item.mechanical,
+            item.category is Category.RELOCK_REVIEW,
             item.category is Category.NEW_PR,
             item.priority,
             item.created_at,

@@ -15,10 +15,9 @@ from . import (
     config,
     configfile,
     diskwatch,
-    duplicatepr,
-    exempt,
-    ledger,
     handedback,
+    ledger,
+    listtail,
     logline,
     machine,
     nextfound,
@@ -27,8 +26,8 @@ from . import (
     offering,
     placeline,
     pullmarks,
-    pulls,
     pullstate,
+    pulls,
     quiesce,
     rankline,
     readyline,
@@ -37,7 +36,6 @@ from . import (
     slotholding,
     slotlog,
     slotsheader,
-    stuckci,
     suggest,
     timing,
     unlabeledsearch,
@@ -147,6 +145,12 @@ def _source(
     )
 
 
+def _recorded(found: Found, ordered: work.Offered, view: nextview.NextView) -> None:
+    queued = [each.reference for each in view.items]
+    first = slotheld.LEAD + 1 + len(view.ready)
+    placeline.record(found, queued, first, not ordered.unread)
+
+
 def show(
     found: Found,
     opened: Sequence[pulls.Read],
@@ -160,51 +164,37 @@ def show(
         book: the slot ledger.
     """
     logline.post(found.settings.slots.log)
-    if quiesce.is_on(found.settings.slots.ledger):  # D11: nothing is offered
-        print(quiesce.LINE)
+    if quiesce.say(found.settings.slots.ledger):  # D11: nothing is offered
         return
     book = _live(found, opened, book)
     unreadableline.print_withheld(opened)
-    ordered = _windowed(found, opened, book)
-    skipped = skipitem.named(found.args, found.settings.project.repo)
-    skip_lines = skipitem.lines(ordered, skipped)
-    ordered = skipitem.without(ordered, skipped)
+    skipped = skipitem.apply(found.args, found.settings.project.repo)
+    ordered, skip_lines = skipped(_windowed(found, opened, book))
     timing.note(found.args, "ranking", len(ordered.items), "items")
     source = _source(found, opened, ordered, book)
     view = _view(found, ordered, book, Reads(facts=source.facts, opened=opened))
-    queued = [each.reference for each in view.items]
-    first = slotheld.LEAD + 1 + len(view.ready)
-    placeline.record(found, queued, first, not ordered.unread)
+    _recorded(found, ordered, view)
     for line in itertools.chain(
         header(found, book, view),
         unlabeledsearch.lines(found.github, found.settings),
         skip_lines,
         nextview.next_lines(view),
-        _unread(ordered, view),
-        offering.disagreements(found, ordered),
-        _tail(found, source),
+        _after(found, ordered, source, view),
     ):
         print(line)
     timing.note(found.args, "lists and briefs printed", suggest.TOP, "briefs at most")
 
 
-def _tail(found: Found, source: suggest.Source) -> Iterable[str]:
-    # what follows the list: the PR states, the disk, the override and the briefs
+def _after(
+    found: Found, ordered: work.Offered, source: suggest.Source, view: nextview.NextView
+) -> Iterable[str]:
     return itertools.chain(
+        [windowrun.UNREAD.format(count=len(view.items))] if ordered.unread else [],
+        offering.disagreements(found, ordered),
         pullstate.lines(found.github, found.settings, source.facts),
-        duplicatepr.lines(source.facts),
-        stuckci.lines(found.github, source.facts, found.now),
-        [diskwatch.line(source.volume)] if source.volume else [],
-        [exempt.OVERRIDE],  # keyword: pitboss-exempt (pitboss#113)
+        listtail.lines(found, source.facts, source.volume),
         suggest.lines(source),
     )
-
-
-def _unread(ordered: work.Offered, view: nextview.NextView) -> Sequence[str]:
-    # the line that says the list ends at its window
-    if not ordered.unread:
-        return []
-    return [windowrun.UNREAD.format(count=len(view.items))]
 
 
 def header(found: Found, book: ledger.Ledger, view: nextview.NextView) -> Sequence[str]:

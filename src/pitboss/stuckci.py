@@ -51,10 +51,10 @@ def stuck(
     return found
 
 
-def line(
+def warning(
     slug: str, number: int, head: str, found: tuple[shapes.WorkflowRun, int, int]
 ) -> str:
-    """The ``STUCK CI`` line of one stuck run.
+    """The ``STUCK CI`` warning of one stuck run.
 
     Args:
         slug: the repository, ``owner/name``.
@@ -74,6 +74,38 @@ def line(
     )
 
 
+def _runs(
+    github: ghapi.GitHub, slug: str, head: str
+) -> tuple[Sequence[shapes.WorkflowRun], Sequence[shapes.WorkflowRun]]:
+    # the runs of the head and the newest runs of the repository
+    path = f"repos/{slug}/actions/runs"
+    mine = ghapi.pages(github, f"{path}?head_sha={head}", parsing.workflow_runs, 1)
+    return mine, ghapi.pages(github, path, parsing.workflow_runs, 1)
+
+
+def alerts(
+    github: ghapi.GitHub, pull: pulls.PullFacts, now: datetime.datetime
+) -> Sequence[str]:
+    """The ``STUCK CI`` lines of one PR.
+
+    Args:
+        github: the API.
+        pull: the PR.
+        now: the time now.
+
+    Returns:
+        A line for each stuck run of its head; none when its runs cannot be read.
+    """
+    slug, head = pull.repo.slug, pull.pull.head.sha
+    try:
+        mine, every = _runs(github, slug, head)
+    except subprocess.CalledProcessError:
+        return []
+    return [
+        warning(slug, pull.pull.number, head, one) for one in stuck(mine, every, now)
+    ]
+
+
 def lines(
     github: ghapi.GitHub, facts: Sequence[pulls.PullFacts], now: datetime.datetime
 ) -> Sequence[str]:
@@ -87,24 +119,5 @@ def lines(
     Returns:
         The lines; a PR whose runs cannot be read says nothing.
     """
-    said: list[str] = []
-    for each in facts:
-        if each.step.step is not steps.Step.WAIT_FOR_CI:
-            continue
-        slug, head = each.repo.slug, each.pull.head.sha
-        try:
-            mine = ghapi.pages(
-                github,
-                f"repos/{slug}/actions/runs?head_sha={head}",
-                parsing.workflow_runs,
-                1,
-            )
-            every = ghapi.pages(
-                github, f"repos/{slug}/actions/runs", parsing.workflow_runs, 1
-            )
-        except subprocess.CalledProcessError:
-            continue
-        said.extend(
-            line(slug, each.pull.number, head, one) for one in stuck(mine, every, now)
-        )
-    return said
+    waiting = [each for each in facts if steps.Step.WAIT_FOR_CI is each.step.step]
+    return [said for each in waiting for said in alerts(github, each, now)]

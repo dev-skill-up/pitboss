@@ -18,7 +18,8 @@ from .briefmake import has_all, has_none
 from .handbackworld import ready
 from .linting import write_text
 from .plancheckrun import body_of
-from .test_deviations import WITH_NONE, WITHOUT_LINE, saved
+from .handbackrun import saved
+from .test_deviations import WITH_NONE, WITHOUT_LINE
 from .test_nox import Done, FakeNox
 
 REFUSAL = (
