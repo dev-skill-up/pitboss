@@ -8,7 +8,7 @@ import datetime
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, ends_with, not_
+from hamcrest import assert_that, contains_string, ends_with, equal_to
 
 from .. import flowshare
 from . import fakes, ownerbodies, world
@@ -69,7 +69,7 @@ def pitboss_world() -> world.World:
     here.bodies[CLOSED] = [
         merged(1, 8),
         merged(2, 9),
-        merged(3, 1) | {"merged_at": "2029-12-01T00:00:00+00:00"},
+        dict(merged(3, 1), merged_at="2029-12-01T00:00:00+00:00"),
         {"number": 4, "merged_at": None},
     ]
     for number, name in ((1, "src/pitboss/flow.py"), (2, "README.rst")):
@@ -88,7 +88,7 @@ class TestShare(unittest.TestCase):
     def test_flow_share_is_not_printed_without_pitboss(self) -> None:
         """The other repositories print no such line."""
         done = world.again(counting(), "count")
-        assert_that(done.out, not_(contains_string("flow:")))
+        assert_that(done.out.count("flow:"), equal_to(0))
 
     def test_flow_share_lines_of_none_and_of_all(self) -> None:
         """No division by zero; a whole share."""

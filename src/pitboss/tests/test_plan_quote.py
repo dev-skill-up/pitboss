@@ -6,7 +6,7 @@ refuses; the PR body quotes it word for word in its Plan row.
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, not_
+from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import quotedplan
 from .linting import BODY, HEAD, lint, write_text
@@ -47,7 +47,8 @@ class TestQuotedRow(unittest.TestCase):
 
     def test_the_row_that_quotes_the_rule_is_not_refused(self) -> None:
         """Pitboss 477: the line of Done-when item 2 names D4."""
-        assert_that(findings(body(PLAN)), not_(contains_string("haven't checked")))
+        refused = [each for each in findings(body(PLAN)) if "haven't checked" in each]
+        assert_that(refused, empty())
 
     def test_the_same_words_outside_the_quote_are_refused(self) -> None:
         """The nearest inputs it must still reject: the writer's own prose."""
