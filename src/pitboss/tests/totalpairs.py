@@ -173,7 +173,7 @@ def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
 
 
 def routed(
-    lines: Sequence[str], table: Callable[[str], object] = totalroutes.route
+    lines: Sequence[str], table: Callable[[str], object] = totalroutes.route_of
 ) -> Sequence[str]:
     """The lines with no route, or that say pitboss does not know.
 
