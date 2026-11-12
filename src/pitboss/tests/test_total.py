@@ -33,7 +33,7 @@ def _verdict(
 
 @functools.cache
 def _policy() -> totalverdict.Policy:
-    return totalverdict.policy()
+    return totalverdict.shipped_policy()
 
 
 @functools.cache

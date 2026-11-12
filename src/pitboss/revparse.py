@@ -42,18 +42,22 @@ def rev_parse_blocks(body: str, head: str) -> Sequence[str]:
         block's line.
     """
     wanted = head or _last_head(body)
-    found = [
+    return [
+        f"line {line}: the block of `git rev-parse HEAD` prints {printed or 'no SHA'}"
+        f" but the last Head: line is {wanted}: run pitboss expand again"
+        " (rev-parse-head)"
+        for line, printed in _differing(body, wanted)
+    ]
+
+
+def _differing(body: str, wanted: str) -> Sequence[tuple[int, str]]:
+    # the line and the printed SHA of each block that prints another SHA
+    return [
         (each.line, printed)
         for each in _rev_parse(body)
         if wanted
         for printed in [_printed(each)]
         if printed != wanted
-    ]
-    return [
-        f"line {line}: the block of `git rev-parse HEAD` prints {printed or 'no SHA'}"
-        f" but the last Head: line is {wanted}: run pitboss expand again"
-        " (rev-parse-head)"
-        for line, printed in found
     ]
 
 

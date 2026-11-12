@@ -121,44 +121,60 @@ def _association(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]
     )
 
 
+def _empty(why: str) -> Row:
+    # a field that holds nothing (false, null or empty) when no rule stops
+    return lambda value, pull, ctx: (not value, why)
+
+
+def _number(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:
+    return value == ctx.get("number"), "another PR number"
+
+
+def _open(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:
+    return value == "open", "the PR is not open"
+
+
+def _text(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:
+    return isinstance(value, str), "not text"
+
+
+def _text_or_none(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:
+    return value is None or isinstance(value, str), "not text"
+
+
 def _named_rows() -> Mapping[str, Row]:
     return {
-        "number": lambda value, pull, ctx: (
-            value == ctx.get("number"),
-            "another PR number",
-        ),
+        "number": _number,
         "url": _api_url,
         "closed_at": _absent("the PR was closed"),
         "merged_at": _absent("the PR is merged"),
         "merged_by": _absent("the PR is merged"),
-        "state": lambda value, pull, ctx: (value == "open", "the PR is not open"),
-        "merged": lambda value, pull, ctx: (not value, "the PR is merged"),
+        "state": _open,
+        "merged": _empty("the PR is merged"),
+        **_review_rows(),
+    }
+
+
+def _review_rows() -> Mapping[str, Row]:
+    # the rows of the fields a merge reads beyond the PR's own state
+    return {
         "draft": _draft,
-        "locked": lambda value, pull, ctx: (not value, "the conversation is locked"),
+        "locked": _empty("the conversation is locked"),
         "active_lock_reason": _absent("the conversation is locked"),
         "mergeable": _mergeable,
         "mergeable_state": _mergeable_state,
         "auto_merge": _auto_merge,
         "base": _base,
         "head": _head,
-        "title": lambda value, pull, ctx: (isinstance(value, str), "not text"),
+        "title": _text,
         "labels": _labels,
         "milestone": _no_rule,  # no rule names a milestone
-        "requested_reviewers": lambda value, pull, ctx: (
-            not value,
-            "a review was requested and not given",
-        ),
-        "requested_teams": lambda value, pull, ctx: (
-            not value,
-            "a team review was requested and not given",
-        ),
+        "requested_reviewers": _empty("a review was requested and not given"),
+        "requested_teams": _empty("a team review was requested and not given"),
         "user": _user,
         "author_association": _association,
         "stack": _no_rule,  # no rule names a stack
-        "body": lambda value, pull, ctx: (
-            value is None or isinstance(value, str),
-            "not text",
-        ),
+        "body": _text_or_none,
     }
 
 

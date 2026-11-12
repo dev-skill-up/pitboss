@@ -199,7 +199,7 @@ ROUTES: Sequence[Route] = (
 )
 
 
-def route(line: str, routes: Sequence[Route] = ROUTES) -> Route | None:
+def route_of(line: str, routes: Sequence[Route] = ROUTES) -> Route | None:
     """The route of a stop line.
 
     Args:

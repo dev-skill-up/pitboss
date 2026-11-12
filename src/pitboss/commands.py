@@ -244,7 +244,7 @@ def _pull_lines(
     queued = latest is not None and not latest.run.finished
     why = {check_id: describe(each) for check_id, each in got.failures.items()}
     steps = {check_id: each.steps for check_id, each in got.failures.items()}
-    shown = pulllines.lines(pull, found.now, found.settings, steps, got.failures)
+    shown = pulllines.lines(pull, found.now, found.settings, (steps, got.failures))
     acts = report.action_lines(pull, found.settings, queued, why)
     blocked = pullstate.blocked_lines(found.github, found.settings, pull, ())
     for line in (*shown, *got.moves, *removedline.settle(got.said, acts), *blocked):

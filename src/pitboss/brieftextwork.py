@@ -4,7 +4,9 @@ Like those of ``brieftext``, they are pinned by tests, so a change to them is a
 reviewed code change.
 """
 
-from . import brieftextbody, brieftextowner
+from typing import Mapping
+
+from . import briefkind, brieftext as text, brieftextbody, brieftextfix, brieftextowner
 from .envrules import LIMIT
 
 NOX = (
@@ -122,3 +124,23 @@ TASK_FINISH_PARTIAL = (
     " prints ok, push the unpushed commits), change nothing else, then stop with the"
     " hand-back (keyword: finish-partial)."
 )
+
+Kind = briefkind.Kind
+TASKS: Mapping[Kind, str] = {
+    Kind.NEW_PR: text.TASK_NEW_PR,
+    Kind.FIRST_ROUND: text.TASK_FIRST_ROUND,
+    Kind.REVISE_PLAN: text.TASK_REVISE_PLAN,
+    Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
+    Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
+    Kind.FIX_CI: text.TASK_FIX_CI,
+    Kind.RESOLVE_CONFLICT: brieftextfix.TASK_RESOLVE_CONFLICT,
+    Kind.RULING_STEPS: text.TASK_RULING_STEPS,
+    Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
+    Kind.RUN_PLAN: TASK_RUN_PLAN,
+    Kind.ADD_CI_QUOTES: TASK_ADD_CI_QUOTES,
+    Kind.REFRESH_BODY: TASK_REFRESH_BODY,
+    Kind.SHARED_RED: TASK_SHARED_RED,
+    Kind.FIX_BLOCKED_BY: TASK_FIX_BLOCKED_BY,
+    Kind.AFTER_BLOCKER: TASK_AFTER_BLOCKER,
+    Kind.FINISH_PARTIAL: TASK_FINISH_PARTIAL,
+}

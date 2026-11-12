@@ -11,7 +11,6 @@ from . import (
     headchecks,
     holdgate,
     knownred,
-    local,
     pinsline,
     pulls,
     queue,
@@ -105,26 +104,27 @@ def action_lines(
         The lines.
     """
     behind = _behind_lines(pull, settings)
-    merge = None if behind else _ready_line(pull, settings)
-    if merge is None and not behind and _auto_merge_off(pull, settings, queued):
-        merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
-    return holdgate.gate(  # keyword: hold-gate (quire#1110)
-        pull,
-        knownred.gate(  # keyword: known-red (quire#1120): before the hold
-            pull,
-            [
-                *_wait_lines(pull),
-                *_conflict_lines(pull),
-                *_failure_lines(pull, why),
-                *pinsline.lines(
-                    pulls.reference(pull), pull.signals.pins, _posting(pull)
-                ),
-                *behind,
-                *([merge] if merge else []),
-            ],
-            holdgate.PREFIXES,
-        ),
-    )
+    merge = _merge_line(pull, settings, queued) if not behind else None
+    found = [
+        *_wait_lines(pull),
+        *_conflict_lines(pull),
+        *_failure_lines(pull, why),
+        *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
+        *behind,
+        *([merge] if merge else []),
+    ]
+    # keywords: hold-gate (quire#1110), known-red (quire#1120): before the hold
+    return holdgate.gate(pull, knownred.gate(pull, found, holdgate.PREFIXES))
+
+
+def _merge_line(
+    pull: pulls.PullFacts, settings: config.Config, queued: bool
+) -> str | None:
+    # the merge line of a PR that is not behind: ready, by hand, or auto-merge off
+    merge = _ready_line(pull, settings)
+    if merge is None and _auto_merge_off(pull, settings, queued):
+        return f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
+    return merge
 
 
 # keyword: behind-approved (pitboss#369): the strict up-to-date rule held pwa#293
@@ -341,25 +341,6 @@ def _run_name(queue_run: queue.QueueRun) -> str:
     return (
         f"{queue_run.repo.slug} {queue_run.run.id}"
         f" (pr-{queue_run.number}, {queue_run.run.status})"
-    )
-
-
-def straggler_line(straggler: local.Straggler) -> str:
-    """The line of one straggler.
-
-    Args:
-        straggler: the straggler.
-
-    Returns:
-        The line.
-    """
-    branch = straggler.branch or "detached"
-    return (
-        f"{Marker.STRAGGLER.text} {straggler.path} [{branch}]"
-        f" uncommitted={straggler.uncommitted}"
-        f" commits-not-on-origin={straggler.unpushed}"
-        f" branch-on-origin={'yes' if straggler.on_origin else 'no'}"
-        f" last={straggler.last}"
     )
 
 

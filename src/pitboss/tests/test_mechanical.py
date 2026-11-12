@@ -89,7 +89,7 @@ def said(
     Returns:
         The lines.
     """
-    return list(pulllines.lines(pull, NOW, SETTINGS, {}, failures or {}))
+    return list(pulllines.lines(pull, NOW, SETTINGS, ({}, failures or {})))
 
 
 class TestClassify(unittest.TestCase):
@@ -174,7 +174,7 @@ class TestSweepLines(unittest.TestCase):
         """A table of the configuration changes the minutes and the patterns."""
         text = '[mechanical]\nchecks = ["unit"]\nslow_minutes = 3\npatterns = []\n'
         tuned = fakes.settings(fakes.directory(), text)
-        lines = pulllines.lines(red(check(1, "unit", 5)), NOW, tuned, {}, {})
+        lines = pulllines.lines(red(check(1, "unit", 5)), NOW, tuned, ({}, {}))
         assert_that(
             any(each.startswith("SLOW-MECHANICAL-FIX") for each in lines),
             equal_to(True),

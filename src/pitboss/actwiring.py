@@ -46,9 +46,10 @@ def owner_of(path: pathlib.Path) -> Owner:
         key: text(value) for key, value in members(found.get("dispositions")).items()
     }
     messages = tuple(text(each) for each in listing(found.get("messages")))
-    cap = int(str(found.get("cap", 0)))
-    caps = {"": cap} if cap else {}
-    return Owner(messages=messages, dispositions=dispositions, caps=caps)
+    limit = int(str(found.get("cap", 0)))
+    return Owner(
+        messages=messages, dispositions=dispositions, caps={"": limit} if limit else {}
+    )
 
 
 def write_owner(path: pathlib.Path, owner: Owner) -> None:
@@ -203,7 +204,7 @@ def act_of(
     given = actinputs.Settings(identity=identity, authors=[identity], max_lines=p90)
     return Act(
         hub=hub,
-        inputs=actinputs.inputs(actinputs.reader(github), given),
+        inputs=actinputs.live_inputs(actinputs.reader(github), given),
         owner=owner,
         repos=repos,
         p90=p90,

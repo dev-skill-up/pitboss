@@ -18,7 +18,7 @@ It never reads its own status (``pitboss-gate``).
 
 import dataclasses
 import functools
-from typing import Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import (
     enumeration,
@@ -95,7 +95,7 @@ SHAPE_ERRORS = (AttributeError, TypeError, KeyError, ValueError)
 
 
 @functools.cache
-def stale_events() -> frozenset[str]:
+def stale_events() -> AbstractSet[str]:
     """The documented timeline kinds after which the newest review is stale.
 
     Returns:
@@ -118,7 +118,7 @@ class Policy:
     """
 
     schema: Mapping[str, str]
-    benign: frozenset[str] = BENIGN_EVENTS
+    benign: AbstractSet[str] = BENIGN_EVENTS
     review: Callable[[str, str, object, Mapping[str, object]], str] = (
         totalreview.review_reading
     )
@@ -126,11 +126,11 @@ class Policy:
     body: Callable[[object, str, Mapping[str, object]], Sequence[str]] = (
         totalbody.body_findings
     )
-    not_overridable: tuple[str, ...] = NOT_OVERRIDABLE
+    not_overridable: Sequence[str] = NOT_OVERRIDABLE
 
 
 @functools.cache
-def policy() -> Policy:
+def shipped_policy() -> Policy:
     """The rows as pitboss ships them.
 
     Returns:
@@ -196,20 +196,22 @@ def _block_lines(ctx: JsonMap) -> Sequence[str]:
     return found
 
 
+# a change closes a ticket; a relock or a publish need not
+UNTICKETED: Mapping[str, Sequence[str]] = {
+    "change": ["ticket: the body closes no ticket"]
+}
+
+
 def _ticket_lines(ctx: JsonMap, kind: str) -> Sequence[str]:
     tickets = members(ctx.get("tickets"))
-    found = (
-        ["ticket: the body closes no ticket"]
-        if not tickets and kind == "change"
-        else []
-    )
+    found = [] if tickets else list(UNTICKETED.get(kind, []))
     for ref, value in tickets.items():
         if line := totalrows.ticket_state(ref, value):
             found.append(line)
     return found
 
 
-def _event_lines(ctx: JsonMap, benign: frozenset[str]) -> Sequence[str]:
+def _event_lines(ctx: JsonMap, benign: AbstractSet[str]) -> Sequence[str]:
     timeline = records(ctx.get("timeline"))
     attempts = totalreview.review_attempts(timeline)
     since = timeline[timeline.index(attempts[-1]) + 1 :] if attempts else []
@@ -258,7 +260,7 @@ def _lifted(
     return [
         each
         for each in stops
-        if not each.startswith(rules.not_overridable)
+        if not each.startswith(tuple(rules.not_overridable))
         and any(at == head and f'stop="{each}"' in rest for at, rest in overrides)
     ]
 
@@ -286,6 +288,14 @@ def _stops(action: str, pull: JsonMap, given: JsonMap, rules: Policy) -> Sequenc
     return [each for each in found if each not in lifted]
 
 
+def _unread(ctx: JsonMap) -> Sequence[str]:
+    return [
+        f"input {key}: not read (no input has a default)"
+        for key in REQUIRED
+        if key not in ctx
+    ]
+
+
 def verdict(
     action: str, pull: JsonMap, ctx: JsonMap, rules: Policy | None = None
 ) -> Answer:
@@ -300,16 +310,11 @@ def verdict(
     Returns:
         GO with no line, or STOP with every stop line.
     """
-    missing = [key for key in REQUIRED if key not in ctx]
+    missing = _unread(ctx)
     if missing:
-        return Answer(
-            word=STOP,
-            lines=[
-                f"input {key}: not read (no input has a default)" for key in missing
-            ],
-        )
+        return Answer(word=STOP, lines=missing)
     try:
-        stops = _stops(action, pull, ctx, rules or policy())
+        stops = _stops(action, pull, ctx, rules or shipped_policy())
     except SHAPE_ERRORS as error:
         why = f"{type(error).__name__}: {str(error)[:60]}"
         return Answer(

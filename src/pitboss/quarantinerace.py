@@ -12,7 +12,7 @@ and the mark pattern are the configuration's ``[lint.quarantine]``.
 
 import pathlib
 import re
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import config, phrases
 
@@ -33,8 +33,10 @@ def _has_line(body: str, prefix: str) -> bool:
 
 
 def _lines(
-    name: str, body: str, rules: config.Quarantine, quarantine: str, race: str
+    name: str, body: str, rules: config.Quarantine, prefixes: tuple[str, str]
 ) -> Sequence[str]:
+    # prefixes: the line a failing test needs, and the line a race needs
+    quarantine, race = prefixes
     found = []
     if _words(rules.failing).search(body) and not _has_line(body, quarantine):
         found.append(
@@ -80,23 +82,23 @@ def marks_left(
     if not tickets or directory is None or not directory.is_dir():
         return []
     mark = re.compile(rules.mark)
-    found = []
-    for path in sorted(directory.rglob("*")):
-        if path.suffix not in TEXT_SUFFIXES or not path.is_file():
-            continue
-        cited = {
-            ticket
-            for line in path.read_text(encoding="utf-8").splitlines()
-            for found_mark in mark.finditer(line)
-            for ticket in re.findall(r"#(\d+)", found_mark.group(0))
-        }
-        for ticket in sorted(cited & tickets):
-            where = path.relative_to(root or path).as_posix()
-            found.append(
-                f"leftover-mark: {where} still holds a skip mark citing #{ticket},"
-                f" which the body fixes; the fix removes the mark"
-            )
-    return found
+    return [
+        f"leftover-mark: {path.relative_to(root or path).as_posix()} still holds a"
+        f" skip mark citing #{number}, which the body fixes; the fix removes the mark"
+        for path in sorted(directory.rglob("*"))
+        if path.suffix in TEXT_SUFFIXES and path.is_file()
+        for number in sorted(_cited(path, mark) & tickets)
+    ]
+
+
+def _cited(path: pathlib.Path, mark: re.Pattern[str]) -> AbstractSet[str]:
+    # the ticket numbers the skip marks of a file cite
+    return {
+        number
+        for line in path.read_text(encoding="utf-8").splitlines()
+        for found_mark in mark.finditer(line)
+        for number in re.findall(r"#(\d+)", found_mark.group(0))
+    }
 
 
 def pr_body(
@@ -114,7 +116,7 @@ def pr_body(
         The findings, each with its check name.
     """
     return [
-        *_lines(name, body, rules, "Quarantine:", "Race:"),
+        *_lines(name, body, rules, ("Quarantine:", "Race:")),
         *_evidence(name, body, rules),
         *marks_left(body, root, rules),
     ]
@@ -131,7 +133,7 @@ def review(name: str, body: str, rules: config.Quarantine) -> Sequence[str]:
     Returns:
         The findings.
     """
-    return _lines(name, body, rules, "Quarantine check:", "Race check:")
+    return _lines(name, body, rules, ("Quarantine check:", "Race check:"))
 
 
 def brief(name: str, body: str, banned: Sequence[phrases.Phrase]) -> Sequence[str]:

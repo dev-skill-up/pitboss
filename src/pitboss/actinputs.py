@@ -16,7 +16,7 @@ from typing import Callable, Sequence
 
 from . import ghapi, ticketreader, totalbody, totalreview
 from .actcore import Inputs, Pull
-from .totaljson import lines_of, members, name_at, records, text
+from .totaljson import JsonMap, lines_of, members, name_at, records, text
 
 Read = Callable[[str], object]
 
@@ -90,36 +90,35 @@ def _refs(body: str, repo: str, pattern: re.Pattern[str], group: int) -> list[st
 
 def _states(read: Read, refs: Sequence[str]) -> dict[str, object]:
     found: dict[str, object] = {}
-    for ref in refs:
-        where, _, number = ref.rpartition("#")
-        answer = read(f"repos/{where}/issues/{number}")
-        found[ref] = answer
+    for each in refs:
+        where, _, number = each.rpartition("#")
+        found[each] = read(f"repos/{where}/issues/{number}")
     return found
 
 
 def _blockers(
-    read: Read, body: str, repo: str, timeline: Sequence[object], identity: str
+    read: Read, body: str, events: Sequence[JsonMap], who: tuple[str, str]
 ) -> dict[str, object]:
+    # who: the repository and the act identity
+    repo, identity = who
     lines = [line for line in body.splitlines() if totalbody.BLOCKED.match(line)]
     named = [each for line in lines for each in totalbody.REFERENCE.findall(line)]
     named += [
         rest.split()[0]
-        for _, rest in totalreview.act_records(
-            records(timeline), identity, "blocked-by"
-        )
+        for _, rest in totalreview.act_records(events, identity, "blocked-by")
         if rest.split()
     ]
-    states = {}
-    for ref in named:
-        full = ref if not ref.startswith("#") else f"{repo}{ref}"
-        state = _states(read, [full])[full]
-        states[ref] = text(members(state).get("state")) or "not read"
-    return states
+    found = {}
+    for each in named:
+        full = each if not each.startswith("#") else f"{repo}{each}"
+        answer = _states(read, [full])[full]
+        found[each] = text(members(answer).get("state")) or "not read"
+    return found
 
 
-def _head_reads(read: Read, repo: str, head: str) -> Pull:
-    runs = members(read(f"repos/{repo}/commits/{head}/check-runs?per_page=100"))
-    status = members(read(f"repos/{repo}/commits/{head}/status"))
+def _head_reads(read: Read, repo: str, sha: str) -> Pull:
+    runs = members(read(f"repos/{repo}/commits/{sha}/check-runs?per_page=100"))
+    status = members(read(f"repos/{repo}/commits/{sha}/status"))
     return {
         "check_runs": runs.get("check_runs", runs) if "_error" not in runs else runs,
         "statuses": (
@@ -128,7 +127,25 @@ def _head_reads(read: Read, repo: str, head: str) -> Pull:
     }
 
 
-def inputs(read: Read, settings: Settings) -> Inputs:
+def _repo_reads(read: Read, repo: str, number: int, pull: Pull) -> Pull:
+    # what is read of the repository and the PR, not of the project's settings
+    body, branch = text(pull.get("body")), name_at(pull, "base", "ref")
+    checks, queue = _rules(read, repo, branch)
+    tickets = _refs(body, repo, ticketreader.CLOSING, 2)
+    return {
+        "repo": repo,
+        "number": number,
+        "default_branch": text(members(read(f"repos/{repo}")).get("default_branch")),
+        "required_checks": checks,
+        "merge_queue": queue,
+        **_head_reads(read, repo, name_at(pull, "head", "sha")),
+        "tickets": _states(read, tickets),
+        "files": read(f"{ALL}repos/{repo}/pulls/{number}/files?per_page=100"),
+        "holds": [],
+    }
+
+
+def live_inputs(read: Read, settings: Settings) -> Inputs:
     """The verdict's inputs of a PR, read live.
 
     Args:
@@ -140,29 +157,17 @@ def inputs(read: Read, settings: Settings) -> Inputs:
     """
 
     def made(repo: str, number: int, pull: Pull, timeline: list[object]) -> Pull:
-        body, branch = text(pull.get("body")), name_at(pull, "base", "ref")
-        checks, queue = _rules(read, repo, branch)
         events = timeline or read(
             f"{ALL}repos/{repo}/issues/{number}/timeline?per_page=100"
         )
-        tickets = _refs(body, repo, ticketreader.CLOSING, 2)
+        who = (repo, settings.identity)
         return {
-            "repo": repo,
-            "number": number,
-            "default_branch": text(
-                members(read(f"repos/{repo}")).get("default_branch")
-            ),
+            **_repo_reads(read, repo, number, pull),
             "authors": set(settings.authors) | {settings.identity},
             "act_identity": settings.identity,
-            "required_checks": checks,
-            "merge_queue": queue,
-            **_head_reads(read, repo, name_at(pull, "head", "sha")),
-            "tickets": _states(read, tickets),
-            "files": read(f"{ALL}repos/{repo}/pulls/{number}/files?per_page=100"),
             "max_lines": settings.max_lines(repo),
-            "holds": [],
             "timeline": events,
-            "blockers": _blockers(read, body, repo, records(events), settings.identity),
+            "blockers": _blockers(read, text(pull.get("body")), records(events), who),
         }
 
     return made

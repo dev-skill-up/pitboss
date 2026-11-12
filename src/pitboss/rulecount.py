@@ -61,10 +61,10 @@ def globs_of(text: str) -> Sequence[str] | None:
     if rest:
         return [each.strip(" \"'") for each in rest.strip("[]").split(",")]
     taken = []
-    for line in lines[starts[0] + 1 :]:
-        if not line.lstrip().startswith("-"):
+    for row in lines[starts[0] + 1 :]:
+        if not row.lstrip().startswith("-"):
             break
-        taken.append(line.lstrip()[1:].strip().strip("\"'"))
+        taken.append(row.lstrip()[1:].strip().strip("\"'"))
     return taken
 
 
@@ -94,10 +94,10 @@ def _wanted(relative: str, files: Sequence[str], ticket: Ticket) -> bool:
 
 
 def _walk(root: pathlib.Path) -> Iterator[str]:
-    for directory, folders, names in os.walk(root):
+    for directory, folders, files in os.walk(root):
         folders[:] = [each for each in folders if each not in SKIPPED]
-        for name in names:
-            yield os.path.normpath(os.path.join(os.path.relpath(directory, root), name))
+        for each in files:
+            yield os.path.normpath(os.path.join(os.path.relpath(directory, root), each))
 
 
 def missing(brief: str, ticket: Ticket) -> Sequence[str]:
@@ -117,13 +117,18 @@ def missing(brief: str, ticket: Ticket) -> Sequence[str]:
         if _wanted(each, files, ticket)
     ]
     user = ticket.home / ".claude" / "CLAUDE.md"
-    found = []
-    for path in [*wanted, *([user] if user.is_file() else [])]:
-        text = path.read_text(encoding="utf-8")
-        if f"sha256 {hashlib.sha256(text.encode()).hexdigest()}\n{text}" not in brief:
-            found.append(
-                str(path.relative_to(ticket.checkout))
-                if path.is_relative_to(ticket.checkout)
-                else str(path)
-            )
-    return found
+    return [
+        (
+            str(path.relative_to(ticket.checkout))
+            if path.is_relative_to(ticket.checkout)
+            else str(path)
+        )
+        for path in [*wanted, *([user] if user.is_file() else [])]
+        if _quoted(path) not in brief
+    ]
+
+
+def _quoted(path: pathlib.Path) -> str:
+    # how a brief holds a file: its sha256 line, then its text
+    text = path.read_text(encoding="utf-8")
+    return f"sha256 {hashlib.sha256(text.encode()).hexdigest()}\n{text}"

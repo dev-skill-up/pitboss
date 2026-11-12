@@ -16,14 +16,14 @@ the ticket's paths. ``rulecount`` counts the same files another way.
 import dataclasses
 import hashlib
 import pathlib
+import enum
 import re
-from typing import Sequence
+from typing import Callable, Mapping, MutableSequence, Sequence
 
-KEYS = frozenset({"paths", "description"})
 NAMES = ("CLAUDE.md", "CLAUDE.local.md")
 WORKER = ".claude/agents/worker.md"
 RULES = ".claude/rules"
-KEY = re.compile(r"(\w[\w-]*):(.*)")
+KEY_LINE = re.compile(r"(\w[\w-]*):(.*)")
 GLOB = re.compile(r"\s+-\s+(\"[^\"]+\"|'[^']+'|[^\s'\"#][^#]*?)\s*")
 PATH_GATES = (
     (
@@ -48,6 +48,21 @@ PATH_GATES = (
 GATES = "GATES ON THESE PATHS"
 
 
+class Key(enum.Enum):
+    """A key of a rule file's front matter.
+
+    Attributes:
+        PATHS: the globs of the files the rule binds.
+        DESCRIPTION: what the rule is about.
+    """
+
+    PATHS = enum.auto()
+    DESCRIPTION = enum.auto()
+
+
+KEYS = {each.name.lower(): each for each in Key}
+
+
 class Refused(Exception):
     """A rule file is in no form the writer reads."""
 
@@ -67,21 +82,54 @@ class Ticket:
     home: pathlib.Path
 
 
-def _glob_line(name: str, key: str, line: str, globs: list[str]) -> None:
+def _refused(name: str, line: str) -> Refused:
+    return Refused(f"{name}: front matter line not in a known form: {line[:40]!r}")
+
+
+def _path_line(name: str, line: str, globs: MutableSequence[str]) -> None:
     match = GLOB.fullmatch(line)
-    if key == "paths" and match:
-        globs.append(match.group(1).strip("'\""))
-    elif not (key == "description" and line.startswith((" ", "\t"))):
-        raise Refused(f"{name}: front matter line not in a known form: {line[:40]!r}")
+    if not match:
+        raise _refused(name, line)
+    globs.append(match.group(1).strip("'\""))
 
 
-def _key_line(name: str, match: re.Match[str]) -> str:
-    key, rest = match.group(1), match.group(2).strip()
-    if key not in KEYS:
-        raise Refused(f"{name}: front matter key {key!r} has no row")
-    if key == "paths" and rest:
+def _description_line(name: str, line: str, globs: MutableSequence[str]) -> None:
+    # a description continues on indented lines; it adds no glob
+    if not line.startswith((" ", "\t")):
+        raise _refused(name, line)
+
+
+def _keyless_line(name: str, line: str, globs: MutableSequence[str]) -> None:
+    raise _refused(name, line)
+
+
+LINES: Mapping[Key | None, Callable[[str, str, MutableSequence[str]], None]] = {
+    Key.PATHS: _path_line,
+    Key.DESCRIPTION: _description_line,
+    None: _keyless_line,
+}
+
+
+def _key_line(name: str, match: re.Match[str]) -> Key:
+    word, rest = match.group(1), match.group(2).strip()
+    if word not in KEYS:
+        raise Refused(f"{name}: front matter key {word!r} has no row")
+    if KEYS[word] is Key.PATHS and rest:
         raise Refused(f"{name}: `paths:` is not a block list ({rest[:30]!r})")
-    return key
+    return KEYS[word]
+
+
+def _read_lines(name: str, matter: str, globs: MutableSequence[str]) -> bool:
+    # adds the globs of the front matter's lines; whether it has a `paths:` key
+    key: Key | None = None
+    seen = False
+    for line in matter.split("\n"):
+        if match := KEY_LINE.fullmatch(line):
+            key = _key_line(name, match)
+            seen = seen or key is Key.PATHS
+        elif line.strip():
+            LINES[key](name, line, globs)
+    return seen
 
 
 def front(text: str, name: str) -> Sequence[str] | None:
@@ -103,13 +151,7 @@ def front(text: str, name: str) -> Sequence[str] | None:
     if end < 0:
         raise Refused(f"{name}: front matter is not closed")
     globs: list[str] = []
-    key, seen = "", False
-    for line in text[4:end].split("\n"):
-        if match := KEY.fullmatch(line):
-            key = _key_line(name, match)
-            seen = seen or key == "paths"
-        elif line.strip():
-            _glob_line(name, key, line, globs)
+    seen = _read_lines(name, text[4:end], globs)
     if seen and not globs:
         raise Refused(f"{name}: `paths:` with no entry")
     return globs if seen else None

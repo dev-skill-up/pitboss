@@ -232,18 +232,27 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
     if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait
         return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
-    if review is None:
-        if ruled := flowstate.ruling_unapplied(pr):
-            return ruled_step(pr, ruled)
-        if plan_approved(pr):  # approved while it was a draft
-            return unfixed_execution(pr) or plancheckflow.execution_review(
-                pr, steps.Stage.EXECUTION_ONLY
-            )
-        alone = flowquestions.plan_rejected_last(pr) or plan_revised(pr)
-        both = steps.Stage.PLAN_AND_EXECUTION
-        return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
+    return unreviewed_step(pr) if review is None else plan_gate(pr, review)
 
-    return plan_gate(pr, review)
+
+def unreviewed_step(pr: PullState) -> steps.Next:
+    """The step of a green PR with no review that counts.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The step.
+    """
+    if ruled := flowstate.ruling_unapplied(pr):
+        return ruled_step(pr, ruled)
+    if plan_approved(pr):  # approved while it was a draft
+        return unfixed_execution(pr) or plancheckflow.execution_review(
+            pr, steps.Stage.EXECUTION_ONLY
+        )
+    alone = flowquestions.plan_rejected_last(pr) or plan_revised(pr)
+    both = steps.Stage.PLAN_AND_EXECUTION
+    return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
 
 
 def plan_gate(pr: PullState, review: Graded) -> steps.Next:

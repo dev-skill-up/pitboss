@@ -64,20 +64,25 @@ def findings(body: str, comment: str, names: Sequence[str]) -> Sequence[str]:
     if not tests:
         return []
     section = _section(body)
-    missing = [
+    found = [
+        f"refused: the relock body lacks {why} (relock-test-fix)"
+        for why in _missing(section, tests[0])
+    ]
+    return [*found, *_figures(section, comment)]
+
+
+def _missing(section: str, test: str) -> Sequence[str]:
+    # what the Test fix section lacks, of the first test file's
+    return [
         why
         for why, absent in (
             ("a `Test fix` section", not section),
-            (f"the test file {tests[0]}", tests[0] not in section),
+            (f"the test file {test}", test not in section),
             ("each run as a link", not RUN_LINK.search(section)),
             ("the maximum and the margin", not re.search(r"(?i)maximum", section)),
         )
         if absent
     ]
-    found = [
-        f"refused: the relock body lacks {why} (relock-test-fix)" for why in missing
-    ]
-    return [*found, *_figures(section, comment)]
 
 
 def _figures(section: str, comment: str) -> Sequence[str]:

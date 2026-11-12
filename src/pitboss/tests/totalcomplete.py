@@ -14,7 +14,7 @@ a test can plant a hole in one and see it found.
 
 import dataclasses
 import re
-from typing import Callable, Collection, Iterator, Mapping, Sequence
+from typing import AbstractSet, Callable, Collection, Iterator, Mapping, Sequence
 
 from .. import (
     actverbs,
@@ -73,8 +73,12 @@ class Parts:
     variables: Sequence[enumeration.Row] = dataclasses.field(
         default_factory=lambda: enumeration.frozen(enumeration.VARIABLES)
     )
-    policy: totalverdict.Policy = dataclasses.field(default_factory=totalverdict.policy)
-    stale: frozenset[str] = dataclasses.field(default_factory=totalverdict.stale_events)
+    policy: totalverdict.Policy = dataclasses.field(
+        default_factory=totalverdict.shipped_policy
+    )
+    stale: AbstractSet[str] = dataclasses.field(
+        default_factory=totalverdict.stale_events
+    )
     declared: Mapping[str, Mapping[str, str]] = dataclasses.field(
         default_factory=lambda: totalchecks.DECLARED
     )
@@ -130,7 +134,7 @@ def _total(parts: Parts, cells: Sequence[totalcells.Cell]) -> Iterator[str]:
     for line in sorted(lines):
         if totalroutes.FORBIDDEN.search(line):
             yield f"total: a line that says pitboss does not know: {line[:70]}"
-        elif totalroutes.route(line, parts.routes) is None:
+        elif totalroutes.route_of(line, parts.routes) is None:
             yield f"total: a stop line with no route: {line[:70]}"
 
 

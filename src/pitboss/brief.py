@@ -44,36 +44,19 @@ REVIEWS = briefkind.REVIEWS
 E2E_KINDS = frozenset(REVIEWS - {Kind.REVIEW_PLAN, Kind.REVIEW_RELOCK})
 SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND, Kind.REVIEW_RELOCK})
 
-TASKS: Mapping[Kind, str] = {
-    Kind.NEW_PR: text.TASK_NEW_PR,
-    Kind.FIRST_ROUND: text.TASK_FIRST_ROUND,
-    Kind.REVISE_PLAN: text.TASK_REVISE_PLAN,
-    Kind.FIX_REVIEW: text.TASK_FIX_REVIEW,
-    Kind.FIX_ROUND: brieftextfix.TASK_FIX_ROUND,
-    Kind.FIX_CI: text.TASK_FIX_CI,
-    Kind.RESOLVE_CONFLICT: brieftextfix.TASK_RESOLVE_CONFLICT,
-    Kind.RULING_STEPS: text.TASK_RULING_STEPS,
-    Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
-    Kind.RUN_PLAN: brieftextwork.TASK_RUN_PLAN,
-    Kind.ADD_CI_QUOTES: brieftextwork.TASK_ADD_CI_QUOTES,
-    Kind.REFRESH_BODY: brieftextwork.TASK_REFRESH_BODY,
-    Kind.SHARED_RED: brieftextwork.TASK_SHARED_RED,
-    Kind.FIX_BLOCKED_BY: brieftextwork.TASK_FIX_BLOCKED_BY,
-    Kind.AFTER_BLOCKER: brieftextwork.TASK_AFTER_BLOCKER,
-    Kind.FINISH_PARTIAL: brieftextwork.TASK_FINISH_PARTIAL,
-}
+TASKS = brieftextwork.TASKS
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [
         text.SCOPE_FULL,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
-        text.QUARANTINE_REVIEW,
+        brieftextci.QUARANTINE_REVIEW,
         text.CHECK,
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
         *brieftextci.PLAN_CI_REVIEW,
         text.PLAN_DRY_RUN,
-        text.PLAN_CHECK,
+        brieftextci.PLAN_CHECK,
         *brieftextnote.EXECUTION_REVIEW,
         brieftextlint.LINT_TEST_REVIEW,
         brieftextlint.MARKUP_LINES_REVIEW,
@@ -89,7 +72,7 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.NO_PLAN_FINDING,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
-        text.QUARANTINE_REVIEW,
+        brieftextci.QUARANTINE_REVIEW,
         text.CHECK,
         text.GREP,
         *brieftextnote.EXECUTION_REVIEW,
@@ -104,12 +87,12 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.SCOPE_PLAN,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
-        text.QUARANTINE_REVIEW,
+        brieftextci.QUARANTINE_REVIEW,
         text.GREP,
         text.PLAN_COMMANDS_PLAN,
         *brieftextci.PLAN_CI_REVIEW,
         text.PLAN_DRY_RUN,
-        text.PLAN_CHECK,
+        brieftextci.PLAN_CHECK,
         brieftextorder.ORDER_REVIEW,
         brieftextfailure.FAILURE_REVIEW,
         *brieftextfolded.PLAN_REVIEW,
@@ -141,6 +124,7 @@ APPROVED_PLAN_WORKERS = frozenset(
 # `Try commands:` line; the reviewers' `Dry run:` line is a different one)
 PLAN_WRITERS = PLAN_RUNNERS | {Kind.REVISE_PLAN}
 DRAFTS = {True: text.DRAFT, False: text.READY}
+PUSHLESS: Mapping[Kind, Sequence[str]] = {Kind.REVISE_PLAN: [brieftextfolded.BODY_ONLY]}
 CHECKOUTS = {True: text.NEW_PR_CHECKOUT, False: text.PR_CHECKOUT}
 
 
@@ -326,11 +310,10 @@ def _ruling(spec: Spec) -> list[str]:
     return [brieftextfix.RULING_NAMED] if named else []
 
 
-def _push_lines(kind: Kind, project: briefconfig.Brief) -> list[str]:
+def _push_lines(kind: Kind, project: briefconfig.Brief) -> Sequence[str]:
     # keyword: plan-revision (quire#1120): a body-only revision pushes nothing
-    if kind is Kind.REVISE_PLAN:
-        return [brieftextfolded.BODY_ONLY]
-    return [brieftextdraft.PUSHES[(project.holds, project.drafts)], text.NO_WAITING]
+    pushes = [brieftextdraft.PUSHES[(project.holds, project.drafts)], text.NO_WAITING]
+    return PUSHLESS.get(kind, pushes)
 
 
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:

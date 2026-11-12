@@ -68,15 +68,13 @@ def add(cases: Sequence[Case], new: Case, encodings: Mapping[str, Encoding]) -> 
         Refused: no encoding does; the message names the older cases lost.
     """
     every = [*cases, new]
-    for name, encoding in encodings.items():
-        if not failures(every, encoding):
+    for name, candidate in encodings.items():
+        if not failures(every, candidate):
             return name
-    keeping = [
-        encoding for encoding in encodings.values() if not failures([new], encoding)
+    keeping = [each for each in encodings.values() if not failures([new], each)]
+    lost = sorted({case for kept in keeping for case in failures(cases, kept)}) or [
+        "every encoding (none passes it)"
     ]
-    lost = sorted(
-        {each for encoding in keeping for each in failures(cases, encoding)}
-    ) or ["every encoding (none passes it)"]
     raise Refused(
         f"ruling {new.name} ({new.date}) cannot hold together with {', '.join(lost)}:"
         " no encoding passes both. One question to the owner, with the two worlds as"
@@ -98,22 +96,28 @@ def diff_findings(
         A line for each such case.
     """
     after = {each.name: each for each in new}
-    found = []
-    for case in old:
-        if case.name in wins:
-            if wins[case.name] not in after:
-                found.append(
-                    f"case {case.name}: the ruling named as winning, {wins[case.name]},"
-                    " is not in the case file"
-                )
-        elif case.name not in after:
-            found.append(
-                f"case {case.name} is removed and no ruling is recorded as winning"
-                " over it"
-            )
-        elif after[case.name].expect != case.expect:
-            found.append(
-                f"case {case.name} changes from {case.expect} to"
-                f" {after[case.name].expect} with no ruling recorded"
-            )
-    return found
+    return [line for case in old for line in _case_lines(case, after, wins)]
+
+
+def _case_lines(
+    case: Case, after: Mapping[str, Case], wins: Mapping[str, str]
+) -> Sequence[str]:
+    # what one older case's change lacks: a winning ruling in the file, or one at all
+    if case.name in wins:
+        if wins[case.name] in after:
+            return []
+        return [
+            f"case {case.name}: the ruling named as winning, {wins[case.name]},"
+            " is not in the case file"
+        ]
+    if case.name not in after:
+        return [
+            f"case {case.name} is removed and no ruling is recorded as winning"
+            " over it"
+        ]
+    if after[case.name].expect != case.expect:
+        return [
+            f"case {case.name} changes from {case.expect} to"
+            f" {after[case.name].expect} with no ruling recorded"
+        ]
+    return []

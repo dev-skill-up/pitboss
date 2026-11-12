@@ -14,7 +14,7 @@ import dataclasses
 import json
 from typing import Callable, Mapping, Sequence
 
-from .. import totalroutes, totalverdict
+from .. import totalanswer, totalroutes, totalverdict
 from .totalcells import Cell, Verdict
 from .totalworld import World
 
@@ -112,7 +112,10 @@ def apply(origin: World, *changes: Change) -> World:
 
 
 def _one_action(
-    origin: World, found: Sequence[tuple[Change, str]], verdict: Verdict, action: str
+    origin: World,
+    found: Sequence[tuple[Change, totalanswer.Word]],
+    verdict: Verdict,
+    action: str,
 ) -> tuple[collections.Counter[str], list[str]]:
     counts: collections.Counter[str] = collections.Counter()
     bad = []
@@ -128,15 +131,15 @@ def _one_action(
                 if first_word == second_word == totalverdict.GO
                 else totalverdict.STOP
             )
-            lost = [each for each in answer.lines if totalroutes.route(each) is None]
+            lost = [each for each in answer.lines if totalroutes.route_of(each) is None]
             if answer.word != want or lost:
                 counts["exception"] += 1
                 bad.append(
-                    f"{action} {sorted(first)} {sorted(second)}: {answer.word}, want"
-                    f" {want} {lost[:1]}"
+                    f"{action} {sorted(first)} {sorted(second)}: {answer.word.name}, want"
+                    f" {want.name} {lost[:1]}"
                 )
             else:
-                counts[answer.word] += 1
+                counts[answer.word.name] += 1
     return counts, bad
 
 
@@ -153,7 +156,9 @@ def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
     """
     counts: collections.Counter[str] = collections.Counter()
     bad: list[str] = []
-    by_action: dict[str, list[tuple[Change, str]]] = collections.defaultdict(list)
+    by_action: dict[str, list[tuple[Change, totalanswer.Word]]] = (
+        collections.defaultdict(list)
+    )
     for cell in cells:
         origin = start(base, cell.action)
         change = change_of(origin, cell.world)

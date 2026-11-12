@@ -73,3 +73,24 @@ E2E = (
     " APPROVAL`). A head with no complete run is `NOT STARTED: e2e has not run at"
     " {head}`, not a verdict (pitboss#199)."
 )
+
+QUARANTINE_REVIEW = (
+    "Quarantine check: a PR that names a failing test needs the line `Quarantine:`"
+    " in its body (the mark that quarantines it at its p0 ticket, or `none`), and"
+    " the review has a line that starts with `Quarantine check:` saying it was read."
+    " Race check: a PR that fixes a race needs `Race:`, `Root cause:`, `Injection:`"
+    " and `CI run: <URL>` lines, and the review has a line that starts with"
+    " `Race check:` saying each was read; no new fixed wait or sleep in the tests"
+    " (keyword: quarantine-race, T53)."
+)
+
+
+PLAN_CHECK = (
+    "Plan check: before you approve a Plan, the PR needs a"
+    " comment whose first line is `Plan check` and whose last line is `Plan check:"
+    " ok`, the output of `uvx pitboss plan-check <body file>` for this Plan (its"
+    " `Plan digest:` line is the one you record); without it, or with a row that"
+    " it says was NOT RUN (a command that cannot start, that waits on a lock or a"
+    f" queue, or that exceeds `timeout {LIMIT}`), the Plan is changes needed and"
+    " you do not approve it (keyword: plan-check, pitboss#192)."
+)

@@ -6,7 +6,7 @@ and ``auto_merge`` as the docs give it: a nullable object.
 """
 
 import functools
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from . import enumeration
 
@@ -15,7 +15,7 @@ EXTRA = {
     "assignee": "object or null (Simple User)",
     "merge_commit_sha": "string or null",
 }
-TYPES: tuple[tuple[str, type], ...] = (
+TYPES: Sequence[tuple[str, type]] = (
     ("integer", int),
     ("boolean", bool),
     ("string", str),

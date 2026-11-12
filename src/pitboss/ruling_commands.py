@@ -32,7 +32,7 @@ HEAD_LINE = re.compile(r"^Head: ([0-9a-f]{40})\s*$", re.MULTILINE)
 
 def _steps(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
     # keyword: ruling-lint (bats#654): the steps must pass the gates they lead to
-    if not rulinglint.edits(text):
+    if not rulinglint.orders_edits(text):
         return ""
     body = str(
         json.loads(ghapi.get(github, f"repos/{slug}/pulls/{number}")).get("body")

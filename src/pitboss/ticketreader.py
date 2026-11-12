@@ -42,10 +42,10 @@ def _section(body: str | None) -> Sequence[str]:
     return found
 
 
-def _listed(lines: Sequence[str]) -> Sequence[str]:
+def _listed(section: Sequence[str]) -> Sequence[str]:
     items: list[str] = []
     ended = False
-    for line in lines:
+    for line in section:
         start = ITEM.match(line)
         if not line.strip() or (not items and not start and not KEYS.match(line)):
             continue

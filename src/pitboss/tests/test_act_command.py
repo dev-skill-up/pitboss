@@ -288,7 +288,7 @@ class TestInputs(unittest.TestCase):
         settings = actinputs.Settings(
             identity="bot", authors=["dependabot[bot]"], max_lines=lambda _: 400
         )
-        made_ = actinputs.inputs(actinputs.reader(github), settings)
+        made_ = actinputs.live_inputs(actinputs.reader(github), settings)
         pull = {
             "body": "Fixes #1\n\nBlocked by x/y#4 and #9\n",
             "base": {"ref": "main"},

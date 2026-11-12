@@ -67,21 +67,25 @@ def lines(
         has it holds another commit.
     """
     branch = ref.removeprefix(_HEADS)
-    if not pulls:
-        return []
     same = [each for each in pulls if each.head.branch == branch]
-    if not same:
-        return [
-            f"{WRONG_BRANCH} {slug}#{each.number}: pushed {pushed} to {branch}, but"
-            f" the PR's head branch is {each.head.branch} (at {each.head.sha}): push"
-            f" to {each.head.branch}, never to a branch of your own"
-            for each in pulls
-        ]
+    if pulls and not same:
+        return _wrong_branch(pulls, slug, branch, pushed)
     return [
         f"{NOT_LANDED} {slug}#{each.number}: pushed {pushed} to {branch}, but the PR"
         f" head is {each.head.sha}"
         for each in same
         if each.head.sha != pushed
+    ]
+
+
+def _wrong_branch(
+    pulls: Sequence[shapes.Pull], slug: str, branch: str, pushed: str
+) -> Sequence[str]:
+    return [
+        f"{WRONG_BRANCH} {slug}#{each.number}: pushed {pushed} to {branch}, but"
+        f" the PR's head branch is {each.head.branch} (at {each.head.sha}): push"
+        f" to {each.head.branch}, never to a branch of your own"
+        for each in pulls
     ]
 
 

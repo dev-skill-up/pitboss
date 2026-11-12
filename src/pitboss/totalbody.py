@@ -75,8 +75,8 @@ def body_findings(
         A line for each row the body breaks.
     """
     found = []
-    heads = HEAD.findall(text(body))
-    if heads and heads[-1] != head:
+    named = HEAD.findall(text(body))
+    if named and named[-1] != head:
         found.append("body: the last `Head:` line names another commit than the head")
     for line in text(body).splitlines():
         if BLOCKED.match(line):

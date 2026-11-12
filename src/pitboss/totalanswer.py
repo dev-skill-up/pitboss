@@ -5,10 +5,24 @@ sit on the verdict's rows.
 """
 
 import dataclasses
+import enum
 from typing import Sequence
 
-GO = "GO"
-STOP = "STOP"
+
+class Word(enum.Enum):
+    """The verdict's word.
+
+    Attributes:
+        GO: the action may be made.
+        STOP: it may not; the stop lines say why.
+    """
+
+    GO = enum.auto()
+    STOP = enum.auto()
+
+
+GO = Word.GO
+STOP = Word.STOP
 MERGE_ACTIONS = frozenset({"merge", "arm"})
 GATED_ACTIONS = MERGE_ACTIONS | {"undraft"}
 KNOWN_LABELS = frozenset(
@@ -26,5 +40,5 @@ class Answer:
         lines: the stop lines; none for a GO.
     """
 
-    word: str
+    word: Word
     lines: Sequence[str] = ()

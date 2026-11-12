@@ -9,13 +9,16 @@ a status on ``success``; every other documented value is red or waiting
 """
 
 import re
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from .totaljson import JsonMap, records, strings, text
 from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS
 
 SELF = "pitboss-gate"
 OK_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
+PENDING_STATES = frozenset({"pending"})
+OK_STATES = frozenset({"success"})
+MERGING = frozenset({"merge"})
 GENERATED = re.compile(
     r"^(bootstrap/c/|dist/)|(^|/)(bats\.lock|package-lock\.json|pnpm-lock\.yaml"
     r"|gradle-wrapper\.jar)$"
@@ -71,39 +74,42 @@ def current_runs(runs: Sequence[JsonMap]) -> Sequence[JsonMap]:
         cancelled text-lint) is not current.
     """
     best: dict[str, tuple[tuple[str, int], JsonMap]] = {}
-    for run in runs:
-        number = run.get("id")
-        key = (text(run.get("started_at")), number if isinstance(number, int) else 0)
-        name = text(run.get("name"))
+    for each in runs:
+        number = each.get("id")
+        key = (text(each.get("started_at")), number if isinstance(number, int) else 0)
+        name = text(each.get("name"))
         if name not in best or key > best[name][0]:
-            best[name] = (key, run)
-    return [run for _, run in best.values()]
+            best[name] = (key, each)
+    return [kept for _, kept in best.values()]
 
 
-def _run_lines(action: str, runs: Sequence[JsonMap]) -> Sequence[str]:
+def _run_lines(runs: Sequence[JsonMap]) -> Sequence[tuple[str, bool]]:
+    # each failed check, and each one still running (marked True: merge only)
     found = []
-    for run in runs:
-        name, status = run.get("name"), run.get("status")
+    for each in runs:
+        name, status = each.get("name"), each.get("status")
         if name == SELF:
             continue
-        if status == "completed" and run.get("conclusion") not in OK_CONCLUSIONS:
-            found.append(f"check {name}={run.get('conclusion')}: a failed check")
-        elif status != "completed" and action == "merge":
-            found.append(f"check {name} is {status}")
+        if status != "completed":
+            found.append((f"check {name} is {status}", True))
+        elif each.get("conclusion") not in OK_CONCLUSIONS:
+            found.append(
+                (f"check {name}={each.get('conclusion')}: a failed check", False)
+            )
     return found
 
 
-def _status_lines(action: str, statuses: Sequence[JsonMap]) -> Sequence[str]:
+def _status_lines(statuses: Sequence[JsonMap]) -> Sequence[tuple[str, bool]]:
+    # each failed status, and each pending one (marked True: merge only)
     found = []
-    for status in statuses:
-        context, state = status.get("context"), status.get("state")
+    for each in statuses:
+        context, state = each.get("context"), each.get("state")
         if context == SELF:
             continue
-        if state == "pending":
-            if action == "merge":
-                found.append(f"status {context} is pending")
-        elif state != "success":
-            found.append(f"status {context}={state}: a failed status")
+        if state in PENDING_STATES:
+            found.append((f"status {context} is pending", True))
+        elif state not in OK_STATES:
+            found.append((f"status {context}={state}: a failed status", False))
     return found
 
 
@@ -122,17 +128,24 @@ def check_lines(action: str, ctx: JsonMap) -> Sequence[str]:
         return []
     runs = current_runs(records(ctx.get("check_runs")))
     statuses = records(ctx.get("statuses"))
-    found = [*_run_lines(action, runs), *_status_lines(action, statuses)]
-    if action == "merge":
-        have = {run.get("name") for run in runs} | {
-            each.get("context") for each in statuses
-        }
-        missing = strings(ctx.get("required_checks")) - {SELF} - have
-        found += [
-            f"check {each}: required and not reported on the head"
-            for each in sorted(missing)
-        ]
-    return found
+    missing = [(each, True) for each in _unreported(ctx, runs, statuses)]
+    found = [*_run_lines(runs), *_status_lines(statuses), *missing]
+    merging = action in MERGING
+    return [line for line, merge_only in found if merging or not merge_only]
+
+
+def _unreported(
+    ctx: JsonMap, runs: Sequence[JsonMap], statuses: Sequence[JsonMap]
+) -> Sequence[str]:
+    # the required checks no run and no status of the head reports
+    have = {each.get("name") for each in runs} | {
+        each.get("context") for each in statuses
+    }
+    missing = strings(ctx.get("required_checks")) - {SELF} - have
+    return [
+        f"check {each}: required and not reported on the head"
+        for each in sorted(missing)
+    ]
 
 
 def _changed(files: Sequence[JsonMap]) -> int:
@@ -174,16 +187,39 @@ def diff_lines(action: str, ctx: JsonMap, kind: str) -> Sequence[str]:
     found = list(_markup_lines(files)) if action in GATED_ACTIONS else []
     if action not in MERGE_ACTIONS:
         return found
-    total, most = _changed(files), ctx.get("max_lines")
-    if kind == "change" and (not isinstance(most, int) or total > most):
-        found.append(f"diff: {total} lines outside generated paths, Max-lines {most}")
+    total = _changed(files)
+    return [
+        *found,
+        *LIMITED.get(kind, _unlimited)(total, ctx.get("max_lines")),
+        *_workflow_lines(files, records(ctx.get("statuses"))),
+    ]
+
+
+def _limited(total: int, most: object) -> Sequence[str]:
+    # a change keeps to its ticket's Max-lines
+    if isinstance(most, int) and total <= most:
+        return []
+    return [f"diff: {total} lines outside generated paths, Max-lines {most}"]
+
+
+def _unlimited(total: int, most: object) -> Sequence[str]:
+    # a relock or a publish has no Max-lines
+    return []
+
+
+LIMITED: Mapping[str, Callable[[int, object], Sequence[str]]] = {"change": _limited}
+
+
+def _workflow_lines(
+    files: Sequence[JsonMap], statuses: Sequence[JsonMap]
+) -> Sequence[str]:
     workflow = any(text(each.get("filename")).startswith(WORKFLOWS) for each in files)
-    if workflow and not _lint_green(records(ctx.get("statuses"))):
-        found.append(
+    if workflow and not _lint_green(statuses):
+        return [
             "diff: a workflow file changed and text-lint (scratch-run citation)"
             " is not green"
-        )
-    return found
+        ]
+    return []
 
 
 def _lint_green(statuses: Sequence[JsonMap]) -> bool:

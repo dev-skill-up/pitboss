@@ -107,11 +107,11 @@ def _body_finding(lines: Sequence[str], body: object) -> str:
 
 
 def _grade_finding(lines: Sequence[str]) -> str:
-    for line in lines:
-        if LOOSE_GRADE.match(line) and not GRADE_LINE.fullmatch(line):
-            return f"a Plan or Execution line not in its form: {line[:60]!r}"
+    for each in lines:
+        if LOOSE_GRADE.match(each) and not GRADE_LINE.fullmatch(each):
+            return f"a Plan or Execution line not in its form: {each[:60]!r}"
     for key in ("Plan", "Execution"):
-        got = [line for line in lines if line.startswith(key + ": ")]
+        got = [each for each in lines if each.startswith(key + ": ")]
         if len(got) != 1:
             return f"the newest review has {len(got)} `{key}:` lines, not one"
         if not got[0].startswith(key + ": approved"):
@@ -145,21 +145,24 @@ def review_reading(review: str, head: str, body: object, tickets: Tickets) -> st
     Returns:
         The reason, ``""`` when the review approves.
     """
-    lines = [line.rstrip() for line in review.splitlines()]
-    verdicts = [line for line in lines if VERDICT_LINE.match(line)]
+    lines = [each.rstrip() for each in review.splitlines()]
+    findings = (
+        _verdict_finding(lines),
+        _head_finding(lines, head),
+        _body_finding(lines, body),
+        _grade_finding(lines),
+        _ticket_finding(lines, tickets),
+    )
+    return next((each for each in findings if each), "")
+
+
+def _verdict_finding(lines: Sequence[str]) -> str:
+    verdicts = [each for each in lines if VERDICT_LINE.match(each)]
     if verdicts != ["Verdict: approved"]:
         return (
             f"the newest review's verdict lines are {verdicts[:2]}:"
             " not exactly one `Verdict: approved`"
         )
-    for finding in (
-        _head_finding(lines, head),
-        _body_finding(lines, body),
-        _grade_finding(lines),
-        _ticket_finding(lines, tickets),
-    ):
-        if finding:
-            return finding
     return ""
 
 

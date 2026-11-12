@@ -66,7 +66,7 @@ def printed(name: str, rulings: AbstractSet[steps.Step] = stepmatrix.RULINGS) ->
         return "brief"
     if work.category_of(pull) is not None:
         return "category"
-    if pulllines.lines(pull, world.START, settings, {}):
+    if pulllines.lines(pull, world.START, settings, ({}, {})):
         return "line"
     return "state"
 

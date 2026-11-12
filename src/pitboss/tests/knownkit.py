@@ -86,7 +86,7 @@ def kit() -> Kit:
     Returns:
         The kit.
     """
-    policy = totalverdict.policy()
+    policy = totalverdict.shipped_policy()
     return Kit(policy=policy, controls=controls_of(policy))
 
 

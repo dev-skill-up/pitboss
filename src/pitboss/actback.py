@@ -27,6 +27,26 @@ def _labelled(words: Sequence[str]) -> Callable[[Read], bool]:
     return has
 
 
+FIXED: Mapping[actions.Action, tuple[str, Callable[[Read], bool]]] = {
+    actions.Action.UNDRAFT: (
+        "the PR is no draft",
+        lambda pull: pull.get("draft") is False,
+    ),
+    actions.Action.MERGE: (
+        "the PR is merged",
+        lambda pull: pull.get("merged") is True,
+    ),
+    actions.Action.ARM: (
+        "auto-merge is armed",
+        lambda pull: bool(pull.get("auto_merge")),
+    ),
+    actions.Action.CLOSE: (
+        "the PR is closed",
+        lambda pull: pull.get("state") == "closed",
+    ),
+}
+
+
 def facts(
     words: Sequence[str],
 ) -> Mapping[actions.Action, tuple[str, Callable[[Read], bool]]]:
@@ -39,22 +59,7 @@ def facts(
         By action: what it claims and a test of the PR's JSON.
     """
     return {
-        actions.Action.UNDRAFT: (
-            "the PR is no draft",
-            lambda pull: pull.get("draft") is False,
-        ),
-        actions.Action.MERGE: (
-            "the PR is merged",
-            lambda pull: pull.get("merged") is True,
-        ),
-        actions.Action.ARM: (
-            "auto-merge is armed",
-            lambda pull: bool(pull.get("auto_merge")),
-        ),
-        actions.Action.CLOSE: (
-            "the PR is closed",
-            lambda pull: pull.get("state") == "closed",
-        ),
+        **FIXED,
         actions.Action.LABEL: (f"the PR has the label {words[:1]}", _labelled(words)),
     }
 

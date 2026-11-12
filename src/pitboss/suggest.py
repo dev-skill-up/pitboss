@@ -260,21 +260,20 @@ def _rules(source: Source, slug: str, head: str, ticket: str) -> brief.Rules:
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
-        project=reporules.with_gates(
-            source.github,
-            slug,
-            ticket,
-            briefrepo.of_repository(
-                source.brief,
-                slug,
-                source.settings.project.no_drafts,
-                source.settings.runners.exempt,
-            ),
-        ),
+        project=_project(source, slug, ticket),
         gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
         plan_check=source.settings.project.plan_review_check,
         verdicts=(words.approved, words.changes_needed),
     )
+
+
+def _project(source: Source, slug: str, ticket: str) -> briefconfig.Brief:
+    # the repository's brief settings, with the gates of its files
+    settings = source.settings
+    kept = briefrepo.of_repository(
+        source.brief, slug, settings.project.no_drafts, settings.runners.exempt
+    )
+    return reporules.with_gates(source.github, slug, ticket, kept)
 
 
 def _touches_e2e(source: Source, pick: Pick, kind: brief.Kind) -> bool:

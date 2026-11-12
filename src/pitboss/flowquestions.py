@@ -1,4 +1,4 @@
-"""The questions the review flow asks of a PR's reviews and checks (keyword: review-flow).
+"""The questions the review flow asks of a PR's reviews and checks (review-flow).
 
 ``flow`` decides the step from their answers; each is answered from what is
 recorded of the PR.
@@ -51,6 +51,9 @@ class PullState(Protocol):
 
         Args:
             sha: the head.
+
+        Returns:
+            True when no code moved since it.
         """
 
 

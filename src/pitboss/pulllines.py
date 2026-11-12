@@ -37,44 +37,45 @@ def lines(
     pull: pulls.PullFacts,
     now: datetime.datetime,
     settings: config.Config,
-    steps: Mapping[int, Sequence[str]],
-    failures: Mapping[int, shapes.Failure] = {},
+    red: tuple[Mapping[int, Sequence[str]], Mapping[int, shapes.Failure]],
 ) -> Sequence[str]:
     """The STALL, UPDATE, FIXED ON BASE, waiting-for-ruling, DRAFT ROUND and form lines.
 
-    The RUN E2E BEFORE APPROVAL line follows the DRAFT ROUND one.
-
-    The waiting lines are RULING DUE, RULING UNREADABLE, RULING ESCALATES, PAUSE and
-    PLAN EDITED.
-    The review-form lines are PLAN ROW (a refusal of the body), UNREADABLE REVIEW,
-    REVIEW NOTE, RULING NO ANALYSIS and GATE PENDING.
+    RUN E2E BEFORE APPROVAL follows DRAFT ROUND. The waiting lines are RULING DUE,
+    RULING UNREADABLE, RULING ESCALATES, PAUSE and PLAN EDITED; the review-form lines
+    are PLAN ROW, UNREADABLE REVIEW, REVIEW NOTE, RULING NO ANALYSIS, GATE PENDING.
 
     Args:
         pull: the PR.
         now: the time now.
         settings: the configuration.
-        steps: the failed steps of each failed check.
-        failures: what is known of each failed check, for MECHANICAL-FIX.
+        red: the failed steps of each failed check, and what is known of each
+            (for MECHANICAL-FIX).
 
     Returns:
         The lines, in that order.
     """
-    return knownred.gate(  # keyword: known-red (quire#1120)
-        pull,
-        (
-            *stall.lines(pull, now, steps),
-            *claimline.lines(pull),
-            *adoptline.lines(pull),
-            *_branch_lines(pull, settings, (now, failures)),
-            *roundline.lines(pull),
-            *planeditline.lines(pull),
-            *_draft_lines(pull),
-            *e2eline.lines(pull),
-            *foldline.lines(pull),
-            *_review_lines(pull),
-            *gateline.lines(pull),
-        ),
-        SPENDING,
+    failed, failures = red
+    early = (
+        *stall.lines(pull, now, failed),
+        *claimline.lines(pull),
+        *adoptline.lines(pull),
+        *_branch_lines(pull, settings, (now, failures)),
+    )
+    # keyword: known-red (quire#1120)
+    return knownred.gate(pull, (*early, *_form_lines(pull)), SPENDING)
+
+
+def _form_lines(pull: pulls.PullFacts) -> Sequence[str]:
+    # the lines read of the PR alone: rounds, edits, the draft, e2e, folds, the review
+    return (
+        *roundline.lines(pull),
+        *planeditline.lines(pull),
+        *_draft_lines(pull),
+        *e2eline.lines(pull),
+        *foldline.lines(pull),
+        *_review_lines(pull),
+        *gateline.lines(pull),
     )
 
 
