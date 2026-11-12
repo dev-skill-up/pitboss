@@ -136,7 +136,9 @@ def lines_of(here: world.World) -> Sequence[str]:
         line
         for line in sweep(here).out.splitlines()
         if "owner/project#2" in line
-        and not line.startswith(("owner/project#2 [", tasklist.LABEL, finishpartial.PREFIX))
+        and not line.startswith(
+            ("owner/project#2 [", tasklist.LABEL, finishpartial.PREFIX)
+        )
     ]
 
 
