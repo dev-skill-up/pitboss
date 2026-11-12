@@ -25,6 +25,7 @@ from . import (
     handbackrun,
     expansion,
     partial,
+    repositoryrule,
     plandigest,
     workeractions,
     workeredits,
@@ -142,6 +143,7 @@ def _refusals(args: argparse.Namespace, text: str) -> Sequence[str]:
         *cloneguard.refusals(args, configfile.working_directory(args)),
         *handbackrun.refusals(args, commands.load_settings(args)),
         partial.refusal(text),
+        repositoryrule.refusal(text),
     ]
     edits = _edits(args)
     for each in edits[:1]:

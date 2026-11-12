@@ -13,7 +13,16 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Protocol, Sequence
 
-from . import evidence, forms, ghapi, parsing, plancheckflow, shapes
+from . import (
+    evidence,
+    forms,
+    ghapi,
+    parsing,
+    plancheckflow,
+    pullfiles,
+    relockfix,
+    shapes,
+)
 
 SHOWN = 100
 
@@ -270,4 +279,16 @@ def pull_lines(pushed: Subject) -> Sequence[str]:
             " output as a PR comment (first line `Plan check`, last `Plan check:"
             " ok`); a refusal is fixed by you, not by a new round"
         )
-    return found
+    return [*found, *_relock_lines(pushed, pull, listed)]
+
+
+def _relock_lines(
+    pushed: Subject, pull: shapes.Pull, listed: Sequence[shapes.Comment]
+) -> Sequence[str]:
+    # keyword: relock-test-fix (pitboss#447): the data behind a test change
+    if not pull.head.branch.startswith(relockfix.RELOCK_PREFIX):
+        return []
+    path = f"repos/{pushed.slug}/pulls/{pushed.number}/files"
+    names = ghapi.pages(pushed.github, path, pullfiles.file_names)
+    said = [each.body for each in listed if each.body.lstrip().startswith("Test fix")]
+    return relockfix.findings(pull.body, said[-1] if said else "", names)
