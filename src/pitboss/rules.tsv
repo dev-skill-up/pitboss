@@ -157,3 +157,5 @@ T310	2026-11-12	open	Remove the positional configuration argument of the pitboss
 T432	2026-11-12	open	pitboss nox passes on the branch alone while CI tests the PR merged with main	-	-
 T447	2026-11-12	open	The relock review brief names a case for a test fix that the new pin needs	-	-
 T449	2026-11-12	open	sweep reports a failed publish run with its failing step and the check that caused it	-	-
+C14	2026-11-12	output	Never quarantine or skip a test to get green	ruleconflicts.lines	test_ruleconflicts.test_c14_the_ruling_brief_states_both_rules_and_the_question
+C15	2026-11-12	enforced	Two rules of the register that contradict each have a declared resolution, and a PR that hits one that is a ruling gets the Opus ruling brief, never UNKNOWN or a question to the owner	ruleconflicts.findings	test_ruleconflicts.test_c15_an_undeclared_pair_is_found test_ruleconflicts.test_c15_a_pair_that_is_hit_gets_the_ruling_step test_ruleconflicts.test_c15_the_shipped_pairs_match_the_register

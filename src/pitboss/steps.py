@@ -155,6 +155,9 @@ class Next:
             (keyword: fixed-on-base, pitboss#314): the step is a green head's.
         reason: why the review of a ruling's steps follows (keyword: ruling-reason,
             case 24), empty for any other step.
+        conflict: the pair of rules ``FIRST SECOND`` of the register that the PR
+            hits and an Opus ruling is to settle (keyword: rule-conflicts), empty
+            for any other step.
     """
 
     step: Step
@@ -165,6 +168,7 @@ class Next:
     branch: str = ""
     on_base: bool = False
     reason: str = ""
+    conflict: str = ""
 
 
 # the steps at which a PR waits for an Opus ruling or the owner (pitboss#148), or

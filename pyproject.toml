@@ -49,6 +49,7 @@ pitboss = [
   "donewhen.tsv",
   "stepmatrix.tsv",
   "decidable.tsv",
+  "ruleconflicts.tsv",
 ]
 "pitboss.tests" = ["coverage_ids.txt"]
 

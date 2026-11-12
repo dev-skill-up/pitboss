@@ -32,6 +32,11 @@ STATED: Mapping[tuple[str, str], str] = {
     ("paused-owner", "conflict"): "the owner decides before any fix of a conflict",
     ("paused-owner", "first-round"): "the owner decides before any first round",
     ("paused-owner", "gates"): "the owner decides before any gate",
+    ("paused-owner", "rule-conflict"): "the owner decides before any ruling",
+    ("ruling-hold", "rule-conflict"): "an unreadable ruling is fixed before a new one",
+    ("rule-conflict", "conflict"): "the rules are settled before a conflict is fixed",
+    ("rule-conflict", "first-round"): "the rules are settled before a first round",
+    ("rule-conflict", "gates"): "the rules are settled before the CI gate",
     ("ruling-hold", "conflict"): "a ruling that is unreadable or edits an approved"
     " Plan holds the PR before a conflict is fixed (plan-digest)",
     ("ruling-hold", "first-round"): "a held ruling is answered before a first round",

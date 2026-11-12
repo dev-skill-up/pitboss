@@ -20,6 +20,7 @@ from . import (
     planbody,
     reviewfindings,
     rulingafter,
+    ruleconflicts,
     rulingwords,
     shapes,
     steps,
@@ -365,6 +366,30 @@ def _conflict_step(pr: PullState) -> steps.Next:
     return wait or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
 
+def _hit(pr: PullState) -> ruleconflicts.Declared | None:
+    # keyword: rule-conflicts (quire#1115): two rules of the register contradict here
+    rulings = [
+        each.body
+        for each in pr.comments
+        if flowstate.is_ruling(each.body) and each.author_association in pr.trusted
+    ]
+    texts = [pr.pull.body] + [
+        each.body for each in pr.comments if not flowstate.is_ruling(each.body)
+    ]
+    return ruleconflicts.pending(ruleconflicts.shipped(), texts, rulings)
+
+
+def _rule_conflict(pr: PullState) -> bool:
+    return _hit(pr) is not None
+
+
+def _rule_conflict_step(pr: PullState) -> steps.Next:
+    hit = _hit(pr)
+    if hit is None:  # pragma: no cover
+        return steps.wait_for_owner()  # unreachable: the row holds only when hit
+    return steps.Next(step=steps.Step.OPUS_RULING, conflict=f"{hit.first} {hit.second}")
+
+
 def _no_body(pr: PullState) -> bool:
     # before any review: the first work on a PR; a relock PR fixes no ticket and
     # has no body to write: its review (pitboss#126), or ``pinsonly`` (#34)
@@ -385,6 +410,7 @@ ROWS: Sequence[Row] = (
         holds=lambda pr: bool(flowstate.ruling_hold(pr)),
         step=_ruling_held,
     ),
+    Row(name="rule-conflict", holds=_rule_conflict, step=_rule_conflict_step),
     Row(name="conflict", holds=has_conflict, step=_conflict_step),
     Row(
         name="first-round",

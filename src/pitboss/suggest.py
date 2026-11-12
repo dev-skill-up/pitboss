@@ -28,6 +28,7 @@ from . import (
     pullfiles,
     pulls,
     reviews,
+    ruleconflicts,
     slotheld,
     stepmatrix,
     steps,
@@ -290,6 +291,19 @@ def _touches_e2e(source: Source, pick: Pick, kind: brief.Kind) -> bool:
     return pullfiles.touches(source.github, slug, found.pull.number, prefixes)
 
 
+def _conflict_lines(pick: Pick) -> Sequence[str]:
+    # keyword: rule-conflicts (quire#1115): both rules and the question, in the brief
+    if pick.pull is None or not pick.pull.step.conflict:
+        return ()
+    wanted = pick.pull.step.conflict.split()
+    pair = next(
+        each
+        for each in ruleconflicts.shipped()
+        if [each.first, each.second] == wanted
+    )
+    return ruleconflicts.lines(pair, ruleconflicts.register_words())
+
+
 def spec(source: Source, pick: Pick) -> brief.Spec:
     """What the brief of a pick is built from.
 
@@ -315,6 +329,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         logs=(
             suggestlogs.of(pick.pull) if pick.pull and kind is brief.Kind.FIX_CI else ()
         ),
+        conflict=_conflict_lines(pick),
     )
 
 

@@ -29,3 +29,4 @@ D12	outside	privacy of the owner is not a property of any text pitboss reads
 D13	outside	the coordinator's instructions are conversation pitboss never receives
 D14	outside	attaching a missing repository is the thread's action in the harness
 D15	outside	a decision card is the harness's object; resolving it is an event pitboss is not told
+C14	outside	whether a test is skipped to get green is judged against the failure it hides; test.fixme under a p0 ticket (T53) is the declared exception, settled by the ruling of ruleconflicts.tsv

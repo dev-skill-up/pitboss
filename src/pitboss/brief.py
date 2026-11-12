@@ -221,6 +221,8 @@ class Spec:
             for a draft (keyword: run-e2e, pitboss#199).
         logs: `<check name>: <url>` of each failed check, for a FIX_CI brief
             (keyword: red-cause, pitboss#420).
+        conflict: the lines of a rule conflict a RULING brief adds (keyword:
+            rule-conflicts, quire#1115).
     """
 
     kind: Kind
@@ -230,6 +232,7 @@ class Spec:
     ready: bool = False
     e2e: bool = False
     logs: Sequence[str] = ()
+    conflict: Sequence[str] = ()
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -388,7 +391,7 @@ def build(spec: Spec) -> str:
     if spec.kind in REVIEWS:
         rules = _review(spec, values)
     elif spec.kind is Kind.RULING:
-        rules = list(briefruling.lines(values))
+        rules = [*briefruling.lines(values), *spec.conflict]
     else:
         rules = _worker(spec, values)
     slot = briefslot.line(spec.kind, spec.subject.reference)
