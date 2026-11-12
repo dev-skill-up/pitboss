@@ -20,20 +20,17 @@ import functools
 import pathlib
 import subprocess
 import sys
-import tempfile
 from typing import Callable, Iterator, Sequence
 
 from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
-    cipointercheck,
     cirun,
     cloneguard,
     configfile,
     configloads,
     configsettle,
-    devpath,
     expansion,
     filegates,
     forms,
@@ -43,6 +40,7 @@ from . import (
     markuplines,
     plancheck,
     plancheckconfig,
+    plancheckgit,
     plancheckprior,
     plancheckrun,
     plandigest,
@@ -51,53 +49,8 @@ from . import (
     shapes,
 )
 
-USAGE_ERROR = 2
+USAGE_ERROR = plancheckgit.USAGE_ERROR
 REFUSED = 1
-
-
-def _fail(message: str) -> SystemExit:
-    print(message, file=sys.stderr)
-    return SystemExit(USAGE_ERROR)
-
-
-def _git(args: argparse.Namespace, *words: str) -> str:
-    try:
-        done = args.safe_run(
-            ["git", "-C", args.repo, *words],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except (subprocess.CalledProcessError, OSError) as error:
-        raise _fail(f"git {' '.join(words)}: {error}") from error
-    return str(done.stdout)
-
-
-@contextlib.contextmanager
-def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Path]:
-    """A detached worktree of a commit, removed when the block ends.
-
-    Args:
-        args: the parsed arguments (``repo``).
-        ref: the commit: the base, or the head.
-
-    Yields:
-        The worktree's directory.
-
-    Raises:
-        _fail: when the temporary directory is under ``/dev``, where nothing is
-            removed (#424).
-    """
-    refused = devpath.temporary_under_dev()
-    if refused:
-        raise _fail(f"plan-check: no scratch worktree, {refused}")
-    with tempfile.TemporaryDirectory(prefix="plan-check-") as scratch:
-        tree = pathlib.Path(scratch) / "tree"
-        _git(args, "worktree", "add", "--detach", str(tree), ref)
-        try:
-            yield tree
-        finally:
-            _git(args, "worktree", "remove", "--force", str(tree))
 
 
 HEAD_OPTION = add_argument(
@@ -130,11 +83,11 @@ CONFIG_OPTION = add_argument(
 def _plan_of(name: str, body: str) -> str:
     section = plandigest.section(body)
     if not section:
-        raise _fail(f"{name}: no `## Plan` section")
+        raise plancheckgit.usage_error(f"{name}: no `## Plan` section")
     try:
         expansion.commands(section)
     except expansion.TemplateError as error:
-        raise _fail(f"{name}: {error}") from error
+        raise plancheckgit.usage_error(f"{name}: {error}") from error
     return section
 
 
@@ -232,7 +185,7 @@ def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
     try:
         body = pathlib.Path(args.file).read_text(encoding="utf-8")
     except (OSError, UnicodeError) as error:
-        raise _fail(f"{args.file}: {error}") from error
+        raise plancheckgit.usage_error(f"{args.file}: {error}") from error
     section = _plan_of(args.file, body)
     args.body = body  # the checks that read the body whole take it from here
     return _checked(args, section, _head_of(args, body))
@@ -258,34 +211,7 @@ def _unreadable(name: str) -> Iterator[None]:
     try:
         yield
     except (OSError, ValueError) as error:
-        raise _fail(f"{name}: {error}") from error
-
-
-def _added(args: argparse.Namespace, ref: str) -> Sequence[str]:
-    # the paths the PR adds: the head against its merge base with the base
-    return _names(args, ref, "--diff-filter=A")
-
-
-def _names(args: argparse.Namespace, ref: str, *flags: str) -> Sequence[str]:
-    # the paths of the head against its merge base with the base
-    words = ["diff", "--name-only", "-z", *flags, f"{args.base}...{ref}"]
-    return [each for each in _git(args, *words).split("\0") if each]
-
-
-def _diff(args: argparse.Namespace, ref: str, *flags: str) -> str:
-    # keyword: markup-lines (pitboss#343, #373): the lines the PR adds to each
-    # file (--numstat -z) and its hunks, to tell a cut span from a new line (-U0)
-    return _git(args, "diff", *flags, "--no-renames", f"{args.base}...{ref}")
-
-
-def _reading(tree: pathlib.Path) -> cipointercheck.Read:
-    def read(path: str) -> str | None:
-        found = tree / path
-        if not found.is_file():
-            return None
-        return found.read_text(encoding="utf-8", errors="replace")
-
-    return read
+        raise plancheckgit.usage_error(f"{name}: {error}") from error
 
 
 def _repository(args: argparse.Namespace) -> str:
@@ -293,7 +219,9 @@ def _repository(args: argparse.Namespace) -> str:
     if args.repository:
         return str(args.repository)
     try:
-        return plantickets.slug_of(_git(args, "remote", "get-url", "origin"))
+        return plantickets.slug_of(
+            plancheckgit.git(args, "remote", "get-url", "origin")
+        )
     except SystemExit:
         return ""
 
@@ -339,34 +267,45 @@ def _remote(
     return [*heads, *plantickets.done_when(github, ticket, _repository(args), body)]
 
 
-def _sha(args: argparse.Namespace, ref: str) -> str:
-    return _git(args, "rev-parse", ref).strip()
-
-
 def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, bool]:
-    body = args.body
+    prior = _prior(args, args.body)
     with (
-        scratch_worktree(args, args.base) as tree,
-        scratch_worktree(args, ref) as head,
+        plancheckgit.scratch_worktree(args, args.base) as tree,
+        plancheckgit.scratch_worktree(args, ref) as head,
     ):
-        added = _added(args, ref)
-        stat = _diff(args, ref, "--numstat", "-z")
-        patch = _diff(args, ref, "-U0", "--no-color")
         runner = functools.partial(plancheckrun.run_in, args, tree, args.timeout)
         rows, refused, runs = plancheck.report(section, runner)
-        hand = generatedfiles.handwritten(stat, patch, _scripted(args, head))
-        diffs = (added, *hand)
-        prior = _prior(args, body)
-        found = [
-            *_of_trees(args, section, (tree, head), diffs),
-            *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
-            *_remote(args, body, section, (ref, prior)),
-            *headfindings.of_head(body, section, patch, (head, _sha(args, ref))),
-            *_gated(args, section, patch, head),
-        ]
+        found, hand = _findings(args, section, (ref, prior), (tree, head))
         said = [plancheckprior.note(prior)] if prior else []
         noted = [*rows, *said, *_notes(section, runs, hand)]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
+
+
+def _findings(
+    args: argparse.Namespace,
+    section: str,
+    given: tuple[str, shapes.Comment | None],
+    trees: tuple[pathlib.Path, pathlib.Path],
+) -> tuple[Sequence[str], tuple[str, str]]:
+    # every finding of the head against the base, and the handwritten diff
+    ref, head = given[0], trees[1]
+    stat = plancheckgit.diff(args, ref, "--numstat", "-z")
+    patch = plancheckgit.diff(args, ref, "-U0", "--no-color")
+    hand = generatedfiles.handwritten(stat, patch, _scripted(args, head))
+    diffs = (plancheckgit.added(args, ref), *hand)
+    body = args.body
+    found = [
+        *_of_trees(args, section, trees, diffs),
+        *plancheck.form_findings(
+            body, section, plancheckgit.names(args, ref, "--no-renames")
+        ),
+        *_remote(args, body, section, given),
+        *headfindings.of_head(
+            body, section, patch, (head, plancheckgit.sha(args, ref))
+        ),
+        *_gated(args, section, patch, head),
+    ]
+    return found, hand
 
 
 def _scripted(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], bool]:
@@ -386,8 +325,8 @@ def _gated(
     args: argparse.Namespace, section: str, patch: str, head: pathlib.Path
 ) -> Sequence[str]:
     # keyword: file-gates (quire#1120): a Plan has a row for each gate of a changed file
-    read = _reading(head)
-    files = (read("CLAUDE.md") or "", read)
+    text_of = plancheckgit.reading(head)
+    files = (text_of("CLAUDE.md") or "", text_of)
     return filegates.findings(_repository(args), patch, section, files)
 
 
@@ -408,7 +347,7 @@ def _of_trees(
     diffs: tuple[Sequence[str], str, str],
 ) -> Sequence[str]:
     # the findings that read the base's tree and the head's, and the diff
-    files = (_reading(trees[0]), _reading(trees[1]))
+    files = (plancheckgit.reading(trees[0]), plancheckgit.reading(trees[1]))
     return [
         *plancheck.ci_findings(section, diffs[0], _settings(args), files),
         *markuplines.findings(diffs[1], diffs[2]),
