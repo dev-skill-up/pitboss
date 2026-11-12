@@ -21,7 +21,7 @@ GRADES = (
 )
 
 
-def fixed_grades(kind: str) -> tuple[str, ...]:
+def fixed_grades(kind: str) -> Sequence[str]:
     """The grade lines of a brief that fixes the Plan line.
 
     Args:
