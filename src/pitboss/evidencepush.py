@@ -8,7 +8,7 @@ changes. ``lint`` and ``plan-check`` refuse the same bodies.
 """
 
 import subprocess
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from . import bodyrules, evidence, ghapi
 from .running import Run
@@ -18,7 +18,7 @@ STALE = "EVIDENCE STALE: re-run uvx pitboss expand"
 
 def _pulls(
     github: ghapi.GitHub, slug: str | None, branch: str
-) -> Sequence[dict[str, object]]:
+) -> Sequence[Mapping[str, object]]:
     # the open PRs of the branch; none when it is not known or cannot be read
     if slug is None or not branch:
         return []
@@ -64,7 +64,7 @@ def missing_execution(
     return found
 
 
-def _base_of(pull: dict[str, object]) -> str:
+def _base_of(pull: Mapping[str, object]) -> str:
     # the branch the PR merges into
     given = pull.get("base")
     named = given.get("ref") if isinstance(given, dict) else None

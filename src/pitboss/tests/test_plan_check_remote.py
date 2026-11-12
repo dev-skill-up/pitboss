@@ -45,8 +45,7 @@ def mentions(found: Sequence[str], words: Sequence[Sequence[str]]) -> bool:
         True when there are as many findings, each with its words.
     """
     return len(found) == len(words) and all(
-        not [word for word in some if word not in each]
-        for each, some in zip(found, words)
+        not any(word not in each for word in some) for each, some in zip(found, words)
     )
 
 

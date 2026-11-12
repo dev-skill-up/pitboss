@@ -106,7 +106,9 @@ def run_json(github: GitHub, words: Sequence[str]) -> object:
     return json.loads(github.run(words).stdout)
 
 
-def branch_pulls(github: GitHub, slug: str, branch: str) -> Sequence[dict[str, object]]:
+def branch_pulls(
+    github: GitHub, slug: str, branch: str
+) -> Sequence[Mapping[str, object]]:
     """The open PRs whose head is a branch of the repository's owner.
 
     Args:

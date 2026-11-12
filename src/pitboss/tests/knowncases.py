@@ -154,21 +154,22 @@ def _scratch_path(given: knownkit.Kit) -> bool:
 
 QUIRE_FIXME = {"repo": "bats-lang/quire", "adds_fixme": True}
 OTHER_FIXME = {"repo": "bats-lang/bats", "adds_fixme": True}
+
+
+def _merge_case(
+    name: str, date: str, world: Mapping[str, object], expect: str
+) -> rulecases.Case:
+    # a ruling case of a merge
+    return rulecases.Case(
+        name=name, date=date, world=world, action="merge", expect=expect
+    )
+
+
 C14 = [
-    rulecases.Case(
-        name="C14", date="2026-11-12", world=OTHER_FIXME, action="merge", expect="STOP"
-    ),
-    rulecases.Case(
-        name="C14-quire",
-        date="2026-11-12",
-        world=QUIRE_FIXME,
-        action="merge",
-        expect="STOP",
-    ),
+    _merge_case("C14", "2026-11-12", OTHER_FIXME, "STOP"),
+    _merge_case("C14-quire", "2026-11-12", QUIRE_FIXME, "STOP"),
 ]
-QUIRE_E2E = rulecases.Case(
-    name="quire#976", date="2026-10-30", world=QUIRE_FIXME, action="merge", expect="GO"
-)
+QUIRE_E2E = _merge_case("quire#976", "2026-10-30", QUIRE_FIXME, "GO")
 
 
 @case(

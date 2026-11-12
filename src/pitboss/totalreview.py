@@ -83,6 +83,11 @@ def _head_finding(lines: Sequence[str], head: str) -> str:
     )
 
 
+def _stripped(review: str) -> Sequence[str]:
+    # the review's lines with no trailing white space
+    return list(map(str.rstrip, review.splitlines()))
+
+
 def _starting(lines: Sequence[str], prefix: str) -> Sequence[str]:
     # the lines that begin with the prefix
     return [line for line in lines if line[: len(prefix)] == prefix]
@@ -136,7 +141,7 @@ def review_reading(review: str, head: str, body: object, tickets: Tickets) -> st
     Returns:
         The reason, ``""`` when the review approves.
     """
-    lines = list(map(str.rstrip, review.splitlines()))
+    lines = _stripped(review)
     findings = (
         _verdict_finding(lines),
         _head_finding(lines, head),
@@ -167,7 +172,7 @@ def plan_reading(review: str, body: object) -> str:
     Returns:
         The reason, ``""`` when the Plan is approved (what an undraft needs).
     """
-    lines = list(map(str.rstrip, review.splitlines()))
+    lines = _stripped(review)
     if _starting(lines, "Plan: ") != ["Plan: approved"]:
         return "the newest review does not say exactly `Plan: approved`"
     section = plan_section(body)
