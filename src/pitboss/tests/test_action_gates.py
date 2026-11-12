@@ -130,7 +130,7 @@ class TestTable(unittest.TestCase):
 
     def test_c26_a_gate_without_a_test_or_a_reason_is_found(self) -> None:
         """A hold row names a test that exists; a free row says why."""
-        text = TABLE.replace("test_the_hold_withholds_the_re_arm_and_says_wait", "gone")
+        text = TABLE.replace("test_c26_the_hold_withholds_the_re_arm_and_says_wait", "gone")
         found = actiongates.findings(text, MATRIX, exists)
         assert_that(found[0], contains_string("does not exist"))
         free = TABLE.replace("closing a PR starts no workflow run of the project", " ")
