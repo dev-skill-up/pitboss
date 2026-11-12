@@ -144,7 +144,7 @@ class TestEachGateEachWay(unittest.TestCase):
         words = [
             executable,
             "-c",
-            "import sys; print('out'); print('err', file=sys.stderr)",
+            "import sys; print('out', flush=True); print('err', file=sys.stderr)",
         ]
         judged = gaterun.run(Runner().safe_run, gaterun.Gate(command=words, timeout=60))
         assert_that((judged.passed, judged.output), equal_to((True, "out\nerr\n")))
