@@ -6,12 +6,25 @@ had (2026-11-11 14:30Z, one worker over the cap). Two open PRs that fix or are
 branched for one ticket are named in a ``DUPLICATE PR`` line with the step.
 """
 
-from typing import Mapping, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from . import pullnames, pulls
 
 PREFIX = "DUPLICATE PR"
 STEP = "close the newer as a duplicate"
+
+
+def _tickets(
+    facts: Sequence[pulls.PullFacts],
+) -> Mapping[str, Sequence[pulls.PullFacts]]:
+    by_ticket: dict[str, list[pulls.PullFacts]] = {}
+    for each in facts:
+        names = pullnames.names(
+            each.pull.title, each.pull.body, each.pull.head.branch, each.repo
+        )
+        for ticket in sorted(names):
+            by_ticket.setdefault(ticket, []).append(each)
+    return _doubled(by_ticket)
 
 
 def lines(facts: Sequence[pulls.PullFacts]) -> Sequence[str]:
@@ -24,14 +37,23 @@ def lines(facts: Sequence[pulls.PullFacts]) -> Sequence[str]:
         A line for each ticket that two or more PRs work on, naming the PRs
         oldest first and the step; none when no ticket has two.
     """
-    by_ticket: dict[str, list[pulls.PullFacts]] = {}
-    for each in facts:
-        names = pullnames.names(
-            each.pull.title, each.pull.body, each.pull.head.branch, each.repo
-        )
-        for ticket in sorted(names):
-            by_ticket.setdefault(ticket, []).append(each)
-    return [_line(ticket, found) for ticket, found in _doubled(by_ticket).items()]
+    return [_line(ticket, found) for ticket, found in _tickets(facts).items()]
+
+
+def newer(facts: Sequence[pulls.PullFacts]) -> AbstractSet[str]:
+    """The PRs that are a duplicate: not the oldest of the PRs on a ticket.
+
+    Args:
+        facts: the open PRs that were read.
+
+    Returns:
+        Their references (``owner/name#number``).
+    """
+    return {
+        pulls.reference(each)
+        for found in _tickets(facts).values()
+        for each in found[1:]
+    }
 
 
 def _doubled(

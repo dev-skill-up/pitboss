@@ -53,7 +53,7 @@ from . import (
     workerlines,
     workhours,
 )
-from . import diskline, pulllines, pullstate, unlabeled, unreadableline
+from . import diskline, pulllines, pullstate, unlabeled, unledgered, unreadableline
 from .failures import describe, read_all
 from .running import KeywordRun
 from .queuereads import read_queue_runs, read_runner_runs, runner_runs
@@ -324,6 +324,15 @@ def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
         print(line)
 
 
+def _unledgered_section(found: Context) -> None:
+    # keyword: action-matrix (promise#73): events no pitboss act record answers
+    since = found.now - datetime.timedelta(days=1)
+    for said in unledgered.lines(
+        found.github, found.settings, found.settings.slots.log, since
+    ):
+        print(said)
+
+
 def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 
@@ -346,6 +355,7 @@ def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     summaryline.print_lines(
         found.github, found.settings, configfile.named(args), found.now
     )
+    _unledgered_section(found)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)

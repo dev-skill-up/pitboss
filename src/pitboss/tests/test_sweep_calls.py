@@ -24,6 +24,7 @@ FOUR_PULLS = {
     # the priority labels' lists, each repository's open ones, and its every ticket
     # and PR (promote, #388)
     "gh api issues": 6,
+    "gh api issues/events": 2,  # one for each repository (action-matrix: unledgered)
     "gh api issues/comments": 6,  # four PRs' and one feed for each repository (#239)
     # the 2 PRs with an Execution review (#202), and each of the 4 PRs (#355)
     "gh api issues/timeline": 6,
