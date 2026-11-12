@@ -7,7 +7,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import mergesonly, shapes, tasklist
-from . import world
+from . import quietworld, world
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, OLDER, graded, world_with
 
@@ -27,7 +27,7 @@ def third_line(files: Sequence[Mapping[str, str]]) -> str:
     """
     here = world_with([graded("approved", APPROVED, 1, OLDER)])
     here.bodies.update({f"{world.PROJECT}/commits/2": {"files": files}})
-    return "\n".join(filter(is_third, sweep(here).out.splitlines()))
+    return "\n".join(filter(is_third, sweep(quietworld.calm(here)).out.splitlines()))
 
 
 def is_third(line: str) -> bool:

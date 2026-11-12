@@ -120,7 +120,7 @@ def added(
     )
 
 
-def _added(diff: str) -> Sequence[tuple[str, bool, Sequence[str]]]:
+def added_lines(diff: str) -> Sequence[tuple[str, bool, Sequence[str]]]:
     # each file of a unified diff: its path, whether it is new, its added lines
     files: list[tuple[str, bool, list[str]]] = []
     new = False
@@ -168,7 +168,7 @@ def findings(name: str, claude: str, diff: str, body: str) -> Sequence[str]:
     return [
         f'{name}: {path}: non-bats code of ours; CLAUDE.md says "{quoted}" and the'
         " body names no avenue it exhausted (repo-rules)"
-        for path, new, added in _added(diff)
+        for path, new, added in added_lines(diff)
         if (new and path.endswith(".sh"))
         or (path.startswith(".github/workflows/") and _steps(added))
     ]

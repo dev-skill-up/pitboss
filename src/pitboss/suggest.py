@@ -24,7 +24,7 @@ from . import (
     nextfound,
     pullfiles,
     pulls,
-    reporules,
+    filegates,
     reviews,
     ruleconflicts,
     slotheld,
@@ -61,9 +61,9 @@ class Pick:
 
     reference: str
     title: str
-    category: work.Category | None
-    item: work.Item | None
-    pull: pulls.PullFacts | None
+    category: work.Category | None = None
+    item: work.Item | None = None
+    pull: pulls.PullFacts | None = None
 
 
 Suggestion = suggestkind.Suggestion
@@ -129,13 +129,7 @@ def sourced(
 
 
 def _ruling_pick(each: pulls.PullFacts) -> Pick:
-    return Pick(
-        reference=pulls.reference(each),
-        title=each.pull.title,
-        category=None,
-        item=None,
-        pull=each,
-    )
+    return Pick(reference=pulls.reference(each), title=each.pull.title, pull=each)
 
 
 def _queued_pick(each: work.Item, by_reference: Mapping[str, pulls.PullFacts]) -> Pick:
@@ -259,15 +253,16 @@ def _form(source: Source, slug: str, head: str) -> Sequence[str]:
     ]
 
 
-def _rules(source: Source, slug: str, head: str) -> brief.Rules:
+def _rules(source: Source, slug: str, head: str, ticket: str) -> brief.Rules:
     review = source.settings.review
     words = reviews.rules(review, slug)[1]
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
-        project=reporules.added(
+        project=filegates.added(
             source.github,
             slug,
+            ticket,
             briefrepo.of_repository(
                 source.brief,
                 slug,
@@ -302,10 +297,10 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         The spec.
     """
     about = goal(source, pick)
-    slug = pick.reference.rpartition("#")[0]
     heads = briefheads.of(source.settings.project.base_branch, pick.pull)
     kind = kind_of(pick)
-    rules = _rules(source, slug, heads.head)
+    ticket = pick.item.body if pick.item else pick.pull.pull.body if pick.pull else ""
+    rules = _rules(source, pick.reference.rpartition("#")[0], heads.head, ticket)
     return brief.Spec(
         kind=kind,
         subject=suggestwhen.subject(source.github, pick.reference, about, kind),

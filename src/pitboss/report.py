@@ -8,6 +8,7 @@ from . import (
     causeline,
     config,
     headchecks,
+    holdgate,
     local,
     pinsline,
     pulls,
@@ -105,14 +106,17 @@ def action_lines(
     merge = None if behind else _ready_line(pull, settings)
     if merge is None and not behind and _auto_merge_off(pull, settings, queued):
         merge = f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
-    return [
-        *_wait_lines(pull),
-        *_conflict_lines(pull),
-        *_failure_lines(pull, why),
-        *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
-        *behind,
-        *([merge] if merge else []),
-    ]
+    return holdgate.gate(  # keyword: hold-gate (quire#1110)
+        pull,
+        [
+            *_wait_lines(pull),
+            *_conflict_lines(pull),
+            *_failure_lines(pull, why),
+            *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
+            *behind,
+            *([merge] if merge else []),
+        ],
+    )
 
 
 # keyword: behind-approved (pitboss#369): the strict up-to-date rule held pwa#293
@@ -194,13 +198,7 @@ def _auto_merge_off(
     return healthy and not manual and not queued and not pull.pull.auto_merge
 
 
-# keyword: hold-actions (pitboss#200): the one text of the actions a runner hold
-# covers; the skill's references/ci.md ("What costs runs") quotes it word for word.
-HOLD_ACTIONS = (
-    "HOLD pushes to non-draft PRs, undrafts, enqueues, merges,"
-    " workflow dispatches (a dispatch on a draft too) and re-runs"
-    " (pushes to drafts are free)"
-)
+HOLD_ACTIONS = holdgate.HOLD_ACTIONS  # keyword: hold-actions (pitboss#200)
 
 
 def pressure_line(waiting: int) -> str:

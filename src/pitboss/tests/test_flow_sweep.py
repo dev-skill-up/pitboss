@@ -91,7 +91,7 @@ def world_with(rounds: Sequence[shapes.Comment], **changes: object) -> world.Wor
             f"{world.PROJECT}/commits/2": {"files": [{"filename": "a.bats"}]},
         }
     )
-    return with_complete_run(here)
+    return quietworld.at_rest(with_complete_run(here))
 
 
 def with_complete_run(here: world.World) -> world.World:

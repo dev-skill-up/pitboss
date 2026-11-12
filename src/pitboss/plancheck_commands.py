@@ -34,6 +34,7 @@ from . import (
     configsettle,
     devpath,
     expansion,
+    filegates,
     forms,
     ghapi,
     headfindings,
@@ -346,10 +347,20 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
             *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
             *_remote(args, body, section, (ref, prior)),
             *headfindings.of_head(body, section, patch, (head, _sha(args, ref))),
+            *_gated(args, section, patch, head),
         ]
         said = [plancheckprior.note(prior)] if prior else []
         noted = [*rows, *said, *_notes(section, runs, (stat, patch))]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
+
+
+def _gated(
+    args: argparse.Namespace, section: str, patch: str, head: pathlib.Path
+) -> Sequence[str]:
+    # keyword: file-gates (quire#1120): a Plan has a row for each gate of a changed file
+    read = _reading(head)
+    files = (read("CLAUDE.md") or "", read)
+    return filegates.findings(_repository(args), patch, section, files)
 
 
 def _notes(

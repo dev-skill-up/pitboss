@@ -14,7 +14,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, config, dispatchruns, earlyfound, earlyreview, markers
 from .. import parsing, shapes
-from . import fakes, world
+from . import fakes, quietworld, world
 from .briefmake import make
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, HEAD, OLDER, graded, older_checks, world_with
@@ -254,7 +254,9 @@ class TestTheSweep(unittest.TestCase):
         """A later counted review of the head decides: no line, ready to merge."""
         counted = graded(APPROVED, APPROVED, 20)
         here = served(world_with([reviewed(2, sha=OLDER), counted]), [DONE])
-        out = sweep(older_checks(here, {"check_runs": [run_of("queued", "")]})).out
+        out = sweep(
+            quietworld.calm(older_checks(here, {"check_runs": [run_of("queued", "")]}))
+        ).out
         assert_that(quiet(out), equal_to(True))
         assert_that(out, contains_string("READY TO MERGE owner/project#3"))
 

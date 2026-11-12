@@ -9,7 +9,7 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, shapes, steps
-from . import fakes, test_flow, world
+from . import fakes, quietworld, test_flow, world
 from .suggestions import kind_of_third, next_output
 from .test_flow import APPROVED, state
 from .test_flow_sweep import graded as comment
@@ -84,7 +84,8 @@ class TestRulingVoidsApproval(unittest.TestCase):
         test_flow.expect(MERGE, pr)
         merge = "READY TO MERGE owner/project#3"
         assert_that(
-            sweep(world_of(test_flow.ruling(2), later)).out, contains_string(merge)
+            sweep(quietworld.calm(world_of(test_flow.ruling(2), later))).out,
+            contains_string(merge),
         )
 
     def test_the_sweep_does_not_say_ready_to_merge_after_the_ruling(self) -> None:

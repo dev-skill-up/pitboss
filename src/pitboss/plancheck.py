@@ -35,6 +35,7 @@ from . import (
     cirun,
     evidence,
     expansion,
+    filegates,
     lintchange,
     markupclaim,
     markuplines,
@@ -235,6 +236,7 @@ KINDS = (
     (bodyrules.PATH_CHECK, "Outside path findings"),
     (bodyrules.SECTION_CHECK, "Execution section findings"),
     (bodyrules.POINTER_CHECK, "Execution pointer findings"),
+    (filegates.CHECK, "File gate findings"),
 )
 
 

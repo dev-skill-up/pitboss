@@ -93,6 +93,11 @@ class Marker(enum.Enum):
         OPUS_RULINGS_DAILY: Opus ruling comments are dated since the last
             summary and none is recorded for the Pacific day.
         REMOVED_FROM_QUEUE: the merge queue removed a PR, and why.
+        DROPPED_FROM_QUEUE: a PR that was armed or queued lost auto-merge with no
+            removal event, and is neither queued nor merged (keyword:
+            dropped-from-queue, quire#1110).
+        WAIT_FOR_HOLD: a runner-pressure hold or its quiet period withholds the
+            action a PR's line asks for (keyword: hold-gate, quire#1110).
         DRAFT_STATE_CHANGED: a PR's draft state changed after the sweep marked it
             ready (keyword: draft-moves, pitboss#355).
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
@@ -215,6 +220,8 @@ class Marker(enum.Enum):
     REVIEW_NOTE = enum.auto()
     OPUS_RULINGS_DAILY = enum.auto()
     REMOVED_FROM_QUEUE = enum.auto()
+    DROPPED_FROM_QUEUE = enum.auto()
+    WAIT_FOR_HOLD = enum.auto()
     DRAFT_STATE_CHANGED = enum.auto()
     AUTO_MERGE_OFF = enum.auto()
     READY_TO_MERGE = enum.auto()
@@ -290,6 +297,7 @@ SPELLED = {
     Marker.PINS_ONLY_OK: "PINS-ONLY OK",
     Marker.NO_HAND_BACK: "NO HAND-BACK",
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
+    Marker.WAIT_FOR_HOLD: "WAIT-FOR-HOLD",
     Marker.CHECK_IN_OVERDUE: "CHECK-IN OVERDUE",
 }
 
@@ -319,6 +327,8 @@ SELF_EXPLAINED = frozenset(
         Marker.EXECUTION_REVIEW_EARLY,
         Marker.BEHIND,
         Marker.READY_TO_MERGE,
+        Marker.WAIT_FOR_HOLD,
+        Marker.DROPPED_FROM_QUEUE,
         Marker.MERGE_BY_HAND,
         Marker.AUTO_MERGE_OFF,
         Marker.DRAFT_STATE_CHANGED,

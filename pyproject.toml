@@ -44,6 +44,7 @@ OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 [tool.setuptools.package-data]
 pitboss = [
   "phrases.tsv",
+  "filegates.tsv",
   "contradictions.tsv",
   "rules.tsv",
   "donewhen.tsv",

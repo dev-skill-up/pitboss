@@ -8,7 +8,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, gates, ghapi, headchecks, shapes
-from . import fakes, suggestions, test_commands, test_flow_sweep, world
+from . import fakes, quietworld, suggestions, test_commands, test_flow_sweep, world
 from .gateworld import (
     FORM,
     GATE,
@@ -54,7 +54,7 @@ def swept_ungated() -> str:
     Returns:
         What the sweep printed.
     """
-    return test_commands.sweep(world.make_world()).out
+    return test_commands.sweep(quietworld.calm(world.make_world())).out
 
 
 def swept(status: object = None) -> str:
@@ -66,7 +66,7 @@ def swept(status: object = None) -> str:
     Returns:
         What the sweep printed.
     """
-    here = with_gate(world.make_world(), PROJECT_GATE)
+    here = quietworld.calm(with_gate(world.make_world(), PROJECT_GATE))
     here.bodies[THIRD_STATUS] = status or fakes.NO_STATUS
     return test_commands.sweep(here).out
 

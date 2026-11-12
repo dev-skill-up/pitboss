@@ -85,3 +85,35 @@ def unheld(here: world.World) -> world.World:
     record = here.clone / ".git" / "pitboss-pressure.log"
     record.write_text("2029-12-31T23:00:00+00:00 none\n")
     return here
+
+
+def at_rest(here: world.World) -> world.World:
+    """Make a world's last look at the runners one that saw nothing waiting, long ago.
+
+    Only the record changes: the runs and jobs the world serves stay.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The same world.
+    """
+    record = here.clone / ".git" / "pitboss-pressure.log"
+    record.write_text("2029-12-31T23:00:00+00:00 none\n")
+    return here
+
+
+def calm(here: world.World) -> world.World:
+    """Make a world's runners quiet but for the runs and jobs the world serves.
+
+    The one job that waits for a runner is served as done, and the record says the
+    last look saw nothing waiting long ago.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The same world.
+    """
+    here.bodies[fakes.page(f"{world.PROJECT}/actions/runs/11/jobs")] = {"jobs": []}
+    return at_rest(here)

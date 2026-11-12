@@ -24,12 +24,16 @@ from .. import (
     steps,
     tasklist,
 )
-from . import fakes, test_work, world
+from . import fakes, quietworld, test_work, world
 from .test_commands import sweep
 
 ADDED = {"event": "added_to_merge_queue", "created_at": "2029-12-31T22:44:11Z"}
 REMOVED = {"event": "removed_from_merge_queue", "created_at": "2029-12-31T23:28:52Z"}
 ADDED_AGAIN = {"event": "added_to_merge_queue", "created_at": "2029-12-31T23:40:00Z"}
+ENABLED = {"event": "auto_merge_enabled", "created_at": "2029-12-31T22:45:00Z"}
+DISABLED = {"event": "auto_merge_disabled", "created_at": "2029-12-31T23:30:00Z"}
+DROPPED_LINE = "DROPPED FROM QUEUE owner/project#2: 2029-12-31T23:30:00Z, "
+WAIT_LINE = "WAIT-FOR-HOLD owner/project#2: a runner-pressure hold or its quiet period"
 LABELED = {"event": "labeled", "created_at": "2029-12-31T20:00:00Z"}
 COMMITTED = {"event": "committed"}
 QUEUE_BRANCH = "gh-readonly-queue/main/pr-2-"
@@ -120,7 +124,7 @@ def removed_world(
     here = world.make_world()
     here.bodies.update(queue_bodies(events, jobs))
     fakes.settings(here.workspace, world.EXTRA.format(ledger=here.ledger) + extra)
-    return here
+    return quietworld.at_rest(here)
 
 
 def lines_of(here: world.World) -> Sequence[str]:
@@ -186,6 +190,7 @@ class TestSweep(unittest.TestCase):
             for events in ([], [COMMITTED, LABELED], [REMOVED], [ADDED])
         ]
         assert_that(found, equal_to([[], [], [], []]))
+        assert_that(removedline.removed_at([]), equal_to(None))
 
     def test_a_repository_without_a_queue_reads_no_timeline(self) -> None:
         """Outside ``[merge_queue] repositories`` the timeline is not asked for."""
@@ -267,6 +272,82 @@ class TestStanding(unittest.TestCase):
         """A PR nobody reviewed is not told to arm auto-merge."""
         here = removed_world([ADDED, REMOVED], [FAILED_JOB])
         assert_that(lines_of(reviewed(here, [])), equal_to([ALONE]))
+
+
+def held(here: world.World) -> world.World:
+    """Put a world's runners back under a hold: a look that saw a job waiting, just now.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The same world.
+    """
+    record = here.clone / ".git" / "pitboss-pressure.log"
+    record.write_text("2029-12-31T23:59:00+00:00 hold\n")
+    return here
+
+
+class TestDropped(unittest.TestCase):
+    """A PR armed and then dropped with no removal is named and re-armed (quire#1110)."""
+
+    def test_a_pr_whose_auto_merge_was_switched_off_is_dropped_from_the_queue(
+        self,
+    ) -> None:
+        """Enabled, then disabled, not in the queue and not merged."""
+        here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
+        found = lines_of(here)
+        assert_that(found[0].startswith(DROPPED_LINE), equal_to(True))
+        assert_that(found[1:], equal_to([READY_LINE]))
+
+    def test_a_removal_is_a_removal_even_when_auto_merge_was_switched_off_too(
+        self,
+    ) -> None:
+        """The queue's own removal event is the cause that is named."""
+        here = removed_world([ADDED, REMOVED, DISABLED], [FAILED_JOB])
+        assert_that(lines_of(here)[0].startswith(REMOVED_LINE), equal_to(True))
+
+    def test_a_pr_armed_again_after_the_switch_off_is_not_dropped(self) -> None:
+        """The newest arming ends the drop."""
+        here = removed_world([ENABLED, DISABLED, ADDED_AGAIN], [FAILED_JOB])
+        assert_that(lines_of(here), equal_to([STANDARD_LINE]))
+
+    def test_a_switched_off_auto_merge_of_an_unapproved_head_is_not_a_drop(
+        self,
+    ) -> None:
+        """A push turns auto-merge off; a head nobody approved has nothing to re-arm."""
+        here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
+        assert_that(lines_of(reviewed(here, [])), equal_to([]))
+
+    def test_the_hold_withholds_the_re_arm_and_says_wait(self) -> None:
+        """During the hold the line is WAIT-FOR-HOLD, never the arm."""
+        here = held(removed_world([ENABLED, DISABLED], [FAILED_JOB]))
+        found = lines_of(here)
+        assert_that(found[0].startswith(DROPPED_LINE), equal_to(True))
+        assert_that(len(found), equal_to(2))
+        assert_that(found[1].startswith(WAIT_LINE), equal_to(True))
+        assert_that(READY_LINE in found, equal_to(False))
+
+    def test_the_hold_withholds_the_re_arm_of_a_removal_too(self) -> None:
+        """A removal's act is gated like the drop's."""
+        here = held(removed_world([ADDED, REMOVED], [FAILED_JOB]))
+        found = lines_of(here)
+        assert_that(
+            [READY_LINE in found, found[-1].startswith(WAIT_LINE)],
+            equal_to([False, True]),
+        )
+
+    def test_the_re_arm_is_offered_again_once_the_hold_ends(self) -> None:
+        """The same PR, the record clear: the arm line is there."""
+        here = held(removed_world([ENABLED, DISABLED], [FAILED_JOB]))
+        assert_that(lines_of(quietworld.at_rest(here))[1:], equal_to([READY_LINE]))
+
+    def test_the_hold_withholds_a_ready_pr_and_a_behind_pr_alike(self) -> None:
+        """READY TO MERGE and AUTO MERGE OFF are not offered during the hold."""
+        here = held(removed_world([], []))
+        found = lines_of(here)
+        assert_that(found, equal_to([found[0]]))
+        assert_that(found[0].startswith(WAIT_LINE), equal_to(True))
 
 
 class TestUnits(unittest.TestCase):
