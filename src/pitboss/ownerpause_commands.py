@@ -1,14 +1,20 @@
 """The ``owner-pause`` command: label a PR ``paused-owner`` and post the question."""
 
 import argparse
-import pathlib
-import sys
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, expand_commands, ghapi, ghstore, ownerpause, steps
+from . import ENTRY_DATA, ghapi, ownerpause, pullfile, steps
 
-USAGE_ERROR = 2
+
+def _check(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
+    return ownerpause.refusal(text)
+
+
+def _label(github: ghapi.GitHub, slug: str, number: int) -> None:
+    label = ["-f", f"labels[]={steps.PAUSED_LABEL}"]
+    path = ownerpause.label_path(slug, number)
+    github.mutate(["gh", "api", "-X", "POST", *label, path])
 
 
 @ENTRY_DATA.register(
@@ -28,22 +34,5 @@ def owner_pause(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
 
-    Raises:
-        SystemExit: 2, with the reason, for a refusal.
     """
-    found = expand_commands.PULL.match(args.pull)
-    try:
-        text = pathlib.Path(args.file).read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as error:
-        raise SystemExit(f"pitboss owner-pause: {args.file}: {error}") from error
-    why = ownerpause.refusal(text) if found else f"{args.pull}: not OWNER/NAME#NUMBER"
-    if why or not found:
-        print(f"pitboss owner-pause: refused: {why}", file=sys.stderr)
-        raise SystemExit(USAGE_ERROR)
-    slug, number = found.group(1), int(found.group(2))
-    github = ghapi.GitHub(mutate=args.safe_run, run=args.safe_run)
-    path = ownerpause.label_path(slug, number)
-    github.mutate(
-        ["gh", "api", "-X", "POST", "-f", f"labels[]={steps.PAUSED_LABEL}", path]
-    )
-    print(ghstore.post(github, f"repos/{slug}/issues/{number}/comments", text).url)
+    pullfile.post_comment(args, "owner-pause", _check, _label)

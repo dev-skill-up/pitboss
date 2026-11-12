@@ -2,8 +2,8 @@
 
 Owner, 2026-11-11: after a ruling a further rejection is the owner's, so a second
 Opus ruling is never posted on a PR that is not yet paused for him (A6, pitboss#444).
-``refusal`` is what ``pitboss ruling post`` asks before it posts. The module reads
-nothing: the comments and the labels are given.
+``refusal`` is what ``pitboss ruling post`` asks before it posts. The module
+reads nothing, as the comments and the labels are given.
 """
 
 from typing import Sequence

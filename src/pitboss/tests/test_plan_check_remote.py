@@ -15,7 +15,10 @@ OTHER = "b" * 40
 ADDRESS = "https://github.com/owner/project/actions/runs/{run}"
 POINTER = "workflow `check.yml`, job `tests`, step `Run Nox`, " + ADDRESS + "/job/9"
 PLAN = "## Plan\n1. " + POINTER.format(run=5) + "\n"
-ITEMS = ["First item.", "Second item, counted by `rg -c code src`."]
+ITEMS = [
+    "First item, demonstrated by a test.",
+    "Second item, counted by `rg -c code src`, demonstrated by a test.",
+]
 # the command each item's row runs: the second item names its measurement
 ROW_COMMANDS = {1: "git status", 2: "rg -c code src"}
 TICKET = "Text.\n\n## Done when\n\n" + "".join(f"- {each}\n" for each in ITEMS)
@@ -269,7 +272,7 @@ COMMANDS: Mapping[str, Case] = {
         "#9",
         lambda: plan_holding(1),
         OPTION,
-        [["First item."]],
+        [["First item, demonstrated by a test."]],
     ),
     "a ticket that cannot be read": (
         world.make_world,

@@ -7,7 +7,7 @@ whether the question is one: it names the options and has the ``How we got here`
 section (``analysis``). It reads nothing: the question is given.
 """
 
-from . import analysis, steps
+from . import analysis
 
 NO_OPTIONS = "the question names no options: a line that starts with `Options`"
 NO_SECTION = f"no `{analysis.SECTION}` section with the analysis in it"

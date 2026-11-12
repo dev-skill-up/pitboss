@@ -3,9 +3,9 @@
 A review never says a change makes or made a passage false (review-phrase, owner
 2026-11-08 22:59Z), and gives one verdict for the whole PR (split-verdict, owner
 2026-11-10 20:45Z: "Execution approved, Plan changes needed <-- THAT IS NOT
-POSSIBLE"), and never asks for a documentation cut a sentence at a time (piecemeal,
-owner 2026-11-08 23:47Z: cut the whole section in one pass). The module reads
-nothing: the review text is given.
+POSSIBLE"), and never asks for a documentation cut a sentence at a time
+(piecemeal, owner 2026-11-08 23:47Z: cut the whole section in one pass). The module
+reads nothing, as the review text is given.
 """
 
 import re

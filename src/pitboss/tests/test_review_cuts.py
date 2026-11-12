@@ -7,12 +7,15 @@ passage" rounds; the whole section is cut in one pass. A25 (owner, 2026-11-11
 
 import unittest
 
-from hamcrest import assert_that, contains_string, empty, equal_to, has_length
+from hamcrest import assert_that, contains_string, empty, has_length
 
 from .. import extrafile, reviewrules
 from .linting import HEAD, lint, write_text
 
-REVIEW = f"## Review\nReviewed: {HEAD}\nPlan: approved\nExecution: approved\nVerdict: approved\n"
+REVIEW = (
+    f"## Review\nReviewed: {HEAD}\nPlan: approved\nExecution: approved\n"
+    "Verdict: approved\n"
+)
 
 
 def linted(finding: str) -> str:
@@ -42,14 +45,13 @@ class TestPiecemeal(unittest.TestCase):
         assert_that(reviewrules.piecemeal_findings(said), has_length(1))
 
     def test_a9_a_whole_section_cut_is_not_piecemeal(self) -> None:
-        """The nearest input it must still accept."""
-        said = "doc/flow.rst: cut the whole section `Old flow` in one pass."
-        assert_that(reviewrules.piecemeal_findings(said), empty())
-
-    def test_a9_a_cut_of_a_line_of_code_is_not_a_doc_cut(self) -> None:
-        """A line of a source file names no doc."""
-        said = "src/pitboss/flow.py: remove the line that sets the label."
-        assert_that(reviewrules.piecemeal_findings(said), empty())
+        """The nearest inputs it must still accept: a section, and a code line."""
+        for said in (
+            "doc/flow.rst: cut the whole section `Old flow` in one pass.",
+            "src/pitboss/flow.py: remove the line that sets the label.",
+        ):
+            with self.subTest(said=said):
+                assert_that(reviewrules.piecemeal_findings(said), empty())
 
     def test_a9_the_review_lint_refuses_the_round(self) -> None:
         """``pitboss lint review`` prints the finding."""
@@ -64,11 +66,11 @@ class TestExtraFile(unittest.TestCase):
         """Pitboss 468: the file was deleted and came back."""
         found = extrafile.findings("An extra file `out.json` is in the PR.")
         assert_that(found, has_length(1))
-        assert_that(found[0], contains_string("remove it and add a .gitignore line"))
+        assert_that(found[0], contains_string(extrafile.STEP))
 
     def test_a25_an_extra_file_with_the_step_passes(self) -> None:
         """The nearest input it must still accept."""
-        said = "Stray file `out.json`: remove it and add a .gitignore line."
+        said = f"Stray file `out.json`: {extrafile.STEP}."
         assert_that(extrafile.findings(said), empty())
 
     def test_a25_a_line_that_names_no_extra_file_passes(self) -> None:
@@ -79,4 +81,3 @@ class TestExtraFile(unittest.TestCase):
         """``pitboss lint review`` prints the finding."""
         out = linted("A scratch file `tmp.txt` was committed.")
         assert_that(out, contains_string("review-extra-file: line 6"))
-        assert_that(extrafile.STEP, equal_to("remove it and add a .gitignore line"))

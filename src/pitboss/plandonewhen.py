@@ -11,11 +11,11 @@ that does not (``plan-done-when``). Where a bullet names its measurement as
 a backticked span of the bullet's row outside the copy, never a substitute
 (``plan-measurement``). It refuses a body with no ``Done-when digest:`` line, or
 whose line is not the ticket's digest now: the Done-when was edited after a
-worker started (``done-when-edited``). It refuses a ticket whose Done-when has an item that is not stated as "X
-demonstrated by Y" (``done-when-form``, A20, owner 2026-11-11 02:45Z). It also
-refuses a body whose Plan or
-Execution has an "Interpretation" or "interpreted" paragraph about a Done-when
-item (``plan-interpretation``): meet the Done-when as written, or prove it
+worker started (``done-when-edited``). It refuses a ticket whose Done-when has an
+item that is not stated as "X demonstrated by Y" (``done-when-form``, A20, owner
+2026-11-11 02:45Z). It also refuses a body whose Plan or Execution has an
+"Interpretation" or "interpreted" paragraph about a Done-when item
+(``plan-interpretation``): meet the Done-when as written, or prove it
 impossible. The module reads nothing: the texts are given.
 """
 

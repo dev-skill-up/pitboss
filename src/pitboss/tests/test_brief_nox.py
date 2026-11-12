@@ -66,9 +66,7 @@ class TestNoxInTheBriefs(unittest.TestCase):
         """The owner never said after every edit (pitboss#345)."""
         for kind in brief.Kind:
             assert_that("after every edit" in text(kind), equal_to(False))
-        assert_that(
-            "before each push and when you need feedback" in NOX, equal_to(True)
-        )
+        assert_that("at most once per head, after the last edit" in NOX, equal_to(True))
         assert_that("after every edit" in NOX, equal_to(False))
 
     def test_the_command_text_never_says_after_every_edit(self) -> None:

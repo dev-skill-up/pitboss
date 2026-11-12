@@ -6,10 +6,10 @@ question (pitboss#444, keyword: owner-pause).
 
 import unittest
 
-from hamcrest import assert_that, contains_string, empty, equal_to, has_item
+from hamcrest import assert_that, equal_to, has_item
 
 from .. import ownerpause
-from . import world
+from . import refused, world
 
 PULL = "owner/project#3"
 LABELS = f"POST {world.PROJECT}/issues/3/labels"
@@ -21,24 +21,30 @@ QUESTION = (
 )
 
 
-def pause(text: str, pull: str = PULL) -> tuple[world.Result, list[list[str]]]:
-    """Run ``owner-pause`` on a question.
-
-    Args:
-        text: the question file's text.
-        pull: the pull request argument.
+def labelled() -> world.World:
+    """A world whose PR 3 takes a label and a comment.
 
     Returns:
-        What it did, and the calls that changed GitHub.
+        The world.
     """
     here = world.make_world()
     here.bodies[LABELS] = []
     here.bodies[COMMENTS] = {"id": 6, "html_url": URL}
-    path = here.workspace / "question.md"
-    path.write_text(text, encoding="utf-8")
-    done = world.invoke(here, "owner-pause", pull, str(path))
-    changed = [list(each) for each in here.calls if "POST" in each]
-    return done, changed
+    return here
+
+
+def pause(here: world.World, text: str, pull: str = PULL) -> world.Result:
+    """Run ``owner-pause`` on a question.
+
+    Args:
+        here: the world.
+        text: the question file's text.
+        pull: the pull request argument.
+
+    Returns:
+        What it did.
+    """
+    return refused.run(here, text, "owner-pause", pull, refused.FILE)
 
 
 class TestPause(unittest.TestCase):
@@ -46,47 +52,30 @@ class TestPause(unittest.TestCase):
 
     def test_a5_the_label_goes_on_and_the_question_is_posted(self) -> None:
         """One call puts ``paused-owner``, one posts the question as a comment."""
-        done, changed = pause(QUESTION)
+        here = labelled()
+        done = pause(here, QUESTION)
         assert_that(done.out, equal_to(URL + "\n"))
-        assert_that(
-            [each[-1] for each in changed],
-            equal_to(
-                [
-                    "repos/owner/project/issues/3/labels",
-                    "repos/owner/project/issues/3/comments",
-                ]
-            ),
-        )
-        assert_that(changed[0], has_item("labels[]=paused-owner"))
-        assert_that(changed[1], has_item(f"body={QUESTION}"))
+        assert_that(refused.changes(here)[0], has_item("labels[]=paused-owner"))
+        assert_that(refused.bodies(here), equal_to([QUESTION]))
 
     def test_a5_a_question_without_options_is_refused(self) -> None:
         """Nothing is labelled and nothing is posted."""
-        done, changed = pause(QUESTION.replace("Options", "Choices"))
-        assert_that(done.err, contains_string("names no options"))
-        assert_that((done.code, changed), equal_to((2, [])))
+        here = labelled()
+        done = pause(here, QUESTION.replace("Options", "Choices"))
+        refused.assert_refused(done, "names no options", here)
 
     def test_a5_a_question_without_the_analysis_is_refused(self) -> None:
         """The section ``How we got here`` is the analysis."""
-        done, changed = pause(QUESTION.split("## How")[0])
-        assert_that(done.err, contains_string("How we got here"))
-        assert_that(changed, empty())
+        here = labelled()
+        refused.assert_refused(pause(here, QUESTION.split("## How")[0]), "How we", here)
 
     def test_a5_a_pull_that_is_no_reference_is_refused(self) -> None:
         """The first argument is ``OWNER/NAME#NUMBER``."""
-        done, changed = pause(QUESTION, "three")
-        assert_that(done.err, contains_string("three: not OWNER/NAME#NUMBER"))
-        assert_that(changed, empty())
-
-    def test_a5_a_file_it_cannot_read_is_refused(self) -> None:
-        """The reason is the file's."""
-        done = world.invoke(
-            world.make_world(), "owner-pause", PULL, "/nonexistent/q.md"
-        )
-        assert_that(str(done.code), contains_string("/nonexistent/q.md"))
+        here = labelled()
+        done = pause(here, QUESTION, "three")
+        refused.assert_refused(done, "three: not OWNER/NAME#NUMBER", here)
 
     def test_a5_the_label_path_is_the_pull_requests_labels(self) -> None:
         """The path under the API root."""
-        assert_that(
-            ownerpause.label_path("o/p", 4), equal_to("repos/o/p/issues/4/labels")
-        )
+        path = ownerpause.label_path("o/p", 4)
+        assert_that(path, equal_to("repos/o/p/issues/4/labels"))

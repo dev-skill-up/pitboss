@@ -4,8 +4,7 @@ import argparse
 import functools
 import json
 import pathlib
-import sys
-from typing import Callable, Mapping, Sequence, TypeVar
+from typing import Callable, Mapping, Sequence
 
 from gather.commands import add_argument
 
@@ -24,6 +23,7 @@ from . import (
     forms,
     gateform,
     holdwait,
+    lintinput,
     phrases,
     planapproved,
     planfixed,
@@ -38,57 +38,14 @@ from . import (
     ticketrows,
 )
 
-USAGE_ERROR = 2
-_Rule = TypeVar("_Rule")
 FormCheck = Callable[[argparse.Namespace, forms.Subject, config.Lint], Sequence[str]]
 
 
-def _fail(message: str) -> SystemExit:
-    print(message, file=sys.stderr)
-    return SystemExit(USAGE_ERROR)
-
-
-def _shipped_and_given(
-    shipped: Sequence[_Rule],
-    given: Sequence[str] | None,
-    load: Callable[[pathlib.Path], Sequence[_Rule]],
-) -> list[_Rule]:
-    found = list(shipped)
-    try:
-        for path in given or ():
-            found.extend(load(pathlib.Path(path)))
-    except phrases.PhraseError as error:
-        raise _fail(str(error)) from error
-    return found
-
-
-def _phrases(args: argparse.Namespace) -> list[phrases.Phrase]:
-    shipped = (
-        []
-        if args.no_default_phrases
-        else phrases.parse(phrases.default_text(), "default phrases")
-    )
-    return _shipped_and_given(shipped, args.phrases, phrases.load)
-
-
-def _pairs(args: argparse.Namespace) -> list[contradictions.Pair]:
-    shipped = (
-        []
-        if args.no_default_pairs
-        else contradictions.parse(contradictions.default_text(), "default pairs")
-    )
-    return _shipped_and_given(shipped, args.pairs, contradictions.load)
-
-
-def _read(name: str) -> str:
-    try:
-        return phrases.read_text(pathlib.Path(name))
-    except phrases.PhraseError as error:
-        raise _fail(str(error)) from error
-
-
-def _read_files(args: argparse.Namespace) -> list[tuple[str, str]]:
-    return [(name, _read(name)) for name in args.files]
+_fail = lintinput.fail
+_read = lintinput.read
+_read_files = lintinput.read_files
+_phrases = lintinput.phrase_rules
+_pairs = lintinput.pair_rules
 
 
 def _finish(refused: Sequence[str], ok: str) -> None:

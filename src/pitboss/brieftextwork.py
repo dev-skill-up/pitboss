@@ -8,7 +8,8 @@ from . import brieftextbody, brieftextowner
 
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"
-    " each push and when you need feedback, once for a head (the skills, lint and"
+    " a push, at most once per head, after the last edit (a maximum, not a"
+    " target; the skills, lint and"
     " mypy first, then the tests of one Python version, which stop at the first"
     " failing test; it stops at the first failing session and always uses `-r`); a"
     " targeted test module, `nox -s ...` or `virtue` is never run by hand,"

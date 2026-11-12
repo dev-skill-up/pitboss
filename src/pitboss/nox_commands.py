@@ -235,7 +235,8 @@ def run_planned(
         default=False,
         help="run the sessions on a head that already ran green (without it the"
         " command prints a NOTE with the time of that run and exits 0; run it"
-        " before each push and when feedback is needed, not again on one head;"
+        " at most once per head, after the last edit (plenty before a push; a"
+        " maximum, not a target);"
         " a tree with a change is never skipped).",
     ),
     add_argument(

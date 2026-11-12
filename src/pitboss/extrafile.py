@@ -3,8 +3,8 @@
 Owner, 2026-11-11 11:00Z (A25, pitboss#444, keyword: extra-file): a file the PR
 should not hold (a generated, stray or scratch file) is not only deleted, since it
 comes back: the fix removes it and adds a ``.gitignore`` line for it, in this PR
-only. A review line that names an extra file carries that step. The module reads
-nothing: the review is given.
+only. A review line that names an extra file carries that step. The module
+reads nothing, as the review is given.
 """
 
 import re

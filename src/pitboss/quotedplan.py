@@ -6,7 +6,7 @@ phrase lint refuses ("D4 (never say "I haven't checked")"): the row quotes the
 rule, it does not break it (keyword: plan-quote, pitboss#444). ``mask`` blanks
 the quoted part of each row, up to its ``CI:`` pointer, and keeps every line
 number; the pointer and every other line are read as before. The module reads
-nothing: the body is given.
+nothing, as the body is given.
 """
 
 import re

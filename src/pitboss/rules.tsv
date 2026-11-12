@@ -46,7 +46,7 @@ B10	2026-11-11	open	A blocker inherits the blocked item's rank	-	-
 B11	2026-11-05	open	The task list is real state	-	-
 B12	2026-11-09	open	The checklist lists every running agent	-	-
 B13	2026-11-10	open	The check-in job is kept; a lapsed check-in is flagged	-	-
-B14	2026-11-04	open	Workers run pitboss nox after every edit and before every push	-	-
+B14	2026-11-04	open	pitboss nox before every push is plenty; it is a maximum, not a target	-	-
 B15	2026-11-11	open	Workers use their own worktree on the ticket's branch	-	-
 B16	2026-11-11	open	Workers change files with the Edit tool only	-	-
 B17	2026-11-10	open	A partial hand-back is refused unless Impossible: cmd -> output	-	-

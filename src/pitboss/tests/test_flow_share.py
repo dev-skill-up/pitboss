@@ -6,9 +6,9 @@ the flow (pitboss#444, keyword: flow-share).
 
 import datetime
 import unittest
-from typing import Mapping
+from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, not_
+from hamcrest import assert_that, contains_string, ends_with, not_
 
 from .. import flowshare
 from . import fakes, ownerbodies, world
@@ -17,6 +17,9 @@ from .test_count import OPEN, counting
 NOW = datetime.datetime(2030, 1, 10, tzinfo=datetime.timezone.utc)
 PITBOSS = "owner/pitboss"
 PREFIX = "repos/owner/pitboss"
+SHARE = (
+    "flow: 1 of 2 PRs of owner/pitboss merged in the last 7 days changed the flow (50%)"
+)
 CLOSED = fakes.page(f"{PREFIX}/pulls?state=closed&sort=updated&direction=desc")
 
 
@@ -33,7 +36,7 @@ def merged(number: int, day: int) -> Mapping[str, object]:
     return {"number": number, "merged_at": f"2030-01-{day:02d}T00:00:00+00:00"}
 
 
-def files(name: str) -> list[Mapping[str, object]]:
+def files(name: str) -> Sequence[Mapping[str, object]]:
     """A PR's files, as the API lists them.
 
     Args:
@@ -69,8 +72,8 @@ def pitboss_world() -> world.World:
         merged(3, 1) | {"merged_at": "2029-12-01T00:00:00+00:00"},
         {"number": 4, "merged_at": None},
     ]
-    here.bodies[fakes.page(f"{PREFIX}/pulls/1/files")] = files("src/pitboss/flow.py")
-    here.bodies[fakes.page(f"{PREFIX}/pulls/2/files")] = files("README.rst")
+    for number, name in ((1, "src/pitboss/flow.py"), (2, "README.rst")):
+        here.bodies[fakes.page(f"{PREFIX}/pulls/{number}/files")] = files(name)
     return here
 
 
@@ -80,28 +83,16 @@ class TestShare(unittest.TestCase):
     def test_flow_share_is_printed_by_count(self) -> None:
         """One of the two PRs merged in the window changed the flow."""
         done = world.again(pitboss_world(), "count", "--now", NOW.isoformat())
-        last = done.out.splitlines()[-1]
-        assert_that(
-            last,
-            equal_to(
-                "flow: 1 of 2 PRs of owner/pitboss merged in the last 7 days"
-                " changed the flow (50%)"
-            ),
-        )
+        assert_that(done.out, ends_with(SHARE + "\n"))
 
     def test_flow_share_is_not_printed_without_pitboss(self) -> None:
         """The other repositories print no such line."""
         done = world.again(counting(), "count")
         assert_that(done.out, not_(contains_string("flow:")))
 
-    def test_flow_share_says_when_no_pr_was_merged(self) -> None:
-        """No division by zero."""
-        assert_that(
-            flowshare.line(PITBOSS, []),
-            contains_string("no PR of owner/pitboss was merged"),
-        )
-
-    def test_flow_share_of_every_pr_changing_the_flow(self) -> None:
-        """A whole share."""
-        paths = [["src/pitboss/steps.py"], ["src/pitboss/rulings.py"]]
-        assert_that(flowshare.line(PITBOSS, paths), contains_string("2 of 2"))
+    def test_flow_share_lines_of_none_and_of_all(self) -> None:
+        """No division by zero; a whole share."""
+        all_flow = [["src/pitboss/steps.py"], ["src/pitboss/rulings.py"]]
+        said = [flowshare.line(PITBOSS, each) for each in ([], all_flow)]
+        assert_that(said[0], contains_string("no PR of owner/pitboss was merged"))
+        assert_that(said[1], contains_string("2 of 2"))

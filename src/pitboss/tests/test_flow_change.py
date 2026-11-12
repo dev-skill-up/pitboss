@@ -12,11 +12,24 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import flowfiles
 from .linting import lint, write_text
 
-FLOW = "diff --git a/src/pitboss/flow.py b/src/pitboss/flow.py\n--- a/src/pitboss/flow.py\n"
-REGISTER = "diff --git a/src/pitboss/rules.tsv b/src/pitboss/rules.tsv\n"
-SCENARIO = "diff --git a/src/pitboss/tests/scenarios/x-1.json b/src/pitboss/tests/scenarios/x-1.json\n"
-TEST = "diff --git a/src/pitboss/tests/test_flow.py b/src/pitboss/tests/test_flow.py\n"
-OTHER = "diff --git a/src/pitboss/disk.py b/src/pitboss/disk.py\n"
+
+def header(path: str) -> str:
+    """The first lines of a file's part of a diff.
+
+    Args:
+        path: the file.
+
+    Returns:
+        The ``diff --git`` line and the old file's line.
+    """
+    return f"diff --git a/{path} b/{path}\n--- a/{path}\n"
+
+
+FLOW = header("src/pitboss/flow.py")
+REGISTER = header("src/pitboss/rules.tsv")
+SCENARIO = header("src/pitboss/tests/scenarios/x-1.json")
+TEST = header("src/pitboss/tests/test_flow.py")
+OTHER = header("src/pitboss/disk.py")
 
 
 def change(diff: str) -> tuple[str, object]:
@@ -55,8 +68,8 @@ class TestChange(unittest.TestCase):
 
     def test_lint_change_takes_one_diff(self) -> None:
         """Two files are a usage error."""
-        done = lint("change", write_text("a.diff", FLOW), write_text("b.diff", FLOW))
-        assert_that(done.err, contains_string("change checks one diff, not 2"))
+        files = [write_text(f"{name}.diff", FLOW) for name in "ab"]
+        assert_that(lint("change", *files).err, contains_string("not 2"))
 
     def test_lint_change_names_each_family_of_the_flow(self) -> None:
         """Next step, plans, reviews, rulings, slots."""

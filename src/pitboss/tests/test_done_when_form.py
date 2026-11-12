@@ -4,6 +4,7 @@ Owner, 2026-11-11 02:45Z (pitboss#444, keyword: done-when-form).
 """
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
@@ -15,7 +16,7 @@ ITEMS = "1. A rule, demonstrated by a test.\n2. Another rule.\n"
 SLUG = "owner/project#9"
 
 
-def asked(ticket: str) -> list[str]:
+def asked(ticket: str) -> Sequence[str]:
     """The findings ``plan-check`` makes of a ticket's form.
 
     Args:

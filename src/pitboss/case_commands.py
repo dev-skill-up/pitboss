@@ -2,21 +2,15 @@
 
 import argparse
 import json
-import pathlib
-import sys
 from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, casepost, config, expand_commands, ghapi, ghstore
-
-USAGE_ERROR = 2
+from . import ENTRY_DATA, casepost, config, ghapi, ghstore, pullfile
 
 
 def _pulls(text: str) -> Sequence[tuple[int, str]]:
-    return [
-        (int(each["number"]), str(each.get("body") or "")) for each in json.loads(text)
-    ]
+    return [(int(each["number"]), str(each["body"] or "")) for each in json.loads(text)]
 
 
 @ENTRY_DATA.register(
@@ -44,29 +38,14 @@ def case(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
 
-    Raises:
-        SystemExit: 2, with the reason, for a refusal.
     """
-    found = expand_commands.PULL.match(args.ticket)
-    try:
-        text = pathlib.Path(args.file).read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as error:
-        raise SystemExit(f"pitboss case post: {args.file}: {error}") from error
-    if not found:
-        print(
-            f"pitboss case post: refused: {args.ticket}: not OWNER/NAME#NUMBER",
-            file=sys.stderr,
-        )
-        raise SystemExit(USAGE_ERROR)
-    slug, number = found.group(1), int(found.group(2))
-    github = ghapi.GitHub(mutate=args.safe_run, run=args.safe_run)
+    slug, number, text = pullfile.read("case post", args.ticket, args.file)
+    github = pullfile.github_of(args)
     pulls = ghapi.pages(github, f"repos/{slug}/pulls?state=all", _pulls)
     repo = config.make_repo(*slug.split("/"))
-    if why := casepost.refusal(
-        args.ticket, casepost.started_by(args.ticket, pulls, repo)
-    ):
-        print(f"pitboss case post: refused: {why}", file=sys.stderr)
-        raise SystemExit(USAGE_ERROR)
+    started = casepost.started_by(args.ticket, pulls, repo)
+    if why := casepost.refusal(args.ticket, started):
+        pullfile.refuse("case post", why)
     path = f"repos/{slug}/issues/{number}"
     body = str(json.loads(ghapi.get(github, path)).get("body") or "")
     edit = casepost.with_done_when if args.done_when else casepost.with_case

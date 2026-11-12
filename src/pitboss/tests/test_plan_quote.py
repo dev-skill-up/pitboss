@@ -1,7 +1,7 @@
 """A Plan row quotes the Done-when, so a phrase it quotes is not refused (pitboss#444).
 
-Keyword: plan-quote. The Done-when of pitboss#444 names D4 as ``never say "I
-haven't checked"``; the PR body quotes it word for word in its Plan row.
+Keyword plan-quote. The Done-when of pitboss#444 names rule D4, a phrase the lint
+refuses; the PR body quotes it word for word in its Plan row.
 """
 
 import unittest
@@ -49,15 +49,15 @@ class TestQuotedRow(unittest.TestCase):
         """Pitboss 477: the line of Done-when item 2 names D4."""
         assert_that(findings(body(PLAN)), not_(contains_string("haven't checked")))
 
-    def test_the_same_words_in_the_execution_are_refused(self) -> None:
-        """The nearest input it must still reject: the writer's own prose."""
-        said = body(PLAN, "## Execution\n\nI haven't checked it.\n")
-        assert_that(findings(said), contains_string("haven't checked"))
-
-    def test_the_same_words_after_the_pointer_are_refused(self) -> None:
-        """The pointer of a row is the writer's, not the ticket's."""
+    def test_the_same_words_outside_the_quote_are_refused(self) -> None:
+        """The nearest inputs it must still reject: the writer's own prose."""
         said = PLAN.replace("Run Nox`.", "Run Nox`, which I haven't checked.")
-        assert_that(findings(body(said)), contains_string("haven't checked"))
+        for text in (
+            body(PLAN, "## Execution\n\nI haven't checked it.\n"),
+            body(said),
+        ):
+            with self.subTest(text=text[-40:]):
+                assert_that(findings(text), contains_string("haven't checked"))
 
     def test_a_line_that_is_no_numbered_row_is_refused(self) -> None:
         """A bullet of the Plan section is not a quoted row."""
