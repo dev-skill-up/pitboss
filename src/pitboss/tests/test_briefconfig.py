@@ -5,7 +5,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import briefconfig, configfile
+from .. import briefconfig, configloads
 from . import fakes
 from .briefmake import PROJECT
 
@@ -40,7 +40,7 @@ def brief_of(extra: str) -> briefconfig.Brief:
     directory = fakes.directory()
     path = directory / "brief.toml"
     path.write_text(extra + FILE)
-    return configfile.load_brief(str(path), directory)
+    return configloads.load_brief(str(path), directory)
 
 
 class TestBriefTable(unittest.TestCase):

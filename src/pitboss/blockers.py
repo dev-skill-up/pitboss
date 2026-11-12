@@ -17,6 +17,7 @@ from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
 
 from . import (
     config,
+    configrepos,
     ghapi,
     ledger,
     planrefusal,
@@ -133,7 +134,7 @@ def open_blockers(
         The blockers that are open, each once.
     """
     return ticketblock.open_blockers(
-        config.repo_of(reference),
+        configrepos.repo_of(reference),
         texts,
         functools.partial(_is_open, github),
         own | {reference},
@@ -265,6 +266,6 @@ def refusal_blockers(
     """
     trusted = settings.review.trusted
     text = planrefusal.refusing(ticketblock.comments_of(github, pull, trusted))
-    names = named(text, config.repo_of(pull)) if text else []
+    names = named(text, configrepos.repo_of(pull)) if text else []
     wanted = dict.fromkeys(each for each in names if each not in {pull, ticket})
     return [each for each in wanted if _is_open(github, each)]

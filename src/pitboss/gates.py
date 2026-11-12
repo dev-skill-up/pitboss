@@ -13,7 +13,7 @@ import re
 import subprocess
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import concurrently, config, ghapi
+from . import concurrently, config, configrepos, ghapi
 from .markers import Marker
 
 WORKFLOW = ".github/workflows/review-gate.yml"
@@ -171,7 +171,7 @@ def chosen(
     Returns:
         The repositories.
     """
-    everyone = config.repositories(settings)
+    everyone = configrepos.repositories(settings)
     return everyone if only is None else [r for r in everyone if r.slug in only]
 
 

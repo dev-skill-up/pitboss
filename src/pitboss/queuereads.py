@@ -2,7 +2,7 @@
 
 from typing import Iterable, Sequence
 
-from . import concurrently, config, queue, reading
+from . import concurrently, config, configrepos, queue, reading
 
 
 def _runs(
@@ -27,7 +27,7 @@ def read_queue_runs(found: reading.Reading) -> Sequence[queue.QueueRun]:
     """
     settings = found.settings
     return _runs(
-        found, (*settings.runners.repositories, *config.repositories(settings))
+        found, (*settings.runners.repositories, *configrepos.repositories(settings))
     )
 
 

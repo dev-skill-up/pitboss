@@ -7,6 +7,7 @@ from typing import Callable, Sequence
 from . import (
     concurrently,
     config,
+    configrepos,
     earlyreview,
     ghapi,
     holdscope,
@@ -43,7 +44,7 @@ def read_open(
 def _open_numbers(
     github: ghapi.GitHub, settings: config.Config
 ) -> Sequence[tuple[config.Repo, int]]:
-    repos = config.repositories(settings)
+    repos = configrepos.repositories(settings)
     listed = concurrently.each(
         lambda repo: ghapi.pages(
             github, f"repos/{repo.slug}/pulls?state=open", parsing.pull_numbers

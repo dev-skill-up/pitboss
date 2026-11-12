@@ -21,6 +21,7 @@ from typing import AbstractSet, Iterable, Mapping, Sequence
 from . import (
     concurrently,
     config,
+    configrepos,
     ghapi,
     issuelist,
     ledger,
@@ -164,7 +165,7 @@ def _labelled(github: ghapi.GitHub, settings: config.Config) -> Iterable[Item]:
     ranked = list(enumerate(settings.slots.priority_labels))
     asked = [
         (repo, priority, label)
-        for repo in config.repositories(settings)
+        for repo in configrepos.repositories(settings)
         for priority, label in ranked
     ]
 

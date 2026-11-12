@@ -8,19 +8,20 @@ from typing import NoReturn, Sequence
 from gather.commands import add_argument
 
 from . import (
-    hopedfigure,
-    commanddoc,
-    commandtext,
     ENTRY_DATA,
     blockers,
     brief,
     checkin,
+    commanddoc,
     commandscan,
+    commandtext,
     configfile,
+    configloads,
     donewhen,
     draftrule,
     fixes,
     flake,
+    hopedfigure,
     ledger,
     mergedworktree,
     nextguide,
@@ -153,7 +154,7 @@ def _check_workflow(found: Context) -> str | None:
 def _unmarked(found: Context, ticket: str) -> str:
     # keyword: flake (pitboss#278): the line is empty when the test is marked
     tree = working_directory(found.args)
-    globs = configfile.load_brief(configfile.named(found.args), tree).quarantine_globs
+    globs = configloads.load_brief(configfile.named(found.args), tree).quarantine_globs
     return flake.unmarked_line(ticket, tree, globs)
 
 

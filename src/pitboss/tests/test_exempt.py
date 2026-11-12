@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
-from .. import brief, briefconfig, briefrepo, configfile, exempt
+from .. import brief, briefconfig, briefrepo, configfile, configloads, exempt
 from . import fakes, quietworld, world
 from .briefmake import has_all, has_none, text
 from .exemptworld import of, push, remote_to, swept, with_pitboss
@@ -234,7 +234,7 @@ class TestNoDrafts(unittest.TestCase):
         quietworld.edit_config(
             here, "[runners]", '[slots.brief]\nno_drafts = ["owner/other"]\n\n[runners]'
         )
-        given = configfile.load_brief(here.config, here.workspace)
+        given = configloads.load_brief(here.config, here.workspace)
         briefs = [
             text(brief.Kind.NEW_PR, project=for_repository(here, given, each))
             for each in (LISTED, exempt.PITBOSS, "owner/project")

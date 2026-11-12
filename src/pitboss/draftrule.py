@@ -9,7 +9,7 @@ import pathlib
 import re
 from typing import Sequence
 
-from . import configfile
+from . import configloads
 
 SETTING = "[slots.brief] drafts = false"
 REFUSAL = (
@@ -44,7 +44,7 @@ def drafts_off(config: str, start: pathlib.Path, slug: str | None = None) -> boo
     Returns:
         True when ``[slots.brief] drafts`` is false, or the repository has none.
     """
-    brief = configfile.load_brief(config, start)
+    brief = configloads.load_brief(config, start)
     return not brief.drafts or (slug is not None and slug in brief.no_drafts)
 
 

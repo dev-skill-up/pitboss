@@ -10,9 +10,10 @@ import argparse
 import json
 import subprocess
 import urllib.parse
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from . import (
+    config,
     failures,
     ghapi,
     mechanical,
@@ -23,14 +24,23 @@ from . import (
     shapes,
 )
 
-if TYPE_CHECKING:  # pragma: no cover
-    from . import commands
-
 SAYING = "{ref} is classified MECHANICAL-FIX ({found}): this push is never held"
 REFUSAL = (
     "push refused: --mechanical, but {why}; nothing was pushed (a push that is not"
     " the fix of a mechanical red waits for the hold like any other)"
 )
+
+
+class Started(Protocol):
+    """What the push reads of the command's start (``commands.Context`` has it)."""
+
+    @property
+    def settings(self) -> config.Config:
+        """Return the configuration."""
+
+    @property
+    def github(self) -> ghapi.GitHub:
+        """Return the API."""
 
 
 def _number(github: ghapi.GitHub, slug: str, branch: str) -> int | None:
@@ -51,9 +61,7 @@ def _refuse(why: str) -> bool:
     raise SystemExit(1)
 
 
-def exempt(
-    args: argparse.Namespace, found: "commands.Context", slug: str | None
-) -> bool:
+def exempt(args: argparse.Namespace, found: Started, slug: str | None) -> bool:
     """Whether the push is a mechanical fix, free of the hold.
 
     Args:

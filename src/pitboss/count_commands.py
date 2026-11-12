@@ -6,7 +6,7 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, config, flowshare, repoaccess, ticketcount
+from . import ENTRY_DATA, configrepos, flowshare, repoaccess, ticketcount
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import load_context
 
@@ -65,7 +65,7 @@ def count_tickets(args: argparse.Namespace) -> None:
     """
     shown = _shown(args.priority)
     found = load_context(args)
-    repos = config.repositories(found.settings)
+    repos = configrepos.repositories(found.settings)
     tickets = ticketcount.read(found.github, repos)
     slugs = [repo.slug for repo in repos]
     print("\n".join(ticketcount.render(slugs, tickets, shown)))

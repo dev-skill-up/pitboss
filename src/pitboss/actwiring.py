@@ -16,7 +16,7 @@ import subprocess
 import sys
 from typing import Callable, Iterator, Sequence
 
-from . import acthub, actinputs, config, dispatchnext, ledger, totalverdict
+from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
 from .actcore import Act, Controls, Hub, Owner
 from .running import Run
 from .totaljson import mapping, name_at, records, text
@@ -92,7 +92,7 @@ def work(hub: Hub, settings: config.Config) -> Callable[[], dispatchnext.State]:
 
     def read() -> dispatchnext.State:
         found = ledger.configured(settings)
-        repos = [each.slug for each in config.repositories(settings)]
+        repos = [each.slug for each in configrepos.repositories(settings)]
         items = [_item(pull, repo, "pr") for repo in repos for pull in hub.pulls(repo)]
         for label in settings.slots.priority_labels:
             items += [
@@ -226,7 +226,7 @@ def act_of(
         The world.
     """
     hub = acthub.GhHub(github=github)
-    repos = [each.slug for each in config.repositories(settings)]
+    repos = [each.slug for each in configrepos.repositories(settings)]
     limits = P90(github=github)
     given = actinputs.Settings(identity=identity, authors=[identity], max_lines=limits)
     return Act(

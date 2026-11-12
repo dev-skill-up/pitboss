@@ -13,7 +13,7 @@ import pathlib
 import subprocess
 from typing import Callable, Mapping, Sequence, TypedDict
 
-from . import actions, actrun, config, ghapi, logline
+from . import actions, actrun, config, configrepos, ghapi, logline
 
 UNLEDGERED = "UNLEDGERED"
 WINDOW = datetime.timedelta(minutes=10)
@@ -248,7 +248,7 @@ def lines(
     """
     records = logline.read(log)
     found: list[str] = []
-    for repo in config.repositories(settings):
+    for repo in configrepos.repositories(settings):
         try:
             seen = [each for each in _read(github, repo.slug) if each.time >= since]
         except subprocess.CalledProcessError:

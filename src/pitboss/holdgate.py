@@ -10,13 +10,10 @@ replaced by one
 ``WAIT-FOR-HOLD`` line that names what is withheld.
 """
 
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import Mapping, Protocol, Sequence
 
-from . import pullref
+from . import config, headchecks, pullref, shapes
 from .markers import Marker
-
-if TYPE_CHECKING:  # pragma: no cover
-    from . import pulls
 
 # keyword: hold-actions (pitboss#200): the one text of the actions a runner hold
 # covers; the skill's references/ci.md ("What costs runs") quotes it word for word.
@@ -41,7 +38,27 @@ def _asked(line: str) -> str:
     )
 
 
-def gate(pull: "pulls.PullFacts", lines: Sequence[str]) -> Sequence[str]:
+class Held(Protocol):
+    """What the gate reads of a PR (``pulls.PullFacts`` has it)."""
+
+    @property
+    def repo(self) -> config.Repo:
+        """Return its repository."""
+
+    @property
+    def pull(self) -> shapes.Pull:
+        """Return the PR."""
+
+    @property
+    def checks(self) -> Sequence[shapes.CheckRun]:
+        """Return the check runs of its head."""
+
+    @property
+    def signals(self) -> headchecks.HeadSignals:
+        """Return what may block it besides its checks."""
+
+
+def gate(pull: Held, lines: Sequence[str]) -> Sequence[str]:
     """The lines of a PR, with the covered actions withheld while a hold lasts.
 
     Args:

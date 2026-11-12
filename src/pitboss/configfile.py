@@ -1,28 +1,22 @@
 """Finding, reading and parsing the configuration file a command was given."""
 
-import dataclasses
 import pathlib
 import tomllib
-from typing import AbstractSet, Mapping, Sequence
+from typing import Mapping, Sequence
 
-from . import (
-    briefconfig,
-    checkconfig,
-    cleanconfig,
-    config,
-    configsearch,
-    exempt,
-    holdconfig,
-    ownerconfig,
-    ownerlabels,
-    plancheckconfig,
-    prepushconfig,
-    scratchconfig,
-    supersedes,
-    syncconfig,
-)
+from . import briefconfig, config, configsearch, exempt, ownerlabels, supersedes
 
 CONFIG_DIRECTORY = configsearch.CONFIG_DIRECTORY
+DEFAULT_REMINDERS = (
+    (
+        "Is any ticket closeable? A ticket whose work merged: read the merged PR"
+        " against the ticket's done-when, comment the evidence, close it."
+    ),
+    (
+        "Is any blocked ticket unblocked? A ticket that waits on X: check X; when"
+        " X is done, say so on the ticket."
+    ),
+)
 
 
 working_directory = configsearch.working_directory
@@ -65,130 +59,6 @@ def load(name: str, start: pathlib.Path) -> config.Config:
     """
     with locate(name, start).open("rb") as stream:
         return from_document(tomllib.load(stream))
-
-
-def load_brief(name: str, start: pathlib.Path) -> briefconfig.Brief:
-    """Locate, read and parse the ``[slots.brief]`` table of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-
-    Returns:
-        What the project's briefs say beyond the process.
-    """
-    with locate(name, start).open("rb") as stream:
-        document = tomllib.load(stream)
-    brief = briefconfig.from_document(document)
-    full = exempt.slugs(brief.no_drafts, exempt.owner_of(document))
-    return dataclasses.replace(brief, no_drafts=full)
-
-
-def load_clean(name: str, start: pathlib.Path) -> cleanconfig.Clean:
-    """Locate, read and parse the ``[clean]`` table of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-
-    Returns:
-        The settings of ``clean-container``.
-    """
-    with locate(name, start).open("rb") as stream:
-        return cleanconfig.from_document(tomllib.load(stream))
-
-
-def load_scratch(name: str, start: pathlib.Path, owner: str) -> scratchconfig.Scratch:
-    """Locate, read and parse the ``[scratch]`` table of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-        owner: the project's owner, the owner of a bare repository name.
-
-    Returns:
-        The scratch repositories; none when the configuration has no table.
-    """
-    with locate(name, start).open("rb") as stream:
-        return scratchconfig.from_document(tomllib.load(stream), owner)
-
-
-def load_exclude(name: str, start: pathlib.Path, owner: str) -> AbstractSet[str]:
-    """Locate, read and parse ``[libraries] exclude`` of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-        owner: the project's owner, the owner of a bare repository name.
-
-    Returns:
-        The ``owner/name`` of the repositories the sweep leaves out.
-    """
-    with locate(name, start).open("rb") as stream:
-        return ownerconfig.exclude(tomllib.load(stream), owner)
-
-
-def load_transcripts(name: str, start: pathlib.Path) -> pathlib.Path | None:
-    """Locate, read and parse ``[slots] transcripts`` of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-
-    Returns:
-        The directory of the workers' transcripts; None when the configuration
-        has no such key.
-    """
-    with locate(name, start).open("rb") as stream:
-        found = tomllib.load(stream).get("slots", {}).get("transcripts")
-    return None if found is None else pathlib.Path(str(found))
-
-
-def load_holds(name: str, start: pathlib.Path, owner: str) -> holdconfig.Holds:
-    """Locate, read and parse the ``[holds]`` table of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-        owner: the project's owner, the owner of a bare repository name.
-
-    Returns:
-        The holds on new pull requests; none when the configuration has no table.
-    """
-    with locate(name, start).open("rb") as stream:
-        return holdconfig.from_document(tomllib.load(stream), owner)
-
-
-def load_sync(
-    name: str, start: pathlib.Path, default_checkout: pathlib.Path
-) -> syncconfig.Sync | None:
-    """Locate, read and parse the ``[sync]`` table of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-        default_checkout: the clone's place when the table does not set one.
-
-    Returns:
-        The settings of ``sync``, or None when the configuration has no table.
-    """
-    with locate(name, start).open("rb") as stream:
-        return syncconfig.from_document(tomllib.load(stream), default_checkout)
-
-
-def load_plan_check(name: str, start: pathlib.Path) -> plancheckconfig.PlanCheck:
-    """Locate, read and parse the ``[plan_check]`` table of a configuration.
-
-    Args:
-        name: a path, or a name (see ``locate``).
-        start: the directory a name is looked up from.
-
-    Returns:
-        The specs and group list files of ``plan-check``; none when the
-        configuration has no table.
-    """
-    with locate(name, start).open("rb") as stream:
-        return plancheckconfig.from_document(tomllib.load(stream))
 
 
 def load_document(name: str, start: pathlib.Path) -> Mapping[str, object]:
@@ -235,6 +105,61 @@ def _setting(document: Mapping[str, object], table: str, key: str, fall: object)
     return str(_table(document, table).get(key, fall))
 
 
+def _quarantine(table: Mapping[str, object]) -> config.Quarantine:
+    fall = config.Quarantine()
+    return config.Quarantine(
+        failing=_strings(table, "failing", fall.failing),
+        race=_strings(table, "race", fall.race),
+        mark=str(table.get("mark", fall.mark)),
+        directory=str(table.get("directory", fall.directory)),
+    )
+
+
+def _mechanical(table: Mapping[str, object]) -> config.Mechanical:
+    return config.Mechanical(
+        checks=_strings(table, "checks", config.DEFAULT_MECHANICAL_CHECKS),
+        patterns=_strings(table, "patterns", config.DEFAULT_MECHANICAL_PATTERNS),
+        slow_minutes=int(
+            str(table.get("slow_minutes", config.DEFAULT_MECHANICAL_MINUTES))
+        ),
+    )
+
+
+def pre_push_checks(document: Mapping[str, object]) -> Sequence[config.PrePush]:
+    """Read the ``[[pre_push]]`` checks of a configuration (keyword: pre-push-check).
+
+    Args:
+        document: the parsed configuration.
+
+    Returns:
+        The checks, in the order written.
+
+    Raises:
+        ValueError: when ``pre_push`` is not a list of tables or a check has no
+            command.
+    """
+    found = document.get("pre_push", [])
+    if not isinstance(found, list):
+        raise ValueError(f"pre_push must be a list of tables, not {found!r}")
+    return tuple(_check(each) for each in found)
+
+
+def _check(table: object) -> config.PrePush:
+    if not isinstance(table, dict) or not isinstance(table.get("command"), list):
+        raise ValueError(f"a pre_push check needs a command list, not {table!r}")
+    given = table.get("arguments", {})
+    if not isinstance(given, dict):
+        raise ValueError(f"pre_push arguments must be a table, not {given!r}")
+    return config.PrePush(
+        name=str(table.get("name", table["command"][0])),
+        command=tuple(str(each) for each in table["command"]),
+        arguments={str(key): str(value) for key, value in given.items()},
+        ok=str(table.get("ok", "")),
+        timeout=int(table.get("timeout", 600)),
+        fix=str(table.get("fix", "")),
+    )
+
+
 def _review(document: Mapping[str, object], owner: str) -> config.Review:
     table = _table(document, "review")
     form = _form(_table(table, "form"), config.DEFAULT_REVIEW_FORM)
@@ -265,7 +190,7 @@ def _lint(document: Mapping[str, object], owner: str) -> config.Lint:
         brief_lines=_strings(_table(table, "brief"), "required", ()),
         relock_prefix=prefix,
         pins=_pins(_table(document, "relock")),
-        quarantine=checkconfig.quarantine(_table(table, "quarantine")),
+        quarantine=_quarantine(_table(table, "quarantine")),
     )
 
 
@@ -289,7 +214,7 @@ def _project(document: Mapping[str, object]) -> config.Project:
             exempt.owner_of(document),
         ),
         drafts=briefconfig.from_document(document).drafts,
-        pre_push=prepushconfig.from_document(document),
+        pre_push=pre_push_checks(document),
     )
 
 
@@ -350,7 +275,7 @@ def _runners(
         exempt=exempt.slugs(
             _strings(_table(document, "runners"), "exempt", ()), project.repo.owner
         ),
-        mechanical=checkconfig.mechanical(_table(document, "mechanical")),
+        mechanical=_mechanical(_table(document, "mechanical")),
     )
 
 
@@ -363,7 +288,7 @@ def _merge_queue(document: Mapping[str, object], owner: str) -> config.MergeQueu
 
 
 def _reminders(document: Mapping[str, object]) -> Sequence[str]:
-    return _strings(_table(document, "sweep"), "reminders", config.DEFAULT_REMINDERS)
+    return _strings(_table(document, "sweep"), "reminders", DEFAULT_REMINDERS)
 
 
 def from_document(document: Mapping[str, object]) -> config.Config:

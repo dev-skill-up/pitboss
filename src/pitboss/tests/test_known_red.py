@@ -16,7 +16,6 @@ from hamcrest import assert_that, contains_string, equal_to, has_item
 
 from .. import (
     actions,
-    checkconfig,
     config,
     knownred,
     pinsreading,
@@ -39,7 +38,7 @@ RUNNERS = config.Runners(
     record=pathlib.Path("none"),
     quiet_minutes=15,
     held=False,
-    mechanical=checkconfig.Mechanical(),
+    mechanical=config.Mechanical(),
 )
 
 

@@ -19,6 +19,7 @@ from . import (
     brief,
     briefsave,
     config,
+    configrepos,
     itempick,
     ledger,
     nextfound,
@@ -160,7 +161,7 @@ def _located(
 ) -> tuple[config.Repo, blockers.Ticket]:
     # the repository and the open ticket (or PR) of an item; raises Unknown
     slug = reference.split("#")[0]
-    repos = {each.slug: each for each in config.repositories(found.settings)}
+    repos = {each.slug: each for each in configrepos.repositories(found.settings)}
     if slug not in repos:
         raise itempick.Unknown(f"{slug} is not a configured repository")
     ticket = blockers.read(found.github, reference)

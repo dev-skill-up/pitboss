@@ -9,7 +9,7 @@ and a few others, whatever the number of tickets with a label (pitboss#443).
 import json
 from typing import Sequence
 
-from . import config, ghapi, unlabeled
+from . import config, configrepos, ghapi, unlabeled
 
 SEARCH_NOT = 4  # GitHub's search takes at most five operators
 Found = tuple[str, str, frozenset[str]]
@@ -28,7 +28,7 @@ def _found(text: str) -> Sequence[Found]:
 
 
 def _query(settings: config.Config) -> str:
-    owners = sorted({each.owner for each in config.repositories(settings)})
+    owners = sorted({each.owner for each in configrepos.repositories(settings)})
     known = settings.slots.priority_labels[:SEARCH_NOT]
     words = [
         *(f"user:{each}" for each in owners),
@@ -57,7 +57,7 @@ def references(github: ghapi.GitHub, settings: config.Config) -> Sequence[str]:
     found = [
         (created, reference)
         for created, reference, names in ghapi.pages(github, _query(settings), _found)
-        if config.has(settings, reference)
+        if configrepos.has(settings, reference)
         and not any(each in known or unlabeled.PRIORITY.match(each) for each in names)
     ]
     return [reference for _, reference in sorted(found)]

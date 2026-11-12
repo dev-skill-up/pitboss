@@ -4,10 +4,10 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import checkconfig, phrases, quarantinerace
+from .. import config, phrases, quarantinerace
 from . import fakes, world
 
-RULES = checkconfig.Quarantine()
+RULES = config.Quarantine()
 RACE_BODY = (
     "Fixes #5\nA race in the loader.\nRace: fixed\nRoot cause: order\n"
     "Injection: delay\nCI run: https://example.com/runs/1\n"

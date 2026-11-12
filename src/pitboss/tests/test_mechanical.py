@@ -14,13 +14,13 @@ from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import checkconfig, mechanical, pulllines, pulls, shapes
+from .. import config, mechanical, pulllines, pulls, shapes
 from . import fakes, world
 from .test_push_draft import OTHER_URL, gits
 from .test_work import NONE, facts
 
 NOW = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.timezone.utc)
-RULE = checkconfig.Mechanical()
+RULE = config.Mechanical()
 SETTINGS = fakes.settings(fakes.directory())
 MISMATCH = 'no line "passed 12" in file reports/r.md'
 EXPECT = "rejected, but not as its expect says"
@@ -180,7 +180,7 @@ class TestSweepLines(unittest.TestCase):
             equal_to(True),
         )
         assert_that(tuned.runners.mechanical.checks, equal_to(("unit",)))
-        assert_that(SETTINGS.runners.mechanical, equal_to(checkconfig.Mechanical()))
+        assert_that(SETTINGS.runners.mechanical, equal_to(config.Mechanical()))
 
 
 def pushed_world(listed: object, extra: str) -> world.World:

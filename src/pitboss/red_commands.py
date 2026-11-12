@@ -10,12 +10,13 @@ from gather.commands import add_argument
 from . import (
     ENTRY_DATA,
     config,
+    configrepos,
     ghapi,
     red,
     redrender,
     redreport,
-    repoarg,
     redtranscripts,
+    repoarg,
 )
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT
 from .commands import load_settings
@@ -24,7 +25,7 @@ TRANSCRIPTS = pathlib.Path.home() / ".claude" / "projects"
 
 
 def _repos(settings: config.Config, repo: config.Repo) -> Sequence[config.Repo]:
-    named = {each.slug: each for each in (*config.repositories(settings), repo)}
+    named = {each.slug: each for each in (*configrepos.repositories(settings), repo)}
     return list(named.values())
 
 

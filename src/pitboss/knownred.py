@@ -12,13 +12,20 @@ red and the step that fixes it, in place of the spending step.
 """
 
 import dataclasses
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import Mapping, Protocol, Sequence
 
-from . import actiongates, actions, phrases, pullref, steps
+from . import (
+    actiongates,
+    actions,
+    config,
+    headchecks,
+    phrases,
+    pullref,
+    shapes,
+    steps,
+    straycomments,
+)
 from .markers import Marker
-
-if TYPE_CHECKING:  # pragma: no cover
-    from . import pulls
 
 FIELDS = 3
 STATUS = "status:"
@@ -26,6 +33,34 @@ STEPS = "step:"
 # the spending rows that are the fix itself: a worker's push
 FIXES = ("Action.PUSH", "Step.WORKER")
 FAILED = ("failure", "error")
+
+
+class Headed(Protocol):
+    """What the reds are read from (``pulls.PullFacts`` has it)."""
+
+    @property
+    def repo(self) -> config.Repo:
+        """Return its repository."""
+
+    @property
+    def pull(self) -> shapes.Pull:
+        """Return the PR."""
+
+    @property
+    def checks(self) -> Sequence[shapes.CheckRun]:
+        """Return the check runs of its head."""
+
+    @property
+    def signals(self) -> headchecks.HeadSignals:
+        """Return what may block it besides its checks."""
+
+    @property
+    def step(self) -> steps.Next:
+        """Return the one step the PR is at."""
+
+    @property
+    def unreadable(self) -> straycomments.StrayComments:
+        """Return its comments that try to be reviews and are not."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -90,7 +125,7 @@ def spending() -> Mapping[str, str]:
     }
 
 
-def _status(pull: "pulls.PullFacts", context: str) -> str:
+def _status(pull: Headed, context: str) -> str:
     for each in pull.signals.statuses:
         if each.context == context and each.state in FAILED:
             return each.description or each.state
@@ -100,7 +135,7 @@ def _status(pull: "pulls.PullFacts", context: str) -> str:
     return ""
 
 
-def _read(pull: "pulls.PullFacts", row: Row) -> str:
+def _read(pull: Headed, row: Row) -> str:
     # what the row says of the head, empty when it is not red
     if row.source.startswith(STATUS):
         return _status(pull, row.source.removeprefix(STATUS))
@@ -118,11 +153,11 @@ def _read(pull: "pulls.PullFacts", row: Row) -> str:
     return ""
 
 
-def _pins_red(pull: "pulls.PullFacts") -> bool:
+def _pins_red(pull: Headed) -> bool:
     return pull.signals.pins.status.name == "NOT_OK"
 
 
-def reds(pull: "pulls.PullFacts") -> Sequence[Red]:
+def reds(pull: Headed) -> Sequence[Red]:
     """The known reds of a head.
 
     Args:
@@ -139,7 +174,7 @@ def reds(pull: "pulls.PullFacts") -> Sequence[Red]:
     return found
 
 
-def say(pull: "pulls.PullFacts", withheld: str) -> str:
+def say(pull: Headed, withheld: str) -> str:
     """What a known red withholds, in words.
 
     Args:
@@ -155,7 +190,7 @@ def say(pull: "pulls.PullFacts", withheld: str) -> str:
     return f"{named}; {withheld} waits (it would run CI on a head that cannot pass)"
 
 
-def line(pull: "pulls.PullFacts", withheld: str) -> str:
+def line(pull: Headed, withheld: str) -> str:
     """The FIX FIRST line.
 
     Args:
@@ -168,7 +203,7 @@ def line(pull: "pulls.PullFacts", withheld: str) -> str:
     return f"{Marker.FIX_FIRST.text} {pullref.reference(pull)}: {say(pull, withheld)}"
 
 
-def refusal(pull: "pulls.PullFacts", action: actions.Action) -> str:
+def refusal(pull: Headed, action: actions.Action) -> str:
     """Why ``pitboss act`` refuses an action while a known red stands.
 
     Args:
@@ -195,9 +230,7 @@ def _spends(line: str, prefixes: Sequence[str]) -> bool:
     return line.startswith(tuple(prefixes)) or "re-dispatch" in line
 
 
-def gate(
-    pull: "pulls.PullFacts", lines: Sequence[str], prefixes: Sequence[str]
-) -> Sequence[str]:
+def gate(pull: Headed, lines: Sequence[str], prefixes: Sequence[str]) -> Sequence[str]:
     """The lines of a PR with the spending ones replaced while a known red stands.
 
     Args:

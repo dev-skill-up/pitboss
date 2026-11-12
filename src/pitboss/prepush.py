@@ -21,12 +21,12 @@ import pathlib
 import re
 from typing import Sequence
 
-from . import gaterun, prepushconfig
+from . import config, gaterun
 
 WORD = re.compile(r"\{(\w+)\}")
 
 
-def missing(check: prepushconfig.PrePush) -> Sequence[str]:
+def missing(check: config.PrePush) -> Sequence[str]:
     """The words of a check's command that have no value.
 
     Args:
@@ -39,7 +39,7 @@ def missing(check: prepushconfig.PrePush) -> Sequence[str]:
     return sorted({word for word in named if not check.arguments.get(word, "")})
 
 
-def argv(check: prepushconfig.PrePush) -> Sequence[str]:
+def argv(check: config.PrePush) -> Sequence[str]:
     """The command line with the arguments put in.
 
     Args:
@@ -56,7 +56,7 @@ def argv(check: prepushconfig.PrePush) -> Sequence[str]:
 
 def refusals(
     safe_run: gaterun.Runner,
-    checks: Sequence[prepushconfig.PrePush],
+    checks: Sequence[config.PrePush],
     directory: pathlib.Path,
 ) -> Sequence[str]:
     """Run the checks of a push and say what refuses it.
@@ -94,7 +94,7 @@ def refusals(
 
 def hook_failure(
     safe_run: gaterun.Runner,
-    checks: Sequence[prepushconfig.PrePush],
+    checks: Sequence[config.PrePush],
     directory: pathlib.Path,
 ) -> Sequence[str]:
     """Run the checks in order and stop at the first that fails.

@@ -26,7 +26,7 @@ import dataclasses
 import enum
 from typing import Mapping, MutableMapping, Sequence
 
-from . import config, ghapi, pulls, shapes, steps, ticketblock, ticketdata
+from . import configrepos, ghapi, pulls, shapes, steps, ticketblock, ticketdata
 
 LIMIT = 32  # the most blockers read to look for a loop
 KEPT = steps.WAITS | {steps.Step.WAIT_FOR_OWNER, steps.Step.WAIT_FOR_HOLD}
@@ -127,7 +127,7 @@ def loop(
         if path[-1] not in visited:
             visited.add(path[-1])
             found = seen.setdefault(path[-1], read(github, path[-1]))
-            more = ticketblock.named(found.body, config.repo_of(path[-1]))
+            more = ticketblock.named(found.body, configrepos.repo_of(path[-1]))
             todo += [[*path, each] for each in more if found.state is State.OPEN]
     return []
 

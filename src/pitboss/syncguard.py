@@ -9,7 +9,7 @@ import argparse
 import pathlib
 from typing import Collection, Iterator, Mapping, Sequence
 
-from . import configfile
+from . import configfile, configloads
 from .markers import Marker
 
 BESIDE = ("*.toml", "*.tsv", "*.md")
@@ -26,7 +26,7 @@ def unconfigured(args: argparse.Namespace) -> bool:
         Whether it has none (the line is printed, and the sweep fails).
     """
     start = configfile.working_directory(args)
-    if configfile.load_sync(configfile.named(args), start, start) is not None:
+    if configloads.load_sync(configfile.named(args), start, start) is not None:
         return False
     marker = Marker.SYNC_NOT_CONFIGURED.text
     print(f"{marker}: add a [sync] table (reference: {REFERENCE})")

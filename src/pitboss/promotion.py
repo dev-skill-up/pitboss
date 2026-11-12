@@ -20,7 +20,7 @@ import json
 import re
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, ghapi, ledger, workitem
+from . import config, configrepos, ghapi, ledger, workitem
 from .markers import Marker
 
 CAUSE = re.compile(
@@ -122,7 +122,7 @@ def tally(sources: Iterable[tuple[str, str]]) -> Mapping[str, Sequence[str]]:
     """
     return tally_causes(
         [
-            (reference, caused(text, config.repo_of(reference)))
+            (reference, caused(text, configrepos.repo_of(reference)))
             for reference, text in sources
         ]
     )

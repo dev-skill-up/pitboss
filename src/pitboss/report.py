@@ -7,6 +7,7 @@ from . import (
     brieftextowner,
     causeline,
     config,
+    configrepos,
     headchecks,
     holdgate,
     knownred,
@@ -79,7 +80,7 @@ def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
     if not ready or pull.pull.auto_merge or pull.signals.gate:
         return None  # keyword: review-gate: a pending gate is no READY TO MERGE
     name = pulls.reference(pull)
-    if config.merges_by_hand(settings, pull.repo):
+    if configrepos.merges_by_hand(settings, pull.repo):
         why = "execution approved by the Opus ruling" if ruled else "approved"
         said = pinsline.why(pull.signals.pins, why)
         return f"{Marker.MERGE_BY_HAND.text} {name}: green, clean, {said}"
@@ -196,7 +197,7 @@ def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[st
 def _auto_merge_off(
     pull: pulls.PullFacts, settings: config.Config, queued: bool
 ) -> bool:
-    manual = config.merges_by_hand(settings, pull.repo)
+    manual = configrepos.merges_by_hand(settings, pull.repo)
     # keyword: auto-merge-approved (pitboss#85): AUTO MERGE OFF is printed only for
     # a head a review approved; a head the Opus ruling approved gets READY TO MERGE
     # while auto-merge is off.

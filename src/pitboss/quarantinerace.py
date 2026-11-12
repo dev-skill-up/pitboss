@@ -14,7 +14,7 @@ import pathlib
 import re
 from typing import Sequence
 
-from . import checkconfig, phrases
+from . import config, phrases
 
 TEXT_SUFFIXES = (".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".py", ".java", ".kt")
 SPAN = re.compile(r"`([^`\n]+)`")
@@ -33,7 +33,7 @@ def _has_line(body: str, prefix: str) -> bool:
 
 
 def _lines(
-    name: str, body: str, rules: checkconfig.Quarantine, quarantine: str, race: str
+    name: str, body: str, rules: config.Quarantine, quarantine: str, race: str
 ) -> Sequence[str]:
     found = []
     if _words(rules.failing).search(body) and not _has_line(body, quarantine):
@@ -49,7 +49,7 @@ def _lines(
     return found
 
 
-def _evidence(name: str, body: str, rules: checkconfig.Quarantine) -> Sequence[str]:
+def _evidence(name: str, body: str, rules: config.Quarantine) -> Sequence[str]:
     if not _words(rules.race).search(body):
         return []
     needs = (("Root cause:", "Root cause"), ("Injection:", "Injection"))
@@ -62,7 +62,7 @@ def _evidence(name: str, body: str, rules: checkconfig.Quarantine) -> Sequence[s
 
 
 def marks_left(
-    body: str, root: pathlib.Path | None, rules: checkconfig.Quarantine
+    body: str, root: pathlib.Path | None, rules: config.Quarantine
 ) -> Sequence[str]:
     """The skip marks that cite a ticket the body says it fixes.
 
@@ -100,7 +100,7 @@ def marks_left(
 
 
 def pr_body(
-    name: str, body: str, root: pathlib.Path | None, rules: checkconfig.Quarantine
+    name: str, body: str, root: pathlib.Path | None, rules: config.Quarantine
 ) -> Sequence[str]:
     """The quarantine and race findings of a PR body.
 
@@ -120,7 +120,7 @@ def pr_body(
     ]
 
 
-def review(name: str, body: str, rules: checkconfig.Quarantine) -> Sequence[str]:
+def review(name: str, body: str, rules: config.Quarantine) -> Sequence[str]:
     """The quarantine and race findings of a review.
 
     Args:

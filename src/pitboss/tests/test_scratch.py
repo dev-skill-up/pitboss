@@ -6,7 +6,7 @@ from typing import Callable, Mapping, MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import configfile, ghapi, scratch, scratchconfig
+from .. import configloads, ghapi, scratch, scratchconfig
 from . import fakes, scratchworld as sw
 
 PR = "SCRATCH PR bats-lang/relock-scratch"
@@ -209,7 +209,7 @@ class TestTable(unittest.TestCase):
         directory = fakes.directory()
         fakes.settings(directory, TABLE)
         path = str(directory / "project.toml")
-        settings = configfile.load_scratch(path, directory, "owner")
+        settings = configloads.load_scratch(path, directory, "owner")
         expected = scratchconfig.Scratch(
             repositories=("owner/relock-scratch", "other/scratch"),
             keep=frozenset({"owner/relock-scratch#29", "other/scratch#7"}),

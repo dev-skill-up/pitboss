@@ -31,12 +31,13 @@ from . import (
     cirun,
     cloneguard,
     configfile,
+    configloads,
     configsettle,
     devpath,
     expansion,
     filegates,
-    generatedfiles,
     forms,
+    generatedfiles,
     ghapi,
     headfindings,
     markuplines,
@@ -247,7 +248,7 @@ def _settings(args: argparse.Namespace) -> plancheckconfig.PlanCheck:
         return plancheckconfig.PlanCheck()
     start = configfile.working_directory(args)
     with _unreadable(args.config):
-        found = configfile.load_plan_check(args.config, start)
+        found = configloads.load_plan_check(args.config, start)
     return found
 
 

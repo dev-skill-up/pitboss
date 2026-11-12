@@ -11,6 +11,7 @@ from typing import AbstractSet, Mapping, Sequence
 from . import (
     causecache,
     config,
+    configrepos,
     ledger,
     promotion,
     pulls,
@@ -40,7 +41,7 @@ def tickets(
     window = ticketwindow.window(
         found.github,
         ticketwindow.Asked(
-            repos=config.repositories(settings),
+            repos=configrepos.repositories(settings),
             labels=settings.slots.priority_labels,
             skip=taken,
         ),
@@ -60,7 +61,7 @@ def _read_causes(
     kept = parts.get(causecache.CAUSES)
     pairs, now = causecache.causes(
         found.github,
-        config.repositories(found.settings),
+        configrepos.repositories(found.settings),
         kept if isinstance(kept, dict) else {},
         found.now,
     )
@@ -104,7 +105,9 @@ def _outside(
     wanted = [
         each
         for each in named
-        if each not in listed and each not in away and config.has(found.settings, each)
+        if each not in listed
+        and each not in away
+        and configrepos.has(found.settings, each)
     ]
     read = (ticketitem.read(found.github, each) for each in wanted)
     return [_ranked(found.settings.slots, each) for each in read if each is not None]

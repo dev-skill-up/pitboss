@@ -11,7 +11,7 @@ again where it is taken, with the same error.
 import concurrent.futures
 from typing import Callable, Sequence
 
-from . import config, ghapi, ticketwindow, unlabeledsearch, windowstage
+from . import config, configrepos, ghapi, ticketwindow, unlabeledsearch, windowstage
 from .nextfound import Found
 
 
@@ -42,7 +42,7 @@ def start(found: Found) -> concurrent.futures.Executor:
     """
     settings = found.settings
     github: ghapi.GitHub = found.github
-    repos: Sequence[config.Repo] = config.repositories(settings)
+    repos: Sequence[config.Repo] = configrepos.repositories(settings)
     top = settings.slots.priority_labels[:1]
     steps: list[Callable[[], object]] = [
         lambda: windowstage.warm(found),
