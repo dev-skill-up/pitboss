@@ -11,8 +11,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actiongates, actions, actrun, phrases
-from . import world
+from .. import actcore, actiongates, acthub, phrases
+from . import knownkit, world
 from .test_removedline import DISABLED, ENABLED, FAILED_JOB, held, removed_world
 from .test_slot_commands import next_output
 from .says import says
@@ -20,7 +20,6 @@ from .says import says
 TABLE = phrases.shipped_text("actiongates.tsv")
 MATRIX = phrases.shipped_text("actionmatrix.tsv")
 PULL = "owner/project#2"
-TARGET = actrun.Target(slug="o/r", number=2, branch="b", head="h")
 
 
 def exists(name: str) -> bool:
@@ -53,29 +52,6 @@ def dropped(freeze: bool) -> world.World:
     """
     here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
     return held(here) if freeze else here
-
-
-def act_arm(here: world.World, *live: str) -> world.Result:
-    """Run ``act arm`` on PR 2.
-
-    Args:
-        here: the world.
-        *live: ``--no-dry-run`` for a live action.
-
-    Returns:
-        What it did.
-    """
-    return world.invoke(
-        here,
-        "act",
-        PULL,
-        "arm",
-        "--config",
-        here.config,
-        "--now",
-        world.FUTURE,
-        *live,
-    )
 
 
 def lines_about_pr_2(out: str) -> str:
@@ -156,24 +132,33 @@ class TestRearm(unittest.TestCase):
     """The re-arm of a dropped PR, through ``act`` and ``slots next``."""
 
     def test_c26_the_arm_command_is_gh_pr_merge_auto(self) -> None:
-        """The command of the action."""
-        said = actrun.argv(actions.Action.ARM, TARGET, [])
-        assert_that(said[:4], equal_to(["gh", "pr", "merge", "2"]))
-        assert_that(said[-2:], equal_to(["--auto", "--merge"]))
+        """The command of the arm write."""
+        said = acthub.WRITES["arm"](actcore.Change(kind="arm", repo="o/r", number=2))
+        assert_that(list(said[:4]), equal_to(["gh", "pr", "merge", "2"]))
+        assert_that(list(said[-2:]), equal_to(["--auto", "--merge"]))
 
     def test_c26_an_arm_during_a_hold_is_refused_and_changes_nothing(self) -> None:
-        """The PR's step is WAIT_FOR_HOLD: the matrix has no arm there."""
-        here = dropped(True)
-        done = act_arm(here, "--no-dry-run")
-        says(done.err, "arm is refused", "Step.WAIT_FOR_HOLD", "allowed at Step.MERGE")
-        assert_that(done.code, equal_to(2))
-        assert_that([call for call in here.calls if "merge" in call], equal_to([]))
+        """A hold of merges (the runner-pressure hold is ``act hold --scope ci``) refuses the arm."""
+        given = knownkit.kit()
+        hub = knownkit.made(given)
+        knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
+        said = knownkit.refused(lambda: knownkit.act(given, hub, "arm"))
+        assert_that(said, contains_string("hold"))
+        assert_that(
+            [each.kind for each in hub.hub.writes if each.kind == "arm"], equal_to([])
+        )
 
     def test_c26_an_arm_after_the_hold_is_recorded_and_made(self) -> None:
-        """The hold over, the same PR is at Step.MERGE and may be armed (a dry run)."""
-        here = dropped(False)
-        done = act_arm(here)
-        assert_that(done.out, equal_to(f"act: arm {PULL} at MERGE\n"))
+        """The hold over, the same PR is armed, its record first."""
+        given = knownkit.kit()
+        hub = knownkit.made(given)
+        knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
+        number = [key[1] for key in hub.hub.issues_made][0]
+        knownkit.act(given, hub, "unhold", number=str(number))
+        knownkit.act(given, hub, "arm")
+        assert_that(
+            [each.kind for each in hub.hub.writes][-2:], equal_to(["comment", "arm"])
+        )
 
     def test_c26_slots_next_waits_during_the_hold_and_offers_the_merge_after(
         self,

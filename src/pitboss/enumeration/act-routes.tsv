@@ -1,0 +1,17 @@
+# Each class of GitHub write the agents made in the transcripts (all_calls.jsonl), and its act verb.
+class	calls in the transcripts	route
+merge a PR (merge_pull_request, PUT pulls/N/merge)	1302 + 19	act merge (verdict GO)
+create/edit an issue (issue_write, POST issues, PATCH issues/N)	1248 + 37 + 44 + 28	act ticket / act ticket-edit / act close / act label
+comment (add_issue_comment, POST issues/N/comments)	974 + 79 + 8	act comment (no review or act line) / act review
+arm auto-merge (enable_pr_auto_merge, PUT .../auto_merge)	640 + 25	act arm (verdict GO, arm record)
+open a PR (create_pull_request, POST pulls, gh pr create)	388 + 22 + 7	act pr-create
+update a PR branch (update_pull_request_branch, PUT update-branch)	178 + 4	act update-branch
+edit a PR (update_pull_request, PATCH pulls/N)	92 + 102	act pr-edit / act undraft
+run a workflow (actions_run_trigger, POST dispatches)	61 + 3	act dispatch-workflow (relock.yml, check.yml)
+re-run a job (POST rerun-failed-jobs, jobs/N/rerun)	30	act rerun with a cause record of kind runner; a red of the code is not re-run
+cancel a run	3	act cancel (superseded by a newer run)
+labels	26	act label (known labels only)
+disarm auto-merge (disable_pr_auto_merge)	6	act disarm
+create a branch or a file through the API (create_branch, create_or_update_file)	32 + 32	removed: a branch and its files reach GitHub by git push from a worktree
+edit a comment (update_issue_comment, PATCH issues/comments/N)	29 + 20	act comment-edit / comment-delete, only for pitboss's own evidence comments (no review or act line); a verdict is never edited
+delete a branch, close a PR in a scratch repository (pitboss clean, the sweep)	3	act scratch-clean (bats-lang/relock-scratch only); elsewhere removed

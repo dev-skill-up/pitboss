@@ -57,8 +57,10 @@ pitboss = [
   "claims.tsv",
   "clauses.tsv",
   "standing.tsv",
+  "enumeration/*.tsv",
+  "enumeration/*.txt",
 ]
-"pitboss.tests" = ["coverage_ids.txt"]
+"pitboss.tests" = ["coverage_ids.txt", "total/*.json", "total/*.tsv"]
 
 [project.urls]
 Homepage = "https://github.com/dev-skill-up/pitboss"
@@ -112,6 +114,5 @@ module = [
     "pitboss.act_commands",
     "pitboss.envcheck_commands",
     "pitboss.hook_commands",
-    "pitboss.mutation_commands",
 ]
 disallow_untyped_decorators = false

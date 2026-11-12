@@ -1,0 +1,16 @@
+# derived by derive/github_sets.py from https://docs.github.com/en/rest/checks/runs (status and conclusion enums)
+# count: 14
+conclusion	action_required
+conclusion	cancelled
+conclusion	failure
+conclusion	neutral
+conclusion	skipped
+conclusion	stale
+conclusion	success
+conclusion	timed_out
+status	completed
+status	in_progress
+status	pending
+status	queued
+status	requested
+status	waiting

@@ -1,0 +1,322 @@
+agent-tool	Artifact	this session's tool list
+agent-tool	Bash	this session's tool list
+agent-tool	Edit	this session's tool list
+agent-tool	Glob	this session's tool list
+agent-tool	Grep	this session's tool list
+agent-tool	Read	this session's tool list
+agent-tool	Skill	this session's tool list
+agent-tool	ToolSearch	this session's tool list
+agent-tool	Write	this session's tool list
+agent-tool	SubagentHandback	this session's tool list
+agent-tool	ArtifactComments	this session's tool list
+agent-tool	ArtifactData	this session's tool list
+agent-tool	EnterWorktree	this session's tool list
+agent-tool	ExitWorktree	this session's tool list
+agent-tool	ListPlugins	this session's tool list
+agent-tool	ListSkills	this session's tool list
+agent-tool	Monitor	this session's tool list
+agent-tool	NotebookEdit	this session's tool list
+agent-tool	SearchPlugins	this session's tool list
+agent-tool	SearchSkills	this session's tool list
+agent-tool	SendMessage	this session's tool list
+agent-tool	TaskStop	this session's tool list
+agent-tool	WebFetch	this session's tool list
+agent-tool	WebSearch	this session's tool list
+agent-tool	mcp__Claude_Docs__batch	this session's tool list
+agent-tool	mcp__Claude_Docs__guide	this session's tool list
+agent-tool	mcp__Claude_Docs__update	this session's tool list
+agent-tool	mcp__Claude_Docs__create	this session's tool list
+agent-tool	mcp__Claude_Docs__delete	this session's tool list
+agent-tool	mcp__Claude_Docs__export	this session's tool list
+agent-tool	mcp__Claude_Docs__query	this session's tool list
+agent-tool	mcp__Claude_Docs__read	this session's tool list
+agent-tool	mcp__claude-code-remote__read_documentation	this session's tool list
+agent-tool	mcp__claude-code-remote__add_repo	this session's tool list
+agent-tool	mcp__claude-code-remote__archive_session	this session's tool list
+agent-tool	mcp__claude-code-remote__confirm_repository_trust	this session's tool list
+agent-tool	mcp__claude-code-remote__create_environment	this session's tool list
+agent-tool	mcp__claude-code-remote__create_trigger	this session's tool list
+agent-tool	mcp__claude-code-remote__delete_trigger	this session's tool list
+agent-tool	mcp__claude-code-remote__fire_trigger	this session's tool list
+agent-tool	mcp__claude-code-remote__get_environment	this session's tool list
+agent-tool	mcp__claude-code-remote__get_event	this session's tool list
+agent-tool	mcp__claude-code-remote__get_session	this session's tool list
+agent-tool	mcp__claude-code-remote__get_trigger	this session's tool list
+agent-tool	mcp__claude-code-remote__interrupt_session	this session's tool list
+agent-tool	mcp__claude-code-remote__list_environments	this session's tool list
+agent-tool	mcp__claude-code-remote__list_events	this session's tool list
+agent-tool	mcp__claude-code-remote__list_repos	this session's tool list
+agent-tool	mcp__claude-code-remote__list_sessions	this session's tool list
+agent-tool	mcp__claude-code-remote__list_triggers	this session's tool list
+agent-tool	mcp__claude-code-remote__register_repo_root	this session's tool list
+agent-tool	mcp__claude-code-remote__send_later	this session's tool list
+agent-tool	mcp__claude-code-remote__set_session_tags	this session's tool list
+agent-tool	mcp__claude-code-remote__set_session_title	this session's tool list
+agent-tool	mcp__claude-code-remote__subscribe_pr_activity	this session's tool list
+agent-tool	mcp__claude-code-remote__switch_environment	this session's tool list
+agent-tool	mcp__claude-code-remote__unarchive_session	this session's tool list
+agent-tool	mcp__claude-code-remote__unsubscribe_pr_activity	this session's tool list
+agent-tool	mcp__claude-code-remote__unwatch_url	this session's tool list
+agent-tool	mcp__claude-code-remote__update_environment	this session's tool list
+agent-tool	mcp__claude-code-remote__update_trigger	this session's tool list
+agent-tool	mcp__claude-code-remote__watch_url	this session's tool list
+agent-tool	mcp__hearthbot__close_decision	this session's tool list
+agent-tool	mcp__hearthbot__connect_device	this session's tool list
+agent-tool	mcp__hearthbot__edit_message	this session's tool list
+agent-tool	mcp__hearthbot__list_devices	this session's tool list
+agent-tool	mcp__hearthbot__list_threads	this session's tool list
+agent-tool	mcp__hearthbot__mark_draft_sent	this session's tool list
+agent-tool	mcp__hearthbot__message_coordinator	this session's tool list
+agent-tool	mcp__hearthbot__message_thread	this session's tool list
+agent-tool	mcp__hearthbot__no_reply_needed	this session's tool list
+agent-tool	mcp__hearthbot__post_message	this session's tool list
+agent-tool	mcp__hearthbot__react	this session's tool list
+agent-tool	mcp__hearthbot__read_messages_by_id	this session's tool list
+agent-tool	mcp__hearthbot__read_project_chat	this session's tool list
+agent-tool	mcp__hearthbot__read_thread	this session's tool list
+agent-tool	mcp__hearthbot__rename_thread	this session's tool list
+agent-tool	mcp__hearthbot__request_decision	this session's tool list
+agent-tool	mcp__hearthbot__set_thread_reminder	this session's tool list
+agent-tool	mcp__hearthbot__set_thread_resolved	this session's tool list
+agent-tool	mcp__hearthbot__show_helpline_card	this session's tool list
+agent-tool	mcp__hearthbot__start_remote_control	this session's tool list
+agent-tool	mcp__hearthbot__stop_remote_control	this session's tool list
+agent-tool	mcp__hearthbot__suggest_connectors	this session's tool list
+agent-tool	mcp__hearthbot__unreact	this session's tool list
+agent-tool	mcp__hearthbot__update_progress_checklist	this session's tool list
+agent-tool	mcp__hearthbot__list_original_project	this session's tool list
+agent-tool	mcp__hearthbot__list_project_artifacts	this session's tool list
+agent-tool	mcp__hearthbot__list_prs	this session's tool list
+agent-tool	mcp__hearthbot__post_widget	this session's tool list
+agent-tool	mcp__hearthbot__read_original_project_chat	this session's tool list
+agent-tool	mcp__hearthbot__remote_control_status	this session's tool list
+agent-tool	mcp__hearthbot__set_effort_level	this session's tool list
+agent-tool	mcp__hearthbot__switch_model	this session's tool list
+agent-tool	mcp__remote-devices__device_bash	this session's tool list
+agent-tool	mcp__remote-devices__device_commit_files	this session's tool list
+agent-tool	mcp__remote-devices__device_list_dir	this session's tool list
+agent-tool	mcp__remote-devices__device_stage_files	this session's tool list
+agent-tool	mcp__remote-devices__create_artifact	this session's tool list
+agent-tool	mcp__remote-devices__device_request_delete_permission	this session's tool list
+agent-tool	mcp__remote-devices__device_request_folder_access	this session's tool list
+agent-tool	mcp__remote-devices__list_artifacts	this session's tool list
+agent-tool	mcp__remote-devices__list_legacy_live_artifacts	this session's tool list
+agent-tool	mcp__remote-devices__update_artifact	this session's tool list
+agent-tool	mcp__remote-devices__Control_Chrome__execute_javascript	this session's tool list
+agent-tool	mcp__remote-devices__Control_Chrome__open_url	this session's tool list
+agent-tool	mcp__remote-devices__Control_your_Mac__osascript	this session's tool list
+agent-tool	mcp__remote-devices__Filesystem__write_file	this session's tool list
+agent-tool	mcp__remote-devices__Filesystem__edit_file	this session's tool list
+agent-tool	mcp__remote-devices__Filesystem__move_file	this session's tool list
+agent-tool	mcp__remote-devices__Filesystem__create_directory	this session's tool list
+agent-tool	mcp__remote-devices__Filesystem__read_file	this session's tool list
+agent-tool	mcp__remote-devices__Filesystem__read_text_file	this session's tool list
+agent-tool	mcp__remote-devices__Filesystem__list_directory	this session's tool list
+agent-tool	mcp__remote-devices__computer_type	this session's tool list
+agent-tool	mcp__remote-devices__computer_key	this session's tool list
+agent-tool	mcp__remote-devices__computer_left_click	this session's tool list
+agent-tool	mcp__remote-devices__computer_screenshot	this session's tool list
+agent-tool	mcp__remote-devices__request_credentials	this session's tool list
+agent-tool	mcp__remote-devices__autofill_credential	this session's tool list
+agent-tool	mcp__remote-devices__get_device_info	this session's tool list
+agent-tool	mcp__github__actions_get	this session's tool list
+agent-tool	mcp__github__actions_list	this session's tool list
+agent-tool	mcp__github__actions_run_trigger	this session's tool list
+agent-tool	mcp__github__add_comment_to_pending_review	this session's tool list
+agent-tool	mcp__github__add_issue_comment	this session's tool list
+agent-tool	mcp__github__add_reply_to_pull_request_comment	this session's tool list
+agent-tool	mcp__github__create_branch	this session's tool list
+agent-tool	mcp__github__create_or_update_file	this session's tool list
+agent-tool	mcp__github__create_pull_request	this session's tool list
+agent-tool	mcp__github__create_repository	this session's tool list
+agent-tool	mcp__github__delete_file	this session's tool list
+agent-tool	mcp__github__disable_pr_auto_merge	this session's tool list
+agent-tool	mcp__github__enable_pr_auto_merge	this session's tool list
+agent-tool	mcp__github__fork_repository	this session's tool list
+agent-tool	mcp__github__get_check_run	this session's tool list
+agent-tool	mcp__github__get_commit	this session's tool list
+agent-tool	mcp__github__get_file_contents	this session's tool list
+agent-tool	mcp__github__get_job_logs	this session's tool list
+agent-tool	mcp__github__get_label	this session's tool list
+agent-tool	mcp__github__get_latest_release	this session's tool list
+agent-tool	mcp__github__get_me	this session's tool list
+agent-tool	mcp__github__get_release_by_tag	this session's tool list
+agent-tool	mcp__github__get_tag	this session's tool list
+agent-tool	mcp__github__get_team_members	this session's tool list
+agent-tool	mcp__github__get_teams	this session's tool list
+agent-tool	mcp__github__issue_read	this session's tool list
+agent-tool	mcp__github__issue_write	this session's tool list
+agent-tool	mcp__github__list_branches	this session's tool list
+agent-tool	mcp__github__list_commits	this session's tool list
+agent-tool	mcp__github__list_issue_fields	this session's tool list
+agent-tool	mcp__github__list_issue_types	this session's tool list
+agent-tool	mcp__github__list_issues	this session's tool list
+agent-tool	mcp__github__list_pull_requests	this session's tool list
+agent-tool	mcp__github__list_releases	this session's tool list
+agent-tool	mcp__github__list_repository_collaborators	this session's tool list
+agent-tool	mcp__github__list_tags	this session's tool list
+agent-tool	mcp__github__merge_pull_request	this session's tool list
+agent-tool	mcp__github__pull_request_read	this session's tool list
+agent-tool	mcp__github__pull_request_review_write	this session's tool list
+agent-tool	mcp__github__push_files	this session's tool list
+agent-tool	mcp__github__request_copilot_review	this session's tool list
+agent-tool	mcp__github__resolve_review_thread	this session's tool list
+agent-tool	mcp__github__run_secret_scanning	this session's tool list
+agent-tool	mcp__github__sub_issue_write	this session's tool list
+agent-tool	mcp__github__unresolve_review_thread	this session's tool list
+agent-tool	mcp__github__update_issue_comment	this session's tool list
+agent-tool	mcp__github__update_pull_request	this session's tool list
+agent-tool	mcp__github__update_pull_request_branch	this session's tool list
+agent-tool	mcp__Google_Drive__create_file	this session's tool list
+agent-tool	mcp__Google_Drive__read_file_content	this session's tool list
+agent-tool	mcp__Notion_MCP__notion-create-pages	this session's tool list
+agent-tool	mcp__Notion_MCP__notion-fetch	this session's tool list
+agent-tool	mcp__Todoist__add-tasks	this session's tool list
+agent-tool	mcp__Todoist__find-tasks	this session's tool list
+agent-tool	mcp__Fastmail__send_email	this session's tool list
+agent-tool	mcp__Fastmail__search_email	this session's tool list
+agent-tool	mcp__Dropbox__create_file	this session's tool list
+agent-tool	mcp__Dropbox__search	this session's tool list
+agent-tool	mcp__Trello__trelloWriteCard	this session's tool list
+agent-tool	mcp__Trello__trelloReadCard	this session's tool list
+agent-tool	mcp__Kit__create_broadcast	this session's tool list
+agent-tool	mcp__Kit__list_tags	this session's tool list
+agent-tool	mcp__PayPal__send_invoice	this session's tool list
+agent-tool	mcp__PayPal__list_invoices	this session's tool list
+agent-tool	mcp__Google_Sheets__update_values	this session's tool list
+agent-tool	mcp__Google_Calendar__create_event	this session's tool list
+agent-tool	mcp__Our_Groceries__edit_items	this session's tool list
+agent-tool	mcp__Mermaid_Chart__validate_and_render_mermaid_diagram	this session's tool list
+pitboss-command	act	python -m pitboss --help (b6985a2)
+pitboss-command	clean	python -m pitboss --help (b6985a2)
+pitboss-command	base-check	python -m pitboss --help (b6985a2)
+pitboss-command	body-digest	python -m pitboss --help (b6985a2)
+pitboss-command	body-head	python -m pitboss --help (b6985a2)
+pitboss-command	hand-back-check	python -m pitboss --help (b6985a2)
+pitboss-command	plan-digest	python -m pitboss --help (b6985a2)
+pitboss-command	worker-actions	python -m pitboss --help (b6985a2)
+pitboss-command	cancel-stale-runs	python -m pitboss --help (b6985a2)
+pitboss-command	capture-timeline	python -m pitboss --help (b6985a2)
+pitboss-command	case	python -m pitboss --help (b6985a2)
+pitboss-command	status-prompt	python -m pitboss --help (b6985a2)
+pitboss-command	clauses	python -m pitboss --help (b6985a2)
+pitboss-command	clean-container	python -m pitboss --help (b6985a2)
+pitboss-command	clean-worktrees	python -m pitboss --help (b6985a2)
+pitboss-command	merged	python -m pitboss --help (b6985a2)
+pitboss-command	count	python -m pitboss --help (b6985a2)
+pitboss-command	env-check	python -m pitboss --help (b6985a2)
+pitboss-command	expand	python -m pitboss --help (b6985a2)
+pitboss-command	hook	python -m pitboss --help (b6985a2)
+pitboss-command	lint	python -m pitboss --help (b6985a2)
+pitboss-command	mutation-check	python -m pitboss --help (b6985a2)
+pitboss-command	next	python -m pitboss --help (b6985a2)
+pitboss-command	nox	python -m pitboss --help (b6985a2)
+pitboss-command	owner-pause	python -m pitboss --help (b6985a2)
+pitboss-command	pins-review	python -m pitboss --help (b6985a2)
+pitboss-command	plan-check	python -m pitboss --help (b6985a2)
+pitboss-command	pressure	python -m pitboss --help (b6985a2)
+pitboss-command	push	python -m pitboss --help (b6985a2)
+pitboss-command	queued	python -m pitboss --help (b6985a2)
+pitboss-command	ruling-summary	python -m pitboss --help (b6985a2)
+pitboss-command	quiesce	python -m pitboss --help (b6985a2)
+pitboss-command	analyze-red	python -m pitboss --help (b6985a2)
+pitboss-command	review-form	python -m pitboss --help (b6985a2)
+pitboss-command	rules	python -m pitboss --help (b6985a2)
+pitboss-command	ruling	python -m pitboss --help (b6985a2)
+pitboss-command	slots	python -m pitboss --help (b6985a2)
+pitboss-command	sweep	python -m pitboss --help (b6985a2)
+pitboss-command	sync	python -m pitboss --help (b6985a2)
+github-event	branch_protection_configuration.disabled	docs webhook-events-and-payloads
+github-event	branch_protection_configuration.enabled	docs webhook-events-and-payloads
+github-event	branch_protection_rule.created	docs webhook-events-and-payloads
+github-event	branch_protection_rule.deleted	docs webhook-events-and-payloads
+github-event	branch_protection_rule.edited	docs webhook-events-and-payloads
+github-event	check_run.completed	docs webhook-events-and-payloads
+github-event	check_run.created	docs webhook-events-and-payloads
+github-event	check_run.requested_action	docs webhook-events-and-payloads
+github-event	check_run.rerequested	docs webhook-events-and-payloads
+github-event	check_suite.completed	docs webhook-events-and-payloads
+github-event	check_suite.requested	docs webhook-events-and-payloads
+github-event	check_suite.rerequested	docs webhook-events-and-payloads
+github-event	issue_comment.created	docs webhook-events-and-payloads
+github-event	issue_comment.deleted	docs webhook-events-and-payloads
+github-event	issue_comment.edited	docs webhook-events-and-payloads
+github-event	issue_comment.pinned	docs webhook-events-and-payloads
+github-event	issue_comment.unpinned	docs webhook-events-and-payloads
+github-event	issue_dependencies.blocked_by_added	docs webhook-events-and-payloads
+github-event	issue_dependencies.blocked_by_removed	docs webhook-events-and-payloads
+github-event	issue_dependencies.blocking_added	docs webhook-events-and-payloads
+github-event	issue_dependencies.blocking_removed	docs webhook-events-and-payloads
+github-event	issues.assigned	docs webhook-events-and-payloads
+github-event	issues.closed	docs webhook-events-and-payloads
+github-event	issues.deleted	docs webhook-events-and-payloads
+github-event	issues.demilestoned	docs webhook-events-and-payloads
+github-event	issues.edited	docs webhook-events-and-payloads
+github-event	issues.field_added	docs webhook-events-and-payloads
+github-event	issues.field_removed	docs webhook-events-and-payloads
+github-event	issues.labeled	docs webhook-events-and-payloads
+github-event	issues.locked	docs webhook-events-and-payloads
+github-event	issues.milestoned	docs webhook-events-and-payloads
+github-event	issues.opened	docs webhook-events-and-payloads
+github-event	issues.pinned	docs webhook-events-and-payloads
+github-event	issues.reopened	docs webhook-events-and-payloads
+github-event	issues.transferred	docs webhook-events-and-payloads
+github-event	issues.typed	docs webhook-events-and-payloads
+github-event	issues.unassigned	docs webhook-events-and-payloads
+github-event	issues.unlabeled	docs webhook-events-and-payloads
+github-event	issues.unlocked	docs webhook-events-and-payloads
+github-event	issues.unpinned	docs webhook-events-and-payloads
+github-event	issues.untyped	docs webhook-events-and-payloads
+github-event	label.archived	docs webhook-events-and-payloads
+github-event	label.created	docs webhook-events-and-payloads
+github-event	label.deleted	docs webhook-events-and-payloads
+github-event	label.edited	docs webhook-events-and-payloads
+github-event	label.unarchived	docs webhook-events-and-payloads
+github-event	merge_group.checks_requested	docs webhook-events-and-payloads
+github-event	merge_group.destroyed	docs webhook-events-and-payloads
+github-event	pull_request.assigned	docs webhook-events-and-payloads
+github-event	pull_request.auto_merge_disabled	docs webhook-events-and-payloads
+github-event	pull_request.auto_merge_enabled	docs webhook-events-and-payloads
+github-event	pull_request.closed	docs webhook-events-and-payloads
+github-event	pull_request.converted_to_draft	docs webhook-events-and-payloads
+github-event	pull_request.demilestoned	docs webhook-events-and-payloads
+github-event	pull_request.dequeued	docs webhook-events-and-payloads
+github-event	pull_request.edited	docs webhook-events-and-payloads
+github-event	pull_request.enqueued	docs webhook-events-and-payloads
+github-event	pull_request.labeled	docs webhook-events-and-payloads
+github-event	pull_request.locked	docs webhook-events-and-payloads
+github-event	pull_request.milestoned	docs webhook-events-and-payloads
+github-event	pull_request.opened	docs webhook-events-and-payloads
+github-event	pull_request.ready_for_review	docs webhook-events-and-payloads
+github-event	pull_request.reopened	docs webhook-events-and-payloads
+github-event	pull_request.review_request_removed	docs webhook-events-and-payloads
+github-event	pull_request.review_requested	docs webhook-events-and-payloads
+github-event	pull_request.stacked	docs webhook-events-and-payloads
+github-event	pull_request.synchronize	docs webhook-events-and-payloads
+github-event	pull_request.unassigned	docs webhook-events-and-payloads
+github-event	pull_request.unlabeled	docs webhook-events-and-payloads
+github-event	pull_request.unlocked	docs webhook-events-and-payloads
+github-event	pull_request_review.dismissed	docs webhook-events-and-payloads
+github-event	pull_request_review.edited	docs webhook-events-and-payloads
+github-event	pull_request_review.submitted	docs webhook-events-and-payloads
+github-event	pull_request_review_comment.created	docs webhook-events-and-payloads
+github-event	pull_request_review_comment.deleted	docs webhook-events-and-payloads
+github-event	pull_request_review_comment.edited	docs webhook-events-and-payloads
+github-event	pull_request_review_thread.resolved	docs webhook-events-and-payloads
+github-event	pull_request_review_thread.unresolved	docs webhook-events-and-payloads
+github-event	push.(no action)	docs webhook-events-and-payloads
+github-event	repository_ruleset.created	docs webhook-events-and-payloads
+github-event	repository_ruleset.deleted	docs webhook-events-and-payloads
+github-event	repository_ruleset.edited	docs webhook-events-and-payloads
+github-event	status.(no action)	docs webhook-events-and-payloads
+github-event	sub_issues.parent_issue_added	docs webhook-events-and-payloads
+github-event	sub_issues.parent_issue_removed	docs webhook-events-and-payloads
+github-event	sub_issues.sub_issue_added	docs webhook-events-and-payloads
+github-event	sub_issues.sub_issue_removed	docs webhook-events-and-payloads
+github-event	workflow_job.completed	docs webhook-events-and-payloads
+github-event	workflow_job.in_progress	docs webhook-events-and-payloads
+github-event	workflow_job.queued	docs webhook-events-and-payloads
+github-event	workflow_job.waiting	docs webhook-events-and-payloads
+github-event	workflow_run.completed	docs webhook-events-and-payloads
+github-event	workflow_run.in_progress	docs webhook-events-and-payloads
+github-event	workflow_run.requested	docs webhook-events-and-payloads

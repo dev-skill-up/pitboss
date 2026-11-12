@@ -1,0 +1,2 @@
+# The commands of `python -m pitboss --help` at b6985a2, the source of the pitboss-command rows.
+{act,clean,base-check,body-digest,body-head,hand-back-check,plan-digest,worker-actions,cancel-stale-runs,capture-timeline,case,status-prompt,clauses,clean-container,clean-worktrees,merged,count,env-check,expand,hook,lint,mutation-check,next,nox,owner-pause,pins-review,plan-check,pressure,push,queued,ruling-summary,quiesce,analyze-red,review-form,rules,ruling,slots,sweep,sync}

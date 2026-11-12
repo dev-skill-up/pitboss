@@ -1,0 +1,29 @@
+# Mutants run only here, on GitHub's ephemeral runner (keyword: no-local-mutants).
+name: mutation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b
+        with:
+          python-version: "3.14"
+
+      - name: Install Nox
+        run: pip install nox
+
+      - name: Run the mutants
+        run: nox --force-color --python=3.14 --session=mutation

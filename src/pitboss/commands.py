@@ -56,7 +56,15 @@ from . import (
     workerlines,
     workhours,
 )
-from . import diskline, pulllines, pullstate, unlabeled, unledgered, unreadableline
+from . import (
+    diskline,
+    pulllines,
+    pullstate,
+    totalroutes,
+    unlabeled,
+    unledgered,
+    unreadableline,
+)
 from .failures import describe, read_all
 from .running import KeywordRun
 from .queuereads import read_queue_runs, read_runner_runs, runner_runs
@@ -380,4 +388,6 @@ def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)
     failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
+    # what each actor writes, from the checker's own table (keyword: total-routes)
+    print(totalroutes.instructions(), end="")
     return bool(repoaccess.say(found.access) or failed)

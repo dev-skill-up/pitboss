@@ -1,0 +1,199 @@
+"""The GO world of the total verdict, and worlds that differ from it in one input.
+
+The GO world is a real PR (bats-lang/quire#1090, as GitHub answered) made open,
+with green checks, an open ticket and a review in pitboss's form that names its
+head, body, Plan and ticket.
+"""
+
+import copy
+import dataclasses
+import json
+import pathlib
+from typing import Iterable, Mapping
+
+from .. import bodydigest, totalreview
+from ..totaljson import JsonMap, mapping, name_at
+
+FOLDER = pathlib.Path(__file__).with_name("total")
+ACT = "moshez"
+TICKET_BODY = "## Done when\n\n- x demonstrated by y\n\nPaths: src/\nMax-lines: 462\n"
+CHECKS = ("check", "android / build-android", "android / smoke-test")
+Pull = dict[str, object]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class World:
+    """A PR and the other inputs of its verdict.
+
+    Attributes:
+        pull: the PR.
+        ctx: the inputs.
+    """
+
+    pull: Pull
+    ctx: Pull
+
+
+def review(
+    head: str, body: object, tickets: Mapping[str, object], grade: str = "approved"
+) -> Pull:
+    """A review comment in pitboss's form.
+
+    Args:
+        head: the head it names.
+        body: the PR body it read.
+        tickets: the tickets it read.
+        grade: the Execution grade and the verdict.
+
+    Returns:
+        The timeline event.
+    """
+    section = totalreview.plan_section(body)
+    plan = [] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]
+    lines = [
+        f"Independent review (a separate reviewer agent, not the author) of head {head}: {grade}",
+        "Plan: approved",
+        f"Execution: {grade}",
+        f"Verdict: {grade}",
+        f"Body: {totalreview.digest_of(body)}",
+        *plan,
+        *totalreview.ticket_lines(tickets),
+    ]
+    return {
+        "event": "commented",
+        "user": {"login": ACT},
+        "body": "\n".join(lines) + "\n",
+    }
+
+
+def _pull() -> Pull:
+    found = json.loads((FOLDER / "quire-1090.json").read_text(encoding="utf-8"))
+    found.update(
+        state="open",
+        merged=False,
+        merged_at=None,
+        closed_at=None,
+        merged_by=None,
+        mergeable=True,
+        mergeable_state="blocked",
+        auto_merge=None,
+        labels=[],
+        milestone=None,
+        requested_reviewers=[],
+        requested_teams=[],
+        draft=False,
+    )
+    return dict(found)
+
+
+def _ctx(repo: str, number: object, head: str) -> Pull:
+    runs = [
+        {"name": name, "status": "completed", "conclusion": "success"}
+        for name in CHECKS
+    ]
+    return {
+        "repo": repo,
+        "number": number,
+        "default_branch": "main",
+        "authors": {ACT, "dependabot[bot]"},
+        "act_identity": ACT,
+        "required_checks": [*CHECKS, "pitboss-gate"],
+        "merge_queue": True,
+        "check_runs": [
+            *runs,
+            {"name": "pitboss-gate", "status": "in_progress", "conclusion": None},
+        ],
+        "statuses": [
+            {"context": "pitboss-gate", "state": "pending"},
+            {"context": "text-lint", "state": "success"},
+        ],
+        "tickets": {
+            f"{repo}#1": {
+                "state": "open",
+                "state_reason": None,
+                "locked": False,
+                "body": TICKET_BODY,
+            }
+        },
+        "blockers": {},
+        "files": [
+            {
+                "filename": "src/x.bats",
+                "status": "modified",
+                "additions": 10,
+                "deletions": 2,
+            }
+        ],
+        "max_lines": 462,
+        "holds": [],
+        "timeline": [{"event": "committed", "sha": head}],
+    }
+
+
+def base() -> World:
+    """The GO world.
+
+    Returns:
+        The PR and its inputs; merge, arm and an undraft of it as a draft are GO.
+    """
+    pull = _pull()
+    head = name_at(pull, "head", "sha")
+    ctx = _ctx(name_at(pull, "base", "repo", "full_name"), pull.get("number"), head)
+    tickets = mapping(ctx["tickets"])
+    ctx["timeline"] = [*_events(ctx), review(head, pull.get("body"), tickets)]
+    return World(pull=pull, ctx=ctx)
+
+
+def _events(ctx: JsonMap) -> list[object]:
+    found = ctx.get("timeline")
+    return list(found) if isinstance(found, list) else []
+
+
+def change(
+    world: World,
+    pull: Mapping[str, object] | None = None,
+    ctx: Mapping[str, object] | None = None,
+    events: Iterable[object] = (),
+) -> World:
+    """A world that differs from another in the inputs named.
+
+    Args:
+        world: the world it starts from.
+        pull: fields of the PR to set.
+        ctx: inputs to set.
+        events: timeline events to add at the end.
+
+    Returns:
+        The new world; the old one is not changed.
+    """
+    made = World(pull=copy.deepcopy(world.pull), ctx=copy.deepcopy(world.ctx))
+    made.pull.update(pull or {})
+    made.ctx.update(ctx or {})
+    added = list(events)
+    if added:
+        made.ctx["timeline"] = [*_events(made.ctx), *added]
+    return made
+
+
+def head_of(world: World) -> str:
+    """The head commit of a world's PR.
+
+    Args:
+        world: the world.
+
+    Returns:
+        Its head's sha.
+    """
+    return name_at(world.pull, "head", "sha")
+
+
+def ticket_ref(world: World) -> str:
+    """The one ticket the world's body closes.
+
+    Args:
+        world: the world.
+
+    Returns:
+        Its reference.
+    """
+    return next(iter(mapping(world.ctx.get("tickets"))))

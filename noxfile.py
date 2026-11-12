@@ -132,6 +132,14 @@ def tests(session):
 
 
 @nox.session(python=VERSIONS[-1])
+def mutation(session):
+    # mutants run only here, on CI's ephemeral runner (keyword: no-local-mutants)
+    session.install("-r", "requirements-tests.txt")
+    session.install("-e", ".")
+    session.run("python", "-m", "pitboss.mutationci", *session.posargs)
+
+
+@nox.session(python=VERSIONS[-1])
 def build(session):
     session.install("build")
     session.run("python", "-m", "build", "--wheel")

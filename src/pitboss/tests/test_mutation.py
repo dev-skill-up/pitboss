@@ -1,15 +1,15 @@
-"""``mutation-check`` (keyword: mutation-check): small mutants, and the rows' tests."""
+"""The CI mutation job (keyword: no-local-mutants): small mutants, and the rows' tests."""
 
+import contextlib
+import io
 import pathlib
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-import subprocess
-import sys
-
-from .. import mutation, mutation_commands
-from . import fakes, world
+from .. import mutation, mutationci, nolocalmutants, rules
+from . import fakes
 
 SOURCE = (
     "def judge(n, flag):\n"
@@ -37,6 +37,18 @@ TINY = (
     "def positive(n):\n    return n > 0\n\n\n"
     "def weak(n):\n    return n >= 1 or n < 0\n"
 )
+ROWS_TEST = (
+    "import unittest\n"
+    "\n"
+    "class TestRows(unittest.TestCase):\n"
+    "    X = 1\n"
+    "\n"
+    "    def test_z2_weak_1_is_held(self) -> None:\n"
+    "        pass\n"
+    "\n"
+    "    def test_z1_positive_1_is_held(self) -> None:\n"
+    "        pass\n"
+)
 REGISTER = (
     "Z1\t2026-11-12\tenforced\twords\ttiny.positive\ttest_tiny.test_z1_positive\n"
     "Z2\t2026-11-12\tenforced\twords\ttiny.weak\ttest_tiny.test_z2_weak\n"
@@ -56,6 +68,7 @@ def tiny_tree() -> pathlib.Path:
     (package / "tests" / "__init__.py").write_text("")
     (package / "tiny.py").write_text(TINY)
     (package / "tests" / "test_tiny.py").write_text(TINY_TEST)
+    (package / "tests" / "test_mutation_rows.py").write_text(ROWS_TEST)
     (package / "rules.tsv").write_text(REGISTER)
     return root
 
@@ -79,95 +92,113 @@ class TestMutants(unittest.TestCase):
 
     def test_t444_only_the_named_function_is_mutated(self) -> None:
         """``other`` has one candidate; a missing function has none."""
-        assert_that(mutation.mutants(SOURCE, "other"), has_length(2))
+        assert_that(mutation.mutants(SOURCE, "other"), has_length(1))
         assert_that(mutation.mutants(SOURCE, "absent"), equal_to([]))
 
     def test_t444_a_survivor_is_named_kills_it(self) -> None:
         """A killer that kills nothing leaves each mutant."""
         left = mutation.survivors("R1", SOURCE, "other", lambda _: False)
-        assert_that(left, has_length(2))
+        assert_that(left, has_length(1))
         assert_that(left[0], contains_string("survived: R1 other"))
         assert_that(
             mutation.survivors("R1", SOURCE, "other", lambda _: True), equal_to([])
         )
 
 
-class TestCommand(unittest.TestCase):
-    """The command over a small real tree."""
+def _runner(passing: bool) -> tuple[list[str], mutationci.Runner]:
+    """A runner that runs nothing: it records what it was asked and kills every mutant.
 
-    def test_t444_a_weak_test_leaves_a_survivor_and_a_strong_one_none(self) -> None:
-        """Z1 is killed; Z2's test leaves mutants alive."""
+    Args:
+        passing: whether the unmutated tests pass.
+
+    Returns:
+        The texts of the module each run saw, and the runner.
+    """
+    seen: list[str] = []
+
+    def run(tree: pathlib.Path, ids: Sequence[str]) -> bool:
+        seen.append((tree / "pitboss" / "tiny.py").read_text(encoding="utf-8"))
+        return passing and len(seen) == 1
+
+    return seen, run
+
+
+class TestCI(unittest.TestCase):
+    """The CI-only runner (keyword: no-local-mutants); no test here runs a mutant."""
+
+    def test_t444_outside_ci_nothing_runs(self) -> None:
+        """Without GITHUB_ACTIONS=true the runner refuses before reading a row."""
+        seen, run = _runner(True)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = mutationci.main([], {}, run, tiny_tree())
+        assert_that(
+            (code, seen, out.getvalue()), equal_to((2, [], mutationci.REFUSED + "\n"))
+        )
+
+    def test_t444_every_mutant_is_handed_to_the_runner(self) -> None:
+        """In CI each mutant of the row's function goes to the runner; killed is ok."""
+        seen, run = _runner(True)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = mutationci.main(["Z1"], {"GITHUB_ACTIONS": "true"}, run, tiny_tree())
+        assert_that((code, out.getvalue()), equal_to((0, "mutation: ok\n")))
+        assert_that(seen[0], equal_to(TINY))
+        assert_that(len(seen), equal_to(1 + len(mutation.mutants(TINY, "positive"))))
+
+    def test_t444_a_survivor_fails_the_job(self) -> None:
+        """A runner whose tests pass on a mutant leaves a survivor."""
         tree = tiny_tree()
-        strong = world.invoke(
-            world.make_world(),
-            "mutation-check",
-            "Z1",
-            "--source",
-            str(tree),
-        )
-        assert_that((strong.code, strong.out), equal_to((0, "mutation: ok\n")))
-        weak = world.invoke(
-            world.make_world(),
-            "mutation-check",
-            "Z2",
-            "--source",
-            str(tree),
-        )
-        assert_that(weak.code, equal_to(1))
-        assert_that(weak.out, contains_string("survived: Z2 weak"))
+
+        def lenient(where: pathlib.Path, ids: Sequence[str]) -> bool:
+            return True
+
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            code = mutationci.main(["Z2"], {"GITHUB_ACTIONS": "true"}, lenient, tree)
+        assert_that(code, equal_to(1))
+        assert_that(out.getvalue(), contains_string("survived: Z2 weak"))
 
     def test_t444_a_row_whose_tests_fail_unmutated_is_a_failed_control(self) -> None:
-        """A broken function: the control fails before any mutant is made."""
-        tree = tiny_tree()
-        (tree / "pitboss" / "tiny.py").write_text(
-            "def positive(n):\n    return False\n"
+        """The control fails before any mutant is made."""
+        seen, run = _runner(False)
+        found = mutationci.check_row(run, tiny_tree(), rules.parse(REGISTER)[0][0])
+        assert_that(
+            (found, len(seen)),
+            equal_to(
+                (["control-failed: Z1 tiny.positive: its tests fail unmutated"], 1)
+            ),
         )
-        done = world.invoke(
-            world.make_world(),
-            "mutation-check",
-            "Z1",
-            "--source",
-            str(tree),
-        )
-        assert_that(done.out, contains_string("control-failed: Z1"))
 
     def test_t444_a_test_with_no_class_is_run_as_its_module(self) -> None:
-        """The id falls back to the module."""
-        tree = tiny_tree()
-        ids = mutation_commands.test_ids(tree, ["test_tiny.test_missing"])
-        assert_that(ids, equal_to(["pitboss.tests.test_tiny"]))
-
-    def test_t444_without_the_sandbox_the_command_refuses(self) -> None:
-        """A mutant is broken code and once replaced /dev/null: nothing runs."""
-        tree = tiny_tree()
-        argv = [
-            "mutation-check",
-            "Z1",
-            "--source",
-            str(tree),
-            "--unshare",
-            "/nonexistent-unshare",
-        ]
-        done = world.invoke(world.make_world(), *argv)
-        assert_that((done.code, "refused" in done.out), equal_to((2, True)))
-
-
-class TestSandbox(unittest.TestCase):
-    """A mutant cannot change ``/dev`` (keyword: mutation-sandbox)."""
-
-    def test_t444_dev_is_read_only_inside_the_sandbox_and_not_outside(self) -> None:
-        """The kernel is only asked (``os.access``): nothing is written to /dev."""
-        prefix = mutation_commands.sandbox("unshare")
-        ask = [sys.executable, "-c", mutation_commands.PROBE]
-        outside = subprocess.run(ask, check=False).returncode
-        inside = subprocess.run([*prefix, *ask], check=False).returncode
+        """The id falls back to the module; a test of a class is named with it."""
+        ids = mutationci.test_ids(
+            tiny_tree(), ["test_tiny.test_missing", "test_tiny.test_z1_positive"]
+        )
         assert_that(
-            (outside, inside, mutation_commands.works(prefix)), equal_to((1, 0, True))
+            ids,
+            equal_to(
+                [
+                    "pitboss.tests.test_tiny",
+                    "pitboss.tests.test_tiny.TestTiny.test_z1_positive",
+                ]
+            ),
         )
 
-    def test_t444_a_missing_unshare_is_no_sandbox(self) -> None:
-        """The probe fails when the program is not there."""
+    def test_t444_the_killers_named_for_a_row_join_its_tests(self) -> None:
+        """A test of ``test_mutation_rows`` named for the row and its function is run with the row's."""
+        tree = tiny_tree()
+        rows = rules.parse(REGISTER)[0]
+        found = [list(mutationci.killers(tree, row)) for row in rows]
+        named = "pitboss.tests.test_mutation_rows.TestRows."
         assert_that(
-            mutation_commands.works(mutation_commands.sandbox("/nonexistent")),
-            equal_to(False),
+            found,
+            equal_to(
+                [
+                    [named + "test_z1_positive_1_is_held"],
+                    [named + "test_z2_weak_1_is_held"],
+                ]
+            ),
         )
+
+    def test_t444_no_command_runs_mutants(self) -> None:
+        """The command list has no registration of mutation-check (G29)."""
+        source = pathlib.Path(__file__).parent.parent.parent.parent
+        assert_that(nolocalmutants.registrations(source), equal_to([]))

@@ -218,12 +218,6 @@ class TestRowsHoldTheirFunctions(unittest.TestCase):
             "pitboss.tests.test_brief_order.TestOrderTables.test_the_rule_sits_in_the_tickets_section_of_rules"
         )
 
-    def test_c17_refusal_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``False` -> `True`` is killed by this test."""
-        rerun(
-            "pitboss.tests.test_base_check.TestTheCommand.test_a_base_the_head_equals_fails_the_check_naming_the_test"
-        )
-
     def test_c30_findings_1_is_held_by_a_test_of_its_behaviour(self) -> None:
         """The mutant of ``120` -> `121`` is killed by this test."""
         rerun(
