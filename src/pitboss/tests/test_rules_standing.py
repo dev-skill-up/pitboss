@@ -50,6 +50,10 @@ class TestTheSweepPrintsTheRule(unittest.TestCase):
         """Printed."""
         printed("B5")
 
+    def test_c8_an_unset_secret_fails(self) -> None:
+        """Printed."""
+        printed("C8")
+
     def test_d7_never_assume_the_owner_acted(self) -> None:
         """Printed."""
         printed("D7")

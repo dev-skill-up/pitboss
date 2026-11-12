@@ -32,6 +32,10 @@ RULES: Mapping[str, str] = {
         "B5: run `pitboss slots next` again before each dispatch; an order read"
         " earlier is stale."
     ),
+    "C8": (
+        "C8: a workflow that reads a secret fails when it is unset; it never"
+        " skips the step or falls back to an empty value."
+    ),
     "D7": (
         "D7: never assume the owner acted; ask him, or read the PR, the issue or"
         " the log that shows it."

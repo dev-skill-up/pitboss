@@ -66,7 +66,7 @@ C4	2026-11-09	enforced	Never re-run CI to get rid of a flake; root-cause a failu
 C5	2026-10-30	enforced	Failed-check details are read through the API	supersede.settle	test_register_rules.test_c5_a_failed_check_is_read_through_the_api
 C6	2026-10-30	output	A flake is never closed until addressed	flake.unmarked_line	test_register_rules.test_c6_a_flake_is_not_closed_until_addressed
 C7	2026-11-07	enforced	A relock with green CI and pins-check OK merges with no review and ranks last	work.ordered	test_register_rules.test_c7_a_green_relock_ranks_last
-C8	2026-11-08	outside	An unset secret fails	-	-
+C8	2026-11-08	output	An unset secret fails	brieftextrules.reminder	test_rules_standing.test_c8_an_unset_secret_fails
 C9	2026-11-06	output	The sweep lists every org repo	ownerrepos.widened	test_register_rules.test_c9_the_sweep_lists_every_org_repository
 C10	2026-10-30	output	The sweep and slots run from the newest pitboss	outdated.lines	test_register_rules.test_c10_the_sweep_runs_from_the_newest_pitboss
 C11	2026-10-31	enforced	Everything the orchestrator creates is synced	syncing.sync_lines	test_register_rules.test_c11_what_the_orchestrator_creates_is_synced
