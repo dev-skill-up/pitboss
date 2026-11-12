@@ -104,6 +104,8 @@ class Marker(enum.Enum):
             known-red, quire#1120).
         STALE_CLAIM: a PR's body names a head that is not its head, so a worker's
             claim of a push was not true (keyword: claim-readback, quire#1115).
+        ADOPT_REVIEW: a PR's body says the ``adopt`` script made it, so its review is
+            of the script, not of the diff (keyword: adopt-made, pitboss#423).
         MECHANICAL_FIX: a PR's red is a failed plan job or a fixture expectation
             mismatch, which one push fixes and a push to a draft-free hold may
             exempt (keyword: mechanical-fix, pitboss#32).
@@ -291,6 +293,7 @@ class Marker(enum.Enum):
     INCOMPLETE = enum.auto()
     FIX_FIRST = enum.auto()
     STALE_CLAIM = enum.auto()
+    ADOPT_REVIEW = enum.auto()
     MECHANICAL_FIX = enum.auto()
     SLOW_MECHANICAL_FIX = enum.auto()
 
@@ -315,6 +318,7 @@ SPELLED = {
     Marker.WAIT_FOR_HOLD: "WAIT-FOR-HOLD",
     Marker.FIX_FIRST: "FIX FIRST",
     Marker.STALE_CLAIM: "STALE-CLAIM",
+    Marker.ADOPT_REVIEW: "ADOPT-REVIEW",
     Marker.MECHANICAL_FIX: "MECHANICAL-FIX",
     Marker.SLOW_MECHANICAL_FIX: "SLOW-MECHANICAL-FIX",
     Marker.CHECK_IN_OVERDUE: "CHECK-IN OVERDUE",
@@ -349,6 +353,7 @@ SELF_EXPLAINED = frozenset(
         Marker.WAIT_FOR_HOLD,
         Marker.FIX_FIRST,
         Marker.STALE_CLAIM,
+        Marker.ADOPT_REVIEW,
         Marker.MECHANICAL_FIX,
         Marker.SLOW_MECHANICAL_FIX,
         Marker.DROPPED_FROM_QUEUE,

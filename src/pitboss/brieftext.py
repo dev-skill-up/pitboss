@@ -168,8 +168,9 @@ SEPARATE_DRAFT_DRY = (
     " you read the diff and the PR body."
 )
 CI_DRAFT = (
-    "Draft: this PR is a draft, and a draft has no check run, so there is no CI to"
-    " read and none to wait for. You read the diff and the PR body only (and"
+    "Draft: this PR is a draft, and a draft runs no CI job (its check is reported"
+    " skipped, never missing; keyword: draft-ci, pitboss#321), so there is no CI"
+    " to read and none to wait for. You read the diff and the PR body only (and"
     " dry-run the Plan's commands); never hand back"
     " `NOT STARTED` for a missing check run of a draft."
 )

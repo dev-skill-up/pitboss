@@ -67,4 +67,5 @@ def command_rows(name: str, body: str, head: str) -> Sequence[str]:
         *typed_by_hand(name, body),
         *appended(name, body),
         *[f"{name}: {each}" for each in evidence.stale_heads(body, head)],
+        *[f"{name}: {each}" for each in evidence.rev_parse_blocks(body, "")],
     ]

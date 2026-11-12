@@ -146,7 +146,12 @@ class TestTheSweep(unittest.TestCase):
         """The brief ``slots next`` prints for the review reads the check run."""
         out = next_output(draft([COMPLETED]))
         assert_that(out, contains_string(NOT_STARTED))
-        has_none(out, ["a draft has no check run, so there is no CI"])
+        has_none(
+            out,
+            [
+                "a draft runs no CI job (its check is reported skipped, never missing; keyword: draft-ci, pitboss#321), so there is no CI"
+            ],
+        )
 
 
 class TestTheFlow(unittest.TestCase):
@@ -201,7 +206,7 @@ class TestTheBrief(unittest.TestCase):
         found = text(brief.Kind.REVIEW_PLAN, plan_check="check")
         assert_that(found, contains_string(NOT_STARTED))
         assert_that(found, contains_string("`check` check run of the head SHA"))
-        has_none(found, ["a draft has no check run", "never hand back `NOT STARTED`"])
+        has_none(found, ["a draft runs no CI job", "never hand back `NOT STARTED`"])
 
     def test_a_ready_pr_keeps_the_ci_sentence(self) -> None:
         """Only a draft's brief changes."""

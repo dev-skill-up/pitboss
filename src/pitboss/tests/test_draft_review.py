@@ -252,7 +252,7 @@ class TestTheBrief(unittest.TestCase):
     def test_a_plan_review_reads_the_diff_and_the_body_only(self) -> None:
         """No hand-back NOT STARTED for a missing check run."""
         found = text(brief.Kind.REVIEW_PLAN)
-        assert_that(found, contains_string("a draft has no check run"))
+        assert_that(found, contains_string("a draft runs no CI job"))
         assert_that(found, contains_string("You read the diff and the PR body only"))
         assert_that(found, contains_string("never hand back `NOT STARTED`"))
         has_none(
@@ -265,10 +265,20 @@ class TestTheBrief(unittest.TestCase):
         found = brief.build(spec)
         assert_that(found.count(CI_LINE), equal_to(1))
         assert_that(found, contains_string("Scope (exclusive): the Plan of head"))
-        has_none(found, ["a draft has no check run, so there is no CI"])
+        has_none(
+            found,
+            [
+                "a draft runs no CI job (its check is reported skipped, never missing; keyword: draft-ci, pitboss#321), so there is no CI"
+            ],
+        )
 
     def test_every_other_review_still_reads_the_checks(self) -> None:
         """A review of a head with a check run is refused without a finished one."""
         found = text(brief.Kind.REVIEW_FULL) + text(brief.Kind.REVIEW_EXECUTION)
         assert_that(found.count(CI_LINE), equal_to(2))
-        has_none(found, ["a draft has no check run, so there is no CI"])
+        has_none(
+            found,
+            [
+                "a draft runs no CI job (its check is reported skipped, never missing; keyword: draft-ci, pitboss#321), so there is no CI"
+            ],
+        )

@@ -338,7 +338,7 @@ class TestThePieces(unittest.TestCase):
 
 
 class TestTheBrief(unittest.TestCase):
-    """Only the Plan-stage brief says a draft has no check run."""
+    """Only the Plan-stage brief says a draft runs no CI job."""
 
     def test_each_review_brief_but_the_plan_stage_reads_the_complete_run(self) -> None:
         """The sentence, in the briefs that grade an Execution."""
@@ -346,7 +346,7 @@ class TestTheBrief(unittest.TestCase):
             "Read the complete run of this head. A draft, or a head with an"
             " unfinished check, is `NOT STARTED`, not a verdict"
         )
-        said = "a draft has no check run"
+        said = "a draft runs no CI job"
         for kind in brief.REVIEWS:
             found = brief.build(make(kind))
             plan = kind is brief.Kind.REVIEW_PLAN

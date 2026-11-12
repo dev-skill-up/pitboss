@@ -4,6 +4,7 @@ import datetime
 from typing import Mapping, Sequence
 
 from . import (
+    adoptline,
     analysisline,
     claimline,
     config,
@@ -63,6 +64,7 @@ def lines(
         (
             *stall.lines(pull, now, steps),
             *claimline.lines(pull),
+            *adoptline.lines(pull),
             *_branch_lines(pull, settings, (now, failures)),
             *roundline.lines(pull),
             *planeditline.lines(pull),

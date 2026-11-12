@@ -11,6 +11,8 @@ nothing, as the body is given.
 
 import re
 
+from . import evidence
+
 PLAN = re.compile(r"^##[ \t]+Plan[ \t]*$")
 HEADING = re.compile(r"^##[ \t]")
 ROW = re.compile(r"^(\s*\d{1,9}[.)]\s+)(.*?)((?:[ \t]CI:.*)?)$")
@@ -33,7 +35,8 @@ def mask(body: str) -> str:
     """
     inside = False
     kept: list[str] = []
-    for line in body.split("\n"):
+    # keyword: expand-output (pitboss#223): a produced block is output, not words
+    for line in evidence.prose(body).split("\n"):
         inside = bool(PLAN.match(line)) or (inside and not HEADING.match(line))
         kept.append(_masked(line) if inside else line)
     return "\n".join(kept)

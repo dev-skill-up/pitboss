@@ -40,7 +40,7 @@ def draft_ci(check: str) -> str:
             when it requires none.
 
     Returns:
-        The sentence that says a draft has no check run, or, with a check, the
+        The sentence that says a draft runs no CI job, or, with a check, the
         one that makes the reviewer read that check run first.
     """
     return CI_DRAFT_CHECK.format(check=check) if check else CI_DRAFT

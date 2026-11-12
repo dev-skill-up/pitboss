@@ -142,3 +142,21 @@ class TestFoldedBriefs(unittest.TestCase):
         )
         assert_that(out, contains_string(test_plan_review_listed.PLAN_ALONE))
         assert_that("empty commit" in out, equal_to(False))
+
+
+class TestDraftCi(unittest.TestCase):
+    """The sentence about a draft's CI is the one that is still true (pitboss#321)."""
+
+    def test_t321_a_draft_runs_no_job_and_its_check_is_skipped(self) -> None:
+        """Skipped, not missing; the old claim that a draft has no check run is gone."""
+        for kind in (brief.Kind.REVIEW_PLAN, brief.Kind.REVIEW_FULL):
+            found = text(kind, ready=False)
+            has_none(found, ["a draft has no check run"])
+        has_all(
+            text(brief.Kind.REVIEW_PLAN, ready=False),
+            [
+                "a draft runs no CI job (its check is reported skipped, never"
+                " missing; keyword: draft-ci, pitboss#321)",
+                "never hand back `NOT STARTED` for a missing check run of a draft",
+            ],
+        )

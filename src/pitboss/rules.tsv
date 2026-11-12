@@ -117,17 +117,17 @@ T458	2026-11-12	enforced	plan-check refuses a Plan with a Done-when item that ha
 T406	2026-11-12	enforced	The fragment check refuses a cut line that starts with any closing mark by its Unicode category	markuplines.fragments	test_markup_fragments.test_t406_every_closing_mark_is_refused_and_an_opening_one_is_not
 T437	2026-11-12	open	hand-back-check names the owner's allowance when a worker stops at a repository rule that forbids the feature	-	-
 T394	2026-11-12	open	pitboss body-head prints the merge-proof pair from the body last Head, not from the reviewed SHA	-	-
-T329	2026-11-12	open	pitboss lint refuses a body whose `git rev-parse HEAD` Evidence block differs from the last Head line	-	-
+T329	2026-11-12	enforced	pitboss lint refuses a body whose `git rev-parse HEAD` Evidence block differs from the last Head line	evidence.rev_parse_blocks	test_folded_lints.test_t329_a_block_that_prints_another_sha_is_refused test_folded_lints.test_t329_a_block_that_prints_the_head_passes test_folded_lints.test_t329_another_command_is_not_read
 T221	2026-11-12	enforced	The "revise the plan" brief asks for an empty commit; a Plan-only revision needs no new head	brief.build	test_folded_briefs.test_t221_the_revised_plan_pushes_nothing test_folded_briefs.test_t221_the_unmoved_head_is_offered_for_the_plan_review_again
 T222	2026-11-12	open	An Opus ruling at the Plan stage does not exhaust the Execution stage's rounds: the first Execution rejection is fixed against the Plan, not escalated to the owner	-	-
 T365	2026-11-12	open	plan-check refuses a Plan whose change adds a config table or key that doc/example.toml does not list	-	-
 T407	2026-11-12	enforced	The worker brief asks a new syntax scan to plant one input for each spelling of every form its Done-when names	brief.build	test_folded_briefs.test_t407_the_worker_plans_one_input_for_each_spelling test_folded_briefs.test_t407_the_review_refuses_a_scan_missing_a_spelling
-T413	2026-11-12	open	The phrase lint exempts a verbatim copy of the ticket's Done-when	-	-
+T413	2026-11-12	enforced	The phrase lint exempts a verbatim copy of the ticket's Done-when	quotedplan.mask	test_folded_lints.test_t413_a_copied_done_when_row_passes_and_the_prose_is_refused
 T417	2026-11-12	enforced	The review brief refuses a deviation from a Done-when item that is a scheduling constraint, not an impossibility	brief.build	test_folded_briefs.test_t417_a_scheduling_constraint_is_not_an_impossibility
 T419	2026-11-12	open	pitboss next reports MISSING NAMES for a Done-when name that is not a path (an allowlist line key)	-	-
-T423	2026-11-12	open	pitboss lint pr-body refuses the Evidence of a pull request made by a reviewed script (tools/adopt)	-	-
+T423	2026-11-12	enforced	pitboss lint pr-body refuses the Evidence of a pull request made by a reviewed script (tools/adopt)	evidence.hand_typed	test_folded_lints.test_t423_the_two_rows_of_the_script_are_not_hand_typed test_folded_lints.test_t423_the_same_rows_in_any_other_body_are_hand_typed test_folded_lints.test_t423_a_row_of_another_command_is_still_hand_typed test_folded_lints.test_t423_the_sweep_says_the_review_is_of_the_script
 T433	2026-11-12	enforced	markup-lines refuses a generated report that a script writes	generatedfiles.handwritten	test_markup_gate.test_t433_a_generated_report_passes test_markup_gate.test_t433_a_hand_written_file_is_still_refused test_markup_gate.test_t433_a_hand_written_line_next_to_a_generated_file_is_refused test_generated_files.test_t433_a_script_that_names_the_file_makes_it_generated test_generated_files.test_t433_the_numstat_and_the_patch_lose_only_generated_markup test_generated_files.test_t433_a_patch_that_starts_with_no_header_is_kept
-T223	2026-11-12	open	The PR-body lint reads the lines inside pitboss-expand blocks, so a words check refuses a Plan-mandated git diff row	-	-
+T223	2026-11-12	enforced	The PR-body lint reads the lines inside pitboss-expand blocks, so a words check refuses a Plan-mandated git diff row	evidence.prose	test_folded_lints.test_t223_a_refused_word_in_an_expand_block_passes test_folded_lints.test_t223_the_same_word_in_the_prose_is_refused test_folded_lints.test_t223_the_expand_block_checks_stay
 T286	2026-11-12	enforced	A Plan whose commands run in a scratch path must make or show that path's state, and a timed row must give its limit	brief.build	test_folded_briefs.test_t286_a_path_outside_the_checkout_needs_its_state_in_the_plan
 T399	2026-11-12	open	Drop the acceptance of Plan digests recorded before pitboss#358 collapsed expanded blocks	-	-
 T52	2026-11-12	open	Add `pitboss lint e2e-waits`: refuse fixed waits and nameless quarantine marks in end-to-end tests	-	-
@@ -151,7 +151,7 @@ T32	2026-11-12	enforced	sweep classifies a mechanical red and a push that fixes 
 T50	2026-11-12	open	Add a tracked pre-push hook that runs the project's configured first-minute checks	-	-
 T51	2026-11-12	open	Add sweep lines HOOKS-NOT-INSTALLED and NO-VERIFY, and make the push command load the project's env file	-	-
 T141	2026-11-12	enforced	Runner-pressure holds apply only to repos of the org whose runners are busy	holdscope.applies	test_hold_scope.test_t141_the_pressure_line_names_the_organisation test_hold_scope.test_t141_a_repository_of_another_organisation_is_not_held test_hold_scope.test_t141_a_push_to_another_organisation_goes_out
-T321	2026-11-12	open	brieftext.py CI_DRAFT says a draft has no check run, which is the claim pitboss#277 removes	-	-
+T321	2026-11-12	enforced	brieftext.py CI_DRAFT says a draft has no check run, which is the claim pitboss#277 removes	brieftextdraft.draft_ci	test_folded_briefs.test_t321_a_draft_runs_no_job_and_its_check_is_skipped
 T334	2026-11-12	open	pitboss deletes stale remote branches: a command the owner runs from a machine with push rights	-	-
 T310	2026-11-12	open	Remove the positional configuration argument of the pitboss commands (after #307's overlap)	-	-
 T432	2026-11-12	open	pitboss nox passes on the branch alone while CI tests the PR merged with main	-	-
