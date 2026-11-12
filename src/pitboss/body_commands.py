@@ -24,8 +24,10 @@ from . import (
     expand_commands,
     handbackrun,
     expansion,
+    partial,
     plandigest,
     workeractions,
+    workeredits,
 )
 
 USAGE_ERROR = 2
@@ -91,6 +93,13 @@ def body_digest(args: argparse.Namespace) -> None:
         " git directory and the processes under it are judged",
     ),
     add_argument(
+        "--output",
+        default=None,
+        help="the worker's whole output file (JSON lines): its file edit tools are"
+        " listed, and an edit of a file outside the worktree or a shell command"
+        " that edits files is refused (B16, keyword: worker-edits)",
+    ),
+    add_argument(
         "--processes",
         default="/proc",
         help="the directory of process entries (default: /proc): a process"
@@ -114,17 +123,29 @@ def hand_back_check(args: argparse.Namespace) -> None:
         SystemExit: 1 when the hand-back has no ``Deviations:`` line or a clone
             is not on its default branch with a clean tree.
     """
-    missing = deviations.not_started(_read(args.file))
+    text = _read(args.file)
+    missing = deviations.not_started(text)
     configsettle.find_or_say(args)
     refused = list(cloneguard.refusals(args, configfile.working_directory(args)))
     refused.extend(handbackrun.refusals(args, commands.load_settings(args)))
-    lines = [each for each in (missing, *refused) if each]
+    refused.append(partial.refusal(text))  # B17, keyword: partial-hand-back
+    edits = _edits(args)
+    if edits:
+        print(edits[0])  # the EDIT TOOLS line informs; the others refuse
+    lines = [each for each in (missing, *refused, *edits[1:]) if each]
     for each in lines:
         print(each)
     if lines:
         raise SystemExit(1)
     handbackrun.accept(args)  # recorded only when nothing at all refused
     print("ok")
+
+
+def _edits(args: argparse.Namespace) -> Sequence[str]:
+    if args.output is None:
+        return []
+    root = pathlib.Path(handbackrun.git_out(args, "rev-parse", "--show-toplevel"))
+    return workeredits.lines(_read(args.output).splitlines(), root)
 
 
 def _scan(entries: Sequence[str], patterns: Sequence[str]) -> Sequence[str]:

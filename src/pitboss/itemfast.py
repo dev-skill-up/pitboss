@@ -17,6 +17,7 @@ from gather.commands import add_argument
 from . import (
     blockers,
     brief,
+    briefsave,
     config,
     itempick,
     ledger,
@@ -27,6 +28,7 @@ from . import (
     pullread,
     pulls,
     queue,
+    quiesce,
     shapes,
     slotholding,
     suggest,
@@ -36,6 +38,16 @@ from . import (
 )
 
 Runs = Callable[[], Sequence[queue.QueueRun]]
+FORCED = "FORCED: the plain command refuses: {text}"
+FORCE_ARGUMENT = add_argument(
+    "--force",
+    action="store_true",
+    default=False,
+    help="for 'slots next TICKET': print the brief the item would get if it were"
+    " startable even when the plain command answers UNKNOWN (a PR matched, a hold,"
+    " a blocker); what was overridden is printed on standard error as FORCED: the"
+    " plain command refuses: <its UNKNOWN text>; the ledger is not changed",
+)
 UNKNOWN = (
     "UNKNOWN: {reference} is not in the order of slots next: {why} (a held or"
     " blocked ticket and a PR at a wait are not)"
@@ -75,15 +87,23 @@ def _ticket(
     repo: config.Repo,
     reference: str,
     ticket: blockers.Ticket,
+    forced: bool = False,
 ) -> suggest.Pick:
-    # raises Unknown for a ticket a hold, a PR, a blocker or a supersession keeps back
-    ranked = itempick.priority(found.settings, reference, ticket.labels)
-    count, named = itempick.taken(found, repo, reference)
-    if repo.slug in offering.standing(found, [repo.slug] * count):
-        raise itempick.Unknown(f"no new pull requests in {repo.slug}: it is held")
-    if named:
-        raise itempick.Unknown("an open PR already works on it")
-    itempick.kept_back(found, reference, ticket)
+    # raises Unknown for a ticket a hold, a PR, a blocker or a supersession keeps back,
+    # unless forced (D3, keyword: force-brief), which builds the pick all the same
+    try:
+        ranked = itempick.priority(found.settings, reference, ticket.labels)
+    except itempick.Whole:
+        if not forced:
+            raise
+        ranked = 0
+    if not forced:
+        count, named = itempick.taken(found, repo, reference)
+        if repo.slug in offering.standing(found, [repo.slug] * count):
+            raise itempick.Unknown(f"no new pull requests in {repo.slug}: it is held")
+        if named:
+            raise itempick.Unknown(f"an open PR already works on it: {named}")
+        itempick.kept_back(found, reference, ticket)
     item = workitem.of_ticket(reference, ticket, ranked)
     return suggest.Pick(
         reference=reference,
@@ -94,9 +114,11 @@ def _ticket(
     )
 
 
-def _step(read: pulls.PullFacts, found: nextfound.Found) -> suggest.Pick:
+def _step(
+    read: pulls.PullFacts, found: nextfound.Found, forced: bool = False
+) -> suggest.Pick:
     # the pick of a PR that was read: a ruling, a round, or nothing
-    if pulls.reference(read) in pullmarks.pull_marks(found, [read]):
+    if not forced and pulls.reference(read) in pullmarks.pull_marks(found, [read]):
         raise itempick.Unknown("its ticket waits for an open ticket or PR")
     source = suggest.sourced(found, [read], work.pull_items([read]), {})
     chosen = suggest.picks(source)
@@ -106,7 +128,11 @@ def _step(read: pulls.PullFacts, found: nextfound.Found) -> suggest.Pick:
 
 
 def _pull(
-    found: nextfound.Found, repo: config.Repo, reference: str, runs: Runs
+    found: nextfound.Found,
+    repo: config.Repo,
+    reference: str,
+    runs: Runs,
+    forced: bool = False,
 ) -> suggest.Pick:
     undraft = sweepline.undraft_check(found.github, found.settings, found.now, runs)
     undraft()  # the look at the runners is made whether or not this PR asks
@@ -114,15 +140,20 @@ def _pull(
     read = pullread.read_one(found.github, found.settings, undraft, (repo, number))
     if isinstance(read, shapes.Unreadable):
         raise itempick.Unknown(f"the PR cannot be read ({read.call}: {read.status})")
-    return _step(read, found)
+    return _step(read, found, forced)
 
 
 def _picked(
-    found: nextfound.Found, live: ledger.Ledger, reference: str, runs: Runs
+    found: nextfound.Found,
+    live: ledger.Ledger,
+    reference: str,
+    runs: Runs,
+    forced: bool = False,
 ) -> suggest.Pick:
     # what one item is: raises Unknown when slots next offers nothing for it, and
     # Whole when only the whole order can tell
-    if reference in {each.task for each in live.slots if each.agent}:
+    held = reference in {each.task for each in live.slots if each.agent}
+    if held and not forced:
         raise itempick.Unknown("a slot already works on it")
     slug = reference.rpartition("#")[0]
     repos = {each.slug: each for each in config.repositories(found.settings)}
@@ -132,8 +163,8 @@ def _picked(
     if ticket is None or not ticket.open:
         raise itempick.Unknown("it is closed or cannot be read")
     if ticket.pull:
-        return _pull(found, repos[slug], reference, runs)
-    return _ticket(found, repos[slug], reference, ticket)
+        return _pull(found, repos[slug], reference, runs, forced)
+    return _ticket(found, repos[slug], reference, ticket, forced)
 
 
 def _print(
@@ -144,6 +175,9 @@ def _print(
     place = placeline.RULING if ruled else placeline.line(found, pick.reference)
     print(f"{place}: {made.kind.value}: {made.reference}: {made.model}")
     print(made.text)
+    ledger_file = found.settings.slots.ledger
+    saved = briefsave.save(ledger_file, made.reference, made.model, made.text)
+    print(saved, file=sys.stderr)  # the brief on standard output is the brief alone
 
 
 def _made(
@@ -154,18 +188,38 @@ def _made(
     return suggest.suggest(suggest.sourced(found, facts, items, live.failed), pick)
 
 
+def _overridden(
+    found: nextfound.Found, live: ledger.Ledger, reference: str, runs: Runs
+) -> suggest.Pick | None:
+    # the pick the plain command refused (D3, keyword: force-brief); none when the
+    # item has no step to brief (a PR at a wait) or cannot be read
+    try:
+        return _picked(found, live, reference, runs, True)
+    except (itempick.Whole, itempick.Unknown):
+        return None
+
+
 def _attempt(
     found: nextfound.Found, book: ledger.Ledger, reference: str, runs: Runs
 ) -> tuple[ledger.Ledger, suggest.Pick | Outcome]:
     # the ledger as live, and the pick or why there is none: UNKNOWN (said on
     # standard error) or WHOLE
     live = slotholding.live(found.args, book)
+    if quiesce.is_on(found.settings.slots.ledger):  # D11
+        print(quiesce.REFUSED.format(reference=reference), file=sys.stderr)
+        return live, Outcome.UNKNOWN
     try:
         return live, _picked(found, live, reference, runs)
     except itempick.Whole:
         return live, Outcome.WHOLE
     except itempick.Unknown as refused:
-        print(UNKNOWN.format(reference=reference, why=refused), file=sys.stderr)
+        text = UNKNOWN.format(reference=reference, why=refused)
+        if getattr(found.args, "force", False):
+            overridden = _overridden(found, live, reference, runs)
+            if overridden is not None:
+                print(FORCED.format(text=text), file=sys.stderr)
+                return live, overridden
+        print(text, file=sys.stderr)
         return live, Outcome.UNKNOWN
 
 

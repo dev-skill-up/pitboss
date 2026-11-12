@@ -90,6 +90,8 @@ class Item:
             until (keyword: ticket-blocked), also for a PR whose ticket says it
             (keyword: blocked-pull, pitboss#388).
         ticket: the ticket a PR fixes, or "".
+        mechanical: whether it is the review of a relock PR, which ranks last
+            (B9, keyword: relock-last).
     """
 
     category: Category
@@ -102,6 +104,7 @@ class Item:
     comments: int = 0
     blockers: Sequence[str] = ()
     ticket: str = ""
+    mechanical: bool = False
 
 
 class Described(Protocol):

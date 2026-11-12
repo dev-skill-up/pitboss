@@ -87,6 +87,7 @@ module = [
     "pitboss.capture_commands",
     "pitboss.ownerpause_commands",
     "pitboss.case_commands",
+    "pitboss.quiesce_commands",
     "pitboss.cancel_commands",
     "pitboss.checkinlines",
     "pitboss.sweep_commands",

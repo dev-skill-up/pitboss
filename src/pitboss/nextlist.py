@@ -15,6 +15,7 @@ from . import (
     config,
     configfile,
     diskwatch,
+    duplicatepr,
     exempt,
     ledger,
     handedback,
@@ -28,12 +29,15 @@ from . import (
     pullmarks,
     pulls,
     pullstate,
+    quiesce,
     rankline,
     readyline,
+    skipitem,
     slotheld,
     slotholding,
     slotlog,
     slotsheader,
+    stuckci,
     suggest,
     timing,
     unlabeledsearch,
@@ -156,9 +160,15 @@ def show(
         book: the slot ledger.
     """
     logline.post(found.settings.slots.log)
+    if quiesce.is_on(found.settings.slots.ledger):  # D11: nothing is offered
+        print(quiesce.LINE)
+        return
     book = _live(found, opened, book)
     unreadableline.print_withheld(opened)
     ordered = _windowed(found, opened, book)
+    skipped = skipitem.named(found.args, found.settings.project.repo)
+    skip_lines = skipitem.lines(ordered, skipped)
+    ordered = skipitem.without(ordered, skipped)
     timing.note(found.args, "ranking", len(ordered.items), "items")
     source = _source(found, opened, ordered, book)
     view = _view(found, ordered, book, Reads(facts=source.facts, opened=opened))
@@ -168,6 +178,7 @@ def show(
     for line in itertools.chain(
         header(found, book, view),
         unlabeledsearch.lines(found.github, found.settings),
+        skip_lines,
         nextview.next_lines(view),
         _unread(ordered, view),
         offering.disagreements(found, ordered),
@@ -181,6 +192,8 @@ def _tail(found: Found, source: suggest.Source) -> Iterable[str]:
     # what follows the list: the PR states, the disk, the override and the briefs
     return itertools.chain(
         pullstate.lines(found.github, found.settings, source.facts),
+        duplicatepr.lines(source.facts),
+        stuckci.lines(found.github, source.facts, found.now),
         [diskwatch.line(source.volume)] if source.volume else [],
         [exempt.OVERRIDE],  # keyword: pitboss-exempt (pitboss#113)
         suggest.lines(source),

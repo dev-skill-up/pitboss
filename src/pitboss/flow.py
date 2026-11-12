@@ -8,7 +8,8 @@ what is recorded of the PR, so a wrong step is a bug in one of them. The pseudo
 code's second function is ``rulings.after_opus_ruling``.
 """
 
-from typing import Sequence
+import dataclasses
+from typing import Callable, Mapping, Sequence
 
 from . import (
     bodydigest,
@@ -259,31 +260,15 @@ def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
 def next_step(pr: PullState) -> steps.Next:
     """The one step a PR is at (the owner's pseudo code, 2026-10-30).
 
+    The first row of ``ROWS`` that holds decides (keyword: flow-order, item 11).
+
     Args:
         pr: the PR.
 
     Returns:
         The step.
     """
-    if is_paused_for_owner(pr):
-        return steps.wait_for_owner()
-
-    # the newest Opus ruling must be readable, and an approved Plan stays as it is
-    if held := flowstate.ruling_hold(pr):  # keyword: plan-digest (pitboss#172)
-        return rulingafter.held_step(held, flowstate.ruling_unapplied(pr))
-
-    # keyword: conflict-first (pitboss#148, Opus ruling on #181): a conflict is a
-    # fix at every stage but while steps.WAITS holds it (PLAN_EDITED included)
-    review = newest_counting_review(pr)
-    if has_conflict(pr):
-        return waiting_step(pr, review) or steps.worker(steps.Task.RESOLVE_CONFLICT)
-
-    # ---- before any review: the first work on a PR; a relock PR fixes no ticket
-    # and has no body to write: its review (pitboss#126), or ``pinsonly`` (#34)
-    if not (pr.relock or planbody.has_plan_execution_body(pr.pull.body)):
-        return steps.worker(steps.Task.FIRST_ROUND)
-
-    return draft_gate(pr, review)
+    return next(row.step(pr) for row in ROWS if row.holds(pr))
 
 
 def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
@@ -398,3 +383,81 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
 
     # approved; a ruling to do its steps after the approval voided it above (#467)
     return conflicts.merge_unless_conflict(pr)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Row:
+    """A row of the order in which ``next_step`` decides.
+
+    Attributes:
+        name: the row's name, as ``STATED`` names it.
+        holds: whether the row decides this PR's step.
+        step: the step it decides.
+    """
+
+    name: str
+    holds: Callable[[PullState], bool]
+    step: Callable[[PullState], steps.Next]
+
+
+def _ruling_held(pr: PullState) -> steps.Next:
+    # the newest Opus ruling must be readable, and an approved Plan stays as it is
+    # (keyword: plan-digest, pitboss#172)
+    held = flowstate.ruling_hold(pr)
+    if held is None:  # pragma: no cover
+        return steps.wait_for_owner()  # unreachable: the row holds only when held
+    return rulingafter.held_step(held, flowstate.ruling_unapplied(pr))
+
+
+def _conflict_step(pr: PullState) -> steps.Next:
+    # keyword: conflict-first (pitboss#148, Opus ruling on #181): a conflict is a
+    # fix at every stage but while steps.WAITS holds it (PLAN_EDITED included)
+    review = newest_counting_review(pr)
+    return waiting_step(pr, review) or steps.worker(steps.Task.RESOLVE_CONFLICT)
+
+
+def _no_body(pr: PullState) -> bool:
+    # before any review: the first work on a PR; a relock PR fixes no ticket and
+    # has no body to write: its review (pitboss#126), or ``pinsonly`` (#34)
+    return not (pr.relock or planbody.has_plan_execution_body(pr.pull.body))
+
+
+# The one table of the order in which ``next_step`` decides: the first row that
+# holds wins. ``STATED`` gives the reason for the order of each two rows that can
+# hold at once, and a test fails for a pair that has none (keyword: flow-order).
+ROWS: Sequence[Row] = (
+    Row(
+        name="paused-owner",
+        holds=is_paused_for_owner,
+        step=lambda pr: steps.wait_for_owner(),
+    ),
+    Row(
+        name="ruling-hold",
+        holds=lambda pr: bool(flowstate.ruling_hold(pr)),
+        step=_ruling_held,
+    ),
+    Row(name="conflict", holds=has_conflict, step=_conflict_step),
+    Row(
+        name="first-round",
+        holds=_no_body,
+        step=lambda pr: steps.worker(steps.Task.FIRST_ROUND),
+    ),
+    Row(
+        name="gates",
+        holds=lambda pr: True,
+        step=lambda pr: draft_gate(pr, newest_counting_review(pr)),
+    ),
+)
+STATED: Mapping[tuple[str, str], str] = {
+    ("paused-owner", "ruling-hold"): "a PR paused for the owner is owed nothing else",
+    ("paused-owner", "conflict"): "the owner decides before any fix of a conflict",
+    ("paused-owner", "first-round"): "the owner decides before any first round",
+    ("paused-owner", "gates"): "the owner decides before any gate",
+    ("ruling-hold", "conflict"): "a ruling that is unreadable or edits an approved"
+    " Plan holds the PR before a conflict is fixed (plan-digest)",
+    ("ruling-hold", "first-round"): "a held ruling is answered before a first round",
+    ("ruling-hold", "gates"): "a held ruling is answered before the CI gate",
+    ("conflict", "first-round"): "a conflict is resolved first (conflict-first)",
+    ("conflict", "gates"): "a conflict is a fix at every stage (conflict-first)",
+    ("first-round", "gates"): "a PR with no body gets its first round before review",
+}

@@ -9,6 +9,7 @@ and no job was put on the queue (keyword: quiet-period).
 """
 
 import argparse
+import os
 import pathlib
 import subprocess
 from typing import Sequence
@@ -32,6 +33,7 @@ from . import (
     record,
     report,
     rulingsummary,
+    ticketbranch,
     timing,
     tracefs,
 )
@@ -295,6 +297,7 @@ def _require_green_nox(args: argparse.Namespace) -> None:
 @ENTRY_DATA.register(
     *commandarguments.CHANGING_ARGUMENTS,
     add_argument("--draft", action="store_true", default=False),
+    ticketbranch.TICKET_ARGUMENT,
     add_argument("git_arguments", nargs="*"),
     name="push",
 )
@@ -326,6 +329,7 @@ def push(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     tracefs.say(args.safe_run)
+    ticketbranch.require(args, os.environ)
     found, free = _gate(args, _checked(args))
     outcomes = _send(args)
     if outcomes is not None:

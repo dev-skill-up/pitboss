@@ -30,6 +30,7 @@ from . import (
     noxgreen,
     selectdiff,
     testselect,
+    ticketbranch,
 )
 from .commandarguments import NOW_ARGUMENT
 from .timing import current_time
@@ -152,6 +153,7 @@ def stop_before_running(args: argparse.Namespace) -> None:
             markup-gate, pitboss#398).
     """
     cloneguard.refuse_in_clone(args, configsearch.working_directory(args))
+    ticketbranch.require(args, os.environ)
     stop_when_short_of_disk(args)
     found = markupgate.findings(functools.partial(run_command, args))
     for each in found:
@@ -248,6 +250,7 @@ def run_planned(
         " `refused: this is the main clone; work in your own worktree` and exits 1"
         " (clone-guard, pitboss#297)",
     ),
+    ticketbranch.TICKET_ARGUMENT,
     NOW_ARGUMENT,
     name="nox",
 )

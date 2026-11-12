@@ -53,12 +53,14 @@ def pull_items(facts: Iterable[pulls.PullFacts]) -> Sequence[Item]:
             reference=pulls.reference(pull),
             created_at=pull.pull.created_at,
             title=pull.pull.title,
+            mechanical=pull.relock and category in RELOCK_REVIEWS,
         )
         for pull in facts
         if (category := category_of(pull)) is not None
     ]
 
 
+RELOCK_REVIEWS = frozenset({Category.REVIEW, Category.REVIEW_FIX_ROUND})
 CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.REVISE_PLAN: Category.REVISE_PLAN,
     steps.Task.FIX_CI: Category.FIX_CI,
@@ -179,12 +181,14 @@ def ordered(items: Iterable[Item], held: Iterable[str]) -> Sequence[Item]:
 
     Returns:
         The items, first to take first: every open PR, oldest first, then
-        the tickets by priority label (the owner's if stated), oldest first.
+        the tickets by priority label (the owner's if stated), oldest first,
+        then the reviews of relock PRs (B9, keyword: relock-last).
     """
     holding = frozenset(held)
     return sorted(
         (item for item in items if item.reference not in holding),
         key=lambda item: (
+            item.mechanical,
             item.category is Category.NEW_PR,
             item.priority,
             item.created_at,

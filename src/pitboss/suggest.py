@@ -17,6 +17,7 @@ from . import (
     briefconfig,
     briefheads,
     briefrepo,
+    briefsave,
     config,
     configfile,
     diskwatch,
@@ -348,11 +349,20 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
 
 
 def _ranked(
-    source: Source, shown: Sequence[Pick], first: int, total: int
+    source: Source,
+    shown: Sequence[Pick],
+    first: int,
+    total: int,
+    dispatched: list[str],
 ) -> Iterable[str]:
     marker = Marker.SUGGESTION.text
     for rank, pick in enumerate(shown, start=first):
         found = suggest(source, pick)
+        dispatched.append(
+            briefsave.save(
+                source.settings.slots.ledger, found.reference, found.model, found.text
+            )
+        )
         yield (
             f"{marker} {rank} of {total}: {found.kind.value}:"
             f" {found.reference}: {found.model}"
@@ -381,6 +391,8 @@ def lines(source: Source) -> Iterable[str]:
     cleaning = diskwatch.crowded(source.volume)
     total = len(shown) + cleaning
     yield from diskwatch.opening(source.volume, source.big, total)
-    yield from _ranked(source, shown, 1 + cleaning, total)
+    dispatched: list[str] = []
+    yield from _ranked(source, shown, 1 + cleaning, total, dispatched)
+    yield from dispatched  # B6 (keyword: brief-save): each brief is a file
     if len(every) > len(shown):
         yield f"{marker}: {len(every) - len(shown)} more queued, not shown"

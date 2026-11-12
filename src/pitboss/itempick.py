@@ -23,17 +23,21 @@ class Whole(Exception):
     """Only the whole order can tell."""
 
 
-def _named(repo: config.Repo) -> Callable[[str], Sequence[frozenset[str]]]:
-    # the tickets each raw PR of the list names (a short page is the last one)
-    def parse(text: str) -> Sequence[frozenset[str]]:
+def _named(repo: config.Repo) -> Callable[[str], Sequence[tuple[int, frozenset[str]]]]:
+    # each raw PR of the list: its number and the tickets it names (a short page is
+    # the last one)
+    def parse(text: str) -> Sequence[tuple[int, frozenset[str]]]:
         return [
-            frozenset(
-                pullnames.names(
-                    each.get("title") or "",
-                    each.get("body") or "",
-                    each["head"]["ref"],
-                    repo,
-                )
+            (
+                each.get("number", 0),
+                frozenset(
+                    pullnames.names(
+                        each.get("title") or "",
+                        each.get("body") or "",
+                        each["head"]["ref"],
+                        repo,
+                    )
+                ),
             )
             for each in json.loads(text)
         ]
@@ -41,13 +45,17 @@ def _named(repo: config.Repo) -> Callable[[str], Sequence[frozenset[str]]]:
     return parse
 
 
-def _crossed(reference: str, repo: config.Repo) -> Callable[[str], Sequence[bool]]:
-    # whether each event is a mention by an open PR that fixes the ticket (a mention
-    # in a Plan or an Evidence block does not, keyword: taken, pitboss#448)
-    def parse(text: str) -> Sequence[bool]:
+def _crossed(reference: str, repo: config.Repo) -> Callable[[str], Sequence[str]]:
+    # the PR of each event that is a mention by an open PR that fixes the ticket, else
+    # "" (a mention in a Plan or an Evidence block does not, keyword: taken, pitboss#448)
+    def parse(text: str) -> Sequence[str]:
         return [
-            each.get("event") == "cross-referenced"
-            and _fixing(each["source"]["issue"], reference, repo)
+            (
+                f"#{each['source']['issue'].get('number')}"
+                if each.get("event") == "cross-referenced"
+                and _fixing(each["source"]["issue"], reference, repo)
+                else ""
+            )
             for each in json.loads(text)
         ]
 
@@ -64,7 +72,7 @@ def _fixing(issue: Mapping[str, object], reference: str, repo: config.Repo) -> b
     return reference in named
 
 
-def taken(found: Found, repo: config.Repo, reference: str) -> tuple[int, bool]:
+def taken(found: Found, repo: config.Repo, reference: str) -> tuple[int, str]:
     """How many PRs the repository has open, and whether one names the ticket.
 
     Args:
@@ -73,14 +81,26 @@ def taken(found: Found, repo: config.Repo, reference: str) -> tuple[int, bool]:
         reference: the ticket as ``owner/repo#N``.
 
     Returns:
-        The count of open PRs of the repository, and whether a PR of any
-        repository (its timeline) names the ticket.
+        The count of open PRs of the repository, and what names the ticket: the
+        PRs of the repository that do (``PR owner/name#N names it``) and the PRs
+        of its timeline (``the timeline shows PR #N``) with the rule; empty when
+        none does (D1, keyword: unknown-data).
     """
     github = found.github
     opened = ghapi.pages(github, f"repos/{repo.slug}/pulls?state=open", _named(repo))
     path = f"repos/{repo.slug}/issues/{reference.rpartition('#')[2]}/timeline"
     mentions = ghapi.pages(github, path, _crossed(reference, repo))
-    return len(opened), any(reference in each for each in opened) or any(mentions)
+    by_title = [
+        f"PR {repo.slug}#{number} names it in its title, body or branch"
+        for number, names in opened
+        if reference in names
+    ]
+    by_timeline = [
+        f"the timeline of the ticket shows the open PR {each} fixing it"
+        for each in mentions
+        if each
+    ]
+    return len(opened), "; ".join([*by_title, *by_timeline])
 
 
 def priority(settings: config.Config, reference: str, labels: AbstractSet[str]) -> int:
