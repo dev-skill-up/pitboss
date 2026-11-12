@@ -108,14 +108,8 @@ class TestMutants(unittest.TestCase):
 
 
 def _runner(passing: bool) -> tuple[list[str], mutationci.Runner]:
-    """A runner that runs nothing: it records what it was asked and kills every mutant.
-
-    Args:
-        passing: whether the unmutated tests pass.
-
-    Returns:
-        The texts of the module each run saw, and the runner.
-    """
+    # a runner that runs nothing: it records the text of the module each run saw
+    # and kills every mutant; the unmutated tests pass when ``passing``
     seen: list[str] = []
 
     def run(tree: pathlib.Path, ids: Sequence[str]) -> bool:

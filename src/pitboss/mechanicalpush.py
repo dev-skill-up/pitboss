@@ -56,11 +56,6 @@ def _number(github: ghapi.GitHub, slug: str, branch: str) -> int | None:
     return int(listed[0]["number"])
 
 
-def _refuse(why: str) -> bool:
-    print(REFUSAL.format(why=why))
-    raise SystemExit(1)
-
-
 def exempt(args: argparse.Namespace, found: Started, slug: str | None) -> bool:
     """Whether the push is a mechanical fix, free of the hold.
 
@@ -81,18 +76,29 @@ def exempt(args: argparse.Namespace, found: Started, slug: str | None) -> bool:
         args.git_arguments, pushdraft.current_branch(args.safe_run)
     )
     if slug is None or len(branches) != 1:
-        return _refuse("the repository or the one branch pushed cannot be told")
-    number = _number(found.github, slug, branches[0])
+        why = "the repository or the one branch pushed cannot be told"
+    else:
+        why = _classified(found, slug, branches[0])
+    if why:
+        print(REFUSAL.format(why=why))
+        raise SystemExit(1)
+    return True
+
+
+def _classified(found: Started, slug: str, branch: str) -> str:
+    # why the open PR of the branch is not a mechanical fix; "" when it is,
+    # after saying so
+    number = _number(found.github, slug, branch)
     if number is None:
-        return _refuse(f"{branches[0]} has no single open PR")
+        return f"{branch} has no single open PR"
     repo = repoarg.named_repo(slug, found.settings)
     read = pullread.read_one(found.github, found.settings, lambda: True, (repo, number))
     if isinstance(read, shapes.Unreadable):
-        return _refuse(f"{read.reference} could not be read ({read.call})")
+        return f"{read.reference} could not be read ({read.call})"
     said = mechanical.matching(
         read, failures.read_all(found.github, read), found.settings.runners.mechanical
     )
     if not said:
-        return _refuse(f"{pulls.reference(read)} is not classified MECHANICAL-FIX")
+        return f"{pulls.reference(read)} is not classified MECHANICAL-FIX"
     print(SAYING.format(ref=pulls.reference(read), found=said))
-    return True
+    return ""

@@ -54,10 +54,10 @@ def test_ids(tree: pathlib.Path, names: Sequence[str]) -> Sequence[str]:
     """
     ids = []
     for each in names:
-        module, _, name = each.rpartition(".")
-        owner = _owner(tree / "pitboss" / "tests" / f"{module}.py", name)
+        module, _, test = each.rpartition(".")
+        owner = _owner(tree / "pitboss" / "tests" / f"{module}.py", test)
         ids.append(
-            f"pitboss.tests.{module}.{owner}.{name}"
+            f"pitboss.tests.{module}.{owner}.{test}"
             if owner
             else f"pitboss.tests.{module}"
         )
@@ -145,6 +145,27 @@ def check_row(runner: Runner, source: pathlib.Path, row: rules.Row) -> Sequence[
     return mutation.survivors(row.id, text, name, _killer(runner, source, module, ids))
 
 
+def _chosen(source: pathlib.Path, argv: Sequence[str]) -> Sequence[rules.Row]:
+    # the checked rows of the register, those named when any are
+    register = rules.parse(
+        (source / "pitboss" / "rules.tsv").read_text(encoding="utf-8")
+    )[0]
+    return [
+        each
+        for each in register
+        if each.kind in rules.CHECKED and (not argv or each.id in argv)
+    ]
+
+
+def _checked(
+    runner: Runner, source: pathlib.Path, chosen: Sequence[rules.Row]
+) -> Sequence[str]:
+    # every row's findings, the rows checked side by side
+    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
+        said = pool.map(lambda each: check_row(runner, source, each), chosen)
+        return [finding for row in said for finding in row]
+
+
 def main(
     argv: Sequence[str],
     environ: Mapping[str, str],
@@ -165,20 +186,7 @@ def main(
     if environ.get("GITHUB_ACTIONS") != "true":
         print(REFUSED)
         return 2
-    register = rules.parse(
-        (source / "pitboss" / "rules.tsv").read_text(encoding="utf-8")
-    )[0]
-    chosen = [
-        each
-        for each in register
-        if each.kind in rules.CHECKED and (not argv or each.id in argv)
-    ]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
-        found = [
-            line
-            for lines in pool.map(lambda each: check_row(runner, source, each), chosen)
-            for line in lines
-        ]
+    found = _checked(runner, source, _chosen(source, argv))
     for each in found:
         print(each)
     print("mutation: ok" if not found else f"mutation: {len(found)} findings")
