@@ -42,8 +42,16 @@ class TestCommandsWithAConfiguration(unittest.TestCase):
         # these have only the option, so no old first word to run in four
         # forms; lint is run below, plan-check by test_ci_pointer_check.py,
         # pins-review by test_pins_review.py, hand-back-check and nox by
-        # test_clone_guard.py (they find no configuration to fetch)
-        only_option = {"lint", "plan-check", "pins-review", "hand-back-check", "nox"}
+        # test_clone_guard.py (they find no configuration to fetch), quiesce by
+        # test_slots_force.py (its first word is the state)
+        only_option = {
+            "lint",
+            "plan-check",
+            "pins-review",
+            "hand-back-check",
+            "nox",
+            "quiesce",
+        }
         expected = {each.before[0] for each in CASES} | only_option
         assert_that(registered(), equal_to(sorted(expected)))
 
