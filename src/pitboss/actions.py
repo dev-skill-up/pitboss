@@ -1,9 +1,10 @@
-"""The state-changing actions on GitHub, and the matrix that allows each (keyword: action-matrix).
+"""The state-changing actions on GitHub and the matrix that allows each.
 
-Seen on promise#73: a merge made around a runner-pressure hold, with a raw ``gh``
-call no pitboss command saw. Every action that changes a PR on GitHub is one of
-``Action``, goes through ``pitboss act``, which asks ``actionmatrix.tsv`` whether
-the PR's step allows it, refuses when not, and writes a ledger record; the sweep
+The keyword is action-matrix. Seen on promise#73: a merge made around a
+runner-pressure hold, with a raw ``gh`` call no pitboss command saw. Every action
+that changes a PR on GitHub is one of ``Action``, goes through ``pitboss act``,
+which asks ``actionmatrix.tsv`` whether the PR's step allows it, refuses when not,
+and writes a ledger record; the sweep
 names each GitHub event of these kinds that has no record (``unledgered``). The
 columns of the matrix are the members of ``steps.Task`` and of ``Action``, its
 rows the members of ``steps.Step`` and of ``Standing``.
@@ -14,8 +15,7 @@ from typing import Mapping, Sequence
 
 from . import steps
 
-ALLOWED = "y"
-REFUSED = "n"
+CELLS: Mapping[str, bool] = {"y": True, "n": False}
 EXEMPT = "# matrix-exempt:"
 VERBS = ("merge", "undraft", "dispatch", "close", "label", "push", "rerun", "delete")
 
@@ -32,12 +32,12 @@ class Action(enum.Enum):
         LABEL: put a label on it.
     """
 
-    PUSH = "push"
-    MERGE = "merge"
-    UNDRAFT = "undraft"
-    DISPATCH = "dispatch"
-    CLOSE = "close"
-    LABEL = "label"
+    PUSH = enum.auto()
+    MERGE = enum.auto()
+    UNDRAFT = enum.auto()
+    DISPATCH = enum.auto()
+    CLOSE = enum.auto()
+    LABEL = enum.auto()
 
 
 class Standing(enum.Enum):
@@ -48,8 +48,20 @@ class Standing(enum.Enum):
         DUPLICATE: a second PR on a ticket another PR works (keyword: duplicate-pr).
     """
 
-    PLAIN = "plain"
-    DUPLICATE = "duplicate"
+    PLAIN = enum.auto()
+    DUPLICATE = enum.auto()
+
+
+def word(action: Action) -> str:
+    """The word of an action on the command line and in the ledger.
+
+    Args:
+        action: the action.
+
+    Returns:
+        Its name in lower case.
+    """
+    return action.name.lower()
 
 
 def rows() -> Sequence[str]:
@@ -74,7 +86,14 @@ def columns() -> Sequence[str]:
     ]
 
 
-def parse(text: str) -> tuple[Sequence[str], Mapping[str, Mapping[str, str]], Mapping[str, str]]:
+def _exempt(line: str) -> tuple[str, str]:
+    named, _, why = line[len(EXEMPT) :].strip().partition(":")
+    return named.strip(), why.strip()
+
+
+def parse(
+    text: str,
+) -> tuple[Sequence[str], Mapping[str, Mapping[str, str]], Mapping[str, str]]:
     """Read the matrix file.
 
     Args:
@@ -86,29 +105,32 @@ def parse(text: str) -> tuple[Sequence[str], Mapping[str, Mapping[str, str]], Ma
         The header's columns, the cells of each row by column, and the reason of
         each exempt word.
     """
-    header: Sequence[str] = ()
-    grid: dict[str, Mapping[str, str]] = {}
-    exempt: dict[str, str] = {}
-    for line in filter(str.strip, text.splitlines()):
-        if line.startswith(EXEMPT):
-            word, _, why = line[len(EXEMPT) :].strip().partition(":")
-            exempt[word.strip()] = why.strip()
-        elif line.startswith("#"):
-            continue
-        elif line.startswith("state\t"):
-            header = line.split("\t")[1:]
-        else:
-            name, *cells = line.split("\t")
-            grid[name] = dict(zip(header, cells))
-    return header, grid, exempt
+    lines = list(filter(str.strip, text.splitlines()))
+    exempt = dict(_exempt(each) for each in lines if each.startswith(EXEMPT))
+    heads = [each.split("\t")[1:] for each in lines if each.startswith("state\t")]
+    header = heads[0] if heads else []
+    rows_ = [
+        each.split("\t")
+        for each in lines
+        if not each.startswith("#") and not each.startswith("state\t")
+    ]
+    return header, {name: dict(zip(header, cells)) for name, *cells in rows_}, exempt
 
 
 def _cells(
     header: Sequence[str], grid: Mapping[str, Mapping[str, str]]
 ) -> Sequence[str]:
-    found = [f"{each} is no column of the matrix" for each in columns() if each not in header]
-    found += [f"{each} is no member of steps or actions" for each in header if each not in columns()]
-    found += [f"{each} has no row in actionmatrix.tsv" for each in rows() if each not in grid]
+    found = [
+        f"{each} is no column of the matrix" for each in columns() if each not in header
+    ]
+    found += [
+        f"{each} is no member of steps or actions"
+        for each in header
+        if each not in columns()
+    ]
+    found += [
+        f"{each} has no row in actionmatrix.tsv" for each in rows() if each not in grid
+    ]
     found += [f"{each} is no state of the code" for each in grid if each not in rows()]
     for state, cells in grid.items():
         found += [
@@ -117,14 +139,12 @@ def _cells(
         found += [
             f"{state} {column} is {value!r}, not y or n"
             for column, value in cells.items()
-            if value not in {ALLOWED, REFUSED}
+            if value not in CELLS
         ]
     return found
 
 
-def findings(
-    text: str, wording: Sequence[str]
-) -> Sequence[str]:
+def findings(text: str, wording: Sequence[str]) -> Sequence[str]:
     """What the matrix gets wrong.
 
     Args:
@@ -137,7 +157,7 @@ def findings(
         use and that is neither an ``Action`` nor marked ``matrix-exempt``.
     """
     header, grid, exempt = parse(text)
-    known = {each.value for each in Action} | set(exempt)
+    known = {word(each) for each in Action} | set(exempt)
     found = list(_cells(header, grid))
     used = {
         verb
@@ -164,7 +184,7 @@ def cell(grid: Mapping[str, Mapping[str, str]], state: str, column: str) -> bool
     Returns:
         True for ``y``.
     """
-    return grid[state][column] == ALLOWED
+    return CELLS.get(grid[state][column], False)
 
 
 def refusal(
@@ -188,9 +208,11 @@ def refusal(
     here = (f"Step.{step.step.name}", f"Standing.{standing.name}")
     if any(cell(grid, state, column) for state in here):
         return ""
-    allowing = [state for state, cells in grid.items() if cells[column] == ALLOWED]
+    allowing = [
+        state for state, cells in grid.items() if CELLS.get(cells[column], False)
+    ]
     return (
-        f"{action.value} is refused: the PR is at {here[0]} ({standing.value}); it is"
-        f" allowed at {', '.join(allowing) or 'no state'} (actionmatrix.tsv)"
+        f"{word(action)} is refused: the PR is at {here[0]}"
+        f" ({standing.name.lower()}); it is allowed at"
+        f" {', '.join(allowing) or 'no state'} (actionmatrix.tsv)"
     )
-

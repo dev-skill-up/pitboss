@@ -102,5 +102,6 @@ module = [
     "pitboss.cancel_commands",
     "pitboss.checkinlines",
     "pitboss.sweep_commands",
+    "pitboss.act_commands",
 ]
 disallow_untyped_decorators = false

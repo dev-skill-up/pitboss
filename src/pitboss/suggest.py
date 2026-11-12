@@ -1,11 +1,9 @@
 """The top suggestions of ``next`` and ``slots next``, each with its brief.
 
 On a crowded volume (90% used or more) the clean suggestion comes first; the
-first of the picks is the one the process requires, the others are the next
-ones that could start, so that a reason the model cannot name (a missing
-checkout) does not stop the work. The order is the one ``work.queued`` gives,
-with the PRs at an Opus ruling before it: a ruling is owed first and takes no
-slot (keyword: brief, pitboss#118).
+first pick is the one the process requires, the others could start next (a
+missing checkout does not stop the work). The order is ``work.queued``'s, Opus
+rulings first: owed, they take no slot (keyword: brief, pitboss#118).
 """
 
 import dataclasses
@@ -291,19 +289,6 @@ def _touches_e2e(source: Source, pick: Pick, kind: brief.Kind) -> bool:
     return pullfiles.touches(source.github, slug, found.pull.number, prefixes)
 
 
-def _conflict_lines(pick: Pick) -> Sequence[str]:
-    # keyword: rule-conflicts (quire#1115): both rules and the question, in the brief
-    if pick.pull is None or not pick.pull.step.conflict:
-        return ()
-    wanted = pick.pull.step.conflict.split()
-    pair = next(
-        each
-        for each in ruleconflicts.shipped()
-        if [each.first, each.second] == wanted
-    )
-    return ruleconflicts.lines(pair, ruleconflicts.register_words())
-
-
 def spec(source: Source, pick: Pick) -> brief.Spec:
     """What the brief of a pick is built from.
 
@@ -329,7 +314,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         logs=(
             suggestlogs.of(pick.pull) if pick.pull and kind is brief.Kind.FIX_CI else ()
         ),
-        conflict=_conflict_lines(pick),
+        conflict=ruleconflicts.brief_lines(pick.pull.step if pick.pull else None),
     )
 
 

@@ -55,6 +55,18 @@ def table_ids() -> Sequence[str]:
     return path.read_text(encoding="utf-8").split()
 
 
+def _shipped_findings(rows: Sequence[rules.Row]) -> Sequence[str]:
+    # what only the shipped register is held to: its tables and its views
+    held = decidable.parse(phrases.shipped_text("decidable.tsv"))
+    matrix = phrases.shipped_text("actionmatrix.tsv")
+    return [
+        *rules.coverage_findings(rows, table_ids()),
+        *decidable.findings(rows, held),
+        *ruleconflicts.findings(rows, ruleconflicts.shipped()),
+        *actions.findings(matrix, [each.words for each in rows]),
+    ]
+
+
 @ENTRY_DATA.register(
     add_argument("action", choices=("check",)),
     add_argument(
@@ -79,13 +91,7 @@ def rules_check(args: argparse.Namespace) -> None:
     rows, bad = rules.parse(_text(args.register, REGISTER))
     found = [*bad, *rules.findings(rows, function_known, module_text)]
     if not args.register:
-        found += rules.coverage_findings(rows, table_ids())
-        held = decidable.parse(phrases.shipped_text("decidable.tsv"))
-        found += decidable.findings(rows, held)
-        found += ruleconflicts.findings(rows, ruleconflicts.shipped())
-        found += actions.findings(
-            phrases.shipped_text("actionmatrix.tsv"), ruleconflicts.register_words()
-        )
+        found += _shipped_findings(rows)
     for each in found:
         print(each)
     unenforced = rules.open_ids(rows)

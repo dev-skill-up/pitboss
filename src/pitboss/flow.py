@@ -1,11 +1,8 @@
 """The review flow of a PR: the one step it is at (keyword: review-flow).
 
-``next_step`` is the owner's pseudo code of 2026-10-30 (pitboss#107), branch
-for branch in the same order. The only changes are the syntax and what the
-lint requires: a function that long is cut at the pseudo code's own section
-comments. Every question it asks is a function of its own below, answered from
-what is recorded of the PR, so a wrong step is a bug in one of them. The pseudo
-code's second function is ``rulings.after_opus_ruling``.
+``next_step`` is the owner's pseudo code of 2026-10-30 (pitboss#107), branch for
+branch, cut where the lint needs it; every question is a function below, answered
+from what is recorded of the PR. Its second function is ``rulings.after_opus_ruling``.
 """
 
 from typing import Sequence
@@ -19,8 +16,8 @@ from . import (
     plancheckflow,
     planbody,
     reviewfindings,
-    rulingafter,
     ruleconflicts,
+    rulingafter,
     rulingwords,
     shapes,
     steps,
@@ -366,30 +363,6 @@ def _conflict_step(pr: PullState) -> steps.Next:
     return wait or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
 
-def _hit(pr: PullState) -> ruleconflicts.Declared | None:
-    # keyword: rule-conflicts (quire#1115): two rules of the register contradict here
-    rulings = [
-        each.body
-        for each in pr.comments
-        if flowstate.is_ruling(each.body) and each.author_association in pr.trusted
-    ]
-    texts = [pr.pull.body] + [
-        each.body for each in pr.comments if not flowstate.is_ruling(each.body)
-    ]
-    return ruleconflicts.pending(ruleconflicts.shipped(), texts, rulings)
-
-
-def _rule_conflict(pr: PullState) -> bool:
-    return _hit(pr) is not None
-
-
-def _rule_conflict_step(pr: PullState) -> steps.Next:
-    hit = _hit(pr)
-    if hit is None:  # pragma: no cover
-        return steps.wait_for_owner()  # unreachable: the row holds only when hit
-    return steps.Next(step=steps.Step.OPUS_RULING, conflict=f"{hit.first} {hit.second}")
-
-
 def _no_body(pr: PullState) -> bool:
     # before any review: the first work on a PR; a relock PR fixes no ticket and
     # has no body to write: its review (pitboss#126), or ``pinsonly`` (#34)
@@ -410,7 +383,7 @@ ROWS: Sequence[Row] = (
         holds=lambda pr: bool(flowstate.ruling_hold(pr)),
         step=_ruling_held,
     ),
-    Row(name="rule-conflict", holds=_rule_conflict, step=_rule_conflict_step),
+    Row(name="rule-conflict", holds=ruleconflicts.holds, step=ruleconflicts.ruling),
     Row(name="conflict", holds=has_conflict, step=_conflict_step),
     Row(
         name="first-round",

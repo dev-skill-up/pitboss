@@ -1,9 +1,9 @@
-"""GitHub events that changed a PR with no ``pitboss act`` record (keyword: action-matrix).
+"""GitHub events that changed a PR with no ``pitboss act`` record.
 
-promise#73: a merge made around a runner-pressure hold by a raw ``gh`` call. The
-sweep reads GitHub's own events (merged, closed, labeled, ready for review, a push,
-a dispatched run) and names each that has no record of ``pitboss act`` just before
-it, with the event's id.
+Seen on promise#73 (keyword: action-matrix): a merge made around a runner-pressure
+hold by a raw ``gh`` call. The sweep reads GitHub's own events (merged, closed,
+labeled, ready for review, a push, a dispatched run) and names each that has no
+record of ``pitboss act`` just before it, with the event's id.
 """
 
 import dataclasses
@@ -11,7 +11,7 @@ import datetime
 import json
 import pathlib
 import subprocess
-from typing import Sequence
+from typing import Callable, Mapping, Sequence, TypedDict
 
 from . import actions, actrun, config, ghapi, logline
 
@@ -33,6 +33,7 @@ class Seen:
     Attributes:
         identifier: GitHub's id of the event.
         action: what it was.
+        repository: its repository's ``owner/name``.
         reference: the PR's ``owner/name#number``, empty for a push or a run.
         branch: the branch, empty for an event of a PR.
         time: when.
@@ -40,13 +41,58 @@ class Seen:
 
     identifier: str
     action: actions.Action
+    repository: str
     reference: str
     branch: str
     time: datetime.datetime
 
 
 def _moment(text: str) -> datetime.datetime:
-    return datetime.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return datetime.datetime.strptime(text, "%Y-%m-%dT%H:%M:%S%z")
+
+
+def _base(slug: str, each: Mapping[str, object], action: actions.Action) -> Seen:
+    # what every event has; the PR or the branch is set by the caller
+    return Seen(
+        identifier=str(each["id"]),
+        action=action,
+        repository=slug,
+        reference="",
+        branch="",
+        time=_moment(str(each["created_at"])),
+    )
+
+
+class IssueRef(TypedDict):
+    """The issue of an event: only its number is read.
+
+    Attributes:
+        number: the number of the issue or PR.
+    """
+
+    number: int
+
+
+class IssueEvent(TypedDict):
+    """An event of ``issues/events``: the fields that are read.
+
+    Attributes:
+        id: GitHub's id of the event.
+        event: its name (``merged``, ``closed``, ``labeled``, ...).
+        created_at: when, in UTC (ISO).
+        issue: the issue or PR it is on.
+    """
+
+    id: int
+    event: str
+    created_at: str
+    issue: IssueRef
+
+
+def _issue_event(slug: str, each: IssueEvent) -> Seen:
+    named = f"{slug}#{each['issue']['number']}"
+    base = _base(slug, each, ISSUE_ACTIONS[each["event"]])
+    return dataclasses.replace(base, reference=named)
 
 
 def from_issue_events(slug: str, text: str) -> Sequence[Seen]:
@@ -60,30 +106,33 @@ def from_issue_events(slug: str, text: str) -> Sequence[Seen]:
         The merges, closes, labels and undrafts of PRs; the ``closed`` event
         that goes with a ``merged`` one is the same act and is left out.
     """
-    items = [each for each in json.loads(text) if "pull_request" in each["issue"]]
+    items = [
+        each
+        for each in json.loads(text)
+        if "pull_request" in each["issue"] and each["event"] in ISSUE_ACTIONS
+    ]
     merged = {
         (each["issue"]["number"], each["created_at"])
         for each in items
-        if each["event"] == "merged"
+        if ISSUE_ACTIONS[each["event"]] is actions.Action.MERGE
     }
     return [
-        Seen(
-            identifier=str(each["id"]),
-            action=ISSUE_ACTIONS[each["event"]],
-            reference=f"{slug}#{each['issue']['number']}",
-            branch="",
-            time=_moment(each["created_at"]),
-        )
+        _issue_event(slug, each)
         for each in items
-        if each["event"] in ISSUE_ACTIONS
-        and (each["event"] != "closed" or (each["issue"]["number"], each["created_at"]) not in merged)
+        if ISSUE_ACTIONS[each["event"]] is not actions.Action.CLOSE
+        or (each["issue"]["number"], each["created_at"]) not in merged
     ]
 
 
-def from_push_events(text: str) -> Sequence[Seen]:
+def _branch(each: Mapping[str, Mapping[str, str]]) -> str:
+    return each["payload"]["ref"].removeprefix("refs/heads/")
+
+
+def from_push_events(slug: str, text: str) -> Sequence[Seen]:
     """The pushes to branches from the events of a repository.
 
     Args:
+        slug: the repository's ``owner/name``.
         text: the JSON of ``repos/<slug>/events``.
 
     Returns:
@@ -91,51 +140,57 @@ def from_push_events(text: str) -> Sequence[Seen]:
     """
     pushes = [each for each in json.loads(text) if each["type"] == "PushEvent"]
     return [
-        Seen(
-            identifier=str(each["id"]),
-            action=actions.Action.PUSH,
-            reference="",
-            branch=each["payload"]["ref"].removeprefix("refs/heads/"),
-            time=_moment(each["created_at"]),
+        dataclasses.replace(
+            _base(slug, each, actions.Action.PUSH), branch=_branch(each)
         )
         for each in pushes
-        if each["payload"]["ref"].removeprefix("refs/heads/") not in DEFAULT_BRANCHES
+        if _branch(each) not in DEFAULT_BRANCHES
     ]
 
 
-def from_runs(text: str) -> Sequence[Seen]:
+def from_runs(slug: str, text: str) -> Sequence[Seen]:
     """The dispatched runs of a repository.
 
     Args:
+        slug: the repository's ``owner/name``.
         text: the JSON of ``repos/<slug>/actions/runs?event=workflow_dispatch``.
 
     Returns:
         A dispatch for each run.
     """
     return [
-        Seen(
-            identifier=str(each["id"]),
-            action=actions.Action.DISPATCH,
-            reference="",
-            branch=each["head_branch"],
-            time=_moment(each["created_at"]),
+        dataclasses.replace(
+            _base(slug, each, actions.Action.DISPATCH), branch=each["head_branch"]
         )
         for each in json.loads(text)["workflow_runs"]
     ]
 
 
+def _named(seen: Seen, words: Sequence[str]) -> bool:
+    # a PR's event names the PR; a push or a run names the repository and branch
+    if seen.reference:
+        return seen.reference == words[1]
+    return (seen.repository, seen.branch) == (words[1].partition("#")[0], words[2])
+
+
 def _matches(seen: Seen, record: logline.Event) -> bool:
     words = record.what.split()
-    if record.kind != actrun.KIND or words[0] != seen.action.value:
+    if record.kind != actrun.KIND or words[0] != actions.word(seen.action):
         return False
-    named = seen.reference in words[1:2] if seen.reference else seen.branch in words[2:3]
     gap = seen.time - _moment(record.time)
-    return named and datetime.timedelta(0) <= gap <= WINDOW
+    return _named(seen, words) and datetime.timedelta(0) <= gap <= WINDOW
 
 
-def findings(
-    seen: Sequence[Seen], records: Sequence[logline.Event]
-) -> Sequence[str]:
+def _line(each: Seen) -> str:
+    where = each.reference or f"{each.repository} branch {each.branch}"
+    return (
+        f"{UNLEDGERED} event {each.identifier}: {actions.word(each.action)}"
+        f" of {where} at {each.time.isoformat()} was not made by pitboss act; the"
+        " matrix (actionmatrix.tsv) was not asked"
+    )
+
+
+def findings(seen: Sequence[Seen], records: Sequence[logline.Event]) -> Sequence[str]:
     """The events with no record.
 
     Args:
@@ -152,26 +207,24 @@ def findings(
     for each in sorted(seen, key=lambda event: event.time):
         match = next((record for record in unused if _matches(each, record)), None)
         if match is None:
-            where = each.reference or each.branch
-            found.append(
-                f"{UNLEDGERED} event {each.identifier}: {each.action.value} of {where}"
-                f" at {each.time.isoformat()} was not made by pitboss act; the matrix"
-                " (actionmatrix.tsv) was not asked"
-            )
+            found.append(_line(each))
         else:
             unused.remove(match)
     return found
 
 
+READS: Sequence[tuple[str, Callable[[str, str], Sequence[Seen]]]] = (
+    ("issues/events", from_issue_events),
+    ("events", from_push_events),
+    ("actions/runs?event=workflow_dispatch", from_runs),
+)
+
+
 def _read(github: ghapi.GitHub, slug: str) -> Sequence[Seen]:
     return [
-        *from_issue_events(slug, ghapi.get(github, f"repos/{slug}/issues/events")),
-        *from_push_events(ghapi.get(github, f"repos/{slug}/events")),
-        *from_runs(
-            ghapi.get(
-                github, f"repos/{slug}/actions/runs?event=workflow_dispatch"
-            )
-        ),
+        each
+        for path, reader in READS
+        for each in reader(slug, ghapi.get(github, f"repos/{slug}/{path}"))
     ]
 
 

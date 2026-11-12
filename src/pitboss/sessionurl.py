@@ -44,3 +44,17 @@ def lines(text: str) -> Sequence[str]:
         Its lines, none of them only the harness's session URL.
     """
     return strip(text).splitlines()
+
+
+def first_line_is(text: str, wanted: str) -> bool:
+    """Whether the first line of a body or comment is exactly a line.
+
+    Args:
+        text: the body or comment.
+        wanted: the line.
+
+    Returns:
+        True when the first line, without the session URL, is ``wanted``.
+    """
+    found = lines(text)
+    return bool(found) and found[0].rstrip() == wanted

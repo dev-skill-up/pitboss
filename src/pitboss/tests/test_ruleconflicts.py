@@ -8,14 +8,22 @@ it is settled, and a PR that hits a ``ruling`` pair gets the Opus ruling brief.
 import dataclasses
 import unittest
 
-from hamcrest import assert_that, contains_string, empty, equal_to, has_item, is_
+from hamcrest import (
+    assert_that,
+    contains_string,
+    empty,
+    equal_to,
+    has_item,
+    has_length,
+    is_,
+)
 
-from .. import flow, phrases, rules, ruleconflicts, steps
-from . import test_flow, test_flow_sweep
+from .. import flow, rules, ruleconflicts, steps
+from . import test_flow, test_flow_sweep, test_rules
 from .itemworld import one
 from .says import says
 
-REGISTER, _BAD = rules.parse(phrases.shipped_text("rules.tsv"))
+REGISTER = test_rules.shipped_rows()
 DECLARED = ruleconflicts.shipped()
 FIXME_BODY = test_flow.BODY + "\nThe flaky test is marked test.fixme('#9 flake').\n"
 SETTLED = test_flow.ruling(4, line="Ruling: do these steps\nConflict: C14 T53")
@@ -34,6 +42,18 @@ def row(ident: str, words: str) -> rules.Row:
     return rules.Row(
         id=ident, date="", kind="output", words=words, function="-", tests=()
     )
+
+
+def resolved(resolution: str) -> ruleconflicts.Declared:
+    """The first declared pair with another resolution.
+
+    Args:
+        resolution: the resolution.
+
+    Returns:
+        The pair.
+    """
+    return dataclasses.replace(DECLARED[0], resolution=resolution)
 
 
 class TestPairs(unittest.TestCase):
@@ -64,12 +84,11 @@ class TestPairs(unittest.TestCase):
         gone = ruleconflicts.Declared(
             first="C14", second="Q9", resolution="ruling", trigger="x", question="q"
         )
-        odd = dataclasses.replace(DECLARED[0], resolution="wins:A1")
-        wins = dataclasses.replace(DECLARED[0], resolution="wins:C14")
+        odd = resolved("wins:A1")
+        wins = resolved("wins:C14")
         found = ruleconflicts.findings(REGISTER, [gone, odd, wins])
-        assert_that(found[0], contains_string("C14 Q9 names a rule that is not"))
-        assert_that(found[1], contains_string("has the resolution 'wins:A1'"))
-        assert_that(len(found), equal_to(2))
+        says("\n".join(found), "C14 Q9 names a rule not in", "the resolution 'wins:A1'")
+        assert_that(found, has_length(2))
 
     def test_c15_a_short_line_is_read_as_unsettled(self) -> None:
         """A line of the wrong width has no resolution, so it is a finding."""
@@ -84,24 +103,23 @@ class TestHit(unittest.TestCase):
     def test_c15_a_pair_that_is_hit_gets_the_ruling_step(self) -> None:
         """The body names test.fixme: the Opus ruling, with the pair; a control."""
         hit = flow.next_step(test_flow.state(body=FIXME_BODY))
-        assert_that(hit.step, equal_to(steps.Step.OPUS_RULING))
-        assert_that(hit.conflict, equal_to("C14 T53"))
         plain = flow.next_step(test_flow.state())
-        assert_that(plain.conflict, equal_to(""))
+        assert_that(
+            (hit.step, hit.conflict, plain.conflict),
+            equal_to((steps.Step.OPUS_RULING, "C14 T53", "")),
+        )
 
     def test_c15_a_ruling_that_names_the_pair_settles_it(self) -> None:
         """After the ruling with the Conflict line the PR is at its usual step."""
-        settled = flow.next_step(
-            test_flow.state(comments=[SETTLED], body=FIXME_BODY)
+        settled = flow.next_step(test_flow.state(comments=[SETTLED], body=FIXME_BODY))
+        again = flow.next_step(
+            test_flow.state(comments=[test_flow.ruling(4)], body=FIXME_BODY)
         )
-        assert_that(settled.conflict, equal_to(""))
-        other = test_flow.ruling(4)
-        again = flow.next_step(test_flow.state(comments=[other], body=FIXME_BODY))
-        assert_that(again.conflict, equal_to("C14 T53"))
+        assert_that((settled.conflict, again.conflict), equal_to(("", "C14 T53")))
 
     def test_c15_a_win_is_not_a_ruling(self) -> None:
         """A pair settled by a winning rule makes no step."""
-        wins = dataclasses.replace(DECLARED[0], resolution="wins:C14")
+        wins = resolved("wins:C14")
         assert_that(ruleconflicts.pending([wins], [FIXME_BODY], []), equal_to(None))
 
     def test_c14_the_ruling_brief_states_both_rules_and_the_question(self) -> None:
@@ -116,4 +134,4 @@ class TestHit(unittest.TestCase):
             "Question: Quire e2e rules require test.fixme",
             "Conflict: C14 T53",
         )
-        assert_that(found.code, equal_to(0))
+        assert_that(found.code == 0, is_(True))

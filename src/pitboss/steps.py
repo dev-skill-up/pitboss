@@ -145,19 +145,16 @@ class Next:
         task: what the worker does (a WORKER step).
         stage: what the reviewer grades (a REGULAR_REVIEW step).
         comment: the address of the Opus ruling comment that cannot be read (a
-            FIX_RULING step), of the refused Plan check (SEND_BACK_PLAN_CHECK) or of
-            the ruling a FIX_EXECUTION or RULING_STEPS step follows, empty when
-            there is none.
+            FIX_RULING step), of the refused Plan check (SEND_BACK_PLAN_CHECK) or
+            of the ruling a FIX_EXECUTION or RULING_STEPS step follows, else empty.
         findings: the refused Plan check's findings, quoted.
-        branch: the head branch the check workflow is dispatched on (a RUN_E2E
-            step).
+        branch: the head branch the check workflow is dispatched on (RUN_E2E).
         on_base: the head is red only from checks that passed on the base since
             (keyword: fixed-on-base, pitboss#314): the step is a green head's.
         reason: why the review of a ruling's steps follows (keyword: ruling-reason,
             case 24), empty for any other step.
-        conflict: the pair of rules ``FIRST SECOND`` of the register that the PR
-            hits and an Opus ruling is to settle (keyword: rule-conflicts), empty
-            for any other step.
+        conflict: ``FIRST SECOND``, the pair of rules an Opus ruling is to settle
+            (keyword: rule-conflicts), empty for any other step.
     """
 
     step: Step

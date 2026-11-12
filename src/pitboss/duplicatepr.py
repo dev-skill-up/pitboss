@@ -8,7 +8,7 @@ branched for one ticket are named in a ``DUPLICATE PR`` line with the step.
 
 from typing import AbstractSet, Mapping, Sequence
 
-from . import pullnames, pulls
+from . import actions, pullnames, pulls
 
 PREFIX = "DUPLICATE PR"
 STEP = "close the newer as a duplicate"
@@ -69,3 +69,20 @@ def _doubled(
 def _line(ticket: str, found: Sequence[pulls.PullFacts]) -> str:
     named = " and ".join(pulls.reference(each) for each in found)
     return f"{PREFIX}: {named} work ticket {ticket}; step: {STEP}"
+
+
+def standing_of(
+    facts: pulls.PullFacts, every: Sequence[pulls.PullFacts]
+) -> actions.Standing:
+    """The standing of a PR besides its step.
+
+    Args:
+        facts: the PR.
+        every: every open PR that was read.
+
+    Returns:
+        ``DUPLICATE`` for a second PR on a ticket, else ``PLAIN``.
+    """
+    if pulls.reference(facts) in newer(every):
+        return actions.Standing.DUPLICATE
+    return actions.Standing.PLAIN

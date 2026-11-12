@@ -135,8 +135,7 @@ def is_ruling(body: str) -> bool:
     Returns:
         True when its first line is exactly ``Opus ruling``.
     """
-    lines = sessionurl.lines(body)
-    return bool(lines) and lines[0].rstrip() == steps.RULING_FIRST_LINE
+    return sessionurl.first_line_is(body, steps.RULING_FIRST_LINE)
 
 
 def read_ruling(body: str) -> rulingwords.Ruling | None:
