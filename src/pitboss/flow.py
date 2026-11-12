@@ -385,6 +385,10 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
     Returns:
         The step.
     """
+    do_steps = rulingwords.Ruling.DO_THESE_STEPS
+    if flowstate.ruling_unapplied(pr) is do_steps:  # keyword: ruling-first (A2)
+        return ruled_step(pr, do_steps)
+
     if review.execution is None:  # plan approved by a plan-only review
         # keyword: plan-alone, the same round as a draft's: no condition on the draft
         return (
@@ -393,8 +397,5 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
             or plancheckflow.execution_review(pr, steps.Stage.EXECUTION_AGAINST_PLAN)
         )
 
-    # approved; a ruling to do its steps after the approval voids it (#467)
-    do_steps = rulingwords.Ruling.DO_THESE_STEPS
-    if flowstate.ruling_unapplied(pr) is do_steps:
-        return ruled_step(pr, do_steps)
+    # approved; a ruling to do its steps after the approval voided it above (#467)
     return conflicts.merge_unless_conflict(pr)

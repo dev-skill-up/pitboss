@@ -1,0 +1,665 @@
+{
+ "checks": {
+  "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95": [
+   {
+    "completed_at": "2026-11-11T10:19:07Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366624",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366624,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:15:34Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366588",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366588,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:15:46Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366567",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366567,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:16:07Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366537",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366537,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:19:05Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366500",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366500,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:18:16Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366482",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366482,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:15:46Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366405",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366405,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:15:42Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366380",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366380,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:25Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:16:21Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43002065033/job/130460366326",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130460366326,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:15:24Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:11:48Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457151312",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457151312,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:08:56Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457151108",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457151108,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:09:19Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457151100",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457151100,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:42Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:12:26Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457151084",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457151084,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:09:25Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457151041",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457151041,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:10:59Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457151018",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457151018,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:09:04Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457151017",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457151017,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:09:01Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457150918",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457150918,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:09:01Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43001104378/job/130457150697",
+    "head_sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95",
+    "id": 130457150697,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:08:41Z",
+    "status": "completed"
+   }
+  ],
+  "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22": [
+   {
+    "completed_at": "2026-11-11T11:20:52Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764349",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764349,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:24:05Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764336",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764336,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:23:59Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764307",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764307,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:59Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764294",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764294,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:55Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764264",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764264,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:54Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764225",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764225,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:56Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764217",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764217,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:22:27Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764189",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764189,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:21:18Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011145149/job/130490764029",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490764029,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:24:25Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739619",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739619,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:33Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:22:55Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739615",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739615,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:33Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:21:01Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739614",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739614,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:33Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:50Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739546",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739546,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:54Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739537",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739537,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:33Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:46Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739535",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739535,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:21:03Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739509",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739509,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:32Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:20:58Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739502",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739502,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:33Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T11:24:10Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739203",
+    "head_sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22",
+    "id": 130490739203,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T11:20:32Z",
+    "status": "completed"
+   }
+  ],
+  "ad19ee47dc2babd7612093ea842d24e8bfc174ae": [
+   {
+    "completed_at": "2026-11-11T10:44:53Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306837",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306837,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:55Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306505",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306505,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:46:51Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306500",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306500,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:25Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306499",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306499,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:21Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306455",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306455,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:24Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306445",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306445,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:31Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306444",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306444,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:45:33Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306394",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306394,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:35Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005938551/job/130473306126",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473306126,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:07Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:21Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271952",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271952,
+    "name": "dry_release on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:02Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:32Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271810",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271810,
+    "name": "mypy on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:02Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:22Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271654",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271654,
+    "name": "docs on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:45:17Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271535",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271535,
+    "name": "tests-3.14 on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:20Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271492",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271492,
+    "name": "skills on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:02Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:46:39Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271491",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271491,
+    "name": "tests-3.12 on Python 3.12 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:01Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:46Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271484",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271484,
+    "name": "lint on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:02Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:43:18Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271422",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271422,
+    "name": "build on Python 3.14 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:02Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T10:47:04Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/dev-skill-up/pitboss/actions/runs/43005928959/job/130473271065",
+    "head_sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae",
+    "id": 130473271065,
+    "name": "tests-3.13 on Python 3.13 (ubuntu-latest)",
+    "started_at": "2026-11-11T10:43:02Z",
+    "status": "completed"
+   }
+  ],
+  "f011385ff49ad70f515e9f25f6791eb1f7acfe8c": []
+ },
+ "comments": [
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nci-pointer: Plan line 6 gives the step `test_a_pr_at_the_review_is_briefed`, which is no step of `.github/workflows/pr-main.yml`\nlint-test: `pitboss.plancheckflow` function `checked_since` (`src/pitboss/plancheckflow.py` line 298) changed and the diff adds no test that the Plan cites to a test module that imports it: add a test for the nearest input it must still reject, and cite its name in a Plan row\nlint-test: `pitboss.plancheckflow` function `plan_unrun` (`src/pitboss/plancheckflow.py` line 265) changed and the diff adds no test that the Plan cites to a test module that imports it: add a test for the nearest input it must still reject, and cite its name in a Plan row\nlint-test: `pitboss.plancheckflow` function `review` (`src/pitboss/plancheckflow.py` line 220) changed and the diff adds no test that the Plan cites to a test module that imports it: add a test for the nearest input it must still reject, and cite its name in a Plan row\nlint-test: `pitboss.plancheckflow` function `unchecked` (`src/pitboss/plancheckflow.py` line 196) changed and the diff adds no test that the Plan cites to a test module that imports it: add a test for the nearest input it must still reject, and cite its name in a Plan row\nPlan digest: a58f8b34b6e751d3\nPlan check: refused, CI pointer findings: 1; Lint test findings: 4\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T10:15:55Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6793150275",
+   "id": 6793150275
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: 653f124f140d2538\nPlan check: ok\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T10:44:00Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6793702025",
+   "id": 6793702025
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head ad19ee47dc2babd7612093ea842d24e8bfc174ae: changes needed\n\nPlan: approved (the `Plan check` comment of this Plan digest ends `Plan check: ok`; every row points to CI with workflow, job, step, greppable names and the run of the head, and the changed functions each have a named test, including the nearest rejected input for `checked_since`)\nExecution: changes needed\nVerdict: changes needed\nPlan digest: 653f124f140d2538\nBody: 5905724296a40301\n\nChecks: all 9 jobs of run 43005938551 at this head finished and passed.\n\nFindings:\n1. Stray file: the diff adds `uv.lock` (1247 lines). `main` has no `uv.lock`, `.gitignore` does not list it, no ticket row asks for it, and the `Deviations:` line does not name it. Remove it from the branch (a trace in the tree that the Edit tool would not have).\n2. `pitboss nox` was run twice on this head's tree, which the Deviations line says. A listed second run on one head is a departure from the rule. Do not run it again; name the single run in the hand-back.\n3. Comment made false: `src/pitboss/flowstate.py` above `AFTER` says \"The flow reads the first step; the later ones are not wired\". For `do these steps` the flow now reads the second step (`flow.ruled_step`, `int(done and checked_since(...))`). Rewrite that comment to say which row's later step is wired and when.\n\nDone-when rows 1 to 4: met by the code and tests as written (`checked_since` in plancheckflow.py with `ruled_step`; `itemfast.show_review`, `STEP_RULE` and `STEP_ARGUMENT`; the tests named in the Plan, which ran in CI). Fixing the three findings does not change them.\n\nChecklist (`bats prcheck --checklist`): not run, because I run nothing but the Plan's dry runs; the findings above are from the diff.\nQuarantine check: no `test.fixme` mark citing the ticket exists in the diff; none to remove.\nRace check: not a race fix.\nDeviation: `pitboss nox` run twice on this head's tree (the first stopped at a black reformat), finding 2.\nDeviation: `uv.lock` added and not listed, finding 1.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T10:57:11Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6793968802",
+   "id": 6793968802
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Opus ruling\nRuling: do these steps\nHead: ad19ee47dc2babd7612093ea842d24e8bfc174ae\n\nHow we got here: the review of this head (comment 6793968802) approved the Plan and found the Execution wanting in three places. The first Execution rejection goes to a ruling. The verdict stands as changes needed.\n\nSteps:\n1. Remove uv.lock from the branch (main has none and the ticket's rows do not ask for it).\n2. Rewrite the comment above AFTER in src/pitboss/flowstate.py so it is true: say which row's later step is wired and when.\n3. Finding 2 of the review (pitboss nox run twice on one tree) is dropped: it is not a finding (ruling of 2026-11-11 09:25Z, #468). The Deviations line names only a departure from the Plan's commands or the ticket's Done-when.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T10:57:52Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6793982306",
+   "id": 6793982306
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: 7402272096fdceed\nPlan check: ok\npitboss timing: plan-check: 2.8s in the command, startup before it 0.4s\npitboss timing: rest: 2.8s; GitHub API 3 calls 1.1s, git 10 calls 0.3s, other processes 0 calls 0.0s\npitboss timing: all: GitHub API 3 calls 1.1s, git 10 calls 0.3s, other processes 0 calls 0.0s\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T11:22:14Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6794477477",
+   "id": 6794477477
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Opus ruling\nRuling: revise the plan\n\nHow we got here: the Plan was approved at digest 653f124f140d2538. Plan check then forced the Plan's CI pointers to name the current head's run, which changed the digest to 7402272096fdceed (Plan check comment 6794477477). The change is the run URLs only. Moshe's go-ahead of 2026-11-11 13:00Z covers posting this ruling.\n\nSteps:\n1. The Plan at digest 7402272096fdceed is accepted as the revision of the approved Plan, the URL-only change being the whole difference.\n2. The re-review checks that the Plan diff between the two digests is URL-only, reviews the fix diff, and gives one verdict.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T13:05:12Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6796601414",
+   "id": 6796601414
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Opus ruling\nRuling: do these steps\n\nHow we got here: the Plan was approved at digest 653f124f140d2538. Plan check then forced the Plan's CI pointers to name the current head's run, which changed the digest to 7402272096fdceed (the URLs only). The earlier ruling of 13:05Z said revise the plan, and pitboss printed a Plan rewrite for it. Moshe's go-ahead of 2026-11-11 13:00Z covers posting this ruling.\n\nSteps:\n1. The Plan at the current digest 7402272096fdceed stands.\n2. The re-review checks that the Plan diff from the approved digest 653f124f140d2538 is URL-only, reviews the ruling-steps diff, and gives one verdict.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T14:21:50Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6798344581",
+   "id": 6798344581
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Owner decision needed (paused-owner). Plan digest 653f124f140d2538 was approved; after that the Plan was edited (CI pointers changed to name the head's run, comment 6794477477, digest 7402272096fdceed). Three Opus rulings are already on this PR (10:57Z, 13:05Z, 14:21Z), so no further ruling is allowed (one ruling per PR). The question:\n\nHow should the Plan edit be settled?\n1. Accept digest 7402272096fdceed as the Plan (the change is the CI pointers only), then review the Execution as it stands. Pitboss then offers the review.\n2. Restore the approved Plan (digest 653f124f140d2538) and keep the pointers it had; this works only after pitboss PR 468 (plan-check --head) lands, because plan-check refuses the old pointers today.\n3. Close this PR.\n\nRecommended: 1 (the whole difference is the pointers; the Execution is 18 of 18 green).\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T22:33:58Z",
+   "html_url": "https://github.com/dev-skill-up/pitboss/pull/470#issuecomment-6808697415",
+   "id": 6808697415
+  }
+ ],
+ "commits": [
+  {
+   "date": "2026-11-11T10:08:33Z",
+   "sha": "54c11c7f7322a4571b634fbe4fbfe04a2f4beb95"
+  },
+  {
+   "date": "2026-11-11T10:42:55Z",
+   "sha": "ad19ee47dc2babd7612093ea842d24e8bfc174ae"
+  },
+  {
+   "date": "2026-11-11T11:15:25Z",
+   "sha": "f011385ff49ad70f515e9f25f6791eb1f7acfe8c"
+  },
+  {
+   "date": "2026-11-11T11:15:57Z",
+   "sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22"
+  }
+ ],
+ "events": [
+  {
+   "created_at": "2026-11-11T22:33:59Z",
+   "event": "labeled",
+   "label": "paused-owner"
+  },
+  {
+   "created_at": "2026-11-11T22:46:48Z",
+   "event": "unlabeled",
+   "label": "paused-owner"
+  }
+ ],
+ "number": 470,
+ "pull": {
+  "auto_merge": null,
+  "base": {
+   "ref": "main"
+  },
+  "body": "Fixes dev-skill-up/pitboss#462\n\nHead: 6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22\n\nDone-when digest: 97d51d9eabaf0ce0\n\n## Plan\n\nEach Done-when item of #462 word for word, with its evidence; the command rows first, the CI pointers last.\n\n1. The head: `git rev-parse HEAD`.\n2. Done when 1: A PR whose newest `Opus ruling` comment rules `do these steps` is offered the review step, not the fix step, when its body was edited after the ruling comment and a `Plan check` comment saying `Plan check: ok` for the PR's current head and Plan digest is newer than the ruling. A test plants that world and shows the review step. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_clean_check_after_the_ruling_gives_the_review` (the flow gives the review step); the tests of the functions it changed, `test_a_clean_check_before_the_ruling_is_not_since` (`checked_since`, the nearest input it must still reject: a clean check older than the ruling), `test_unchecked_and_review_follow_the_check` (`unchecked`, `review`) and `test_plan_unrun_needs_a_review_after_the_ruling` (`plan_unrun`); the run of the head is https://github.com/dev-skill-up/pitboss/actions/runs/43011137593, the page of its `tests-3.13` entry is https://github.com/dev-skill-up/pitboss/actions/runs/43011137593/job/130490739619.\n3. Done when 2: The same PR is still offered the fix step when the body was not edited after the ruling, and when the Plan check after the ruling is a refusal. A test plants each. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_no_check_after_the_ruling_gives_the_fix` and `test_a_refusal_after_the_ruling_gives_the_fix` (and `test_a_clean_check_of_another_plan_gives_the_fix`); same run and page as row 2.\n4. Done when 3: `slots next --config CFG --step review OWNER/REPO#N` prints the review brief for that named PR (the brief the sweep prints for a PR at the review step), and exits 1 with `UNKNOWN` plus the PR's actual step when the PR is not at the review step. A test plants a PR at each of the steps and shows the output or the refusal. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_pr_at_the_review_is_briefed` (output), `test_a_pr_at_a_fix_is_refused_with_its_step_and_the_rule`, `test_a_pr_at_another_step_is_refused` and `test_a_ticket_is_at_no_review` (the refusals, status 1, `UNKNOWN` and the step); same run and page as row 2.\n5. Done when 4: The refusal and the help text of `--step` state the rule, so a user who asks for a step that the PR is not at sees why. CI pointer: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a_pr_at_a_fix_is_refused_with_its_step_and_the_rule` (the refusal says `--step review prints the brief of a PR only when its step is a review`); the help text is the same sentence, `itemfast.STEP_RULE`, in `itemfast.STEP_ARGUMENT`; same run and page as row 2.\n\n## Execution\n\n- `plancheckflow.checked_since` says whether the newest trusted check of the Plan as it is now is clean and newer than the newest readable ruling; `flow.ruled_step` takes the second step of the `do these steps` row of `AFTER` (the review) when it is, else the first (the fix). GitHub gives no time for a body edit (`bodydigest`), so the clean `Plan check` after the ruling is the record that the body was edited after it. The `Plan check` comment records the Plan digest and no head; a push after the ruling already ends `flowstate.ruling_unapplied`, so the head is covered there.\n- `itemfast.show_review` (`slots next --step review`) prints the brief only when the pick's kind is one of `brief.REVIEWS`; otherwise it prints `UNKNOWN: REF is not at the review step: its step is `...`; --step review prints the brief of a PR only when its step is a review (...)` on standard error and the command exits 1. A ticket with no PR is refused with the same rule; a reason `slots next` already gives (closed, held, a wait) is kept.\n- Local: `pitboss nox` on the head, its four sessions green, in the hand-back; the Plan names no nox run (CI's `Run Nox` step is the suite).\n\nDeviations: none\n\n## Evidence\n\n```pitboss-expand sha256=78e494fc193777dc head=6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22\n$ git rev-parse HEAD\n6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22\n```\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_\n\n",
+  "created_at": "2026-11-11T10:15:17Z",
+  "draft": false,
+  "head": {
+   "ref": "pb-462",
+   "sha": "6673d4ad3a0318f2e5d6f45656c6cb05bfeefc22"
+  },
+  "labels": [],
+  "mergeable_state": "clean",
+  "merged_at": null,
+  "number": 470,
+  "state": "open",
+  "title": "Count a ruling steps done after a body-only fix round; slots next --step review",
+  "updated_at": "2026-11-11T22:46:48Z",
+  "user": {
+   "login": "moshez"
+  }
+ },
+ "reviews": [],
+ "slug": "dev-skill-up/pitboss"
+}

@@ -1,0 +1,522 @@
+{
+ "checks": {
+  "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4": [
+   {
+    "completed_at": "2026-11-11T18:59:58Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43082878056/job/130739712052",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130739712052,
+    "name": "text-lint / lint",
+    "started_at": "2026-11-11T18:59:05Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:31:44Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130724934214",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130724934214,
+    "name": "check",
+    "started_at": "2026-11-11T18:31:40Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:18:13Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706946547",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706946547,
+    "name": "fixtures (shard 2)",
+    "started_at": "2026-11-11T18:00:18Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:31:38Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706946535",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706946535,
+    "name": "fixtures (shard 1)",
+    "started_at": "2026-11-11T18:00:23Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:25:12Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706946447",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706946447,
+    "name": "fixtures (shard 3)",
+    "started_at": "2026-11-11T17:59:38Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:27:55Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706946335",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706946335,
+    "name": "fixtures (shard 4)",
+    "started_at": "2026-11-11T17:59:25Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:00:16Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706798505",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706798505,
+    "name": "setup-action",
+    "started_at": "2026-11-11T17:59:10Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:16:57Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706798504",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706798504,
+    "name": "build",
+    "started_at": "2026-11-11T17:59:09Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T17:59:23Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706798499",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706798499,
+    "name": "plan",
+    "started_at": "2026-11-11T17:59:10Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:00:22Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073353198/job/130706764506",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706764506,
+    "name": "text-lint / lint",
+    "started_at": "2026-11-11T17:59:18Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T18:00:33Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073327032/job/130706664005",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706664005,
+    "name": "canonical-files / canonical-files",
+    "started_at": "2026-11-11T17:58:56Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T17:59:07Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706660146",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706660146,
+    "name": "affected",
+    "started_at": "2026-11-11T17:58:54Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T17:59:16Z",
+    "conclusion": "cancelled",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43073320911/job/130706648325",
+    "head_sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4",
+    "id": 130706648325,
+    "name": "text-lint / lint",
+    "started_at": "2026-11-11T17:58:53Z",
+    "status": "completed"
+   }
+  ],
+  "4dd6f1316229ebc26f3783cc819baeaf457ff87e": [
+   {
+    "completed_at": "2026-11-11T13:57:21Z",
+    "conclusion": "failure",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130567374375",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130567374375,
+    "name": "check",
+    "started_at": "2026-11-11T13:57:18Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:53:17Z",
+    "conclusion": "failure",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130560869100",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130560869100,
+    "name": "fixtures (shard 1)",
+    "started_at": "2026-11-11T13:51:55Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:52:50Z",
+    "conclusion": "failure",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130560868984",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130560868984,
+    "name": "fixtures (shard 2)",
+    "started_at": "2026-11-11T13:51:39Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:52:11Z",
+    "conclusion": "failure",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130560868958",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130560868958,
+    "name": "fixtures (shard 4)",
+    "started_at": "2026-11-11T13:51:09Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:51:15Z",
+    "conclusion": "failure",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130560868838",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130560868838,
+    "name": "fixtures (shard 3)",
+    "started_at": "2026-11-11T13:50:03Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:57:16Z",
+    "conclusion": "failure",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130557681456",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130557681456,
+    "name": "build",
+    "started_at": "2026-11-11T13:39:06Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:42:20Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130557681437",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130557681437,
+    "name": "setup-action",
+    "started_at": "2026-11-11T13:41:30Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:44:52Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130557681423",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130557681423,
+    "name": "plan",
+    "started_at": "2026-11-11T13:44:40Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:38:46Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43030522505/job/130556060711",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130556060711,
+    "name": "affected",
+    "started_at": "2026-11-11T13:38:35Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:29:06Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029381050/job/130552194826",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130552194826,
+    "name": "text-lint / lint",
+    "started_at": "2026-11-11T13:28:12Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:27:36Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029307915/job/130552014058",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130552014058,
+    "name": "plan",
+    "started_at": "2026-11-11T13:27:45Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:27:36Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029307915/job/130551936825",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130551936825,
+    "name": "check",
+    "started_at": "2026-11-11T13:27:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:27:36Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029307915/job/130551936468",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130551936468,
+    "name": "fixtures (shard ${{ matrix.shard }})",
+    "started_at": "2026-11-11T13:27:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:27:36Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029307915/job/130551935625",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130551935625,
+    "name": "build",
+    "started_at": "2026-11-11T13:27:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:27:36Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029307915/job/130551934742",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130551934742,
+    "name": "setup-action",
+    "started_at": "2026-11-11T13:27:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:27:36Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029307915/job/130551934224",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130551934224,
+    "name": "affected",
+    "started_at": "2026-11-11T13:27:36Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:29:07Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029308320/job/130551933342",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130551933342,
+    "name": "canonical-files / canonical-files",
+    "started_at": "2026-11-11T13:27:38Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:28:10Z",
+    "conclusion": "cancelled",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43029303305/job/130551923609",
+    "head_sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e",
+    "id": 130551923609,
+    "name": "text-lint / lint",
+    "started_at": "2026-11-11T13:27:36Z",
+    "status": "completed"
+   }
+  ],
+  "8637c68e5d23ceb2a62cf1011071ec348f151383": [
+   {
+    "completed_at": "2026-11-11T13:23:11Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028517409/job/130549238069",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130549238069,
+    "name": "text-lint / lint",
+    "started_at": "2026-11-11T13:22:23Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:20:43Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028275642/job/130548492211",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548492211,
+    "name": "setup-action",
+    "started_at": "2026-11-11T13:20:52Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:20:43Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028275642/job/130548472756",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548472756,
+    "name": "plan",
+    "started_at": "2026-11-11T13:20:50Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:20:43Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028275642/job/130548464783",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548464783,
+    "name": "build",
+    "started_at": "2026-11-11T13:20:49Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:21:44Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028276290/job/130548419808",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548419808,
+    "name": "text-lint / lint",
+    "started_at": "2026-11-11T13:20:47Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:20:43Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028275642/job/130548414489",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548414489,
+    "name": "check",
+    "started_at": "2026-11-11T13:20:44Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:20:43Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028275642/job/130548413606",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548413606,
+    "name": "fixtures (shard ${{ matrix.shard }})",
+    "started_at": "2026-11-11T13:20:43Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:22:18Z",
+    "conclusion": "success",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028276329/job/130548413351",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548413351,
+    "name": "canonical-files / canonical-files",
+    "started_at": "2026-11-11T13:20:45Z",
+    "status": "completed"
+   },
+   {
+    "completed_at": "2026-11-11T13:20:43Z",
+    "conclusion": "skipped",
+    "details_url": "https://github.com/bats-lang/bats/actions/runs/43028275642/job/130548412628",
+    "head_sha": "8637c68e5d23ceb2a62cf1011071ec348f151383",
+    "id": 130548412628,
+    "name": "affected",
+    "started_at": "2026-11-11T13:20:43Z",
+    "status": "completed"
+   }
+  ]
+ },
+ "comments": [
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: c84b298d4fd6e21e\nPlan check: ok\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T13:22:20Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6796975186",
+   "id": 6796975186
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 8637c68e5d23ceb2a62cf1011071ec348f151383: changes needed\n\nPlan: changes needed (two findings, below); the Execution is not graded here.\nPlan digest: c84b298d4fd6e21e\nVerdict: changes needed\nBody: 205de5bc254598dd\nQuarantine check: no test.fixme mark cites this ticket; none to remove.\n\nFindings of the Plan and the docstring check:\n\n1. Docstring made false next to the code the change alters. In `src/pins_check.bats`, `names_check` still says `(* Each changed path that is not one of the nine a pin move touches is said *)`. The diff adds `.github/workflows/canonical-files.yml` to its allowed list, so the list now holds ten paths. Change \"nine\" to \"ten\" (or drop the count) in the same commit.\n\n2. CI pointer of rows 4 and 5 does not show the string it promises. Both rows point to run 43028275642 of `check.yml`. That run is the draft's: its conclusion is `skipped` and it has no `fixtures` job, so `ok   canonical-files-pin-move` and `ok   canonical-files-extra-line` cannot appear in it. A pointer must give the workflow, job, step, a greppable string and how the run is found for the commit. Name the run that will hold the fixtures (for example, \"the newest `check.yml` run of head <SHA> after the PR is marked ready, found with `gh run list --workflow check.yml --commit <SHA>`\"), and do not cite the skipped run.\n\nChecked and fine:\n- Rows 1 and 2 give exact `grep -n` commands, and the Evidence shows their output for lines 219, 220 and 222 of `tests/pins-check/check.sh`.\n- Row 3 is `git rev-parse HEAD` and matches the `Head:` line.\n- The Plan asks for no nox run and no repeated local run.\n- Plan check comment: present, ends `Plan check: ok`, same digest `c84b298d4fd6e21e`.\n- I could not dry-run the `grep` commands, because I have no checkout. I read the diff instead: the `check.sh` lines they match are in the diff.\n- The diff meets the Done-when as far as the Plan is concerned: `canonical-files.yml` is a pin file and uses the same reading as `text-lint.yml`. A step line changed gives `NOT OK`. The diff also plants three more refusal cases (only tools-ref moved, name changed, another workflow's pin).\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T13:25:49Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6797052930",
+   "id": 6797052930
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: 217c1ddbb0dedcf1\nPlan check: ok\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T13:28:17Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6797111392",
+   "id": 6797111392
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 4dd6f1316229ebc26f3783cc819baeaf457ff87e: approved\n\nPlan: approved; the Execution is not graded here.\nPlan digest: 217c1ddbb0dedcf1\nVerdict: approved\nBody: ce15011c7923d466\nQuarantine check: no test.fixme mark cites this ticket; none to remove.\n\nRound 2 of the Plan. The earlier review (head 8637c68e5d23ceb2a62cf1011071ec348f151383) had two findings; both are fixed in the text I read:\n\n1. The `names_check` docstring now says \"ten\", matching the ten allowed paths in the diff.\n2. Rows 4 and 5 are now CI pointers that name the workflow (`check.yml`), how the run is found (`gh run list --workflow check.yml --commit 4dd6f1316229ebc26f3783cc819baeaf457ff87e`, with a note that the run exists once the PR is marked ready), the job (`fixtures`), the step and a greppable string for each row. They no longer cite the skipped draft run.\n\nChecked:\n- Rows 1 and 2 give exact `grep -n` commands, and the Evidence shows their output (lines 219, 220 and 222 of `tests/pins-check/check.sh`). I did not dry-run them because I have no checkout of the head. The matching lines are in the diff.\n- Row 3 is `git rev-parse HEAD`, and it matches the last `Head:` line of the body.\n- No nox run and no repeated local run is asked for.\n- The Plan check comment for digest `217c1ddbb0dedcf1` is present and ends `Plan check: ok`.\n- The diff meets the Done-when as far as the Plan goes. `canonical-files.yml` is a pin file read by the same caller reading as `text-lint.yml`. A changed step line gives `NOT OK`. The diff also plants three more refusal cases (only tools-ref moved, name changed, another workflow's pin).\n- Docstrings: the comments the change alters were updated in the same diff. Only the section header above `starts_at` still names text-lint alone. It is not false for text-lint, so it is not a finding.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T13:31:44Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6797197781",
+   "id": 6797197781
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4: changes needed\n\nPlan: approved (fixed)\nVerdict: changes needed\nBody: 07ed435e0eeb7c62\nQuarantine check: no test.fixme mark cites this ticket; none to remove.\nRace check: not a race fix.\nDeviation: none listed in the body (`Deviations: none`); the diff shows no stray file, mode or line-ending change.\n\nChecks of the head: every check of run 43073326147 (head 414fd03) is completed and green: check, plan, build, affected, setup-action, fixtures shards 1 to 4, canonical-files, text-lint. The run before it, 43030522505 (head 4dd6f13), is `failure`.\n\nFinding 1 (Evidence is not run on the head). The last `Head:` line is 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4, and all three `pitboss-expand` blocks carry `head=4dd6f1316229ebc26f3783cc819baeaf457ff87e`. Row 3 (`git rev-parse HEAD`) printed `4dd6f1316229ebc26f3783cc819baeaf457ff87e`, which is not the `Head:` line's commit, so the row (\"prints the `Head:` line's commit\") does not hold in the Evidence. The third commit (bootstrap/c regenerated) moved the head after the Evidence was made, and the Evidence was not refreshed. Fix: after the last push, rerun the Plan's three commands as written at 414fd03 (`grep -n \"canonical-files-pin-move\" tests/pins-check/check.sh`, `grep -n \"canonical-files-extra-line\" tests/pins-check/check.sh`, `git rev-parse HEAD`) and paste them with `pitboss expand`, so each block is marked with the head and row 3 prints 414fd03.\n\nEverything else of the Execution is as the Plan and the Done-when ask:\n- Done-when 1: `canonical-files.yml` is in the allowed paths and the message, and `prove` calls `reusable_file(cmd, \".github/workflows/canonical-files.yml\", \"canonical-files-check.yml\")`. Fixture `canonical-files-pin-move` expects `OK: main...pr changes only pins` and the `ok   .github/workflows/canonical-files.yml` line (check.sh lines 219 and 220).\n- Done-when 2: fixture `canonical-files-extra-line` plants one added step line and expects `NOT OK ... a changed line is neither the canonical-files-check.yml pin nor its tools-ref: +      extra: step` (line 222). Three more refusals are planted (only the tools-ref moved, the name changed, another workflow's pin). The nearest rejects of the loosened rule are tested.\n- The text-lint messages are unchanged apart from being printed through `not_ok_head`. The text-lint fixtures remain.\n- Docstring grep: `names_check` says ten, matching the ten paths. The header above `starts_at` and the one at the old text-lint block still name text-lint alone, which is true for text-lint, so no finding.\n- bootstrap/c: the regenerated tree is the only change of the third commit, and the CI step that verifies it passed at the head.\n- Doc lines: no .md or .rst line is added. Failures: nothing turns a failure into a pass.\n\nPrcheck checklist: `bats prcheck --checklist` was not run by me, because a reviewer runs nothing; no line of its output can be stated here.\n\nNote for an Opus ruling (not a finding of the Execution). Rows 4 and 5 of the approved Plan are CI pointers that name `gh run list --workflow check.yml --commit 4dd6f1316229ebc26f3783cc819baeaf457ff87e`. The newest check.yml run of that commit (43030522505) is red, and the run that holds the fixtures for the head is 43073326147 (head 414fd03, job `fixtures (shard N)`). I did not find `ok   canonical-files-pin-move` or `ok   canonical-files-extra-line` in the tail of the log of shard 1 that I could read, so I cannot state which shard prints them. The Plan fixes the commit in its rows, so the Execution cannot change it; a ruling on whether these pointers follow the head is asked for.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T18:43:48Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6804332402",
+   "id": 6804332402
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4: changes needed\n\nPlan: approved (fixed)\nExecution: changes needed\nVerdict: changes needed\nBody: 07ed435e0eeb7c62\nQuarantine check: no test.fixme mark cites this ticket; none to remove.\nRace check: not a race fix.\nDeviation: none listed in the body (`Deviations: none`); the diff shows no stray file, mode or line-ending change.\n\nChecks of the head: every check of run 43073326147 (head 414fd03) is completed and green: check, plan, build, affected, setup-action, fixtures shards 1 to 4, canonical-files, text-lint. The run before it, 43030522505 (head 4dd6f13), is `failure`.\n\nFinding 1 (Evidence is not run on the head). The last `Head:` line is 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4, and all three `pitboss-expand` blocks carry `head=4dd6f1316229ebc26f3783cc819baeaf457ff87e`. Row 3 (`git rev-parse HEAD`) printed `4dd6f1316229ebc26f3783cc819baeaf457ff87e`, which is not the `Head:` line's commit, so the row (\"prints the `Head:` line's commit\") does not hold in the Evidence. The third commit (bootstrap/c regenerated) moved the head after the Evidence was made, and the Evidence was not refreshed. Fix: after the last push, rerun the Plan's three commands as written at 414fd03 (`grep -n \"canonical-files-pin-move\" tests/pins-check/check.sh`, `grep -n \"canonical-files-extra-line\" tests/pins-check/check.sh`, `git rev-parse HEAD`) and paste them with `pitboss expand`, so each block is marked with the head and row 3 prints 414fd03.\n\nEverything else of the Execution is as the Plan and the Done-when ask:\n- Done-when 1: `canonical-files.yml` is in the allowed paths and the message, and `prove` calls `reusable_file(cmd, \".github/workflows/canonical-files.yml\", \"canonical-files-check.yml\")`. Fixture `canonical-files-pin-move` expects `OK: main...pr changes only pins` and the `ok   .github/workflows/canonical-files.yml` line (check.sh lines 219 and 220).\n- Done-when 2: fixture `canonical-files-extra-line` plants one added step line and expects `NOT OK ... a changed line is neither the canonical-files-check.yml pin nor its tools-ref: +      extra: step` (line 222). Three more refusals are planted (only the tools-ref moved, the name changed, another workflow's pin). The nearest rejects of the loosened rule are tested.\n- The text-lint messages are unchanged apart from being printed through `not_ok_head`. The text-lint fixtures remain.\n- Docstring grep: `names_check` says ten, matching the ten paths. The header above `starts_at` and the one at the old text-lint block still name text-lint alone, which is true for text-lint, so no finding.\n- bootstrap/c: the regenerated tree is the only change of the third commit, and the CI step that verifies it passed at the head.\n- Doc lines: no .md or .rst line is added. Failures: nothing turns a failure into a pass.\n\nPrcheck checklist: `bats prcheck --checklist` was not run by me, because a reviewer runs nothing; no line of its output can be stated here.\n\nNote for an Opus ruling (not a finding of the Execution). Rows 4 and 5 of the approved Plan are CI pointers that name `gh run list --workflow check.yml --commit 4dd6f1316229ebc26f3783cc819baeaf457ff87e`. The newest check.yml run of that commit (43030522505) is red, and the run that holds the fixtures for the head is 43073326147 (head 414fd03, job `fixtures (shard N)`). I did not find `ok   canonical-files-pin-move` or `ok   canonical-files-extra-line` in the tail of the log of shard 1 that I could read, so I cannot state which shard prints them. The Plan fixes the commit in its rows, so the Execution cannot change it; a ruling on whether these pointers follow the head is asked for.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T18:47:00Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6804400871",
+   "id": 6804400871
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Opus ruling\nRuling: do these steps\n\n## How we got here\n\nChecked against the PR, its commits, its comments and the runs of `check.yml`:\n\n- The PR has three commits: 8637c68 (the change), 4dd6f13 (the docstring says ten, the Plan's round-2 fix) and 414fd03 (`bootstrap/c` regenerated). The Plan was approved at 4dd6f13 (comment 6797197781, Plan digest `217c1ddbb0dedcf1`, with a Plan check comment of that digest, 6797111392).\n- The run of 4dd6f13, 43030522505, is red because the code was right but `bootstrap/c` was stale. Its `build` job ends `bootstrap/c is stale` (as bats's CLAUDE.md expects: the worker pushes the `src/` change and takes the regenerated tree from CI). So a third commit was always going to be needed, and the head was always going to move past 4dd6f13.\n- The body's `Head:` line was moved to 414fd03, but the three `pitboss-expand` blocks still say `head=4dd6f13`, and row 3's block prints `4dd6f1316229ebc26f3783cc819baeaf457ff87e`. No Plan check comment was posted after 414fd03. Finding 1 of the Execution review (6804332402, reposted as 6804400871 with its `Execution:` line) is correct. It is a failure a worker hits by mistake (committing after the Evidence was made). The preventions are filed as items 27 and 28 of dev-skill-up/pitboss#444, as the brief says.\n- The run of the head, 43073326147 (head 414fd03, `pull_request`), is green in every job. Its job `fixtures (shard 2)` (https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706946547), step `Fixture tests of shard 2`, lists `pins-check` in its `shard 2 of 4:` line and prints `ok   canonical-files-pin-move in 0 s` and `ok   canonical-files-extra-line in 0 s`, then `group pins-check: ok in 2 s`. Shards 1, 3 and 4 do not run the `pins-check` group. That is why the reviewer did not find the lines in shard 1.\n- Rows 4 and 5 of the approved Plan name the commit 4dd6f13 in their `gh run list` command. That commit's newest run is the red one, so the rows as written point to a run whose fixture jobs did not pass. The commit in a CI pointer stands for the head the rows are about (row 3 says so: the head is the `Head:` line's commit). It was written as a literal only because the Plan had to name the head at the time. It was never meant to be a different commit from the head.\n\n## Ruling on rows 4 and 5\n\nRows 4 and 5 follow the head. An approved Plan is never edited, so the Plan text stays as it is, and this ruling is how the rows are read: the commit in each row's `gh run list --workflow check.yml --commit ...` is the commit of the body's last `Head:` line. At the current head that is 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4. The shard is not fixed by the Plan, because `bats fixture-shards` assigns groups to shards. At 414fd03 the strings are in `fixtures (shard 2)`. At any later head, they are in the shard whose `shard N of 4:` line lists `pins-check`. The Plan is not revised, and it gets no new Plan review round over this.\n\nThe pointer for 414fd03, for the reviewer to open (nothing from it is pasted into the body, under the CI pointer rule): workflow `check.yml`, run 43073326147, job `fixtures (shard 2)` https://github.com/bats-lang/bats/actions/runs/43073326147/job/130706946547, step `Fixture tests of shard 2`, greppable strings `ok   canonical-files-pin-move` (row 4) and `ok   canonical-files-extra-line` (row 5).\n\n## Steps\n\n1. Push nothing to the branch. The head stays 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4. If anything does move the head (a merge of main, another regeneration), run steps 2 to 4 again at the new head, and run the `Head:` line update with `pitboss body-head`.\n2. In a checkout at 414fd03, run the Plan's three commands as written through `pitboss expand`: `grep -n \"canonical-files-pin-move\" tests/pins-check/check.sh`, `grep -n \"canonical-files-extra-line\" tests/pins-check/check.sh` and `git rev-parse HEAD`. Replace the three Evidence blocks of the body with that output. Each block must say `head=414fd03f9edf9b97730c3dc4c98e7c832c4c1df4`, and row 3's block must print `414fd03f9edf9b97730c3dc4c98e7c832c4c1df4`.\n3. Leave the Plan section unchanged. Put this line under `Deviations:` in the Execution, in place of `none`: `Rows 4 and 5 follow the head (Opus ruling <URL of this comment>): run 43073326147, job fixtures (shard 2).` No CI log line goes into the body.\n4. Run `pitboss plan-check` on the body at 414fd03 and post its comment. It must end `Plan check: ok`, with the same Plan digest as the approved Plan (`217c1ddbb0dedcf1`). If the digest differs, the Plan text was changed: restore it and run the check again.\n5. Run `pitboss hand-back-check` until it prints `ok`, then hand back for the Execution review of 414fd03. The reviewer checks Finding 1 against the new blocks, and checks rows 4 and 5 by opening the job above and grepping the two strings.\n\nThe change itself meets the ticket's Done-when (both reviews say so, and the run of the head shows both fixtures `ok`). Only the Evidence and the Plan check stand between it and approval.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T18:50:54Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6804483020",
+   "id": 6804483020
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Plan check\nPlan digest: 217c1ddbb0dedcf1\nPlan check: ok\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T18:59:13Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6804660207",
+   "id": 6804660207
+  },
+  {
+   "author_association": "MEMBER",
+   "body": "Independent review (a separate reviewer agent, not the author) of head 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4: approved\n\nPlan: approved (fixed)\nExecution: approved\nVerdict: approved\nBody: 9375788c6b653b84\nQuarantine check: no test.fixme mark cites this ticket; none to remove.\nRace check: not a race fix.\nDeviation: Rows 4 and 5 follow the head (Opus ruling 6804483020), run 43073326147, job fixtures (shard 2). This follows the ruling and departs from neither the Plan's commands nor the Done-when; no stray file, mode or line-ending change in the diff. Not a finding.\n\nRound 2 of the Execution. The earlier review (comment 6804400871) had one finding.\n\nFinding 1 of the earlier review (Evidence not run on the head): fixed. The last Head line is 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4. All three pitboss-expand blocks carry that head, and the block of `git rev-parse HEAD` prints it. The two grep blocks show lines 219, 220 and 222 of `tests/pins-check/check.sh`, the three commands as the Plan wrote them. The Plan section is unchanged and a Plan check comment (6804660207) ends `Plan check: ok` with digest 217c1ddbb0dedcf1, the digest the Plan was approved at. No Missed earlier lines: the finding was caused by the push that moved the head.\n\nRows 4 and 5 (CI pointers): I opened job 130706946547 (check.yml run 43073326147, `fixtures (shard 2)`, head 414fd03). Its log has `ok   canonical-files-pin-move in 0 s` and `ok   canonical-files-extra-line in 0 s`, then `pins-check: ok` and `group pins-check: ok`. The three other planted cases (only-tools-ref-moved, name-changed, other-workflow-pin) are also ok there, and the text-lint cases still pass.\n\nChecks at the head, read at the time of posting: check, plan, build, affected, setup-action, fixtures shards 1 to 4, canonical-files and text-lint / lint are all completed and success. The head did not move since the brief.\n\nDone-when: (1) canonical-files.yml is an allowed pin file read by the same caller reading as text-lint.yml, and the pin-move fixture shows OK. (2) A changed step line in that file gives NOT OK, planted by the extra-line fixture. Docstring grep: `names_check` says ten and the list holds ten. No .md or .rst line is added. Nothing turns a failure into a pass. bootstrap/c is the regenerated tree and the CI step that verifies it passed.\n\nPrcheck checklist: `bats prcheck --checklist` was not run by me, because a reviewer runs nothing; no line of its output can be stated here.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+   "created_at": "2026-11-11T19:02:28Z",
+   "html_url": "https://github.com/bats-lang/bats/pull/650#issuecomment-6804729606",
+   "id": 6804729606
+  }
+ ],
+ "commits": [
+  {
+   "date": "2026-11-11T13:19:32Z",
+   "sha": "8637c68e5d23ceb2a62cf1011071ec348f151383"
+  },
+  {
+   "date": "2026-11-11T13:27:12Z",
+   "sha": "4dd6f1316229ebc26f3783cc819baeaf457ff87e"
+  },
+  {
+   "date": "2026-11-11T17:58:27Z",
+   "sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4"
+  }
+ ],
+ "events": [
+  {
+   "created_at": "2026-11-11T13:35:34Z",
+   "event": "ready_for_review",
+   "label": null
+  }
+ ],
+ "number": 650,
+ "pull": {
+  "auto_merge": null,
+  "base": {
+   "ref": "main"
+  },
+  "body": "Fixes bats-lang/bats#649\n\nDone-when digest: 6f6469640e5feb16\n\nHead: 414fd03f9edf9b97730c3dc4c98e7c832c4c1df4\n\n## Plan\n\nDone-when, word for word (the ticket body), bullet one: `bats pins-check BASE HEAD` accepts a diff whose `.github/workflows/canonical-files.yml` hunks change only a commit in a `uses:` line, its version comment, or a `tools-ref` copy of the same commit, as it does for `text-lint.yml`. A fixture under `tests/pins-check` plants such a diff and shows `OK`. Bullet two: It still refuses a diff in that file that changes anything else (a step, a permission). A fixture plants one line of a step changed and shows `NOT OK`.\n\nRows:\n\n1. `bats pins-check BASE HEAD` accepts a diff whose `.github/workflows/canonical-files.yml` hunks change only a commit in a `uses:` line, its version comment, or a `tools-ref` copy of the same commit, as it does for `text-lint.yml`. A fixture under `tests/pins-check` plants such a diff and shows `OK`. Command: `grep -n \"canonical-files-pin-move\" tests/pins-check/check.sh` shows the fixture planting a pin move of that file and expecting `OK: main...pr changes only pins`.\n2. It still refuses a diff in that file that changes anything else (a step, a permission). A fixture plants one line of a step changed and shows `NOT OK`. Command: `grep -n \"canonical-files-extra-line\" tests/pins-check/check.sh` shows the fixture planting a changed step line and expecting `NOT OK`.\n3. The head the rows are about: `git rev-parse HEAD` prints the `Head:` line's commit.\n4. Row 1 passes: CI pointer. Workflow `check.yml`, the newest run of head 4dd6f1316229ebc26f3783cc819baeaf457ff87e found with `gh run list --workflow check.yml --commit 4dd6f1316229ebc26f3783cc819baeaf457ff87e` (the run exists once the PR is marked ready; the draft's run is skipped), job `fixtures`, step `Fixture tests of shard ${{ matrix.shard }}`; greppable string `ok   canonical-files-pin-move`.\n5. Row 2 passes: CI pointer. Workflow `check.yml`, the newest run of head 4dd6f1316229ebc26f3783cc819baeaf457ff87e found with `gh run list --workflow check.yml --commit 4dd6f1316229ebc26f3783cc819baeaf457ff87e` (the run exists once the PR is marked ready; the draft's run is skipped), job `fixtures`, step `Fixture tests of shard ${{ matrix.shard }}`; greppable string `ok   canonical-files-extra-line`.\n\n## Execution\n\n`src/pins_check.bats`: the text-lint caller reading (`text_lint_uses`, `text_lint_lines`, `text_lint_end`, `text_lint_file`) takes the reusable workflow's file name, so `reusable_file` serves `text-lint.yml` with `text-lint-check.yml` and `canonical-files.yml` with `canonical-files-check.yml`; the messages are unchanged for text-lint. `canonical-files.yml` is added to the allowed paths and to the message listing them; the docstring of `names_check` says ten paths. `tests/pins-check/check.sh` plants five cases for the new file. The local build is cold and left to CI; `src/` changed, so `bootstrap/c` is regenerated from CI's artifact once the run of the ready PR uploads it.\n\nDeviations: Rows 4 and 5 follow the head (Opus ruling https://github.com/bats-lang/bats/pull/650#issuecomment-6804483020): run 43073326147, job fixtures (shard 2).\n\n## Evidence\n\n```pitboss-expand sha256=025b26b87e4eef51 head=414fd03f9edf9b97730c3dc4c98e7c832c4c1df4\n$ grep -n \"canonical-files-pin-move\" tests/pins-check/check.sh\n219:prove; expect canonical-files-pin-move 0 \"OK: main...pr changes only pins\"\n220:grep -qx \"ok   .github/workflows/canonical-files.yml\" \"$TMP/out\" || fail \"canonical-files-pin-move: no ok line for canonical-files.yml\"\n```\n\n```pitboss-expand sha256=6b36797eca46ee24 head=414fd03f9edf9b97730c3dc4c98e7c832c4c1df4\n$ grep -n \"canonical-files-extra-line\" tests/pins-check/check.sh\n222:prove; expect canonical-files-extra-line 1 \"NOT OK: .github/workflows/canonical-files.yml: a changed line is neither the canonical-files-check.yml pin nor its tools-ref: +      extra: step\"\n```\n\n```pitboss-expand sha256=4e1c851685e692a0 head=414fd03f9edf9b97730c3dc4c98e7c832c4c1df4\n$ git rev-parse HEAD\n414fd03f9edf9b97730c3dc4c98e7c832c4c1df4\n```\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+  "created_at": "2026-11-11T13:20:38Z",
+  "draft": false,
+  "head": {
+   "ref": "w649",
+   "sha": "414fd03f9edf9b97730c3dc4c98e7c832c4c1df4"
+  },
+  "labels": [],
+  "mergeable_state": "unknown",
+  "merged_at": "2026-11-11T19:04:31Z",
+  "number": 650,
+  "state": "closed",
+  "title": "bats pins-check: .github/workflows/canonical-files.yml is a pin file",
+  "updated_at": "2026-11-11T19:04:31Z",
+  "user": {
+   "login": "moshez"
+  }
+ },
+ "reviews": [],
+ "slug": "bats-lang/bats"
+}

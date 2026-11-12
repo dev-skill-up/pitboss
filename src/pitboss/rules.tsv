@@ -1,8 +1,8 @@
 # id	date	kind	words	function	tests
-A1	2026-11-04	open	An approved Plan is never edited	-	-
-A2	2026-11-11	open	A posted ruling's steps are executed at once	-	-
-A3	2026-11-11	open	A fix round is followed by a re-review slot item	-	-
-A4	2026-11-11	open	No PR has a nothing to do state	-	-
+A1	2026-11-04	enforced	An approved Plan is never edited	flowstate.plan_edited_without_ruling	test_scenarios.test_a1_a2_a3_pitboss_465 test_scenarios.test_a1_a2_a3_pitboss_470 test_scenarios.test_a1_quire_1083
+A2	2026-11-11	enforced	A posted ruling's steps are executed at once	flow.execution_gate	test_scenarios.test_a2_pitboss_463 test_scenarios.test_a1_a2_a3_pitboss_465 test_properties.test_a2_p2_ruling_steps_hold_to_depth_4
+A3	2026-11-11	enforced	A fix round is followed by a re-review slot item	plancheckflow.checked_since	test_scenarios.test_a3_pitboss_460 test_scenarios.test_a3_pitboss_468 test_scenarios.test_a3_bats_650
+A4	2026-11-11	enforced	No PR has a nothing to do state	flow.next_step	test_properties.test_a4_p1_every_pr_has_a_step_to_depth_3
 A5	2026-11-11	open	The owner's call is labelled paused-owner at that moment	-	-
 A6	2026-11-11	open	One ruling per PR; a further rejection goes to the owner	-	-
 A7	2026-11-10	enforced	One verdict per review; a split Plan/Execution verdict counts as changes needed	reviews.from_comments	test_review_rules.test_a7_either_split_is_changes_needed test_review_rules.test_a7_whole_approval_stays_approved
