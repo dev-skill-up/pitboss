@@ -1,7 +1,7 @@
 """Texts cut at a separator, and lines picked by their start."""
 
 import re
-from typing import Iterable
+from typing import Iterable, Sequence
 
 
 def split_at(text: str, separator: str) -> tuple[str, str]:
@@ -34,7 +34,7 @@ def split_last(text: str, separator: str) -> tuple[str, str]:
     return before, after
 
 
-def starting(lines: Iterable[str], prefix: str) -> list[str]:
+def starting(lines: Iterable[str], prefix: str) -> Sequence[str]:
     """The lines that start with a prefix.
 
     Args:
@@ -47,7 +47,7 @@ def starting(lines: Iterable[str], prefix: str) -> list[str]:
     return [line for line in lines if line.startswith(prefix)]
 
 
-def stripped_lines(text: str) -> list[str]:
+def stripped_lines(text: str) -> Sequence[str]:
     """A text's lines with no trailing white space.
 
     Args:
@@ -114,7 +114,7 @@ def hyphenated(name: str) -> str:
     return name.lower().replace("_", "-")
 
 
-def having(lines: Iterable[str], word: str) -> list[str]:
+def having(lines: Iterable[str], word: str) -> Sequence[str]:
     """The lines that hold a word.
 
     Args:

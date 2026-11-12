@@ -41,7 +41,7 @@ def _issues(change: Change, rest: str = "") -> str:
     return f"repos/{change.repo}/issues{rest}"
 
 
-def _issue(change: Change, rest: str = "") -> str:
+def _issue_path(change: Change, rest: str = "") -> str:
     # the change's issue or PR, as an issue
     return _issues(change, f"/{change.number}{rest}")
 
@@ -79,7 +79,7 @@ def _runs(change: Change, rest: str) -> str:
 WRITES: Mapping[str, Words] = {
     "comment": lambda change: _api(
         "POST",
-        _issue(change, "/comments"),
+        _issue_path(change, "/comments"),
         *_fields(change, "body"),
         jq=".id",
     ),
@@ -96,11 +96,11 @@ WRITES: Mapping[str, Words] = {
         jq=".number",
     ),
     "issue-edit": lambda change: _api(
-        "PATCH", _issue(change), *_fields(change, "body")
+        "PATCH", _issue_path(change), *_fields(change, "body")
     ),
     "close-issue": lambda change: _api(
         "PATCH",
-        _issue(change),
+        _issue_path(change),
         "-f",
         "state=closed",
         "-f",
@@ -131,13 +131,13 @@ WRITES: Mapping[str, Words] = {
     ],
     "label": lambda change: _api(
         "POST",
-        _issue(change, "/labels"),
+        _issue_path(change, "/labels"),
         "-f",
         f"labels[]={change.fields['name']}",
     ),
     "unlabel": lambda change: _api(
         "DELETE",
-        _issue(change, f"/labels/{urllib.parse.quote(change.fields['name'])}"),
+        _issue_path(change, f"/labels/{urllib.parse.quote(change.fields['name'])}"),
     ),
     "dequeue": lambda change: [
         "gh",

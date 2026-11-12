@@ -3,7 +3,7 @@
 from .. import claims
 
 
-def exists(name: str) -> bool:
+def resolvable(name: str) -> bool:
     """Whether a test named ``module.Class.method`` or ``module.method`` exists.
 
     Args:

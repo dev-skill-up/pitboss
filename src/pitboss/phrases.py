@@ -18,8 +18,6 @@ import pathlib
 import re
 from typing import Callable, Sequence, TypeVar
 
-from .tsv import is_data
-
 _Row = TypeVar("_Row")
 FIELDS = 4
 CLASS_ESCAPES = "sdw"
@@ -156,7 +154,7 @@ def parse_rows(
     return [
         build(line, f"{source}:{number}")
         for number, line in enumerate(text.split("\n"), 1)
-        if is_data(line)
+        if line.strip() and line[:1] != "#"
     ]
 
 

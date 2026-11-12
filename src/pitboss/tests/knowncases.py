@@ -7,8 +7,7 @@ twin through; ``test_known`` runs every table.
 import copy
 from typing import Mapping, MutableMapping
 
-from .. import actcore
-from ..rulecases import Case
+from .. import actcore, rulecases
 from . import fakehub, knownkit, knownplay
 from .knownkit import change, stops
 from .knownplay import (
@@ -16,7 +15,7 @@ from .knownplay import (
     dispatch_refused,
     held,
     pull_now,
-    refuses,
+    verb_refused,
     review_edited,
     stopping,
 )
@@ -60,7 +59,9 @@ def _merges_held(given: knownkit.Kit) -> bool:
     )
     hub = knownkit.made(given)
     held(given, hub, "merges")
-    return free and refuses(given, hub, "merge") and not pull_now(hub).get("merged")
+    return (
+        free and verb_refused(given, hub, "merge") and not pull_now(hub).get("merged")
+    )
 
 
 @case("G3", "hold record + act gate", "undraft while undrafts are held")
@@ -71,7 +72,7 @@ def _undrafts_held(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given, knownkit.draft())
     held(given, hub, "undrafts")
     drafted = pull_now(hub)["draft"] is True
-    return free and refuses(given, hub, "undraft") and drafted
+    return free and verb_refused(given, hub, "undraft") and drafted
 
 
 @case(
@@ -154,10 +155,10 @@ def _scratch_path(given: knownkit.Kit) -> bool:
 QUIRE_FIXME = {"repo": "bats-lang/quire", "adds_fixme": True}
 OTHER_FIXME = {"repo": "bats-lang/bats", "adds_fixme": True}
 C14 = [
-    Case(
+    rulecases.Case(
         name="C14", date="2026-11-12", world=OTHER_FIXME, action="merge", expect="STOP"
     ),
-    Case(
+    rulecases.Case(
         name="C14-quire",
         date="2026-11-12",
         world=QUIRE_FIXME,
@@ -165,7 +166,7 @@ C14 = [
         expect="STOP",
     ),
 ]
-QUIRE_E2E = Case(
+QUIRE_E2E = rulecases.Case(
     name="quire#976", date="2026-10-30", world=QUIRE_FIXME, action="merge", expect="GO"
 )
 

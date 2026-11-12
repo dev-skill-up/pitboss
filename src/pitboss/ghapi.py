@@ -7,7 +7,7 @@ import subprocess
 import urllib.parse
 from typing import Callable, Iterable, Mapping, Sequence, TypeVar
 
-from . import concurrently, totaljson
+from . import concurrently
 from .running import Run
 
 PAGE_SIZE = 100
@@ -89,7 +89,8 @@ def get_object(github: GitHub, path: str) -> Mapping[str, object]:
     Returns:
         Its members; none when the body is not an object.
     """
-    return totaljson.members(get_json(github, path))
+    found = get_json(github, path)
+    return found if isinstance(found, dict) else {}
 
 
 def run_json(github: GitHub, words: Sequence[str]) -> object:
@@ -105,7 +106,7 @@ def run_json(github: GitHub, words: Sequence[str]) -> object:
     return json.loads(github.run(words).stdout)
 
 
-def branch_pulls(github: GitHub, slug: str, branch: str) -> object:
+def branch_pulls(github: GitHub, slug: str, branch: str) -> Sequence[dict[str, object]]:
     """The open PRs whose head is a branch of the repository's owner.
 
     Args:
@@ -114,13 +115,16 @@ def branch_pulls(github: GitHub, slug: str, branch: str) -> object:
         branch: the branch.
 
     Returns:
-        The parsed list as GitHub answers it; None when it cannot be read.
+        The PRs GitHub lists; none when the list cannot be read.
     """
     head = urllib.parse.quote(f"{slug.split('/')[0]}:{branch}", safe=":/")
     try:
-        return get_json(github, f"repos/{slug}/pulls?head={head}&state=open")
+        found = get_json(github, f"repos/{slug}/pulls?head={head}&state=open")
     except (subprocess.CalledProcessError, ValueError):
-        return None
+        return []
+    if not isinstance(found, list):
+        return []
+    return [each for each in found if isinstance(each, dict)]
 
 
 def post(github: GitHub, path: str) -> str:

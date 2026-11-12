@@ -6,9 +6,8 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import plansize
-from .briefmake import has_all
+from .says import exits, has_all
 from .test_plan_check import checked
-from .says import exits
 from ..textparts import starting
 
 ALLOWED = plansize.ALLOWANCE + plansize.LEEWAY

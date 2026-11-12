@@ -202,5 +202,5 @@ class TestInstructions(unittest.TestCase):
     def test_444_the_sweep_prints_the_instructions(self) -> None:
         """The text of ``instructions()``, whole."""
         here = world.make_world()
-        done = world.again(here, "sweep", "--now", world.FUTURE)
+        done = world.again(here, "sweep", f"--now={world.FUTURE}")
         assert_that(totalroutes.instructions() in done.out, equal_to(True))

@@ -11,7 +11,8 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import holdscope
 from . import exemptworld, quietworld, test_quiet, world
-from .exemptworld import copy_pulls, of, push, remote_to, with_pitboss
+from .exemptworld import copy_pulls, of, push, with_pitboss
+from .pushworld import remote_to
 from .exemptworld import runners_in, swept
 from .test_commands import sweep
 from .test_flow_sweep import EXECUTION_APPROVED, TWO_PLAN_REJECTIONS

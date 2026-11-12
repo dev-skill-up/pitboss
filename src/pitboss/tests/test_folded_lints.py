@@ -7,7 +7,8 @@ from hamcrest import assert_that, contains_string, empty, has_length
 
 from .. import adoptline, evidence, forms, phrases, quotedplan, reviews
 from .test_report import facts
-from .linting import block, subject_of, typed_at
+from .linting import block
+from .formchecks import subject, typed_at
 
 HEAD = "a" * 40
 OTHER = "b" * 40
@@ -44,7 +45,7 @@ def named(text: str, check: str) -> Sequence[str]:
         The findings.
     """
     return [
-        each for each in forms.pr_body(subject_of(text)) if each.endswith(f"({check})")
+        each for each in forms.pr_body(subject(text)) if each.endswith(f"({check})")
     ]
 
 

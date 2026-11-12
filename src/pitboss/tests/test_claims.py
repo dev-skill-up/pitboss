@@ -34,8 +34,8 @@ from .. import (
 from . import fakes, world
 from .test_report import facts
 from .says import ended, exits, says
-from .pushworld import PUSH_NOW, elsewhere
-from .existing import exists
+from .pushworld import push_now, elsewhere
+from .existing import resolvable
 
 TABLE = phrases.shipped_text("claims.tsv")
 OTHER_URL = "git@github.com:owner/other.git"
@@ -74,7 +74,7 @@ def push_ticket(here: world.World) -> world.Result:
         What the push did.
     """
     ticket = ["--ticket", "5", "elsewhere", "HEAD:branch-1"]
-    return world.again(here, *PUSH_NOW, "--draft", *ticket)
+    return push_now(here, "--draft", *ticket)
 
 
 class TestPushClaims(unittest.TestCase):
@@ -116,7 +116,7 @@ class TestPushClaims(unittest.TestCase):
     def test_c29_no_ticket_judges_nothing(self) -> None:
         """Without a ticket there is no PR to look for."""
         here, _ = pushed_world("w1113", "7" * 40)
-        done = world.again(here, *PUSH_NOW, "--draft", "elsewhere", "HEAD:branch-1")
+        done = push_now(here, "--draft", "elsewhere", "HEAD:branch-1")
         ended(done, 0, "pushed\n")
 
     def test_c29_no_remote_slug_judges_nothing(self) -> None:
@@ -194,7 +194,7 @@ class TestTable(unittest.TestCase):
 
     def test_c29_the_table_is_complete(self) -> None:
         """A claim with no row, no function or no test fails."""
-        assert_that(claims.findings(TABLE, exists), equal_to([]))
+        assert_that(claims.findings(TABLE, resolvable), equal_to([]))
 
     def test_c29_a_missing_claim_function_and_test_are_found(self) -> None:
         """Each way the table can be wrong is a finding."""
@@ -202,7 +202,7 @@ class TestTable(unittest.TestCase):
         text = "\n".join(
             [*rows, "invented\tfact\tpushclaim.nowhere\ttest_claims.Nothing.at_all"]
         )
-        found = claims.findings(text, exists)
+        found = claims.findings(text, resolvable)
         assert_that(found, has_item("label-set has no read-back row"))
         assert_that(found, has_item("invented is no claim"))
         assert_that(
@@ -212,7 +212,7 @@ class TestTable(unittest.TestCase):
             found,
             has_item("invented: the test test_claims.Nothing.at_all does not exist"),
         )
-        bare = claims.findings(text + "\nx\t \tnone.x\ty", exists)
+        bare = claims.findings(text + "\nx\t \tnone.x\ty", resolvable)
         assert_that("x: no GitHub fact to read it back from" in bare, equal_to(True))
 
     def test_c29_a_short_row_is_an_error(self) -> None:

@@ -4,26 +4,12 @@ import re
 from typing import Sequence
 
 from .. import config, configfile
-from . import fakes, quietworld, world
+from . import quietworld, world
 from .test_quiet import at
 from .test_slot_commands import next_output
 
 STATE = "PR STATE owner/project#3"
 HELD_WORDS = "HOLD: a runner-pressure hold withholds"
-
-
-def remote_to(here: world.World, name: str, url: str) -> None:
-    """Add a remote that names a repository and pushes to the world's origin.
-
-    Args:
-        here: the world.
-        name: the remote's name.
-        url: the URL it names.
-    """
-    fakes.run_git(here.clone, "branch", "-f", "branch-1")
-    fakes.run_git(here.clone, "remote", "add", name, url)
-    target = str(world.origin_of(here.clone))
-    fakes.run_git(here.clone, "config", f"remote.{name}.pushurl", target)
 
 
 def push(here: world.World, *more: str) -> world.Result:

@@ -11,91 +11,35 @@ the same against GitHub (``acthub``) and against a test's fake.
 
 import dataclasses
 import re
-from typing import AbstractSet, Callable, Mapping, MutableMapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from . import actport, dispatchnext, ticketreader, totalanswer, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
 Pull = actport.Pull
-Options = Mapping[str, str]
+Options = actport.Options
+option = actport.option
+options_of = actport.options_of
 HOLD_LABEL = "pitboss-hold"
 ACK_LABEL = "pitboss-ack"
 RECORD = "pitboss-act:"
-HELD: Mapping[str, AbstractSet[str]] = {
-    "pushes": frozenset({"push", "update-branch"}),
-    "merges": frozenset({"merge", "arm"}),
-    "undrafts": frozenset({"undraft"}),
-    "ci": frozenset(
-        {
-            "push",
-            "update-branch",
-            "merge",
-            "arm",
-            "undraft",
-            "rerun",
-            "dispatch-workflow",
-            "label",
-            "pr-create",
-        }
-    ),
-    "dispatch": frozenset({"dispatch-next"}),
-}
-ENDS_A_HOLD = frozenset(
-    {
-        "hold",
-        "unhold",
-        "ack",
-        "disarm",
-        "comment",
-        "override",
-        "block",
-        "ticket",
-        "review",
-        "close",
-    }
-)
+HELD = actport.HELD
+ENDS_A_HOLD = actport.ENDS_A_HOLD
 DISARMING = frozenset({"all", "merges", "ci"})
 EVERY_REPOSITORY = frozenset({"", "all"})
 QUEUED = "added_to_merge_queue"
 QUEUE_EVENTS = frozenset({QUEUED, "removed_from_merge_queue"})
 
 
-class Refused(Exception):
-    """The verb does not write: a gate, the verdict or the form refused it."""
-
-
+Refused = actport.Refused
 Change = actport.Change
 Hub = actport.Hub
 Target = actport.Target
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Owner:
-    """The owner's messages and their dispositions.
-
-    Attributes:
-        messages: the ids of the owner's messages, in order.
-        dispositions: each answered message's disposition (``ack`` adds one).
-        caps: the caps ``ack --kind cap`` set, by message, oldest first (``ack``
-            adds one).
-    """
-
-    messages: Sequence[str] = ()
-    dispositions: MutableMapping[str, str] = dataclasses.field(default_factory=dict)
-    caps: MutableMapping[str, int] = dataclasses.field(default_factory=dict)
-
-
-def cap_of(owner: Owner) -> int:
-    """The cap the owner set last.
-
-    Args:
-        owner: the owner's messages.
-
-    Returns:
-        It, or 0 for the configuration's.
-    """
-    return list(owner.caps.values())[-1] if owner.caps else 0
+Owner = actport.Owner
+cap_of = actport.cap_of
 
 
 Inputs = Callable[[str, int, Pull, Sequence[object]], Pull]
@@ -333,24 +277,6 @@ def head_of(pull: JsonMap) -> str:
     return name_at(pull, "head", "sha")
 
 
-def option(options: Options, name: str) -> str:
-    """A verb's option that must be given.
-
-    Args:
-        options: the options.
-        name: the option.
-
-    Returns:
-        Its value.
-
-    Raises:
-        Refused: it is not given.
-    """
-    if not options.get(name):
-        raise Refused(f"{name}=... is required")
-    return options[name]
-
-
 def pull_of(act: Act, target: Target) -> Pull:
     """Read a PR.
 
@@ -375,3 +301,74 @@ def timeline_of(act: Act, target: Target) -> Sequence[object]:
         Its events.
     """
     return act.hub.timeline(target.repo, target.number)
+
+
+def disarm_first(act: Act, target: Target, why: str) -> None:
+    """Disarm a PR with the controls' disarm, before an input of its verdict changes.
+
+    Args:
+        act: the verb's world.
+        target: the PR.
+        why: the reason, recorded.
+    """
+    act.controls.disarm(act, target, why)
+
+
+def repo_write(act: Act, repo: str, kind: str, fields: Mapping[str, str]) -> str:
+    """Make one write to a repository (no PR or issue of it).
+
+    Args:
+        act: the verb's world.
+        repo: the repository.
+        kind: what is written.
+        fields: what the write carries.
+
+    Returns:
+        What GitHub answered.
+    """
+    return act.hub.write(Change(kind=kind, repo=repo, fields=fields))
+
+
+def head_now(act: Act, target: Target) -> str:
+    """A PR's head commit, read now.
+
+    Args:
+        act: the verb's world.
+        target: the PR.
+
+    Returns:
+        Its sha.
+    """
+    return head_of(pull_of(act, target))
+
+
+def make_hold(act: Act, where: str, scope: str, source: str) -> str:
+    """Make the hold issues and disarm and dequeue what the scope covers.
+
+    Args:
+        act: the verb's world.
+        where: the repository, or "all".
+        scope: the scope held.
+        source: the owner message it comes from.
+
+    Returns:
+        What was done.
+    """
+    named = act.repos if where == "all" else [where]
+    for each in named:
+        fields = {
+            "title": f"pitboss hold: {scope}",
+            "body": f"scope={scope}\nfrom={source}",
+            "labels": HOLD_LABEL,
+        }
+        repo_write(act, each, "issue", fields)
+        if scope in DISARMING:
+            _disarm_all(act, each, f"hold {scope}")
+    return f"hold {scope} in {', '.join(named)}"
+
+
+def _disarm_all(act: Act, repo: str, why: str) -> None:
+    for pull in act.hub.open_pulls(repo):
+        number = pull.get("number")
+        target = Target(repo=repo, number=number if isinstance(number, int) else 0)
+        disarm_first(act, target, why)

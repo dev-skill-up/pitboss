@@ -17,6 +17,7 @@ from typing import Callable, Sequence
 from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
 from .actcore import Act, Controls, Hub, Owner, cap_of
 from .running import Run
+from .textparts import split_at
 from .totaljson import at, listing, members, name_at, read_file, records, text
 
 SIZES = (
@@ -142,7 +143,7 @@ def prepush(
 def _p90(github: acthub.ghapi.GitHub, repo: str) -> int:
     # the size of 90 of 100 merged PRs; an unread size is 0, so every size needs
     # a ruling
-    owner, _, name = repo.partition("/")
+    owner, name = split_at(repo, "/")
     words = ["gh", "api", "graphql", "-f", f"query={SIZES}"]
     words += ["-f", f"owner={owner}", "-f", f"name={name}"]
     try:

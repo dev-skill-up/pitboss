@@ -144,7 +144,8 @@ def shipped_rows() -> Sequence[rules.Row]:
     Returns:
         The rows.
     """
-    return rules.parse(phrases.shipped_text("rules.tsv"))[0]
+    shipped, _ = rules.parse(phrases.shipped_text("rules.tsv"))
+    return shipped
 
 
 def found(rule: str, kind: str) -> Sequence[str]:

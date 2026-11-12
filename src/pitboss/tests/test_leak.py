@@ -16,7 +16,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import noxcheck
 from . import scratch, timingreport
-from .briefmake import has_all, has_none
+from .says import has_all, has_none
 from .fakes import write
 
 REPORTER = "--reporter=pitboss.tests.timingreport.TimingReporter"

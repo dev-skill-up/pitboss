@@ -1,7 +1,6 @@
 """A worktree whose main checkout is gone, for the tests (#98)."""
 
 import pathlib
-from .fakes import write
 
 
 def make_orphaned(workspace: pathlib.Path, name: str) -> pathlib.Path:
@@ -16,5 +15,5 @@ def make_orphaned(workspace: pathlib.Path, name: str) -> pathlib.Path:
     """
     orphan = workspace / name
     orphan.mkdir()
-    write(orphan / ".git", f"gitdir: {workspace}/gone/.git/worktrees/{name}\n")
+    (orphan / ".git").write_text(f"gitdir: {workspace}/gone/.git/worktrees/{name}\n")
     return orphan

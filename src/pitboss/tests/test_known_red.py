@@ -25,7 +25,7 @@ from .. import (
     steps,
     straycomments,
 )
-from . import fakes, knownkit, world
+from . import knownkit, world
 from .queueworld import dropped
 from .test_commands import sweep
 from .test_report import approved_green, at_merge, lines as sweep_text
@@ -197,7 +197,7 @@ def with_red_canonical_files(here: world.World) -> world.World:
             }
         ]
     }
-    here.bodies[world.project_page(f"commits/{fakes.HEAD}/status")] = posted
+    here.bodies[world.HEAD_STATUS] = posted
     return here
 
 

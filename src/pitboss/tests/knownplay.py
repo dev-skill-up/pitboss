@@ -10,7 +10,7 @@ from typing import MutableMapping, Sequence
 from .. import dispatchnext
 from ..totaljson import JsonMap
 from . import fakehub, knownkit
-from .totalworld import World
+from .totalworld import World, record
 
 
 def review_edited(old: str, new: str) -> World:
@@ -45,11 +45,11 @@ def stops_in(
     return knownkit.stops(given, action, world, row)
 
 
-Stopping = tuple[str, str, str, str, World]
+StopCase = tuple[str, str, str, str, World]
 
 
 def stopping(
-    cases: MutableMapping[str, knownkit.Known], rows: Sequence[Stopping]
+    cases: MutableMapping[str, knownkit.Known], rows: Sequence[StopCase]
 ) -> None:
     """Register cases whose control is one verdict row that stops a merge.
 
@@ -57,8 +57,8 @@ def stopping(
         cases: the module's table, by id.
         rows: each case's id, control, world described, row and world.
     """
-    for name, control, what, row, world in rows:
-        run = functools.partial(stops_in, row=row, world=world)
+    for name, control, what, start, world in rows:
+        run = functools.partial(stops_in, row=start, world=world)
         cases[name] = knownkit.Known(control=control, what=what, run=run)
 
 
@@ -85,7 +85,9 @@ def capped(given: knownkit.Kit, hub: fakehub.Made, message: str, cap: str) -> No
     knownkit.act(given, hub, "ack", message=message, kind="cap", cap=cap)
 
 
-def refuses(given: knownkit.Kit, hub: fakehub.Made, verb: str, **options: str) -> bool:
+def verb_refused(
+    given: knownkit.Kit, hub: fakehub.Made, verb: str, **options: str
+) -> bool:
     """Whether a verb on the world's PR is refused.
 
     Args:
@@ -167,3 +169,12 @@ def edit_refused(given: knownkit.Kit, body: str) -> str:
     return knownkit.refused(
         lambda: knownkit.act(given, knownkit.made(given), "pr-edit", body=body)
     )
+
+
+def arm_record() -> object:
+    """The act record of an arm at the head of the known worlds.
+
+    Returns:
+        The timeline event.
+    """
+    return record(f"arm head={knownkit.HEAD}")

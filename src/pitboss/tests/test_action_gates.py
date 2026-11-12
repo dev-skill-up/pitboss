@@ -15,7 +15,7 @@ from . import knownkit
 from .queueworld import dropped, dropped_held
 from .test_slot_commands import next_output
 from .says import says
-from .existing import exists
+from .existing import resolvable
 from ..textparts import having
 from ..actiongates import findings
 from .knownplay import held
@@ -42,12 +42,12 @@ class TestTable(unittest.TestCase):
 
     def test_c26_the_shipped_table_has_no_finding(self) -> None:
         """Every member has its row, every test exists, no gated step is free."""
-        assert_that(findings(TABLE, MATRIX, exists), empty())
+        assert_that(findings(TABLE, MATRIX, resolvable), empty())
 
     def test_c26_a_member_with_no_row_is_found(self) -> None:
         """A new action with no gate row fails the check."""
         text = TABLE.replace("Action.ARM\t", "Action.OTHER\t", 1)
-        found = findings(text, MATRIX, exists)
+        found = findings(text, MATRIX, resolvable)
         assert_that(
             found,
             equal_to(
@@ -64,7 +64,7 @@ class TestTable(unittest.TestCase):
             each for each in TABLE.splitlines() if each.startswith("Step.MERGE\t")
         )
         text = TABLE.replace(row, "Step.MERGE\tfree\tnothing\t-")
-        found = findings(text, MATRIX, exists)
+        found = findings(text, MATRIX, resolvable)
         assert_that(
             having(found, "its gate is free"),
             equal_to(
@@ -80,18 +80,18 @@ class TestTable(unittest.TestCase):
         text = TABLE.replace(
             "test_c26_the_hold_withholds_the_re_arm_and_says_wait", "gone"
         )
-        found = findings(text, MATRIX, exists)
+        found = findings(text, MATRIX, resolvable)
         assert_that(found[0], contains_string("does not exist"))
         free = TABLE.replace("closing a PR starts no workflow run of the project", " ")
         assert_that(
-            findings(free, MATRIX, exists),
+            findings(free, MATRIX, resolvable),
             equal_to(["Action.CLOSE: a free row says why"]),
         )
 
     def test_c26_a_gate_that_is_none_of_the_three_is_found(self) -> None:
         """The words are hold, pressure and free."""
         text = TABLE.replace("Action.CLOSE\tfree", "Action.CLOSE\tmaybe", 1)
-        says("\n".join(findings(text, MATRIX, exists)), "is none of hold")
+        says("\n".join(findings(text, MATRIX, resolvable)), "is none of hold")
 
     def test_c26_a_row_with_a_missing_field_is_refused(self) -> None:
         """A short row is an error."""

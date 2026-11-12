@@ -9,8 +9,7 @@ branch, is kept.
 
 import subprocess
 
-from .actcore import Act, Options, Refused, Target, option
-from .actsteps import disarm_first, options_of
+from .actcore import Act, Options, Refused, Target, disarm_first, option, options_of
 from .running import git
 
 DEFAULT_BRANCHES = ("main", "master")

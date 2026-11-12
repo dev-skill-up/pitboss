@@ -6,12 +6,13 @@ from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, briefconfig, briefrepo, configfile, configloads, exempt
 from . import fakes, quietworld, world
-from .briefmake import has_all, has_none, text
-from .exemptworld import of, push, remote_to, swept, with_pitboss
+from .briefmake import text
+from .says import has_all, has_none
+from .exemptworld import of, push, swept, with_pitboss
 from .test_flow_sweep import approved_draft
 from .test_quiet import clear_world, lines, pushes, record_path, waiting_world
 from .test_slot_commands import next_output
-from .pushworld import pushes_to_origin
+from .pushworld import pushes_to_origin, remote_to
 
 PITBOSS_URL = "https://github.com/dev-skill-up/pitboss.git"
 OTHER_URL = "git@github.com:owner/other.git"
@@ -95,7 +96,7 @@ class TestPush(unittest.TestCase):
         remote_to(here, "elsewhere", OTHER_URL)
         quietworld.edit_config(here, "[runners]", f'[runners]\nexempt = ["{LISTED}"]')
         free = push(here, "elsewhere", "branch-1")
-        assert_that((free.code, pushes(here)), equal_to((0, 1)))
+        _pushed_once(free, here)
         assert_that(free.out, contains_string(exempt.SAYING))
 
     def test_a_remote_that_names_no_repository_is_held(self) -> None:
@@ -111,7 +112,7 @@ class TestPush(unittest.TestCase):
         fakes.run_git(here.clone, "remote", "set-url", "origin", PITBOSS_URL)
         pushes_to_origin(here, "origin")
         found = push(here)
-        assert_that((found.code, pushes(here)), equal_to((0, 1)))
+        _pushed_once(found, here)
 
     def test_pitboss_has_no_drafts(self) -> None:
         """``--draft`` is refused for pitboss and goes out for the others."""
@@ -264,3 +265,8 @@ class TestNoDrafts(unittest.TestCase):
                 ready.append((each.split()[2], exempt.OPEN_READY in each))
         expected = [(PITBOSS_NEW, True), ("owner/project#9", False)]
         assert_that(sorted(ready), equal_to(expected))
+
+
+def _pushed_once(done: world.Result, here: world.World) -> None:
+    # the push exited 0 and reached the origin once
+    assert_that((done.code, pushes(here)), equal_to((0, 1)))

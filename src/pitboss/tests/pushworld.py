@@ -1,10 +1,23 @@
-"""A world's clone set up to push: ``branch-1`` and a remote that pushes to the origin."""
+"""A world's clone set up to push: ``branch-1``, and remotes that push to the origin."""
 
 from . import world
 from .fakes import run_git
 
 # ``pitboss push`` at the world's start, for real
 PUSH_NOW = ("push", "--now", world.START.isoformat(), "--no-dry-run")
+
+
+def push_now(here: world.World, *words: str) -> world.Result:
+    """Run ``pitboss push`` for real at a world's start.
+
+    Args:
+        here: the world.
+        *words: the options and git's arguments.
+
+    Returns:
+        What the push did.
+    """
+    return world.again(here, *PUSH_NOW, *words)
 
 
 def configured(here: world.World, extra: str) -> None:
@@ -42,15 +55,26 @@ def pushes_to_origin(here: world.World, remote: str) -> None:
     )
 
 
-def elsewhere(here: world.World, url: str) -> None:
-    """Give a world's clone ``branch-1`` and a remote ``elsewhere`` that names a URL.
+def remote_to(here: world.World, name: str, url: str) -> None:
+    """Give a world's clone ``branch-1`` and a remote that names a URL.
 
     The remote pushes to the world's origin, whatever repository the URL names.
 
     Args:
         here: the world.
+        name: the remote's name.
         url: the URL the remote names.
     """
     branch_one(here)
-    run_git(here.clone, "remote", "add", "elsewhere", url)
-    pushes_to_origin(here, "elsewhere")
+    run_git(here.clone, "remote", "add", name, url)
+    pushes_to_origin(here, name)
+
+
+def elsewhere(here: world.World, url: str) -> None:
+    """Give a world's clone ``branch-1`` and a remote ``elsewhere`` that names a URL.
+
+    Args:
+        here: the world.
+        url: the URL the remote names.
+    """
+    remote_to(here, "elsewhere", url)

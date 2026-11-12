@@ -12,11 +12,11 @@ from .. import briefconfig, draftrule, exempt
 from ..brief import Kind
 from . import quietworld, world
 from .briefmake import PROJECT as DRAFTED
-from .briefmake import has_all, has_none, text
+from .briefmake import text
+from .says import has_all, has_none, says
 from .linting import lint, write_text
 from .test_brief_workers import PLAIN
 from .test_quiet import at, clear_world
-from .says import says
 from .pushworld import elsewhere
 
 PROJECT = "[project]\nowner = 'o'\nrepository = 'r'\nmain_clone = '/c'\n"

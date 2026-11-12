@@ -17,7 +17,8 @@ from .. import (
     shapes,
     unreadableform,
 )
-from .linting import BODY, FOOTER, HEAD, lint, subject_of, write_text
+from .linting import BODY, FOOTER, HEAD, lint, write_text
+from .formchecks import subject
 
 SESSION = "https://claude.ai/code/session_01HwLsLqpK11q86JDdqHKAzP"
 URL_AFTER = f"\n{SESSION}\n"
@@ -76,7 +77,7 @@ def body_findings(body: str) -> int:
     Returns:
         The number of findings.
     """
-    return len(forms.pr_body(subject_of(body)))
+    return len(forms.pr_body(subject(body)))
 
 
 def unreadable_count(body: str) -> int:
@@ -135,8 +136,8 @@ class TestBodies(unittest.TestCase):
         )
         for each in tails:
             assert_that(
-                forms.pr_body(subject_of(each)),
-                equal_to(forms.pr_body(subject_of(plain))),
+                forms.pr_body(subject(each)),
+                equal_to(forms.pr_body(subject(plain))),
             )
 
     def test_footers_are_ignored(self) -> None:
@@ -153,8 +154,8 @@ class TestBodies(unittest.TestCase):
     def test_url_first_line_is_absent(self) -> None:
         """The first line is the first line that is not the URL."""
         assert_that(
-            forms.pr_body(subject_of(SESSION + "\nFixes #1\n")),
-            equal_to(forms.pr_body(subject_of("Fixes #1\n"))),
+            forms.pr_body(subject(SESSION + "\nFixes #1\n")),
+            equal_to(forms.pr_body(subject("Fixes #1\n"))),
         )
 
 
@@ -167,8 +168,8 @@ class TestReviews(unittest.TestCase):
         for variant in (text + URL_AFTER, text + FOOTER_LINK + "\n"):
             for check in (forms.ordinary_review, forms.gated_review):
                 assert_that(
-                    check(subject_of(variant), GATED),
-                    equal_to(check(subject_of(text), GATED)),
+                    check(subject(variant), GATED),
+                    equal_to(check(subject(text), GATED)),
                 )
 
     def test_review_forms_read_the_first_and_ending_lines_without_the_url(
@@ -180,14 +181,14 @@ class TestReviews(unittest.TestCase):
         ending = f"---\n{FOOTER}\n"
         ending_link = f"---\n{FOOTER_LINK}\n"
         for check in (forms.ordinary_review, forms.gated_review):
-            assert_that(check(subject_of(head + ending), ended), equal_to([]))
+            assert_that(check(subject(head + ending), ended), equal_to([]))
             assert_that(
-                check(subject_of(f"{SESSION}\n{head}"), GATED),
-                equal_to(check(subject_of(head), GATED)),
+                check(subject(f"{SESSION}\n{head}"), GATED),
+                equal_to(check(subject(head), GATED)),
             )
             assert_that(
-                check(subject_of(head + ending_link), ended),
-                equal_to(check(subject_of(head + ending), ended)),
+                check(subject(head + ending_link), ended),
+                equal_to(check(subject(head + ending), ended)),
             )
 
     def test_readers(self) -> None:

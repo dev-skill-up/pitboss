@@ -5,7 +5,8 @@ import unittest
 
 from .. import brief, briefconfig
 from . import briefmake
-from .briefmake import HEAD, HONEST, PROJECT, has_all, has_none, pinned, text
+from .briefmake import HEAD, HONEST, PROJECT, pinned, text
+from .says import has_all, has_none
 
 NEW_PR_PROCESS = [
     "Task: do the whole of ticket o/r#7 in one PR: write the code, then open the PR.",

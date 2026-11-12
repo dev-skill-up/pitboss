@@ -2,9 +2,9 @@
 
 ``VERBS`` is the one table: the command line, the route table's verbs and the
 completeness test all read it. Every verb but ``ack`` and ``clean`` passes the
-owner gate and the hold gate first (``gate_first``). ``dispatch-next`` is here: it answers the one
-next piece of work, and for a ticket with a checkout it writes the brief (every
-rule file on the ticket's paths, the verdict's gates on them, and the
+owner gate and the hold gate first (``gate_first``). ``dispatch-next`` is here: it
+answers the one next piece of work, and for a ticket with a checkout it writes the
+brief (every rule file on the ticket's paths, the verdict's gates on them, and the
 instructions of the route table), refused when the recount finds a file missing.
 """
 
@@ -86,13 +86,12 @@ REFUSALS = (
 
 
 def gate_first(
-    name: str, verb: Verb, act: Act, target: Target, options: Options
+    gated: tuple[str, Verb], act: Act, target: Target, options: Options
 ) -> str:
     """Run a verb after the owner gate and the hold gate.
 
     Args:
-        name: the verb's name, the one the hold gate reads.
-        verb: the verb.
+        gated: the verb's name, the one the hold gate reads, and the verb.
         act: the verb's world.
         target: what it acts on.
         options: its options.
@@ -100,6 +99,7 @@ def gate_first(
     Returns:
         What the verb said.
     """
+    name, verb = gated
     gate(act, name, target.repo)
     return verb(act, target, options)
 
@@ -132,7 +132,10 @@ GATED: Mapping[str, Verb] = {
     "scratch-clean": actwrite.scratch_clean,
 }
 VERBS: Mapping[str, Verb] = {
-    **{name: functools.partial(gate_first, name, verb) for name, verb in GATED.items()},
+    **{
+        name: functools.partial(gate_first, (name, verb))
+        for name, verb in GATED.items()
+    },
     "clean": actgit.clean,
     "ack": actwrite.ack,
 }

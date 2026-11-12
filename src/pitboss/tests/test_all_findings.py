@@ -7,7 +7,8 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, missed, shapes
 from . import test_brief, test_flow, test_flow_sweep as flows, test_plan_commands
-from .briefmake import APPROVED, HEAD, has_none, pinned, text
+from .briefmake import APPROVED, HEAD, pinned, text
+from .says import has_none
 from .test_commands import sweep
 
 FIRST_ROUND = (

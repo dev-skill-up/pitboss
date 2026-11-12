@@ -6,7 +6,8 @@ from typing import Mapping
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftext, evidence, expansion
-from .briefmake import has_all, has_none, text
+from .briefmake import text
+from .says import has_all, has_none
 from .formchecks import body_checks, findings
 from .linting import BODY, OK, RAN
 from .test_evidence_rules import words

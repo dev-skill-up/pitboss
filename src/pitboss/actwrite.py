@@ -12,9 +12,16 @@ import re
 from typing import Callable, Mapping, Sequence
 
 from . import actcore, bodydigest, totalbody, totalreview
-from .actcore import pull_of, put, timeline_of
-from .actsteps import disarm_first, head_now, options_of, repo_write
-from .actpull import make_hold
+from .actcore import (
+    disarm_first,
+    head_now,
+    options_of,
+    pull_of,
+    put,
+    repo_write,
+    timeline_of,
+)
+from .plansection import plan_section
 from .ticketreader import written
 from .totaljson import JsonMap, members, records, text
 from .textparts import mentions_any
@@ -43,7 +50,7 @@ def review_text(
         each ticket, then the findings.
     """
     body = pull.get("body")
-    section = totalreview.plan_section(body)
+    section = plan_section(body)
     lines = [
         f"Reviewed: {actcore.head_of(pull)}",
         f"Plan: {grades[0]}",
@@ -356,7 +363,7 @@ def _note(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
 
 def _hold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:
     scope = actcore.option(options, "scope")
-    make_hold(act, target.repo, scope, options["message"])
+    actcore.make_hold(act, target.repo, scope, options["message"])
 
 
 def _cap(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:

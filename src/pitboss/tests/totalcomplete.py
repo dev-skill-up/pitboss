@@ -219,7 +219,7 @@ def complete(parts: Parts, cells: Sequence[totalcells.Cell]) -> Sequence[str]:
 
 
 @functools.cache
-def base_cells() -> tuple[totalcells.Cell, ...]:
+def base_cells() -> Sequence[totalcells.Cell]:
     """The cells of the GO world, made once.
 
     Returns:

@@ -17,7 +17,8 @@ from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, shapes, steps
 from . import fakes, test_flow, world
-from .briefmake import has_none, make, text
+from .briefmake import make, text
+from .says import has_none, says
 from .test_commands import sweep
 from .test_flow import CHANGES as FLOW_CHANGES, expect, state
 from .test_flow_sweep import (
@@ -30,7 +31,6 @@ from .test_flow_sweep import (
     world_with,
 )
 from .test_slot_commands import next_output
-from .says import says
 
 TICKET_LINE = re.compile(r"^NEXT \d+\. \S+#\d+ \(start a PR", re.MULTILINE)
 THIRD_LINE = re.compile(

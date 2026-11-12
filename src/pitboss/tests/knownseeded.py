@@ -11,7 +11,14 @@ from .. import enumeration
 from ..totalroutes import instructions
 from . import fakehub, knownkit
 from .knownkit import change
-from .knownplay import brief_text, dispatch_refused, held, pull_now, refuses, stopping
+from .knownplay import (
+    brief_text,
+    dispatch_refused,
+    held,
+    pull_now,
+    verb_refused,
+    stopping,
+)
 from .totalworld import World, item, review
 
 CASES: MutableMapping[str, knownkit.Known] = {}
@@ -103,7 +110,7 @@ def _early_undraft(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given, world)
     return (
         knownkit.stops(given, "undraft", world, "review:")
-        and refuses(given, hub, "undraft")
+        and verb_refused(given, hub, "undraft")
         and pull_now(hub)["draft"] is True
     )
 
@@ -251,8 +258,8 @@ def _started(given: knownkit.Kit) -> bool:
 def _label_held(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given)
     held(given, hub, "ci")
-    free = not refuses(given, knownkit.made(given), "label", name="p1")
-    return refuses(given, hub, "label", name="p1") and free
+    free = not verb_refused(given, knownkit.made(given), "label", name="p1")
+    return verb_refused(given, hub, "label", name="p1") and free
 
 
 @case(
@@ -262,7 +269,7 @@ def _label_held(given: knownkit.Kit) -> bool:
 )
 def _edited(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given, change(pull={"body": knownkit.BODY + "\nedited"}))
-    return refuses(given, hub, "merge") and not pull_now(hub).get("merged")
+    return verb_refused(given, hub, "merge") and not pull_now(hub).get("merged")
 
 
 @case("S24", "hold record + act gate", "workflow runs dispatched during the hold")
@@ -270,9 +277,9 @@ def _dispatch_held(given: knownkit.Kit) -> bool:
     hub, free = knownkit.made(given), knownkit.made(given)
     held(given, hub, "ci")
     options = {"number": "0", "workflow": "check.yml", "ref": "b"}
-    return refuses(given, hub, "dispatch-workflow", **options) and not refuses(
-        given, free, "dispatch-workflow", **options
-    )
+    return verb_refused(
+        given, hub, "dispatch-workflow", **options
+    ) and not verb_refused(given, free, "dispatch-workflow", **options)
 
 
 def _stale_review() -> World:

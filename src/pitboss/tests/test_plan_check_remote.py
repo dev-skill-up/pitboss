@@ -9,6 +9,7 @@ from .. import cirun, plantickets, ticketwhen
 from . import fakes, world
 from .linting import write_text
 from .repositories import run_git
+from ..textparts import starting
 
 HEAD = "a" * 40
 OTHER = "b" * 40
@@ -44,7 +45,8 @@ def mentions(found: Sequence[str], words: Sequence[Sequence[str]]) -> bool:
         True when there are as many findings, each with its words.
     """
     return len(found) == len(words) and all(
-        all(word in each for word in some) for each, some in zip(found, words)
+        not [word for word in some if word not in each]
+        for each, some in zip(found, words)
     )
 
 
@@ -59,7 +61,7 @@ def said(lines: Sequence[str], check: str, words: Sequence[Sequence[str]]) -> bo
     Returns:
         The answer of ``mentions`` for the lines that start with the check.
     """
-    return mentions([each for each in lines if each.startswith(check)], words)
+    return mentions(starting(lines, check), words)
 
 
 def read_from(heads: Heads) -> cirun.HeadOf:

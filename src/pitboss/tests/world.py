@@ -393,4 +393,6 @@ def project_page(path: str) -> str:
     return fakes.page(f"{PROJECT}/{path}")
 
 
+# the statuses of the head every fake PR has
+HEAD_STATUS = project_page(f"commits/{fakes.HEAD}/status")
 comment_json = ownerbodies.comment_json

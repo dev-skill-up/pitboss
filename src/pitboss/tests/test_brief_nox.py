@@ -5,7 +5,8 @@ import unittest
 from hamcrest import assert_that, equal_to, starts_with
 
 from .. import brief, nox_commands
-from .briefmake import has_none, pinned, text
+from .briefmake import pinned, text
+from .says import has_none
 from .test_plan_commands import PLAN_REVIEWS
 
 NOX = (

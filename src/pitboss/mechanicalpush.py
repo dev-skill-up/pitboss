@@ -42,7 +42,7 @@ class Started(Protocol):
 
 def _number(github: ghapi.GitHub, slug: str, branch: str) -> int | None:
     listed = ghapi.branch_pulls(github, slug, branch)
-    if not isinstance(listed, list) or len(listed) != 1:
+    if len(listed) != 1:
         return None
     return int(listed[0]["number"])
 

@@ -9,8 +9,8 @@ import unittest
 from .killers import rerun
 
 
-class TestRowsHoldTheirFunctions(unittest.TestCase):
-    """Mutants an existing test of another module kills."""
+class TestRowsHoldTheirFunctions1(unittest.TestCase):
+    """Mutants an existing test of another module kills, part 1."""
 
     def test_a1_plan_edited_without_ruling_1_is_held(self) -> None:
         """The mutant: False -> True."""
@@ -114,6 +114,10 @@ class TestRowsHoldTheirFunctions(unittest.TestCase):
         """The mutant: 80 -> 81."""
         rerun("test_holdwait.TestShippedTexts" ".test_the_skill_says_it_in_one_place")
 
+
+class TestRowsHoldTheirFunctions2(unittest.TestCase):
+    """Mutants an existing test of another module kills, part 2."""
+
     def test_a29_only_pins_1_is_held(self) -> None:
         """The mutant: name in pin_files -> name not in pin_files."""
         rerun("test_pins_verify.TestReading" ".test_only_pins")
@@ -183,6 +187,10 @@ class TestRowsHoldTheirFunctions(unittest.TestCase):
             "test_leak.TestScratch"
             ".test_a_directory_is_fresh_unless_the_process_owns_it"
         )
+
+
+class TestRowsHoldTheirFunctions3(unittest.TestCase):
+    """Mutants an existing test of another module kills, part 3."""
 
     def test_i38_lines_1_is_held(self) -> None:
         """The mutant: each.finished and each.succeeded -> each.finished or each."""

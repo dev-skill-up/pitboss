@@ -4,7 +4,8 @@ import unittest
 
 
 from .. import brief
-from .briefmake import EXECUTION_REVIEWS, PLAN_REVIEWS, has_all, has_none, text
+from .briefmake import EXECUTION_REVIEWS, PLAN_REVIEWS, text
+from .says import has_all, has_none
 
 WORKERS = (brief.Kind.NEW_PR, brief.Kind.FIRST_ROUND, brief.Kind.REVISE_PLAN)
 

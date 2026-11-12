@@ -5,8 +5,8 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import expansion
-from .formchecks import findings
-from .linting import HEAD, typed_at
+from .formchecks import findings, typed_at
+from .linting import HEAD
 
 URL = "https://x.example/a?b=1"
 ROBOT = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"

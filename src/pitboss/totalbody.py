@@ -11,7 +11,7 @@ import re
 from typing import Mapping, Sequence
 
 from .totaljson import JsonMap, name_at, text
-from .totalreview import plan_section
+from .plansection import plan_section
 
 MACHINE_PATH = re.compile(r"(?<![\w.>&-])(~|/(tmp|home|root|mnt))/[^\s`'\")|]*")
 HEAD = re.compile(r"(?m)^Head: (\S+)\s*$")

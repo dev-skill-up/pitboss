@@ -9,7 +9,8 @@ from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, causeline, causetext, shapes
 from . import suggestions, world
-from .briefmake import has_none, make, pinned, text
+from .briefmake import make, pinned, text
+from .says import has_none
 from .test_commands import sweep
 
 SENTENCE = (

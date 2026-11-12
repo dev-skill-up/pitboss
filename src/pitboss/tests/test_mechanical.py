@@ -18,11 +18,13 @@ from . import world
 from .test_push_draft import OTHER_URL, gits
 from .test_work import NONE, facts
 from .says import exits, lacks, says
-from .pushworld import PUSH_NOW, configured, elsewhere
+from .pushworld import push_now, configured, elsewhere
 from ..textparts import starting
-from .test_slots_rules import NOW
 from .fakes import directory, settings
 from ..mechanical import matching
+
+# the moment the PRs are read at
+NOW = world.START
 
 MINUTE = datetime.timedelta(minutes=1)
 RULE = config.Mechanical()
@@ -202,7 +204,7 @@ def push(here: world.World, *flags: str) -> world.Result:
     Returns:
         What the push did.
     """
-    return world.again(here, *PUSH_NOW, *flags, "elsewhere", "branch-1")
+    return push_now(here, *flags, "elsewhere", "branch-1")
 
 
 def held(here: world.World, *flags: str) -> world.Result:
@@ -259,6 +261,6 @@ class TestPush(unittest.TestCase):
     def test_t32_a_remote_with_no_repository_is_refused(self) -> None:
         """The remote is a path, not GitHub."""
         here = pushed_world([{"number": 1}], "")
-        done = world.again(here, *PUSH_NOW, "--mechanical", "origin", "branch-1")
+        done = push_now(here, "--mechanical", "origin", "branch-1")
         exits(done, 1)
         says(done.out, "cannot be told")

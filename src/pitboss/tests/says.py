@@ -1,10 +1,30 @@
 """Assertions about the words of a text, one call for several words."""
 
-from typing import Protocol
+from typing import Protocol, Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
-from .briefmake import has_all, has_none
+
+def has_all(found: str, wanted: Sequence[str]) -> None:
+    """Check that a text contains each wanted text.
+
+    Args:
+        found: the text.
+        wanted: the texts it must contain.
+    """
+    for each in wanted:
+        assert_that(found, contains_string(each))
+
+
+def has_none(found: str, unwanted: Sequence[str]) -> None:
+    """Check that a text contains none of the unwanted texts.
+
+    Args:
+        found: the text.
+        unwanted: the texts it must not contain.
+    """
+    for each in unwanted:
+        assert_that(each in found, equal_to(False))
 
 
 def says(text: str, *words: str) -> None:
@@ -49,8 +69,16 @@ def exits(done: Exited, code: int) -> None:
     assert_that(done.code, equal_to(code))
 
 
-class Ended(Exited, Protocol):
-    """What ran, with its standard output."""
+class Printed(Protocol):
+    """What ran, with its exit code and standard output."""
+
+    @property
+    def code(self) -> object:
+        """The exit code.
+
+        Returns:
+            The value.
+        """
 
     @property
     def out(self) -> str:
@@ -61,7 +89,7 @@ class Ended(Exited, Protocol):
         """
 
 
-def ended(done: Ended, code: int, out: str) -> None:
+def ended(done: Printed, code: int, out: str) -> None:
     """Require a command's exit code and its whole standard output.
 
     Args:
@@ -72,8 +100,16 @@ def ended(done: Ended, code: int, out: str) -> None:
     assert_that((done.code, done.out), equal_to((code, out)))
 
 
-class Failed(Exited, Protocol):
-    """What ran, with its standard error."""
+class Failed(Protocol):
+    """What ran, with its exit code and standard error."""
+
+    @property
+    def code(self) -> object:
+        """The exit code.
+
+        Returns:
+            The value.
+        """
 
     @property
     def err(self) -> str:
@@ -96,7 +132,7 @@ def errs(done: Failed, code: int, *words: str) -> None:
     says(done.err, *words)
 
 
-def outs(done: Ended, code: int, *words: str) -> None:
+def outs(done: Printed, code: int, *words: str) -> None:
     """Require a command's exit code and words of its standard output.
 
     Args:

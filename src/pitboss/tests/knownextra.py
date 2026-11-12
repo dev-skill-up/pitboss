@@ -11,7 +11,7 @@ from . import fakehub, knownkit, knownplay
 from .knownkit import change, stops
 from .knownplay import capped, dispatch_refused, pull_now, review_edited, stopping
 from .knowngit import git, refusing_pair, repo_pair
-from .totalworld import ARMED, record
+from .totalworld import ARMED
 
 CASES: MutableMapping[str, knownkit.Known] = {}
 case = knownkit.registry(CASES)
@@ -57,7 +57,7 @@ def _stray_slot(given: knownkit.Kit) -> bool:
     "paused-owner on a PR with auto-merge armed",
 )
 def _paused_armed(given: knownkit.Kit) -> bool:
-    armed = record(f"arm head={knownkit.HEAD}")
+    armed = knownplay.arm_record()
     world = knownkit.change(
         pull={**ARMED, "labels": [{"name": "paused-owner"}]}, events=[armed]
     )

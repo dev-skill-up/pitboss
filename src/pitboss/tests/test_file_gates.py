@@ -92,7 +92,7 @@ class TestPlanCheck(unittest.TestCase):
     def test_c25_file_gates_a_workflow_with_no_gated_trigger_has_no_gate(self) -> None:
         """A push trigger runs the pull request's own file: no scratch run is due."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {RELOCK: PUSHED})
-        lacks(check(repo, OTHER).out, "gate scratch-run")
+        _checked_lacks(repo, "gate scratch-run")
 
     def test_c25_file_gates_a_src_change_without_a_bootstrap_row_is_refused(
         self,
@@ -111,7 +111,7 @@ class TestPlanCheck(unittest.TestCase):
     def test_c25_file_gates_no_gated_file_has_no_finding(self) -> None:
         """A change to a file no gate names is not refused for a gate."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {"notes.txt": "x\n"})
-        lacks(check(repo, OTHER).out, "file-gate")
+        _checked_lacks(repo, "file-gate")
 
     def test_c25_file_gates_another_owner_has_no_scratch_gate(self) -> None:
         """The scratch-run gate is bats-lang's: another owner's repository has none."""
@@ -172,3 +172,8 @@ class TestBrief(unittest.TestCase):
         text = next_output(here)
         assert_that(text, contains_string("FILE GATES"))
         assert_that(text, contains_string("gate bootstrap-c"))
+
+
+def _checked_lacks(repo: diffrepo.Repository, words: str) -> None:
+    # the check of the repository's change says nothing of the words
+    lacks(check(repo, OTHER).out, words)

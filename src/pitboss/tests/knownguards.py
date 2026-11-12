@@ -11,7 +11,7 @@ from .. import dispatchnext, handbackform
 from . import fakehub, knownkit, scratch
 from .knowngit import git, remote_head, repo_pair
 from .knownkit import brief_for, change, pushed, refused
-from .knownplay import held, pull_now, refuses, review_edited, stopping
+from .knownplay import arm_record, held, pull_now, verb_refused, review_edited, stopping
 
 from .totalworld import ARMED, files_of, item, record, ticket_item
 from .fakes import write
@@ -74,10 +74,10 @@ def _partial(given: knownkit.Kit) -> bool:
 
 @case("G18", "hold disarms; act gate", "auto-merge re-armed during a hold")
 def _rearmed(given: knownkit.Kit) -> bool:
-    armed = record(f"arm head={knownkit.HEAD}")
+    armed = arm_record()
     hub = knownkit.made(given, change(pull=ARMED, events=[armed]))
     held(given, hub, "merges")
-    return pull_now(hub)["auto_merge"] is None and refuses(given, hub, "arm")
+    return pull_now(hub)["auto_merge"] is None and verb_refused(given, hub, "arm")
 
 
 @case(

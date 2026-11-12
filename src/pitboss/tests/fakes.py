@@ -301,7 +301,7 @@ def calls_with(calls: Sequence[Sequence[str]], word: str) -> Sequence[Sequence[s
     Returns:
         Those calls, in order.
     """
-    return [call for call in calls if word in call]
+    return [call for call in calls if call.count(word)]
 
 
 def bodies_under(

@@ -14,8 +14,8 @@ import re
 from typing import Mapping, Sequence
 
 from . import bodydigest
+from .plansection import plan_section
 from .totaljson import JsonMap, field, members, name_at, text
-from .textparts import starting, stripped_lines
 
 GRADES = ("approved", "changes needed")
 GRADE_LINE = re.compile(r"(Plan|Execution): (approved|changes needed)( \([^()\n]*\))?")
@@ -56,21 +56,6 @@ def review_attempts(timeline: Sequence[JsonMap]) -> Sequence[JsonMap]:
     ]
 
 
-def plan_section(body: object) -> str | None:
-    """The body's Plan section.
-
-    Args:
-        body: the PR body.
-
-    Returns:
-        The text from ``## Plan`` to the next ``## `` heading; None when the body
-        has not exactly one.
-    """
-    parts = re.split(r"(?m)^## ", text(body))
-    found = [each for each in parts[1:] if re.match(r"Plan\s*\n", each)]
-    return found[0] if len(found) == 1 else None
-
-
 def ticket_lines(tickets: Tickets) -> Sequence[str]:
     """The ``Ticket:`` lines of a review: each ticket and the digest of its body.
 
@@ -98,8 +83,13 @@ def _head_finding(lines: Sequence[str], head: str) -> str:
     )
 
 
+def _starting(lines: Sequence[str], prefix: str) -> Sequence[str]:
+    # the lines that begin with the prefix
+    return [line for line in lines if line[: len(prefix)] == prefix]
+
+
 def _body_finding(lines: Sequence[str], body: object) -> str:
-    digests = starting(lines, "Body:")
+    digests = _starting(lines, "Body:")
     if len(digests) != 1 or not DIGEST.fullmatch(digests[0]):
         return "the newest review has no single `Body: <digest>` line"
     if digests[0][len("Body: ") :] != digest_of(body):
@@ -146,7 +136,7 @@ def review_reading(review: str, head: str, body: object, tickets: Tickets) -> st
     Returns:
         The reason, ``""`` when the review approves.
     """
-    lines = stripped_lines(review)
+    lines = list(map(str.rstrip, review.splitlines()))
     findings = (
         _verdict_finding(lines),
         _head_finding(lines, head),
@@ -177,8 +167,8 @@ def plan_reading(review: str, body: object) -> str:
     Returns:
         The reason, ``""`` when the Plan is approved (what an undraft needs).
     """
-    lines = stripped_lines(review)
-    if starting(lines, "Plan: ") != ["Plan: approved"]:
+    lines = list(map(str.rstrip, review.splitlines()))
+    if _starting(lines, "Plan: ") != ["Plan: approved"]:
         return "the newest review does not say exactly `Plan: approved`"
     section = plan_section(body)
     if section is None:

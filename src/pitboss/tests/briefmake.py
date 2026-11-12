@@ -3,9 +3,10 @@
 import dataclasses
 from typing import Sequence, TypeVar
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import brief, briefconfig
+from .says import has_all
 
 HEAD = "3" * 40
 APPROVED = "2" * 40
@@ -117,28 +118,6 @@ def text(kind: brief.Kind, **changes: object) -> str:
         The text.
     """
     return brief.build(make(kind, **changes))
-
-
-def has_all(found: str, wanted: Sequence[str]) -> None:
-    """Check that a text contains each wanted text.
-
-    Args:
-        found: the text.
-        wanted: the texts it must contain.
-    """
-    for each in wanted:
-        assert_that(found, contains_string(each))
-
-
-def has_none(found: str, unwanted: Sequence[str]) -> None:
-    """Check that a text contains none of the unwanted texts.
-
-    Args:
-        found: the text.
-        unwanted: the texts it must not contain.
-    """
-    for each in unwanted:
-        assert_that(each in found, equal_to(False))
 
 
 def pinned(kind: brief.Kind, wanted: Sequence[str], **changes: object) -> None:

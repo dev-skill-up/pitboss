@@ -50,7 +50,7 @@ def _planted() -> rulefiles.Ticket:
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         write(root / name, text)
     (home / ".claude").mkdir()
-    write(home / ".claude" / "CLAUDE.md", "USERLEVEL\n")
+    write(home / ".claude/CLAUDE.md", "USERLEVEL\n")
     return rulefiles.Ticket(checkout=root, paths=["src/x.bats", "src/"], home=home)
 
 

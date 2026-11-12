@@ -5,7 +5,8 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextwork, plandonewhen, ticketwhen
-from .briefmake import has_all, has_none, pinned, text
+from .briefmake import pinned, text
+from .says import has_all, has_none
 
 DIGEST = ticketwhen.digest("Done-when:\n- one\n")
 RULE = "meet the Done-when as written, or prove it impossible"

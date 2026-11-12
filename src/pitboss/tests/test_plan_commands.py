@@ -3,7 +3,8 @@
 import unittest
 
 from .. import brief
-from .briefmake import EXECUTION_REVIEWS, PLAN_REVIEWS, has_none, pinned, text
+from .briefmake import EXECUTION_REVIEWS, PLAN_REVIEWS, pinned, text
+from .says import has_none
 
 BODY = (
     "for each Done-when row, if the Plan's evidence mentions a command, the Plan"

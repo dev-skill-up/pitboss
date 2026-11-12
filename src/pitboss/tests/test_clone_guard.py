@@ -14,14 +14,13 @@ from hamcrest import assert_that, equal_to
 
 from .. import cloneguard
 from . import captured, fakes, repositories, world
-from .briefmake import has_all, has_none
+from .says import ended, exits, has_all, has_none
 from .handbackworld import ready
 from .linting import write_text
 from .plancheckrun import body_of
 from .handbackrun import saved
 from .test_deviations import WITH_NONE, WITHOUT_LINE
 from .test_nox import Done, FakeNox
-from .says import ended, exits
 from .fakes import write
 
 REFUSAL = (

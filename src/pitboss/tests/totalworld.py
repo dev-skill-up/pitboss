@@ -13,6 +13,7 @@ from typing import Iterable, Mapping
 
 from .. import bodydigest, dispatchnext, totalreview
 from ..totaljson import JsonMap, members, name_at
+from ..plansection import plan_section
 
 FOLDER = pathlib.Path(__file__).with_name("total")
 ACT = "moshez"
@@ -63,7 +64,7 @@ def review(
     Returns:
         The timeline event.
     """
-    section = totalreview.plan_section(body)
+    section = plan_section(body)
     plan = [] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]
     lines = [
         f"{INDEPENDENT} {head}: {grade}",

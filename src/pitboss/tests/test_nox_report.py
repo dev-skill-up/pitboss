@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import expansion, noxcheck, noxenv
-from .briefmake import has_all, has_none
+from .says import has_all, has_none
 from .test_nox import COMMANDS, Done, FakeNox, clock_of, run_nox, run_with
 
 NAMES = [each.value for each in noxcheck.Session]

@@ -22,10 +22,7 @@ def _pulls(
     # the open PRs of the branch; none when it is not known or cannot be read
     if slug is None or not branch:
         return []
-    found = ghapi.branch_pulls(github, slug, branch)
-    if not isinstance(found, list):
-        return []
-    return [each for each in found if isinstance(each, dict)]
+    return ghapi.branch_pulls(github, slug, branch)
 
 
 def stale_line(github: ghapi.GitHub, slug: str | None, branch: str) -> str:

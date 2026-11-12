@@ -19,6 +19,7 @@ from . import (
     plancheckconfig,
     scratchconfig,
     syncconfig,
+    totaljson,
 )
 
 
@@ -97,7 +98,7 @@ def load_transcripts(name: str, start: pathlib.Path) -> pathlib.Path | None:
         has no such key.
     """
     slots = _document(name, start).get("slots")
-    found = slots.get("transcripts") if isinstance(slots, dict) else None
+    found = totaljson.field(slots, "transcripts")
     return None if found is None else pathlib.Path(str(found))
 
 

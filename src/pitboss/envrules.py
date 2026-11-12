@@ -18,8 +18,6 @@ import importlib.resources
 import re
 from typing import AbstractSet, Mapping, Sequence
 
-from .textparts import split_at
-
 LONG_CHECK_SECONDS = 598
 LIMIT = str(LONG_CHECK_SECONDS)
 OK_LINE = "env: ok"
@@ -108,7 +106,7 @@ def kinds_of(slug: str) -> AbstractSet[str]:
         ``pitboss`` for pitboss, ``node`` for quire and pwa (their e2e runs in
         Node).
     """
-    owner, name = split_at(slug, "/")
+    owner, name = slug.split("/", 1) if "/" in slug else (slug, "")
     found = {ALL}
     if owner == "bats-lang":
         found.add("bats")

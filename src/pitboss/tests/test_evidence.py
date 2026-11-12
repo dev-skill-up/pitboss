@@ -7,7 +7,8 @@ from hamcrest import assert_that, equal_to
 
 from .. import evidence, expansion
 from .linting import RAN as GENERATED
-from .linting import block, typed_at
+from .linting import block
+from .formchecks import typed_at
 
 TYPED = "```\n$ nox -s tests\nOK\n```\n"
 FORGED = TYPED.replace("```\n", "```pitboss-expand sha256=0000000000000000\n", 1)

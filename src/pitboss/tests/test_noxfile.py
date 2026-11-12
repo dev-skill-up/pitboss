@@ -16,7 +16,7 @@ from typing import Protocol
 from hamcrest import assert_that, equal_to
 
 from .. import noxcheck
-from .briefmake import has_all, has_none
+from .says import has_all, has_none
 from .test_config import EXAMPLE
 from .fakes import write
 

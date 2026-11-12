@@ -16,7 +16,8 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, draftfacts, shapes, steps
 from . import fakes, test_flow, world
-from .briefmake import has_none, make, text
+from .briefmake import make, text
+from .says import has_none
 from .test_commands import sweep
 from .test_flow import state
 from .test_flow_sweep import CHANGES, HEAD, OLDER, graded, world_with

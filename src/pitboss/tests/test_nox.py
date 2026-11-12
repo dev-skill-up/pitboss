@@ -8,8 +8,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import disk, diskwatch, expansion, noxcheck
 from . import world
-from .briefmake import has_all, has_none
-from .says import exits
+from .says import exits, has_all, has_none
 
 COMMANDS = [
     ["nox", "-r", "-s", "skills"],

@@ -8,7 +8,7 @@ a timeout and a missing argument.
 import argparse
 import dataclasses
 import subprocess
-import sys
+from sys import executable
 import unittest
 from typing import Sequence
 
@@ -142,7 +142,7 @@ class TestEachGateEachWay(unittest.TestCase):
     def test_c32_the_runner_pitboss_runs_with_takes_the_gate(self) -> None:
         """commander_data's own runner, which captures by default, runs a gate."""
         words = [
-            sys.executable,
+            executable,
             "-c",
             "import sys; print('out'); print('err', file=sys.stderr)",
         ]

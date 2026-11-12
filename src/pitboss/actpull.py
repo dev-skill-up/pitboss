@@ -8,8 +8,14 @@ read.
 """
 
 from . import actcore, totalanswer
-from .actcore import pull_of, timeline_of
-from .actsteps import disarm_first, head_now, options_of, repo_write
+from .actcore import (
+    disarm_first,
+    head_now,
+    options_of,
+    pull_of,
+    repo_write,
+    timeline_of,
+)
 from .totaljson import text
 
 LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", actcore.HOLD_LABEL}
@@ -146,41 +152,7 @@ def hold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> 
     Returns:
         What was done.
     """
-    return make_hold(act, target.repo, *options_of(options, "scope", "source"))
-
-
-def make_hold(act: actcore.Act, where: str, scope: str, source: str) -> str:
-    """Make the hold issues and disarm and dequeue what the scope covers.
-
-    Args:
-        act: the verb's world.
-        where: the repository, or "all".
-        scope: the scope held.
-        source: the owner message it comes from.
-
-    Returns:
-        What was done.
-    """
-    named = act.repos if where == "all" else [where]
-    for each in named:
-        fields = {
-            "title": f"pitboss hold: {scope}",
-            "body": f"scope={scope}\nfrom={source}",
-            "labels": actcore.HOLD_LABEL,
-        }
-        repo_write(act, each, "issue", fields)
-        if scope in actcore.DISARMING:
-            _disarm_all(act, each, f"hold {scope}")
-    return f"hold {scope} in {', '.join(named)}"
-
-
-def _disarm_all(act: actcore.Act, repo: str, why: str) -> None:
-    for pull in act.hub.open_pulls(repo):
-        number = pull.get("number")
-        target = actcore.Target(
-            repo=repo, number=number if isinstance(number, int) else 0
-        )
-        disarm_first(act, target, why)
+    return actcore.make_hold(act, target.repo, *options_of(options, "scope", "source"))
 
 
 def unhold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:

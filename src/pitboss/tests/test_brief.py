@@ -7,7 +7,8 @@ from hamcrest import assert_that, equal_to
 
 from .. import brief
 from . import briefmake
-from .briefmake import APPROVED, GOAL, HEAD, HONEST, has_none, pinned, text
+from .briefmake import APPROVED, GOAL, HEAD, HONEST, pinned, text
+from .says import has_none
 
 RESOLUTION_SCOPE = (
     f"Scope (exclusive): this head {HEAD} differs from the approved head"
