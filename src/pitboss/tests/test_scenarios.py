@@ -18,7 +18,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_inanyorder, contains_string, equal_to
 
-from .. import capture, capture_commands, ghapi, steps
+from .. import capture, capture_commands, expansion, ghapi, plandigest, steps
 from . import fakes, scenario
 from .scenario import Mark
 
@@ -112,16 +112,47 @@ def required(name: str) -> None:
         assert_that(got, equal_to(mark.want), f"{name} {mark.when} [{mark.rule}]")
 
 
+def digest_kept(name: str) -> None:
+    """Plan-check at the next head leaves the approved Plan's digest as it was.
+
+    The Plan is the one of the captured body. The next head's Actions addresses
+    carry other run ids; the digest a review records ignores them (the first of
+    ``accepted_digests``), the old one that kept them (the second) is the one the
+    captured Plan check comment of that head printed, and it changes.
+
+    Args:
+        name: the timeline.
+    """
+    data = scenario.load(name)
+    plan = plandigest.section(data["pull"]["body"])
+    later = expansion.RUN_ADDRESS.sub(
+        lambda m: f"{m[1]}/actions/runs/9{m[0][-3:]}", plan
+    )
+    here, there = expansion.accepted_digests(plan), expansion.accepted_digests(later)
+    printed = [
+        each["body"].split("Plan digest: ")[1][:16]
+        for each in data["comments"]
+        if each["body"].startswith("Plan check") and "Plan check: ok" in each["body"]
+    ]
+    assert_that(
+        [here[0] == there[0], here[1] == there[1], printed[-1] == here[1]],
+        equal_to([True, False, True]),
+        f"{name}: the digest of the Plan at the next head",
+    )
+
+
 class TestScenarios(unittest.TestCase):
     """The scenarios of the captured PRs."""
 
     def test_a1_a2_a3_pitboss_465(self) -> None:
         """465: `revise the plan` then `do these steps` is executed (A1, A2)."""
         required("dev-skill-up-pitboss-465")
+        digest_kept("dev-skill-up-pitboss-465")
 
     def test_a1_a2_a3_pitboss_470(self) -> None:
         """470: the same shape as 465 (A1, A2)."""
         required("dev-skill-up-pitboss-470")
+        digest_kept("dev-skill-up-pitboss-470")
 
     def test_a3_pitboss_460(self) -> None:
         """460: a Plan check after the ruling's steps gets the review (A3)."""
