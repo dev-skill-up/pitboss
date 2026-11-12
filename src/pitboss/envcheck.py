@@ -32,7 +32,8 @@ def verdicts(
 
 
 def _there(args: argparse.Namespace, need: envrules.Need) -> bool:
-    done = gaterun.run(
-        args.safe_run, ["sh", "-c", need.check], timeout=60, directory=str(args.repo)
+    gate = gaterun.Gate(
+        command=["sh", "-c", need.check], timeout=60, directory=str(args.repo)
     )
+    done = gaterun.run(args.safe_run, gate)
     return done.passed

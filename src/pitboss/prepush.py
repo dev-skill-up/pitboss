@@ -70,26 +70,30 @@ def refusals(
         The lines of every refusal; none when each check printed its ok. A check
         that lacks an argument is not run.
     """
-    lines: list[str] = []
-    for check in checks:
-        lacking = missing(check)
-        if lacking:
-            lines.append(
-                f"pre-push check {check.name}: no value for {', '.join(lacking)}"
-                " (declare it under [pre_push.arguments])"
-            )
-            continue
-        judged = gaterun.run(
-            safe_run,
-            argv(check),
-            timeout=check.timeout,
-            ok_text=check.ok,
-            directory=str(directory),
-        )
-        if not judged.passed:
-            lines.append(f"pre-push check {check.name} refused the push:")
-            lines.extend(judged.output.rstrip("\n").splitlines()[-20:])
-    return lines
+    return [line for each in checks for line in _refusal(safe_run, each, directory)]
+
+
+def _refusal(
+    safe_run: gaterun.Runner, declared: config.PrePush, directory: pathlib.Path
+) -> Sequence[str]:
+    # the lines of one check's refusal; a check lacking an argument is not run
+    lacking = missing(declared)
+    if lacking:
+        return [
+            f"pre-push check {declared.name}: no value for {', '.join(lacking)}"
+            " (declare it under [pre_push.arguments])"
+        ]
+    gate = gaterun.Gate(
+        command=argv(declared),
+        timeout=declared.timeout,
+        ok_text=declared.ok,
+        directory=str(directory),
+    )
+    judged = gaterun.run(safe_run, gate)
+    if judged.passed:
+        return []
+    tail = judged.output.rstrip("\n").splitlines()[-20:]
+    return [f"pre-push check {declared.name} refused the push:", *tail]
 
 
 def hook_failure(
@@ -111,13 +115,13 @@ def hook_failure(
         ``fix: <the fix>`` of the first check that does not pass; none when each
         passes. A check lacking an argument fails, naming it.
     """
-    for number, check in enumerate(checks, start=1):
-        lines = refusals(safe_run, [check], directory)
+    for number, declared in enumerate(checks, start=1):
+        lines = refusals(safe_run, [declared], directory)
         if lines:
             what = lines[0] if len(lines) == 1 else " ".join(lines[1:3])
-            fix = check.fix or "run the check by hand and fix what it prints"
+            fix = declared.fix or "run the check by hand and fix what it prints"
             return [
-                f"pre-push: check {number} ({check.name}) failed: {what}",
+                f"pre-push: check {number} ({declared.name}) failed: {what}",
                 f"fix: {fix}",
             ]
     return []

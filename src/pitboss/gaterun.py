@@ -106,29 +106,23 @@ class Judged:
         return self.mode is Mode.OK
 
 
-def judge(status: int, output: str, *, failed: str = "", ok_text: str = "") -> Judged:
-    """Judge a finished gate.
+def judge(status: int, output: str, ok_text: str = "") -> Judged:
+    """Judge a gate that finished.
 
     Args:
-        status: its exit status, ignored when ``failed`` is given.
+        status: its exit status.
         output: what it printed.
-        failed: ``timeout`` or ``start`` when it did not finish or start.
         ok_text: the text its output must hold to be ok, empty for any output.
 
     Returns:
         The verdict; ok only when nothing refuses it.
     """
-    if failed == "timeout":
-        return _refused(Mode.TIMEOUT, TIMEOUT_STATUS, output)
-    if failed == "start":
-        return _refused(Mode.CRASH, CANNOT_START_STATUS, output)
-    code = status
     if any(each in output for each in MISSING):
-        return _refused(Mode.MISSING_ARGUMENT, code or EMPTY_STATUS, output)
-    if code < 0 or any(each in output for each in CRASHED):
-        return _refused(Mode.CRASH, code or EMPTY_STATUS, output)
-    if code:
-        return _refused(Mode.NONZERO, code, output)
+        return _refused(Mode.MISSING_ARGUMENT, status or EMPTY_STATUS, output)
+    if status < 0 or any(each in output for each in CRASHED):
+        return _refused(Mode.CRASH, status or EMPTY_STATUS, output)
+    if status:
+        return _refused(Mode.NONZERO, status, output)
     named = ok_text in output if ok_text else bool(output.strip())
     if not named:
         return _refused(Mode.EMPTY, EMPTY_STATUS, output)
@@ -141,52 +135,67 @@ def _refused(mode: Mode, status: int, output: str) -> Judged:
     )
 
 
-def run(
-    safe_run: Runner,
-    command: Sequence[str],
-    *,
-    timeout: int,
-    ok_text: str = "",
-    environment: Mapping[str, str] | None = None,
-    directory: str | None = None,
-) -> Judged:
-    """Run a command as a gate.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Gate:
+    """A command run as a gate.
 
-    Args:
-        safe_run: the runner of commands.
+    Attributes:
         command: the command line.
         timeout: the most seconds it may run.
         ok_text: the text its output must hold, empty for any output.
         environment: the child's environment, this process's when none.
         directory: its working directory, this process's when none.
+    """
+
+    command: Sequence[str]
+    timeout: int
+    ok_text: str = ""
+    environment: Mapping[str, str] | None = None
+    directory: str | None = None
+
+
+def _where(gate: Gate) -> Mapping[str, object]:
+    given: dict[str, object] = {}
+    if gate.environment is not None:
+        given["env"] = gate.environment
+    if gate.directory is not None:
+        given["cwd"] = gate.directory
+    return given
+
+
+def _started(safe_run: Runner, gate: Gate) -> Finished:
+    return safe_run(
+        list(gate.command),
+        check=False,
+        timeout=gate.timeout,
+        capture_output=False,  # one stream, not the runner default (gate-run)
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        **_where(gate),
+    )
+
+
+def run(safe_run: Runner, gate: Gate) -> Judged:
+    """Run a command as a gate.
+
+    Args:
+        safe_run: the runner of commands.
+        gate: the command and how it runs.
 
     Returns:
         The verdict (never raises for a failure of the command).
     """
-    given: dict[str, object] = {}
-    if environment is not None:
-        given["env"] = environment
-    if directory is not None:
-        given["cwd"] = directory
     try:
-        done = safe_run(
-            list(command),
-            check=False,
-            timeout=timeout,
-            capture_output=False,  # one stream, not the runner default (gate-run)
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            **given,
-        )
+        done = _started(safe_run, gate)
     except subprocess.TimeoutExpired:
-        return judge(0, "", failed="timeout")
+        return _refused(Mode.TIMEOUT, TIMEOUT_STATUS, "")
     except subprocess.CalledProcessError as failure:  # a runner that checks
         said = f"{failure.stdout or ''}{failure.stderr or ''}"
         return judge(failure.returncode, said)
     except OSError as error:
-        return judge(0, f"cannot start: {error}\n", failed="start")
-    return judge(int(done.returncode), str(done.stdout or ""), ok_text=ok_text)
+        return _refused(Mode.CRASH, CANNOT_START_STATUS, f"cannot start: {error}\n")
+    return judge(int(done.returncode), str(done.stdout or ""), gate.ok_text)
 
 
 def outcome(judged: Judged) -> expansion.Outcome:

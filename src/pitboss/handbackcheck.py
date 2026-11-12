@@ -230,15 +230,20 @@ def branch_pull(github: ghapi.GitHub, slug: str, branch: str) -> int | str:
     return int(listed[0]["number"])
 
 
+def _branch_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
+    # keyword: claim-readback (quire#1115): the push went to the PR's branch
+    if not pushed.branch or pull.head.branch == pushed.branch:
+        return []
+    return [
+        f"refused: WRONG-BRANCH {pushed.name}: the PR's head branch is"
+        f" {pull.head.branch} (at {pull.head.sha}), but you pushed"
+        f" {pushed.branch}: push to {pull.head.branch}"
+    ]
+
+
 def _head_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
     named = forms.HEAD_LINE.findall(pull.body)
-    found = []
-    if pushed.branch and pull.head.branch != pushed.branch:
-        found.append(  # keyword: claim-readback (quire#1115)
-            f"refused: WRONG-BRANCH {pushed.name}: the PR's head branch is"
-            f" {pull.head.branch} (at {pull.head.sha}), but you pushed"
-            f" {pushed.branch}: push to {pull.head.branch}"
-        )
+    found = list(_branch_lines(pushed, pull))
     if pull.head.sha != pushed.head:
         found.append(
             f"refused: {pushed.name} holds head {pull.head.sha}, not the pushed"

@@ -65,54 +65,102 @@ def in_checkout(root: pathlib.Path | None) -> Exists:
     )
 
 
-@dataclasses.dataclass(slots=True, kw_only=True)
-class _Reading:
-    form: Form
-    exists: Exists
-    found: list[str] = dataclasses.field(default_factory=list)
-    seen: list[str] = dataclasses.field(default_factory=list)
+HEADINGS = ("## Items", "## Evidence")
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Place:
+    """Where a line of a hand-back stands.
+
+    Attributes:
+        section: the section it is in (``Items`` or ``Evidence``), empty before
+            the first.
+        fence: whether it is inside a fenced block of the Evidence.
+    """
+
     section: str = ""
     fence: bool = False
 
 
-def _item(reading: _Reading, number: int, line: str) -> None:
-    done = reading.form.done.fullmatch(line)
-    if done and not (
-        reading.form.url.fullmatch(done.group(2)) or reading.exists(done.group(2))
-    ):
-        reading.found.append(
+def _evidence(place: Place, number: int, line: str) -> tuple[Place, Sequence[str]]:
+    fence = line.startswith("```")
+    said = (
+        []
+        if fence
+        else [f"line {number}: Evidence holds fenced blocks only: {line[:50]!r}"]
+    )
+    return dataclasses.replace(place, fence=fence), said
+
+
+def _heading(place: Place, number: int, line: str) -> tuple[Place, Sequence[str]]:
+    late = line == HEADINGS[0] and place.section
+    said = [f"line {number}: a second or late `## Items`"] if late else []
+    return dataclasses.replace(place, section=line[3:]), said
+
+
+def step(place: Place, number: int, line: str) -> tuple[Place, Sequence[str], bool]:
+    """Read one line that is not blank.
+
+    Args:
+        place: where the line before left the reading.
+        number: the line's number.
+        line: the line.
+
+    Returns:
+        Where the reading is after it, what is wrong with it, and whether it is
+        a line of the Items to read as an item.
+    """
+    if place.fence:
+        return dataclasses.replace(place, fence=not line.startswith("```")), [], False
+    if line in HEADINGS:
+        return (*_heading(place, number, line), False)
+    if not place.section:
+        return place, [f"line {number}: text before `## Items`: {line[:50]!r}"], False
+    if place.section == "Evidence":
+        return (*_evidence(place, number, line), False)
+    return place, [], True
+
+
+def _item(
+    form: Form, exists: Exists, number: int, line: str
+) -> tuple[Sequence[str], str]:
+    # what is wrong with an item line, and the item it names ("" for none)
+    done = form.done.fullmatch(line)
+    pointed = done and (form.url.fullmatch(done.group(2)) or exists(done.group(2)))
+    said = (
+        [
             f"line {number}: the evidence of {done.group(1)} is neither a GitHub run,"
             " job, PR, commit or issue URL nor a file of the checkout"
-        )
+        ]
+        if done and not pointed
+        else []
+    )
     match = done or next(
-        (each.fullmatch(line) for each in reading.form.others if each.fullmatch(line)),
-        None,
+        (each.fullmatch(line) for each in form.others if each.fullmatch(line)), None
     )
     if match is None:
-        reading.found.append(
-            f"line {number}: not an item line of the form: {line[:50]!r}"
-        )
-    else:
-        reading.seen.append(match.group(1))
+        return [
+            *said,
+            f"line {number}: not an item line of the form: {line[:50]!r}",
+        ], ""
+    return said, match.group(1)
 
 
-def _line(reading: _Reading, number: int, line: str) -> None:
-    if reading.fence:
-        reading.fence = not line.startswith("```")
-    elif line in ("## Items", "## Evidence"):
-        if line == "## Items" and reading.section:
-            reading.found.append(f"line {number}: a second or late `## Items`")
-        reading.section = line[3:]
-    elif not reading.section:
-        reading.found.append(f"line {number}: text before `## Items`: {line[:50]!r}")
-    elif reading.section == "Evidence":
-        reading.fence = line.startswith("```")
-        if not reading.fence:
-            reading.found.append(
-                f"line {number}: Evidence holds fenced blocks only: {line[:50]!r}"
-            )
-    else:
-        _item(reading, number, line)
+def _read(
+    text: str, form: Form, exists: Exists
+) -> tuple[Place, Sequence[str], Sequence[str]]:
+    # where the reading ends, what is wrong and the items named, in order
+    place, found, seen = Place(), [], []
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        place, said, is_item = step(place, number, line)
+        found += said
+        if is_item:
+            wrong, named = _item(form, exists, number, line)
+            found += wrong
+            seen += [named] if named else []
+    return place, found, seen
 
 
 def findings(
@@ -129,23 +177,24 @@ def findings(
     Returns:
         A line for each fault; none when it is in the form.
     """
-    reading = _Reading(form=form or Form(), exists=exists)
-    for number, line in enumerate(text.splitlines(), 1):
-        if line.strip():
-            _line(reading, number, line)
-    found = reading.found
-    if reading.fence:
+    place, read, seen = _read(text, form or Form(), exists)
+    found = list(read)
+    if place.fence:
         found.append("an Evidence block is not closed")
-    if not reading.section:
+    if not place.section:
         found.append("no `## Items` section")
-    found += [
-        f"item {each} has {reading.seen.count(each)} lines, not one"
+    return [*found, *_counted(ids, seen)]
+
+
+def _counted(ids: Sequence[str], seen: Sequence[str]) -> Sequence[str]:
+    # each item has one line, and each line is of an item of the ticket
+    found = [
+        f"item {each} has {seen.count(each)} lines, not one"
         for each in ids
-        if reading.seen.count(each) != 1
+        if seen.count(each) != 1
     ]
-    found += [
+    return found + [
         f"item {each} is not one of the ticket's Done-when items"
-        for each in reading.seen
+        for each in seen
         if each not in ids
     ]
-    return found

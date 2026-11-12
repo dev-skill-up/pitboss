@@ -115,21 +115,29 @@ class TestEachGateEachWay(unittest.TestCase):
     def test_c32_the_verdict_names_the_mode(self) -> None:
         """Each way is its own mode."""
         for mode, runner in WAYS:
-            judged = gaterun.run(runner, ["x"], timeout=1)
+            judged = gaterun.run(runner, gaterun.Gate(command=["x"], timeout=1))
             assert_that(judged.mode, equal_to(mode))
 
     def test_c32_an_explicit_ok_passes(self) -> None:
         """Exit 0, an output and (when declared) the ok text pass."""
-        assert_that(gaterun.run(Fake(out="x\n"), ["x"], timeout=1).passed, is_(True))
+        assert_that(
+            gaterun.run(Fake(out="x\n"), gaterun.Gate(command=["x"], timeout=1)).passed,
+            is_(True),
+        )
         said = Fake(out="check-pins: all passed\n")
         assert_that(
             gaterun.run(
-                said, ["x"], timeout=1, ok_text="check-pins: all passed"
+                said,
+                gaterun.Gate(
+                    command=["x"], timeout=1, ok_text="check-pins: all passed"
+                ),
             ).passed,
             is_(True),
         )
         assert_that(
-            gaterun.run(said, ["x"], timeout=1, ok_text="other").mode,
+            gaterun.run(
+                said, gaterun.Gate(command=["x"], timeout=1, ok_text="other")
+            ).mode,
             equal_to(Mode.EMPTY),
         )
         assert_that(pre_push(Fake(out="fine\n")), has_length(0))
@@ -141,13 +149,16 @@ class TestEachGateEachWay(unittest.TestCase):
             "-c",
             "import sys; print('out'); print('err', file=sys.stderr)",
         ]
-        judged = gaterun.run(Runner().safe_run, words, timeout=60)
+        judged = gaterun.run(Runner().safe_run, gaterun.Gate(command=words, timeout=60))
         assert_that((judged.passed, judged.output), equal_to((True, "out\nerr\n")))
 
     def test_c32_a_session_that_checks_its_status_still_fails(self) -> None:
         """A runner that raises for a non-zero status is a refusal too."""
         failing = Fake(raises=subprocess.CalledProcessError(2, "x", "bad\n", "worse\n"))
-        assert_that(gaterun.run(failing, ["x"], timeout=1).mode, equal_to(Mode.NONZERO))
+        assert_that(
+            gaterun.run(failing, gaterun.Gate(command=["x"], timeout=1)).mode,
+            equal_to(Mode.NONZERO),
+        )
 
 
 class TestDeclaredArguments(unittest.TestCase):

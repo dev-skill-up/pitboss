@@ -82,7 +82,10 @@ def gate_command(
     """
     return gaterun.outcome(
         gaterun.run(
-            args.safe_run, command, timeout=SESSION_SECONDS, environment=environment
+            args.safe_run,
+            gaterun.Gate(
+                command=command, timeout=SESSION_SECONDS, environment=environment
+            ),
         )
     )
 
