@@ -81,12 +81,8 @@ class TestE2eWaits(unittest.TestCase):
 
     def test_t52_a_malformed_allowlist_is_an_error(self) -> None:
         """A line needs three fields."""
-        try:
+        with self.assertRaisesRegex(ValueError, "need PATH"):
             e2ewaits.allowed(_file("only-a-path\n"))
-        except ValueError as error:
-            assert_that(str(error), contains_string("need PATH"))
-        else:
-            raise AssertionError("no error")
 
 
 def _file(text: str) -> pathlib.Path:

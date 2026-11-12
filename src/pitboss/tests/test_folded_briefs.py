@@ -10,6 +10,19 @@ WORKERS = (brief.Kind.NEW_PR, brief.Kind.FIRST_ROUND, brief.Kind.REVISE_PLAN)
 EXECUTIONS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
 
 
+GUARANTEES = [
+    "a row naming the function, the file and the test (static reject"
+    " or dynamic) that enforce it",
+    "a lifecycle list: how it is created, upgraded, read, deleted,"
+    " restored and cleaned up",
+    "re-checks every code path its own additions touch, not only the" " finding's text",
+]
+GUARANTEE_REVIEW = [
+    "check each row of its guarantee table against the code",
+    "every caller of the primitive",
+]
+
+
 class TestFoldedBriefs(unittest.TestCase):
     """A worker brief or a review brief carries each sentence."""
 
@@ -57,25 +70,9 @@ class TestFoldedBriefs(unittest.TestCase):
 
     def test_t285_the_design_has_a_guarantee_table_and_a_lifecycle_list(self) -> None:
         """The worker writes both tables; the review checks each row."""
-        has_all(
-            text(brief.Kind.NEW_PR),
-            [
-                "a row naming the function, the file and the test (static reject"
-                " or dynamic) that enforce it",
-                "a lifecycle list: how it is created, upgraded, read, deleted,"
-                " restored and cleaned up",
-                "re-checks every code path its own additions touch, not only the"
-                " finding's text",
-            ],
-        )
+        has_all(text(brief.Kind.NEW_PR), GUARANTEES)
         for kind in (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN):
-            has_all(
-                text(kind),
-                [
-                    "check each row of its guarantee table against the code",
-                    "every caller of the primitive",
-                ],
-            )
+            has_all(text(kind), GUARANTEE_REVIEW)
 
     def test_t286_a_path_outside_the_checkout_needs_its_state_in_the_plan(
         self,

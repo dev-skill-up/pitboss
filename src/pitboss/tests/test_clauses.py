@@ -1,26 +1,36 @@
 """C27: every rule line of the owner's memory is mapped to a rule (keyword: clauses)."""
 
 import json
-import pathlib
-import tempfile
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import clauses, phrases, rules
-from . import world
+from . import scratch, world
 
 REGISTER = (
     "A1\t2026-11-04\tenforced\tAn approved Plan is never"
-    " edited\tflowstate.plan_edited_without_ruling\ttest_x.test_a1_a\nZ9\t2026-11-04\topen\tNot"
-    " yet\t-\t-\nY8\t2026-11-04\tenforced\tNo tests\t-\t\n"
+    " edited\tflowstate.plan_edited_without_ruling\ttest_x.test_a1_a\n"
+    "Z9\t2026-11-04\topen\tNot yet\t-\t-\n"
+    "Y8\t2026-11-04\tenforced\tNo tests\t-\t\n"
 )
 ROWS, _ = rules.parse(REGISTER)
 TABLE = (
     "memory:MEMORY.md\t- APPROVED PLAN\tA1\tplan\n"
     "memory:a.md\tdescription\toutside: a fact\t-\n"
 )
+MEMORY_CLAUSES = [
+    ("memory:MEMORY.md", "- ONE rule"),
+    ("memory:MEMORY.md", "- TWO"),
+    ("memory:t.md", "description"),
+    ("memory:t.md", "how-to-apply"),
+]
+TICKET_CLAUSES = [
+    ("ticket:444", "case 1"),
+    ("ticket:444", "case 2"),
+    ("ticket:444", "comment 7"),
+]
 LINES = [("memory:MEMORY.md", "- APPROVED PLAN"), ("memory:a.md", "description")]
 
 
@@ -87,33 +97,13 @@ class TestCorpus(unittest.TestCase):
 
     def test_c27_memory_and_ticket_clauses_are_read(self) -> None:
         """Bullets, description and How to apply lines, numbered cases and comments."""
-        folder = pathlib.Path(tempfile.mkdtemp())
+        folder = scratch.directory()
         (folder / "MEMORY.md").write_text("# t\n- ONE rule\n- TWO\n")
         (folder / "t.md").write_text("description: d\n**How to apply:** x\n")
-        said = clauses.memory(folder)
-        assert_that(
-            said,
-            equal_to(
-                [
-                    ("memory:MEMORY.md", "- ONE rule"),
-                    ("memory:MEMORY.md", "- TWO"),
-                    ("memory:t.md", "description"),
-                    ("memory:t.md", "how-to-apply"),
-                ]
-            ),
-        )
+        assert_that(clauses.memory(folder), equal_to(MEMORY_CLAUSES))
         body = "1. before\n### Cases\n1. a\n2. b\n"
         got = clauses.ticket(body, json.dumps([{"id": 7}]))
-        assert_that(
-            got,
-            equal_to(
-                [
-                    ("ticket:444", "case 1"),
-                    ("ticket:444", "case 2"),
-                    ("ticket:444", "comment 7"),
-                ]
-            ),
-        )
+        assert_that(got, equal_to(TICKET_CLAUSES))
 
 
 class TestShipped(unittest.TestCase):
@@ -127,7 +117,7 @@ class TestShipped(unittest.TestCase):
 
     def test_c27_the_command_lists_an_unmapped_line_and_exits_1(self) -> None:
         """A memory folder with a rule line no row names fails the command."""
-        folder = pathlib.Path(tempfile.mkdtemp())
+        folder = scratch.directory()
         (folder / "MEMORY.md").write_text("- A BRAND NEW RULE nobody mapped\n")
         done = world.invoke(
             world.make_world(), "clauses", "check", "--memory", str(folder)
@@ -142,7 +132,7 @@ class TestShipped(unittest.TestCase):
 
     def test_c27_the_command_reads_the_ticket(self) -> None:
         """A ticket with an unmapped case fails; a mapped one passes."""
-        folder = pathlib.Path(tempfile.mkdtemp())
+        folder = scratch.directory()
         (folder / "b.txt").write_text("### Cases\n1. a\n99. unmapped\n")
         (folder / "c.json").write_text("[]")
         done = world.invoke(

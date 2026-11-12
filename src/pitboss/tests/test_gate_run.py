@@ -126,28 +126,13 @@ class TestEachGateEachWay(unittest.TestCase):
 
     def test_c32_an_explicit_ok_passes(self) -> None:
         """Exit 0, an output and (when declared) the ok text pass."""
-        assert_that(
-            gaterun.run(
-                answering(out="x\n"), gaterun.Gate(command=["x"], timeout=1)
-            ).passed,
-            is_(True),
-        )
+        plain = gaterun.Gate(command=["x"], timeout=1)
+        assert_that(gaterun.run(answering(out="x\n"), plain).passed, is_(True))
         said = answering(out="check-pins: all passed\n")
-        assert_that(
-            gaterun.run(
-                said,
-                gaterun.Gate(
-                    command=["x"], timeout=1, ok_text="check-pins: all passed"
-                ),
-            ).passed,
-            is_(True),
-        )
-        assert_that(
-            gaterun.run(
-                said, gaterun.Gate(command=["x"], timeout=1, ok_text="other")
-            ).mode,
-            equal_to(Mode.EMPTY),
-        )
+        named = gaterun.Gate(command=["x"], timeout=1, ok_text="check-pins: all passed")
+        assert_that(gaterun.run(said, named).passed, is_(True))
+        other = gaterun.Gate(command=["x"], timeout=1, ok_text="other")
+        assert_that(gaterun.run(said, other).mode, equal_to(Mode.EMPTY))
         assert_that(pre_push(answering(out="fine\n")), has_length(0))
 
     def test_c32_the_runner_pitboss_runs_with_takes_the_gate(self) -> None:

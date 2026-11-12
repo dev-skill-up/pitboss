@@ -35,7 +35,7 @@ def body(*parts: str) -> str:
     """A body with a Head line, an Evidence heading and the parts.
 
     Args:
-        parts: the lines after the heading.
+        *parts: the lines after the heading.
 
     Returns:
         The text.

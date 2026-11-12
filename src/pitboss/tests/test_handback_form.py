@@ -83,6 +83,24 @@ class TestHeldOut(unittest.TestCase):
         )
 
 
+URL = "https://github.com/o/r/pull/3"
+DONE = f"- [1] done | evidence: {URL}\n"
+FAULTS = (
+    (f"Done.\n## Items\n{DONE}", "text before"),
+    (f"## Items\n{DONE}## Items\n", "second or late"),
+    (f"## Items\n{DONE}## Evidence\nprose\n", "fenced blocks only"),
+    (f"## Items\n{DONE}## Evidence\n```\nopen\n", "not closed"),
+    ("nothing here", "no `## Items`"),
+    (f"## Items\n{DONE}- [9] done | evidence: {URL}\n", "not one of the ticket's"),
+    ("## Items\n- [1] done | evidence: not-run-here\n", "neither a GitHub run"),
+)
+PROSE = (
+    "## Items\n- [1] done, mostly (the Windows path is not run) | evidence:"
+    " out.txt\n"
+)
+LOOSE_DONE = re.compile(r"- \[([\w.-]+)\] done.* \| evidence: (\S+).*")
+
+
 class TestRules(unittest.TestCase):
     """Each rule, and what it refuses."""
 
@@ -92,28 +110,7 @@ class TestRules(unittest.TestCase):
         An open fence, a stray id.
         """
         exists = handbackform.in_checkout(None)
-        url = "https://github.com/o/r/pull/3"
-        for text, said in (
-            (f"Done.\n## Items\n- [1] done | evidence: {url}\n", "text before"),
-            (f"## Items\n- [1] done | evidence: {url}\n## Items\n", "second or late"),
-            (
-                f"## Items\n- [1] done | evidence: {url}\n## Evidence\nprose\n",
-                "fenced blocks only",
-            ),
-            (
-                f"## Items\n- [1] done | evidence: {url}\n## Evidence\n```\nopen\n",
-                "not closed",
-            ),
-            ("nothing here", "no `## Items`"),
-            (
-                (
-                    f"## Items\n- [1] done | evidence: {url}\n- [9] done | evidence:"
-                    f" {url}\n"
-                ),
-                "not one of the ticket's",
-            ),
-            ("## Items\n- [1] done | evidence: not-run-here\n", "neither a GitHub run"),
-        ):
+        for text, said in FAULTS:
             assert_that(
                 "\n".join(handbackform.findings(text, ["1"], exists)),
                 contains_string(said),
@@ -126,22 +123,17 @@ class TestRules(unittest.TestCase):
         (root / "out.txt").write_text("ok\n", encoding="utf-8")
         exists = handbackform.in_checkout(root)
         rest = "\n".join(GOOD.splitlines()[2:5]) + "\n"
-        prose = (
-            "## Items\n- [1] done, mostly (the Windows path is not run) | evidence:"
-            " out.txt\n" + rest
-        )
-        loose = dataclasses.replace(
-            handbackform.Form(),
-            done=re.compile(r"- \[([\w.-]+)\] done.* \| evidence: (\S+).*"),
-        )
+        prose = f"{PROSE}{rest}"
+        loose = dataclasses.replace(handbackform.Form(), done=LOOSE_DONE)
         pointer = GOOD.replace("out.txt", "not-run-here")
         anything = dataclasses.replace(handbackform.Form(), url=re.compile(r"\S+"))
         short = "\n".join(GOOD.splitlines()[:3]) + "\n"
-        for text, form, ids in (
+        cases = (
             (prose, loose, IDS),
             (pointer, anything, IDS),
             (short, handbackform.Form(), ["1", "2"]),
-        ):
+        )
+        for text, form, ids in cases:
             assert_that(
                 (
                     bool(handbackform.findings(text, IDS, exists)),
