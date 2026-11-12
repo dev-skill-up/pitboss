@@ -33,8 +33,6 @@ class Category(enum.IntEnum):
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
         ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (a PR; keyword: ci-quotes).
-        FINISH_PARTIAL: an author finishes a PR a worker handed back unfinished (a
-            PR; keyword: finish-partial).
         WAITING: a PR that is offered for no round (it waits, or its step is a
             ruling, a merge or an undraft) and whose ticket is blocked by an open
             ticket: it is only listed as blocked (keyword: blocked-pull,
@@ -49,6 +47,8 @@ class Category(enum.IntEnum):
             a blocker closed unmerged; keyword: blocked-by).
         AFTER_BLOCKER: an author merges the base into a PR whose blockers merged
             (keyword: blocked-by).
+        FINISH_PARTIAL: an author finishes a PR a worker handed back unfinished (a
+            PR; keyword: finish-partial).
     """
 
     FIX_REVIEW = 1
