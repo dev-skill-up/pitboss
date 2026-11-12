@@ -241,7 +241,7 @@ class Made:
 
 def made(
     world: World,
-    controls: Controls = Controls(),
+    controls: Controls,
     owner: Owner | None = None,
     repos: Sequence[str] = (),
 ) -> Made:

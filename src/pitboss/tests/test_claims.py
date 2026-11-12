@@ -4,12 +4,8 @@ quire#1115: a worker pushed to ``w1113-merge`` and reported it as pushed; the PR
 stayed 75f820a while the body named 7ba2eca. Each shape is played with a fake GitHub.
 """
 
-import argparse
 import importlib
 import json
-import pathlib
-import tempfile
-import types
 import unittest
 
 from hamcrest import (
@@ -21,7 +17,6 @@ from hamcrest import (
 )
 
 from .. import (
-    act_commands,
     actback,
     actions,
     actrun,
@@ -36,7 +31,6 @@ from .. import (
     shapes,
 )
 from . import fakes, world
-from . import test_work
 from .test_report import facts
 from .says import says
 
@@ -207,24 +201,6 @@ class TestActClaims(unittest.TestCase):
         assert_that(said[0].startswith("act NOT LANDED"), equal_to(True))
         assert_that(_read_back(actions.Action.PUSH, {}, []), empty())
         assert_that(_read_back(actions.Action.DISPATCH, {}, []), empty())
-
-    def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
-        """Through the command's own step: the fake GitHub applies no label."""
-        with tempfile.TemporaryDirectory() as directory:
-            slots = types.SimpleNamespace(log=pathlib.Path(directory) / "log")
-            here = types.SimpleNamespace(
-                args=argparse.Namespace(no_dry_run=True),
-                settings=types.SimpleNamespace(slots=slots),
-                now=world.START,
-                github=fakes.github(
-                    {"repos/owner/project/pulls/3": fakes.pull_body(3, labels=[])}
-                    | {"POST repos/owner/project/issues/3/labels": []}
-                ),
-            )
-            pull = test_work.facts(3, reviews.Standing.NONE)
-            with self.assertRaises(SystemExit) as stopped:
-                act_commands._make(here, actions.Action.LABEL, pull, ["p0"])  # type: ignore[arg-type]
-        assert_that(stopped.exception.code, equal_to(2))
 
 
 def _read_back(

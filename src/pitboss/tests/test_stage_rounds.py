@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import bodydigest, expansion, stagerounds, steps
+from .. import bodydigest, expansion, flowstate, stagerounds, steps
 from .test_flow import (
     EXECUTION_REJECTED,
     OLDER,
@@ -18,6 +18,20 @@ from .test_flow import (
 PLAN_FIRST = graded(*PLAN_REJECTED, 1, sha=OLDER)
 PLAN_SECOND = graded(*PLAN_REJECTED, 2, sha=OLDER)
 RULED = ruling(3)
+
+
+def ruled(pr: flowstate.PullState) -> bool:
+    """Whether the newest ruling of a PR is the Plan stage's.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        What ``stagerounds.plan_stage_ruled`` says of its ruling and reviews.
+    """
+    return stagerounds.plan_stage_ruled(
+        flowstate.newest_ruling(pr), flowstate.regular_reviews(pr)
+    )
 
 
 class TestPerStage(unittest.TestCase):
@@ -58,10 +72,10 @@ class TestPerStage(unittest.TestCase):
     ) -> None:
         """The stage is read from the order of the approval and the ruling."""
         planned = state(PLAN_FIRST, PLAN_SECOND, comments=[RULED])
-        assert_that(stagerounds.plan_stage_ruled(planned), equal_to(True))
+        assert_that(ruled(planned), equal_to(True))
         later = state(graded(*EXECUTION_REJECTED, 1), comments=[ruling(2)])
-        assert_that(stagerounds.plan_stage_ruled(later), equal_to(False))
-        assert_that(stagerounds.plan_stage_ruled(state(PLAN_FIRST)), equal_to(False))
+        assert_that(ruled(later), equal_to(False))
+        assert_that(ruled(state(PLAN_FIRST)), equal_to(False))
 
 
 class TestOneDigest(unittest.TestCase):

@@ -11,7 +11,7 @@ import json
 import pathlib
 from typing import Iterable, Mapping
 
-from .. import bodydigest, totalreview
+from .. import bodydigest, dispatchnext, totalreview
 from ..totaljson import JsonMap, mapping, name_at
 
 FOLDER = pathlib.Path(__file__).with_name("total")
@@ -200,3 +200,59 @@ def ticket_ref(world: World) -> str:
         Its reference.
     """
     return next(iter(mapping(world.ctx.get("tickets"))))
+
+
+def item(ref: str, created: str, **fields: str) -> dispatchnext.Item:
+    """An open PR of the order of work.
+
+    Args:
+        ref: its ``owner/name#N``.
+        created: when it was opened.
+        **fields: its other fields.
+
+    Returns:
+        The item.
+    """
+    return dispatchnext.Item(ref=ref, kind="pr", created=created, **fields)
+
+
+def record(words: str) -> object:
+    """An act record event.
+
+    Args:
+        words: what follows ``pitboss-act:``.
+
+    Returns:
+        The event.
+    """
+    return {
+        "event": "commented",
+        "user": {"login": ACT},
+        "body": f"pitboss-act: {words}",
+    }
+
+
+ARMED = {"auto_merge": {"merge_method": "merge"}}
+
+
+def files_of(name: str, added: int, removed: int = 0) -> Mapping[str, object]:
+    """The ``files`` input of one changed file.
+
+    Args:
+        name: its path.
+        added: its added lines.
+        removed: its removed lines.
+
+    Returns:
+        The input.
+    """
+    return {
+        "files": [
+            {
+                "filename": name,
+                "status": "modified",
+                "additions": added,
+                "deletions": removed,
+            }
+        ]
+    }

@@ -11,7 +11,7 @@ from typing import AbstractSet, Callable, Sequence
 
 from . import (
     draftfacts,
-    current,
+    expansion,
     plandigest,
     rulingwords,
     sessionurl,
@@ -96,8 +96,8 @@ def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
     rejecting = graded[-1] if graded else None
     if rejecting is None or rejecting.execution is not shapes.Verdict.CHANGES_NEEDED:
         return None
-    moved = not current.current_for(  # else a body fix
-        current.Subject.HEAD, rejecting.sha, pr.pull.head.sha
+    moved = not expansion.current_for(  # else a body fix
+        expansion.Subject.HEAD, rejecting.sha, pr.pull.head.sha
     )
     return rejecting if moved and pr.unchanged_since(rejecting.sha) else None
 
@@ -239,7 +239,7 @@ def plan_edited_without_ruling(pr: PullState) -> bool:
         return False
     now = plandigest.section(pr.pull.body)
     # keyword: plan-digest-collapse (pitboss#358, #399): an older digest still counts
-    if current.current_for(current.Subject.PLAN, newest.plan_digest, now):
+    if expansion.current_for(expansion.Subject.PLAN, newest.plan_digest, now):
         return False
     trusted = (each for each in pr.comments if each.author_association in pr.trusted)
     dated = [(each.created_at, read_ruling(each.body)) for each in trusted]

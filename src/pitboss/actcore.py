@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import Callable, Mapping, Protocol, Sequence
 
-from . import dispatchnext, ticketreader, totalverdict
+from . import dispatchnext, ticketreader, totalanswer
 from .running import Run
 from .totaljson import JsonMap, mapping, name_at, records, text
 
@@ -182,9 +182,7 @@ class Controls:
         not_overridable: the starts of the stop lines no override lifts.
     """
 
-    verdict: Callable[[str, JsonMap, JsonMap], totalverdict.Answer] = (
-        totalverdict.verdict
-    )
+    verdict: Callable[[str, JsonMap, JsonMap], totalanswer.Answer]
     owner_gate: Callable[["Act"], None] = lambda act: owner_gate(act)
     hold_gate: Callable[["Act", str, str], None] = lambda act, verb, repo: hold_gate(
         act, verb, repo
@@ -199,7 +197,7 @@ class Controls:
     next_item: Callable[[dispatchnext.State, str, str], dispatchnext.Item] = (
         dispatchnext.next_item
     )
-    not_overridable: tuple[str, ...] = totalverdict.NOT_OVERRIDABLE
+    not_overridable: Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -226,7 +224,7 @@ class Act:
     run: Run
     prepush: Callable[[], tuple[int, str]]
     work: Callable[[], dispatchnext.State]
-    controls: Controls = Controls()
+    controls: Controls
 
 
 def owner_gate(act: Act) -> None:
@@ -383,7 +381,7 @@ def verdict_of(act: Act, action: str, target: Target) -> Pull:
         "holds": list(holds(act, target.repo)),
     }
     answer = act.controls.verdict(action, pull, ctx)
-    if answer.word != totalverdict.GO:
+    if answer.word != totalanswer.GO:
         raise Refused(
             f"{action} {target.repo}#{target.number}: STOP: "
             + "; ".join(answer.lines[:3])

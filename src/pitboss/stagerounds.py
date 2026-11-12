@@ -11,25 +11,28 @@ ruling. A ruling written after the approval is the Execution's, and
 ``flow.rejected`` reads it as before.
 """
 
-from . import flowstate, shapes, steps
+from typing import Sequence
+
+from . import shapes, steps
 
 Verdict = shapes.Verdict
 
 
-def plan_stage_ruled(pr: flowstate.PullState) -> bool:
+def plan_stage_ruled(
+    ruling: shapes.Comment | None, reviews: Sequence[shapes.Graded]
+) -> bool:
     """Whether the newest ruling is the Plan stage's.
 
     Args:
-        pr: the PR.
+        ruling: the PR's newest ruling (``flowstate.newest_ruling``).
+        reviews: its regular reviews (``flowstate.regular_reviews``).
 
     Returns:
         True when a ruling is recorded after a rejection of the Plan and before any
         approval of it.
     """
-    ruling = flowstate.newest_ruling(pr)
     if ruling is None:
         return False
-    reviews = flowstate.regular_reviews(pr)
     rejected = any(
         each.plan is Verdict.CHANGES_NEEDED and each.when < ruling.created_at
         for each in reviews
@@ -41,11 +44,16 @@ def plan_stage_ruled(pr: flowstate.PullState) -> bool:
     return rejected and not approved
 
 
-def execution_step(pr: flowstate.PullState, review: shapes.Graded) -> steps.Next | None:
+def execution_step(
+    ruling: shapes.Comment | None,
+    reviews: Sequence[shapes.Graded],
+    review: shapes.Graded,
+) -> steps.Next | None:
     """The step after an Execution rejection when only the Plan stage had a ruling.
 
     Args:
-        pr: the PR.
+        ruling: the PR's newest ruling.
+        reviews: its regular reviews.
         review: the newest review that counts, which rejects the Execution.
 
     Returns:
@@ -53,16 +61,15 @@ def execution_step(pr: flowstate.PullState, review: shapes.Graded) -> steps.Next
         ruling, the ruling for a later one; None when the ruling is the
         Execution's or there is none.
     """
-    ruling = flowstate.newest_ruling(pr)
     if (
         ruling is None
-        or not plan_stage_ruled(pr)
+        or not plan_stage_ruled(ruling, reviews)
         or review.plan is Verdict.CHANGES_NEEDED
     ):
         return None
     rejections = [
         each
-        for each in flowstate.regular_reviews(pr)
+        for each in reviews
         if each.execution is Verdict.CHANGES_NEEDED
         and ruling.created_at < each.when <= review.when
     ]

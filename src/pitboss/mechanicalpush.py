@@ -10,9 +10,9 @@ import argparse
 import json
 import subprocess
 import urllib.parse
+from typing import TYPE_CHECKING
 
 from . import (
-    commands,
     failures,
     ghapi,
     mechanical,
@@ -22,6 +22,9 @@ from . import (
     repoarg,
     shapes,
 )
+
+if TYPE_CHECKING:  # pragma: no cover
+    from . import commands
 
 SAYING = "{ref} is classified MECHANICAL-FIX ({found}): this push is never held"
 REFUSAL = (
@@ -48,7 +51,9 @@ def _refuse(why: str) -> bool:
     raise SystemExit(1)
 
 
-def exempt(args: argparse.Namespace, found: commands.Context, slug: str | None) -> bool:
+def exempt(
+    args: argparse.Namespace, found: "commands.Context", slug: str | None
+) -> bool:
     """Whether the push is a mechanical fix, free of the hold.
 
     Args:
@@ -77,7 +82,7 @@ def exempt(args: argparse.Namespace, found: commands.Context, slug: str | None) 
     if isinstance(read, shapes.Unreadable):
         return _refuse(f"{read.reference} could not be read ({read.call})")
     said = mechanical.matching(
-        read, failures.read_all(found.github, read), found.settings.mechanical
+        read, failures.read_all(found.github, read), found.settings.runners.mechanical
     )
     if not said:
         return _refuse(f"{pulls.reference(read)} is not classified MECHANICAL-FIX")

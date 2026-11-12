@@ -5,14 +5,12 @@ cases that then miss are the ones that control holds; ``held`` runs them all.
 """
 
 import dataclasses
-import subprocess
 from typing import Callable, Mapping, Sequence
 
 from .. import actcore, actverbs, totalroutes, totalverdict
 from ..totaljson import JsonMap
-from . import knownseeded  # noqa: F401 - registers the seeded faults
-from .knowncases import CASES
-from .knownkit import Kit, controls_of
+from . import captured
+from .knownkit import Kit, Known, controls_of
 
 Removal = Callable[[Kit], Kit]
 
@@ -52,17 +50,8 @@ def _naive_push(
     act: actcore.Act, target: actcore.Target, options: Mapping[str, str]
 ) -> str:
     worktree = options["worktree"]
-    subprocess.run(
-        ["git", "-C", worktree, "push", "-q", "origin", "HEAD"],
-        capture_output=True,
-        check=False,
-    )
-    return subprocess.run(
-        ["git", "-C", worktree, "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+    captured.finished(["git", "-C", worktree, "push", "-q", "origin", "HEAD"])
+    return captured.run(["git", "-C", worktree, "rev-parse", "HEAD"]).stdout.strip()
 
 
 def _first(act: actcore.Act, target: actcore.Target, options: Mapping[str, str]) -> str:
@@ -121,17 +110,18 @@ REMOVALS: Mapping[str, Removal] = {
 }
 
 
-def missed(given: Kit) -> Sequence[str]:
+def missed(given: Kit, cases: Mapping[str, Known]) -> Sequence[str]:
     """The cases that miss under a kit.
 
     Args:
         given: the kit.
+        cases: the cases, by id.
 
     Returns:
         The names of the cases that are not true (an error is a miss).
     """
     found = []
-    for name, known in CASES.items():
+    for name, known in cases.items():
         try:
             held = known.run(given)
         except Exception:  # noqa: B902 - a case that breaks under a removal misses
@@ -141,13 +131,14 @@ def missed(given: Kit) -> Sequence[str]:
     return found
 
 
-def held(given: Kit) -> Mapping[str, Sequence[str]]:
+def held(given: Kit, cases: Mapping[str, Known]) -> Mapping[str, Sequence[str]]:
     """The cases each removal makes miss.
 
     Args:
         given: the kit as shipped.
+        cases: the cases, by id.
 
     Returns:
         Each removal's missed cases.
     """
-    return {name: missed(removal(given)) for name, removal in REMOVALS.items()}
+    return {name: missed(removal(given), cases) for name, removal in REMOVALS.items()}

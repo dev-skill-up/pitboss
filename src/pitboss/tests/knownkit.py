@@ -7,7 +7,6 @@ every control a case runs; ``knownremovals`` takes one out at a time.
 
 import dataclasses
 import pathlib
-import subprocess
 from typing import Callable, Mapping, Sequence
 
 from .. import (
@@ -24,7 +23,7 @@ from .. import (
     totalverdict,
 )
 from ..totaljson import JsonMap
-from . import fakehub, scratch, totalworld
+from . import fakehub, knowngit, scratch, totalworld
 from .totalworld import World
 
 REFUSALS = (
@@ -259,92 +258,6 @@ def refused(run: Callable[[], object]) -> str:
     return ""
 
 
-def git(directory: pathlib.Path, *words: str) -> str:
-    """Run git with a test identity.
-
-    Args:
-        directory: the checkout.
-        *words: git's arguments.
-
-    Returns:
-        Its output.
-    """
-    identity = [
-        "-c",
-        "user.name=t",
-        "-c",
-        "user.email=t@t",
-        "-c",
-        "commit.gpgsign=false",
-    ]
-    return subprocess.run(
-        ["git", "-C", str(directory), *identity, *words],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-
-
-def repo_pair(refuse: bool = False) -> pathlib.Path:
-    """An origin and a worktree on ``worker/7`` with one commit of work.
-
-    Args:
-        refuse: whether the origin refuses every push.
-
-    Returns:
-        The worktree.
-    """
-    root = scratch.directory()
-    origin, worktree = root / "origin.git", root / "wt"
-    subprocess.run(
-        ["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True
-    )
-    subprocess.run(
-        ["git", "clone", "-q", str(origin), str(worktree)],
-        check=True,
-        capture_output=True,
-    )
-    git(worktree, "commit", "-q", "--allow-empty", "-m", "init")
-    git(worktree, "push", "-q", "origin", "HEAD:main")
-    git(worktree, "checkout", "-q", "-b", "worker/7")
-    (worktree / "f").write_text("x", encoding="utf-8")
-    git(worktree, "add", "f")
-    git(worktree, "commit", "-q", "-m", "work")
-    if refuse:
-        hook = origin / "hooks" / "pre-receive"
-        hook.write_text(
-            "#!/bin/sh\necho refused by the origin >&2; exit 1\n", encoding="utf-8"
-        )
-        hook.chmod(0o755)
-    return worktree
-
-
-def remote_head(worktree: pathlib.Path) -> str:
-    """The origin's ``worker/7``.
-
-    Args:
-        worktree: the worktree.
-
-    Returns:
-        Its commit, or "" when it has none.
-    """
-    found = git(worktree, "ls-remote", "origin", "refs/heads/worker/7").split()
-    return found[0] if found else ""
-
-
-def ticket(repo: pathlib.Path, *paths: str) -> rulefiles.Ticket:
-    """A ticket of a checkout, with a home of no user file.
-
-    Args:
-        repo: the checkout.
-        *paths: the ticket's paths.
-
-    Returns:
-        The ticket.
-    """
-    return rulefiles.Ticket(checkout=repo, paths=list(paths), home=scratch.directory())
-
-
 CHECKOUTS = fakehub.rule_checkouts(scratch.process_directory())
 
 
@@ -359,5 +272,82 @@ def brief(given: Kit, repo: str, *paths: str) -> tuple[str, rulefiles.Ticket]:
     Returns:
         The brief and the ticket it is for.
     """
-    found = ticket(CHECKOUTS[f"bats-lang/{repo}"], *paths)
+    found = knowngit.ticket(CHECKOUTS[f"bats-lang/{repo}"], *paths)
     return given.brief(found), found
+
+
+Case = Callable[[Kit], bool]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Known:
+    """One case.
+
+    Attributes:
+        control: the control that holds it.
+        what: the world that was run.
+        run: the case.
+    """
+
+    control: str
+    what: str
+    run: Case
+
+
+def registry(
+    cases: dict[str, Known],
+) -> Callable[[str, str, str], Callable[[Case], Case]]:
+    """The decorator that registers a case in a module's table.
+
+    Args:
+        cases: the module's table, by id.
+
+    Returns:
+        ``case(name, control, what)``, the decorator of one case.
+    """
+
+    def case(name: str, control: str, what: str) -> Callable[[Case], Case]:
+        def register(run: Case) -> Case:
+            cases[name] = Known(control=control, what=what, run=run)
+            return run
+
+        return register
+
+    return case
+
+
+def dispatch(
+    given: Kit, hub: fakehub.Made, state: dispatchnext.State, **options: str
+) -> str:
+    """Run ``dispatch-next`` over a state.
+
+    Args:
+        given: the kit.
+        hub: the hub and the verb's world.
+        state: what the order reads.
+        **options: ``want`` and ``agent``.
+
+    Returns:
+        The item it answers.
+    """
+    world = dataclasses.replace(hub.act, work=lambda: state)
+    return given.verbs["dispatch-next"](world, actcore.Target(repo=REPO), options)
+
+
+def pushed(
+    given: Kit, worktree: pathlib.Path, prepush: tuple[int, str] = (0, "ok\n")
+) -> str:
+    """Run ``push`` of a worktree to ``worker/7``.
+
+    Args:
+        given: the kit.
+        worktree: the worktree.
+        prepush: what the pre-push check says.
+
+    Returns:
+        What it said.
+    """
+    hub = made(given)
+    world = dataclasses.replace(hub.act, prepush=lambda: prepush)
+    options = {"worktree": str(worktree), "branch": "worker/7"}
+    return given.verbs["push"](world, actcore.Target(repo=REPO), options)

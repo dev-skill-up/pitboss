@@ -5,7 +5,10 @@ Nothing here names a project; the values come from the project's TOML file.
 
 import dataclasses
 import pathlib
-from typing import AbstractSet, Mapping, Sequence
+from typing import TYPE_CHECKING, AbstractSet, Mapping, Sequence
+
+if TYPE_CHECKING:  # pragma: no cover
+    from . import checkconfig, prepushconfig
 
 DEFAULT_REMINDERS = (
     (
@@ -135,23 +138,6 @@ class Pins:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Quarantine:
-    """The words of the quarantine and race checks (``[lint.quarantine]``).
-
-    Attributes:
-        failing: the words that name a failing test.
-        race: the words that name a race.
-        mark: the pattern of a skip mark in a test file.
-        directory: the end-to-end test directory of the checkout.
-    """
-
-    failing: Sequence[str] = ("failing test", "flaky", "flake", "test failure")
-    race: Sequence[str] = ("race", "racy", "race condition")
-    mark: str = r"\.(?:fixme|skip)\([^)]*"
-    directory: str = "e2e"
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Lint:
     """What the form checks of ``pitboss lint`` read.
 
@@ -160,13 +146,14 @@ class Lint:
         brief_lines: the line starts every brief must have.
         relock_prefix: the head branch prefix of a relock PR (keyword: relock).
         pins: how a PR that only moves pins is verified (keyword: pins-only).
+        quarantine: the words of the quarantine and race checks.
     """
 
     review: Review
     brief_lines: Sequence[str]
     relock_prefix: str = DEFAULT_RELOCK_PREFIX
     pins: Pins = Pins()
-    quarantine: Quarantine = Quarantine()
+    quarantine: "checkconfig.Quarantine"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -255,29 +242,6 @@ class Slots:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class PrePush:
-    """A check the repository declares to run before ``pitboss push`` pushes.
-
-    Attributes:
-        name: what the check is called.
-        command: the command line; ``{word}`` is replaced by the argument
-            ``word`` of ``arguments``.
-        arguments: the values of the words the command names (the bats binary,
-            the repository directory), each given and not empty.
-        ok: the text its output must hold to pass, empty for any output.
-        timeout: the most seconds it may run.
-        fix: what to do when it fails, printed by ``pitboss hook pre-push``.
-    """
-
-    name: str
-    command: Sequence[str]
-    arguments: Mapping[str, str] = dataclasses.field(default_factory=dict)
-    ok: str = ""
-    timeout: int = 600
-    fix: str = ""
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Project:
     """The project's own repository and its checkouts.
 
@@ -303,7 +267,7 @@ class Project:
     plan_review_check: str = ""
     no_drafts: AbstractSet[str] = frozenset()
     drafts: bool = True
-    pre_push: Sequence[PrePush] = ()
+    pre_push: "Sequence[prepushconfig.PrePush]" = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -317,6 +281,8 @@ class Runners:
         held: a ``[runners]`` table exists; without one nothing is held (#215).
         exempt: the repositories never held, whatever the pressure: pitboss itself
             and ``[runners] exempt`` (keyword: pitboss-exempt, pitboss#113).
+        mechanical: what a mechanical red is; its fix push is not held (keyword:
+            mechanical-fix, pitboss#32).
     """
 
     repositories: Sequence[Repo]
@@ -324,33 +290,7 @@ class Runners:
     quiet_minutes: int
     held: bool
     exempt: AbstractSet[str] = frozenset()
-
-
-# keyword: mechanical-fix (pitboss#32): a red that costs one cheap push to fix
-DEFAULT_MECHANICAL_CHECKS = ("plan",)
-DEFAULT_MECHANICAL_PATTERNS = (
-    r'no line ".*" in file',
-    r"rejected, but not as its expect says",
-)
-DEFAULT_MECHANICAL_MINUTES = 20
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Mechanical:
-    """What a mechanical red is (keyword: mechanical-fix, pitboss#32).
-
-    Attributes:
-        checks: the names of the checks whose failure alone is mechanical (the
-            plan job).
-        patterns: regular expressions; a failed check whose text matches one is
-            mechanical (a fixture expectation mismatch).
-        slow_minutes: how long after the red a fix push may wait before the
-            sweep says SLOW-MECHANICAL-FIX.
-    """
-
-    checks: Sequence[str] = DEFAULT_MECHANICAL_CHECKS
-    patterns: Sequence[str] = DEFAULT_MECHANICAL_PATTERNS
-    slow_minutes: int = DEFAULT_MECHANICAL_MINUTES
+    mechanical: "checkconfig.Mechanical"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -384,7 +324,6 @@ class Config:
         idle_hours: how long a worktree is untouched before it may be stale.
         slots: the worker slots.
         reminders: the questions each sweep ends with.
-        mechanical: what a mechanical red is.
     """
 
     project: Project
@@ -397,7 +336,6 @@ class Config:
     idle_hours: float
     slots: Slots
     reminders: Sequence[str]
-    mechanical: Mechanical = Mechanical()
 
 
 def repositories(settings: Config) -> Sequence[Repo]:

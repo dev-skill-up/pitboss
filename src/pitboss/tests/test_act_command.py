@@ -10,7 +10,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_item
 
-from .. import act_commands, actcore, acthub, actinputs, actwiring, ghapi
+from .. import actcore, actledger, acthub, actinputs, actwiring, ghapi
 from . import fakes, world
 from .knownkit import BASE, REPO, NUMBER, kit, made
 
@@ -32,6 +32,11 @@ def _here() -> world.World:
     return here
 
 
+def _shown(here: world.World, label: str) -> None:
+    pull = here.bodies["repos/owner/project/pulls/3"]
+    pull["labels"] = [{"name": label}]  # type: ignore[index]
+
+
 def _act(here: world.World, *words: str) -> world.Result:
     return world.invoke(
         here, "act", *words, "--config", here.config, "--now", world.FUTURE
@@ -47,6 +52,7 @@ class TestCommand(unittest.TestCase):
         Records it and keeps the owner file.
         """
         here = _here()
+        _shown(here, "p1")
         assert_that(
             _act(here, "label", PULL, "name=p1").out, equal_to(f"label p1 on {PULL}\n")
         )
@@ -75,6 +81,19 @@ class TestCommand(unittest.TestCase):
         again = "".join(each.read_text() for each in here.workspace.rglob("*.events"))
         assert_that(again, equal_to(events))
 
+    def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
+        """The fake GitHub applies no label: the write is made, then refused."""
+        here = _here()
+        done = _act(here, "label", PULL, "name=p0", "--no-dry-run")
+        assert_that((done.code, "act NOT LANDED" in done.err), equal_to((2, True)))
+        _shown(here, "p0")
+        assert_that(
+            _act(here, "label", PULL, "name=p0", "--no-dry-run").code, equal_to(0)
+        )
+        here.bodies["DELETE repos/owner/project/issues/3/labels/p1"] = []
+        removed = _act(here, "label", PULL, "name=p1", "remove=yes", "--no-dry-run")
+        assert_that(removed.code, equal_to(0))
+
     def test_c17_refusals_exit_2(self) -> None:
         """No verb, a word that is no option.
 
@@ -93,17 +112,17 @@ class TestCommand(unittest.TestCase):
     def test_c17_targets(self) -> None:
         """A PR, a repository and all."""
         assert_that(
-            act_commands.target_of("o/r#4"),
+            actledger.target_of("o/r#4"),
             equal_to(actcore.Target(repo="o/r", number=4)),
         )
-        assert_that(act_commands.target_of("all"), equal_to(actcore.Target(repo="all")))
+        assert_that(actledger.target_of("all"), equal_to(actcore.Target(repo="all")))
 
     def test_c17_the_ledger_event_names_the_branch(self) -> None:
         """A checked write is recorded with the PR's branch and head; another is not."""
         given = kit()
         hub = made(given)
         target = actcore.Target(repo=REPO, number=NUMBER)
-        event = act_commands.ledger_event(
+        event = actledger.ledger_event(
             hub.act, "merge", target, {}, "2026-11-12T00:00:00"
         )
         branch = str(dict(BASE.pull["head"])["ref"])  # type: ignore[call-overload]
@@ -112,10 +131,10 @@ class TestCommand(unittest.TestCase):
             equal_to(f"merge {REPO}#{NUMBER} {branch} at act"),
         )
         assert_that(
-            act_commands.ledger_event(hub.act, "comment", target, {}, ""),
+            actledger.ledger_event(hub.act, "comment", target, {}, ""),
             equal_to(None),
         )
-        pushed = act_commands.ledger_event(
+        pushed = actledger.ledger_event(
             hub.act, "push", actcore.Target(repo=REPO), {"branch": "w"}, ""
         )
         assert_that(pushed.what if pushed else "", equal_to(f"push {REPO}#0 w at act"))

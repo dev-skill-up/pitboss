@@ -21,47 +21,12 @@ import pathlib
 import re
 from typing import Mapping, Sequence
 
-from . import config, gaterun
+from . import gaterun, prepushconfig
 
 WORD = re.compile(r"\{(\w+)\}")
 
 
-def from_document(document: Mapping[str, object]) -> Sequence[config.PrePush]:
-    """Read the ``[[pre_push]]`` checks of a configuration.
-
-    Args:
-        document: the parsed configuration.
-
-    Returns:
-        The checks, in the order written.
-
-    Raises:
-        ValueError: when ``pre_push`` is not a list of tables or a check has no
-            command.
-    """
-    found = document.get("pre_push", [])
-    if not isinstance(found, list):
-        raise ValueError(f"pre_push must be a list of tables, not {found!r}")
-    return tuple(_check(each) for each in found)
-
-
-def _check(table: object) -> config.PrePush:
-    if not isinstance(table, dict) or not isinstance(table.get("command"), list):
-        raise ValueError(f"a pre_push check needs a command list, not {table!r}")
-    given = table.get("arguments", {})
-    if not isinstance(given, dict):
-        raise ValueError(f"pre_push arguments must be a table, not {given!r}")
-    return config.PrePush(
-        name=str(table.get("name", table["command"][0])),
-        command=tuple(str(each) for each in table["command"]),
-        arguments={str(key): str(value) for key, value in given.items()},
-        ok=str(table.get("ok", "")),
-        timeout=int(table.get("timeout", 600)),
-        fix=str(table.get("fix", "")),
-    )
-
-
-def missing(check: config.PrePush) -> Sequence[str]:
+def missing(check: prepushconfig.PrePush) -> Sequence[str]:
     """The words of a check's command that have no value.
 
     Args:
@@ -74,7 +39,7 @@ def missing(check: config.PrePush) -> Sequence[str]:
     return sorted({word for word in named if not check.arguments.get(word, "")})
 
 
-def argv(check: config.PrePush) -> Sequence[str]:
+def argv(check: prepushconfig.PrePush) -> Sequence[str]:
     """The command line with the arguments put in.
 
     Args:
@@ -90,7 +55,9 @@ def argv(check: config.PrePush) -> Sequence[str]:
 
 
 def refusals(
-    safe_run: gaterun.Runner, checks: Sequence[config.PrePush], directory: pathlib.Path
+    safe_run: gaterun.Runner,
+    checks: Sequence[prepushconfig.PrePush],
+    directory: pathlib.Path,
 ) -> Sequence[str]:
     """Run the checks of a push and say what refuses it.
 
@@ -126,7 +93,9 @@ def refusals(
 
 
 def hook_failure(
-    safe_run: gaterun.Runner, checks: Sequence[config.PrePush], directory: pathlib.Path
+    safe_run: gaterun.Runner,
+    checks: Sequence[prepushconfig.PrePush],
+    directory: pathlib.Path,
 ) -> Sequence[str]:
     """Run the checks in order and stop at the first that fails.
 

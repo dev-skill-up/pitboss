@@ -10,10 +10,13 @@ replaced by one
 ``WAIT-FOR-HOLD`` line that names what is withheld.
 """
 
-from typing import Mapping, Sequence
+from typing import TYPE_CHECKING, Mapping, Sequence
 
-from . import pulls
+from . import pullref
 from .markers import Marker
+
+if TYPE_CHECKING:  # pragma: no cover
+    from . import pulls
 
 # keyword: hold-actions (pitboss#200): the one text of the actions a runner hold
 # covers; the skill's references/ci.md ("What costs runs") quotes it word for word.
@@ -38,7 +41,7 @@ def _asked(line: str) -> str:
     )
 
 
-def gate(pull: pulls.PullFacts, lines: Sequence[str]) -> Sequence[str]:
+def gate(pull: "pulls.PullFacts", lines: Sequence[str]) -> Sequence[str]:
     """The lines of a PR, with the covered actions withheld while a hold lasts.
 
     Args:
@@ -56,7 +59,7 @@ def gate(pull: pulls.PullFacts, lines: Sequence[str]) -> Sequence[str]:
     kept = [each for each in lines if each not in withheld]
     what = ", ".join(_asked(each) for each in withheld)
     waiting = (
-        f"{Marker.WAIT_FOR_HOLD.text} {pulls.reference(pull)}: a runner-pressure hold"
+        f"{Marker.WAIT_FOR_HOLD.text} {pullref.reference(pull)}: a runner-pressure hold"
         f" or its quiet period withholds {what}; wait until `pitboss pressure` is clear"
     )
     return [*kept, waiting]

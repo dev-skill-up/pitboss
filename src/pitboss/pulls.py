@@ -11,7 +11,7 @@ from . import (
     concurrently,
     config,
     conflicts,
-    current,
+    expansion,
     dispatchruns,
     draftfacts,
     earlyfound,
@@ -24,6 +24,7 @@ from . import (
     parsing,
     pinsask,
     pullfiles,
+    pullref,
     pullsource,
     relock,
     reviews,
@@ -72,6 +73,10 @@ class PullFacts:
     relock: bool = False
 
 
+reference = pullref.reference
+failed_checks = pullref.failed_checks
+
+
 def unhealthy(facts: PullFacts) -> bool:
     """Whether the PR has a failed check, a conflict or is a draft.
 
@@ -82,30 +87,6 @@ def unhealthy(facts: PullFacts) -> bool:
         True when it is any of them.
     """
     return bool(failed_checks(facts)) or conflicted(facts) or facts.pull.draft
-
-
-def reference(facts: PullFacts) -> str:
-    """The PR's ``owner/name#number``.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        The reference.
-    """
-    return f"{facts.repo.slug}#{facts.pull.number}"
-
-
-def failed_checks(facts: PullFacts) -> Sequence[shapes.CheckRun]:
-    """The head's failed checks.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        The checks.
-    """
-    return [check for check in facts.checks if check.failed]
 
 
 def pending(facts: PullFacts) -> int:
@@ -191,8 +172,8 @@ def _standing(
 ) -> tuple[reviews.Standing, bool]:
     standing = reviews.head_standing(found, pull.head.sha)
     if found and standing is not reviews.Standing.OLDER_HEAD:
-        if not current.current_for(
-            current.Subject.BODY, found.body, bodydigest.digest(pull.body)
+        if not expansion.current_for(
+            expansion.Subject.BODY, found.body, bodydigest.digest(pull.body)
         ):
             standing = reviews.Standing.OLDER_BODY  # keyword: body-digest
     merged = (

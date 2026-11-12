@@ -7,7 +7,7 @@ head, never a failed check or status, a hold, a block, a closed PR or a failed
 read.
 """
 
-from . import totalrows
+from . import totalanswer
 from .actcore import (
     DISARMING,
     HOLD_LABEL,
@@ -24,7 +24,7 @@ from .actcore import (
 )
 from .totaljson import text
 
-LABELS = totalrows.KNOWN_LABELS | {"p0", "p1", "p2", "p3", HOLD_LABEL}
+LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", HOLD_LABEL}
 WORKFLOWS = ("relock.yml", "check.yml")
 CLOSE_REASONS = ("completed", "not_planned", "duplicate")
 OVERRIDDEN = ("merge", "arm", "undraft")
@@ -113,7 +113,7 @@ def override(act: Act, target: Target, options: Options) -> str:
     """
     gate(act, "override", target.repo)
     stop, reason = option(options, "stop"), option(options, "reason")
-    if stop.startswith(act.controls.not_overridable):
+    if stop.startswith(tuple(act.controls.not_overridable)):
         raise Refused(
             "a hold, a failed check or status, a block, a read failure or a closed PR"
             " is not overridable"
@@ -169,8 +169,8 @@ def label(act: Act, target: Target, options: Options) -> str:
     if name not in LABELS:
         raise Refused(f"label {name} is not one pitboss applies")
     removing = bool(options.get("remove"))
-    if name == totalrows.PAUSED and not removing:
-        act.controls.disarm(act, target, totalrows.PAUSED)
+    if name == totalanswer.PAUSED and not removing:
+        act.controls.disarm(act, target, totalanswer.PAUSED)
     kind = "unlabel" if removing else "label"
     act.hub.write(
         Change(kind=kind, repo=target.repo, number=target.number, fields={"name": name})
@@ -278,7 +278,7 @@ def rerun(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: the cause is not the runner (a red of the code is not re-run).
+        Refused: the cause is not the runner; a red of the code is fixed by a push.
     """
     gate(act, "rerun", target.repo)
     run = option(options, "run")

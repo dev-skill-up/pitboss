@@ -21,6 +21,7 @@ from .. import (
     actwrite,
     enumeration,
     ticketreader,
+    totalanswer,
     totalchecks,
     totalroutes,
     totalrows,
@@ -176,7 +177,7 @@ def _forms(parts: Parts) -> Iterator[str]:
 def _repos(parts: Parts) -> Iterator[str]:
     for name, labels in sorted(parts.labels.items()):
         for label in labels:
-            if label not in totalrows.KNOWN_LABELS:
+            if label not in totalanswer.KNOWN_LABELS:
                 yield (
                     f"repos: {name} has the label {label!r}, which pitboss does not"
                     " apply"

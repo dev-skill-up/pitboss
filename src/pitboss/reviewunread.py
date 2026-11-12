@@ -9,7 +9,7 @@ a comment so that the reviewer is sent back to write the line (pitboss#444, case
 
 from typing import Sequence
 
-from . import current, flowstate, gradeline, shapes
+from . import expansion, flowstate, gradeline, shapes
 
 PREFIX = "REVIEW UNREAD"
 
@@ -38,7 +38,9 @@ def _lacks_execution(
 ) -> bool:
     # a Plan grade at the head, no Execution grade, after an approved Plan
     approving = shapes.Verdict.APPROVED in {before.plan for before in earlier}
-    at_head = current.current_for(current.Subject.HEAD, review.sha, state.pull.head.sha)
+    at_head = expansion.current_for(
+        expansion.Subject.HEAD, review.sha, state.pull.head.sha
+    )
     plan_alone = review.plan is not None and review.execution is None
     return approving and at_head and (plan_alone or _no_grades(state, review))
 

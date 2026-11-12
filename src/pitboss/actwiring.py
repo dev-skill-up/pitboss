@@ -16,7 +16,7 @@ import subprocess
 import sys
 from typing import Callable, Iterator, Sequence
 
-from . import acthub, actinputs, config, dispatchnext, ledger
+from . import acthub, actinputs, config, dispatchnext, ledger, totalverdict
 from .actcore import Act, Controls, Hub, Owner
 from .running import Run
 from .totaljson import mapping, name_at, records, text
@@ -242,7 +242,10 @@ def act_of(
             )
         ),
         work=work(hub, settings),
-        controls=Controls(),
+        controls=Controls(
+            verdict=totalverdict.verdict,
+            not_overridable=totalverdict.NOT_OVERRIDABLE,
+        ),
     )
 
 

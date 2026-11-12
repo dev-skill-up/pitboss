@@ -9,15 +9,10 @@ from typing import Callable, Mapping
 
 from . import totalschema
 from .totaljson import JsonMap, field, mapping, name_at, records, strings, text
+from .totalanswer import GATED_ACTIONS, KNOWN_LABELS, MERGE_ACTIONS, PAUSED
 from .totalreview import act_records
 
 Row = Callable[[object, JsonMap, JsonMap], tuple[bool, str]]
-MERGE_ACTIONS = frozenset({"merge", "arm"})
-GATED_ACTIONS = MERGE_ACTIONS | {"undraft"}
-KNOWN_LABELS = frozenset(
-    {"paused-owner", "dependencies", "github_actions", "javascript"}
-)
-PAUSED = "paused-owner"
 MEMBERS = ("OWNER", "MEMBER", "COLLABORATOR")
 URL_FIELDS = ("comments_url", "commits_url", "html_url", "issue_url", "statuses_url")
 MERGES_ON = ("clean", "blocked", "has_hooks")

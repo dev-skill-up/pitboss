@@ -20,11 +20,20 @@ import dataclasses
 import functools
 from typing import Callable, Mapping, Sequence
 
-from . import enumeration, totalbody, totalchecks, totalreview, totalrows, totalschema
+from . import (
+    enumeration,
+    totalanswer,
+    totalbody,
+    totalchecks,
+    totalreview,
+    totalrows,
+    totalschema,
+)
 from .totaljson import JsonMap, failed_read, mapping, name_at, records, text
 
-GO = "GO"
-STOP = "STOP"
+GO = totalanswer.GO
+STOP = totalanswer.STOP
+Answer = totalanswer.Answer
 REQUIRED = (
     "repo",
     "number",
@@ -96,19 +105,6 @@ def stale_events() -> frozenset[str]:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Answer:
-    """What the verdict says.
-
-    Attributes:
-        word: ``GO`` or ``STOP``.
-        lines: the stop lines; none for a GO.
-    """
-
-    word: str
-    lines: Sequence[str] = ()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Policy:
     """The rows the verdict runs (each can be given, so a test can take one out).
 
@@ -165,7 +161,7 @@ def _review_lines(
 ) -> Sequence[str]:
     attempts = totalreview.review_attempts(records(ctx.get("timeline")))
     newest = text(attempts[-1].get("body")) if attempts else ""
-    if action in totalrows.MERGE_ACTIONS:
+    if action in totalanswer.MERGE_ACTIONS:
         head = name_at(pull, "head", "sha")
         tickets = mapping(ctx.get("tickets"))
         why = rules.review(newest, head, pull.get("body"), tickets) if attempts else ""
@@ -222,7 +218,7 @@ def _event_lines(ctx: JsonMap, benign: frozenset[str]) -> Sequence[str]:
         kind = event.get("event")
         if kind in LABEL_EVENTS:
             label = name_at(event, "label", "name")
-            if label not in totalrows.KNOWN_LABELS:
+            if label not in totalanswer.KNOWN_LABELS:
                 found.append(
                     f"event {kind} {label or None}: a label pitboss does not apply"
                 )
@@ -236,7 +232,7 @@ def _event_lines(ctx: JsonMap, benign: frozenset[str]) -> Sequence[str]:
 
 def _merge_lines(action: str, pull: JsonMap, ctx: JsonMap, kind: str) -> Sequence[str]:
     found = []
-    if action in totalrows.MERGE_ACTIONS:
+    if action in totalanswer.MERGE_ACTIONS:
         reviews = records(ctx.get("timeline"))
         if any(
             each.get("event") == "reviewed" and each.get("state") in CHANGES_REQUESTED
@@ -245,7 +241,7 @@ def _merge_lines(action: str, pull: JsonMap, ctx: JsonMap, kind: str) -> Sequenc
             found.append("review: a formal request for changes stands")
     found += totalchecks.diff_lines(action, ctx, kind)
     labels = [name_at(each, "name") for each in records(pull.get("labels"))]
-    if totalrows.PAUSED in labels and pull.get("auto_merge") and action != "disarm":
+    if totalanswer.PAUSED in labels and pull.get("auto_merge") and action != "disarm":
         found.append(
             "auto_merge armed on a paused-owner PR: the only allowed action is disarm"
         )

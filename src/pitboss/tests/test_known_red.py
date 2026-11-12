@@ -16,6 +16,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_item
 
 from .. import (
     actions,
+    checkconfig,
     config,
     knownred,
     pinsreading,
@@ -27,15 +28,19 @@ from .. import (
     steps,
     straycomments,
 )
-from . import fakes, world
+from . import fakes, knownkit, world
 from .says import says
-from .test_action_gates import act_arm, dropped
+from .test_action_gates import dropped
 from .test_commands import sweep
 from .test_report import facts, run
 
 NOW = datetime.datetime(2026, 11, 12, tzinfo=datetime.timezone.utc)
 RUNNERS = config.Runners(
-    repositories=(), record=pathlib.Path("none"), quiet_minutes=15, held=False
+    repositories=(),
+    record=pathlib.Path("none"),
+    quiet_minutes=15,
+    held=False,
+    mechanical=checkconfig.Mechanical(),
 )
 
 
@@ -209,12 +214,15 @@ class TestThroughTheCommands(unittest.TestCase):
     """The sweep, ``slots next`` and ``act`` on a world (quire#1120)."""
 
     def test_c28_act_refuses_an_arm_while_a_known_red_stands(self) -> None:
-        """The matrix allows the arm at the merge step; the known red does not."""
-        here = with_red_canonical_files(dropped(False))
-        done = act_arm(here, "--no-dry-run")
-        says(done.err, "FIX FIRST", "canonical-files is red")
-        assert_that(done.code, equal_to(2))
-        assert_that([call for call in here.calls if "merge" in call], equal_to([]))
+        """The verdict stops the arm on the red status; no arm is written."""
+        given = knownkit.kit()
+        posted = {"statuses": [{"context": "canonical-files", "state": "failure"}]}
+        hub = knownkit.made(given, knownkit.change(ctx=posted))
+        said = knownkit.refused(lambda: knownkit.act(given, hub, "arm"))
+        assert_that(said, contains_string("status canonical-files"))
+        assert_that(
+            [each.kind for each in hub.hub.writes if each.kind == "arm"], equal_to([])
+        )
 
     def test_c28_the_sweep_prints_fix_first_for_the_merge_and_not_ready(self) -> None:
         """The READY TO MERGE line of the PR is replaced."""

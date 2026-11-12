@@ -12,7 +12,7 @@ import re
 from typing import Mapping, Sequence
 
 from .totaljson import JsonMap, records, strings, text
-from .totalrows import GATED_ACTIONS, MERGE_ACTIONS
+from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS
 
 SELF = "pitboss-gate"
 OK_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})

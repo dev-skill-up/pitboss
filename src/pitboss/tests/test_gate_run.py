@@ -15,7 +15,7 @@ from typing import Sequence
 from commander_data.run import Runner
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
-from .. import config, gaterun, nox_commands, prepush
+from .. import gaterun, nox_commands, prepush, prepushconfig
 from . import fakes, world
 
 Mode = gaterun.Mode
@@ -74,7 +74,7 @@ def pre_push(runner: Fake) -> Sequence[str]:
     Returns:
         The lines of refusal.
     """
-    check = config.PrePush(
+    check = prepushconfig.PrePush(
         name="check-pins", command=("check.sh", "{bats}"), arguments={"bats": "b"}
     )
     return prepush.refusals(runner, [check], fakes.directory())
@@ -156,7 +156,7 @@ class TestDeclaredArguments(unittest.TestCase):
     def test_c32_a_word_with_no_value_is_named_and_the_check_is_not_run(self) -> None:
         """bats#654: ``check.sh`` was run with no arguments."""
         ran = Fake(out="never\n")
-        check = config.PrePush(
+        check = prepushconfig.PrePush(
             name="check-pins",
             command=("check.sh", "{bats}", "{repository}"),
             arguments={"bats": "dist/bats", "repository": ""},
@@ -168,7 +168,7 @@ class TestDeclaredArguments(unittest.TestCase):
 
     def test_c32_the_arguments_are_put_in_the_command(self) -> None:
         """The declared values are the arguments."""
-        check = config.PrePush(
+        check = prepushconfig.PrePush(
             name="c", command=("c.sh", "{bats}", "x"), arguments={"bats": "b/bats"}
         )
         assert_that(list(prepush.argv(check)), equal_to(["c.sh", "b/bats", "x"]))
@@ -187,20 +187,20 @@ class TestDeclaredArguments(unittest.TestCase):
                 {"command": ["d.sh"]},
             ]
         }
-        first, second = prepush.from_document(document)
+        first, second = prepushconfig.from_document(document)
         assert_that(
             (first.ok, first.timeout, first.arguments["bats"]),
             equal_to(("all passed", 5, "b")),
         )
         assert_that(second.name, equal_to("d.sh"))
-        assert_that(prepush.from_document({}), equal_to(()))
+        assert_that(prepushconfig.from_document({}), equal_to(()))
         for bad in (
             {"pre_push": 1},
             {"pre_push": [1]},
             {"pre_push": [{"command": ["x"], "arguments": 1}]},
         ):
             with self.assertRaises(ValueError):
-                prepush.from_document(bad)
+                prepushconfig.from_document(bad)
 
 
 class TestPushRefuses(unittest.TestCase):

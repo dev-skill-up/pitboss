@@ -7,7 +7,7 @@ from typing import AbstractSet, Mapping, Sequence
 
 from . import (
     briefconfig,
-    prepush,
+    checkconfig,
     cleanconfig,
     config,
     configsearch,
@@ -16,6 +16,7 @@ from . import (
     ownerconfig,
     ownerlabels,
     plancheckconfig,
+    prepushconfig,
     scratchconfig,
     supersedes,
     syncconfig,
@@ -256,16 +257,6 @@ def _pins(table: Mapping[str, object]) -> config.Pins:
     )
 
 
-def _quarantine(table: Mapping[str, object]) -> config.Quarantine:
-    fall = config.Quarantine()
-    return config.Quarantine(
-        failing=_strings(table, "failing", fall.failing),
-        race=_strings(table, "race", fall.race),
-        mark=str(table.get("mark", fall.mark)),
-        directory=str(table.get("directory", fall.directory)),
-    )
-
-
 def _lint(document: Mapping[str, object], owner: str) -> config.Lint:
     table = _table(document, "lint")
     prefix = _setting(document, "relock", "prefix", config.DEFAULT_RELOCK_PREFIX)
@@ -274,7 +265,7 @@ def _lint(document: Mapping[str, object], owner: str) -> config.Lint:
         brief_lines=_strings(_table(table, "brief"), "required", ()),
         relock_prefix=prefix,
         pins=_pins(_table(document, "relock")),
-        quarantine=_quarantine(_table(table, "quarantine")),
+        quarantine=checkconfig.quarantine(_table(table, "quarantine")),
     )
 
 
@@ -298,7 +289,7 @@ def _project(document: Mapping[str, object]) -> config.Project:
             exempt.owner_of(document),
         ),
         drafts=briefconfig.from_document(document).drafts,
-        pre_push=prepush.from_document(document),
+        pre_push=prepushconfig.from_document(document),
     )
 
 
@@ -359,6 +350,7 @@ def _runners(
         exempt=exempt.slugs(
             _strings(_table(document, "runners"), "exempt", ()), project.repo.owner
         ),
+        mechanical=checkconfig.mechanical(_table(document, "mechanical")),
     )
 
 
@@ -367,22 +359,6 @@ def _merge_queue(document: Mapping[str, object], owner: str) -> config.MergeQueu
     minutes = int(_setting(document, "merge_queue", "timeout_minutes", 60))
     return config.MergeQueue(
         timeout_minutes=minutes, repositories=frozenset(each.slug for each in named)
-    )
-
-
-def _mechanical(document: Mapping[str, object]) -> config.Mechanical:
-    table = _table(document, "mechanical")
-    return config.Mechanical(
-        checks=_strings(table, "checks", config.DEFAULT_MECHANICAL_CHECKS),
-        patterns=_strings(table, "patterns", config.DEFAULT_MECHANICAL_PATTERNS),
-        slow_minutes=int(
-            _setting(
-                document,
-                "mechanical",
-                "slow_minutes",
-                config.DEFAULT_MECHANICAL_MINUTES,
-            )
-        ),
     )
 
 
@@ -415,5 +391,4 @@ def from_document(document: Mapping[str, object]) -> config.Config:
         idle_hours=float(_setting(document, "worktrees", "idle_hours", 3)),
         slots=_slots(document, project),
         reminders=_reminders(document),
-        mechanical=_mechanical(document),
     )

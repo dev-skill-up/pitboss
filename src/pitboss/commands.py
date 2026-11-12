@@ -384,10 +384,10 @@ def sweep_sections(found: Context, clock: timing.Clock) -> bool:
         found.github, found.settings, configfile.named(args), found.now
     )
     _unledgered_section(found)
+    # what each actor writes, from the checker's own table (keyword: total-routes)
+    print(totalroutes.instructions(), end="")
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)
     failed = syncing.section(args, found.settings) or broken or unconfigured or crowded
-    # what each actor writes, from the checker's own table (keyword: total-routes)
-    print(totalroutes.instructions(), end="")
     return bool(repoaccess.say(found.access) or failed)

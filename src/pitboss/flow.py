@@ -10,7 +10,7 @@ from typing import Sequence
 from . import (
     bodydigest,
     conflicts,
-    current,
+    expansion,
     draftfacts,
     evidence,
     floworder,
@@ -28,8 +28,8 @@ from . import (
     steps,
 )
 
-current_for = current.current_for
-Subject = current.Subject
+current_for = expansion.current_for
+Subject = expansion.Subject
 Verdict = shapes.Verdict
 Graded = shapes.Graded
 Ci = flowstate.Ci
@@ -155,7 +155,9 @@ def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
     answered = flowstate.readable_comment(pr)
     if answered is None:
         return first
-    staged = stagerounds.execution_step(pr, review)  # keyword: stage-rounds
+    staged = stagerounds.execution_step(  # keyword: stage-rounds
+        flowstate.newest_ruling(pr), flowstate.regular_reviews(pr), review
+    )
     if staged is not None:
         return staged
     posted, ruled = answered

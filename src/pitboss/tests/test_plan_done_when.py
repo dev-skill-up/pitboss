@@ -37,9 +37,9 @@ ITEMS: Mapping[str, tuple[str, Sequence[str]]] = {
     ),
     "the footer ends the section": (TWO + FOOTER, ["First item.", "Second item."]),
     "no section": ("Text only.", []),
-    "a paragraph after the bullets is an item of the body": (
+    "a paragraph after the bullets is no item (keyword: done-when-bullets)": (
         TWO + "\nAnd a third item.\n",
-        ["First item.", "Second item.", "And a third item."],
+        ["First item.", "Second item."],
     ),
 }
 ROWS = "## Plan\n1. First item. `git status`\n2. Second item. `git log`\n"

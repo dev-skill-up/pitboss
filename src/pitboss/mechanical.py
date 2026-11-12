@@ -14,7 +14,7 @@ import datetime
 import re
 from typing import Mapping, Sequence
 
-from . import config, pulls, shapes
+from . import checkconfig, config, pulls, shapes
 from .markers import Marker
 
 SHOWN = 120
@@ -29,7 +29,7 @@ def _text(failure: shapes.Failure | None) -> str:
 
 
 def _says(
-    check: shapes.CheckRun, failure: shapes.Failure | None, rule: config.Mechanical
+    check: shapes.CheckRun, failure: shapes.Failure | None, rule: checkconfig.Mechanical
 ) -> str:
     # what makes this failed check mechanical, empty when nothing does
     if check.name in rule.checks:
@@ -44,7 +44,7 @@ def _says(
 def matching(
     pull: pulls.PullFacts,
     failures: Mapping[int, shapes.Failure],
-    rule: config.Mechanical,
+    rule: checkconfig.Mechanical,
 ) -> str:
     """The text that makes a PR's red mechanical.
 
@@ -91,7 +91,7 @@ def lines(
     Returns:
         Nothing for a red that is not mechanical.
     """
-    rule = settings.mechanical
+    rule = settings.runners.mechanical
     found = matching(pull, failures, rule)
     if not found:
         return []

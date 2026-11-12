@@ -14,28 +14,14 @@ from typing import Mapping, NoReturn, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, actcore, actrun, actverbs, actwiring, configsettle, logline
+from . import ENTRY_DATA, actcore, actledger, actverbs, actwiring, configsettle, logline
 from .commandarguments import CONFIG_OPTION, DRY_RUN_ARGUMENT, NOW_ARGUMENT
 from .commands import load_context
-from .totaljson import mapping, text
 
 
 def _refuse(message: str) -> NoReturn:
     print(message, file=sys.stderr)
     raise SystemExit(2)
-
-
-def target_of(word: str) -> actcore.Target:
-    """Read a target.
-
-    Args:
-        word: ``owner/name#N``, ``owner/name`` or ``all``.
-
-    Returns:
-        The target.
-    """
-    repo, _, number = word.partition("#")
-    return actcore.Target(repo=repo, number=int(number) if number.isdigit() else 0)
 
 
 def options_of(words: Sequence[str]) -> Mapping[str, str]:
@@ -78,53 +64,6 @@ def run_verb(
         _refuse(f"act {verb}: refused: {error}")
 
 
-# the sweep's unledgered check reads these records (keyword: action-matrix)
-LEDGERED = {
-    "merge": "merge",
-    "arm": "arm",
-    "undraft": "undraft",
-    "label": "label",
-    "close": "close",
-    "push": "push",
-    "dispatch-workflow": "dispatch",
-}
-
-
-def ledger_event(
-    world: actcore.Act,
-    verb: str,
-    target: actcore.Target,
-    options: Mapping[str, str],
-    now: str,
-) -> logline.Event | None:
-    """The slot log's record of a write the sweep checks for.
-
-    Args:
-        world: the verbs' world.
-        verb: the verb.
-        target: the target.
-        options: the options.
-        now: the time now (ISO 8601).
-
-    Returns:
-        The record, or None for a verb the sweep does not check.
-    """
-    word = LEDGERED.get(verb)
-    if not word:
-        return None
-    pull = world.hub.pull(target.repo, target.number) if target.number else {}
-    head = mapping(pull.get("head"))
-    branch = options.get("branch") or options.get("ref") or text(head.get("ref"))
-    what = f"{word} {target.repo}#{target.number} {branch} at act"
-    return logline.Event(
-        kind=actrun.KIND,
-        time=now,
-        who=actrun.WHO,
-        what=what,
-        head=text(head.get("sha")),
-    )
-
-
 @ENTRY_DATA.register(
     add_argument("verb", help="the verb: " + ", ".join(sorted(actverbs.VERBS))),
     add_argument("target", help="owner/name#N, owner/name or all"),
@@ -153,11 +92,14 @@ def act(args: argparse.Namespace) -> None:
         args.run,
         actwiring.identity_of(found.github),
     )
-    target = target_of(args.target)
+    target = actledger.target_of(args.target)
     print(run_verb(world, args.verb, target, options))
     if args.no_dry_run:
         actwiring.write_owner(path, owner)
-        if event := ledger_event(
+        if event := actledger.ledger_event(
             world, args.verb, target, options, found.now.isoformat()
         ):
             logline.record(found.settings.slots.log, event)
+        # keyword: claim-readback (quire#1115): the PR is read after the write
+        for line in actledger.read_back(found.github, args.verb, target, options):
+            _refuse(line)

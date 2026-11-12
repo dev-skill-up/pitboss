@@ -12,12 +12,12 @@ import unittest
 
 from hamcrest import assert_that, equal_to, is_
 
-from .. import current, expansion, flow, flowstate, plandigest, shapes, steps
+from .. import expansion, flow, flowstate, plandigest, shapes, steps
 from . import fakes, test_flow
 from .test_flow import APPROVED, CHANGES, Task
 
 REVISED = test_flow.BODY.replace("the plan", "a better plan")
-Subject = current.Subject
+Subject = expansion.Subject
 
 
 def plan_digest(body: str) -> str:
@@ -54,21 +54,21 @@ class TestCurrentFor(unittest.TestCase):
         """A Plan digest is current for the Plan it read only."""
         digest = plan_digest(test_flow.BODY)
         section = plandigest.section(test_flow.BODY)
-        assert_that(current.current_for(Subject.PLAN, digest, section), is_(True))
+        assert_that(expansion.current_for(Subject.PLAN, digest, section), is_(True))
         other = plandigest.section(REVISED)
-        assert_that(current.current_for(Subject.PLAN, digest, other), is_(False))
+        assert_that(expansion.current_for(Subject.PLAN, digest, other), is_(False))
 
     def test_c31_head_pair(self) -> None:
         """A reviewed SHA is current for the head it names, never an older one."""
         head = fakes.HEAD
-        assert_that(current.current_for(Subject.HEAD, head[:7], head), is_(True))
-        assert_that(current.current_for(Subject.HEAD, fakes.OLDER, head), is_(False))
-        assert_that(current.current_for(Subject.HEAD, "", head), is_(False))
+        assert_that(expansion.current_for(Subject.HEAD, head[:7], head), is_(True))
+        assert_that(expansion.current_for(Subject.HEAD, fakes.OLDER, head), is_(False))
+        assert_that(expansion.current_for(Subject.HEAD, "", head), is_(False))
 
     def test_c31_body_pair(self) -> None:
         """A body digest is current for the body it read only."""
-        assert_that(current.current_for(Subject.BODY, "a", "a"), is_(True))
-        assert_that(current.current_for(Subject.BODY, "a", "b"), is_(False))
+        assert_that(expansion.current_for(Subject.BODY, "a", "a"), is_(True))
+        assert_that(expansion.current_for(Subject.BODY, "a", "b"), is_(False))
 
 
 class TestPairs(unittest.TestCase):

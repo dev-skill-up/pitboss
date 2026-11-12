@@ -7,6 +7,7 @@ person typed or edited is told from one ``pitboss expand`` produced.
 """
 
 import dataclasses
+import enum
 import functools
 import hashlib
 import re
@@ -285,6 +286,49 @@ def section_changed(recorded: str, text: str) -> bool:
         True when both are given and the digest is none of ``accepted_digests``.
     """
     return bool(text and recorded and recorded not in accepted_digests(text))
+
+
+class Subject(enum.Enum):
+    """What an approval, verdict or check was recorded against (keyword: current-for).
+
+    dev-skill-up/pitboss, bats-lang/quire#1120: a Plan approved at one digest stayed
+    "approved" after the Plan was revised. Every verdict, check or approval the
+    code stores against a digest or a head is read through ``current_for``, so none
+    outlives the subject it was about. An approval of an older head is current only
+    when ``bats merge-proof`` of the reviewed SHA and the head says ``OK``
+    (``mergesonly.carries``); the caller states that proof.
+
+    Attributes:
+        PLAN: the digest of the Plan section.
+        HEAD: the SHA of the PR's head.
+        BODY: the digest of the PR body.
+    """
+
+    PLAN = enum.auto()
+    HEAD = enum.auto()
+    BODY = enum.auto()
+
+
+def current_for(subject: Subject, recorded: str, now: str) -> bool:
+    """Whether something recorded against a subject is current for it.
+
+    Args:
+        subject: what was recorded against.
+        recorded: the digest or SHA it records, empty when it records none.
+        now: the digest or SHA of the subject now, empty when it is not known.
+
+    Returns:
+        PLAN: not ``section_changed`` (an unrecorded digest counts, as an older
+        review's does; a digest from before the expanded blocks were collapsed
+        counts, keyword: plan-digest-collapse). HEAD: the head starts with the
+        recorded SHA, which must be given. BODY: the two digests do not differ
+        when both are given.
+    """
+    if subject is Subject.PLAN:
+        return not section_changed(recorded, now)
+    if subject is Subject.HEAD:
+        return bool(recorded) and now.startswith(recorded)
+    return not (now and recorded and recorded != now)
 
 
 def _command_of(line: str, number: int) -> str:

@@ -1,15 +1,29 @@
-"""The 66 cases.
+"""The 66 cases and the 19 removals.
 
-Each control refuses its unsafe world and lets its safe twin through.
+Each control refuses its unsafe world and lets its safe twin through; each
+control is what holds some case, and every case is held by one.
 """
 
+import functools
 import unittest
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, empty, equal_to, has_length
 
-from . import knownremovals
-from .knowncases import CASES
-from .knownkit import kit
+from . import knowncases, knownextra, knownguards, knownremovals, knownseeded
+from .knownkit import Known, kit
+
+CASES: Mapping[str, Known] = {
+    **knowncases.CASES,
+    **knownguards.CASES,
+    **knownseeded.CASES,
+    **knownextra.CASES,
+}
+
+
+@functools.cache
+def _held() -> Mapping[str, Sequence[str]]:
+    return knownremovals.held(kit(), CASES)
 
 
 class TestKnown(unittest.TestCase):
@@ -21,7 +35,7 @@ class TestKnown(unittest.TestCase):
 
     def test_every_case_holds(self) -> None:
         """No case misses with the shipped controls."""
-        assert_that(knownremovals.missed(kit()), empty())
+        assert_that(knownremovals.missed(kit(), CASES), empty())
 
     def test_case_names(self) -> None:
         """X36 is no fault: a Plan command is run as written."""
@@ -35,8 +49,22 @@ class TestKnown(unittest.TestCase):
         def broken(given: object) -> bool:
             raise ValueError("broken")
 
-        CASES["Z0"] = CASES["G1"].__class__(control="none", what="none", run=broken)
-        try:
-            assert_that(knownremovals.missed(kit()), equal_to(["Z0"]))
-        finally:
-            del CASES["Z0"]
+        cases = {**CASES, "Z0": Known(control="none", what="none", run=broken)}
+        assert_that(knownremovals.missed(kit(), cases), equal_to(["Z0"]))
+
+
+class TestRemoval(unittest.TestCase):
+    """Each control taken out in turn."""
+
+    def test_count(self) -> None:
+        """There are 19 removals."""
+        assert_that(knownremovals.REMOVALS, has_length(19))
+
+    def test_every_removal_makes_a_case_miss(self) -> None:
+        """A control whose removal misses nothing holds no case."""
+        assert_that([name for name, cases in _held().items() if not cases], empty())
+
+    def test_every_case_misses_under_a_removal(self) -> None:
+        """A case no removal makes miss is held by no control."""
+        under = {case for cases in _held().values() for case in cases}
+        assert_that([name for name in CASES if name not in under], empty())
