@@ -6,7 +6,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import config
-from . import fakes, quietworld, world
+from . import fakes, pressureworld, world
 
 NEXT_LINE = re.compile(r"(?m)^NEXT \d+\. (\S+#\d+) \(")
 PROJECT = world.PROJECT
@@ -98,7 +98,7 @@ def dependent_world(blocker: str = "open", pull: int = 3) -> world.World:
     }
     serve(here, "owner/project", 9, ticket(DEPENDENT))
     fixing(here, pull, "Fixes #9")
-    return quietworld.calm(here)
+    return pressureworld.calm(here)
 
 
 def starts(here: world.World) -> Sequence[str]:

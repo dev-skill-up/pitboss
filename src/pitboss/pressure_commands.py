@@ -20,7 +20,6 @@ from . import (
     ENTRY_DATA,
     commandarguments,
     commands,
-    config,
     configfile,
     draftrule,
     evidencepush,

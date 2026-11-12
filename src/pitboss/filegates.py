@@ -14,7 +14,7 @@ import dataclasses
 import re
 from typing import Callable, Sequence
 
-from . import briefconfig, ghapi, phrases, reporules
+from . import phrases
 
 CHECK = "file-gate"
 NONE = "-"
@@ -108,6 +108,27 @@ def applies(gate: Gate, path: str, added: Sequence[str], read: Read) -> bool:
     )
 
 
+def added_lines(diff: str) -> Sequence[tuple[str, bool, Sequence[str]]]:
+    """Each file of a unified diff.
+
+    Args:
+        diff: the diff.
+
+    Returns:
+        Each file's path, whether it is new, and its added lines.
+    """
+    files: list[tuple[str, bool, list[str]]] = []
+    new = False
+    for row in diff.splitlines():
+        if row.startswith("--- "):
+            new = row.endswith("/dev/null")
+        elif row.startswith("+++ "):
+            files.append((row[4:].removeprefix("b/"), new, []))
+        elif row.startswith("+") and files:
+            files[-1][2].append(row[1:])
+    return files
+
+
 def of_diff(
     slug: str, diff: str, claude: str, read: Read
 ) -> Sequence[tuple[Gate, str]]:
@@ -123,7 +144,7 @@ def of_diff(
         ``(gate, path)`` for each gate of the table that is in scope and that a
         changed file has.
     """
-    changed = reporules.added_lines(diff)
+    changed = added_lines(diff)
     return [
         (gate, path)
         for gate in shipped()
@@ -218,27 +239,3 @@ def lines(slug: str, claude: str, ticket: str) -> Sequence[str]:
         " a gate that applies to a file the diff changes):"
     )
     return [head, *found] if found else []
-
-
-def added(
-    github: ghapi.GitHub, slug: str, ticket: str, project: briefconfig.Brief
-) -> briefconfig.Brief:
-    """The project's briefs with the repository's rules and the ticket's file gates.
-
-    Args:
-        github: the API.
-        slug: the repository.
-        ticket: the ticket's text.
-        project: what the project's briefs say.
-
-    Returns:
-        The same, its review lines followed by the repository's rules
-        (``reporules``) and its worker lines by ``lines`` of the CLAUDE.md.
-    """
-    claude = reporules.read(github, slug)
-    more = lines(slug, claude, ticket)
-    return dataclasses.replace(
-        project,
-        review_lines=[*project.review_lines, *reporules.lines(claude)],
-        worker_lines=[*project.worker_lines, *more],
-    )

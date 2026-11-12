@@ -8,7 +8,6 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import brief, phrases
-from . import fakes
 from .briefmake import text as brief_text
 from .test_env_check import WORKERS
 

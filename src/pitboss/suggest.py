@@ -24,7 +24,7 @@ from . import (
     nextfound,
     pullfiles,
     pulls,
-    filegates,
+    reporules,
     reviews,
     ruleconflicts,
     slotheld,
@@ -259,7 +259,7 @@ def _rules(source: Source, slug: str, head: str, ticket: str) -> brief.Rules:
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
-        project=filegates.added(
+        project=reporules.with_gates(
             source.github,
             slug,
             ticket,

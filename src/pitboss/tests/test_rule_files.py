@@ -4,7 +4,6 @@ The keyword is brief-rules, pitboss#444.
 """
 
 import dataclasses
-import pathlib
 import re
 import unittest
 

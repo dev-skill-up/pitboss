@@ -12,8 +12,8 @@ import unittest
 from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import actcore, actiongates, acthub, phrases
-from . import knownkit, world
-from .test_removedline import DISABLED, ENABLED, FAILED_JOB, held, removed_world
+from . import knownkit
+from .queueworld import dropped
 from .test_slot_commands import next_output
 from .says import says
 
@@ -39,19 +39,6 @@ def exists(name: str) -> bool:
     except (ImportError, AttributeError):
         return False
     return callable(found)
-
-
-def dropped(freeze: bool) -> world.World:
-    """A world whose approved PR 2 was armed, then dropped, under a hold or not.
-
-    Args:
-        freeze: whether a runner-pressure hold shows.
-
-    Returns:
-        The world.
-    """
-    here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
-    return held(here) if freeze else here
 
 
 def lines_about_pr_2(out: str) -> str:

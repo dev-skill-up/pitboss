@@ -5,7 +5,7 @@ import os
 import pathlib
 import shutil
 
-from . import fakes, world
+from . import fakes, pressureworld, world
 
 
 def edit_config(here: world.World, old: str, new: str) -> None:
@@ -72,48 +72,6 @@ def git_that_pushes_nothing(here: world.World) -> world.World:
     return dataclasses.replace(here, processes=processes)
 
 
-def unheld(here: world.World) -> world.World:
-    """Make a world's runners quiet: no job waits and the quiet period is over.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The same world.
-    """
-    here.bodies.update({key: {"jobs": []} for key in here.bodies if "/runs/1" in key})
-    record = here.clone / ".git" / "pitboss-pressure.log"
-    record.write_text("2029-12-31T23:00:00+00:00 none\n")
-    return here
-
-
-def at_rest(here: world.World) -> world.World:
-    """Make a world's last look at the runners one that saw nothing waiting, long ago.
-
-    Only the record changes: the runs and jobs the world serves stay.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The same world.
-    """
-    record = here.clone / ".git" / "pitboss-pressure.log"
-    record.write_text("2029-12-31T23:00:00+00:00 none\n")
-    return here
-
-
-def calm(here: world.World) -> world.World:
-    """Make a world's runners quiet but for the runs and jobs the world serves.
-
-    The one job that waits for a runner is served as done, and the record says the
-    last look saw nothing waiting long ago.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The same world.
-    """
-    here.bodies[fakes.page(f"{world.PROJECT}/actions/runs/11/jobs")] = {"jobs": []}
-    return at_rest(here)
+unheld = pressureworld.unheld
+at_rest = pressureworld.at_rest
+calm = pressureworld.calm

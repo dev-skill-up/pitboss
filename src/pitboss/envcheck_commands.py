@@ -4,43 +4,10 @@ The keyword is env-check.
 """
 
 import argparse
-from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commands, configsettle, envrules, gaterun
-
-
-def verdicts(
-    args: argparse.Namespace, needs: Sequence[envrules.Need], kinds: frozenset[str]
-) -> Sequence[str]:
-    """Run the checks of the needs of some kinds of repository.
-
-    Args:
-        args: the parsed arguments, with a ``safe_run``.
-        needs: the tools that are known.
-        kinds: the kinds of the repository.
-
-    Returns:
-        A line for each missing tool naming it and the command to get it; none
-        when every tool is there.
-    """
-    missing = []
-    for each in needs:
-        if not each.kinds & kinds:
-            continue
-        done = gaterun.run(
-            args.safe_run,
-            ["sh", "-c", each.check],
-            timeout=60,
-            directory=str(args.repo),
-        )
-        if not done.passed:
-            line = envrules.MISSING_LINE.format(
-                name=each.name, why=each.why, command=each.get
-            )
-            missing.append(line)
-    return missing
+from . import ENTRY_DATA, commands, configsettle, envcheck, envrules
 
 
 @ENTRY_DATA.register(
@@ -77,7 +44,7 @@ def env_check(args: argparse.Namespace) -> None:
     """
     configsettle.find_or_say(args)
     slug = commands.load_settings(args).project.repo.slug
-    lines = verdicts(args, envrules.NEEDS, envrules.kinds_of(slug))
+    lines = envcheck.verdicts(args, envrules.NEEDS, envrules.kinds_of(slug))
     for each in lines or [envrules.OK_LINE]:
         print(each)
     if lines:

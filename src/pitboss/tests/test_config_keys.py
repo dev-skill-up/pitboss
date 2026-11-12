@@ -1,6 +1,5 @@
 """A Plan whose diff adds a configuration key lists it in the example (pitboss#365)."""
 
-import pathlib
 import unittest
 
 from hamcrest import assert_that, contains_string, empty, has_length

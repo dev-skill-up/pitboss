@@ -7,7 +7,7 @@ import pathlib
 import subprocess
 from typing import Callable, Mapping, Sequence
 
-from .. import actcore, dispatchnext
+from .. import dispatchnext
 from ..actcore import Act, Change, Controls, Owner, Pull
 from ..totaljson import mapping, records
 from . import totalworld

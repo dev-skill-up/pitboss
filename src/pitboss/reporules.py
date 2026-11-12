@@ -17,7 +17,7 @@ import dataclasses
 import subprocess
 from typing import Sequence
 
-from . import briefconfig, ghapi
+from . import briefconfig, filegates, ghapi
 
 VERDICT = re.compile(r"verdict:\s*`?changes needed`?", re.I)
 SECTION = re.compile(r"(?im)^#+\s*adversarial review before merge\s*$")
@@ -120,20 +120,6 @@ def added(
     )
 
 
-def added_lines(diff: str) -> Sequence[tuple[str, bool, Sequence[str]]]:
-    # each file of a unified diff: its path, whether it is new, its added lines
-    files: list[tuple[str, bool, list[str]]] = []
-    new = False
-    for row in diff.splitlines():
-        if row.startswith("--- "):
-            new = row.endswith("/dev/null")
-        elif row.startswith("+++ "):
-            files.append((row[4:].removeprefix("b/"), new, []))
-        elif row.startswith("+") and files:
-            files[-1][2].append(row[1:])
-    return files
-
-
 def _steps(added: Sequence[str]) -> bool:
     # a ``run:`` step of more than one command in the added lines of a workflow
     for at, row in enumerate(added):
@@ -168,7 +154,31 @@ def findings(name: str, claude: str, diff: str, body: str) -> Sequence[str]:
     return [
         f'{name}: {path}: non-bats code of ours; CLAUDE.md says "{quoted}" and the'
         " body names no avenue it exhausted (repo-rules)"
-        for path, new, added in added_lines(diff)
+        for path, new, added in filegates.added_lines(diff)
         if (new and path.endswith(".sh"))
         or (path.startswith(".github/workflows/") and _steps(added))
     ]
+
+
+def with_gates(
+    github: ghapi.GitHub, slug: str, ticket: str, project: briefconfig.Brief
+) -> briefconfig.Brief:
+    """The project's briefs with the repository's rules and the ticket's file gates.
+
+    Args:
+        github: the API.
+        slug: the repository.
+        ticket: the ticket's text.
+        project: what the project's briefs say.
+
+    Returns:
+        The same, its review lines followed by the repository's rules
+        (``lines``) and its worker lines by ``filegates.lines`` of the CLAUDE.md.
+    """
+    claude = read(github, slug)
+    more = filegates.lines(slug, claude, ticket)
+    return dataclasses.replace(
+        project,
+        review_lines=[*project.review_lines, *lines(claude)],
+        worker_lines=[*project.worker_lines, *more],
+    )

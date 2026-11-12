@@ -14,7 +14,7 @@ from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import checkconfig, config, mechanical, pulllines, pulls, shapes
+from .. import checkconfig, mechanical, pulllines, pulls, shapes
 from . import fakes, world
 from .test_push_draft import OTHER_URL, gits
 from .test_work import NONE, facts

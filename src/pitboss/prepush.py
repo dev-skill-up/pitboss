@@ -19,7 +19,7 @@ lets the push go.
 
 import pathlib
 import re
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from . import gaterun, prepushconfig
 
@@ -121,3 +121,17 @@ def hook_failure(
                 f"fix: {fix}",
             ]
     return []
+
+
+def pushes_something(refs: str) -> bool:
+    """Whether the ref lines git gave the hook push anything but deletions.
+
+    Args:
+        refs: the lines ``<local ref> <local sha> <remote ref> <remote sha>``.
+
+    Returns:
+        False when every line is a deletion (its local sha is all zeros) and
+        there is at least one line; True when a ref is pushed or git gave none.
+    """
+    shas = [each.split()[1] for each in refs.splitlines() if len(each.split()) >= 2]
+    return not shas or any(each.strip("0") for each in shas)

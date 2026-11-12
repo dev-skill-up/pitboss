@@ -2,10 +2,8 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief
-from . import fakes, test_plan_review_listed
 from .briefmake import has_all, has_none, text
 
 WORKERS = (brief.Kind.NEW_PR, brief.Kind.FIRST_ROUND, brief.Kind.REVISE_PLAN)
@@ -129,19 +127,6 @@ class TestFoldedBriefs(unittest.TestCase):
             text(brief.Kind.REVISE_PLAN),
             ["push nothing, leave the `Head:` line as it is, and hand back the body"],
         )
-
-    def test_t221_the_unmoved_head_is_offered_for_the_plan_review_again(
-        self,
-    ) -> None:
-        """The head did not move, the body did: the Plan alone is reviewed again."""
-        out = test_plan_review_listed.listing(
-            test_plan_review_listed.HEAD,
-            fakes.PLAN_AND_EXECUTION,
-            test_plan_review_listed.REVISED,
-            "older-body",
-        )
-        assert_that(out, contains_string(test_plan_review_listed.PLAN_ALONE))
-        assert_that("empty commit" in out, equal_to(False))
 
 
 class TestDraftCi(unittest.TestCase):

@@ -2,7 +2,7 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, less_than
+from hamcrest import assert_that, contains_string, equal_to, less_than
 
 from .. import shapes
 from . import fakes, test_flow_sweep, test_slot_commands
@@ -71,3 +71,16 @@ class TestRevisedPlan(unittest.TestCase):
         read = fakes.PLAN_AND_EXECUTION
         out = listing(HEAD, read, read, "plan-changes-needed")
         assert_that(out, contains_string("(revise the plan,"))
+
+    def test_t221_the_unmoved_head_is_offered_for_the_plan_review_again(
+        self,
+    ) -> None:
+        """The head did not move, the body did: the Plan alone is reviewed again."""
+        out = listing(
+            HEAD,
+            fakes.PLAN_AND_EXECUTION,
+            REVISED,
+            "older-body",
+        )
+        assert_that(out, contains_string(PLAN_ALONE))
+        assert_that("empty commit" in out, equal_to(False))

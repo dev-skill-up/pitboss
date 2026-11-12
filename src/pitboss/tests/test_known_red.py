@@ -29,8 +29,7 @@ from .. import (
     straycomments,
 )
 from . import fakes, knownkit, world
-from .says import says
-from .test_action_gates import dropped
+from .queueworld import dropped
 from .test_commands import sweep
 from .test_report import facts, run
 

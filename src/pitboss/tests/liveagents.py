@@ -65,3 +65,30 @@ def said(output: str, start: str, wanted: int | Sequence[str]) -> None:
     """
     found = lines_of(output, start)
     assert_that(len(found) if isinstance(wanted, int) else found, equal_to(wanted))
+
+
+def next_result(here: world.World) -> world.Result:
+    """What ``slots next`` did, given the agents the ledger holds as the live ones.
+
+    Args:
+        here: the world.
+
+    Returns:
+        Its output, error and exit code.
+    """
+    live = running(here)
+    return world.invoke(
+        here, "slots", "next", here.config, "--now", world.FUTURE, *live
+    )
+
+
+def next_output(here: world.World) -> str:
+    """What ``slots next`` prints.
+
+    Args:
+        here: the world.
+
+    Returns:
+        Its output.
+    """
+    return next_result(here).out

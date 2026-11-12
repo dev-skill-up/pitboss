@@ -12,7 +12,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
-from .. import brief, envcheck_commands, envrules
+from .. import brief, envcheck, envrules
 from . import fakes, world
 from .briefmake import text as brief_text
 from .test_gate_run import Fake
@@ -89,9 +89,7 @@ class TestEnvCheck(unittest.TestCase):
             The lines.
         """
         args = argparse.Namespace(safe_run=runner, repo=fakes.directory())
-        return list(
-            envcheck_commands.verdicts(args, envrules.NEEDS, envrules.kinds_of(slug))
-        )
+        return list(envcheck.verdicts(args, envrules.NEEDS, envrules.kinds_of(slug)))
 
     def test_c35_the_command_reads_its_configuration(self) -> None:
         """The configuration's repository needs nothing here: ``env: ok``, exit 0."""

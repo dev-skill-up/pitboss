@@ -24,107 +24,33 @@ from .. import (
     steps,
     tasklist,
 )
-from . import fakes, quietworld, test_work, world
+from . import fakes, pressureworld, quietworld, test_work, world
+from .queueworld import (
+    DISABLED,
+    ENABLED,
+    FAILED_JOB,
+    PASSED_JOB,
+    QUEUE_BRANCH,
+    project_page,
+    removed_world,
+)
 from .test_commands import sweep
 
 ADDED = {"event": "added_to_merge_queue", "created_at": "2029-12-31T22:44:11Z"}
 REMOVED = {"event": "removed_from_merge_queue", "created_at": "2029-12-31T23:28:52Z"}
 ADDED_AGAIN = {"event": "added_to_merge_queue", "created_at": "2029-12-31T23:40:00Z"}
-ENABLED = {"event": "auto_merge_enabled", "created_at": "2029-12-31T22:45:00Z"}
-DISABLED = {"event": "auto_merge_disabled", "created_at": "2029-12-31T23:30:00Z"}
 DROPPED_LINE = "DROPPED FROM QUEUE owner/project#2: 2029-12-31T23:30:00Z, "
 WAIT_LINE = "WAIT-FOR-HOLD owner/project#2: a runner-pressure hold or its quiet period"
 LABELED = {"event": "labeled", "created_at": "2029-12-31T20:00:00Z"}
 COMMITTED = {"event": "committed"}
-QUEUE_BRANCH = "gh-readonly-queue/main/pr-2-"
-MERGE_QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 REMOVED_LINE = "REMOVED FROM QUEUE owner/project#2: 2029-12-31T23:28:52Z, "
 FAILED_TEXT = (
     "failed job of its last queue run: android / build-android: Fetch dependencies"
 )
 READY_LINE = "READY TO MERGE owner/project#2: arm auto-merge"
 STANDARD_LINE = READY_LINE + " or merge"
-FAILED_JOB = {
-    "name": "android / build-android",
-    "conclusion": "failure",
-    "steps": [
-        {"name": "Set up job", "conclusion": "success"},
-        {"name": "Fetch dependencies", "conclusion": "failure"},
-    ],
-}
-PASSED_JOB = {"name": "check / check", "conclusion": "success", "steps": []}
 CANCELLED_JOB = {"name": "android / build-android", "conclusion": "cancelled"}
 BARE_FAILED_JOB = {"name": "check / test", "conclusion": "failure"}
-
-
-def project_page(path: str, number: int = 1) -> str:
-    """The paged path of a list under the project.
-
-    Args:
-        path: the list's path under the project.
-        number: the page.
-
-    Returns:
-        The path ``ghapi.pages`` asks for.
-    """
-    return fakes.page(f"{world.PROJECT}/{path}", number)
-
-
-def _run(identifier: int, branch: str, minute: int) -> dict[str, object]:
-    return {
-        "id": identifier,
-        "status": "completed",
-        "conclusion": "failure",
-        "created_at": f"2029-12-31T23:{minute:02d}:00+00:00",
-        "head_branch": QUEUE_BRANCH + branch,
-    }
-
-
-def queue_bodies(
-    events: Sequence[object], jobs: Sequence[object]
-) -> Mapping[str, object]:
-    """The timelines, queue runs and jobs of the world.
-
-    Args:
-        events: the timeline of PR 2.
-        jobs: the jobs of its last group's first run.
-
-    Returns:
-        The canned bodies.
-    """
-    runs = {
-        "workflow_runs": [_run(11, "old", 10), _run(12, "new", 28), _run(13, "new", 29)]
-    }
-    pages = [
-        ("issues/1/timeline", []),
-        ("issues/2/timeline", list(events)),
-        ("issues/3/timeline", []),
-        ("actions/runs?event=merge_group", runs),
-        ("actions/runs/12/jobs", {"jobs": jobs}),
-        ("actions/runs/13/jobs", {"jobs": [PASSED_JOB]}),
-    ]
-    return fakes.bodies_under(world.PROJECT, pages)
-
-
-def removed_world(
-    events: Sequence[object],
-    jobs: Sequence[object],
-    extra: str = MERGE_QUEUE,
-) -> world.World:
-    """A world whose approved, green, clean PR 2 has a queue timeline and runs.
-
-    Args:
-        events: the timeline of PR 2.
-        jobs: the jobs of its last group's first run.
-        extra: more TOML appended to the configuration.
-
-    Returns:
-        The world.
-    """
-    here = world.make_world()
-    here.bodies.update(queue_bodies(events, jobs))
-    fakes.settings(here.workspace, world.EXTRA.format(ledger=here.ledger) + extra)
-    return quietworld.at_rest(here)
 
 
 def lines_of(here: world.World) -> Sequence[str]:
@@ -275,18 +201,7 @@ class TestStanding(unittest.TestCase):
         assert_that(lines_of(reviewed(here, [])), equal_to([ALONE]))
 
 
-def held(here: world.World) -> world.World:
-    """Put a world's runners back under a hold: a look that saw a job waiting, just now.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The same world.
-    """
-    record = here.clone / ".git" / "pitboss-pressure.log"
-    record.write_text("2029-12-31T23:59:00+00:00 hold\n")
-    return here
+held = pressureworld.held
 
 
 class TestDropped(unittest.TestCase):

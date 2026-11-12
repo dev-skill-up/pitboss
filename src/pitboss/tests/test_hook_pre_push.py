@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import hook_commands
+from .. import prepush
 from . import fakes, world
 
 ZERO = "0" * 40
@@ -80,5 +80,5 @@ class TestHook(unittest.TestCase):
 
     def test_t50_ref_lines_are_read(self) -> None:
         """No line at all is a push; a line with one word is ignored."""
-        assert_that(hook_commands.pushes_something(""), equal_to(True))
-        assert_that(hook_commands.pushes_something("x\n"), equal_to(True))
+        assert_that(prepush.pushes_something(""), equal_to(True))
+        assert_that(prepush.pushes_something("x\n"), equal_to(True))

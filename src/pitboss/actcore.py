@@ -15,7 +15,7 @@ from typing import Callable, Mapping, Protocol, Sequence
 
 from . import dispatchnext, ticketreader, totalanswer
 from .running import Run
-from .totaljson import JsonMap, mapping, name_at, records, text
+from .totaljson import JsonMap, name_at, records, text
 
 Pull = dict[str, object]
 Options = Mapping[str, str]
