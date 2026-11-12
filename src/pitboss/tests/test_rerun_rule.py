@@ -26,9 +26,8 @@ class TestRerunRule(unittest.TestCase):
 
     def test_c13_no_text_forbids_a_rerun_for_a_github_problem(self) -> None:
         """The rule's wording names the flake, and allows the GitHub problem."""
-        assert_that(causetext.RULE, contains_string("get rid of a flake is refused"))
-        assert_that(causetext.RULE, contains_string("stuck queued with no jobs"))
+        for each in ("get rid of a flake is refused", "stuck queued with no jobs"):
+            assert_that(causetext.RULE, contains_string(each))
         wording = [causetext.RULE, brieftext.LOCAL, report.HOLD_ACTIONS]
-        assert_that(
-            ["never re-run CI" in each for each in wording], equal_to([False] * 3)
-        )
+        found = ["never re-run CI" in each for each in wording]
+        assert_that(found, equal_to([False] * 3))
