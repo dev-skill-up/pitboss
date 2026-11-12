@@ -10,21 +10,53 @@ sequence of events that led to it (keyword: properties).
 
 import time
 import unittest
-from typing import Callable, Iterator, Sequence
+from typing import Callable, Iterator, Protocol, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import expansion, plandigest, steps
-from . import model
+from . import events, model
 
 DEPTH = 5
 SECONDS = 60
 Allowed = model.Allowed
-Property = Callable[[model.Model, steps.Next, Allowed], str]
+Path = tuple[model.Model, Sequence[str]]
+Simulate = Callable[[model.Model, steps.Next, Allowed], model.Model | None]
+
+
+class Property(Protocol):
+    """A property: the finding at a state, empty when it holds."""
+
+    def __call__(
+        self, at: model.Model, step: steps.Next, allowed: Allowed
+    ) -> str:  # pragma: no cover
+        """Judge a state.
+
+        Args:
+            at: the PR.
+            step: its step.
+            allowed: the rule for a ruling.
+
+        Returns:
+            The finding.
+        """
+
+
+def _next_layer(
+    layer: Sequence[Path], seen: set[str], allowed: Allowed
+) -> Sequence[Path]:
+    following = []
+    for each, path in layer:
+        for moved in events.moves(each, allowed):
+            token = repr(model.key(moved))
+            if token not in seen:
+                seen.add(token)
+                following.append((moved, (*path, moved.last)))
+    return following
 
 
 def walk(
-    allowed: Allowed = model.allowed_once, depth: int = DEPTH
+    allowed: Allowed = events.allowed_once, depth: int = DEPTH
 ) -> Iterator[tuple[model.Model, Sequence[str]]]:
     """Every state reachable within a depth, with the events that reach it.
 
@@ -37,19 +69,13 @@ def walk(
     Yields:
         Each model and its events.
     """
-    seen = {model.key(model.Model())}
-    layer = [(model.Model(), ())]
-    yield model.Model(), ()
+    start = model.Model()
+    seen = {repr(model.key(start))}
+    layer: Sequence[Path] = [(start, ())]
+    yield start, ()
     for _ in range(depth):
-        following = []
-        for each, path in layer:
-            for moved in model.moves(each, allowed):
-                key = model.key(moved)
-                if key not in seen:
-                    seen.add(key)
-                    following.append((moved, (*path, moved.last)))
-        yield from following
-        layer = following
+        layer = _next_layer(layer, seen, allowed)
+        yield from layer
 
 
 def p1_a_step(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
@@ -64,7 +90,9 @@ def p1_a_step(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
         The finding, empty when the property holds.
     """
     waits = step.step is steps.Step.WAIT_FOR_CI and at.ci != "running"
-    nothing = not steps.describe(step).strip() or step.step is steps.Step.WAIT_FOR_UNDRAFT
+    nothing = (
+        not steps.describe(step).strip() or step.step is steps.Step.WAIT_FOR_UNDRAFT
+    )
     return "P1: no step names an action or an owner" if waits or nothing else ""
 
 
@@ -81,9 +109,16 @@ def p2_ruling_steps(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
     """
     due = at.last == "ruling do these steps" and not at.paused
     due = due and at.ci == "green" and not at.conflict
-    ruled = steps.Task.RULING_STEPS in (step.task,) or step.stage is steps.Stage.RULING_STEPS
+    ruled = (
+        steps.Task.RULING_STEPS in (step.task,)
+        or step.stage is steps.Stage.RULING_STEPS
+    )
     held = step.step in (steps.Step.PLAN_EDITED, steps.Step.WAIT_FOR_OWNER)
-    return "P2: the ruling's steps are not the step" if due and not ruled and not held else ""
+    return (
+        "P2: the ruling's steps are not the step"
+        if due and not ruled and not held
+        else ""
+    )
 
 
 def p4_one_ruling(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
@@ -100,35 +135,55 @@ def p4_one_ruling(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
     return "P4: a second ruling before a pause" if at.since_pause > 1 else ""
 
 
-def p5_moves(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
+def p5_moves(
+    at: model.Model,
+    step: steps.Next,
+    allowed: Allowed,
+    simulate: Simulate = events.simulated,
+) -> str:
     """P5: the printed step, simulated, moves the state to another step.
 
     Args:
         at: the PR.
         step: its step.
         allowed: the rule for a ruling.
+        simulate: doing a step (a stand-in that does nothing is the planted
+            violation).
 
     Returns:
         The finding, empty when the property holds.
     """
-    after = model.simulated(at, step, allowed)
-    if after is None:
-        return ""
-    return "P5: the step leaves the PR at the same step" if model.step_of(after) == step else ""
+    after = simulate(at, step, allowed)
+    stuck = after is not None and model.step_of(after) == step
+    return "P5: the step leaves the PR at the same step" if stuck else ""
+
+
+def does_nothing(at: model.Model, step: steps.Next, allowed: Allowed) -> model.Model:
+    """A step done as no change (the planted violation of P5).
+
+    Args:
+        at: the PR.
+        step: its step (unused).
+        allowed: the rule for a ruling (unused).
+
+    Returns:
+        The PR as it was.
+    """
+    return at
 
 
 PROPERTIES: Sequence[Property] = (p1_a_step, p2_ruling_steps, p4_one_ruling, p5_moves)
 
 
 def violations(
-    checks: Sequence[Property],
-    allowed: Allowed = model.allowed_once,
+    held: Sequence[Property],
+    allowed: Allowed = events.allowed_once,
     depth: int = DEPTH,
 ) -> Sequence[str]:
     """The sequences that break a property, with the finding.
 
     Args:
-        checks: the properties, all read at each state (its step is read once).
+        held: the properties, all read at each state (its step is read once).
         allowed: the rule for a ruling.
         depth: the most events.
 
@@ -138,10 +193,9 @@ def violations(
     found = []
     for at, path in walk(allowed, depth):
         step = model.step_of(at)
-        for check in checks:
-            said = check(at, step, allowed)
-            if said:
-                found.append(f"{said} after: {', '.join(path) or 'no event'}")
+        said = [each(at, step, allowed) for each in held]
+        events = ", ".join(path) or "no event"
+        found += [f"{line} after: {events}" for line in said if line]
     return found
 
 
@@ -165,77 +219,83 @@ class TestProperties(unittest.TestCase):
         started = time.monotonic()
         found = violations(PROPERTIES)
         elapsed = time.monotonic() - started
-        for line in found[:20]:
-            print(line)
+        print("\n".join(found[:20]))
         print(f"properties: {len(found)} violations, {elapsed:.1f}s")
         assert_that(found, equal_to([]))
         assert_that(elapsed < SECONDS, equal_to(True))
 
     def test_a4_p1_every_pr_has_a_step_to_depth_3(self) -> None:
         """A4: no state of the alphabet, to depth 3, is a PR with nothing to do."""
-        assert_that(violations([p1_a_step], model.allowed_once, 3), equal_to([]))
+        assert_that(violations([p1_a_step], events.allowed_once, 3), equal_to([]))
 
     def test_a2_p2_ruling_steps_hold_to_depth_4(self) -> None:
-        """A2: after a `do these steps` ruling the step is the ruling's, to depth 4."""
-        assert_that(violations([p2_ruling_steps], model.allowed_once, 4), equal_to([]))
+        """A2: after a `do these steps` ruling the step is its own, to depth 4."""
+        assert_that(violations([p2_ruling_steps], events.allowed_once, 4), equal_to([]))
 
     def test_properties_p4_planted_second_ruling_fails_printing_the_sequence(
         self,
     ) -> None:
-        """P4 planted: a rule that lets a second ruling through fails, with its events."""
+        """P4 planted: a rule that lets a second ruling through fails."""
         found = violations([p4_one_ruling], never, 3)
         assert_that(len(found) > 0, equal_to(True))
-        assert_that(found[0], contains_string("P4: a second ruling before a pause after: ruling"))
+        assert_that(
+            found[0],
+            contains_string("P4: a second ruling before a pause after: ruling"),
+        )
 
     def test_properties_p4_the_shipped_rule_refuses_the_second(self) -> None:
         """The nearest input: with the rule, the same depth has no violation."""
-        assert_that(violations([p4_one_ruling], model.allowed_once, 3), equal_to([]))
+        assert_that(violations([p4_one_ruling], events.allowed_once, 3), equal_to([]))
 
     def test_properties_p1_planted_a_pr_with_no_step_fails(self) -> None:
         """P1 planted: a step that waits for a CI that is not running fails."""
         waiting = steps.wait_for_ci()
         green = model.Model()
-        assert_that(p1_a_step(green, waiting, model.allowed_once), contains_string("P1"))
-        assert_that(p1_a_step(green, steps.merge(), model.allowed_once), equal_to(""))
+        assert_that(
+            p1_a_step(green, waiting, events.allowed_once), contains_string("P1")
+        )
+        assert_that(p1_a_step(green, steps.merge(), events.allowed_once), equal_to(""))
 
     def test_properties_p2_planted_another_step_after_the_ruling_fails(self) -> None:
         """P2 planted: after a `do these steps` ruling a merge step fails."""
-        ruled = model.ruled(model.Model(), model.Ruling.DO_THESE_STEPS, model.allowed_once)
-        assert ruled is not None
-        assert_that(p2_ruling_steps(ruled, steps.merge(), model.allowed_once), contains_string("P2"))
-        assert_that(
-            p2_ruling_steps(ruled, steps.worker(steps.Task.RULING_STEPS), model.allowed_once),
-            equal_to(""),
+        ruled = events.ruled(
+            model.Model(), model.Ruling.DO_THESE_STEPS, events.allowed_once
         )
+        assert ruled is not None
+        worker = steps.worker(steps.Task.RULING_STEPS)
+        found = [
+            p2_ruling_steps(ruled, each, events.allowed_once)[:2]
+            for each in (steps.merge(), worker)
+        ]
+        assert_that(found, equal_to(["P2", ""]))
 
     def test_properties_p5_planted_a_step_that_changes_nothing_fails(self) -> None:
         """P5 planted: simulating a step that leaves the step the same fails."""
-        start = model.Model()
-        step = model.step_of(start)
-        stuck = model.step_of(model.simulated(start, step, model.allowed_once) or start)
-        assert_that(stuck == step, equal_to(False))
-        same = steps.worker(steps.Task.RESOLVE_CONFLICT)
-        conflicted = model.Model(conflict=True)
-        assert_that(model.step_of(conflicted), equal_to(same))
-        after = model.simulated(conflicted, same, model.allowed_once)
-        assert after is not None
-        assert_that(model.step_of(after) == same, equal_to(False))
+        at = model.Model()
+        step = model.step_of(at)
+        assert_that(p5_moves(at, step, events.allowed_once), equal_to(""))
+        found = p5_moves(at, step, events.allowed_once, does_nothing)
+        assert_that(found[:2], equal_to("P5"))
 
 
 URLS = "https://github.com/o/r/actions/runs/{run}/job/{job}"
-PLAN = "1. `cmd` shows it. CI: workflow `w.yml`, job `tests`, step `Run`, see {url}\n"
+PLAN = (
+    "1. `cmd` shows {word}. CI: workflow `w.yml`, job `tests`, step `Run`, see {url}\n"
+)
 
 
-def at_head(run: int) -> str:
+def plan_of(run: int, word: str = "it") -> str:
     """A Plan section whose CI pointer names the run of a head.
 
     Args:
         run: the run's id.
+        word: the word the row says is shown.
 
     Returns:
-        The section.
+        The section of a body.
     """
-    return "## Plan\n" + PLAN.format(url=URLS.format(run=run, job=run + 1))
+    url = URLS.format(run=run, job=run + 1)
+    return plandigest.section("Fixes #1\n\n## Plan\n" + PLAN.format(url=url, word=word))
 
 
 class TestPlanDigest(unittest.TestCase):
@@ -243,21 +303,15 @@ class TestPlanDigest(unittest.TestCase):
 
     def test_properties_p3_the_run_ids_of_a_later_head_keep_the_digest(self) -> None:
         """Each head's run and job ids give the digest the approval recorded."""
-        approved = expansion.section_digest(plandigest.section(f"Fixes #1\n\n{at_head(10)}"))
-        for run in (11, 12, 99999):
-            body = f"Fixes #1\n\n{at_head(run)}"
-            assert_that(expansion.section_digest(plandigest.section(body)), equal_to(approved))
+        digests = {expansion.section_digest(plan_of(run)) for run in (10, 11, 99999)}
+        assert_that(len(digests), equal_to(1))
 
     def test_properties_p3_planted_an_id_in_the_digest_fails(self) -> None:
         """P3 planted: a digest that reads the ids (main's) changes at a later head."""
-        first = expansion.text_digest(plandigest.section(f"Fixes #1\n\n{at_head(10)}"))
-        later = expansion.text_digest(plandigest.section(f"Fixes #1\n\n{at_head(11)}"))
-        assert_that(first == later, equal_to(False))
+        digests = {expansion.text_digest(plan_of(run)) for run in (10, 11)}
+        assert_that(len(digests), equal_to(2))
 
     def test_properties_p3_another_word_in_the_plan_changes_the_digest(self) -> None:
         """The nearest input: a changed word is an edit, whatever the ids."""
-        body = f"Fixes #1\n\n{at_head(10)}".replace("shows it", "shows that")
-        approved = expansion.section_digest(plandigest.section(f"Fixes #1\n\n{at_head(10)}"))
-        assert_that(
-            expansion.section_digest(plandigest.section(body)) == approved, equal_to(False)
-        )
+        digests = {expansion.section_digest(plan_of(10, word)) for word in ("it", "no")}
+        assert_that(len(digests), equal_to(2))

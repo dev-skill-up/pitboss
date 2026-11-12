@@ -8,10 +8,11 @@ that stopped at a page would replay a shorter history than the PR had.
 """
 
 import json
-from typing import Any, Mapping, Sequence
+from typing import Mapping, Sequence
 
 from . import ghapi
 
+Item = Mapping[str, object]
 COMMIT_LIMIT = 100
 PULL_KEYS = ("number", "title", "created_at", "updated_at", "state", "merged_at")
 COMMENT_KEYS = ("id", "body", "author_association", "created_at", "html_url")
@@ -29,11 +30,29 @@ CHECK_KEYS = (
 EVENTS = ("labeled", "unlabeled", "ready_for_review", "convert_to_draft")
 
 
-def _kept(item: Mapping[str, Any], keys: Sequence[str]) -> Mapping[str, Any]:
+def as_object(value: object) -> Item:
+    """A JSON object as a mapping.
+
+    Args:
+        value: what the API gave where an object is.
+
+    Returns:
+        The object.
+    """
+    assert isinstance(value, dict)
+    return value
+
+
+def _items(value: object) -> Sequence[Item]:
+    assert isinstance(value, list)
+    return value
+
+
+def _kept(item: Item, keys: Sequence[str]) -> Item:
     return {key: item.get(key) for key in keys}
 
 
-def compact_pull(data: Mapping[str, Any]) -> Mapping[str, Any]:
+def compact_pull(data: Item) -> Item:
     """The fields of a PR the flow reads.
 
     Args:
@@ -46,16 +65,19 @@ def compact_pull(data: Mapping[str, Any]) -> Mapping[str, Any]:
         **_kept(data, PULL_KEYS),
         "body": data.get("body") or "",
         "draft": bool(data.get("draft")),
-        "user": {"login": data["user"]["login"]},
-        "head": {"sha": data["head"]["sha"], "ref": data["head"]["ref"]},
-        "base": {"ref": data["base"]["ref"]},
+        "user": {"login": as_object(data["user"])["login"]},
+        "head": {
+            "sha": as_object(data["head"])["sha"],
+            "ref": as_object(data["head"])["ref"],
+        },
+        "base": {"ref": as_object(data["base"])["ref"]},
         "mergeable_state": data.get("mergeable_state"),
         "auto_merge": data.get("auto_merge"),
-        "labels": [{"name": each["name"]} for each in data.get("labels", ())],
+        "labels": [{"name": each["name"]} for each in _items(data.get("labels") or [])],
     }
 
 
-def compact_event(data: Mapping[str, Any]) -> Mapping[str, Any]:
+def compact_event(data: Item) -> Item:
     """The fields of a label or draft event of the PR.
 
     Args:
@@ -64,7 +86,7 @@ def compact_event(data: Mapping[str, Any]) -> Mapping[str, Any]:
     Returns:
         The event name, its time and the label it names, if any.
     """
-    label = (data.get("label") or {}).get("name")
+    label = as_object(data.get("label") or {}).get("name")
     return {
         "event": data["event"],
         "created_at": data["created_at"],
@@ -72,7 +94,7 @@ def compact_event(data: Mapping[str, Any]) -> Mapping[str, Any]:
     }
 
 
-def compact_commit(data: Mapping[str, Any]) -> Mapping[str, Any]:
+def compact_commit(data: Item) -> Item:
     """The sha and time of a commit of the PR.
 
     Args:
@@ -81,20 +103,41 @@ def compact_commit(data: Mapping[str, Any]) -> Mapping[str, Any]:
     Returns:
         The sha and the committer's date.
     """
-    return {"sha": data["sha"], "date": data["commit"]["committer"]["date"]}
+    committer = as_object(as_object(data["commit"])["committer"])
+    return {"sha": data["sha"], "date": committer["date"]}
 
 
-def _list(github: ghapi.GitHub, path: str) -> Sequence[Mapping[str, Any]]:
+def _list(github: ghapi.GitHub, path: str) -> Sequence[Item]:
     return ghapi.pages(github, path, json.loads)
 
 
-def _checks(github: ghapi.GitHub, slug: str, sha: str) -> Sequence[Mapping[str, Any]]:
+def _checks(github: ghapi.GitHub, slug: str, sha: str) -> Sequence[Item]:
     path = f"repos/{slug}/commits/{sha}/check-runs"
     runs = ghapi.pages(github, path, lambda text: json.loads(text)["check_runs"])
     return [_kept(each, CHECK_KEYS) for each in runs]
 
 
-def capture(github: ghapi.GitHub, slug: str, number: int) -> Mapping[str, Any]:
+def _kept_list(github: ghapi.GitHub, path: str, keys: Sequence[str]) -> Sequence[Item]:
+    return [_kept(each, keys) for each in _list(github, path)]
+
+
+def _events(github: ghapi.GitHub, base: str) -> Sequence[Item]:
+    listed = _list(github, f"{base}/events")
+    return [compact_event(each) for each in listed if each["event"] in EVENTS]
+
+
+def _commits(github: ghapi.GitHub, base: str) -> Sequence[Item]:
+    return [compact_commit(each) for each in _list(github, f"{base}/commits")]
+
+
+def _all_checks(github: ghapi.GitHub, slug: str, commits: Sequence[Item]) -> Item:
+    return {
+        str(each["sha"]): _checks(github, slug, str(each["sha"]))
+        for each in commits[-COMMIT_LIMIT:]
+    }
+
+
+def capture(github: ghapi.GitHub, slug: str, number: int) -> Item:
     """Read the whole recorded timeline of a PR.
 
     Args:
@@ -107,27 +150,16 @@ def capture(github: ghapi.GitHub, slug: str, number: int) -> Mapping[str, Any]:
     """
     base = f"repos/{slug}"
     pull = json.loads(ghapi.get(github, f"{base}/pulls/{number}"))
-    commits = [
-        compact_commit(each)
-        for each in _list(github, f"{base}/pulls/{number}/commits")
-    ]
-    kept = [each for each in _list(github, f"{base}/issues/{number}/events")]
+    commits = _commits(github, f"{base}/pulls/{number}")
     return {
         "slug": slug,
         "number": number,
         "pull": compact_pull(pull),
-        "comments": [
-            {**_kept(each, COMMENT_KEYS)}
-            for each in _list(github, f"{base}/issues/{number}/comments")
-        ],
-        "reviews": [
-            _kept(each, REVIEW_KEYS)
-            for each in _list(github, f"{base}/pulls/{number}/reviews")
-        ],
-        "events": [compact_event(each) for each in kept if each["event"] in EVENTS],
+        "comments": _kept_list(
+            github, f"{base}/issues/{number}/comments", COMMENT_KEYS
+        ),
+        "reviews": _kept_list(github, f"{base}/pulls/{number}/reviews", REVIEW_KEYS),
+        "events": _events(github, f"{base}/issues/{number}"),
         "commits": commits,
-        "checks": {
-            each["sha"]: _checks(github, slug, each["sha"])
-            for each in commits[-COMMIT_LIMIT:]
-        },
+        "checks": _all_checks(github, slug, commits),
     }

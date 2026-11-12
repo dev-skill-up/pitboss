@@ -388,7 +388,6 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
     do_steps = rulingwords.Ruling.DO_THESE_STEPS
     if flowstate.ruling_unapplied(pr) is do_steps:  # keyword: ruling-first (A2)
         return ruled_step(pr, do_steps)
-
     if review.execution is None:  # plan approved by a plan-only review
         # keyword: plan-alone, the same round as a draft's: no condition on the draft
         return (

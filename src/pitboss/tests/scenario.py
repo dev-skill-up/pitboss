@@ -7,16 +7,17 @@ made. The PR's body is its final text, since GitHub keeps no history of a body,
 and the merge state is clean: a mark is placed where those two hold.
 """
 
-import dataclasses
+import enum
 import json
 import pathlib
-from typing import Any, Mapping, Sequence
+from typing import AbstractSet, Mapping, NamedTuple, Sequence, TypedDict
 
-from .. import config, flow, parsing, reviews, steps
+from .. import capture, config, flow, parsing, reviews, shapes, steps
 
-DIRECTORY = pathlib.Path(__file__).parent / "scenarios"
+DIRECTORY = pathlib.Path(__file__).with_name("scenarios")
+HEADER = "Independent review (a separate reviewer agent, not the author) of head"
 FORM = config.ReviewForm(
-    lines=("Independent review (a separate reviewer agent, not the author) of head {sha}: {verdict}",),
+    lines=(f"{HEADER} {{sha}}: {{verdict}}",),
     approved="approved",
     changes_needed="changes needed",
 )
@@ -26,10 +27,60 @@ REVIEW = config.Review(
     form=FORM,
     gated_form=FORM,
 )
+Item = Mapping[str, object]
 
 
-@dataclasses.dataclass(frozen=True, slots=True)
-class Mark:
+class Timeline(TypedDict):
+    """What ``pitboss capture-timeline`` wrote.
+
+    Attributes:
+        slug: the repository.
+        number: the PR's number.
+        pull: the PR as the API gave it, flattened.
+        comments: its comments.
+        reviews: its formal reviews.
+        events: its label and draft events.
+        commits: the commits that made its heads.
+        checks: the check runs of each head.
+    """
+
+    slug: str
+    number: int
+    pull: Item
+    comments: Sequence[Item]
+    reviews: Sequence[Item]
+    events: Sequence[Item]
+    commits: Sequence[Item]
+    checks: Mapping[str, Sequence[Item]]
+
+
+class Event(enum.Enum):
+    """The events of a PR's timeline that the replay reads.
+
+    Attributes:
+        LABELED: a label was added.
+        UNLABELED: a label was removed.
+        READY: the PR was marked ready for review.
+        DRAFTED: the PR was converted to a draft.
+    """
+
+    LABELED = enum.auto()
+    UNLABELED = enum.auto()
+    READY = enum.auto()
+    DRAFTED = enum.auto()
+
+
+NAMED = {
+    "labeled": Event.LABELED,
+    "unlabeled": Event.UNLABELED,
+    "ready_for_review": Event.READY,
+    "convert_to_draft": Event.DRAFTED,
+}
+
+DRAFTING = (Event.READY, Event.DRAFTED)
+
+
+class Mark(NamedTuple):
     """A moment of a timeline and the step the rules require there.
 
     Attributes:
@@ -45,7 +96,7 @@ class Mark:
     settled: bool = True
 
 
-def load(name: str) -> Mapping[str, Any]:
+def load(name: str) -> Timeline:
     """Read a captured timeline.
 
     Args:
@@ -56,10 +107,15 @@ def load(name: str) -> Mapping[str, Any]:
         The timeline.
     """
     text = (DIRECTORY / f"{name}.json").read_text(encoding="utf-8")
-    return json.loads(text)
+    data: Timeline = json.loads(text)
+    return data
 
 
-def labels_at(data: Mapping[str, Any], when: str) -> frozenset[str]:
+def _before(items: Sequence[Item], field: str, when: str) -> Sequence[Item]:
+    return [each for each in items if str(each[field] or "") <= when]
+
+
+def labels_at(data: Timeline, when: str) -> AbstractSet[str]:
     """The labels the PR carried at a time.
 
     Args:
@@ -70,15 +126,16 @@ def labels_at(data: Mapping[str, Any], when: str) -> frozenset[str]:
         The label names after the events up to ``when``.
     """
     named: set[str] = set()
-    for each in data["events"]:
-        if each["created_at"] <= when and each["event"] == "labeled":
-            named.add(each["label"])
-        if each["created_at"] <= when and each["event"] == "unlabeled":
-            named.discard(each["label"])
-    return frozenset(named)
+    for each in _before(data["events"], "created_at", when):
+        happened = NAMED[str(each["event"])]
+        if happened is Event.LABELED:
+            named.add(str(each["label"]))
+        elif happened is Event.UNLABELED:
+            named.discard(str(each["label"]))
+    return named
 
 
-def draft_at(data: Mapping[str, Any], when: str) -> bool:
+def draft_at(data: Timeline, when: str) -> bool:
     """Whether the PR was a draft at a time.
 
     Args:
@@ -87,22 +144,18 @@ def draft_at(data: Mapping[str, Any], when: str) -> bool:
 
     Returns:
         The state after the draft events up to ``when``; before any, the state
-        the first event leaves (a PR made ready began as a draft).
+        the first event leaves (a PR made ready began as a draft); with none,
+        the state the PR has.
     """
-    marks = [each for each in data["events"] if each["event"] in _DRAFTING]
-    state = bool(marks) and marks[0]["event"] == "ready_for_review"
-    if not marks:
-        state = bool(data["pull"]["draft"])
-    for each in marks:
-        if each["created_at"] <= when:
-            state = each["event"] == "convert_to_draft"
-    return state
+    marks = [each for each in data["events"] if NAMED[str(each["event"])] in DRAFTING]
+    drafted = bool(data["pull"]["draft"])
+    state = NAMED[str(marks[0]["event"])] is Event.READY if marks else drafted
+    for each in _before(marks, "created_at", when):
+        state = NAMED[str(each["event"])] is Event.DRAFTED
+    return bool(state)
 
 
-_DRAFTING = ("ready_for_review", "convert_to_draft")
-
-
-def head_at(data: Mapping[str, Any], when: str) -> str:
+def head_at(data: Timeline, when: str) -> str:
     """The sha of the head at a time.
 
     Args:
@@ -112,31 +165,50 @@ def head_at(data: Mapping[str, Any], when: str) -> str:
     Returns:
         The newest commit made by then (the first when none was).
     """
-    made = [each for each in data["commits"] if each["date"] <= when]
-    return (made or data["commits"])[-1 if made else 0]["sha"]
+    made = _before(data["commits"], "date", when)
+    return str((made or data["commits"])[-1 if made else 0]["sha"])
+
+
+def _run(each: Item, when: str, settled: bool) -> Item:
+    done = settled or str(each["completed_at"] or "~") <= when
+    return {
+        **each,
+        "status": each["status"] if done else "in_progress",
+        "conclusion": each["conclusion"] if done else None,
+    }
 
 
 def _checks(
-    data: Mapping[str, Any], head: str, when: str, settled: bool
-) -> Sequence[Any]:
-    runs = []
-    for each in data["checks"].get(head, ()):
-        if (each["started_at"] or "") > when:
-            continue
-        done = settled or (each["completed_at"] and each["completed_at"] <= when)
-        runs.append(
-            {
-                **each,
-                "status": each["status"] if done else "in_progress",
-                "conclusion": each["conclusion"] if done else None,
-            }
-        )
+    data: Timeline, head: str, when: str, settled: bool
+) -> Sequence[shapes.CheckRun]:
+    every = data["checks"].get(head, ())
+    started = _before(every, "started_at", when)
+    runs = [_run(each, when, settled) for each in started]
     return parsing.check_runs(json.dumps({"check_runs": runs}))
 
 
-def state_at(
-    data: Mapping[str, Any], when: str, settled: bool = False
-) -> flow.PullState:
+def _pull(data: Timeline, when: str) -> str:
+    changes = {
+        "head": {
+            "sha": head_at(data, when),
+            "ref": capture.as_object(data["pull"]["head"])["ref"],
+        },
+        "draft": draft_at(data, when),
+        "mergeable_state": "clean",
+    }
+    return json.dumps({**data["pull"], **changes})
+
+
+def _posted(data: Timeline, when: str) -> reviews.Sources:
+    comments = _before(data["comments"], "created_at", when)
+    given = _before(data["reviews"], "submitted_at", when)
+    return reviews.Sources(
+        comments=parsing.comments(json.dumps(comments)),
+        reviews=parsing.reviews(json.dumps(given)),
+    )
+
+
+def state_at(data: Timeline, when: str, settled: bool = False) -> flow.PullState:
     """What the flow reads of the PR at a time.
 
     Args:
@@ -149,26 +221,12 @@ def state_at(
         The state, with the labels, draft state, head, checks, comments and
         reviews of that time.
     """
-    head = head_at(data, when)
-    pull = {
-        **data["pull"],
-        "head": {"sha": head, "ref": data["pull"]["head"]["ref"]},
-        "draft": draft_at(data, when),
-        "mergeable_state": "clean",
-    }
-    comments = [each for each in data["comments"] if each["created_at"] <= when]
-    posted = reviews.Sources(
-        comments=parsing.comments(json.dumps(comments)),
-        reviews=parsing.reviews(
-            json.dumps(
-                [each for each in data["reviews"] if each["submitted_at"] <= when]
-            )
-        ),
-    )
+    posted = _posted(data, when)
+    pull = parsing.pull(_pull(data, when))
     return flow.PullState(
-        pull=parsing.pull(json.dumps(pull)),
+        pull=pull,
         labels=labels_at(data, when),
-        checks=_checks(data, head, when, settled),
+        checks=_checks(data, pull.head.sha, when, settled),
         graded=reviews.recorded(REVIEW, data["slug"], posted),
         comments=posted.comments,
         trusted=REVIEW.trusted,
@@ -190,9 +248,7 @@ def kind(step: steps.Next) -> str:
     return ":".join(named)
 
 
-def step_at(
-    data: Mapping[str, Any], when: str, settled: bool = False
-) -> steps.Next:
+def step_at(data: Timeline, when: str, settled: bool = False) -> steps.Next:
     """The step the flow gives the PR at a time.
 
     Args:
@@ -207,7 +263,7 @@ def step_at(
 
 
 def printed(name: str, mark: Mark) -> str:
-    """The line a scenario prints at a mark: what the flow gives and what is required.
+    """The line a scenario prints at a mark: what the flow gives there.
 
     Args:
         name: the timeline's name.
@@ -218,19 +274,3 @@ def printed(name: str, mark: Mark) -> str:
     """
     step = step_at(load(name), mark.when, mark.settled)
     return f"{name} {mark.when} [{mark.rule}] {kind(step)}: {steps.describe(step)}"
-
-
-def moments(data: Mapping[str, Any]) -> Sequence[str]:
-    """Every time something happened to the PR, oldest first.
-
-    Args:
-        data: the timeline.
-
-    Returns:
-        The times of its comments, reviews, events and commits.
-    """
-    times = [each["created_at"] for each in data["comments"]]
-    times += [each["created_at"] for each in data["events"]]
-    times += [each["date"] for each in data["commits"]]
-    times += [each["submitted_at"] for each in data["reviews"]]
-    return sorted(set(times))

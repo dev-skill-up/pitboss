@@ -84,6 +84,7 @@ module = [
     "pitboss.nox_commands",
     "pitboss.pinsreview_commands",
     "pitboss.ruling_commands",
+    "pitboss.capture_commands",
     "pitboss.cancel_commands",
     "pitboss.checkinlines",
     "pitboss.sweep_commands",

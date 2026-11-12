@@ -8,5 +8,6 @@ RULE = (
     "the answer to a red check is its cause: either the log names it (the step,"
     " the line) or the next change is the trace or state capture that would show"
     " it (a ticket or a change of its own); a push or a re-run whose only purpose"
-    " is a new run is refused"
+    " is to get rid of a flake is refused (a re-run that works around a GitHub"
+    " problem, such as a run stuck queued with no jobs, is not)"
 )

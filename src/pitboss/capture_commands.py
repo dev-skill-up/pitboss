@@ -9,6 +9,14 @@ from gather.commands import add_argument
 from . import ENTRY_DATA, capture, expand_commands, ghapi
 
 
+def _timeline(pull: str, github: ghapi.GitHub) -> str:
+    found = expand_commands.PULL.match(pull)
+    if not found:
+        raise SystemExit(f"capture-timeline: {pull}: not OWNER/NAME#NUMBER")
+    data = capture.capture(github, found.group(1), int(found.group(2)))
+    return json.dumps(data, indent=1, sort_keys=True) + "\n"
+
+
 @ENTRY_DATA.register(
     add_argument("pull", help="OWNER/NAME#NUMBER: the pull request"),
     add_argument(
@@ -26,16 +34,8 @@ def capture_timeline(args: argparse.Namespace) -> None:
 
     Args:
         args: the parsed arguments.
-
-    Raises:
-        SystemExit: 2 when the argument is not OWNER/NAME#NUMBER.
     """
-    found = expand_commands.PULL.match(args.pull)
-    if not found:
-        raise SystemExit(f"capture-timeline: {args.pull}: not OWNER/NAME#NUMBER")
-    github = ghapi.read_only(args.safe_run)
-    data = capture.capture(github, found.group(1), int(found.group(2)))
-    text = json.dumps(data, indent=1, sort_keys=True) + "\n"
+    text = _timeline(args.pull, ghapi.read_only(args.safe_run))
     if args.to:
         pathlib.Path(args.to).write_text(text, encoding="utf-8")
     else:

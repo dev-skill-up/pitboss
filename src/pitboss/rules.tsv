@@ -62,7 +62,7 @@ B26	2026-11-11	open	A PR body edit keeps the Head: line and expand blocks in ste
 C1	2026-10-31	open	Clean the disk without asking, harder over 90 percent	-	-
 C2	2026-11-09	open	Never remove files under /dev	-	-
 C3	2026-11-04	open	A merged worktree goes on merge	-	-
-C4	2026-11-09	open	Never re-run CI; root-cause a failure from its log	-	-
+C4	2026-11-09	open	Never re-run CI to get rid of a flake; root-cause a failure from its log (a re-run that works around a GitHub problem is allowed)	-	-
 C5	2026-10-30	open	Failed-check details are read through the API	-	-
 C6	2026-10-30	open	A flake is never closed until addressed	-	-
 C7	2026-11-07	open	A relock with green CI and pins-check OK merges with no review and ranks last	-	-
@@ -71,6 +71,7 @@ C9	2026-11-06	open	The sweep lists every org repo	-	-
 C10	2026-10-30	open	The sweep and slots run from the newest pitboss	-	-
 C11	2026-10-31	open	Everything the orchestrator creates is synced	-	-
 C12	2026-11-06	open	A stale remote branch or scratch PR is flagged and closed	-	-
+C13	2026-11-12	enforced	A re-run is refused only when it is to get rid of a flake; a re-run that works around a GitHub problem (a run stuck queued with no jobs) is allowed	rerunrule.refusal	test_rerun_rule.test_c13_a_flake_rerun_is_refused test_rerun_rule.test_c13_a_run_stuck_queued_with_no_jobs_may_be_rerun test_rerun_rule.test_c13_no_text_forbids_a_rerun_for_a_github_problem
 D1	2026-11-10	open	Run pitboss, check its output, override a known bug disclosed	-	-
 D2	2026-11-11	open	Do not report pitboss bugs to the coordinator; diagnose and file	-	-
 D3	2026-11-11	open	The orchestrator owns pitboss and never waits for the owner on a pitboss decision	-	-
