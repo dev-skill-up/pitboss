@@ -8,16 +8,15 @@ from what is recorded of the PR. Its second function is ``rulings.after_opus_rul
 from typing import Sequence
 
 from . import (
-    bodydigest,
     conflicts,
     expansion,
     draftfacts,
     evidence,
     floworder,
+    flowquestions,
     flowstate,
     headline,
     plancheckflow,
-    plandigest,
     planbody,
     reviewfindings,
     ruleconflicts,
@@ -32,7 +31,7 @@ current_for = expansion.current_for
 Subject = expansion.Subject
 Verdict = shapes.Verdict
 Graded = shapes.Graded
-Ci = flowstate.Ci
+Ci = flowquestions.Ci
 PullState = flowstate.PullState
 is_ruling = flowstate.is_ruling
 read_ruling = flowstate.read_ruling
@@ -41,101 +40,11 @@ readable_ruling = flowstate.readable_ruling
 has_conflict = conflicts.has_conflict
 AFTER = rulingafter.AFTER
 Row = floworder.Row[PullState, steps.Next]
-
-
-def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
-    head = Subject.HEAD
-    return [each for each in reviews if current_for(head, each.sha, pr.pull.head.sha)]
-
-
-def newest_counting_review(pr: PullState) -> Graded | None:
-    """The newest regular review of the current head.
-
-    A GitHub review is no regular review. A revision of the plan pushes nothing, so the
-    review of a plan that was revised records an older body digest and does not
-    count; ``plan_approved`` carries its approval. The newest
-    review of the head that records a body digest other than the PR body's
-    does not count either (keyword: body-digest, pitboss#147).
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The review, or None when no regular review names the current head or
-        the newest one read another body.
-    """
-    found = _of_head(pr, flowstate.regular_reviews(pr))
-    newest = max(found, key=lambda each: each.when, default=None)
-    now = bodydigest.digest(pr.pull.body)
-    if newest and not current_for(Subject.BODY, newest.body, now):
-        return None
-    return newest
-
-
-def plan_approved(pr: PullState) -> bool:
-    """Whether some regular review approved the Plan as it is now.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when one did and is current for the Plan section's digest
-        (keyword: current-for); a Plan revised since is graded again.
-    """
-    section = plandigest.section(pr.pull.body)
-    return any(
-        each.plan is Verdict.APPROVED
-        and current_for(Subject.PLAN, each.plan_digest, section)
-        for each in flowstate.regular_reviews(pr)
-    )
-
-
-def plan_revised(pr: PullState) -> bool:
-    """Whether a review approved a Plan that has been revised since.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when a regular review approved the Plan and none approved it as it
-        is now: its re-review is due (keyword: current-for).
-    """
-    approving = any(
-        each.plan is Verdict.APPROVED for each in flowstate.regular_reviews(pr)
-    )
-    return approving and not plan_approved(pr)
-
-
-def get_plan_rejections(pr: PullState) -> int:
-    """How many regular reviews graded the plan changes needed.
-
-    A red CI is no review and is never counted.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The count.
-    """
-    reviews = flowstate.regular_reviews(pr)
-    return sum(each.plan is Verdict.CHANGES_NEEDED for each in reviews)
-
-
-def ci_result(pr: PullState) -> Ci | None:
-    """The result of the checks on the current head.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        RED when a check failed, GREEN when all finished and none failed,
-        None while some run or none has started.
-    """
-    if any(each.failed for each in pr.checks):
-        return Ci.RED
-    if not pr.checks or any(not each.finished for each in pr.checks):
-        return None
-    return Ci.GREEN
+newest_counting_review = flowquestions.newest_counting_review
+plan_approved = flowquestions.plan_approved
+plan_revised = flowquestions.plan_revised
+get_plan_rejections = flowquestions.get_plan_rejections
+ci_result = flowquestions.ci_result
 
 
 def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
@@ -156,7 +65,7 @@ def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
     if answered is None:
         return first
     staged = stagerounds.execution_step(  # keyword: stage-rounds
-        flowstate.newest_ruling(pr), flowstate.regular_reviews(pr), review
+        flowstate.newest_ruling(pr), flowquestions.regular_reviews(pr), review
     )
     if staged is not None:
         return staged
@@ -196,10 +105,10 @@ def unfixed_execution(pr: PullState) -> steps.Next | None:
         pr: the PR, whose Plan is approved.
 
     Returns:
-        With such a rejection (``flowstate.unfixed_rejection``): the step of
+        With such a rejection (``flowquestions.unfixed_rejection``): the step of
         ``rejected``, the fix of the Execution when the ruling revised the Plan.
     """
-    rejecting = flowstate.unfixed_rejection(pr)
+    rejecting = flowquestions.unfixed_rejection(pr)
     if rejecting is None:
         return None
     answered = flowstate.readable_comment(pr)
@@ -330,7 +239,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
             return unfixed_execution(pr) or plancheckflow.execution_review(
                 pr, steps.Stage.EXECUTION_ONLY
             )
-        alone = flowstate.plan_rejected_last(pr) or plan_revised(pr)
+        alone = flowquestions.plan_rejected_last(pr) or plan_revised(pr)
         both = steps.Stage.PLAN_AND_EXECUTION
         return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
 

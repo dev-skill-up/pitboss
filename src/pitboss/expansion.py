@@ -11,7 +11,7 @@ import enum
 import functools
 import hashlib
 import re
-from typing import Callable, Sequence
+from typing import Callable, Mapping, Sequence
 
 MARK = "pitboss-expand"
 DIGEST_KEY = "sha256="
@@ -309,6 +309,13 @@ class Subject(enum.Enum):
     BODY = enum.auto()
 
 
+CURRENT: Mapping[Subject, Callable[[str, str], bool]] = {
+    Subject.PLAN: lambda recorded, now: not section_changed(recorded, now),
+    Subject.HEAD: lambda recorded, now: bool(recorded) and now.startswith(recorded),
+    Subject.BODY: lambda recorded, now: not (now and recorded and recorded != now),
+}
+
+
 def current_for(subject: Subject, recorded: str, now: str) -> bool:
     """Whether something recorded against a subject is current for it.
 
@@ -324,11 +331,7 @@ def current_for(subject: Subject, recorded: str, now: str) -> bool:
         recorded SHA, which must be given. BODY: the two digests do not differ
         when both are given.
     """
-    if subject is Subject.PLAN:
-        return not section_changed(recorded, now)
-    if subject is Subject.HEAD:
-        return bool(recorded) and now.startswith(recorded)
-    return not (now and recorded and recorded != now)
+    return CURRENT[subject](recorded, now)
 
 
 def _command_of(line: str, number: int) -> str:

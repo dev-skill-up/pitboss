@@ -31,8 +31,6 @@ HEADING = re.compile(r"^ {0,3}(?P<hashes>#{1,6})(?:[ \t]+(?P<title>.*))?$")
 EVIDENCE = re.compile(r"Evidence\b", re.IGNORECASE)
 ADOPT_LINE = "`adopt` (tools/adopt of repository-prototype) made this pull request"
 ADOPT_COMMANDS = ("git rev-parse HEAD", "git show --stat")
-REV_PARSE = "$ git rev-parse HEAD"
-HEAD_LINES = re.compile(r"^Head:\s*([0-9a-f]{40})\s*$", re.MULTILINE)
 COMMAND = re.compile(r"^(?:[ \t>]|[-+*](?=[ \t])|\d{1,9}[.)](?=[ \t]))*\$(?:[ \t]|$)")
 # a row ending in `; echo $?`, `&& echo $?` or `|| echo ...` (pitboss#170)
 HEAD_CHECK = "evidence-head"
@@ -346,45 +344,6 @@ def stale_heads(body: str, head: str) -> Sequence[str]:
         if head and produced(each) and each.in_evidence
     ]
     return [each for each in found if each]
-
-
-def rev_parse_blocks(body: str, head: str) -> Sequence[str]:
-    """The Evidence blocks that print `git rev-parse HEAD` and print another SHA.
-
-    The keyword is rev-parse-head (pitboss#329): a fix round that moved the head
-    and the ``Head:`` line but not this block leaves the old output in the body.
-
-    Args:
-        body: the PR's body.
-        head: the SHA the body is judged against, empty to use its last
-            ``Head:`` line (nothing is judged when it has none).
-
-    Returns:
-        A finding for each produced block whose command is `git rev-parse HEAD`
-        and whose first output line is not that SHA, naming both SHAs and the
-        block's line.
-    """
-    heads = HEAD_LINES.findall(body)
-    wanted = head or (heads[-1] if heads else "")
-    found = [
-        (each.line, printed)
-        for each in blocks(body)
-        if wanted and produced(each) and first_row(each) == REV_PARSE
-        for printed in [_printed(each)]
-        if printed != wanted
-    ]
-    return [
-        f"line {line}: the block of `git rev-parse HEAD` prints {printed or 'no SHA'}"
-        f" but the last Head: line is {wanted}: run pitboss expand again"
-        " (rev-parse-head)"
-        for line, printed in found
-    ]
-
-
-def _printed(block: Block) -> str:
-    # the first output line of a block, after its command row
-    lines = block.contents.split("\n")
-    return lines[1].strip() if len(lines) > 1 else ""
 
 
 def prose(body: str) -> str:

@@ -129,7 +129,7 @@ class TestRowsHoldTheirFunctions1(unittest.TestCase):
     def test_a16_ci_gate_5_is_held_by_a_test_of_its_behaviour(self) -> None:
         """A mutant of the row is killed by the test it reruns.
 
-        The mutant: flowstate.plan_rejected_last(pr) or plan_revised(pr) -> f.
+        The mutant: flowquestions.plan_rejected_last(pr) or plan_revised(pr) -> f.
         """
         rerun(
             "pitboss.tests.test_no_drafts_review",

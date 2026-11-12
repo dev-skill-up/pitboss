@@ -9,7 +9,7 @@ a comment so that the reviewer is sent back to write the line (pitboss#444, case
 
 from typing import Sequence
 
-from . import expansion, flowstate, gradeline, shapes
+from . import expansion, flowquestions, flowstate, gradeline, shapes
 
 PREFIX = "REVIEW UNREAD"
 
@@ -25,7 +25,7 @@ def without_execution(state: flowstate.PullState) -> Sequence[str]:
         ``Plan:`` grade and no ``Execution:`` grade although an earlier regular
         review approved the Plan, oldest first.
     """
-    graded = sorted(flowstate.regular_reviews(state), key=lambda each: each.when)
+    graded = sorted(flowquestions.regular_reviews(state), key=lambda each: each.when)
     found: list[str] = []
     for index, each in enumerate(graded):
         if _lacks_execution(state, each, graded[:index]):

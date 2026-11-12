@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import bodydigest, expansion, flowstate, stagerounds, steps
+from .. import bodydigest, expansion, flowquestions, flowstate, stagerounds, steps
 from .test_flow import (
     EXECUTION_REJECTED,
     OLDER,
@@ -30,7 +30,7 @@ def ruled(pr: flowstate.PullState) -> bool:
         What ``stagerounds.plan_stage_ruled`` says of its ruling and reviews.
     """
     return stagerounds.plan_stage_ruled(
-        flowstate.newest_ruling(pr), flowstate.regular_reviews(pr)
+        flowstate.newest_ruling(pr), flowquestions.regular_reviews(pr)
     )
 
 

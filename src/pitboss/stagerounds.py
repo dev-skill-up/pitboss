@@ -25,7 +25,7 @@ def plan_stage_ruled(
 
     Args:
         ruling: the PR's newest ruling (``flowstate.newest_ruling``).
-        reviews: its regular reviews (``flowstate.regular_reviews``).
+        reviews: its regular reviews (``flowquestions.regular_reviews``).
 
     Returns:
         True when a ruling is recorded after a rejection of the Plan and before any

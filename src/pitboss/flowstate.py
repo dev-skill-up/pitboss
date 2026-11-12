@@ -6,7 +6,6 @@ ruling. ``flow`` re-exports them under their names.
 """
 
 import dataclasses
-import enum
 from typing import AbstractSet, Callable, Sequence
 
 from . import (
@@ -18,18 +17,6 @@ from . import (
     shapes,
     steps,
 )
-
-
-class Ci(enum.Enum):
-    """The result of the checks on the current head, once finished.
-
-    Attributes:
-        GREEN: every check finished and none failed.
-        RED: a check failed.
-    """
-
-    GREEN = enum.auto()
-    RED = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -62,57 +49,6 @@ class PullState:
     relock: bool = False
     draft: draftfacts.Draft = draftfacts.Draft()
     unchanged_since: Callable[[str], bool] = lambda sha: False
-
-
-def plan_rejected_last(pr: PullState) -> bool:
-    """Whether the newest regular review graded the Plan changes needed.
-
-    With no review of the current head, this is a Plan written after its
-    rejection, and it is graded alone, as a draft's is (keyword:
-    plan-review-listed, pitboss#167).
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True when the newest regular review of any head rejected the Plan and
-        the repository has drafts (keyword: no-drafts, pitboss#390).
-    """
-    regular = regular_reviews(pr)
-    rejected = bool(regular) and regular[-1].plan is shapes.Verdict.CHANGES_NEEDED
-    return rejected and not pr.draft.no_drafts
-
-
-def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
-    """The newest Execution verdict if it rejects, unanswered (unfixed-execution).
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The Execution-graded review if it rejects and no code moved, else None.
-    """
-    graded = [each for each in regular_reviews(pr) if each.execution is not None]
-    rejecting = graded[-1] if graded else None
-    if rejecting is None or rejecting.execution is not shapes.Verdict.CHANGES_NEEDED:
-        return None
-    moved = not expansion.current_for(  # else a body fix
-        expansion.Subject.HEAD, rejecting.sha, pr.pull.head.sha
-    )
-    return rejecting if moved and pr.unchanged_since(rejecting.sha) else None
-
-
-def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
-    """The regular reviews of a PR, oldest first (no GitHub review).
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        The reviews.
-    """
-    regular = [each for each in pr.graded if each.comment]
-    return sorted(regular, key=lambda each: each.when)
 
 
 def is_trusted_ruling(comment: shapes.Comment, trusted: AbstractSet[str]) -> bool:
