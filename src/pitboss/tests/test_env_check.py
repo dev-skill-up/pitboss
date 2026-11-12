@@ -9,13 +9,14 @@ be in the printed brief of every worker kind, for each kind of repository.
 import argparse
 import pathlib
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
-from .. import brief, envcheck, envrules
+from .. import brief, envcheck, envrules, gaterun
 from . import fakes, world
 from .briefmake import text as brief_text
-from .test_gate_run import Fake
+from .test_gate_run import answering
 
 SLUGS = (
     "bats-lang/bats",
@@ -75,21 +76,22 @@ class TestStanding(unittest.TestCase):
         )
 
 
+def verdicts(runner: gaterun.Runner, slug: str) -> Sequence[str]:
+    """The lines of ``env-check`` for a repository with a runner.
+
+    Args:
+        runner: the fake.
+        slug: the repository.
+
+    Returns:
+        The lines.
+    """
+    args = argparse.Namespace(safe_run=runner, repo=fakes.directory())
+    return list(envcheck.verdicts(args, envrules.NEEDS, envrules.kinds_of(slug)))
+
+
 class TestEnvCheck(unittest.TestCase):
     """The pre-flight command and the refusal of a give-up without it."""
-
-    def verdicts(self, runner: Fake, slug: str) -> list[str]:
-        """The lines of ``env-check`` for a repository with a runner.
-
-        Args:
-            runner: the fake.
-            slug: the repository.
-
-        Returns:
-            The lines.
-        """
-        args = argparse.Namespace(safe_run=runner, repo=fakes.directory())
-        return list(envcheck.verdicts(args, envrules.NEEDS, envrules.kinds_of(slug)))
 
     def test_c35_the_command_reads_its_configuration(self) -> None:
         """The configuration's repository needs nothing here: ``env: ok``, exit 0."""
@@ -99,7 +101,7 @@ class TestEnvCheck(unittest.TestCase):
 
     def test_c35_a_missing_compiler_is_named_with_the_command_to_get_it(self) -> None:
         """No bats on PATH: the line names it and the build from bootstrap/c."""
-        lines = self.verdicts(Fake(status=1, out=""), "bats-lang/bats")
+        lines = verdicts(answering(status=1, out=""), "bats-lang/bats")
         assert_that(lines, has_length(1))
         assert_that(lines[0], contains_string("missing bats"))
         assert_that(lines[0], contains_string("make -C /tmp/seed debug/bats"))
@@ -107,9 +109,9 @@ class TestEnvCheck(unittest.TestCase):
     def test_c35_a_present_tool_is_ok_and_other_repositories_need_nothing(self) -> None:
         """The check passes, or the kind needs nothing."""
         assert_that(
-            self.verdicts(Fake(out="/usr/bin/bats\n"), "bats-lang/bats"), equal_to([])
+            verdicts(answering(out="/usr/bin/bats\n"), "bats-lang/bats"), equal_to([])
         )
-        assert_that(self.verdicts(Fake(status=1), "o/r"), equal_to([]))
+        assert_that(verdicts(answering(status=1), "o/r"), equal_to([]))
 
     def test_c35_giving_up_for_a_missing_tool_needs_the_env_check_output(self) -> None:
         """Refused without the lines, accepted with a missing line, refused with ok."""

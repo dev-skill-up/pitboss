@@ -93,12 +93,23 @@ class Parts:
 
 
 def _schema(parts: Parts) -> Iterator[str]:
-    rows = totalrows.rows(parts.policy.schema)
     yield from (
         f"schema: the row of {field} is of no documented PR field"
-        for field in rows
+        for field in totalrows.rows(parts.policy.schema)
         if field not in parts.policy.schema
     )
+    yield from _variables(parts)
+    passed = {
+        value
+        for value, meaning in parts.declared.get("check-conclusion", {}).items()
+        if meaning == "passed"
+    }
+    if passed != set(totalchecks.OK_CONCLUSIONS):
+        yield "schema: the passed conclusions are not the verdict's"
+
+
+def _variables(parts: Parts) -> Iterator[str]:
+    # each timeline kind in one class, and each documented enum value in its table
     classes = (parts.policy.benign, parts.stale, totalverdict.LABEL_EVENTS)
     for row in parts.variables:
         count = sum(row.value in each for each in classes)
@@ -111,13 +122,6 @@ def _schema(parts: Parts) -> Iterator[str]:
                 f"schema: the {row.group} value {row.value} is documented and is in no"
                 " table"
             )
-    passed = {
-        value
-        for value, meaning in parts.declared.get("check-conclusion", {}).items()
-        if meaning == "passed"
-    }
-    if passed != set(totalchecks.OK_CONCLUSIONS):
-        yield "schema: the passed conclusions are not the verdict's"
 
 
 def _total(parts: Parts, cells: Sequence[totalcells.Cell]) -> Iterator[str]:
@@ -129,13 +133,14 @@ def _total(parts: Parts, cells: Sequence[totalcells.Cell]) -> Iterator[str]:
         return answer
 
     shown = totalcells.tally(cells, verdict)
-    for kind in sorted(set(shown) - {totalcells.FIRES, totalcells.BENIGN}):
-        yield f"total: {shown[kind]} cells of the frozen enumeration are {kind}"
-    for line in sorted(lines):
-        if totalroutes.FORBIDDEN.search(line):
-            yield f"total: a line that says pitboss does not know: {line[:70]}"
-        elif totalroutes.route_of(line, parts.routes) is None:
-            yield f"total: a stop line with no route: {line[:70]}"
+    wrong = set(shown) - {totalcells.FIRES, totalcells.BENIGN}
+    for kind in sorted(wrong, key=lambda each: each.name):
+        yield (f"total: {shown[kind]} cells of the frozen enumeration are {kind.name}")
+    for each in sorted(lines):
+        if totalroutes.FORBIDDEN.search(each):
+            yield f"total: a line that says pitboss does not know: {each[:70]}"
+        elif totalroutes.route_of(each, parts.routes) is None:
+            yield f"total: a stop line with no route: {each[:70]}"
 
 
 def _verbs(parts: Parts) -> Iterator[str]:
@@ -166,6 +171,11 @@ def _forms(parts: Parts) -> Iterator[str]:
     body = parts.forms.ticket(ITEMS, ["src/"], 100, "p1")
     if list(parts.forms.items(body)) != list(ITEMS):
         yield "forms: what `act ticket` writes, the ticket reader reads differently"
+    yield from _instructions(parts)
+
+
+def _instructions(parts: Parts) -> Iterator[str]:
+    # each actor is told its route, and each route's verb is in an instruction
     text = totalroutes.instructions(parts.requirements)
     for actor in sorted(
         {each.actor for each in parts.routes} & set(totalroutes.NEEDS_TEXT)
@@ -180,10 +190,10 @@ def _forms(parts: Parts) -> Iterator[str]:
 
 def _repos(parts: Parts) -> Iterator[str]:
     for name, labels in sorted(parts.labels.items()):
-        for label in labels:
-            if label not in totalanswer.KNOWN_LABELS:
+        for each in labels:
+            if each not in totalanswer.KNOWN_LABELS:
                 yield (
-                    f"repos: {name} has the label {label!r}, which pitboss does not"
+                    f"repos: {name} has the label {each!r}, which pitboss does not"
                     " apply"
                 )
 

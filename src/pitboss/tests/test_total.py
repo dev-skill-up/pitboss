@@ -157,7 +157,7 @@ class TestCover(unittest.TestCase):
             for name in enumeration.values("pitboss-command")
             if name != "mutation-check"
         }
-        assert_that(set(coverwrites.graph(SOURCE).registered), equal_to(names))
+        assert_that(set(coverwrites.call_graph(SOURCE).registered), equal_to(names))
 
     def test_444_a_tool_used_with_no_verb_is_uncovered(self) -> None:
         """With no verbs, a write tool the agents used is UNCOVERED."""
@@ -175,7 +175,7 @@ class TestCover(unittest.TestCase):
             " store_of()\n\n@register(help='y')\ndef other():\n    return 1\n",
             encoding="utf-8",
         )
-        found = coverwrites.graph(source)
+        found = coverwrites.call_graph(source)
         assert_that(
             (dict(found.registered), found.writers),
             equal_to(({"planted": ("planted", "planted")}, {("planted", "planted")})),

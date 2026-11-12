@@ -10,6 +10,7 @@ input that was changed (a stop for another reason proves nothing). A
 
 import collections
 import dataclasses
+import enum
 from typing import Callable, Iterator, Mapping, Sequence
 
 from .. import enumeration, totalschema, totalverdict
@@ -21,8 +22,44 @@ ACTIONS = ("merge", "arm", "undraft")
 SAFE_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
 MERGES_ON = ("clean", "blocked", "has_hooks", "behind")
 READS = ("check_runs", "statuses", "files", "timeline")
-FIRES = "fires"
-BENIGN = "benign"
+UNDRAFT = frozenset({"undraft"})
+MERGE = frozenset({"merge"})
+
+
+class Shown(enum.Enum):
+    """What one cell's verdict shows.
+
+    Attributes:
+        FIRES: an unsafe value stops on its row.
+        BENIGN: a safe value goes.
+        OVERBLOCK: a safe value stops.
+        UNCOVERED: an unsafe value goes.
+        WRONGROW: an unsafe value stops on another row.
+    """
+
+    FIRES = enum.auto()
+    BENIGN = enum.auto()
+    OVERBLOCK = enum.auto()
+    UNCOVERED = enum.auto()
+    WRONGROW = enum.auto()
+
+
+FIRES = Shown.FIRES
+BENIGN = Shown.BENIGN
+COMPOUND = ("object", "`", "array")
+UNRULED = frozenset({"milestone"})
+COMPLETED = frozenset({"completed"})
+PENDING = frozenset({"pending"})
+SUCCESS = frozenset({"success"})
+BEHIND = frozenset({"behind"})
+CHANGES_REQUESTED = frozenset({"CHANGES_REQUESTED"})
+PLAN_LINE = frozenset({"plan-line"})
+OPEN = frozenset({"open"})
+REOPENED = frozenset({"reopened", "null"})
+NULL = frozenset({"null"})
+READ_OK = frozenset({"200"})
+READ_FINE = frozenset({"200", "304"})
+CHANGES = frozenset({"changes"})
 Verdict = Callable[[str, JsonMap, JsonMap], totalverdict.Answer]
 
 
@@ -77,7 +114,8 @@ def world_of(
     Returns:
         The world.
     """
-    fields = {**({"draft": True} if given.action == "undraft" else {}), **(pull or {})}
+    drafted = {"draft": True} if given.action in UNDRAFT else {}
+    fields = {**drafted, **(pull or {})}
     return totalworld.change(given.base, fields, ctx, events)
 
 
@@ -89,16 +127,14 @@ def _cell(given: Given, world: World, safe: bool, row: str) -> Cell:
 def _field(given: Given) -> Iterator[Cell]:
     declaration = totalschema.schema()[given.value]
     head = totalschema.head_of(declaration)
-    bad: object = (
-        "x" if ("object" in head or "`" in head or "array" in head) else {"x": 1}
-    )
+    bad: object = "x" if any(each in head for each in COMPOUND) else {"x": 1}
     if "any of" in declaration:
         bad = {
             **members(given.base.pull.get(given.value)),
             "repo": {"full_name": "someone/fork"},
         }
     wrong = world_of(given, pull={given.value: bad})
-    yield _cell(given, wrong, given.value == "milestone", given.value)
+    yield _cell(given, wrong, given.value in UNRULED, given.value)
     gone = world_of(given)
     gone.pull.pop(given.value, None)
     yield _cell(given, gone, not totalschema.required(declaration), given.value)
@@ -126,9 +162,9 @@ def _conclusion(given: Given) -> Iterator[Cell]:
 
 
 def _status(given: Given) -> Iterator[Cell]:
-    done = given.value == "completed"
+    done = given.value in COMPLETED
     world = _with_check(given, given.value, "success" if done else None)
-    yield _cell(given, world, done or given.action != "merge", "check ")
+    yield _cell(given, world, done or given.action not in MERGE, "check ")
 
 
 def _state(given: Given) -> Iterator[Cell]:
@@ -136,16 +172,16 @@ def _state(given: Given) -> Iterator[Cell]:
         *records(given.base.ctx["statuses"]),
         {"context": "check-e2e", "state": given.value},
     ]
-    pending = given.value == "pending" and given.action != "merge"
+    pending = given.value in PENDING and given.action not in MERGE
     world = world_of(given, ctx={"statuses": statuses})
-    yield _cell(given, world, given.value == "success" or pending, "status ")
+    yield _cell(given, world, given.value in SUCCESS or pending, "status ")
 
 
 def _merge_state(given: Given) -> Iterator[Cell]:
-    undraft = given.action == "undraft"
+    undraft = given.action in UNDRAFT
     world = world_of(given, pull={"mergeable_state": given.value})
     yield _cell(given, world, undraft or given.value in MERGES_ON, "mergeable_state=")
-    if given.value == "behind":
+    if given.value in BEHIND:
         alone = world_of(
             given, pull={"mergeable_state": given.value}, ctx={"merge_queue": False}
         )
@@ -155,12 +191,12 @@ def _merge_state(given: Given) -> Iterator[Cell]:
 def _mergeable(given: Given) -> Iterator[Cell]:
     value = {"true": True, "false": False}.get(given.value)
     world = world_of(given, pull={"mergeable": value})
-    yield _cell(given, world, value is True or given.action == "undraft", "mergeable=")
+    yield _cell(given, world, value is True or given.action in UNDRAFT, "mergeable=")
 
 
 def _review_state(given: Given) -> Iterator[Cell]:
     event = {"event": "reviewed", "state": given.value.lower(), "body": ""}
-    safe = given.value != "CHANGES_REQUESTED" or given.action == "undraft"
+    safe = given.value not in CHANGES_REQUESTED or given.action in UNDRAFT
     yield _cell(given, world_of(given, events=[event]), safe, "review:")
 
 
@@ -191,7 +227,7 @@ def review_variants(base: World) -> Mapping[str, str]:
 def _review_comment(given: Given) -> Iterator[Cell]:
     text = review_variants(given.base)[given.value]
     event = {"event": "commented", "user": {"login": totalworld.ACT}, "body": text}
-    safe = given.action == "undraft" and given.value != "plan-line"
+    safe = given.action in UNDRAFT and given.value not in PLAN_LINE
     yield _cell(given, world_of(given, events=[event]), safe, "review:")
 
 
@@ -202,7 +238,7 @@ def _ticket(given: Given, ticket: object, safe: bool) -> Iterator[Cell]:
 
 def _ticket_state(given: Given) -> Iterator[Cell]:
     ticket = {**_open_ticket(given), "state": given.value}
-    yield from _ticket(given, ticket, given.value == "open")
+    yield from _ticket(given, ticket, given.value in OPEN)
 
 
 def _open_ticket(given: Given) -> JsonMap:
@@ -212,8 +248,8 @@ def _open_ticket(given: Given) -> JsonMap:
 
 
 def _ticket_reason(given: Given) -> Iterator[Cell]:
-    opened = given.value in ("reopened", "null")
-    reason = None if given.value == "null" else given.value
+    opened = given.value in REOPENED
+    reason = None if given.value in NULL else given.value
     ticket = {
         **_open_ticket(given),
         "state": "open" if opened else "closed",
@@ -230,7 +266,7 @@ def _ticket_read(given: Given) -> Iterator[Cell]:
         "locked": {**read, "locked": True},
     }
     found = tickets.get(given.value, {"_error": f"HTTP {given.value}"})
-    yield from _ticket(given, found, given.value == "200")
+    yield from _ticket(given, found, given.value in READ_OK)
 
 
 def _file(
@@ -252,7 +288,7 @@ def _file_status(given: Given) -> Iterator[Cell]:
 
 
 def _file_size(given: Given) -> Iterator[Cell]:
-    key = "additions" if given.value == "changes" else given.value
+    key = "additions" if given.value in CHANGES else given.value
     found = {
         "filename": "src/x.bats",
         "status": "modified",
@@ -260,7 +296,7 @@ def _file_size(given: Given) -> Iterator[Cell]:
         "deletions": 0,
         key: 5000,
     }
-    yield from _file(given, [found], given.action == "undraft")
+    yield from _file(given, [found], given.action in UNDRAFT)
 
 
 def _file_path(given: Given) -> Iterator[Cell]:
@@ -271,12 +307,12 @@ def _file_path(given: Given) -> Iterator[Cell]:
         for each in records(given.base.ctx["statuses"])
         if each.get("context") != "text-lint"
     ]
-    safe = given.action == "undraft" or given.value.endswith("CODEOWNERS")
+    safe = given.action in UNDRAFT or given.value.endswith("CODEOWNERS")
     yield from _file(given, [found], safe, {"statuses": statuses})
 
 
 def _read_outcome(given: Given) -> Iterator[Cell]:
-    if given.value in ("200", "304"):
+    if given.value in READ_FINE:
         yield _cell(given, world_of(given), True, "-")
         return
     for key in READS:
@@ -289,10 +325,6 @@ def _read_outcome(given: Given) -> Iterator[Cell]:
             False,
             f"input {key}",
         )
-
-
-def _none(given: Given) -> Iterator[Cell]:
-    return iter(())
 
 
 GROUPS: Mapping[str, Callable[[Given], Iterator[Cell]]] = {
@@ -312,7 +344,7 @@ GROUPS: Mapping[str, Callable[[Given], Iterator[Cell]]] = {
     "file-size": _file_size,
     "file-path": _file_path,
     "read-outcome": _read_outcome,
-    "ruleset-rule": _none,
+    "ruleset-rule": lambda given: iter(()),
 }
 
 
@@ -333,7 +365,7 @@ def cells(base: World) -> Sequence[Cell]:
     return found
 
 
-def judge(cell: Cell, answer: totalverdict.Answer) -> str:
+def judge(cell: Cell, answer: totalverdict.Answer) -> Shown:
     """What one cell's verdict shows.
 
     Args:
@@ -341,17 +373,17 @@ def judge(cell: Cell, answer: totalverdict.Answer) -> str:
         answer: the verdict on its world.
 
     Returns:
-        ``fires``, ``benign``, or ``UNCOVERED``, ``OVERBLOCK`` or ``WRONGROW``.
+        What it shows.
     """
     if cell.safe:
-        return BENIGN if answer.word == totalverdict.GO else "OVERBLOCK"
+        return BENIGN if answer.word == totalverdict.GO else Shown.OVERBLOCK
     if answer.word == totalverdict.GO:
-        return "UNCOVERED"
+        return Shown.UNCOVERED
     hit = any(line.startswith((cell.row, "input")) for line in answer.lines)
-    return FIRES if hit else "WRONGROW"
+    return FIRES if hit else Shown.WRONGROW
 
 
-def tally(found: Sequence[Cell], verdict: Verdict) -> Mapping[str, int]:
+def tally(found: Sequence[Cell], verdict: Verdict) -> Mapping[Shown, int]:
     """Run every cell and count what each shows.
 
     Args:
@@ -361,7 +393,7 @@ def tally(found: Sequence[Cell], verdict: Verdict) -> Mapping[str, int]:
     Returns:
         The count of each judgement.
     """
-    counts: collections.Counter[str] = collections.Counter()
+    counts: collections.Counter[Shown] = collections.Counter()
     for cell in found:
         counts[judge(cell, verdict(cell.action, cell.world.pull, cell.world.ctx))] += 1
     return counts
