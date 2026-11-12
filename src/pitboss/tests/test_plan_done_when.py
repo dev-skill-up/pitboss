@@ -188,6 +188,15 @@ class TestMeasurement(unittest.TestCase):
                     found = plandonewhen.findings(row_of(ticket, own), ticket)
                     assert_that(list(found), equal_to([]))
 
+    def test_a36_a_demonstrated_by_command_is_the_command_the_row_runs(self) -> None:
+        """Rp 683: the item said `demonstrated by` a command; the row ran a script."""
+        ticket = measured("demonstrated", "by", "bats lint x")
+        said = [
+            [each[:16] for each in plandonewhen.findings(row_of(ticket, own), ticket)]
+            for own in ("`bash scripts/check.sh`", "`bats lint x`")
+        ]
+        assert_that(said, equal_to([["plan-measurement"], []]))
+
     def test_the_copy_alone_is_not_running_it(self) -> None:
         """Done-when: the command inside the copied item is not the row's own."""
         ticket = measured("measured", "by", MEASURE)

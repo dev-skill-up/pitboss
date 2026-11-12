@@ -8,7 +8,7 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, lintinput, phrases, rules
+from . import ENTRY_DATA, decidable, lintinput, phrases, rules
 
 REGISTER = "rules.tsv"
 
@@ -80,6 +80,8 @@ def rules_check(args: argparse.Namespace) -> None:
     found = [*bad, *rules.findings(rows, function_known, module_text)]
     if not args.register:
         found += rules.coverage_findings(rows, table_ids())
+        held = decidable.parse(phrases.shipped_text("decidable.tsv"))
+        found += decidable.findings(rows, held)
     for each in found:
         print(each)
     unenforced = rules.open_ids(rows)

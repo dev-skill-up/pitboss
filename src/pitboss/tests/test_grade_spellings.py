@@ -11,7 +11,7 @@ and this test derives the spellings each side accepts and compares them.
 import unittest
 from typing import Callable, Sequence
 
-from hamcrest import assert_that, empty, equal_to, has_length, is_not
+from hamcrest import assert_that, contains_string, empty, equal_to, has_length, is_not
 
 from .. import (
     config,
@@ -200,3 +200,21 @@ class TestGradeSpellings(unittest.TestCase):
         refused, passed = lint_review("ok"), lint_review("approved")
         said = [("review-grade" in each.out, each.code) for each in (refused, passed)]
         assert_that(said, equal_to([(True, 1), (False, 0)]))
+
+    def test_quire_1110_a_prose_plan_line_is_refused_with_the_words_printed(
+        self,
+    ) -> None:
+        """Quire 1110: a prose ``Plan:`` line is named, never ignored."""
+        prose = (
+            "the Plan covers every Done-when item",
+            "sound, every row has its command",
+            "Approved by me",
+        )
+        for line in prose:
+            with self.subTest(line):
+                found = reviewrules.grade_findings(_comment(line), FORM)
+                assert_that(found, has_length(1))
+                assert_that(found[0], contains_string(f"Plan: {line}"))
+                assert_that(found[0], contains_string("`Plan: approved`"))
+                assert_that(found[0], contains_string("`Plan: changes needed`"))
+                assert_that(read_by_the_sweep(_comment(line)), equal_to(False))

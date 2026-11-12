@@ -33,7 +33,18 @@ INTERPRETATION = "plan-interpretation"
 DIGEST_PREFIX = "Done-when digest: "
 SHOWN = 100
 RULE = "meet the Done-when as written, or prove it impossible"
-VERBS = ("measured", "counted", "checked", "shown", "printed", "reported", "found")
+VERBS = (
+    "measured",
+    "counted",
+    "checked",
+    "shown",
+    "printed",
+    "reported",
+    "found",
+    "demonstrated",
+    "verified",
+    "proved",
+)
 PREPOSITIONS = ("by", "with", "using")
 MEASURED = re.compile(
     r"\b(?:" + "|".join(VERBS) + r")\s+(?:" + "|".join(PREPOSITIONS) + r")\s+"

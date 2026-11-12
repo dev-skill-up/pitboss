@@ -1,0 +1,31 @@
+# id	verdict	detail: the detecting function (checked) or the reason no check can decide (outside: REASON)
+A17	outside	whether a review stayed inside a merge's resolution is the reviewer's judgement of the diff; the head that is only a merge of main is decided by pinsonly and the flow (A29, A16)
+A23	outside	whether a review lists every finding is judgement; reviews.missed counts the findings a later round adds, which is the nearest input a program reads
+A32	outside	the harness adds attribution outside the body pitboss reads (owner ruling pitboss#282: footers are ignored, never managed), and an assignment or review request is an API event of the owner's account, not text pitboss is given
+A33	outside	a pin file edited by a tool and one edited by hand have the same diff; bats pins-check and the relock are the verifiers (A29 is enforced), not text of ours
+A34	outside	a shim for a weak engine is a design, not a string or a path
+B3	outside	what an agent tells the owner is a conversation pitboss never receives
+B4	outside	the coordinator's message is a conversation pitboss never receives
+B5	outside	whether slots next was run before a dispatch is the agent's order of calls; the ledger records a dispatch, not the command before it
+B8	checked	foldline.lines
+B11	outside	the task list is the harness's state, not a file pitboss reads
+B12	outside	the checklist is the harness's state, not a file pitboss reads
+B13	checked	checkin.overdue
+B14	outside	how many times a worker ran pitboss nox is not recorded; the result of the pushed head is checked by hand-back-check
+B24	checked	polling.waits
+C6	checked	flake.unmarked_line
+C8	outside	whether a secret is set is the repository settings' state, which the token pitboss runs with cannot read
+C9	checked	ownerrepos.widened
+C10	checked	outdated.lines
+D1	checked	itempick.taken
+D2	outside	whether an agent reports a bug to the coordinator is a conversation pitboss never receives
+D3	outside	whether the orchestrator waits for the owner is a conversation pitboss never receives
+D4	outside	what an agent says about having checked is conversation, and a sentence that says it is no test of whether it was done
+D7	outside	whether the owner acted is a fact in his accounts and in his words, which pitboss is not given
+D8	outside	whether an agent treats a ruling as approved is its behaviour; ruling post and the flow act on the comment (A2)
+D9	outside	an artifact is any markdown the agent attaches to a question in a conversation pitboss never receives
+D10	outside	which thread read a CI artifact is the harness's routing, which pitboss never receives
+D12	outside	privacy of the owner is not a property of any text pitboss reads
+D13	outside	the coordinator's instructions are conversation pitboss never receives
+D14	outside	attaching a missing repository is the thread's action in the harness
+D15	outside	a decision card is the harness's object; resolving it is an event pitboss is not told

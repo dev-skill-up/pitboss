@@ -12,6 +12,7 @@ from typing import Sequence
 from . import planrowtext
 
 SCRATCH_CHECK = "plan-scratch"
+PATH_CHECK = "plan-path"
 SECTION_CHECK = "execution-section"
 POINTER_CHECK = "execution-pointer"
 SCRATCH_ROOTS = ("/tmp", "/var/tmp")
@@ -20,6 +21,12 @@ SCRATCH = (
     " container cannot read it; the data a row needs goes in the PR body, a PR"
     " comment or the ticket (read by `gh api`), and a directory the row makes"
     " itself (`mktemp -d`, `mkdir`) is the only path under /tmp it may name"
+)
+OUTSIDE = (
+    "{check}: Plan row {number} names the path {path}, which is outside the"
+    " repository: a reviewer in a new container has no such path; a row runs a"
+    " command of the checkout by its relative path, and the data it needs is in"
+    " the PR body, a PR comment or the ticket (keyword: plan-path, A35)"
 )
 NO_SECTION = (
     "{check}: the body has no `## Execution` section though the branch has code"
@@ -32,7 +39,14 @@ NO_POINTER = (
     " the step in backticks and the greppable string in backticks"
 )
 EXECUTION = "## Execution"
-_MAKES = re.compile(r"\bmktemp\b|\bmkdir\s+(?:-\w+\s+)*(\S+)")
+_MAKES = re.compile(r"\bmktemp\s+(?:-[\w-]+\s+)*(\S+)|\bmkdir\s+(?:-\w+\s+)*(\S+)")
+_ROOTS = r"tmp|var|home|Users|root|mnt|opt|private|srv|run|usr|etc|proc|sys|workspace"
+_OUTSIDE = re.compile(
+    rf"(?<![\w./:@-])(?:/(?:{_ROOTS})(?:/[\w./@+=,%-]*)?|~/[\w./@+=,%-]*"
+    r"|\$\{?(?:HOME|TMPDIR|SCRATCH\w*)\}?(?:/[\w./@+=,%-]*)?)(?![\w.-])"
+)
+_SCRATCHPAD = re.compile(r"[\w./@+=,%-]*scratchpad[\w./@+=,%-]*")
+_SYSTEM = ("/usr/bin/", "/bin/", "/usr/local/bin/", "/dev/")
 _CI_ROW = re.compile(r"\bCI\b")
 _JOB_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+/job/\d+")
 _WORKFLOW = re.compile(r"\b[\w.-]+\.ya?ml\b")
@@ -48,8 +62,8 @@ def _paths(row: str, scratch: Sequence[str]) -> Sequence[str]:
 
 def _own(path: str, row: str) -> bool:
     # a directory the row's own command makes; mktemp makes any it names
-    made = [each.group(1) or "" for each in _MAKES.finditer(row)]
-    return any(each == "" or path.startswith(each.strip("'\"")) for each in made)
+    made = [each.group(1) or each.group(2) for each in _MAKES.finditer(row)]
+    return any(path.startswith(each.strip("'\"")) for each in made)
 
 
 def scratch_findings(
@@ -73,6 +87,37 @@ def scratch_findings(
             found.append(
                 SCRATCH.format(check=SCRATCH_CHECK, number=number, path=paths[0])
             )
+    return found
+
+
+def _outside(row: str) -> Sequence[str]:
+    spans = planrowtext.spans(row)
+    found = [each for span in spans for each in _OUTSIDE.findall(span)]
+    found += [each for span in spans for each in _SCRATCHPAD.findall(span)]
+    return [
+        each
+        for each in found
+        if not each.startswith((*_SYSTEM, *SCRATCH_ROOTS))
+        and not _own(each, " ".join(spans))
+    ]
+
+
+def path_findings(body: str) -> Sequence[str]:
+    """The Plan rows whose commands name a path outside the repository (A35).
+
+    Args:
+        body: the PR's body.
+
+    Returns:
+        A finding for each numbered Plan row with a backticked span that names
+        an absolute path under a system root, a path of the home directory or a
+        scratchpad, but a path of a directory the row itself makes.
+    """
+    found = []
+    for number, row in planrowtext.rows(body).items():
+        paths = _outside(row)
+        if paths:
+            found.append(OUTSIDE.format(check=PATH_CHECK, number=number, path=paths[0]))
     return found
 
 

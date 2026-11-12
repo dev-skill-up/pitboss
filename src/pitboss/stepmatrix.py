@@ -38,16 +38,17 @@ def members(
 
 
 def parse(text: str) -> Mapping[str, tuple[str, str]]:
-    """The rows of the file.
+    """The rows of a three-column file.
 
     Args:
-        text: the file: ``member TAB needs TAB reason`` on each line.
+        text: the file: ``name TAB word TAB rest`` on each line; ``#`` lines and
+            blank lines are skipped.
 
     Returns:
-        The needs and the reason of each member.
+        The word and the rest of each name.
     """
     parsed: dict[str, tuple[str, str]] = {}
-    for line in filter(str.strip, text.splitlines()):
+    for line in filter(lambda each: each.strip() and each[0] != "#", text.splitlines()):
         name, need, *why = line.split("\t")
         parsed[name] = (need, "".join(why))
     return parsed

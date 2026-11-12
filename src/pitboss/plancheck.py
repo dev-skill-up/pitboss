@@ -212,6 +212,7 @@ def form_findings(body: str, section: str, changed: Sequence[str]) -> Sequence[s
         *planpointers.findings(section),
         *markupclaim.findings(body, changed),
         *bodyrules.scratch_findings(body),
+        *bodyrules.path_findings(body),
         *(bodyrules.section_findings(body) if changed else []),
         *bodyrules.pointer_findings(body),
     ]
@@ -231,6 +232,7 @@ KINDS = (
     (plandonewhen.FORM, "Done-when form findings"),
     (plandonewhen.INTERPRETATION, "Interpretation findings"),
     (bodyrules.SCRATCH_CHECK, "Scratch path findings"),
+    (bodyrules.PATH_CHECK, "Outside path findings"),
     (bodyrules.SECTION_CHECK, "Execution section findings"),
     (bodyrules.POINTER_CHECK, "Execution pointer findings"),
 )
