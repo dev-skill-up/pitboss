@@ -322,6 +322,13 @@ def _ruling(spec: Spec) -> list[str]:
     return [brieftextfix.RULING_NAMED] if named else []
 
 
+def _push_lines(kind: Kind, project: briefconfig.Brief) -> list[str]:
+    # keyword: plan-revision (quire#1120): a body-only revision pushes nothing
+    if kind is Kind.REVISE_PLAN:
+        return [brieftextfolded.BODY_ONLY]
+    return [brieftextdraft.PUSHES[(project.holds, project.drafts)], text.NO_WAITING]
+
+
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
     new = spec.kind is Kind.NEW_PR
@@ -341,8 +348,7 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         brieftextlint.LINT_TEST,
         brieftextlint.MARKUP_LINES,
         *_plan_lines(spec.kind),
-        brieftextdraft.PUSHES[(project.holds, project.drafts)],
-        text.NO_WAITING,
+        *_push_lines(spec.kind, project),
         text.FINISH,
         text.HAND_BACK,
     ]

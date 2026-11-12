@@ -79,3 +79,9 @@ RELOCK_TEST_FIX = (
 EXECUTION_REVIEW = (SYNTAX_SCAN_REVIEW, DEVIATION_REVIEW)
 PLAN_REVIEW = (SCRATCH_REVIEW, DESIGN_REVIEW)
 WORKER = (SYNTAX_SCAN_WORKER, SCRATCH_WORKER, DESIGN_WORKER)
+BODY_ONLY = (
+    "Body only (keyword: plan-revision, quire#1120): edit the PR body; the Head"
+    " line names the current head, which is the pushed head; no push, and no"
+    " commit of any kind: `uvx pitboss lint pr-body` accepts the unchanged head."
+    " Hand back at once with the body digest."
+)
