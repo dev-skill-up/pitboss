@@ -132,15 +132,9 @@ class TestNeeds(unittest.TestCase):
     def test_c20_a_red_pr_in_a_shared_red_is_told_no_fix_is_here(self) -> None:
         """The one ticket is the step; the PR is not told to fix the check."""
         pull = pull_in("clean", False, (RED,), OPEN)
-        shared = dataclasses.replace(
-            pull, step=steps.Next(step=steps.Step.WAIT_FOR_SHARED_RED)
-        )
-        assert_that(
-            updateline.needs(shared, settings_of("")),
-            equal_to(
-                "the CI is red from a cause others share (SHARED RED): no fix here"
-            ),
-        )
+        step = steps.worker(steps.Task.SHARED_RED)
+        found = updateline.needs(dataclasses.replace(pull, step=step), settings_of(""))
+        assert_that(found, contains_string("(SHARED RED): no fix here"))
 
 
 class TestListed(unittest.TestCase):

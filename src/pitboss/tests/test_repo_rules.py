@@ -108,21 +108,26 @@ class TestBrief(unittest.TestCase):
         assert_that(reporules.read(fakes.github({}), "owner/none"), equal_to(""))
 
 
+def ruled(body: str) -> world.Result:
+    """Run `lint repo-rules` on the new script, pwa's CLAUDE.md and a body.
+
+    Args:
+        body: the PR body.
+
+    Returns:
+        What it did.
+    """
+    diff, claude = write_text("change.diff", NEW_SCRIPT), write_text("CLAUDE.md", PWA)
+    return lint("repo-rules", diff, claude, write_text("body.md", body))
+
+
 class TestLintCommand(unittest.TestCase):
     """`lint repo-rules DIFF CLAUDE.md BODY` is the rules as a command."""
 
-    def test_c22_lint_repo_rules_flags_a_script_and_passes_a_named_avenue(self) -> None:
-        """A new script with no avenue is a finding; the avenue in the body clears it."""
-        diff = write_text("change.diff", NEW_SCRIPT)
-        claude = write_text("CLAUDE.md", PWA)
-        bare = lint("repo-rules", diff, claude, write_text("body.md", "Fixes #1\n"))
-        named = lint(
-            "repo-rules",
-            diff,
-            claude,
-            write_text(
-                "named.md", "Fixes #1\nThe avenue exhausted: bats has no sleep\n"
-            ),
-        )
-        assert_that(bare.code, equal_to(1))
-        assert_that(named.out, equal_to("ok\n"))
+    def test_c22_lint_repo_rules_flags_a_script_with_no_avenue(self) -> None:
+        """A new script and a body that names none is a finding."""
+        assert_that(ruled("Fixes #1\n").code, equal_to(1))
+
+    def test_c22_lint_repo_rules_passes_a_named_avenue(self) -> None:
+        """The avenue in the body clears the finding."""
+        assert_that(ruled(f"Fixes #1\n{AVENUE}\n").out, equal_to("ok\n"))
