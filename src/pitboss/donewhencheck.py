@@ -1,14 +1,14 @@
-"""The Done-when of pitboss#444 as a check: each item's tests, on the head and a base.
+"""The Done-when of pitboss#444 as a pairing: each item's tests exist.
 
 ``donewhen.tsv`` pairs each item of the ticket's Done-when with the tests that
 demonstrate it: a rule id of the register (all of that row's tests) or a test
-``module.name``. The check holds when, for every item, each named test exists and
-passes on the head, and at least one fails on the base (keyword: done-when-check).
-The module runs nothing: whether a test exists and passes is given.
+``module.name``. The check holds when every item names tests and each exists; that
+they pass on the head is the test run, and that they fail on the base is
+``pitboss base-check`` (keyword: done-when-check). The module runs nothing.
 """
 
 import dataclasses
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Sequence
 
 from . import rules
 
@@ -26,21 +26,6 @@ class Item:
 
     number: str
     tokens: Sequence[str]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Checks:
-    """What is known of the tests.
-
-    Attributes:
-        exists: whether a test ``module.name`` is there.
-        head: whether it passes on the head.
-        base: whether it passes on the base.
-    """
-
-    exists: Verdict
-    head: Mapping[str, bool]
-    base: Mapping[str, bool]
 
 
 def parse(text: str) -> Sequence[Item]:
@@ -102,44 +87,3 @@ def missing(
 
 def _is(test: str, exists: Verdict) -> bool:
     return "." in test and exists(test)
-
-
-def refusals(
-    items: Sequence[Item], rows: Sequence[rules.Row], checks: Checks
-) -> Sequence[str]:
-    """What keeps the Done-when from being demonstrated.
-
-    Args:
-        items: the items.
-        rows: the register's rows.
-        checks: what is known of the tests.
-
-    Returns:
-        The findings of ``missing``, a finding for each test that does not pass on
-        the head, and for each item whose tests all pass on the base.
-    """
-    found = [*missing(items, rows, checks.exists)]
-    for entry in items:
-        tests = [t for t in tests_of(entry, rows) if _is(t, checks.exists)]
-        found += [
-            f"item {entry.number}: {t} fails on the head"
-            for t in tests
-            if not checks.head.get(t, False)
-        ]
-        if tests and all(checks.base.get(t, False) for t in tests):
-            found.append(f"item {entry.number}: no named test fails on the base")
-    return found
-
-
-def one_line(found: Sequence[str]) -> str:
-    """The one line the command prints.
-
-    Args:
-        found: the refusals.
-
-    Returns:
-        ``done-when check: ok``, or the count and the first refusal.
-    """
-    if not found:
-        return "done-when check: ok"
-    return f"done-when check: refused, {len(found)} findings, first: {found[0]}"

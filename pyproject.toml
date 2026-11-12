@@ -81,7 +81,7 @@ module = [
     "pitboss.next_commands",
     "pitboss.count_commands",
     "pitboss.rules_commands",
-    "pitboss.donewhen_commands",
+    "pitboss.basecheck_commands",
     "pitboss.sync_commands",
     "pitboss.nox_commands",
     "pitboss.pinsreview_commands",

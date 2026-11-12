@@ -1,4 +1,4 @@
-"""Run the Done-when's tests on the head and on a base (pitboss#444, done-when-check).
+"""Run tests on the head and on a base (pitboss#444, base-check, done-when-check).
 
 The tests of the head are copied over a scratch worktree of the base, so a test of
 behaviour the base lacks fails there by its own assertion or its import.
@@ -16,7 +16,7 @@ import sys
 import tempfile
 from typing import Iterator, Mapping, Sequence
 
-from . import donewhencheck, rules, rules_commands
+from . import rules_commands
 
 WORKERS = 8
 # The commands register themselves on import; a test run alone needs all of them.
@@ -114,7 +114,7 @@ def base_source(repo: pathlib.Path, ref: str) -> Iterator[pathlib.Path]:
     Yields:
         The directory that holds the base's ``pitboss`` package.
     """
-    with tempfile.TemporaryDirectory(prefix="done-when-") as scratch:
+    with tempfile.TemporaryDirectory(prefix="base-check-") as scratch:
         tree = pathlib.Path(scratch) / "tree"
         git(repo, "worktree", "add", "--detach", str(tree), ref)
         try:
@@ -122,27 +122,3 @@ def base_source(repo: pathlib.Path, ref: str) -> Iterator[pathlib.Path]:
             yield tree / "src"
         finally:
             git(repo, "worktree", "remove", "--force", str(tree))
-
-
-def measure(
-    items: Sequence[donewhencheck.Item],
-    rows: Sequence[rules.Row],
-    base: tuple[pathlib.Path, str],
-) -> donewhencheck.Checks:
-    """Run the tests the items name on the head and on the base.
-
-    Args:
-        items: the items.
-        rows: the register's rows.
-        base: a checkout of pitboss and the ref of the base in it.
-
-    Returns:
-        What is known of the tests.
-    """
-    named = {t for each in items for t in donewhencheck.tests_of(each, rows)}
-    tests = sorted(each for each in named if "." in each)
-    head_src = pathlib.Path(str(importlib.resources.files("pitboss"))).parent
-    with base_source(*base) as base_src:
-        return donewhencheck.Checks(
-            exists=exists, head=run_all(tests, head_src), base=run_all(tests, base_src)
-        )
