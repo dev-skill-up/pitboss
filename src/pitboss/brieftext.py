@@ -276,7 +276,9 @@ SCOPE_FULL = (
 SCOPE_EXECUTION = (
     "Scope: the Execution of head {head}, against the approved Plan and the"
     " ticket's Done-when. The Plan is approved: grade only the Execution, and"
-    " write `Plan: approved (fixed)`; do not reassess or discuss the Plan. A gap"
+    " write `Plan: approved (fixed)` and an `Execution:` line with your verdict, the"
+    " same word as the `Verdict:` line (a review with no `Execution:` line is not"
+    " read: REVIEW UNREAD); do not reassess or discuss the Plan. A gap"
     " you see in the Plan is a request for an Opus ruling, never a Plan finding."
 )
 SCOPE_PLAN = (

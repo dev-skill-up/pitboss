@@ -26,6 +26,8 @@ from . import (
     pullsource,
     relock,
     reviews,
+    reviewunread,
+    rulingreason,
     rounds,
     shapes,
     steps,
@@ -51,6 +53,8 @@ class PullFacts:
         review_rounds: what its review rounds show.
         relock: whether its head branch starts with the relock prefix
             (keyword: relock).
+        ruled_at: the times of its newest ruling and Plan check when its step is
+            the review of a ruling's steps (keyword: ruling-reason).
     """
 
     repo: config.Repo
@@ -67,6 +71,7 @@ class PullFacts:
     step: steps.Next
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
+    ruled_at: tuple[str, str] = ("", "")
 
 
 def unhealthy(facts: PullFacts) -> bool:
@@ -271,7 +276,11 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
 
 
 def _unreadable(
-    source: Source, repo: config.Repo, got: Fetched, found: reviews.Found | None
+    source: Source,
+    repo: config.Repo,
+    got: Fetched,
+    found: reviews.Found | None,
+    state: flowstate.PullState,
 ) -> straycomments.StrayComments:
     rules = reviews.rules(source.review, repo.slug)
     seen = (got.posted.comments, source.review.trusted)
@@ -280,6 +289,7 @@ def _unreadable(
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
         unanalysed=analysis.unanalysed(*seen),
         premature=earlyfound.newer(got.premature, found.when if found else ""),
+        no_execution=reviewunread.without_execution(state),
     )
 
 
@@ -322,6 +332,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
     standing, merged = _standing(source, repo, got.pull, found)
     state = _state(source, repo, got)
     signals = _signals(source, repo, got, state)
+    step = _step(state, signals)
     return PullFacts(
         repo=repo,
         pull=got.pull,
@@ -329,10 +340,11 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         review=found,
         standing=standing,
         signals=signals,
-        unreadable=_unreadable(source, repo, got, found),
-        step=_step(state, signals),
+        unreadable=_unreadable(source, repo, got, found, state),
+        step=step,
         review_rounds=rounds.of(state, merged),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
+        ruled_at=rulingreason.times(got.posted.comments, source.review.trusted, step),
     )
 
 

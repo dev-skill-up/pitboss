@@ -84,7 +84,9 @@ FULL_SCOPES = (
 )
 EXECUTION = [
     f"Scope: the Execution of head {HEAD}, against the approved Plan",
-    "write `Plan: approved (fixed)`; do not reassess or discuss the Plan.",
+    "write `Plan: approved (fixed)` and an `Execution:` line with your verdict, the"
+    " same word as the `Verdict:` line (a review with no `Execution:` line is not"
+    " read: REVIEW UNREAD); do not reassess or discuss the Plan.",
 ]
 PLAN = [
     f"Scope (exclusive): the Plan of head {HEAD}, alone,",

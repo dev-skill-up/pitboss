@@ -13,7 +13,7 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Protocol, Sequence
 
-from . import forms, ghapi, parsing, plancheckflow, shapes
+from . import evidence, forms, ghapi, parsing, plancheckflow, shapes
 
 SHOWN = 100
 
@@ -223,6 +223,10 @@ def _head_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
             f"refused: the body of {pushed.name} has no last `Head:` line"
             f" naming {pushed.head}: edit the body"
         )
+    found.extend(  # case 27 (keyword: evidence-head): the blocks name the head
+        f"refused: {pushed.name}: {each}: re-run `uvx pitboss expand`"
+        for each in evidence.stale_heads(pull.body, named[-1] if named else "")
+    )
     return found
 
 

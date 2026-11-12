@@ -6,7 +6,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, brieftextowner, brieftextwork, report
+from .. import brief, brieftextowner, brieftextrules, brieftextwork, report
 from . import fakes, world
 from .briefmake import OWNER, pinned
 from .test_evidence_rules import words
@@ -54,7 +54,8 @@ class TestTheSentenceIsInThreeTexts(unittest.TestCase):
         where = fakes.directory()
         settings = fakes.settings(where, '[sweep]\nreminders = ["one"]\n')
         lines = report.reminder_lines(settings)
-        wanted = [f"SWEEP REMINDER: {each}" for each in (OWNER, WORKER_ACTIONS, "one")]
+        kept = (OWNER, WORKER_ACTIONS, *brieftextrules.REMINDERS, "one")
+        wanted = [f"SWEEP REMINDER: {each}" for each in kept]
         assert_that(lines, equal_to(wanted))
 
 

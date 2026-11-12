@@ -1,0 +1,61 @@
+"""A review that grades the Plan of an approved Plan and no Execution (keyword: review-unread).
+
+Bats PR 650 (2026-11-11 18:45Z): the reviewer's comment had ``Plan: approved
+(fixed)`` and a verdict but no ``Execution:`` line, so the flow read it as a
+review of the Plan alone and went on printing ``review it``. The sweep names such
+a comment so that the reviewer is sent back to write the line (pitboss#444, case
+28).
+"""
+
+from typing import Sequence
+
+from . import flowstate, shapes
+
+PREFIX = "REVIEW UNREAD"
+
+
+def without_execution(state: flowstate.PullState) -> Sequence[str]:
+    """The reviews of the head that follow an approved Plan and grade no Execution.
+
+    Args:
+        state: what is recorded of the PR.
+
+    Returns:
+        The address of each regular review of the current head that has a
+        ``Plan:`` grade and no ``Execution:`` grade although an earlier regular
+        review approved the Plan, oldest first.
+    """
+    graded = sorted(flowstate.regular_reviews(state), key=lambda each: each.when)
+    found: list[str] = []
+    for index, each in enumerate(graded):
+        earlier = graded[:index]
+        approved = any(before.plan is shapes.Verdict.APPROVED for before in earlier)
+        at_head = state.pull.head.sha.startswith(each.sha)
+        if at_head and approved and each.plan is not None and each.execution is None:
+            found.extend(_address(state, each))
+    return found
+
+
+def _address(state: flowstate.PullState, review: shapes.Graded) -> Sequence[str]:
+    return [
+        comment.url or review.when
+        for comment in state.comments
+        if comment.created_at == review.when
+    ] or [review.when]
+
+
+def line(reference: str, url: str) -> str:
+    """The sweep's line for one such review.
+
+    Args:
+        reference: the PR.
+        url: the review's address.
+
+    Returns:
+        The line.
+    """
+    return (
+        f"{PREFIX}: {reference}: {url} has no Execution: line; the Plan is"
+        " approved, so the reviewer writes `Execution: <verdict>` beside the"
+        " `Verdict:` line"
+    )

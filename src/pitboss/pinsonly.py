@@ -105,7 +105,7 @@ def verify(
         why_not = functools.partial(
             pinscompiler.refusal, run, where, pull.head.sha, words
         )
-        return _ran(run, fetch, why_not, ["env", "-C", where, *words])
+        return _ran(run, (fetch, where), why_not, ["env", "-C", where, *words])
     except subprocess.CalledProcessError as error:
         detail = _said(error)
     except FileNotFoundError as error:
@@ -113,18 +113,36 @@ def verify(
     return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=detail)
 
 
+def _branch(run: running.Run, where: str) -> str:
+    # the branch the clone is on; empty when it is detached
+    try:
+        shown = run(["git", "-C", where, "symbolic-ref", "--short", "-q", "HEAD"])
+    except subprocess.CalledProcessError:
+        return ""
+    return str(shown.stdout).strip()
+
+
 def _ran(
     run: running.Run,
-    fetch: Sequence[str],
+    fetched: tuple[Sequence[str], str],
     why_not: Callable[[], str],
     command: Sequence[str],
 ) -> pinsreading.Reading:
+    fetch, where = fetched
     with _ONE_CHECKOUT:
-        run(fetch)
-        reason = why_not()
-        if reason:
-            return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=reason)
-        return pinsreading.read(run(command).stdout)
+        before = _branch(run, where)
+        try:
+            run(fetch)
+            reason = why_not()
+            if reason:
+                return pinsreading.Reading(
+                    status=pinsreading.Status.NOT_OK, detail=reason
+                )
+            return pinsreading.read(run(command).stdout)
+        finally:
+            if before and _branch(run, where) != before:
+                # case 31 (keyword: pins-review-branch): the clone is left as found
+                run(["git", "-C", where, "checkout", "--quiet", before])
 
 
 def pins_only(

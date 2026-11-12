@@ -166,8 +166,9 @@ class TestVerify(unittest.TestCase):
 
     def test_it_fetches_then_runs_the_command_in_the_checkout(self) -> None:
         """Two calls: the fetch of the base and the head, then env -C."""
-        calls: MutableSequence[Sequence[str]] = []
-        found = verify(["OK\n"], calls)
+        every: MutableSequence[Sequence[str]] = []
+        found = verify(["OK\n"], every)
+        calls = [each for each in every if "symbolic-ref" not in each]
         fetched = ["fetch", "--quiet", "origin", "main", "pull/7/head"]
         want = ["env", "-C", calls[0][2], "check", "origin/main", fakes.HEAD]
         assert_that(calls[0][3:], equal_to(fetched))

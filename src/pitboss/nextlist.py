@@ -14,13 +14,12 @@ from . import (
     assigning,
     config,
     configfile,
-    diskwatch,
     handedback,
     ledger,
     listtail,
     logline,
-    machine,
     nextfound,
+    nextsource,
     nextview,
     nothead,
     offering,
@@ -121,30 +120,6 @@ def _view(
     )
 
 
-def _big(found: Found, volume: diskwatch.Reading | None) -> Sequence[diskwatch.Big]:
-    # keyword: disk-watch (pitboss#288): walked only when the suggestion is due
-    if volume is None or not volume.crowded:
-        return []
-    return diskwatch.largest(machine.real(), found.clean.scratch)
-
-
-def _source(
-    found: Found,
-    opened: Sequence[pulls.Read],
-    ordered: work.Offered,
-    book: ledger.Ledger,
-) -> suggest.Source:
-    volume = diskwatch.read(found.args.usage, found.settings.project.workspace)
-    return dataclasses.replace(
-        suggest.sourced(
-            found, pullmarks.awake(opened, ordered), ordered.items, book.failed
-        ),
-        volume=volume,
-        big=_big(found, volume),
-        occupancy=ordered.occupancy,
-    )
-
-
 def _recorded(found: Found, ordered: work.Offered, view: nextview.NextView) -> None:
     queued = [each.reference for each in view.items]
     first = slotheld.LEAD + 1 + len(view.ready)
@@ -171,11 +146,12 @@ def show(
     skipped = skipitem.apply(found.args, found.settings.project.repo)
     ordered, skip_lines = skipped(_windowed(found, opened, book))
     timing.note(found.args, "ranking", len(ordered.items), "items")
-    source = _source(found, opened, ordered, book)
+    source = nextsource.source(found, opened, ordered, book)
     view = _view(found, ordered, book, Reads(facts=source.facts, opened=opened))
     _recorded(found, ordered, view)
     for line in itertools.chain(
         header(found, book, view),
+        nextsource.waiting(found, source, ordered, book),
         unlabeledsearch.lines(found.github, found.settings),
         skip_lines,
         nextview.next_lines(view),
@@ -364,7 +340,7 @@ def show_item(
     """
     book = _live(found, opened, book)
     ordered = _counted(found, opened, book)
-    source = _source(found, opened, ordered, book)
+    source = nextsource.source(found, opened, ordered, book)
     every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
     pick = next((each for each in every if each.reference == reference), None)
     if pick is None:

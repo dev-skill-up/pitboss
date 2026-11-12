@@ -12,7 +12,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import (
     expansion,
     plancheck,
-    plancheck_commands,
+    plancheckrun,
     plandigest,
     steps,
 )
@@ -193,7 +193,7 @@ class TestRunner(unittest.TestCase):
     def test_a_shell_that_cannot_start_is_not_run(self) -> None:
         """An OSError is a command that cannot start."""
         args = argparse.Namespace(safe_run=cannot_start)
-        done = plancheck_commands.run_in(args, fakes.directory(), 1, "true")
+        done = plancheckrun.run_in(args, fakes.directory(), 1, "true")
         assert_that(done.problem, contains_string("cannot start"))
 
     def test_the_verdict_names_every_row(self) -> None:

@@ -21,6 +21,7 @@ from . import (
     commands,
     configfile,
     draftrule,
+    evidencepush,
     exempt,
     markupgate,
     noxcheck,
@@ -260,6 +261,36 @@ def _conclude(
     _finish(outcomes)
 
 
+def _require_execution(
+    args: argparse.Namespace, found: commands.Context, slug: str | None
+) -> None:
+    # case 11 (keyword: execution-section): the body keeps its Execution heading
+    current = pushdraft.current_branch(args.safe_run)
+    for each in pushdraft.branches(args.git_arguments, current):
+        lost = evidencepush.missing_execution(args.safe_run, found.github, slug, each)
+        for line in lost:
+            print(line)
+        if lost:
+            print("push refused: nothing was pushed; edit the body of the PR")
+            raise SystemExit(1)
+
+
+def _stale(
+    args: argparse.Namespace,
+    found: commands.Context,
+    slug: str | None,
+    outcomes: Sequence[pushcheck.Outcome],
+) -> None:
+    # case 27 (keyword: evidence-stale): a moved head leaves the expanded blocks old
+    if pushcheck.Kind.MOVED not in {each.kind for each in outcomes}:
+        return
+    current = pushdraft.current_branch(args.safe_run)
+    wanted = pushdraft.branches(args.git_arguments, current)
+    said = {evidencepush.stale_line(found.github, slug, each) for each in wanted}
+    for line in sorted(said - {""}):
+        print(line)
+
+
 def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
     for each in outcomes:
         print(pushcheck.line(each))
@@ -329,7 +360,10 @@ def push(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     tracefs.say(args.safe_run)
-    found, free = _gate(args, _checked(args))
+    slug = _checked(args)
+    found, free = _gate(args, slug)
+    _require_execution(args, found, slug)
     outcomes = _send(args)
     if outcomes is not None:
         _conclude(None if free else found, outcomes)
+        _stale(args, found, slug, outcomes)

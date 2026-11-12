@@ -31,6 +31,7 @@ from . import (
     quiesce,
     shapes,
     slotholding,
+    steps,
     suggest,
     sweepline,
     work,
@@ -66,6 +67,10 @@ STEP_ARGUMENT = add_argument(
 )
 NOT_A_PULL = f"it is a ticket with no PR, which is at no review; {STEP_RULE}"
 UNKNOWN_STEP = "UNKNOWN: {reference} is not at the review step: {why}"
+FORCED_REVIEW = (
+    "FORCED REVIEW: {reference} is at the step `{step}`; the review brief is"
+    " printed because --force was given (the ledger is not changed)"
+)
 
 
 class Outcome(enum.Enum):
@@ -274,6 +279,37 @@ def _refused(reference: str, why: str) -> Outcome:
     return Outcome.UNKNOWN
 
 
+def _forced_review(
+    found: nextfound.Found, book: ledger.Ledger, reference: str, runs: Runs
+) -> Outcome:
+    # case 32 (keyword: force-review): the review brief of any open PR, so that an
+    # orchestrator never adapts a brief by hand; the first line says it is forced
+    live = slotholding.live(found.args, book)
+    try:
+        repo, ticket = _located(found, reference)
+        if not ticket.pull:
+            return _refused(reference, NOT_A_PULL)
+        read = _read_pull(found, repo, reference, runs)
+    except itempick.Unknown as refused:
+        return _refused(reference, str(refused))
+    item = workitem.Item(
+        category=work.Category.REVIEW,
+        reference=reference,
+        created_at=read.pull.created_at,
+        title=read.pull.title,
+    )
+    pick = suggest.Pick(
+        reference=reference,
+        title=read.pull.title,
+        category=item.category,
+        item=item,
+        pull=read,
+    )
+    print(FORCED_REVIEW.format(reference=reference, step=steps.describe(read.step)))
+    _print(found, _made(found, live, pick), pick)
+    return Outcome.PRINTED
+
+
 def show_review(
     found: nextfound.Found,
     book: ledger.Ledger,
@@ -294,6 +330,8 @@ def show_review(
         step-review, pitboss#462). Never ``WHOLE``: a ticket with no PR is at
         no review.
     """
+    if getattr(found.args, "force", False):  # case 32
+        return _forced_review(found, book, reference, runs)
     live, pick = _attempt(found, book, reference, runs)
     if pick is Outcome.WHOLE:
         return _refused(reference, NOT_A_PULL)

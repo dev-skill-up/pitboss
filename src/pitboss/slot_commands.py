@@ -26,6 +26,7 @@ from . import (
     prefetch,
     pulls,
     repoaccess,
+    slotholder,
     slotholding,
     slotlog,
     slotreport,
@@ -68,7 +69,14 @@ def _set(
     if held.agent in running and not resumes:
         return ledger.Refusal(
             reason=f"slot {words[0]} holds {held.agent}, which is still running:"
-            " free it with --done only when it has handed back"
+            " free it with --done only when it has handed back; the next free slot"
+            f" takes the dispatch (holder: {slotholder.holder(held)})"
+        )
+    beyond = _beyond(book, running, words[1])
+    if not held.agent and len(beyond) >= len([s for s in book.slots if not s.agent]):
+        return ledger.Refusal(  # case 36 (keyword: slot-cap): every agent counts
+            reason=f"every slot is held by a running agent of the session: {beyond};"
+            " the next free slot takes the dispatch"
         )
     task = ledger.reference(words[2], found.settings.project.repo)
     ticket = ticketof.resolve(found.github, task)
@@ -79,6 +87,12 @@ def _set(
     if isinstance(taken, ledger.Refusal):
         return taken
     return ledger.stamp(taken, words[0], ledger.Mark.STARTED, found.now.isoformat())
+
+
+def _beyond(book: ledger.Ledger, running: Sequence[str], new: str) -> Sequence[str]:
+    # the running agents that no slot records, whatever their kind
+    recorded = {each.agent for each in book.slots}
+    return [name for name in running if name != new and name not in recorded]
 
 
 def _free(

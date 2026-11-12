@@ -5,7 +5,7 @@
 
 from typing import Sequence
 
-from . import earlyfound, earlyreview, pulls
+from . import earlyfound, earlyreview, pulls, reviewunread
 from .markers import Marker
 
 
@@ -39,4 +39,5 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
             for each in pull.unreadable.graded
         ),
         *(_early(reference, each) for each in pull.unreadable.premature),
+        *(reviewunread.line(reference, each) for each in pull.unreadable.no_execution),
     ]

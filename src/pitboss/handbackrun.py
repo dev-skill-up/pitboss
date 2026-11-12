@@ -9,6 +9,7 @@ of its head and of its posted Plan check is never skipped (pitboss#471).
 import argparse
 import os
 import pathlib
+import re
 import subprocess
 from typing import Sequence
 
@@ -46,11 +47,20 @@ def _jobs_and_record(args: argparse.Namespace, head: str) -> Sequence[str]:
     return shown
 
 
+ORIGIN = re.compile(r"github\.com[:/]([^/\s]+/[^/\s]+?)(?:\.git)?/?$")
+
+
+def _slug(args: argparse.Namespace, settings: config.Config) -> str:
+    # case 31 (keyword: hand-back-origin): the repository is the worktree's origin
+    found = ORIGIN.search(git_out(args, "remote", "get-url", "origin"))
+    return found.group(1) if found else settings.project.repo.slug
+
+
 def _pull_lines(
     args: argparse.Namespace, settings: config.Config, head: str
 ) -> Sequence[str]:
     github = ghapi.read_only(args.safe_run)
-    slug = settings.project.repo.slug
+    slug = _slug(args, settings)
     number = args.pr
     if number is None:
         number = handbackcheck.branch_pull(

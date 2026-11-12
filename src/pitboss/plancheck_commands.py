@@ -17,13 +17,11 @@ Done-when is the ticket body's alone (pitboss#396).
 import argparse
 import contextlib
 import functools
-import os
 import pathlib
 import subprocess
 import sys
 import tempfile
-import time
-from typing import IO, Iterator, Sequence
+from typing import Iterator, Sequence
 
 from gather.commands import add_argument
 
@@ -42,92 +40,20 @@ from . import (
     markuplines,
     plancheck,
     plancheckconfig,
+    plancheckprior,
+    plancheckrun,
     plandigest,
     plantickets,
+    shapes,
 )
 
 USAGE_ERROR = 2
 REFUSED = 1
-QUIET = {
-    "check": False,
-    "capture_output": False,
-    "stdin": subprocess.DEVNULL,
-}
 
 
 def _fail(message: str) -> SystemExit:
     print(message, file=sys.stderr)
     return SystemExit(USAGE_ERROR)
-
-
-def status_in(
-    args: argparse.Namespace, directory: pathlib.Path, timeout: int, command: str
-) -> tuple[int | str, int]:
-    """Run one command line in a directory, with a time limit.
-
-    The output goes to a file that is only measured (a pipe a stray child holds
-    open would outlast the limit), and nothing is read from the terminal.
-
-    Args:
-        args: the parsed arguments.
-        directory: the working directory.
-        timeout: the most seconds the command may run.
-        command: the command line, for ``sh -c``.
-
-    Returns:
-        Its exit status, or the text that says why it did not finish, and how
-        many bytes it printed, standard output and error together (keyword:
-        evidence-size, pitboss#396).
-    """
-    with tempfile.TemporaryFile() as output:
-        outcome = _started(args, command, (directory, timeout), output)
-        # the file's own size, whatever the offset the command left
-        return outcome, os.fstat(output.fileno()).st_size
-
-
-def _started(
-    args: argparse.Namespace,
-    command: str,
-    where: tuple[pathlib.Path, int],
-    output: IO[bytes],
-) -> int | str:
-    directory, timeout = where
-    try:
-        done = args.safe_run(
-            ["sh", "-c", command],
-            cwd=directory,
-            timeout=timeout,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            **QUIET,
-        )
-    except subprocess.TimeoutExpired:
-        return f"timed out after {timeout}s"
-    except OSError as error:
-        return f"cannot start ({error})"
-    return int(done.returncode)
-
-
-def run_in(
-    args: argparse.Namespace, directory: pathlib.Path, timeout: int, command: str
-) -> plancheck.Run:
-    """Run one command line in a directory, and time it.
-
-    Args:
-        args: the parsed arguments.
-        directory: the working directory.
-        timeout: the most seconds the command may run.
-        command: the command line, for ``sh -c``.
-
-    Returns:
-        What it did.
-    """
-    started = time.monotonic()
-    outcome, printed = status_in(args, directory, timeout, command)
-    seconds = time.monotonic() - started
-    if isinstance(outcome, str):
-        return plancheck.cut_off(outcome, seconds)
-    return plancheck.finished(outcome, seconds, printed)
 
 
 def _git(args: argparse.Namespace, *words: str) -> str:
@@ -230,6 +156,20 @@ def _plan_of(name: str, body: str) -> str:
         " (default: the checkout's `origin`)",
     ),
     add_argument(
+        "--pull",
+        default="",
+        help="the PR as OWNER/NAME#NUMBER: a Plan that an earlier `Plan check: ok`"
+        " comment on it recorded is not judged again by the run of the head or the"
+        " ticket's Done-when, and the comment relied on is named (pitboss#444)",
+    ),
+    add_argument(
+        "--post",
+        default="",
+        help="post the output as a comment on this PR (OWNER/NAME#NUMBER), whose"
+        " first line is `Plan check` and whose last is `Plan check: ok` or"
+        " `Plan check: refused`; the comment's address goes to standard error",
+    ),
+    add_argument(
         "--timeout",
         type=int,
         default=plancheck.TIMEOUT,
@@ -268,6 +208,8 @@ def plan_check(args: argparse.Namespace) -> None:
     cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
     output, failed = _read_and_checked(args)
     sys.stdout.write(output)
+    if args.post:  # case 14: the heading of the comment is the output's own
+        print(plancheckprior.post(args, args.post, output), file=sys.stderr)
     if failed:
         raise SystemExit(REFUSED)
 
@@ -339,15 +281,45 @@ def _repository(args: argparse.Namespace) -> str:
         return ""
 
 
-def _remote(args: argparse.Namespace, body: str, section: str, ref: str) -> list[str]:
+def _contained(args: argparse.Namespace, ref: str, sha: str) -> bool:
+    # whether the commit of a run is one the head contains (a push or a merge of
+    # main since keeps an approved Plan's run valid); keyword: plan-prior
+    try:
+        args.safe_run(
+            ["git", "-C", args.repo, "merge-base", "--is-ancestor", sha, ref],
+            check=True,
+            capture_output=True,
+        )
+    except (subprocess.CalledProcessError, OSError):
+        return False
+    return True
+
+
+def _prior(args: argparse.Namespace, body: str) -> shapes.Comment | None:
+    # the earlier clean check of this Plan on the PR named by --pull, if any
+    if not args.pull:
+        return None
+    slug, number = plancheckprior.split(args.pull)
+    found = plancheckprior.comments(ghapi.read_only(args.safe_run), slug, number)
+    return plancheckprior.relied_on(found, body)
+
+
+def _remote(
+    args: argparse.Namespace,
+    body: str,
+    section: str,
+    given: tuple[str, shapes.Comment | None],
+) -> list[str]:
     # keywords: ci-run, plan-done-when (pitboss#317, #396): GitHub's word on the run
+    ref, prior = given
     github = ghapi.read_only(args.safe_run)
     named = forms.FIXES.search(body)
     ticket = named.group(1) if named else ""
-    return [
-        *cirun.findings(section, ref, plantickets.run_head(github)),
-        *plantickets.done_when(github, ticket, _repository(args), body),
-    ]
+    earlier = functools.partial(_contained, args, ref) if prior else None
+    heads = cirun.findings(section, ref, plantickets.run_head(github), earlier)
+    if prior:  # keyword: plan-prior: approved once, not judged again by the ticket
+        return [*heads]
+    return [*heads, *plantickets.done_when(github, ticket, _repository(args), body)]
 
 
 def _sha(args: argparse.Namespace, ref: str) -> str:
@@ -363,16 +335,18 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
         added = _added(args, ref)
         stat = _diff(args, ref, "--numstat", "-z")
         patch = _diff(args, ref, "-U0", "--no-color")
-        runner = functools.partial(run_in, args, tree, args.timeout)
+        runner = functools.partial(plancheckrun.run_in, args, tree, args.timeout)
         rows, refused, runs = plancheck.report(section, runner)
         diffs = (added, stat, patch)
+        prior = _prior(args, body)
         found = [
             *_of_trees(args, section, (tree, head), diffs),
             *plancheck.form_findings(body, section, _names(args, ref, "--no-renames")),
-            *_remote(args, body, section, ref),
+            *_remote(args, body, section, (ref, prior)),
             *headfindings.of_head(body, section, patch, (head, _sha(args, ref))),
         ]
-        noted = [*rows, *_notes(section, runs, (stat, patch))]
+        said = [plancheckprior.note(prior)] if prior else []
+        noted = [*rows, *said, *_notes(section, runs, (stat, patch))]
         return plancheck.text(section, noted, refused, found), bool(refused or found)
 
 

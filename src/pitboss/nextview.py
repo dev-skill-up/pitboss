@@ -95,12 +95,19 @@ def _needs(item: work.Item, view: NextView) -> str:
     return f"; needs: {need}" if need else ""
 
 
+def _pins(item: work.Item) -> str:
+    # case 16 (keyword: relock-last): a relock review runs outside the slot
+    if item.category is not work.Category.RELOCK_REVIEW:
+        return ""
+    return f"; run outside the slot: pitboss pins-review {item.reference}"
+
+
 def _item_text(item: work.Item, view: NextView) -> str:
     model = work.smallest_model(item, view.slots, view.failed) or "none left"
     return (
         f"{item.reference} ({CATEGORY_WORDS[item.category]}{_new_pr(item, view)},"
         f" opened {item.created_at[:10]}, {_age_days(item.created_at, view.now)}"
-        f" days, smallest model {model}): {item.title[:60]}{_needs(item, view)}"
+        f" days, smallest model {model}): {item.title[:60]}{_needs(item, view)}{_pins(item)}"
     )
 
 

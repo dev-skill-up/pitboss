@@ -38,7 +38,8 @@ MECHANISMS: Mapping[RedClass, redmodel.Mechanism] = {
         cost_seconds=60,
     ),
     RedClass.EXTERNAL_INFRASTRUCTURE: redmodel.Mechanism(
-        text="nothing: the service was down; cache it if it repeats",
+        text="nothing: the service was down; the next push re-runs it (no re-run,"
+        " no empty commit); cache it if it repeats",
         cost_seconds=0,
     ),
     RedClass.OWN_RELEASE_OR_CONFIGURATION_BUG: redmodel.Mechanism(
