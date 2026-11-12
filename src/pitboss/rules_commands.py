@@ -8,7 +8,7 @@ import sys
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, donewhencheck, donewhenrun, phrases, rules
+from . import ENTRY_DATA, donewhencheck, donewhenrun, lintinput, phrases, rules
 
 REGISTER = "rules.tsv"
 TABLE = "coverage_ids.txt"
@@ -87,12 +87,7 @@ def rules_check(args: argparse.Namespace) -> None:
     if args.action == "done-when":
         done_when(args)
         return
-    text = (
-        pathlib.Path(args.register).read_text(encoding="utf-8")
-        if args.register
-        else phrases.shipped_text(REGISTER)
-    )
-    rows, bad = rules.parse(text)
+    rows, bad = rules.parse(_text(args.register, REGISTER))
     found = [*bad, *rules.findings(rows, function_known, module_text)]
     if not args.register:
         found += rules.coverage_findings(rows, phrases.shipped_text(TABLE).split())
@@ -104,6 +99,12 @@ def rules_check(args: argparse.Namespace) -> None:
         print(f"rules check: refused, {len(found)} findings", file=sys.stderr)
         raise SystemExit(1)
     print("rules check: ok")
+
+
+def _text(path: str | None, shipped: str) -> str:
+    if path is None:
+        return phrases.shipped_text(shipped)
+    return lintinput.read(path)
 
 
 def done_when(args: argparse.Namespace) -> None:
@@ -119,25 +120,9 @@ def done_when(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when an item is not demonstrated.
     """
-    pairing = (
-        pathlib.Path(args.pairing).read_text(encoding="utf-8")
-        if args.pairing
-        else phrases.shipped_text(PAIRING)
-    )
     rows, _ = rules.parse(phrases.shipped_text(REGISTER))
-    items = donewhencheck.parse(pairing)
-    tests = sorted(
-        {t for each in items for t in donewhencheck.tests_of(each, rows) if "." in t}
-    )
-    here = pathlib.Path(str(importlib.resources.files("pitboss"))).parent
-    with donewhenrun.base_source(pathlib.Path(args.repo), args.ref) as base:
-        checks = donewhencheck.Checks(
-            exists=donewhenrun.exists,
-            head=donewhenrun.run_all(tests, here),
-            base=donewhenrun.run_all(tests, base),
-        )
+    items = donewhencheck.parse(_text(args.pairing, PAIRING))
+    checks = donewhenrun.measure(items, rows, (pathlib.Path(args.repo), args.ref))
     found = donewhencheck.refusals(items, rows, checks)
-    if found:
-        print(f"done-when check: refused, {len(found)} findings, first: {found[0]}")
-        raise SystemExit(1)
-    print("done-when check: ok")
+    print(donewhencheck.verdict(found))
+    raise SystemExit(int(bool(found)))

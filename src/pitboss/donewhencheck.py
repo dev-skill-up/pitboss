@@ -89,12 +89,14 @@ def missing(
         A finding for each.
     """
     found = []
-    for item in items:
-        tests = tests_of(item, rows)
+    for entry in items:
+        tests = tests_of(entry, rows)
         found += [
-            f"item {item.number}: {t} is not there" for t in tests if not _is(t, exists)
+            f"item {entry.number}: {t} is not there"
+            for t in tests
+            if not _is(t, exists)
         ]
-        found += [f"item {item.number}: names no test"] * (not tests)
+        found += [f"item {entry.number}: names no test"] * (not tests)
     return found
 
 
@@ -117,13 +119,27 @@ def refusals(
         the head, and for each item whose tests all pass on the base.
     """
     found = [*missing(items, rows, checks.exists)]
-    for item in items:
-        tests = [t for t in tests_of(item, rows) if _is(t, checks.exists)]
+    for entry in items:
+        tests = [t for t in tests_of(entry, rows) if _is(t, checks.exists)]
         found += [
-            f"item {item.number}: {t} fails on the head"
+            f"item {entry.number}: {t} fails on the head"
             for t in tests
             if not checks.head.get(t, False)
         ]
         if tests and all(checks.base.get(t, False) for t in tests):
-            found.append(f"item {item.number}: no named test fails on the base")
+            found.append(f"item {entry.number}: no named test fails on the base")
     return found
+
+
+def verdict(found: Sequence[str]) -> str:
+    """The one line the command prints.
+
+    Args:
+        found: the refusals.
+
+    Returns:
+        ``done-when check: ok``, or the count and the first refusal.
+    """
+    if not found:
+        return "done-when check: ok"
+    return f"done-when check: refused, {len(found)} findings, first: {found[0]}"

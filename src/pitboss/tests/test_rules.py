@@ -9,8 +9,17 @@ import io
 import pathlib
 import unittest
 from contextlib import redirect_stdout
+from typing import Sequence
 
-from hamcrest import assert_that, contains_string, empty, equal_to, has_item, has_length
+from hamcrest import (
+    assert_that,
+    contains_string,
+    empty,
+    equal_to,
+    has_item,
+    has_length,
+    starts_with,
+)
 
 from .. import phrases, rules, rules_commands
 
@@ -28,17 +37,27 @@ def _findings(text: str) -> list[str]:
     ]
 
 
-def _ran(register: str | None) -> tuple[int, str]:
+def ran(args: argparse.Namespace) -> tuple[int, str]:
+    """Run ``rules`` and take its exit status and standard output.
+
+    Args:
+        args: the arguments.
+
+    Returns:
+        The status and the output.
+    """
     out = io.StringIO()
     status = 0
     with redirect_stdout(out):
         try:
-            rules_commands.rules_check(
-                argparse.Namespace(action="check", register=register)
-            )
+            rules_commands.rules_check(args)
         except SystemExit as stop:
             status = int(stop.code or 0)
     return status, out.getvalue()
+
+
+def _ran(register: str | None) -> tuple[int, str]:
+    return ran(argparse.Namespace(action="check", register=register))
 
 
 class TestCheck(unittest.TestCase):
@@ -104,7 +123,7 @@ class TestCheck(unittest.TestCase):
         assert_that(printed, contains_string("unknown-function"))
 
 
-def table() -> list[str]:
+def table() -> Sequence[str]:
     """The ids of the coverage table the package ships.
 
     Returns:
@@ -113,13 +132,31 @@ def table() -> list[str]:
     return phrases.shipped_text("coverage_ids.txt").split()
 
 
-def shipped_rows() -> list[rules.Row]:
+def shipped_rows() -> Sequence[rules.Row]:
     """The rows of the register the package ships.
 
     Returns:
         The rows.
     """
-    return list(rules.parse(phrases.shipped_text("rules.tsv"))[0])
+    return rules.parse(phrases.shipped_text("rules.tsv"))[0]
+
+
+def found(rule: str, kind: str) -> Sequence[str]:
+    """What the coverage check says of the shipped rows with one row's kind changed.
+
+    Args:
+        rule: the id of the row; none of that id when the kind is ``gone``.
+        kind: the kind it gets.
+
+    Returns:
+        The findings.
+    """
+    rows = [
+        dataclasses.replace(each, kind=kind) if each.id == rule else each
+        for each in shipped_rows()
+        if (each.id, kind) != (rule, "gone")
+    ]
+    return rules.coverage_findings(rows, table())
 
 
 class TestIds(unittest.TestCase):
@@ -128,44 +165,20 @@ class TestIds(unittest.TestCase):
     def test_r2_the_register_has_every_id_of_the_table(self) -> None:
         """Compare the table's 87 ids with the register's."""
         assert_that(table(), has_length(87))
-        assert_that(rules.coverage_findings(shipped_rows(), table()), empty())
+        assert_that(found("none", "enforced"), empty())
 
     def test_r2_outside_and_output_kinds_are_the_tables(self) -> None:
         """Exactly D4, D12, D13 and D14 are outside: a fifth, or one fewer, is found."""
-        rows = shipped_rows()
-        fifth = [
-            dataclasses.replace(r, kind="outside") if r.id == "C8" else r for r in rows
-        ]
-        fewer = [
-            dataclasses.replace(r, kind="output") if r.id == "D4" else r for r in rows
-        ]
-        assert_that(
-            rules.coverage_findings(fifth, table()),
-            has_item(contains_string("outside-set")),
-        )
-        assert_that(
-            rules.coverage_findings(fewer, table()),
-            has_item(contains_string("outside-set")),
-        )
+        assert_that(found("C8", "outside")[0], starts_with("outside-set"))
+        assert_that(found("D4", "output")[0], starts_with("outside-set"))
 
     def test_r2_an_extra_outside_row_is_found(self) -> None:
         """A table id with no row, and one that is open, are found."""
-        rows = shipped_rows()
-        gone = [r for r in rows if r.id != "A7"]
-        opened = [
-            dataclasses.replace(r, kind="open") if r.id == "B3" else r for r in rows
-        ]
-        assert_that(
-            rules.coverage_findings(gone, table()),
-            equal_to(["table-id: A7 has no row"]),
-        )
-        assert_that(
-            rules.coverage_findings(opened, table()),
-            equal_to(["table-kind: B3 is open"]),
-        )
+        assert_that(found("A7", "gone"), equal_to(["table-id: A7 has no row"]))
+        assert_that(found("B3", "open"), equal_to(["table-kind: B3 is open"]))
 
     def test_r2_the_shipped_check_has_the_table(self) -> None:
-        """``rules check`` on the shipped register runs the table check and passes."""
+        """``rules check`` on the shipped register passes with the table check."""
         status, printed = _ran(None)
         assert_that([status, "outside-set" in printed], equal_to([0, False]))
 

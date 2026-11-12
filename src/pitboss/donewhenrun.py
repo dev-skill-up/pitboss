@@ -16,7 +16,7 @@ import sys
 import tempfile
 from typing import Iterator, Mapping, Sequence
 
-from . import rules_commands
+from . import donewhencheck, rules, rules_commands
 
 WORKERS = 8
 # The commands register themselves on import; a test run alone needs all of them.
@@ -39,7 +39,7 @@ def passes(test: str, source: pathlib.Path) -> bool:
     Returns:
         True when unittest exits 0.
     """
-    module, _, name = test.rpartition(".")
+    module, name = test.split(".")
     done = subprocess.run(
         [sys.executable, "-c", PROGRAM, f"pitboss.tests.{module}", name],
         env={**os.environ, "PYTHONPATH": str(source)},
@@ -58,9 +58,9 @@ def exists(test: str) -> bool:
     Returns:
         True when the module has a ``def`` of that name.
     """
-    module, _, name = test.rpartition(".")
-    text = rules_commands.module_text(module)
-    return text is not None and re.search(rf"def {re.escape(name)}\(", text) is not None
+    module, name = test.split(".")
+    body = rules_commands.module_text(module)
+    return body is not None and re.search(rf"def {re.escape(name)}\(", body) is not None
 
 
 def run_all(tests: Sequence[str], source: pathlib.Path) -> Mapping[str, bool]:
@@ -78,6 +78,31 @@ def run_all(tests: Sequence[str], source: pathlib.Path) -> Mapping[str, bool]:
     return dict(zip(tests, got))
 
 
+def install_tests(tree: pathlib.Path) -> None:
+    """Copy the head's tests over a worktree of the base.
+
+    Args:
+        tree: the worktree.
+    """
+    heads = importlib.resources.files("pitboss") / "tests"
+    shutil.copytree(
+        pathlib.Path(str(heads)),
+        tree / "src" / "pitboss" / "tests",
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
+
+
+def git(repo: pathlib.Path, *words: str) -> None:
+    """Run git in a checkout, saying nothing.
+
+    Args:
+        repo: the checkout.
+        *words: the arguments.
+    """
+    subprocess.run(["git", "-C", str(repo), *words], check=True, capture_output=True)
+
+
 @contextlib.contextmanager
 def base_source(repo: pathlib.Path, ref: str) -> Iterator[pathlib.Path]:
     """The ``src`` of a scratch worktree of the base, with the head's tests in it.
@@ -89,25 +114,35 @@ def base_source(repo: pathlib.Path, ref: str) -> Iterator[pathlib.Path]:
     Yields:
         The directory that holds the base's ``pitboss`` package.
     """
-    git = ["git", "-C", str(repo)]
     with tempfile.TemporaryDirectory(prefix="done-when-") as scratch:
         tree = pathlib.Path(scratch) / "tree"
-        subprocess.run(
-            [*git, "worktree", "add", "--detach", str(tree), ref],
-            check=True,
-            capture_output=True,
-        )
+        git(repo, "worktree", "add", "--detach", str(tree), ref)
         try:
-            shutil.copytree(
-                pathlib.Path(str(importlib.resources.files("pitboss") / "tests")),
-                tree / "src" / "pitboss" / "tests",
-                dirs_exist_ok=True,
-                ignore=shutil.ignore_patterns("__pycache__"),
-            )
+            install_tests(tree)
             yield tree / "src"
         finally:
-            subprocess.run(
-                [*git, "worktree", "remove", "--force", str(tree)],
-                check=True,
-                capture_output=True,
-            )
+            git(repo, "worktree", "remove", "--force", str(tree))
+
+
+def measure(
+    items: Sequence[donewhencheck.Item],
+    rows: Sequence[rules.Row],
+    base: tuple[pathlib.Path, str],
+) -> donewhencheck.Checks:
+    """Run the tests the items name on the head and on the base.
+
+    Args:
+        items: the items.
+        rows: the register's rows.
+        base: a checkout of pitboss and the ref of the base in it.
+
+    Returns:
+        What is known of the tests.
+    """
+    named = {t for each in items for t in donewhencheck.tests_of(each, rows)}
+    tests = sorted(each for each in named if "." in each)
+    head_src = pathlib.Path(str(importlib.resources.files("pitboss"))).parent
+    with base_source(*base) as base_src:
+        return donewhencheck.Checks(
+            exists=exists, head=run_all(tests, head_src), base=run_all(tests, base_src)
+        )
