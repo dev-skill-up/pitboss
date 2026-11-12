@@ -41,6 +41,8 @@ trusted_associations = ["OWNER", "MEMBER", "COLLABORATOR"]
 # their review-gate.yml when they have one, else gated_form. They name the
 # exact head. Default: none.
 gated = ["other-org/parser"]
+# The check an approval of a head waits for before the PR is armed. Default: "check".
+required_check = "check"
 
 [review.form]
 # The form of a review comment: line templates, the first matching the
@@ -87,6 +89,36 @@ pin_files = ["bats.lock", ".github/bats-version", ".github/repository-version", 
 [lint.brief]
 # Line starts every brief must have (`pitboss lint brief`). Default: none.
 required = ["Overlap:"]
+
+[lint.quarantine]
+# The words of the quarantine and race checks. A text that names a failing test
+# (failing) or a race (race) needs a `Quarantine:` line; mark is the pattern of
+# a skip mark in a test file, looked for under directory. Defaults: as below.
+failing = ["failing test", "flaky", "flake", "test failure"]
+race = ["race", "racy", "race condition"]
+mark = '\.(?:fixme|skip)\([^)]*'
+directory = "e2e"
+
+[mechanical]
+# A red that costs one cheap push to fix: the checks whose failure alone is
+# mechanical, the patterns of a failed check's text that make it mechanical,
+# and the minutes a fix push may wait before the sweep says
+# SLOW-MECHANICAL-FIX. Defaults: as below.
+checks = ["plan"]
+patterns = ['no line ".*" in file', "rejected, but not as its expect says"]
+slow_minutes = 20
+
+# [[pre_push]]
+# A check `pitboss push` runs before it pushes, one table each. Default: none.
+# command is the command line, {word} replaced by the value of arguments.word;
+# ok is the text its output must hold (empty: any output), timeout the most
+# seconds it may run (default 600), fix what to do when it fails.
+# name = "bats check"
+# command = ["{bats}", "check"]
+# arguments = { bats = "/home/user/bats/bats" }
+# ok = "check: ok"
+# timeout = 600
+# fix = "run bats check and fix what it says"
 
 [merge_queue]
 # How long a merge-queue run may take before GitHub dequeues it. Default: 60.
