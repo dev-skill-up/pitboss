@@ -86,8 +86,8 @@ class TestDanglingFragments(unittest.TestCase):
 
     def test_t406_every_closing_mark_is_refused_and_an_opening_one_is_not(self) -> None:
         """Each of ``.,;:!?`` and a mark of category Pe and Pf, named with its line."""
-        marks = list(".,;:!?") + [")", "]", "}", "\u300d", "\u00bb", "\u201d"]
-        for mark in marks:
+        closing = list(".,;:!?") + [")", "]", "}", "\u300d", "\u00bb", "\u201d"]
+        for mark in closing:
             with self.subTest(mark):
                 found = said("The NEXT list " + mark + " the kind", mark + " the kind")
                 assert_that(found, has_length(1))

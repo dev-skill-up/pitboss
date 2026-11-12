@@ -124,18 +124,21 @@ def digest_kept(name: str) -> None:
         name: the timeline.
     """
     data = scenario.load(name)
-    plan = plandigest.section(data["pull"]["body"])
+    pull, comments = data["pull"], data["comments"]
+    assert isinstance(pull, dict) and isinstance(comments, list)
+    plan = plandigest.section(str(pull["body"]))
     later = expansion.RUN_ADDRESS.sub(
         lambda m: f"{m[1]}/actions/runs/9{m[0][-3:]}", plan
     )
-    here, there = expansion.accepted_digests(plan), expansion.accepted_digests(later)
+    kept, moved = expansion.accepted_digests(plan), expansion.accepted_digests(later)
+    bodies = [str(each["body"]) for each in comments]
     printed = [
-        each["body"].split("Plan digest: ")[1][:16]
-        for each in data["comments"]
-        if each["body"].startswith("Plan check") and "Plan check: ok" in each["body"]
+        each.split("Plan digest: ")[1][:16]
+        for each in bodies
+        if each.startswith("Plan check") and "Plan check: ok" in each
     ]
     assert_that(
-        [here[0] == there[0], here[1] == there[1], printed[-1] == here[1]],
+        [kept[0] == moved[0], kept[1] == moved[1], printed[-1] == kept[1]],
         equal_to([True, False, True]),
         f"{name}: the digest of the Plan at the next head",
     )

@@ -82,9 +82,9 @@ class TestReviewBriefs(unittest.TestCase):
 
     def test_a8_no_printed_review_brief_says_makes_false(self) -> None:
         """Every kind of review brief, read against the phrase the lint refuses."""
-        kinds = [each for each in brief.Kind if each.name.startswith("REVIEW")]
-        assert_that(len(kinds) > 2, equal_to(True))
-        for kind in kinds:
+        review_kinds = [each for each in brief.Kind if each.name.startswith("REVIEW")]
+        assert_that(len(review_kinds) > 2, equal_to(True))
+        for kind in review_kinds:
             with self.subTest(kind.name):
                 text = briefmake.text(kind)
                 assert_that(reviewrules.phrase_findings(text), empty())

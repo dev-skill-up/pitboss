@@ -62,7 +62,9 @@ class TestAfterTheRuling(unittest.TestCase):
 
     def test_i24_a_plan_check_after_the_ruling_at_the_head_is_the_review(self) -> None:
         """PR 460 at 04:41Z: the steps were done, the review is the step."""
-        history = History(reviews=APPROVED_PLAN, rulings=RULED, checks=[(2, 0), (5, 0)])
+        history = History(
+            reviews=APPROVED_PLAN, rulings=RULED, checks=[(2, 0, 0), (5, 0, 0)]
+        )
         got = step_with(history)
         assert_that(
             (got.step, got.stage),
@@ -71,7 +73,7 @@ class TestAfterTheRuling(unittest.TestCase):
 
     def test_i32_a_plan_check_newer_than_the_ruling_is_reviewed(self) -> None:
         """A Plan not yet reviewed after the ruling and a newer check: a review."""
-        history = History(rulings=RULED, checks=[(2, 0), (5, 0)])
+        history = History(rulings=RULED, checks=[(2, 0, 0), (5, 0, 0)])
         assert_that(step_with(history).step, equal_to(steps.Step.REGULAR_REVIEW))
 
     def test_i15_a_revised_plan_after_the_ruling_is_reviewed_not_rewritten(
@@ -81,7 +83,7 @@ class TestAfterTheRuling(unittest.TestCase):
         history = History(
             reviews=APPROVED_PLAN,
             rulings=[(4, Ruling.REVISE_THE_PLAN)],
-            checks=[(2, 0), (5, 1)],
+            checks=[(2, 0, 0), (5, 1, 1)],
         )
         got = step_with(history, plan=1, head=1, pushed=6)
         assert_that((got.step, got.task), equal_to((steps.Step.REGULAR_REVIEW, None)))

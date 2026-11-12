@@ -37,8 +37,8 @@ class TestRerunRule(unittest.TestCase):
     def test_c13_the_step_allows_the_stuck_rerun_and_refuses_the_flake(self) -> None:
         """``step`` is the refusal for a flake and the allowance otherwise."""
         assert_that(rerunrule.step(FLAKE), equal_to(rerunrule.refusal(FLAKE)))
-        assert_that(rerunrule.step(STUCK), contains_string("re-run it"))
-        assert_that(rerunrule.step(STUCK), contains_string("no flake"))
+        for words in ("re-run it", "no flake"):
+            assert_that(rerunrule.step(STUCK), contains_string(words))
 
     def test_c13_the_stuck_warning_is_the_rerun_rules_step(self) -> None:
         """The production caller: the warning of a queued run says ``step``."""
@@ -57,7 +57,7 @@ class TestRerunRule(unittest.TestCase):
     def test_c13_no_printed_string_forbids_a_rerun_outright(self) -> None:
         """Every string of the program that holds ``re-run`` is read."""
         forbidding = ("no re-run", "never re-run", "not re-run", "no rerun")
-        found = []
+        found: list[tuple[str, str]] = []
         for path in sorted(pathlib.Path(__file__).parents[1].glob("*.py")):
             for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                 if isinstance(node, ast.Constant) and isinstance(node.value, str):

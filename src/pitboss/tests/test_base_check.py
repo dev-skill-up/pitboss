@@ -21,16 +21,7 @@ NAME = "test_c13_a_flake_rerun_is_refused"
 REASON = f"\nAlready on main: {NAME}: the refusal was there\n"
 
 
-def module_of(name: str) -> str | None:
-    """The module of a planted test.
-
-    Args:
-        name: a test name.
-
-    Returns:
-        ``test_rerun_rule`` for the planted one, else None.
-    """
-    return "test_rerun_rule" if name == NAME else None
+module_of = {NAME: "test_rerun_rule"}.get
 
 
 def command(body: str, ref: str) -> tuple[int, str]:
