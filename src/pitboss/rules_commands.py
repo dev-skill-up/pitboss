@@ -8,7 +8,7 @@ import sys
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, donewhen, donewhenrun, phrases, rules
+from . import ENTRY_DATA, donewhencheck, donewhenrun, phrases, rules
 
 REGISTER = "rules.tsv"
 TABLE = "coverage_ids.txt"
@@ -125,18 +125,18 @@ def done_when(args: argparse.Namespace) -> None:
         else phrases.shipped_text(PAIRING)
     )
     rows, _ = rules.parse(phrases.shipped_text(REGISTER))
-    items = donewhen.parse(pairing)
+    items = donewhencheck.parse(pairing)
     tests = sorted(
-        {t for each in items for t in donewhen.tests_of(each, rows) if "." in t}
+        {t for each in items for t in donewhencheck.tests_of(each, rows) if "." in t}
     )
     here = pathlib.Path(str(importlib.resources.files("pitboss"))).parent
     with donewhenrun.base_source(pathlib.Path(args.repo), args.ref) as base:
-        checks = donewhen.Checks(
+        checks = donewhencheck.Checks(
             exists=donewhenrun.exists,
             head=donewhenrun.run_all(tests, here),
             base=donewhenrun.run_all(tests, base),
         )
-    found = donewhen.refusals(items, rows, checks)
+    found = donewhencheck.refusals(items, rows, checks)
     if found:
         print(f"done-when check: refused, {len(found)} findings, first: {found[0]}")
         raise SystemExit(1)
