@@ -150,13 +150,10 @@ def settled(
     return pulls.readable(read)[0], lines
 
 
-UNOFFERED = (
+SEND_BACK = dataclasses.replace(
     steps.plan_check(),
-    dataclasses.replace(
-        steps.plan_check(),
-        step=steps.Step.SEND_BACK_PLAN_CHECK,
-        findings="row 1: NOT RUN",
-    ),
+    step=steps.Step.SEND_BACK_PLAN_CHECK,
+    findings="row 1: NOT RUN",
 )
 GATED = (
     steps.regular_review(steps.Stage.PLAN_AND_EXECUTION),
@@ -175,15 +172,17 @@ KEPT = (
 class TestShapes(unittest.TestCase):
     """The states, one by one, with the PR facts."""
 
-    def test_c24_each_step_that_needs_a_worker_and_is_offered_to_nobody(self) -> None:
-        """PLAN_CHECK and SEND_BACK_PLAN_CHECK become the finishing step."""
-        done = [settled(each) for each in UNOFFERED]
-        assert_that(
-            [work.category_of(pull) for pull, _ in done],
-            equal_to([work.Category.FINISH_PARTIAL] * 2),
-        )
-        assert_that(done[1][1][0], contains_string("the Plan check refused the Plan"))
-        assert_that(done[0][1][0], contains_string(NOT_CHECKED))
+    def test_c24_a_pr_with_no_clean_plan_check_becomes_the_finishing_step(self) -> None:
+        """PLAN_CHECK is offered to nobody; it becomes the finishing step."""
+        pull, lines = settled(steps.plan_check())
+        assert_that(work.category_of(pull), equal_to(work.Category.FINISH_PARTIAL))
+        assert_that(lines[0], contains_string(NOT_CHECKED))
+
+    def test_c24_a_refused_check_stays_the_pushing_workers_and_is_named(self) -> None:
+        """Pitboss#471: no round is offered for it; the sweep says NO STEP."""
+        pull, lines = settled(SEND_BACK)
+        assert_that(pull.step.step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
+        assert_that(lines, equal_to([]))
 
     def test_c24_a_red_text_lint_on_a_pr_to_review_or_merge_is_partial(self) -> None:
         """A body that fails `lint pr-body` is finished, not reviewed or merged."""
@@ -212,17 +211,17 @@ class TestShapes(unittest.TestCase):
 class TestStranded(unittest.TestCase):
     """The sweep names a PR that has no step."""
 
-    def test_c24_a_pr_left_at_the_check_step_is_named(self) -> None:
-        """Unsettled, the PR at PLAN_CHECK is offered for nothing: NO STEP."""
-        left = [at_step(steps.plan_check())]
+    def test_c24_a_pr_offered_for_nothing_is_named(self) -> None:
+        """A refused check no worker sends back, or a check step left unsettled."""
+        left = [at_step(SEND_BACK), at_step(steps.plan_check())]
         found = finishpartial.stranded(left)
-        assert_that(len(found), equal_to(1))
+        assert_that(len(found), equal_to(2))
         assert_that(found[0], contains_string("NO STEP owner/project#3"))
 
     def test_c24_a_settled_pr_is_not_named(self) -> None:
-        """After `settle` every PR has a step."""
-        settled = finishpartial.settle([at_step(steps.plan_check())])[0]
-        assert_that(list(finishpartial.stranded(settled)), equal_to([]))
+        """After `settle` the check step is the finishing step: it has a step."""
+        settled_pr = finishpartial.settle([at_step(steps.plan_check())])[0]
+        assert_that(list(finishpartial.stranded(settled_pr)), equal_to([]))
 
 
 class TestOrder(unittest.TestCase):

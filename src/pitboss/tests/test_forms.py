@@ -18,6 +18,7 @@ ONE_LINE = review_form("Independent review of head {sha}: {verdict}")
 BARE = review_form("Hello", "world")
 GATED = review_form("## Adversarial review", "Reviewed: {sha}", "Verdict: {verdict}")
 REVIEW = f"## Adversarial review\n\nReviewed: {HEAD}\nVerdict: approved\n"
+GRADES = "Plan: approved\nExecution: approved\n"
 PROJECT = "[project]\nowner = 'o'\nrepository = 'r'\nmain_clone = '/c'\n"
 FORMS_TOML = PROJECT + """
 [review.form]
@@ -264,10 +265,10 @@ class TestCommands(unittest.TestCase):
 
     def test_review(self) -> None:
         """The generic form; with --gated the gated one (the same by default)."""
-        text = f"## Review\nReviewed: {HEAD}\nVerdict: approved\n"
+        text = f"## Review\nReviewed: {HEAD}\nVerdict: approved\n{GRADES}"
         found = [
             outcome("review", text, "--head", HEAD),
-            outcome("review", REVIEW, "--head", HEAD),
+            outcome("review", REVIEW + GRADES, "--head", HEAD),
             outcome("review", text, "--head", HEAD, "--gated"),
             outcome("review", text, "--gated", "--head", OTHER),
         ]
@@ -277,8 +278,8 @@ class TestCommands(unittest.TestCase):
     def test_config(self) -> None:
         """The forms are the project's: its review lines and brief lines."""
         path = write_text("project.toml", FORMS_TOML)
-        strict = f"## Strict\nHead: {HEAD}\nOutcome: approved\n"
-        mine = f"Looked at {HEAD}: approved\n"
+        strict = f"## Strict\nHead: {HEAD}\nOutcome: approved\n{GRADES}"
+        mine = f"Looked at {HEAD}: approved\n{GRADES}"
         found = [
             outcome("review", mine, "--config", path),
             outcome("review", strict, "--config", path, "--gated"),

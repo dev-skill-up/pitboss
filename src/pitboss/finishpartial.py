@@ -10,8 +10,9 @@ states in which a PR is neither done nor offered are derived here from the steps
 
 * ``PLAN_CHECK`` (no clean Plan check covers the Plan at this head: a PR with no
   check, or a head ahead of the checked one, or a worker's hand-back that stopped
-  before the check) and ``SEND_BACK_PLAN_CHECK`` (the check refused it): a worker
-  posts or fixes it;
+  before the check): a worker posts it. ``SEND_BACK_PLAN_CHECK`` (the check refused
+  the Plan) stays the pushing worker's to send back (pitboss#471, offered as no
+  round), so the sweep names it ``NO STEP`` instead;
 * any step that merges or reviews while the ``text-lint`` status of the head is red
   (the body fails ``lint pr-body``): a PR so red cannot merge or be reviewed;
 * a draft with a pushed head and no worker, a ledger slot released with work
@@ -30,7 +31,9 @@ from . import pulls, steps, textlint, work
 
 PREFIX = "FINISH PARTIAL"
 STRANDED = "NO STEP"
-PLAN = {steps.Step.PLAN_CHECK, steps.Step.SEND_BACK_PLAN_CHECK}
+# the steps a worker still holding the PR does: offered to nobody (a refused check is
+# sent back by the worker that pushed, pitboss#471, so it is named, never offered)
+UNOFFERED = {steps.Step.PLAN_CHECK, steps.Step.SEND_BACK_PLAN_CHECK}
 # the steps that merge or review a PR whose body the lint refuses
 GATED = {
     steps.Step.REGULAR_REVIEW,
@@ -42,7 +45,6 @@ GATED = {
 NO_CHECK = (
     "no clean Plan check covers the Plan at this head: post `uvx pitboss plan-check`"
 )
-REFUSED = "the Plan check refused the Plan: {findings}"
 RED_BODY = "the `text-lint` status of the head is red ({description}): fix the body"
 
 
@@ -59,9 +61,7 @@ def reasons(pull: pulls.PullFacts) -> Sequence[str]:
     found = []
     if step.step is steps.Step.PLAN_CHECK:
         found.append(NO_CHECK)
-    if step.step is steps.Step.SEND_BACK_PLAN_CHECK:
-        found.append(REFUSED.format(findings=step.findings or step.comment))
-    if step.step in PLAN | GATED:
+    if step.step in {steps.Step.PLAN_CHECK} | GATED:
         found += [
             RED_BODY.format(description=each.description or each.state)
             for each in pull.signals.statuses
@@ -112,5 +112,5 @@ def stranded(reads: Sequence[pulls.Read]) -> Sequence[str]:
     return [
         f"{STRANDED} {pulls.reference(each)}: {steps.describe(each.step)}"
         for each in pulls.readable(reads)
-        if each.step.step in PLAN and work.category_of(each) is None
+        if each.step.step in UNOFFERED and work.category_of(each) is None
     ]

@@ -21,6 +21,11 @@ PATHS = {
 }
 RUN = "https://github.com/owner/project/actions/runs/5"
 REVIEW_WORDS = "review it (a reviewer that is not its author)"
+# keyword: finish-partial: a red text-lint status on a PR to review is finished first
+FINISH_WORDS = (
+    "finish the PR a worker handed back unfinished: the `text-lint` status of the"
+    " head is red (first-line): fix the body"
+)
 BOT = {"login": "tool[bot]"}
 PASSED = {
     "id": 9,
@@ -141,7 +146,7 @@ class TestDraftWithAFailedStatus(unittest.TestCase):
         out = next_output(with_statuses([status("failure", "first-line")], draft=True))
         assert_that(
             lines_of(out, "PR STATE"),
-            equal_to([f"PR STATE owner/project#3: draft next step: {REVIEW_WORDS}"]),
+            equal_to([f"PR STATE owner/project#3: draft next step: {FINISH_WORDS}"]),
         )
         blocked = lines_of(out, "BLOCKED")
         assert_that(len(blocked), equal_to(1))

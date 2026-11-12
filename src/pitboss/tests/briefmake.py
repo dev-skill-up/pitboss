@@ -14,18 +14,33 @@ FORM = ("## Review", f"Reviewed: {HEAD}", "Verdict: <approved or changes needed>
 GRADES = (
     "Grade lines: write exactly these lines beside the form's, with the one word"
     " of the `Verdict:` line, first on the line after the colon (`approved` or"
-    " `changes needed`); the sweep reads no other spelling, and `Plan: ok` or"
-    " `Plan: LGTM` grades nothing and is no approval:"
+    " `changes needed`); the sweep reads no other spelling, `Plan: ok` or"
+    " `Plan: LGTM` grades nothing and is no approval, and a review that lacks a"
+    " line below is not counted (the sweep says REVIEW UNREAD) and is offered"
+    " again:"
 )
-FIXED_GRADES = (
-    GRADES,
-    "    Plan: approved (fixed)",
-    "    Execution: <approved or changes needed>",
-    "Check before you post: save the comment to a file and run `uvx pitboss lint"
-    f" review` and its arguments `FILE --head {HEAD} --plan-approved`; post it"
-    " only when it prints nothing. A comment posted unchecked can be one the"
-    " sweep does not read.",
-)
+
+
+def fixed_grades(kind: str) -> tuple[str, ...]:
+    """The grade lines of a brief that fixes the Plan line.
+
+    Args:
+        kind: the ``--review-kind`` word.
+
+    Returns:
+        The lines.
+    """
+    return (
+        GRADES,
+        "    Plan: approved (fixed)",
+        "    Execution: <approved or changes needed>",
+        "Check before you post: save the comment to a file and run `uvx pitboss"
+        f" lint review` and its arguments `FILE --head {HEAD} --plan-approved"
+        f" --review-kind {kind}`; post it only when it prints nothing. A comment"
+        " posted unchecked can be one the sweep does not read.",
+    )
+
+
 GOAL = "ticket o/r#7: Do the thing"
 BODY_DIGEST = "d" * 16
 PLAN_DIGEST = "e" * 16

@@ -220,7 +220,10 @@ def gated_lint(*options: str) -> tuple[object, str]:
     here = with_gate(world.make_world(), LIBRARY_GATE)
     path = fakes.directory() / "review.md"
     head = fakes.HEAD
-    path.write_text(f"## Adversarial review\nVerdict: approved\nReviewed: {head}\n")
+    graded = "Plan: approved\nExecution: approved\n"
+    path.write_text(
+        f"## Adversarial review\nVerdict: approved\nReviewed: {head}\n{graded}"
+    )
     bare = options[:1] == ("--no-config",)
     config_options = [] if bare else ["--config", here.config]
     words = ["--gated", "--head", head, *options[bare:]]

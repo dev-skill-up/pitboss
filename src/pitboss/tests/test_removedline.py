@@ -13,6 +13,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import (
     config,
+    finishpartial,
     parsing,
     pulls,
     queue,
@@ -129,13 +130,13 @@ def lines_of(here: world.World) -> Sequence[str]:
         here: the world.
 
     Returns:
-        The lines that start with a marker and name the PR, without its summary.
+        The lines that name the PR, without its summary and the finishing line.
     """
     return [
         line
         for line in sweep(here).out.splitlines()
         if "owner/project#2" in line
-        and not line.startswith(("owner/project#2 [", tasklist.LABEL))
+        and not line.startswith(("owner/project#2 [", tasklist.LABEL, finishpartial.PREFIX))
     ]
 
 
