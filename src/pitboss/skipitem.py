@@ -18,7 +18,6 @@ from . import config, ledger, work
 SKIP_ARGUMENT = add_argument(
     "--skip",
     action="append",
-    default=[],
     metavar="ITEM",
     help="for 'slots next': leave this ticket or PR (owner/repo#N, repo#N or #N)"
     " out of the list and its briefs, say so in a SKIPPED line, and offer the next"
@@ -37,7 +36,7 @@ def named(args: argparse.Namespace, repo: config.Repo) -> Sequence[str]:
     Returns:
         Their references as ``owner/repo#N``, in the order given.
     """
-    return [ledger.reference(each, repo) for each in getattr(args, "skip", ())]
+    return [ledger.reference(each, repo) for each in getattr(args, "skip", None) or ()]
 
 
 def without(offer: work.Offered, skipped: Sequence[str]) -> work.Offered:
