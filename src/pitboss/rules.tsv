@@ -18,7 +18,7 @@ A16	2026-11-04	enforced	The Execution review waits for full green CI on the revi
 A17	2026-10-31	output	After a merge of main the review covers only the resolution	brief.build	test_register_rules.test_a17_a_merge_of_main_is_reviewed_for_the_merge_alone
 A18	2026-10-29	enforced	Impossibility needs evidence first	partial.refusal	test_register_rules.test_a18_a_partial_hand_back_needs_the_impossible_line
 A19	2026-11-08	enforced	Done-when appears only in the ticket body and changes only before a worker started	casepost.with_done_when	test_case_post.test_a19_the_done_when_is_edited_in_the_body test_case_post.test_a19_the_edit_is_refused_once_a_worker_started
-A20	2026-11-11	enforced	A Done-when must be X demonstrated by Y	plandonewhen.form	test_done_when_form.test_a20_an_item_with_no_demonstration_is_refused test_done_when_form.test_a20_a_lead_line_states_it_for_every_item
+A20	2026-11-11	enforced	A Done-when must be X demonstrated by Y	plandonewhen.form	test_done_when_form.test_a20_t458_an_item_with_no_demonstration_is_refused test_done_when_form.test_a20_t458_a_lead_line_states_it_for_every_item
 A21	2026-10-30	enforced	A PR that closes several tickets needs a recorded ruling	folds.allows	test_register_rules.test_a21_a_pr_closing_several_tickets_needs_a_ruling
 A22	2026-10-30	enforced	An approved Plan is never judged again by the Plan-row rule	planapproved.digests	test_register_rules.test_a22_an_approved_plan_is_not_judged_again
 A23	2026-10-30	output	A review lists every finding in round one	brief.build	test_register_rules.test_a23_a_review_lists_every_finding_in_round_one
@@ -105,3 +105,53 @@ I32	2026-11-11	enforced	A Plan check newer than the ruling is reviewed; --force 
 I34	2026-11-11	enforced	A run queued over 30 minutes while later runs completed is STUCK CI	stuckci.stuck	test_cases_open.test_i34_a_queued_run_with_later_completed_runs_is_stuck
 I36	2026-11-11	enforced	Every running agent counts toward the cap, a diagnosis included	slotholder.holder	test_cases_agents.test_i36_a_diagnosis_is_refused_while_a_worker_holds_the_slot test_cases_agents.test_i36_the_freed_slot_takes_the_diagnosis test_cases_agents.test_b23_i36_an_agent_the_ledger_lacks_fills_the_cap
 I38	2026-11-11	enforced	A fix round waits at most 30 minutes; a review starts on green CI; no made false	reviewci.lines	test_cases_review_form.test_i38_a_run_in_progress_refuses_and_is_named test_cases_review_form.test_i38_a_head_with_every_run_green_prints_the_form test_cases_review_form.test_i38_made_false_is_refused_in_a_review test_cases_flow.test_i38_a_wait_over_thirty_minutes_is_named_with_the_findings test_cases_flow.test_i38_a_recent_round_or_one_with_an_agent_is_not_named
+T445	2026-11-12	enforced	A cancelled run, or a failure followed by a later success of the same check, is finished and not red	checkruns.current_checks	test_pulls.test_t445_cancelled_is_not_failed test_pulls.test_t445_later_green_run_supersedes
+T462	2026-11-12	enforced	A ruling's steps are counted done after a body-only fix round with a clean Plan check, and the review brief is printed for a named PR	flow.next_step	test_body_only_round.test_t462_a_clean_check_after_the_ruling_gives_the_review test_body_only_round.test_t462_no_check_after_the_ruling_gives_the_fix test_body_only_round.test_t462_a_refusal_after_the_ruling_gives_the_fix test_body_only_round.test_t462_a_pr_at_the_review_is_briefed test_body_only_round.test_t462_a_pr_at_a_fix_is_refused_with_its_step_and_the_rule
+T464	2026-11-12	enforced	A PR whose newest head has a failing check is offered a fix that names the check and its job, not a review	flow.next_step	test_draft_red_ci.test_t464_the_step_is_a_fix test_draft_red_ci.test_t464_the_offered_step_names_the_check_and_its_job test_draft_red_ci.test_t464_the_brief_is_a_fix_on_the_branch_with_the_check test_draft_red_ci.test_t464_a_running_check_keeps_the_review test_draft_red_ci.test_t464_green_checks_keep_the_review
+T467	2026-11-12	enforced	A posted do-these-steps ruling voids the earlier approval and prints the fix-round brief	flow.next_step	test_ruling_voids.test_t467_the_ruling_steps_are_offered_not_the_merge test_ruling_voids.test_t467_the_offered_kind_is_do_the_rulings_steps test_ruling_voids.test_t467_the_brief_is_the_fix_round_worker_brief_with_the_ruling test_ruling_voids.test_t467_a_review_after_the_ruling_restores_the_approval
+T475	2026-11-12	enforced	A Plan whose digest changed after its approval is executed when a ruling follows, and changed run URLs alone are no edit	flow.next_step	test_plan_digest.test_t475_a_revision_then_do_these_steps_is_not_plan_edited test_plan_digest.test_t475_only_the_urls_rewritten_is_no_edit_and_a_word_is test_ruling_posted.test_t475_the_ruling_due_is_offered_at_plan_edited
+T132	2026-11-12	enforced	A draft whose Plan was rejected gets the revision round and then the Opus ruling, never the Plan review again	flow.next_step	test_draft_review.test_t132_a_draft_whose_plan_is_rejected_at_its_head_is_a_fix test_draft_review.test_t132_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy
+T458	2026-11-12	enforced	plan-check refuses a Plan with a Done-when item that has no demonstrated-by pairing	plandonewhen.form	test_done_when_form.test_a20_t458_an_item_with_no_demonstration_is_refused test_done_when_form.test_a20_t458_a_lead_line_states_it_for_every_item test_done_when_form.test_a20_t458_every_item_demonstrated_passes test_done_when_form.test_a20_t458_a_ticket_with_no_done_when_has_no_item test_done_when_form.test_a20_t458_a_lead_line_that_names_no_demonstration_does_not_count
+T406	2026-11-12	enforced	The fragment check refuses a cut line that starts with any closing mark by its Unicode category	markuplines.fragments	test_markup_fragments.test_t406_every_closing_mark_is_refused_and_an_opening_one_is_not
+T437	2026-11-12	open	hand-back-check names the owner's allowance when a worker stops at a repository rule that forbids the feature	-	-
+T394	2026-11-12	open	pitboss body-head prints the merge-proof pair from the body last Head, not from the reviewed SHA	-	-
+T329	2026-11-12	open	pitboss lint refuses a body whose `git rev-parse HEAD` Evidence block differs from the last Head line	-	-
+T221	2026-11-12	open	The "revise the plan" brief asks for an empty commit; a Plan-only revision needs no new head	-	-
+T222	2026-11-12	open	An Opus ruling at the Plan stage does not exhaust the Execution stage's rounds: the first Execution rejection is fixed against the Plan, not escalated to the owner	-	-
+T365	2026-11-12	open	plan-check refuses a Plan whose change adds a config table or key that doc/example.toml does not list	-	-
+T407	2026-11-12	open	The worker brief asks a new syntax scan to plant one input for each spelling of every form its Done-when names	-	-
+T413	2026-11-12	open	The phrase lint exempts a verbatim copy of the ticket's Done-when	-	-
+T417	2026-11-12	open	The review brief refuses a deviation from a Done-when item that is a scheduling constraint, not an impossibility	-	-
+T419	2026-11-12	open	pitboss next reports MISSING NAMES for a Done-when name that is not a path (an allowlist line key)	-	-
+T423	2026-11-12	open	pitboss lint pr-body refuses the Evidence of a pull request made by a reviewed script (tools/adopt)	-	-
+T433	2026-11-12	open	markup-lines refuses a generated report that a script writes	-	-
+T223	2026-11-12	open	The PR-body lint reads the lines inside pitboss-expand blocks, so a words check refuses a Plan-mandated git diff row	-	-
+T286	2026-11-12	open	A Plan whose commands run in a scratch path must make or show that path's state, and a timed row must give its limit	-	-
+T399	2026-11-12	open	Drop the acceptance of Plan digests recorded before pitboss#358 collapsed expanded blocks	-	-
+T52	2026-11-12	open	Add `pitboss lint e2e-waits`: refuse fixed waits and nameless quarantine marks in end-to-end tests	-	-
+T53	2026-11-12	open	Rules: quarantine a failing test at its p0 ticket, and merge a race fix only with its evidence	-	-
+T54	2026-11-12	open	Add the quarantine and race forms to `pitboss lint pr-body|review|brief`	-	-
+T55	2026-11-12	open	Add a review-comment check: refuse an approval of a head with no completed green check run	-	-
+T111	2026-11-12	open	Add `pitboss lint pins`: the CI-input pinning rules of `bats check-pins`	-	-
+T336	2026-11-12	open	Remove from the sweep skill what the commands made unneeded	-	-
+T337	2026-11-12	open	Move what a command can say from the sweep skill into the commands	-	-
+T319	2026-11-12	open	The orchestrator never resolves a human decision card; the sweep skill says so	-	-
+T361	2026-11-12	open	pitboss ticket-find prints the open tickets close to a new one before it is filed, and a filing refuses a ticket with no check	-	-
+T110	2026-11-12	open	The orchestrator skill forbids ending an answer with "I haven't checked": do the check first	-	-
+T4	2026-11-12	open	Generalize the orchestration rules learned on bats-lang/quire into the sweep skill	-	-
+T6	2026-11-12	open	Orchestration rules as they stand on 2026-10-24: update pitboss's defaults and docs to match	-	-
+T56	2026-11-12	open	Rules: short jobs run locally, CI runs the rest, no background runs and no sleep loops	-	-
+T93	2026-11-12	open	Rules: a ticket without a priority label gets one by the criteria, then the order is strict	-	-
+T105	2026-11-12	open	rules.md "Plan first" says an Opus ruling is unrestricted	-	-
+T133	2026-11-12	open	Rules: an Opus ruling carries the owner's authority, priority change and duplicate close included	-	-
+T285	2026-11-12	open	A design for an umbrella ticket names, for each guarantee, the function, file and test that enforce it, and a lifecycle list for each new atom, store or element	-	-
+T32	2026-11-12	open	sweep classifies a mechanical red and a push that fixes it is exempt from the runner hold	-	-
+T50	2026-11-12	open	Add a tracked pre-push hook that runs the project's configured first-minute checks	-	-
+T51	2026-11-12	open	Add sweep lines HOOKS-NOT-INSTALLED and NO-VERIFY, and make the push command load the project's env file	-	-
+T141	2026-11-12	open	Runner-pressure holds apply only to repos of the org whose runners are busy	-	-
+T321	2026-11-12	open	brieftext.py CI_DRAFT says a draft has no check run, which is the claim pitboss#277 removes	-	-
+T334	2026-11-12	open	pitboss deletes stale remote branches: a command the owner runs from a machine with push rights	-	-
+T310	2026-11-12	open	Remove the positional configuration argument of the pitboss commands (after #307's overlap)	-	-
+T432	2026-11-12	open	pitboss nox passes on the branch alone while CI tests the PR merged with main	-	-
+T447	2026-11-12	open	The relock review brief names a case for a test fix that the new pin needs	-	-
+T449	2026-11-12	open	sweep reports a failed publish run with its failing step and the check that caused it	-	-

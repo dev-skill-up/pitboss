@@ -105,7 +105,7 @@ class TestDraftsInSlotsNext(unittest.TestCase):
         here = quiet(world_with(rounds, draft=True))
         assert_that(listed(here), equal_to(("review it", True)))
 
-    def test_a_draft_whose_plan_is_rejected_at_its_head_is_a_fix(self) -> None:
+    def test_t132_a_draft_whose_plan_is_rejected_at_its_head_is_a_fix(self) -> None:
         """Changes needed on the Plan: revise the plan, before any ticket."""
         here = quiet(world_with([graded(CHANGES, None, 1)], draft=True))
         assert_that(listed(here), equal_to(("revise the plan", True)))
@@ -176,7 +176,9 @@ class TestDraftsInTheSweep(unittest.TestCase):
         assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
         assert_that("DRAFT ROUND owner/project#3: review it" in out, equal_to(False))
 
-    def test_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy(self) -> None:
+    def test_t132_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy(
+        self,
+    ) -> None:
         """pitboss#130: ``slots next`` offers a ruling, and no review line for PR 3."""
         rounds = [graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2)]
         here = world_with(rounds, draft=True)

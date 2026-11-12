@@ -59,15 +59,15 @@ def ruled(*after: shapes.Comment) -> flow.PullState:
 class TestBodyOnlyRound(unittest.TestCase):
     """The step of a ruling whose steps the body alone could do."""
 
-    def test_a_clean_check_after_the_ruling_gives_the_review(self) -> None:
+    def test_t462_a_clean_check_after_the_ruling_gives_the_review(self) -> None:
         """The body was fixed and checked: the review of the ruling's steps."""
         expect(REVIEW, ruled(check_after(OK)))
 
-    def test_no_check_after_the_ruling_gives_the_fix(self) -> None:
+    def test_t462_no_check_after_the_ruling_gives_the_fix(self) -> None:
         """The body was not edited after the ruling."""
         expect(FIX, ruled())
 
-    def test_a_refusal_after_the_ruling_gives_the_fix(self) -> None:
+    def test_t462_a_refusal_after_the_ruling_gives_the_fix(self) -> None:
         """The newest check of the Plan refuses it."""
         expect(FIX, ruled(check_after("Plan check: refused, rows: 1")))
 
@@ -132,7 +132,7 @@ def refused(here: world.World, reference: str, *words: str) -> None:
 class TestStepReview(unittest.TestCase):
     """``slots next --step review`` prints a review brief or refuses."""
 
-    def test_a_pr_at_the_review_is_briefed(self) -> None:
+    def test_t462_a_pr_at_the_review_is_briefed(self) -> None:
         """The body round is done: the review brief, status 0."""
         newer = shapes.Comment(
             body=CLEAN_CHECK["body"],
@@ -145,7 +145,7 @@ class TestStepReview(unittest.TestCase):
         assert_that("UNKNOWN" in found.err, equal_to(False))
         says(found.out, "owner/project#3", "review")
 
-    def test_a_pr_at_a_fix_is_refused_with_its_step_and_the_rule(self) -> None:
+    def test_t462_a_pr_at_a_fix_is_refused_with_its_step_and_the_rule(self) -> None:
         """Exit 1, UNKNOWN, the actual step and the rule on standard error."""
         refused(
             ruled_world("do these steps"),

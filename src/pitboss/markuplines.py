@@ -16,6 +16,7 @@ nothing; it is given the output of ``git diff --numstat -z`` and of
 
 import json
 import re
+import unicodedata
 from typing import Mapping, Sequence
 
 CHECK = "markup-lines"
@@ -98,6 +99,11 @@ def _table_row(text: str) -> bool:
     return text.startswith("|") and text.endswith("|")
 
 
+def _closing(mark: str) -> bool:
+    # a closing mark by its Unicode category (Pe, Pf) or one of the six: pitboss#406
+    return mark in ".,;:!?" or unicodedata.category(mark) in ("Pe", "Pf")
+
+
 def _dangling(new: str, old: str) -> str:
     # why the cut line `new` of `old` no longer reads as a whole, empty if it does
     text, was = new.strip(), old.strip()
@@ -105,7 +111,7 @@ def _dangling(new: str, old: str) -> str:
     if not text or not first:
         return ""
     reasons = [
-        (first[0] in ".,;:)]}", "starts with a closing mark"),
+        (_closing(first[0]), "starts with a closing mark"),
         (first[0].islower() and not before[:1].islower(), "starts mid-sentence"),
         (_table_row(was) and not _table_row(text), "is a table row that lost its edge"),
         (_unclosed(text, was), "has an unclosed bracket"),

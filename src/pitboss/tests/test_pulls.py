@@ -266,7 +266,7 @@ def lint_failed(runs: Sequence[Mapping[str, object]]) -> Sequence[int]:
 class TestCurrentChecks(unittest.TestCase):
     """Only the latest run of a check on the current head counts."""
 
-    def test_cancelled_is_not_failed(self) -> None:
+    def test_t445_cancelled_is_not_failed(self) -> None:
         """A run cancelled by concurrency is superseded, not red."""
         assert_that(
             lint_failed([check(1, "cancelled", "2026-10-01T00:00:00Z")]), equal_to([])
@@ -280,7 +280,7 @@ class TestCurrentChecks(unittest.TestCase):
         ]
         assert_that(lint_failed(runs), equal_to([]))
 
-    def test_later_green_run_supersedes(self) -> None:
+    def test_t445_later_green_run_supersedes(self) -> None:
         """A failure followed by a later success of the same name is not red."""
         runs = [
             check(2, "success", "2026-10-02T00:00:00Z"),

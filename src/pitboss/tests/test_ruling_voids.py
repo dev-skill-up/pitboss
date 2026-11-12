@@ -48,7 +48,7 @@ def world_of(*rounds: shapes.Comment) -> world.World:
 class TestRulingVoidsApproval(unittest.TestCase):
     """The ruling after an approval."""
 
-    def test_the_ruling_steps_are_offered_not_the_merge(self) -> None:
+    def test_t467_the_ruling_steps_are_offered_not_the_merge(self) -> None:
         """Done-when 1: the flow offers the steps of the ruling."""
         test_flow.expect(test_flow.ruling_steps(2), approved_then_ruled())
 
@@ -62,18 +62,18 @@ class TestRulingVoidsApproval(unittest.TestCase):
         pr = state(review, comments=[test_flow.ruling(2, line="Ruling: split")])
         test_flow.expect(MERGE, pr)
 
-    def test_the_offered_kind_is_do_the_rulings_steps(self) -> None:
+    def test_t467_the_offered_kind_is_do_the_rulings_steps(self) -> None:
         """Done-when 1 in the world of ``slots next``."""
         here = world_of(test_flow.ruling(2))
         assert_that(kind_of_third(here), equal_to("do the steps of the Opus ruling"))
 
-    def test_the_brief_is_the_fix_round_worker_brief_with_the_ruling(self) -> None:
+    def test_t467_the_brief_is_the_fix_round_worker_brief_with_the_ruling(self) -> None:
         """Done-when 2: the marker ends in ``fix`` and the brief names the ruling."""
         out = next_output(world_of(test_flow.ruling(2)))
         assert_that(out, contains_string("PITBOSS-SLOT: owner/project#3 fix\n"))
         assert_that(out, contains_string(f"the comment at {RULING_URL}"))
 
-    def test_a_review_after_the_ruling_restores_the_approval(self) -> None:
+    def test_t467_a_review_after_the_ruling_restores_the_approval(self) -> None:
         """Done-when 3: the review follows the ruling, and the merge is offered."""
         later = comment_reading(comment("approved", "approved", 3), BODY)
         pr = state(

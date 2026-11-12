@@ -232,7 +232,7 @@ class TestThePlanEditedLine(unittest.TestCase):
 class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
     """pitboss#475: the ids of a pointer's run and job are not the Plan."""
 
-    def test_only_the_urls_rewritten_is_no_edit_and_a_word_is(self) -> None:
+    def test_t475_only_the_urls_rewritten_is_no_edit_and_a_word_is(self) -> None:
         """Done-when 3: `plan_edited_without_ruling` is false, then true."""
         edit = urls.edited
         base, urls_only = pointed(1, 2), pointed(77, 88)
@@ -242,7 +242,7 @@ class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
         ]
         assert_that(found, equal_to([False, True]))
 
-    def test_a_revision_then_do_these_steps_is_not_plan_edited(self) -> None:
+    def test_t475_a_revision_then_do_these_steps_is_not_plan_edited(self) -> None:
         """Done-when 1: the approving review, the edited Plan, both rulings."""
         pr = urls.edited(urls.PLAN, urls.EDITED_PLAN, urls.revised_then_steps(3))
         assert_that(flow.next_step(pr).step, is_not(steps.Step.PLAN_EDITED))

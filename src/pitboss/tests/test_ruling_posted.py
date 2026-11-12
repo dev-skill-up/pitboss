@@ -234,7 +234,7 @@ def ruled(
 class TestRulingOfAnEditedPlan(unittest.TestCase):
     """pitboss#475: a ruling is executed after the Plan changed."""
 
-    def test_the_ruling_due_is_offered_at_plan_edited(self) -> None:
+    def test_t475_the_ruling_due_is_offered_at_plan_edited(self) -> None:
         """Done-when 2: edited Plan, no revision, no review or push after."""
         pr = ruled(EDITED_PLAN, BODY, [GREEN], test_flow.HEAD)
         test_flow.expect(steps.worker(steps.Task.RULING_STEPS), pr)

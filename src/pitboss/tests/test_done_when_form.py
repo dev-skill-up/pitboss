@@ -33,26 +33,28 @@ def asked(ticket: str) -> Sequence[str]:
 class TestForm(unittest.TestCase):
     """An item says what demonstrates it, or a lead line says it for all."""
 
-    def test_a20_an_item_with_no_demonstration_is_refused(self) -> None:
+    def test_a20_t458_an_item_with_no_demonstration_is_refused(self) -> None:
         """The first one is named."""
         found = asked(f"## Done when\n\n{ITEMS}")
         assert_that(found, has_length(1))
         assert_that(found[0], contains_string("the first one is: Another rule."))
 
-    def test_a20_a_lead_line_states_it_for_every_item(self) -> None:
+    def test_a20_t458_a_lead_line_states_it_for_every_item(self) -> None:
         """The nearest input it must still accept: the form of pitboss#444."""
         assert_that(asked(f"## Done when\n\n{LEAD}\n\n{ITEMS}"), empty())
 
-    def test_a20_every_item_demonstrated_passes(self) -> None:
+    def test_a20_t458_every_item_demonstrated_passes(self) -> None:
         """Each says it itself."""
         both = ITEMS.replace("Another rule.", "Another rule, demonstrated by a test.")
         assert_that(asked(f"## Done when\n\n{both}"), empty())
 
-    def test_a20_a_ticket_with_no_done_when_has_no_item(self) -> None:
+    def test_a20_t458_a_ticket_with_no_done_when_has_no_item(self) -> None:
         """The missing section is another check's."""
         assert_that(plandonewhen.form("Just text."), equal_to([]))
 
-    def test_a20_a_lead_line_that_names_no_demonstration_does_not_count(self) -> None:
+    def test_a20_t458_a_lead_line_that_names_no_demonstration_does_not_count(
+        self,
+    ) -> None:
         """ "Each item is a rule" says nothing of what shows it."""
         found = asked("## Done when\n\nEach item is a rule.\n\n1. A rule.\n")
         assert_that(found, has_length(1))
