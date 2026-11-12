@@ -121,6 +121,13 @@ class TestPairs(unittest.TestCase):
         )
         assert_that(found.counts["exception"] > 0, equal_to(True))
 
+    def test_444_equal_sets_are_no_change_whatever_the_hash_seed(self) -> None:
+        """A set is compared by its members, not by the order it prints in."""
+        names = [f"login{number}" for number in range(40)]
+        origin = totalworld.World(pull={}, ctx={"authors": set(names)})
+        again = totalworld.World(pull={}, ctx={"authors": set(reversed(names))})
+        assert_that(totalpairs.change_of(origin, again), equal_to({}))
+
     def test_444_74991_pairs_with_0_exceptions(self) -> None:
         """GO and STOP add to the pairs, and no pair raised."""
         found = _pairs()

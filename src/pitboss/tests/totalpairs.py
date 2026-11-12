@@ -12,7 +12,7 @@ import collections
 import copy
 import dataclasses
 import json
-from typing import Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
 from .. import totalanswer, totalroutes, totalverdict
 from .totalcells import Cell, Verdict
@@ -36,7 +36,13 @@ class Pairs:
 
 
 def _key(value: object) -> str:
-    return json.dumps(value, sort_keys=True, default=str)
+    # a set is written sorted: its str() follows the process's hash seed, and two
+    # equal sets built in another order can print in another order
+    return json.dumps(value, sort_keys=True, default=_plain)
+
+
+def _plain(value: AbstractSet[object]) -> Sequence[str]:
+    return sorted(map(str, value))
 
 
 DRAFTED: Mapping[str, Mapping[str, object]] = {"undraft": {"draft": True}}
