@@ -15,7 +15,8 @@ MARKUP_LINES = (
     " removed (a doc that code makes outdated is cut, not reworded, and a rule goes"
     " into the command's output or help text); a changed line whose text is its"
     " removed line with characters deleted and none inserted or reordered is a"
-    " removal, so cut the span and keep the rest; `pitboss plan-check` refuses a"
+    " removal, so cut the span and keep the rest; a blank line and inserted markup"
+    " (a bold title) are added lines; `pitboss plan-check` refuses a"
     " diff that adds any other line (keyword: markup-lines, pitboss#343, #373)."
 )
 MARKUP_LINES_REVIEW = (

@@ -55,7 +55,6 @@ ACCEPTED = {
         "the body saved to a file named Head: lines). The sweep prints",
         "the body saved to a file). The sweep prints",
     ),
-    "a line cut to nothing": ("a span", ""),
 }
 
 
@@ -101,6 +100,12 @@ class TestDanglingFragments(unittest.TestCase):
         for name, (old, new) in ACCEPTED.items():
             with self.subTest(name):
                 assert_that(said(old, new), equal_to([]))
+
+    def test_a_line_cut_to_nothing_leaves_a_blank_line_that_is_refused(self) -> None:
+        """A blank line is an added line (the post-mortem of rp#684), never a cut."""
+        found = said("a span", "")
+        assert_that(found, has_length(1))
+        assert_that(found[0], contains_string("gets 1 added line"))
 
     def test_a_deleted_line_is_no_fragment(self) -> None:
         """A removal leaves nothing."""

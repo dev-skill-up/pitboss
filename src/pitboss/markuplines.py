@@ -14,7 +14,6 @@ nothing; it is given the output of ``git diff --numstat -z`` and of
 ``git diff -U0``.
 """
 
-import json
 import re
 import unicodedata
 from typing import Mapping, Sequence
@@ -34,15 +33,30 @@ def _subsequence(new: str, old: str) -> bool:
     return all(each in rest for each in new)
 
 
+ESCAPES = {"n": "\n", "t": "\t", "\\": "\\", '"': '"', "a": "\a", "b": "\b"}
+QUOTED = re.compile(r"\\([0-7]{3}|.)", re.DOTALL)
+
+
+def _unquote(name: str) -> str:
+    # git's C-style quoting: \ooo octal bytes (a non-ASCII name), \n, \t, \\, \"
+    def one(found: re.Match[str]) -> str:
+        code = found.group(1)
+        return (
+            chr(int(code, 8))
+            if code.isdigit() and len(code) == 3
+            else ESCAPES.get(code, "\0")
+        )
+
+    text = QUOTED.sub(one, name[1:-1] if name.endswith('"') else name[1:])
+    return text.encode("latin-1", "replace").decode("utf-8", "replace")
+
+
 def _path_of(head: str) -> str | None:
     # the `+++ ` line of a file: `b/path`, maybe quoted; /dev/null has no path
     for line in head.split("\n"):
         if line.startswith("+++ "):
-            name = line[4:].split("\t")[0]
-            try:
-                name = json.loads(name) if name.startswith('"') else name
-            except ValueError:
-                return None
+            name = line[4:] if line[4:].startswith('"') else line[4:].split("\t")[0]
+            name = _unquote(name) if name.startswith('"') else name
             return name[2:] if name.startswith("b/") else None
     return None
 
@@ -55,7 +69,7 @@ def _pairs(hunk: str) -> Sequence[tuple[int, str, str]]:
     removed = [each[1:] for each in rows if each.startswith("-")]
     found: list[tuple[int, str, str]] = []
     for index, new in enumerate(each[1:] for each in rows if each.startswith("+")):
-        for at, old in enumerate(removed):
+        for at, old in enumerate(removed if new.strip() else ()):  # blank: no cut
             if _subsequence(new, old):
                 found.append((index, new, old))
                 removed = removed[at + 1 :]
@@ -169,8 +183,10 @@ def added_lines(patch: str) -> Sequence[str]:
     """
     return [
         f"{CHECK}: `{path}` line {start + index} is an added line: `{text.strip()}`;"
-        " a change never adds a line to a .md or .rst file (a line main deleted"
-        " takes main's side; a span cut from a line is a removal)"
+        " a change never adds a line to a .md or .rst file, a blank line and"
+        " inserted markup (a bold title) included; cut characters from the line"
+        " instead, and put a rule into a command's output or help text (a line main"
+        " deleted takes main's side)"
         for path, start, rows in hunks(patch)
         if path.lower().endswith(SUFFIXES)
         for index, text in _uncut(rows)
