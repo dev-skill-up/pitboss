@@ -262,6 +262,7 @@ class PrePush:
             the repository directory), each given and not empty.
         ok: the text its output must hold to pass, empty for any output.
         timeout: the most seconds it may run.
+        fix: what to do when it fails, printed by ``pitboss hook pre-push``.
     """
 
     name: str
@@ -269,6 +270,7 @@ class PrePush:
     arguments: Mapping[str, str] = dataclasses.field(default_factory=dict)
     ok: str = ""
     timeout: int = 600
+    fix: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

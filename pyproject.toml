@@ -111,5 +111,6 @@ module = [
     "pitboss.sweep_commands",
     "pitboss.act_commands",
     "pitboss.envcheck_commands",
+    "pitboss.hook_commands",
 ]
 disallow_untyped_decorators = false

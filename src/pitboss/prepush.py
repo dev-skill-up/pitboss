@@ -57,6 +57,7 @@ def _check(table: object) -> config.PrePush:
         arguments={str(key): str(value) for key, value in given.items()},
         ok=str(table.get("ok", "")),
         timeout=int(table.get("timeout", 600)),
+        fix=str(table.get("fix", "")),
     )
 
 
@@ -122,3 +123,30 @@ def refusals(
             lines.append(f"pre-push check {check.name} refused the push:")
             lines.extend(judged.output.rstrip("\n").splitlines()[-20:])
     return lines
+
+
+def hook_failure(
+    safe_run: gaterun.Runner, checks: Sequence[config.PrePush], directory: pathlib.Path
+) -> Sequence[str]:
+    """Run the checks in order and stop at the first that fails (keyword: pre-push-hook).
+
+    Args:
+        safe_run: the runner of commands.
+        checks: the checks the repository declares.
+        directory: where they run.
+
+    Returns:
+        The lines ``pre-push: check <n> (<name>) failed: <what>`` and
+        ``fix: <the fix>`` of the first check that does not pass; none when each
+        passes. A check lacking an argument fails, naming it.
+    """
+    for number, check in enumerate(checks, start=1):
+        lines = refusals(safe_run, [check], directory)
+        if lines:
+            what = lines[0] if len(lines) == 1 else " ".join(lines[1:3])
+            fix = check.fix or "run the check by hand and fix what it prints"
+            return [
+                f"pre-push: check {number} ({check.name}) failed: {what}",
+                f"fix: {fix}",
+            ]
+    return []
