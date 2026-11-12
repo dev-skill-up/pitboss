@@ -5,16 +5,17 @@ The keyword is brief-rules, pitboss#444.
 
 import dataclasses
 import pathlib
-import re
+import functools
 import unittest
 
-from hamcrest import assert_that, calling, contains_string, empty, equal_to, raises
+from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import actcore, actverbs, rulecount, rulefiles, totalroutes
 from . import fakehub, scratch
 from .knownkit import CHECKOUTS, made, shipped_kit
 from .fakes import write
 from .totalworld import ticket_item
+from .says import raises_with
 
 PLANTED = {
     "CLAUDE.md": "ROOT\n",
@@ -90,10 +91,8 @@ class TestWriter(unittest.TestCase):
             with self.subTest(name):
                 ticket = _planted()
                 write(_rules_of(ticket) / name, text)
-                assert_that(
-                    calling(rulefiles.write).with_args(ticket),
-                    raises(rulefiles.Refused, re.escape(said)),
-                )
+                written = functools.partial(rulefiles.write, ticket)
+                raises_with(rulefiles.Refused, said, written)
 
     def test_444_68_real_rule_files_0_refused(self) -> None:
         """The rule files of six real repositories are each read."""
@@ -214,7 +213,6 @@ class TestDispatchBrief(unittest.TestCase):
             _rules_of(ticket) / "class.md",
             "---\npaths:\n  - src/[x].bats\n---\nCLASS\n",
         )
-        assert_that(
-            calling(actverbs.brief).with_args(ticket),
-            raises(actcore.Refused, "class.md"),
+        raises_with(
+            actcore.Refused, "class.md", functools.partial(actverbs.brief, ticket)
         )

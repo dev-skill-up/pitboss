@@ -108,7 +108,7 @@ def _blockers(
         for _, rest in totalreview.act_records(events, identity, "blocked-by")
         if rest.split()
     ]
-    found = {}
+    found: dict[str, object] = {}
     for each in named:
         full = each if not each.startswith("#") else f"{repo}{each}"
         answer = _states(read, [full])[full]
@@ -156,7 +156,7 @@ def live_inputs(read: Read, settings: Settings) -> Inputs:
         What gives a PR's inputs.
     """
 
-    def made(repo: str, number: int, pull: Pull, timeline: list[object]) -> Pull:
+    def made(repo: str, number: int, pull: Pull, timeline: Sequence[object]) -> Pull:
         events = timeline or read(
             f"{ALL}repos/{repo}/issues/{number}/timeline?per_page=100"
         )

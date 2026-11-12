@@ -354,7 +354,7 @@ def cells(base: World) -> Sequence[Cell]:
     Returns:
         The cells, in the order of the frozen rows and of the actions.
     """
-    found = []
+    found: list[Cell] = []
     for row in enumeration.frozen(enumeration.VARIABLES):
         for action in ACTIONS:
             given = Given(value=row.value, action=action, base=base)

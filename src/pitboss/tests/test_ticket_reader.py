@@ -3,19 +3,17 @@
 The keyword is ticket-reader, pitboss#444.
 """
 
-import re
+import functools
 import unittest
 
-from hamcrest import assert_that, calling, equal_to, raises
+from hamcrest import assert_that, equal_to
 
 from .. import ticketreader
+from .says import raises_with
 
 
 def _refused(body: str | None, said: str) -> None:
-    assert_that(
-        calling(ticketreader.items).with_args(body),
-        raises(ticketreader.Refused, re.escape(said)),
-    )
+    raises_with(ticketreader.Refused, said, functools.partial(ticketreader.items, body))
 
 
 def _read(body: str, items: list[str]) -> None:

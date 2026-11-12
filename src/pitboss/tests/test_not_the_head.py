@@ -7,7 +7,7 @@ from hamcrest import assert_that, equal_to
 
 from . import fakes, quietworld, world
 from .rankworld import publish
-from .test_owner_repositories import lines_of
+from .ownerbodies import lines_of
 
 TEN = "owner/project#10"
 TWELVE = "owner/project#12"

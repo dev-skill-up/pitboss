@@ -18,7 +18,7 @@ from .itemworld import one, with_pull_issues
 from .rankworld import publish
 from .suggestions import next_output, parsed, third
 from .test_commands import sweep
-from .test_owner_repositories import lines_of
+from .ownerbodies import lines_of
 from .says import says
 
 PROJECT = world.PROJECT

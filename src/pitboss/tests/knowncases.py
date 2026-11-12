@@ -21,6 +21,7 @@ from .knownplay import (
 )
 
 from .totalworld import files_of, item, record
+from ..totaljson import members
 
 CASES: MutableMapping[str, knownkit.Known] = {}
 case = knownkit.registry(CASES)
@@ -121,7 +122,8 @@ def _counted(given: knownkit.Kit) -> bool:
 def _digests(given: knownkit.Kit) -> bool:
     tickets = copy.deepcopy(knownkit.base_map("ctx", "tickets"))
     ref = next(iter(tickets))
-    tickets[ref]["body"] += "- one more item\n"
+    ticket = dict(members(tickets[ref]))
+    tickets[ref] = {**ticket, "body": f"{ticket.get('body')}- one more item\n"}
     edited = knownkit.change(
         pull={"body": knownkit.BODY.replace("## Plan", "## Plan\n\nedited")}
     )

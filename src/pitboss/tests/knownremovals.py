@@ -5,6 +5,7 @@ cases that then miss are the ones that control holds; ``held`` runs them all.
 """
 
 import dataclasses
+import pathlib
 from typing import Callable, Mapping, Sequence
 
 from .. import actcore, actverbs, totalroutes, totalverdict
@@ -73,7 +74,8 @@ def _naive_items(body: str | None) -> Sequence[str]:
 
 
 def _root_only(ticket: object) -> str:
-    return (getattr(ticket, "checkout") / "CLAUDE.md").read_text(encoding="utf-8")[:400]
+    checkout: pathlib.Path = getattr(ticket, "checkout")
+    return (checkout / "CLAUDE.md").read_text(encoding="utf-8")[:400]
 
 
 REMOVALS: Mapping[str, Removal] = {

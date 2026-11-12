@@ -43,7 +43,7 @@ def _routed_verbs() -> set[str]:
     return found - {"line"}
 
 
-def _relock(names: list[str]) -> object:
+def _relock(names: list[str]) -> World:
     files = [
         {"filename": name, "status": "modified", "additions": 1, "deletions": 1}
         for name in names

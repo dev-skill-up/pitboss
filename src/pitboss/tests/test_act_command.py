@@ -145,7 +145,7 @@ class TestCommand(unittest.TestCase):
         )
         done = _act(here, "label", PULL, "name=p1", "--no-dry-run")
         exits(done, 0)
-        assert_that(here.calls, has_item(LABEL_CALL))
+        assert_that(LABEL_CALL in here.calls, equal_to(True))
         events = _events(here)
         assert_that(events, contains_string("label owner/project#3"))
         assert_that((here.ledger.parent / actwiring.OWNER).exists(), equal_to(True))

@@ -103,12 +103,12 @@ class TestReview(unittest.TestCase):
             assert_that(
                 totalreview.review_reading(text, HEAD, "", {}), contains_string(said)
             )
-        said = [
+        readings = [
             totalreview.plan_reading(base, plan)
             for plan in ("no plan here", "## Plan\n\nsteps\n")
         ]
-        says(said[0], "`## Plan` section")
-        says(said[1], "changed since the newest review")
+        says(readings[0], "`## Plan` section")
+        says(readings[1], "changed since the newest review")
 
     def test_444_lines_of_skips_blank_lines(self) -> None:
         """One value a line; a blank line is none."""

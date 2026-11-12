@@ -27,7 +27,7 @@ def _api(method: str, path: str, *fields: str, jq: str = "") -> Sequence[str]:
 
 
 def _fields(change: Change, *names: str) -> Sequence[str]:
-    found = []
+    found: list[str] = []
     for key in names:
         value = change.fields.get(key, "")
         if key == "labels":

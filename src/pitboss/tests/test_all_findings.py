@@ -6,8 +6,8 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, missed, shapes
-from . import test_brief, test_flow, test_flow_sweep as flows, test_plan_commands
-from .briefmake import APPROVED, HEAD, pinned, text
+from . import test_brief, test_flow, test_flow_sweep as flows
+from .briefmake import APPROVED, HEAD, PLAN_REVIEWS, pinned, text
 from .says import has_none
 from .test_commands import sweep
 
@@ -43,7 +43,7 @@ FIX_ROUND_VERDICT = (
     " approved Plan, the verdict is approved, and the PR is mergeable."
 )
 STAGES = test_brief.FULL_SCOPES
-PLAN_STAGES = test_plan_commands.PLAN_REVIEWS
+PLAN_STAGES = PLAN_REVIEWS
 OUTSIDE_THE_FIX_ROUND = ["whole diff", "whole PR body", "Dry run", "Missed earlier"]
 MARKED = "Missed earlier: the Plan command does not build the tests"
 

@@ -15,7 +15,8 @@ import sys
 from typing import Callable, Sequence
 
 from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
-from .actcore import Act, Controls, Hub, Owner, cap_of
+from .actcore import Act, Controls, Hub, Owner, Pull, cap_of
+from .ghapi import GitHub, run_json
 from .running import Run
 from .textparts import split_at
 from .totaljson import at, listing, members, name_at, read_file, records, text
@@ -68,9 +69,7 @@ def write_owner(path: pathlib.Path, owner: Owner) -> None:
     )
 
 
-def _item(
-    pull: actinputs.Pull, repo: str, kind: str, priority: str = ""
-) -> dispatchnext.Item:
+def _item(pull: Pull, repo: str, kind: str, priority: str = "") -> dispatchnext.Item:
     reference = f"{repo}#{pull.get('number')}"
     return dispatchnext.Item(
         ref=reference,
@@ -140,14 +139,14 @@ def prepush(
     return check
 
 
-def _p90(github: acthub.ghapi.GitHub, repo: str) -> int:
+def _p90(github: GitHub, repo: str) -> int:
     # the size of 90 of 100 merged PRs; an unread size is 0, so every size needs
     # a ruling
     owner, name = split_at(repo, "/")
     words = ["gh", "api", "graphql", "-f", f"query={SIZES}"]
     words += ["-f", f"owner={owner}", "-f", f"name={name}"]
     try:
-        answer = acthub.ghapi.run_json(github, words)
+        answer = run_json(github, words)
     except Exception:  # noqa: B902 - an unread size is 0
         answer = {}
     nodes = records(at(answer, "data", "repository", "pullRequests", "nodes"))
@@ -158,7 +157,7 @@ def _p90(github: acthub.ghapi.GitHub, repo: str) -> int:
     return sizes[(9 * len(sizes) + 9) // 10 - 1] if sizes else 0
 
 
-def limits(github: acthub.ghapi.GitHub) -> Callable[[str], int]:
+def limits(github: GitHub) -> Callable[[str], int]:
     """Each repository's 90th percentile of the lines its last 100 merged PRs changed.
 
     Args:
@@ -182,9 +181,7 @@ def _quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(words), capture_output=True, text=True, check=False)
 
 
-def act_of(
-    github: acthub.ghapi.GitHub, settings: config.Config, owner: Owner, run: Run
-) -> Act:
+def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> Act:
     """The verbs' world; the verbs post as the login ``gh`` is signed in as.
 
     Args:
@@ -214,7 +211,7 @@ def act_of(
     )
 
 
-def identity_of(github: acthub.ghapi.GitHub) -> str:
+def identity_of(github: GitHub) -> str:
     """The login ``gh`` is signed in as.
 
     Args:

@@ -12,9 +12,10 @@ import unittest
 
 from hamcrest import assert_that, equal_to, is_
 
-from .. import expansion, flow, flowstate, plandigest, shapes, steps
+from .. import expansion, flow, flowstate, plancheckflow, plandigest, shapes, steps
 from . import fakes, test_flow
 from .test_flow import APPROVED, CHANGES, Task
+from .checkcomment import clean_check
 
 REVISED = test_flow.BODY.replace("the plan", "a better plan")
 Subject = expansion.Subject
@@ -91,7 +92,7 @@ class TestPairs(unittest.TestCase):
         pr = test_flow.state(
             approving(1, test_flow.BODY), comments=[ruled], body=REVISED
         )
-        want = flow.plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+        want = plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
         assert_that(want.step, equal_to(steps.Step.REGULAR_REVIEW))
         test_flow.expect(want, pr)
 
@@ -120,8 +121,8 @@ class TestPairs(unittest.TestCase):
     def test_c31_the_plan_check_does_not_outlive_the_plan(self) -> None:
         """A clean ``plan-check`` of one Plan is none for a revised one."""
         pr = test_flow.state(body=REVISED)
-        newest = flow.plancheckflow.newest_check(
-            pr.pull.body, [test_flow.clean_check(test_flow.BODY)], pr.trusted
+        newest = plancheckflow.newest_check(
+            pr.pull.body, [clean_check(test_flow.BODY)], pr.trusted
         )
         assert_that(newest, equal_to(None))
 

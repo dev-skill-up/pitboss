@@ -6,7 +6,7 @@
 import dataclasses
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, every_item, has_length
+from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import actcore
 from . import fakehub
@@ -24,7 +24,11 @@ PULL = {"head": "b", "title": "t", "body": BODY}
 def _review_id(hub: fakehub.Made) -> None:
     # gives the world's review comment the id 4242
     events = hub.hub.events[(REPO, NUMBER)]
-    review = [each for each in events if "Verdict:" in str(each.get("body"))][0]
+    review = [
+        each
+        for each in events
+        if isinstance(each, dict) and "Verdict:" in str(each.get("body"))
+    ][0]
     review["id"] = 4242
 
 
@@ -73,7 +77,7 @@ class TestEdits(unittest.TestCase):
             refusal(hub, "comment-delete", id="4242"),
             refusal(hub, "comment-edit", id=identifier, body="Verdict: approved"),
         ]
-        assert_that(said, every_item(contains_string("key")))
+        assert_that(["key" in each for each in said], equal_to([True, True, True]))
         gone = refusal(hub, "comment-delete", id="1")
         assert_that(gone, contains_string("not a comment"))
         act(GIVEN, hub, "comment-delete", id=identifier)

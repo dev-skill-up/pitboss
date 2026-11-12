@@ -3,15 +3,16 @@
 The keywords are ruling-cases, dispatch-next, pitboss#444.
 """
 
-import re
+import functools
 import unittest
 from typing import Mapping
 
-from hamcrest import assert_that, calling, contains_string, equal_to, raises
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import dispatchnext, rulecases
 from . import fakehub
 from .totalworld import item
+from .says import raises_with
 
 GO, STOP, OTHER = (
     rulecases.Case(name=name, date=date, world={"x": x}, action="merge", expect=says)
@@ -49,15 +50,12 @@ class TestCases(unittest.TestCase):
 
         The encoding that keeps the new case loses the old one.
         """
-        add = calling(rulecases.add)
-        assert_that(
-            add.with_args([GO], STOP, {"go": _go, "by x": _by_x, "stop": _stop}),
-            raises(rulecases.Refused, "cannot hold together with A:"),
-        )
-        assert_that(
-            add.with_args([GO], STOP, {"go": _go}),
-            raises(rulecases.Refused, re.escape("(none passes it)")),
-        )
+        for encodings, said in (
+            ({"go": _go, "by x": _by_x, "stop": _stop}, "cannot hold together with A:"),
+            ({"go": _go}, "(none passes it)"),
+        ):
+            add = functools.partial(rulecases.add, [GO], STOP, encodings)
+            raises_with(rulecases.Refused, said, add)
 
     def test_444_a_change_of_the_cases(self) -> None:
         """A drop or a flip needs a winning ruling that is in the file."""
@@ -83,9 +81,7 @@ class TestOrder(unittest.TestCase):
         """No item, or only blocked ones."""
         blocked = item("o/r#1", "2026-11-01", blocked_by="o/r#2")
         for items in ([], [blocked]):
-            given = calling(dispatchnext.next_item).with_args(
-                fakehub.state(items=items)
+            given = functools.partial(
+                dispatchnext.next_item, fakehub.state(items=items)
             )
-            assert_that(
-                given, raises(dispatchnext.Refused, "nothing in the order is free")
-            )
+            raises_with(dispatchnext.Refused, "nothing in the order is free", given)

@@ -11,7 +11,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import actverbs, enumeration, totalroutes, totalverdict
+from .. import actverbs, enumeration, totaljson, totalroutes, totalverdict
 from . import (
     coverwrites,
     scratch,
@@ -35,7 +35,7 @@ SHA256 = {
 
 
 def _verdict(
-    action: str, pull: totalverdict.JsonMap, ctx: totalverdict.JsonMap
+    action: str, pull: totaljson.JsonMap, ctx: totaljson.JsonMap
 ) -> totalverdict.Answer:
     return totalverdict.verdict(action, pull, ctx, _policy())
 

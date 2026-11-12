@@ -319,7 +319,8 @@ def _scripted(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], b
     def grep(path: str) -> Sequence[str]:
         words = ["git", "-C", str(head), "grep", "-l", "-F", "--", path]
         try:
-            return args.safe_run(words).stdout.splitlines()
+            out: str = args.safe_run(words).stdout
+            return out.splitlines()
         except (subprocess.CalledProcessError, OSError):
             return []
 

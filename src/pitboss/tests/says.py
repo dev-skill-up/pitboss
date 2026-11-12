@@ -1,6 +1,6 @@
 """Assertions about the words of a text, one call for several words."""
 
-from typing import Protocol, Sequence
+from typing import Callable, Protocol, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -142,3 +142,22 @@ def outs(done: Printed, code: int, *words: str) -> None:
     """
     exits(done, code)
     says(done.out, *words)
+
+
+def raises_with(error: type[Exception], words: str, call: Callable[[], object]) -> None:
+    """Require a call to raise an error whose message holds the words.
+
+    Args:
+        error: the error it must raise.
+        words: what the message must hold.
+        call: the call.
+
+    Raises:
+        AssertionError: the call raised nothing.
+    """
+    try:
+        call()
+    except error as raised:
+        assert_that(str(raised), contains_string(words))
+        return
+    raise AssertionError(f"no {error.__name__}")  # pragma: no cover

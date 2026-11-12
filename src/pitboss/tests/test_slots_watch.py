@@ -11,7 +11,7 @@ from hamcrest import (
 
 from .. import agenttranscript
 from . import watchworld, world
-from .test_owner_repositories import lines_of as printed
+from .ownerbodies import lines_of as printed
 from .test_handback import slots
 from .transcripts import brief, call, ended, interrupted, turn_end
 from .watchworld import FREED, GOAL, MARKED, OLD, QUIET, RECENT

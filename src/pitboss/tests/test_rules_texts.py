@@ -6,7 +6,7 @@ Race and local-run rules and the unchecked phrases.
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, every_item, has_length
+from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import brief, phrases
 from .briefmake import text as brief_text
@@ -65,7 +65,7 @@ class TestThePhrases(unittest.TestCase):
         """``run_in_background``, ``nohup``, ``sleep N``."""
         forms = ("pass run_in_background", "use nohup make", "then sleep 60")
         refused = [found(f"Do {said} now.") for said in forms]
-        assert_that(refused, every_item(has_length(1)))
+        assert_that([len(each) for each in refused], equal_to([1, 1, 1]))
         assert_that(found("Push and let CI run it."), equal_to([]))
 
     def test_t110_each_unchecked_form_is_refused_and_removal_passes(self) -> None:

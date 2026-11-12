@@ -121,7 +121,7 @@ def _one_action(
     action: str,
 ) -> tuple[collections.Counter[str], list[str]]:
     counts: collections.Counter[str] = collections.Counter()
-    bad = []
+    bad: list[str] = []
     for index, one in enumerate(found):
         for other in found[index + 1 :]:
             kind, wrong = _pair(origin, (one, other), verdict, action)

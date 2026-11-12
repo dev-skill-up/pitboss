@@ -6,7 +6,8 @@ from .. import brief
 from .briefmake import pinned, text
 from .says import has_none
 from .test_brief_nox import PLAN_WRITERS, WORKERS
-from .test_plan_commands import PLAN_REVIEWS, PLAN_RUNNING
+from .briefmake import PLAN_REVIEWS
+from .test_plan_commands import PLAN_RUNNING
 
 PLAN_CI = (
     "CI pointer: a Plan row whose result a CI run of the commit shows asks for no"

@@ -15,7 +15,7 @@ from hamcrest import assert_that, equal_to, has_length
 
 from .. import agenttranscript
 from . import transcripts, watchworld
-from .test_owner_repositories import lines_of as printed
+from .ownerbodies import lines_of as printed
 
 State = agenttranscript.State
 

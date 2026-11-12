@@ -14,7 +14,7 @@ from .. import slotheld
 from . import fakes, suggestions, test_flow_sweep as flows, world
 from .liveagents import calm, ran, said
 from .test_commands import sweep
-from .test_owner_repositories import lines_of
+from .ownerbodies import lines_of
 from .test_slot_commands import freed_world, next_output, run_all
 from ..textparts import having
 

@@ -44,7 +44,7 @@ def _number(github: ghapi.GitHub, slug: str, branch: str) -> int | None:
     listed = ghapi.branch_pulls(github, slug, branch)
     if len(listed) != 1:
         return None
-    return int(listed[0]["number"])
+    return int(str(listed[0]["number"]))
 
 
 def exempt(args: argparse.Namespace, found: Started, slug: str | None) -> bool:

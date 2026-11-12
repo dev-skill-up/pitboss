@@ -150,7 +150,7 @@ def _read(
     text: str, form: Form, exists: Exists
 ) -> tuple[Place, Sequence[str], Sequence[str]]:
     # where the reading ends, what is wrong and the items named, in order
-    place, found, seen = Place(), [], []
+    place, found, seen = Place(), list[str](), list[str]()
     for number, line in enumerate(text.splitlines(), 1):
         if not line.strip():
             continue
