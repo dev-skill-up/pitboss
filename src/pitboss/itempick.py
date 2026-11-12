@@ -8,7 +8,7 @@ another repository (keyword: item-brief, pitboss#443).
 """
 
 import json
-from typing import AbstractSet, Any, Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import blockers, config, ghapi, nextfound, pullnames
 
@@ -26,34 +26,38 @@ class Whole(Exception):
 Listed = tuple[int, frozenset[str]]
 
 
-def _listed(repo: config.Repo, raw: Any) -> Listed:
-    # a raw PR of the list: its number and the tickets it names
-    names = pullnames.names(
-        raw.get("title") or "", raw.get("body") or "", raw["head"]["ref"], repo
-    )
-    return raw.get("number", 0), frozenset(names)
-
-
 def _named(repo: config.Repo) -> Callable[[str], Sequence[Listed]]:
-    # each raw PR of the list (a short page is the last one)
+    # each raw PR of the list: its number and the tickets it names (a short page
+    # is the last one)
     def parse(text: str) -> Sequence[Listed]:
-        return [_listed(repo, each) for each in json.loads(text)]
+        raws = json.loads(text)
+        tickets = [
+            pullnames.names(
+                each.get("title") or "",
+                each.get("body") or "",
+                each["head"]["ref"],
+                repo,
+            )
+            for each in raws
+        ]
+        return [(each.get("number", 0), frozenset(t)) for each, t in zip(raws, tickets)]
 
     return parse
 
 
-def _mention(reference: str, repo: config.Repo, event: Any) -> str:
-    # the open PR that fixes the ticket when the event is its mention, else "" (a
-    # mention in a Plan or an Evidence block does not, keyword: taken, pitboss#448)
-    if event.get("event") != "cross-referenced":
-        return ""
-    issue = event["source"]["issue"]
-    return f"#{issue.get('number')}" if _fixing(issue, reference, repo) else ""
-
-
 def _crossed(reference: str, repo: config.Repo) -> Callable[[str], Sequence[str]]:
+    # the open PR that fixes the ticket when an event is its mention, else "" (a
+    # mention in a Plan or an Evidence block does not, keyword: taken, pitboss#448)
     def parse(text: str) -> Sequence[str]:
-        return [_mention(reference, repo, each) for each in json.loads(text)]
+        return [
+            (
+                f"#{each['source']['issue'].get('number')}"
+                if each.get("event") == "cross-referenced"
+                and _fixing(each["source"]["issue"], reference, repo)
+                else ""
+            )
+            for each in json.loads(text)
+        ]
 
     return parse
 

@@ -166,12 +166,12 @@ class TestQuiesce(unittest.TestCase):
         quiet = listed(here)
         same(quiet.code, 0)
         says(quiet.out, quiesce.LINE)
-        offered = [NEXT_LINE.findall(quiet.out)]
-        offered += [
-            mentioning(quiet.out, "EMPTY SLOT"),
-            mentioning(quiet.out, "DISPATCH"),
-        ]
-        same(offered, [[], [], []])
+        found = (
+            len(NEXT_LINE.findall(quiet.out)),
+            len(mentioning(quiet.out, "EMPTY SLOT")),
+            len(mentioning(quiet.out, "DISPATCH")),
+        )
+        same(found, (0, 0, 0))
         off = switch(here, "off")
         says(off.out, "quiesce is off")
         back = listed(here)
