@@ -1,14 +1,16 @@
 """A project whose config needs no drafts gets none (keyword: no-drafts, #216)."""
 
 import dataclasses
+import pathlib
+import tomllib
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import draftrule
+from .. import briefconfig, draftrule, exempt
 from ..brief import Kind
-from . import quietworld, world
+from . import fakes, quietworld, world
 from .briefmake import PROJECT as DRAFTED
 from .briefmake import has_all, has_none, text
 from .linting import lint, write_text
@@ -102,6 +104,42 @@ class TestNoDraftsPush(unittest.TestCase):
         assert_that((refused[0], refused[2]), equal_to((1, 0)))
         assert_that(refused[1], contains_string(OFF))
         assert_that([(each[0], each[2]) for each in others], equal_to([(0, 1)] * 2))
+
+
+class TestPitbossHasNoDrafts(unittest.TestCase):
+    """Pitboss's own PRs are never drafts, whatever the configuration says (B19)."""
+
+    def test_b19_a_draft_push_to_pitboss_is_refused_with_no_setting(self) -> None:
+        """The remote names dev-skill-up/pitboss; the config says nothing of drafts."""
+        here = clear_world()
+        url = "git@github.com:dev-skill-up/pitboss.git"
+        fakes.run_git(here.clone, "branch", "-f", "branch-1")
+        fakes.run_git(here.clone, "remote", "add", "elsewhere", url)
+        target = str(world.origin_of(here.clone))
+        fakes.run_git(here.clone, "config", "remote.elsewhere.pushurl", target)
+        argv = ["push", "--now", at(1), "--no-dry-run", "--draft"]
+        refused = world.again(here, *argv, "elsewhere", "branch-1")
+        ran = sum(list(c[:2]) == ["git", "push"] for c in here.calls)
+        assert_that((refused.code, ran), equal_to((1, 0)))
+        assert_that(refused.out, contains_string("dev-skill-up/pitboss"))
+
+    def test_b19_only_pitboss_and_the_listed_repositories_have_no_drafts(self) -> None:
+        """The rule for a slug: pitboss, a listed one, and no other."""
+        here = clear_world()
+        start = pathlib.Path(here.workspace)
+        found = [
+            draftrule.drafts_off(here.config, start, slug)
+            for slug in ("dev-skill-up/pitboss", "owner/project", None)
+        ]
+        assert_that(found, equal_to([True, False, False]))
+        assert_that(draftrule.REFUSAL, contains_string("dev-skill-up/pitboss"))
+
+    def test_b19_the_sweep_reads_a_pitboss_pr_as_never_a_draft(self) -> None:
+        """The project's ``no_drafts`` holds pitboss whatever the file lists."""
+        text = PROJECT + "[slots.brief]\ndrafts = true\n"
+        document = tomllib.loads(text)
+        listed = exempt.slugs(briefconfig.from_document(document).no_drafts, "o")
+        assert_that(exempt.PITBOSS in listed, equal_to(True))
 
 
 class TestNoDraftsLint(unittest.TestCase):
