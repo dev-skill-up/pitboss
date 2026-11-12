@@ -122,8 +122,8 @@ def _counted(given: knownkit.Kit) -> bool:
 def _digests(given: knownkit.Kit) -> bool:
     tickets = copy.deepcopy(knownkit.base_map("ctx", "tickets"))
     ref = next(iter(tickets))
-    ticket = dict(members(tickets[ref]))
-    tickets[ref] = {**ticket, "body": f"{ticket.get('body')}- one more item\n"}
+    old = dict(members(tickets[ref]))
+    tickets[ref] = {**old, "body": f"{old.get('body')}- one more item\n"}
     edited = knownkit.change(
         pull={"body": knownkit.BODY.replace("## Plan", "## Plan\n\nedited")}
     )
