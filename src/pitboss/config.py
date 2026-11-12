@@ -102,6 +102,7 @@ class Review:
         form: the form in every other repository.
         gated_form: the form in a gated repository.
         gate_forms: a gated repository's form from its workflow (keyword: review-gate).
+        required_check: the check an approval of a head waits for (keyword: approval-ci).
     """
 
     trusted: AbstractSet[str]
@@ -109,6 +110,7 @@ class Review:
     form: ReviewForm
     gated_form: ReviewForm
     gate_forms: Mapping[str, ReviewForm] = dataclasses.field(default_factory=dict)
+    required_check: str = "check"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -128,6 +130,23 @@ class Pins:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Quarantine:
+    """The words of the quarantine and race checks (``[lint.quarantine]``).
+
+    Attributes:
+        failing: the words that name a failing test.
+        race: the words that name a race.
+        mark: the pattern of a skip mark in a test file.
+        directory: the end-to-end test directory of the checkout.
+    """
+
+    failing: Sequence[str] = ("failing test", "flaky", "flake", "test failure")
+    race: Sequence[str] = ("race", "racy", "race condition")
+    mark: str = r"\.(?:fixme|skip)\([^)]*"
+    directory: str = "e2e"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Lint:
     """What the form checks of ``pitboss lint`` read.
 
@@ -142,6 +161,7 @@ class Lint:
     brief_lines: Sequence[str]
     relock_prefix: str = DEFAULT_RELOCK_PREFIX
     pins: Pins = Pins()
+    quarantine: Quarantine = Quarantine()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

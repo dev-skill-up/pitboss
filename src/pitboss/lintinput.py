@@ -107,3 +107,35 @@ def read_files(args: argparse.Namespace) -> Sequence[tuple[str, str]]:
         Each file's name and text.
     """
     return [(name, read(name)) for name in args.files]
+
+
+def finish(refused: Sequence[str], ok: str) -> None:
+    """Print the refusals and exit 1, or print the ok line.
+
+    Args:
+        refused: the findings, one line each.
+        ok: the line printed when there is none.
+
+    Raises:
+        SystemExit: 1 when there is a finding.
+    """
+    for each in refused:
+        print(each)
+    if refused:
+        raise SystemExit(1)
+    print(ok)
+
+
+def exactly(args: argparse.Namespace, wanted: Sequence[str]) -> Sequence[str]:
+    """The texts of the files a check takes, each named in a refusal.
+
+    Args:
+        args: the parsed arguments, with ``kind`` and ``files``.
+        wanted: what the check takes, one word for each file.
+
+    Returns:
+        The texts, in the order given.
+    """
+    if len(args.files) != len(wanted):
+        fail(f"{args.kind} checks {', '.join(wanted)}, not {len(args.files)}")
+    return [read(each) for each in args.files]

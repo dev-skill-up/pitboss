@@ -18,12 +18,13 @@ from . import (
     contradictions,
     draftfindings,
     extrafile,
-    flowfiles,
-    reporules,
-    rulinglint,
+    e2ewaits,
+    lintkinds,
+    quarantinerace,
     folds,
     forms,
     gateform,
+    approvalci,
     gradesrequired,
     holdwait,
     lintinput,
@@ -51,12 +52,8 @@ _phrases = lintinput.phrase_rules
 _pairs = lintinput.pair_rules
 
 
-def _finish(refused: Sequence[str], ok: str) -> None:
-    for each in refused:
-        print(each)
-    if refused:
-        raise SystemExit(1)
-    print(ok)
+_finish = lintinput.finish
+_exactly = lintinput.exactly
 
 
 def _contradictions(args: argparse.Namespace) -> None:
@@ -98,8 +95,7 @@ def _comments(args: argparse.Namespace) -> Sequence[shapes.Comment]:
 def _rulings(
     args: argparse.Namespace, settings: config.Lint
 ) -> Sequence[folds.Recorded]:
-    # keyword: fold (pitboss#171): the PR's Opus ruling comments, which a body
-    # with several tickets may cite
+    # keyword: fold (pitboss#171): the PR's Opus ruling comments, cited by a body
     given = [(url, _read(name)) for url, name in args.ruling or ()]
     found = folds.ruling_comments(_comments(args), settings.review.trusted)
     return [*given, *found]
@@ -122,6 +118,12 @@ def _pr_body_findings(
             _approved(args, settings),
         ),
         *_test_names(args, subject),
+        *quarantinerace.pr_body(
+            subject.name,
+            subject.body,
+            None if args.checkout is None else pathlib.Path(args.checkout),
+            settings.quarantine,
+        ),
     ]
 
 
@@ -144,9 +146,11 @@ def _review_findings(
         *check(subject, form),
         *planfixed.required(args, subject, form),
         *gradesrequired.findings(args, subject, form),
+        *approvalci.findings(args, subject, form, settings.review),
         *reviewrules.grade_findings(subject.body, form),
         *reviewrules.phrase_findings(subject.body),
         *reviewrules.piecemeal_findings(subject.body),
+        *quarantinerace.review(subject.name, subject.body, settings.quarantine),
         *extrafile.findings(subject.body),
     ]
 
@@ -167,6 +171,7 @@ def _brief_findings(
     return [
         *forms.brief(subject, settings.brief_lines, _ticket(args)),
         *repeatruns.findings(subject.name, _ticket(args)),
+        *quarantinerace.brief(subject.name, subject.body, _phrases(args)),
         *holdwait.findings(subject.name, subject.body),  # keyword: hold-wait
         *draftfindings.findings(
             args.config, commands.working_directory(args), subject.name, subject.body
@@ -219,31 +224,6 @@ def _body_findings(
     ]
 
 
-def _exactly(args: argparse.Namespace, wanted: Sequence[str]) -> Sequence[str]:
-    # the texts of the files a check takes, each named in the refusal
-    if len(args.files) != len(wanted):
-        raise _fail(f"{args.kind} checks {', '.join(wanted)}, not {len(args.files)}")
-    return [_read(each) for each in args.files]
-
-
-def _change(args: argparse.Namespace) -> None:
-    # keyword: flow-change (pitboss#444, item 12): `git diff` of the PR, as a file
-    (diff,) = _exactly(args, ["one diff"])
-    _finish(flowfiles.findings(diff), "ok")
-
-
-def _repo_rules(args: argparse.Namespace) -> None:
-    # keyword: repo-rules (pwa#320): the diff, the repository's CLAUDE.md, the body
-    diff, claude, body = _exactly(args, ["the diff", "the CLAUDE.md", "the PR body"])
-    _finish(reporules.findings("body", claude, diff, body), "ok")
-
-
-def _ruling(args: argparse.Namespace) -> None:
-    # keyword: ruling-lint (bats#654): the ruling's steps against the gates they reach
-    ruling, ticket, body = _exactly(args, ["the ruling", "the ticket", "the PR body"])
-    _finish(rulinglint.findings(ruling, ticket, body, args.head or ""), "ok")
-
-
 def _event(args: argparse.Namespace) -> None:
     if len(args.files) != 2:
         raise _fail("event takes the event's file and the status file to write")
@@ -278,9 +258,10 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "owner-card": _form_kind(_card_findings),
     "ticket": _form_kind(ticketrows.check),
     "event": _event,
-    "change": _change,
-    "repo-rules": _repo_rules,
-    "ruling": _ruling,
+    "change": lintkinds.change,
+    "repo-rules": lintkinds.repo_rules,
+    "ruling": lintkinds.ruling,
+    "e2e-waits": lintkinds.e2e_waits,
 }
 
 
@@ -351,6 +332,8 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     ),
     planfixed.ARGUMENT,
     gradesrequired.ARGUMENT,
+    *approvalci.ARGUMENTS,
+    *e2ewaits.ARGUMENTS,
     add_argument(
         "--repository",
         default="",

@@ -245,6 +245,7 @@ def _review(document: Mapping[str, object], owner: str) -> config.Review:
         gated=frozenset(config.parse_repo(item, owner).slug for item in gated),
         form=form,
         gated_form=_form(_table(table, "gated_form"), form),
+        required_check=str(table.get("required_check", "check")),
     )
 
 
@@ -252,6 +253,16 @@ def _pins(table: Mapping[str, object]) -> config.Pins:
     return config.Pins(
         command=str(table.get("pins_check_command") or config.DEFAULT_PINS_COMMAND),
         files=_strings(table, "pin_files", config.DEFAULT_PIN_FILES),
+    )
+
+
+def _quarantine(table: Mapping[str, object]) -> config.Quarantine:
+    fall = config.Quarantine()
+    return config.Quarantine(
+        failing=_strings(table, "failing", fall.failing),
+        race=_strings(table, "race", fall.race),
+        mark=str(table.get("mark", fall.mark)),
+        directory=str(table.get("directory", fall.directory)),
     )
 
 
@@ -263,6 +274,7 @@ def _lint(document: Mapping[str, object], owner: str) -> config.Lint:
         brief_lines=_strings(_table(table, "brief"), "required", ()),
         relock_prefix=prefix,
         pins=_pins(_table(document, "relock")),
+        quarantine=_quarantine(_table(table, "quarantine")),
     )
 
 
