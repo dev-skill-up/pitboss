@@ -4,7 +4,6 @@ The keyword is total-complete, pitboss#444.
 """
 
 import dataclasses
-import functools
 import unittest
 from typing import Sequence
 
@@ -12,20 +11,15 @@ from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import actverbs, enumeration, totalroutes, totalverdict
 from ..totaljson import JsonMap
-from . import totalcells, totalcomplete, totalworld
+from . import totalcomplete
 
 REFERENCE = totalcomplete.Parts(
     labels={"bats-lang/quire": ["paused-owner", "dependencies"]}
 )
 
 
-@functools.cache
-def _cells() -> tuple[totalcells.Cell, ...]:
-    return tuple(totalcells.cells(totalworld.base()))
-
-
 def _holes(parts: totalcomplete.Parts) -> str:
-    return "\n".join(totalcomplete.complete(parts, _cells()))
+    return "\n".join(totalcomplete.complete(parts, totalcomplete.base_cells()))
 
 
 def _variable(group: str, value: str) -> totalcomplete.Parts:
@@ -127,12 +121,22 @@ PLANTS = {
 }
 
 
+ACT_ONLY = "pitboss act, and nothing else."
+OTHER_HOLES = (
+    "the row of draft is of no documented PR field",
+    "passed conclusions",
+    "the route `act update-branch` is in no instruction",
+)
+
+
 class TestComplete(unittest.TestCase):
     """The shipped parts are complete; each hole is red."""
 
     def test_444_the_shipped_parts_are_complete(self) -> None:
         """No hole, with the labels pitboss applies."""
-        assert_that(totalcomplete.complete(REFERENCE, _cells()), empty())
+        assert_that(
+            totalcomplete.complete(REFERENCE, totalcomplete.base_cells()), empty()
+        )
 
     def test_444_11_of_11_planted_holes_are_red(self) -> None:
         """Each plant is found, by its own line."""
@@ -142,20 +146,11 @@ class TestComplete(unittest.TestCase):
                 assert_that(_holes(parts), contains_string(said))
 
     def test_444_the_other_holes_are_said(self) -> None:
-        """A field with no row, the passed set, a cell over-blocked.
-
-        A route's verb in no instruction.
-        """
-        schema = {
-            name: kind
-            for name, kind in REFERENCE.policy.schema.items()
-            if name != "draft"
-        }
+        """A field with no row, the passed set, a route's verb in no instruction."""
+        schema = dict(REFERENCE.policy.schema)
+        del schema["draft"]
         declared = {**REFERENCE.declared, "check-conclusion": {"success": "passed"}}
-        orchestrator = {
-            **totalroutes.REQUIREMENTS,
-            "orchestrator": ["pitboss act, and nothing else."],
-        }
+        orchestrator = {**totalroutes.REQUIREMENTS, "orchestrator": [ACT_ONLY]}
         parts = dataclasses.replace(
             REFERENCE,
             policy=dataclasses.replace(REFERENCE.policy, schema=schema),
@@ -163,11 +158,7 @@ class TestComplete(unittest.TestCase):
             requirements=orchestrator,
         )
         found = _holes(parts)
-        for said in (
-            "the row of draft is of no documented PR field",
-            "passed conclusions",
-            "the route `act update-branch` is in no instruction",
-        ):
+        for said in OTHER_HOLES:
             assert_that(found, contains_string(said))
         assert_that(
             _holes(dataclasses.replace(REFERENCE, requirements={})),

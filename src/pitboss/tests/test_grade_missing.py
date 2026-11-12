@@ -46,7 +46,7 @@ class TestKinds(unittest.TestCase):
             with self.subTest(kind.name):
                 required = gradesrequired.REQUIRED[briefgrade.KIND_WORDS[kind]]
                 printed = [
-                    each.strip().split(":")[0] + ": "
+                    each.strip().partition(":")[0] + ": "
                     for each in briefgrade.grade_lines(kind, "approved", "changes")
                 ]
                 assert_that(list(required), equal_to(printed))

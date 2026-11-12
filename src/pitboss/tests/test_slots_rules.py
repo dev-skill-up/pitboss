@@ -42,6 +42,7 @@ from .rankworld import (
 from .fastvariants import named
 from .fastworld import NINTH, fast_world, listed
 from .test_work import NONE, REPO, facts, item, stepped
+from .fakes import write
 
 NOW = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.timezone.utc)
 
@@ -151,7 +152,7 @@ class TestBriefs(unittest.TestCase):
     def test_b6_a_brief_that_cannot_be_written_says_so(self) -> None:
         """The directory is a file: the line says NOT saved and why."""
         directory = fakes.directory()
-        (directory / briefsave.DIRECTORY).write_text("in the way")
+        write(directory / briefsave.DIRECTORY, "in the way")
         line = briefsave.save(directory / "ledger.json", "o/r#1", "small", "text")
         says(line, "DISPATCH: o/r#1: brief NOT saved", "do not hand-build one")
         same(briefsave.name_of("owner/lib#12"), "owner-lib-12.brief")

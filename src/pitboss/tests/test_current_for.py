@@ -110,12 +110,12 @@ class TestPairs(unittest.TestCase):
     def test_c31_the_execution_approval_does_not_outlive_the_head(self) -> None:
         """A review of an older head is not the review of this head."""
         old = test_flow.graded(APPROVED, APPROVED, 1, sha=fakes.OLDER)
-        assert_that(flow.newest_counting_review(test_flow.state(old)), equal_to(None))
+        _uncounted(old)
 
     def test_c31_the_review_does_not_outlive_the_body(self) -> None:
         """A review that read another body does not count."""
         read = test_flow.reading(test_flow.graded(APPROVED, APPROVED, 1), "other body")
-        assert_that(flow.newest_counting_review(test_flow.state(read)), equal_to(None))
+        _uncounted(read)
 
     def test_c31_the_plan_check_does_not_outlive_the_plan(self) -> None:
         """A clean ``plan-check`` of one Plan is none for a revised one."""
@@ -131,3 +131,8 @@ class TestPairs(unittest.TestCase):
         unrevised = test_flow.state(approving(1, test_flow.BODY), comments=[ruled])
         assert_that(flow.plan_revised(unrevised), is_(False))
         assert_that(flowstate.plan_edited_without_ruling(unrevised), is_(False))
+
+
+def _uncounted(review: shapes.Graded) -> None:
+    # the review is not the newest counting review of its PR
+    assert_that(flow.newest_counting_review(test_flow.state(review)), equal_to(None))

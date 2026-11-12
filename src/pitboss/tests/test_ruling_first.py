@@ -10,7 +10,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import flow, shapes, steps
 from . import test_flow, test_flow_sweep as scenes
@@ -19,6 +19,7 @@ from .test_commands import sweep
 from .test_flow import APPROVED, CHANGES, OLDER, expect, graded, state
 from .test_flow_sweep import RULING_LINE
 from .test_slot_commands import next_output
+from .says import says
 
 RULING_URL = "https://example.org/ruling/2"
 PLAN_ALONE = graded(APPROVED, None, 3)
@@ -124,7 +125,7 @@ class TestWorld(unittest.TestCase):
         """A rejected Execution and a Plan revised with no ruling."""
         rejected = scenes.graded(scenes.APPROVED, scenes.CHANGES, 1, sha=scenes.OLDER)
         here = scenes.unfixed_rounds(rejected, scenes.graded(scenes.APPROVED, None, 3))
-        assert_that(sweep(here).out, contains_string(RULING_LINE))
+        says(sweep(here).out, RULING_LINE)
         assert_that(next_output(here).count("project#3 ("), equal_to(0))
 
     def test_a_pushed_fix_is_reviewed_and_a_derived_file_is_no_code(self) -> None:

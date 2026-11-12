@@ -2,10 +2,11 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import prepush
 from . import fakes, world
+from .says import ended, exits, says
 
 ZERO = "0" * 40
 SHA = "a" * 40
@@ -55,28 +56,28 @@ class TestHook(unittest.TestCase):
     def test_t50_a_passing_run_prints_nothing_and_exits_0(self) -> None:
         """Every check printed its ok."""
         done = run_hook(check("one", "echo fine") + check("two", "echo fine"), PUSH)
-        assert_that((done.code, done.out), equal_to((0, "")))
+        ended(done, 0, "")
 
     def test_t50_the_first_failing_check_is_named_with_its_fix(self) -> None:
         """The format, the number, and the stop at the first."""
         declared = check("one", "echo fine") + check("two", "echo bad; exit 1", "do it")
         declared += check("three", "echo fine")
         done = run_hook(declared, PUSH)
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("pre-push: check 2 (two) failed:"))
-        assert_that(done.out, contains_string("fix: do it"))
+        exits(done, 1)
+        says(done.out, "pre-push: check 2 (two) failed:")
+        says(done.out, "fix: do it")
         assert_that("three" in done.out, equal_to(False))
 
     def test_t50_a_check_without_a_fix_still_says_one(self) -> None:
         """The default fix."""
         done = run_hook(check("one", "exit 1"), PUSH)
-        assert_that(done.out, contains_string("fix: run the check by hand"))
+        says(done.out, "fix: run the check by hand")
 
     def test_t50_a_deletion_push_is_not_checked(self) -> None:
         """A deleted ref skips the checks, a mixed push does not."""
         declared = check("one", "exit 1")
-        assert_that(run_hook(declared, DELETE).code, equal_to(0))
-        assert_that(run_hook(declared, DELETE + PUSH).code, equal_to(1))
+        exits(run_hook(declared, DELETE), 0)
+        exits(run_hook(declared, DELETE + PUSH), 1)
 
     def test_t50_ref_lines_are_read(self) -> None:
         """No line at all is a push; a line with one word is ignored."""

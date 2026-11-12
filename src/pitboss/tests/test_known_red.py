@@ -21,8 +21,6 @@ from .. import (
     pinsreading,
     pulls,
     readyline,
-    report,
-    reviews,
     shapes,
     steps,
     straycomments,
@@ -30,7 +28,7 @@ from .. import (
 from . import fakes, knownkit, world
 from .queueworld import dropped
 from .test_commands import sweep
-from .test_report import facts, run
+from .test_report import approved_green, at_merge, lines as sweep_text
 
 NOW = datetime.datetime(2026, 11, 12, tzinfo=datetime.timezone.utc)
 RUNNERS = config.Runners(
@@ -100,21 +98,7 @@ def ready(step: steps.Next) -> pulls.PullFacts:
     Returns:
         The PR.
     """
-    pull = facts(reviews.Standing.APPROVED, checks=[run(True)])
-    return dataclasses.replace(pull, step=step)
-
-
-def sweep_text(pull: pulls.PullFacts) -> str:
-    """The action lines of a PR.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        The lines, joined.
-    """
-    settings = fakes.settings(fakes.directory())
-    return "\n".join(report.action_lines(pull, settings, False, {}))
+    return dataclasses.replace(approved_green(), step=step)
 
 
 def act(action: actions.Action) -> Callable[[pulls.PullFacts], str]:
@@ -153,12 +137,17 @@ APPLICATORS: Mapping[str, Callable[[pulls.PullFacts], str]] = {
     "Step.RUN_E2E": lambda pull: sweep_text(
         dataclasses.replace(pull, step=steps.run_e2e("branch"))
     ),
-    "Step.MERGE": lambda pull: sweep_text(
-        dataclasses.replace(pull, step=steps.merge())
-    ),
+    "Step.MERGE": lambda pull: sweep_text(at_merge(pull)),
 }
 SHOULD_SHOW = {"Step.RUN_E2E": ""}
-WITHHELD = [name for name, how in knownred.spending().items() if how == "withheld"]
+
+
+def _spent(how: str) -> list[str]:
+    # the spending rows of one kind
+    return [name for name, said in knownred.spending().items() if said == how]
+
+
+WITHHELD = _spent("withheld")
 ROWS = [each for each in knownred.rows() if each.source != "local"]
 
 
@@ -208,8 +197,13 @@ def with_red_canonical_files(here: world.World) -> world.World:
             }
         ]
     }
-    here.bodies[fakes.page(f"{world.PROJECT}/commits/{fakes.HEAD}/status")] = posted
+    here.bodies[world.project_page(f"commits/{fakes.HEAD}/status")] = posted
     return here
+
+
+def _red_at_merge() -> pulls.PullFacts:
+    # a ready PR at the merge whose head has the first known red
+    return red(ready(steps.merge()), ROWS[0])
 
 
 class TestThroughTheCommands(unittest.TestCase):
@@ -272,9 +266,9 @@ class TestEveryCell(unittest.TestCase):
 
     def test_c28_a_push_is_the_fix_and_is_never_withheld(self) -> None:
         """The workers' pushes and rounds are the fix steps."""
-        fixes = [n for n, how in knownred.spending().items() if how == "fix"]
+        fixes = _spent("fix")
         assert_that(fixes, has_item("Action.PUSH"))
-        pull = red(ready(steps.merge()), ROWS[0])
+        pull = _red_at_merge()
         assert_that(knownred.refusal(pull, actions.Action.PUSH), equal_to(""))
 
     def test_c28_a_local_row_names_the_command_that_runs_it(self) -> None:
@@ -288,7 +282,7 @@ class TestEveryCell(unittest.TestCase):
 
     def test_c28_the_relock_re_dispatch_waits_too(self) -> None:
         """A NEEDS line that asks for a re-dispatch is withheld by a known red."""
-        pull = red(ready(steps.merge()), ROWS[0])
+        pull = _red_at_merge()
         line = "NEEDS o/r#7: the red check passed on main since: re-dispatch x"
         shown = knownred.gate(pull, [line, "UPDATE o/r#7: x"], ())
         assert_that(shown[-1], contains_string("FIX FIRST"))

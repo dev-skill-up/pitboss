@@ -6,6 +6,7 @@ a timeout and a missing argument.
 """
 
 import argparse
+import dataclasses
 import subprocess
 import sys
 import unittest
@@ -16,6 +17,10 @@ from hamcrest import assert_that, contains_string, equal_to, has_length, is_
 
 from .. import config, configfile, gaterun, nox_commands, prepush
 from . import fakes, world
+from .says import exits, says
+from .pushworld import branch_one, configured
+
+PLAIN = gaterun.Gate(command=["x"], timeout=1)
 
 Mode = gaterun.Mode
 
@@ -121,17 +126,16 @@ class TestEachGateEachWay(unittest.TestCase):
     def test_c32_the_verdict_names_the_mode(self) -> None:
         """Each way is its own mode."""
         for mode, runner in WAYS:
-            judged = gaterun.run(runner, gaterun.Gate(command=["x"], timeout=1))
+            judged = gaterun.run(runner, PLAIN)
             assert_that(judged.mode, equal_to(mode))
 
     def test_c32_an_explicit_ok_passes(self) -> None:
         """Exit 0, an output and (when declared) the ok text pass."""
-        plain = gaterun.Gate(command=["x"], timeout=1)
-        assert_that(gaterun.run(answering(out="x\n"), plain).passed, is_(True))
+        assert_that(gaterun.run(answering(out="x\n"), PLAIN).passed, is_(True))
         said = answering(out="check-pins: all passed\n")
-        named = gaterun.Gate(command=["x"], timeout=1, ok_text="check-pins: all passed")
+        named = dataclasses.replace(PLAIN, ok_text="check-pins: all passed")
         assert_that(gaterun.run(said, named).passed, is_(True))
-        other = gaterun.Gate(command=["x"], timeout=1, ok_text="other")
+        other = dataclasses.replace(PLAIN, ok_text="other")
         assert_that(gaterun.run(said, other).mode, equal_to(Mode.EMPTY))
         assert_that(pre_push(answering(out="fine\n")), has_length(0))
 
@@ -151,7 +155,7 @@ class TestEachGateEachWay(unittest.TestCase):
             raises=subprocess.CalledProcessError(2, "x", "bad\n", "worse\n")
         )
         assert_that(
-            gaterun.run(failing, gaterun.Gate(command=["x"], timeout=1)).mode,
+            gaterun.run(failing, PLAIN).mode,
             equal_to(Mode.NONZERO),
         )
 
@@ -211,9 +215,8 @@ def push(script: str, declared: str) -> world.Result:
     path = here.clone / "check.sh"
     path.write_text(script, encoding="utf-8")
     path.chmod(0o755)
-    with open(here.config, "a", encoding="utf-8") as handle:
-        handle.write(declared)
-    fakes.run_git(here.clone, "branch", "-f", "branch-1")
+    configured(here, declared)
+    branch_one(here)
     argv = ["push", here.config, "--no-dry-run", "--draft", "origin", "branch-1"]
     return world.invoke(here, *argv, directory=here.clone)
 
@@ -241,12 +244,12 @@ class TestPushRefuses(unittest.TestCase):
         script = '#!/bin/bash\nset -u\necho "$1"\n'
         declared = '\n[[pre_push]]\nname = "c"\ncommand = ["./check.sh", "{bats}"]\n'
         done = push(script, declared)
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("no value for bats"))
+        exits(done, 1)
+        says(done.out, "no value for bats")
 
     def test_c32_a_failing_check_blocks_and_a_good_one_lets_it_go(self) -> None:
         """Exit 1 blocks; the declared argument and an ok let the push go."""
         bad = push("#!/bin/sh\necho FAIL\nexit 1\n", declared("x"))
         good = push("#!/bin/sh\necho ok\n", declared("x"))
         assert_that((bad.code, good.code), equal_to((1, 0)))
-        assert_that(bad.out, contains_string("refused the push"))
+        says(bad.out, "refused the push")

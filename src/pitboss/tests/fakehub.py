@@ -14,6 +14,7 @@ from ..actport import Change, Hub, Pull
 from ..totaljson import members, records
 from . import totalworld
 from .totalworld import World
+from .fakes import write
 
 Key = tuple[str, int]
 
@@ -92,8 +93,13 @@ def _nothing(memory: Memory, change: Change) -> str:
     return ""
 
 
+def _events_of(memory: Memory, change: Change) -> MutableSequence[object]:
+    # the timeline events written to the changed PR
+    return memory.events.setdefault((change.repo, change.number), [])
+
+
 def _comment(memory: Memory, change: Change) -> str:
-    events = memory.events.setdefault((change.repo, change.number), [])
+    events = _events_of(memory, change)
     identifier = 5000 + sum(len(each) for each in memory.events.values())
     events.append(
         {
@@ -145,9 +151,7 @@ def _labels(add: bool) -> Callable[[Memory, Change], str]:
 
 
 def _dequeue(memory: Memory, change: Change) -> str:
-    memory.events.setdefault((change.repo, change.number), []).append(
-        {"event": "removed_from_merge_queue"}
-    )
+    _events_of(memory, change).append({"event": "removed_from_merge_queue"})
     return ""
 
 
@@ -187,9 +191,7 @@ def state(**changes: object) -> dispatchnext.State:
     Returns:
         The state.
     """
-    ticket = dispatchnext.Item(
-        ref="q#10", kind="ticket", priority="p1", created="2026-11-01"
-    )
+    ticket = totalworld.ticket_item("q#10", "2026-11-01", "p1")
     made = dispatchnext.State(
         cap=1, slots=["sonnet-1"], ledger={"sonnet-1": ""}, items=[ticket]
     )
@@ -236,7 +238,7 @@ class WorldInputs:
     hub: Hub
 
     def __call__(
-        self, where: str, which: int, pull: Pull, timeline: list[object]
+        self, where: str, which: int, pull: Pull, timeline: Sequence[object]
     ) -> Pull:
         """The inputs of a PR.
 
@@ -305,14 +307,12 @@ def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
     Returns:
         Each repository's checkout.
     """
-    found = json.loads(
-        (totalworld.FOLDER / "rulefiles.json").read_text(encoding="utf-8")
-    )
+    found = json.loads(totalworld.folder_text("rulefiles.json"))
     written = {}
     for repo, files in members(found).items():
         checkout = root / repo.split("/")[1]
         for name, text in members(files).items():
             (checkout / name).parent.mkdir(parents=True, exist_ok=True)
-            (checkout / name).write_text(str(text), encoding="utf-8")
+            write(checkout / name, str(text))
         written[repo] = checkout
     return written

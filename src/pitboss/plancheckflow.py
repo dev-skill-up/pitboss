@@ -339,3 +339,15 @@ def execution_review(pr: Described, stage: steps.Stage) -> steps.Next:
     if planbody.ci_quotes_missing(pr.pull.body):
         return steps.worker(steps.Task.ADD_CI_QUOTES)
     return steps.regular_review(stage)
+
+
+def plan_review(pr: Described) -> steps.Next:
+    """``review`` of the Plan alone.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The step.
+    """
+    return review(pr, steps.Stage.PLAN_ONLY)

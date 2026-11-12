@@ -9,7 +9,7 @@ import json
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, starts_with
 
 from .. import (
     config,
@@ -216,7 +216,7 @@ class TestDropped(unittest.TestCase):
         """Enabled, then disabled, not in the queue and not merged."""
         here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
         found = lines_of(here)
-        assert_that(found[0].startswith(DROPPED_LINE), equal_to(True))
+        assert_that(found[0], starts_with(DROPPED_LINE))
         assert_that(found[1:], equal_to([READY_LINE]))
 
     def test_c26_a_removal_is_a_removal_even_when_auto_merge_was_switched_off_too(
@@ -242,9 +242,9 @@ class TestDropped(unittest.TestCase):
         """During the hold the line is WAIT-FOR-HOLD, never the arm."""
         here = held(removed_world([ENABLED, DISABLED], [FAILED_JOB]))
         found = lines_of(here)
-        assert_that(found[0].startswith(DROPPED_LINE), equal_to(True))
+        assert_that(found[0], starts_with(DROPPED_LINE))
         assert_that(len(found), equal_to(2))
-        assert_that(found[1].startswith(WAIT_LINE), equal_to(True))
+        assert_that(found[1], starts_with(WAIT_LINE))
         assert_that(READY_LINE in found, equal_to(False))
 
     def test_c26_the_hold_withholds_the_re_arm_of_a_removal_too(self) -> None:
@@ -266,7 +266,7 @@ class TestDropped(unittest.TestCase):
         here = held(removed_world([], []))
         found = lines_of(here)
         assert_that(found, equal_to([found[0]]))
-        assert_that(found[0].startswith(WAIT_LINE), equal_to(True))
+        assert_that(found[0], starts_with(WAIT_LINE))
 
 
 class TestUnits(unittest.TestCase):

@@ -245,7 +245,7 @@ class TestTheCauseOfATextLintFailure(unittest.TestCase):
     def test_the_same_status_on_other_prs_is_said(self) -> None:
         """A status that fails on every PR is the pin's."""
         here = with_statuses([status("failure")])
-        other = fakes.page(f"{world.PROJECT}/commits/{fakes.HEAD}/status")
+        other = world.project_page(f"commits/{fakes.HEAD}/status")
         here.bodies[other] = {"statuses": [status("failure")]}
         blocked = blocked_of(here)[0]
         assert_that(blocked, contains_string("the same status fails on"))

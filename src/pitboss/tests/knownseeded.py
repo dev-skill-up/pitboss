@@ -10,7 +10,9 @@ from typing import Callable, MutableMapping
 from .. import enumeration
 from ..totalroutes import instructions
 from . import fakehub, knownkit
-from .totalworld import item, review
+from .knownkit import change
+from .knownplay import brief_text, dispatch_refused, held, pull_now, refuses, stopping
+from .totalworld import World, item, review
 
 CASES: MutableMapping[str, knownkit.Known] = {}
 case = knownkit.registry(CASES)
@@ -41,7 +43,7 @@ def _relock(names: list[str]) -> object:
     ]
     head = {**knownkit.base_map("pull", "head"), "ref": "relock/2026-11-01"}
     first = knownkit.base_items("timeline")[:1]
-    return knownkit.change(
+    return change(
         pull={"head": head}, ctx={"files": files, "tickets": {}, "timeline": first}
     )
 
@@ -61,7 +63,7 @@ KEYWORDS = (
 
 
 def _with_ticket(given: knownkit.Kit, body: str = knownkit.BODY) -> Callable[[], str]:
-    hub = knownkit.made(given, knownkit.change(pull={"body": body}))
+    hub = knownkit.made(given, change(pull={"body": body}))
     hub.hub.issues_made[(knownkit.REPO, 9)] = {
         "number": 9,
         "state": "open",
@@ -71,26 +73,14 @@ def _with_ticket(given: knownkit.Kit, body: str = knownkit.BODY) -> Callable[[],
     return lambda: knownkit.act(given, hub, "ticket-edit", number="9", body=TICKET)
 
 
-@case("S01", "verdict event row", "renamed to `WIP: do not merge` after the approval")
-def _renamed(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(
-            pull={"title": "WIP: do not merge"}, events=[{"event": "renamed"}]
-        ),
-        "event renamed",
-    )
-
-
 @case(
     "S02", "verdict event row (benign by a row)", "an `unpinned` event in the timeline"
 )
 def _unpinned(given: knownkit.Kit) -> bool:
     return knownkit.goes(
-        given, "merge", knownkit.change(events=[{"event": "unpinned"}])
+        given, "merge", change(events=[{"event": "unpinned"}])
     ) and knownkit.stops(
-        given, "merge", knownkit.change(events=[{"event": "closed"}]), "event closed"
+        given, "merge", change(events=[{"event": "closed"}]), "event closed"
     )
 
 
@@ -103,9 +93,7 @@ def _no_actor(given: knownkit.Kit) -> bool:
     return knownkit.goes(
         given,
         "merge",
-        knownkit.change(
-            events=[{"event": "deployment_environment_changed", "actor": None}]
-        ),
+        change(events=[{"event": "deployment_environment_changed", "actor": None}]),
     )
 
 
@@ -115,8 +103,8 @@ def _early_undraft(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given, world)
     return (
         knownkit.stops(given, "undraft", world, "review:")
-        and bool(knownkit.refused(lambda: knownkit.act(given, hub, "undraft")))
-        and hub.act.hub.pull(knownkit.REPO, knownkit.NUMBER)["draft"] is True
+        and refuses(given, hub, "undraft")
+        and pull_now(hub)["draft"] is True
     )
 
 
@@ -142,83 +130,13 @@ def _habit(given: knownkit.Kit) -> bool:
 
 
 @case(
-    "S06",
-    "verdict ticket row (a failed read stops)",
-    "the ticket was converted to a discussion: 404",
-)
-def _discussion(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(
-            ctx={"tickets": {f"{knownkit.REPO}#1": {"_error": "HTTP 404"}}}
-        ),
-        "ticket ",
-    )
-
-
-@case("S07", "verdict typed field row", "diff_url is null")
-def _diff_url(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given, "merge", knownkit.change(pull={"diff_url": None}), "diff_url="
-    )
-
-
-@case("S08", "verdict field row", "the `url` names another repository")
-def _url(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(pull={"url": "https://api.github.com/repos/owner/lib/pulls/3"}),
-        "url=",
-    )
-
-
-@case("S09", "verdict field row", "the conversation is locked")
-def _locked(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(pull={"locked": True, "active_lock_reason": "too heated"}),
-        "locked=",
-    )
-
-
-@case("S10", "verdict label row (closed world)", "a `do-not-merge` label")
-def _label(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(pull={"labels": [{"name": "do-not-merge"}]}),
-        "labels=",
-    )
-
-
-@case("S11", "verdict field row", "listed as open, but closed and merged")
-def _closed(given: knownkit.Kit) -> bool:
-    closed = {"state": "closed", "merged": True, "merged_at": "2026-11-12T00:00:00Z"}
-    return knownkit.stops(given, "merge", knownkit.change(pull=closed), "state=")
-
-
-@case("S12", "review binds the head", "the approval names an older head")
-def _old_head(given: knownkit.Kit) -> bool:
-    first = knownkit.base_items("timeline")[0]
-    tickets = knownkit.base_map("ctx", "tickets")
-    stale = review("3" * 40, knownkit.BODY, tickets)
-    world = knownkit.change(ctx={"timeline": [first, stale]})
-    return knownkit.stops(
-        given, "merge", world, "review: the newest review's head line"
-    )
-
-
-@case(
     "S13",
     "brief: every rule file on the ticket's paths",
     "bats's pins-check rule in the brief",
 )
 def _pins(given: knownkit.Kit) -> bool:
-    text, _ = knownkit.brief_for(given, "bats", "src/pins_check.bats")
-    other, _ = knownkit.brief_for(given, "bats", "src/lexer.bats")
+    text = brief_text(given, "bats", "src/pins_check.bats")
+    other = brief_text(given, "bats", "src/lexer.bats")
     return (
         "rules/pins-check.md sha256" in text
         and "rules/pins-check.md sha256" not in other
@@ -231,10 +149,7 @@ def _pins(given: knownkit.Kit) -> bool:
     "quire's platform rule in the brief",
 )
 def _platform(given: knownkit.Kit) -> bool:
-    return (
-        "rules/platform.md sha256"
-        in knownkit.brief_for(given, "quire", "src/platform.bats")[0]
-    )
+    return "rules/platform.md sha256" in brief_text(given, "quire", "src/platform.bats")
 
 
 @case(
@@ -244,10 +159,9 @@ def _platform(given: knownkit.Kit) -> bool:
 )
 def _pages(given: knownkit.Kit) -> bool:
     name = "rules/static-pages.md sha256"
-    return (
-        name in knownkit.brief_for(given, "pwa", "src/static_pages.bats")[0]
-        and name not in knownkit.brief_for(given, "pwa", "src/lib.bats")[0]
-    )
+    return name in brief_text(
+        given, "pwa", "src/static_pages.bats"
+    ) and name not in brief_text(given, "pwa", "src/lib.bats")
 
 
 @case(
@@ -263,9 +177,7 @@ def _one_cause(given: knownkit.Kit) -> bool:
         for n in (1, 2, 3)
     ]
     hub = knownkit.made(given)
-    unfiled = knownkit.refused(
-        lambda: knownkit.dispatch(given, hub, fakehub.state(items=items))
-    )
+    unfiled = dispatch_refused(given, hub, fakehub.state(items=items))
     return bool(unfiled) and (
         knownkit.dispatch(given, hub, fakehub.state(items=filed)) == "rp#1"
     )
@@ -281,22 +193,8 @@ def _base_red(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given)
     red = fakehub.state(items=items, base_red=["tools-test"])
     return (
-        bool(knownkit.refused(lambda: knownkit.dispatch(given, hub, red)))
+        bool(dispatch_refused(given, hub, red))
         and knownkit.dispatch(given, hub, fakehub.state(items=items)) == "rp#3"
-    )
-
-
-@case(
-    "S18", "verdict status row", "approved, checks green, the `text-lint` status failed"
-)
-def _text_lint(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(
-            ctx={"statuses": [{"context": "text-lint", "state": "failure"}]}
-        ),
-        "status text-lint",
     )
 
 
@@ -352,12 +250,9 @@ def _started(given: knownkit.Kit) -> bool:
 @case("S22", "hold record + act gate", "a label during a runner-pressure hold")
 def _label_held(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given)
-    knownkit.act(given, hub, "hold", number="0", scope="ci", source="m1")
-    return bool(
-        knownkit.refused(lambda: knownkit.act(given, hub, "label", name="p1"))
-    ) and not knownkit.refused(
-        lambda: knownkit.act(given, knownkit.made(given), "label", name="p1")
-    )
+    held(given, hub, "ci")
+    free = not refuses(given, knownkit.made(given), "label", name="p1")
+    return refuses(given, hub, "label", name="p1") and free
 
 
 @case(
@@ -366,30 +261,93 @@ def _label_held(given: knownkit.Kit) -> bool:
     "merge of a PR whose Plan was edited after the approval",
 )
 def _edited(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(
-        given, knownkit.change(pull={"body": knownkit.BODY + "\nedited"})
-    )
-    return bool(
-        knownkit.refused(lambda: knownkit.act(given, hub, "merge"))
-    ) and not hub.act.hub.pull(knownkit.REPO, knownkit.NUMBER).get("merged")
+    hub = knownkit.made(given, change(pull={"body": knownkit.BODY + "\nedited"}))
+    return refuses(given, hub, "merge") and not pull_now(hub).get("merged")
 
 
 @case("S24", "hold record + act gate", "workflow runs dispatched during the hold")
 def _dispatch_held(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(given)
-    knownkit.act(given, hub, "hold", number="0", scope="ci", source="m1")
-    held = knownkit.refused(
-        lambda: knownkit.act(
-            given, hub, "dispatch-workflow", number="0", workflow="check.yml", ref="b"
-        )
+    hub, free = knownkit.made(given), knownkit.made(given)
+    held(given, hub, "ci")
+    options = {"number": "0", "workflow": "check.yml", "ref": "b"}
+    return refuses(given, hub, "dispatch-workflow", **options) and not refuses(
+        given, free, "dispatch-workflow", **options
     )
-    return bool(held) and not knownkit.refused(
-        lambda: knownkit.act(
-            given,
-            knownkit.made(given),
-            "dispatch-workflow",
-            number="0",
-            workflow="check.yml",
-            ref="b",
-        )
-    )
+
+
+def _stale_review() -> World:
+    # the GO world whose newest review names an older head
+    first = knownkit.base_items("timeline")[0]
+    stale = review("3" * 40, knownkit.BODY, knownkit.base_map("ctx", "tickets"))
+    return change(ctx={"timeline": [first, stale]})
+
+
+CLOSED = {"state": "closed", "merged": True, "merged_at": "2026-11-12T00:00:00Z"}
+stopping(
+    CASES,
+    [
+        (
+            "S01",
+            "verdict event row",
+            "renamed to `WIP: do not merge` after the approval",
+            "event renamed",
+            change(pull={"title": "WIP: do not merge"}, events=[{"event": "renamed"}]),
+        ),
+        (
+            "S06",
+            "verdict ticket row (a failed read stops)",
+            "the ticket was converted to a discussion: 404",
+            "ticket ",
+            change(ctx={"tickets": {f"{knownkit.REPO}#1": {"_error": "HTTP 404"}}}),
+        ),
+        (
+            "S07",
+            "verdict typed field row",
+            "diff_url is null",
+            "diff_url=",
+            change(pull={"diff_url": None}),
+        ),
+        (
+            "S08",
+            "verdict field row",
+            "the `url` names another repository",
+            "url=",
+            change(pull={"url": "https://api.github.com/repos/owner/lib/pulls/3"}),
+        ),
+        (
+            "S09",
+            "verdict field row",
+            "the conversation is locked",
+            "locked=",
+            change(pull={"locked": True, "active_lock_reason": "too heated"}),
+        ),
+        (
+            "S10",
+            "verdict label row (closed world)",
+            "a `do-not-merge` label",
+            "labels=",
+            change(pull={"labels": [{"name": "do-not-merge"}]}),
+        ),
+        (
+            "S11",
+            "verdict field row",
+            "listed as open, but closed and merged",
+            "state=",
+            change(pull=CLOSED),
+        ),
+        (
+            "S12",
+            "review binds the head",
+            "the approval names an older head",
+            "review: the newest review's head line",
+            _stale_review(),
+        ),
+        (
+            "S18",
+            "verdict status row",
+            "approved, checks green, the `text-lint` status failed",
+            "status text-lint",
+            change(ctx={"statuses": [{"context": "text-lint", "state": "failure"}]}),
+        ),
+    ],
+)

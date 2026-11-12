@@ -4,7 +4,7 @@ The kit, a verb's refusal, the kinds of the writes made, and the worlds the
 tests start from.
 """
 
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from .. import actcore
 from . import fakehub, knownkit
@@ -83,3 +83,34 @@ def red() -> World:
         for each in knownkit.BASE.ctx["check_runs"]  # type: ignore[attr-defined]
     ]
     return knownkit.change(ctx={"check_runs": runs})
+
+
+def file_issue(
+    hub: fakehub.Made, number: int, issue: actcore.Pull, repo: str = knownkit.REPO
+) -> None:
+    """Put an open issue on the fake GitHub.
+
+    Args:
+        hub: the hub.
+        number: the issue's number.
+        issue: the issue.
+        repo: its repository.
+    """
+    hub.hub.issues_made[(repo, number)] = issue
+
+
+def verb_refusal(
+    verb: str, world: actcore.Act, target: actcore.Target, options: Mapping[str, str]
+) -> str:
+    """Run a verb of the kit and say how it was refused.
+
+    Args:
+        verb: the verb.
+        world: the verb's world.
+        target: what it acts on.
+        options: its options.
+
+    Returns:
+        The refusal's text, or "" when it went.
+    """
+    return knownkit.refused(lambda: GIVEN.verbs[verb](world, target, options))

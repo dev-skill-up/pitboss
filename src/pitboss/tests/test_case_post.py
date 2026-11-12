@@ -12,6 +12,7 @@ from hamcrest import assert_that, empty, equal_to
 
 from .. import casepost, config
 from . import fakes, refused, world
+from .says import exits
 
 TICKET = f"{world.PROJECT}/issues/9"
 PATCH = f"PATCH {TICKET}"
@@ -111,7 +112,7 @@ class TestAddition(unittest.TestCase):
     def test_a31_a_case_is_added_before_a_worker_started(self) -> None:
         """The nearest input it must still accept: a PR that fixes another ticket."""
         here = case_world(started(says="Fixes #10"))
-        assert_that(post(here, CASE).code, equal_to(0))
+        exits(post(here, CASE), 0)
         assert_that(refused.bodies(here), equal_to([BODY + "\n" + CASE]))
 
     def test_a31_a_pr_with_no_body_started_nothing(self) -> None:

@@ -13,6 +13,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import roundline, steps
 from . import fakes, test_conflict_first as first, test_flow_sweep as flows, world
 from .test_commands import sweep
+from .says import says
 
 DIRTY = flows.DIRTY
 ESCALATES = "RULING ESCALATES owner/project#3"
@@ -68,9 +69,7 @@ class TestWaits(unittest.TestCase):
         for name, here in worlds.items():
             with self.subTest(name):
                 assert_that(flows.listed_for_third(here), equal_to([]))
-                assert_that(
-                    sweep(here).out, contains_string("CONFLICT owner/project#3")
-                )
+                says(sweep(here).out, "CONFLICT owner/project#3")
 
     def test_a_dirty_pr_waiting_for_a_ruling_or_the_owner(self) -> None:
         """The wait keeps its line next to CONFLICT, and no NEXT line."""

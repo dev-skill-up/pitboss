@@ -9,6 +9,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import configfetch, syncconfig
 from . import cleanworld, configcases, fakes, world
+from .says import errs
 
 # not quire: a container of the sweep has /home/user/.claude/pitboss/quire.toml
 NAME = "fresh-app"
@@ -145,7 +146,7 @@ class TestFreshContainer(unittest.TestCase):
         del box.here.bodies[SOURCE]
         again = run(box, *CLEAN_CONTAINER)
         said = f"using the copy kept at {kept(box)}"
-        assert_that((again.code, said in again.err), equal_to((0, True)))
+        errs(again, 0, said)
 
 
 class TestFetch(unittest.TestCase):

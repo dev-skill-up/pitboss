@@ -10,6 +10,8 @@ from . import fakes, world
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, world_with
 from .test_slot_commands import next_output
+from .says import says
+from ..textparts import having
 
 EDITED = fakes.PLAN_AND_EXECUTION + "\nEvidence added after the review.\n"
 OLD_LINE = f"Body: {bodydigest.digest(fakes.PLAN_AND_EXECUTION)}"
@@ -88,7 +90,7 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         approving = review(1, OLD_LINE, verdict=APPROVED)
         here = world_with([approving], body=EDITED)
         lines = sweep(here).out.splitlines()
-        third = [line for line in lines if "project#3 " in line]
+        third = having(lines, "project#3 ")
         assert_that(len(third), equal_to(1))
         assert_that(third[0], contains_string("review=older-body"))
         assert_that(len(lines) > 1, equal_to(True))
@@ -191,4 +193,4 @@ class TestTheCommand(unittest.TestCase):
         missing = "/nonexistent/body.txt"
         done = world.invoke(world.make_world(), "body-digest", missing)
         assert_that([done.code, done.out], equal_to([2, ""]))
-        assert_that(done.err, contains_string(missing))
+        says(done.err, missing)

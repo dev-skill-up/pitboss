@@ -4,10 +4,9 @@ import unittest
 
 
 from .. import brief
-from .briefmake import has_all, has_none, text
+from .briefmake import EXECUTION_REVIEWS, PLAN_REVIEWS, has_all, has_none, text
 
 WORKERS = (brief.Kind.NEW_PR, brief.Kind.FIRST_ROUND, brief.Kind.REVISE_PLAN)
-EXECUTIONS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
 
 
 GUARANTEES = [
@@ -43,7 +42,7 @@ class TestFoldedBriefs(unittest.TestCase):
 
     def test_t407_the_review_refuses_a_scan_missing_a_spelling(self) -> None:
         """The Execution review: a spelling with no planted input is changes needed."""
-        for kind in EXECUTIONS:
+        for kind in EXECUTION_REVIEWS:
             has_all(
                 text(kind),
                 [
@@ -56,7 +55,7 @@ class TestFoldedBriefs(unittest.TestCase):
 
     def test_t417_a_scheduling_constraint_is_not_an_impossibility(self) -> None:
         """The review refuses a deviation whose reason is a queue or a slot."""
-        for kind in EXECUTIONS:
+        for kind in EXECUTION_REVIEWS:
             has_all(
                 text(kind),
                 [
@@ -71,7 +70,7 @@ class TestFoldedBriefs(unittest.TestCase):
     def test_t285_the_design_has_a_guarantee_table_and_a_lifecycle_list(self) -> None:
         """The worker writes both tables; the review checks each row."""
         has_all(text(brief.Kind.NEW_PR), GUARANTEES)
-        for kind in (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN):
+        for kind in PLAN_REVIEWS:
             has_all(text(kind), GUARANTEE_REVIEW)
 
     def test_t286_a_path_outside_the_checkout_needs_its_state_in_the_plan(

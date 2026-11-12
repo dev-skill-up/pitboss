@@ -26,6 +26,7 @@ from . import (
     running,
     shapes,
 )
+from .textparts import starting
 
 _ONE_CHECKOUT = threading.Lock()  # one fetch and one command at a time in a clone
 
@@ -62,7 +63,7 @@ def command_line(template: str, base: str, head: str) -> Sequence[str]:
 
 def _said(error: subprocess.CalledProcessError) -> str:
     lines = pinsreading.printed_lines(f"{error.stdout or ''}\n{error.stderr or ''}")
-    wrong = [line for line in lines if line.startswith("NOT OK")]
+    wrong = starting(lines, "NOT OK")
     return (wrong or lines or [f"exit status {error.returncode}"])[0]
 
 

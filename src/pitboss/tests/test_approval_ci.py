@@ -7,10 +7,11 @@ import json
 import unittest
 from typing import Mapping
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import approvalci
 from . import world
+from .says import exits, says
 
 HEAD = "a" * 40
 
@@ -70,20 +71,20 @@ class TestApprovalCi(unittest.TestCase):
     def test_t55_an_approval_with_no_run_is_refused(self) -> None:
         """No run of the check."""
         done = lint("approved", [run("completed", "success", name="other")])
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("waiting for CI"))
+        exits(done, 1)
+        says(done.out, "waiting for CI")
 
     def test_t55_an_approval_with_a_run_in_progress_is_refused(self) -> None:
         """Not completed."""
         done = lint("approved", [run("in_progress", None)])
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("not completed"))
+        exits(done, 1)
+        says(done.out, "not completed")
 
     def test_t55_an_approval_with_a_failed_run_is_refused(self) -> None:
         """Completed, not success."""
         done = lint("approved", [run("completed", "failure")])
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("concluded failure"))
+        exits(done, 1)
+        says(done.out, "concluded failure")
 
     def test_t55_a_green_run_and_a_changes_needed_review_pass(self) -> None:
         """Completed and green; and a review that does not approve."""
@@ -95,5 +96,5 @@ class TestApprovalCi(unittest.TestCase):
         """An older red run does not count."""
         older = {**run("completed", "failure"), "started_at": "a"}
         newer = {**run("completed", "success"), "started_at": "b"}
-        assert_that(lint("approved", [older, newer]).code, equal_to(0))
+        exits(lint("approved", [older, newer]), 0)
         assert_that(approvalci.ARGUMENTS[0] is approvalci.RUNS_ARGUMENT, equal_to(True))

@@ -22,6 +22,11 @@ URL = re.compile(r"^CI run: https?://\S+\s*$", re.MULTILINE)
 FIXES = re.compile(r"\bFixes\s+(?:[\w.-]+/[\w.-]+)?#(\d+)")
 
 
+def _says(words: Sequence[str], body: str) -> bool:
+    # whether a text names any of the words
+    return bool(_words(words).search(body))
+
+
 def _words(words: Sequence[str]) -> re.Pattern[str]:
     return re.compile(
         r"\b(?:" + "|".join(map(re.escape, words)) + r")\b", re.IGNORECASE
@@ -38,12 +43,12 @@ def _lines(
     # prefixes: the line a failing test needs, and the line a race needs
     quarantine, race = prefixes
     found = []
-    if _words(rules.failing).search(body) and not _has_line(body, quarantine):
+    if _says(rules.failing, body) and not _has_line(body, quarantine):
         found.append(
             f"{name}: quarantine-race: the text names a failing test and has no"
             f" `{quarantine}` line (the mark that quarantines it, or `none`)"
         )
-    if _words(rules.race).search(body) and not _has_line(body, race):
+    if _says(rules.race, body) and not _has_line(body, race):
         found.append(
             f"{name}: quarantine-race: the text names a race and has no `{race}`"
             " line (the fix, or `none`)"
@@ -52,7 +57,7 @@ def _lines(
 
 
 def _evidence(name: str, body: str, rules: config.Quarantine) -> Sequence[str]:
-    if not _words(rules.race).search(body):
+    if not _says(rules.race, body):
         return []
     needs = (("Root cause:", "Root cause"), ("Injection:", "Injection"))
     lacking = [word for prefix, word in needs if not _has_line(body, prefix)]

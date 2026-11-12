@@ -22,7 +22,7 @@ from . import (
 from .fastvariants import closed, named, superseded, waiting
 from .fastworld import NINTH, PULLS, TIMELINE, fast_world, prepared
 from .itemworld import one, with_pull_issues
-from .says import says
+from .says import ended, says
 from .test_slot_commands import next_output, run_all
 
 
@@ -35,7 +35,7 @@ def refused(here: world.World, reference: str, reason: str) -> None:
         reason: what standard error says; nothing is printed on standard output.
     """
     found = one(here, reference)
-    assert_that((found.code, found.out), equal_to((1, "")))
+    ended(found, 1, "")
     says(found.err, reason)
 
 

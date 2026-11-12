@@ -34,6 +34,21 @@ class World:
     ctx: Pull
 
 
+INDEPENDENT = "Independent review (a separate reviewer agent, not the author) of head"
+GATE_RUN = {"name": "pitboss-gate", "status": "in_progress", "conclusion": None}
+STATUSES = (
+    {"context": "pitboss-gate", "state": "pending"},
+    {"context": "text-lint", "state": "success"},
+)
+OPEN_TICKET = {
+    "state": "open",
+    "state_reason": None,
+    "locked": False,
+    "body": TICKET_BODY,
+}
+FILE = {"filename": "src/x.bats", "status": "modified", "additions": 10, "deletions": 2}
+
+
 def review(
     head: str, body: object, tickets: Mapping[str, object], grade: str = "approved"
 ) -> Pull:
@@ -51,10 +66,7 @@ def review(
     section = totalreview.plan_section(body)
     plan = [] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]
     lines = [
-        (
-            "Independent review (a separate reviewer agent, not the author) of head"
-            f" {head}: {grade}"
-        ),
+        f"{INDEPENDENT} {head}: {grade}",
         "Plan: approved",
         f"Execution: {grade}",
         f"Verdict: {grade}",
@@ -102,31 +114,11 @@ def _ctx(repo: str, number: object, head: str) -> Pull:
         "act_identity": ACT,
         "required_checks": [*CHECKS, "pitboss-gate"],
         "merge_queue": True,
-        "check_runs": [
-            *runs,
-            {"name": "pitboss-gate", "status": "in_progress", "conclusion": None},
-        ],
-        "statuses": [
-            {"context": "pitboss-gate", "state": "pending"},
-            {"context": "text-lint", "state": "success"},
-        ],
-        "tickets": {
-            f"{repo}#1": {
-                "state": "open",
-                "state_reason": None,
-                "locked": False,
-                "body": TICKET_BODY,
-            }
-        },
+        "check_runs": [*runs, dict(GATE_RUN)],
+        "statuses": [dict(each) for each in STATUSES],
+        "tickets": {f"{repo}#1": dict(OPEN_TICKET)},
         "blockers": {},
-        "files": [
-            {
-                "filename": "src/x.bats",
-                "status": "modified",
-                "additions": 10,
-                "deletions": 2,
-            }
-        ],
+        "files": [dict(FILE)],
         "max_lines": 462,
         "holds": [],
         "timeline": [{"event": "committed", "sha": head}],
@@ -169,13 +161,25 @@ def change(
     Returns:
         The new world; the old one is not changed.
     """
-    made = World(pull=copy.deepcopy(world.pull), ctx=copy.deepcopy(world.ctx))
+    made = copied(world)
     made.pull.update(pull or {})
     made.ctx.update(ctx or {})
     added = list(events)
     if added:
         made.ctx["timeline"] = [*_events(made.ctx), *added]
     return made
+
+
+def copied(world: World) -> World:
+    """A deep copy of a world.
+
+    Args:
+        world: the world.
+
+    Returns:
+        The copy; changing it leaves the world as it was.
+    """
+    return World(pull=copy.deepcopy(world.pull), ctx=copy.deepcopy(world.ctx))
 
 
 def head_of(world: World) -> str:
@@ -214,6 +218,32 @@ def item(ref: str, created: str, **fields: str) -> dispatchnext.Item:
         The item.
     """
     return dispatchnext.Item(ref=ref, kind="pr", created=created, **fields)
+
+
+def folder_text(name: str) -> str:
+    """A file of the total verdict's data folder.
+
+    Args:
+        name: the file's name.
+
+    Returns:
+        Its text.
+    """
+    return (FOLDER / name).read_text(encoding="utf-8")
+
+
+def ticket_item(ref: str, created: str, priority: str) -> dispatchnext.Item:
+    """An open ticket of the order of work.
+
+    Args:
+        ref: its ``owner/name#N``.
+        created: when it was opened.
+        priority: its priority label.
+
+    Returns:
+        The item.
+    """
+    return dispatchnext.Item(ref=ref, kind="ticket", priority=priority, created=created)
 
 
 def record(words: str) -> object:

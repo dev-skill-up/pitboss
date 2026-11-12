@@ -8,10 +8,11 @@ from typing import Mapping
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import filegates
-from . import diffrepo, fakes, world
+from . import diffrepo, world
 from .repositories import run_git
 from .test_ci_pointer_check import unconfigured
 from .test_slot_commands import next_output
+from .says import exits, lacks, says
 
 SLUG = "bats-lang/quire"
 RELOCK = ".github/workflows/relock.yml"
@@ -42,13 +43,17 @@ def repository(
     """
     repo = diffrepo.make_repository(case)
     run_git(repo.root, "checkout", "-q", "main")
-    for name, text in main.items():
-        diffrepo.commit(repo, name, text)
+    _commit_all(repo, main)
     run_git(repo.root, "update-ref", "refs/remotes/origin/main", "HEAD")
     run_git(repo.root, "checkout", "-q", "-B", "work")
-    for name, text in work.items():
-        diffrepo.commit(repo, name, text)
+    _commit_all(repo, work)
     return repo
+
+
+def _commit_all(repo: diffrepo.Repository, files: Mapping[str, str]) -> None:
+    # one commit for each file, in order
+    for name, text in files.items():
+        diffrepo.commit(repo, name, text)
 
 
 def check(repo: diffrepo.Repository, plan: str, slug: str = SLUG) -> world.Result:
@@ -74,22 +79,20 @@ class TestPlanCheck(unittest.TestCase):
         """A workflow the default branch runs: no row citing relock-scratch, refused."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {RELOCK: SCHEDULED})
         done = check(repo, OTHER)
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("file-gate"))
-        assert_that(done.out, contains_string("gate scratch-run"))
-        assert_that(
-            done.out, contains_string("relock-scratch/actions/runs/RUN/job/JOB")
-        )
+        exits(done, 1)
+        says(done.out, "file-gate")
+        says(done.out, "gate scratch-run")
+        says(done.out, "relock-scratch/actions/runs/RUN/job/JOB")
 
     def test_c25_file_gates_relock_yml_with_the_scratch_run_row_passes(self) -> None:
         """The same change with the row is not refused for the gate."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {RELOCK: SCHEDULED})
-        assert_that("gate scratch-run" in check(repo, SCRATCH).out, equal_to(False))
+        lacks(check(repo, SCRATCH).out, "gate scratch-run")
 
     def test_c25_file_gates_a_workflow_with_no_gated_trigger_has_no_gate(self) -> None:
         """A push trigger runs the pull request's own file: no scratch run is due."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {RELOCK: PUSHED})
-        assert_that("gate scratch-run" in check(repo, OTHER).out, equal_to(False))
+        lacks(check(repo, OTHER).out, "gate scratch-run")
 
     def test_c25_file_gates_a_src_change_without_a_bootstrap_row_is_refused(
         self,
@@ -97,25 +100,23 @@ class TestPlanCheck(unittest.TestCase):
         """A repository whose CLAUDE.md names bootstrap/c wants a row committing it."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {"src/a.bats": "x\n"})
         done = check(repo, OTHER)
-        assert_that(done.out, contains_string("gate bootstrap-c"))
-        assert_that(done.code, equal_to(1))
+        says(done.out, "gate bootstrap-c")
+        exits(done, 1)
 
     def test_c25_file_gates_a_src_change_with_the_bootstrap_row_passes(self) -> None:
         """The row that commits bootstrap/c meets the gate."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {"src/a.bats": "x\n"})
-        assert_that("gate bootstrap-c" in check(repo, BOOTSTRAP).out, equal_to(False))
+        lacks(check(repo, BOOTSTRAP).out, "gate bootstrap-c")
 
     def test_c25_file_gates_no_gated_file_has_no_finding(self) -> None:
         """A change to a file no gate names is not refused for a gate."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {"notes.txt": "x\n"})
-        assert_that("file-gate" in check(repo, OTHER).out, equal_to(False))
+        lacks(check(repo, OTHER).out, "file-gate")
 
     def test_c25_file_gates_another_owner_has_no_scratch_gate(self) -> None:
         """The scratch-run gate is bats-lang's: another owner's repository has none."""
         repo = repository(self, {"CLAUDE.md": CLAUDE}, {RELOCK: SCHEDULED})
-        assert_that(
-            "gate scratch-run" in check(repo, OTHER, OTHER_SLUG).out, equal_to(False)
-        )
+        lacks(check(repo, OTHER, OTHER_SLUG).out, "gate scratch-run")
 
 
 OTHER_SLUG = "someone/else"
@@ -151,7 +152,7 @@ class TestBrief(unittest.TestCase):
     ) -> None:
         """The brief names the gate and the row it needs."""
         found = filegates.lines(SLUG, CLAUDE, "Done when: relock.yml runs at 05:07.")
-        assert_that("\n".join(found), contains_string("gate scratch-run"))
+        says("\n".join(found), "gate scratch-run")
         assert_that(found[0], contains_string("FILE GATES"))
 
     def test_c25_file_gates_a_ticket_naming_no_gated_file_gets_no_line(self) -> None:
@@ -165,9 +166,7 @@ class TestBrief(unittest.TestCase):
         """`slots next` prints the gates of the files the ticket's Done-when names."""
         here = world.make_world()
         ticket = dict(world.TICKET, body="Done when: `src/lib.bats` changes.")
-        here.bodies[fakes.page(f"{world.PROJECT}/issues?state=open&labels=urgent")] = [
-            ticket
-        ]
+        here.bodies[world.project_page("issues?state=open&labels=urgent")] = [ticket]
         content = base64.b64encode(CLAUDE.encode()).decode()
         here.bodies["repos/owner/project/contents/CLAUDE.md"] = {"content": content}
         text = next_output(here)

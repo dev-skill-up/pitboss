@@ -5,8 +5,6 @@ stayed 75f820a while the body named 7ba2eca. Each shape is played with a fake Gi
 """
 
 import argparse
-import importlib
-import json
 import unittest
 from typing import Mapping, Sequence
 
@@ -16,6 +14,7 @@ from hamcrest import (
     empty,
     equal_to,
     has_item,
+    starts_with,
 )
 
 from .. import (
@@ -34,31 +33,14 @@ from .. import (
 )
 from . import fakes, world
 from .test_report import facts
-from .says import says
+from .says import ended, exits, says
+from .pushworld import PUSH_NOW, elsewhere
+from .existing import exists
 
 TABLE = phrases.shipped_text("claims.tsv")
 OTHER_URL = "git@github.com:owner/other.git"
 LISTED = "repos/owner/other/pulls?state=open&per_page=100"
 TARGET = actrun.Target(slug="o/r", number=3, branch="b", head="h")
-
-
-def exists(name: str) -> bool:
-    """Whether a test named ``module.Class.method`` exists.
-
-    Args:
-        name: the name, from ``pitboss.tests``.
-
-    Returns:
-        True when it resolves.
-    """
-    module, _, rest = name.partition(".")
-    try:
-        found = importlib.import_module(f"{__package__}.{module}")
-        for part in rest.split("."):
-            found = getattr(found, part)
-    except (ImportError, AttributeError):
-        return False
-    return callable(found)
 
 
 def pushed_world(branch: str, sha: str) -> tuple[world.World, str]:
@@ -73,10 +55,7 @@ def pushed_world(branch: str, sha: str) -> tuple[world.World, str]:
     """
     here = world.make_world()
     fakes.run_git(here.clone, "checkout", "-q", "-b", "w5")  # names the ticket
-    fakes.run_git(here.clone, "branch", "-f", "branch-1")
-    fakes.run_git(here.clone, "remote", "add", "elsewhere", OTHER_URL)
-    target = str(world.origin_of(here.clone))
-    fakes.run_git(here.clone, "config", "remote.elsewhere.pushurl", target)
+    elsewhere(here, OTHER_URL)
     head = fakes.run_git(here.clone, "rev-parse", "HEAD").strip()
     body = fakes.pull_body(
         8, body="Fixes #5\n", head={"sha": sha or head, "ref": branch}
@@ -94,9 +73,8 @@ def push_ticket(here: world.World) -> world.Result:
     Returns:
         What the push did.
     """
-    argv = ["push", "--now", world.START.isoformat(), "--no-dry-run", "--draft"]
-    argv += ["--ticket", "5", "elsewhere", "HEAD:branch-1"]
-    return world.again(here, *argv)
+    ticket = ["--ticket", "5", "elsewhere", "HEAD:branch-1"]
+    return world.again(here, *PUSH_NOW, "--draft", *ticket)
 
 
 class TestPushClaims(unittest.TestCase):
@@ -106,7 +84,7 @@ class TestPushClaims(unittest.TestCase):
         """The PR's head branch and head are what was pushed."""
         here, _ = pushed_world("branch-1", "")
         done = push_ticket(here)
-        assert_that((done.code, done.out), equal_to((0, "pushed\n")))
+        ended(done, 0, "pushed\n")
 
     def test_c29_a_push_to_another_branch_is_wrong_branch(self) -> None:
         """quire#1115: the push went to branch-1, the PR's branch is w1113."""
@@ -114,33 +92,32 @@ class TestPushClaims(unittest.TestCase):
         done = push_ticket(here)
         says(done.out, "WRONG-BRANCH owner/other#8", f"pushed {head} to branch-1")
         says(done.out, "the PR's head branch is w1113 (at " + "7" * 40)
-        assert_that(done.code, equal_to(1))
+        exits(done, 1)
 
     def test_c29_a_push_that_did_not_land_is_not_landed(self) -> None:
         """The PR has the branch and holds another commit."""
         here, head = pushed_world("branch-1", "7" * 40)
         done = push_ticket(here)
         says(done.out, "push NOT LANDED owner/other#8", f"pushed {head}")
-        assert_that(done.code, equal_to(1))
+        exits(done, 1)
 
     def test_c29_a_ticket_with_no_pr_yet_is_not_judged(self) -> None:
         """A first push has no PR to read."""
         here, _ = pushed_world("branch-1", "")
         here.bodies[LISTED] = []
-        assert_that(push_ticket(here).code, equal_to(0))
+        exits(push_ticket(here), 0)
 
     def test_c29_an_unreadable_list_is_not_judged(self) -> None:
         """A read that fails says nothing more."""
         here, _ = pushed_world("branch-1", "")
         del here.bodies[LISTED]
-        assert_that(push_ticket(here).code, equal_to(0))
+        exits(push_ticket(here), 0)
 
     def test_c29_no_ticket_judges_nothing(self) -> None:
         """Without a ticket there is no PR to look for."""
         here, _ = pushed_world("w1113", "7" * 40)
-        argv = ["push", "--now", world.START.isoformat(), "--no-dry-run", "--draft"]
-        done = world.again(here, *argv, "elsewhere", "HEAD:branch-1")
-        assert_that((done.code, done.out), equal_to((0, "pushed\n")))
+        done = world.again(here, *PUSH_NOW, "--draft", "elsewhere", "HEAD:branch-1")
+        ended(done, 0, "pushed\n")
 
     def test_c29_no_remote_slug_judges_nothing(self) -> None:
         """A remote that names no repository on GitHub."""
@@ -152,7 +129,7 @@ class TestSweepClaim(unittest.TestCase):
 
     def test_c29_a_body_that_names_another_head_is_a_stale_claim(self) -> None:
         """quire#1115: the body named 7ba2eca, the head stayed 75f820a."""
-        body = "Head: " + "7" * 40 + "\n"
+        body = f"Head: {'7' * 40}\n"
         pull = facts(reviews.Standing.NONE, body=body)
         said = claimline.lines(pull)
         assert_that(said[0], contains_string("STALE-CLAIM o/r#7"))
@@ -200,7 +177,7 @@ class TestActClaims(unittest.TestCase):
     def test_c29_a_label_without_a_name_and_a_push_claim_nothing_here(self) -> None:
         """The label's own word is needed; a push is read back by its own command."""
         said = _read_back(actions.Action.LABEL, {"labels": "x"}, [])
-        assert_that(said[0].startswith("act NOT LANDED"), equal_to(True))
+        assert_that(said[0], starts_with("act NOT LANDED"))
         assert_that(_read_back(actions.Action.PUSH, {}, []), empty())
         assert_that(_read_back(actions.Action.DISPATCH, {}, []), empty())
 
@@ -274,4 +251,4 @@ class TestTable(unittest.TestCase):
 
 def _pull(branch: str, sha: str) -> shapes.Pull:
     body = fakes.pull_body(3, head={"sha": sha, "ref": branch}, body=f"Head: {sha}\n")
-    return parsing.pull(json.dumps(body))
+    return parsing.pulls_of([body])[0]

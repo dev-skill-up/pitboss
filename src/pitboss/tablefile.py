@@ -6,6 +6,8 @@ another number of fields than the table's stops the reader.
 
 from typing import Sequence
 
+from . import tsv
+
 
 def rows(text: str, name: str, fields: int) -> Sequence[Sequence[str]]:
     """The rows of a table.
@@ -21,11 +23,7 @@ def rows(text: str, name: str, fields: int) -> Sequence[Sequence[str]]:
     Raises:
         ValueError: a row has another number of fields.
     """
-    found = [
-        each.split("\t")
-        for each in text.splitlines()
-        if each.strip() and not each.startswith("#")
-    ]
+    found = tsv.rows(text)
     for each in found:
         if len(each) != fields:
             raise ValueError(f"{name}: {each[0]} has {len(each)} fields")

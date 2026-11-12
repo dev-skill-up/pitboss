@@ -24,6 +24,7 @@ import re
 from typing import AbstractSet, Sequence
 
 from . import bodytext, hopedfigure, planrowtext, ticketwhen
+from .textparts import heads
 
 CHECK = "plan-done-when"
 MEASUREMENT = "plan-measurement"
@@ -101,7 +102,7 @@ def measurements(item: str) -> Sequence[str]:
 def _runs(command: str, remainder: str) -> bool:
     # the row's own backticked spans: the command itself, or piped into more
     return any(
-        span == command or span.startswith(command + " |")
+        heads(span, command, " |")
         for span in (_squeezed(each) for each in planrowtext.spans(remainder))
     )
 

@@ -10,6 +10,7 @@ from hamcrest import assert_that, contains_string
 
 from .. import dead, judging, local, mergedworktree, worktrees
 from . import cleanworld, fakes, suggestions, world, worldcopy
+from .fakes import write
 
 AFTER = ("--now", world.FUTURE)
 UNSAFE = ("unpushed-work", "changed-work", "live-work", "untracked-work")
@@ -34,7 +35,7 @@ def built_scene() -> worldcopy.Made:
         ("untracked-work", "notes", "mine"),
     )
     for name, leaf, text in files:
-        (here.workspace / name / leaf).write_text(text)
+        write(here.workspace / name / leaf, text)
     started = world.START.timestamp()
     cleanworld.mark_live_since(here.workspace / "live-work", 4, started)
     done = {"state": "closed", "merged_at": "x"}

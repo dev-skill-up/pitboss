@@ -39,20 +39,18 @@ class TestRepositoryRule(unittest.TestCase):
 
     def test_t437_a_hand_back_that_names_another_place_passes_the_rule(self) -> None:
         """The same hand-back with a place: the rule has nothing to say."""
-        assert_that(repositoryrule.refusal(STOPPED + PLACE), equal_to(""))
-        assert_that(
-            repositoryrule.refusal(STOPPED + "Ticket in: bats-lang/pwa#9\n"),
-            equal_to(""),
-        )
+        _quiet(STOPPED + PLACE, STOPPED + "Ticket in: bats-lang/pwa#9\n")
 
     def test_t437_a_stop_that_cites_no_rule_is_not_this_refusal(self) -> None:
         """Only a NOT STARTED hand-back that cites a rule is read."""
-        assert_that(
-            repositoryrule.refusal("NOT STARTED: the ticket is closed.\n"), equal_to("")
-        )
-        assert_that(
-            repositoryrule.refusal("Done. CLAUDE.md allows it.\n"), equal_to("")
-        )
+        _quiet("NOT STARTED: the ticket is closed.\n", "Done. CLAUDE.md allows it.\n")
+
+
+def _quiet(*texts: str) -> None:
+    # the rule has nothing to say of any of the hand-backs
+    assert_that(
+        [repositoryrule.refusal(each) for each in texts], equal_to([""] * len(texts))
+    )
 
 
 FIX_TABLE = (

@@ -10,6 +10,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, parsing, pulls, report, reviews, shapes, steps, straycomments
 from . import fakes
+from .says import says
 
 
 def run(finished: bool) -> shapes.CheckRun:
@@ -73,6 +74,15 @@ class TestPullLine(unittest.TestCase):
         assert_that("ignored" in line, equal_to(False))
 
 
+def approved_green() -> pulls.PullFacts:
+    """An approved PR whose check run passed.
+
+    Returns:
+        The PR.
+    """
+    return facts(reviews.Standing.APPROVED, checks=[run(True)])
+
+
 def lines(pull: pulls.PullFacts) -> str:
     """The action lines of a PR, as one text.
 
@@ -105,7 +115,7 @@ class TestWaitForCi(unittest.TestCase):
 
     def test_completed_check_run_is_ready(self) -> None:
         """A completed green check run ends the wait and the PR is ready."""
-        pull = facts(reviews.Standing.APPROVED, checks=[run(True)])
+        pull = approved_green()
         assert_that("WAIT-FOR-CI" in lines(pull), equal_to(False))
         assert_that(lines(pull), contains_string("READY TO MERGE o/r#7"))
 
@@ -143,7 +153,7 @@ class TestMergeByTheRuling(unittest.TestCase):
                 pull = by_hand(facts(standing, checks=[run(True)]))
                 found = report.action_lines(pull, by_hand_settings(), False, {})
                 expected = f"MERGE BY HAND owner/lib#7: green, clean, {tail}"
-                assert_that("\n".join(found), contains_string(expected))
+                says("\n".join(found), expected)
 
     def test_ready_to_merge_for_the_ruling_and_no_other_merge_line(self) -> None:
         """READY TO MERGE says to arm it; a head not green and clean has none."""

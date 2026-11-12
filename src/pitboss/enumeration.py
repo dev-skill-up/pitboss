@@ -16,6 +16,8 @@ import importlib.resources
 import re
 from typing import Callable, Iterator, Sequence
 
+from .tsv import is_data
+
 FOLDER = "enumeration"
 VARIABLES = "variables.tsv"
 ACTIONS = "actions.tsv"
@@ -119,7 +121,7 @@ def lines_of(text: str) -> Iterator[str]:
         Each line, without its end.
     """
     for line in text.splitlines():
-        if line.strip() and not line.startswith("#"):
+        if is_data(line):
             yield line
 
 

@@ -12,7 +12,16 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import actverbs, enumeration, totalroutes, totalverdict
-from . import coverwrites, scratch, totalcells, totalpairs, totalworld, world
+from . import (
+    coverwrites,
+    scratch,
+    totalcells,
+    totalcomplete,
+    totalpairs,
+    totalworld,
+    world,
+)
+from .fakes import write
 
 SOURCE = pathlib.Path(__file__).parent.parent
 SHA256 = {
@@ -37,13 +46,8 @@ def _policy() -> totalverdict.Policy:
 
 
 @functools.cache
-def _cells() -> tuple[totalcells.Cell, ...]:
-    return tuple(totalcells.cells(totalworld.base()))
-
-
-@functools.cache
 def _pairs() -> totalpairs.Pairs:
-    return totalpairs.run(totalworld.base(), _cells(), _verdict)
+    return totalpairs.run(totalworld.base(), totalcomplete.base_cells(), _verdict)
 
 
 class TestFrozen(unittest.TestCase):
@@ -84,9 +88,9 @@ class TestCells(unittest.TestCase):
 
         None is uncovered.
         """
-        found = totalcells.tally(_cells(), _verdict)
+        found = totalcells.tally(totalcomplete.base_cells(), _verdict)
         assert_that(
-            (len(_cells()), dict(found)),
+            (len(totalcomplete.base_cells()), dict(found)),
             equal_to((732, {totalcells.FIRES: 526, totalcells.BENIGN: 206})),
         )
 
@@ -95,7 +99,7 @@ class TestCells(unittest.TestCase):
         lines = sorted(
             {
                 line
-                for cell in _cells()
+                for cell in totalcomplete.base_cells()
                 for line in _verdict(cell.action, cell.world.pull, cell.world.ctx).lines
             }
         )
@@ -111,7 +115,9 @@ class TestPairs(unittest.TestCase):
             word=totalverdict.STOP, lines=["zzz: a line no route takes"]
         )
         found = totalpairs.run(
-            totalworld.base(), _cells()[::100], lambda action, pull, ctx: unrouted
+            totalworld.base(),
+            totalcomplete.base_cells()[::100],
+            lambda action, pull, ctx: unrouted,
         )
         assert_that(found.counts["exception"] > 0, equal_to(True))
 
@@ -170,10 +176,10 @@ class TestCover(unittest.TestCase):
         A decorator keyword other than ``name`` registers nothing.
         """
         source = scratch.directory()
-        (source / "planted.py").write_text(
+        write(
+            source / "planted.py",
             "@register(help='x', name='planted')\ndef planted():\n    return"
             " store_of()\n\n@register(help='y')\ndef other():\n    return 1\n",
-            encoding="utf-8",
         )
         found = coverwrites.call_graph(source)
         assert_that(
@@ -196,7 +202,5 @@ class TestInstructions(unittest.TestCase):
     def test_444_the_sweep_prints_the_instructions(self) -> None:
         """The text of ``instructions()``, whole."""
         here = world.make_world()
-        done = world.invoke(
-            here, "sweep", "--config", here.config, "--now", world.FUTURE
-        )
+        done = world.again(here, "sweep", "--now", world.FUTURE)
         assert_that(totalroutes.instructions() in done.out, equal_to(True))

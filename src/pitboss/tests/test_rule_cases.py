@@ -11,15 +11,15 @@ from hamcrest import assert_that, calling, contains_string, equal_to, raises
 
 from .. import dispatchnext, rulecases
 from . import fakehub
+from .totalworld import item
 
-GO = rulecases.Case(
-    name="A", date="2026-11-01", world={"x": 1}, action="merge", expect="GO"
-)
-STOP = rulecases.Case(
-    name="B", date="2026-11-02", world={"x": 1}, action="merge", expect="STOP"
-)
-OTHER = rulecases.Case(
-    name="C", date="2026-11-03", world={"x": 2}, action="merge", expect="STOP"
+GO, STOP, OTHER = (
+    rulecases.Case(name=name, date=date, world={"x": x}, action="merge", expect=says)
+    for name, date, x, says in (
+        ("A", "2026-11-01", 1, "GO"),
+        ("B", "2026-11-02", 1, "STOP"),
+        ("C", "2026-11-03", 2, "STOP"),
+    )
 )
 
 
@@ -81,9 +81,7 @@ class TestOrder(unittest.TestCase):
 
     def test_444_nothing_free_is_refused(self) -> None:
         """No item, or only blocked ones."""
-        blocked = dispatchnext.Item(
-            ref="o/r#1", kind="pr", created="2026-11-01", blocked_by="o/r#2"
-        )
+        blocked = item("o/r#1", "2026-11-01", blocked_by="o/r#2")
         for items in ([], [blocked]):
             given = calling(dispatchnext.next_item).with_args(
                 fakehub.state(items=items)

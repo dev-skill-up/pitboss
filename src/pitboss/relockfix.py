@@ -14,6 +14,8 @@ table's last column.
 import re
 from typing import Sequence
 
+from .textparts import section_after
+
 RELOCK_PREFIX = "relock/"
 TEST_PATH = re.compile(
     r"(?:^|/)(?:tests?/|test_[^/]*$|[^/]*_test\.[^/]*$|[^/]*\.spec\.)"
@@ -36,13 +38,14 @@ def test_files(names: Sequence[str]) -> Sequence[str]:
     return [each for each in names if TEST_PATH.search(each)]
 
 
+NEXT_HEADING = re.compile(r"(?m)^#{1,6}[ \t]")
+
+
 def _section(body: str) -> str:
     found = HEADING.search(body)
     if found is None:
         return ""
-    rest = body[found.end() :]
-    after = re.search(r"(?m)^#{1,6}[ \t]", rest)
-    return found.group(0) + (rest[: after.start()] if after else rest)
+    return found.group(0) + section_after(body, found, NEXT_HEADING)
 
 
 def _column(section: str) -> Sequence[float]:

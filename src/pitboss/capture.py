@@ -184,7 +184,7 @@ def live_edits(github: ghapi.GitHub, slug: str, number: int) -> Item:
     owner, name = slug.split("/")
     command = ["gh", "api", "graphql", "-F", f"owner={owner}", "-F", f"name={name}"]
     command += ["-F", f"number={number}", "-f", f"query={EDITS_QUERY}"]
-    return as_object(json.loads(github.run(command).stdout))
+    return as_object(ghapi.run_json(github, command))
 
 
 def _posted(github: ghapi.GitHub, base: str, number: int) -> Item:

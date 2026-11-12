@@ -11,6 +11,7 @@ from .exemptworld import of, push, remote_to, swept, with_pitboss
 from .test_flow_sweep import approved_draft
 from .test_quiet import clear_world, lines, pushes, record_path, waiting_world
 from .test_slot_commands import next_output
+from .pushworld import pushes_to_origin
 
 PITBOSS_URL = "https://github.com/dev-skill-up/pitboss.git"
 OTHER_URL = "git@github.com:owner/other.git"
@@ -108,8 +109,7 @@ class TestPush(unittest.TestCase):
         """With no git arguments the remote is origin, which names pitboss here."""
         here = waiting_world(1)
         fakes.run_git(here.clone, "remote", "set-url", "origin", PITBOSS_URL)
-        target = str(world.origin_of(here.clone))
-        fakes.run_git(here.clone, "config", "remote.origin.pushurl", target)
+        pushes_to_origin(here, "origin")
         found = push(here)
         assert_that((found.code, pushes(here)), equal_to((0, 1)))
 

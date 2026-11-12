@@ -7,6 +7,7 @@ import pathlib
 
 from .. import rulefiles
 from . import captured, scratch
+from .fakes import write
 
 
 def git(directory: pathlib.Path, *words: str) -> str:
@@ -43,7 +44,7 @@ def repo_pair() -> pathlib.Path:
     git(worktree, "commit", "-q", "--allow-empty", "-m", "init")
     git(worktree, "push", "-q", "origin", "HEAD:main")
     git(worktree, "checkout", "-q", "-b", "worker/7")
-    (worktree / "f").write_text("x", encoding="utf-8")
+    write(worktree / "f", "x")
     git(worktree, "add", "f")
     git(worktree, "commit", "-q", "-m", "work")
     return worktree

@@ -9,7 +9,7 @@ from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import actcore, totalverdict
 from . import fakehub, knownkit
-from .actplay import GIVEN, hold_issue, kinds, red, refusal, stop_line
+from .actplay import GIVEN, file_issue, hold_issue, kinds, red, refusal, stop_line
 from .knownkit import BASE, HEAD, NUMBER, REPO, act, change, made
 from .totalworld import World
 
@@ -190,7 +190,7 @@ class TestHolds(unittest.TestCase):
         """A hold of all scopes refuses update-branch."""
         hub = made(GIVEN)
         act(GIVEN, hub, "update-branch")
-        hub.hub.issues_made[(REPO, 900)] = hold_issue(900, "all")
+        file_issue(hub, 900, hold_issue(900, "all"))
         assert_that(refusal(hub, "update-branch"), contains_string("hold"))
         act(GIVEN, hub, "unhold", number="900")
         act(GIVEN, hub, "update-branch")
@@ -201,14 +201,14 @@ class TestHolds(unittest.TestCase):
     def test_c17_a_hold_of_another_repository_holds_nothing_here(self) -> None:
         """A hold of every scope in another repository leaves this one's merge alone."""
         hub = fakehub.holding(BASE, GIVEN.controls, None, [REPO, "bats-lang/pwa"])
-        hub.hub.issues_made[("bats-lang/pwa", 902)] = hold_issue(902, "all")
+        file_issue(hub, 902, hold_issue(902, "all"), "bats-lang/pwa")
         act(GIVEN, hub, "merge")
         assert_that(kinds(hub), equal_to(["merge"]))
 
     def test_c17_a_hold_of_another_scope_holds_nothing_here(self) -> None:
         """An undraft hold leaves merge alone; a title-only edit checks no body."""
         hub = made(GIVEN)
-        hub.hub.issues_made[(REPO, 901)] = hold_issue(901, "undrafts")
+        file_issue(hub, 901, hold_issue(901, "undrafts"))
         act(GIVEN, hub, "merge")
         act(GIVEN, hub, "pr-edit", title="a new title")
         assert_that(kinds(hub), equal_to(["merge", "pr-edit"]))

@@ -8,7 +8,7 @@ import dataclasses
 import datetime
 import json
 import unittest
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, empty, equal_to
 
@@ -161,14 +161,12 @@ class TestReading(unittest.TestCase):
     def test_c17_a_raw_re_arm_of_auto_merge_is_an_unledgered_arm(self) -> None:
         """An auto_merge_enabled event with no act record is named like a merge."""
         items = [issue_event(8, "auto_merge_enabled", 3, 12)]
-        found = unledgered.from_issue_events("o/r", json.dumps(items))
-        assert_that([actions.word(e.action) for e in found], equal_to(["arm"]))
+        assert_that(_words(items), equal_to(["arm"]))
 
     def test_c17_a_merge_is_not_also_a_close(self) -> None:
         """GitHub gives a merged and a closed event for one merge: one act."""
         items = [issue_event(1, "merged", 3, 12), issue_event(2, "closed", 3, 12)]
-        found = unledgered.from_issue_events("o/r", json.dumps(items))
-        assert_that([actions.word(e.action) for e in found], equal_to(["merge"]))
+        assert_that(_words(items), equal_to(["merge"]))
 
     def test_c17_an_event_of_an_issue_is_not_a_pr_event(self) -> None:
         """Only an issue event of a PR (it has a pull_request) is read."""
@@ -244,3 +242,9 @@ class TestSweep(unittest.TestCase):
             "UNLEDGERED event 777: merge of owner/project#3",
             "UNLEDGERED owner/lib: its events",
         )
+
+
+def _words(items: Sequence[Mapping[str, object]]) -> Sequence[str]:
+    # the act words of the PR events GitHub listed
+    found = unledgered.from_issue_events("o/r", json.dumps(items))
+    return [actions.word(e.action) for e in found]

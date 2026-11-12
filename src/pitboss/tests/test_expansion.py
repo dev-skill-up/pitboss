@@ -8,6 +8,7 @@ from hamcrest import assert_that, equal_to, has_length
 
 from .. import expansion
 from .linting import OK
+from .linting import block
 
 RAW = "  a  \n\n\ttab\n"
 
@@ -94,7 +95,7 @@ class TestBlock(unittest.TestCase):
         """The opening line has the mark and digest; output ticks lengthen the fence."""
         for output, fence in (("OK\n", "```"), ("```\nx\n```\n", "````")):
             with self.subTest(fence):
-                rows = expansion.block("x", expansion.Outcome(status=0, output=output))
+                rows = block("x", output)
                 mark = expansion.info(contents("x", 0, output))
                 ends = [rows.splitlines()[0], rows.splitlines()[-1]]
                 assert_that(ends, equal_to([f"{fence}{mark}", fence]))

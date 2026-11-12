@@ -1,13 +1,15 @@
 """The verbs of ``pitboss act``, by name (keyword: act-verbs).
 
 ``VERBS`` is the one table: the command line, the route table's verbs and the
-completeness test all read it. ``dispatch-next`` is here: it answers the one
+completeness test all read it. Every verb but ``ack`` and ``clean`` passes the
+owner gate and the hold gate first (``gate_first``). ``dispatch-next`` is here: it answers the one
 next piece of work, and for a ticket with a checkout it writes the brief (every
 rule file on the ticket's paths, the verdict's gates on them, and the
 instructions of the route table), refused when the recount finds a file missing.
 """
 
 import dataclasses
+import functools
 import pathlib
 from typing import Callable, Mapping
 
@@ -58,7 +60,6 @@ def dispatch_next(act: Act, target: Target, options: Options) -> str:
     Returns:
         The item's reference, then its brief.
     """
-    gate(act, "dispatch-next", target.repo)
     state = act.work()
     if cap := cap_of(act.owner):
         state = dataclasses.replace(state, cap=cap)
@@ -82,11 +83,32 @@ REFUSALS = (
     dispatchnext.Refused,
     rulecases.Refused,
 )
-VERBS: Mapping[str, Verb] = {
-    "merge": actpull.merge,
-    "arm": actpull.arm,
+
+
+def gate_first(
+    name: str, verb: Verb, act: Act, target: Target, options: Options
+) -> str:
+    """Run a verb after the owner gate and the hold gate.
+
+    Args:
+        name: the verb's name, the one the hold gate reads.
+        verb: the verb.
+        act: the verb's world.
+        target: what it acts on.
+        options: its options.
+
+    Returns:
+        What the verb said.
+    """
+    gate(act, name, target.repo)
+    return verb(act, target, options)
+
+
+GATED: Mapping[str, Verb] = {
+    "merge": functools.partial(actpull.gated_write, "merge"),
+    "arm": functools.partial(actpull.gated_write, "arm"),
     "disarm": actpull.disarm,
-    "undraft": actpull.undraft,
+    "undraft": functools.partial(actpull.gated_write, "undraft"),
     "review": actwrite.review,
     "label": actpull.label,
     "hold": actpull.hold,
@@ -106,8 +128,11 @@ VERBS: Mapping[str, Verb] = {
     "cancel": actpull.cancel,
     "dispatch-workflow": actpull.dispatch_workflow,
     "push": actgit.push,
-    "clean": actgit.clean,
     "dispatch-next": dispatch_next,
-    "ack": actwrite.ack,
     "scratch-clean": actwrite.scratch_clean,
+}
+VERBS: Mapping[str, Verb] = {
+    **{name: functools.partial(gate_first, name, verb) for name, verb in GATED.items()},
+    "clean": actgit.clean,
+    "ack": actwrite.ack,
 }

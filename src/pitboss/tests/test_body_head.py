@@ -7,6 +7,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, bodyhead, shapes
 from . import fakes, world
+from .says import exits, says
 
 OLD, NEW = "a" * 40, "b" * 40
 PULL = "owner/project#3"
@@ -183,12 +184,12 @@ class TestTheReviewedHead(unittest.TestCase):
         here = served(BODY)
         here.bodies[COMMENTS] = [review(REVIEWED, "changes needed")]
         done = run(here)
-        assert_that(done.out, contains_string("no approving review names a head"))
+        says(done.out, "no approving review names a head")
         assert_that(
             "bats merge-proof" in done.out.replace("`bats merge-proof`", ""),
             equal_to(False),
         )
-        assert_that(done.code, equal_to(0))
+        exits(done, 0)
 
     def test_t394_a_review_of_an_untrusted_author_is_not_read(self) -> None:
         """Only OWNER, MEMBER and COLLABORATOR count."""

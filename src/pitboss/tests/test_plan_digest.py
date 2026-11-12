@@ -32,6 +32,7 @@ from .test_flow_sweep import (
     world_with,
 )
 from .test_slot_commands import next_output
+from .says import says
 
 PLAN = fakes.PLAN_AND_EXECUTION
 EDITED_PLAN = "## Plan\nthe plan, with a row added\n\n## Execution\nthe work\n"
@@ -227,7 +228,7 @@ class TestThePlanEditedLine(unittest.TestCase):
     def test_a_ruling_before_the_approval_does_not(self) -> None:
         """The ruling must come after the approval."""
         here = world_with([ruling(1), approving(2)], body=EDITED_PLAN)
-        assert_that(sweep(here).out, contains_string(EDIT_LINE))
+        says(sweep(here).out, EDIT_LINE)
 
     def test_a_ruling_of_another_word_is_executed_not_held(self) -> None:
         """pitboss#475: `do these steps` is offered at once, not PLAN EDITED."""

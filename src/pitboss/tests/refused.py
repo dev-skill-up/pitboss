@@ -2,9 +2,10 @@
 
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from . import world
+from .says import says
 
 FILE = "FILE"
 
@@ -76,5 +77,5 @@ def assert_refused(done: world.Result, why: str, here: world.World) -> None:
         why: words its refusal says.
         here: the world, whose calls are looked at.
     """
-    assert_that(done.err, contains_string(why))
+    says(done.err, why)
     assert_that((done.code, changes(here)), equal_to((2, [])))

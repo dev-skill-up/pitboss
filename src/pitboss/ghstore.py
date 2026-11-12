@@ -4,7 +4,7 @@ import functools
 import json
 from typing import Sequence
 
-from . import evidencesplit, ghapi
+from . import evidencesplit, ghapi, totaljson
 from .running import Run
 
 DRY_RUN_URL = "(dry run: no URL yet)"
@@ -41,7 +41,7 @@ def listed(text: str) -> Sequence[evidencesplit.Comment]:
         evidencesplit.Comment(
             number=int(each["id"]),
             url=str(each["html_url"]),
-            body=str(each.get("body") or ""),
+            body=totaljson.text(each.get("body")),
         )
         for each in json.loads(text)
     ]

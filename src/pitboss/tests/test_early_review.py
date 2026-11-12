@@ -19,6 +19,8 @@ from .briefmake import make
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, HEAD, OLDER, graded, older_checks, world_with
 from .test_slot_commands import next_output
+from .says import says
+from ..textparts import having
 
 Body = Mapping[str, object]
 LINE = "EXECUTION REVIEW EARLY: owner/project#3 reviewed at 2026-10-30T00:00:02Z, CI"
@@ -149,7 +151,7 @@ def third_of(out: str) -> str:
     Returns:
         The line that starts ``owner/project#3 [``.
     """
-    return "".join(each for each in out.splitlines() if "owner/project#3 [" in each)
+    return "".join(having(out.splitlines(), "owner/project#3 ["))
 
 
 PLAN_ONLY = graded(APPROVED, None, 1)
@@ -175,7 +177,7 @@ class TestTheSweep(unittest.TestCase):
         state = [
             each for each in next_output(here).splitlines() if "project#3:" in each
         ]
-        assert_that("".join(state), contains_string("the plan is approved"))
+        says("".join(state), "the plan is approved")
 
     def test_the_same_pr_with_a_complete_run_before_the_comment_shows_none(
         self,
@@ -235,7 +237,7 @@ class TestTheSweep(unittest.TestCase):
         """The timeline says when the draft was marked ready."""
         here = served(world_with([reviewed(2)]), [DONE], [READY])
         said = f"{early(BEFORE)}{DRAFT_WORDS}"
-        assert_that(sweep(here).out, contains_string(said))
+        says(sweep(here).out, said)
 
     def test_a_pr_made_ready_before_the_comment_was_not_a_draft(self) -> None:
         """The same timeline, with the comment after the event."""

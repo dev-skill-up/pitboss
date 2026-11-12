@@ -12,6 +12,7 @@ from .briefmake import OWNER, pinned
 from .test_evidence_rules import words
 from .test_commands import sweep
 from .test_deviations import WORKERS
+from .says import ended, says
 
 WORKER_ACTIONS = (
     "Worker actions: a statement about what a worker did is made from the output"
@@ -197,5 +198,5 @@ class TestWorkerActions(unittest.TestCase):
             ("pattern", [path.as_posix(), "("]),
         ):
             found = world.invoke(world.make_world(), "worker-actions", *argv)
-            assert_that((found.code, found.out), equal_to((2, "")))
-            assert_that(found.err, contains_string(name))
+            ended(found, 2, "")
+            says(found.err, name)

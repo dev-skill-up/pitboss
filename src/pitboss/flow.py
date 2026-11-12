@@ -90,7 +90,7 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
         return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
     if ruled is rulingwords.Ruling.REVISE_THE_PLAN and plan_revised(pr):
         # the ruling is applied: the revised Plan is graded again (current-for)
-        return plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+        return plancheckflow.plan_review(pr)
     if ruled is not rulingwords.Ruling.DO_THESE_STEPS:
         return AFTER[ruled][0]
     if plancheckflow.checked_since(pr, flowstate.readable_comment):
@@ -207,7 +207,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
         if red and not rejection:  # keyword: draft-red-ci
             return ci_gate(pr, review)
         if rejection or not plan_approved(pr):
-            alone = plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+            alone = plancheckflow.plan_review(pr)
             return rejection or flowstate.draft_plan_review(pr, alone)
         unrun = plan_unrun(pr, review)  # keyword: plan-alone
         # keyword: run-e2e (pitboss#199); else the CI gate on the undrafted head
@@ -267,11 +267,7 @@ def plan_gate(pr: PullState, review: Graded) -> steps.Next:
     """
     return (
         rejection_step(pr, review)
-        or (
-            plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
-            if plan_revised(pr)
-            else None
-        )
+        or (plancheckflow.plan_review(pr) if plan_revised(pr) else None)
         or execution_gate(pr, review)
     )
 
@@ -318,8 +314,9 @@ def _conflict_step(pr: PullState) -> steps.Next:
 
 def _stale_body(pr: PullState) -> bool:
     # keyword: stale-head
-    body, head = pr.pull.body, pr.pull.head.sha
-    return headline.is_stale(body, head) or bool(evidence.stale_heads(body, head))
+    head = pr.pull.head.sha
+    stale = evidence.stale_heads(pr.pull.body, head)
+    return headline.is_stale(pr.pull.body, head) or bool(stale)
 
 
 def _refreshed(pr: PullState, found: steps.Next) -> steps.Next:

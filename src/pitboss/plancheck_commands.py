@@ -249,11 +249,16 @@ def _prior(args: argparse.Namespace, body: str) -> shapes.Comment | None:
     return plancheckprior.relied_on(found, body)
 
 
+# the ref of the head and the prior Plan check; the base's tree and the head's
+Given = tuple[str, shapes.Comment | None]
+Trees = Sequence[pathlib.Path]
+
+
 def _remote(
     args: argparse.Namespace,
     body: str,
     section: str,
-    given: tuple[str, shapes.Comment | None],
+    given: Given,
 ) -> list[str]:
     # keywords: ci-run, plan-done-when (pitboss#317, #396): GitHub's word on the run
     ref, prior = given
@@ -284,8 +289,8 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
 def _findings(
     args: argparse.Namespace,
     section: str,
-    given: tuple[str, shapes.Comment | None],
-    trees: tuple[pathlib.Path, pathlib.Path],
+    given: Given,
+    trees: Trees,
 ) -> tuple[Sequence[str], tuple[str, str]]:
     # every finding of the head against the base, and the handwritten diff
     ref, head = given[0], trees[1]

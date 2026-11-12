@@ -5,6 +5,7 @@ import pathlib
 from typing import Mapping
 
 from . import fakes, world
+from .fakes import write
 
 HANDED = "Deviations: none\n"
 
@@ -38,7 +39,7 @@ def processes(top: pathlib.Path, working: Mapping[int, pathlib.Path]) -> pathlib
     for pid, parent, cwd in (*own, *[(p, 4, w) for p, w in working.items()]):
         entry = proc / str(pid)
         entry.mkdir(parents=True)
-        (entry / "stat").write_text(f"{pid} (name) S {parent} 0\n", encoding="utf-8")
+        write(entry / "stat", f"{pid} (name) S {parent} 0\n")
         (entry / "cmdline").write_bytes(b"sleep\x00100\x00")
         os.symlink(cwd, entry / "cwd")
     (proc / "self").mkdir()

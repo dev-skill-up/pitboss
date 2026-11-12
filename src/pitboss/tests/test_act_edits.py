@@ -6,13 +6,14 @@
 import dataclasses
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, has_length
+from hamcrest import assert_that, contains_string, equal_to, every_item, has_length
 
 from .. import actcore
 from . import fakehub
-from .actplay import GIVEN, kinds, refusal
-from .knownkit import BODY, NUMBER, REPO, act, change, made, refused
+from .actplay import GIVEN, file_issue, kinds, refusal, verb_refusal
+from .knownkit import BODY, NUMBER, REPO, act, change, made
 from .knowngit import git, repo_pair
+from .fakes import write
 
 SCRATCH = "bats-lang/relock-scratch"
 OPEN_ISSUE = {"number": 5, "labels": "", "state": "open", "title": "t", "body": ""}
@@ -55,7 +56,7 @@ class TestEdits(unittest.TestCase):
         act(GIVEN, hub, "cancel", run="7", superseded_by="8")
         reasonless = refusal(hub, "close", number="5", reason="because")
         assert_that(reasonless, contains_string("state_reason"))
-        hub.hub.issues_made[(REPO, 5)] = dict(OPEN_ISSUE)
+        file_issue(hub, 5, dict(OPEN_ISSUE))
         act(GIVEN, hub, "close", number="5", reason="completed")
         assert_that(kinds(hub), equal_to(["dispatch", "cancel", "close-issue"]))
 
@@ -72,7 +73,7 @@ class TestEdits(unittest.TestCase):
             refusal(hub, "comment-delete", id="4242"),
             refusal(hub, "comment-edit", id=identifier, body="Verdict: approved"),
         ]
-        assert_that(all("key" in each for each in said), equal_to(True))
+        assert_that(said, every_item(contains_string("key")))
         gone = refusal(hub, "comment-delete", id="1")
         assert_that(gone, contains_string("not a comment"))
         act(GIVEN, hub, "comment-delete", id=identifier)
@@ -128,8 +129,8 @@ class TestPushAndQueue(unittest.TestCase):
         world = dataclasses.replace(hub.act, prepush=lambda: (0, "ok\n"))
         options = {"worktree": str(worktree), "branch": "main"}
         target = actcore.Target(repo=REPO)
-        pushed = refused(lambda: GIVEN.verbs["push"](world, target, options))
+        pushed = verb_refusal("push", world, target, options)
         assert_that(pushed, contains_string("default branch"))
-        (worktree / "loose").write_text("x", encoding="utf-8")
-        cleaned = refused(lambda: GIVEN.verbs["clean"](world, target, options))
+        write(worktree / "loose", "x")
+        cleaned = verb_refusal("clean", world, target, options)
         assert_that(cleaned, contains_string("not committed"))

@@ -58,3 +58,12 @@ class Target:
 
     repo: str
     number: int = 0
+
+    @property
+    def name(self) -> str:
+        """The PR or issue as ``owner/name#number``.
+
+        Returns:
+            The text.
+        """
+        return f"{self.repo}#{self.number}"

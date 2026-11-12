@@ -6,9 +6,17 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-import re
 
-from . import ENTRY_DATA, folds, ghapi, pullfile, rulingform, rulinglint, rulingguard
+from . import (
+    ENTRY_DATA,
+    folds,
+    forms,
+    ghapi,
+    pullfile,
+    rulingform,
+    rulinglint,
+    rulingguard,
+)
 
 
 def _texts(page: str) -> Sequence[str]:
@@ -27,7 +35,9 @@ def _already(github: ghapi.GitHub, slug: str, number: int) -> str:
     return rulingguard.refusal(texts, labels)
 
 
-HEAD_LINE = re.compile(r"^Head: ([0-9a-f]{40})\s*$", re.MULTILINE)
+def _body(github: ghapi.GitHub, path: str) -> str:
+    # the body of a PR or an issue
+    return str(ghapi.get_object(github, path).get("body") or "")
 
 
 def step_findings(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
@@ -47,15 +57,12 @@ def step_findings(github: ghapi.GitHub, slug: str, number: int, text: str) -> st
     """
     if not rulinglint.orders_edits(text):
         return ""
-    body = str(
-        json.loads(ghapi.get(github, f"repos/{slug}/pulls/{number}")).get("body")
-    )
+    body = _body(github, f"repos/{slug}/pulls/{number}")
     ticket = ""
     for each in folds.tickets(body)[:1]:
         where, _, issue = each.partition("#")
-        path = f"repos/{where or slug}/issues/{issue}"
-        ticket = str(json.loads(ghapi.get(github, path)).get("body") or "")
-    head = "".join(HEAD_LINE.findall(body)[-1:])
+        ticket = _body(github, f"repos/{where or slug}/issues/{issue}")
+    head = "".join(forms.HEAD_LINE.findall(body)[-1:])
     return "; ".join(rulinglint.findings(text, ticket, body, head))
 
 

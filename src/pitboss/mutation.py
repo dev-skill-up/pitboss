@@ -43,7 +43,11 @@ class Mutant:
     source: str
 
 
-def _changed(node: ast.AST) -> tuple[ast.AST, str] | None:
+# a mutated node and how the mutation reads, or None
+Mutated = tuple[ast.AST, str] | None
+
+
+def _changed(node: ast.AST) -> Mutated:
     # the one mutation of a node and how it reads, None for a node with none
     if isinstance(node, ast.Compare):
         new: ast.AST = ast.Compare(
@@ -62,7 +66,7 @@ def _changed(node: ast.AST) -> tuple[ast.AST, str] | None:
     return new, f"`{ast.unparse(node)}` -> `{ast.unparse(new)}`"
 
 
-def _constant(node: ast.Constant) -> tuple[ast.AST, str] | None:
+def _constant(node: ast.Constant) -> Mutated:
     # a boolean flipped, an integer other than 0 and 1 moved by one
     value = node.value
     if isinstance(value, bool):

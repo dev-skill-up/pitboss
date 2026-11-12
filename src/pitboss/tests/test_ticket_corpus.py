@@ -13,8 +13,9 @@ import unittest
 from hamcrest import assert_that, contains_exactly, equal_to, is_
 
 from .. import ticketwhen
+from ..textparts import having
 
-CORPUS = pathlib.Path(__file__).parent / "tickets"
+CORPUS = pathlib.Path(__file__).with_name("tickets")
 COUNTS = {
     "bats-lang-bats-444": 4,
     "bats-lang-bats-653": 2,
@@ -26,6 +27,25 @@ COUNTS = {
 }
 BULLET = re.compile(
     r"^\s*(?:(?:[-*+]|\d{1,3}[.)])\s+|Done[- ]when\s*:\s*)(.*)$", re.IGNORECASE
+)
+
+# a lead line states for every item and is read; no list: paragraphs are items;
+# a deeper bullet belongs to its item, and a trailing link is no item
+SHAPES = (
+    (
+        "## Done when\n\nEach item is demonstrated by Y.\n\n- a\n- b\n\nFound by"
+        " x.\n",
+        ("Each item is demonstrated by Y.", "a", "b"),
+    ),
+    (
+        "## Done when\n\nFirst thing.\n\nSecond thing.\n",
+        ("First thing.", "Second thing."),
+    ),
+    (
+        "## Done when\n\n- one\n  - nested\n- two\n\n"
+        "See https://example.org/x\n\n## Notes\n\n- not an item\n",
+        ("one - nested", "two"),
+    ),
 )
 
 
@@ -69,7 +89,7 @@ class TestCorpus(unittest.TestCase):
     def test_c33_the_origin_line_of_bats_653_is_not_an_item(self) -> None:
         """The case of bats#654."""
         items = ticketwhen.items(body("bats-lang-bats-653"))
-        assert_that([each for each in items if "Found by" in each], equal_to([]))
+        assert_that(having(items, "Found by"), equal_to([]))
 
     def test_c33_trailing_notes_of_the_other_tickets_are_not_items(self) -> None:
         """Avenue, priority and not-in-this-ticket paragraphs are context."""
@@ -82,28 +102,8 @@ class TestCorpus(unittest.TestCase):
 class TestShapes(unittest.TestCase):
     """Each shape the parser sees."""
 
-    def test_c33_a_lead_line_before_the_list_is_kept(self) -> None:
-        """A lead line states for every item and is read."""
-        ticket = (
-            "## Done when\n\nEach item is demonstrated by Y.\n\n- a\n- b\n\nFound by"
-            " x.\n"
-        )
-        assert_that(
-            ticketwhen.items(ticket),
-            contains_exactly("Each item is demonstrated by Y.", "a", "b"),
-        )
-
-    def test_c33_a_ticket_of_paragraphs_keeps_them(self) -> None:
-        """No list: paragraphs are items, as before."""
-        ticket = "## Done when\n\nFirst thing.\n\nSecond thing.\n"
-        assert_that(
-            ticketwhen.items(ticket), contains_exactly("First thing.", "Second thing.")
-        )
-
-    def test_c33_nested_bullets_fences_and_links_stay_in_their_item(self) -> None:
-        """A deeper bullet belongs to its item; a trailing link is no item."""
-        ticket = (
-            "## Done when\n\n- one\n  - nested\n- two\n\n"
-            "See https://example.org/x\n\n## Notes\n\n- not an item\n"
-        )
-        assert_that(ticketwhen.items(ticket), contains_exactly("one - nested", "two"))
+    def test_c33_each_shape_is_read(self) -> None:
+        """A lead line is kept, paragraphs are items, a nested bullet stays in its."""
+        for ticket, expected in SHAPES:
+            with self.subTest(ticket):
+                assert_that(ticketwhen.items(ticket), contains_exactly(*expected))

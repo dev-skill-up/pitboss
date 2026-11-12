@@ -8,6 +8,7 @@ from typing import NamedTuple
 from hamcrest import assert_that, equal_to
 
 from . import fakes, repositories
+from .fakes import write
 
 
 class Copy(NamedTuple):
@@ -29,7 +30,7 @@ def copy_of_a_scene() -> Copy:
         The directory and its copy.
     """
     top = fakes.directory()
-    (top / "file").write_text(f"in {top}")
+    write(top / "file", f"in {top}")
     (top / "folder").mkdir()
     for name, target in {
         "link": top / "file",

@@ -143,7 +143,7 @@ class TestTicketBranch(unittest.TestCase):
 
         done = push()
         same(done.code, 1)
-        assert_that(done.out, contains_string("does not name ticket 444"))
+        says(done.out, "does not name ticket 444")
         same([each for each in other.calls if list(each[:2]) == ["git", "push"]], [])
         fakes.run_git(other.clone, "checkout", "-b", "worker/444")
         same(push().code, 0)

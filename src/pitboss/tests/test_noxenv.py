@@ -14,6 +14,7 @@ from hamcrest import assert_that, equal_to
 from .. import noxenv
 from . import captured
 from .test_plan_check import temporary_directory_at
+from .fakes import write
 
 GITCONFIG = "[user]\n\tname = Real Person\n\temail = real@example.org\n"
 
@@ -28,7 +29,7 @@ def real_home(case: unittest.TestCase) -> Mapping[str, str]:
         The environment.
     """
     real = pathlib.Path(case.enterContext(tempfile.TemporaryDirectory())).resolve()
-    (real / ".gitconfig").write_text(GITCONFIG)
+    write(real / ".gitconfig", GITCONFIG)
     return {
         "HOME": str(real),
         "PATH": os.environ["PATH"],

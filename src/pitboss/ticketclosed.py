@@ -5,7 +5,6 @@ its branch has no PR to say the work is finished, a number in its name or its
 branch that is a closed ticket of its repository says it (pitboss#348).
 """
 
-import json
 import pathlib
 import re
 import subprocess
@@ -42,7 +41,7 @@ def is_closed(github: ghapi.GitHub, slug: str, number: int) -> bool:
         read (no number is taken for a closed ticket on a guess).
     """
     try:
-        item = dict(json.loads(ghapi.get(github, f"repos/{slug}/issues/{number}")))
+        item = ghapi.get_object(github, f"repos/{slug}/issues/{number}")
     except subprocess.CalledProcessError:
         return False
     return item.get("state") == "closed"

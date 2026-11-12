@@ -83,8 +83,8 @@ def _finished(read: pulls.Read) -> tuple[pulls.Read, str]:
         findings=why,
         reason=f": {why}",
     )
-    line = f"{PREFIX} {pulls.reference(read)}: {step.findings}"
-    return dataclasses.replace(read, step=step), line
+    finished = dataclasses.replace(read, step=step)
+    return finished, f"{PREFIX} {pulls.reference(read)}: {step.findings}"
 
 
 def settle(reads: Sequence[pulls.Read]) -> tuple[Sequence[pulls.Read], Sequence[str]]:

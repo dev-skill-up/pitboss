@@ -2,12 +2,14 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, has_length, is_
+from hamcrest import assert_that, contains_string, equal_to, has_length
 
 
 from .. import ruling_commands, rulinglint
+from ..rulinglint import findings
 from . import fakes, world
 from .test_ticket_corpus import body as corpus
+from .says import exits, lacks, says
 
 HEAD = "a" * 40
 ITEM = "The run passes, demonstrated by a fixture."
@@ -36,36 +38,34 @@ class TestRulingLint(unittest.TestCase):
     def test_c34_deleting_the_origin_sentence_passes_the_gates(self) -> None:
         """The sentence is no item; the ruling that deletes it is carried out."""
         said = ruling("1. ticket delete: Found by quire#1118.")
-        assert_that(rulinglint.findings(said, TICKET, PR_BODY, HEAD), equal_to([]))
+        assert_that(findings(said, TICKET, PR_BODY, HEAD), equal_to([]))
 
     def test_c34_the_real_bodies_of_the_ticket_pass(self) -> None:
         """The origin line of bats#653 is deleted in the real body."""
         said = ruling("1. ticket delete: Found by quire#1118.")
-        found = rulinglint.findings(said, corpus("bats-lang-bats-653"), PR_BODY, HEAD)
-        assert_that([each for each in found if "step" in each], equal_to([]))
+        found = findings(said, corpus("bats-lang-bats-653"), PR_BODY, HEAD)
+        lacks("\n".join(found), "step")
 
     def test_c34_a_step_whose_text_is_not_there_is_refused_by_step(self) -> None:
         """An impossible step is named."""
         said = ruling("1. ticket delete: Found by quire#1118.", "2. body delete: nope")
-        found = rulinglint.findings(said, TICKET, PR_BODY, HEAD)
+        found = findings(said, TICKET, PR_BODY, HEAD)
         assert_that(found, has_length(1))
         assert_that(found[0], contains_string("ruling step 2"))
 
     def test_c34_a_step_that_breaks_plan_check_names_the_gate(self) -> None:
         """Editing a Done-when item leaves the Plan without it word for word."""
         said = ruling("1. ticket replace: The run passes => The run fails")
-        found = rulinglint.findings(said, TICKET, PR_BODY, HEAD)
-        assert_that(any("gate plan-check" in each for each in found), is_(True))
+        found = findings(said, TICKET, PR_BODY, HEAD)
+        says("\n".join(found), "gate plan-check")
 
     def test_c34_a_ruling_without_edits_is_not_judged(self) -> None:
         """No step, no finding."""
         assert_that(rulinglint.orders_edits(ruling("1. split the PR")), equal_to(False))
-        assert_that(
-            rulinglint.findings(ruling("x"), TICKET, "no plan", HEAD), equal_to([])
-        )
+        assert_that(findings(ruling("x"), TICKET, "no plan", HEAD), equal_to([]))
 
     def test_c34_ruling_post_refuses_the_same_steps(self) -> None:
-        """``ruling post`` reads the PR and its ticket; an impossible step is refused."""
+        """``ruling post`` reads the PR and its ticket; it refuses a bad step."""
         github = fakes.github(
             {
                 "repos/o/r/pulls/5": {"body": PR_BODY},
@@ -94,5 +94,5 @@ class TestRulingLint(unittest.TestCase):
         done = world.invoke(
             here, "lint", "ruling", files["r"], files["t"], files["b"], "--head", HEAD
         )
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("ruling step 1"))
+        exits(done, 1)
+        says(done.out, "ruling step 1")

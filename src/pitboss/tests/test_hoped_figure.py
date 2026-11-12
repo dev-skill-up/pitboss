@@ -6,6 +6,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import donewhen, hopedfigure, plandonewhen
 from . import fakes, test_done_when
+from .says import says
 
 KNOWN = donewhen.Known(kinds=frozenset(), commands=frozenset(), tree=fakes.directory())
 KEY = (
@@ -52,4 +53,4 @@ class TestHopedFigure(unittest.TestCase):
     def test_t419_next_prints_it(self) -> None:
         """``pitboss next TICKET`` prints the finding."""
         found = test_done_when.next_with_body(HOPED)
-        assert_that(found.out, contains_string("hoped-figure"))
+        says(found.out, "hoped-figure")

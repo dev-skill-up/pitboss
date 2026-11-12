@@ -40,7 +40,7 @@ def clauses_check(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when there is a finding.
     """
-    register, _ = rules.parse(phrases.shipped_text("rules.tsv"))
+    register = rules.parse(phrases.shipped_text("rules.tsv"))[0]
     corpus: list[clauses.Clause] = []
     if args.memory:
         corpus += clauses.memory(pathlib.Path(args.memory))

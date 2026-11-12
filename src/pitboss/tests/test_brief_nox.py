@@ -2,7 +2,7 @@
 
 import unittest
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, starts_with
 
 from .. import brief, nox_commands
 from .briefmake import has_none, pinned, text
@@ -88,7 +88,7 @@ class TestNoxInTheBriefs(unittest.TestCase):
 
     def test_the_order_applies_only_where_the_checks_are_nox_sessions(self) -> None:
         """Like the Nox sentence, the order is conditional (pitboss#175)."""
-        assert_that(NOX.startswith("Nox: where the checks"), equal_to(True))
+        assert_that(NOX, starts_with("Nox: where the checks"))
         assert_that(
             NOX_ORDER.startswith("Nox order: where the checks are nox sessions"),
             equal_to(True),

@@ -56,8 +56,10 @@ def parse(table: str) -> Mapping[str, tuple[str, str, str]]:
         ``(gate, where, test)`` by id; a row with a wrong number of fields is a
         ``ValueError``.
     """
-    rows = tablefile.rows(table, "actiongates.tsv", FIELDS)
-    return {name: (gate, where, test) for name, gate, where, test in rows}
+    return {
+        name: (gate, where, test)
+        for name, gate, where, test in tablefile.rows(table, "actiongates.tsv", FIELDS)
+    }
 
 
 def members() -> Sequence[str]:

@@ -17,7 +17,7 @@ from typing import Callable, Sequence
 from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
 from .actcore import Act, Controls, Hub, Owner, cap_of
 from .running import Run
-from .totaljson import at, listing, members, name_at, records, text
+from .totaljson import at, listing, members, name_at, read_file, records, text
 
 SIZES = (
     "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name)"
@@ -39,9 +39,7 @@ def owner_of(path: pathlib.Path) -> Owner:
     Returns:
         What it holds; nothing when the file is not there.
     """
-    found = (
-        members(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else {}
-    )
+    found = members(read_file(path)) if path.exists() else {}
     dispositions = {
         key: text(value) for key, value in members(found.get("dispositions")).items()
     }
@@ -83,7 +81,7 @@ def _item(
 
 def _open_work(hub: Hub, settings: config.Config) -> list[dispatchnext.Item]:
     # the open PRs, then the open tickets of each priority label
-    repos = [each.slug for each in configrepos.repositories(settings)]
+    repos = configrepos.slugs(settings)
     items = [_item(pull, repo, "pr") for repo in repos for pull in hub.open_pulls(repo)]
     for label in settings.slots.priority_labels:
         items += [
@@ -148,12 +146,12 @@ def _p90(github: acthub.ghapi.GitHub, repo: str) -> int:
     words = ["gh", "api", "graphql", "-f", f"query={SIZES}"]
     words += ["-f", f"owner={owner}", "-f", f"name={name}"]
     try:
-        answer = json.loads(github.run(words).stdout)
+        answer = acthub.ghapi.run_json(github, words)
     except Exception:  # noqa: B902 - an unread size is 0
         answer = {}
     nodes = records(at(answer, "data", "repository", "pullRequests", "nodes"))
     sizes = sorted(
-        int(str(each.get("additions", 0))) + int(str(each.get("deletions", 0)))
+        sum(int(str(each.get(key, 0))) for key in ("additions", "deletions"))
         for each in nodes
     )
     return sizes[(9 * len(sizes) + 9) // 10 - 1] if sizes else 0
@@ -198,7 +196,7 @@ def act_of(
         The world.
     """
     hub = acthub.hub_of(github)
-    repos = [each.slug for each in configrepos.repositories(settings)]
+    repos = configrepos.slugs(settings)
     p90 = limits(github)
     identity = identity_of(github)
     given = actinputs.Settings(identity=identity, authors=[identity], max_lines=p90)

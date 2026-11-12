@@ -178,13 +178,18 @@ def files_of(ticket: Ticket) -> Sequence[str]:
         path = ticket.checkout / each
         if path.is_dir():
             found += [
-                str(item.relative_to(ticket.checkout))
+                _relative(ticket, item)
                 for item in sorted(path.rglob("*"))
                 if item.is_file() and ".git" not in item.parts
             ]
         else:
             found.append(each)
     return found
+
+
+def _relative(ticket: Ticket, item: pathlib.Path) -> str:
+    # a file's path in the checkout
+    return str(item.relative_to(ticket.checkout))
 
 
 def _directories(ticket: Ticket, files: Sequence[str]) -> Sequence[str]:
@@ -195,7 +200,7 @@ def _directories(ticket: Ticket, files: Sequence[str]) -> Sequence[str]:
     for each in ticket.paths:
         if (ticket.checkout / each).is_dir():
             found |= {
-                str(item.relative_to(ticket.checkout))
+                _relative(ticket, item)
                 for item in (ticket.checkout / each).rglob("*")
                 if item.is_dir()
             }
@@ -248,9 +253,19 @@ def carried(path: pathlib.Path, text: str) -> str:
     Returns:
         Its header line with its sha256, and its text.
     """
-    return (
-        f"RULE FILE {path} sha256 {hashlib.sha256(text.encode()).hexdigest()}\n{text}"
-    )
+    return f"RULE FILE {path} {quoted(text)}"
+
+
+def quoted(text: str) -> str:
+    """A text as a brief holds it: its sha256 line, then the text.
+
+    Args:
+        text: the text.
+
+    Returns:
+        ``sha256 <digest>``, a newline, and the text.
+    """
+    return f"sha256 {hashlib.sha256(text.encode()).hexdigest()}\n{text}"
 
 
 def gates_for(ticket: Ticket) -> Sequence[str]:

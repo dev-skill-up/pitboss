@@ -18,6 +18,7 @@ import subprocess
 from typing import Sequence
 
 from . import briefconfig, filegates, ghapi
+from .textparts import section_after
 
 VERDICT = re.compile(r"verdict:\s*`?changes needed`?", re.I)
 SECTION = re.compile(r"(?im)^#+\s*adversarial review before merge\s*$")
@@ -60,9 +61,7 @@ def _review_section(text: str) -> str:
     found = SECTION.search(text)
     if found is None:
         return ""
-    rest = text[found.end() :]
-    after = HEADING.search(rest)
-    return rest[: after.start()] if after else rest
+    return section_after(text, found, HEADING)
 
 
 def rules(claude: str) -> Sequence[str]:

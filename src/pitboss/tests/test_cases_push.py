@@ -8,6 +8,7 @@ from .. import expansion
 from . import fakes, repositories, world
 from .linting import OK
 from .test_push_draft import PULLS, gits, held_world, pushed
+from .says import exits
 
 COMMAND = "nox -s tests"
 EVIDENCE = "## Evidence\n\n" + expansion.block(COMMAND, OK, "a" * 40)
@@ -72,7 +73,7 @@ class TestPushExecution(unittest.TestCase):
         """A PR into a branch the clone lacks: nothing to compare, the push goes."""
         listed = [{"draft": True, "body": "Fixes #1\n", "base": {"ref": "nowhere"}}]
         here = changed(held_world(listed, "branch-1"))
-        assert_that(pushed(here).code, equal_to(0))
+        exits(pushed(here), 0)
 
     def test_i11_a_body_with_its_execution_is_pushed(self) -> None:
         """The nearest input that must pass."""

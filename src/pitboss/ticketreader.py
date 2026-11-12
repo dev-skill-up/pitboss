@@ -10,7 +10,7 @@ PRs close a ticket, by GitHub's closing keywords.
 """
 
 import re
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 HEADING = re.compile(r"(?mi)^## done[- ]when\s*$")
 ITEM = re.compile(r"(?:[-*]|\d+\.) +")
@@ -70,6 +70,9 @@ def _paragraphs(lines: Sequence[str]) -> Sequence[str]:
         for each in paragraphs
         if each.strip() and not KEYS.match(each.strip())
     ]
+
+
+Reader = Callable[[str | None], Sequence[str]]
 
 
 def items(body: str | None) -> Sequence[str]:

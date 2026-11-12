@@ -2,7 +2,9 @@
 
 from typing import Sequence
 
-from .. import expansion
+from hamcrest import assert_that, equal_to
+
+from .. import evidence, expansion, forms
 from . import fakes, world
 
 HEAD = "a" * 40
@@ -57,3 +59,38 @@ def lines(result: world.Result) -> Sequence[str]:
         Its standard output's lines.
     """
     return result.out.splitlines()
+
+
+def subject_of(body: str) -> forms.Subject:
+    """A text to check, with the head the tests use.
+
+    Args:
+        body: the text.
+
+    Returns:
+        The subject.
+    """
+    return forms.Subject(name="x", body=body, head=HEAD)
+
+
+def typed_at(text: str, rows: Sequence[int]) -> None:
+    """Assert the lines of a body that are refused as hand-typed rows.
+
+    Args:
+        text: the body.
+        rows: the line numbers refused.
+    """
+    assert_that(evidence.hand_typed(text), equal_to(list(rows)))
+
+
+def block(command: str, output: str) -> str:
+    """A block as ``pitboss expand`` produced it, of a command that exited 0.
+
+    Args:
+        command: the command line.
+        output: what it printed.
+
+    Returns:
+        The fenced block.
+    """
+    return expansion.block(command, expansion.Outcome(status=0, output=output))

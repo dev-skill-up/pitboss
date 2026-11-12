@@ -8,6 +8,7 @@ import dataclasses
 from typing import Mapping, Sequence
 
 from . import actback, actcore, actions, actrun, ghapi, logline, totaljson
+from .textparts import split_at
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -34,7 +35,7 @@ def target_of(word: str) -> actcore.Target:
     Returns:
         The target.
     """
-    repo, _, number = word.partition("#")
+    repo, number = split_at(word, "#")
     return actcore.Target(repo=repo, number=int(number) if number.isdigit() else 0)
 
 

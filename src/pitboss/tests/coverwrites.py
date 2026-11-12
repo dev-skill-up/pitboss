@@ -266,17 +266,17 @@ def _command(found: Graph, name: str, verbs: Mapping[str, object]) -> Row:
 
 def _verb_row(name: str, chain: Sequence[str], verbs: Mapping[str, object]) -> Row:
     # a command that writes: fires when it is routed to a verb
-    routed = ROUTE.get(name, "")
+    routed, last = ROUTE.get(name, ""), chain[-3:]
     if routed in verbs:
         return Row(
             kind="fires",
             name=name,
-            why=f"writes ({' -> '.join(chain[-3:])}): routed to act {routed}",
+            why=f"writes ({' -> '.join(last)}): routed to act {routed}",
         )
     return Row(
         kind="UNCOVERED",
         name=name,
-        why=f"writes ({' -> '.join(chain[-3:])}): no act route",
+        why=f"writes ({' -> '.join(last)}): no act route",
     )
 
 

@@ -8,7 +8,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, rulingwords, shapes
-from . import fakes, quietworld, test_flow, world, worldcomments
+from . import fakes, quietworld, says, test_flow, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -357,7 +357,7 @@ class TestBodyFix(unittest.TestCase):
             reading(graded(APPROVED, CHANGES, 2), now),
         ]
         here = world_with(rounds, body=now)
-        assert_that(sweep(here).out, contains_string(RULING_LINE))
+        says.says(sweep(here).out, RULING_LINE)
         assert_that(listed_for_third(here), equal_to([]))
         assert_that(
             next_output(here),

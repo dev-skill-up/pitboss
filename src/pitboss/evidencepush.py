@@ -7,9 +7,7 @@ expand again; before one it refuses a body with no Execution once the branch has
 changes. ``lint`` and ``plan-check`` refuse the same bodies.
 """
 
-import json
 import subprocess
-import urllib.parse
 from typing import Sequence
 
 from . import bodyrules, evidence, ghapi
@@ -24,12 +22,8 @@ def _pulls(
     # the open PRs of the branch; none when it is not known or cannot be read
     if slug is None or not branch:
         return []
-    head = urllib.parse.quote(f"{slug.split('/')[0]}:{branch}", safe=":/")
-    try:
-        found = json.loads(
-            ghapi.get(github, f"repos/{slug}/pulls?head={head}&state=open")
-        )
-    except (subprocess.CalledProcessError, ValueError):
+    found = ghapi.branch_pulls(github, slug, branch)
+    if not isinstance(found, list):
         return []
     return [each for each in found if isinstance(each, dict)]
 

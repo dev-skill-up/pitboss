@@ -7,9 +7,6 @@ reason, and nothing is pushed.
 """
 
 import argparse
-import json
-import subprocess
-import urllib.parse
 from typing import Protocol
 
 from . import (
@@ -44,13 +41,7 @@ class Started(Protocol):
 
 
 def _number(github: ghapi.GitHub, slug: str, branch: str) -> int | None:
-    head = urllib.parse.quote(f"{slug.split('/')[0]}:{branch}", safe=":/")
-    try:
-        listed = json.loads(
-            ghapi.get(github, f"repos/{slug}/pulls?head={head}&state=open")
-        )
-    except (subprocess.CalledProcessError, ValueError):
-        return None
+    listed = ghapi.branch_pulls(github, slug, branch)
     if not isinstance(listed, list) or len(listed) != 1:
         return None
     return int(listed[0]["number"])

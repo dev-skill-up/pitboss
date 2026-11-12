@@ -15,6 +15,8 @@ from . import (
     syncworld,
     world,
 )
+from .says import exits
+from .fakes import calls_with
 
 CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
@@ -126,7 +128,7 @@ def reviewed_third(reviewed: str | None) -> world.World:
     here.bodies[compare + "4" * 40] = {"commits": []}
     if reviewed:
         body = f"## Review\nReviewed: {reviewed}\nVerdict: approved\n"
-        comments = fakes.page(f"{world.PROJECT}/issues/3/comments")
+        comments = world.project_page("issues/3/comments")
         here.bodies[comments] = [dict(world.COMMENT, body=body)]
     return quietworld.calm(here)
 
@@ -252,7 +254,7 @@ class TestSweep(unittest.TestCase):
         """With no red or conflicted PR the sweep exits 0."""
         here = syncworld.make_synced().here
         here.bodies[OPEN_PULLS] = [{"number": 2}]
-        assert_that(sweep(here).code, equal_to(0))
+        exits(sweep(here), 0)
 
     def test_auto_merge_off_needs_an_approved_head(self) -> None:
         """No review and an older head's get no AUTO MERGE OFF; approval does (#85)."""
@@ -295,7 +297,7 @@ class TestChanges(unittest.TestCase):
         """Stale runs are cancelled only with --no-dry-run; a refusal is reported."""
         here = world.make_world()
         dry = world.again(here, "cancel-stale-runs")
-        posts = [call for call in here.calls if "POST" in call]
+        posts = calls_with(here.calls, "POST")
         outputs = [dry.out]
         for remove in [False, True]:
             if remove:

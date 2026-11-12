@@ -6,7 +6,6 @@ row, the row's test exists, the matrix lets no ungated step make a gated action,
 and the re-arm of a dropped PR is withheld by the hold and offered after it.
 """
 
-import importlib
 import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to
@@ -16,29 +15,14 @@ from . import knownkit
 from .queueworld import dropped, dropped_held
 from .test_slot_commands import next_output
 from .says import says
+from .existing import exists
+from ..textparts import having
+from ..actiongates import findings
+from .knownplay import held
 
 TABLE = phrases.shipped_text("actiongates.tsv")
 MATRIX = phrases.shipped_text("actionmatrix.tsv")
 PULL = "owner/project#2"
-
-
-def exists(name: str) -> bool:
-    """Whether a test named ``module.Class.method`` or ``module.method`` exists.
-
-    Args:
-        name: the name, from ``pitboss.tests``.
-
-    Returns:
-        True when it resolves.
-    """
-    module, _, rest = name.partition(".")
-    try:
-        found = importlib.import_module(f"{__package__}.{module}")
-        for part in rest.split("."):
-            found = getattr(found, part)
-    except (ImportError, AttributeError):
-        return False
-    return callable(found)
 
 
 def lines_about_pr_2(out: str) -> str:
@@ -50,7 +34,7 @@ def lines_about_pr_2(out: str) -> str:
     Returns:
         Those lines, joined.
     """
-    return "\n".join(each for each in out.splitlines() if "project#2" in each)
+    return "\n".join(having(out.splitlines(), "project#2"))
 
 
 class TestTable(unittest.TestCase):
@@ -58,12 +42,12 @@ class TestTable(unittest.TestCase):
 
     def test_c26_the_shipped_table_has_no_finding(self) -> None:
         """Every member has its row, every test exists, no gated step is free."""
-        assert_that(actiongates.findings(TABLE, MATRIX, exists), empty())
+        assert_that(findings(TABLE, MATRIX, exists), empty())
 
     def test_c26_a_member_with_no_row_is_found(self) -> None:
         """A new action with no gate row fails the check."""
         text = TABLE.replace("Action.ARM\t", "Action.OTHER\t", 1)
-        found = actiongates.findings(text, MATRIX, exists)
+        found = findings(text, MATRIX, exists)
         assert_that(
             found,
             equal_to(
@@ -80,9 +64,9 @@ class TestTable(unittest.TestCase):
             each for each in TABLE.splitlines() if each.startswith("Step.MERGE\t")
         )
         text = TABLE.replace(row, "Step.MERGE\tfree\tnothing\t-")
-        found = actiongates.findings(text, MATRIX, exists)
+        found = findings(text, MATRIX, exists)
         assert_that(
-            [each for each in found if "its gate is free" in each],
+            having(found, "its gate is free"),
             equal_to(
                 [
                     "Step.MERGE may make merge but its gate is free",
@@ -96,18 +80,18 @@ class TestTable(unittest.TestCase):
         text = TABLE.replace(
             "test_c26_the_hold_withholds_the_re_arm_and_says_wait", "gone"
         )
-        found = actiongates.findings(text, MATRIX, exists)
+        found = findings(text, MATRIX, exists)
         assert_that(found[0], contains_string("does not exist"))
         free = TABLE.replace("closing a PR starts no workflow run of the project", " ")
         assert_that(
-            actiongates.findings(free, MATRIX, exists),
+            findings(free, MATRIX, exists),
             equal_to(["Action.CLOSE: a free row says why"]),
         )
 
     def test_c26_a_gate_that_is_none_of_the_three_is_found(self) -> None:
         """The words are hold, pressure and free."""
         text = TABLE.replace("Action.CLOSE\tfree", "Action.CLOSE\tmaybe", 1)
-        says("\n".join(actiongates.findings(text, MATRIX, exists)), "is none of hold")
+        says("\n".join(findings(text, MATRIX, exists)), "is none of hold")
 
     def test_c26_a_row_with_a_missing_field_is_refused(self) -> None:
         """A short row is an error."""
@@ -131,7 +115,7 @@ class TestRearm(unittest.TestCase):
         """
         given = knownkit.shipped_kit()
         hub = knownkit.made(given)
-        knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
+        held(given, hub, "merges")
         said = knownkit.refused(lambda: knownkit.act(given, hub, "arm"))
         assert_that(said, contains_string("hold"))
         assert_that(
@@ -142,7 +126,7 @@ class TestRearm(unittest.TestCase):
         """The hold over, the same PR is armed, its record first."""
         given = knownkit.shipped_kit()
         hub = knownkit.made(given)
-        knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
+        held(given, hub, "merges")
         number = [key[1] for key in hub.hub.issues_made][0]
         knownkit.act(given, hub, "unhold", number=str(number))
         knownkit.act(given, hub, "arm")

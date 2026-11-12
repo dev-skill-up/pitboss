@@ -17,6 +17,7 @@ from .suggestions import (
     third,
     with_more_tickets,
 )
+from .says import errs
 
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 COMMENT_URL = "https://example.org/owner/project/pull/3#issuecomment-1"
@@ -57,7 +58,7 @@ class TestOrderAndTruncation(unittest.TestCase):
         here = world.make_world()
         here.ledger.unlink()
         found = run_command(here, "next")
-        assert_that((found.code, "LEDGER MISSING" in found.err), equal_to((1, True)))
+        errs(found, 1, "LEDGER MISSING")
 
     def test_more_than_five_are_cut_and_the_end_of_the_list_said(self) -> None:
         """Five are shown; the tickets after them are not read, and that is said."""

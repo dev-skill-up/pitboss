@@ -11,7 +11,7 @@ a status on ``success``; every other documented value is red or waiting
 import re
 from typing import Callable, Mapping, Sequence
 
-from .totaljson import JsonMap, records, strings, text
+from .totaljson import JsonMap, listed, strings, text
 from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS
 
 SELF = "pitboss-gate"
@@ -83,11 +83,16 @@ def current_runs(runs: Sequence[JsonMap]) -> Sequence[JsonMap]:
     return [kept for _, kept in best.values()]
 
 
+def _pair(each: JsonMap, first: str, second: str) -> tuple[object, object]:
+    # two fields of a check run or a status
+    return each.get(first), each.get(second)
+
+
 def _run_lines(runs: Sequence[JsonMap]) -> Sequence[tuple[str, bool]]:
     # each failed check, and each one still running (marked True: merge only)
     found = []
     for each in runs:
-        name, status = each.get("name"), each.get("status")
+        name, status = _pair(each, "name", "status")
         if name == SELF:
             continue
         if status != "completed":
@@ -103,7 +108,7 @@ def _status_lines(statuses: Sequence[JsonMap]) -> Sequence[tuple[str, bool]]:
     # each failed status, and each pending one (marked True: merge only)
     found = []
     for each in statuses:
-        context, state = each.get("context"), each.get("state")
+        context, state = _pair(each, "context", "state")
         if context == SELF:
             continue
         if state in PENDING_STATES:
@@ -126,8 +131,8 @@ def check_lines(action: str, ctx: JsonMap) -> Sequence[str]:
     """
     if action not in GATED_ACTIONS:
         return []
-    runs = current_runs(records(ctx.get("check_runs")))
-    statuses = records(ctx.get("statuses"))
+    runs = current_runs(listed(ctx, "check_runs"))
+    statuses = listed(ctx, "statuses")
     missing = [(each, True) for each in _unreported(ctx, runs, statuses)]
     found = [*_run_lines(runs), *_status_lines(statuses), *missing]
     merging = action in MERGING
@@ -183,7 +188,7 @@ def diff_lines(action: str, ctx: JsonMap, kind: str) -> Sequence[str]:
         outside generated paths than the ticket's Max-lines, and a workflow file
         with no green text-lint (merge, arm).
     """
-    files = records(ctx.get("files"))
+    files = listed(ctx, "files")
     found = list(_markup_lines(files)) if action in GATED_ACTIONS else []
     if action not in MERGE_ACTIONS:
         return found
@@ -191,7 +196,7 @@ def diff_lines(action: str, ctx: JsonMap, kind: str) -> Sequence[str]:
     return [
         *found,
         *LIMITED.get(kind, _unlimited)(total, ctx.get("max_lines")),
-        *_workflow_lines(files, records(ctx.get("statuses"))),
+        *_workflow_lines(files, listed(ctx, "statuses")),
     ]
 
 

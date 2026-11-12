@@ -10,12 +10,14 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import briefconfig, draftrule, exempt
 from ..brief import Kind
-from . import fakes, quietworld, world
+from . import quietworld, world
 from .briefmake import PROJECT as DRAFTED
 from .briefmake import has_all, has_none, text
 from .linting import lint, write_text
 from .test_brief_workers import PLAIN
 from .test_quiet import at, clear_world
+from .says import says
+from .pushworld import elsewhere
 
 PROJECT = "[project]\nowner = 'o'\nrepository = 'r'\nmain_clone = '/c'\n"
 
@@ -113,15 +115,12 @@ class TestPitbossHasNoDrafts(unittest.TestCase):
         """The remote names dev-skill-up/pitboss; the config says nothing of drafts."""
         here = clear_world()
         url = "git@github.com:dev-skill-up/pitboss.git"
-        fakes.run_git(here.clone, "branch", "-f", "branch-1")
-        fakes.run_git(here.clone, "remote", "add", "elsewhere", url)
-        target = str(world.origin_of(here.clone))
-        fakes.run_git(here.clone, "config", "remote.elsewhere.pushurl", target)
+        elsewhere(here, url)
         argv = ["push", "--now", at(1), "--no-dry-run", "--draft"]
         refused = world.again(here, *argv, "elsewhere", "branch-1")
         ran = sum(list(c[:2]) == ["git", "push"] for c in here.calls)
         assert_that((refused.code, ran), equal_to((1, 0)))
-        assert_that(refused.out, contains_string("dev-skill-up/pitboss"))
+        says(refused.out, "dev-skill-up/pitboss")
 
     def test_b19_only_pitboss_and_the_listed_repositories_have_no_drafts(self) -> None:
         """The rule for a slug: pitboss, a listed one, and no other."""
@@ -168,5 +167,5 @@ class TestNoDraftsLint(unittest.TestCase):
         bad = write_text("bad.toml", PROJECT + "[slots.brief]\ndrafts = 1\n")
         text_file = write_text("a.md", APPENDED)
         ran = [lint("brief", text_file, "--config", each) for each in (off, bad)]
-        assert_that(ran[0].out, contains_string(OFF))
+        says(ran[0].out, OFF)
         assert_that(ran[1].code, equal_to(2))

@@ -15,6 +15,7 @@ from .test_owner_repositories import lines_of as printed
 from .test_handback import slots
 from .transcripts import brief, call, ended, interrupted, turn_end
 from .watchworld import FREED, GOAL, MARKED, OLD, QUIET, RECENT
+from .fakes import write
 
 EARLIER = watchworld.LONG_AGO
 Records = watchworld.Records
@@ -125,7 +126,7 @@ class TestWatch(unittest.TestCase):
         """A task output with no agent id holds no slot."""
         here = watchworld.planted({"a1": [], "a2": []})
         for name, text in (("a1", "plain output\n"), ("a2", "{}\n")):
-            (here.workspace / "tasks" / f"{name}.output").write_text(text)
+            write(here.workspace / "tasks" / f"{name}.output", text)
         assert_that(watchworld.watch(here).out, equal_to(""))
 
     def test_a_brief_with_no_marker_or_goal_is_unmarked_once_and_holds_no_slot(

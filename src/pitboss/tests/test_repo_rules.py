@@ -10,6 +10,7 @@ from .. import reporules
 from . import fakes, world
 from .linting import lint, write_text
 from .test_slot_commands import next_output
+from .says import exits
 
 PWA = """# pwa
 
@@ -126,7 +127,7 @@ class TestLintCommand(unittest.TestCase):
 
     def test_c22_lint_repo_rules_flags_a_script_with_no_avenue(self) -> None:
         """A new script and a body that names none is a finding."""
-        assert_that(ruled("Fixes #1\n").code, equal_to(1))
+        exits(ruled("Fixes #1\n"), 1)
 
     def test_c22_lint_repo_rules_passes_a_named_avenue(self) -> None:
         """The avenue in the body clears the finding."""

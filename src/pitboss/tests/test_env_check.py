@@ -17,6 +17,7 @@ from .. import brief, envcheck, envrules, gaterun
 from . import fakes, world
 from .briefmake import text as brief_text
 from .test_gate_run import answering
+from .says import ended
 
 SLUGS = (
     "bats-lang/bats",
@@ -57,9 +58,24 @@ class TestStanding(unittest.TestCase):
     def test_c35_a_rule_of_another_kind_is_not_printed(self) -> None:
         """The compiler is for bats-lang repositories, the venv for pitboss."""
         kind = WORKERS[0]
-        assert_that("bootstrap/c" in brief_text(kind, repo="o/r"), is_(False))
-        assert_that("bootstrap/c" in brief_text(kind, repo="bats-lang/bats"), is_(True))
-        assert_that(".venv" in brief_text(kind, repo="dev-skill-up/pitboss"), is_(True))
+        printed = [
+            (word, repo, word in brief_text(kind, repo=repo))
+            for word, repo in (
+                ("bootstrap/c", "o/r"),
+                ("bootstrap/c", "bats-lang/bats"),
+                (".venv", "dev-skill-up/pitboss"),
+            )
+        ]
+        assert_that(
+            printed,
+            equal_to(
+                [
+                    ("bootstrap/c", "o/r", False),
+                    ("bootstrap/c", "bats-lang/bats", True),
+                    (".venv", "dev-skill-up/pitboss", True),
+                ]
+            ),
+        )
 
     def test_c35_the_long_check_limit_is_one_constant(self) -> None:
         """No brief module writes the number: it is read from ``envrules``."""
@@ -96,8 +112,8 @@ class TestEnvCheck(unittest.TestCase):
     def test_c35_the_command_reads_its_configuration(self) -> None:
         """The configuration's repository needs nothing here: ``env: ok``, exit 0."""
         here = world.make_world()
-        done = world.invoke(here, "env-check", "--config", here.config)
-        assert_that((done.code, done.out), equal_to((0, f"{envrules.OK_LINE}\n")))
+        done = world.invoke(here, "env-check", f"--config={here.config}")
+        ended(done, 0, f"{envrules.OK_LINE}\n")
 
     def test_c35_a_missing_compiler_is_named_with_the_command_to_get_it(self) -> None:
         """No bats on PATH: the line names it and the build from bootstrap/c."""

@@ -11,6 +11,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flowfiles
 from .linting import lint, write_text
+from .says import says
 
 
 def header(path: str) -> str:
@@ -69,7 +70,7 @@ class TestChange(unittest.TestCase):
     def test_lint_change_takes_one_diff(self) -> None:
         """Two files are a usage error."""
         files = [write_text(f"{name}.diff", FLOW) for name in "ab"]
-        assert_that(lint("change", *files).err, contains_string("not 2"))
+        says(lint("change", *files).err, "not 2")
 
     def test_lint_change_names_each_family_of_the_flow(self) -> None:
         """Next step, plans, reviews, rulings, slots."""

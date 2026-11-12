@@ -8,6 +8,7 @@ import unittest
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
 from .. import bodyrules, plancheck
+from ..textparts import starting
 
 JOB = "https://github.com/o/r/actions/runs/1/job/2"
 
@@ -86,9 +87,7 @@ class TestOutsidePath(unittest.TestCase):
         """The check is part of ``plan-check``: its findings and its last line."""
         body = "## Plan\n1. `bash /home/user/scratchpad/check.sh`\n"
         found = plancheck.form_findings(body, body, [])
-        assert_that(
-            [each for each in found if each.startswith("plan-path")], has_length(1)
-        )
+        assert_that(starting(found, "plan-path"), has_length(1))
         said = plancheck.verdict([], found)
         assert_that(said, contains_string("Outside path findings: 1"))
 

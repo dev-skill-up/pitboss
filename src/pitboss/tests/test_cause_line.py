@@ -5,7 +5,7 @@ import unittest
 
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, causeline, causetext, shapes
 from . import suggestions, world
@@ -98,7 +98,7 @@ class TestCauseBrief(unittest.TestCase):
         """A red PR's FIX_CI brief has the log line right after its Task."""
         header, lines = suggestions.third(pr_three(world.RED))
         assert_that(header, contains_string("fix the CI"))
-        assert_that(lines[1].startswith("Task: "), equal_to(True))
+        assert_that(lines[1], starts_with("Task: "))
         assert_that(lines[2], equal_to(LOG))
         assert_that(matching(lines, "Failed check"), equal_to([LOG]))
 

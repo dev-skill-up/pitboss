@@ -10,8 +10,11 @@ from typing import MutableMapping, Sequence
 from .. import dispatchnext, handbackform
 from . import fakehub, knownkit, scratch
 from .knowngit import git, remote_head, repo_pair
+from .knownkit import brief_for, change, pushed, refused
+from .knownplay import held, pull_now, refuses, review_edited, stopping
 
-from .totalworld import ARMED, files_of, item, record
+from .totalworld import ARMED, files_of, item, record, ticket_item
+from .fakes import write
 
 CASES: MutableMapping[str, knownkit.Known] = {}
 case = knownkit.registry(CASES)
@@ -24,10 +27,7 @@ UNREGISTERED = "def run_in_ci(): ...\n"
 def _tree(words: str) -> pathlib.Path:
     # a checkout whose mutation module holds the words
     root = scratch.directory()
-    (root / "src" / "pitboss").mkdir(parents=True)
-    (root / "src" / "pitboss" / "mutation_commands.py").write_text(
-        words, encoding="utf-8"
-    )
+    write(root / "src" / "pitboss" / "mutation_commands.py", words)
     return root
 
 
@@ -37,16 +37,14 @@ def _tree(words: str) -> pathlib.Path:
     "pwa's `We write bats, not shell` in the brief for a pwa ticket",
 )
 def _pwa_shell(given: knownkit.Kit) -> bool:
-    text, ticket = knownkit.brief_for(given, "pwa", "src/lib.bats")
+    text, ticket = brief_for(given, "pwa", "src/lib.bats")
     return "We write bats, not shell" in text and not given.recount(text, ticket)
 
 
 def _unfinished_first(given: knownkit.Kit, items: Sequence[dispatchnext.Item]) -> bool:
     # the newer ticket is refused while the unfinished PR is dispatched
     hub, state = knownkit.made(given), fakehub.state(items=items)
-    newer = knownkit.refused(
-        lambda: knownkit.dispatch(given, hub, state, want="q#1200")
-    )
+    newer = refused(lambda: knownkit.dispatch(given, hub, state, want="q#1200"))
     return (
         bool(newer) and knownkit.dispatch(given, hub, state, want="q#1119") == "q#1119"
     )
@@ -60,9 +58,7 @@ def _unfinished_first(given: knownkit.Kit, items: Sequence[dispatchnext.Item]) -
 def _partial(given: knownkit.Kit) -> bool:
     items = [
         item("q#1119", "2026-11-10"),
-        dispatchnext.Item(
-            ref="q#1200", kind="ticket", priority="p0", created="2026-11-12"
-        ),
+        ticket_item("q#1200", "2026-11-12", "p0"),
     ]
     url = "https://github.com/bats-lang/quire/pull/1119"
     partial = (
@@ -76,31 +72,12 @@ def _partial(given: knownkit.Kit) -> bool:
     )
 
 
-@case("G17", "review form (closed)", "an Execution review with no `Execution:` line")
-def _no_execution(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(
-            events=[
-                knownkit.review_with(
-                    lambda text: text.replace("Execution: approved\n", "")
-                )
-            ]
-        ),
-        "review:",
-    )
-
-
 @case("G18", "hold disarms; act gate", "auto-merge re-armed during a hold")
 def _rearmed(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(
-        given, knownkit.change(pull=ARMED, events=[record(f"arm head={knownkit.HEAD}")])
-    )
-    knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
-    return hub.act.hub.pull(knownkit.REPO, knownkit.NUMBER)[
-        "auto_merge"
-    ] is None and bool(knownkit.refused(lambda: knownkit.act(given, hub, "arm")))
+    armed = record(f"arm head={knownkit.HEAD}")
+    hub = knownkit.made(given, change(pull=ARMED, events=[armed]))
+    held(given, hub, "merges")
+    return pull_now(hub)["auto_merge"] is None and refuses(given, hub, "arm")
 
 
 @case(
@@ -111,8 +88,8 @@ def _rearmed(given: knownkit.Kit) -> bool:
 def _dequeued(given: knownkit.Kit) -> bool:
     events = [{"event": "added_to_merge_queue"}, {"event": "removed_from_merge_queue"}]
     return knownkit.stops(
-        given, "merge", knownkit.change(events=events), "event removed_from_merge_queue"
-    ) and knownkit.goes(given, "merge", knownkit.change(events=events[:1]))
+        given, "merge", change(events=events), "event removed_from_merge_queue"
+    ) and knownkit.goes(given, "merge", change(events=events[:1]))
 
 
 @case(
@@ -121,19 +98,19 @@ def _dequeued(given: knownkit.Kit) -> bool:
     "relock.yml's scratch-run gate missing from the worker's brief",
 )
 def _relock_gate(given: knownkit.Kit) -> bool:
-    text, _ = knownkit.brief_for(given, "quire", ".github/workflows/relock.yml")
+    text, _ = brief_for(given, "quire", ".github/workflows/relock.yml")
     files = files_of(".github/workflows/relock.yml", 2, 1)
     unlinted = knownkit.stops(
         given,
         "arm",
-        knownkit.change(ctx={**files, "statuses": []}),
+        change(ctx={**files, "statuses": []}),
         "diff: a workflow file",
     )
     return (
         "GATES ON THESE PATHS" in text
         and "scratch run" in text
         and unlinted
-        and knownkit.goes(given, "arm", knownkit.change(ctx=files))
+        and knownkit.goes(given, "arm", change(ctx=files))
     )
 
 
@@ -156,10 +133,10 @@ def _undraft_red(given: knownkit.Kit) -> bool:
 )
 def _other_branch(given: knownkit.Kit) -> bool:
     worktree = repo_pair()
-    head = knownkit.pushed(given, worktree)
+    head = pushed(given, worktree)
     git(worktree, "checkout", "-q", "-b", "other")
     return head == remote_head(worktree) and bool(
-        knownkit.refused(lambda: knownkit.pushed(given, worktree))
+        refused(lambda: pushed(given, worktree))
     )
 
 
@@ -171,27 +148,8 @@ def _other_branch(given: knownkit.Kit) -> bool:
 def _empty(given: knownkit.Kit) -> bool:
     worktree = repo_pair()
     git(worktree, "commit", "-q", "--allow-empty", "-m", "re-run")
-    return "empty commit" in knownkit.refused(
-        lambda: knownkit.pushed(given, worktree)
-    ) and not remote_head(worktree)
-
-
-@case(
-    "G24",
-    "review binds the body digest",
-    "an approval with no digest outlives the revised Plan",
-)
-def _no_digest(given: knownkit.Kit) -> bool:
-    bare = knownkit.review_with(
-        lambda text: "\n".join(
-            line for line in text.splitlines() if not line.startswith("Body:")
-        )
-    )
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(events=[bare]),
-        "review: the newest review has no single `Body:",
+    return "empty commit" in refused(lambda: pushed(given, worktree)) and not (
+        remote_head(worktree)
     )
 
 
@@ -202,16 +160,12 @@ def _no_digest(given: knownkit.Kit) -> bool:
 )
 def _prepush(given: knownkit.Kit) -> bool:
     worktree = repo_pair()
-    errored = knownkit.refused(
-        lambda: knownkit.pushed(given, worktree, (2, "bats: command not found"))
-    )
-    silent = knownkit.refused(
-        lambda: knownkit.pushed(given, worktree, (0, "warning: skipped"))
-    )
+    errored = refused(lambda: pushed(given, worktree, (2, "bats: command not found")))
+    silent = refused(lambda: pushed(given, worktree, (0, "warning: skipped")))
     return (
         bool(errored and silent)
         and not remote_head(worktree)
-        and bool(knownkit.pushed(given, worktree))
+        and bool(pushed(given, worktree))
     )
 
 
@@ -230,9 +184,7 @@ def _found_by(given: knownkit.Kit) -> bool:
         "c demonstrated by d",
     ]
     return read and bool(
-        knownkit.refused(
-            lambda: given.controls.items(body.replace("Found by", "Also see"))
-        )
+        refused(lambda: given.controls.items(body.replace("Found by", "Also see")))
     )
 
 
@@ -245,14 +197,14 @@ def _waived(given: knownkit.Kit) -> bool:
     red = {"statuses": [{"context": "check-e2e", "state": "failure"}]}
     line = [
         each
-        for each in knownkit.verdict(given, "arm", knownkit.change(ctx=red)).lines
+        for each in knownkit.verdict(given, "arm", change(ctx=red)).lines
         if each.startswith("status ")
     ][0]
     why = "Opus ruling: known flake, arm it"
     words = f'override head={knownkit.HEAD} stop="{line}" reason="{why}"'
-    world = knownkit.change(ctx=red, events=[record(words)])
+    world = change(ctx=red, events=[record(words)])
     hub = knownkit.made(given, world)
-    overridden = knownkit.refused(
+    overridden = refused(
         lambda: knownkit.act(given, hub, "override", stop=line, reason="known flake")
     )
     return knownkit.stops(given, "arm", world, "status check-e2e") and bool(overridden)
@@ -264,7 +216,7 @@ def _waived(given: knownkit.Kit) -> bool:
     "no setup step and no check rule in the worker's brief (quire#1065)",
 )
 def _quire_setup(given: knownkit.Kit) -> bool:
-    text, ticket = knownkit.brief_for(given, "quire", "src/app.bats")
+    text, ticket = brief_for(given, "quire", "src/app.bats")
     return (
         "Check locally before every push" in text
         and ".github/bats-version" in text
@@ -282,3 +234,29 @@ def _mutants(given: knownkit.Kit) -> bool:
     return bool(given.registrations(_tree(REGISTERED))) and not given.registrations(
         _tree(UNREGISTERED)
     )
+
+
+def _bodiless(text: str) -> str:
+    # a review with no ``Body:`` line
+    return "\n".join(line for line in text.splitlines() if not line.startswith("Body:"))
+
+
+stopping(
+    CASES,
+    [
+        (
+            "G17",
+            "review form (closed)",
+            "an Execution review with no `Execution:` line",
+            "review:",
+            review_edited("Execution: approved\n", ""),
+        ),
+        (
+            "G24",
+            "review binds the body digest",
+            "an approval with no digest outlives the revised Plan",
+            "review: the newest review has no single `Body:",
+            change(events=[knownkit.review_with(_bodiless)]),
+        ),
+    ],
+)

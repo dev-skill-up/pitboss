@@ -9,6 +9,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import expansion
 from . import fakes, world
 from .linting import FOOTER, HEAD, lines, lint, write_text
+from .says import exits
 
 MISSING = "/nonexistent/template.md"
 FAILING = "echo out; echo err >&2; exit 3"
@@ -130,7 +131,7 @@ class TestExpandThenLint(unittest.TestCase):
     def test_typed_body_is_refused(self) -> None:
         """The same Evidence typed by hand is refused as hand-typed."""
         checked = check("```\n$ echo hi\nhi\n```\n")
-        assert_that(checked.code, equal_to(1))
+        exits(checked, 1)
         assert_that(lines(checked)[0].endswith("(evidence)"), equal_to(True))
         assert_that(lines(checked)[1], contains_string("line 8"))
         assert_that(lines(checked)[1].endswith("(hand-typed)"), equal_to(True))

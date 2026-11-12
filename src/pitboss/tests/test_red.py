@@ -9,6 +9,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import config, red, redshapes, shapes
 from . import fakes, redworld, world
+from .fakes import write
 
 REPO = config.make_repo("o", "r")
 RUNS = "repos/o/r/actions/workflows/ci.yml/runs"
@@ -164,9 +165,7 @@ class TestCommand(unittest.TestCase):
         here = _scenario()
         agents = here.workspace / "agents"
         agents.mkdir()
-        (agents / "agent-abc.jsonl").write_text(
-            redworld.transcript("feat", redworld.ALPHA)
-        )
+        write(agents / "agent-abc.jsonl", redworld.transcript("feat", redworld.ALPHA))
         done, output = _go(
             here, "--last", "50", "--now", redworld.NOW, "--transcripts", str(agents)
         )

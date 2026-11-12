@@ -9,7 +9,8 @@ branch, is kept.
 
 import subprocess
 
-from .actcore import Act, Options, Refused, Target, gate, option
+from .actcore import Act, Options, Refused, Target, option
+from .actsteps import disarm_first, options_of
 from .running import git
 
 DEFAULT_BRANCHES = ("main", "master")
@@ -66,11 +67,10 @@ def push(act: Act, target: Target, options: Options) -> str:
         Refused: another branch, the default branch, an empty commit, a pre-push
             check that did not say ok, or a remote that does not hold the head.
     """
-    gate(act, "push", target.repo)
-    worktree, branch = option(options, "worktree"), option(options, "branch")
+    worktree, branch = options_of(options, "worktree", "branch")
     head = _ready(act, worktree, branch)
     if target.number:
-        act.controls.disarm(act, target, "a push")
+        disarm_first(act, target, "a push")
     said = _git(act, worktree, "push", "origin", f"HEAD:refs/heads/{branch}")
     back = _git(act, worktree, "ls-remote", "origin", f"refs/heads/{branch}").split()
     if not back or back[0] != head:

@@ -4,6 +4,7 @@ import argparse
 import pathlib
 
 from . import e2ewaits, flowfiles, lintinput, reporules, rulinglint
+from .lintinput import exactly
 
 
 def change(args: argparse.Namespace) -> None:
@@ -12,7 +13,7 @@ def change(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments; the file is ``git diff`` of the PR.
     """
-    (diff,) = lintinput.exactly(args, ["one diff"])
+    (diff,) = exactly(args, ["one diff"])
     lintinput.finish(flowfiles.findings(diff), "ok")
 
 
@@ -22,9 +23,7 @@ def repo_rules(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments; the files are the diff, CLAUDE.md, the body.
     """
-    diff, claude, body = lintinput.exactly(
-        args, ["the diff", "the CLAUDE.md", "the PR body"]
-    )
+    diff, claude, body = exactly(args, ["the diff", "the CLAUDE.md", "the PR body"])
     lintinput.finish(reporules.findings("body", claude, diff, body), "ok")
 
 
@@ -34,9 +33,7 @@ def ruling(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments; the files are the ruling, the ticket, the body.
     """
-    said, ticket, body = lintinput.exactly(
-        args, ["the ruling", "the ticket", "the PR body"]
-    )
+    said, ticket, body = exactly(args, ["the ruling", "the ticket", "the PR body"])
     lintinput.finish(rulinglint.findings(said, ticket, body, args.head or ""), "ok")
 
 

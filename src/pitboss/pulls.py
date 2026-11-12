@@ -152,6 +152,18 @@ def approved(facts: PullFacts) -> bool:
     return facts.standing in counted and facts.step.task is not steps.Task.RULING_STEPS
 
 
+def at_merge(facts: PullFacts) -> bool:
+    """Whether the PR's step is the merge.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True at the merge.
+    """
+    return facts.step.step is steps.Step.MERGE
+
+
 Source = pullsource.Source
 
 

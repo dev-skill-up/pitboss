@@ -20,7 +20,7 @@ import dataclasses
 import html
 import re
 import unicodedata
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import expansion
 
@@ -269,12 +269,7 @@ def hand_typed(body: str) -> Sequence[int]:
     Returns:
         The numbers of the lines, from 1.
     """
-    inside = {
-        number
-        for each in blocks(body)
-        if produced(each)
-        for number in range(each.line, each.end + 1)
-    }
+    inside = produced_lines(body)
     return [
         number
         for number, line in enumerate(body.splitlines(), 1)
@@ -282,6 +277,23 @@ def hand_typed(body: str) -> Sequence[int]:
         and number not in inside
         and not _scripted(body, line)
     ]
+
+
+def produced_lines(body: str) -> AbstractSet[int]:
+    """The lines of a body inside a block ``expand`` produced, fences included.
+
+    Args:
+        body: the text.
+
+    Returns:
+        Their numbers, from 1.
+    """
+    return {
+        number
+        for each in blocks(body)
+        if produced(each)
+        for number in range(each.line, each.end + 1)
+    }
 
 
 def made_by_adopt(body: str) -> bool:
@@ -359,12 +371,7 @@ def prose(body: str) -> str:
     Returns:
         The body whose produced blocks, fences included, are empty lines.
     """
-    inside = {
-        number
-        for each in blocks(body)
-        if produced(each)
-        for number in range(each.line, each.end + 1)
-    }
+    inside = produced_lines(body)
     return "\n".join(
         "" if number in inside else line
         for number, line in enumerate(body.split("\n"), 1)

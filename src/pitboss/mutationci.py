@@ -21,6 +21,7 @@ import tempfile
 from typing import Callable, Mapping, Sequence
 
 from . import mutation, rules
+from .textparts import split_last
 
 REFUSED = (
     "mutation: refused: mutants run only in CI's mutation job (GITHUB_ACTIONS=true)"
@@ -54,7 +55,7 @@ def test_ids(tree: pathlib.Path, names: Sequence[str]) -> Sequence[str]:
     """
     ids = []
     for each in names:
-        module, _, test = each.rpartition(".")
+        module, test = split_last(each, ".")
         owner = _owner(tree / "pitboss" / "tests" / f"{module}.py", test)
         ids.append(
             f"pitboss.tests.{module}.{owner}.{test}"
@@ -147,9 +148,8 @@ def check_row(runner: Runner, source: pathlib.Path, row: rules.Row) -> Sequence[
 
 def _chosen(source: pathlib.Path, argv: Sequence[str]) -> Sequence[rules.Row]:
     # the checked rows of the register, those named when any are
-    register = rules.parse(
-        (source / "pitboss" / "rules.tsv").read_text(encoding="utf-8")
-    )[0]
+    table = source / "pitboss" / "rules.tsv"
+    register = rules.parse(table.read_text(encoding="utf-8"))[0]
     return [
         each
         for each in register

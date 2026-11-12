@@ -4,8 +4,11 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import config, phrases, quarantinerace
+from .. import config, phrases
+from ..quarantinerace import brief, marks_left, pr_body, review
 from . import fakes, world
+from .says import says
+from .fakes import write
 
 RULES = config.Quarantine()
 RACE_BODY = (
@@ -19,40 +22,36 @@ class TestQuarantineRace(unittest.TestCase):
 
     def test_t54_a_failing_test_needs_a_quarantine_line(self) -> None:
         """Rejected without the line, accepted with it."""
-        bad = quarantinerace.pr_body("b", "The flaky spec.\n", None, RULES)
+        bad = pr_body("b", "The flaky spec.\n", None, RULES)
         assert_that(bad, has_length(1))
         assert_that(bad[0], contains_string("quarantine-race"))
-        good = quarantinerace.pr_body(
-            "b", "The flaky spec.\nQuarantine: none\n", None, RULES
-        )
+        good = pr_body("b", "The flaky spec.\nQuarantine: none\n", None, RULES)
         assert_that(good, equal_to([]))
 
     def test_t54_a_race_needs_a_race_line(self) -> None:
         """The race line, apart from the evidence."""
-        bad = quarantinerace.review("r", "It is a race.\n", RULES)
+        bad = review("r", "It is a race.\n", RULES)
         assert_that(bad, has_length(1))
         assert_that(bad[0], contains_string("Race check:"))
-        assert_that(
-            quarantinerace.review("r", "A race.\nRace check: ok\n", RULES), equal_to([])
-        )
+        assert_that(review("r", "A race.\nRace check: ok\n", RULES), equal_to([]))
 
     def test_t54_a_review_uses_the_check_names(self) -> None:
         """A failing test in a review needs ``Quarantine check:``."""
-        bad = quarantinerace.review("r", "A flake.\n", RULES)
+        bad = review("r", "A flake.\n", RULES)
         assert_that(bad[0], contains_string("Quarantine check:"))
 
     def test_t54_race_evidence_lines_are_each_required(self) -> None:
         """Root cause, Injection and a CI run URL."""
-        bad = quarantinerace.pr_body("b", "Fixes #5\nA race.\nRace: x\n", None, RULES)
+        bad = pr_body("b", "Fixes #5\nA race.\nRace: x\n", None, RULES)
         text = " ".join(bad)
         for word in ("Root cause", "Injection", "CI run"):
             assert_that(text, contains_string(word))
-        assert_that(quarantinerace.pr_body("b", RACE_BODY, None, RULES), equal_to([]))
+        assert_that(pr_body("b", RACE_BODY, None, RULES), equal_to([]))
 
     def test_t54_a_ci_run_without_a_url_is_refused(self) -> None:
         """The line alone is not evidence."""
         body = RACE_BODY.replace("https://example.com/runs/1", "later")
-        assert_that(quarantinerace.pr_body("b", body, None, RULES), has_length(1))
+        assert_that(pr_body("b", body, None, RULES), has_length(1))
 
     def test_t54_a_leftover_mark_is_refused(self) -> None:
         """A skip mark citing the fixed ticket is left in the directory."""
@@ -60,8 +59,8 @@ class TestQuarantineRace(unittest.TestCase):
         spec = root / "e2e" / "a.spec.ts"
         spec.parent.mkdir()
         spec.write_text("test.fixme('#5 flaky', () => {});\n", encoding="utf-8")
-        (root / "e2e" / "notes.txt").write_text("test.fixme('#5')\n", encoding="utf-8")
-        bad = quarantinerace.marks_left("Fixes #5\n", root, RULES)
+        write(root / "e2e" / "notes.txt", "test.fixme('#5')\n")
+        bad = marks_left("Fixes #5\n", root, RULES)
         assert_that(bad, has_length(1))
         assert_that(bad[0], contains_string("e2e/a.spec.ts"))
         assert_that(bad[0], contains_string("leftover-mark"))
@@ -72,24 +71,22 @@ class TestQuarantineRace(unittest.TestCase):
         spec = root / "e2e" / "a.spec.ts"
         spec.parent.mkdir()
         spec.write_text("test.fixme('#6 flaky');\n", encoding="utf-8")
-        assert_that(quarantinerace.marks_left("Fixes #5\n", root, RULES), equal_to([]))
+        assert_that(marks_left("Fixes #5\n", root, RULES), equal_to([]))
 
     def test_t54_no_fixes_line_no_checkout_or_no_directory_has_no_finding(self) -> None:
         """The inputs the check needs are absent."""
         root = fakes.directory()
-        assert_that(quarantinerace.marks_left("none\n", root, RULES), equal_to([]))
-        assert_that(quarantinerace.marks_left("Fixes #5\n", None, RULES), equal_to([]))
-        assert_that(quarantinerace.marks_left("Fixes #5\n", root, RULES), equal_to([]))
+        assert_that(marks_left("none\n", root, RULES), equal_to([]))
+        assert_that(marks_left("Fixes #5\n", None, RULES), equal_to([]))
+        assert_that(marks_left("Fixes #5\n", root, RULES), equal_to([]))
 
     def test_t54_a_brief_template_span_is_read_by_the_phrase_check(self) -> None:
         """The quote skip does not hide a code span."""
         banned = phrases.parse("bad\tfoo bar\tfoo bar\tuse baz\n", "t")
-        bad = quarantinerace.brief("t", "Say `foo bar` here.\n", banned)
+        bad = brief("t", "Say `foo bar` here.\n", banned)
         assert_that(bad, has_length(1))
-        assert_that(
-            quarantinerace.brief("t", "Say `fine` here.\n", banned), equal_to([])
-        )
-        assert_that(quarantinerace.brief("t", "No spans.\n", banned), equal_to([]))
+        assert_that(brief("t", "Say `fine` here.\n", banned), equal_to([]))
+        assert_that(brief("t", "No spans.\n", banned), equal_to([]))
 
 
 def run_lint(kind: str, text: str, *extra: str) -> world.Result:
@@ -119,10 +116,10 @@ class TestTheCommandsPrintIt(unittest.TestCase):
         spec.parent.mkdir()
         spec.write_text("test.skip('#5');\n", encoding="utf-8")
         done = run_lint("pr-body", "Fixes #5\nA flaky test.\n", "--checkout", str(root))
-        assert_that(done.out, contains_string("quarantine-race"))
-        assert_that(done.out, contains_string("leftover-mark"))
+        says(done.out, "quarantine-race")
+        says(done.out, "leftover-mark")
 
     def test_t54_review_prints_the_finding(self) -> None:
         """A race in a review without its line."""
         done = run_lint("review", "## Adversarial review\nA race.\n")
-        assert_that(done.out, contains_string("Race check:"))
+        says(done.out, "Race check:")

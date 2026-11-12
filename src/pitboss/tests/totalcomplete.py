@@ -13,6 +13,7 @@ a test can plant a hole in one and see it found.
 """
 
 import dataclasses
+import functools
 import re
 from typing import AbstractSet, Callable, Collection, Iterator, Mapping, Sequence
 
@@ -50,7 +51,7 @@ class Forms:
     ticket: Callable[[Sequence[str], Sequence[str], int, str], str] = (
         ticketreader.written
     )
-    items: Callable[[str | None], Sequence[str]] = ticketreader.items
+    items: ticketreader.Reader = ticketreader.items
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -86,7 +87,7 @@ class Parts:
     routes: Sequence[totalroutes.Route] = totalroutes.ROUTES
     verbs: Collection[str] = tuple(actverbs.VERBS)
     requirements: Mapping[str, Sequence[str]] = dataclasses.field(
-        default_factory=lambda: totalroutes.REQUIREMENTS
+        default_factory=lambda: dict(totalroutes.REQUIREMENTS)
     )
     forms: Forms = Forms()
     labels: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
@@ -215,3 +216,13 @@ def complete(parts: Parts, cells: Sequence[totalcells.Cell]) -> Sequence[str]:
         *_forms(parts),
         *_repos(parts),
     ]
+
+
+@functools.cache
+def base_cells() -> tuple[totalcells.Cell, ...]:
+    """The cells of the GO world, made once.
+
+    Returns:
+        The cells.
+    """
+    return tuple(totalcells.cells(totalworld.base()))

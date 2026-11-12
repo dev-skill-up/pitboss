@@ -12,9 +12,12 @@ import re
 from typing import Callable, Mapping, Sequence
 
 from . import actcore, bodydigest, totalbody, totalreview
+from .actcore import pull_of, put, timeline_of
+from .actsteps import disarm_first, head_now, options_of, repo_write
 from .actpull import make_hold
 from .ticketreader import written
 from .totaljson import JsonMap, members, records, text
+from .textparts import mentions_any
 
 GRADES = ("approved", "changes needed")
 GRADE_KEY = re.compile(
@@ -76,16 +79,15 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     Raises:
         actcore.Refused: a grade in another form, or findings that carry a grade line.
     """
-    actcore.gate(act, "review", target.repo)
     grades = [text(options.get(each)) for each in ("plan", "execution", "verdict")]
     if any(each not in GRADES for each in grades):
         raise actcore.Refused("a grade is approved or changes needed")
     findings = actcore.option(options, "findings")
     _plain(findings)
-    pull = act.hub.pull(target.repo, target.number)
+    pull = pull_of(act, target)
     tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
     words = review_text(pull, grades, findings, tickets)
-    actcore.put(act, target, "comment", {"body": words})
+    put(act, target, "comment", {"body": words})
     return words
 
 
@@ -115,14 +117,13 @@ def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     Returns:
         The ticket's number.
     """
-    actcore.gate(act, "ticket", target.repo)
     items = actcore.option(options, "done-when").splitlines()
     done_when = [each for each in items if each.strip()]
     paths = actcore.option(options, "paths").split()
     size = _size(act, target.repo, options)
     body = written(done_when, paths, size, actcore.option(options, "priority"))
     fields = {"title": actcore.option(options, "title"), "body": body, "labels": ""}
-    return act.hub.write(actcore.Change(kind="issue", repo=target.repo, fields=fields))
+    return repo_write(act, target.repo, "issue", fields)
 
 
 def _bodies(act: actcore.Act, repo: str) -> Sequence[tuple[int, str]]:
@@ -152,17 +153,16 @@ def ticket_edit(
     Raises:
         actcore.Refused: a PR closes the ticket, so a worker started it.
     """
-    actcore.gate(act, "ticket-edit", target.repo)
     started = act.controls.started(_bodies(act, target.repo), *_place(target))
     if started:
         raise actcore.Refused(
-            f"PR #{started[0]} closes {target.repo}#{target.number}, so a worker"
+            f"PR #{started[0]} closes {target.name}, so a worker"
             " started: a started ticket gets nothing added (file a new ticket)"
         )
     body = actcore.option(options, "body")
     act.controls.items(body)
-    actcore.put(act, target, "issue-edit", {"body": body})
-    return f"ticket-edit {target.repo}#{target.number}"
+    put(act, target, "issue-edit", {"body": body})
+    return f"ticket-edit {target.name}"
 
 
 def comment(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
@@ -176,16 +176,15 @@ def comment(act: actcore.Act, target: actcore.Target, options: actcore.Options) 
     Returns:
         What GitHub answered.
     """
-    actcore.gate(act, "comment", target.repo)
     body = actcore.option(options, "body")
     _plain(body)
-    return actcore.put(act, target, "comment", {"body": body})
+    return put(act, target, "comment", {"body": body})
 
 
 def _own_comment(act: actcore.Act, target: actcore.Target, identifier: str) -> None:
     found = [
         each
-        for each in records(act.hub.timeline(target.repo, target.number))
+        for each in records(timeline_of(act, target))
         if str(each.get("id")) == identifier
     ]
     identity = text(act.inputs(target.repo, target.number, {}, []).get("act_identity"))
@@ -207,11 +206,10 @@ def comment_edit(
     Returns:
         What was done.
     """
-    actcore.gate(act, "comment-edit", target.repo)
-    identifier, body = actcore.option(options, "id"), actcore.option(options, "body")
+    identifier, body = options_of(options, "id", "body")
     _own_comment(act, target, identifier)
     _plain(body)
-    actcore.put(act, target, "comment-edit", {"id": identifier, "body": body})
+    put(act, target, "comment-edit", {"id": identifier, "body": body})
     return f"comment-edit {identifier}"
 
 
@@ -228,10 +226,9 @@ def comment_delete(
     Returns:
         What was done.
     """
-    actcore.gate(act, "comment-delete", target.repo)
     identifier = actcore.option(options, "id")
     _own_comment(act, target, identifier)
-    actcore.put(act, target, "comment-delete", {"id": identifier})
+    put(act, target, "comment-delete", {"id": identifier})
     return f"comment-delete {identifier}"
 
 
@@ -241,7 +238,7 @@ def _body_rows(body: str, head: str, skip: Sequence[str]) -> None:
     found = [
         each
         for each in totalbody.body_findings(body, head, {})
-        if not any(word in each for word in skip)
+        if not mentions_any(each, skip)
     ]
     if found:
         raise actcore.Refused(found[0])
@@ -260,7 +257,6 @@ def pr_create(
     Returns:
         The PR's number.
     """
-    actcore.gate(act, "pr-create", target.repo)
     act.controls.items(actcore.option(options, "ticket"))
     body = actcore.option(options, "body")
     _body_rows(body, "", ("Head", "blocked by"))
@@ -269,7 +265,7 @@ def pr_create(
         "title": actcore.option(options, "title"),
         "body": body,
     }
-    return act.hub.write(actcore.Change(kind="pr", repo=target.repo, fields=fields))
+    return repo_write(act, target.repo, "pr", fields)
 
 
 def pr_edit(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
@@ -283,17 +279,16 @@ def pr_edit(act: actcore.Act, target: actcore.Target, options: actcore.Options) 
     Returns:
         What was done.
     """
-    actcore.gate(act, "pr-edit", target.repo)
     fields = {key: options[key] for key in ("title", "body") if options.get(key)}
     if "body" in fields:
         _body_rows(
             fields["body"],
-            actcore.head_of(act.hub.pull(target.repo, target.number)),
+            head_now(act, target),
             ("blocked by",),
         )
-    act.controls.disarm(act, target, "the body or the title changes")
-    actcore.put(act, target, "pr-edit", fields)
-    return f"pr-edit {target.repo}#{target.number}"
+    disarm_first(act, target, "the body or the title changes")
+    put(act, target, "pr-edit", fields)
+    return f"pr-edit {target.name}"
 
 
 def scratch_clean(
@@ -312,14 +307,13 @@ def scratch_clean(
     Raises:
         actcore.Refused: not a scratch repository.
     """
-    actcore.gate(act, "scratch-clean", target.repo)
     if target.repo not in SCRATCH:
         raise actcore.Refused(f"{target.repo} is not a scratch repository")
     if branch := options.get("branch"):
         whole = actcore.Target(repo=target.repo)
-        actcore.put(act, whole, "branch-delete", {"branch": branch})
+        put(act, whole, "branch-delete", {"branch": branch})
     if target.number:
-        actcore.put(act, target, "pr-close")
+        put(act, target, "pr-close")
     return f"scratch-clean {target.repo}"
 
 
@@ -339,7 +333,7 @@ def ack(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> s
     Raises:
         actcore.Refused: a kind in no row, or what it needs is missing.
     """
-    message, kind = actcore.option(options, "message"), actcore.option(options, "kind")
+    message, kind = options_of(options, "message", "kind")
     if kind not in ACKS:
         raise actcore.Refused(f"ack is {', '.join(ACKS)}")
     ACKS[kind](act, target, options)
@@ -357,7 +351,7 @@ def _note(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
         "body": f"> {quote}\n\nreason: {reason}",
         "labels": actcore.ACK_LABEL,
     }
-    act.hub.write(actcore.Change(kind="issue", repo=repo, fields=fields))
+    repo_write(act, repo, "issue", fields)
 
 
 def _hold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:

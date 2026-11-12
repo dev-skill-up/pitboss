@@ -7,8 +7,19 @@ twin through; ``test_known`` runs every table.
 import copy
 from typing import Mapping, MutableMapping
 
-from .. import actcore, rulecases
-from . import fakehub, knownkit
+from .. import actcore
+from ..rulecases import Case
+from . import fakehub, knownkit, knownplay
+from .knownkit import change, stops
+from .knownplay import (
+    capped,
+    dispatch_refused,
+    held,
+    pull_now,
+    refuses,
+    review_edited,
+    stopping,
+)
 
 from .totalworld import files_of, item, record
 
@@ -28,15 +39,13 @@ def _fixme(action: str, world: Mapping[str, object], everywhere: bool) -> str:
 )
 def _cap(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given, owner=actcore.Owner(messages=["m1"]))
-    first = knownkit.refused(lambda: knownkit.dispatch(given, hub, fakehub.state()))
-    knownkit.act(given, hub, "ack", message="m1", kind="cap", cap="1")
+    first = dispatch_refused(given, hub, fakehub.state())
+    capped(given, hub, "m1", "1")
     busy = fakehub.state(ledger={"sonnet-1": "agent-a"})
     wide = fakehub.state(
         slots=["sonnet-1", "sonnet-2"], ledger={"sonnet-1": "", "sonnet-2": ""}
     )
-    both = knownkit.refused(
-        lambda: knownkit.dispatch(given, hub, busy)
-    ) and knownkit.refused(lambda: knownkit.dispatch(given, hub, wide))
+    both = dispatch_refused(given, hub, busy) and dispatch_refused(given, hub, wide)
     return (
         bool(first and both)
         and actcore.cap_of(hub.act.owner) == 1
@@ -50,12 +59,8 @@ def _merges_held(given: knownkit.Kit) -> bool:
         lambda: knownkit.act(given, knownkit.made(given), "merge")
     )
     hub = knownkit.made(given)
-    knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")
-    return (
-        free
-        and bool(knownkit.refused(lambda: knownkit.act(given, hub, "merge")))
-        and not hub.act.hub.pull(knownkit.REPO, knownkit.NUMBER).get("merged")
-    )
+    held(given, hub, "merges")
+    return free and refuses(given, hub, "merge") and not pull_now(hub).get("merged")
 
 
 @case("G3", "hold record + act gate", "undraft while undrafts are held")
@@ -64,12 +69,9 @@ def _undrafts_held(given: knownkit.Kit) -> bool:
         lambda: knownkit.act(given, knownkit.made(given, knownkit.draft()), "undraft")
     )
     hub = knownkit.made(given, knownkit.draft())
-    knownkit.act(given, hub, "hold", number="0", scope="undrafts", source="m1")
-    return (
-        free
-        and bool(knownkit.refused(lambda: knownkit.act(given, hub, "undraft")))
-        and hub.act.hub.pull(knownkit.REPO, knownkit.NUMBER)["draft"] is True
-    )
+    held(given, hub, "undrafts")
+    drafted = pull_now(hub)["draft"] is True
+    return free and refuses(given, hub, "undraft") and drafted
 
 
 @case(
@@ -122,29 +124,9 @@ def _digests(given: knownkit.Kit) -> bool:
     edited = knownkit.change(
         pull={"body": knownkit.BODY.replace("## Plan", "## Plan\n\nedited")}
     )
-    return knownkit.stops(
-        given, "merge", edited, "review: the body changed"
-    ) and knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(ctx={"tickets": tickets}),
-        "review: the newest review has no line `Ticket:",
-    )
-
-
-@case("G7", "review form (closed)", "`Plan: ok`")
-def _plan_ok(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(
-            events=[
-                knownkit.review_with(
-                    lambda text: text.replace("Plan: approved", "Plan: ok")
-                )
-            ]
-        ),
-        "review:",
+    ticket_row = "review: the newest review has no line `Ticket:"
+    return stops(given, "merge", edited, "review: the body changed") and stops(
+        given, "merge", change(ctx={"tickets": tickets}), ticket_row
     )
 
 
@@ -152,49 +134,30 @@ def _plan_ok(given: knownkit.Kit) -> bool:
     "G8", "body row: no path outside the repository", "a Plan row names the scratchpad"
 )
 def _scratch_path(given: knownkit.Kit) -> bool:
-    bad = knownkit.BODY.replace(
-        "## Plan\n",
-        "## Plan\n\n| 9 | `python3 /tmp/claude-0/x/scratchpad/canonical_check.py` |"
-        " exits 0 |\n",
-        1,
+    bad = knownplay.plan_row(
+        "| 9 | `python3 /tmp/claude-0/x/scratchpad/canonical_check.py` | exits 0 |"
     )
     evidence = knownkit.BODY + "\n## Evidence\n\n```\n$ ls /tmp/claude-0/x\n```\n"
-    null = knownkit.BODY.replace(
-        "## Plan\n", "## Plan\n\n| 9 | `bats check 2>/dev/null` | exits 0 |\n", 1
-    )
-    edit = knownkit.refused(
-        lambda: knownkit.act(given, knownkit.made(given), "pr-edit", body=bad)
-    )
+    null = knownplay.plan_row("| 9 | `bats check 2>/dev/null` | exits 0 |")
+    edit = knownplay.edit_refused(given, bad)
     clean = not given.policy.body(
         evidence, knownkit.HEAD, {}
     ) and not given.policy.body(null, knownkit.HEAD, {})
     return (
         bad != knownkit.BODY
-        and knownkit.stops(
-            given, "merge", knownkit.change(pull={"body": bad}), "body: names the path"
-        )
+        and stops(given, "merge", change(pull={"body": bad}), "body: names the path")
         and bool(edit)
         and clean
     )
 
 
-@case("G9", "review form (closed)", "a prose `Plan:` line")
-def _prose_plan(given: knownkit.Kit) -> bool:
-    prose = knownkit.review_with(
-        lambda text: text.replace(
-            "Plan: approved", "Plan: the plan reads fine after the revision"
-        )
-    )
-    return knownkit.stops(given, "merge", knownkit.change(events=[prose]), "review:")
-
-
 QUIRE_FIXME = {"repo": "bats-lang/quire", "adds_fixme": True}
 OTHER_FIXME = {"repo": "bats-lang/bats", "adds_fixme": True}
 C14 = [
-    rulecases.Case(
+    Case(
         name="C14", date="2026-11-12", world=OTHER_FIXME, action="merge", expect="STOP"
     ),
-    rulecases.Case(
+    Case(
         name="C14-quire",
         date="2026-11-12",
         world=QUIRE_FIXME,
@@ -202,7 +165,7 @@ C14 = [
         expect="STOP",
     ),
 ]
-QUIRE_E2E = rulecases.Case(
+QUIRE_E2E = Case(
     name="quire#976", date="2026-10-30", world=QUIRE_FIXME, action="merge", expect="GO"
 )
 
@@ -226,32 +189,6 @@ def _rulings(given: knownkit.Kit) -> bool:
     return "C14-quire" in conflict and kept and dropped
 
 
-@case("G11", "body row: Head line", "the body's Head line names an older head")
-def _head_line(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(pull={"body": knownkit.BODY + "\nHead: " + "2" * 40 + "\n"}),
-        "body: the last `Head:`",
-    )
-
-
-@case("G12", "review form (closed)", "`Plan: approved.`")
-def _plan_dot(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(
-            events=[
-                knownkit.review_with(
-                    lambda text: text.replace("Plan: approved\n", "Plan: approved.\n")
-                )
-            ]
-        ),
-        "review:",
-    )
-
-
 @case(
     "G13",
     "dispatch: a shared red is one ticket",
@@ -263,13 +200,9 @@ def _shared_red(given: knownkit.Kit) -> bool:
         for n in (1, 2, 3)
     ]
     hub = knownkit.made(given)
-    return (
-        bool(
-            knownkit.refused(
-                lambda: knownkit.dispatch(given, hub, fakehub.state(items=items))
-            )
-        )
-        and knownkit.dispatch(given, hub, fakehub.state(items=items[:1])) == "rp#1"
+    one = knownkit.dispatch(given, hub, fakehub.state(items=items[:1]))
+    return bool(dispatch_refused(given, hub, fakehub.state(items=items))) and (
+        one == "rp#1"
     )
 
 
@@ -282,15 +215,50 @@ def _block(given: knownkit.Kit) -> bool:
     hub = knownkit.made(given)
     knownkit.act(given, hub, "block", on="bats-lang/quire#1110")
     timeline = hub.act.hub.timeline(knownkit.REPO, knownkit.NUMBER)
-    world = knownkit.change(ctx={"timeline": timeline})
-    opened = knownkit.change(
-        ctx={"timeline": timeline, "blockers": {"bats-lang/quire#1110": "open"}}
-    )
-    closed = knownkit.change(
-        ctx={"timeline": timeline, "blockers": {"bats-lang/quire#1110": "closed"}}
+    world = change(ctx={"timeline": timeline})
+    opened, closed = (
+        change(ctx={"timeline": timeline, "blockers": {"bats-lang/quire#1110": state}})
+        for state in ("open", "closed")
     )
     return (
-        knownkit.stops(given, "merge", opened, "blocked:")
-        and knownkit.stops(given, "merge", world, "blocked:")
+        stops(given, "merge", opened, "blocked:")
+        and stops(given, "merge", world, "blocked:")
         and knownkit.goes(given, "merge", closed)
     )
+
+
+stopping(
+    CASES,
+    [
+        (
+            "G7",
+            "review form (closed)",
+            "`Plan: ok`",
+            "review:",
+            review_edited("Plan: approved", "Plan: ok"),
+        ),
+        (
+            "G9",
+            "review form (closed)",
+            "a prose `Plan:` line",
+            "review:",
+            review_edited(
+                "Plan: approved", "Plan: the plan reads fine after the revision"
+            ),
+        ),
+        (
+            "G11",
+            "body row: Head line",
+            "the body's Head line names an older head",
+            "body: the last `Head:`",
+            change(pull={"body": knownkit.BODY + "\nHead: " + "2" * 40 + "\n"}),
+        ),
+        (
+            "G12",
+            "review form (closed)",
+            "`Plan: approved.`",
+            "review:",
+            review_edited("Plan: approved\n", "Plan: approved.\n"),
+        ),
+    ],
+)

@@ -11,7 +11,7 @@ import enum
 import subprocess
 from typing import Sequence
 
-from . import config, ghapi, parsing, pulls, queue, shapes, steps, unreadableline
+from . import config, ghapi, parsing, pulls, queue, shapes, unreadableline
 from .markers import Marker
 
 NO_STEP = "no failed step read"
@@ -148,7 +148,7 @@ def _removed_when(
 
 
 def _meant_to_merge(pull: pulls.PullFacts) -> bool:
-    return pulls.approved(pull) or pull.step.step is steps.Step.MERGE
+    return pulls.approved(pull) or pulls.at_merge(pull)
 
 
 def _removal(

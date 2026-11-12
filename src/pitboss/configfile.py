@@ -280,11 +280,9 @@ def _runners(
 
 
 def _merge_queue(document: Mapping[str, object], owner: str) -> config.MergeQueue:
-    named = _repos(document, "merge_queue", "repositories", owner)
+    named = _slugs(document, "merge_queue", "repositories", owner)
     minutes = int(_setting(document, "merge_queue", "timeout_minutes", 60))
-    return config.MergeQueue(
-        timeout_minutes=minutes, repositories=frozenset(each.slug for each in named)
-    )
+    return config.MergeQueue(timeout_minutes=minutes, repositories=named)
 
 
 def _reminders(document: Mapping[str, object]) -> Sequence[str]:
@@ -292,8 +290,14 @@ def _reminders(document: Mapping[str, object]) -> Sequence[str]:
 
 
 def _no_auto_merge(document: Mapping[str, object], owner: str) -> AbstractSet[str]:
-    named = _repos(document, "libraries", "no_auto_merge", owner)
-    return frozenset(each.slug for each in named)
+    return _slugs(document, "libraries", "no_auto_merge", owner)
+
+
+def _slugs(
+    document: Mapping[str, object], table: str, key: str, owner: str
+) -> AbstractSet[str]:
+    # the ``owner/name`` of each repository a key of a table names
+    return frozenset(each.slug for each in _repos(document, table, key, owner))
 
 
 def from_document(document: Mapping[str, object]) -> config.Config:

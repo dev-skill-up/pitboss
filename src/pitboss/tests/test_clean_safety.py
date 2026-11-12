@@ -8,6 +8,7 @@ from typing import AbstractSet
 from .. import repocheck, survey
 from . import cleanworld, fakes, repositories, world
 from .cleanworld import same
+from .fakes import write
 
 NOBODY: AbstractSet[pathlib.Path] = frozenset()
 
@@ -53,9 +54,9 @@ class TestOneCheckout(unittest.TestCase):
         """Unpushed commits, tracked changes and a broken repository each say so."""
         clone = fresh()
         clean = verdict(clone)
-        (clone / "untracked").write_text("x")
+        write(clone / "untracked", "x")
         untracked = verdict(clone)
-        (clone / "README").write_text("changed")
+        write(clone / "README", "changed")
         changed = verdict(clone)
         fakes.run_git(clone, "checkout", "-q", "--", "README")
         fakes.commit_file(clone, "new")
@@ -102,7 +103,7 @@ class TestWhatTheRemovalLoses(unittest.TestCase):
         branch = fresh()
         local_branch(branch, "side")
         stash = fresh()
-        (stash / "README").write_text("stashed")
+        write(stash / "README", "stashed")
         fakes.run_git(stash, *fakes.IDENTITY, "stash", "push", "-q")
         found = [verdict(each) for each in (branch, stash)]
         same([text.split(" ")[0] for text in found], ["1", "2"])

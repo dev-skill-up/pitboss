@@ -37,11 +37,11 @@ def ticket_pulls(
     """
     path = f"repos/{repo.slug}/pulls?state=open&per_page=100"
     try:
-        listed = json.loads(ghapi.get(github, path))
+        listed = json.loads(ghapi.get(github, path) or "[]")
     except (subprocess.CalledProcessError, ValueError):
         return []
     wanted = f"{repo.slug}#{ticket}"
-    found = [parsing.pull(json.dumps(each)) for each in listed]
+    found = parsing.pulls_of(listed)
     return [
         each
         for each in found

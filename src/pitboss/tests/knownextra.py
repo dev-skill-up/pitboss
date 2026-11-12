@@ -7,7 +7,9 @@ twin through; ``test_known`` runs every table.
 from typing import MutableMapping
 
 from ..actcore import Owner, Target
-from . import fakehub, knownkit
+from . import fakehub, knownkit, knownplay
+from .knownkit import change, stops
+from .knownplay import capped, dispatch_refused, pull_now, review_edited, stopping
 from .knowngit import git, refusing_pair, repo_pair
 from .totalworld import ARMED, record
 
@@ -34,11 +36,9 @@ def _cap_ruled(given: knownkit.Kit) -> bool:
     three = fakehub.state(
         cap=3, slots=["a", "b", "c"], ledger={"a": "x", "b": "y", "c": ""}
     )
-    first = knownkit.refused(lambda: knownkit.dispatch(given, hub, three))
-    knownkit.act(given, hub, "ack", message="m-cap", kind="cap", cap="2")
-    return "owner message" in first and bool(
-        knownkit.refused(lambda: knownkit.dispatch(given, hub, three))
-    )
+    first = dispatch_refused(given, hub, three)
+    capped(given, hub, "m-cap", "2")
+    return "owner message" in first and bool(dispatch_refused(given, hub, three))
 
 
 @case(
@@ -47,15 +47,8 @@ def _cap_ruled(given: knownkit.Kit) -> bool:
     "a ledger slot the config does not name",
 )
 def _stray_slot(given: knownkit.Kit) -> bool:
-    return bool(
-        knownkit.refused(
-            lambda: knownkit.dispatch(
-                given,
-                knownkit.made(given),
-                fakehub.state(ledger={"sonnet-1": "", "old": "agent-z"}),
-            )
-        )
-    )
+    stray = fakehub.state(ledger={"sonnet-1": "", "old": "agent-z"})
+    return bool(dispatch_refused(given, knownkit.made(given), stray))
 
 
 @case(
@@ -72,25 +65,7 @@ def _paused_armed(given: knownkit.Kit) -> bool:
     knownkit.act(given, hub, "label", name="paused-owner")
     return (
         knownkit.stops(given, "merge", world, "auto_merge armed on a paused-owner")
-        and hub.act.hub.pull(knownkit.REPO, knownkit.NUMBER)["auto_merge"] is None
-    )
-
-
-@case("X28", "review form (closed)", "`Verdict: approved.`")
-def _verdict_dot(given: knownkit.Kit) -> bool:
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(
-            events=[
-                knownkit.review_with(
-                    lambda text: text.replace(
-                        "Verdict: approved\n", "Verdict: approved.\n"
-                    )
-                )
-            ]
-        ),
-        "review:",
+        and pull_now(hub)["auto_merge"] is None
     )
 
 
@@ -113,12 +88,10 @@ def _priority(given: knownkit.Kit) -> bool:
 )
 def _base_changed(given: knownkit.Kit) -> bool:
     base = {**knownkit.base_map("pull", "base"), "ref": "release"}
-    return knownkit.stops(
-        given,
-        "merge",
-        knownkit.change(events=[{"event": "base_ref_changed"}]),
-        "event base_ref_changed",
-    ) and knownkit.stops(given, "merge", knownkit.change(pull={"base": base}), "base=")
+    changed = change(events=[{"event": "base_ref_changed"}])
+    return stops(given, "merge", changed, "event base_ref_changed") and stops(
+        given, "merge", change(pull={"base": base}), "base="
+    )
 
 
 @case(
@@ -154,25 +127,10 @@ def _skip_e2e(given: knownkit.Kit) -> bool:
 )
 def _blocked_line(given: knownkit.Kit) -> bool:
     body = knownkit.BODY + "\nBlocked by owner/lib#4\n"
-    opened = knownkit.change(
-        pull={"body": body}, ctx={"blockers": {"owner/lib#4": "open"}}
-    )
-    return knownkit.stops(
-        given, "merge", opened, "body: blocked by"
-    ) and knownkit.stops(
-        given, "merge", knownkit.change(pull={"body": body}), "body: blocked by"
-    )
-
-
-@case(
-    "X33",
-    "verdict event row (closed world)",
-    "added to the merge queue, then removed, the queue run failed",
-)
-def _queue_failed(given: knownkit.Kit) -> bool:
-    events = [{"event": "added_to_merge_queue"}, {"event": "removed_from_merge_queue"}]
-    return knownkit.stops(
-        given, "merge", knownkit.change(events=events), "event removed_from_merge_queue"
+    opened = change(pull={"body": body}, ctx={"blockers": {"owner/lib#4": "open"}})
+    alone = change(pull={"body": body})
+    return all(
+        stops(given, "merge", each, "body: blocked by") for each in (opened, alone)
     )
 
 
@@ -209,7 +167,7 @@ def _kept(given: knownkit.Kit) -> bool:
     "the brief lacks the repository's setup step",
 )
 def _setup(given: knownkit.Kit) -> bool:
-    text, _ = knownkit.brief_for(given, "bats", "src/helpers.bats")
+    text = knownplay.brief_text(given, "bats", "src/helpers.bats")
     return (
         "make -C /tmp/seed debug/bats" in text
         and "dist/debug/bats check --repository" in text
@@ -222,16 +180,32 @@ def _setup(given: knownkit.Kit) -> bool:
     "a Plan row `rm -rf` of the shared cache under the home directory",
 )
 def _home_path(given: knownkit.Kit) -> bool:
-    bad = knownkit.BODY.replace(
-        "## Plan\n", "## Plan\n\n| 9 | `rm -rf ~/.cache/bats` | exits 0 |\n", 1
-    )
-    edit = knownkit.refused(
-        lambda: knownkit.act(given, knownkit.made(given), "pr-edit", body=bad)
-    )
-    return (
-        bad != knownkit.BODY
-        and knownkit.stops(
-            given, "merge", knownkit.change(pull={"body": bad}), "body: names the path"
-        )
-        and bool(edit)
-    )
+    bad = knownplay.plan_row("| 9 | `rm -rf ~/.cache/bats` | exits 0 |")
+    edit = knownplay.edit_refused(given, bad)
+    named = stops(given, "merge", change(pull={"body": bad}), "body: names the path")
+    return bad != knownkit.BODY and named and bool(edit)
+
+
+QUEUE_EVENTS = [
+    {"event": "added_to_merge_queue"},
+    {"event": "removed_from_merge_queue"},
+]
+stopping(
+    CASES,
+    [
+        (
+            "X28",
+            "review form (closed)",
+            "`Verdict: approved.`",
+            "review:",
+            review_edited("Verdict: approved\n", "Verdict: approved.\n"),
+        ),
+        (
+            "X33",
+            "verdict event row (closed world)",
+            "added to the merge queue, then removed, the queue run failed",
+            "event removed_from_merge_queue",
+            change(events=QUEUE_EVENTS),
+        ),
+    ],
+)

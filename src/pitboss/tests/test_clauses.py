@@ -8,6 +8,8 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import clauses, phrases, rules
 from . import scratch, world
+from .says import exits, outs, says
+from .fakes import write
 
 REGISTER = (
     "A1\t2026-11-04\tenforced\tAn approved Plan is never"
@@ -65,7 +67,7 @@ class TestFindings(unittest.TestCase):
     def test_c27_a_row_of_a_clause_that_is_gone_is_listed(self) -> None:
         """A row whose clause the source no longer has is stale."""
         said = found(TABLE, LINES[:1] + [("memory:a.md", "how-to-apply")])
-        assert_that("\n".join(said), contains_string("not in the corpus"))
+        says("\n".join(said), "not in the corpus")
 
     def test_c27_a_missing_open_or_testless_rule_is_refused(self) -> None:
         """An id the register lacks, an open rule and a rule with no tests."""
@@ -98,12 +100,15 @@ class TestCorpus(unittest.TestCase):
     def test_c27_memory_and_ticket_clauses_are_read(self) -> None:
         """Bullets, description and How to apply lines, numbered cases and comments."""
         folder = scratch.directory()
-        (folder / "MEMORY.md").write_text("# t\n- ONE rule\n- TWO\n")
-        (folder / "t.md").write_text("description: d\n**How to apply:** x\n")
+        write(folder / "MEMORY.md", "# t\n- ONE rule\n- TWO\n")
+        write(folder / "t.md", "description: d\n**How to apply:** x\n")
         assert_that(clauses.memory(folder), equal_to(MEMORY_CLAUSES))
         body = "1. before\n### Cases\n1. a\n2. b\n"
         got = clauses.ticket(body, json.dumps([{"id": 7}]))
         assert_that(got, equal_to(TICKET_CLAUSES))
+
+
+CHECK = ("clauses", "check")
 
 
 class TestShipped(unittest.TestCase):
@@ -118,23 +123,23 @@ class TestShipped(unittest.TestCase):
     def test_c27_the_command_lists_an_unmapped_line_and_exits_1(self) -> None:
         """A memory folder with a rule line no row names fails the command."""
         folder = scratch.directory()
-        (folder / "MEMORY.md").write_text("- A BRAND NEW RULE nobody mapped\n")
+        write(folder / "MEMORY.md", "- A BRAND NEW RULE nobody mapped\n")
         done = world.invoke(
             world.make_world(), "clauses", "check", "--memory", str(folder)
         )
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("A BRAND NEW RULE"))
+        exits(done, 1)
+        says(done.out, "A BRAND NEW RULE")
 
     def test_c27_the_command_without_a_corpus_checks_the_table(self) -> None:
         """No option: the table alone, and it passes."""
-        done = world.invoke(world.make_world(), "clauses", "check")
-        assert_that((done.code, "clauses check: ok" in done.out), equal_to((0, True)))
+        done = world.invoke(world.make_world(), *CHECK)
+        outs(done, 0, "clauses check: ok")
 
     def test_c27_the_command_reads_the_ticket(self) -> None:
         """A ticket with an unmapped case fails; a mapped one passes."""
         folder = scratch.directory()
-        (folder / "b.txt").write_text("### Cases\n1. a\n99. unmapped\n")
-        (folder / "c.json").write_text("[]")
+        write(folder / "b.txt", "### Cases\n1. a\n99. unmapped\n")
+        write(folder / "c.json", "[]")
         done = world.invoke(
             world.make_world(),
             "clauses",
@@ -144,5 +149,5 @@ class TestShipped(unittest.TestCase):
             "--ticket-comments",
             str(folder / "c.json"),
         )
-        assert_that(done.code, equal_to(1))
-        assert_that(done.out, contains_string("case 99"))
+        exits(done, 1)
+        says(done.out, "case 99")

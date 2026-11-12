@@ -11,6 +11,7 @@ from .test_commands import sweep
 from .test_flow_sweep import world_with
 from .test_plan_check import checked, rows
 from .test_plan_command_lint import body_of as plan_body
+from .says import outs
 
 FILES_ONLY = "## Plan\n1. `src/a.py`\n2. `src/b.py`\n3. `src/c.py`\n"
 ONE_MISSING = "## Plan\n1. `git status`\n2. `src/b.py`\n"
@@ -95,7 +96,7 @@ class TestLint(unittest.TestCase):
     def test_the_command_prints_it_and_fails(self) -> None:
         """Done-when: `pitboss lint pr-body` fails a Plan of file-name rows."""
         done = lint("pr-body", write_text("body.md", body_of(FILES_ONLY)))
-        assert_that((done.code, "(plan-pointer)" in done.out), equal_to((1, True)))
+        outs(done, 1, "(plan-pointer)")
 
 
 class TestPlanCheck(unittest.TestCase):

@@ -16,7 +16,7 @@ from typing import Callable, Mapping, Sequence
 
 from .. import totalanswer, totalroutes, totalverdict
 from .totalcells import Cell, Verdict
-from .totalworld import World
+from .totalworld import World, copied
 
 ABSENT = "<absent>"
 Change = Mapping[tuple[str, str], object]
@@ -39,6 +39,9 @@ def _key(value: object) -> str:
     return json.dumps(value, sort_keys=True, default=str)
 
 
+DRAFTED: Mapping[str, Mapping[str, object]] = {"undraft": {"draft": True}}
+
+
 def start(base: World, action: str) -> World:
     """The GO world an action's cells start from.
 
@@ -49,8 +52,8 @@ def start(base: World, action: str) -> World:
     Returns:
         The GO world, a draft for an undraft.
     """
-    pull = dict(base.pull, draft=True) if action == "undraft" else dict(base.pull)
-    return World(pull=pull, ctx=dict(base.ctx))
+    drafted = DRAFTED.get(action, {})
+    return World(pull={**base.pull, **drafted}, ctx=dict(base.ctx))
 
 
 def change_of(origin: World, world: World) -> Change:
@@ -104,7 +107,7 @@ def apply(origin: World, *changes: Change) -> World:
     Returns:
         The world; added timeline events of each change are all kept.
     """
-    made = World(pull=copy.deepcopy(origin.pull), ctx=copy.deepcopy(origin.ctx))
+    made = copied(origin)
     for each in changes:
         for where, value in each.items():
             _put(made, origin, where, value)
@@ -119,28 +122,33 @@ def _one_action(
 ) -> tuple[collections.Counter[str], list[str]]:
     counts: collections.Counter[str] = collections.Counter()
     bad = []
-    for index, (first, first_word) in enumerate(found):
-        for second, second_word in found[index + 1 :]:
-            if set(first) & set(second):
-                counts["same input"] += 1
-                continue
-            both = apply(origin, first, second)
-            answer = verdict(action, both.pull, both.ctx)
-            want = (
-                totalverdict.GO
-                if first_word == second_word == totalverdict.GO
-                else totalverdict.STOP
-            )
-            lost = [each for each in answer.lines if totalroutes.route_of(each) is None]
-            if answer.word != want or lost:
-                counts["exception"] += 1
-                bad.append(
-                    f"{action} {sorted(first)} {sorted(second)}: {answer.word.name}, want"
-                    f" {want.name} {lost[:1]}"
-                )
-            else:
-                counts[answer.word.name] += 1
+    for index, one in enumerate(found):
+        for other in found[index + 1 :]:
+            kind, wrong = _pair(origin, (one, other), verdict, action)
+            counts[kind] += 1
+            bad.extend(wrong)
     return counts, bad
+
+
+def _pair(
+    origin: World,
+    pair: tuple[tuple[Change, totalanswer.Word], tuple[Change, totalanswer.Word]],
+    verdict: Verdict,
+    action: str,
+) -> tuple[str, Sequence[str]]:
+    # what one pair of changes shows: its count's kind, and the exception if any
+    (first, first_word), (second, second_word) = pair
+    if set(first) & set(second):
+        return "same input", []
+    both = apply(origin, first, second)
+    answer = verdict(action, both.pull, both.ctx)
+    go = first_word == second_word == totalverdict.GO
+    want = totalverdict.GO if go else totalverdict.STOP
+    lost = [each for each in answer.lines if totalroutes.route_of(each) is None]
+    if answer.word == want and not lost:
+        return answer.word.name, []
+    said = f"{action} {sorted(first)} {sorted(second)}: {answer.word.name}"
+    return "exception", [f"{said}, want {want.name} {lost[:1]}"]
 
 
 def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
@@ -159,12 +167,11 @@ def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
     by_action: dict[str, list[tuple[Change, totalanswer.Word]]] = (
         collections.defaultdict(list)
     )
-    for cell in cells:
-        origin = start(base, cell.action)
-        change = change_of(origin, cell.world)
+    for each in cells:
+        change = change_of(start(base, each.action), each.world)
         if change:
-            word = verdict(cell.action, cell.world.pull, cell.world.ctx).word
-            by_action[cell.action].append((change, word))
+            word = verdict(each.action, each.world.pull, each.world.ctx).word
+            by_action[each.action].append((change, word))
     for action, found in by_action.items():
         more, worse = _one_action(start(base, action), found, verdict, action)
         counts.update(more)

@@ -21,7 +21,12 @@ def _rows(given: Kit, **changes: object) -> Kit:
 
 
 def _controls(given: Kit, **changes: object) -> Kit:
-    return dataclasses.replace(given, controls=dataclasses.replace(given.controls, **changes))  # type: ignore[arg-type]
+    controls = dataclasses.replace(given.controls, **changes)  # type: ignore[arg-type]
+    return dataclasses.replace(given, controls=controls)
+
+
+def _kit(given: Kit, **changes: object) -> Kit:
+    return dataclasses.replace(given, **changes)  # type: ignore[arg-type]
 
 
 def _verbs(given: Kit, **changes: actverbs.Verb) -> Kit:
@@ -81,7 +86,7 @@ REMOVALS: Mapping[str, Removal] = {
     "not_overridable": lambda given: _controls(
         _rows(given, not_overridable=("\0",)), not_overridable=("\0",)
     ),
-    "instructions": lambda given: dataclasses.replace(
+    "instructions": lambda given: _kit(
         given,
         requirements={
             **totalroutes.REQUIREMENTS,
@@ -99,14 +104,14 @@ REMOVALS: Mapping[str, Removal] = {
     "dispatch": lambda given: _verbs(given, dispatch_next=_first),
     "ticket_reader": lambda given: _controls(given, items=_naive_items),
     "started": lambda given: _controls(given, started=_none),
-    "brief": lambda given: dataclasses.replace(given, brief=_root_only, recount=_none),
-    "rulecases": lambda given: dataclasses.replace(
+    "brief": lambda given: _kit(given, brief=_root_only, recount=_none),
+    "rulecases": lambda given: _kit(
         given,
         add=lambda cases, new, encodings: next(iter(encodings)),
         diff_findings=_none,
     ),
-    "handback": lambda given: dataclasses.replace(given, findings=_none),
-    "no_local_mutants": lambda given: dataclasses.replace(given, registrations=_none),
+    "handback": lambda given: _kit(given, findings=_none),
+    "no_local_mutants": lambda given: _kit(given, registrations=_none),
 }
 
 

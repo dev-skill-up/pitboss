@@ -29,7 +29,7 @@ from . import (
     totalrows,
     totalschema,
 )
-from .totaljson import JsonMap, failed_read, members, name_at, records, text
+from .totaljson import JsonMap, failed_read, listed, members, name_at, records, text
 
 GO = totalanswer.GO
 STOP = totalanswer.STOP
@@ -159,7 +159,7 @@ def _field_lines(
 def _review_lines(
     action: str, pull: JsonMap, ctx: JsonMap, rules: Policy
 ) -> Sequence[str]:
-    attempts = totalreview.review_attempts(records(ctx.get("timeline")))
+    attempts = totalreview.review_attempts(listed(ctx, "timeline"))
     newest = text(attempts[-1].get("body")) if attempts else ""
     if action in totalanswer.MERGE_ACTIONS:
         head = name_at(pull, "head", "sha")
@@ -182,7 +182,7 @@ def _review_lines(
 
 def _block_lines(ctx: JsonMap) -> Sequence[str]:
     blockers = members(ctx.get("blockers"))
-    timeline = records(ctx.get("timeline"))
+    timeline = listed(ctx, "timeline")
     found = []
     for _, rest in totalreview.act_records(
         timeline, text(ctx.get("act_identity")), "blocked-by"
@@ -212,7 +212,7 @@ def _ticket_lines(ctx: JsonMap, kind: str) -> Sequence[str]:
 
 
 def _event_lines(ctx: JsonMap, benign: AbstractSet[str]) -> Sequence[str]:
-    timeline = records(ctx.get("timeline"))
+    timeline = listed(ctx, "timeline")
     attempts = totalreview.review_attempts(timeline)
     since = timeline[timeline.index(attempts[-1]) + 1 :] if attempts else []
     found = []
@@ -235,7 +235,7 @@ def _event_lines(ctx: JsonMap, benign: AbstractSet[str]) -> Sequence[str]:
 def _merge_lines(action: str, pull: JsonMap, ctx: JsonMap, kind: str) -> Sequence[str]:
     found = []
     if action in totalanswer.MERGE_ACTIONS:
-        reviews = records(ctx.get("timeline"))
+        reviews = listed(ctx, "timeline")
         if any(
             each.get("event") == "reviewed" and each.get("state") in CHANGES_REQUESTED
             for each in reviews
@@ -254,9 +254,7 @@ def _lifted(
     stops: Sequence[str], head: str, ctx: JsonMap, rules: Policy
 ) -> Sequence[str]:
     identity = text(ctx.get("act_identity"))
-    overrides = totalreview.act_records(
-        records(ctx.get("timeline")), identity, "override"
-    )
+    overrides = totalreview.act_records(listed(ctx, "timeline"), identity, "override")
     return [
         each
         for each in stops
@@ -273,9 +271,9 @@ def _stops(action: str, pull: JsonMap, given: JsonMap, rules: Policy) -> Sequenc
         if (why := failed_read(ctx[key]))
     ]
     found += _field_lines(pull, ctx, rules.schema)
-    found += totalchecks.hold_lines(action, records(ctx.get("holds")))
+    found += totalchecks.hold_lines(action, listed(ctx, "holds"))
     found += totalchecks.check_lines(action, ctx)
-    kind = totalbody.kind(pull, records(ctx.get("files")))
+    kind = totalbody.kind(pull, listed(ctx, "files"))
     if kind == totalbody.CHANGE:
         found += _review_lines(action, pull, ctx, rules)
     head = name_at(pull, "head", "sha")

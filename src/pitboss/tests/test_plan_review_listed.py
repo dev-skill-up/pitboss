@@ -7,6 +7,7 @@ from hamcrest import assert_that, contains_string, equal_to, less_than
 from .. import shapes
 from . import fakes, test_flow_sweep, test_slot_commands
 from .test_commands import sweep
+from .says import says
 
 HEAD = test_flow_sweep.HEAD
 OLDER = test_flow_sweep.OLDER
@@ -45,7 +46,7 @@ def listing(sha: str, read: str | None, body: str, standing: str) -> str:
         [rejection(sha, read)], body=body, head={"sha": HEAD, "ref": "branch-3"}
     )
     swept = [x for x in sweep(here).out.splitlines() if "project#3 " in x]
-    assert_that("".join(swept), contains_string(f"review={standing}"))
+    says("".join(swept), f"review={standing}")
     return test_slot_commands.next_output(here)
 
 

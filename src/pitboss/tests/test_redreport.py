@@ -8,6 +8,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import config, ghapi, red, redmodel, redreport, redrender
 from . import fakes, redworld
+from .fakes import calls_with
 
 REPO = config.make_repo("o", "r")
 SLUG = "o/r"
@@ -294,4 +295,4 @@ class TestAggregates(unittest.TestCase):
         """No call but GETs through gh api."""
         github = build()[1]
         calls = fakes.calls_of(github)
-        assert_that([call for call in calls if "-X" in call], equal_to([]))
+        assert_that(calls_with(calls, "-X"), equal_to([]))

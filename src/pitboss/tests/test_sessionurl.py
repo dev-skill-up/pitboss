@@ -17,7 +17,7 @@ from .. import (
     shapes,
     unreadableform,
 )
-from .linting import BODY, FOOTER, HEAD, lint, write_text
+from .linting import BODY, FOOTER, HEAD, lint, subject_of, write_text
 
 SESSION = "https://claude.ai/code/session_01HwLsLqpK11q86JDdqHKAzP"
 URL_AFTER = f"\n{SESSION}\n"
@@ -55,18 +55,6 @@ REVIEW_CONFIG = config.Review(
 REVIEW_TEXT = f"## Review\nReviewed: {HEAD}\nVerdict: approved\n"
 IN_FORM = REVIEW_TEXT + "Plan: approved\n"
 OFF_FORM = "Plan: approved\nVerdict: changes needed\nExecution: wrong\n"
-
-
-def subject_of(body: str) -> forms.Subject:
-    """A text to check, with the head the tests use.
-
-    Args:
-        body: the text.
-
-    Returns:
-        The subject.
-    """
-    return forms.Subject(name="x", body=body, head=HEAD)
 
 
 def assert_unchanged(cases: Sequence[str]) -> None:

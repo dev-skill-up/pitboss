@@ -12,8 +12,16 @@ def rows(text: str) -> Sequence[Sequence[str]]:
     Returns:
         The tab-separated fields of each other line.
     """
-    return [
-        each.split("\t")
-        for each in text.splitlines()
-        if each.strip() and not each.startswith("#")
-    ]
+    return [each.split("\t") for each in text.splitlines() if is_data(each)]
+
+
+def is_data(line: str) -> bool:
+    """Whether a line of a data file is data (not blank and not a ``#`` line).
+
+    Args:
+        line: the line.
+
+    Returns:
+        True for data.
+    """
+    return bool(line.strip()) and not line.startswith("#")

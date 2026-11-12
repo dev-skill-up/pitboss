@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from .. import expansion, noxcheck
 from . import captured
 from .repositories import IDENTITY, run_git
+from .fakes import write
 
 FILES = {
     "README": "readme\n",
@@ -158,7 +159,7 @@ def corrupt_index(repo: Repository) -> None:
     Args:
         repo: the repository.
     """
-    (repo.root / ".git" / "index").write_text("not an index")
+    write(repo.root / ".git" / "index", "not an index")
 
 
 class Verb(enum.Enum):

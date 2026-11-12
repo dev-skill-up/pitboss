@@ -6,6 +6,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import donewhen, steps
 from . import world
+from .fakes import write
 
 TICKET = "owner/project#99"
 ISSUE = f"{world.PROJECT}/issues/99"
@@ -77,7 +78,7 @@ class TestDoneWhenNames(unittest.TestCase):
         here = world.make_world()
         here.bodies[ISSUE] = {"title": "A ticket", "state": "open", "body": SEEN}
         (here.workspace / "src" / "pitboss").mkdir(parents=True)
-        (here.workspace / "src" / "pitboss" / "brief.py").write_text("")
+        write(here.workspace / "src" / "pitboss" / "brief.py", "")
         found = run(here)
         assert_that((printed(found), found.code), equal_to((FIRST, 0)))
 

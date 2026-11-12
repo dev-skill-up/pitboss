@@ -9,13 +9,12 @@ where the register reads it.
 import importlib
 
 
-def rerun(module_name: str, class_name: str, method: str) -> None:
+def rerun(test: str) -> None:
     """Run a test, raising what it raises.
 
     Args:
-        module_name: ``pitboss.tests.module``.
-        class_name: the test case's class.
-        method: the test's name.
+        test: ``module.Class.method`` of a module of ``pitboss.tests``.
     """
-    case = getattr(importlib.import_module(module_name), class_name)
+    module_name, class_name, method = test.rsplit(".", 2)
+    case = getattr(importlib.import_module(f"pitboss.tests.{module_name}"), class_name)
     case(method).debug()

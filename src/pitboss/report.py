@@ -69,7 +69,7 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
 
 
 def _ruled(pull: pulls.PullFacts) -> bool:
-    return pull.step.step is steps.Step.MERGE and not pulls.approved(pull)
+    return pulls.at_merge(pull) and not pulls.approved(pull)
 
 
 def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:

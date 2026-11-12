@@ -6,12 +6,12 @@ open PR and says in its first line that it is forced.
 
 import unittest
 
-from hamcrest import assert_that, equal_to, starts_with
+from hamcrest import assert_that, starts_with
 
 from . import world
 from .cleanworld import same
 from .itemworld import one, with_pull_issues
-from .says import says
+from .says import ended, says
 from .rankworld import dependent_world
 
 PULL = "owner/project#3"
@@ -38,5 +38,5 @@ class TestForcedReview(unittest.TestCase):
             ("owner/project#50", "UNKNOWN: owner/project#50 is not at the review"),
         ):
             done = one(here, reference, "--step", "review", "--force")
-            assert_that((done.code, done.out), equal_to((1, "")))
+            ended(done, 1, "")
             says(done.err, why)

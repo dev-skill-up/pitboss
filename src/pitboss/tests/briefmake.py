@@ -76,6 +76,8 @@ COMMITS = brief.Heads(
     plan_digest=PLAN_DIGEST,
 )
 RULES = brief.Rules(config="proj", form=FORM, project=PROJECT)
+PLAN_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN)
+EXECUTION_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION)
 
 Part = TypeVar("Part", brief.Subject, brief.Heads, brief.Rules)
 

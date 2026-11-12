@@ -9,6 +9,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import totalbody, totalchecks, totaljson, totalreview, totalverdict
 from .knownkit import BASE, HEAD, change
+from .says import says
 
 
 def _first(action: str, pull: totaljson.JsonMap, ctx: totaljson.JsonMap) -> str:
@@ -60,7 +61,7 @@ class TestBody(unittest.TestCase):
         found = totalbody.body_findings(
             f"Fixes #1\n\nBlocked by the release\n\nHead: {HEAD}\n", HEAD, {}
         )
-        assert_that(" ".join(found), contains_string("names no item"))
+        says(" ".join(found), "names no item")
 
     def test_444_a_publish_branch(self) -> None:
         """Archives and their sums on a ``publish/`` branch are a publish."""
@@ -94,15 +95,14 @@ class TestReview(unittest.TestCase):
             f"Reviewed: {HEAD}\nPlan: approved\nExecution: approved\nVerdict:"
             f" approved\nBody: {digest}\n"
         )
-        assert_that(
-            totalreview.review_reading("Verdict: approved\n", HEAD, "", {}),
-            contains_string("0 head lines"),
-        )
         split = base.replace("Execution: approved", "Execution: changes needed")
-        assert_that(
-            totalreview.review_reading(split, HEAD, "", {}),
-            contains_string("split verdict"),
-        )
+        for text, said in (
+            ("Verdict: approved\n", "0 head lines"),
+            (split, "split verdict"),
+        ):
+            assert_that(
+                totalreview.review_reading(text, HEAD, "", {}), contains_string(said)
+            )
         assert_that(
             totalreview.plan_reading(base, "no plan here"),
             contains_string("`## Plan` section"),

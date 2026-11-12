@@ -8,12 +8,12 @@ brief holds, byte for byte, so a writer that drops a file is caught.
 """
 
 import fnmatch
-import hashlib
 import os
 import pathlib
 from typing import Iterator, Sequence
 
-from .rulefiles import NAMES, RULES, WORKER, Ticket, files_of
+from .rulefiles import NAMES, RULES, WORKER, Ticket, files_of, quoted
+from .textparts import heads
 
 SKIPPED = frozenset({".git", "node_modules", "build", "bats_modules"})
 
@@ -69,11 +69,8 @@ def globs_of(text: str) -> Sequence[str] | None:
 
 
 def _binds(where: str, files: Sequence[str], ticket: Ticket) -> bool:
-    inside = any(each == where or each.startswith(where + "/") for each in files)
-    below = any(
-        where == each.rstrip("/") or where.startswith(each.rstrip("/") + "/")
-        for each in ticket.paths
-    )
+    inside = any(heads(each, where, "/") for each in files)
+    below = any(heads(where, each.rstrip("/"), "/") for each in ticket.paths)
     return where == "" or inside or below
 
 
@@ -130,5 +127,4 @@ def missing(brief: str, ticket: Ticket) -> Sequence[str]:
 
 def _quoted(path: pathlib.Path) -> str:
     # how a brief holds a file: its sha256 line, then its text
-    text = path.read_text(encoding="utf-8")
-    return f"sha256 {hashlib.sha256(text.encode()).hexdigest()}\n{text}"
+    return quoted(path.read_text(encoding="utf-8"))

@@ -5,23 +5,11 @@ import unittest
 from hamcrest import assert_that, equal_to, is_not
 
 from .. import bodydigest, expansion, plandigest, planrow
+from .linting import block as run
 
 PROSE = "1. Run `git rev-parse HEAD`.\n2. Run `make test`.\n"
 DISPOSITION = "src/a.py:3: edited\n"
 COMMANDS = ["$ git rev-parse HEAD", "$ make test"]
-
-
-def run(command: str, output: str) -> str:
-    """A block as ``pitboss expand`` produced it.
-
-    Args:
-        command: the command line.
-        output: what it printed.
-
-    Returns:
-        The fenced block.
-    """
-    return expansion.block(command, expansion.Outcome(status=0, output=output))
 
 
 def plan(first: str = "abc\n", second: str = "ok\n", prose: str = PROSE) -> str:

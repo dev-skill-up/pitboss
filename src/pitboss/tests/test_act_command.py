@@ -14,6 +14,9 @@ from .. import actcore, actledger, acthub, actinputs, actwiring, ghapi
 from ..totaljson import members
 from . import fakehub, fakes, world
 from .knownkit import NUMBER, REPO, base_map, made, shipped_kit
+from .says import errs, exits
+from .fakes import calls_with
+from ..actledger import Done
 
 PULL = "owner/project#3"
 
@@ -141,28 +144,24 @@ class TestCommand(unittest.TestCase):
             _act(here, "label", PULL, "name=p1").out, equal_to(f"label p1 on {PULL}\n")
         )
         done = _act(here, "label", PULL, "name=p1", "--no-dry-run")
-        assert_that(done.code, equal_to(0))
+        exits(done, 0)
         assert_that(here.calls, has_item(LABEL_CALL))
         events = _events(here)
         assert_that(events, contains_string("label owner/project#3"))
         assert_that((here.ledger.parent / actwiring.OWNER).exists(), equal_to(True))
-        assert_that(
-            _act(here, "comment", PULL, "body=hi", "--no-dry-run").code, equal_to(0)
-        )
+        exits(_act(here, "comment", PULL, "body=hi", "--no-dry-run"), 0)
         assert_that(_events(here), equal_to(events))
 
     def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
         """The fake GitHub applies no label: the write is made, then refused."""
         here = _here()
         done = _act(here, "label", PULL, "name=p0", "--no-dry-run")
-        assert_that((done.code, "act NOT LANDED" in done.err), equal_to((2, True)))
+        errs(done, 2, "act NOT LANDED")
         _shown(here, "p0")
-        assert_that(
-            _act(here, "label", PULL, "name=p0", "--no-dry-run").code, equal_to(0)
-        )
+        exits(_act(here, "label", PULL, "name=p0", "--no-dry-run"), 0)
         here.bodies["DELETE repos/owner/project/issues/3/labels/p1"] = []
         removed = _act(here, "label", PULL, "name=p1", "remove=yes", "--no-dry-run")
-        assert_that(removed.code, equal_to(0))
+        exits(removed, 0)
 
     def test_c17_refusals_exit_2(self) -> None:
         """No verb, a word that is no option.
@@ -176,8 +175,8 @@ class TestCommand(unittest.TestCase):
             (("merge", PULL), "act merge: refused"),
         ):
             done = _act(here, *words)
-            assert_that((done.code, said in done.err), equal_to((2, True)))
-        assert_that([call for call in here.calls if "-X" in call], equal_to([]))
+            errs(done, 2, said)
+        assert_that(calls_with(here.calls, "-X"), equal_to([]))
 
     def test_c17_targets(self) -> None:
         """A PR, a repository and all."""
@@ -192,11 +191,11 @@ class TestCommand(unittest.TestCase):
         hub = made(shipped_kit())
         target = actcore.Target(repo=REPO, number=NUMBER)
         branch = str(base_map("pull", "head")["ref"])
-        merged = _recorded(hub, actledger.Done(verb="merge", target=target, options={}))
+        merged = _recorded(hub, Done(verb="merge", target=target, options={}))
         assert_that(merged, equal_to(f"merge {REPO}#{NUMBER} {branch} at act"))
-        comment = actledger.Done(verb="comment", target=target, options={})
+        comment = Done(verb="comment", target=target, options={})
         assert_that(actledger.ledger_event(hub.act, comment, ""), equal_to(None))
-        push = actledger.Done(
+        push = Done(
             verb="push", target=actcore.Target(repo=REPO), options={"branch": "w"}
         )
         assert_that(_recorded(hub, push), equal_to(f"push {REPO}#0 w at act"))

@@ -12,6 +12,7 @@ from . import test_stall
 from .formchecks import body_checks, subject
 from .linting import BODY, lines, lint, write_text
 from .test_textlint import event, posted, run
+from .says import exits
 
 URL = "https://github.com/o/r/pull/7#issuecomment-1"
 OTHER_URL = "https://github.com/o/r/pull/7#issuecomment-2"
@@ -194,7 +195,7 @@ class TestLintBody(unittest.TestCase):
         given = lint(
             "pr-body", body, "--comments", listed(SPLIT), "--ruling", URL, ruling
         )
-        assert_that(given.code, equal_to(0))
+        exits(given, 0)
 
 
 class TestEvent(unittest.TestCase):

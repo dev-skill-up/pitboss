@@ -16,6 +16,7 @@ from typing import Sequence
 from .. import dead, machine as machines, procs, tempclean
 from . import autocleanworld as fx
 from . import cleanruns, cleanworld, fakes, test_local, world
+from .fakes import write
 
 same = cleanworld.same
 BUSY = fx.TMP / "tmpbusy"
@@ -216,7 +217,7 @@ class TestProcesses(unittest.TestCase):
         (proc / "11/environ").write_bytes(b"A=1\0TMPDIR=/tmp/t1\0B=2")
         (proc / "22").mkdir()
         (proc / "self").mkdir()
-        (proc / "stat").write_text("x")
+        write(proc / "stat", "x")
         found = procs.in_use(proc)
         same(sorted(found), [pathlib.Path("/tmp/t1"), pathlib.Path("/work/a")])
 

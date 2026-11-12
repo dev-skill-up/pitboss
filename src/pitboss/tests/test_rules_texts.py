@@ -6,13 +6,14 @@ Race and local-run rules and the unchecked phrases.
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, has_length
+from hamcrest import assert_that, contains_string, equal_to, every_item, has_length
 
 from .. import brief, phrases
 from .briefmake import text as brief_text
 from .test_env_check import WORKERS
 
-BANNED = phrases.parse(phrases.default_text(), "default")
+DEFAULT = phrases.default_text()
+BANNED = phrases.parse(DEFAULT, "default")
 REVIEWERS = tuple(
     each for each in brief.Kind if "Quarantine check:" in brief_text(each)
 )
@@ -62,9 +63,9 @@ class TestThePhrases(unittest.TestCase):
 
     def test_t56_each_background_and_sleep_form_is_refused(self) -> None:
         """``run_in_background``, ``nohup``, ``sleep N``."""
-        for said in ("pass run_in_background", "use nohup make", "then sleep 60"):
-            with self.subTest(said):
-                assert_that(found(f"Do {said} now."), has_length(1))
+        forms = ("pass run_in_background", "use nohup make", "then sleep 60")
+        refused = [found(f"Do {said} now.") for said in forms]
+        assert_that(refused, every_item(has_length(1)))
         assert_that(found("Push and let CI run it."), equal_to([]))
 
     def test_t110_each_unchecked_form_is_refused_and_removal_passes(self) -> None:

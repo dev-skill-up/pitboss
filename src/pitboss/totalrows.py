@@ -83,15 +83,18 @@ def _auto_merge(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:
 
 def _base(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:
     right = name_at(value, "ref") == ctx.get("default_branch")
-    return right and name_at(value, "repo", "full_name") == ctx.get("repo"), (
+    return right and _in_repo(value, ctx), (
         "the base is not the default branch of this repository"
     )
 
 
+def _in_repo(value: object, ctx: JsonMap) -> bool:
+    # a branch of this repository
+    return name_at(value, "repo", "full_name") == ctx.get("repo")
+
+
 def _head(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:
-    return name_at(value, "repo", "full_name") == ctx.get("repo"), (
-        "the head is not in this repository"
-    )
+    return _in_repo(value, ctx), "the head is not in this repository"
 
 
 def _labels(value: object, pull: JsonMap, ctx: JsonMap) -> tuple[bool, str]:

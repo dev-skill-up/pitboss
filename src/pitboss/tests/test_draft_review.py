@@ -30,6 +30,7 @@ from .test_flow_sweep import (
     world_with,
 )
 from .test_slot_commands import next_output
+from .says import says
 
 TICKET_LINE = re.compile(r"^NEXT \d+\. \S+#\d+ \(start a PR", re.MULTILINE)
 THIRD_LINE = re.compile(
@@ -141,7 +142,7 @@ class TestDraftsInSlotsNext(unittest.TestCase):
         approved = graded(APPROVED, None, 1)
         here = quiet(world_with([approved], draft=True))
         assert_that(listed(here)[0], starts_with("mark the PR ready"))
-        assert_that(sweep(here).out, contains_string("owner/project#3"))
+        says(sweep(here).out, "owner/project#3")
 
 
 def swept(rounds: Sequence[shapes.Comment], **changes: object) -> str:

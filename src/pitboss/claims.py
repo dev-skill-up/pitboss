@@ -13,6 +13,7 @@ import enum
 import importlib
 from typing import Callable, Sequence
 from . import tablefile
+from .textparts import hyphenated
 
 FIELDS = 4
 
@@ -54,7 +55,7 @@ def name(claim: Claim) -> str:
     Returns:
         Its name in lower case with hyphens.
     """
-    return claim.name.lower().replace("_", "-")
+    return hyphenated(claim.name)
 
 
 def parse(text: str) -> Sequence[Sequence[str]]:
@@ -78,9 +79,24 @@ def reads(where: str) -> bool:
     Returns:
         True when it resolves to a callable.
     """
-    module, _, function = where.rpartition(".")
+    return resolves(str(__package__), where)
+
+
+def resolves(package: str, name: str) -> bool:
+    """Whether ``module.attribute`` (one or more attributes) names a callable.
+
+    Args:
+        package: the package the module is in.
+        name: the name.
+
+    Returns:
+        True when it resolves to a callable.
+    """
+    module, _, rest = name.partition(".")
     try:
-        found = getattr(importlib.import_module(f"{__package__}.{module}"), function)
+        found: object = importlib.import_module(f"{package}.{module}")
+        for part in rest.split("."):
+            found = getattr(found, part)
     except (ImportError, AttributeError, ValueError):
         return False
     return callable(found)

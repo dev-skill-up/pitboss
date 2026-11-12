@@ -13,6 +13,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import mutation, mutationci, nolocalmutants, rules
 from . import fakes
+from .fakes import write
 
 SOURCE = (
     "def judge(n, flag):\n"
@@ -66,12 +67,12 @@ def tiny_tree() -> pathlib.Path:
     root = fakes.directory()
     package = root / "pitboss"
     (package / "tests").mkdir(parents=True)
-    (package / "__init__.py").write_text("")
-    (package / "tests" / "__init__.py").write_text("")
-    (package / "tiny.py").write_text(TINY)
-    (package / "tests" / "test_tiny.py").write_text(TINY_TEST)
-    (package / "tests" / "test_mutation_rows.py").write_text(ROWS_TEST)
-    (package / "rules.tsv").write_text(REGISTER)
+    write(package / "__init__.py", "")
+    write(package / "tests" / "__init__.py", "")
+    write(package / "tiny.py", TINY)
+    write(package / "tests" / "test_tiny.py", TINY_TEST)
+    write(package / "tests" / "test_mutation_rows.py", ROWS_TEST)
+    write(package / "rules.tsv", REGISTER)
     return root
 
 

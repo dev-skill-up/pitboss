@@ -15,6 +15,7 @@ from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import handbackform
 from . import scratch, totalworld
+from .fakes import write
 
 IDS = ["1", "2", "3", "4"]
 GOOD = (
@@ -28,20 +29,29 @@ GOOD = (
 
 
 def _sample() -> tuple[list[str], list[int]]:
-    texts = json.loads(
-        (totalworld.FOLDER / "handbacks.json").read_text(encoding="utf-8")
-    )
-    lines = (
-        (totalworld.FOLDER / "handback-labels.tsv")
-        .read_text(encoding="utf-8")
-        .splitlines()
-    )
+    texts = json.loads(totalworld.folder_text("handbacks.json"))
+    lines = totalworld.folder_text("handback-labels.tsv").splitlines()
     labelled = [
         int(fields[0])
         for fields in (line.split("\t") for line in lines if not line.startswith("#"))
         if fields[1] == "1"
     ]
     return [str(each) for each in texts], labelled
+
+
+# where a paragraph goes in a good hand-back: what it replaces, and with what
+PLACES = (
+    ("\n\n## Evidence", "\n\n{para}\n\n## Evidence"),
+    ("out.txt\n", "out.txt\n  {para}\n"),
+    ("out.txt\n", "out.txt ({para})\n"),
+)
+
+
+def _checkout() -> handbackform.Exists:
+    # a checkout that holds out.txt, as the form reads it
+    root = scratch.directory()
+    write(root / "out.txt", "ok\n")
+    return handbackform.in_checkout(root)
 
 
 def _places(text: str) -> list[str]:
@@ -53,9 +63,7 @@ def _places(text: str) -> list[str]:
         for para in paragraphs
         for place in (
             text,
-            GOOD.replace("\n\n## Evidence", f"\n\n{para}\n\n## Evidence"),
-            GOOD.replace("out.txt\n", f"out.txt\n  {para}\n"),
-            GOOD.replace("out.txt\n", f"out.txt ({para})\n"),
+            *(GOOD.replace(old, new.format(para=para)) for old, new in PLACES),
             GOOD + f"- [2] {para}\n",
         )
     ]
@@ -66,9 +74,7 @@ class TestHeldOut(unittest.TestCase):
 
     def test_444_755_of_755_placements_refused(self) -> None:
         """23 of 30 are disclosures; each of their placements is refused."""
-        root = scratch.directory()
-        (root / "out.txt").write_text("ok\n", encoding="utf-8")
-        exists = handbackform.in_checkout(root)
+        exists = _checkout()
         assert_that(handbackform.findings(GOOD, IDS, exists), empty())
         texts, labelled = _sample()
         placed = [place for index in labelled for place in _places(texts[index])]
@@ -119,9 +125,7 @@ class TestRules(unittest.TestCase):
 
     def test_444_each_rule_removed_lets_its_disclosure_through(self) -> None:
         """Prose in a done line, a pointer that is not one, an item with no line."""
-        root = scratch.directory()
-        (root / "out.txt").write_text("ok\n", encoding="utf-8")
-        exists = handbackform.in_checkout(root)
+        exists = _checkout()
         rest = "\n".join(GOOD.splitlines()[2:5]) + "\n"
         prose = f"{PROSE}{rest}"
         loose = dataclasses.replace(handbackform.Form(), done=LOOSE_DONE)

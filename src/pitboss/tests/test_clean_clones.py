@@ -11,6 +11,7 @@ import unittest
 
 from .. import deadscan, shapes
 from . import cleanruns, cleanworld, fakes, test_autoclean_world, world, worldcopy
+from .fakes import write
 
 same = cleanworld.same
 shows = test_autoclean_world.shows
@@ -130,7 +131,7 @@ class TestClonesUnderPressure(unittest.TestCase):
         here = scene("0.001")
         broken = here.workspace / "clone-broken"
         (broken / ".git").mkdir(parents=True)
-        (broken / ".git/file").write_text("x")
+        write(broken / ".git/file", "x")
         test_autoclean_world.touch_all(broken, 0)
         out = test_autoclean_world.swept(here, "sweep")
         names = [*NAMES, broken.name]

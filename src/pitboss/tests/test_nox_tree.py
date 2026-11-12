@@ -8,6 +8,7 @@ from typing import Sequence
 from .. import noxcheck, noxgreen
 from . import fakes, world
 from .cleanworld import same
+from .fakes import write
 
 WHEN = "2030-01-01T00:00:00+00:00"
 SESSIONS = [each.value for each in noxcheck.WITHOUT_TESTS]
@@ -49,7 +50,7 @@ def pushing(here: world.World) -> world.Result:
     Returns:
         What the push did.
     """
-    (here.clone / "noxfile.py").write_text("", encoding="utf-8")
+    write(here.clone / "noxfile.py", "")
     return push(here)
 
 

@@ -4,14 +4,17 @@ The keyword is brief-rules, pitboss#444.
 """
 
 import dataclasses
+import pathlib
 import re
 import unittest
 
 from hamcrest import assert_that, calling, contains_string, empty, equal_to, raises
 
-from .. import actcore, actverbs, dispatchnext, rulecount, rulefiles, totalroutes
+from .. import actcore, actverbs, rulecount, rulefiles, totalroutes
 from . import fakehub, scratch
 from .knownkit import CHECKOUTS, made, shipped_kit
+from .fakes import write
+from .totalworld import ticket_item
 
 PLANTED = {
     "CLAUDE.md": "ROOT\n",
@@ -36,13 +39,18 @@ REFUSED = {
 }
 
 
+def _rules_of(ticket: rulefiles.Ticket) -> pathlib.Path:
+    # the checkout's rules folder
+    return ticket.checkout / ".claude" / "rules"
+
+
 def _planted() -> rulefiles.Ticket:
     root, home = scratch.directory(), scratch.directory()
     for name, text in PLANTED.items():
         (root / name).parent.mkdir(parents=True, exist_ok=True)
-        (root / name).write_text(text, encoding="utf-8")
+        write(root / name, text)
     (home / ".claude").mkdir()
-    (home / ".claude" / "CLAUDE.md").write_text("USERLEVEL\n", encoding="utf-8")
+    write(home / ".claude" / "CLAUDE.md", "USERLEVEL\n")
     return rulefiles.Ticket(checkout=root, paths=["src/x.bats", "src/"], home=home)
 
 
@@ -81,9 +89,7 @@ class TestWriter(unittest.TestCase):
         for name, (text, said) in REFUSED.items():
             with self.subTest(name):
                 ticket = _planted()
-                (ticket.checkout / ".claude" / "rules" / name).write_text(
-                    text, encoding="utf-8"
-                )
+                write(_rules_of(ticket) / name, text)
                 assert_that(
                     calling(rulefiles.write).with_args(ticket),
                     raises(rulefiles.Refused, re.escape(said)),
@@ -157,18 +163,12 @@ class TestRecount(unittest.TestCase):
         """A rule file under ``build`` and a text file under rules are not wanted."""
         ticket = _planted()
         (ticket.checkout / "build").mkdir()
-        (ticket.checkout / "build" / "CLAUDE.md").write_text(
-            "BUILT\n", encoding="utf-8"
-        )
-        (ticket.checkout / ".claude" / "rules" / "notes.txt").write_text(
-            "TEXT\n", encoding="utf-8"
-        )
+        write(ticket.checkout / "build" / "CLAUDE.md", "BUILT\n")
+        write(_rules_of(ticket) / "notes.txt", "TEXT\n")
         assert_that(rulecount.missing(rulefiles.write(ticket), ticket), empty())
 
 
-FIFTH = dispatchnext.Item(
-    ref="o/r#5", kind="ticket", created="2026-11-01", priority="p1"
-)
+FIFTH = ticket_item("o/r#5", "2026-11-01", "p1")
 
 
 class TestDispatchBrief(unittest.TestCase):
@@ -197,8 +197,8 @@ class TestDispatchBrief(unittest.TestCase):
         ticket = _planted()
         outside = scratch.directory() / "linked.md"
         outside.write_text("LINKED\n", encoding="utf-8")
-        (ticket.checkout / ".claude" / "rules" / "linked").mkdir()
-        (ticket.checkout / ".claude" / "rules" / "linked" / "x.md").symlink_to(outside)
+        (_rules_of(ticket) / "linked").mkdir()
+        (_rules_of(ticket) / "linked" / "x.md").symlink_to(outside)
         written = rulefiles.write(ticket).replace("LINKED\n", "")
         assert_that(
             rulecount.missing(written, ticket), equal_to([".claude/rules/linked/x.md"])
@@ -210,8 +210,9 @@ class TestDispatchBrief(unittest.TestCase):
         (a class, literal to the writer) refuses the brief.
         """
         ticket = _planted()
-        (ticket.checkout / ".claude" / "rules" / "class.md").write_text(
-            "---\npaths:\n  - src/[x].bats\n---\nCLASS\n", encoding="utf-8"
+        write(
+            _rules_of(ticket) / "class.md",
+            "---\npaths:\n  - src/[x].bats\n---\nCLASS\n",
         )
         assert_that(
             calling(actverbs.brief).with_args(ticket),

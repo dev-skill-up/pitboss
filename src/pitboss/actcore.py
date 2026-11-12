@@ -124,7 +124,7 @@ class Controls:
     disarm: Callable[["Act", Target, str], None] = (
         lambda act, target, why: disarm_if_armed(act, target, why)
     )
-    items: Callable[[str | None], Sequence[str]] = ticketreader.items
+    items: ticketreader.Reader = ticketreader.items
     started: Callable[[Sequence[tuple[int, str | None]], str, int], Sequence[int]] = (
         ticketreader.started
     )
@@ -273,11 +273,11 @@ def disarm_if_armed(act: Act, target: Target, why: str) -> None:
         target: the PR.
         why: the reason, recorded.
     """
-    pull = act.hub.pull(target.repo, target.number)
+    pull = pull_of(act, target)
     if pull.get("auto_merge"):
         put(act, target, "disarm")
         record(act, target, f'disarm reason="{why}"')
-    if queued(act.hub.timeline(target.repo, target.number)):
+    if queued(timeline_of(act, target)):
         put(act, target, "dequeue", {"node_id": text(pull.get("node_id"))})
         record(act, target, f'dequeue reason="{why}"')
 
@@ -310,18 +310,14 @@ def verdict_of(act: Act, action: str, target: Target) -> Pull:
     Raises:
         Refused: the verdict is STOP; the message carries its first lines.
     """
-    pull = act.hub.pull(target.repo, target.number)
-    events = act.hub.timeline(target.repo, target.number)
+    pull, events = pull_of(act, target), timeline_of(act, target)
     ctx = {
         **act.inputs(target.repo, target.number, pull, events),
         "holds": list(holds(act, target.repo)),
     }
     answer = act.controls.verdict(action, pull, ctx)
     if answer.word != totalanswer.GO:
-        raise Refused(
-            f"{action} {target.repo}#{target.number}: STOP: "
-            + "; ".join(answer.lines[:3])
-        )
+        raise Refused(f"{action} {target.name}: STOP: " + "; ".join(answer.lines[:3]))
     return pull
 
 
@@ -353,3 +349,29 @@ def option(options: Options, name: str) -> str:
     if not options.get(name):
         raise Refused(f"{name}=... is required")
     return options[name]
+
+
+def pull_of(act: Act, target: Target) -> Pull:
+    """Read a PR.
+
+    Args:
+        act: the verb's world.
+        target: the PR.
+
+    Returns:
+        The PR as GitHub answers it.
+    """
+    return act.hub.pull(target.repo, target.number)
+
+
+def timeline_of(act: Act, target: Target) -> Sequence[object]:
+    """Read a PR's or an issue's events.
+
+    Args:
+        act: the verb's world.
+        target: the PR or issue.
+
+    Returns:
+        Its events.
+    """
+    return act.hub.timeline(target.repo, target.number)

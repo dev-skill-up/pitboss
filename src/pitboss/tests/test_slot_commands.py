@@ -7,6 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from . import liveagents, slot_refusals, world
+from .says import exits
 
 UNREAD_TICKETS_LINE = (
     "UNREADABLE tickets: not offered as new work, 1 open PR(s) could not be read"
@@ -333,7 +334,7 @@ class TestMissingLedger(unittest.TestCase):
         here = world.make_world()
         here.ledger.unlink()
         result = world.invoke(here, "slots", "report", here.config)
-        assert_that(result.code, equal_to(0))
+        exits(result, 0)
 
     def test_check_rows(self) -> None:
         """``check N`` passes at N rows and refuses at one more."""

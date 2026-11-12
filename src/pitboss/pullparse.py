@@ -31,7 +31,7 @@ def open_pulls(text: str) -> Sequence[shapes.Pull]:
         ``owner/name`` of the repository it lives in (empty for a deleted fork).
     """
     items = json.loads(text)
-    pulls = [parsing.pull(json.dumps(item)) for item in items]
+    pulls = parsing.pulls_of(items)
     heads = [item["head"].get("repo") or {} for item in items]
     return [
         with_repo(pull, head.get("full_name", "")) for pull, head in zip(pulls, heads)

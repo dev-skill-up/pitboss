@@ -12,6 +12,7 @@ from . import diffrepo, fakes, world
 from .linting import write_text
 from .repositories import IDENTITY, run_git
 from .test_expand_commands import real_world
+from .fakes import write
 
 WORKFLOW = """\
 name: check
@@ -326,7 +327,7 @@ class TestFoundConfiguration(unittest.TestCase):
     def test_the_search_finds_the_table(self) -> None:
         """A ``pitboss.toml`` above the working directory gives the table."""
         here = fakes.directory()
-        (here / "pitboss.toml").write_text(CONFIG)
+        write(here / "pitboss.toml", CONFIG)
         assert_that(refused_by_found_table(self, here, []), equal_to([1, True]))
 
 

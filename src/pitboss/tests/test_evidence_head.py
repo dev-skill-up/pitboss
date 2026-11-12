@@ -6,7 +6,7 @@ import subprocess
 import unittest
 from typing import NoReturn, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import evidence, expand_commands, expansion
 from . import diffrepo
@@ -17,6 +17,7 @@ from .cleanworld import same
 from .test_expand_commands import check, expanded
 from .test_hand_back_done import pull_lines_of
 from .test_register_rules import shown
+from .says import exits, says
 
 OTHER = "b" * 40
 NEAR = HEAD[:-1] + "b"
@@ -76,14 +77,14 @@ class TestLint(unittest.TestCase):
                 checked = check(block_of(head))
                 assert_that(checked.code == 1, equal_to(refused))
                 if refused:
-                    assert_that(checked.out, contains_string(f"`{COMMAND}`"))
-                    assert_that(checked.out, contains_string(f"expanded at {head}"))
+                    says(checked.out, f"`{COMMAND}`")
+                    says(checked.out, f"expanded at {head}")
 
     def test_a_short_head_makes_the_block_a_typed_one(self) -> None:
         """The record is 40 digits; a short one is not a block expand produced."""
         header = f"pitboss-expand sha256={expansion.digest(f'$ {COMMAND}')} head=abc"
         body = write_text("body.md", f"```{header}\n$ {COMMAND}\n```\n")
-        assert_that(lint("pr-body", body, "--head", HEAD).code, equal_to(1))
+        exits(lint("pr-body", body, "--head", HEAD), 1)
 
 
 class TestFindings(unittest.TestCase):

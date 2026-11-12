@@ -146,12 +146,13 @@ def _kind(given: Given) -> Iterator[Cell]:
     yield _cell(given, world_of(given, events=[event]), safe, f"event {given.value}")
 
 
+def _others(given: Given, key: str, field: str, value: str) -> Sequence[JsonMap]:
+    # the items of an input of the GO world but those whose field is a value
+    return [each for each in records(given.base.ctx[key]) if each.get(field) != value]
+
+
 def _with_check(given: Given, status: str, conclusion: object) -> World:
-    others = [
-        each
-        for each in records(given.base.ctx["check_runs"])
-        if each.get("name") != "check"
-    ]
+    others = _others(given, "check_runs", "name", "check")
     check = {"name": "check", "status": status, "conclusion": conclusion}
     return world_of(given, ctx={"check_runs": [*others, check]})
 
@@ -302,11 +303,7 @@ def _file_size(given: Given) -> Iterator[Cell]:
 def _file_path(given: Given) -> Iterator[Cell]:
     name = given.value + ("check.yml" if given.value.endswith("/") else "")
     found = {"filename": name, "status": "modified", "additions": 1, "deletions": 0}
-    statuses = [
-        each
-        for each in records(given.base.ctx["statuses"])
-        if each.get("context") != "text-lint"
-    ]
+    statuses = _others(given, "statuses", "context", "text-lint")
     safe = given.action in UNDRAFT or given.value.endswith("CODEOWNERS")
     yield from _file(given, [found], safe, {"statuses": statuses})
 

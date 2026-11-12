@@ -9,6 +9,7 @@ from .. import mounts, survey
 from . import cleanworld, fakes
 from .cleanworld import dangle, make_directories, mark_live, put, same
 from .test_local import CUTOFF, age
+from .fakes import write
 
 NOBODY: AbstractSet[pathlib.Path] = frozenset()
 FIVE_MEGABYTES = "x" * 5_000_000
@@ -35,7 +36,7 @@ def one_file() -> pathlib.Path:
         The directory.
     """
     top = fakes.directory()
-    (top / "f").write_text("x" * 10000)
+    write(top / "f", "x" * 10000)
     age(top)
     return top
 

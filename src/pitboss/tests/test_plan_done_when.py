@@ -4,7 +4,7 @@ import itertools
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import plandonewhen, ticketwhen
 
@@ -106,7 +106,7 @@ def holds(found: Sequence[str], parts: Sequence[str], prefix: str) -> None:
     for piece in parts:
         assert_that(found[0], contains_string(piece))
     for each in found:
-        assert_that(each.startswith(prefix), equal_to(True))
+        assert_that(each, starts_with(prefix))
 
 
 class TestFindings(unittest.TestCase):
@@ -177,7 +177,7 @@ class TestMeasurement(unittest.TestCase):
                 found = plandonewhen.findings(row_of(ticket, "`rg -c y src`"), ticket)
                 assert_that(len(found), equal_to(1))
                 assert_that(found[0], contains_string(f"`{MEASURE}`"))
-                assert_that(found[0].startswith("plan-measurement:"), equal_to(True))
+                assert_that(found[0], starts_with("plan-measurement:"))
 
     def test_each_spelling_passes_when_the_row_runs_it(self) -> None:
         """Done-when: the command itself, or piped into more, in the row."""

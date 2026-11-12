@@ -18,6 +18,10 @@ def _refused(body: str | None, said: str) -> None:
     )
 
 
+def _read(body: str, items: list[str]) -> None:
+    assert_that(list(ticketreader.items(body)), equal_to(items))
+
+
 class TestItems(unittest.TestCase):
     """The forms of a Done-when section."""
 
@@ -35,7 +39,7 @@ class TestItems(unittest.TestCase):
             "## Done when\n\nIntro.\n\n- a\n  more\n* b\n1. c\nPaths: src/\n---\n-"
             " after\n"
         )
-        assert_that(list(ticketreader.items(body)), equal_to(["a more", "b", "c"]))
+        _read(body, ["a more", "b", "c"])
 
     def test_444_paragraphs_when_there_is_no_list(self) -> None:
         """Each paragraph is an item; a key paragraph is not.
@@ -45,7 +49,7 @@ class TestItems(unittest.TestCase):
         body = (
             "## Done-when\n\nfirst\nline\n\nsecond\n\nPriority: p1\n## Other\nthird\n"
         )
-        assert_that(list(ticketreader.items(body)), equal_to(["first line", "second"]))
+        _read(body, ["first line", "second"])
 
     def test_444_the_refusals(self) -> None:
         """No heading, two, no item, a stray line."""
@@ -57,9 +61,7 @@ class TestItems(unittest.TestCase):
     def test_444_what_act_ticket_writes_is_read_back(self) -> None:
         """The writer's items are the reader's."""
         body = ticketreader.written(["a demonstrated by b", "c"], ["src/"], 100, "p1")
-        assert_that(
-            list(ticketreader.items(body)), equal_to(["a demonstrated by b", "c"])
-        )
+        _read(body, ["a demonstrated by b", "c"])
 
 
 class TestClosing(unittest.TestCase):

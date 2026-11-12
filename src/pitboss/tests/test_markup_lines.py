@@ -146,11 +146,9 @@ def hunk(old: Sequence[str], new: Sequence[str], path: str = "a.md") -> str:
         The patch.
     """
     head = f"diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -1 +1 @@\n"
-    return (
-        head
-        + "".join(f"-{each}\n" for each in old)
-        + "".join(f"+{each}\n" for each in new)
-    )
+    removed = [f"-{each}\n" for each in old]
+    added = [f"+{each}\n" for each in new]
+    return head + "".join([*removed, *added])
 
 
 def counted(patch: str, stat: str = "1\t1\ta.md\0") -> int:

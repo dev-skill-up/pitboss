@@ -10,6 +10,7 @@ from .briefmake import text
 from .handbackrun import saved
 from .handbackworld import ready
 from .test_evidence_rules import words
+from .says import ended
 
 EXECUTION_REVIEWS = {brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_EXECUTION}
 WORKERS = (
@@ -126,7 +127,7 @@ class TestTheHandBack(unittest.TestCase):
         """A heredoc or `sed` edit, a virtualenv, a file or a fetch: `none`."""
         assert_that(deviations.not_started(HARMLESS), equal_to(""))
         found = checked(HARMLESS)
-        assert_that((found.code, found.out), equal_to((0, "ok\n")))
+        ended(found, 0, "ok\n")
 
     def test_without_the_line_it_is_not_started(self) -> None:
         """Only a line that says something passes."""

@@ -8,6 +8,8 @@ from hamcrest import assert_that, equal_to
 from .. import plansize
 from .briefmake import has_all
 from .test_plan_check import checked
+from .says import exits
+from ..textparts import starting
 
 ALLOWED = plansize.ALLOWANCE + plansize.LEEWAY
 FIX = "the Done-when is to be fixed (a better design that produces a small list)"
@@ -52,7 +54,7 @@ def warned(lines: Sequence[str]) -> Sequence[str]:
     Returns:
         The lines that start with the warning's name.
     """
-    return [each for each in lines if each.startswith("evidence-size: warning:")]
+    return starting(lines, "evidence-size: warning:")
 
 
 EDGE = ALLOWED - len("c") - plansize.FRAMING
@@ -129,4 +131,4 @@ class TestCommand(unittest.TestCase):
 
     def test_a_row_that_did_not_run_is_refused(self) -> None:
         """A command that cannot start prints nothing, and the Plan is refused."""
-        assert_that(checked(PLANS["a command that cannot start"][0]).code, equal_to(1))
+        exits(checked(PLANS["a command that cannot start"][0]), 1)

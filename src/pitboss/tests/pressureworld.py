@@ -8,6 +8,7 @@ import pathlib
 from typing import MutableMapping, Protocol, TypeVar
 
 from . import fakes
+from .fakes import write
 
 
 class Runnered(Protocol):
@@ -37,7 +38,7 @@ def looked(here: Here, line: str) -> Here:
     Returns:
         The same world.
     """
-    (here.clone / ".git" / "pitboss-pressure.log").write_text(line)
+    write(here.clone / ".git" / "pitboss-pressure.log", line)
     return here
 
 

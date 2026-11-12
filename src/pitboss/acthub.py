@@ -41,6 +41,16 @@ def _issues(change: Change, rest: str = "") -> str:
     return f"repos/{change.repo}/issues{rest}"
 
 
+def _issue(change: Change, rest: str = "") -> str:
+    # the change's issue or PR, as an issue
+    return _issues(change, f"/{change.number}{rest}")
+
+
+def _comment(change: Change) -> str:
+    # the comment the change names
+    return _issues(change, f"/comments/{change.fields['id']}")
+
+
 def _pulls(change: Change, rest: str = "") -> str:
     return f"repos/{change.repo}/pulls/{change.number}{rest}"
 
@@ -69,18 +79,16 @@ def _runs(change: Change, rest: str) -> str:
 WRITES: Mapping[str, Words] = {
     "comment": lambda change: _api(
         "POST",
-        _issues(change, f"/{change.number}/comments"),
+        _issue(change, "/comments"),
         *_fields(change, "body"),
         jq=".id",
     ),
     "comment-edit": lambda change: _api(
         "PATCH",
-        _issues(change, f"/comments/{change.fields['id']}"),
+        _comment(change),
         *_fields(change, "body"),
     ),
-    "comment-delete": lambda change: _api(
-        "DELETE", _issues(change, f"/comments/{change.fields['id']}")
-    ),
+    "comment-delete": lambda change: _api("DELETE", _comment(change)),
     "issue": lambda change: _api(
         "POST",
         _issues(change),
@@ -88,11 +96,11 @@ WRITES: Mapping[str, Words] = {
         jq=".number",
     ),
     "issue-edit": lambda change: _api(
-        "PATCH", _issues(change, f"/{change.number}"), *_fields(change, "body")
+        "PATCH", _issue(change), *_fields(change, "body")
     ),
     "close-issue": lambda change: _api(
         "PATCH",
-        _issues(change, f"/{change.number}"),
+        _issue(change),
         "-f",
         "state=closed",
         "-f",
@@ -123,16 +131,13 @@ WRITES: Mapping[str, Words] = {
     ],
     "label": lambda change: _api(
         "POST",
-        _issues(change, f"/{change.number}/labels"),
+        _issue(change, "/labels"),
         "-f",
         f"labels[]={change.fields['name']}",
     ),
     "unlabel": lambda change: _api(
         "DELETE",
-        _issues(
-            change,
-            f"/{change.number}/labels/{urllib.parse.quote(change.fields['name'])}",
-        ),
+        _issue(change, f"/labels/{urllib.parse.quote(change.fields['name'])}"),
     ),
     "dequeue": lambda change: [
         "gh",
@@ -156,7 +161,7 @@ WRITES: Mapping[str, Words] = {
 
 
 def _one(github: ghapi.GitHub, path: str) -> object:
-    return json.loads(github.run(["gh", "api", path]).stdout or "null")
+    return json.loads(ghapi.get(github, path) or "null")
 
 
 def _every(github: ghapi.GitHub, path: str) -> Sequence[Pull]:

@@ -20,6 +20,18 @@ def repositories(settings: config.Config) -> Sequence[config.Repo]:
     return (settings.project.repo, *settings.libraries)
 
 
+def slugs(settings: config.Config) -> Sequence[str]:
+    """The ``owner/name`` of the project's repository, then of its libraries.
+
+    Args:
+        settings: the configuration.
+
+    Returns:
+        Every swept repository's slug.
+    """
+    return [each.slug for each in repositories(settings)]
+
+
 def has(settings: config.Config, reference: str) -> bool:
     """Whether a ticket or PR is in a repository the configuration sweeps.
 

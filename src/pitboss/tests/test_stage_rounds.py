@@ -14,6 +14,7 @@ from .test_flow import (
     ruling,
     state,
 )
+from .linting import block
 
 PLAN_FIRST = graded(*PLAN_REJECTED, 1, sha=OLDER)
 PLAN_SECOND = graded(*PLAN_REJECTED, 2, sha=OLDER)
@@ -92,7 +93,7 @@ class TestOneDigest(unittest.TestCase):
 
     def test_t399_the_digest_before_the_collapse_is_not_accepted(self) -> None:
         """The section as it is stood in for the collapsed one until this ticket."""
-        made = expansion.block("true", expansion.Outcome(status=0, output="x\n"))
+        made = block("true", "x\n")
         section = f"## Plan\n{made}"
         accepted = expansion.accepted_digests(section)
         assert_that(expansion.text_digest(section) in accepted, equal_to(False))

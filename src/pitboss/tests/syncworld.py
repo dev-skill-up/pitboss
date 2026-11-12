@@ -6,6 +6,8 @@ import shutil
 from typing import Sequence
 
 from . import fakes, world
+from .fakes import write
+from ..textparts import mentions_any
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -83,7 +85,7 @@ def guard(synced: Synced) -> tuple[object, Sequence[str]]:
     """
     out = world.again(synced.here, "sweep", "--now", world.FUTURE)
     words = ("NOT SYNCED", "NOT CONFIGURED")
-    return out.code, [x for x in out.out.splitlines() if any(w in x for w in words)]
+    return out.code, [x for x in out.out.splitlines() if mentions_any(x, words)]
 
 
 def beside(synced: Synced, *names: str) -> Sequence[pathlib.Path]:
@@ -210,7 +212,7 @@ def normalize_on_origin(synced: Synced) -> None:
     """
     work = fakes.directory() / "by-hand"
     fakes.run_git(work.parent, "clone", "--quiet", str(synced.origin), str(work))
-    (work / ".gitattributes").write_text("notes-current/** text eol=crlf\n")
+    write(work / ".gitattributes", "notes-current/** text eol=crlf\n")
     steps = (
         ("add", ".gitattributes"),
         (*fakes.IDENTITY, "commit", "--quiet", "-m", "attributes"),

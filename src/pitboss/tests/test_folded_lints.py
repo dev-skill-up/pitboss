@@ -3,10 +3,11 @@
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, empty, equal_to, has_length
+from hamcrest import assert_that, contains_string, empty, has_length
 
-from .. import adoptline, evidence, expansion, forms, phrases, quotedplan, reviews
+from .. import adoptline, evidence, forms, phrases, quotedplan, reviews
 from .test_report import facts
+from .linting import block, subject_of, typed_at
 
 HEAD = "a" * 40
 OTHER = "b" * 40
@@ -16,19 +17,6 @@ PHRASES = phrases.parse(
     "test",
 )
 ADOPT = "`adopt` (tools/adopt of repository-prototype) made this pull request"
-
-
-def block(command: str, output: str) -> str:
-    """A block that ``pitboss expand`` made.
-
-    Args:
-        command: the command row.
-        output: its output.
-
-    Returns:
-        The fenced text.
-    """
-    return expansion.block(command, expansion.Outcome(status=0, output=output))
 
 
 def body(*parts: str) -> str:
@@ -55,8 +43,34 @@ def named(text: str, check: str) -> Sequence[str]:
     Returns:
         The findings.
     """
-    subject = forms.Subject(name="b", body=text, head=HEAD)
-    return [each for each in forms.pr_body(subject) if each.endswith(f"({check})")]
+    return [
+        each for each in forms.pr_body(subject_of(text)) if each.endswith(f"({check})")
+    ]
+
+
+def rev_parse(command: str, output: str) -> Sequence[str]:
+    """The rev-parse-head findings of a body with one block.
+
+    Args:
+        command: the block's command.
+        output: what it printed.
+
+    Returns:
+        The findings.
+    """
+    return named(body(block(command, output + "\n")), "rev-parse-head")
+
+
+def prose(text: str) -> Sequence[str]:
+    """The phrase findings of a body with its blocks and Plan rows masked.
+
+    Args:
+        text: the body.
+
+    Returns:
+        The findings.
+    """
+    return phrases.findings(quotedplan.mask(text), "b", PHRASES)
 
 
 class TestRevParseBlock(unittest.TestCase):
@@ -64,19 +78,19 @@ class TestRevParseBlock(unittest.TestCase):
 
     def test_t329_a_block_that_prints_another_sha_is_refused(self) -> None:
         """The Head line moved and the block did not: both SHAs are named."""
-        found = named(body(block("git rev-parse HEAD", OTHER + "\n")), "rev-parse-head")
+        found = rev_parse("git rev-parse HEAD", OTHER)
         assert_that(found, has_length(1))
         assert_that(found[0], contains_string(OTHER))
         assert_that(found[0], contains_string(HEAD))
 
     def test_t329_a_block_that_prints_the_head_passes(self) -> None:
         """The same body with the output of the head."""
-        found = named(body(block("git rev-parse HEAD", HEAD + "\n")), "rev-parse-head")
+        found = rev_parse("git rev-parse HEAD", HEAD)
         assert_that(found, empty())
 
     def test_t329_another_command_is_not_read(self) -> None:
         """A block of any other command prints what it prints."""
-        found = named(body(block("git log -1", OTHER + "\n")), "rev-parse-head")
+        found = rev_parse("git log -1", OTHER)
         assert_that(found, empty())
 
 
@@ -86,12 +100,12 @@ class TestExpandOutput(unittest.TestCase):
     def test_t223_a_refused_word_in_an_expand_block_passes(self) -> None:
         """A Plan-mandated `git diff` row prints the word in its output."""
         text = body(block("git diff main", "the part that changed\n"))
-        assert_that(phrases.findings(quotedplan.mask(text), "b", PHRASES), empty())
+        assert_that(prose(text), empty())
 
     def test_t223_the_same_word_in_the_prose_is_refused(self) -> None:
         """The control: outside a block the word is found, on its line."""
         text = body("It is the part that is left.")
-        found = phrases.findings(quotedplan.mask(text), "b", PHRASES)
+        found = prose(text)
         assert_that(found, has_length(1))
 
     def test_t223_the_expand_block_checks_stay(self) -> None:
@@ -107,9 +121,9 @@ class TestQuotedDoneWhen(unittest.TestCase):
         """ "names the part that dominates" in a numbered Plan row, then in prose."""
         words = "names the part that dominates"
         plan = f"## Plan\n\n1. {words}\n"
-        assert_that(phrases.findings(quotedplan.mask(plan), "b", PHRASES), empty())
-        prose = f"## Notes\n\nThe change {words}.\n"
-        found = phrases.findings(quotedplan.mask(prose), "b", PHRASES)
+        assert_that(prose(plan), empty())
+        prose_text = f"## Notes\n\nThe change {words}.\n"
+        found = prose(prose_text)
         assert_that(found, has_length(1))
         assert_that(found[0], contains_string("half-done"))
 
@@ -128,12 +142,12 @@ class TestAdoptBody(unittest.TestCase):
     def test_t423_the_same_rows_in_any_other_body_are_hand_typed(self) -> None:
         """No adopt line: both rows are refused."""
         text = "## Evidence\n\n$ git rev-parse HEAD\n$ git show --stat\n"
-        assert_that(evidence.hand_typed(text), equal_to([3, 4]))
+        typed_at(text, [3, 4])
 
     def test_t423_a_row_of_another_command_is_still_hand_typed(self) -> None:
         """One hand-typed row after a command that is not in the script's two."""
         text = f"{ADOPT}\n\n## Evidence\n\n$ git rev-parse HEAD\n$ nox -s tests\nOK\n"
-        assert_that(evidence.hand_typed(text), equal_to([6]))
+        typed_at(text, [6])
 
     def test_t423_the_sweep_says_the_review_is_of_the_script(self) -> None:
         """The reviewer line names tools/adopt, and only for such a PR."""

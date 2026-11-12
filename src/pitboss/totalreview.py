@@ -15,6 +15,7 @@ from typing import Mapping, Sequence
 
 from . import bodydigest
 from .totaljson import JsonMap, field, members, name_at, text
+from .textparts import starting, stripped_lines
 
 GRADES = ("approved", "changes needed")
 GRADE_LINE = re.compile(r"(Plan|Execution): (approved|changes needed)( \([^()\n]*\))?")
@@ -98,7 +99,7 @@ def _head_finding(lines: Sequence[str], head: str) -> str:
 
 
 def _body_finding(lines: Sequence[str], body: object) -> str:
-    digests = [line for line in lines if line.startswith("Body:")]
+    digests = starting(lines, "Body:")
     if len(digests) != 1 or not DIGEST.fullmatch(digests[0]):
         return "the newest review has no single `Body: <digest>` line"
     if digests[0][len("Body: ") :] != digest_of(body):
@@ -145,7 +146,7 @@ def review_reading(review: str, head: str, body: object, tickets: Tickets) -> st
     Returns:
         The reason, ``""`` when the review approves.
     """
-    lines = [each.rstrip() for each in review.splitlines()]
+    lines = stripped_lines(review)
     findings = (
         _verdict_finding(lines),
         _head_finding(lines, head),
@@ -176,8 +177,8 @@ def plan_reading(review: str, body: object) -> str:
     Returns:
         The reason, ``""`` when the Plan is approved (what an undraft needs).
     """
-    lines = [line.rstrip() for line in review.splitlines()]
-    if [line for line in lines if line.startswith("Plan: ")] != ["Plan: approved"]:
+    lines = stripped_lines(review)
+    if starting(lines, "Plan: ") != ["Plan: approved"]:
         return "the newest review does not say exactly `Plan: approved`"
     section = plan_section(body)
     if section is None:
