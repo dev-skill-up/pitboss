@@ -4,10 +4,25 @@
 to the log are here, below it, so the tests reach them without the command.
 """
 
+import dataclasses
 from typing import Mapping, Sequence
 
-from . import actback, actcore, actions, actrun, ghapi, logline
-from .totaljson import mapping, text
+from . import actback, actcore, actions, actrun, ghapi, logline, totaljson
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Done:
+    """A verb that ran.
+
+    Attributes:
+        verb: the verb.
+        target: its target.
+        options: its options.
+    """
+
+    verb: str
+    target: actcore.Target
+    options: Mapping[str, str]
 
 
 def target_of(word: str) -> actcore.Target:
@@ -35,38 +50,32 @@ LEDGERED = {
 }
 
 
-def ledger_event(
-    world: actcore.Act,
-    verb: str,
-    target: actcore.Target,
-    options: Mapping[str, str],
-    now: str,
-) -> logline.Event | None:
+def ledger_event(act: actcore.Act, done: Done, now: str) -> logline.Event | None:
     """The slot log's record of a write the sweep checks for.
 
     Args:
-        world: the verbs' world.
-        verb: the verb.
-        target: the target.
-        options: the options.
+        act: the verbs' world.
+        done: the verb that ran.
         now: the time now (ISO 8601).
 
     Returns:
         The record, or None for a verb the sweep does not check.
     """
-    word = LEDGERED.get(verb)
-    if not word:
+    recorded = LEDGERED.get(done.verb)
+    if not recorded:
         return None
-    pull = world.hub.pull(target.repo, target.number) if target.number else {}
-    head = mapping(pull.get("head"))
-    branch = options.get("branch") or options.get("ref") or text(head.get("ref"))
-    what = f"{word} {target.repo}#{target.number} {branch} at act"
+    target, options = done.target, done.options
+    pull = act.hub.pull(target.repo, target.number) if target.number else {}
+    head = totaljson.members(pull.get("head"))
+    branch = (
+        options.get("branch") or options.get("ref") or totaljson.text(head.get("ref"))
+    )
     return logline.Event(
         kind=actrun.KIND,
         time=now,
         who=actrun.WHO,
-        what=what,
-        head=text(head.get("sha")),
+        what=f"{recorded} {target.repo}#{target.number} {branch} at act",
+        head=totaljson.text(head.get("sha")),
     )
 
 
@@ -79,26 +88,21 @@ READ_BACK = {
 }
 
 
-def read_back(
-    github: ghapi.GitHub,
-    verb: str,
-    target: actcore.Target,
-    options: Mapping[str, str],
-) -> Sequence[str]:
+def read_back(github: ghapi.GitHub, done: Done) -> Sequence[str]:
     """The ``act NOT LANDED`` line of a live write GitHub does not show.
 
     Args:
         github: the API.
-        verb: the verb.
-        target: the PR.
-        options: its options (the label's ``name``; ``remove`` claims no label).
+        done: the verb that ran, on a PR (the label's ``name`` option; ``remove``
+            claims no label).
 
     Returns:
         The line, or none when the PR shows the write or the verb claims no fact
         of the PR (keyword: claim-readback).
     """
-    action = READ_BACK.get(verb)
-    if action is None or options.get("remove"):
+    action = READ_BACK.get(done.verb)
+    if action is None or done.options.get("remove"):
         return []
+    target = done.target
     where = actrun.Target(slug=target.repo, number=target.number, branch="", head="")
-    return actback.lines(github, where, action, [options.get("name", "")])
+    return actback.lines(github, where, action, [done.options.get("name", "")])

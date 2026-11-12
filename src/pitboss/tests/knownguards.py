@@ -104,7 +104,7 @@ def _no_execution(given: Kit) -> bool:
 def _rearmed(given: Kit) -> bool:
     hub = made(given, change(pull=ARMED, events=[record(f"arm head={HEAD}")]))
     act(given, hub, "hold", number="0", scope="merges", source="m1")
-    return hub.hub.pull(REPO, NUMBER)["auto_merge"] is None and bool(
+    return hub.act.hub.pull(REPO, NUMBER)["auto_merge"] is None and bool(
         refused(lambda: act(given, hub, "arm"))
     )
 

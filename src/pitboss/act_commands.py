@@ -16,7 +16,7 @@ from gather.commands import add_argument
 
 from . import ENTRY_DATA, actcore, actledger, actverbs, actwiring, configsettle, logline
 from .commandarguments import CONFIG_OPTION, DRY_RUN_ARGUMENT, NOW_ARGUMENT
-from .commands import load_context
+from .commands import Context, load_context
 
 
 def _refuse(message: str) -> NoReturn:
@@ -34,10 +34,10 @@ def options_of(words: Sequence[str]) -> Mapping[str, str]:
         Each option's value.
     """
     found = {}
-    for word in words:
-        name, equals, value = word.partition("=")
+    for each in words:
+        name, equals, value = each.partition("=")
         if not equals or not name:
-            _refuse(f"act: {word[:40]!r} is not an option: options are `name=value`")
+            _refuse(f"act: {each[:40]!r} is not an option: options are `name=value`")
         found[name] = value
     return found
 
@@ -85,21 +85,20 @@ def act(args: argparse.Namespace) -> None:
     found = load_context(args)
     path = found.settings.slots.ledger.parent / actwiring.OWNER
     owner = actwiring.owner_of(path)
-    world = actwiring.act_of(
-        found.github,
-        found.settings,
-        owner,
-        args.run,
-        actwiring.identity_of(found.github),
-    )
+    world = actwiring.act_of(found.github, found.settings, owner, args.run)
     target = actledger.target_of(args.target)
     print(run_verb(world, args.verb, target, options))
     if args.no_dry_run:
         actwiring.write_owner(path, owner)
-        if event := actledger.ledger_event(
-            world, args.verb, target, options, found.now.isoformat()
-        ):
-            logline.record(found.settings.slots.log, event)
-        # keyword: claim-readback (quire#1115): the PR is read after the write
-        for line in actledger.read_back(found.github, args.verb, target, options):
-            _refuse(line)
+        _recorded(
+            found, world, actledger.Done(verb=args.verb, target=target, options=options)
+        )
+
+
+def _recorded(found: Context, world: actcore.Act, done: actledger.Done) -> None:
+    # the ledger's record of a write, then the PR read after it (keyword:
+    # claim-readback, quire#1115)
+    if event := actledger.ledger_event(world, done, found.now.isoformat()):
+        logline.record(found.settings.slots.log, event)
+    for line in actledger.read_back(found.github, done):
+        _refuse(line)

@@ -22,7 +22,7 @@ from . import (
     ticketreader,
     totalroutes,
 )
-from .actcore import Act, Options, Refused, Target, gate
+from .actcore import Act, Options, Refused, Target, cap_of, gate
 
 Verb = Callable[[Act, Target, Options], str]
 
@@ -60,8 +60,8 @@ def dispatch_next(act: Act, target: Target, options: Options) -> str:
     """
     gate(act, "dispatch-next", target.repo)
     state = act.work()
-    if act.owner.cap:
-        state = dataclasses.replace(state, cap=act.owner.cap)
+    if cap := cap_of(act.owner):
+        state = dataclasses.replace(state, cap=cap)
     item = act.controls.next_item(
         state, options.get("want", ""), options.get("agent", "")
     )

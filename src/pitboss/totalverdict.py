@@ -29,7 +29,7 @@ from . import (
     totalrows,
     totalschema,
 )
-from .totaljson import JsonMap, failed_read, mapping, name_at, records, text
+from .totaljson import JsonMap, failed_read, members, name_at, records, text
 
 GO = totalanswer.GO
 STOP = totalanswer.STOP
@@ -163,7 +163,7 @@ def _review_lines(
     newest = text(attempts[-1].get("body")) if attempts else ""
     if action in totalanswer.MERGE_ACTIONS:
         head = name_at(pull, "head", "sha")
-        tickets = mapping(ctx.get("tickets"))
+        tickets = members(ctx.get("tickets"))
         why = rules.review(newest, head, pull.get("body"), tickets) if attempts else ""
         return (
             [f"review: {why or 'no review attempt on this PR'}"]
@@ -181,7 +181,7 @@ def _review_lines(
 
 
 def _block_lines(ctx: JsonMap) -> Sequence[str]:
-    blockers = mapping(ctx.get("blockers"))
+    blockers = members(ctx.get("blockers"))
     timeline = records(ctx.get("timeline"))
     found = []
     for _, rest in totalreview.act_records(
@@ -197,7 +197,7 @@ def _block_lines(ctx: JsonMap) -> Sequence[str]:
 
 
 def _ticket_lines(ctx: JsonMap, kind: str) -> Sequence[str]:
-    tickets = mapping(ctx.get("tickets"))
+    tickets = members(ctx.get("tickets"))
     found = (
         ["ticket: the body closes no ticket"]
         if not tickets and kind == "change"
@@ -277,7 +277,7 @@ def _stops(action: str, pull: JsonMap, given: JsonMap, rules: Policy) -> Sequenc
     if kind == totalbody.CHANGE:
         found += _review_lines(action, pull, ctx, rules)
     head = name_at(pull, "head", "sha")
-    found += rules.body(pull.get("body"), head, mapping(ctx.get("blockers")))
+    found += rules.body(pull.get("body"), head, members(ctx.get("blockers")))
     found += _block_lines(ctx)
     found += _merge_lines(action, pull, ctx, kind)
     found += _ticket_lines(ctx, kind)

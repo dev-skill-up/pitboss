@@ -3,22 +3,24 @@
 import copy
 import json
 import dataclasses
+import functools
 import pathlib
 import subprocess
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 
 from .. import dispatchnext
-from ..actcore import Act, Change, Controls, Owner, Pull
-from ..totaljson import mapping, records
+from ..actcore import Act, Controls, Owner
+from ..actport import Change, Hub, Pull
+from ..totaljson import members, records
 from . import totalworld
 from .totalworld import World
 
 Key = tuple[str, int]
 
 
-@dataclasses.dataclass(slots=True, kw_only=True)
-class FakeHub:
-    """GitHub in memory.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Memory:
+    """GitHub in memory: the state the fake port reads and writes.
 
     Attributes:
         pulls_made: each PR.
@@ -28,103 +30,83 @@ class FakeHub:
         identity: the login comments are posted with.
     """
 
-    pulls_made: dict[Key, Pull] = dataclasses.field(default_factory=dict)
-    events: dict[Key, list[object]] = dataclasses.field(default_factory=dict)
-    issues_made: dict[Key, Pull] = dataclasses.field(default_factory=dict)
-    writes: list[Change] = dataclasses.field(default_factory=list)
+    pulls_made: MutableMapping[Key, Pull] = dataclasses.field(default_factory=dict)
+    events: MutableMapping[Key, list[object]] = dataclasses.field(default_factory=dict)
+    issues_made: MutableMapping[Key, Pull] = dataclasses.field(default_factory=dict)
+    writes: MutableSequence[Change] = dataclasses.field(default_factory=list)
     identity: str = totalworld.ACT
 
-    def pull(self, repo: str, number: int) -> Pull:
-        """Read a PR.
 
-        Args:
-            repo: the repository.
-            number: the PR.
-
-        Returns:
-            A copy of it.
-        """
-        return copy.deepcopy(self.pulls_made[(repo, number)])
-
-    def timeline(self, repo: str, number: int) -> list[object]:
-        """Read a timeline.
-
-        Args:
-            repo: the repository.
-            number: the PR.
-
-        Returns:
-            A copy of it.
-        """
-        return copy.deepcopy(self.events.get((repo, number), []))
-
-    def issues(self, repo: str, label: str) -> list[Pull]:
-        """Read the open issues with a label.
-
-        Args:
-            repo: the repository.
-            label: the label.
-
-        Returns:
-            The issues.
-        """
-        return [
-            issue
-            for (where, _), issue in self.issues_made.items()
-            if where == repo
-            and label in str(issue.get("labels")).split(",")
-            and issue.get("state") == "open"
-        ]
-
-    def pulls(self, repo: str) -> list[Pull]:
-        """Read the open PRs.
-
-        Args:
-            repo: the repository.
-
-        Returns:
-            The PRs.
-        """
-        return [
-            pull
-            for (where, _), pull in self.pulls_made.items()
-            if where == repo and pull.get("state", "open") == "open"
-        ]
-
-    def write(self, change: Change) -> str:
-        """Make one write.
-
-        Args:
-            change: the write.
-
-        Returns:
-            The number of what was made, or "".
-        """
-        self.writes.append(change)
-        return WRITES.get(change.kind, _nothing)(self, change)
+def _pull(memory: Memory, repo: str, number: int) -> Pull:
+    return copy.deepcopy(memory.pulls_made[(repo, number)])
 
 
-def _nothing(hub: FakeHub, change: Change) -> str:
+def _timeline(memory: Memory, repo: str, number: int) -> Sequence[object]:
+    return copy.deepcopy(memory.events.get((repo, number), []))
+
+
+def _issues(memory: Memory, repo: str, label: str) -> Sequence[Pull]:
+    return [
+        issue
+        for (where, _), issue in memory.issues_made.items()
+        if where == repo
+        and label in str(issue.get("labels")).split(",")
+        and issue.get("state") == "open"
+    ]
+
+
+def _open_pulls(memory: Memory, repo: str) -> Sequence[Pull]:
+    return [
+        pull
+        for (where, _), pull in memory.pulls_made.items()
+        if where == repo and pull.get("state", "open") == "open"
+    ]
+
+
+def _write(memory: Memory, change: Change) -> str:
+    memory.writes.append(change)
+    return WRITES.get(change.kind, _nothing)(memory, change)
+
+
+def port(memory: Memory) -> Hub:
+    """The verbs' GitHub over the memory.
+
+    Args:
+        memory: the state.
+
+    Returns:
+        The port; each read gives a copy.
+    """
+    return Hub(
+        pull=functools.partial(_pull, memory),
+        timeline=functools.partial(_timeline, memory),
+        issues=functools.partial(_issues, memory),
+        open_pulls=functools.partial(_open_pulls, memory),
+        write=functools.partial(_write, memory),
+    )
+
+
+def _nothing(memory: Memory, change: Change) -> str:
     return ""
 
 
-def _comment(hub: FakeHub, change: Change) -> str:
-    events = hub.events.setdefault((change.repo, change.number), [])
-    identifier = 5000 + sum(len(each) for each in hub.events.values())
+def _comment(memory: Memory, change: Change) -> str:
+    events = memory.events.setdefault((change.repo, change.number), [])
+    identifier = 5000 + sum(len(each) for each in memory.events.values())
     events.append(
         {
             "event": "commented",
             "id": identifier,
-            "user": {"login": hub.identity},
+            "user": {"login": memory.identity},
             "body": change.fields["body"],
         }
     )
     return str(identifier)
 
 
-def _issue(hub: FakeHub, change: Change) -> str:
-    number = 100 + len(hub.issues_made)
-    hub.issues_made[(change.repo, number)] = {
+def _issue(memory: Memory, change: Change) -> str:
+    number = 100 + len(memory.issues_made)
+    memory.issues_made[(change.repo, number)] = {
         "number": number,
         "state": "open",
         **change.fields,
@@ -134,18 +116,18 @@ def _issue(hub: FakeHub, change: Change) -> str:
 
 def _set(
     updates: Callable[[Change], Mapping[str, object]], where: str = "pulls"
-) -> Callable[[FakeHub, Change], str]:
-    def made(hub: FakeHub, change: Change) -> str:
-        table = hub.pulls_made if where == "pulls" else hub.issues_made
+) -> Callable[[Memory, Change], str]:
+    def made(memory: Memory, change: Change) -> str:
+        table = memory.pulls_made if where == "pulls" else memory.issues_made
         table[(change.repo, change.number)].update(updates(change))
         return ""
 
     return made
 
 
-def _labels(add: bool) -> Callable[[FakeHub, Change], str]:
-    def made(hub: FakeHub, change: Change) -> str:
-        pull = hub.pulls_made[(change.repo, change.number)]
+def _labels(add: bool) -> Callable[[Memory, Change], str]:
+    def made(memory: Memory, change: Change) -> str:
+        pull = memory.pulls_made[(change.repo, change.number)]
         names = [
             each.get("name")
             for each in records(pull.get("labels"))
@@ -160,16 +142,16 @@ def _labels(add: bool) -> Callable[[FakeHub, Change], str]:
     return made
 
 
-def _dequeue(hub: FakeHub, change: Change) -> str:
-    hub.events.setdefault((change.repo, change.number), []).append(
+def _dequeue(memory: Memory, change: Change) -> str:
+    memory.events.setdefault((change.repo, change.number), []).append(
         {"event": "removed_from_merge_queue"}
     )
     return ""
 
 
-def _pr(hub: FakeHub, change: Change) -> str:
-    number = 900 + len(hub.pulls_made)
-    hub.pulls_made[(change.repo, number)] = {
+def _pr(memory: Memory, change: Change) -> str:
+    number = 900 + len(memory.pulls_made)
+    memory.pulls_made[(change.repo, number)] = {
         "number": number,
         "state": "open",
         **change.fields,
@@ -177,7 +159,7 @@ def _pr(hub: FakeHub, change: Change) -> str:
     return str(number)
 
 
-WRITES: Mapping[str, Callable[[FakeHub, Change], str]] = {
+WRITES: Mapping[str, Callable[[Memory, Change], str]] = {
     "comment": _comment,
     "issue": _issue,
     "pr": _pr,
@@ -229,12 +211,12 @@ class Made:
     """A fake GitHub holding a world, and a verb's world over it.
 
     Attributes:
-        hub: the fake GitHub.
+        hub: the fake GitHub's state.
         act: the verb's world.
         world: the world it holds.
     """
 
-    hub: FakeHub
+    hub: Memory
     act: Act
     world: World
 
@@ -257,8 +239,9 @@ def made(
         The hub and the verb's world.
     """
     repo, number = str(world.ctx["repo"]), int(str(world.pull["number"]))
-    hub = FakeHub(pulls_made={(repo, number): copy.deepcopy(world.pull)})
-    hub.events[(repo, number)] = list(records(world.ctx["timeline"]))
+    memory = Memory(pulls_made={(repo, number): copy.deepcopy(world.pull)})
+    memory.events[(repo, number)] = list(records(world.ctx["timeline"]))
+    hub = port(memory)
 
     def inputs(where: str, which: int, pull: Pull, timeline: list[object]) -> Pull:
         return {
@@ -271,13 +254,13 @@ def made(
         inputs=inputs,
         owner=owner or Owner(),
         repos=list(repos) or [repo],
-        p90={repo: 2151},
+        p90=lambda _: 2151,
         run=git_run,
         prepush=lambda: (0, "lint passed\nok\n"),
         work=state,
         controls=controls,
     )
-    return Made(hub=hub, act=act, world=world)
+    return Made(hub=memory, act=act, world=world)
 
 
 def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
@@ -293,9 +276,9 @@ def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
         (totalworld.FOLDER / "rulefiles.json").read_text(encoding="utf-8")
     )
     checkouts = {}
-    for repo, files in mapping(found).items():
+    for repo, files in members(found).items():
         checkout = root / repo.split("/")[1]
-        for name, text in mapping(files).items():
+        for name, text in members(files).items():
             (checkout / name).parent.mkdir(parents=True, exist_ok=True)
             (checkout / name).write_text(str(text), encoding="utf-8")
         checkouts[repo] = checkout

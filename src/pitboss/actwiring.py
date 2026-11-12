@@ -8,18 +8,16 @@ cap`` set; the verbs read it and ``ack`` writes it back. The order of work reads
 configured slots, the ledger, the open PRs and the open tickets of each priority.
 """
 
-import collections.abc
-import dataclasses
 import json
 import pathlib
 import subprocess
 import sys
-from typing import Callable, Iterator, Sequence
+from typing import Callable, Sequence
 
 from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
-from .actcore import Act, Controls, Hub, Owner
+from .actcore import Act, Controls, Hub, Owner, cap_of
 from .running import Run
-from .totaljson import mapping, name_at, records, text
+from .totaljson import at, listing, members, name_at, records, text
 
 SIZES = (
     "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name)"
@@ -27,6 +25,9 @@ SIZES = (
 )
 
 OWNER = "owner.json"
+CONTROLS = Controls(
+    verdict=totalverdict.verdict, not_overridable=totalverdict.NOT_OVERRIDABLE
+)
 
 
 def owner_of(path: pathlib.Path) -> Owner:
@@ -39,15 +40,15 @@ def owner_of(path: pathlib.Path) -> Owner:
         What it holds; nothing when the file is not there.
     """
     found = (
-        mapping(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else {}
+        members(json.loads(path.read_text(encoding="utf-8"))) if path.exists() else {}
     )
     dispositions = {
-        key: text(value) for key, value in mapping(found.get("dispositions")).items()
+        key: text(value) for key, value in members(found.get("dispositions")).items()
     }
-    messages = [text(each) for each in found.get("messages", []) or []]  # type: ignore[union-attr]
-    return Owner(
-        messages=messages, dispositions=dispositions, cap=int(str(found.get("cap", 0)))
-    )
+    messages = tuple(text(each) for each in listing(found.get("messages")))
+    cap = int(str(found.get("cap", 0)))
+    caps = {"": cap} if cap else {}
+    return Owner(messages=messages, dispositions=dispositions, caps=caps)
 
 
 def write_owner(path: pathlib.Path, owner: Owner) -> None:
@@ -58,9 +59,9 @@ def write_owner(path: pathlib.Path, owner: Owner) -> None:
         owner: what to write.
     """
     words = {
-        "messages": owner.messages,
-        "dispositions": owner.dispositions,
-        "cap": owner.cap,
+        "messages": list(owner.messages),
+        "dispositions": dict(owner.dispositions),
+        "cap": cap_of(owner),
     }
     path.write_text(
         json.dumps(words, indent=1, sort_keys=True) + "\n", encoding="utf-8"
@@ -79,6 +80,20 @@ def _item(
     )
 
 
+def _open_work(hub: Hub, settings: config.Config) -> list[dispatchnext.Item]:
+    # the open PRs, then the open tickets of each priority label
+    repos = [each.slug for each in configrepos.repositories(settings)]
+    items = [_item(pull, repo, "pr") for repo in repos for pull in hub.open_pulls(repo)]
+    for label in settings.slots.priority_labels:
+        items += [
+            _item(each, repo, "ticket", label)
+            for repo in repos
+            for each in hub.issues(repo, label)
+            if "pull_request" not in each
+        ]
+    return items
+
+
 def work(hub: Hub, settings: config.Config) -> Callable[[], dispatchnext.State]:
     """What the order of work reads.
 
@@ -92,15 +107,7 @@ def work(hub: Hub, settings: config.Config) -> Callable[[], dispatchnext.State]:
 
     def read() -> dispatchnext.State:
         found = ledger.configured(settings)
-        repos = [each.slug for each in configrepos.repositories(settings)]
-        items = [_item(pull, repo, "pr") for repo in repos for pull in hub.pulls(repo)]
-        for label in settings.slots.priority_labels:
-            items += [
-                _item(each, repo, "ticket", label)
-                for repo in repos
-                for each in hub.issues(repo, label)
-                if "pull_request" not in each
-            ]
+        items = _open_work(hub, settings)
         slots = [each.name for each in settings.slots.default]
         return dispatchnext.State(
             cap=len(slots),
@@ -133,119 +140,77 @@ def prepush(
     return check
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class P90(collections.abc.Mapping[str, int]):
+def _p90(github: acthub.ghapi.GitHub, repo: str) -> int:
+    # the size of 90 of 100 merged PRs; an unread size is 0, so every size needs
+    # a ruling
+    owner, _, name = repo.partition("/")
+    words = ["gh", "api", "graphql", "-f", f"query={SIZES}"]
+    words += ["-f", f"owner={owner}", "-f", f"name={name}"]
+    try:
+        answer = json.loads(github.run(words).stdout)
+    except Exception:  # noqa: B902 - an unread size is 0
+        answer = {}
+    nodes = records(at(answer, "data", "repository", "pullRequests", "nodes"))
+    sizes = sorted(
+        int(str(each.get("additions", 0))) + int(str(each.get("deletions", 0)))
+        for each in nodes
+    )
+    return sizes[(9 * len(sizes) + 9) // 10 - 1] if sizes else 0
+
+
+def limits(github: acthub.ghapi.GitHub) -> Callable[[str], int]:
     """Each repository's 90th percentile of the lines its last 100 merged PRs changed.
 
-    Read when asked.
-
-    Attributes:
+    Args:
         github: the reading runner.
-        found: what was read.
+
+    Returns:
+        What reads a repository's percentile (0 when it has no merged PR) once,
+        when first asked.
     """
+    found: dict[str, int] = {}
 
-    github: acthub.ghapi.GitHub
-    found: dict[str, int] = dataclasses.field(default_factory=dict)
+    def limit(repo: str) -> int:
+        if repo not in found:
+            found[repo] = _p90(github, repo)
+        return found[repo]
 
-    def __getitem__(self, repo: str) -> int:
-        """Read a repository's percentile.
+    return limit
 
-        Args:
-            repo: ``owner/name``.
 
-        Returns:
-            The percentile (0 when it has no merged PR).
-        """
-        if repo not in self.found:
-            owner, _, name = repo.partition("/")
-            words = [
-                "gh",
-                "api",
-                "graphql",
-                "-f",
-                f"query={SIZES}",
-                "-f",
-                f"owner={owner}",
-                "-f",
-                f"name={name}",
-            ]
-            try:
-                answer = json.loads(self.github.run(words).stdout)
-            except (
-                Exception
-            ):  # noqa: B902 - an unread size is 0: every size then needs a ruling
-                answer = {}
-            nodes = records(
-                mapping(
-                    mapping(mapping(mapping(answer).get("data")).get("repository")).get(
-                        "pullRequests"
-                    )
-                ).get("nodes")
-            )
-            sizes = sorted(
-                int(str(each.get("additions", 0))) + int(str(each.get("deletions", 0)))
-                for each in nodes
-            )
-            self.found[repo] = sizes[(9 * len(sizes) + 9) // 10 - 1] if sizes else 0
-        return self.found[repo]
-
-    def __iter__(self) -> Iterator[str]:
-        """The repositories read so far.
-
-        Returns:
-            An iterator over them.
-        """
-        return iter(self.found)
-
-    def __len__(self) -> int:
-        """How many were read.
-
-        Returns:
-            The count.
-        """
-        return len(self.found)
+def _quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(list(words), capture_output=True, text=True, check=False)
 
 
 def act_of(
-    github: acthub.ghapi.GitHub,
-    settings: config.Config,
-    owner: Owner,
-    run: Run,
-    identity: str,
+    github: acthub.ghapi.GitHub, settings: config.Config, owner: Owner, run: Run
 ) -> Act:
-    """The verbs' world.
+    """The verbs' world; the verbs post as the login ``gh`` is signed in as.
 
     Args:
         github: the reading and the writing runner.
         settings: the configuration.
         owner: the owner's messages.
         run: the runner git goes through.
-        identity: the login the verbs post with.
 
     Returns:
         The world.
     """
-    hub = acthub.GhHub(github=github)
+    hub = acthub.hub_of(github)
     repos = [each.slug for each in configrepos.repositories(settings)]
-    limits = P90(github=github)
-    given = actinputs.Settings(identity=identity, authors=[identity], max_lines=limits)
+    p90 = limits(github)
+    identity = identity_of(github)
+    given = actinputs.Settings(identity=identity, authors=[identity], max_lines=p90)
     return Act(
         hub=hub,
         inputs=actinputs.inputs(actinputs.reader(github), given),
         owner=owner,
         repos=repos,
-        p90=limits,
+        p90=p90,
         run=run,
-        prepush=prepush(
-            lambda words: subprocess.run(
-                list(words), capture_output=True, text=True, check=False
-            )
-        ),
+        prepush=prepush(_quiet),
         work=work(hub, settings),
-        controls=Controls(
-            verdict=totalverdict.verdict,
-            not_overridable=totalverdict.NOT_OVERRIDABLE,
-        ),
+        controls=CONTROLS,
     )
 
 

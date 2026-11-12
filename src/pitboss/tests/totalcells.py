@@ -13,7 +13,7 @@ import dataclasses
 from typing import Callable, Iterator, Mapping, Sequence
 
 from .. import enumeration, totalschema, totalverdict
-from ..totaljson import JsonMap, mapping, records
+from ..totaljson import JsonMap, members, records
 from . import totalworld
 from .totalworld import World
 
@@ -94,7 +94,7 @@ def _field(given: Given) -> Iterator[Cell]:
     )
     if "any of" in declaration:
         bad = {
-            **mapping(given.base.pull.get(given.value)),
+            **members(given.base.pull.get(given.value)),
             "repo": {"full_name": "someone/fork"},
         }
     wrong = world_of(given, pull={given.value: bad})
@@ -174,7 +174,7 @@ def review_variants(base: World) -> Mapping[str, str]:
         The text of each variant.
     """
     head, body = totalworld.head_of(base), base.pull.get("body")
-    tickets = mapping(base.ctx.get("tickets"))
+    tickets = members(base.ctx.get("tickets"))
     text = str(totalworld.review(head, body, tickets)["body"])
     return {
         "verdict-line": text.replace("Verdict: approved", "Verdict: approved."),
@@ -206,8 +206,8 @@ def _ticket_state(given: Given) -> Iterator[Cell]:
 
 
 def _open_ticket(given: Given) -> JsonMap:
-    return mapping(
-        mapping(given.base.ctx["tickets"]).get(totalworld.ticket_ref(given.base))
+    return members(
+        members(given.base.ctx["tickets"]).get(totalworld.ticket_ref(given.base))
     )
 
 

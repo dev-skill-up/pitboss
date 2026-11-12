@@ -59,7 +59,7 @@ def _cap(given: Kit) -> bool:
     )
     return (
         bool(first and both)
-        and hub.act.owner.cap == 1
+        and actcore.cap_of(hub.act.owner) == 1
         and dispatch(given, hub, fakehub.state()) == "q#10"
     )
 
@@ -72,7 +72,7 @@ def _merges_held(given: Kit) -> bool:
     return (
         free
         and bool(refused(lambda: act(given, hub, "merge")))
-        and not hub.hub.pull(REPO, NUMBER).get("merged")
+        and not hub.act.hub.pull(REPO, NUMBER).get("merged")
     )
 
 
@@ -84,7 +84,7 @@ def _undrafts_held(given: Kit) -> bool:
     return (
         free
         and bool(refused(lambda: act(given, hub, "undraft")))
-        and hub.hub.pull(REPO, NUMBER)["draft"] is True
+        and hub.act.hub.pull(REPO, NUMBER)["draft"] is True
     )
 
 
@@ -276,7 +276,7 @@ def _shared_red(given: Kit) -> bool:
 def _block(given: Kit) -> bool:
     hub = made(given)
     act(given, hub, "block", on="bats-lang/quire#1110")
-    timeline = hub.hub.timeline(REPO, NUMBER)
+    timeline = hub.act.hub.timeline(REPO, NUMBER)
     world = change(ctx={"timeline": timeline})
     opened = change(
         ctx={"timeline": timeline, "blockers": {"bats-lang/quire#1110": "open"}}

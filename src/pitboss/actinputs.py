@@ -12,11 +12,11 @@ fails is kept as ``{"_error": ...}`` so the verdict stops on it.
 import dataclasses
 import json
 import re
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Sequence
 
 from . import ghapi, ticketreader, totalbody, totalreview
 from .actcore import Inputs, Pull
-from .totaljson import lines_of, mapping, name_at, records, text
+from .totaljson import lines_of, members, name_at, records, text
 
 Read = Callable[[str], object]
 
@@ -33,7 +33,7 @@ class Settings:
 
     identity: str
     authors: Sequence[str]
-    max_lines: Mapping[str, int]
+    max_lines: Callable[[str], int]
 
 
 ALL = "all:"
@@ -74,7 +74,7 @@ def _rules(read: Read, repo: str, branch: str) -> tuple[list[str], bool]:
         for rule in rules
         if rule.get("type") == "required_status_checks"
         for each in records(
-            mapping(rule.get("parameters")).get("required_status_checks")
+            members(rule.get("parameters")).get("required_status_checks")
         )
     ]
     return checks, any(rule.get("type") == "merge_queue" for rule in rules)
@@ -113,13 +113,13 @@ def _blockers(
     for ref in named:
         full = ref if not ref.startswith("#") else f"{repo}{ref}"
         state = _states(read, [full])[full]
-        states[ref] = text(mapping(state).get("state")) or "not read"
+        states[ref] = text(members(state).get("state")) or "not read"
     return states
 
 
 def _head_reads(read: Read, repo: str, head: str) -> Pull:
-    runs = mapping(read(f"repos/{repo}/commits/{head}/check-runs?per_page=100"))
-    status = mapping(read(f"repos/{repo}/commits/{head}/status"))
+    runs = members(read(f"repos/{repo}/commits/{head}/check-runs?per_page=100"))
+    status = members(read(f"repos/{repo}/commits/{head}/status"))
     return {
         "check_runs": runs.get("check_runs", runs) if "_error" not in runs else runs,
         "statuses": (
@@ -150,7 +150,7 @@ def inputs(read: Read, settings: Settings) -> Inputs:
             "repo": repo,
             "number": number,
             "default_branch": text(
-                mapping(read(f"repos/{repo}")).get("default_branch")
+                members(read(f"repos/{repo}")).get("default_branch")
             ),
             "authors": set(settings.authors) | {settings.identity},
             "act_identity": settings.identity,
@@ -159,7 +159,7 @@ def inputs(read: Read, settings: Settings) -> Inputs:
             **_head_reads(read, repo, name_at(pull, "head", "sha")),
             "tickets": _states(read, tickets),
             "files": read(f"{ALL}repos/{repo}/pulls/{number}/files?per_page=100"),
-            "max_lines": settings.max_lines.get(repo),
+            "max_lines": settings.max_lines(repo),
             "holds": [],
             "timeline": events,
             "blockers": _blockers(read, body, repo, records(events), settings.identity),

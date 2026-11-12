@@ -18,13 +18,12 @@ from .knownkit import (
     REPO,
     act,
     change,
-    git,
     kit,
     made,
     refused,
-    repo_pair,
     verdict,
 )
+from .knowngit import git, repo_pair
 from .totalworld import World
 
 GIVEN = kit()
@@ -146,7 +145,7 @@ class TestMerge(unittest.TestCase):
         act(GIVEN, hub, "ack", message="m4", kind="cap", cap="3")
         act(GIVEN, hub, "ack", message="m5", kind="ruling", reason="#12")
         assert_that(
-            (hub.act.owner.cap, hub.act.owner.dispositions),
+            (actcore.cap_of(hub.act.owner), hub.act.owner.dispositions),
             equal_to((3, {"m4": "cap", "m5": "ruling"})),
         )
 
@@ -157,9 +156,9 @@ class TestMerge(unittest.TestCase):
         """
         hub = made(GIVEN)
         act(GIVEN, hub, "arm")
-        timeline = hub.hub.timeline(REPO, NUMBER)
+        timeline = hub.act.hub.timeline(REPO, NUMBER)
         assert_that(timeline[-1]["body"], equal_to(f"pitboss-act: arm head={HEAD}"))  # type: ignore[index]
-        pull = hub.hub.pull(REPO, NUMBER)
+        pull = hub.act.hub.pull(REPO, NUMBER)
         world = World(pull=pull, ctx={**BASE.ctx, "timeline": timeline})
         assert_that(
             (pull["auto_merge"] is not None, verdict(GIVEN, "merge", world).word),
@@ -185,7 +184,7 @@ class TestReview(unittest.TestCase):
             findings="Findings: the change does what the ticket says.",
             **grades,
         )
-        timeline = hub.hub.timeline(REPO, NUMBER)
+        timeline = hub.act.hub.timeline(REPO, NUMBER)
         assert_that(
             verdict(GIVEN, "merge", change(ctx={"timeline": timeline})).word,
             equal_to(totalverdict.GO),

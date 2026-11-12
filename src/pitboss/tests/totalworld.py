@@ -12,7 +12,7 @@ import pathlib
 from typing import Iterable, Mapping
 
 from .. import bodydigest, dispatchnext, totalreview
-from ..totaljson import JsonMap, mapping, name_at
+from ..totaljson import JsonMap, members, name_at
 
 FOLDER = pathlib.Path(__file__).with_name("total")
 ACT = "moshez"
@@ -142,7 +142,7 @@ def base() -> World:
     pull = _pull()
     head = name_at(pull, "head", "sha")
     ctx = _ctx(name_at(pull, "base", "repo", "full_name"), pull.get("number"), head)
-    tickets = mapping(ctx["tickets"])
+    tickets = members(ctx["tickets"])
     ctx["timeline"] = [*_events(ctx), review(head, pull.get("body"), tickets)]
     return World(pull=pull, ctx=ctx)
 
@@ -199,7 +199,7 @@ def ticket_ref(world: World) -> str:
     Returns:
         Its reference.
     """
-    return next(iter(mapping(world.ctx.get("tickets"))))
+    return next(iter(members(world.ctx.get("tickets"))))
 
 
 def item(ref: str, created: str, **fields: str) -> dispatchnext.Item:

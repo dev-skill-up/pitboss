@@ -216,7 +216,7 @@ def make_hold(act: Act, where: str, scope: str, source: str) -> str:
             "labels": HOLD_LABEL,
         }
         act.hub.write(Change(kind="issue", repo=repo, fields=fields))
-        for pull in act.hub.pulls(repo) if scope in DISARMING else ():
+        for pull in act.hub.open_pulls(repo) if scope in DISARMING else ():
             number = pull.get("number")
             act.controls.disarm(
                 act,

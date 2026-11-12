@@ -123,7 +123,9 @@ class TestCommand(unittest.TestCase):
         hub = made(given)
         target = actcore.Target(repo=REPO, number=NUMBER)
         event = actledger.ledger_event(
-            hub.act, "merge", target, {}, "2026-11-12T00:00:00"
+            hub.act,
+            actledger.Done(verb="merge", target=target, options={}),
+            "2026-11-12T00:00:00",
         )
         branch = str(dict(BASE.pull["head"])["ref"])  # type: ignore[call-overload]
         assert_that(
@@ -131,11 +133,17 @@ class TestCommand(unittest.TestCase):
             equal_to(f"merge {REPO}#{NUMBER} {branch} at act"),
         )
         assert_that(
-            actledger.ledger_event(hub.act, "comment", target, {}, ""),
+            actledger.ledger_event(
+                hub.act, actledger.Done(verb="comment", target=target, options={}), ""
+            ),
             equal_to(None),
         )
         pushed = actledger.ledger_event(
-            hub.act, "push", actcore.Target(repo=REPO), {"branch": "w"}, ""
+            hub.act,
+            actledger.Done(
+                verb="push", target=actcore.Target(repo=REPO), options={"branch": "w"}
+            ),
+            "",
         )
         assert_that(pushed.what if pushed else "", equal_to(f"push {REPO}#0 w at act"))
 
@@ -223,9 +231,11 @@ class TestHub(unittest.TestCase):
             "repos/o/r/pulls": "7\n",
         }
         calls, github = _github(answers)
-        hub = acthub.GhHub(github=github)
+        hub = acthub.hub_of(github)
         assert_that(hub.pull("o/r", 3), equal_to({"number": 3}))
-        assert_that([each["number"] for each in hub.pulls("o/r")], equal_to([1, 2]))
+        assert_that(
+            [each["number"] for each in hub.open_pulls("o/r")], equal_to([1, 2])
+        )
         assert_that(
             (hub.timeline("o/r", 3), hub.issues("o/r", "pitboss-hold")),
             equal_to(([], [])),
@@ -276,7 +286,7 @@ class TestInputs(unittest.TestCase):
         }
         _, github = _github(answers)
         settings = actinputs.Settings(
-            identity="bot", authors=["dependabot[bot]"], max_lines={"o/r": 400}
+            identity="bot", authors=["dependabot[bot]"], max_lines=lambda _: 400
         )
         made_ = actinputs.inputs(actinputs.reader(github), settings)
         pull = {
@@ -307,11 +317,16 @@ class TestWiring(unittest.TestCase):
         path = fakes.directory() / actwiring.OWNER
         assert_that(actwiring.owner_of(path), equal_to(actcore.Owner()))
         actwiring.write_owner(
-            path, actcore.Owner(messages=["m1"], dispositions={"m1": "cap"}, cap=2)
+            path,
+            actcore.Owner(messages=("m1",), dispositions={"m1": "cap"}, caps={"m1": 2}),
         )
         assert_that(
             actwiring.owner_of(path),
-            equal_to(actcore.Owner(messages=["m1"], dispositions={"m1": "cap"}, cap=2)),
+            equal_to(
+                actcore.Owner(
+                    messages=("m1",), dispositions={"m1": "cap"}, caps={"": 2}
+                )
+            ),
         )
 
     def test_c17_the_pre_push_check_says_its_status_and_output(self) -> None:
@@ -332,17 +347,8 @@ class TestWiring(unittest.TestCase):
                 )
             }
         )
-        found = actwiring.P90(github=github)
-        assert_that(
-            (
-                found["o/r"],
-                found.get("o/r"),
-                found.get("o/none"),
-                len(found),
-                sorted(found),
-            ),
-            equal_to((9, 9, 0, 2, ["o/none", "o/r"])),
-        )
+        found = actwiring.limits(github)
+        assert_that((found("o/r"), found("o/r"), found("o/none")), equal_to((9, 9, 0)))
         assert_that(len(calls), equal_to(2))
 
     def test_c17_the_order_of_work_reads_slots_prs_and_tickets(self) -> None:

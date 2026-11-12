@@ -6,13 +6,14 @@ dry run unless the command was given ``--no-dry-run``. Each write kind of
 """
 
 import dataclasses
+import functools
 import json
 import urllib.parse
 from typing import Callable, Mapping, Sequence
 
 from . import ghapi
-from .actcore import Change, Pull
-from .totaljson import lines_of, mapping, records, text
+from .actport import Change, Hub, Pull
+from .totaljson import lines_of, members, records, text
 
 Words = Callable[[Change], Sequence[str]]
 QUEUE = (
@@ -27,12 +28,12 @@ def _api(method: str, path: str, *fields: str, jq: str = "") -> Sequence[str]:
 
 def _fields(change: Change, *names: str) -> Sequence[str]:
     found = []
-    for name in names:
-        value = change.fields.get(name, "")
-        if name == "labels":
+    for key in names:
+        value = change.fields.get(key, "")
+        if key == "labels":
             found.extend(f"labels[]={each}" for each in value.split(",") if each)
         elif value:
-            found.append(f"{name}={value}")
+            found.append(f"{key}={value}")
     return [word for each in found for word in ("-f", each)]
 
 
@@ -54,6 +55,11 @@ def _merge(*flags: str) -> Words:
         change.repo,
         *flags,
     ]
+
+
+def _branch_ref(change: Change) -> str:
+    branch = urllib.parse.quote(change.fields["branch"], safe="/")
+    return f"repos/{change.repo}/git/refs/heads/{branch}"
 
 
 def _runs(change: Change, rest: str) -> str:
@@ -145,95 +151,62 @@ WRITES: Mapping[str, Words] = {
         f"repos/{change.repo}/actions/workflows/{change.fields['workflow']}/dispatches",
         *_fields(change, "ref"),
     ),
-    "branch-delete": lambda change: _api(
-        "DELETE",
-        f"repos/{change.repo}/git/refs/heads/{urllib.parse.quote(change.fields['branch'], safe='/')}",
-    ),
+    "branch-delete": lambda change: _api("DELETE", _branch_ref(change)),
 }
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class GhHub:
+def _one(github: ghapi.GitHub, path: str) -> object:
+    return json.loads(github.run(["gh", "api", path]).stdout or "null")
+
+
+def _every(github: ghapi.GitHub, path: str) -> Sequence[Pull]:
+    out = github.run(["gh", "api", "--paginate", "--jq", ".[]", path]).stdout
+    return [dict(each) for each in records(lines_of(out))]
+
+
+def _pull(github: ghapi.GitHub, repo: str, number: int) -> Pull:
+    found = _one(github, f"repos/{repo}/pulls/{number}")
+    return found if isinstance(found, dict) else {}
+
+
+def _timeline(github: ghapi.GitHub, repo: str, number: int) -> Sequence[object]:
+    return _every(github, f"repos/{repo}/issues/{number}/timeline?per_page=100")
+
+
+def _labeled(github: ghapi.GitHub, repo: str, label: str) -> Sequence[Pull]:
+    quoted = urllib.parse.quote(label)
+    return _every(
+        github, f"repos/{repo}/issues?state=open&per_page=100&labels={quoted}"
+    )
+
+
+def _open_pulls(github: ghapi.GitHub, repo: str) -> Sequence[Pull]:
+    return _every(github, f"repos/{repo}/pulls?state=open&per_page=100")
+
+
+def _write(github: ghapi.GitHub, change: Change) -> str:
+    # a dry run unless the command was asked for writes; a PR with no base goes
+    # to the repository's default branch
+    if change.kind == "pr" and not change.fields.get("base"):
+        default = members(_one(github, f"repos/{change.repo}")).get("default_branch")
+        fields = {**change.fields, "base": text(default) or "main"}
+        change = dataclasses.replace(change, fields=fields)
+    return github.mutate(list(WRITES[change.kind](change))).stdout.strip()
+
+
+def hub_of(github: ghapi.GitHub) -> Hub:
     """GitHub through ``gh``.
 
-    Attributes:
+    Args:
         github: the reading and the writing runner.
+
+    Returns:
+        The port.
     """
-
-    github: ghapi.GitHub
-
-    def _get(self, path: str) -> object:
-        return json.loads(self.github.run(["gh", "api", path]).stdout or "null")
-
-    def _all(self, path: str) -> list[Pull]:
-        out = self.github.run(["gh", "api", "--paginate", "--jq", ".[]", path]).stdout
-        return [dict(each) for each in records(lines_of(out))]
-
-    def pull(self, repo: str, number: int) -> Pull:
-        """Read a PR.
-
-        Args:
-            repo: the repository.
-            number: the PR.
-
-        Returns:
-            The PR as GitHub answers.
-        """
-        found = self._get(f"repos/{repo}/pulls/{number}")
-        return found if isinstance(found, dict) else {}
-
-    def timeline(self, repo: str, number: int) -> list[object]:
-        """Read a PR's timeline.
-
-        Args:
-            repo: the repository.
-            number: the PR.
-
-        Returns:
-            Its events, oldest first.
-        """
-        return list(self._all(f"repos/{repo}/issues/{number}/timeline?per_page=100"))
-
-    def issues(self, repo: str, label: str) -> list[Pull]:
-        """Read the open issues with a label.
-
-        Args:
-            repo: the repository.
-            label: the label.
-
-        Returns:
-            The issues.
-        """
-        return self._all(
-            f"repos/{repo}/issues?state=open&per_page=100&labels={urllib.parse.quote(label)}"
-        )
-
-    def pulls(self, repo: str) -> list[Pull]:
-        """Read the open PRs.
-
-        Args:
-            repo: the repository.
-
-        Returns:
-            The PRs.
-        """
-        return self._all(f"repos/{repo}/pulls?state=open&per_page=100")
-
-    def write(self, change: Change) -> str:
-        """Make one write (a dry run unless the command was asked for writes).
-
-        Args:
-            change: the write.
-
-        Returns:
-            What GitHub answered: the number of what was made, when it was made.
-        """
-        if change.kind == "pr" and not change.fields.get("base"):
-            branch = (
-                text(mapping(self._get(f"repos/{change.repo}")).get("default_branch"))
-                or "main"
-            )
-            change = dataclasses.replace(
-                change, fields={**change.fields, "base": branch}
-            )
-        return self.github.mutate(list(WRITES[change.kind](change))).stdout.strip()
+    return Hub(
+        pull=functools.partial(_pull, github),
+        timeline=functools.partial(_timeline, github),
+        issues=functools.partial(_labeled, github),
+        open_pulls=functools.partial(_open_pulls, github),
+        write=functools.partial(_write, github),
+    )

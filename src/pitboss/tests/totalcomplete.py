@@ -27,7 +27,7 @@ from .. import (
     totalrows,
     totalverdict,
 )
-from ..totaljson import JsonMap, mapping
+from ..totaljson import JsonMap, members
 from . import totalcells, totalworld
 
 Verdict = Callable[[str, JsonMap, JsonMap, totalverdict.Policy], totalverdict.Answer]
@@ -146,7 +146,7 @@ def _verbs(parts: Parts) -> Iterator[str]:
 
 def _forms(parts: Parts) -> Iterator[str]:
     world = totalworld.base()
-    tickets = mapping(world.ctx.get("tickets"))
+    tickets = members(world.ctx.get("tickets"))
     written = parts.forms.review(
         world.pull, GRADES, "The change does what the ticket says.", tickets
     )

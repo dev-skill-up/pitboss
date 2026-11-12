@@ -14,7 +14,7 @@ import re
 from typing import Mapping, Sequence
 
 from . import bodydigest
-from .totaljson import JsonMap, field, mapping, name_at, text
+from .totaljson import JsonMap, field, members, name_at, text
 
 GRADES = ("approved", "changes needed")
 GRADE_LINE = re.compile(r"(Plan|Execution): (approved|changes needed)( \([^()\n]*\))?")
@@ -205,7 +205,7 @@ def act_records(
     )
     found = []
     for each in timeline:
-        author = mapping(each.get("user") or each.get("actor"))
+        author = members(each.get("user") or each.get("actor"))
         if each.get("event") != "commented" or name_at(author, "login") != identity:
             continue
         if match := record.match(text(each.get("body"))):

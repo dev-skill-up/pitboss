@@ -11,18 +11,18 @@ the same against GitHub (``acthub``) and against a test's fake.
 
 import dataclasses
 import re
-from typing import Callable, Mapping, Protocol, Sequence
+from typing import AbstractSet, Callable, Mapping, MutableMapping, Sequence
 
-from . import dispatchnext, ticketreader, totalanswer
+from . import actport, dispatchnext, ticketreader, totalanswer, totaljson
 from .running import Run
-from .totaljson import JsonMap, name_at, records, text
+from .totaljson import JsonMap, name_at, text
 
-Pull = dict[str, object]
+Pull = actport.Pull
 Options = Mapping[str, str]
 HOLD_LABEL = "pitboss-hold"
 ACK_LABEL = "pitboss-ack"
 RECORD = "pitboss-act:"
-HELD: Mapping[str, frozenset[str]] = {
+HELD: Mapping[str, AbstractSet[str]] = {
     "pushes": frozenset({"push", "update-branch"}),
     "merges": frozenset({"merge", "arm"}),
     "undrafts": frozenset({"undraft"}),
@@ -56,115 +56,49 @@ ENDS_A_HOLD = frozenset(
     }
 )
 DISARMING = frozenset({"all", "merges", "ci"})
+EVERY_REPOSITORY = frozenset({"", "all"})
+QUEUED = "added_to_merge_queue"
+QUEUE_EVENTS = frozenset({QUEUED, "removed_from_merge_queue"})
 
 
 class Refused(Exception):
     """The verb does not write: a gate, the verdict or the form refused it."""
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Change:
-    """One write to GitHub.
-
-    Attributes:
-        kind: what is written (``merge``, ``comment``, ``issue`` ...).
-        repo: the repository.
-        number: the PR or issue (0 when none).
-        fields: what the write carries.
-    """
-
-    kind: str
-    repo: str
-    number: int = 0
-    fields: Mapping[str, str] = dataclasses.field(default_factory=dict)
-
-
-class Hub(Protocol):
-    """GitHub, as the verbs read and write it."""
-
-    def pull(self, repo: str, number: int) -> Pull:
-        """Read a PR.
-
-        Args:
-            repo: the repository.
-            number: the PR.
-
-        Returns:
-            The PR as GitHub answers.
-        """
-
-    def timeline(self, repo: str, number: int) -> list[object]:
-        """Read a PR's timeline.
-
-        Args:
-            repo: the repository.
-            number: the PR.
-
-        Returns:
-            Its events, oldest first.
-        """
-
-    def issues(self, repo: str, label: str) -> list[Pull]:
-        """Read the open issues with a label.
-
-        Args:
-            repo: the repository.
-            label: the label.
-
-        Returns:
-            The issues.
-        """
-
-    def pulls(self, repo: str) -> list[Pull]:
-        """Read the open PRs.
-
-        Args:
-            repo: the repository.
-
-        Returns:
-            The PRs.
-        """
-
-    def write(self, change: Change) -> str:
-        """Make one write.
-
-        Args:
-            change: the write.
-
-        Returns:
-            What GitHub answered (the number of what was made, when it was made).
-        """
+Change = actport.Change
+Hub = actport.Hub
+Target = actport.Target
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Target:
-    """What a verb acts on.
-
-    Attributes:
-        repo: the repository (``owner/name``).
-        number: the PR or issue (0 when none).
-    """
-
-    repo: str
-    number: int = 0
-
-
-@dataclasses.dataclass(slots=True, kw_only=True)
 class Owner:
     """The owner's messages and their dispositions.
 
     Attributes:
         messages: the ids of the owner's messages, in order.
-        dispositions: each answered message's disposition.
-        cap: the cap an ``ack --kind cap`` set (0 for the config's).
+        dispositions: each answered message's disposition (``ack`` adds one).
+        caps: the caps ``ack --kind cap`` set, by message, oldest first (``ack``
+            adds one).
     """
 
-    messages: list[str] = dataclasses.field(default_factory=list)
-    dispositions: dict[str, str] = dataclasses.field(default_factory=dict)
-    cap: int = 0
+    messages: Sequence[str] = ()
+    dispositions: MutableMapping[str, str] = dataclasses.field(default_factory=dict)
+    caps: MutableMapping[str, int] = dataclasses.field(default_factory=dict)
 
 
-Inputs = Callable[[str, int, Pull, list[object]], Pull]
+def cap_of(owner: Owner) -> int:
+    """The cap the owner set last.
+
+    Args:
+        owner: the owner's messages.
+
+    Returns:
+        It, or 0 for the configuration's.
+    """
+    return list(owner.caps.values())[-1] if owner.caps else 0
+
+
+Inputs = Callable[[str, int, Pull, Sequence[object]], Pull]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -220,7 +154,7 @@ class Act:
     inputs: Inputs
     owner: Owner
     repos: Sequence[str]
-    p90: Mapping[str, int]
+    p90: Callable[[str], int]
     run: Run
     prepush: Callable[[], tuple[int, str]]
     work: Callable[[], dispatchnext.State]
@@ -282,7 +216,7 @@ def hold_gate(act: Act, verb: str, repo: str) -> None:
     """
     if verb in ENDS_A_HOLD:
         return
-    for each in [repo] if repo not in ("", "all") else act.repos:
+    for each in [repo] if repo not in EVERY_REPOSITORY else act.repos:
         for hold in holds(act, each):
             if hold["scope"] == "all" or verb in HELD.get(text(hold["scope"]), ()):
                 raise Refused(f"hold: {hold['title']} holds {verb} in {each}")
@@ -351,13 +285,9 @@ def queued(timeline: Sequence[object]) -> bool:
     Returns:
         True when its last queue event is ``added_to_merge_queue``.
     """
-    kinds = [each.get("event") for each in records(timeline)]
-    events = [
-        each
-        for each in kinds
-        if each in ("added_to_merge_queue", "removed_from_merge_queue")
-    ]
-    return bool(events) and events[-1] == "added_to_merge_queue"
+    kinds = [each.get("event") for each in totaljson.records(timeline)]
+    events = [each for each in kinds if each in QUEUE_EVENTS]
+    return bool(events) and events[-1] == QUEUED
 
 
 def verdict_of(act: Act, action: str, target: Target) -> Pull:

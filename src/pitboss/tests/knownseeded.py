@@ -128,7 +128,7 @@ def _early_undraft(given: Kit) -> bool:
     return (
         stops(given, "undraft", world, "review:")
         and bool(refused(lambda: act(given, hub, "undraft")))
-        and hub.hub.pull(REPO, NUMBER)["draft"] is True
+        and hub.act.hub.pull(REPO, NUMBER)["draft"] is True
     )
 
 
@@ -357,7 +357,7 @@ def _label_held(given: Kit) -> bool:
 )
 def _edited(given: Kit) -> bool:
     hub = made(given, change(pull={"body": BODY + "\nedited"}))
-    return bool(refused(lambda: act(given, hub, "merge"))) and not hub.hub.pull(
+    return bool(refused(lambda: act(given, hub, "merge"))) and not hub.act.hub.pull(
         REPO, NUMBER
     ).get("merged")
 

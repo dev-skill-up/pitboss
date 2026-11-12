@@ -8,7 +8,7 @@ has a row that says so by being always satisfied, never a row that is missing.
 from typing import Callable, Mapping
 
 from . import totalschema
-from .totaljson import JsonMap, field, mapping, name_at, records, strings, text
+from .totaljson import JsonMap, field, members, name_at, records, strings, text
 from .totalanswer import GATED_ACTIONS, KNOWN_LABELS, MERGE_ACTIONS, PAUSED
 from .totalreview import act_records
 
@@ -187,7 +187,7 @@ def ticket_state(ref: str, value: object) -> str:
     Returns:
         The line, ``""`` for an open issue that is not locked.
     """
-    read = mapping(value)
+    read = members(value)
     if not isinstance(value, dict) or "_error" in read:
         return f"ticket {ref}: not read ({text(field(value, '_error'))[:40]})"
     if read.get("pull_request"):

@@ -89,7 +89,7 @@ def _paused_armed(given: Kit) -> bool:
     act(given, hub, "label", name="paused-owner")
     return (
         stops(given, "merge", world, "auto_merge armed on a paused-owner")
-        and hub.hub.pull(REPO, NUMBER)["auto_merge"] is None
+        and hub.act.hub.pull(REPO, NUMBER)["auto_merge"] is None
     )
 
 

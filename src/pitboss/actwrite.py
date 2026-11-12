@@ -25,7 +25,7 @@ from .actcore import (
 )
 from .actpull import make_hold
 from .ticketreader import written
-from .totaljson import JsonMap, mapping, records, text
+from .totaljson import JsonMap, members, records, text
 
 GRADES = ("approved", "changes needed")
 GRADE_KEY = re.compile(
@@ -95,7 +95,7 @@ def review(act: Act, target: Target, options: Options) -> str:
     findings = option(options, "findings")
     _plain(findings)
     pull = act.hub.pull(target.repo, target.number)
-    tickets = mapping(act.inputs(target.repo, target.number, pull, []).get("tickets"))
+    tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
     words = review_text(pull, grades, findings, tickets)
     act.hub.write(
         Change(
@@ -129,7 +129,7 @@ def ticket(act: Act, target: Target, options: Options) -> str:
     ]
     paths = option(options, "paths").split()
     size = int(option(options, "max-lines"))
-    most = act.p90.get(target.repo, 0)
+    most = act.p90(target.repo)
     if size > most and not options.get("ruling"):
         raise Refused(
             f"Max-lines {size} is over {target.repo}'s p90 {most}: a ruling names it"
@@ -155,7 +155,8 @@ def ticket_edit(act: Act, target: Target, options: Options) -> str:
     """
     gate(act, "ticket-edit", target.repo)
     bodies = [
-        (each.get("number"), each.get("body")) for each in act.hub.pulls(target.repo)
+        (each.get("number"), each.get("body"))
+        for each in act.hub.open_pulls(target.repo)
     ]
     started = act.controls.started(
         [(n, text(b)) for n, b in bodies if isinstance(n, int)],
@@ -211,7 +212,7 @@ def _own_comment(act: Act, target: Target, identifier: str) -> None:
         if str(each.get("id")) == identifier
     ]
     identity = text(act.inputs(target.repo, target.number, {}, []).get("act_identity"))
-    if not found or mapping(found[0].get("user")).get("login") != identity:
+    if not found or members(found[0].get("user")).get("login") != identity:
         raise Refused("not a comment pitboss act posted")
     _plain(text(found[0].get("body")))
 
@@ -380,7 +381,7 @@ def ack(act: Act, target: Target, options: Options) -> str:
     if kind == "hold":
         make_hold(act, target.repo, option(options, "scope"), message)
     elif kind == "cap":
-        act.owner.cap = int(option(options, "cap"))
+        act.owner.caps[message] = int(option(options, "cap"))
     elif kind == "ruling" and not text(options.get("reason")).startswith(("http", "#")):
         raise Refused("ack ruling names the ruling (a URL or #N)")
     elif kind == "none":
