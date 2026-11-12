@@ -41,6 +41,7 @@ RESOLUTION = "\n".join(
         "    ## Review",
         f"    Reviewed: {HEAD}",
         "    Verdict: <approved or changes needed>",
+        *briefmake.FIXED_GRADES,
         briefmake.BODY,
         HONEST,
         briefmake.OWNER,

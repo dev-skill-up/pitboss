@@ -15,7 +15,7 @@ FIRST_ADDED = 5
 FOUR_PULLS = {
     "gh api actions/jobs": 1,
     "gh api actions/runs": 2,
-    "gh api actions/runs/jobs": 2,
+    "gh api actions/runs/jobs": 4,  # pressure look, then the B20 hold look
     "gh api check-runs": 1,
     "gh api check-runs/annotations": 1,
     "gh api commits/check-runs": 6,  # four heads, two reviewed heads (#202)

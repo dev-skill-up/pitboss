@@ -1,0 +1,26 @@
+Step.WAIT_FOR_OWNER	state	paused: the owner decides, nobody acts
+Step.WORKER	category	a worker round: each Task below
+Step.UNDRAFT	next	the NEXT line says to mark the PR ready (readyline)
+Step.REGULAR_REVIEW	category	a review round, briefed as a review
+Step.WAIT_FOR_UNDRAFT	next	the NEXT line says HOLD on undrafts and when (readyline)
+Step.WAIT_FOR_CI	state	CI is running: nobody acts
+Step.OPUS_RULING	brief
+Step.PAUSE_FOR_OWNER	line
+Step.FIX_RULING	line
+Step.RULING_ESCALATES	line
+Step.PLAN_EDITED	brief
+Step.PLAN_CHECK	state	the worker that pushed posts the check; the PR STATE text is the whole command
+Step.SEND_BACK_PLAN_CHECK	state	the worker that pushed sends back the check; the PR STATE text names it
+Step.RUN_E2E	line
+Step.WAIT_FOR_HOLD	state	a hold withholds the merge or dispatch: nobody acts until the quiet period ends
+Step.MERGE	state	the READY TO MERGE line of the sweep; the PR STATE text says how
+Task.FIRST_ROUND	category
+Task.FIX_CI	category
+Task.REVISE_PLAN	category
+Task.RESOLVE_CONFLICT	category
+Task.FIX_EXECUTION	category
+Task.RULING_STEPS	category
+Task.RULING_AS_GIVEN	category
+Task.RUN_PLAN	category
+Task.ADD_CI_QUOTES	category
+Task.FIX_ROUND	category

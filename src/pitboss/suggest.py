@@ -3,9 +3,9 @@
 On a crowded volume (90% used or more) the clean suggestion comes first; the
 first of the picks is the one the process requires, the others are the next
 ones that could start, so that a reason the model cannot name (a missing
-checkout) does not stop the work. The order is the one ``work.queued``
-gives, with the PRs at an Opus ruling before it: a ruling is owed first and
-takes no slot (keyword: brief, pitboss#118).
+checkout) does not stop the work. The order is the one ``work.queued`` gives,
+with the PRs at an Opus ruling before it: a ruling is owed first and takes no
+slot (keyword: brief, pitboss#118).
 """
 
 import dataclasses
@@ -29,6 +29,7 @@ from . import (
     pulls,
     reviews,
     slotheld,
+    stepmatrix,
     steps,
     suggestflake,
     suggestkind,
@@ -160,7 +161,7 @@ def picks(source: Source) -> Sequence[Pick]:
     """
     by_reference = {pulls.reference(each): each for each in source.facts}
     ruled = sorted(
-        (each for each in source.facts if each.step.step is steps.Step.OPUS_RULING),
+        (each for each in source.facts if each.step.step in stepmatrix.RULINGS),
         key=lambda each: each.pull.created_at,
     )
     return [
@@ -263,6 +264,7 @@ def _form(source: Source, slug: str, head: str) -> Sequence[str]:
 
 def _rules(source: Source, slug: str, head: str) -> brief.Rules:
     review = source.settings.review
+    words = reviews.rules(review, slug)[1]
     return brief.Rules(
         config=source.given,
         form=_form(source, slug, head),
@@ -274,6 +276,7 @@ def _rules(source: Source, slug: str, head: str) -> brief.Rules:
         ),
         gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
         plan_check=source.settings.project.plan_review_check,
+        verdicts=(words.approved, words.changes_needed),
     )
 
 

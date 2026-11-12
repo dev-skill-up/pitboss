@@ -12,8 +12,8 @@ from .. import draftmoves, pushdraft, shapes
 from . import fakes, world
 from .test_commands import sweep
 
-OTHER_URL = "git@github.com:other/repo.git"
-PULLS = "repos/other/repo/pulls?head=other:{branch}&state=open"
+OTHER_URL = "git@github.com:owner/other.git"
+PULLS = "repos/owner/other/pulls?head=owner:{branch}&state=open"
 JOBS = world.project_page("actions/runs/11/jobs")
 HELD = "RUNNER PRESSURE"
 FREE = "the open PR of branch-1 is a draft: a push to a draft is never held"

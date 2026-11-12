@@ -94,7 +94,8 @@ HAND_BACK = (
     " are nox sessions, the `pitboss nox` result of the pushed head (the four"
     " sessions and their status), and the `Deviations:` line (only a departure"
     " from the Plan's commands or the ticket's Done-when, or `none`); nothing"
-    " else."
+    " else. Before you hand back, save it to a file and run `uvx pitboss"
+    " hand-back-check FILE` (keyword: hand-back-done); hand back only on its `ok`."
 )
 NEW_PR_CHECKOUT = "from origin/{base} after `git fetch origin {base}`"
 PR_CHECKOUT = "on the PR's branch, current with origin/{base}"

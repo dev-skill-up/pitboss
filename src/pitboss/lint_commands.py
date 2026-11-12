@@ -140,6 +140,7 @@ def _review_findings(
     return [
         *check(subject, form),
         *planfixed.required(args, subject, form),
+        *reviewrules.grade_findings(subject.body, form),
         *reviewrules.phrase_findings(subject.body),
         *reviewrules.piecemeal_findings(subject.body),
         *extrafile.findings(subject.body),

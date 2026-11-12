@@ -7,7 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import steps
-from . import fakes, test_flow_sweep, world
+from . import fakes, quietworld, test_flow_sweep, world
 
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
 AFTER = ("--now", world.FUTURE)
@@ -129,6 +129,7 @@ class TestNext(unittest.TestCase):
         """``Fixes #7`` in the library's PR is ``owner/lib#7``."""
         here = world.make_world()
         here.bodies["repos/owner/lib/pulls/4"] = fakes.pull_body(4, body=BODY)
+        quietworld.unheld(here)
         starts(next_for(here, "owner/lib#7"), "MERGE: owner/lib#7 (owner/lib#4)")
         starts(next_for(here, "owner/project#7"), "WORKER: owner/project#7: ")
 

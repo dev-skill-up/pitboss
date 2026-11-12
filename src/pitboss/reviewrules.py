@@ -11,6 +11,8 @@ reads nothing, as the review text is given.
 import re
 from typing import Sequence
 
+from . import config, gradeline
+
 PHRASE_CHECK = "review-phrase"
 FALSE = re.compile(
     r"\bmak(?:es|ing|e)\s+(?:\w+\s+){0,3}?false\b|\bmade\s+false\b", re.I
@@ -34,7 +36,12 @@ PIECEMEAL = (
     "{check}: line {number} asks for a documentation cut a part at a time ({text!r});"
     " name the whole section and cut it in one pass"
 )
-SPLIT = re.compile(r"^(Plan|Execution): (approved|changes needed)\b", re.MULTILINE)
+GRADE_CHECK = "review-grade"
+UNGRADED = (
+    "{check}: the line {text!r} grades nothing, so the sweep does not count it;"
+    " write `Plan: {approved}` or `Plan: {changes}` (the same for `Execution:`)"
+    " with the verdict word first (keyword: grade-spellings, rp#684)"
+)
 
 
 def phrase_findings(review: str) -> Sequence[str]:
@@ -71,14 +78,42 @@ def piecemeal_findings(review: str) -> Sequence[str]:
     ]
 
 
-def is_split(review: str) -> bool:
+def is_split(review: str, form: config.ReviewForm = config.DEFAULT_REVIEW_FORM) -> bool:
     """Whether the Plan and Execution lines of a review grade differently.
 
     Args:
         review: the review comment.
+        form: the form reviews take, whose words the lines are graded by.
 
     Returns:
-        True when one of the two lines approves and the other asks for changes.
+        True when one of the two lines approves and the other asks for changes,
+        each read as the sweep reads it.
     """
-    grades = {name: word for name, word in SPLIT.findall(review)}
-    return len(grades) == 2 and len(set(grades.values())) == 2
+    grades = [
+        gradeline.line_approved(review, prefix, form.approved, form.changes_needed)
+        for prefix in (gradeline.PLAN_PREFIX, gradeline.EXECUTION_PREFIX)
+    ]
+    return None not in grades and grades[0] != grades[1]
+
+
+def grade_findings(
+    review: str, form: config.ReviewForm = config.DEFAULT_REVIEW_FORM
+) -> Sequence[str]:
+    """The Plan and Execution lines of a review that the sweep cannot read.
+
+    Args:
+        review: the review comment.
+        form: the form reviews take, whose words the lines are graded by.
+
+    Returns:
+        A finding for each line that starts as a grade and grades nothing.
+    """
+    return [
+        UNGRADED.format(
+            check=GRADE_CHECK,
+            text=line,
+            approved=form.approved,
+            changes=form.changes_needed,
+        )
+        for line in gradeline.ungraded(review, form.approved, form.changes_needed)
+    ]

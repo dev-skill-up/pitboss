@@ -160,10 +160,18 @@ class TestThePlanEditedLine(unittest.TestCase):
     """The sweep's line and the list of ``slots next``."""
 
     def test_an_edited_plan_is_named_and_offered_for_no_round(self) -> None:
-        """The sweep prints PLAN EDITED, and slots next lists nothing for the PR."""
+        """The sweep prints PLAN EDITED, and slots next prints the ruling brief for it.
+
+        Keyword plan-edited-brief, quire#1115: no brief was offered, so one was
+        built by hand.
+        """
+        here = world_with([approving(1)], body=EDITED_PLAN)
         swept, listed = looked_at([approving(1)], EDITED_PLAN)
         assert_that(swept, contains_string("review=changes-needed"))
         assert_that(listed, equal_to(""))
+        offered = next_output(here)
+        assert_that(offered, contains_string("make an Opus ruling: owner/project#3"))
+        assert_that(offered, contains_string("PITBOSS-SLOT: owner/project#3 ruling"))
 
     def test_the_sweep_prints_the_line(self) -> None:
         """The line names the PR and the way out."""

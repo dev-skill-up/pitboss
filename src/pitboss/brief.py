@@ -14,6 +14,7 @@ from typing import Mapping, Sequence
 
 from . import (
     briefconfig,
+    briefgrade,
     briefkind,
     briefruling,
     briefslot,
@@ -192,6 +193,8 @@ class Rules:
             (keyword: review-gate, pitboss#166), empty when it is not gated.
         plan_check: the check a draft's Plan review reads first (keyword:
             plan-review-check, pitboss#275), empty when the project has none.
+        verdicts: the form's word for an approval and its word for changes
+            (keyword: grade-spellings, rp#684).
     """
 
     config: str
@@ -199,6 +202,7 @@ class Rules:
     project: briefconfig.Brief
     gate_note: str = ""
     plan_check: str = ""
+    verdicts: tuple[str, str] = ("approved", "changes needed")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -339,6 +343,15 @@ def _e2e(spec: Spec) -> Sequence[str]:
     return [brieftextci.E2E] if spec.e2e and spec.kind in E2E_KINDS else []
 
 
+def _after_form(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
+    # keyword: grade-spellings (rp#684): the exact grade lines and the check to run
+    rules = spec.rules
+    gate = [text.GATED.format(note=rules.gate_note)] if rules.gate_note else []
+    reads = f" --gated --repository {values['repo']} --config {rules.config}"
+    arguments = f"--head {values['head']}{reads if rules.gate_note else ''}"
+    return [*gate, *briefgrade.lines(spec.kind, rules.verdicts, arguments)]
+
+
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
@@ -352,11 +365,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     return [
         *_filled(head, values),
         *(f"    {line}" for line in spec.rules.form),
-        *(
-            [text.GATED.format(note=spec.rules.gate_note)]
-            if spec.rules.gate_note
-            else []
-        ),
+        *_after_form(spec, values),
         *_filled([text.BODY_DIGEST], values),
         text.HONEST,
         brieftextowner.OWNER,
