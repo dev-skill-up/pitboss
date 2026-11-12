@@ -1,0 +1,184 @@
+"""C26: every state change passes a gate (keyword: action-gates, quire#1110).
+
+quire#1110: a PR dropped from the merge queue was told to arm auto-merge again
+during a quiet period of the runner hold. Each task, step and action has a gate
+row, the row's test exists, the matrix lets no ungated step make a gated action,
+and the re-arm of a dropped PR is withheld by the hold and offered after it.
+"""
+
+import importlib
+import unittest
+
+from hamcrest import assert_that, contains_string, empty, equal_to
+
+from .. import actiongates, actions, actrun, phrases
+from . import world
+from .test_removedline import DISABLED, ENABLED, FAILED_JOB, held, removed_world
+from .test_slot_commands import next_output
+from .says import says
+
+TABLE = phrases.shipped_text("actiongates.tsv")
+MATRIX = phrases.shipped_text("actionmatrix.tsv")
+PULL = "owner/project#2"
+TARGET = actrun.Target(slug="o/r", number=2, branch="b", head="h")
+
+
+def exists(name: str) -> bool:
+    """Whether a test named ``module.Class.method`` or ``module.method`` exists.
+
+    Args:
+        name: the name, from ``pitboss.tests``.
+
+    Returns:
+        True when it resolves.
+    """
+    module, _, rest = name.partition(".")
+    try:
+        found = importlib.import_module(f"{__package__}.{module}")
+        for part in rest.split("."):
+            found = getattr(found, part)
+    except (ImportError, AttributeError):
+        return False
+    return callable(found)
+
+
+def dropped(freeze: bool) -> world.World:
+    """A world whose approved PR 2 was armed, then dropped, under a hold or not.
+
+    Args:
+        freeze: whether a runner-pressure hold shows.
+
+    Returns:
+        The world.
+    """
+    here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
+    return held(here) if freeze else here
+
+
+def act_arm(here: world.World, *live: str) -> world.Result:
+    """Run ``act arm`` on PR 2.
+
+    Args:
+        here: the world.
+        *live: ``--no-dry-run`` for a live action.
+
+    Returns:
+        What it did.
+    """
+    return world.invoke(
+        here,
+        "act",
+        PULL,
+        "arm",
+        "--config",
+        here.config,
+        "--now",
+        world.FUTURE,
+        *live,
+    )
+
+
+def lines_about_pr_2(out: str) -> str:
+    """The lines of a ``slots next`` output that name PR 2.
+
+    Args:
+        out: the output.
+
+    Returns:
+        Those lines, joined.
+    """
+    return "\n".join(each for each in out.splitlines() if "project#2" in each)
+
+
+class TestTable(unittest.TestCase):
+    """The table against the code."""
+
+    def test_c26_the_shipped_table_has_no_finding(self) -> None:
+        """Every member has its row, every test exists, no gated step is free."""
+        assert_that(actiongates.findings(TABLE, MATRIX, exists), empty())
+
+    def test_c26_a_member_with_no_row_is_found(self) -> None:
+        """A new action with no gate row fails the check."""
+        text = TABLE.replace("Action.ARM\t", "Action.OTHER\t", 1)
+        found = actiongates.findings(text, MATRIX, exists)
+        assert_that(
+            found,
+            equal_to(
+                [
+                    "Action.ARM has no gate row",
+                    "Action.OTHER is no task, step or action",
+                ]
+            ),
+        )
+
+    def test_c26_a_step_that_makes_a_gated_action_is_not_free(self) -> None:
+        """Step.MERGE allows merge and arm: its row cannot be free."""
+        row = next(
+            each for each in TABLE.splitlines() if each.startswith("Step.MERGE\t")
+        )
+        text = TABLE.replace(row, "Step.MERGE\tfree\tnothing\t-")
+        found = actiongates.findings(text, MATRIX, exists)
+        assert_that(
+            [each for each in found if "its gate is free" in each],
+            equal_to(
+                [
+                    "Step.MERGE may make merge but its gate is free",
+                    "Step.MERGE may make arm but its gate is free",
+                ]
+            ),
+        )
+
+    def test_c26_a_gate_without_a_test_or_a_reason_is_found(self) -> None:
+        """A hold row names a test that exists; a free row says why."""
+        text = TABLE.replace("test_the_hold_withholds_the_re_arm_and_says_wait", "gone")
+        found = actiongates.findings(text, MATRIX, exists)
+        assert_that(found[0], contains_string("does not exist"))
+        free = TABLE.replace("closing a PR starts no workflow run of the project", " ")
+        assert_that(
+            actiongates.findings(free, MATRIX, exists),
+            equal_to(["Action.CLOSE: a free row says why"]),
+        )
+
+    def test_c26_a_gate_that_is_none_of_the_three_is_found(self) -> None:
+        """The words are hold, pressure and free."""
+        text = TABLE.replace("Action.CLOSE\tfree", "Action.CLOSE\tmaybe", 1)
+        says("\n".join(actiongates.findings(text, MATRIX, exists)), "is none of hold")
+
+    def test_c26_a_row_with_a_missing_field_is_refused(self) -> None:
+        """A short row is an error."""
+        with self.assertRaises(ValueError):
+            actiongates.parse("a\tb\n")
+
+
+class TestRearm(unittest.TestCase):
+    """The re-arm of a dropped PR, through ``act`` and ``slots next``."""
+
+    def test_c26_the_arm_command_is_gh_pr_merge_auto(self) -> None:
+        """The command of the action."""
+        said = actrun.argv(actions.Action.ARM, TARGET, [])
+        assert_that(said[:4], equal_to(["gh", "pr", "merge", "2"]))
+        assert_that(said[-2:], equal_to(["--auto", "--merge"]))
+
+    def test_c26_an_arm_during_a_hold_is_refused_and_changes_nothing(self) -> None:
+        """The PR's step is WAIT_FOR_HOLD: the matrix has no arm there."""
+        here = dropped(True)
+        done = act_arm(here, "--no-dry-run")
+        says(done.err, "arm is refused", "Step.WAIT_FOR_HOLD", "allowed at Step.MERGE")
+        assert_that(done.code, equal_to(2))
+        assert_that([call for call in here.calls if "merge" in call], equal_to([]))
+
+    def test_c26_an_arm_after_the_hold_is_recorded_and_made(self) -> None:
+        """The hold over, the same PR is at Step.MERGE and may be armed (a dry run)."""
+        here = dropped(False)
+        done = act_arm(here)
+        assert_that(done.out, equal_to(f"act: arm {PULL} at MERGE\n"))
+
+    def test_c26_slots_next_waits_during_the_hold_and_offers_the_merge_after(
+        self,
+    ) -> None:
+        """During the hold the PR's line is the wait; after it, the merge step."""
+        waiting = lines_about_pr_2(next_output(dropped(True)))
+        offered = lines_about_pr_2(next_output(dropped(False)))
+        assert_that(waiting, contains_string("HOLD: a runner-pressure hold withholds"))
+        assert_that("HOLD" in offered, equal_to(False))
+        assert_that(offered, contains_string("arm auto-merge or merge"))

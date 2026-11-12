@@ -97,7 +97,7 @@ FAULTS = (
         name="a cell left out",
         old="Standing.PLAIN\tn\t",
         new="Standing.PLAIN\t",
-        found="Standing.PLAIN has no cell for Action.LABEL",
+        found="Standing.PLAIN has no cell for Action.ARM",
     ),
     Fault(
         name="a cell that is neither y nor n",

@@ -5,7 +5,7 @@ auto-merge during a quiet period of the hold: the step ``MERGE`` was held
 (``flow.next_step``), but the sweep's own lines (``READY TO MERGE``,
 ``AUTO MERGE OFF``, a merge by hand, the update of a branch that is behind and the
 re-arm of a removal) were not. Each such line is one of the actions of
-``actions.GATED``; while ``signals.hold()`` is true they are replaced by one
+the gated actions of ``actiongates`` (hold); while ``signals.hold()`` is true they are replaced by one
 ``WAIT-FOR-HOLD`` line that names what is withheld.
 """
 

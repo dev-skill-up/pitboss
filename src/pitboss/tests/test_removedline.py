@@ -291,7 +291,7 @@ def held(here: world.World) -> world.World:
 class TestDropped(unittest.TestCase):
     """A PR armed and then dropped with no removal is named and re-armed (quire#1110)."""
 
-    def test_a_pr_whose_auto_merge_was_switched_off_is_dropped_from_the_queue(
+    def test_c26_a_pr_whose_auto_merge_was_switched_off_is_dropped_from_the_queue(
         self,
     ) -> None:
         """Enabled, then disabled, not in the queue and not merged."""
@@ -300,26 +300,26 @@ class TestDropped(unittest.TestCase):
         assert_that(found[0].startswith(DROPPED_LINE), equal_to(True))
         assert_that(found[1:], equal_to([READY_LINE]))
 
-    def test_a_removal_is_a_removal_even_when_auto_merge_was_switched_off_too(
+    def test_c26_a_removal_is_a_removal_even_when_auto_merge_was_switched_off_too(
         self,
     ) -> None:
         """The queue's own removal event is the cause that is named."""
         here = removed_world([ADDED, REMOVED, DISABLED], [FAILED_JOB])
         assert_that(lines_of(here)[0].startswith(REMOVED_LINE), equal_to(True))
 
-    def test_a_pr_armed_again_after_the_switch_off_is_not_dropped(self) -> None:
+    def test_c26_a_pr_armed_again_after_the_switch_off_is_not_dropped(self) -> None:
         """The newest arming ends the drop."""
         here = removed_world([ENABLED, DISABLED, ADDED_AGAIN], [FAILED_JOB])
         assert_that(lines_of(here), equal_to([STANDARD_LINE]))
 
-    def test_a_switched_off_auto_merge_of_an_unapproved_head_is_not_a_drop(
+    def test_c26_a_switched_off_auto_merge_of_an_unapproved_head_is_not_a_drop(
         self,
     ) -> None:
         """A push turns auto-merge off; a head nobody approved has nothing to re-arm."""
         here = removed_world([ENABLED, DISABLED], [FAILED_JOB])
         assert_that(lines_of(reviewed(here, [])), equal_to([]))
 
-    def test_the_hold_withholds_the_re_arm_and_says_wait(self) -> None:
+    def test_c26_the_hold_withholds_the_re_arm_and_says_wait(self) -> None:
         """During the hold the line is WAIT-FOR-HOLD, never the arm."""
         here = held(removed_world([ENABLED, DISABLED], [FAILED_JOB]))
         found = lines_of(here)
@@ -328,7 +328,7 @@ class TestDropped(unittest.TestCase):
         assert_that(found[1].startswith(WAIT_LINE), equal_to(True))
         assert_that(READY_LINE in found, equal_to(False))
 
-    def test_the_hold_withholds_the_re_arm_of_a_removal_too(self) -> None:
+    def test_c26_the_hold_withholds_the_re_arm_of_a_removal_too(self) -> None:
         """A removal's act is gated like the drop's."""
         here = held(removed_world([ADDED, REMOVED], [FAILED_JOB]))
         found = lines_of(here)
@@ -337,12 +337,12 @@ class TestDropped(unittest.TestCase):
             equal_to([False, True]),
         )
 
-    def test_the_re_arm_is_offered_again_once_the_hold_ends(self) -> None:
+    def test_c26_the_re_arm_is_offered_again_once_the_hold_ends(self) -> None:
         """The same PR, the record clear: the arm line is there."""
         here = held(removed_world([ENABLED, DISABLED], [FAILED_JOB]))
         assert_that(lines_of(quietworld.at_rest(here))[1:], equal_to([READY_LINE]))
 
-    def test_the_hold_withholds_a_ready_pr_and_a_behind_pr_alike(self) -> None:
+    def test_c26_the_hold_withholds_a_ready_pr_and_a_behind_pr_alike(self) -> None:
         """READY TO MERGE and AUTO MERGE OFF are not offered during the hold."""
         here = held(removed_world([], []))
         found = lines_of(here)

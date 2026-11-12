@@ -3,24 +3,24 @@
 # `pitboss act` refuses an action whose cell is n for the PR's step and standing.
 # matrix-exempt: rerun: a re-run of a CI job is not an action on a PR; the rule C13 and the stuck-CI line say when
 # matrix-exempt: delete: a branch is deleted by the owner's own command (bats stale branches), not by a PR step
-state	Task.FIRST_ROUND	Task.FIX_CI	Task.REVISE_PLAN	Task.RESOLVE_CONFLICT	Task.FIX_EXECUTION	Task.RULING_STEPS	Task.RULING_AS_GIVEN	Task.RUN_PLAN	Task.ADD_CI_QUOTES	Task.REFRESH_BODY	Task.SHARED_RED	Task.FIX_BLOCKED_BY	Task.AFTER_BLOCKER	Task.FINISH_PARTIAL	Task.FIX_ROUND	Action.PUSH	Action.MERGE	Action.UNDRAFT	Action.DISPATCH	Action.CLOSE	Action.LABEL
-Step.WAIT_FOR_OWNER	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.WORKER	y	y	y	y	y	y	y	y	y	y	y	y	y	y	y	y	n	n	n	n	n
-Step.UNDRAFT	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n	n
-Step.REGULAR_REVIEW	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.WAIT_FOR_UNDRAFT	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.WAIT_FOR_CI	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.OPUS_RULING	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.PAUSE_FOR_OWNER	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y
-Step.FIX_RULING	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.RULING_ESCALATES	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y
-Step.PLAN_EDITED	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.PLAN_CHECK	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.SEND_BACK_PLAN_CHECK	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.RUN_E2E	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n
-Step.WAIT_FOR_SHARED_RED	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.WAIT_FOR_BLOCKER	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.WAIT_FOR_HOLD	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Step.MERGE	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n	n	n
-Standing.PLAIN	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
-Standing.DUPLICATE	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n
+state	Task.FIRST_ROUND	Task.FIX_CI	Task.REVISE_PLAN	Task.RESOLVE_CONFLICT	Task.FIX_EXECUTION	Task.RULING_STEPS	Task.RULING_AS_GIVEN	Task.RUN_PLAN	Task.ADD_CI_QUOTES	Task.REFRESH_BODY	Task.SHARED_RED	Task.FIX_BLOCKED_BY	Task.AFTER_BLOCKER	Task.FINISH_PARTIAL	Task.FIX_ROUND	Action.PUSH	Action.MERGE	Action.UNDRAFT	Action.DISPATCH	Action.CLOSE	Action.LABEL	Action.ARM
+Step.WAIT_FOR_OWNER	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.WORKER	y	y	y	y	y	y	y	y	y	y	y	y	y	y	y	y	n	n	n	n	n	n
+Step.UNDRAFT	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n	n	n
+Step.REGULAR_REVIEW	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.WAIT_FOR_UNDRAFT	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.WAIT_FOR_CI	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.OPUS_RULING	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.PAUSE_FOR_OWNER	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n
+Step.FIX_RULING	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.RULING_ESCALATES	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n
+Step.PLAN_EDITED	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.PLAN_CHECK	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.SEND_BACK_PLAN_CHECK	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.RUN_E2E	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n	n
+Step.WAIT_FOR_SHARED_RED	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.WAIT_FOR_BLOCKER	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.WAIT_FOR_HOLD	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Step.MERGE	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n	n	n	y
+Standing.PLAIN	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n
+Standing.DUPLICATE	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	n	y	n	n

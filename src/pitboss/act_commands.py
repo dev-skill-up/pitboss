@@ -70,7 +70,7 @@ def _make(
     add_argument(
         "words",
         nargs="*",
-        help="the action (push, merge, undraft, dispatch, close or label), then the"
+        help="the action (push, merge, undraft, dispatch, close, label or arm), then the"
         " label, the workflow file, or git push's arguments",
     ),
     CONFIG_OPTION,
@@ -81,7 +81,7 @@ def _make(
 def act(args: argparse.Namespace) -> None:
     """Do a state-changing action on a PR, when the matrix allows it in its step.
 
-    The action is one of push, merge, undraft, dispatch, close and label. The PR
+    The action is one of push, merge, undraft, dispatch, close, label and arm. The PR
     is read, its step and standing are looked up in ``actionmatrix.tsv``, and a
     cell that is ``n`` refuses the action (exit 2) naming the step and the steps
     that allow it, with nothing changed. An allowed action is recorded in the

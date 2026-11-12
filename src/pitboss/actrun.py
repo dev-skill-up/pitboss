@@ -84,6 +84,19 @@ def _undraft(target: Target, words: Sequence[str]) -> Sequence[str]:
     return ["gh", "pr", "ready", str(target.number), "-R", target.slug]
 
 
+def _arm(target: Target, words: Sequence[str]) -> Sequence[str]:
+    return [
+        "gh",
+        "pr",
+        "merge",
+        str(target.number),
+        "-R",
+        target.slug,
+        "--auto",
+        "--merge",
+    ]
+
+
 def _dispatch(target: Target, words: Sequence[str]) -> Sequence[str]:
     run = ["gh", "workflow", "run", words[0]]
     return [*run, "-R", target.slug, "--ref", target.branch]
@@ -93,6 +106,7 @@ OTHERS: Mapping[actions.Action, Callable[[Target, Sequence[str]], Sequence[str]]
     actions.Action.PUSH: lambda target, words: ["git", "push", *words],
     actions.Action.UNDRAFT: _undraft,
     actions.Action.DISPATCH: _dispatch,
+    actions.Action.ARM: _arm,
 }
 
 

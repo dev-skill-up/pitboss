@@ -26,6 +26,7 @@ class Action(enum.Enum):
     Attributes:
         PUSH: push commits to its branch.
         MERGE: merge it.
+        ARM: arm auto-merge again (keyword: dropped-from-queue).
         UNDRAFT: mark it ready for review.
         DISPATCH: dispatch a workflow on its branch.
         CLOSE: close it.
@@ -38,6 +39,7 @@ class Action(enum.Enum):
     DISPATCH = enum.auto()
     CLOSE = enum.auto()
     LABEL = enum.auto()
+    ARM = enum.auto()
 
 
 class Standing(enum.Enum):
