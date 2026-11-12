@@ -22,6 +22,7 @@ from . import (
     rulingafter,
     rulingwords,
     shapes,
+    stagerounds,
     steps,
 )
 
@@ -126,6 +127,9 @@ def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
     answered = flowstate.readable_comment(pr)
     if answered is None:
         return first
+    staged = stagerounds.execution_step(pr, review)  # keyword: stage-rounds
+    if staged is not None:
+        return staged
     posted, ruled = answered
     if review.when > posted.created_at:  # the ruling was used, still rejected
         return steps.pause_for_owner()
