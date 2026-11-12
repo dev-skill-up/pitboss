@@ -85,8 +85,7 @@ def rules_check(args: argparse.Namespace) -> None:
         SystemExit: 1 when the register has a finding.
     """
     if args.action == "done-when":
-        done_when(args)
-        return
+        done_when(args)  # always ends in SystemExit
     rows, bad = rules.parse(_text(args.register, REGISTER))
     found = [*bad, *rules.findings(rows, function_known, module_text)]
     if not args.register:
