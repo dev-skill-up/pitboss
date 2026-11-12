@@ -21,8 +21,20 @@ HeadOf = Callable[[str, int], str | None]
 Earlier = Callable[[str], bool]
 
 
+def never(sha: str) -> bool:
+    """The ``earlier`` of a Plan no earlier check approved: no commit is one.
+
+    Args:
+        sha: a commit.
+
+    Returns:
+        False.
+    """
+    return False
+
+
 def findings(
-    section: str, head: str, head_of: HeadOf, earlier: Earlier | None = None
+    section: str, head: str, head_of: HeadOf, earlier: Earlier = never
 ) -> Sequence[str]:
     """What the CI pointers of a Plan name that is not the run of the head.
 
@@ -35,7 +47,7 @@ def findings(
         earlier: for a Plan that an earlier Plan check approved (keyword:
             plan-prior, cases 10 and 30): whether a commit is one the head
             contains, so the run of the head the Plan was approved at stays
-            valid after a push or a merge of main; None for any other Plan.
+            valid after a push or a merge of main; ``never`` otherwise.
 
     Returns:
         A finding for each run a pointer row names whose head is another commit
@@ -45,16 +57,25 @@ def findings(
         return []
     found: list[str] = []
     for number, text in cipointer.rows(section):
-        named = RUN.findall(text) if cipointer.read(text) else []
-        for each in dict.fromkeys(named):
-            found.extend(_finding(number, each, (head, earlier), head_of))
+        found.extend(_row(number, text, (head, earlier), head_of))
     return found
+
+
+def _row(
+    number: int, text: str, now: tuple[str, Earlier], head_of: HeadOf
+) -> Sequence[str]:
+    named = RUN.findall(text) if cipointer.read(text) else []
+    return [
+        line
+        for each in dict.fromkeys(named)
+        for line in _finding(number, each, now, head_of)
+    ]
 
 
 def _finding(
     number: int,
     named: tuple[str, str],
-    now: tuple[str, Earlier | None],
+    now: tuple[str, Earlier],
     head_of: HeadOf,
 ) -> Sequence[str]:
     slug, run = named
@@ -65,7 +86,7 @@ def _finding(
         return [
             f"{CHECK}: Plan line {number} names the run {url}, which cannot be read"
         ]
-    if sha == head or (earlier is not None and earlier(sha)):
+    if sha == head or earlier(sha):
         return []
     return [
         f"{CHECK}: Plan line {number} names the run {url} of head {sha}, but the"

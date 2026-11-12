@@ -13,7 +13,10 @@ from . import diffrepo
 from .linting import HEAD, OK, lint, write_text
 from .plancheckrun import body_of, passed, plan_check, refused_with
 from .repositories import run_git
+from .cleanworld import same
 from .test_expand_commands import check, expanded
+from .test_hand_back_done import pull_lines_of
+from .test_register_rules import shown
 
 OTHER = "b" * 40
 NEAR = HEAD[:-1] + "b"
@@ -110,3 +113,32 @@ class TestPlanCheck(unittest.TestCase):
         said = [f"evidence-head: the Evidence block of `{COMMAND}`", "findings: 1"]
         assert_that(refused_with(old, *said), equal_to(True))
         assert_that(passed(new), equal_to(True))
+
+
+def _body(recorded: str) -> str:
+    return f"Fixes #7\n\n{SECTION}{block_of(recorded)}\nHead: {HEAD}\n"
+
+
+def _stale_lines(recorded: str) -> list[str]:
+    return [
+        each
+        for each in pull_lines_of(HEAD, _body(recorded), [])
+        if "re-run `uvx pitboss expand`" in each
+    ]
+
+
+class TestStaleEvidence(unittest.TestCase):
+    """I27: Evidence from another tree is refused at the hand-back."""
+
+    def test_i27_a_block_expanded_at_another_head_is_refused(self) -> None:
+        """The block of the commit before is named; the head's block passes."""
+        said, again = _stale_lines(OTHER), _stale_lines(HEAD)
+        same((len(said), len(again)), (1, 0))
+
+    def test_i27_plan_check_refuses_a_block_from_another_head(self) -> None:
+        """Holds on main too (evidence-head): the head's block passes, another fails."""
+        ran = shown(
+            "test_evidence_head",
+            "test_a_block_from_the_commit_before_the_head_is_refused",
+        )
+        same(ran, 1)

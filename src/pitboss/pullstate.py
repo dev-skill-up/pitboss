@@ -23,7 +23,6 @@ from . import (
     phrases,
     pulls,
     relock,
-    rulingreason,
     sessionurl,
     shapes,
     steps,
@@ -60,7 +59,7 @@ def next_step(pull: pulls.PullFacts) -> str:
     if category in work.REVIEWS and pull.step.on_base:
         return steps.REQUEST_REVIEW  # keyword: fixed-on-base (pitboss#314)
     if category is not None:
-        return work.CATEGORY_WORDS[category] + rulingreason.reason(pull.ruled_at)
+        return work.CATEGORY_WORDS[category] + pull.step.reason
     if pull.step.step is steps.Step.WAIT_FOR_CI:
         return "waiting for CI at this head"
     return steps.describe(pull.step)

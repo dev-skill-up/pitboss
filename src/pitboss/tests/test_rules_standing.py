@@ -6,10 +6,9 @@ rule's sentence, whatever the project's own reminders are.
 
 import unittest
 
-from hamcrest import assert_that, contains_string
-
 from .. import brieftextrules
 from . import world
+from .says import says
 from .test_commands import sweep
 from .test_evidence_rules import words
 
@@ -20,9 +19,8 @@ def printed(rule: str) -> None:
     Args:
         rule: the id of the rule.
     """
-    sentence = brieftextrules.RULES[rule]
-    out = words(sweep(world.make_world()).out)
-    assert_that(out, contains_string(f"SWEEP REMINDER: {sentence}"))
+    done = sweep(world.make_world())
+    says(words(done.out), "SWEEP REMINDER: " + brieftextrules.reminder(rule))
 
 
 class TestTheSweepPrintsTheRule(unittest.TestCase):

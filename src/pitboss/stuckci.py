@@ -17,7 +17,15 @@ MINUTES = 30
 PREFIX = "STUCK CI"
 
 
-def _when(text: str) -> datetime.datetime:
+def when(text: str) -> datetime.datetime:
+    """A GitHub time.
+
+    Args:
+        text: ISO 8601, ``Z`` for UTC.
+
+    Returns:
+        The time.
+    """
     return datetime.datetime.fromisoformat(text.replace("Z", "+00:00"))
 
 
@@ -39,12 +47,12 @@ def stuck(
     """
     found = []
     for run in head_runs:
-        created = _when(run.created_at)
+        created = when(run.created_at)
         minutes = int((now - created).total_seconds() // 60)
         later = [
             each
             for each in repo_runs
-            if each.finished and _when(each.created_at) > created
+            if each.finished and when(each.created_at) > created
         ]
         if run.status == "queued" and minutes > MINUTES and later:
             found.append((run, minutes, len(later)))

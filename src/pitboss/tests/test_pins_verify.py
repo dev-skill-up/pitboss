@@ -77,6 +77,18 @@ def pull_of(number: int = 7) -> shapes.Pull:
     return parsing.pull(json.dumps(fakes.pull_body(number)))
 
 
+def branch_of(where: pathlib.Path) -> str:
+    """The branch a checkout is on, empty when it is detached.
+
+    Args:
+        where: the checkout.
+
+    Returns:
+        The branch's name.
+    """
+    return fakes.run_git(where, "branch", "--show-current").strip()
+
+
 def checkout_for(settings: config.Config, repo: config.Repo) -> pathlib.Path:
     """A real clone at a repository's checkout, whose origin serves ``pull/7/head``.
 
@@ -206,6 +218,25 @@ class TestVerify(unittest.TestCase):
         pinsonly.verify(scripted(["OK\n"], calls), settings, lib, pull_of())
         want = str(settings.project.workspace / "lib")
         assert_that([calls[0][2], calls[1][2]], equal_to([want, want]))
+
+    def test_i31_pins_review_returns_the_clone_to_its_branch(self) -> None:
+        """A command that detaches the checkout leaves it on main again."""
+        settings = settings_for("check {base} {head}")
+        where = checkout_for(settings, settings.project.repo)
+        before = branch_of(where)
+
+        run = scripted(["OK\n"], [])
+        head = fakes.run_git(where, "rev-parse", "HEAD").splitlines()[0]
+
+        def moving(cmdargs: object, /) -> object:
+            done = run(cmdargs)  # type: ignore[arg-type]
+            if cmdargs[0] == "env":  # type: ignore[index]
+                fakes.run_git(where, "checkout", "--quiet", "--detach", head)
+            return done
+
+        repo = settings.project.repo
+        pinsonly.verify(moving, settings, repo, pull_of())  # type: ignore[arg-type]
+        assert_that({before, branch_of(where)}, equal_to({"main"}))
 
 
 class TestReading(unittest.TestCase):

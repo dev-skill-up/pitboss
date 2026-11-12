@@ -30,6 +30,7 @@ from . import (
     queue,
     quiesce,
     shapes,
+    slotholder,
     slotholding,
     steps,
     suggest,
@@ -173,7 +174,7 @@ def _picked(
 ) -> suggest.Pick:
     # what one item is: raises Unknown when slots next offers nothing for it, and
     # Whole when only the whole order can tell
-    if reference in {each.task for each in live.slots if each.agent}:
+    if reference in slotholder.tasks(live):
         raise itempick.Unknown("a slot already works on it")
     repo, ticket = _located(found, reference)
     if ticket.pull:
@@ -279,12 +280,9 @@ def _refused(reference: str, why: str) -> Outcome:
     return Outcome.UNKNOWN
 
 
-def _forced_review(
-    found: nextfound.Found, book: ledger.Ledger, reference: str, runs: Runs
-) -> Outcome:
-    # case 32 (keyword: force-review): the review brief of any open PR, so that an
-    # orchestrator never adapts a brief by hand; the first line says it is forced
-    live = slotholding.live(found.args, book)
+def _forced_pick(
+    found: nextfound.Found, reference: str, runs: Runs
+) -> suggest.Pick | Outcome:
     try:
         repo, ticket = _located(found, reference)
         if not ticket.pull:
@@ -298,14 +296,25 @@ def _forced_review(
         created_at=read.pull.created_at,
         title=read.pull.title,
     )
-    pick = suggest.Pick(
+    print(FORCED_REVIEW.format(reference=reference, step=steps.describe(read.step)))
+    return suggest.Pick(
         reference=reference,
         title=read.pull.title,
         category=item.category,
         item=item,
         pull=read,
     )
-    print(FORCED_REVIEW.format(reference=reference, step=steps.describe(read.step)))
+
+
+def _forced_review(
+    found: nextfound.Found, book: ledger.Ledger, reference: str, runs: Runs
+) -> Outcome:
+    # case 32 (keyword: force-review): the review brief of any open PR, so that an
+    # orchestrator never adapts a brief by hand; the first line says it is forced
+    pick = _forced_pick(found, reference, runs)
+    if isinstance(pick, Outcome):
+        return pick
+    live = slotholding.live(found.args, book)
     _print(found, _made(found, live, pick), pick)
     return Outcome.PRINTED
 

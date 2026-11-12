@@ -26,15 +26,17 @@ class TestForcedReview(unittest.TestCase):
         before = here.ledger.read_text()
         plain = one(here, PULL, "--step", "review")
         done = one(here, PULL, "--step", "review", "--force")
-        same(plain.code, 1)
-        same(done.code, 0)
+        same((plain.code, done.code, here.ledger.read_text() == before), (1, 0, True))
         assert_that(done.out, starts_with("FORCED REVIEW: owner/project#3 is at"))
         says(done.out, "review", "owner/project#3")
-        same(here.ledger.read_text(), before)
 
-    def test_i32_force_refuses_a_ticket_with_no_pull_request(self) -> None:
-        """The nearest input it must still refuse: nothing to review."""
+    def test_i32_force_refuses_what_it_cannot_review(self) -> None:
+        """A repository not configured, and a ticket with no pull request."""
         here = with_pull_issues(world.make_world())
-        done = one(here, "owner/project#50", "--step", "review", "--force")
-        assert_that((done.code, done.out), equal_to((1, "")))
-        says(done.err, "UNKNOWN: owner/project#50 is not at the review step")
+        for reference, why in (
+            ("other/none#1", "other/none is not a configured repository"),
+            ("owner/project#50", "UNKNOWN: owner/project#50 is not at the review"),
+        ):
+            done = one(here, reference, "--step", "review", "--force")
+            assert_that((done.code, done.out), equal_to((1, "")))
+            says(done.err, why)

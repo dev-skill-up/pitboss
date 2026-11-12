@@ -150,6 +150,22 @@ def _pulled(
     )
 
 
+def pull_lines_of(
+    head: str, body: str, comments: Sequence[Mapping[str, str]]
+) -> Sequence[str]:
+    """The lines the hand-back check says of a PR with a body and comments.
+
+    Args:
+        head: the PR's head.
+        body: its body.
+        comments: its comments.
+
+    Returns:
+        The lines.
+    """
+    return handbackcheck.pull_lines(_pulled(head, body, comments))
+
+
 def _check(body: str, refused: Sequence[int] = ()) -> Mapping[str, str]:
     text = plancheck.text(plandigest.section(body), ["row 1: ran"], refused)
     return {

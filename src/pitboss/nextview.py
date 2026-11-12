@@ -107,7 +107,8 @@ def _item_text(item: work.Item, view: NextView) -> str:
     return (
         f"{item.reference} ({CATEGORY_WORDS[item.category]}{_new_pr(item, view)},"
         f" opened {item.created_at[:10]}, {_age_days(item.created_at, view.now)}"
-        f" days, smallest model {model}): {item.title[:60]}{_needs(item, view)}{_pins(item)}"
+        f" days, smallest model {model}): {item.title[:60]}"
+        f"{_needs(item, view)}{_pins(item)}"
     )
 
 

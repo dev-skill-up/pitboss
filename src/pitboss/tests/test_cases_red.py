@@ -5,19 +5,23 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import redclass, redshapes, redsynth
-from .test_redunits import _facts
+from . import test_redunits
 
 LINE = "Temporary failure resolving 'azure.archive.ubuntu.com'"
 
 
-def _failing(text: str) -> redshapes.RunFacts:
-    step = redshapes.Step(
+def _install_step() -> redshapes.Step:
+    return redshapes.Step(
         number=4,
         name="Install libgmp-dev and wasm-ld (wasm fixtures)",
         conclusion="failure",
         started_at="",
         completed_at="",
     )
+
+
+def _failing(text: str) -> redshapes.RunFacts:
+    step = _install_step()
     job = redshapes.Job(
         id=1,
         name="fixtures (shard 3)",
@@ -29,7 +33,7 @@ def _failing(text: str) -> redshapes.RunFacts:
     )
     error = redshapes.FirstError(job=job, step=step, line=9, text=text, inferred_from=0)
     return redshapes.RunFacts(
-        run=_facts([], None).run,
+        run=test_redunits.failed_run(),
         jobs=[job],
         error=error,
         log_note="",

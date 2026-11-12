@@ -31,6 +31,22 @@ def refuse(command: str, why: str) -> NoReturn:
     raise SystemExit(USAGE_ERROR)
 
 
+def split(command: str, pull: str) -> tuple[str, int]:
+    """The repository and the number of a PR reference.
+
+    Args:
+        command: the command as the user types it.
+        pull: ``OWNER/NAME#NUMBER``.
+
+    Returns:
+        The repository's ``owner/name`` and the number.
+    """
+    found = PULL.match(pull)
+    if not found:
+        refuse(command, f"{pull}: not OWNER/NAME#NUMBER")
+    return found.group(1), int(found.group(2))
+
+
 def read(command: str, pull: str, name: str) -> tuple[str, int, str]:
     """Read the file and the reference a command was given.
 
@@ -50,10 +66,8 @@ def read(command: str, pull: str, name: str) -> tuple[str, int, str]:
         text = pathlib.Path(name).read_text(encoding="utf-8")
     except (OSError, UnicodeError) as error:
         raise SystemExit(f"pitboss {command}: {name}: {error}") from error
-    found = PULL.match(pull)
-    if not found:
-        refuse(command, f"{pull}: not OWNER/NAME#NUMBER")
-    return found.group(1), int(found.group(2)), text
+    slug, number = split(command, pull)
+    return slug, number, text
 
 
 def github_of(args: argparse.Namespace) -> ghapi.GitHub:

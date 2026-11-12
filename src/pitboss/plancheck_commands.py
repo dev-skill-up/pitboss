@@ -44,6 +44,7 @@ from . import (
     plancheckrun,
     plandigest,
     plantickets,
+    pullfile,
     shapes,
 )
 
@@ -204,17 +205,16 @@ def plan_check(args: argparse.Namespace) -> None:
     Raises:
         SystemExit: 1 when a row did not run, on a finding, or in a changed main clone.
     """
-    configsettle.find_or_say(args)
-    cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
     output, failed = _read_and_checked(args)
     sys.stdout.write(output)
-    if args.post:  # case 14: the heading of the comment is the output's own
-        print(plancheckprior.post(args, args.post, output), file=sys.stderr)
+    plancheckprior.post_if(args, output)  # case 14: the output's own heading
     if failed:
         raise SystemExit(REFUSED)
 
 
 def _read_and_checked(args: argparse.Namespace) -> tuple[str, bool]:
+    configsettle.find_or_say(args)
+    cloneguard.refuse_in_clone(args, configfile.working_directory(args) / args.repo)
     body = args.file.read()
     section = _plan_of(args.file.name, body)
     args.body = body  # the checks that read the body whole take it from here
@@ -299,7 +299,7 @@ def _prior(args: argparse.Namespace, body: str) -> shapes.Comment | None:
     # the earlier clean check of this Plan on the PR named by --pull, if any
     if not args.pull:
         return None
-    slug, number = plancheckprior.split(args.pull)
+    slug, number = pullfile.split("plan-check", args.pull)
     found = plancheckprior.comments(ghapi.read_only(args.safe_run), slug, number)
     return plancheckprior.relied_on(found, body)
 
@@ -315,7 +315,7 @@ def _remote(
     github = ghapi.read_only(args.safe_run)
     named = forms.FIXES.search(body)
     ticket = named.group(1) if named else ""
-    earlier = functools.partial(_contained, args, ref) if prior else None
+    earlier = functools.partial(_contained, args, ref) if prior else cirun.never
     heads = cirun.findings(section, ref, plantickets.run_head(github), earlier)
     if prior:  # keyword: plan-prior: approved once, not judged again by the ticket
         return [*heads]

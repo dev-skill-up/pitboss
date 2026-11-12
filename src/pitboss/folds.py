@@ -77,7 +77,7 @@ def ruling_comments(
     return [
         (each.url, each.body)
         for each in comments
-        if flowstate.is_ruling(each.body) and each.author_association in trusted
+        if flowstate.is_trusted_ruling(each, trusted)
     ]
 
 

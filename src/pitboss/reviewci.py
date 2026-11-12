@@ -1,4 +1,4 @@
-"""An Execution review starts on a head whose runs all completed green (keyword: review-ci).
+"""A review starts on a head whose runs are all green (keyword: review-ci).
 
 (Pitboss#444, case 38.) The brief says so; ``review-form --head SHA`` enforces it by
 printing each run and its state and exiting 1 while one is not completed and

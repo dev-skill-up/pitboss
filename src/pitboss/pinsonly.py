@@ -8,12 +8,13 @@ when its head branch has the relock prefix or every path it changes is in
 ``[relock] pin_files``.
 """
 
+import contextlib
 import functools
 import pathlib
 import shlex
 import subprocess
 import threading
-from typing import Callable, Sequence
+from typing import Callable, Iterator, Sequence
 
 from . import (
     config,
@@ -122,6 +123,17 @@ def _branch(run: running.Run, where: str) -> str:
     return str(shown.stdout).strip()
 
 
+@contextlib.contextmanager
+def _left_as_found(run: running.Run, where: str) -> Iterator[None]:
+    # case 31 (keyword: pins-review-branch): the clone is back on its branch after
+    before = _branch(run, where)
+    try:
+        yield
+    finally:
+        if before and _branch(run, where) != before:
+            run(["git", "-C", where, "checkout", "--quiet", before])
+
+
 def _ran(
     run: running.Run,
     fetched: tuple[Sequence[str], str],
@@ -129,20 +141,12 @@ def _ran(
     command: Sequence[str],
 ) -> pinsreading.Reading:
     fetch, where = fetched
-    with _ONE_CHECKOUT:
-        before = _branch(run, where)
-        try:
-            run(fetch)
-            reason = why_not()
-            if reason:
-                return pinsreading.Reading(
-                    status=pinsreading.Status.NOT_OK, detail=reason
-                )
-            return pinsreading.read(run(command).stdout)
-        finally:
-            if before and _branch(run, where) != before:
-                # case 31 (keyword: pins-review-branch): the clone is left as found
-                run(["git", "-C", where, "checkout", "--quiet", before])
+    with _ONE_CHECKOUT, _left_as_found(run, where):
+        run(fetch)
+        reason = why_not()
+        if reason:
+            return pinsreading.Reading(status=pinsreading.Status.NOT_OK, detail=reason)
+        return pinsreading.read(run(command).stdout)
 
 
 def pins_only(

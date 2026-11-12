@@ -14,16 +14,18 @@ from . import (
     assigning,
     config,
     configfile,
+    diskwatch,
+    fixwait,
     handedback,
     ledger,
     listtail,
     logline,
     nextfound,
+    nextmade,
     nextsource,
     nextview,
     nothead,
     offering,
-    placeline,
     pullmarks,
     pullstate,
     pulls,
@@ -88,6 +90,31 @@ def _ordered(
     return _counted(found, opened, book)
 
 
+def show(
+    found: Found,
+    opened: Sequence[pulls.Read],
+    book: ledger.Ledger,
+) -> None:
+    """Print what to start next: the list, the empty slots and the briefs.
+
+    Args:
+        found: the context.
+        opened: the open PRs, read or not.
+        book: the slot ledger.
+    """
+    logline.post(found.settings.slots.log)
+    if quiesce.say(found.settings.slots.ledger):  # D11: nothing is offered
+        return
+    book = _live(found, opened, book)
+    unreadableline.print_withheld(opened)
+    skipped = skipitem.apply(found.args, found.settings.project.repo)
+    ordered, skip_lines = skipped(_windowed(found, opened, book))
+    timing.note(found.args, "ranking", len(ordered.items), "items")
+    for line in _listed(found, (opened, ordered), book, skip_lines):
+        print(line)
+    timing.note(found.args, "lists and briefs printed", suggest.TOP, "briefs at most")
+
+
 def _assigned(
     ordered: work.Offered, book: ledger.Ledger, slots: config.Slots
 ) -> Sequence[work.Assignment]:
@@ -120,45 +147,36 @@ def _view(
     )
 
 
-def _recorded(found: Found, ordered: work.Offered, view: nextview.NextView) -> None:
-    queued = [each.reference for each in view.items]
-    first = slotheld.LEAD + 1 + len(view.ready)
-    placeline.record(found, queued, first, not ordered.unread)
+def _source(
+    found: Found, opened: Opened, ordered: work.Offered, book: ledger.Ledger
+) -> suggest.Source:
+    volume = diskwatch.read(found.args.usage, found.settings.project.workspace)
+    got = suggest.sourced(
+        found, pullmarks.awake(opened, ordered), ordered.items, book.failed
+    )
+    big = nextsource.big(found, volume)
+    return dataclasses.replace(got, volume=volume, big=big, occupancy=ordered.occupancy)
 
 
-def show(
+def _listed(
     found: Found,
-    opened: Sequence[pulls.Read],
+    read: tuple[Sequence[pulls.Read], work.Offered],
     book: ledger.Ledger,
-) -> None:
-    """Print what to start next: the list, the empty slots and the briefs.
-
-    Args:
-        found: the context.
-        opened: the open PRs, read or not.
-        book: the slot ledger.
-    """
-    logline.post(found.settings.slots.log)
-    if quiesce.say(found.settings.slots.ledger):  # D11: nothing is offered
-        return
-    book = _live(found, opened, book)
-    unreadableline.print_withheld(opened)
-    skipped = skipitem.apply(found.args, found.settings.project.repo)
-    ordered, skip_lines = skipped(_windowed(found, opened, book))
-    timing.note(found.args, "ranking", len(ordered.items), "items")
-    source = nextsource.source(found, opened, ordered, book)
+    skip_lines: Sequence[str],
+) -> Iterable[str]:
+    # the lines of the list, from the source of its suggestions
+    opened, ordered = read
+    source = _source(found, opened, ordered, book)
     view = _view(found, ordered, book, Reads(facts=source.facts, opened=opened))
-    _recorded(found, ordered, view)
-    for line in itertools.chain(
+    nextmade.recorded(found, ordered, (view.items, len(view.ready)))
+    return itertools.chain(
         header(found, book, view),
-        nextsource.waiting(found, source, ordered, book),
+        fixwait.lines(source.facts, found.now, nextsource.held(ordered, book)),
         unlabeledsearch.lines(found.github, found.settings),
         skip_lines,
         nextview.next_lines(view),
         _after(found, ordered, source, view),
-    ):
-        print(line)
-    timing.note(found.args, "lists and briefs printed", suggest.TOP, "briefs at most")
+    )
 
 
 def _after(
@@ -316,6 +334,11 @@ def _placed(view: nextview.NextView, pick: suggest.Pick) -> str:
     return nextview.place_line(view, pick.reference)
 
 
+def _picked(source: suggest.Source, reference: str) -> suggest.Pick | None:
+    every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
+    return next((each for each in every if each.reference == reference), None)
+
+
 def show_item(
     found: Found,
     opened: Sequence[pulls.Read],
@@ -340,9 +363,8 @@ def show_item(
     """
     book = _live(found, opened, book)
     ordered = _counted(found, opened, book)
-    source = nextsource.source(found, opened, ordered, book)
-    every = suggest.picks(dataclasses.replace(source, occupancy=slotheld.UNLIMITED))
-    pick = next((each for each in every if each.reference == reference), None)
+    source = _source(found, opened, ordered, book)
+    pick = _picked(source, reference)
     if pick is None:
         why = unqueued.why(found.github, ordered, reference)
         print(UNKNOWN.format(reference=reference, why=why), file=sys.stderr)

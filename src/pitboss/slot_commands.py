@@ -54,17 +54,10 @@ Change = Callable[
 ]
 
 
-def _set(
-    book: ledger.Ledger, words: Sequence[str], found: Context
-) -> ledger.Ledger | ledger.Refusal:
-    running = found.args.running
-    if running is None:
-        return ledger.Refusal(
-            reason="slots set needs --running NAME ...: the agents the session runs"
-        )
-    held = ledger.find(book, words[0])
-    if isinstance(held, ledger.Refusal):
-        return held
+def _held_refusal(
+    book: ledger.Ledger, held: ledger.Slot, words: Sequence[str], found: Context
+) -> ledger.Refusal | None:
+    running = found.args.running or ()
     resumes = held.agent == words[1] and found.args.kind == ledger.FIX_ROUND
     if held.agent in running and not resumes:
         return ledger.Refusal(
@@ -78,6 +71,23 @@ def _set(
             reason=f"every slot is held by a running agent of the session: {beyond};"
             " the next free slot takes the dispatch"
         )
+    return None
+
+
+def _set(
+    book: ledger.Ledger, words: Sequence[str], found: Context
+) -> ledger.Ledger | ledger.Refusal:
+    running = found.args.running
+    if running is None:
+        return ledger.Refusal(
+            reason="slots set needs --running NAME ...: the agents the session runs"
+        )
+    held = ledger.find(book, words[0])
+    if isinstance(held, ledger.Refusal):
+        return held
+    refused = _held_refusal(book, held, words, found)
+    if refused is not None:
+        return refused
     task = ledger.reference(words[2], found.settings.project.repo)
     ticket = ticketof.resolve(found.github, task)
     if isinstance(ticket, ledger.Refusal):
@@ -91,7 +101,7 @@ def _set(
 
 def _beyond(book: ledger.Ledger, running: Sequence[str], new: str) -> Sequence[str]:
     # the running agents that no slot records, whatever their kind
-    recorded = {each.agent for each in book.slots}
+    recorded = slotholder.agents(book)
     return [name for name in running if name != new and name not in recorded]
 
 

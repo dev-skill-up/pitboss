@@ -22,6 +22,15 @@ def _run(identifier: int, conclusion: str, created: str) -> shapes.WindowRun:
     )
 
 
+def failed_run() -> shapes.WindowRun:
+    """The failed run the facts of these cases are about.
+
+    Returns:
+        The run.
+    """
+    return _facts([], None).run
+
+
 def _facts(
     later: list[shapes.WindowRun], fix: redshapes.FixCommit | None
 ) -> redshapes.RunFacts:

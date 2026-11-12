@@ -93,15 +93,19 @@ def _free(args: argparse.Namespace, found: commands.Context, slug: str | None) -
     return _to_drafts(args, found, slug)
 
 
+def _wanted(args: argparse.Namespace) -> Sequence[str]:
+    # the branches the push names, the current one when it names none
+    current = pushdraft.current_branch(args.safe_run)
+    return pushdraft.branches(args.git_arguments, current)
+
+
 def _to_drafts(
     args: argparse.Namespace, found: commands.Context, slug: str | None
 ) -> bool:
     # keyword: push-draft (pitboss#355): GitHub says the branch's PR is a draft
     if slug is None:
         return False
-    current = pushdraft.current_branch(args.safe_run)
-    wanted = pushdraft.branches(args.git_arguments, current)
-    drafted = pushdraft.all_drafts(found.github, slug, wanted)
+    drafted = pushdraft.all_drafts(found.github, slug, _wanted(args))
     if drafted is not None:
         print(pushdraft.SAYING.format(branch=", ".join(drafted)))
     return drafted is not None
@@ -120,6 +124,7 @@ def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context,
     # a repository with a noxfile.py first needs a green nox on the tree (nox-tree)
     found = commands.load_context(args)
     _require_green_nox(args)
+    _require_execution(args, found, slug)
     free = _free(args, found, slug)
     if not free:
         _refuse_if_held(found)
@@ -265,8 +270,7 @@ def _require_execution(
     args: argparse.Namespace, found: commands.Context, slug: str | None
 ) -> None:
     # case 11 (keyword: execution-section): the body keeps its Execution heading
-    current = pushdraft.current_branch(args.safe_run)
-    for each in pushdraft.branches(args.git_arguments, current):
+    for each in _wanted(args):
         lost = evidencepush.missing_execution(args.safe_run, found.github, slug, each)
         for line in lost:
             print(line)
@@ -278,17 +282,26 @@ def _require_execution(
 def _stale(
     args: argparse.Namespace,
     found: commands.Context,
-    slug: str | None,
     outcomes: Sequence[pushcheck.Outcome],
 ) -> None:
     # case 27 (keyword: evidence-stale): a moved head leaves the expanded blocks old
     if pushcheck.Kind.MOVED not in {each.kind for each in outcomes}:
         return
-    current = pushdraft.current_branch(args.safe_run)
-    wanted = pushdraft.branches(args.git_arguments, current)
-    said = {evidencepush.stale_line(found.github, slug, each) for each in wanted}
+    slug = _pushed_repository(args)
+    said = {evidencepush.stale_line(found.github, slug, each) for each in _wanted(args)}
     for line in sorted(said - {""}):
         print(line)
+
+
+def _after(
+    args: argparse.Namespace,
+    found: commands.Context,
+    sent: tuple[bool, Sequence[pushcheck.Outcome] | None],
+) -> None:
+    free, outcomes = sent
+    if outcomes is not None:
+        _conclude(None if free else found, outcomes)
+        _stale(args, found, outcomes)
 
 
 def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
@@ -360,10 +373,5 @@ def push(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     tracefs.say(args.safe_run)
-    slug = _checked(args)
-    found, free = _gate(args, slug)
-    _require_execution(args, found, slug)
-    outcomes = _send(args)
-    if outcomes is not None:
-        _conclude(None if free else found, outcomes)
-        _stale(args, found, slug, outcomes)
+    found, free = _gate(args, _checked(args))
+    _after(args, found, (free, _send(args)))

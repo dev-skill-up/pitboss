@@ -1,4 +1,4 @@
-"""Why the review follows a ruling's steps: the two comment times (keyword: ruling-reason).
+"""Why the review follows a ruling's steps (keyword: ruling-reason).
 
 PR 460 was offered ``do the ruling's steps`` after a Plan check at the head was
 posted, later than the ruling (pitboss#444, case 24); the line of the review
@@ -31,7 +31,7 @@ def times(
     rulings = [
         each.created_at
         for each in comments
-        if flowstate.is_ruling(each.body) and each.author_association in trusted
+        if flowstate.is_trusted_ruling(each, trusted)
     ]
     checks = [
         each.created_at

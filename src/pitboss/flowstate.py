@@ -113,6 +113,19 @@ def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
     return sorted(regular, key=lambda each: each.when)
 
 
+def is_trusted_ruling(comment: shapes.Comment, trusted: AbstractSet[str]) -> bool:
+    """Whether a comment is a ruling of a trusted author.
+
+    Args:
+        comment: the comment.
+        trusted: the author associations whose comments count.
+
+    Returns:
+        True for a ruling comment of a trusted author.
+    """
+    return is_ruling(comment.body) and comment.author_association in trusted
+
+
 def is_ruling(body: str) -> bool:
     """Whether a comment is a recorded Opus ruling.
 

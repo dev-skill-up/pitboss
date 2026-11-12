@@ -1,4 +1,4 @@
-"""A Plan that an earlier Plan check approved, and the post of a check (keyword: plan-prior).
+"""A Plan that an earlier Plan check approved, and the post (keyword: plan-prior).
 
 An approved Plan is never edited (pitboss#444, cases 1, 10 and 30): when the PR
 already has a comment whose first line is ``Plan check``, that ends with
@@ -10,6 +10,7 @@ comment it relied on. ``--post`` writes the check as that kind of comment itself
 """
 
 import argparse
+import sys
 from typing import Sequence
 
 from . import (
@@ -36,8 +37,9 @@ def comments(github: ghapi.GitHub, slug: str, number: int) -> Sequence[shapes.Co
     Returns:
         Its issue comments.
     """
-    path = f"repos/{slug}/issues/{number}/comments"
-    return ghapi.pages(github, path, parsing.comments)
+    return ghapi.pages(
+        github, f"repos/{slug}/issues/{number}/comments", parsing.comments
+    )
 
 
 def relied_on(found: Sequence[shapes.Comment], body: str) -> shapes.Comment | None:
@@ -87,23 +89,16 @@ def post(args: argparse.Namespace, pull: str, text: str) -> str:
     Returns:
         The comment's address.
     """
-    slug, number = split(pull)
+    slug, number = pullfile.split("plan-check", pull)
     return pullfile.comment(pullfile.github_of(args), slug, number, text)
 
 
-def split(pull: str) -> tuple[str, int]:
-    """The repository and the number of a PR reference.
+def post_if(args: argparse.Namespace, output: str) -> None:
+    """Post the output of the check when ``--post`` names a PR.
 
     Args:
-        pull: ``OWNER/NAME#NUMBER``.
-
-    Returns:
-        The repository's ``owner/name`` and the number.
-
-    Raises:
-        SystemExit: with status 2 when the reference is none.
+        args: the parsed arguments; ``post`` is a PR reference or None.
+        output: what the check printed.
     """
-    found = pullfile.PULL.match(pull)
-    if not found:
-        pullfile.refuse("plan-check", f"{pull}: not OWNER/NAME#NUMBER")
-    return found.group(1), int(found.group(2))
+    if args.post:
+        print(post(args, args.post, output), file=sys.stderr)

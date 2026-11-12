@@ -14,7 +14,7 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import fixwait, pulls, reviews, rulingreason, shapes, steps
 from . import model
-from .model import History, Model, Ruling, Verdict
+from .model import History, Ruling, Verdict
 from .test_work import REPO, facts
 
 V = Verdict
@@ -22,7 +22,20 @@ APPROVED_PLAN = [(3, V.APPROVED, None, 0, 0)]
 RULED = [(4, Ruling.DO_THESE_STEPS)]
 
 
-def step_of(made: Model) -> steps.Next:
+def step_with(history: History, **more: Any) -> steps.Next:
+    """The step of a PR with a history and some moves of its model.
+
+    Args:
+        history: what happened on it.
+        **more: the model's other counters.
+
+    Returns:
+        The step.
+    """
+    return step_of(model.Model(history=history, **more))
+
+
+def step_of(made: model.Model) -> steps.Next:
     """The step the flow gives a PR.
 
     Args:
@@ -39,8 +52,7 @@ class TestAfterTheRuling(unittest.TestCase):
 
     def test_i24_a_plan_check_before_the_ruling_still_asks_for_its_steps(self) -> None:
         """Ruling `do these steps` newer than the Plan check: the worker's round."""
-        made = Model(history=History(reviews=APPROVED_PLAN, rulings=RULED))
-        got = step_of(made)
+        got = step_with(History(reviews=APPROVED_PLAN, rulings=RULED))
         assert_that(
             (got.step, got.task), equal_to((steps.Step.WORKER, steps.Task.RULING_STEPS))
         )
@@ -48,15 +60,16 @@ class TestAfterTheRuling(unittest.TestCase):
     def test_i24_a_plan_check_after_the_ruling_at_the_head_is_the_review(self) -> None:
         """PR 460 at 04:41Z: the steps were done, the review is the step."""
         history = History(reviews=APPROVED_PLAN, rulings=RULED, checks=[(2, 0), (5, 0)])
-        got = step_of(Model(history=history))
-        assert_that(got.step, equal_to(steps.Step.REGULAR_REVIEW))
-        assert_that(got.stage, equal_to(steps.Stage.RULING_STEPS))
+        got = step_with(history)
+        assert_that(
+            (got.step, got.stage),
+            equal_to((steps.Step.REGULAR_REVIEW, steps.Stage.RULING_STEPS)),
+        )
 
     def test_i32_a_plan_check_newer_than_the_ruling_is_reviewed(self) -> None:
         """A Plan not yet reviewed after the ruling and a newer check: a review."""
         history = History(rulings=RULED, checks=[(2, 0), (5, 0)])
-        got = step_of(Model(history=history))
-        assert_that(got.step, equal_to(steps.Step.REGULAR_REVIEW))
+        assert_that(step_with(history).step, equal_to(steps.Step.REGULAR_REVIEW))
 
     def test_i15_a_revised_plan_after_the_ruling_is_reviewed_not_rewritten(
         self,
@@ -67,12 +80,11 @@ class TestAfterTheRuling(unittest.TestCase):
             rulings=[(4, Ruling.REVISE_THE_PLAN)],
             checks=[(2, 0), (5, 1)],
         )
-        got = step_of(Model(plan=1, head=1, pushed=6, history=history))
-        assert_that(got.step, equal_to(steps.Step.REGULAR_REVIEW))
-        assert_that(got.task, equal_to(None))
+        got = step_with(history, plan=1, head=1, pushed=6)
+        assert_that((got.step, got.task), equal_to((steps.Step.REGULAR_REVIEW, None)))
 
 
-NOW = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.timezone.utc)
+NOW = datetime.datetime.fromisoformat("2026-11-12T12:00:00+00:00")
 FINDINGS = "https://github.example/owner/project/pull/5#c1"
 
 
@@ -139,7 +151,7 @@ CHECK_TEXT = "Plan check\nrow 1: ran\nPlan check: ok\n"
 
 
 def _comment(body: str, at: str) -> shapes.Comment:
-    return shapes.Comment(body=body, author_association="MEMBER", created_at=at)
+    return shapes.Comment(created_at=at, body=body, author_association="MEMBER")
 
 
 class TestRulingReason(unittest.TestCase):

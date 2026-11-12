@@ -11,7 +11,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import plancheckprior
+from .. import pullfile
 from . import checkcomment, fakes, refused, world
 from .linting import write_text
 from .repositories import run_git
@@ -64,6 +64,17 @@ def lines_of(here: world.World, *options: str) -> Sequence[str]:
     return run_check(here, "owner/project#9", with_pointer(full_plan()), *options)
 
 
+def ci_run_refused(here: world.World, *options: str) -> None:
+    """Assert the check names a ``ci-run:`` finding.
+
+    Args:
+        here: the world.
+        *options: more options.
+    """
+    found = "\n".join(lines_of(here, *options))
+    assert_that(found, contains_string("ci-run:"))
+
+
 class TestPrior(unittest.TestCase):
     """The run of an earlier head and the ticket are not judged again."""
 
@@ -77,7 +88,7 @@ class TestPrior(unittest.TestCase):
     def test_i10_i30_without_the_pull_the_old_run_is_refused(self) -> None:
         """No --pull, no record: the run of another commit is a finding."""
         here, _ = approved_world()
-        assert_that("\n".join(lines_of(here)), contains_string("ci-run:"))
+        ci_run_refused(here)
 
     def test_i10_i30_an_edited_plan_has_no_prior_check(self) -> None:
         """The comment records another digest: the run is refused as before."""
@@ -89,21 +100,21 @@ class TestPrior(unittest.TestCase):
             "html_url": EARLIER_URL,
         }
         here.bodies[fakes.page(COMMENTS)] = [comment]
-        assert_that("\n".join(lines_of(here, *PULL)), contains_string("ci-run:"))
+        ci_run_refused(here, *PULL)
 
     def test_i10_i30_a_run_of_a_commit_the_head_lacks_is_refused(self) -> None:
         """A run of a commit that is not behind the head is no earlier head."""
         here, _ = approved_world()
         here.bodies["repos/owner/project/actions/runs/5"] = {"head_sha": "c" * 40}
-        assert_that("\n".join(lines_of(here, *PULL)), contains_string("ci-run:"))
+        ci_run_refused(here, *PULL)
 
     def test_i10_a_pull_that_is_no_reference_is_refused(self) -> None:
         """The option is OWNER/NAME#NUMBER."""
         here, _ = approved_world()
         path = write_text("body.txt", "## Plan\nx\n")
         done = world.invoke(here, "plan-check", path, "--pull", "seven")
-        assert_that(done.code, equal_to(2))
-        assert_that(done.err, contains_string("seven: not OWNER/NAME#NUMBER"))
+        said = "seven: not OWNER/NAME#NUMBER" in done.err
+        assert_that((done.code, said), equal_to((2, True)))
 
 
 class TestPost(unittest.TestCase):
@@ -119,5 +130,6 @@ class TestPost(unittest.TestCase):
         assert_that(posted[0].splitlines()[-1], equal_to(shown[-1]))
         assert_that(posted[0], equal_to("\n".join(shown[1:]) + "\n"))
         assert_that(
-            plancheckprior.split("owner/project#7"), equal_to(("owner/project", 7))
+            pullfile.split("plan-check", "owner/project#7"),
+            equal_to(("owner/project", 7)),
         )

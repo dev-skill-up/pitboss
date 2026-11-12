@@ -35,6 +35,21 @@ def _gate_source(repo: config.Repo, gate: gates.Gate) -> str:
     )
 
 
+def _require_green(args: argparse.Namespace, repo: config.Repo) -> None:
+    # exit 1, each run and its state printed, while a CI run of --head is not green
+    if not args.head:
+        return
+    github = ghapi.read_only(args.safe_run)  # case 38 (keyword: review-ci)
+    runs = checkruns.current_checks(
+        headchecks.runs_of(github, repo, args.head), args.head
+    )
+    refused = reviewci.lines(args.head, runs)
+    for line in refused:
+        print(line)
+    if refused:
+        raise SystemExit(1)
+
+
 @ENTRY_DATA.register(
     commandarguments.CONFIG_ARGUMENT,
     add_argument("repository"),
@@ -55,16 +70,7 @@ def review_form(args: argparse.Namespace) -> None:
     settings = commands.load_settings(args)
     found = gateform.read(args.safe_run, settings, args.repository)
     repo, workflow, review, form = found.repo, found.gate, found.review, found.form
-    if args.head:  # case 38 (keyword: review-ci)
-        github = ghapi.read_only(args.safe_run)
-        runs = checkruns.current_checks(
-            headchecks.runs_of(github, repo, args.head), args.head
-        )
-        refused = reviewci.lines(args.head, runs)
-        for line in refused:
-            print(line)
-        if refused:
-            raise SystemExit(1)
+    _require_green(args, repo)
     gated = repo.slug in review.gated
     print(f"# {repo.slug}: {'gated' if gated else 'not gated'}")
     if workflow is not None:

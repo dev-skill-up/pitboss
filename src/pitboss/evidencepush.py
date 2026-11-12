@@ -68,14 +68,22 @@ def missing_execution(
     """
     found: list[str] = []
     for each in _pulls(github, slug, branch):
-        given = each.get("base")
-        base = given.get("ref") if isinstance(given, dict) else None
-        try:
-            names = run(
-                ["git", "diff", "--name-only", f"origin/{base or 'main'}...HEAD"]
-            ).stdout
-        except subprocess.CalledProcessError:
-            continue
-        if str(names).strip():
+        if _changes(run, _base_of(each)):
             found.extend(bodyrules.section_findings(f"{each.get('body') or ''}"))
     return found
+
+
+def _base_of(pull: dict[str, object]) -> str:
+    # the branch the PR merges into
+    given = pull.get("base")
+    named = given.get("ref") if isinstance(given, dict) else None
+    return f"{named or 'main'}"
+
+
+def _changes(run: Run, base: str) -> bool:
+    # whether the worktree's head changes a file against the base
+    try:
+        names = run(["git", "diff", "--name-only", f"origin/{base}...HEAD"]).stdout
+    except subprocess.CalledProcessError:
+        return False
+    return bool(str(names).strip())

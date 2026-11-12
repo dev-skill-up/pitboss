@@ -111,6 +111,11 @@ class TestTheBrief(unittest.TestCase):
         here = with_pull_issues(world.make_world())
         briefed(here, "owner/project#1", "resolve the conflict")
 
+    def test_i17_a_comment_mention_of_a_ticket_does_not_take_it(self) -> None:
+        """An open PR that does not fix ticket 9 and mentions it stays no taker."""
+        here = timeline_of("Fixes #1\n\nthe ruling comment mentions #9")
+        briefed(here, NINTH, "start a PR: owner/project#9")
+
 
 def timeline_of(text: str, **issue: object) -> world.World:
     """A world where the timeline of ticket 9 has a mention by an open PR.

@@ -1,4 +1,4 @@
-"""A review that grades the Plan of an approved Plan and no Execution (keyword: review-unread).
+"""A review of an approved Plan with no Execution grade (keyword: review-unread).
 
 Bats PR 650 (2026-11-11 18:45Z): the reviewer's comment had ``Plan: approved
 (fixed)`` and a verdict but no ``Execution:`` line, so the flow read it as a
@@ -28,12 +28,20 @@ def without_execution(state: flowstate.PullState) -> Sequence[str]:
     graded = sorted(flowstate.regular_reviews(state), key=lambda each: each.when)
     found: list[str] = []
     for index, each in enumerate(graded):
-        earlier = graded[:index]
-        approved = any(before.plan is shapes.Verdict.APPROVED for before in earlier)
-        at_head = state.pull.head.sha.startswith(each.sha)
-        if at_head and approved and each.plan is not None and each.execution is None:
+        if _lacks_execution(state, each, graded[:index]):
             found.extend(_address(state, each))
     return found
+
+
+def _lacks_execution(
+    state: flowstate.PullState, review: shapes.Graded, earlier: Sequence[shapes.Graded]
+) -> bool:
+    # a Plan grade at the head, no Execution grade, after an approved Plan
+    approving = shapes.Verdict.APPROVED in {before.plan for before in earlier}
+    at_head = state.pull.head.sha.startswith(review.sha)
+    return (
+        approving and at_head and review.plan is not None and review.execution is None
+    )
 
 
 def _address(state: flowstate.PullState, review: shapes.Graded) -> Sequence[str]:
