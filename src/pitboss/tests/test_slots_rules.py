@@ -39,6 +39,7 @@ from .rankworld import (
     next_output,
     starts,
 )
+from .fastvariants import named
 from .fastworld import NINTH, fast_world, listed
 from .test_work import NONE, REPO, facts, item, stepped
 
@@ -129,6 +130,23 @@ class TestBriefs(unittest.TestCase):
         lacks(found.out, "DISPATCH")
         says(found.err, "DISPATCH: owner/project#9", "brief saved to")
         same(briefs_of(here), ["owner-project-9.brief"])
+
+    def test_b6_force_prints_and_saves_the_brief_of_an_item_answered_unknown(
+        self,
+    ) -> None:
+        """Plain: UNKNOWN and no file. ``--force``: the brief, its file and the line."""
+        here = with_pull_issues(named())
+        plain = one(here, NINTH)
+        same((plain.code, plain.out, briefs_of(here)), (1, "", []))
+        forced = one(here, NINTH, "--force")
+        same(forced.code, 0)
+        assert_that(len(forced.out) > 0, equal_to(True))
+        says(
+            forced.err, "FORCED: the plain command refuses", "DISPATCH: owner/project#9"
+        )
+        same(briefs_of(here), ["owner-project-9.brief"])
+        saved = here.ledger.parent / briefsave.DIRECTORY / "owner-project-9.brief"
+        assert_that(saved.read_text().strip() in forced.out, equal_to(True))
 
     def test_b6_a_brief_that_cannot_be_written_says_so(self) -> None:
         """The directory is a file: the line says NOT saved and why."""

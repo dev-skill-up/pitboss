@@ -273,6 +273,24 @@ class TestPartialHandBack(unittest.TestCase):
         same(accepted.out, "ok\n")
 
 
+class TestPartialKeepsTheSlot(unittest.TestCase):
+    """B17: the worker of a refused partial hand-back keeps its slot."""
+
+    def test_b17_a_refused_partial_hand_back_leaves_the_slot_with_the_worker(
+        self,
+    ) -> None:
+        """The ledger holds the worker before and after, and the refusal says so."""
+        here = ready(world.make_world())
+        held = ("set", "tiny", "worker", "#3", "--running", "worker")
+        world.invoke(here, "slots", held[0], here.config, *held[1:])
+        before = here.ledger.read_text()
+        refused = hand_back(here, no_jobs(), text=PARTIAL)
+        same(refused.code, 1)
+        says(refused.out, "keeps its slot")
+        same(here.ledger.read_text(), before)
+        assert_that('"worker"' in before, equal_to(True))
+
+
 class TestDraftState(unittest.TestCase):
     """B21: a worker's change of a PR's draft state is flagged."""
 

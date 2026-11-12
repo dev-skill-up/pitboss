@@ -7,7 +7,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
-from .. import config, reviewrules, reviews, shapes
+from .. import brief, config, reviewrules, reviews, shapes
+from . import briefmake
 
 HEAD = "a" * 40
 
@@ -74,3 +75,16 @@ class TestMadeFalse(unittest.TestCase):
     def test_a8_a_review_without_the_phrase_passes(self) -> None:
         """The nearest input that must still pass."""
         assert_that(reviewrules.phrase_findings("The docstring says X."), empty())
+
+
+class TestReviewBriefs(unittest.TestCase):
+    """A8: the printed review brief no longer says "makes false"."""
+
+    def test_a8_no_printed_review_brief_says_makes_false(self) -> None:
+        """Every kind of review brief, read against the phrase the lint refuses."""
+        kinds = [each for each in brief.Kind if each.name.startswith("REVIEW")]
+        assert_that(len(kinds) > 2, equal_to(True))
+        for kind in kinds:
+            with self.subTest(kind.name):
+                text = briefmake.text(kind)
+                assert_that(reviewrules.phrase_findings(text), empty())

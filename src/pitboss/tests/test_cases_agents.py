@@ -42,7 +42,7 @@ class TestCap(unittest.TestCase):
         taken = '"diagnose"' in here.ledger.read_text()
         assert_that((done.code, taken), equal_to((0, True)))
 
-    def test_i36_an_agent_the_ledger_lacks_fills_the_cap(self) -> None:
+    def test_b23_i36_an_agent_the_ledger_lacks_fills_the_cap(self) -> None:
         """Two running agents that no slot records fill the two empty slots."""
         extra = (
             "set",
