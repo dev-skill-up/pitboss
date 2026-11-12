@@ -45,10 +45,9 @@ def partial_world(body: str = COMMANDS) -> world.World:
         The world.
     """
     here = world.make_world()
-    here.bodies[f"{PROJECT}/pulls/3"] = {
-        **here.bodies[f"{PROJECT}/pulls/3"],
-        "body": body,
-    }
+    head = {"sha": "3" * 40, "ref": "branch-3"}
+    changed = fakes.pull_body(3, head=head, mergeable_state="behind", body=body)
+    here.bodies[f"{PROJECT}/pulls/3"] = changed
     return quietworld.unheld(here)
 
 

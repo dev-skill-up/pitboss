@@ -19,7 +19,7 @@ START = f"## Review\nReviewed: {HEAD}\nVerdict: approved\n"
 ACCEPTED = "`Execution: approved` or `Execution: changes needed`"
 
 
-def checked(body: str, *kind: str) -> tuple[int, Sequence[str]]:
+def checked(body: str, *kind: str) -> tuple[object, Sequence[str]]:
     """Run ``lint review`` on a review of a kind.
 
     Args:
