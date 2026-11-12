@@ -124,5 +124,5 @@ def done_when(args: argparse.Namespace) -> None:
     items = donewhencheck.parse(_text(args.pairing, PAIRING))
     checks = donewhenrun.measure(items, rows, (pathlib.Path(args.repo), args.ref))
     found = donewhencheck.refusals(items, rows, checks)
-    print(donewhencheck.verdict(found))
+    print(donewhencheck.one_line(found))
     raise SystemExit(int(bool(found)))

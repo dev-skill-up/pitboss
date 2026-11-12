@@ -131,7 +131,7 @@ def refusals(
     return found
 
 
-def verdict(found: Sequence[str]) -> str:
+def one_line(found: Sequence[str]) -> str:
     """The one line the command prints.
 
     Args:

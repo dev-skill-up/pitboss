@@ -104,7 +104,7 @@ class TestThePairing(unittest.TestCase):
     def test_the_comparison_is_ok_when_the_head_passes_and_the_base_fails(self) -> None:
         """No finding."""
         assert_that(refused(True, False), empty())
-        assert_that(donewhencheck.verdict([]), equal_to("done-when check: ok"))
+        assert_that(donewhencheck.one_line([]), equal_to("done-when check: ok"))
 
 
 class TestThePairingIsFalse(unittest.TestCase):
