@@ -30,6 +30,7 @@ from . import (
     markupgate,
     noxcheck,
     noxgreen,
+    prepush,
     pushcheck,
     pushclaim,
     pushdraft,
@@ -138,6 +139,7 @@ def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context,
     # the context, and whether the push is free of the hold (else it is checked);
     # a repository with a noxfile.py first needs a green nox on the tree (nox-tree)
     found = commands.load_context(args)
+    _require_pre_push(args, found)
     _require_green_nox(args)
     _require_execution(args, found, slug)
     free = mechanicalpush.exempt(args, found, slug) or _free(args, found, slug)
@@ -333,6 +335,20 @@ def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:
         raise SystemExit(failed[0].code)
     unproved = (pushcheck.Kind.UNMOVED, pushcheck.Kind.UNVERIFIED)
     if any(each.kind in unproved for each in outcomes):
+        raise SystemExit(1)
+
+
+def _require_pre_push(args: argparse.Namespace, found: commands.Context) -> None:
+    # keyword: pre-push-check (bats#654): only an explicit ok of each declared check
+    lines = prepush.refusals(
+        args.safe_run,
+        found.settings.project.pre_push,
+        commands.working_directory(args),
+    )
+    for each in lines:
+        print(each)
+    if lines:
+        print("push refused: nothing was pushed; fix the check")
         raise SystemExit(1)
 
 

@@ -110,7 +110,8 @@ def run_tests_session(
             test_noxfile.noxfile_module().tests(session)
     except RunFailed:
         return test_nox.Done(returncode=1, stdout="".join(shown))
-    return test_nox.Done(returncode=0, stdout="".join(shown))
+    # nox itself prints each session it ran (an empty gate is refused: gate-run)
+    return test_nox.Done(returncode=0, stdout="".join(shown) or "nox > Session ok\n")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

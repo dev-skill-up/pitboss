@@ -11,6 +11,7 @@ from . import (
     concurrently,
     config,
     conflicts,
+    current,
     dispatchruns,
     draftfacts,
     earlyfound,
@@ -190,7 +191,9 @@ def _standing(
 ) -> tuple[reviews.Standing, bool]:
     standing = reviews.head_standing(found, pull.head.sha)
     if found and standing is not reviews.Standing.OLDER_HEAD:
-        if bodydigest.changed(found.body, bodydigest.digest(pull.body)):
+        if not current.current_for(
+            current.Subject.BODY, found.body, bodydigest.digest(pull.body)
+        ):
             standing = reviews.Standing.OLDER_BODY  # keyword: body-digest
     merged = (
         found is not None

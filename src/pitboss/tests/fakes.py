@@ -50,9 +50,11 @@ class Output:
 
     Attributes:
         stdout: its output.
+        returncode: its exit status.
     """
 
     stdout: str
+    returncode: int = 0
 
 
 class Processes(Protocol):

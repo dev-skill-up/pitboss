@@ -10,12 +10,14 @@ from typing import Sequence
 from . import (
     bodydigest,
     conflicts,
+    current,
     draftfacts,
     evidence,
     floworder,
     flowstate,
     headline,
     plancheckflow,
+    plandigest,
     planbody,
     reviewfindings,
     ruleconflicts,
@@ -26,6 +28,8 @@ from . import (
     steps,
 )
 
+current_for = current.current_for
+Subject = current.Subject
 Verdict = shapes.Verdict
 Graded = shapes.Graded
 Ci = flowstate.Ci
@@ -40,7 +44,8 @@ Row = floworder.Row[PullState, steps.Next]
 
 
 def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
-    return [each for each in reviews if pr.pull.head.sha.startswith(each.sha)]
+    head = Subject.HEAD
+    return [each for each in reviews if current_for(head, each.sha, pr.pull.head.sha)]
 
 
 def newest_counting_review(pr: PullState) -> Graded | None:
@@ -61,21 +66,44 @@ def newest_counting_review(pr: PullState) -> Graded | None:
     """
     found = _of_head(pr, flowstate.regular_reviews(pr))
     newest = max(found, key=lambda each: each.when, default=None)
-    if newest and bodydigest.changed(newest.body, bodydigest.digest(pr.pull.body)):
+    now = bodydigest.digest(pr.pull.body)
+    if newest and not current_for(Subject.BODY, newest.body, now):
         return None
     return newest
 
 
 def plan_approved(pr: PullState) -> bool:
-    """Whether some regular review graded the plan approved.
+    """Whether some regular review approved the Plan as it is now.
 
     Args:
         pr: the PR.
 
     Returns:
-        True once one did; it is never graded again.
+        True when one did and is current for the Plan section's digest
+        (keyword: current-for); a Plan revised since is graded again.
     """
-    return any(each.plan is Verdict.APPROVED for each in flowstate.regular_reviews(pr))
+    section = plandigest.section(pr.pull.body)
+    return any(
+        each.plan is Verdict.APPROVED
+        and current_for(Subject.PLAN, each.plan_digest, section)
+        for each in flowstate.regular_reviews(pr)
+    )
+
+
+def plan_revised(pr: PullState) -> bool:
+    """Whether a review approved a Plan that has been revised since.
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        True when a regular review approved the Plan and none approved it as it
+        is now: its re-review is due (keyword: current-for).
+    """
+    approving = any(
+        each.plan is Verdict.APPROVED for each in flowstate.regular_reviews(pr)
+    )
+    return approving and not plan_approved(pr)
 
 
 def get_plan_rejections(pr: PullState) -> int:
@@ -149,6 +177,9 @@ def ruled_step(pr: PullState, ruled: rulingwords.Ruling) -> steps.Next:
     """
     if ruled is rulingwords.Ruling.EXECUTION_IS_APPROVED:
         return conflicts.merge_unless_conflict(pr)  # CI is green, the gate above passed
+    if ruled is rulingwords.Ruling.REVISE_THE_PLAN and plan_revised(pr):
+        # the ruling is applied: the revised Plan is graded again (current-for)
+        return plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
     if ruled is not rulingwords.Ruling.DO_THESE_STEPS:
         return AFTER[ruled][0]
     if plancheckflow.checked_since(pr, flowstate.readable_comment):
@@ -297,7 +328,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
             return unfixed_execution(pr) or plancheckflow.execution_review(
                 pr, steps.Stage.EXECUTION_ONLY
             )
-        alone = flowstate.plan_rejected_last(pr)
+        alone = flowstate.plan_rejected_last(pr) or plan_revised(pr)
         both = steps.Stage.PLAN_AND_EXECUTION
         return plancheckflow.review(pr, steps.Stage.PLAN_ONLY if alone else both)
 
@@ -314,7 +345,15 @@ def plan_gate(pr: PullState, review: Graded) -> steps.Next:
     Returns:
         The step.
     """
-    return rejection_step(pr, review) or execution_gate(pr, review)
+    return (
+        rejection_step(pr, review)
+        or (
+            plancheckflow.review(pr, steps.Stage.PLAN_ONLY)
+            if plan_revised(pr)
+            else None
+        )
+        or execution_gate(pr, review)
+    )
 
 
 def execution_gate(pr: PullState, review: Graded) -> steps.Next:

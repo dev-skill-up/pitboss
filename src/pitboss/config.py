@@ -231,6 +231,27 @@ class Slots:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PrePush:
+    """A check the repository declares to run before ``pitboss push`` pushes.
+
+    Attributes:
+        name: what the check is called.
+        command: the command line; ``{word}`` is replaced by the argument
+            ``word`` of ``arguments``.
+        arguments: the values of the words the command names (the bats binary,
+            the repository directory), each given and not empty.
+        ok: the text its output must hold to pass, empty for any output.
+        timeout: the most seconds it may run.
+    """
+
+    name: str
+    command: Sequence[str]
+    arguments: Mapping[str, str] = dataclasses.field(default_factory=dict)
+    ok: str = ""
+    timeout: int = 600
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Project:
     """The project's own repository and its checkouts.
 
@@ -245,6 +266,7 @@ class Project:
             ``[slots.brief] no_drafts`` (keyword: pitboss-exempt, pitboss#113).
         drafts: ``[slots.brief] drafts``; false opens every PR ready (keyword:
             no-drafts, pitboss#390).
+        pre_push: the checks of ``[[pre_push]]`` (keyword: pre-push-check).
     """
 
     repo: Repo
@@ -255,6 +277,7 @@ class Project:
     plan_review_check: str = ""
     no_drafts: AbstractSet[str] = frozenset()
     drafts: bool = True
+    pre_push: Sequence[PrePush] = ()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

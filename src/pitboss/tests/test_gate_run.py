@@ -1,0 +1,244 @@
+"""A gate passes only on an explicit ok (keyword: gate-run, bats-lang/bats#654).
+
+Each gate that is a command (a repository's pre-push check, a ``nox`` session) is
+played with each way a command fails: a non-zero status, a crash, an empty output,
+a timeout and a missing argument.
+"""
+
+import argparse
+import dataclasses
+import subprocess
+import unittest
+from typing import Sequence
+
+from hamcrest import assert_that, contains_string, equal_to, has_length, is_
+
+from .. import config, gaterun, nox_commands, prepush
+from . import fakes, world
+
+Mode = gaterun.Mode
+
+
+@dataclasses.dataclass
+class Fake:
+    """A runner that answers one way."""
+
+    status: int = 0
+    out: str = ""
+    raises: Exception | None = None
+
+    def __call__(
+        self, cmdargs: Sequence[str], /, *args: object, **kwargs: object
+    ) -> fakes.Output:
+        """Answer.
+
+        Args:
+            cmdargs: the command line.
+            *args: ignored.
+            **kwargs: ignored.
+
+        Returns:
+            The finished process.
+
+        Raises:
+            Exception: the one the fake is given.
+        """
+        if self.raises is not None:
+            raise self.raises
+        return fakes.Output(stdout=self.out, returncode=self.status)
+
+
+WAYS: Sequence[tuple[Mode, Fake]] = (
+    (Mode.NONZERO, Fake(status=3, out="FAIL: pinned was refused\n")),
+    (Mode.CRASH, Fake(status=0, out="Traceback (most recent call last)\n")),
+    (Mode.CRASH, Fake(status=-11, out="boom\n")),
+    (Mode.CRASH, Fake(raises=FileNotFoundError("no such program"))),
+    (Mode.EMPTY, Fake(status=0, out="")),
+    (Mode.TIMEOUT, Fake(raises=subprocess.TimeoutExpired("x", 1))),
+    (
+        Mode.MISSING_ARGUMENT,
+        Fake(status=1, out="check.sh: line 3: $1: unbound variable\n"),
+    ),
+    (Mode.MISSING_ARGUMENT, Fake(status=0, out="$1: unbound variable\nok\n")),
+)
+
+
+def pre_push(runner: Fake) -> Sequence[str]:
+    """The refusals of one declared check run by a runner.
+
+    Args:
+        runner: the fake.
+
+    Returns:
+        The lines of refusal.
+    """
+    check = config.PrePush(
+        name="check-pins", command=("check.sh", "{bats}"), arguments={"bats": "b"}
+    )
+    return prepush.refusals(runner, [check], fakes.directory())
+
+
+def session(runner: Fake) -> gaterun.Judged:
+    """One ``nox`` session run by a runner.
+
+    Args:
+        runner: the fake.
+
+    Returns:
+        What the session's command came to, as the sessions read it.
+    """
+    args = argparse.Namespace(safe_run=runner)
+    done = nox_commands.gate_command(args, ["nox", "-r", "-s", "lint"], {})
+    return gaterun.judge(done.status, done.output)
+
+
+class TestEachGateEachWay(unittest.TestCase):
+    """Every failure mode refuses at every gate."""
+
+    def test_c32_the_pre_push_check_refuses_every_way(self) -> None:
+        """No failure mode lets the push go."""
+        for mode, runner in WAYS:
+            lines = pre_push(runner)
+            assert_that(bool(lines), is_(True), mode.name)
+            assert_that(lines[0], contains_string("refused the push"))
+
+    def test_c32_a_nox_session_fails_every_way(self) -> None:
+        """No failure mode is a green session."""
+        for mode, runner in WAYS:
+            done = nox_commands.gate_command(
+                argparse.Namespace(safe_run=runner), ["nox"], {}
+            )
+            assert_that(done.status != 0, is_(True), mode.name)
+
+    def test_c32_the_verdict_names_the_mode(self) -> None:
+        """Each way is its own mode."""
+        for mode, runner in WAYS:
+            judged = gaterun.run(runner, ["x"], timeout=1)
+            assert_that(judged.mode, equal_to(mode))
+
+    def test_c32_an_explicit_ok_passes(self) -> None:
+        """Exit 0, an output and (when declared) the ok text pass."""
+        assert_that(gaterun.run(Fake(out="x\n"), ["x"], timeout=1).passed, is_(True))
+        said = Fake(out="check-pins: all passed\n")
+        assert_that(
+            gaterun.run(
+                said, ["x"], timeout=1, ok_text="check-pins: all passed"
+            ).passed,
+            is_(True),
+        )
+        assert_that(
+            gaterun.run(said, ["x"], timeout=1, ok_text="other").mode,
+            equal_to(Mode.EMPTY),
+        )
+        assert_that(pre_push(Fake(out="fine\n")), has_length(0))
+
+    def test_c32_a_session_that_checks_its_status_still_fails(self) -> None:
+        """A runner that raises for a non-zero status is a refusal too."""
+        failing = Fake(raises=subprocess.CalledProcessError(2, "x", "bad\n", "worse\n"))
+        assert_that(gaterun.run(failing, ["x"], timeout=1).mode, equal_to(Mode.NONZERO))
+
+
+class TestDeclaredArguments(unittest.TestCase):
+    """The arguments come from the declared check or the push is refused naming them."""
+
+    def test_c32_a_word_with_no_value_is_named_and_the_check_is_not_run(self) -> None:
+        """bats#654: ``check.sh`` was run with no arguments."""
+        ran = Fake(out="never\n")
+        check = config.PrePush(
+            name="check-pins",
+            command=("check.sh", "{bats}", "{repository}"),
+            arguments={"bats": "dist/bats", "repository": ""},
+        )
+        lines = prepush.refusals(ran, [check], fakes.directory())
+        assert_that(lines, has_length(1))
+        assert_that(lines[0], contains_string("no value for repository"))
+        assert_that(prepush.missing(check), equal_to(["repository"]))
+
+    def test_c32_the_arguments_are_put_in_the_command(self) -> None:
+        """The declared values are the arguments."""
+        check = config.PrePush(
+            name="c", command=("c.sh", "{bats}", "x"), arguments={"bats": "b/bats"}
+        )
+        assert_that(list(prepush.argv(check)), equal_to(["c.sh", "b/bats", "x"]))
+
+    def test_c32_the_configuration_declares_checks(self) -> None:
+        """``[[pre_push]]`` is read, and a bad one is an error."""
+        document = {
+            "pre_push": [
+                {
+                    "name": "check-pins",
+                    "command": ["c.sh", "{bats}"],
+                    "ok": "all passed",
+                    "timeout": 5,
+                    "arguments": {"bats": "b"},
+                },
+                {"command": ["d.sh"]},
+            ]
+        }
+        first, second = prepush.from_document(document)
+        assert_that(
+            (first.ok, first.timeout, first.arguments["bats"]),
+            equal_to(("all passed", 5, "b")),
+        )
+        assert_that(second.name, equal_to("d.sh"))
+        assert_that(prepush.from_document({}), equal_to(()))
+        for bad in (
+            {"pre_push": 1},
+            {"pre_push": [1]},
+            {"pre_push": [{"command": ["x"], "arguments": 1}]},
+        ):
+            with self.assertRaises(ValueError):
+                prepush.from_document(bad)
+
+
+class TestPushRefuses(unittest.TestCase):
+    """``pitboss push`` itself, with a declared check."""
+
+    def push(self, script: str, declared: str) -> world.Result:
+        """Push the branch of a world whose configuration declares a check.
+
+        Args:
+            script: the check's script.
+            declared: the check's arguments, in TOML.
+
+        Returns:
+            What the push did.
+        """
+        here = world.make_world()
+        path = here.clone / "check.sh"
+        path.write_text(script, encoding="utf-8")
+        path.chmod(0o755)
+        with open(here.config, "a", encoding="utf-8") as handle:
+            handle.write(declared)
+        fakes.run_git(here.clone, "branch", "-f", "branch-1")
+        argv = ["push", here.config, "--no-dry-run", "--draft", "origin", "branch-1"]
+        return world.invoke(here, *argv, directory=here.clone)
+
+    def test_c32_a_check_without_its_argument_blocks_the_push(self) -> None:
+        """The case of bats#654: the script needs ``$1`` and gets none."""
+        script = '#!/bin/bash\nset -u\necho "$1"\n'
+        declared = '\n[[pre_push]]\nname = "c"\ncommand = ["./check.sh", "{bats}"]\n'
+        done = self.push(script, declared)
+        assert_that(done.code, equal_to(1))
+        assert_that(done.out, contains_string("no value for bats"))
+
+    def test_c32_a_failing_check_blocks_and_a_good_one_lets_it_go(self) -> None:
+        """Exit 1 blocks; the declared argument and an ok let the push go."""
+        bad = self.push("#!/bin/sh\necho FAIL\nexit 1\n", self.declared("x"))
+        good = self.push("#!/bin/sh\necho ok\n", self.declared("x"))
+        assert_that((bad.code, good.code), equal_to((1, 0)))
+        assert_that(bad.out, contains_string("refused the push"))
+
+    def declared(self, value: str) -> str:
+        """A declared check with its argument.
+
+        Args:
+            value: the argument.
+
+        Returns:
+            The TOML.
+        """
+        return (
+            '\n[[pre_push]]\nname = "c"\ncommand = ["./check.sh", "{bats}"]\n'
+            f'[pre_push.arguments]\nbats = "{value}"\n'
+        )

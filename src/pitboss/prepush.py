@@ -1,0 +1,124 @@
+"""The checks a repository declares for ``pitboss push`` (keyword: pre-push-check).
+
+bats-lang/bats#654: ``tests/check-pins/check.sh`` was run with no arguments and the
+push went through. A repository declares each check with the values of its
+arguments, in ``[[pre_push]]``::
+
+    [[pre_push]]
+    name = "check-pins"
+    command = ["tests/check-pins/check.sh", "{bats}", "{repository}"]
+    ok = "check-pins: all passed"
+    [pre_push.arguments]
+    bats = "dist/debug/bats"
+    repository = "../repository-prototype"
+
+A word the command names that ``arguments`` does not give, or gives empty, refuses
+the push naming it, and the check runs through ``gaterun``, so only an explicit ok
+lets the push go.
+"""
+
+import pathlib
+import re
+from typing import Mapping, Sequence
+
+from . import config, gaterun
+
+WORD = re.compile(r"\{(\w+)\}")
+
+
+def from_document(document: Mapping[str, object]) -> Sequence[config.PrePush]:
+    """Read the ``[[pre_push]]`` checks of a configuration.
+
+    Args:
+        document: the parsed configuration.
+
+    Returns:
+        The checks, in the order written.
+
+    Raises:
+        ValueError: when ``pre_push`` is not a list of tables or a check has no
+            command.
+    """
+    found = document.get("pre_push", [])
+    if not isinstance(found, list):
+        raise ValueError(f"pre_push must be a list of tables, not {found!r}")
+    return tuple(_check(each) for each in found)
+
+
+def _check(table: object) -> config.PrePush:
+    if not isinstance(table, dict) or not isinstance(table.get("command"), list):
+        raise ValueError(f"a pre_push check needs a command list, not {table!r}")
+    given = table.get("arguments", {})
+    if not isinstance(given, dict):
+        raise ValueError(f"pre_push arguments must be a table, not {given!r}")
+    return config.PrePush(
+        name=str(table.get("name", table["command"][0])),
+        command=tuple(str(each) for each in table["command"]),
+        arguments={str(key): str(value) for key, value in given.items()},
+        ok=str(table.get("ok", "")),
+        timeout=int(table.get("timeout", 600)),
+    )
+
+
+def missing(check: config.PrePush) -> Sequence[str]:
+    """The words of a check's command that have no value.
+
+    Args:
+        check: the check.
+
+    Returns:
+        The words it names that ``arguments`` does not give or gives empty.
+    """
+    named = [word for part in check.command for word in WORD.findall(part)]
+    return sorted({word for word in named if not check.arguments.get(word, "")})
+
+
+def argv(check: config.PrePush) -> Sequence[str]:
+    """The command line with the arguments put in.
+
+    Args:
+        check: the check, none of whose words is missing.
+
+    Returns:
+        The command line.
+    """
+    return [
+        WORD.sub(lambda found: check.arguments[found.group(1)], part)
+        for part in check.command
+    ]
+
+
+def refusals(
+    safe_run: gaterun.Runner, checks: Sequence[config.PrePush], directory: pathlib.Path
+) -> Sequence[str]:
+    """Run the checks of a push and say what refuses it.
+
+    Args:
+        safe_run: the runner of commands.
+        checks: the checks the repository declares.
+        directory: where they run, the checkout pushed from.
+
+    Returns:
+        The lines of every refusal; none when each check printed its ok. A check
+        that lacks an argument is not run.
+    """
+    lines: list[str] = []
+    for check in checks:
+        lacking = missing(check)
+        if lacking:
+            lines.append(
+                f"pre-push check {check.name}: no value for {', '.join(lacking)}"
+                " (declare it under [pre_push.arguments])"
+            )
+            continue
+        judged = gaterun.run(
+            safe_run,
+            argv(check),
+            timeout=check.timeout,
+            ok_text=check.ok,
+            directory=str(directory),
+        )
+        if not judged.passed:
+            lines.append(f"pre-push check {check.name} refused the push:")
+            lines.extend(judged.output.rstrip("\n").splitlines()[-20:])
+    return lines

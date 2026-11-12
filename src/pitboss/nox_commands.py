@@ -24,6 +24,7 @@ from . import (
     configsearch,
     diskwatch,
     expansion,
+    gaterun,
     markupgate,
     noxcheck,
     noxenv,
@@ -34,6 +35,8 @@ from . import (
 )
 from .commandarguments import NOW_ARGUMENT
 from .timing import current_time
+
+SESSION_SECONDS = 3600  # a session that runs longer is a hang, refused (gate-run)
 
 
 def run_command(
@@ -62,6 +65,26 @@ def run_command(
         **given,
     )
     return expansion.Outcome(status=done.returncode, output=done.stdout)
+
+
+def gate_command(
+    args: argparse.Namespace, command: Sequence[str], environment: Mapping[str, str]
+) -> expansion.Outcome:
+    """Run one session as a gate: only an explicit ok passes (keyword: gate-run).
+
+    Args:
+        args: the parsed arguments.
+        command: the session's command line.
+        environment: the environment of the child.
+
+    Returns:
+        Status 0 only when the session exited 0, printed and did not crash.
+    """
+    return gaterun.outcome(
+        gaterun.run(
+            args.safe_run, command, timeout=SESSION_SECONDS, environment=environment
+        )
+    )
 
 
 def planned(
@@ -193,7 +216,7 @@ def run_planned(
         print(each)
     with noxenv.throwaway_home() as home:
         environment = noxenv.isolated(os.environ, home)
-        in_home = functools.partial(run_command, args, environment=environment)
+        in_home = functools.partial(gate_command, args, environment=environment)
         words = [*noxcheck.covers_of(judged), *modules]
         ran = noxcheck.run_sessions(in_home, time.monotonic, words, sessions)
     show(ran)

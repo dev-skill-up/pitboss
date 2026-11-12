@@ -7,6 +7,7 @@ from typing import AbstractSet, Mapping, Sequence
 
 from . import (
     briefconfig,
+    prepush,
     cleanconfig,
     config,
     configsearch,
@@ -285,6 +286,7 @@ def _project(document: Mapping[str, object]) -> config.Project:
             exempt.owner_of(document),
         ),
         drafts=briefconfig.from_document(document).drafts,
+        pre_push=prepush.from_document(document),
     )
 
 
