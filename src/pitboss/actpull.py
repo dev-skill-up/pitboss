@@ -21,7 +21,7 @@ def _gated_write(act: actcore.Act, action: str, target: actcore.Target) -> str:
     pull = actcore.verdict_of(act, action, target)
     if action == "arm":
         actcore.record(act, target, f"arm head={actcore.head_of(pull)}")
-    act.hub.write(actcore.Change(kind=action, repo=target.repo, number=target.number))
+    actcore.put(act, target, action)
     return f"{action} {target.repo}#{target.number} at {actcore.head_of(pull)}"
 
 
@@ -79,7 +79,7 @@ def disarm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
         What was done.
     """
     actcore.gate(act, "disarm", target.repo)
-    act.hub.write(actcore.Change(kind="disarm", repo=target.repo, number=target.number))
+    actcore.put(act, target, "disarm")
     return f"disarm {target.repo}#{target.number}"
 
 
@@ -163,11 +163,7 @@ def label(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
     if name == totalanswer.PAUSED and not removing:
         act.controls.disarm(act, target, totalanswer.PAUSED)
     kind = "unlabel" if removing else "label"
-    act.hub.write(
-        actcore.Change(
-            kind=kind, repo=target.repo, number=target.number, fields={"name": name}
-        )
-    )
+    actcore.put(act, target, kind, {"name": name})
     return f"{kind} {name} on {target.repo}#{target.number}"
 
 
@@ -238,14 +234,7 @@ def unhold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
         What was done.
     """
     actcore.gate(act, "unhold", target.repo)
-    act.hub.write(
-        actcore.Change(
-            kind="close-issue",
-            repo=target.repo,
-            number=target.number,
-            fields={"reason": "completed"},
-        )
-    )
+    actcore.put(act, target, "close-issue", {"reason": "completed"})
     return f"unhold {target.repo}#{target.number}"
 
 
@@ -264,9 +253,7 @@ def update_branch(
     """
     actcore.gate(act, "update-branch", target.repo)
     act.controls.disarm(act, target, "the branch is updated")
-    act.hub.write(
-        actcore.Change(kind="update-branch", repo=target.repo, number=target.number)
-    )
+    actcore.put(act, target, "update-branch")
     return f"update-branch {target.repo}#{target.number}"
 
 

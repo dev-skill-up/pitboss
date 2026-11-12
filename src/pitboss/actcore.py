@@ -234,6 +234,26 @@ def gate(act: Act, verb: str, repo: str) -> None:
     act.controls.hold_gate(act, verb, repo)
 
 
+def put(
+    act: Act, target: Target, kind: str, fields: Mapping[str, str] | None = None
+) -> str:
+    """Make one write to a PR or issue.
+
+    Args:
+        act: the verb's world.
+        target: the PR or issue (its repository alone when its number is 0).
+        kind: what is written.
+        fields: what the write carries.
+
+    Returns:
+        What GitHub answered.
+    """
+    change = Change(
+        kind=kind, repo=target.repo, number=target.number, fields=fields or {}
+    )
+    return act.hub.write(change)
+
+
 def record(act: Act, target: Target, words: str) -> None:
     """Post an act record on a PR.
 
@@ -242,14 +262,7 @@ def record(act: Act, target: Target, words: str) -> None:
         target: the PR.
         words: what follows ``pitboss-act:``.
     """
-    act.hub.write(
-        Change(
-            kind="comment",
-            repo=target.repo,
-            number=target.number,
-            fields={"body": f"{RECORD} {words}"},
-        )
-    )
+    put(act, target, "comment", {"body": f"{RECORD} {words}"})
 
 
 def disarm_if_armed(act: Act, target: Target, why: str) -> None:
@@ -262,17 +275,10 @@ def disarm_if_armed(act: Act, target: Target, why: str) -> None:
     """
     pull = act.hub.pull(target.repo, target.number)
     if pull.get("auto_merge"):
-        act.hub.write(Change(kind="disarm", repo=target.repo, number=target.number))
+        put(act, target, "disarm")
         record(act, target, f'disarm reason="{why}"')
     if queued(act.hub.timeline(target.repo, target.number)):
-        act.hub.write(
-            Change(
-                kind="dequeue",
-                repo=target.repo,
-                number=target.number,
-                fields={"node_id": text(pull.get("node_id"))},
-            )
-        )
+        put(act, target, "dequeue", {"node_id": text(pull.get("node_id"))})
         record(act, target, f'dequeue reason="{why}"')
 
 

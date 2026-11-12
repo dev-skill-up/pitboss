@@ -8,7 +8,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
-from .. import actcore, actwrite, totalverdict
+from .. import actcore, totalverdict
 from . import fakehub
 from .knownkit import (
     BASE,

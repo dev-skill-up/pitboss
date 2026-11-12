@@ -9,7 +9,7 @@ gets nothing added.
 """
 
 import re
-from typing import Sequence
+from typing import Callable, Mapping, Sequence
 
 from . import actcore, bodydigest, totalbody, totalreview
 from .actpull import make_hold
@@ -22,7 +22,6 @@ GRADE_KEY = re.compile(
 )
 FIXES = re.compile(r"Fixes (\S+/\S+)?#\d+\n")
 SCRATCH = ("bats-lang/relock-scratch",)
-ACKS = ("hold", "cap", "ruling", "none")
 
 
 def review_text(
@@ -86,19 +85,26 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     pull = act.hub.pull(target.repo, target.number)
     tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
     words = review_text(pull, grades, findings, tickets)
-    act.hub.write(
-        actcore.Change(
-            kind="comment",
-            repo=target.repo,
-            number=target.number,
-            fields={"body": words},
-        )
-    )
+    actcore.put(act, target, "comment", {"body": words})
     return words
+
+
+def _size(act: actcore.Act, repo: str, options: actcore.Options) -> int:
+    # the ticket's Max-lines; over the repository's p90 only with a ruling
+    size = int(actcore.option(options, "max-lines"))
+    most = act.p90(repo)
+    if size > most and not options.get("ruling"):
+        raise actcore.Refused(
+            f"Max-lines {size} is over {repo}'s p90 {most}: a ruling names it"
+        )
+    return size
 
 
 def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """File a ticket in the one form the ticket reader takes.
+
+    It is refused with no item or path, or with a size over the repository's p90
+    and no ruling.
 
     Args:
         act: the verb's world.
@@ -108,26 +114,26 @@ def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
 
     Returns:
         The ticket's number.
-
-    Raises:
-        actcore.Refused: no item or path, or a size over the repository's p90 with no ruling.
     """
     actcore.gate(act, "ticket", target.repo)
-    done_when = [
-        each
-        for each in actcore.option(options, "done-when").splitlines()
-        if each.strip()
-    ]
+    items = actcore.option(options, "done-when").splitlines()
+    done_when = [each for each in items if each.strip()]
     paths = actcore.option(options, "paths").split()
-    size = int(actcore.option(options, "max-lines"))
-    most = act.p90(target.repo)
-    if size > most and not options.get("ruling"):
-        raise actcore.Refused(
-            f"Max-lines {size} is over {target.repo}'s p90 {most}: a ruling names it"
-        )
+    size = _size(act, target.repo, options)
     body = written(done_when, paths, size, actcore.option(options, "priority"))
     fields = {"title": actcore.option(options, "title"), "body": body, "labels": ""}
     return act.hub.write(actcore.Change(kind="issue", repo=target.repo, fields=fields))
+
+
+def _bodies(act: actcore.Act, repo: str) -> Sequence[tuple[int, str]]:
+    # each open PR's number and body
+    pulls = act.hub.open_pulls(repo)
+    found = [(each.get("number"), text(each.get("body"))) for each in pulls]
+    return [(number, body) for number, body in found if isinstance(number, int)]
+
+
+def _place(target: actcore.Target) -> tuple[str, int]:
+    return target.repo, target.number
 
 
 def ticket_edit(
@@ -147,15 +153,7 @@ def ticket_edit(
         actcore.Refused: a PR closes the ticket, so a worker started it.
     """
     actcore.gate(act, "ticket-edit", target.repo)
-    bodies = [
-        (each.get("number"), each.get("body"))
-        for each in act.hub.open_pulls(target.repo)
-    ]
-    started = act.controls.started(
-        [(n, text(b)) for n, b in bodies if isinstance(n, int)],
-        target.repo,
-        target.number,
-    )
+    started = act.controls.started(_bodies(act, target.repo), *_place(target))
     if started:
         raise actcore.Refused(
             f"PR #{started[0]} closes {target.repo}#{target.number}, so a worker"
@@ -163,14 +161,7 @@ def ticket_edit(
         )
     body = actcore.option(options, "body")
     act.controls.items(body)
-    act.hub.write(
-        actcore.Change(
-            kind="issue-edit",
-            repo=target.repo,
-            number=target.number,
-            fields={"body": body},
-        )
-    )
+    actcore.put(act, target, "issue-edit", {"body": body})
     return f"ticket-edit {target.repo}#{target.number}"
 
 
@@ -188,14 +179,7 @@ def comment(act: actcore.Act, target: actcore.Target, options: actcore.Options) 
     actcore.gate(act, "comment", target.repo)
     body = actcore.option(options, "body")
     _plain(body)
-    return act.hub.write(
-        actcore.Change(
-            kind="comment",
-            repo=target.repo,
-            number=target.number,
-            fields={"body": body},
-        )
-    )
+    return actcore.put(act, target, "comment", {"body": body})
 
 
 def _own_comment(act: actcore.Act, target: actcore.Target, identifier: str) -> None:
@@ -227,14 +211,7 @@ def comment_edit(
     identifier, body = actcore.option(options, "id"), actcore.option(options, "body")
     _own_comment(act, target, identifier)
     _plain(body)
-    act.hub.write(
-        actcore.Change(
-            kind="comment-edit",
-            repo=target.repo,
-            number=target.number,
-            fields={"id": identifier, "body": body},
-        )
-    )
+    actcore.put(act, target, "comment-edit", {"id": identifier, "body": body})
     return f"comment-edit {identifier}"
 
 
@@ -254,14 +231,7 @@ def comment_delete(
     actcore.gate(act, "comment-delete", target.repo)
     identifier = actcore.option(options, "id")
     _own_comment(act, target, identifier)
-    act.hub.write(
-        actcore.Change(
-            kind="comment-delete",
-            repo=target.repo,
-            number=target.number,
-            fields={"id": identifier},
-        )
-    )
+    actcore.put(act, target, "comment-delete", {"id": identifier})
     return f"comment-delete {identifier}"
 
 
@@ -322,11 +292,7 @@ def pr_edit(act: actcore.Act, target: actcore.Target, options: actcore.Options) 
             ("blocked by",),
         )
     act.controls.disarm(act, target, "the body or the title changes")
-    act.hub.write(
-        actcore.Change(
-            kind="pr-edit", repo=target.repo, number=target.number, fields=fields
-        )
-    )
+    actcore.put(act, target, "pr-edit", fields)
     return f"pr-edit {target.repo}#{target.number}"
 
 
@@ -349,18 +315,11 @@ def scratch_clean(
     actcore.gate(act, "scratch-clean", target.repo)
     if target.repo not in SCRATCH:
         raise actcore.Refused(f"{target.repo} is not a scratch repository")
-    if options.get("branch"):
-        act.hub.write(
-            actcore.Change(
-                kind="branch-delete",
-                repo=target.repo,
-                fields={"branch": options["branch"]},
-            )
-        )
+    if branch := options.get("branch"):
+        whole = actcore.Target(repo=target.repo)
+        actcore.put(act, whole, "branch-delete", {"branch": branch})
     if target.number:
-        act.hub.write(
-            actcore.Change(kind="pr-close", repo=target.repo, number=target.number)
-        )
+        actcore.put(act, target, "pr-close")
     return f"scratch-clean {target.repo}"
 
 
@@ -383,14 +342,7 @@ def ack(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> s
     message, kind = actcore.option(options, "message"), actcore.option(options, "kind")
     if kind not in ACKS:
         raise actcore.Refused(f"ack is {', '.join(ACKS)}")
-    if kind == "hold":
-        make_hold(act, target.repo, actcore.option(options, "scope"), message)
-    elif kind == "cap":
-        act.owner.caps[message] = int(actcore.option(options, "cap"))
-    elif kind == "ruling" and not text(options.get("reason")).startswith(("http", "#")):
-        raise actcore.Refused("ack ruling names the ruling (a URL or #N)")
-    elif kind == "none":
-        _note(act, target, options)
+    ACKS[kind](act, target, options)
     act.owner.dispositions[message] = kind
     return f"ack {message} {kind}"
 
@@ -406,3 +358,25 @@ def _note(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
         "labels": actcore.ACK_LABEL,
     }
     act.hub.write(actcore.Change(kind="issue", repo=repo, fields=fields))
+
+
+def _hold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:
+    scope = actcore.option(options, "scope")
+    make_hold(act, target.repo, scope, options["message"])
+
+
+def _cap(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:
+    act.owner.caps[options["message"]] = int(actcore.option(options, "cap"))
+
+
+def _ruling(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:
+    if not text(options.get("reason")).startswith(("http", "#")):
+        raise actcore.Refused("ack ruling names the ruling (a URL or #N)")
+
+
+ACKS: Mapping[str, Callable[[actcore.Act, actcore.Target, actcore.Options], None]] = {
+    "hold": _hold,
+    "cap": _cap,
+    "ruling": _ruling,
+    "none": _note,
+}
