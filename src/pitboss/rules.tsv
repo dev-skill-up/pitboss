@@ -17,7 +17,7 @@ A15	2026-11-03	open	CI evidence is a pointer to the head's run	-	-
 A16	2026-11-04	open	The Execution review waits for full green CI on the reviewed head	-	-
 A17	2026-10-31	open	After a merge of main the review covers only the resolution	-	-
 A18	2026-10-29	open	Impossibility needs evidence first	-	-
-A19	2026-11-08	enforced	Done-when appears only in the ticket body and changes only before a worker started	casepost.with_done_when	test_case_post.test_a19_the_done_when_is_edited_in_the_body test_case_post.test_a19_a_comment_is_never_posted test_case_post.test_a19_the_edit_is_refused_once_a_worker_started
+A19	2026-11-08	enforced	Done-when appears only in the ticket body and changes only before a worker started	casepost.with_done_when	test_case_post.test_a19_the_done_when_is_edited_in_the_body test_case_post.test_a19_the_edit_is_refused_once_a_worker_started
 A20	2026-11-11	enforced	A Done-when must be X demonstrated by Y	plandonewhen.form	test_done_when_form.test_a20_an_item_with_no_demonstration_is_refused test_done_when_form.test_a20_a_lead_line_states_it_for_every_item
 A21	2026-10-30	open	A PR that closes several tickets needs a recorded ruling	-	-
 A22	2026-10-30	open	An approved Plan is never judged again by the Plan-row rule	-	-
