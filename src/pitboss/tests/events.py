@@ -7,8 +7,8 @@ event the rules allow, ``simulated`` does the step the flow printed as it says.
 import dataclasses
 from typing import Callable, Mapping, Sequence, TypedDict, Unpack
 
-from .. import steps
-from .model import Allowed, History, Model, Review, Ruling, Verdict
+from .. import rulingguard, steps
+from .model import Allowed, History, Model, Review, Ruling, Verdict, pull_state
 
 Move = Callable[[Model], Model]
 
@@ -48,7 +48,7 @@ class Records(TypedDict, total=False):
 
     reviews: Sequence[Review]
     rulings: Sequence[tuple[int, Ruling]]
-    checks: Sequence[tuple[int, int]]
+    checks: Sequence[tuple[int, int, int]]
 
 
 def _then(model: Model, name: str, **changes: Unpack[Changes]) -> Model:
@@ -71,8 +71,8 @@ def _reviewing(name: str, plan: Verdict | None, execution: Verdict | None) -> Mo
     return lambda model: _review(model, name, plan, execution)
 
 
-def _checked(model: Model, plan: int) -> History:
-    check = (model.clock, plan)
+def _checked(model: Model, plan: int, head: int) -> History:
+    check = (model.clock, plan, head)
     return _recorded(model, checks=[*model.history.checks, check])
 
 
@@ -82,19 +82,22 @@ def _pushed(model: Model, name: str) -> Model:
 
 def _push_checked(model: Model, name: str) -> Model:
     pushed = _pushed(model, name)
-    return dataclasses.replace(pushed, history=_checked(model, model.plan))
+    return dataclasses.replace(pushed, history=_checked(model, model.plan, pushed.head))
 
 
-def allowed_once(model: Model) -> bool:
-    """Whether ``ruling post`` accepts a ruling: none since the last pause.
+def guard_allows(model: Model) -> bool:
+    """Whether the shipped ``rulingguard.refusal`` lets a ruling be posted.
 
     Args:
         model: the PR.
 
     Returns:
-        True when no ruling was posted since the PR was last paused.
+        True when the guard has no reason to refuse: no ruling is on the PR, or
+        it carries the pause label.
     """
-    return model.since_pause == 0
+    state = pull_state(model)
+    texts = [each.body for each in state.comments]
+    return rulingguard.refusal(texts, sorted(state.labels)) == ""
 
 
 def ruled(model: Model, word: Ruling, allowed: Allowed) -> Model | None:
@@ -103,7 +106,7 @@ def ruled(model: Model, word: Ruling, allowed: Allowed) -> Model | None:
     Args:
         model: the PR.
         word: what it rules.
-        allowed: the rule for a ruling (``allowed_once``).
+        allowed: the rule for a ruling (``guard_allows``).
 
     Returns:
         The model with the ruling, None when the rule refuses it.
@@ -111,7 +114,7 @@ def ruled(model: Model, word: Ruling, allowed: Allowed) -> Model | None:
     if not allowed(model):
         return None
     made = _recorded(model, rulings=[*model.history.rulings, (model.clock, word)])
-    count = model.since_pause + 1
+    count = model.since_pause + (not model.paused)
     return _then(model, "ruling " + word.value, history=made, since_pause=count)
 
 
@@ -154,7 +157,7 @@ def _plain() -> Mapping[str, Move]:
 RULINGS = (Ruling.DO_THESE_STEPS, Ruling.REVISE_THE_PLAN, Ruling.ESCALATE)
 
 
-def moves(model: Model, allowed: Allowed = allowed_once) -> Sequence[Model]:
+def moves(model: Model, allowed: Allowed = guard_allows) -> Sequence[Model]:
     """Every model one event of the alphabet leads to.
 
     Args:
@@ -184,7 +187,7 @@ def _worked(model: Model, step: steps.Next) -> Model:
     done = dataclasses.replace(_push_checked(model, "worker"), ci="green")
     if task is not steps.Task.REVISE_PLAN:
         return done
-    made = _checked(model, model.plan + 1)
+    made = _checked(model, model.plan + 1, done.head)
     return dataclasses.replace(done, plan=model.plan + 1, history=made)
 
 
@@ -199,7 +202,7 @@ def simulated(model: Model, step: steps.Next, allowed: Allowed) -> Model | None:
     Returns:
         The model, None for a step that waits for the owner or ends the PR.
     """
-    made = _checked(model, model.plan)
+    made = _checked(model, model.plan, model.head)
     done: Mapping[steps.Step, Callable[[], Model | None]] = {
         steps.Step.WAIT_FOR_CI: lambda: _then(model, "ci green", ci="green"),
         steps.Step.OPUS_RULING: lambda: ruled(model, Ruling.DO_THESE_STEPS, allowed),

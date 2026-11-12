@@ -29,12 +29,12 @@ class History:
     Attributes:
         reviews: ``(when, plan, execution, head, plan version)`` of each review.
         rulings: ``(when, word)`` of each ruling.
-        checks: ``(when, plan version)`` of each clean Plan check.
+        checks: ``(when, plan version, head)`` of each clean Plan check.
     """
 
     reviews: Sequence[Review] = ()
     rulings: Sequence[tuple[int, Ruling]] = ()
-    checks: Sequence[tuple[int, int]] = ((2, 0),)
+    checks: Sequence[tuple[int, int, int]] = ((2, 0, 0),)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -96,7 +96,7 @@ def key(model: Model) -> Sequence[object]:
         (model.since_pause, model.last == DO_STEPS, rank[model.pushed]),
         [(rank[a], b, c, d, e) for a, b, c, d, e in made.reviews],
         [(rank[a], b) for a, b in made.rulings],
-        [(rank[a], b) for a, b in made.checks],
+        [(rank[a], b, c) for a, b, c in made.checks],
     ]
 
 
@@ -112,16 +112,21 @@ def stamp(second: int) -> str:
     return f"2026-10-30T00:00:{second:02d}Z"
 
 
-def body_of(plan: int) -> str:
-    """The PR body with a version of the Plan.
+def body_of(plan: int, head: int = 0) -> str:
+    """The PR body with a version of the Plan, as it reads at a head.
+
+    The Plan's CI pointer names the run of the head, so the body of another head
+    differs in its run and job ids only (keyword: plan-digest-urls).
 
     Args:
         plan: the version.
+        head: the head's number.
 
     Returns:
         The body.
     """
-    return test_flow.BODY.replace("the plan", f"the plan v{plan}")
+    url = f"https://github.com/o/r/actions/runs/{head + 100}/job/{head + 200}"
+    return test_flow.BODY.replace("the plan", f"the plan v{plan} {url}")
 
 
 def sha_of(head: int) -> str:
@@ -136,9 +141,9 @@ def sha_of(head: int) -> str:
     return f"{head + 1:040x}"
 
 
-def _plan_check(plan: int, second: int) -> shapes.Comment:
+def _plan_check(plan: int, head: int, second: int) -> shapes.Comment:
     return shapes.Comment(
-        body=checkcomment.clean_text(body_of(plan)),
+        body=checkcomment.clean_text(body_of(plan, head)),
         author_association="MEMBER",
         created_at=stamp(second),
         url=f"https://example.org/check/{second}",
@@ -156,7 +161,7 @@ def _ruling(second: int, word: Ruling) -> shapes.Comment:
 
 def _graded(each: Review) -> shapes.Graded:
     second, plan, execution, head, version = each
-    body = body_of(version)
+    body = body_of(version, head)
     return shapes.Graded(
         sha=sha_of(head),
         when=stamp(second),
@@ -191,9 +196,11 @@ def pull_state(model: Model) -> flow.PullState:
     """
     head = {"sha": sha_of(model.head), "ref": "work"}
     dirty = "dirty" if model.conflict else "clean"
-    pull = test_flow.pull_of(body=body_of(model.plan), head=head, mergeable_state=dirty)
+    pull = test_flow.pull_of(
+        body=body_of(model.plan, model.head), head=head, mergeable_state=dirty
+    )
     made = model.history
-    comments = [_plan_check(plan, second) for second, plan in made.checks]
+    comments = [_plan_check(plan, at, second) for second, plan, at in made.checks]
     comments += [_ruling(second, word) for second, word in made.rulings]
     return flow.PullState(
         pull=pull,

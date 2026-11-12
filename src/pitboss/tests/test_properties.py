@@ -1,6 +1,8 @@
 """Properties P1 to P5 of the review flow over a bounded alphabet (pitboss#444).
 
-Every sequence of up to ``DEPTH`` events of the alphabet (plan and execution
+Every sequence of up to ``DEPTH`` events (states are deduplicated by ``model.key``,
+so "every sequence" means every distinct state: two sequences that leave the same
+state read the same to the flow and to every property) of the alphabet (plan and execution
 reviews, the three ruling words, a Plan check at a new head, a push, a merge of
 main, CI green or red, the pause label, a conflict) is walked from a PR that has
 a Plan, an Execution and a clean Plan check. At each state the shipped
@@ -8,6 +10,7 @@ a Plan, an Execution and a clean Plan check. At each state the shipped
 sequence of events that led to it (keyword: properties).
 """
 
+import dataclasses
 import time
 import unittest
 from typing import Callable, Iterator, Protocol, Sequence
@@ -56,7 +59,7 @@ def _next_layer(
 
 
 def walk(
-    allowed: Allowed = events.allowed_once, depth: int = DEPTH
+    allowed: Allowed = events.guard_allows, depth: int = DEPTH
 ) -> Iterator[tuple[model.Model, Sequence[str]]]:
     """Every state reachable within a depth, with the events that reach it.
 
@@ -96,27 +99,87 @@ def p1_a_step(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
     return "P1: no step names an action or an owner" if waits or nothing else ""
 
 
-def p2_ruling_steps(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
-    """P2: a ``do these steps`` ruling is the step within one call.
+def unapplied(at: model.Model) -> bool:
+    """Whether the newest ruling says ``do these steps`` and nothing followed it.
 
     Args:
-        at: the PR, whose last event is considered.
+        at: the PR.
+
+    Returns:
+        True when no review and no push is newer than that ruling.
+    """
+    rulings = at.history.rulings
+    when, word = rulings[-1] if rulings else (0, None)
+    later = [each for each in at.history.reviews if each[0] > when]
+    return word is model.Ruling.DO_THESE_STEPS and not later and at.pushed < when
+
+
+def p2_ruling_steps(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
+    """P2: a ``do these steps`` ruling no review or push followed is the step.
+
+    At every state, not after a chosen last event. The only steps that come
+    before it are the ones the order of ``flow.ROWS`` puts first, each held by its
+    own cause: the pause, an edited Plan, a conflict, a CI that runs or is red.
+
+    Args:
+        at: the PR.
         step: its step.
         allowed: the rule for a ruling (unused).
 
     Returns:
         The finding, empty when the property holds.
     """
-    due = at.last == "ruling do these steps" and not at.paused
-    due = due and at.ci == "green" and not at.conflict
-    ruled = (
-        steps.Task.RULING_STEPS in (step.task,)
-        or step.stage is steps.Stage.RULING_STEPS
-    )
-    held = step.step in (steps.Step.PLAN_EDITED, steps.Step.WAIT_FOR_OWNER)
+    edited = any(each[4] != at.plan for each in at.history.reviews)
+    first = {
+        steps.Step.WAIT_FOR_OWNER: at.paused,
+        steps.Step.PLAN_EDITED: edited,
+        steps.Step.WAIT_FOR_CI: at.ci == "running",
+    }
+    ruled = step.task is steps.Task.RULING_STEPS
+    fixing = step.task is steps.Task.RESOLVE_CONFLICT and at.conflict
+    fixing = fixing or step.task is steps.Task.FIX_CI and at.ci == "red"
+    ahead = first.get(step.step, False) or fixing
     return (
         "P2: the ruling's steps are not the step"
-        if due and not ruled and not held
+        if unapplied(at) and not ruled and not ahead
+        else ""
+    )
+
+
+def p3_plan_digest(
+    at: model.Model,
+    step: steps.Next,
+    allowed: Allowed,
+    digest: Callable[[str], str] = expansion.section_digest,
+) -> str:
+    """P3: a Plan check at a later head keeps the digest of an approved Plan.
+
+    Each Plan check and review of the PR was made at a head; the digest of the
+    Plan it read, as ``digest`` gives it, is the digest of the same version of the
+    Plan at the PR's head now (only the run and job ids of the Actions addresses
+    differ), and the flow does not say the Plan was edited when no version differs.
+
+    Args:
+        at: the PR.
+        step: its step.
+        allowed: the rule for a ruling (unused).
+        digest: the digest of a Plan section (the one that reads the ids is the
+            planted violation).
+
+    Returns:
+        The finding, empty when the property holds.
+    """
+    made = [(version, head) for _, version, head in at.history.checks]
+    made += [(each[4], each[3]) for each in at.history.reviews]
+    moved = [
+        digest(plandigest.section(model.body_of(v, h)))
+        != digest(plandigest.section(model.body_of(v, at.head)))
+        for v, h in made
+    ]
+    edited = step.step is steps.Step.PLAN_EDITED and all(v == at.plan for v, _ in made)
+    return (
+        "P3: a later head changed the digest of an approved Plan"
+        if any(moved) or edited
         else ""
     )
 
@@ -172,12 +235,18 @@ def does_nothing(at: model.Model, step: steps.Next, allowed: Allowed) -> model.M
     return at
 
 
-PROPERTIES: Sequence[Property] = (p1_a_step, p2_ruling_steps, p4_one_ruling, p5_moves)
+PROPERTIES: Sequence[Property] = (
+    p1_a_step,
+    p2_ruling_steps,
+    p3_plan_digest,
+    p4_one_ruling,
+    p5_moves,
+)
 
 
 def violations(
     held: Sequence[Property],
-    allowed: Allowed = events.allowed_once,
+    allowed: Allowed = events.guard_allows,
     depth: int = DEPTH,
 ) -> Sequence[str]:
     """The sequences that break a property, with the finding.
@@ -215,7 +284,7 @@ class TestProperties(unittest.TestCase):
     """The properties, and each one failing when its violation is planted."""
 
     def test_properties_hold_to_depth_5_in_under_a_minute(self) -> None:
-        """P1, P2, P4 and P5 hold on every sequence, within the time."""
+        """P1 to P5 hold on every distinct state of every sequence, within the time."""
         started = time.monotonic()
         found = violations(PROPERTIES)
         elapsed = time.monotonic() - started
@@ -226,11 +295,36 @@ class TestProperties(unittest.TestCase):
 
     def test_a4_p1_every_pr_has_a_step_to_depth_3(self) -> None:
         """A4: no state of the alphabet, to depth 3, is a PR with nothing to do."""
-        assert_that(violations([p1_a_step], events.allowed_once, 3), equal_to([]))
+        assert_that(violations([p1_a_step], events.guard_allows, 3), equal_to([]))
 
     def test_a2_p2_ruling_steps_hold_to_depth_4(self) -> None:
         """A2: after a `do these steps` ruling the step is its own, to depth 4."""
-        assert_that(violations([p2_ruling_steps], events.allowed_once, 4), equal_to([]))
+        assert_that(violations([p2_ruling_steps], events.guard_allows, 4), equal_to([]))
+
+    def test_properties_p3_planted_a_digest_that_reads_the_ids_fails(self) -> None:
+        """P3 planted: the digest of main (ids kept) differs at a later head."""
+        at = model.Model(head=1, history=model.History(checks=((2, 0, 0),)))
+        step = model.step_of(at)
+        kept = expansion.text_digest
+        assert_that(p3_plan_digest(at, step, events.guard_allows), equal_to(""))
+        found = p3_plan_digest(at, step, events.guard_allows, kept)
+        assert_that(found[:2], equal_to("P3"))
+
+    def test_properties_p2_planted_a_step_that_waits_for_ci_that_is_green_fails(
+        self,
+    ) -> None:
+        """P2 planted: the unapplied ruling, CI green, and the step waits for CI."""
+        ruled = events.ruled(
+            model.Model(), model.Ruling.DO_THESE_STEPS, events.guard_allows
+        )
+        assert ruled is not None
+        found = p2_ruling_steps(ruled, steps.wait_for_ci(), events.guard_allows)
+        assert_that(found[:2], equal_to("P2"))
+        running = dataclasses.replace(ruled, ci="running")
+        assert_that(
+            p2_ruling_steps(running, steps.wait_for_ci(), events.guard_allows),
+            equal_to(""),
+        )
 
     def test_properties_p4_planted_second_ruling_fails_printing_the_sequence(
         self,
@@ -245,26 +339,26 @@ class TestProperties(unittest.TestCase):
 
     def test_properties_p4_the_shipped_rule_refuses_the_second(self) -> None:
         """The nearest input: with the rule, the same depth has no violation."""
-        assert_that(violations([p4_one_ruling], events.allowed_once, 3), equal_to([]))
+        assert_that(violations([p4_one_ruling], events.guard_allows, 3), equal_to([]))
 
     def test_properties_p1_planted_a_pr_with_no_step_fails(self) -> None:
         """P1 planted: a step that waits for a CI that is not running fails."""
         waiting = steps.wait_for_ci()
         green = model.Model()
         assert_that(
-            p1_a_step(green, waiting, events.allowed_once), contains_string("P1")
+            p1_a_step(green, waiting, events.guard_allows), contains_string("P1")
         )
-        assert_that(p1_a_step(green, steps.merge(), events.allowed_once), equal_to(""))
+        assert_that(p1_a_step(green, steps.merge(), events.guard_allows), equal_to(""))
 
     def test_properties_p2_planted_another_step_after_the_ruling_fails(self) -> None:
         """P2 planted: after a `do these steps` ruling a merge step fails."""
         ruled = events.ruled(
-            model.Model(), model.Ruling.DO_THESE_STEPS, events.allowed_once
+            model.Model(), model.Ruling.DO_THESE_STEPS, events.guard_allows
         )
         assert ruled is not None
         worker = steps.worker(steps.Task.RULING_STEPS)
         found = [
-            p2_ruling_steps(ruled, each, events.allowed_once)[:2]
+            p2_ruling_steps(ruled, each, events.guard_allows)[:2]
             for each in (steps.merge(), worker)
         ]
         assert_that(found, equal_to(["P2", ""]))
@@ -273,8 +367,8 @@ class TestProperties(unittest.TestCase):
         """P5 planted: simulating a step that leaves the step the same fails."""
         at = model.Model()
         step = model.step_of(at)
-        assert_that(p5_moves(at, step, events.allowed_once), equal_to(""))
-        found = p5_moves(at, step, events.allowed_once, does_nothing)
+        assert_that(p5_moves(at, step, events.guard_allows), equal_to(""))
+        found = p5_moves(at, step, events.guard_allows, does_nothing)
         assert_that(found[:2], equal_to("P5"))
 
 
