@@ -108,6 +108,12 @@ class Known:
     tree: pathlib.Path
 
 
+def _key(path: str, text: str) -> bool:
+    # a path that the text itself calls a key of a list (an allowlist line's
+    # "<repository>/<path>"), not a file of this tree (keyword: done-when-key)
+    return bool(re.search(r"\bkeys?\b[^`\n]{0,40}`" + re.escape(path) + "`", text))
+
+
 def missing_line(ticket: str, body: str, known: Known) -> str:
     """The line naming each name of the Done-when that does not exist.
 
@@ -119,10 +125,15 @@ def missing_line(ticket: str, body: str, known: Known) -> str:
     Returns:
         The line, or "" when every name exists or there are none.
     """
-    names = names_in(done_when(body))
+    text = done_when(body)
+    names = names_in(text)
     missing = [
         *(f"brief.Kind.{each}" for each in names.kinds if each not in known.kinds),
-        *(f"file {each}" for each in names.paths if not (known.tree / each).exists()),
+        *(
+            f"file {each}"
+            for each in names.paths
+            if not (known.tree / each).exists() and not _key(each, text)
+        ),
         *(
             f"command pitboss {each}"
             for each in names.commands

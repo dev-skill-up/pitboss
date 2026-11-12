@@ -8,6 +8,7 @@ from typing import NoReturn, Sequence
 from gather.commands import add_argument
 
 from . import (
+    hopedfigure,
     commanddoc,
     commandtext,
     ENTRY_DATA,
@@ -127,6 +128,8 @@ def _say_missing_names(found: Context, ticket: str) -> None:
     said = donewhen.missing_line(ticket, body, known)
     if said:
         print(said)
+    for each in hopedfigure.findings(body):
+        print(each)  # keyword: hoped-figure (T419)
     if repeated := repeatruns.line(ticket, donewhen.section(body)):
         print(repeated)  # keyword: repeat-runs (pitboss#278)
     for each in nextguide.done_when_lines(ticket, body):

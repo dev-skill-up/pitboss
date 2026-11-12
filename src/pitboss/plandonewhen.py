@@ -23,7 +23,7 @@ import functools
 import re
 from typing import AbstractSet, Sequence
 
-from . import bodytext, planrowtext, ticketwhen
+from . import bodytext, hopedfigure, planrowtext, ticketwhen
 
 CHECK = "plan-done-when"
 MEASUREMENT = "plan-measurement"
@@ -153,10 +153,12 @@ def form(ticket: str) -> Sequence[str]:
         the ticket has no Done-when.
     """
     found = ticketwhen.items(ticket)
+    hoped = hopedfigure.findings(ticket)
     if any(EACH.search(each) for each in found):
-        return []
+        return hoped
     bare = [each for each in found if not DEMONSTRATED.search(each)]
-    return [NOT_DEMONSTRATED.format(check=FORM, item=bare[0][:SHOWN])] if bare else []
+    said = [NOT_DEMONSTRATED.format(check=FORM, item=bare[0][:SHOWN])] if bare else []
+    return [*said, *hoped]
 
 
 def _free(item: str, rows: Sequence[str], used: AbstractSet[int]) -> int | None:
