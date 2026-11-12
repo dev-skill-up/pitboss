@@ -33,6 +33,12 @@ class Category(enum.IntEnum):
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
         ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (a PR; keyword: ci-quotes).
+        WAITING: a PR that is offered for no round (it waits, or its step is a
+            ruling, a merge or an undraft) and whose ticket is blocked by an open
+            ticket: it is only listed as blocked (keyword: blocked-pull,
+            pitboss#388).
+        RELOCK_REVIEW: a reviewer checks a relock PR, a mechanical review that
+            ranks after every other item (a PR; keyword: relock-last, B9).
         REFRESH_BODY: an author rewrites the body's ``Head:`` line for the
             head (a PR; keyword: stale-head).
         SHARED_RED: an author files the one ticket for a check that is red on
@@ -41,12 +47,6 @@ class Category(enum.IntEnum):
             a blocker closed unmerged; keyword: blocked-by).
         AFTER_BLOCKER: an author merges the base into a PR whose blockers merged
             (keyword: blocked-by).
-        WAITING: a PR that is offered for no round (it waits, or its step is a
-            ruling, a merge or an undraft) and whose ticket is blocked by an open
-            ticket: it is only listed as blocked (keyword: blocked-pull,
-            pitboss#388).
-        RELOCK_REVIEW: a reviewer checks a relock PR, a mechanical review that
-            ranks after every other item (a PR; keyword: relock-last, B9).
     """
 
     FIX_REVIEW = 1

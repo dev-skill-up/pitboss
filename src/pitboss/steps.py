@@ -111,13 +111,13 @@ class Task(enum.Enum):
     )
     ADD_CI_QUOTES = "add the CI quotes to the body"
     FIX_ROUND = "fix round: fix the findings, each one (code, doc, test, Plan)"
-    SHARED_RED = "file one ticket against the shared cause of the red check; fix no PR"
-    FIX_BLOCKED_BY = "correct the Blocked-by lines (a loop, or a blocker closed)"
-    AFTER_BLOCKER = "the blockers merged: merge the base into the branch, check, push"
     REFRESH_BODY = (
         "rewrite the body's Head line and stale Evidence for the head:"
         " `pitboss body-head`, `pitboss expand`; `pitboss lint pr-body` must print ok"
     )
+    SHARED_RED = "file one ticket against the shared cause of the red check; fix no PR"
+    FIX_BLOCKED_BY = "correct the Blocked-by lines (a loop, or a blocker closed)"
+    AFTER_BLOCKER = "the blockers merged: merge the base into the branch, check, push"
 
 
 class Stage(enum.Enum):

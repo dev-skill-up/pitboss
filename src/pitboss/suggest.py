@@ -11,6 +11,7 @@ import pathlib
 from typing import Iterable, Mapping, Sequence
 
 from . import (
+    reporules,
     brief,
     briefconfig,
     briefheads,
@@ -272,6 +273,7 @@ def _rules(source: Source, slug: str, head: str) -> brief.Rules:
             slug,
             source.settings.project.no_drafts,
             source.settings.runners.exempt,
+            reporules.lines(reporules.read(source.github, slug)),
         ),
         gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
         plan_check=source.settings.project.plan_review_check,

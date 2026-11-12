@@ -19,6 +19,7 @@ from . import (
     draftfindings,
     extrafile,
     flowfiles,
+    reporules,
     folds,
     forms,
     gateform,
@@ -222,6 +223,14 @@ def _change(args: argparse.Namespace) -> None:
     _finish(flowfiles.findings(_read(args.files[0])), "ok")
 
 
+def _repo_rules(args: argparse.Namespace) -> None:
+    # keyword: repo-rules (pwa#320): the diff, the repository's CLAUDE.md, the body
+    if len(args.files) != 3:
+        raise _fail("repo-rules takes the diff, the CLAUDE.md and the PR body")
+    diff, claude, body = (_read(each) for each in args.files)
+    _finish(reporules.findings("body", claude, diff, body), "ok")
+
+
 def _event(args: argparse.Namespace) -> None:
     if len(args.files) != 2:
         raise _fail("event takes the event's file and the status file to write")
@@ -257,6 +266,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "ticket": _form_kind(ticketrows.check),
     "event": _event,
     "change": _change,
+    "repo-rules": _repo_rules,
 }
 
 
