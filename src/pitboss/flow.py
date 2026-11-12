@@ -231,7 +231,9 @@ def next_step(pr: PullState) -> steps.Next:
     Returns:
         The step.
     """
-    return next(row.step(pr) for row in ROWS if row.holds(pr))
+    step = next(row.step(pr) for row in ROWS if row.holds(pr))
+    held = step.step in steps.HELD and pr.draft.hold()  # keyword: hold-scope, B20
+    return steps.Next(step=steps.Step.WAIT_FOR_HOLD) if held else step
 
 
 def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
@@ -358,10 +360,9 @@ def _ruling_held(pr: PullState) -> steps.Next:
 
 
 def _conflict_step(pr: PullState) -> steps.Next:
-    # keyword: conflict-first (pitboss#148, Opus ruling on #181): a conflict is a
-    # fix at every stage but while steps.WAITS holds it (PLAN_EDITED included)
-    review = newest_counting_review(pr)
-    return waiting_step(pr, review) or steps.worker(steps.Task.RESOLVE_CONFLICT)
+    # keyword: conflict-first (pitboss#148, #181): a fix but while steps.WAITS holds
+    wait = waiting_step(pr, newest_counting_review(pr))
+    return wait or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
 
 def _no_body(pr: PullState) -> bool:

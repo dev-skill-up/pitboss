@@ -22,11 +22,14 @@ class Draft:
             when none (keyword: plan-review-check, pitboss#275).
         no_drafts: whether its repository has no drafts (keyword: no-drafts,
             pitboss#390).
+        hold: says whether a runner-pressure hold covers its repository now
+            (the caller looks at the runners; keyword: hold-scope, B20).
     """
 
     needs_e2e: Callable[[], bool] = lambda: False
     plan_review_check: str = ""
     no_drafts: bool = False
+    hold: Callable[[], bool] = lambda: False
 
 
 class Run(Protocol):

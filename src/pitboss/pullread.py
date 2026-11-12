@@ -9,6 +9,7 @@ from . import (
     config,
     earlyreview,
     ghapi,
+    holdscope,
     parsing,
     pinsonly,
     pulls,
@@ -81,9 +82,10 @@ def read_each(
 def _unheld(
     source: pulls.Source, settings: config.Config, repo: config.Repo
 ) -> pulls.Source:
-    # keyword: pitboss-exempt (pitboss#113): an exempt repository's drafts are
-    # undrafted whatever the pressure, and the pressure is not looked at for them
-    if repo.slug not in settings.runners.exempt:
+    # keyword: pitboss-exempt (pitboss#113), hold-scope (T141): an exempt repository
+    # and one of another organisation are not held, and the pressure is not looked
+    # at for them
+    if holdscope.applies(settings.runners, repo.slug):
         return source
     return dataclasses.replace(source, undraft=lambda: True)
 

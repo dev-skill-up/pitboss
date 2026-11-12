@@ -19,10 +19,12 @@ from . import (
     ENTRY_DATA,
     commandarguments,
     commands,
+    config,
     configfile,
     draftrule,
     evidencepush,
     exempt,
+    holdscope,
     markupgate,
     noxcheck,
     noxgreen,
@@ -50,8 +52,11 @@ def _say(found: commands.Context, looked: queue.Seen) -> bool:
     if not found.settings.runners.held:
         print(report.no_hold_line())
         return False
-    print(report.seen_line(looked))
-    return bool(looked.waiting or looked.owed)
+    held = bool(looked.waiting or looked.owed)
+    # keyword: hold-scope (T141): the line names whose runners are busy
+    more = f"; {holdscope.scope(found.settings.runners)}" if held else ""
+    print(report.seen_line(looked) + more)
+    return held
 
 
 def _note_look(found: commands.Context, looked: queue.Seen) -> None:
@@ -86,11 +91,18 @@ def _free(args: argparse.Namespace, found: commands.Context, slug: str | None) -
     # checked nor recorded, as a push to a draft is not
     if args.draft:
         return True
-    free = exempt.is_exempt(slug, found.settings.runners.exempt)
-    if free:
+    runners = found.settings.runners
+    if exempt.is_exempt(slug, runners.exempt):
         print(exempt.SAYING)
         return True
+    if not holdscope.applies(runners, slug):  # keyword: hold-scope (T141)
+        print(holdscope.OUTSIDE.format(slug=slug, orgs=_orgs(runners)))
+        return True
     return _to_drafts(args, found, slug)
+
+
+def _orgs(runners: config.Runners) -> str:
+    return ", ".join(holdscope.organisations(runners))
 
 
 def _wanted(args: argparse.Namespace) -> Sequence[str]:

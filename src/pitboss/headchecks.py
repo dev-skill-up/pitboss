@@ -1,7 +1,7 @@
 """The check runs and commit statuses of a PR's head (keyword: red-status)."""
 
 import dataclasses
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Callable, Sequence
 
 from . import (
     basefix,
@@ -43,6 +43,8 @@ class HeadSignals:
             queue (keyword: fixed-on-base, pitboss#314).
         gone: the tests the PR's diff removes that its Execution says another
             replaced (keyword: superseded-pointer, pitboss#317).
+        hold: says whether a runner-pressure hold covers its repository now
+            (keyword: hold-scope, B20).
     """
 
     statuses: Sequence[shapes.CommitStatus] = ()
@@ -53,6 +55,7 @@ class HeadSignals:
     pins: pinsreading.Reading = pinsreading.NOTHING
     fixed: Sequence[basefix.Answer] = ()
     gone: Sequence[str] = ()
+    hold: Callable[[], bool] = lambda: False
 
 
 def pending_gate(posted: Sequence[shapes.CommitStatus]) -> str:

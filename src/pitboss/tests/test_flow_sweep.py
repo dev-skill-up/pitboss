@@ -7,7 +7,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, rulingwords, shapes
-from . import fakes, test_flow, world, worldcomments
+from . import fakes, quietworld, test_flow, world, worldcomments
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -329,6 +329,7 @@ class TestRulingNoReviewFollows(unittest.TestCase):
         for changes, line, printed in cases:
             with self.subTest(line=line, changes=changes):
                 here = world_with([*TWO_PLAN_REJECTIONS, EXECUTION_APPROVED], **changes)
+                quietworld.unheld(here)
                 swept = sweep(here).out
                 assert_that(line in swept, equal_to(printed))
                 assert_that("PAUSE owner" in swept, equal_to(False))

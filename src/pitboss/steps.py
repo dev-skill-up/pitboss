@@ -44,18 +44,17 @@ class Step(enum.Enum):
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
         FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
         RULING_ESCALATES: the Opus ruling escalated to the owner.
-        PLAN_EDITED: the Plan section differs from the Plan an approving review
-            read, and no Opus ruling authorises the edit (keyword: plan-digest,
-            pitboss#172).
+        PLAN_EDITED: the Plan differs from the one an approving review read, and
+            no Opus ruling authorises the edit (keyword: plan-digest, pitboss#172).
         PLAN_CHECK: no trusted comment records a clean ``pitboss plan-check`` of
-            this Plan (keyword: plan-check, pitboss#192); no review before it.
-        SEND_BACK_PLAN_CHECK: the newest Plan check refused the Plan; the worker
-            that pushed sends it back, no round (pitboss#471).
-        RUN_E2E: a draft whose Plan is approved, whose diff touches what the
-            e2e suite runs on, has no completed dispatched run of
-            ``check.yml`` at its head (a draft's own run skipped e2e): the
-            check workflow is dispatched on its branch before any approval
-            (keyword: run-e2e, pitboss#199).
+            this Plan (keyword: plan-check, pitboss#192); no review first.
+        SEND_BACK_PLAN_CHECK: the newest Plan check refused the Plan; the pushing
+            worker sends it back, no round (pitboss#471).
+        RUN_E2E: a draft with an approved Plan, whose diff touches what the e2e
+            suite runs on, has no completed dispatched ``check.yml`` run at its
+            head (its own run skipped e2e): dispatch it on its branch before any
+            approval (keyword: run-e2e, pitboss#199).
+        WAIT_FOR_HOLD: a runner-pressure hold withholds the merge or dispatch.
         MERGE: the PR merges.
     """
 
@@ -73,6 +72,7 @@ class Step(enum.Enum):
     PLAN_CHECK = enum.auto()
     SEND_BACK_PLAN_CHECK = enum.auto()
     RUN_E2E = enum.auto()
+    WAIT_FOR_HOLD = enum.auto()
     MERGE = enum.auto()
 
 
@@ -83,19 +83,19 @@ class Task(enum.Enum):
         FIRST_ROUND: the first work on a PR with no Plan and Execution body.
         FIX_CI: the head's CI is red.
         REVISE_PLAN: the plan alone, no code.
-        RESOLVE_CONFLICT: the head conflicts with the base, at any stage but
-            while it waits (``WAITS``, including PLAN_EDITED).
+        RESOLVE_CONFLICT: the head conflicts with the base, at any stage but a
+            wait (``WAITS``, including PLAN_EDITED).
         FIX_EXECUTION: the execution, against the approved plan.
         RULING_STEPS: exactly the steps of an Opus ruling.
         RULING_AS_GIVEN: what an Opus ruling says to the ticket and the PR.
-        RUN_PLAN: the Plan was approved alone after a ruling, or the Execution
-            is empty or a placeholder (keyword: unwritten-execution,
-            pitboss#294, plan-alone, pitboss#201): run its commands as written.
+        RUN_PLAN: the Plan was approved alone after a ruling, or the Execution is
+            empty or a placeholder (keyword: unwritten-execution, pitboss#294,
+            plan-alone, pitboss#201): run its commands as written.
         ADD_CI_QUOTES: the Plan has CI-quote rows and the body lacks the quotes,
             which exist only after the PR is ready and its checks pass (keyword:
             ci-quotes, pitboss#277).
-        FIX_ROUND: findings name a file of the tree: code, doc and test may
-            change (keyword: fix-round-kind).
+        FIX_ROUND: findings name a file of the tree: code, doc, test may change
+            (keyword: fix-round-kind).
     """
 
     FIRST_ROUND = "fix as best it can and write Plan and Execution in the body"
@@ -129,9 +129,7 @@ class Stage(enum.Enum):
         RULING_STEPS: only the steps of an Opus ruling.
     """
 
-    PLAN_ONLY = (
-        "grade the Plan ONLY (no Execution line); changes needed is a Plan rejection"
-    )
+    PLAN_ONLY = "grade the Plan ONLY (no Execution line); changes needed rejects it"
     EXECUTION_ONLY = "review ONLY the Execution; the Plan is carried over as approved"
     PLAN_AND_EXECUTION = "grade Plan and Execution together"
     EXECUTION_AGAINST_PLAN = "grade the Execution against the approved Plan"
@@ -180,7 +178,7 @@ WAITS = frozenset(
         Step.PLAN_EDITED,
     }
 )
-
+HELD = frozenset({Step.MERGE, Step.RUN_E2E})  # keyword: hold-scope, B20
 TEXTS: Mapping[Step, str] = {
     Step.WAIT_FOR_OWNER: (
         f"the PR is paused (label {PAUSED_LABEL}); nobody works on it until the"
@@ -232,6 +230,7 @@ TEXTS: Mapping[Step, str] = {
         " sends back the posted check; this is no fix round: {findings}"
     ),
     Step.RUN_E2E: f"{RUN_E2E_MARKER}: dispatch check.yml on {{branch}}",
+    Step.WAIT_FOR_HOLD: "HOLD: a runner-pressure hold withholds this merge or dispatch",
     Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
 }
 

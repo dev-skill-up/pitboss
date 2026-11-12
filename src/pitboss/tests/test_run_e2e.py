@@ -12,8 +12,9 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, dispatchruns, flow, markers, pullfiles, shapes, steps
-from . import fakes, test_flow, world
+from . import fakes, quietworld, test_flow, world
 from .briefmake import make
+from .exemptworld import HELD_WORDS, state_line
 from .test_commands import sweep
 from .test_flow import state
 from .test_flow_sweep import APPROVED, HEAD, graded, world_with
@@ -88,6 +89,7 @@ def said(
         The sweep's output, and the PR STATE line of PR 3.
     """
     here = served(world_with(rounds, draft=True), "files", list(changed))
+    quietworld.unheld(here)
     served(here, "runs", {"check_runs": list(runs)})
     served(here, "dispatch", {"workflow_runs": list(dispatch)})
     lines = next_output(here).splitlines()
@@ -113,7 +115,7 @@ SWEEPS = {
         [E2E_FILE],
         [RAN],
         DONE_RUN,
-        "next step: the plan is approved",
+        "next step: mark the PR ready",
     ),
     "a run that is running": (
         [E2E_FILE],
@@ -125,7 +127,7 @@ SWEEPS = {
         [OTHER_FILE],
         [],
         NO_RUN,
-        "next step: the plan is approved",
+        "next step: mark the PR ready",
     ),
 }
 
@@ -143,6 +145,7 @@ class TestTheSweep(unittest.TestCase):
     def test_a_dispatch_of_another_workflow_does_not_end_the_step(self) -> None:
         """Only a completed dispatch of check.yml counts, not any workflow's."""
         here = served(world_with(APPROVED_PLAN, draft=True), "files", [E2E_FILE])
+        quietworld.unheld(here)
         served(here, "runs", {"check_runs": [RAN]})
         served(here, "dispatch", {"workflow_runs": []})
         served(here, "any", {"workflow_runs": list(DONE_RUN)})
@@ -259,3 +262,27 @@ class TestThePieces(unittest.TestCase):
         """A rename gives both."""
         text = '[{"filename": "a"}, {"filename": "b", "previous_filename": "c"}]'
         assert_that(pullfiles.file_names(text), equal_to(["a", "b", "c"]))
+
+
+def held_e2e() -> world.World:
+    """A world whose draft PR 3 needs the check workflow dispatched, a job waiting.
+
+    Returns:
+        The world.
+    """
+    here = served(world_with(APPROVED_PLAN, draft=True), "files", [E2E_FILE])
+    return served(
+        served(here, "runs", {"check_runs": []}), "dispatch", {"workflow_runs": []}
+    )
+
+
+class TestB20Dispatch(unittest.TestCase):
+    """The hold withholds the dispatch (B20)."""
+
+    def test_b20_a_dispatch_is_withheld_during_a_hold(self) -> None:
+        """The check workflow is not dispatched during a hold; a control."""
+        held = held_e2e()
+        clear = quietworld.unheld(held_e2e())
+        shown = [LINE in sweep(each).out for each in (held, clear)]
+        assert_that(shown, equal_to([False, True]))
+        assert_that(state_line(held), contains_string(HELD_WORDS))

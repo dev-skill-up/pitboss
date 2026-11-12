@@ -70,3 +70,18 @@ def git_that_pushes_nothing(here: world.World) -> world.World:
         path=f"{folder}{os.pathsep}{os.environ['PATH']}",
     )
     return dataclasses.replace(here, processes=processes)
+
+
+def unheld(here: world.World) -> world.World:
+    """Make a world's runners quiet: no job waits and the quiet period is over.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The same world.
+    """
+    here.bodies.update({key: {"jobs": []} for key in here.bodies if "/runs/1" in key})
+    record = here.clone / ".git" / "pitboss-pressure.log"
+    record.write_text("2029-12-31T23:00:00+00:00 none\n")
+    return here

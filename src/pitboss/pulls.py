@@ -268,6 +268,7 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
             and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
             plan_review_check=source.plan_review_check,
             no_drafts=source.no_drafts(repo.slug),
+            hold=lambda: not source.undraft(),
         ),
     )
 
@@ -303,7 +304,13 @@ def _signals(
     # keyword: superseded-pointer (pitboss#317)
     gone = pullfiles.superseded(source.github, repo.slug, got.pull)
     return dataclasses.replace(
-        found, gate=unmet, approved_plans=plans, pins=pins, fixed=got.fixed, gone=gone
+        found,
+        gate=unmet,
+        approved_plans=plans,
+        pins=pins,
+        fixed=got.fixed,
+        gone=gone,
+        hold=state.draft.hold,
     )
 
 
