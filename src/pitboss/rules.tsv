@@ -8,69 +8,69 @@ A6	2026-11-11	enforced	One ruling per PR; a further rejection goes to the owner	
 A7	2026-11-10	enforced	One verdict per review; a split Plan/Execution verdict counts as changes needed	reviews.from_comments	test_review_rules.test_a7_either_split_is_changes_needed test_review_rules.test_a7_whole_approval_stays_approved
 A8	2026-11-08	enforced	A review never says a change makes a passage false	reviewrules.phrase_findings	test_review_rules.test_a8_makes_false_is_refused_with_its_line test_review_rules.test_a8_makes_the_comment_false_is_refused test_review_rules.test_a8_a_review_without_the_phrase_passes
 A9	2026-11-08	enforced	No piecemeal makes-false rounds; cut whole sections in one pass	reviewrules.piecemeal_findings	test_review_cuts.test_a9_a_cut_of_one_sentence_is_refused test_review_cuts.test_a9_a_whole_section_cut_is_not_piecemeal test_review_cuts.test_a9_the_review_lint_refuses_the_round
-A10	2026-10-30	open	Plan rejected: fix; second rejection: ruling; after a ruling: the owner	-	-
-A11	2026-11-11	open	A plan-check failure goes back to the same worker	-	-
-A12	2026-11-10	open	plan-check passes before the PR is marked ready	-	-
-A13	2026-11-04	open	An approved Plan's commands run as written	-	-
-A14	2026-10-30	open	A Plan row names the whole command of its Evidence line	-	-
-A15	2026-11-03	open	CI evidence is a pointer to the head's run	-	-
-A16	2026-11-04	open	The Execution review waits for full green CI on the reviewed head	-	-
-A17	2026-10-31	open	After a merge of main the review covers only the resolution	-	-
-A18	2026-10-29	open	Impossibility needs evidence first	-	-
+A10	2026-10-30	enforced	Plan rejected: fix; second rejection: ruling; after a ruling: the owner	flow.next_step	test_register_rules.test_a10_plan_rejection_fix_then_ruling_then_owner
+A11	2026-11-11	enforced	A plan-check failure goes back to the same worker	plancheckflow.refusal	test_register_rules.test_a11_a_refused_plan_check_is_the_workers_fix
+A12	2026-11-10	enforced	plan-check passes before the PR is marked ready	plancheckflow.needs_check	test_register_rules.test_a12_no_review_or_ready_before_a_clean_plan_check
+A13	2026-11-04	enforced	An approved Plan's commands run as written	plancommands.findings	test_register_rules.test_a13_a_plan_command_is_run_as_written
+A14	2026-10-30	enforced	A Plan row names the whole command of its Evidence line	planrow.findings	test_register_rules.test_a14_a_plan_row_names_the_whole_command
+A15	2026-11-03	enforced	CI evidence is a pointer to the head's run	planpointers.findings	test_register_rules.test_a15_ci_evidence_is_a_pointer
+A16	2026-11-04	enforced	The Execution review waits for full green CI on the reviewed head	flow.ci_gate	test_register_rules.test_a16_the_execution_review_waits_for_ci
+A17	2026-10-31	output	After a merge of main the review covers only the resolution	brief.build	test_register_rules.test_a17_a_merge_of_main_is_reviewed_for_the_merge_alone
+A18	2026-10-29	enforced	Impossibility needs evidence first	partial.refusal	test_register_rules.test_a18_a_partial_hand_back_needs_the_impossible_line
 A19	2026-11-08	enforced	Done-when appears only in the ticket body and changes only before a worker started	casepost.with_done_when	test_case_post.test_a19_the_done_when_is_edited_in_the_body test_case_post.test_a19_the_edit_is_refused_once_a_worker_started
 A20	2026-11-11	enforced	A Done-when must be X demonstrated by Y	plandonewhen.form	test_done_when_form.test_a20_an_item_with_no_demonstration_is_refused test_done_when_form.test_a20_a_lead_line_states_it_for_every_item
-A21	2026-10-30	open	A PR that closes several tickets needs a recorded ruling	-	-
-A22	2026-10-30	open	An approved Plan is never judged again by the Plan-row rule	-	-
-A23	2026-10-30	open	A review lists every finding in round one	-	-
-A24	2026-10-30	open	Every escalation carries a How we got here section	-	-
+A21	2026-10-30	enforced	A PR that closes several tickets needs a recorded ruling	folds.allows	test_register_rules.test_a21_a_pr_closing_several_tickets_needs_a_ruling
+A22	2026-10-30	enforced	An approved Plan is never judged again by the Plan-row rule	planapproved.digests	test_register_rules.test_a22_an_approved_plan_is_not_judged_again
+A23	2026-10-30	output	A review lists every finding in round one	brief.build	test_register_rules.test_a23_a_review_lists_every_finding_in_round_one
+A24	2026-10-30	enforced	Every escalation carries a How we got here section	cardform.findings	test_register_rules.test_a24_an_escalation_carries_how_we_got_here
 A25	2026-11-11	enforced	An extra file found in review is removed and gets a .gitignore line	extrafile.findings	test_review_cuts.test_a25_an_extra_file_without_the_step_is_refused test_review_cuts.test_a25_an_extra_file_with_the_step_passes test_review_cuts.test_a25_the_review_lint_refuses_it
-A26	2026-11-08	open	No line is added to any .md or .rst file	-	-
-A27	2026-11-09	open	Docs that restate code are removed	-	-
-A28	2026-10-30	open	A PR body never carries the harness's session URL footer	-	-
-A29	2026-11-07	open	A relock and zip-only head needs no review	-	-
+A26	2026-11-08	enforced	No line is added to any .md or .rst file	markuplines.findings	test_register_rules.test_a26_no_line_is_added_to_a_doc
+A27	2026-11-09	enforced	Docs that restate code are removed	markupclaim.findings	test_register_rules.test_a27_a_doc_that_restates_code_is_cut
+A28	2026-10-30	enforced	A PR body never carries the harness's session URL footer	sessionurl.strip	test_register_rules.test_a28_the_session_url_footer_is_not_in_a_body
+A29	2026-11-07	enforced	A relock and zip-only head needs no review	pinsonly.only_pins	test_register_rules.test_a29_a_relock_and_a_zip_only_head_need_no_review
 A30	2026-11-11	enforced	No scratch or temp file paths in Plans; the data lives in the PR or the ticket	bodyrules.scratch_findings	test_body_rules.test_a30_a_row_reading_a_scratchpad_is_refused test_body_rules.test_a30_a_row_making_its_own_directory_passes test_body_rules.test_a30_a_configured_scratch_root_is_refused
 A31	2026-11-08	enforced	A started PR gets nothing added	casepost.refusal	test_case_post.test_a31_an_addition_to_a_started_ticket_is_refused test_case_post.test_a31_a_case_is_added_before_a_worker_started
-A32	2026-10-28	open	No attribution block; never assign or request review from the owner	-	-
-A33	2026-11-09	open	Pins never move by an LLM	-	-
-A34	2026-11-06	open	No bundled shims for weak engines	-	-
-B1	2026-10-29	open	The cap is a hard ceiling; every running agent counts	-	-
+A32	2026-10-28	outside	No attribution block; never assign or request review from the owner	-	-
+A33	2026-11-09	outside	Pins never move by an LLM	-	-
+A34	2026-11-06	outside	No bundled shims for weak engines	-	-
+B1	2026-10-29	enforced	The cap is a hard ceiling; every running agent counts	slotholding.unrecorded	test_register_rules.test_b1_every_running_agent_holds_a_slot
 B2	2026-10-29	enforced	A freed slot is filled in the same turn; skip blocked items	skipitem.without	test_slots_rules.test_b2_a_skipped_item_is_left_out_and_said test_slots_rules.test_b2_a_bare_number_and_a_repeat_name_items_and_others_are_silent test_slots_rules.test_b2_items_without_the_skipped_ones_keep_their_order
-B3	2026-10-29	open	Never tell the owner nothing is running	-	-
-B4	2026-11-11	open	The coordinator corrects a message that says the slot is idle	-	-
-B5	2026-11-09	open	Re-run slots next before each dispatch	-	-
+B3	2026-10-29	outside	Never tell the owner nothing is running	-	-
+B4	2026-11-11	outside	The coordinator corrects a message that says the slot is idle	-	-
+B5	2026-11-09	outside	Re-run slots next before each dispatch	-	-
 B6	2026-11-10	enforced	Only briefs pitboss prints; no hand-typed brief paths	briefsave.save	test_slots_rules.test_b6_the_listed_briefs_are_saved_and_dispatch_lines_name_them test_slots_rules.test_b6_the_brief_of_one_item_is_saved_and_the_line_is_on_standard_error test_slots_rules.test_b6_a_brief_that_cannot_be_written_says_so
-B7	2026-10-29	open	One ticket, one PR, one task per ticket	-	-
-B8	2026-11-08	open	Fold the newer ticket into the older	-	-
+B7	2026-10-29	enforced	One ticket, one PR, one task per ticket	duplicatepr.lines	test_register_rules.test_b7_one_ticket_has_one_pr
+B8	2026-11-08	output	Fold the newer ticket into the older	foldline.lines	test_register_rules.test_b8_a_newer_ticket_is_folded_into_the_older
 B9	2026-10-29	enforced	Order: running workers, PRs before tickets, priority, age	work.ordered	test_slots_rules.test_b9_a_relock_review_is_last test_slots_rules.test_b9_a_relock_pr_at_another_step_keeps_its_place
 B10	2026-11-11	enforced	A blocker inherits the blocked item's rank	pullmarks.pull_marks	test_slots_rules.test_b10_a_pr_blocked_on_another_ticket_has_no_step test_slots_rules.test_b10_a_closed_blocker_or_its_own_ticket_blocks_nothing
-B11	2026-11-05	open	The task list is real state	-	-
-B12	2026-11-09	open	The checklist lists every running agent	-	-
-B13	2026-11-10	open	The check-in job is kept; a lapsed check-in is flagged	-	-
-B14	2026-11-04	open	pitboss nox before every push is plenty; it is a maximum, not a target	-	-
+B11	2026-11-05	output	The task list is real state	tasklist.live_lines	test_register_rules.test_b11_the_task_list_is_state
+B12	2026-11-09	output	The checklist lists every running agent	tasklist.live_lines	test_register_rules.test_b12_the_checklist_lists_every_running_agent
+B13	2026-11-10	output	The check-in job is kept; a lapsed check-in is flagged	checkin.overdue	test_register_rules.test_b13_a_lapsed_check_in_is_flagged
+B14	2026-11-04	output	pitboss nox before every push is plenty; it is a maximum, not a target	brief.build	test_register_rules.test_b14_nox_is_before_a_push_not_after_every_edit
 B15	2026-11-11	enforced	Workers use their own worktree on the ticket's branch	ticketbranch.require	test_worker_rules.test_b15_the_number_is_read_from_every_spelling test_worker_rules.test_b15_a_branch_names_a_whole_number test_worker_rules.test_b15_the_refusal_names_the_branch_and_the_ticket test_worker_rules.test_b15_the_ticket_is_the_option_or_the_environment test_worker_rules.test_b15_a_worktree_on_another_branch_exits_1 test_worker_rules.test_b15_the_ticket_branch_and_no_ticket_pass test_worker_rules.test_b15_push_refuses_the_main_clone_branch_for_a_ticket
 B16	2026-11-11	enforced	Workers change files with the Edit tool only	workeredits.lines	test_worker_rules.test_b16_the_edit_tools_are_counted test_worker_rules.test_b16_a_file_in_another_worktree_is_refused test_worker_rules.test_b16_a_shell_command_that_edits_files_is_refused test_worker_rules.test_b16_hand_back_check_reads_the_output_file
 B17	2026-11-10	enforced	A partial hand-back is refused unless Impossible: cmd -> output	partial.refusal	test_worker_rules.test_b17_a_partial_hand_back_without_impossible_is_refused test_worker_rules.test_b17_the_impossibility_line_or_nothing_left_passes test_worker_rules.test_b17_hand_back_check_refuses_a_partial_hand_back
-B18	2026-11-08	open	Every hand-back and every disk clean is logged once	-	-
-B19	2026-10-30	open	Pitboss's own PRs are never drafts	-	-
-B20	2026-10-30	open	A runner-pressure hold covers pushes, merges and dispatches	-	-
+B18	2026-11-08	enforced	Every hand-back and every disk clean is logged once	slotlog.changes	test_register_rules.test_b18_a_hand_back_is_logged_once
+B19	2026-10-30	enforced	Pitboss's own PRs are never drafts	draftrule.findings	test_register_rules.test_b19_a_draft_is_refused
+B20	2026-10-30	enforced	A runner-pressure hold covers pushes, merges and dispatches	record.remaining	test_register_rules.test_b20_a_hold_covers_a_push
 B21	2026-11-05	enforced	A worker never changes a PR's draft state	draftmoves.tell	test_worker_rules.test_b21_a_change_after_the_sweep_marked_ready_is_flagged test_worker_rules.test_b21_the_sweeps_own_change_and_no_timeline_say_nothing
 B22	2026-11-11	enforced	Stuck GitHub runs are root-caused, not waited on	stuckci.lines	test_slots_rules.test_b22_a_queued_run_with_later_completed_runs_is_stuck test_slots_rules.test_b22_a_recent_run_or_one_without_later_runs_is_not_stuck test_slots_rules.test_b22_only_a_pr_waiting_for_ci_is_read
 B23	2026-11-11	enforced	Another session's agents survive a restart and can duplicate a ticket	duplicatepr.lines	test_slots_rules.test_b23_two_prs_on_one_ticket_are_named_oldest_first test_slots_rules.test_b23_one_pr_on_each_ticket_names_nothing test_slots_rules.test_b23_slots_next_prints_the_line
-B24	2026-10-28	open	Never sit in a long wait; no polling	-	-
-B25	-	open	After a worker opens a PR, read the body footer and the text-lint status	-	-
-B26	2026-11-11	open	A PR body edit keeps the Head: line and expand blocks in step with the head	-	-
-C1	2026-10-31	open	Clean the disk without asking, harder over 90 percent	-	-
-C2	2026-11-09	open	Never remove files under /dev	-	-
-C3	2026-11-04	open	A merged worktree goes on merge	-	-
-C4	2026-11-09	open	Never re-run CI to get rid of a flake; root-cause a failure from its log (a re-run that works around a GitHub problem is allowed)	-	-
-C5	2026-10-30	open	Failed-check details are read through the API	-	-
-C6	2026-10-30	open	A flake is never closed until addressed	-	-
-C7	2026-11-07	open	A relock with green CI and pins-check OK merges with no review and ranks last	-	-
+B24	2026-10-28	output	Never sit in a long wait; no polling	polling.waits	test_register_rules.test_b24_a_polling_agent_is_named
+B25	-	enforced	After a worker opens a PR, read the body footer and the text-lint status	textlint.decide	test_register_rules.test_b25_the_text_lint_status_is_read
+B26	2026-11-11	enforced	A PR body edit keeps the Head: line and expand blocks in step with the head	evidence.stale_heads	test_register_rules.test_b26_expand_blocks_follow_the_head
+C1	2026-10-31	enforced	Clean the disk without asking, harder over 90 percent	autoclean.clean_report	test_register_rules.test_c1_the_disk_is_cleaned_harder_under_pressure
+C2	2026-11-09	enforced	Never remove files under /dev	devpath.under_dev	test_register_rules.test_c2_nothing_under_dev_is_removed
+C3	2026-11-04	enforced	A merged worktree goes on merge	mergedworktree.remove	test_register_rules.test_c3_a_merged_worktree_goes_on_merge
+C4	2026-11-09	enforced	Never re-run CI to get rid of a flake; root-cause a failure from its log (a re-run that works around a GitHub problem is allowed)	rerunrule.refusal	test_register_rules.test_c4_a_flake_is_not_rerun
+C5	2026-10-30	enforced	Failed-check details are read through the API	supersede.settle	test_register_rules.test_c5_a_failed_check_is_read_through_the_api
+C6	2026-10-30	output	A flake is never closed until addressed	flake.unmarked_line	test_register_rules.test_c6_a_flake_is_not_closed_until_addressed
+C7	2026-11-07	enforced	A relock with green CI and pins-check OK merges with no review and ranks last	work.ordered	test_register_rules.test_c7_a_green_relock_ranks_last
 C8	2026-11-08	outside	An unset secret fails	-	-
-C9	2026-11-06	open	The sweep lists every org repo	-	-
-C10	2026-10-30	open	The sweep and slots run from the newest pitboss	-	-
-C11	2026-10-31	open	Everything the orchestrator creates is synced	-	-
-C12	2026-11-06	open	A stale remote branch or scratch PR is flagged and closed	-	-
+C9	2026-11-06	output	The sweep lists every org repo	ownerrepos.widened	test_register_rules.test_c9_the_sweep_lists_every_org_repository
+C10	2026-10-30	output	The sweep and slots run from the newest pitboss	outdated.lines	test_register_rules.test_c10_the_sweep_runs_from_the_newest_pitboss
+C11	2026-10-31	enforced	Everything the orchestrator creates is synced	syncing.sync_lines	test_register_rules.test_c11_what_the_orchestrator_creates_is_synced
+C12	2026-11-06	enforced	A stale remote branch or scratch PR is flagged and closed	scratch.close_finished	test_register_rules.test_c12_a_stale_scratch_pr_is_closed
 C13	2026-11-12	enforced	A re-run is refused only when it is to get rid of a flake; a re-run that works around a GitHub problem (a run stuck queued with no jobs) is allowed	rerunrule.refusal	test_rerun_rule.test_c13_a_flake_rerun_is_refused test_rerun_rule.test_c13_a_run_stuck_queued_with_no_jobs_may_be_rerun test_rerun_rule.test_c13_no_text_forbids_a_rerun_for_a_github_problem
 D1	2026-11-10	output	Run pitboss, check its output, override a known bug disclosed	itempick.taken	test_slots_force.test_d1_the_pr_that_names_the_ticket_is_in_the_reason test_slots_force.test_d1_a_hold_and_a_blocker_say_their_data
 D2	2026-11-11	output	Do not report pitboss bugs to the coordinator; diagnose and file	itemfast.show	test_slots_force.test_d2_d3_force_prints_the_brief_and_says_what_it_overrode test_slots_force.test_d2_d3_force_overrides_a_blocker_a_supersession_and_a_blocked_pr test_slots_force.test_d2_d3_force_does_not_open_a_closed_ticket test_slots_force.test_d2_d3_force_prices_a_ticket_with_no_label_at_zero
@@ -78,14 +78,14 @@ D3	2026-11-11	output	The orchestrator owns pitboss and never waits for the owner
 D4	2026-10-30	outside	Never say I haven't checked	-	-
 D5	2026-10-30	enforced	Every correction states its prevention	casepost.with_case	test_slots_force.test_d5_d6_a_correction_is_added_to_the_ticket_body test_slots_force.test_d5_d6_a_correction_to_a_started_ticket_is_refused
 D6	2026-11-08	enforced	Rules go to memory and a pitboss ticket, never a skill or an md line	casepost.with_case	test_slots_force.test_d5_d6_a_correction_is_added_to_the_ticket_body test_slots_force.test_d5_d6_a_correction_to_a_started_ticket_is_refused
-D7	2026-11-08	open	Never assume the owner acted	-	-
-D8	2026-11-05	open	Ruling comments are standing-approved	-	-
-D9	2026-11-04	open	Every question to the owner comes with a markdown artifact	-	-
-D10	-	open	Artifact and log reads of CI go through the new-environment thread	-	-
+D7	2026-11-08	outside	Never assume the owner acted	-	-
+D8	2026-11-05	outside	Ruling comments are standing-approved	-	-
+D9	2026-11-04	outside	Every question to the owner comes with a markdown artifact	-	-
+D10	-	outside	Artifact and log reads of CI go through the new-environment thread	-	-
 D11	2026-10-31	enforced	Quiesce: nothing starts until the owner lifts it	quiesce.switch_on	test_slots_force.test_d11_slots_next_offers_nothing_while_quiesced test_slots_force.test_d11_the_brief_of_one_item_is_refused_while_quiesced
 D12	-	outside	The owner stays private	-	-
 D13	2026-11-07	outside	The coordinator's instructions are an Opus ruling	-	-
 D14	2026-11-11	outside	A thread attaches a missing repo itself	-	-
-D15	-	open	Never resolve a human decision card	-	-
+D15	-	outside	Never resolve a human decision card	-	-
 I11	2026-11-11	enforced	A PR body keeps its Execution section once the branch has code commits	bodyrules.section_findings	test_body_rules.test_i11_a_body_without_execution_is_refused test_body_rules.test_i11_a_body_with_execution_passes
 I25	2026-11-11	enforced	A Plan row pointing to CI has its pointer in the Execution	bodyrules.pointer_findings	test_body_rules.test_i25_two_rows_without_pointers_are_named test_body_rules.test_i25_rows_with_pointers_pass
