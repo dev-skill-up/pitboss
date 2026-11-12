@@ -3,14 +3,15 @@
 ``pitboss capture-timeline`` writes what GitHub recorded of a real PR. ``state_at``
 gives the ``PullState`` the flow would have read at a time: the comments, reviews,
 label and draft events and check runs up to it, and the head the newest commit
-made. The PR's body is its final text, since GitHub keeps no history of a body,
-and the merge state is clean: a mark is placed where those two hold.
+made. The PR's body is the text the newest edit by then left (``body_edits``,
+keyword body-edits; the final text for a capture without edits), and the merge
+state is clean: a mark is placed where that holds.
 """
 
 import enum
 import json
 import pathlib
-from typing import AbstractSet, Mapping, NamedTuple, Sequence, TypedDict
+from typing import AbstractSet, Mapping, NamedTuple, NotRequired, Sequence, TypedDict
 
 from .. import capture, config, flow, parsing, reviews, shapes, steps
 
@@ -37,6 +38,7 @@ class Timeline(TypedDict):
         slug: the repository.
         number: the PR's number.
         pull: the PR as the API gave it, flattened.
+        body_edits: the body after each edit, oldest first (old captures have none).
         comments: its comments.
         reviews: its formal reviews.
         events: its label and draft events.
@@ -47,6 +49,7 @@ class Timeline(TypedDict):
     slug: str
     number: int
     pull: Item
+    body_edits: NotRequired[Sequence[Item]]
     comments: Sequence[Item]
     reviews: Sequence[Item]
     events: Sequence[Item]
@@ -187,8 +190,40 @@ def _checks(
     return parsing.check_runs(json.dumps({"check_runs": runs}))
 
 
+def body_at(data: Timeline, when: str) -> str:
+    """The body of the PR at a time.
+
+    Args:
+        data: the timeline.
+        when: the time.
+
+    Returns:
+        The body the newest edit by then left; before the first edit, the text
+        the first edit replaced is unknown, so the first edit's text; with no
+        edits, the final body.
+    """
+    edits = data.get("body_edits") or ()
+    made = _before(edits, "created_at", when)
+    chosen = (made or edits)[-1 if made else 0] if edits else None
+    return str(chosen["body"]) if chosen else str(data["pull"]["body"])
+
+
+def with_edits(data: Timeline, edits: Sequence[Item]) -> Timeline:
+    """The timeline with other body edits.
+
+    Args:
+        data: the timeline.
+        edits: the body after each edit, oldest first.
+
+    Returns:
+        The copy.
+    """
+    return {**data, "body_edits": edits}
+
+
 def _pull(data: Timeline, when: str) -> str:
     changes = {
+        "body": body_at(data, when),
         "head": {
             "sha": head_at(data, when),
             "ref": capture.as_object(data["pull"]["head"])["ref"],

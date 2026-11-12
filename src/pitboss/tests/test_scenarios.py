@@ -219,6 +219,23 @@ def github_bodies() -> Mapping[str, object]:
     }
 
 
+EDITS_ANSWER: capture.Item = {
+    "data": {
+        "repository": {
+            "pullRequest": {
+                "userContentEdits": {
+                    "nodes": [
+                        {"createdAt": "T2", "editor": {"login": "w"}, "diff": "second"},
+                        {"createdAt": "T1", "editor": None, "diff": None},
+                    ]
+                }
+            }
+        }
+    }
+}
+GRAPHQL = f"query={capture.EDITS_QUERY}"
+
+
 def seven() -> tuple[ghapi.GitHub, str]:
     """The fake API and the JSON the capture of PR 7 gives.
 
@@ -226,20 +243,26 @@ def seven() -> tuple[ghapi.GitHub, str]:
         Both.
     """
     github = fakes.github(dict(github_bodies()))
-    return github, json.dumps(capture.capture(github, "o/r", 7), sort_keys=True)
+    got = capture.capture(github, "o/r", 7, capture.body_edits(EDITS_ANSWER))
+    return github, json.dumps(got, sort_keys=True)
 
 
-def arguments(to: str | None) -> argparse.Namespace:
+def arguments(
+    to: str | None, edits: str | None = None, graphql: object = EDITS_ANSWER
+) -> argparse.Namespace:
     """The command's arguments for PR 7 with the canned API.
 
     Args:
         to: the file to write, or None to print.
+        edits: the file of body edits, or None to ask GraphQL.
+        graphql: what GraphQL answers (None: the call is refused).
 
     Returns:
         The namespace.
     """
-    run = fakes.FakeProcesses(bodies=dict(github_bodies()))
-    return argparse.Namespace(pull="o/r#7", to=to, safe_run=run)
+    bodies = {**github_bodies(), GRAPHQL: graphql}
+    run = fakes.FakeProcesses(bodies=bodies)
+    return argparse.Namespace(pull="o/r#7", to=to, edits=edits, safe_run=run)
 
 
 class TestCaptureTimeline(unittest.TestCase):
@@ -305,7 +328,7 @@ class TestCaptureTimeline(unittest.TestCase):
 
     def test_capture_timeline_command_refuses_a_bad_pull(self) -> None:
         """An argument that is not OWNER/NAME#N exits with the reason."""
-        args = argparse.Namespace(pull="nope", to=None, safe_run=None)
+        args = argparse.Namespace(pull="nope", to=None, edits=None, safe_run=None)
         with self.assertRaises(SystemExit) as raised:
             capture_commands.capture_timeline(args)
         assert_that(str(raised.exception), contains_string("not OWNER/NAME#NUMBER"))

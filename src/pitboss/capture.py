@@ -27,6 +27,13 @@ CHECK_KEYS = (
     "completed_at",
     "details_url",
 )
+EDIT_KEYS = ("created_at", "editor", "body")
+EDITS_QUERY = (
+    "query($owner: String!, $name: String!, $number: Int!) {"
+    " repository(owner: $owner, name: $name) { pullRequest(number: $number) {"
+    " userContentEdits(first: 100) { nodes { createdAt editor { login } diff }"
+    " } } } }"
+)
 EVENTS = ("labeled", "unlabeled", "ready_for_review", "convert_to_draft")
 
 
@@ -86,7 +93,7 @@ def compact_event(data: Item) -> Item:
     Returns:
         The event name, its time and the label it names, if any.
     """
-    label = as_object(data.get("label") or {}).get("name")
+    label = _inner(data, "label", "name")
     return {
         "event": data["event"],
         "created_at": data["created_at"],
@@ -137,13 +144,69 @@ def _all_checks(github: ghapi.GitHub, slug: str, commits: Sequence[Item]) -> Ite
     }
 
 
-def capture(github: ghapi.GitHub, slug: str, number: int) -> Item:
+def body_edits(data: Item) -> Sequence[Item]:
+    """The body of a PR after each of its edits (keyword: body-edits).
+
+    Args:
+        data: GraphQL's answer for the PR (``data.repository.pullRequest``
+            with ``userContentEdits.nodes``), newest edit first; each node's
+            ``diff`` is the whole body as that edit left it.
+
+    Returns:
+        One item for each edit, oldest first (edits of one second keep their
+        order): the time, the editor's login and the body after the edit.
+    """
+    pull = as_object(as_object(as_object(data["data"])["repository"])["pullRequest"])
+    nodes = _items(as_object(pull["userContentEdits"])["nodes"])
+    return [_edit(each) for each in reversed(nodes)]
+
+
+def _edit(node: Item) -> Item:
+    values = (node["createdAt"], _inner(node, "editor", "login"), node["diff"] or "")
+    return dict(zip(EDIT_KEYS, values))
+
+
+def _inner(node: Item, key: str, field: str) -> object:
+    return as_object(node.get(key) or {}).get(field)
+
+
+def live_edits(github: ghapi.GitHub, slug: str, number: int) -> Item:
+    """Read the edits of a PR's body from GraphQL.
+
+    Args:
+        github: the API.
+        slug: the PR's repository, ``owner/name``.
+        number: its number.
+
+    Returns:
+        GraphQL's answer, as ``body_edits`` reads it.
+    """
+    owner, name = slug.split("/")
+    command = ["gh", "api", "graphql", "-F", f"owner={owner}", "-F", f"name={name}"]
+    command += ["-F", f"number={number}", "-f", f"query={EDITS_QUERY}"]
+    return as_object(json.loads(github.run(command).stdout))
+
+
+def _posted(github: ghapi.GitHub, base: str, number: int) -> Item:
+    return {
+        "comments": _kept_list(
+            github, f"{base}/issues/{number}/comments", COMMENT_KEYS
+        ),
+        "reviews": _kept_list(github, f"{base}/pulls/{number}/reviews", REVIEW_KEYS),
+        "events": _events(github, f"{base}/issues/{number}"),
+    }
+
+
+def capture(
+    github: ghapi.GitHub, slug: str, number: int, edits: Sequence[Item]
+) -> Item:
     """Read the whole recorded timeline of a PR.
 
     Args:
         github: the API.
         slug: the PR's repository, ``owner/name``.
         number: its number.
+        edits: the body after each edit, as ``body_edits`` gives them.
 
     Returns:
         The timeline, ready to be written as JSON.
@@ -155,11 +218,8 @@ def capture(github: ghapi.GitHub, slug: str, number: int) -> Item:
         "slug": slug,
         "number": number,
         "pull": compact_pull(pull),
-        "comments": _kept_list(
-            github, f"{base}/issues/{number}/comments", COMMENT_KEYS
-        ),
-        "reviews": _kept_list(github, f"{base}/pulls/{number}/reviews", REVIEW_KEYS),
-        "events": _events(github, f"{base}/issues/{number}"),
+        "body_edits": list(edits),
+        **_posted(github, base, number),
         "commits": commits,
         "checks": _all_checks(github, slug, commits),
     }
