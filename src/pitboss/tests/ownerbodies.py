@@ -1,6 +1,6 @@
 """What GitHub answers about the owner's repositories, for the tests (#295)."""
 
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from .. import shapes
 
@@ -103,3 +103,16 @@ def extra() -> Mapping[str, object]:
 
 
 BODIES: Mapping[str, object] = {LISTING: listed()}
+
+
+def lines_of(out: str, start: str) -> Sequence[str]:
+    """The lines of an output that start with a word.
+
+    Args:
+        out: the output.
+        start: the word.
+
+    Returns:
+        The lines.
+    """
+    return [line for line in out.splitlines() if line.startswith(start)]

@@ -6,7 +6,7 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from . import fakes, world
-from .test_owner_repositories import lines_of
+from .ownerbodies import lines_of
 
 PULL_ONE = f"{world.PROJECT}/pulls/1"
 CLEAN_HEAD = {"sha": "1" * 40, "ref": "branch-1"}

@@ -10,6 +10,7 @@ from hamcrest import assert_that, equal_to, has_item
 
 from .. import configfile, ownerconfig, repoaccess
 from . import fakes, ownerbodies, test_slot_commands, world
+from .ownerbodies import lines_of
 
 GONE = "UNREADABLE owner/gone: gh: not found: repos/owner/gone (HTTP 404)"
 GIVE_ACCESS = ": give the session access or take it out of the configuration"
@@ -131,19 +132,6 @@ def owner_listing(result: world.Result) -> tuple[int, int, int]:
         len(lines_of(result.out, "PR STATE owner/extra#5")),
         len(lines_of(result.out, "INCOMPLETE: the repositories of owner")),
     )
-
-
-def lines_of(out: str, start: str) -> Sequence[str]:
-    """The lines of an output that start with a word.
-
-    Args:
-        out: the output.
-        start: the word.
-
-    Returns:
-        The lines.
-    """
-    return [line for line in out.splitlines() if line.startswith(start)]
 
 
 def run_next(here: world.World, *command: str) -> world.Result:

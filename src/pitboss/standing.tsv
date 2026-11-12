@@ -2,7 +2,7 @@
 nox-once	all	at most once per head
 no-filtering	all	never filter or cut the output	No filtering: never filter or cut the output of a lint, a check or nox (no grep, head, tail or sed on it); paste the raw output, and a command that passes only when filtered did not pass.
 no-reruns	all	never rerun
-no-empty-commit	all	empty commit	No empty commits: a change to the PR body only (a Plan revision, a refreshed Head line) is an edit of the body and pushes nothing; never push a commit to make a check run.
+no-empty-commit	all	pushes nothing	No commit without a change: a change to the PR body only (a Plan revision, a refreshed Head line) is an edit of the body and pushes nothing; never push a commit to make a check run.
 long-checks	all	more than {limit} seconds	Long checks: a check that takes more than {limit} seconds is not run here (not in the foreground, not in the background, not split); push and let CI run it, and name CI's run as the evidence.
 hand-back-check	all	hand-back-check
 branch-naming	all	worker/	Branch: the ticket's branch is `worker/<ticket number>`; push to it and to no other.

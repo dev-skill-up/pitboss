@@ -3,7 +3,8 @@
 A rule's test that passes with its function broken proves nothing. For every
 ``enforced`` and ``output`` row of ``rules.tsv`` this module lists the small
 mutations of the row's function (a comparison turned round, ``and`` for ``or``, a
-``not`` dropped, a boolean flipped, an integer moved by one) and rewrites the
+``not`` dropped, a boolean flipped, an integer other than 0 and 1 moved by one: those
+are indices and counts, not boundaries) and rewrites the
 module with one of them at a time; the command runs only that row's named tests
 against each, and a mutant that no test kills is a survivor.
 """
@@ -118,7 +119,7 @@ class _Walker(ast.NodeTransformer):
         value = node.value
         if isinstance(value, bool):
             changed = ast.Constant(value=not value)
-        elif isinstance(value, int):
+        elif isinstance(value, int) and value not in (0, 1):
             changed = ast.Constant(value=value + 1)
         else:
             return node
