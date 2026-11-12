@@ -1,4 +1,7 @@
-"""The CI mutation job (keyword: no-local-mutants): small mutants, and the rows' tests."""
+"""The CI mutation job.
+
+(keyword: no-local-mutants): small mutants, and the rows' tests.
+"""
 
 import contextlib
 import io
@@ -34,8 +37,7 @@ TINY_TEST = (
     "        assert tiny.weak(1) is True\n"
 )
 TINY = (
-    "def positive(n):\n    return n > 0\n\n\n"
-    "def weak(n):\n    return n >= 1 or n < 0\n"
+    "def positive(n):\n    return n > 0\n\n\ndef weak(n):\n    return n >= 1 or n < 0\n"
 )
 ROWS_TEST = (
     "import unittest\n"
@@ -183,7 +185,10 @@ class TestCI(unittest.TestCase):
         )
 
     def test_t444_the_killers_named_for_a_row_join_its_tests(self) -> None:
-        """A test of ``test_mutation_rows`` named for the row and its function is run with the row's."""
+        """A test of ``test_mutation_rows`` named for the row and its function is run.
+
+        With the row's.
+        """
         tree = tiny_tree()
         rows = rules.parse(REGISTER)[0]
         found = [list(mutationci.killers(tree, row)) for row in rows]

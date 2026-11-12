@@ -1,4 +1,6 @@
-"""Whether a stored approval is still current for what it approved (keyword: current-for).
+"""Whether a stored approval is still current for what it approved.
+
+The keyword is current-for.
 
 dev-skill-up/pitboss, bats-lang/quire#1120: a Plan approved at one digest stayed
 "approved" after the Plan was revised, so no Plan re-review was offered and the

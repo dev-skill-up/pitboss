@@ -8,10 +8,14 @@ import pathlib
 from typing import AbstractSet, Mapping, Sequence
 
 DEFAULT_REMINDERS = (
-    "Is any ticket closeable? A ticket whose work merged: read the merged PR"
-    " against the ticket's done-when, comment the evidence, close it.",
-    "Is any blocked ticket unblocked? A ticket that waits on X: check X; when"
-    " X is done, say so on the ticket.",
+    (
+        "Is any ticket closeable? A ticket whose work merged: read the merged PR"
+        " against the ticket's done-when, comment the evidence, close it."
+    ),
+    (
+        "Is any blocked ticket unblocked? A ticket that waits on X: check X; when"
+        " X is done, say so on the ticket."
+    ),
 )
 DEFAULT_FORM = ("## Review", "Reviewed: {sha}", "Verdict: {verdict}")
 DEFAULT_RELOCK_PREFIX = "relock/"
@@ -102,7 +106,8 @@ class Review:
         form: the form in every other repository.
         gated_form: the form in a gated repository.
         gate_forms: a gated repository's form from its workflow (keyword: review-gate).
-        required_check: the check an approval of a head waits for (keyword: approval-ci).
+        required_check: the check an approval of a head waits for (keyword:
+            approval-ci).
     """
 
     trusted: AbstractSet[str]
@@ -232,9 +237,8 @@ class Slots:
         owner_priorities: a ticket (``owner/repo#N``) and the priority label the
             owner states for it, one of ``priority_labels``; the ticket ranks by
             it, and a differing GitHub label is said (keyword: owner-priority).
-        superseded: the tickets (``owner/repo#N``) the owner marks as
-            superseded: no start is offered for them (keyword:
-            superseded-ticket, pitboss#388).
+        superseded: the tickets (``owner/repo#N``) the owner marks as superseded: no
+            start is offered for them (keyword: superseded-ticket, pitboss#388).
         watch: what ``slots watch`` reads (keyword: slots-watch, pitboss#415).
     """
 

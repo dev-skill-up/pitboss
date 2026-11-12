@@ -1,4 +1,6 @@
-"""The one runner of a gate: anything but an explicit ok is a refusal (keyword: gate-run).
+"""The one runner of a gate: anything but an explicit ok is a refusal.
+
+The keyword is gate-run.
 
 bats-lang/bats#654: a pre-push check ran ``tests/check-pins/check.sh`` with no
 arguments (``$1: unbound variable``, ``FAIL: pinned was refused``) and the push went

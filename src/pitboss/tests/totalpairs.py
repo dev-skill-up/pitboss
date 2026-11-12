@@ -132,7 +132,8 @@ def _one_action(
             if answer.word != want or lost:
                 counts["exception"] += 1
                 bad.append(
-                    f"{action} {sorted(first)} {sorted(second)}: {answer.word}, want {want} {lost[:1]}"
+                    f"{action} {sorted(first)} {sorted(second)}: {answer.word}, want"
+                    f" {want} {lost[:1]}"
                 )
             else:
                 counts[answer.word] += 1

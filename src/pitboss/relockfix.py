@@ -1,4 +1,6 @@
-"""A relock whose diff has a test file beside the pins shows the data behind it (pitboss#447).
+"""A relock whose diff has a test file beside the pins shows the data behind it.
+
+Pitboss#447.
 
 (Keyword: relock-test-fix.) The Opus ruling of 2026-11-10 on quire PR 1101: the
 review was changes needed for a missing section, and the comment quoted 3.6 to

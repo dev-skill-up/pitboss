@@ -1,6 +1,6 @@
 """The ticket reader: a ticket's Done-when items, read closed-world (pitboss#444).
 
-Keyword: ticket-reader. The items are under the ticket's one ``## Done when``
+The keyword is ticket-reader. The items are under the ticket's one ``## Done when``
 heading, up to the next ``## `` heading or a ``---`` rule: its list items
 (``-``, ``*``, ``1.``; an indented line continues one, a paragraph before the
 first is the introduction), or, when it has no list, its paragraphs. A known key
@@ -57,7 +57,8 @@ def _listed(lines: Sequence[str]) -> Sequence[str]:
             items[-1] += " " + line.strip()
         else:
             raise Refused(
-                f"a line under Done-when that is neither an item nor a known key: {line[:50]!r}"
+                "a line under Done-when that is neither an item nor a known key:"
+                f" {line[:50]!r}"
             )
     return items
 

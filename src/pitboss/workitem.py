@@ -33,10 +33,9 @@ class Category(enum.IntEnum):
             after a ruling and fills the Execution (a PR; keyword: plan-alone).
         ADD_CI_QUOTES: an author adds the CI quotes the Plan names to the body of
             a ready PR whose checks passed (a PR; keyword: ci-quotes).
-        WAITING: a PR that is offered for no round (it waits, or its step is a
-            ruling, a merge or an undraft) and whose ticket is blocked by an open
-            ticket: it is only listed as blocked (keyword: blocked-pull,
-            pitboss#388).
+        WAITING: a PR that is offered for no round (it waits, or its step is a ruling, a
+            merge or an undraft) and whose ticket is blocked by an open ticket: it is
+            only listed as blocked (keyword: blocked-pull, pitboss#388).
         RELOCK_REVIEW: a reviewer checks a relock PR, a mechanical review that
             ranks after every other item (a PR; keyword: relock-last, B9).
         REFRESH_BODY: an author rewrites the body's ``Head:`` line for the

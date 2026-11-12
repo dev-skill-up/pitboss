@@ -1,4 +1,6 @@
-"""The ``act`` command: every write to GitHub, one verb each (keyword: act-verbs, pitboss#444).
+"""The ``act`` command: every write to GitHub, one verb each.
+
+The keyword is act-verbs, pitboss#444.
 
 ``pitboss act <verb> <target> [name=value ...]``: the target is ``owner/name#N``,
 ``owner/name`` or ``all``; the verbs are ``actverbs.VERBS``. Each verb that changes

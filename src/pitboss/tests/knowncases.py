@@ -204,7 +204,10 @@ def _override(given: Kit) -> bool:
     ]
     if not lines:
         return False
-    words = f'override head={HEAD} stop="{lines[0]}" reason="ruling repository-prototype#684"'
+    words = (
+        f'override head={HEAD} stop="{lines[0]}" reason="ruling'
+        ' repository-prototype#684"'
+    )
     return goes(
         given, "arm", change(ctx=_files("CLAUDE.md", 4), events=[record(words)])
     )
@@ -259,7 +262,8 @@ def _plan_ok(given: Kit) -> bool:
 def _scratch_path(given: Kit) -> bool:
     bad = BODY.replace(
         "## Plan\n",
-        "## Plan\n\n| 9 | `python3 /tmp/claude-0/x/scratchpad/canonical_check.py` | exits 0 |\n",
+        "## Plan\n\n| 9 | `python3 /tmp/claude-0/x/scratchpad/canonical_check.py` |"
+        " exits 0 |\n",
         1,
     )
     evidence = BODY + "\n## Evidence\n\n```\n$ ls /tmp/claude-0/x\n```\n"
@@ -417,7 +421,10 @@ def _partial(given: Kit) -> bool:
         ),
     ]
     url = "https://github.com/bats-lang/quire/pull/1119"
-    partial = f"## Items\n- [1] done | evidence: {url}\n- [2] done, except the e2e spec | evidence: {url}\n"
+    partial = (
+        f"## Items\n- [1] done | evidence: {url}\n- [2] done, except the e2e spec |"
+        f" evidence: {url}\n"
+    )
     hub, state = made(given), fakehub.state(items=items)
     order = (
         bool(refused(lambda: dispatch(given, hub, state, want="q#1200")))
@@ -564,7 +571,10 @@ def _prepush(given: Kit) -> bool:
     "`Found by quire#1118.` read as a Done-when item",
 )
 def _found_by(given: Kit) -> bool:
-    body = "## Done when\n\n- a demonstrated by b\n- c demonstrated by d\n\nFound by quire#1118.\n"
+    body = (
+        "## Done when\n\n- a demonstrated by b\n- c demonstrated by d\n\nFound by"
+        " quire#1118.\n"
+    )
     read = list(given.controls.items(body)) == [
         "a demonstrated by b",
         "c demonstrated by d",
@@ -630,7 +640,8 @@ def _tree(registered: bool) -> pathlib.Path:
 @case(
     "G29",
     "mutants run only in the CI job: no CLI command runs them",
-    "a worker ran mutation-check on a host as root and a mutant replaced the null device",
+    "a worker ran mutation-check on a host as root and a mutant replaced the null"
+    " device",
 )
 def _mutants(given: Kit) -> bool:
     return bool(given.registrations(_tree(True))) and not given.registrations(

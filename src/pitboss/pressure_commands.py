@@ -392,7 +392,8 @@ def push(args: argparse.Namespace) -> None:
     adds only none looks, which do not restart the wait. A push to a draft PR
     (``--draft``, or the branch of an open draft PR) is neither checked nor
     recorded. ``--mechanical`` is never held for a PR classified MECHANICAL-FIX
-    (``mechanicalpush``), else refused. A push to ``dev-skill-up/pitboss`` (or a repository of
+    (``mechanicalpush``), else refused. A push to ``dev-skill-up/pitboss`` (or a
+    repository of
     ``[runners] exempt``), read from the URL of the remote, is never held,
     whatever the pressure: it prints ``pitboss is exempt from holds`` once,
     runs ``git push`` and records nothing (keyword: pitboss-exempt, pitboss#113).

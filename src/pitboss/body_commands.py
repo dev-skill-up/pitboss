@@ -73,39 +73,49 @@ def body_digest(args: argparse.Namespace) -> None:
     add_argument(
         "--config",
         default=None,
-        help="the project's configuration (a path, or a name in"
-        " .claude/pitboss/<name>.toml; default: the search, else the fetch). Every"
-        " clone it names (main_clone, and the library clones under the workspace)"
-        " must be on its default branch with no uncommitted change to a tracked"
-        " file, else a `refused` line names the clone and its branch",
+        help=(
+            "the project's configuration (a path, or a name in"
+            " .claude/pitboss/<name>.toml; default: the search, else the fetch). Every"
+            " clone it names (main_clone, and the library clones under the workspace)"
+            " must be on its default branch with no uncommitted change to a tracked"
+            " file, else a `refused` line names the clone and its branch"
+        ),
     ),
     add_argument(
         "--pr",
         type=int,
         default=None,
-        help="the PR number in the configuration's repository (default: the open PR"
-        " of the worktree's branch, none is a refusal): the hand-back is refused"
-        " unless the PR holds the worktree's head, its body ends with a `Head:`"
-        " line naming it and a clean Plan check is posted",
+        help=(
+            "the PR number in the configuration's repository (default: the open PR"
+            " of the worktree's branch, none is a refusal): the hand-back is refused"
+            " unless the PR holds the worktree's head, its body ends with a `Head:`"
+            " line naming it and a clean Plan check is posted"
+        ),
     ),
     add_argument(
         "--repo",
         default=".",
-        help="the worker's worktree (default: the current directory): its head, its"
-        " git directory and the processes under it are judged",
+        help=(
+            "the worker's worktree (default: the current directory): its head, its"
+            " git directory and the processes under it are judged"
+        ),
     ),
     add_argument(
         "--output",
         default=None,
-        help="the worker's whole output file (JSON lines): its file edit tools are"
-        " listed, and an edit of a file outside the worktree or a shell command"
-        " that edits files is refused (B16, keyword: worker-edits)",
+        help=(
+            "the worker's whole output file (JSON lines): its file edit tools are"
+            " listed, and an edit of a file outside the worktree or a shell command"
+            " that edits files is refused (B16, keyword: worker-edits)"
+        ),
     ),
     add_argument(
         "--processes",
         default="/proc",
-        help="the directory of process entries (default: /proc): a process"
-        " running in the worktree that is not this command is a job you started",
+        help=(
+            "the directory of process entries (default: /proc): a process"
+            " running in the worktree that is not this command is a job you started"
+        ),
     ),
     name="hand-back-check",
 )
@@ -225,7 +235,8 @@ def body_head(args: argparse.Namespace) -> None:
     merge of the base requires: a line ``Head: <the head now>`` after the last
     ``Head:`` line, nothing else changed (``text-lint`` reads the last one). It
     prints the new body's ``Body:`` digest line and the input of ``bats
-    merge-proof`` (the head the newest approving review names, then the head now). It changes the
+    merge-proof`` (the head the newest approving review names, then the head now). It
+    changes the
     body as it is run, with no flag; a body whose last ``Head:`` line is the
     head is not changed.
 

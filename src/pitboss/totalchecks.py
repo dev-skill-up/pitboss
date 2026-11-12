@@ -1,4 +1,6 @@
-"""The verdict's rows on what GitHub holds beside the PR object (keyword: total-verdict).
+"""The verdict's rows on what GitHub holds beside the PR object.
+
+The keyword is total-verdict.
 
 Check runs, statuses, the diff, the tickets, the holds and the timeline's events.
 Passing is an allowlist: a check passes on ``success``, ``neutral`` or ``skipped``,

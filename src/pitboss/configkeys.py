@@ -1,8 +1,10 @@
-"""A Plan whose diff adds a configuration key lists it in doc/example.toml (pitboss#365).
+"""A Plan whose diff adds a configuration key lists it in doc/example.toml.
+
+Pitboss#365.
 
 (Keyword: config-example.) Plan reviews of dev-skill-up/pitboss#363 rejected the
-Plan twice for statements the change made false that the Impact list did not
-name: a new table or key the loaders read that ``doc/example.toml`` does not list
+Plan twice for statements the change made false that the Impact list did not name:
+a new table or key the loaders read that ``doc/example.toml`` does not list
 with its default, and a new way for a command to find its configuration. The
 module reads the diff and the example's text, as they are given.
 """

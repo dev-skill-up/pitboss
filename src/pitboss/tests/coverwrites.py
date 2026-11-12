@@ -1,4 +1,6 @@
-"""Every GitHub write has an act verb: the agent's write tools and pitboss's own commands.
+"""Every GitHub write has an act verb.
+
+The agent's write tools and pitboss's own commands.
 
 ``tools`` reads the frozen tool list, the tool calls of the agent sessions and the
 routes of ``act-routes.tsv``: a write tool a route names has a verb that exists, and

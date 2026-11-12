@@ -102,23 +102,27 @@ def scratch_worktree(args: argparse.Namespace, ref: str) -> Iterator[pathlib.Pat
 HEAD_OPTION = add_argument(
     "--head",
     default="",
-    help="the PR's head, which the Plan's CI pointers and cited lines are held to"
-    " (default: the last `Head:` line of the body, else HEAD of the checkout)",
+    help=(
+        "the PR's head, which the Plan's CI pointers and cited lines are held to"
+        " (default: the last `Head:` line of the body, else HEAD of the checkout)"
+    ),
 )
 
 
 CONFIG_OPTION = add_argument(
     "--config",
     default=None,
-    help="the project's configuration: a path, or a name in"
-    " .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else the search, else"
-    " the copy fetched by the repository's name). Its table [plan_check] has"
-    " `specs`, patterns of the paths of a spec (e2e/*.spec.js), and `groups`, the"
-    " files that list the specs a CI job runs (tests/groups.json): a spec the diff"
-    " adds must be named by a CI pointer's greppable string (a row with a"
-    " `workflow` file and, after `job`, `step` or `greppable`, backticked names)"
-    " and by a group file; every pointer's workflow file, job and step must exist"
-    " as written. With no table, no spec is checked",
+    help=(
+        "the project's configuration: a path, or a name in"
+        " .claude/pitboss/<name>.toml (default: $PITBOSS_CONFIG, else the search, else"
+        " the copy fetched by the repository's name). Its table [plan_check] has"
+        " `specs`, patterns of the paths of a spec (e2e/*.spec.js), and `groups`, the"
+        " files that list the specs a CI job runs (tests/groups.json): a spec the diff"
+        " adds must be named by a CI pointer's greppable string (a row with a"
+        " `workflow` file and, after `job`, `step` or `greppable`, backticked names)"
+        " and by a group file; every pointer's workflow file, job and step must exist"
+        " as written. With no table, no spec is checked"
+    ),
 )
 
 
@@ -146,30 +150,38 @@ def _plan_of(name: str, body: str) -> str:
     add_argument(
         "--base",
         default="origin/main",
-        help="the PR's base, which the scratch worktree is made of (default:"
-        " origin/main)",
+        help=(
+            "the PR's base, which the scratch worktree is made of (default:"
+            " origin/main)"
+        ),
     ),
     HEAD_OPTION,
     CONFIG_OPTION,
     add_argument(
         "--repository",
         default="",
-        help="the PR's repository as OWNER/NAME, which owns a bare `Fixes #N`"
-        " (default: the checkout's `origin`)",
+        help=(
+            "the PR's repository as OWNER/NAME, which owns a bare `Fixes #N`"
+            " (default: the checkout's `origin`)"
+        ),
     ),
     add_argument(
         "--pull",
         default="",
-        help="the PR as OWNER/NAME#NUMBER: a Plan that an earlier `Plan check: ok`"
-        " comment on it recorded is not judged again by the run of the head or the"
-        " ticket's Done-when, and the comment relied on is named (pitboss#444)",
+        help=(
+            "the PR as OWNER/NAME#NUMBER: a Plan that an earlier `Plan check: ok`"
+            " comment on it recorded is not judged again by the run of the head or the"
+            " ticket's Done-when, and the comment relied on is named (pitboss#444)"
+        ),
     ),
     add_argument(
         "--post",
         default="",
-        help="post the output as a comment on this PR (OWNER/NAME#NUMBER), whose"
-        " first line is `Plan check` and whose last is `Plan check: ok` or"
-        " `Plan check: refused`; the comment's address goes to standard error",
+        help=(
+            "post the output as a comment on this PR (OWNER/NAME#NUMBER), whose"
+            " first line is `Plan check` and whose last is `Plan check: ok` or"
+            " `Plan check: refused`; the comment's address goes to standard error"
+        ),
     ),
     add_argument(
         "--timeout",
@@ -357,7 +369,8 @@ def _checked(args: argparse.Namespace, section: str, ref: str) -> tuple[str, boo
 
 
 def _scripted(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], bool]:
-    # keyword: generated-markup (pitboss#433): a file a tracked script names is generated
+    # keyword: generated-markup (pitboss#433): a file a tracked script names is
+    # generated
     def grep(path: str) -> Sequence[str]:
         words = ["git", "-C", str(head), "grep", "-l", "-F", "--", path]
         try:

@@ -1,4 +1,6 @@
-"""The review form the verdict reads, and the act records on a PR (keyword: total-verdict).
+"""The review form the verdict reads, and the act records on a PR.
+
+The keyword is total-verdict.
 
 A review is written only by ``pitboss act review`` (``reviewtext``): the head in
 full, one line for each grade, the verdict, and the digests of the body, of its Plan

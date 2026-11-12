@@ -1,4 +1,6 @@
-"""A red that costs one cheap push to fix is classified (keyword: mechanical-fix, pitboss#32).
+"""A red that costs one cheap push to fix is classified.
+
+The keyword is mechanical-fix, pitboss#32.
 
 A failure of the plan job, or failures whose text is only a fixture expectation
 mismatch, is fixed by one push and should not wait behind a runner-pressure hold. The

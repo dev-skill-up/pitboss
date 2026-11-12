@@ -1,4 +1,7 @@
-"""The ``clauses`` command: every rule line of the owner's memory is mapped (keyword: clauses)."""
+"""The ``clauses`` command: every rule line of the owner's memory is mapped.
+
+The keyword is clauses.
+"""
 
 import argparse
 import pathlib

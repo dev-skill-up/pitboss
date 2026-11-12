@@ -1,8 +1,7 @@
 """The total verdict: one function for the sweep, ``pitboss act`` and the gate.
 
-Keyword: total-verdict (pitboss#444). It answers ``GO`` or ``STOP`` with the stop
-lines, for merge, arm, undraft and the other acts, over every input GitHub
-documents:
+The keyword is total-verdict (pitboss#444). It answers ``GO`` or ``STOP`` with the stop
+lines, for merge, arm, undraft and the other acts, over every input GitHub documents:
 
 * no input has a default: ``ctx`` must carry every key of ``REQUIRED``; a missing
   key, or a read that failed, is a stop, and an input it cannot read is a stop,
@@ -195,7 +194,8 @@ def _block_lines(ctx: JsonMap) -> Sequence[str]:
         ref = rest.split()[0] if rest.split() else "?"
         if blockers.get(ref) != "closed":
             found.append(
-                f"blocked: a block record names {ref}, which is {blockers.get(ref, 'not read')}"
+                f"blocked: a block record names {ref}, which is"
+                f" {blockers.get(ref, 'not read')}"
             )
     return found
 
@@ -228,7 +228,8 @@ def _event_lines(ctx: JsonMap, benign: frozenset[str]) -> Sequence[str]:
                 )
         elif kind not in benign:
             found.append(
-                f"event {kind}: after the review, so the review is of an older state; review again"
+                f"event {kind}: after the review, so the review is of an older state;"
+                " review again"
             )
     return found
 

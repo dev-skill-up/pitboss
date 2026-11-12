@@ -65,7 +65,9 @@ def test_ids(tree: pathlib.Path, names: Sequence[str]) -> Sequence[str]:
 
 
 def killers(tree: pathlib.Path, row: rules.Row) -> Sequence[str]:
-    """The tests of ``test_mutation_rows`` that hold a row's function (named by its id and function).
+    """The tests of ``test_mutation_rows`` that hold a row's function.
+
+    Named by its id and function.
 
     Args:
         tree: the directory that holds the ``pitboss`` package.

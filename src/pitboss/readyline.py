@@ -56,7 +56,10 @@ def line(pull: pulls.PullFacts, runners: config.Runners, now: datetime.datetime)
     """
     reference = pulls.reference(pull)
     if knownred.reds(pull):  # keyword: known-red (quire#1120)
-        return f"{reference} ({Marker.FIX_FIRST.text}: {knownred.say(pull, 'the undraft')})"
+        return (
+            f"{reference} ({Marker.FIX_FIRST.text}:"
+            f" {knownred.say(pull, 'the undraft')})"
+        )
     if pull.step.step is steps.Step.UNDRAFT:
         return (
             f"{reference} (mark the PR ready: update_pull_request draft=false for"

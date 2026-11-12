@@ -158,16 +158,17 @@ class TestSweep(unittest.TestCase):
     def test_removal_with_no_failed_job_is_cancelled_by_the_queue(self) -> None:
         """No job failed in the run: it says cancelled by the queue."""
         here = removed_world([ADDED, REMOVED], [PASSED_JOB, CANCELLED_JOB])
-        expected = REMOVED_LINE + (
-            "no failed job in its last queue run: cancelled by the queue"
+        expected = (
+            REMOVED_LINE + "no failed job in its last queue run: cancelled by the queue"
         )
         assert_that(lines_of(here), equal_to([expected, READY_LINE]))
 
     def test_a_failed_job_with_no_failed_step(self) -> None:
         """A failed job whose steps were not read says so."""
         here = removed_world([ADDED, REMOVED], [BARE_FAILED_JOB])
-        expected = REMOVED_LINE + (
-            "failed job of its last queue run: check / test: no failed step read"
+        expected = (
+            REMOVED_LINE
+            + "failed job of its last queue run: check / test: no failed step read"
         )
         assert_that(lines_of(here), equal_to([expected, READY_LINE]))
 
@@ -289,7 +290,10 @@ def held(here: world.World) -> world.World:
 
 
 class TestDropped(unittest.TestCase):
-    """A PR armed and then dropped with no removal is named and re-armed (quire#1110)."""
+    """A PR armed and then dropped with no removal is named and re-armed.
+
+    Quire#1110.
+    """
 
     def test_c26_a_pr_whose_auto_merge_was_switched_off_is_dropped_from_the_queue(
         self,

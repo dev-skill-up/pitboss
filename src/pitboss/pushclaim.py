@@ -1,4 +1,6 @@
-"""What a worker says it pushed, read back from the PR on GitHub (keyword: claim-readback).
+"""What a worker says it pushed, read back from the PR on GitHub.
+
+The keyword is claim-readback.
 
 (quire#1115.) A conflict worker pushed to ``w1113-merge`` instead of the PR's branch
 ``w1113`` and reported the push: git's own read-back (``pushcheck``) compared the

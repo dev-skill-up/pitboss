@@ -1,4 +1,6 @@
-"""STALE-CLAIM: a PR whose body names a head that is not its head (keyword: claim-readback).
+"""STALE-CLAIM: a PR whose body names a head that is not its head.
+
+The keyword is claim-readback.
 
 (quire#1115.) The body named 7ba2eca while the PR head stayed 75f820a: the worker's
 claim was never read back. The sweep reads both from the PR and says so, with the

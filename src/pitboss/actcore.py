@@ -1,6 +1,6 @@
 """``pitboss act``: the one path for every write to GitHub (pitboss#444).
 
-Keyword: act-verbs. A verb reads the state, runs the verdict, writes, and reads
+The keyword is act-verbs. A verb reads the state, runs the verdict, writes, and reads
 back; the agent gives only the intent. Every verb that changes GitHub first
 passes the owner gate (an owner message with no disposition refuses it) and the
 hold gate (a hold whose scope covers the verb refuses it). The invariant "armed
@@ -243,8 +243,8 @@ def owner_gate(act: Act) -> None:
     ]
     if pending:
         raise Refused(
-            f"owner message {pending[0]} has no disposition: `pitboss act ack {pending[0]}"
-            " --kind hold|cap|ruling|none`"
+            f"owner message {pending[0]} has no disposition: `pitboss act ack"
+            f" {pending[0]} --kind hold|cap|ruling|none`"
         )
 
 

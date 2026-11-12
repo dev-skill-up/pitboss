@@ -1,6 +1,6 @@
 """Every stop line of the verdict has a route: who acts on it, and with which verb.
 
-Keyword: total-routes (pitboss#444). The first route whose pattern matches a line
+The keyword is total-routes (pitboss#444). The first route whose pattern matches a line
 is its route. The owner's routes are a closed list (a hold, ``paused-owner``, a
 lock, a human reviewer). ``instructions()`` is the text the brief and the sweep
 carry, built from the same table, so each actor is told the verb and the form the
@@ -134,7 +134,8 @@ ROUTES: Sequence[Route] = (
     _route(
         r"mergeable_state=unstable",
         "orchestrator",
-        "a check that is not required is not green: `act dispatch-next` gives its triage",
+        "a check that is not required is not green: `act dispatch-next` gives its"
+        " triage",
         "dispatch-next",
     ),
     _route(
@@ -216,29 +217,43 @@ _ORCHESTRATOR = (
 )
 REQUIREMENTS: Mapping[str, Sequence[str]] = {
     "reviewer": (
-        "A review is posted only with `pitboss act review <pr> plan=approved|'changes"
-        " needed' execution=... verdict=... findings=...`; it writes the head, the"
-        " grades and the digests. A review typed as a comment is not read.",
-        "After any event on the PR the review is of an older state: run"
-        " `pitboss act review` again.",
+        (
+            "A review is posted only with `pitboss act review <pr>"
+            " plan=approved|'changes needed' execution=... verdict=... findings=...`;"
+            " it writes the head, the grades and the digests. A review typed as a"
+            " comment is not read."
+        ),
+        (
+            "After any event on the PR the review is of an older state: run"
+            " `pitboss act review` again."
+        ),
     ),
     "worker": (
-        "Every push is `pitboss act push`: the assigned branch, a commit with a change,"
-        " the pre-push check printing `ok`.",
-        "The PR is opened and its body changed only with `pitboss act pr-create` and"
-        " `pitboss act pr-edit`. The first line is `Fixes #N`; the last `Head:` line is"
-        " the head; no command of the `## Plan` section names a path of your machine"
-        " (a scratchpad, a home, a mount).",
+        (
+            "Every push is `pitboss act push`: the assigned branch, a commit with a"
+            " change, the pre-push check printing `ok`."
+        ),
+        (
+            "The PR is opened and its body changed only with `pitboss act pr-create`"
+            " and `pitboss act pr-edit`. The first line is `Fixes #N`; the last `Head:`"
+            " line is the head; no command of the `## Plan` section names a path of"
+            " your machine (a scratchpad, a home, a mount)."
+        ),
         "No line is added to a `.md` or `.rst` file; lines are only removed.",
         "A workflow file change cites its scratch run in the body.",
-        "The hand-back has one line per Done-when item: `- [N] done | evidence: <GitHub"
-        " URL or path>`, `- [N] impossible | <command> | <output>`, or `- [N] owner |"
-        " <request> | recommended: <answer> | until then: <what is done meanwhile>`.",
+        (
+            "The hand-back has one line per Done-when item: `- [N] done | evidence:"
+            " <GitHub URL or path>`, `- [N] impossible | <command> | <output>`, or `-"
+            " [N] owner | <request> | recommended: <answer> | until then: <what is done"
+            " meanwhile>`."
+        ),
     ),
     "orchestrator": (
         _ORCHESTRATOR,
-        "The next piece of work is what `pitboss act dispatch-next` returns, and"
-        " nothing else.",
+        (
+            "The next piece of work is what `pitboss act dispatch-next` returns, and"
+            " nothing else."
+        ),
     ),
 }
 

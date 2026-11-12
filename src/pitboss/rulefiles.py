@@ -1,6 +1,8 @@
-"""The brief's rule files: every file that binds a ticket's paths, closed world (pitboss#444).
+"""The brief's rule files: every file that binds a ticket's paths, closed world.
 
-Keyword: brief-rules. The writer takes the repository's ``CLAUDE.md`` and
+Pitboss#444.
+
+The keyword is brief-rules. The writer takes the repository's ``CLAUDE.md`` and
 ``CLAUDE.local.md``, those of every directory on the way to a ticket path (and
 under a ticket directory), ``.claude/agents/worker.md``, every rule file of
 ``.claude/rules/`` (recursively) whose ``paths:`` match a file of the ticket or
@@ -26,13 +28,17 @@ GLOB = re.compile(r"\s+-\s+(\"[^\"]+\"|'[^']+'|[^\s'\"#][^#]*?)\s*")
 PATH_GATES = (
     (
         r"^\.github/workflows/",
-        "a workflow file: text-lint must be green on the head (the body cites the"
-        " scratch run) before arm or merge",
+        (
+            "a workflow file: text-lint must be green on the head (the body cites the"
+            " scratch run) before arm or merge"
+        ),
     ),
     (
         r"\.(md|rst)$",
-        "a .md or .rst file: lines are only removed; an added line stops undraft, arm"
-        " and merge",
+        (
+            "a .md or .rst file: lines are only removed; an added line stops undraft,"
+            " arm and merge"
+        ),
     ),
     (
         r"(^|/)CODEOWNERS$",

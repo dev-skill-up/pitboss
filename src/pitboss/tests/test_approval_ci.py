@@ -1,4 +1,7 @@
-"""An approval of a head waits for its green check run (keyword: approval-ci, quire#1038)."""
+"""An approval of a head waits for its green check run.
+
+The keyword is approval-ci, quire#1038.
+"""
 
 import json
 import unittest

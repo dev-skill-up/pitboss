@@ -1,6 +1,6 @@
 """Mutants run only in the CI job: no pitboss command runs them (pitboss#444).
 
-Keyword: no-local-mutants. A mutant is broken code, and one run on a host as root
+The keyword is no-local-mutants. A mutant is broken code, and one run on a host as root
 once replaced the null device. So the mutation runner is a step of CI's job on
 its ephemeral runner (``pitboss.mutationci``), and no command of pitboss's command
 list runs mutants. ``registrations`` finds a command registered under the name

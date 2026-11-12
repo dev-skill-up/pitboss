@@ -18,8 +18,9 @@ SCHEDULED = "name: relock\non:\n  schedule:\n    - cron: '7 5 * * *'\njobs: {}\n
 PUSHED = "name: relock\non:\n  push:\njobs: {}\n"
 CLAUDE = "# quire\n\nEvery change to `src/` must commit a regenerated `bootstrap/c`.\n"
 SCRATCH = (
-    "1. `text_lint` on relock.yml: "
-    "https://github.com/bats-lang/relock-scratch/actions/runs/1/job/2, the log of the step\n"
+    "1. `text_lint` on relock.yml:"
+    " https://github.com/bats-lang/relock-scratch/actions/runs/1/job/2, the log of the"
+    " step\n"
 )
 BOOTSTRAP = "2. commit bootstrap/c from the artifact bootstrap-c-regenerated-HEAD\n"
 OTHER = "1. `echo ok` shows ok\n"

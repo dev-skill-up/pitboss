@@ -1,4 +1,6 @@
-"""An approval is read as current only for the subject it was about (keyword: current-for).
+"""An approval is read as current only for the subject it was about.
+
+The keyword is current-for.
 
 bats-lang/quire#1120: a Plan approved at one digest stayed approved after the Plan
 was revised. One test for each pair of a stored verdict and the digest or head it

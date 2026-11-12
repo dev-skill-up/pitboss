@@ -1,4 +1,6 @@
-"""A Done-when item comes only from the Done-when list (keyword: done-when-bullets, bats#654).
+"""A Done-when item comes only from the Done-when list.
+
+The keyword is done-when-bullets, bats#654.
 
 The corpus is the bodies of real tickets (``tests/tickets``): bats#653 ended with
 "Found by quire#1118." and plan-check demanded it word for word as an item.
@@ -82,7 +84,10 @@ class TestShapes(unittest.TestCase):
 
     def test_c33_a_lead_line_before_the_list_is_kept(self) -> None:
         """A lead line states for every item and is read."""
-        ticket = "## Done when\n\nEach item is demonstrated by Y.\n\n- a\n- b\n\nFound by x.\n"
+        ticket = (
+            "## Done when\n\nEach item is demonstrated by Y.\n\n- a\n- b\n\nFound by"
+            " x.\n"
+        )
         assert_that(
             ticketwhen.items(ticket),
             contains_exactly("Each item is demonstrated by Y.", "a", "b"),

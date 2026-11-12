@@ -1,4 +1,7 @@
-"""The 66 cases: each control refuses its unsafe world and lets its safe twin through."""
+"""The 66 cases.
+
+Each control refuses its unsafe world and lets its safe twin through.
+"""
 
 import unittest
 

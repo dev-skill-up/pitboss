@@ -1,4 +1,7 @@
-"""The ``env-check`` command: is the environment a worker needs there (keyword: env-check)."""
+"""The ``env-check`` command: is the environment a worker needs there.
+
+The keyword is env-check.
+"""
 
 import argparse
 from typing import Sequence
@@ -44,9 +47,11 @@ def verdicts(
     add_argument(
         "--config",
         default=None,
-        help="the project's configuration (a path, or a name in"
-        " .claude/pitboss/<name>.toml; default: the search): its repository decides"
-        " which tools are needed",
+        help=(
+            "the project's configuration (a path, or a name in"
+            " .claude/pitboss/<name>.toml; default: the search): its repository decides"
+            " which tools are needed"
+        ),
     ),
     add_argument(
         "--repo",

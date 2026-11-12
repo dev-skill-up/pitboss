@@ -1,14 +1,16 @@
-"""The rule lines of the owner's memory and the corrections of #444, each mapped (keyword: clauses).
+"""The rule lines of the owner's memory and the corrections of #444, each mapped.
 
-``clauses.tsv`` has a row for every clause of the corpus: a bullet of ``MEMORY.md``,
-the ``description`` and the ``How to apply`` line of each topic file, and each numbered
-case and each comment of ticket 444. A row names the ids of the register that cover it
-and a word (``needle``) every one of them holds in its words or its tests, or says
-``outside: REASON``. ``findings`` refuses a clause of the corpus with no row, a row
-that names an id the register lacks, a rule that is open (not enforced yet), one with
-no tests, a needle none of the rule's words or tests holds, and an ``outside`` with no
-reason. quire#1115: a rule was stated again and again because nothing listed
-which of its clauses a test held.
+The keyword is clauses.
+
+``clauses.tsv`` has a row for every clause of the corpus: a bullet of ``MEMORY.md``, the
+``description`` and the ``How to apply`` line of each topic file, and each numbered case
+and each comment of ticket 444. A row names the ids of the register that cover it and a
+word (``needle``) every one of them holds in its words or its tests, or says ``outside:
+REASON``. ``findings`` refuses a clause of the corpus with no row, a row that names an
+id the register lacks, a rule that is open (not enforced yet), one with no tests, a
+needle none of the rule's words or tests holds, and an ``outside`` with no reason.
+quire#1115: a rule was stated again and again because nothing listed which of its
+clauses a test held.
 """
 
 import dataclasses

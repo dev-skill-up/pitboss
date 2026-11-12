@@ -1,7 +1,9 @@
-"""The verdict's inputs for a live PR, read from GitHub (keyword: act-verbs, pitboss#444).
+"""The verdict's inputs for a live PR, read from GitHub.
 
-Every input the verdict requires (``totalverdict.REQUIRED``) is read here when a verb
-asks: the repository's rules for its default branch (required checks, the merge
+The keyword is act-verbs, pitboss#444.
+
+Every input the verdict requires (``totalverdict.REQUIRED``) is read here when a
+verb asks: the repository's rules for its default branch (required checks, the merge
 queue), the head's check runs and statuses, the files, the tickets the body closes,
 the items a Blocked line or a block record names, and the timeline. A read that
 fails is kept as ``{"_error": ...}`` so the verdict stops on it.

@@ -1,4 +1,6 @@
-"""The total verdict is complete: every part is tied to every other (keyword: total-complete, pitboss#444).
+"""The total verdict is complete: every part is tied to every other.
+
+The keyword is total-complete, pitboss#444.
 
 ``complete`` checks, over the parts as given, that every row is of a PR field and
 every documented timeline kind is in exactly one class; that every documented value
@@ -96,9 +98,14 @@ def _schema(parts: Parts) -> Iterator[str]:
     for row in parts.variables:
         count = sum(row.value in each for each in classes)
         if row.group == "timeline-kind" and count != 1:
-            yield f"schema: the timeline kind {row.value} is in {count} classes, not one"
+            yield (
+                f"schema: the timeline kind {row.value} is in {count} classes, not one"
+            )
         if row.group in parts.declared and row.value not in parts.declared[row.group]:
-            yield f"schema: the {row.group} value {row.value} is documented and is in no table"
+            yield (
+                f"schema: the {row.group} value {row.value} is documented and is in no"
+                " table"
+            )
     passed = {
         value
         for value, meaning in parts.declared.get("check-conclusion", {}).items()
@@ -147,7 +154,10 @@ def _forms(parts: Parts) -> Iterator[str]:
         written, head, world.pull.get("body"), tickets
     ) or parts.policy.plan(written, world.pull.get("body"))
     if why:
-        yield f"forms: what `act review` writes, the verdict does not read as an approval: {why[:60]}"
+        yield (
+            "forms: what `act review` writes, the verdict does not read as an"
+            f" approval: {why[:60]}"
+        )
     body = parts.forms.ticket(ITEMS, ["src/"], 100, "p1")
     if list(parts.forms.items(body)) != list(ITEMS):
         yield "forms: what `act ticket` writes, the ticket reader reads differently"
@@ -167,7 +177,10 @@ def _repos(parts: Parts) -> Iterator[str]:
     for name, labels in sorted(parts.labels.items()):
         for label in labels:
             if label not in totalrows.KNOWN_LABELS:
-                yield f"repos: {name} has the label {label!r}, which pitboss does not apply"
+                yield (
+                    f"repos: {name} has the label {label!r}, which pitboss does not"
+                    " apply"
+                )
 
 
 def complete(parts: Parts, cells: Sequence[totalcells.Cell]) -> Sequence[str]:

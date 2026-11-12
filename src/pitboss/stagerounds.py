@@ -1,10 +1,12 @@
-"""The rounds that decide escalation are kept per stage (keyword: stage-rounds, pitboss#222).
+"""The rounds that decide escalation are kept per stage.
+
+The keyword is stage-rounds, pitboss#222.
 
 dev-skill-up/pitboss#217: the Plan went through two rejections and an Opus
 ruling, was approved in round 3, and the first Execution rejection then went to
 the owner, because the ruling counted as the Execution's too. A ruling written
-before the Plan was approved is the Plan stage's; it leaves the Execution its own
-rounds: a fix, then a ruling on a second rejection, and the owner after that
+before the Plan was approved is the Plan stage's; it leaves the Execution its
+own rounds: a fix, then a ruling on a second rejection, and the owner after that
 ruling. A ruling written after the approval is the Execution's, and
 ``flow.rejected`` reads it as before.
 """

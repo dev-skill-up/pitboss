@@ -1,6 +1,6 @@
 """The recount of a brief's rule files, written apart from the writer (pitboss#444).
 
-Keyword: brief-rules. Another discovery (``os.walk`` of the whole checkout),
+The keyword is brief-rules. Another discovery (``os.walk`` of the whole checkout),
 another reading of the front matter (a split on ``---`` and a key scan, which
 takes any form of ``paths:``) and another matcher (``fnmatch`` one path segment at
 a time, ``**`` any number of them). The files it finds are compared with what the

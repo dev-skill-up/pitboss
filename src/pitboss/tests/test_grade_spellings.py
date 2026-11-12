@@ -1,11 +1,11 @@
 """The spellings the form check accepts are the ones the sweep reads (rp#684).
 
-On repository-prototype#684 (grade-spellings) a reviewer posted
-``Plan: ok``; the form check read only the first line and accepted it, the sweep
-read no grade in it, and a second Plan review was offered. Each verdict form
-(Plan, Execution, the ``Verdict:`` line, the fixed Plan line of a re-review, the
-merge-proof comment, the Opus ruling) has one definition that both sides use,
-and this test derives the spellings each side accepts and compares them.
+On repository-prototype#684 (grade-spellings) a reviewer posted ``Plan: ok``; the form
+check read only the first line and accepted it, the sweep read no grade in it, and a
+second Plan review was offered. Each verdict form (Plan, Execution, the ``Verdict:``
+line, the fixed Plan line of a re-review, the merge-proof comment, the Opus ruling) has
+one definition that both sides use, and this test derives the spellings each side
+accepts and compares them.
 """
 
 import unittest

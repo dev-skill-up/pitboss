@@ -1,6 +1,6 @@
 """The frozen enumeration: every input and action pitboss's verdict answers for.
 
-Keyword: enumeration (pitboss#444). ``enumeration/variables.tsv`` and
+The keyword is enumeration (pitboss#444). ``enumeration/variables.tsv`` and
 ``enumeration/actions.tsv`` are derived from lists outside pitboss only: GitHub's
 REST documentation (the PR fields, the timeline kinds, the check-run, status,
 mergeable, review, issue and file values, the read outcomes, the ruleset rules,

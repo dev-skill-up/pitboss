@@ -1,4 +1,6 @@
-"""A worker brief states the standing rules and the environment (keyword: env-check, quire#1065).
+"""A worker brief states the standing rules and the environment.
+
+The keyword is env-check, quire#1065.
 
 The rules are read from ``standing.tsv`` and not retyped here: each row's needle must
 be in the printed brief of every worker kind, for each kind of repository.

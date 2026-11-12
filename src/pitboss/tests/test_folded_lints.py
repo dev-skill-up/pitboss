@@ -10,7 +10,8 @@ from .test_report import facts
 HEAD = "a" * 40
 OTHER = "b" * 40
 PHRASES = phrases.parse(
-    "half-done\t\\bthe part that\\b\tthe part that is left\tUse the Done-when as written.\n",
+    "half-done\t\\bthe part that\\b\tthe part that is left\tUse the Done-when as"
+    " written.\n",
     "test",
 )
 ADOPT = "`adopt` (tools/adopt of repository-prototype) made this pull request"
@@ -117,7 +118,10 @@ class TestAdoptBody(unittest.TestCase):
 
     def test_t423_the_two_rows_of_the_script_are_not_hand_typed(self) -> None:
         """`git rev-parse HEAD` and `git show --stat` in a body adopt made."""
-        text = f"{ADOPT}\n\n## Evidence\n\n$ git rev-parse HEAD\n{HEAD}\n$ git show --stat\n"
+        text = (
+            f"{ADOPT}\n\n## Evidence\n\n$ git rev-parse HEAD\n{HEAD}\n$ git show"
+            " --stat\n"
+        )
         assert_that(evidence.hand_typed(text), empty())
 
     def test_t423_the_same_rows_in_any_other_body_are_hand_typed(self) -> None:

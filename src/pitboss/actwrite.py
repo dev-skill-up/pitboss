@@ -164,8 +164,8 @@ def ticket_edit(act: Act, target: Target, options: Options) -> str:
     )
     if started:
         raise Refused(
-            f"PR #{started[0]} closes {target.repo}#{target.number}, so a worker started:"
-            " a started ticket gets nothing added (file a new ticket)"
+            f"PR #{started[0]} closes {target.repo}#{target.number}, so a worker"
+            " started: a started ticket gets nothing added (file a new ticket)"
         )
     body = option(options, "body")
     act.controls.items(body)
@@ -364,9 +364,9 @@ def ack(act: Act, target: Target, options: Options) -> str:
     Args:
         act: the verb's world.
         target: the repository a hold or a note goes to ("all" for a hold of all).
-        options: ``message``, ``kind`` (hold, cap, ruling, none) and what the kind
-            needs: ``scope`` (hold), ``cap`` (cap), ``reason`` (a URL or #N for a
-            ruling, a reason for none) and ``quote`` (none).
+        options: ``message``, ``kind`` (hold, cap, ruling, none) and what the
+            kind needs: ``scope`` (hold), ``cap`` (cap), ``reason`` (a URL or #N
+            for a ruling, a reason for none) and ``quote`` (none).
 
     Returns:
         The disposition.

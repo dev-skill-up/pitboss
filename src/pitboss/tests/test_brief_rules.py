@@ -1,4 +1,7 @@
-"""No printed brief contradicts a standing rule, in any state it is printed in (quire#1120)."""
+"""No printed brief contradicts a standing rule, in any state it is printed in.
+
+Quire#1120.
+"""
 
 import dataclasses
 import unittest

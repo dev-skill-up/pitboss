@@ -1,6 +1,8 @@
-"""``act dispatch-next``: the one next piece of work, by the order of work (pitboss#444).
+"""``act dispatch-next``: the one next piece of work, by the order of work.
 
-Keyword: dispatch-next. The slots are the config's and the cap holds (a ledger
+Pitboss#444.
+
+The keyword is dispatch-next. The slots are the config's and the cap holds (a ledger
 slot the config does not name refuses the dispatch); the order is open PRs oldest
 first, then tickets by priority and age, a blocked item skipped; a red the base
 shares is not the PR's, and a red several PRs share at one step is one ticket, not
@@ -104,8 +106,8 @@ def _red(state: State, item: Item) -> None:
         return
     if item.red_check in state.base_red:
         raise Refused(
-            f"{item.red_check} is red on the default branch too: the cause is not this PR"
-            " (one ticket for the cause)"
+            f"{item.red_check} is red on the default branch too: the cause is not this"
+            " PR (one ticket for the cause)"
         )
     same = [
         each.ref
@@ -115,7 +117,8 @@ def _red(state: State, item: Item) -> None:
     ]
     if same and not item.cause_ticket:
         raise Refused(
-            f"{item.red_check} fails at the same step on {same[0]}: one cause, one ticket, no fix round on each"
+            f"{item.red_check} fails at the same step on {same[0]}: one cause, one"
+            " ticket, no fix round on each"
         )
 
 
@@ -145,6 +148,7 @@ def next_item(state: State, want: str = "", agent: str = "") -> Item:
     _red(state, item)
     if item.step == "plan-check-fix" and agent != item.worker:
         raise Refused(
-            f"a refused plan-check goes back to its own worker ({item.worker}), not a new agent"
+            f"a refused plan-check goes back to its own worker ({item.worker}), not a"
+            " new agent"
         )
     return item

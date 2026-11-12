@@ -205,8 +205,8 @@ def lines(slug: str, claude: str, ticket: str) -> Sequence[str]:
         about the content or the added lines is said to apply when they match.
     """
     found = [
-        f"    - `{path}`: gate {gate.id}: the Plan needs {gate.form}"
-        f"{'' if gate.added == NONE and gate.content == NONE else ' (when the change matches)'}"
+        f"    - `{path}`: gate {gate.id}: the Plan needs"
+        f" {gate.form}{'' if gate.added == NONE and gate.content == NONE else ' (when the change matches)'}"
         f" ({gate.source})"
         for gate in shipped()
         if _in_scope(gate, slug, claude)

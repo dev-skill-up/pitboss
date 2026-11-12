@@ -1,4 +1,6 @@
-"""A printed brief never tells an agent to do what a register rule forbids (pitboss#444).
+"""A printed brief never tells an agent to do what a register rule forbids.
+
+Pitboss#444.
 
 (Keyword: brief-contradiction, quire#1120.) The Plan revision of quire#1120 was
 a change of the body only, but the brief's push line led the worker to push an

@@ -1,4 +1,6 @@
-"""The act verbs' world as the ``act`` command builds it (keyword: act-verbs, pitboss#444).
+"""The act verbs' world as the ``act`` command builds it.
+
+The keyword is act-verbs, pitboss#444.
 
 ``owner.json`` beside the slot ledger holds the owner's messages (ids, appended by
 whoever relays the owner's words), their dispositions and the cap an ``ack --kind
@@ -113,7 +115,9 @@ def work(hub: Hub, settings: config.Config) -> Callable[[], dispatchnext.State]:
 def prepush(
     run: Callable[[Sequence[str]], subprocess.CompletedProcess[str]],
 ) -> Callable[[], tuple[int, str]]:
-    """The pre-push check: the repository's ``[[pre_push]]`` checks, as the hook runs them.
+    """The pre-push check: the repository's ``[[pre_push]]`` checks.
+
+    As the hook runs them.
 
     Args:
         run: runs a command line without raising.
@@ -131,7 +135,9 @@ def prepush(
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class P90(collections.abc.Mapping[str, int]):
-    """Each repository's 90th percentile of the lines its last 100 merged PRs changed, read when asked.
+    """Each repository's 90th percentile of the lines its last 100 merged PRs changed.
+
+    Read when asked.
 
     Attributes:
         github: the reading runner.

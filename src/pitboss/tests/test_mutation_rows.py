@@ -1,6 +1,6 @@
 """Rows whose own tests missed a mutant: each runs the test that kills it.
 
-Keyword: mutation-check. The name of a test carries the row id; the test it runs
+The keyword is mutation-check. The name of a test carries the row id; the test it runs
 is the existing guard of the behaviour the mutant changes.
 """
 
@@ -23,79 +23,118 @@ class TestRowsHoldTheirFunctions(unittest.TestCase):
     def test_a1_plan_edited_without_ruling_2_is_held_by_a_test_of_its_behaviour(
         self,
     ) -> None:
-        """The mutant of ``each.author_association in pr.trusted` -> `each.author_asso` is killed by this test."""
+        """The mutant of ``each.author_association in pr.trusted` -> `each.author_asso`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_current_for.TestPairs.test_c31_a_revised_plan_after_a_ruling_is_reviewed_again_after_a_push"
         )
 
     def test_a3_checked_since_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``newest and (not unchecked(pr))` -> `newest or not unchecked` is killed by this test."""
+        """The mutant of ``newest and.
+
+        (not unchecked(pr))` -> `newest or not unchecked` is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_body_only_round.TestBodyOnlyRound.test_t462_a_refusal_after_the_ruling_gives_the_fix"
         )
 
     def test_a4_next_step_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD`` is killed by this test."""
+        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_body_only_round.TestStepReview.test_a_pr_at_another_step_is_refused"
         )
 
     def test_a10_next_step_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD`` is killed by this test."""
+        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_body_only_round.TestStepReview.test_a_pr_at_another_step_is_refused"
         )
 
     def test_a11_refusal_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``newest is not None and needs_check(body, comments, trusted)` is killed by this test."""
+        """The mutant of ``newest is not None and needs_check(body, comments, trusted)`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_base_check.TestTheCommand.test_a_base_the_head_equals_fails_the_check_naming_the_test"
         )
 
     def test_a16_ci_gate_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``ci is Ci.RED` -> `ci is not Ci.RED`` is killed by this test."""
+        """The mutant of ``ci is Ci.RED` -> `ci is not Ci.RED`` is killed by this.
+
+        Test.
+        """
         rerun(
             "pitboss.tests.test_body_only_round.TestBodyOnlyRound.test_a_clean_check_of_another_plan_gives_the_fix"
         )
 
     def test_a16_ci_gate_2_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)` is killed by this test."""
+        """The mutant of ``waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_clean_waits.TestCleanWaits.test_a_clean_pr_at_a_wait_prints_the_wait_and_no_next_line"
         )
 
     def test_a16_ci_gate_3_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``review is None` -> `review is not None`` is killed by this test."""
+        """The mutant of ``review is None` -> `review is not None`` is killed by this.
+
+        Test.
+        """
         rerun(
             "pitboss.tests.test_body_edits.TestTheBodyAtAMark.test_a_mark_where_the_body_then_differs_from_the_final_one"
         )
 
     def test_a16_ci_gate_4_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``unfixed_execution(pr) or plancheckflow.execution_review(pr,` is killed by this test."""
+        """The mutant of ``unfixed_execution(pr) or.
+
+        Plancheckflow.execution_review(pr,` is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_flow.TestBranches.test_a_plan_approved_in_a_draft_is_carried_to_the_execution_review"
         )
 
     def test_a16_ci_gate_5_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``flowstate.plan_rejected_last(pr) or plan_revised(pr)` -> `f` is killed by this test."""
+        """The mutant of ``flowstate.plan_rejected_last(pr) or plan_revised(pr)` -> `f`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_no_drafts_review.TestFlow.test_a_revised_plan_is_reviewed_with_the_execution"
         )
 
     def test_a17_build_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``spec.kind is Kind.RULING` -> `spec.kind is not Kind.RULING`` is killed by this test."""
+        """The mutant of ``spec.kind is Kind.RULING` -> `spec.kind is not Kind.RULING``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_all_findings.TestSweep.test_pause_counts_the_findings_marked_missed_earlier"
         )
 
     def test_a18_refusal_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``rest not in NOTHING and (not IMPOSSIBLE.search(handback))` ` is killed by this test."""
+        """The mutant of ``rest not in NOTHING and.
+
+        (not IMPOSSIBLE.search(handback))` ` is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_base_check.TestTheCommand.test_a_base_the_head_equals_fails_the_check_naming_the_test"
         )
 
     def test_a23_build_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``spec.kind is Kind.RULING` -> `spec.kind is not Kind.RULING`` is killed by this test."""
+        """The mutant of ``spec.kind is Kind.RULING` -> `spec.kind is not Kind.RULING``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_all_findings.TestSweep.test_pause_counts_the_findings_marked_missed_earlier"
         )
@@ -107,27 +146,42 @@ class TestRowsHoldTheirFunctions(unittest.TestCase):
         )
 
     def test_a29_only_pins_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``name in pin_files` -> `name not in pin_files`` is killed by this test."""
+        """The mutant of ``name in pin_files` -> `name not in pin_files`` is killed by.
+
+        This test.
+        """
         rerun("pitboss.tests.test_pins_verify.TestReading.test_only_pins")
 
     def test_b13_overdue_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``elapsed <= datetime.timedelta(minutes=OVERDUE_MINUTES)` -> ` is killed by this test."""
+        """The mutant of ``elapsed <= datetime.timedelta(minutes=OVERDUE_MINUTES)` -> `.
+
+        Is killed by this test.
+        """
         rerun("pitboss.tests.test_check_in.TestCheckIn.test_next_and_sweep_by_minutes")
 
     def test_b19_findings_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``not _NEGATED.search(each)` -> `_NEGATED.search(each)`` is killed by this test."""
+        """The mutant of ``not _NEGATED.search(each)` -> `_NEGATED.search(each)`` is.
+
+        Killed by this test.
+        """
         rerun(
             "pitboss.tests.test_holdwait.TestShippedTexts.test_the_skill_says_it_in_one_place"
         )
 
     def test_b26_stale_heads_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``head and produced(each) and each.in_evidence` -> `head or p` is killed by this test."""
+        """The mutant of ``head and produced(each) and each.in_evidence` -> `head or p`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_evidence_head.TestFindings.test_no_head_judges_nothing"
         )
 
     def test_c3_remove_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``each.worktree.branch == branch and each.reason in local.MER` is killed by this test."""
+        """The mutant of ``each.worktree.branch == branch and each.reason in local.MER`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_worktrees.TestMerged.test_another_branch_is_not_touched"
         )
@@ -139,29 +193,44 @@ class TestRowsHoldTheirFunctions(unittest.TestCase):
         )
 
     def test_c6_unmarked_line_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``not globs or marked(tree, globs, ticket)` -> `not globs and` is killed by this test."""
+        """The mutant of ``not globs or marked(tree, globs, ticket)` -> `not globs and`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_default_config.TestCommandsWithAConfiguration.test_every_command_with_a_configuration_is_run_here"
         )
 
     def test_c10_lines_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``ours is None or theirs is None or ours >= theirs` -> `ours ` is killed by this test."""
+        """The mutant of ``ours is None or theirs is None or ours >= theirs` -> `ours `.
+
+        Is killed by this test.
+        """
         rerun("pitboss.tests.test_config.TestExample.test_example_loads")
 
     def test_i15_next_step_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD`` is killed by this test."""
+        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_body_only_round.TestStepReview.test_a_pr_at_another_step_is_refused"
         )
 
     def test_i16_ordered_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``item.category is Category.RELOCK_REVIEW` -> `item.category ` is killed by this test."""
+        """The mutant of ``item.category is Category.RELOCK_REVIEW` -> `item.category `.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_slots_rules.TestRelockLast.test_b9_a_relock_review_is_last"
         )
 
     def test_i16_ordered_2_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``item.category is Category.NEW_PR` -> `item.category is not ` is killed by this test."""
+        """The mutant of ``item.category is Category.NEW_PR` -> `item.category is not `.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_closing_comment.TestSlotsNext.test_every_blocker_has_merged"
         )
@@ -173,47 +242,71 @@ class TestRowsHoldTheirFunctions(unittest.TestCase):
         )
 
     def test_i27_stale_heads_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``head and produced(each) and each.in_evidence` -> `head or p` is killed by this test."""
+        """The mutant of ``head and produced(each) and each.in_evidence` -> `head or p`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_evidence_head.TestFindings.test_no_head_judges_nothing"
         )
 
     def test_i36_holder_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``slot.started or 'unknown'` -> `slot.started and 'unknown'`` is killed by this test."""
+        """The mutant of ``slot.started or 'unknown'` -> `slot.started and 'unknown'``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_leak.TestScratch.test_a_directory_is_fresh_unless_the_process_owns_it"
         )
 
     def test_i38_lines_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``each.finished and each.succeeded` -> `each.finished or each` is killed by this test."""
+        """The mutant of ``each.finished and each.succeeded` -> `each.finished or each`.
+
+        Is killed by this test.
+        """
         rerun("pitboss.tests.test_config.TestExample.test_example_loads")
 
     def test_t475_next_step_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD`` is killed by this test."""
+        """The mutant of ``step.step in steps.HELD` -> `step.step not in steps.HELD``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_body_only_round.TestStepReview.test_a_pr_at_another_step_is_refused"
         )
 
     def test_t417_build_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``spec.kind is Kind.RULING` -> `spec.kind is not Kind.RULING`` is killed by this test."""
+        """The mutant of ``spec.kind is Kind.RULING` -> `spec.kind is not Kind.RULING``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_all_findings.TestSweep.test_pause_counts_the_findings_marked_missed_earlier"
         )
 
     def test_t419_missing_line_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``each not in known.kinds` -> `each in known.kinds`` is killed by this test."""
+        """The mutant of ``each not in known.kinds` -> `each in known.kinds`` is killed.
+
+        By this test.
+        """
         rerun(
             "pitboss.tests.test_done_when.TestDoneWhenNames.test_each_missing_name_is_named"
         )
 
     def test_t52_findings_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``path.suffix not in SUFFIXES or not path.is_file()` -> `path` is killed by this test."""
+        """The mutant of ``path.suffix not in SUFFIXES or not path.is_file()` -> `path`.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_holdwait.TestShippedTexts.test_the_skill_says_it_in_one_place"
         )
 
     def test_t53_fields_1_is_held_by_a_test_of_its_behaviour(self) -> None:
-        """The mutant of ``spec.kind is Kind.NEW_PR` -> `spec.kind is not Kind.NEW_PR`` is killed by this test."""
+        """The mutant of ``spec.kind is Kind.NEW_PR` -> `spec.kind is not Kind.NEW_PR``.
+
+        Is killed by this test.
+        """
         rerun(
             "pitboss.tests.test_brief_order.TestOrderTables.test_the_rule_sits_in_the_tickets_section_of_rules"
         )

@@ -18,13 +18,12 @@ from . import scratch, totalworld
 
 IDS = ["1", "2", "3", "4"]
 GOOD = (
-    "## Items\n"
-    "- [1] done | evidence: https://github.com/bats-lang/quire/actions/runs/123/job/456\n"
-    "- [2] done | evidence: out.txt\n"
-    "- [3] impossible | command: `bats check` | output: error: no bats.lock\n"
-    "- [4] owner | request: set the secret RELOCK_TOKEN | recommended: a fine-grained token"
-    " with Contents write | until then: the relock PR lists the pin\n"
-    "\n## Evidence\n```\n$ bats check\nok\n```\n"
+    "## Items\n- [1] done | evidence:"
+    " https://github.com/bats-lang/quire/actions/runs/123/job/456\n- [2] done |"
+    " evidence: out.txt\n- [3] impossible | command: `bats check` | output: error: no"
+    " bats.lock\n- [4] owner | request: set the secret RELOCK_TOKEN | recommended: a"
+    " fine-grained token with Contents write | until then: the relock PR lists the"
+    " pin\n\n## Evidence\n```\n$ bats check\nok\n```\n"
 )
 
 
@@ -88,7 +87,10 @@ class TestRules(unittest.TestCase):
     """Each rule, and what it refuses."""
 
     def test_444_each_fault_is_named(self) -> None:
-        """Text before the items, a second items section, prose under Evidence, an open fence, a stray id."""
+        """Text before the items, a second items section, prose under Evidence.
+
+        An open fence, a stray id.
+        """
         exists = handbackform.in_checkout(None)
         url = "https://github.com/o/r/pull/3"
         for text, said in (
@@ -104,7 +106,10 @@ class TestRules(unittest.TestCase):
             ),
             ("nothing here", "no `## Items`"),
             (
-                f"## Items\n- [1] done | evidence: {url}\n- [9] done | evidence: {url}\n",
+                (
+                    f"## Items\n- [1] done | evidence: {url}\n- [9] done | evidence:"
+                    f" {url}\n"
+                ),
                 "not one of the ticket's",
             ),
             ("## Items\n- [1] done | evidence: not-run-here\n", "neither a GitHub run"),
@@ -122,8 +127,8 @@ class TestRules(unittest.TestCase):
         exists = handbackform.in_checkout(root)
         rest = "\n".join(GOOD.splitlines()[2:5]) + "\n"
         prose = (
-            "## Items\n- [1] done, mostly (the Windows path is not run) | evidence: out.txt\n"
-            + rest
+            "## Items\n- [1] done, mostly (the Windows path is not run) | evidence:"
+            " out.txt\n" + rest
         )
         loose = dataclasses.replace(
             handbackform.Form(),

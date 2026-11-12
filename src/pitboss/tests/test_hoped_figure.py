@@ -8,7 +8,10 @@ from .. import donewhen, hopedfigure, plandonewhen
 from . import fakes, test_done_when
 
 KNOWN = donewhen.Known(kinds=frozenset(), commands=frozenset(), tree=fakes.directory())
-KEY = "Done-when: the allowlist line whose key is `bats/.github/workflows/check.yml` passes."
+KEY = (
+    "Done-when: the allowlist line whose key is `bats/.github/workflows/check.yml`"
+    " passes."
+)
 FILE = "Done-when: `bats/.github/workflows/check.yml` passes."
 SPECIFIC = "Done-when:\n* The check catches the bare sleep in `a.js`.\n"
 HOPED = (

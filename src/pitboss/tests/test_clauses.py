@@ -11,10 +11,9 @@ from .. import clauses, phrases, rules
 from . import world
 
 REGISTER = (
-    "A1\t2026-11-04\tenforced\tAn approved Plan is never edited\tflowstate.plan_edited_without_ruling"
-    "\ttest_x.test_a1_a\n"
-    "Z9\t2026-11-04\topen\tNot yet\t-\t-\n"
-    "Y8\t2026-11-04\tenforced\tNo tests\t-\t\n"
+    "A1\t2026-11-04\tenforced\tAn approved Plan is never"
+    " edited\tflowstate.plan_edited_without_ruling\ttest_x.test_a1_a\nZ9\t2026-11-04\topen\tNot"
+    " yet\t-\t-\nY8\t2026-11-04\tenforced\tNo tests\t-\t\n"
 )
 ROWS, _ = rules.parse(REGISTER)
 TABLE = (

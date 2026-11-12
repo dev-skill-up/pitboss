@@ -1,4 +1,6 @@
-"""ADOPT-REVIEW: the review of a PR that ``adopt`` made is of the script (keyword: adopt-made).
+"""ADOPT-REVIEW: the review of a PR that ``adopt`` made is of the script.
+
+The keyword is adopt-made.
 
 (pitboss#423.) ``tools/adopt`` of repository-prototype makes one PR for each
 repository; its body says so in its first paragraph. The reviewer reads the

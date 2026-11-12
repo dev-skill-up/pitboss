@@ -1,4 +1,7 @@
-"""The verdict's rows one at a time, at the edges the cells do not reach (keyword: total-routes, pitboss#444)."""
+"""The verdict's rows one at a time, at the edges the cells do not reach.
+
+The keyword is total-routes, pitboss#444.
+"""
 
 import unittest
 
@@ -87,7 +90,10 @@ class TestReview(unittest.TestCase):
     def test_444_the_faults(self) -> None:
         """No head line, a split verdict, a body with no Plan."""
         digest = totalreview.digest_of("")
-        base = f"Reviewed: {HEAD}\nPlan: approved\nExecution: approved\nVerdict: approved\nBody: {digest}\n"
+        base = (
+            f"Reviewed: {HEAD}\nPlan: approved\nExecution: approved\nVerdict:"
+            f" approved\nBody: {digest}\n"
+        )
         assert_that(
             totalreview.review_reading("Verdict: approved\n", HEAD, "", {}),
             contains_string("0 head lines"),

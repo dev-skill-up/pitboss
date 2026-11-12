@@ -149,7 +149,8 @@ class TestTheSweep(unittest.TestCase):
         has_none(
             out,
             [
-                "a draft runs no CI job (its check is reported skipped, never missing; keyword: draft-ci, pitboss#321), so there is no CI"
+                "a draft runs no CI job (its check is reported skipped, never missing;"
+                " keyword: draft-ci, pitboss#321), so there is no CI"
             ],
         )
 

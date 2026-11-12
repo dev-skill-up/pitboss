@@ -1,10 +1,10 @@
 """A partial hand-back is refused unless it shows the impossibility (B17).
 
-Opus, 2026-11-10: a hand-back that leaves a Done-when item not done must state
-``Impossible: <cmd> -> <output>`` for it; the coordinator, 2026-11-11 12:19Z: the
-slot was refilled while a worker had handed back PR 672 with NOT DONE parts. The
-refused hand-back goes back to its worker, and the slot stays with it (keyword:
-partial-hand-back).
+Opus, 2026-11-10: a hand-back that leaves a Done-when item not done must
+state ``Impossible: <cmd> -> <output>`` for it; the coordinator, 2026-11-11
+12:19Z: the slot was refilled while a worker had handed back PR 672 with NOT
+DONE parts. The refused hand-back goes back to its worker, and the slot stays
+with it (keyword: partial-hand-back).
 """
 
 import re

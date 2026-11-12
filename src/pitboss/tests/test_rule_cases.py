@@ -1,4 +1,7 @@
-"""Rulings as cases and the order of work's refusals (keywords: ruling-cases, dispatch-next, pitboss#444)."""
+"""Rulings as cases and the order of work's refusals.
+
+The keywords are ruling-cases, dispatch-next, pitboss#444.
+"""
 
 import re
 import unittest
@@ -42,7 +45,10 @@ class TestCases(unittest.TestCase):
         )
 
     def test_444_a_conflict_names_the_old_case(self) -> None:
-        """The same world ruled both ways: the encoding that keeps the new case loses the old one."""
+        """The same world ruled both ways.
+
+        The encoding that keeps the new case loses the old one.
+        """
         add = calling(rulecases.add)
         assert_that(
             add.with_args([GO], STOP, {"go": _go, "by x": _by_x, "stop": _stop}),

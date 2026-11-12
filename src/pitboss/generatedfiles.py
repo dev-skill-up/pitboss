@@ -1,6 +1,9 @@
-"""A .md or .rst file that a script writes is not hand-written (keyword: generated-markup, pitboss#433).
+"""A .md or .rst file that a script writes is not hand-written.
 
-quire#1096 regenerated ``reports/quire-w3c-epub-tests.md`` with ``scripts/w3c-epub-tests-report.py``;
+The keyword is generated-markup, pitboss#433.
+
+quire#1096 regenerated ``reports/quire-w3c-epub-tests.md`` with
+``scripts/w3c-epub-tests-report.py``;
 the digits changed in place and the markup-lines rule (no added line in a .md or .rst
 file) refused the report, so the worker left it stale beside the regenerated json. A
 file is *generated* when a tracked file that is not itself .md or .rst names its path:

@@ -128,7 +128,9 @@ def refusals(
 def hook_failure(
     safe_run: gaterun.Runner, checks: Sequence[config.PrePush], directory: pathlib.Path
 ) -> Sequence[str]:
-    """Run the checks in order and stop at the first that fails (keyword: pre-push-hook).
+    """Run the checks in order and stop at the first that fails.
+
+    The keyword is pre-push-hook.
 
     Args:
         safe_run: the runner of commands.

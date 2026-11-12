@@ -1,4 +1,6 @@
-"""A repository's rule against a feature gives way to where the feature can live (pitboss#437).
+"""A repository's rule against a feature gives way to where the feature can live.
+
+Pitboss#437.
 
 (Keyword: repository-rule.) bats-lang/quire#1092 (require Android 10) was held
 because pwa's CLAUDE.md allows only bug fixes and new platforms; the owner,

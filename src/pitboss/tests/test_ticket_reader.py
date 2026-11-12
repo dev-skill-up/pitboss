@@ -1,4 +1,7 @@
-"""The ticket reader, closed-world, and what ``act ticket`` writes (keyword: ticket-reader, pitboss#444)."""
+"""The ticket reader, closed-world, and what ``act ticket`` writes.
+
+The keyword is ticket-reader, pitboss#444.
+"""
 
 import re
 import unittest
@@ -19,14 +22,26 @@ class TestItems(unittest.TestCase):
     """The forms of a Done-when section."""
 
     def test_444_a_list_its_continuations_and_its_keys(self) -> None:
-        """An introduction, items of each mark, a continued line, then a key that ends them, then a rule."""
-        body = "## Done when\n\nIntro.\n\n- a\n  more\n* b\n1. c\nPaths: src/\n- not an item\n---\nafter\n"
+        """An introduction, items of each mark, a continued line.
+
+        Then a key that ends them, then a rule.
+        """
+        body = (
+            "## Done when\n\nIntro.\n\n- a\n  more\n* b\n1. c\nPaths: src/\n- not an"
+            " item\n---\nafter\n"
+        )
         _refused(body, "neither an item")
-        body = "## Done when\n\nIntro.\n\n- a\n  more\n* b\n1. c\nPaths: src/\n---\n- after\n"
+        body = (
+            "## Done when\n\nIntro.\n\n- a\n  more\n* b\n1. c\nPaths: src/\n---\n-"
+            " after\n"
+        )
         assert_that(list(ticketreader.items(body)), equal_to(["a more", "b", "c"]))
 
     def test_444_paragraphs_when_there_is_no_list(self) -> None:
-        """Each paragraph is an item; a key paragraph is not; the next heading ends them."""
+        """Each paragraph is an item; a key paragraph is not.
+
+        The next heading ends them.
+        """
         body = (
             "## Done-when\n\nfirst\nline\n\nsecond\n\nPriority: p1\n## Other\nthird\n"
         )
@@ -51,7 +66,10 @@ class TestClosing(unittest.TestCase):
     """Which PRs close a ticket."""
 
     def test_444_every_closing_keyword_and_form(self) -> None:
-        """A short and a full reference close; another repository's and another number do not."""
+        """A short and a full reference close.
+
+        Another repository's and another number do not.
+        """
         bodies = [
             (1, "Fixes #4"),
             (2, "resolved: o/r#4"),

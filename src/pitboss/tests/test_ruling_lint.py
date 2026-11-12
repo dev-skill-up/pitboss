@@ -66,7 +66,10 @@ class TestRulingLint(unittest.TestCase):
         )
 
     def test_c34_ruling_post_refuses_the_same_steps(self) -> None:
-        """``ruling post`` reads the PR and its ticket and refuses an impossible step."""
+        """``ruling post`` reads the PR and its ticket and refuses an impossible.
+
+        Step.
+        """
         answers = {
             "repos/o/r/pulls/5": {"body": PR_BODY.replace("Fixes #1", "Fixes #1")},
             "repos/o/r/issues/1": {"body": TICKET},

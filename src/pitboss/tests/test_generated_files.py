@@ -1,4 +1,7 @@
-"""A .md or .rst file a script writes is not hand-written (keyword: generated-markup, T433)."""
+"""A .md or .rst file a script writes is not hand-written.
+
+The keyword is generated-markup, T433.
+"""
 
 import unittest
 from typing import Sequence

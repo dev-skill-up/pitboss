@@ -1,4 +1,7 @@
-"""The total verdict: the frozen enumeration, its cells, its pairs and every write's verb (pitboss#444)."""
+"""The total verdict: the frozen enumeration, its cells.
+
+Its pairs and every write's verb (pitboss#444).
+"""
 
 import collections
 import functools
@@ -13,8 +16,12 @@ from . import coverwrites, scratch, totalcells, totalpairs, totalworld, world
 
 SOURCE = pathlib.Path(__file__).parent.parent
 SHA256 = {
-    enumeration.VARIABLES: "2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc",
-    enumeration.ACTIONS: "c4f777245a4492773e9774b4acd2391b6d8c938125d1d9ec2442735785c65d82",
+    enumeration.VARIABLES: (
+        "2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc"
+    ),
+    enumeration.ACTIONS: (
+        "c4f777245a4492773e9774b4acd2391b6d8c938125d1d9ec2442735785c65d82"
+    ),
 }
 
 
@@ -73,7 +80,10 @@ class TestCells(unittest.TestCase):
     """Every value of every variable, for each action, against the GO world."""
 
     def test_444_732_cells_with_0_uncovered(self) -> None:
-        """526 fire on their own row, 206 are benign by a named reason, none is uncovered."""
+        """526 fire on their own row, 206 are benign by a named reason.
+
+        None is uncovered.
+        """
         found = totalcells.tally(_cells(), _verdict)
         assert_that(
             (len(_cells()), dict(found)),
@@ -155,11 +165,14 @@ class TestCover(unittest.TestCase):
         assert_that("UNCOVERED" in kinds, equal_to(True))
 
     def test_444_the_graph_reads_store_of_and_only_name_keywords(self) -> None:
-        """A bare ``store_of`` is a write; a decorator keyword other than ``name`` registers nothing."""
+        """A bare ``store_of`` is a write.
+
+        A decorator keyword other than ``name`` registers nothing.
+        """
         source = scratch.directory()
         (source / "planted.py").write_text(
-            "@register(help='x', name='planted')\ndef planted():\n    return store_of()\n\n"
-            "@register(help='y')\ndef other():\n    return 1\n",
+            "@register(help='x', name='planted')\ndef planted():\n    return"
+            " store_of()\n\n@register(help='y')\ndef other():\n    return 1\n",
             encoding="utf-8",
         )
         found = coverwrites.graph(source)
@@ -169,7 +182,10 @@ class TestCover(unittest.TestCase):
         )
 
     def test_444_a_write_with_no_route_is_uncovered(self) -> None:
-        """A command that writes and has no verb, and one that is not registered, are each UNCOVERED."""
+        """A command that writes and has no verb, and one that is not registered.
+
+        Are each UNCOVERED.
+        """
         found = coverwrites.commands(SOURCE, ["sweep", "no-such-command"], {})
         assert_that([row.kind for row in found], equal_to(["UNCOVERED", "UNCOVERED"]))
 

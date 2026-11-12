@@ -115,7 +115,8 @@ def override(act: Act, target: Target, options: Options) -> str:
     stop, reason = option(options, "stop"), option(options, "reason")
     if stop.startswith(act.controls.not_overridable):
         raise Refused(
-            "a hold, a failed check or status, a block, a read failure or a closed PR is not overridable"
+            "a hold, a failed check or status, a block, a read failure or a closed PR"
+            " is not overridable"
         )
     pull = act.hub.pull(target.repo, target.number)
     ctx = act.inputs(
@@ -283,7 +284,8 @@ def rerun(act: Act, target: Target, options: Options) -> str:
     run = option(options, "run")
     if options.get("cause") != "runner" or not options.get("evidence"):
         raise Refused(
-            "a re-run needs a cause of kind runner with its evidence (the job's annotation)"
+            "a re-run needs a cause of kind runner with its evidence (the job's"
+            " annotation)"
         )
     act.hub.write(Change(kind="rerun", repo=target.repo, fields={"run": run}))
     return f"rerun {target.repo} run {run}"

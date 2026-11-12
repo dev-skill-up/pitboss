@@ -1,4 +1,6 @@
-"""The environment a worker needs and the standing rules it is told (keyword: env-check).
+"""The environment a worker needs and the standing rules it is told.
+
+The keyword is env-check.
 
 quire#1065: a worker gave up because no ``bats`` was on PATH, and the queue restated
 by hand how to get a compiler and that a check over the time limit goes to CI. The
@@ -85,7 +87,10 @@ NEEDS: Sequence[Need] = (
         kinds=frozenset({"node"}),
         check="command -v node && command -v npx",
         why="no node on PATH",
-        get="install the Node of .nvmrc, then `npm ci` and `npx playwright install chromium`",
+        get=(
+            "install the Node of .nvmrc, then `npm ci` and `npx playwright install"
+            " chromium`"
+        ),
     ),
 )
 

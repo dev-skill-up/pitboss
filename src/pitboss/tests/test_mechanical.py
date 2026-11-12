@@ -1,4 +1,6 @@
-"""A mechanical red is classified, and its fix push is free of the hold (T32, pitboss#32).
+"""A mechanical red is classified, and its fix push is free of the hold.
+
+T32, pitboss#32.
 
 The check runs and their failure texts are injected: a plan job, a fixture
 expectation mismatch, a mix, and a red that is neither.

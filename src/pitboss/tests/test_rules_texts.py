@@ -1,4 +1,7 @@
-"""T53, T56, T110: the quarantine, race and local-run rules and the unchecked phrases."""
+"""T53, T56, T110: the quarantine.
+
+Race and local-run rules and the unchecked phrases.
+"""
 
 import unittest
 

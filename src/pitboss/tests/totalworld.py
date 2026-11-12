@@ -51,7 +51,10 @@ def review(
     section = totalreview.plan_section(body)
     plan = [] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]
     lines = [
-        f"Independent review (a separate reviewer agent, not the author) of head {head}: {grade}",
+        (
+            "Independent review (a separate reviewer agent, not the author) of head"
+            f" {head}: {grade}"
+        ),
         "Plan: approved",
         f"Execution: {grade}",
         f"Verdict: {grade}",

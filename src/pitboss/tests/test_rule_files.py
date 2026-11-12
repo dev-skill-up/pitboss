@@ -1,4 +1,7 @@
-"""The brief's rule files, the recount and the brief ``act dispatch-next`` writes (keyword: brief-rules, pitboss#444)."""
+"""The brief's rule files, the recount and the brief ``act dispatch-next`` writes.
+
+The keyword is brief-rules, pitboss#444.
+"""
 
 import dataclasses
 import pathlib
@@ -17,7 +20,9 @@ PLANTED = {
     "src/CLAUDE.md": "SUBDIR\n",
     "docs/CLAUDE.md": "OTHERDIR\n",
     ".claude/agents/worker.md": "WORKER\n",
-    ".claude/rules/block.md": '---\ndescription: a block\n  that goes on\npaths:\n  - "src/**"\n---\nBLOCK\n',
+    ".claude/rules/block.md": (
+        '---\ndescription: a block\n  that goes on\npaths:\n  - "src/**"\n---\nBLOCK\n'
+    ),
     ".claude/rules/sub/nested.md": "---\n\npaths:\n  - src/**\n---\nNESTED\n",
     ".claude/rules/none.md": "no front matter: always\n",
     ".claude/rules/other.md": "---\npaths:\n  - docs/**\n---\nNOT-APPLICABLE\n",
@@ -46,7 +51,10 @@ class TestWriter(unittest.TestCase):
     """The closed-world writer."""
 
     def test_444_the_planted_repository(self) -> None:
-        """Every file that binds the path is carried, the others are not, and the recount agrees."""
+        """Every file that binds the path is carried, the others are not.
+
+        And the recount agrees.
+        """
         ticket = _planted()
         text = rulefiles.write(ticket)
         for said in (
@@ -111,7 +119,10 @@ class TestRecount(unittest.TestCase):
     """The recount catches a writer that drops a file."""
 
     def test_444_a_dropped_file_is_named(self) -> None:
-        """A file cut from the brief, the user's file and a nested rule are each missed."""
+        """A file cut from the brief.
+
+        The user's file and a nested rule are each missed.
+        """
         ticket = _planted()
         text = rulefiles.write(ticket)
         for cut, named in (
@@ -199,7 +210,10 @@ class TestDispatchBrief(unittest.TestCase):
         )
 
     def test_444_brief_refuses_when_the_recount_finds_a_file_missing(self) -> None:
-        """A glob the two read differently (a class, literal to the writer) refuses the brief."""
+        """A glob the two read differently.
+
+        (a class, literal to the writer) refuses the brief.
+        """
         ticket = _planted()
         (ticket.checkout / ".claude" / "rules" / "class.md").write_text(
             "---\npaths:\n  - src/[x].bats\n---\nCLASS\n", encoding="utf-8"

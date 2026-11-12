@@ -165,7 +165,10 @@ REPORT = (
 
 
 class TestGeneratedReport(unittest.TestCase):
-    """A report a script writes is not hand-written markup (keyword: generated-markup)."""
+    """A report a script writes is not hand-written markup.
+
+    The keyword is generated-markup.
+    """
 
     def test_t433_a_generated_report_passes(self) -> None:
         """A script that names the report makes its changed digits fine."""

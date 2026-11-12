@@ -1,4 +1,7 @@
-"""The act verbs (keyword: act-verbs, pitboss#444): each runs the verdict and the gates."""
+"""The act verbs.
+
+(keyword: act-verbs, pitboss#444): each runs the verdict and the gates.
+"""
 
 import dataclasses
 import unittest
@@ -118,7 +121,10 @@ class TestMerge(unittest.TestCase):
         assert_that(refused(lambda: act(GIVEN, hub, "arm")), contains_string("hold"))
 
     def test_c17_ack_kinds(self) -> None:
-        """A ruling names its reference; cap sets the cap; a kind in no row is refused."""
+        """A ruling names its reference; cap sets the cap.
+
+        A kind in no row is refused.
+        """
         hub = made(GIVEN)
         assert_that(
             refused(
@@ -145,7 +151,10 @@ class TestMerge(unittest.TestCase):
         )
 
     def test_c17_arm_records_then_enables_and_the_gate_passes_it(self) -> None:
-        """The arm record comes before auto-merge, and the verdict reads its own arming."""
+        """The arm record comes before auto-merge.
+
+        And the verdict reads its own arming.
+        """
         hub = made(GIVEN)
         act(GIVEN, hub, "arm")
         timeline = hub.hub.timeline(REPO, NUMBER)
@@ -183,7 +192,10 @@ class TestReview(unittest.TestCase):
         )
 
     def test_c17_grade_lines_are_refused(self) -> None:
-        """Findings with a grade key, a grade in another form, a comment with a Verdict line."""
+        """Findings with a grade key, a grade in another form.
+
+        A comment with a Verdict line.
+        """
         hub = made(GIVEN)
         grades = {"plan": "approved", "execution": "approved", "verdict": "approved"}
         assert_that(
@@ -394,7 +406,10 @@ class TestEdits(unittest.TestCase):
     def test_c17_comments_are_edited_only_when_they_are_pitboss_own_evidence(
         self,
     ) -> None:
-        """A review comment is never edited or deleted, nor evidence turned into a verdict."""
+        """A review comment is never edited or deleted.
+
+        Nor evidence turned into a verdict.
+        """
         hub = made(GIVEN)
         identifier = act(GIVEN, hub, "comment", body="evidence: the run log")
         act(
@@ -432,7 +447,10 @@ class TestEdits(unittest.TestCase):
         )
 
     def test_c17_scratch_clean_only_in_a_scratch_repository(self) -> None:
-        """A branch and a PR of the scratch repository are cleaned; elsewhere it is refused."""
+        """A branch and a PR of the scratch repository are cleaned.
+
+        Elsewhere it is refused.
+        """
         hub = made(GIVEN)
         assert_that(
             refused(lambda: act(GIVEN, hub, "scratch-clean", branch="b")),
@@ -484,7 +502,10 @@ class TestEdits(unittest.TestCase):
 
 
 class TestPushAndQueue(unittest.TestCase):
-    """A push leaves auto-merge and the queue; the default branch and a dirty tree are refused."""
+    """A push leaves auto-merge and the queue.
+
+    The default branch and a dirty tree are refused.
+    """
 
     def test_c17_a_push_to_a_queued_armed_pr_disarms_and_dequeues(self) -> None:
         """Both writes come before the push, each with its record."""

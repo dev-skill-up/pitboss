@@ -1,6 +1,6 @@
 """Rulings as cases: a conflict between rulings is a red suite (pitboss#444).
 
-Keyword: ruling-cases. A ruling of the owner that changes what pitboss lets
+The keyword is ruling-cases. A ruling of the owner that changes what pitboss lets
 through is one case: an id, the date, a world, an action and the verdict he
 ruled (GO or STOP). ``add`` accepts a new case only when some encoding of the
 rows passes it together with every older case, and otherwise refuses, naming the
@@ -78,9 +78,9 @@ def add(cases: Sequence[Case], new: Case, encodings: Mapping[str, Encoding]) -> 
         {each for encoding in keeping for each in failures(cases, encoding)}
     ) or ["every encoding (none passes it)"]
     raise Refused(
-        f"ruling {new.name} ({new.date}) cannot hold together with {', '.join(lost)}: no"
-        " encoding passes both. One question to the owner, with the two worlds as the"
-        " example; his answer is recorded as `wins`."
+        f"ruling {new.name} ({new.date}) cannot hold together with {', '.join(lost)}:"
+        " no encoding passes both. One question to the owner, with the two worlds as"
+        " the example; his answer is recorded as `wins`."
     )
 
 
@@ -103,14 +103,17 @@ def diff_findings(
         if case.name in wins:
             if wins[case.name] not in after:
                 found.append(
-                    f"case {case.name}: the ruling named as winning, {wins[case.name]}, is not in the case file"
+                    f"case {case.name}: the ruling named as winning, {wins[case.name]},"
+                    " is not in the case file"
                 )
         elif case.name not in after:
             found.append(
-                f"case {case.name} is removed and no ruling is recorded as winning over it"
+                f"case {case.name} is removed and no ruling is recorded as winning"
+                " over it"
             )
         elif after[case.name].expect != case.expect:
             found.append(
-                f"case {case.name} changes from {case.expect} to {after[case.name].expect} with no ruling recorded"
+                f"case {case.name} changes from {case.expect} to"
+                f" {after[case.name].expect} with no ruling recorded"
             )
     return found

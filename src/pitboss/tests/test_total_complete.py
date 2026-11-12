@@ -1,4 +1,7 @@
-"""The total verdict is complete, and each planted hole is found (keyword: total-complete, pitboss#444)."""
+"""The total verdict is complete, and each planted hole is found.
+
+The keyword is total-complete, pitboss#444.
+"""
 
 import dataclasses
 import functools
@@ -139,7 +142,10 @@ class TestComplete(unittest.TestCase):
                 assert_that(_holes(parts), contains_string(said))
 
     def test_444_the_other_holes_are_said(self) -> None:
-        """A field with no row, the passed set, a cell over-blocked, a route's verb in no instruction."""
+        """A field with no row, the passed set, a cell over-blocked.
+
+        A route's verb in no instruction.
+        """
         schema = {
             name: kind
             for name, kind in REFERENCE.policy.schema.items()

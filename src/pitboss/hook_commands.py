@@ -47,8 +47,8 @@ def pushes_something(refs: str) -> bool:
 def hook(args: argparse.Namespace) -> None:
     """Run the project's ``[[pre_push]]`` checks, stopping at the first failure.
 
-    A push that only deletes refs is not checked. A failure prints
-    ``pre-push: check <n> (<name>) failed: <what>`` and ``fix: <the fix>``.
+    A push that only deletes refs is not checked. A failure prints ``pre-push: check <n>
+    (<name>) failed: <what>`` and ``fix: <the fix>``.
 
     Args:
         args: the parsed arguments.

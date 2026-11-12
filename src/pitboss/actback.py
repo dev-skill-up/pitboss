@@ -1,8 +1,8 @@
 """What an action did, read back from the PR (keyword: claim-readback, quire#1115).
 
 ``pitboss act`` changes a PR on GitHub and said ``act: ...`` whatever GitHub then
-held. After a live action it reads the PR once more and names the fact the action
-claims: undrafted, merged, armed, labelled, closed.
+held. After a live action it reads the PR once more and names the fact the
+action claims: undrafted, merged, armed, labelled, closed.
 """
 
 import json

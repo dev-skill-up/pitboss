@@ -1,6 +1,6 @@
 """The hand-back form: one line for each Done-when item, nothing else (pitboss#444).
 
-Keyword: handback-form. Work is done or not done, never "done except"
+The keyword is handback-form. Work is done or not done, never "done except"
 (2026-10-28); a hand-back finishes an item or shows it is impossible
 (2026-11-10); an open item is never the conclusion (2026-11-12). A hand-back is
 ``## Items``, then exactly one line for each item::
@@ -24,7 +24,8 @@ IMPOSSIBLE = re.compile(
     r"- \[([\w.-]+)\] impossible \| command: `[^`]+` \| output: \S.*"
 )
 OWNER = re.compile(
-    r"- \[([\w.-]+)\] owner \| request: \S[^|]* \| recommended: \S[^|]* \| until then: \S[^|]*"
+    r"- \[([\w.-]+)\] owner \| request: \S[^|]* \| recommended: \S[^|]* \| until then:"
+    r" \S[^|]*"
 )
 URL = re.compile(
     r"https://github\.com/[\w.-]+/[\w.-]+/(actions/runs/\d+(/job/\d+)?|pull/\d+(#\S+)?"
@@ -80,8 +81,8 @@ def _item(reading: _Reading, number: int, line: str) -> None:
         reading.form.url.fullmatch(done.group(2)) or reading.exists(done.group(2))
     ):
         reading.found.append(
-            f"line {number}: the evidence of {done.group(1)} is neither a GitHub run, job,"
-            " PR, commit or issue URL nor a file of the checkout"
+            f"line {number}: the evidence of {done.group(1)} is neither a GitHub run,"
+            " job, PR, commit or issue URL nor a file of the checkout"
         )
     match = done or next(
         (each.fullmatch(line) for each in reading.form.others if each.fullmatch(line)),

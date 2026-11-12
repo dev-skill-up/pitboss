@@ -138,7 +138,10 @@ class TestRearm(unittest.TestCase):
         assert_that(list(said[-2:]), equal_to(["--auto", "--merge"]))
 
     def test_c26_an_arm_during_a_hold_is_refused_and_changes_nothing(self) -> None:
-        """A hold of merges (the runner-pressure hold is ``act hold --scope ci``) refuses the arm."""
+        """A hold of merges.
+
+        (the runner-pressure hold is ``act hold --scope ci``) refuses the arm.
+        """
         given = knownkit.kit()
         hub = knownkit.made(given)
         knownkit.act(given, hub, "hold", number="0", scope="merges", source="m1")

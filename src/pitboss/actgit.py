@@ -30,7 +30,8 @@ def _ready(act: Act, worktree: str, branch: str) -> str:
     on, current = _tried(act, worktree, "symbolic-ref", "--quiet", "--short", "HEAD")
     if not on or current != branch:
         raise Refused(
-            f"the worktree is on {current if on else 'a detached head'}, and dispatch assigned {branch}"
+            f"the worktree is on {current if on else 'a detached head'}, and dispatch"
+            f" assigned {branch}"
         )
     if branch in DEFAULT_BRANCHES:
         raise Refused("a push to the default branch")
@@ -75,7 +76,8 @@ def push(act: Act, target: Target, options: Options) -> str:
     if not back or back[0] != head:
         remote = back[0][:12] if back else "absent"
         raise Refused(
-            f"not pushed: the remote's {branch} is {remote}, the head is {head[:12]} ({said[-80:]})"
+            f"not pushed: the remote's {branch} is {remote}, the head is {head[:12]}"
+            f" ({said[-80:]})"
         )
     return head
 

@@ -1,4 +1,7 @@
-"""The ``act`` command and the GitHub it writes through (keyword: act-verbs, pitboss#444)."""
+"""The ``act`` command and the GitHub it writes through.
+
+The keyword is act-verbs, pitboss#444.
+"""
 
 import json
 import subprocess
@@ -39,7 +42,10 @@ class TestCommand(unittest.TestCase):
     """The command line."""
 
     def test_c17_a_label_is_made_and_recorded(self) -> None:
-        """A dry run prints the write; a live one writes it, records it and keeps the owner file."""
+        """A dry run prints the write; a live one writes it.
+
+        Records it and keeps the owner file.
+        """
         here = _here()
         assert_that(
             _act(here, "label", PULL, "name=p1").out, equal_to(f"label p1 on {PULL}\n")
@@ -70,7 +76,10 @@ class TestCommand(unittest.TestCase):
         assert_that(again, equal_to(events))
 
     def test_c17_refusals_exit_2(self) -> None:
-        """No verb, a word that is no option, and a STOP each exit 2 and write nothing."""
+        """No verb, a word that is no option.
+
+        And a STOP each exit 2 and write nothing.
+        """
         here = _here()
         for words, said in (
             (("nope", PULL), "no verb"),
@@ -221,7 +230,10 @@ class TestInputs(unittest.TestCase):
     """The verdict's inputs, read live."""
 
     def test_c17_every_required_input_is_read(self) -> None:
-        """Rules, runs, statuses, tickets, files, blockers and the timeline; a failed read is kept."""
+        """Rules, runs, statuses, tickets, files, blockers and the timeline.
+
+        A failed read is kept.
+        """
         answers = {
             "repos/o/r/rules/branches/main": json.dumps(
                 [
@@ -315,7 +327,10 @@ class TestWiring(unittest.TestCase):
         assert_that(len(calls), equal_to(2))
 
     def test_c17_the_order_of_work_reads_slots_prs_and_tickets(self) -> None:
-        """The configured slots and ledger, the open PRs and the tickets of each priority."""
+        """The configured slots and ledger.
+
+        The open PRs and the tickets of each priority.
+        """
         here = _here()
         for repo in ("owner/project", "owner/lib"):
             here.bodies[f"repos/{repo}/pulls?state=open&per_page=100"] = [

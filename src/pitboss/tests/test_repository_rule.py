@@ -1,4 +1,7 @@
-"""A hand-back that stops at a repository's rule says where else the feature lives (pitboss#437)."""
+"""A hand-back that stops at a repository's rule says where else the feature lives.
+
+Pitboss#437.
+"""
 
 import json
 import unittest
@@ -52,7 +55,10 @@ class TestRepositoryRule(unittest.TestCase):
         )
 
 
-FIX_TABLE = "| run | pages |\n|---|---|\n| [1](https://github.com/o/r/actions/runs/1) | 2.61 |\n| [2](https://github.com/o/r/actions/runs/2) | 6.90 |\n"
+FIX_TABLE = (
+    "| run | pages |\n|---|---|\n| [1](https://github.com/o/r/actions/runs/1) | 2.61"
+    " |\n| [2](https://github.com/o/r/actions/runs/2) | 6.90 |\n"
+)
 SECTION = (
     "## Test fix\n\ntests/budget.py changed: the maximum is 6.90 pages and the"
     " margin over it is 1.1, because a run varies.\n\n" + FIX_TABLE

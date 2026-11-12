@@ -2,13 +2,13 @@
 
 (keyword: known-red, quire#1120.) ``slots next`` offered to undraft quire#1120 although
 its ``text-lint`` status was red (a missing run of the fixture repository): CI would
-have run on a head that cannot pass. The plan and the audit of pitboss#444 asked of
-each step whether the *hold* covers it (``actiongates.tsv``), never whether a cheap check
-that is already known on the head says the spend is wasted. ``knownred.tsv`` lists
-those checks; ``actiongates.tsv`` lists what spends (any row that is not ``free``).
-A spending step that is not itself a push of a fix is *withheld* while a known red
-stands: the sweep, ``slots next`` and ``pitboss act`` print one ``FIX FIRST`` line that
-names the red and the step that fixes it, in place of the spending step.
+have run on a head that cannot pass. The plan and the audit of pitboss#444 asked of each
+step whether the *hold* covers it (``actiongates.tsv``), never whether a cheap check
+that is already known on the head says the spend is wasted. ``knownred.tsv`` lists those
+checks; ``actiongates.tsv`` lists what spends (any row that is not ``free``). A spending
+step that is not itself a push of a fix is *withheld* while a known red stands: the
+sweep, ``slots next`` and ``pitboss act`` print one ``FIX FIRST`` line that names the
+red and the step that fixes it, in place of the spending step.
 """
 
 import dataclasses

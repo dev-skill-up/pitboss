@@ -135,8 +135,8 @@ class Marker(enum.Enum):
         KEPT_PATH: a dead path that is not safe to remove.
         COULD_NOT_REMOVE_PATH: a path that is still there, or is not a safe
             dead path.
-        SCRATCH_PR: an open PR of a scratch repository that is not a kept
-            fixture: its run finished, or its head branch is not a run branch.
+        SCRATCH_PR: an open PR of a scratch repository that is not a kept fixture: its
+            run finished, or its head branch is not a run branch.
         CLOSED_SCRATCH_PR: a scratch PR closed (or, in a dry run, one that would
             be).
         DELETED_SCRATCH_BRANCH: the head branch of a closed scratch PR deleted.

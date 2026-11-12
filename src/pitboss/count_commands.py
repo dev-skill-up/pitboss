@@ -43,10 +43,9 @@ def _shown(word: str | None) -> Sequence[str]:
 def count_tickets(args: argparse.Namespace) -> None:
     """Print the open tickets of every repository of the configuration, by priority.
 
-    A count of tickets given to the owner comes from this command (Moshe,
-    2026-11-06: count p0, p1 and p2, and filter when the question names one),
-    never from a search of some repositories, and a report never says "not
-    checked".
+    A count of tickets given to the owner comes from this command (Moshe, 2026-11-06:
+    count p0, p1 and p2, and filter when the question names one), never from a search of
+    some repositories, and a report never says "not checked".
 
     For each of p0, p1, p2, p3 and unlabelled (a ticket with none of p0 to p3;
     its highest label of those is its priority) it prints a line for each
