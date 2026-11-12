@@ -57,7 +57,6 @@ pitboss = [
   "claims.tsv",
   "clauses.tsv",
   "standing.tsv",
-  "mutation_known.tsv",
 ]
 "pitboss.tests" = ["coverage_ids.txt"]
 

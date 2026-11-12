@@ -5,6 +5,9 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
+import subprocess
+import sys
+
 from .. import mutation, mutation_commands
 from . import fakes, world
 
@@ -54,7 +57,6 @@ def tiny_tree() -> pathlib.Path:
     (package / "tiny.py").write_text(TINY)
     (package / "tests" / "test_tiny.py").write_text(TINY_TEST)
     (package / "rules.tsv").write_text(REGISTER)
-    (package / "mutation_known.tsv").write_text("# none\nZ2\t`n < 0` -> `n >= 0`\tx\n")
     return root
 
 
@@ -80,18 +82,13 @@ class TestMutants(unittest.TestCase):
         assert_that(mutation.mutants(SOURCE, "other"), has_length(2))
         assert_that(mutation.mutants(SOURCE, "absent"), equal_to([]))
 
-    def test_t444_a_survivor_is_named_unless_it_is_known(self) -> None:
-        """A killer that kills nothing leaves each mutant; a listed one is left out."""
-        left = mutation.survivors("R1", SOURCE, "other", lambda _: False, [])
+    def test_t444_a_survivor_is_named_kills_it(self) -> None:
+        """A killer that kills nothing leaves each mutant."""
+        left = mutation.survivors("R1", SOURCE, "other", lambda _: False)
         assert_that(left, has_length(2))
         assert_that(left[0], contains_string("survived: R1 other"))
-        known = [("R1", "`n == 1` -> `n != 1`")]
         assert_that(
-            mutation.survivors("R1", SOURCE, "other", lambda _: False, known),
-            has_length(1),
-        )
-        assert_that(
-            mutation.survivors("R1", SOURCE, "other", lambda _: True, []), equal_to([])
+            mutation.survivors("R1", SOURCE, "other", lambda _: True), equal_to([])
         )
 
 
@@ -107,8 +104,6 @@ class TestCommand(unittest.TestCase):
             "Z1",
             "--source",
             str(tree),
-            "--uid",
-            "1",
         )
         assert_that((strong.code, strong.out), equal_to((0, "mutation: ok\n")))
         weak = world.invoke(
@@ -117,8 +112,6 @@ class TestCommand(unittest.TestCase):
             "Z2",
             "--source",
             str(tree),
-            "--uid",
-            "1",
         )
         assert_that(weak.code, equal_to(1))
         assert_that(weak.out, contains_string("survived: Z2 weak"))
@@ -135,15 +128,8 @@ class TestCommand(unittest.TestCase):
             "Z1",
             "--source",
             str(tree),
-            "--uid",
-            "1",
         )
         assert_that(done.out, contains_string("control-failed: Z1"))
-
-    def test_t444_the_known_file_is_read(self) -> None:
-        """Lines of three fields; comments and short lines are skipped."""
-        pairs = mutation_commands.known_pairs("# c\nA\td\tr\nbad\n")
-        assert_that(pairs, equal_to([("A", "d")]))
 
     def test_t444_a_test_with_no_class_is_run_as_its_module(self) -> None:
         """The id falls back to the module."""
@@ -151,9 +137,37 @@ class TestCommand(unittest.TestCase):
         ids = mutation_commands.test_ids(tree, ["test_tiny.test_missing"])
         assert_that(ids, equal_to(["pitboss.tests.test_tiny"]))
 
-    def test_t444_a_run_as_root_is_refused_without_the_flag(self) -> None:
-        """A mutant is broken code and once replaced /dev/null."""
+    def test_t444_without_the_sandbox_the_command_refuses(self) -> None:
+        """A mutant is broken code and once replaced /dev/null: nothing runs."""
         tree = tiny_tree()
-        argv = ["mutation-check", "Z1", "--source", str(tree), "--uid", "0"]
+        argv = [
+            "mutation-check",
+            "Z1",
+            "--source",
+            str(tree),
+            "--unshare",
+            "/nonexistent-unshare",
+        ]
         done = world.invoke(world.make_world(), *argv)
-        assert_that((done.code, "refused as root" in done.out), equal_to((2, True)))
+        assert_that((done.code, "refused" in done.out), equal_to((2, True)))
+
+
+class TestSandbox(unittest.TestCase):
+    """A mutant cannot change ``/dev`` (keyword: mutation-sandbox)."""
+
+    def test_t444_dev_is_read_only_inside_the_sandbox_and_not_outside(self) -> None:
+        """The kernel is only asked (``os.access``): nothing is written to /dev."""
+        prefix = mutation_commands.sandbox("unshare")
+        ask = [sys.executable, "-c", mutation_commands.PROBE]
+        outside = subprocess.run(ask, check=False).returncode
+        inside = subprocess.run([*prefix, *ask], check=False).returncode
+        assert_that(
+            (outside, inside, mutation_commands.works(prefix)), equal_to((1, 0, True))
+        )
+
+    def test_t444_a_missing_unshare_is_no_sandbox(self) -> None:
+        """The probe fails when the program is not there."""
+        assert_that(
+            mutation_commands.works(mutation_commands.sandbox("/nonexistent")),
+            equal_to(False),
+        )

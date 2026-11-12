@@ -4,6 +4,11 @@ Keyword: mutation-check. For every enforced or output row of ``rules.tsv`` it
 rewrites the row's function with one small mutation at a time, in a copy of the
 tree, and runs only that row's named tests; a mutant no test fails is a survivor.
 It prints ``mutation: ok`` when there is none. A long run: CI's, not a local one.
+
+A mutant is broken code, and one once replaced a node of ``/dev``. Every run
+therefore happens in a private mount namespace where ``/dev`` is read-only
+(keyword: mutation-sandbox); when that namespace cannot be made the command
+refuses to run anything. Nothing in this module touches ``/dev``.
 """
 
 import argparse
@@ -22,24 +27,46 @@ from gather.commands import add_argument
 
 from . import ENTRY_DATA, mutation, rules
 
-KNOWN = "mutation_known.tsv"
+# bind /dev onto itself and remount that bind read-only, inside the namespace only
+SCRIPT = 'mount --bind /dev /dev && mount -o remount,bind,ro /dev && exec "$@"'
+PROBE = "import os; raise SystemExit(0 if not os.access('/dev', os.W_OK) else 1)"
+REFUSED = "mutation-check: refused: no private mount namespace with a read-only /dev"
 
 
-def known_pairs(text: str) -> Sequence[tuple[str, str]]:
-    """The equivalent mutants a file lists.
+def sandbox(program: str) -> Sequence[str]:
+    """The words that put a command in a namespace where ``/dev`` is read-only.
 
     Args:
-        text: lines ``row<TAB>description<TAB>reason``; ``#`` lines are skipped.
+        program: the ``unshare`` program.
 
     Returns:
-        ``(row, description)`` of each.
+        ``unshare -m`` as root, ``unshare -rm`` (a user namespace) otherwise,
+        and the shell that makes the bind.
     """
-    pairs = []
-    for line in text.splitlines():
-        fields = line.split("\t")
-        if line and line[0] != "#" and len(fields) >= 3:
-            pairs.append((fields[0], fields[1]))
-    return pairs
+    flags = "-m" if os.geteuid() == 0 else "-rm"
+    return [program, flags, "sh", "-c", SCRIPT, "sh"]
+
+
+def works(prefix: Sequence[str]) -> bool:
+    """Whether the sandbox can be made and makes ``/dev`` read-only.
+
+    Args:
+        prefix: the words ``sandbox`` gave.
+
+    Returns:
+        True when a Python run in it finds ``/dev`` not writable. The probe only
+        asks the kernel (``os.access``); it writes nothing.
+    """
+    try:
+        done = subprocess.run(
+            [*prefix, sys.executable, "-c", PROBE],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    except OSError:
+        return False
+    return done.returncode == 0
 
 
 def test_ids(tree: pathlib.Path, names: Sequence[str]) -> Sequence[str]:
@@ -77,10 +104,11 @@ def test_ids(tree: pathlib.Path, names: Sequence[str]) -> Sequence[str]:
     return ids
 
 
-def run_tests(tree: pathlib.Path, ids: Sequence[str]) -> bool:
-    """Run tests in a tree.
+def run_tests(prefix: Sequence[str], tree: pathlib.Path, ids: Sequence[str]) -> bool:
+    """Run tests in a tree, in the sandbox.
 
     Args:
+        prefix: the words ``sandbox`` gave.
         tree: the directory that holds the ``pitboss`` package.
         ids: the dotted test names.
 
@@ -88,7 +116,7 @@ def run_tests(tree: pathlib.Path, ids: Sequence[str]) -> bool:
         True when they all pass.
     """
     done = subprocess.run(
-        [sys.executable, "-m", "virtue", *ids],
+        [*prefix, sys.executable, "-m", "virtue", *ids],
         cwd=tree,
         env={**os.environ, "PYTHONPATH": str(tree)},
         stdout=subprocess.DEVNULL,
@@ -99,45 +127,41 @@ def run_tests(tree: pathlib.Path, ids: Sequence[str]) -> bool:
 
 
 def _killer(
-    source_tree: pathlib.Path, module: str, ids: Sequence[str]
+    prefix: Sequence[str], source_tree: pathlib.Path, module: str, ids: Sequence[str]
 ) -> Callable[[str], bool]:
     def killed(text: str) -> bool:
         with tempfile.TemporaryDirectory() as scratch:
             copy = pathlib.Path(scratch)
-            copy.chmod(0o755)
             shutil.copytree(source_tree / "pitboss", copy / "pitboss")
             (copy / "pitboss" / f"{module}.py").write_text(text, encoding="utf-8")
-            return not run_tests(copy, ids)
+            return not run_tests(prefix, copy, ids)
 
     return killed
 
 
 def check_row(
-    source_tree: pathlib.Path,
-    row: rules.Row,
-    known: Sequence[tuple[str, str]],
+    prefix: Sequence[str], source_tree: pathlib.Path, row: rules.Row
 ) -> Sequence[str]:
     """The findings for one row: a failing control, or each survivor.
 
     Args:
+        prefix: the words ``sandbox`` gave.
         source_tree: the directory that holds the ``pitboss`` package.
         row: the row.
-        known: the equivalent mutants.
 
     Returns:
         The findings; none when the tests pass and every mutant is killed.
     """
     module, _, name = row.function.rpartition(".")
     ids = test_ids(source_tree, row.tests)
-    if not run_tests(source_tree, ids):
+    if not run_tests(prefix, source_tree, ids):
         return [f"control-failed: {row.id} {row.function}: its tests fail unmutated"]
     path = source_tree / "pitboss" / f"{module}.py"
     return mutation.survivors(
         row.id,
         path.read_text(encoding="utf-8"),
         name,
-        _killer(source_tree, module, ids),
-        known,
+        _killer(prefix, source_tree, module, ids),
     )
 
 
@@ -146,19 +170,11 @@ def check_row(
     add_argument(
         "--source",
         default=None,
-        help="the directory that holds the pitboss package (default: the installed one's)",
+        help="the directory that holds the pitboss package (default: the installed"
+        " one's)",
     ),
     add_argument(
-        "--allow-root",
-        action="store_true",
-        default=False,
-        help="run as root (a mutant is broken code and once replaced /dev/null)",
-    ),
-    add_argument(
-        "--uid",
-        type=int,
-        default=os.geteuid(),
-        help="the user the run counts as (default: the effective one)",
+        "--unshare", default="unshare", help="the program that makes the namespace"
     ),
     add_argument("--jobs", type=int, default=os.cpu_count() or 1, help="rows at once"),
     name="mutation-check",
@@ -172,24 +188,25 @@ def mutation_check(args: argparse.Namespace) -> None:
         args: the parsed arguments.
 
     Raises:
-        SystemExit: 1 when a mutant survives or a control fails.
+        SystemExit: 1 when a mutant survives or a control fails; 2 when the
+            sandbox cannot be made.
     """
-    if args.uid == 0 and not args.allow_root:
-        print("mutation-check: refused as root; a mutant is broken code (--allow-root)")
+    prefix = sandbox(args.unshare)
+    if not works(prefix):
+        print(REFUSED)
         raise SystemExit(2)
     package = importlib.resources.files("pitboss")
     tree = (
         pathlib.Path(args.source) if args.source else pathlib.Path(str(package)).parent
     )
     register = (tree / "pitboss" / "rules.tsv").read_text(encoding="utf-8")
-    known = known_pairs((tree / "pitboss" / KNOWN).read_text(encoding="utf-8"))
     chosen = [
         each
         for each in rules.parse(register)[0]
         if each.kind in rules.CHECKED and (not args.rows or each.id in args.rows)
     ]
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
-        results = list(pool.map(lambda each: check_row(tree, each, known), chosen))
+        results = list(pool.map(lambda each: check_row(prefix, tree, each), chosen))
     found = [line for lines in results for line in lines]
     for each in found:
         print(each)

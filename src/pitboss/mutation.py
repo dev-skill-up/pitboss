@@ -5,8 +5,7 @@ A rule's test that passes with its function broken proves nothing. For every
 mutations of the row's function (a comparison turned round, ``and`` for ``or``, a
 ``not`` dropped, a boolean flipped, an integer moved by one) and rewrites the
 module with one of them at a time; the command runs only that row's named tests
-against each, and a mutant that no test kills is a survivor. An equivalent mutant
-is listed with its reason in ``mutation_known.tsv`` (row, description, reason).
+against each, and a mutant that no test kills is a survivor.
 """
 
 import ast
@@ -168,13 +167,7 @@ def mutants(source: str, name: str) -> Sequence[Mutant]:
 Killed = Callable[[str], bool]
 
 
-def survivors(
-    row: str,
-    source: str,
-    name: str,
-    killed: Killed,
-    known: Sequence[tuple[str, str]],
-) -> Sequence[str]:
+def survivors(row: str, source: str, name: str, killed: Killed) -> Sequence[str]:
     """The mutants of a function that its tests do not kill.
 
     Args:
@@ -182,13 +175,12 @@ def survivors(
         source: the module's text.
         name: the function.
         killed: runs the row's tests against a module text, True when one fails.
-        known: the equivalent mutants, ``(row, description)``.
 
     Returns:
-        A finding for each surviving mutant that is not listed as equivalent.
+        A finding for each mutant no test kills; there is no list of exceptions.
     """
     return [
         f"survived: {row} {name}: {each.description}"
         for each in mutants(source, name)
-        if (row, each.description) not in known and not killed(each.source)
+        if not killed(each.source)
     ]
