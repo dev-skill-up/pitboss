@@ -228,6 +228,7 @@ KINDS = (
     (plandonewhen.CHECK, "Done-when findings"),
     (plandonewhen.MEASUREMENT, "Measurement findings"),
     (plandonewhen.EDITED, "Done-when edit findings"),
+    (plandonewhen.FORM, "Done-when form findings"),
     (plandonewhen.INTERPRETATION, "Interpretation findings"),
     (bodyrules.SCRATCH_CHECK, "Scratch path findings"),
     (bodyrules.SECTION_CHECK, "Execution section findings"),

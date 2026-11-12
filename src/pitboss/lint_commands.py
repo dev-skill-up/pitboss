@@ -18,6 +18,8 @@ from . import (
     configsettle,
     contradictions,
     draftfindings,
+    extrafile,
+    flowfiles,
     folds,
     forms,
     gateform,
@@ -25,6 +27,7 @@ from . import (
     phrases,
     planapproved,
     planfixed,
+    quotedplan,
     relock,
     repeatruns,
     reviewrules,
@@ -181,6 +184,8 @@ def _review_findings(
         *check(subject, form),
         *planfixed.required(args, subject, form),
         *reviewrules.phrase_findings(subject.body),
+        *reviewrules.piecemeal_findings(subject.body),
+        *extrafile.findings(subject.body),
     ]
 
 
@@ -214,6 +219,11 @@ def _card_findings(
     return cardform.findings(subject.name, subject.body)
 
 
+def _read_as_written(args: argparse.Namespace, body: str) -> str:
+    # keyword: plan-quote (pitboss#444): a Plan row quotes the Done-when
+    return quotedplan.mask(body) if args.kind == "pr-body" else body
+
+
 def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
     def run(args: argparse.Namespace) -> None:
         texts = _read_files(args)
@@ -224,7 +234,7 @@ def _form_kind(check: FormCheck) -> Callable[[argparse.Namespace], None]:
         subject = forms.Subject(name=name, body=body, head=args.head)
         refused = [
             *check(args, subject, _lint_settings(args)),
-            *phrases.findings(body, name, _phrases(args)),
+            *phrases.findings(_read_as_written(args, body), name, _phrases(args)),
         ]
         _finish(refused, "ok")
 
@@ -242,9 +252,16 @@ def _body_findings(
     subject = forms.Subject(name="body", body=body, head=head)
     return [
         *form(subject),
-        *phrases.findings(body, subject.name, banned),
+        *phrases.findings(quotedplan.mask(body), subject.name, banned),
         *contradictions.findings([(subject.name, body)], pairs),
     ]
+
+
+def _change(args: argparse.Namespace) -> None:
+    # keyword: flow-change (pitboss#444, item 12): `git diff` of the PR, as a file
+    if len(args.files) != 1:
+        raise _fail(f"change checks one diff, not {len(args.files)}")
+    _finish(flowfiles.findings(_read(args.files[0])), "ok")
 
 
 def _event(args: argparse.Namespace) -> None:
@@ -281,6 +298,7 @@ KINDS: Mapping[str, Callable[[argparse.Namespace], None]] = {
     "owner-card": _form_kind(_card_findings),
     "ticket": _form_kind(ticketrows.check),
     "event": _event,
+    "change": _change,
 }
 
 

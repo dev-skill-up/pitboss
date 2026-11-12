@@ -3,11 +3,11 @@ A1	2026-11-04	enforced	An approved Plan is never edited	flowstate.plan_edited_wi
 A2	2026-11-11	enforced	A posted ruling's steps are executed at once	flow.execution_gate	test_scenarios.test_a2_pitboss_463 test_scenarios.test_a1_a2_a3_pitboss_465 test_properties.test_a2_p2_ruling_steps_hold_to_depth_4
 A3	2026-11-11	enforced	A fix round is followed by a re-review slot item	plancheckflow.checked_since	test_scenarios.test_a3_pitboss_460 test_scenarios.test_a3_pitboss_468 test_scenarios.test_a3_bats_650
 A4	2026-11-11	enforced	No PR has a nothing to do state	flow.next_step	test_properties.test_a4_p1_every_pr_has_a_step_to_depth_3
-A5	2026-11-11	open	The owner's call is labelled paused-owner at that moment	-	-
-A6	2026-11-11	open	One ruling per PR; a further rejection goes to the owner	-	-
+A5	2026-11-11	enforced	The owner's call is labelled paused-owner at that moment	ownerpause_commands.owner_pause	test_owner_pause.test_a5_the_label_goes_on_and_the_question_is_posted test_owner_pause.test_a5_a_question_without_options_is_refused test_owner_pause.test_a5_a_question_without_the_analysis_is_refused
+A6	2026-11-11	enforced	One ruling per PR; a further rejection goes to the owner	rulingguard.refusal	test_ruling_once.test_a6_a_second_ruling_before_the_pause_is_refused test_ruling_once.test_a6_the_first_ruling_is_posted test_ruling_once.test_a6_a_paused_pr_takes_a_ruling_again
 A7	2026-11-10	enforced	One verdict per review; a split Plan/Execution verdict counts as changes needed	reviews.from_comments	test_review_rules.test_a7_either_split_is_changes_needed test_review_rules.test_a7_whole_approval_stays_approved
 A8	2026-11-08	enforced	A review never says a change makes a passage false	reviewrules.phrase_findings	test_review_rules.test_a8_makes_false_is_refused_with_its_line test_review_rules.test_a8_makes_the_comment_false_is_refused test_review_rules.test_a8_a_review_without_the_phrase_passes
-A9	2026-11-08	open	No piecemeal makes-false rounds; cut whole sections in one pass	-	-
+A9	2026-11-08	enforced	No piecemeal makes-false rounds; cut whole sections in one pass	reviewrules.piecemeal_findings	test_review_cuts.test_a9_a_cut_of_one_sentence_is_refused test_review_cuts.test_a9_a_whole_section_cut_is_not_piecemeal test_review_cuts.test_a9_the_review_lint_refuses_the_round
 A10	2026-10-30	open	Plan rejected: fix; second rejection: ruling; after a ruling: the owner	-	-
 A11	2026-11-11	open	A plan-check failure goes back to the same worker	-	-
 A12	2026-11-10	open	plan-check passes before the PR is marked ready	-	-
@@ -17,19 +17,19 @@ A15	2026-11-03	open	CI evidence is a pointer to the head's run	-	-
 A16	2026-11-04	open	The Execution review waits for full green CI on the reviewed head	-	-
 A17	2026-10-31	open	After a merge of main the review covers only the resolution	-	-
 A18	2026-10-29	open	Impossibility needs evidence first	-	-
-A19	2026-11-08	open	Done-when appears only in the ticket body and changes only before a worker started	-	-
-A20	2026-11-11	open	A Done-when must be X demonstrated by Y	-	-
+A19	2026-11-08	enforced	Done-when appears only in the ticket body and changes only before a worker started	casepost.with_done_when	test_case_post.test_a19_the_done_when_is_edited_in_the_body test_case_post.test_a19_a_comment_is_never_posted test_case_post.test_a19_the_edit_is_refused_once_a_worker_started
+A20	2026-11-11	enforced	A Done-when must be X demonstrated by Y	plandonewhen.form	test_done_when_form.test_a20_an_item_with_no_demonstration_is_refused test_done_when_form.test_a20_a_lead_line_states_it_for_every_item
 A21	2026-10-30	open	A PR that closes several tickets needs a recorded ruling	-	-
 A22	2026-10-30	open	An approved Plan is never judged again by the Plan-row rule	-	-
 A23	2026-10-30	open	A review lists every finding in round one	-	-
 A24	2026-10-30	open	Every escalation carries a How we got here section	-	-
-A25	2026-11-11	open	An extra file found in review is removed and gets a .gitignore line	-	-
+A25	2026-11-11	enforced	An extra file found in review is removed and gets a .gitignore line	extrafile.findings	test_review_cuts.test_a25_an_extra_file_without_the_step_is_refused test_review_cuts.test_a25_an_extra_file_with_the_step_passes test_review_cuts.test_a25_the_review_lint_refuses_it
 A26	2026-11-08	open	No line is added to any .md or .rst file	-	-
 A27	2026-11-09	open	Docs that restate code are removed	-	-
 A28	2026-10-30	open	A PR body never carries the harness's session URL footer	-	-
 A29	2026-11-07	open	A relock and zip-only head needs no review	-	-
 A30	2026-11-11	enforced	No scratch or temp file paths in Plans; the data lives in the PR or the ticket	bodyrules.scratch_findings	test_body_rules.test_a30_a_row_reading_a_scratchpad_is_refused test_body_rules.test_a30_a_row_making_its_own_directory_passes test_body_rules.test_a30_a_configured_scratch_root_is_refused
-A31	2026-11-08	open	A started PR gets nothing added	-	-
+A31	2026-11-08	enforced	A started PR gets nothing added	casepost.refusal	test_case_post.test_a31_an_addition_to_a_started_ticket_is_refused test_case_post.test_a31_a_case_is_added_before_a_worker_started
 A32	2026-10-28	open	No attribution block; never assign or request review from the owner	-	-
 A33	2026-11-09	open	Pins never move by an LLM	-	-
 A34	2026-11-06	open	No bundled shims for weak engines	-	-

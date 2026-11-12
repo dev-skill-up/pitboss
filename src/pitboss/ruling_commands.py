@@ -1,14 +1,29 @@
 """The ``ruling`` command: post an Opus ruling file as a PR comment (pitboss#466)."""
 
 import argparse
+import json
 import pathlib
 import sys
+from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, expand_commands, ghapi, ghstore, rulingform
+from . import ENTRY_DATA, expand_commands, ghapi, ghstore, rulingform, rulingguard
 
 USAGE_ERROR = 2
+
+
+def _already(github: ghapi.GitHub, slug: str, number: int) -> str:
+    # keyword: one-ruling (A6): the PR's comments and labels, as GitHub has them
+    path = f"repos/{slug}/issues/{number}"
+    texts: Sequence[str] = [
+        each.body for each in ghapi.pages(github, f"{path}/comments", ghstore.listed)
+    ]
+    labels = [
+        str(each["name"])
+        for each in json.loads(ghapi.get(github, path)).get("labels", [])
+    ]
+    return rulingguard.refusal(texts, labels)
 
 
 @ENTRY_DATA.register(
@@ -24,8 +39,10 @@ def ruling(args: argparse.Namespace) -> None:
     denied by the permission classifier four times. The file is refused, and
     nothing is posted, unless its first line is exactly ``Opus ruling``, its
     second line is ``Ruling: <word>`` with a word of the ruling words, and it
-    has a ``How we got here`` section with the analysis in it. It posts as it
-    is run, with no flag; the exit status is 2 for a refusal or a file it
+    has a ``How we got here`` section with the analysis in it. It is also
+    refused when the PR already has an Opus ruling and is not paused for the
+    owner (A6: one ruling per PR, a further rejection is the owner's). It posts
+    as it is run, with no flag; the exit status is 2 for a refusal or a file it
     cannot read.
 
     Args:
@@ -44,5 +61,8 @@ def ruling(args: argparse.Namespace) -> None:
         print(f"pitboss ruling post: refused: {why}", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)
     github = ghapi.GitHub(mutate=args.safe_run, run=args.safe_run)
+    if again := _already(github, found.group(1), int(found.group(2))):
+        print(f"pitboss ruling post: refused: {again}", file=sys.stderr)
+        raise SystemExit(USAGE_ERROR)
     path = f"repos/{found.group(1)}/issues/{int(found.group(2))}/comments"
     print(ghstore.post(github, path, text).url)

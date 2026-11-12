@@ -11,7 +11,9 @@ that does not (``plan-done-when``). Where a bullet names its measurement as
 a backticked span of the bullet's row outside the copy, never a substitute
 (``plan-measurement``). It refuses a body with no ``Done-when digest:`` line, or
 whose line is not the ticket's digest now: the Done-when was edited after a
-worker started (``done-when-edited``). It also refuses a body whose Plan or
+worker started (``done-when-edited``). It refuses a ticket whose Done-when has an item that is not stated as "X
+demonstrated by Y" (``done-when-form``, A20, owner 2026-11-11 02:45Z). It also
+refuses a body whose Plan or
 Execution has an "Interpretation" or "interpreted" paragraph about a Done-when
 item (``plan-interpretation``): meet the Done-when as written, or prove it
 impossible. The module reads nothing: the texts are given.
@@ -26,6 +28,7 @@ from . import bodytext, planrowtext, ticketwhen
 CHECK = "plan-done-when"
 MEASUREMENT = "plan-measurement"
 EDITED = "done-when-edited"
+FORM = "done-when-form"
 INTERPRETATION = "plan-interpretation"
 DIGEST_PREFIX = "Done-when digest: "
 SHOWN = 100
@@ -55,6 +58,13 @@ CHANGED = (
     "{check}: the ticket's Done-when was edited after a worker started (the body"
     " records {recorded}, the ticket's is now {now}); the Done-when is the body's"
     " at the start, and it is edited only before a worker starts"
+)
+DEMONSTRATED = re.compile(r"\bdemonstrated\s+by\b", re.IGNORECASE)
+EACH = re.compile(r"\b(?:each|every|all)\b[^.]*\bdemonstrated\s+by\b", re.IGNORECASE)
+NOT_DEMONSTRATED = (
+    '{check}: the ticket\'s Done-when item is not stated as "X demonstrated by Y"'
+    ' (owner, 2026-11-11 02:45Z); the first one is: {item}; a lead line "Each item'
+    ' is demonstrated by Y" states it for every item'
 )
 INTERPRET = re.compile(r"\binterpret(?:ation|ations|ed|ing|s)?\b", re.IGNORECASE)
 ABOUT = re.compile(r"\bdone[- ]when\b|\bitems?\s+\d", re.IGNORECASE)
@@ -118,6 +128,24 @@ def findings(section: str, ticket: str) -> Sequence[str]:
         used.add(at)
         paired.append((item, rows[at].replace(item, " ", 1)))
     return _unmeasured(paired)
+
+
+def form(ticket: str) -> Sequence[str]:
+    """The finding for a Done-when item that does not say what demonstrates it.
+
+    Args:
+        ticket: the ticket's text.
+
+    Returns:
+        One finding naming the first item with no ``demonstrated by``, unless an
+        item says that each (every, all) is demonstrated by something; none when
+        the ticket has no Done-when.
+    """
+    found = ticketwhen.items(ticket)
+    if any(EACH.search(each) for each in found):
+        return []
+    bare = [each for each in found if not DEMONSTRATED.search(each)]
+    return [NOT_DEMONSTRATED.format(check=FORM, item=bare[0][:SHOWN])] if bare else []
 
 
 def _free(item: str, rows: Sequence[str], used: AbstractSet[int]) -> int | None:

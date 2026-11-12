@@ -88,6 +88,7 @@ def _of_ticket(github: ghapi.GitHub, ticket: str, body: str) -> Sequence[str]:
         ]
     return [
         *plandonewhen.findings(plandigest.section(body), text),
+        *plandonewhen.form(text),
         *plandonewhen.edited(body, text),
         *plandonewhen.interpretations(body, ticketwhen.items(text)),
     ]
