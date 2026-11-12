@@ -11,18 +11,7 @@ gets nothing added.
 import re
 from typing import Sequence
 
-from . import bodydigest, totalbody, totalreview
-from .actcore import (
-    ACK_LABEL,
-    Act,
-    Change,
-    Options,
-    Refused,
-    Target,
-    gate,
-    head_of,
-    option,
-)
+from . import actcore, bodydigest, totalbody, totalreview
 from .actpull import make_hold
 from .ticketreader import written
 from .totaljson import JsonMap, members, records, text
@@ -54,7 +43,7 @@ def review_text(
     body = pull.get("body")
     section = totalreview.plan_section(body)
     lines = [
-        f"Reviewed: {head_of(pull)}",
+        f"Reviewed: {actcore.head_of(pull)}",
         f"Plan: {grades[0]}",
         f"Execution: {grades[1]}",
         f"Verdict: {grades[2]}",
@@ -68,12 +57,12 @@ def review_text(
 def _plain(words: str) -> None:
     bad = [line for line in words.splitlines() if GRADE_KEY.match(line)]
     if bad:
-        raise Refused(
+        raise actcore.Refused(
             f"a line starts with a review or act key: {bad[0][:40]!r}; use the verb"
         )
 
 
-def review(act: Act, target: Target, options: Options) -> str:
+def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Post a review in the one form the verdict reads.
 
     Args:
@@ -86,19 +75,19 @@ def review(act: Act, target: Target, options: Options) -> str:
         The review's text.
 
     Raises:
-        Refused: a grade in another form, or findings that carry a grade line.
+        actcore.Refused: a grade in another form, or findings that carry a grade line.
     """
-    gate(act, "review", target.repo)
+    actcore.gate(act, "review", target.repo)
     grades = [text(options.get(each)) for each in ("plan", "execution", "verdict")]
     if any(each not in GRADES for each in grades):
-        raise Refused("a grade is approved or changes needed")
-    findings = option(options, "findings")
+        raise actcore.Refused("a grade is approved or changes needed")
+    findings = actcore.option(options, "findings")
     _plain(findings)
     pull = act.hub.pull(target.repo, target.number)
     tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
     words = review_text(pull, grades, findings, tickets)
     act.hub.write(
-        Change(
+        actcore.Change(
             kind="comment",
             repo=target.repo,
             number=target.number,
@@ -108,7 +97,7 @@ def review(act: Act, target: Target, options: Options) -> str:
     return words
 
 
-def ticket(act: Act, target: Target, options: Options) -> str:
+def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """File a ticket in the one form the ticket reader takes.
 
     Args:
@@ -121,25 +110,29 @@ def ticket(act: Act, target: Target, options: Options) -> str:
         The ticket's number.
 
     Raises:
-        Refused: no item or path, or a size over the repository's p90 with no ruling.
+        actcore.Refused: no item or path, or a size over the repository's p90 with no ruling.
     """
-    gate(act, "ticket", target.repo)
+    actcore.gate(act, "ticket", target.repo)
     done_when = [
-        each for each in option(options, "done-when").splitlines() if each.strip()
+        each
+        for each in actcore.option(options, "done-when").splitlines()
+        if each.strip()
     ]
-    paths = option(options, "paths").split()
-    size = int(option(options, "max-lines"))
+    paths = actcore.option(options, "paths").split()
+    size = int(actcore.option(options, "max-lines"))
     most = act.p90(target.repo)
     if size > most and not options.get("ruling"):
-        raise Refused(
+        raise actcore.Refused(
             f"Max-lines {size} is over {target.repo}'s p90 {most}: a ruling names it"
         )
-    body = written(done_when, paths, size, option(options, "priority"))
-    fields = {"title": option(options, "title"), "body": body, "labels": ""}
-    return act.hub.write(Change(kind="issue", repo=target.repo, fields=fields))
+    body = written(done_when, paths, size, actcore.option(options, "priority"))
+    fields = {"title": actcore.option(options, "title"), "body": body, "labels": ""}
+    return act.hub.write(actcore.Change(kind="issue", repo=target.repo, fields=fields))
 
 
-def ticket_edit(act: Act, target: Target, options: Options) -> str:
+def ticket_edit(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Change a ticket that no PR has started.
 
     Args:
@@ -151,9 +144,9 @@ def ticket_edit(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: a PR closes the ticket, so a worker started it.
+        actcore.Refused: a PR closes the ticket, so a worker started it.
     """
-    gate(act, "ticket-edit", target.repo)
+    actcore.gate(act, "ticket-edit", target.repo)
     bodies = [
         (each.get("number"), each.get("body"))
         for each in act.hub.open_pulls(target.repo)
@@ -164,14 +157,14 @@ def ticket_edit(act: Act, target: Target, options: Options) -> str:
         target.number,
     )
     if started:
-        raise Refused(
+        raise actcore.Refused(
             f"PR #{started[0]} closes {target.repo}#{target.number}, so a worker"
             " started: a started ticket gets nothing added (file a new ticket)"
         )
-    body = option(options, "body")
+    body = actcore.option(options, "body")
     act.controls.items(body)
     act.hub.write(
-        Change(
+        actcore.Change(
             kind="issue-edit",
             repo=target.repo,
             number=target.number,
@@ -181,7 +174,7 @@ def ticket_edit(act: Act, target: Target, options: Options) -> str:
     return f"ticket-edit {target.repo}#{target.number}"
 
 
-def comment(act: Act, target: Target, options: Options) -> str:
+def comment(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Post a plain comment (no review or act line).
 
     Args:
@@ -192,11 +185,11 @@ def comment(act: Act, target: Target, options: Options) -> str:
     Returns:
         What GitHub answered.
     """
-    gate(act, "comment", target.repo)
-    body = option(options, "body")
+    actcore.gate(act, "comment", target.repo)
+    body = actcore.option(options, "body")
     _plain(body)
     return act.hub.write(
-        Change(
+        actcore.Change(
             kind="comment",
             repo=target.repo,
             number=target.number,
@@ -205,7 +198,7 @@ def comment(act: Act, target: Target, options: Options) -> str:
     )
 
 
-def _own_comment(act: Act, target: Target, identifier: str) -> None:
+def _own_comment(act: actcore.Act, target: actcore.Target, identifier: str) -> None:
     found = [
         each
         for each in records(act.hub.timeline(target.repo, target.number))
@@ -213,11 +206,13 @@ def _own_comment(act: Act, target: Target, identifier: str) -> None:
     ]
     identity = text(act.inputs(target.repo, target.number, {}, []).get("act_identity"))
     if not found or members(found[0].get("user")).get("login") != identity:
-        raise Refused("not a comment pitboss act posted")
+        raise actcore.Refused("not a comment pitboss act posted")
     _plain(text(found[0].get("body")))
 
 
-def comment_edit(act: Act, target: Target, options: Options) -> str:
+def comment_edit(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Replace the text of pitboss's own evidence comment (never a review or record).
 
     Args:
@@ -228,12 +223,12 @@ def comment_edit(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "comment-edit", target.repo)
-    identifier, body = option(options, "id"), option(options, "body")
+    actcore.gate(act, "comment-edit", target.repo)
+    identifier, body = actcore.option(options, "id"), actcore.option(options, "body")
     _own_comment(act, target, identifier)
     _plain(body)
     act.hub.write(
-        Change(
+        actcore.Change(
             kind="comment-edit",
             repo=target.repo,
             number=target.number,
@@ -243,7 +238,9 @@ def comment_edit(act: Act, target: Target, options: Options) -> str:
     return f"comment-edit {identifier}"
 
 
-def comment_delete(act: Act, target: Target, options: Options) -> str:
+def comment_delete(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Delete pitboss's own evidence comment (never a review or record).
 
     Args:
@@ -254,11 +251,11 @@ def comment_delete(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "comment-delete", target.repo)
-    identifier = option(options, "id")
+    actcore.gate(act, "comment-delete", target.repo)
+    identifier = actcore.option(options, "id")
     _own_comment(act, target, identifier)
     act.hub.write(
-        Change(
+        actcore.Change(
             kind="comment-delete",
             repo=target.repo,
             number=target.number,
@@ -270,17 +267,19 @@ def comment_delete(act: Act, target: Target, options: Options) -> str:
 
 def _body_rows(body: str, head: str, skip: Sequence[str]) -> None:
     if not FIXES.match(body):
-        raise Refused("the body's first line is not `Fixes #N`")
+        raise actcore.Refused("the body's first line is not `Fixes #N`")
     found = [
         each
         for each in totalbody.body_findings(body, head, {})
         if not any(word in each for word in skip)
     ]
     if found:
-        raise Refused(found[0])
+        raise actcore.Refused(found[0])
 
 
-def pr_create(act: Act, target: Target, options: Options) -> str:
+def pr_create(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Open a PR whose body is in its form, for a ticket in its form.
 
     Args:
@@ -291,19 +290,19 @@ def pr_create(act: Act, target: Target, options: Options) -> str:
     Returns:
         The PR's number.
     """
-    gate(act, "pr-create", target.repo)
-    act.controls.items(option(options, "ticket"))
-    body = option(options, "body")
+    actcore.gate(act, "pr-create", target.repo)
+    act.controls.items(actcore.option(options, "ticket"))
+    body = actcore.option(options, "body")
     _body_rows(body, "", ("Head", "blocked by"))
     fields = {
-        "head": option(options, "head"),
-        "title": option(options, "title"),
+        "head": actcore.option(options, "head"),
+        "title": actcore.option(options, "title"),
         "body": body,
     }
-    return act.hub.write(Change(kind="pr", repo=target.repo, fields=fields))
+    return act.hub.write(actcore.Change(kind="pr", repo=target.repo, fields=fields))
 
 
-def pr_edit(act: Act, target: Target, options: Options) -> str:
+def pr_edit(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Change a PR's title or body; an armed PR is disarmed first.
 
     Args:
@@ -314,22 +313,26 @@ def pr_edit(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "pr-edit", target.repo)
+    actcore.gate(act, "pr-edit", target.repo)
     fields = {key: options[key] for key in ("title", "body") if options.get(key)}
     if "body" in fields:
         _body_rows(
             fields["body"],
-            head_of(act.hub.pull(target.repo, target.number)),
+            actcore.head_of(act.hub.pull(target.repo, target.number)),
             ("blocked by",),
         )
     act.controls.disarm(act, target, "the body or the title changes")
     act.hub.write(
-        Change(kind="pr-edit", repo=target.repo, number=target.number, fields=fields)
+        actcore.Change(
+            kind="pr-edit", repo=target.repo, number=target.number, fields=fields
+        )
     )
     return f"pr-edit {target.repo}#{target.number}"
 
 
-def scratch_clean(act: Act, target: Target, options: Options) -> str:
+def scratch_clean(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Delete a scratch branch and close its PR, in a scratch repository only.
 
     Args:
@@ -341,25 +344,27 @@ def scratch_clean(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: not a scratch repository.
+        actcore.Refused: not a scratch repository.
     """
-    gate(act, "scratch-clean", target.repo)
+    actcore.gate(act, "scratch-clean", target.repo)
     if target.repo not in SCRATCH:
-        raise Refused(f"{target.repo} is not a scratch repository")
+        raise actcore.Refused(f"{target.repo} is not a scratch repository")
     if options.get("branch"):
         act.hub.write(
-            Change(
+            actcore.Change(
                 kind="branch-delete",
                 repo=target.repo,
                 fields={"branch": options["branch"]},
             )
         )
     if target.number:
-        act.hub.write(Change(kind="pr-close", repo=target.repo, number=target.number))
+        act.hub.write(
+            actcore.Change(kind="pr-close", repo=target.repo, number=target.number)
+        )
     return f"scratch-clean {target.repo}"
 
 
-def ack(act: Act, target: Target, options: Options) -> str:
+def ack(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Give an owner message its disposition, making what it names.
 
     Args:
@@ -373,31 +378,31 @@ def ack(act: Act, target: Target, options: Options) -> str:
         The disposition.
 
     Raises:
-        Refused: a kind in no row, or what it needs is missing.
+        actcore.Refused: a kind in no row, or what it needs is missing.
     """
-    message, kind = option(options, "message"), option(options, "kind")
+    message, kind = actcore.option(options, "message"), actcore.option(options, "kind")
     if kind not in ACKS:
-        raise Refused(f"ack is {', '.join(ACKS)}")
+        raise actcore.Refused(f"ack is {', '.join(ACKS)}")
     if kind == "hold":
-        make_hold(act, target.repo, option(options, "scope"), message)
+        make_hold(act, target.repo, actcore.option(options, "scope"), message)
     elif kind == "cap":
-        act.owner.caps[message] = int(option(options, "cap"))
+        act.owner.caps[message] = int(actcore.option(options, "cap"))
     elif kind == "ruling" and not text(options.get("reason")).startswith(("http", "#")):
-        raise Refused("ack ruling names the ruling (a URL or #N)")
+        raise actcore.Refused("ack ruling names the ruling (a URL or #N)")
     elif kind == "none":
         _note(act, target, options)
     act.owner.dispositions[message] = kind
     return f"ack {message} {kind}"
 
 
-def _note(act: Act, target: Target, options: Options) -> None:
+def _note(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:
     quote, reason = text(options.get("quote")), text(options.get("reason"))
     if not quote or len(reason) < 10:
-        raise Refused("ack none quotes the message and gives a reason")
+        raise actcore.Refused("ack none quotes the message and gives a reason")
     repo = act.repos[0] if target.repo == "all" else target.repo
     fields = {
         "title": f"owner message {options['message']}: no action",
         "body": f"> {quote}\n\nreason: {reason}",
-        "labels": ACK_LABEL,
+        "labels": actcore.ACK_LABEL,
     }
-    act.hub.write(Change(kind="issue", repo=repo, fields=fields))
+    act.hub.write(actcore.Change(kind="issue", repo=repo, fields=fields))

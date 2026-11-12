@@ -14,7 +14,7 @@ import dataclasses
 import re
 from typing import Callable, Sequence
 
-from . import phrases
+from . import phrases, tablefile
 
 CHECK = "file-gate"
 NONE = "-"
@@ -59,11 +59,7 @@ def parse(text: str) -> Sequence[Gate]:
     Returns:
         The gates (a row with a wrong number of fields is a ``ValueError``).
     """
-    rows = [each.split("\t") for each in text.splitlines() if each.strip()]
-    rows = [each for each in rows if not each[0].startswith("#")]
-    for each in rows:
-        if len(each) != FIELDS:
-            raise ValueError(f"filegates.tsv: {each[0]} has {len(each)} fields")
+    rows = tablefile.rows(text, "filegates.tsv", FIELDS)
     return [Gate(**dict(zip(Gate.__dataclass_fields__, each))) for each in rows]
 
 
@@ -155,7 +151,7 @@ def of_diff(
     ]
 
 
-def finding(gate: Gate, path: str) -> str:
+def gate_line(gate: Gate, path: str) -> str:
     """The finding of a gate with no row.
 
     Args:
@@ -188,7 +184,7 @@ def findings(
     """
     claude, read = files
     return [
-        finding(gate, path)
+        gate_line(gate, path)
         for gate, path in of_diff(slug, diff, claude, read)
         if re.search(gate.needle, section, re.IGNORECASE) is None
     ]
@@ -212,6 +208,11 @@ def _named_path(gate: Gate, path: str) -> bool:
     return any(re.search(gate.paths, each) for each in (path, workflow))
 
 
+def _when(gate: Gate) -> str:
+    asks = gate.added != NONE or gate.content != NONE
+    return " (when the change matches)" if asks else ""
+
+
 def lines(slug: str, claude: str, ticket: str) -> Sequence[str]:
     """The lines a worker brief adds for the gates of the files a ticket names.
 
@@ -227,8 +228,7 @@ def lines(slug: str, claude: str, ticket: str) -> Sequence[str]:
     """
     found = [
         f"    - `{path}`: gate {gate.id}: the Plan needs"
-        f" {gate.form}{'' if gate.added == NONE and gate.content == NONE else ' (when the change matches)'}"
-        f" ({gate.source})"
+        f" {gate.form}{_when(gate)} ({gate.source})"
         for gate in shipped()
         if _in_scope(gate, slug, claude)
         for path in named(ticket)

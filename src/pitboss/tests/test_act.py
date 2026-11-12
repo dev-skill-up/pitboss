@@ -86,7 +86,7 @@ class TestMerge(unittest.TestCase):
         notes = [
             each
             for each in hub.hub.issues_made.values()
-            if each.get("labels") == actwrite.ACK_LABEL
+            if each.get("labels") == actcore.ACK_LABEL
         ]
         assert_that(
             (len(notes), "> thanks" in str(notes[0]["body"]), _kinds(hub)[-1]),

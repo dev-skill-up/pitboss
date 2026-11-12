@@ -7,39 +7,25 @@ head, never a failed check or status, a hold, a block, a closed PR or a failed
 read.
 """
 
-from . import totalanswer
-from .actcore import (
-    DISARMING,
-    HOLD_LABEL,
-    Act,
-    Change,
-    Options,
-    Refused,
-    Target,
-    gate,
-    head_of,
-    option,
-    record,
-    verdict_of,
-)
+from . import actcore, totalanswer
 from .totaljson import text
 
-LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", HOLD_LABEL}
+LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", actcore.HOLD_LABEL}
 WORKFLOWS = ("relock.yml", "check.yml")
 CLOSE_REASONS = ("completed", "not_planned", "duplicate")
 OVERRIDDEN = ("merge", "arm", "undraft")
 
 
-def _gated_write(act: Act, action: str, target: Target) -> str:
-    gate(act, action, target.repo)
-    pull = verdict_of(act, action, target)
+def _gated_write(act: actcore.Act, action: str, target: actcore.Target) -> str:
+    actcore.gate(act, action, target.repo)
+    pull = actcore.verdict_of(act, action, target)
     if action == "arm":
-        record(act, target, f"arm head={head_of(pull)}")
-    act.hub.write(Change(kind=action, repo=target.repo, number=target.number))
-    return f"{action} {target.repo}#{target.number} at {head_of(pull)}"
+        actcore.record(act, target, f"arm head={actcore.head_of(pull)}")
+    act.hub.write(actcore.Change(kind=action, repo=target.repo, number=target.number))
+    return f"{action} {target.repo}#{target.number} at {actcore.head_of(pull)}"
 
 
-def merge(act: Act, target: Target, options: Options) -> str:
+def merge(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Merge a PR when the verdict is GO.
 
     Args:
@@ -53,7 +39,7 @@ def merge(act: Act, target: Target, options: Options) -> str:
     return _gated_write(act, "merge", target)
 
 
-def arm(act: Act, target: Target, options: Options) -> str:
+def arm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Arm auto-merge when the verdict is GO, with a record of the head.
 
     Args:
@@ -67,7 +53,7 @@ def arm(act: Act, target: Target, options: Options) -> str:
     return _gated_write(act, "arm", target)
 
 
-def undraft(act: Act, target: Target, options: Options) -> str:
+def undraft(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Mark a draft ready when the verdict is GO.
 
     Args:
@@ -81,7 +67,7 @@ def undraft(act: Act, target: Target, options: Options) -> str:
     return _gated_write(act, "undraft", target)
 
 
-def disarm(act: Act, target: Target, options: Options) -> str:
+def disarm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Disarm auto-merge.
 
     Args:
@@ -92,12 +78,25 @@ def disarm(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "disarm", target.repo)
-    act.hub.write(Change(kind="disarm", repo=target.repo, number=target.number))
+    actcore.gate(act, "disarm", target.repo)
+    act.hub.write(actcore.Change(kind="disarm", repo=target.repo, number=target.number))
     return f"disarm {target.repo}#{target.number}"
 
 
-def override(act: Act, target: Target, options: Options) -> str:
+def _stopped_head(act: actcore.Act, target: actcore.Target, stop: str) -> str:
+    # the PR's head, when the stop line is one of the verdict's there
+    pull = act.hub.pull(target.repo, target.number)
+    events = act.hub.timeline(target.repo, target.number)
+    ctx = act.inputs(target.repo, target.number, pull, events)
+    said = [act.controls.verdict(each, pull, ctx).lines for each in OVERRIDDEN]
+    if not any(stop in each for each in said):
+        raise actcore.Refused(f"not a stop line of this head: {stop[:60]!r}")
+    return actcore.head_of(pull)
+
+
+def override_stop(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Lift one stop line for the PR's head, with a reason.
 
     Args:
@@ -109,29 +108,21 @@ def override(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: the line is one no override lifts.
+        actcore.Refused: the line is one no override lifts.
     """
-    gate(act, "override", target.repo)
-    stop, reason = option(options, "stop"), option(options, "reason")
+    actcore.gate(act, "override", target.repo)
+    stop, reason = actcore.option(options, "stop"), actcore.option(options, "reason")
     if stop.startswith(tuple(act.controls.not_overridable)):
-        raise Refused(
+        raise actcore.Refused(
             "a hold, a failed check or status, a block, a read failure or a closed PR"
             " is not overridable"
         )
-    pull = act.hub.pull(target.repo, target.number)
-    ctx = act.inputs(
-        target.repo, target.number, pull, act.hub.timeline(target.repo, target.number)
-    )
-    if not any(
-        stop in act.controls.verdict(each, pull, ctx).lines for each in OVERRIDDEN
-    ):
-        raise Refused(f"not a stop line of this head: {stop[:60]!r}")
-    head = head_of(pull)
-    record(act, target, f'override head={head} stop="{stop}" reason="{reason}"')
+    head = _stopped_head(act, target, stop)
+    actcore.record(act, target, f'override head={head} stop="{stop}" reason="{reason}"')
     return f"override {target.repo}#{target.number} at {head}"
 
 
-def block(act: Act, target: Target, options: Options) -> str:
+def block(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Record that a PR waits on another item; the verdict reads it.
 
     Args:
@@ -142,15 +133,15 @@ def block(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "block", target.repo)
-    on = option(options, "on")
+    actcore.gate(act, "block", target.repo)
+    on = actcore.option(options, "on")
     act.controls.disarm(act, target, f"blocked by {on}")
-    head = head_of(act.hub.pull(target.repo, target.number))
-    record(act, target, f"blocked-by head={head} {on}")
+    head = actcore.head_of(act.hub.pull(target.repo, target.number))
+    actcore.record(act, target, f"blocked-by head={head} {on}")
     return f"block {target.repo}#{target.number} on {on}"
 
 
-def label(act: Act, target: Target, options: Options) -> str:
+def label(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Add or remove a label pitboss applies; ``paused-owner`` disarms.
 
     Args:
@@ -162,23 +153,25 @@ def label(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: a label pitboss does not apply.
+        actcore.Refused: a label pitboss does not apply.
     """
-    gate(act, "label", target.repo)
-    name = option(options, "name")
+    actcore.gate(act, "label", target.repo)
+    name = actcore.option(options, "name")
     if name not in LABELS:
-        raise Refused(f"label {name} is not one pitboss applies")
+        raise actcore.Refused(f"label {name} is not one pitboss applies")
     removing = bool(options.get("remove"))
     if name == totalanswer.PAUSED and not removing:
         act.controls.disarm(act, target, totalanswer.PAUSED)
     kind = "unlabel" if removing else "label"
     act.hub.write(
-        Change(kind=kind, repo=target.repo, number=target.number, fields={"name": name})
+        actcore.Change(
+            kind=kind, repo=target.repo, number=target.number, fields={"name": name}
+        )
     )
     return f"{kind} {name} on {target.repo}#{target.number}"
 
 
-def hold(act: Act, target: Target, options: Options) -> str:
+def hold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Hold a scope in one repository or all; disarm and dequeue the PRs it covers.
 
     Args:
@@ -190,13 +183,16 @@ def hold(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "hold", target.repo)
+    actcore.gate(act, "hold", target.repo)
     return make_hold(
-        act, target.repo, option(options, "scope"), option(options, "source")
+        act,
+        target.repo,
+        actcore.option(options, "scope"),
+        actcore.option(options, "source"),
     )
 
 
-def make_hold(act: Act, where: str, scope: str, source: str) -> str:
+def make_hold(act: actcore.Act, where: str, scope: str, source: str) -> str:
     """Make the hold issues and disarm and dequeue what the scope covers.
 
     Args:
@@ -208,25 +204,29 @@ def make_hold(act: Act, where: str, scope: str, source: str) -> str:
     Returns:
         What was done.
     """
-    repos = act.repos if where == "all" else [where]
-    for repo in repos:
+    named = act.repos if where == "all" else [where]
+    for each in named:
         fields = {
             "title": f"pitboss hold: {scope}",
             "body": f"scope={scope}\nfrom={source}",
-            "labels": HOLD_LABEL,
+            "labels": actcore.HOLD_LABEL,
         }
-        act.hub.write(Change(kind="issue", repo=repo, fields=fields))
-        for pull in act.hub.open_pulls(repo) if scope in DISARMING else ():
-            number = pull.get("number")
-            act.controls.disarm(
-                act,
-                Target(repo=repo, number=number if isinstance(number, int) else 0),
-                f"hold {scope}",
-            )
-    return f"hold {scope} in {', '.join(repos)}"
+        act.hub.write(actcore.Change(kind="issue", repo=each, fields=fields))
+        if scope in actcore.DISARMING:
+            _disarm_all(act, each, f"hold {scope}")
+    return f"hold {scope} in {', '.join(named)}"
 
 
-def unhold(act: Act, target: Target, options: Options) -> str:
+def _disarm_all(act: actcore.Act, repo: str, why: str) -> None:
+    for pull in act.hub.open_pulls(repo):
+        number = pull.get("number")
+        target = actcore.Target(
+            repo=repo, number=number if isinstance(number, int) else 0
+        )
+        act.controls.disarm(act, target, why)
+
+
+def unhold(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """End a hold (close its issue).
 
     Args:
@@ -237,9 +237,9 @@ def unhold(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "unhold", target.repo)
+    actcore.gate(act, "unhold", target.repo)
     act.hub.write(
-        Change(
+        actcore.Change(
             kind="close-issue",
             repo=target.repo,
             number=target.number,
@@ -249,7 +249,9 @@ def unhold(act: Act, target: Target, options: Options) -> str:
     return f"unhold {target.repo}#{target.number}"
 
 
-def update_branch(act: Act, target: Target, options: Options) -> str:
+def update_branch(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Merge the base into a PR's branch on GitHub.
 
     Args:
@@ -260,13 +262,15 @@ def update_branch(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "update-branch", target.repo)
+    actcore.gate(act, "update-branch", target.repo)
     act.controls.disarm(act, target, "the branch is updated")
-    act.hub.write(Change(kind="update-branch", repo=target.repo, number=target.number))
+    act.hub.write(
+        actcore.Change(kind="update-branch", repo=target.repo, number=target.number)
+    )
     return f"update-branch {target.repo}#{target.number}"
 
 
-def rerun(act: Act, target: Target, options: Options) -> str:
+def rerun(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Re-run a run's failed jobs, only for a cause of kind runner.
 
     Args:
@@ -278,20 +282,21 @@ def rerun(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: the cause is not the runner; a red of the code is fixed by a push.
+        actcore.Refused: the cause is not the runner; a red of the code is fixed by
+            a push.
     """
-    gate(act, "rerun", target.repo)
-    run = option(options, "run")
+    actcore.gate(act, "rerun", target.repo)
+    run = actcore.option(options, "run")
     if options.get("cause") != "runner" or not options.get("evidence"):
-        raise Refused(
+        raise actcore.Refused(
             "a re-run needs a cause of kind runner with its evidence (the job's"
             " annotation)"
         )
-    act.hub.write(Change(kind="rerun", repo=target.repo, fields={"run": run}))
+    act.hub.write(actcore.Change(kind="rerun", repo=target.repo, fields={"run": run}))
     return f"rerun {target.repo} run {run}"
 
 
-def cancel(act: Act, target: Target, options: Options) -> str:
+def cancel(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Cancel a run that a newer run of its workflow superseded.
 
     Args:
@@ -302,15 +307,21 @@ def cancel(act: Act, target: Target, options: Options) -> str:
     Returns:
         What was done.
     """
-    gate(act, "cancel", target.repo)
-    run, newer = option(options, "run"), option(options, "superseded-by")
+    actcore.gate(act, "cancel", target.repo)
+    run, newer = actcore.option(options, "run"), actcore.option(
+        options, "superseded-by"
+    )
     act.hub.write(
-        Change(kind="cancel", repo=target.repo, fields={"run": run, "newer": newer})
+        actcore.Change(
+            kind="cancel", repo=target.repo, fields={"run": run, "newer": newer}
+        )
     )
     return f"cancel {target.repo} run {run} (superseded by {newer})"
 
 
-def dispatch_workflow(act: Act, target: Target, options: Options) -> str:
+def dispatch_workflow(
+    act: actcore.Act, target: actcore.Target, options: actcore.Options
+) -> str:
     """Dispatch relock.yml or check.yml.
 
     Args:
@@ -322,23 +333,23 @@ def dispatch_workflow(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: another workflow.
+        actcore.Refused: another workflow.
     """
-    gate(act, "dispatch-workflow", target.repo)
-    workflow, ref = option(options, "workflow"), option(options, "ref")
+    actcore.gate(act, "dispatch-workflow", target.repo)
+    workflow, ref = actcore.option(options, "workflow"), actcore.option(options, "ref")
     if workflow not in WORKFLOWS:
-        raise Refused(
+        raise actcore.Refused(
             f"{workflow} is not one pitboss dispatches ({', '.join(WORKFLOWS)})"
         )
     act.hub.write(
-        Change(
+        actcore.Change(
             kind="dispatch", repo=target.repo, fields={"workflow": workflow, "ref": ref}
         )
     )
     return f"dispatch-workflow {workflow} on {target.repo} at {ref}"
 
 
-def close(act: Act, target: Target, options: Options) -> str:
+def close(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Close an issue or a PR with GitHub's state_reason.
 
     Args:
@@ -350,18 +361,16 @@ def close(act: Act, target: Target, options: Options) -> str:
         What was done.
 
     Raises:
-        Refused: another reason.
+        actcore.Refused: another reason.
     """
-    gate(act, "close", target.repo)
+    actcore.gate(act, "close", target.repo)
     reason = text(options.get("reason"))
     if reason not in CLOSE_REASONS:
-        raise Refused(f"close names GitHub's state_reason: {', '.join(CLOSE_REASONS)}")
-    act.hub.write(
-        Change(
-            kind="close-issue",
-            repo=target.repo,
-            number=target.number,
-            fields={"reason": reason},
-        )
+        known = ", ".join(CLOSE_REASONS)
+        raise actcore.Refused(f"close names GitHub's state_reason: {known}")
+    fields = {"reason": reason}
+    change = actcore.Change(
+        kind="close-issue", repo=target.repo, number=target.number, fields=fields
     )
+    act.hub.write(change)
     return f"close {target.repo}#{target.number} ({reason})"

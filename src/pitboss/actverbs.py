@@ -92,7 +92,7 @@ VERBS: Mapping[str, Verb] = {
     "hold": actpull.hold,
     "unhold": actpull.unhold,
     "block": actpull.block,
-    "override": actpull.override,
+    "override": actpull.override_stop,
     "ticket": actwrite.ticket,
     "ticket-edit": actwrite.ticket_edit,
     "close": actpull.close,

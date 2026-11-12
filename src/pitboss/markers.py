@@ -98,19 +98,6 @@ class Marker(enum.Enum):
             dropped-from-queue, quire#1110).
         WAIT_FOR_HOLD: a runner-pressure hold or its quiet period withholds the
             action a PR's line asks for (keyword: hold-gate, quire#1110).
-        FIX_FIRST: a cheap check of the head is red (``text-lint``, the review gate,
-            ``canonical-files``, the Plan check, the review form, the pins-check),
-            so the step that would spend runner time waits for its fix (keyword:
-            known-red, quire#1120).
-        STALE_CLAIM: a PR's body names a head that is not its head, so a worker's
-            claim of a push was not true (keyword: claim-readback, quire#1115).
-        ADOPT_REVIEW: a PR's body says the ``adopt`` script made it, so its review is
-            of the script, not of the diff (keyword: adopt-made, pitboss#423).
-        MECHANICAL_FIX: a PR's red is a failed plan job or a fixture expectation
-            mismatch, which one push fixes and a push to a draft-free hold may
-            exempt (keyword: mechanical-fix, pitboss#32).
-        SLOW_MECHANICAL_FIX: a mechanical red whose fix push has not happened within
-            the configured minutes.
         DRAFT_STATE_CHANGED: a PR's draft state changed after the sweep marked it
             ready (keyword: draft-moves, pitboss#355).
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
@@ -196,6 +183,19 @@ class Marker(enum.Enum):
         INCOMPLETE: the last line of a sweep that could not read a configured
             repository, or the list of the owner's repositories (keyword:
             repo-access); the exit status is 1.
+        FIX_FIRST: a cheap check of the head is red (``text-lint``, the review gate,
+            ``canonical-files``, the Plan check, the review form, the pins-check),
+            so the step that would spend runner time waits for its fix (keyword:
+            known-red, quire#1120).
+        STALE_CLAIM: a PR's body names a head that is not its head, so a worker's
+            claim of a push was not true (keyword: claim-readback, quire#1115).
+        ADOPT_REVIEW: a PR's body says the ``adopt`` script made it, so its review is
+            of the script, not of the diff (keyword: adopt-made, pitboss#423).
+        MECHANICAL_FIX: a PR's red is a failed plan job or a fixture expectation
+            mismatch, which one push fixes and a push to a draft-free hold may
+            exempt (keyword: mechanical-fix, pitboss#32).
+        SLOW_MECHANICAL_FIX: a mechanical red whose fix push has not happened within
+            the configured minutes.
     """
 
     OUTDATED = enum.auto()

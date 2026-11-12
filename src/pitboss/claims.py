@@ -12,6 +12,7 @@ does not exist and a test that does not exist all fail.
 import enum
 import importlib
 from typing import Callable, Sequence
+from . import tablefile
 
 FIELDS = 4
 
@@ -65,12 +66,7 @@ def parse(text: str) -> Sequence[Sequence[str]]:
     Returns:
         The rows; a row with a wrong number of fields is a ``ValueError``.
     """
-    rows = [each.split("\t") for each in text.splitlines() if each.strip()]
-    rows = [each for each in rows if not each[0].startswith("#")]
-    for each in rows:
-        if len(each) != FIELDS:
-            raise ValueError(f"claims.tsv: {each[0]} has {len(each)} fields")
-    return rows
+    return tablefile.rows(text, "claims.tsv", FIELDS)
 
 
 def reads(where: str) -> bool:
@@ -90,18 +86,18 @@ def reads(where: str) -> bool:
     return callable(found)
 
 
-def findings(text: str, exists: Callable[[str], bool]) -> Sequence[str]:
+def findings(table: str, exists: Callable[[str], bool]) -> Sequence[str]:
     """What the table gets wrong.
 
     Args:
-        text: the table.
+        table: the table.
         exists: whether a named test exists.
 
     Returns:
         A finding for a claim with no row, a row of no claim, a row with no
         read-back fact, a function that does not exist and a test that does not.
     """
-    rows = parse(text)
+    rows = parse(table)
     named = [each[0] for each in rows]
     found = [
         f"{name(each)} has no read-back row"

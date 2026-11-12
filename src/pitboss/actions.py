@@ -26,11 +26,11 @@ class Action(enum.Enum):
     Attributes:
         PUSH: push commits to its branch.
         MERGE: merge it.
-        ARM: arm auto-merge again (keyword: dropped-from-queue).
         UNDRAFT: mark it ready for review.
         DISPATCH: dispatch a workflow on its branch.
         CLOSE: close it.
         LABEL: put a label on it.
+        ARM: arm auto-merge again (keyword: dropped-from-queue).
     """
 
     PUSH = enum.auto()

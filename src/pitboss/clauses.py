@@ -19,7 +19,7 @@ import pathlib
 import re
 from typing import Mapping, Sequence
 
-from . import rules
+from . import rules, tablefile
 
 OUTSIDE = "outside:"
 MEMORY = "memory:"
@@ -56,14 +56,10 @@ def parse(text: str) -> Sequence[Row]:
     Returns:
         The rows; one with a wrong number of fields is a ``ValueError``.
     """
-    rows = [each.split("\t") for each in text.splitlines() if each.strip()]
-    rows = [each for each in rows if not each[0].startswith("#")]
-    for each in rows:
-        if len(each) != FIELDS:
-            raise ValueError(
-                f"clauses.tsv: {each[0]} {each[1]!r} has {len(each)} fields"
-            )
-    return [Row(source=a, key=b, maps=c, needle=d) for a, b, c, d in rows]
+    return [
+        Row(source=a, key=b, maps=c, needle=d)
+        for a, b, c, d in tablefile.rows(text, "clauses.tsv", FIELDS)
+    ]
 
 
 def _memory_file(path: pathlib.Path) -> Sequence[Clause]:
@@ -116,6 +112,17 @@ def ticket(body: str, comments: str) -> Sequence[Clause]:
     return found + [(TICKET, f"comment {each['id']}") for each in json.loads(comments)]
 
 
+def _unmapped(rule: rules.Row | None) -> str:
+    # why a mapped rule does not hold the clause, empty when it may
+    if rule is None:
+        return "is no rule of the register"
+    if rule.kind == "open":
+        return "is open, not enforced yet"
+    if rule.kind in rules.CHECKED and not rule.tests:
+        return "has no tests"
+    return ""
+
+
 def _covering(row: Row, register: Mapping[str, rules.Row]) -> Sequence[str]:
     where = f"{row.source} {row.key!r}"
     if row.maps.startswith(OUTSIDE):
@@ -124,18 +131,16 @@ def _covering(row: Row, register: Mapping[str, rules.Row]) -> Sequence[str]:
             if row.maps[len(OUTSIDE) :].strip()
             else [f"{where}: outside has no reason"]
         )
-    found = []
-    held = []
-    for each in row.maps.split(","):
-        rule = register.get(each)
-        if rule is None:
-            found.append(f"{where}: {each} is no rule of the register")
-        elif rule.kind == "open":
-            found.append(f"{where}: {each} is open, not enforced yet")
-        elif rule.kind in rules.CHECKED and not rule.tests:
-            found.append(f"{where}: {each} has no tests")
-        else:
-            held.append(" ".join([rule.words, *rule.tests]).lower())
+    found = [
+        f"{where}: {each} {why}"
+        for each in row.maps.split(",")
+        if (why := _unmapped(register.get(each)))
+    ]
+    held = [
+        " ".join([rule.words, *rule.tests]).lower()
+        for each in row.maps.split(",")
+        if (rule := register.get(each)) and not _unmapped(rule)
+    ]
     if held and not any(row.needle.lower() in each for each in held):
         found.append(
             f"{where}: no mapped rule holds {row.needle!r} in its words or tests"

@@ -12,7 +12,7 @@ red and the step that fixes it, in place of the spending step.
 """
 
 import dataclasses
-from typing import Mapping, Protocol, Sequence
+from typing import Callable, Mapping, Protocol, Sequence
 
 from . import (
     actiongates,
@@ -24,6 +24,7 @@ from . import (
     shapes,
     steps,
     straycomments,
+    tablefile,
 )
 from .markers import Marker
 
@@ -99,15 +100,8 @@ def rows() -> Sequence[Row]:
     Returns:
         The known-red checks.
     """
-    found = []
-    for line in phrases.shipped_text("knownred.tsv").splitlines():
-        if not line.strip() or line.startswith("#"):
-            continue
-        fields = line.split("\t")
-        if len(fields) != FIELDS:
-            raise ValueError(f"knownred.tsv: {fields[0]} has {len(fields)} fields")
-        found.append(Row(name=fields[0], source=fields[1], fix=fields[2]))
-    return found
+    table = tablefile.rows(phrases.shipped_text("knownred.tsv"), "knownred.tsv", FIELDS)
+    return [Row(name=name, source=source, fix=fix) for name, source, fix in table]
 
 
 def spending() -> Mapping[str, str]:
@@ -121,7 +115,7 @@ def spending() -> Mapping[str, str]:
     return {
         name: "fix" if name in FIXES or name.startswith("Task.") else "withheld"
         for name, (gate, _where, _test) in table.items()
-        if gate != "free"
+        if actiongates.gate_of(gate) is not actiongates.Gate.FREE
     }
 
 
@@ -142,19 +136,30 @@ def _read(pull: Headed, row: Row) -> str:
     if row.source.startswith(STEPS):
         wanted = row.source.removeprefix(STEPS).split("+")
         return "no clean Plan check" if pull.step.step.name in wanted else ""
-    if row.source == "unreadable":
-        return (
-            "a comment that tries to be a review is not in the form"
-            if (pull.unreadable.newer or pull.unreadable.graded)
-            else ""
-        )
-    if row.source == "pins":
-        return pull.signals.pins.detail or "not OK" if _pins_red(pull) else ""
-    return ""
+    reader = READERS.get(row.source)
+    return reader(pull) if reader else ""
+
+
+def _unreadable(pull: Headed) -> str:
+    return (
+        "a comment that tries to be a review is not in the form"
+        if (pull.unreadable.newer or pull.unreadable.graded)
+        else ""
+    )
 
 
 def _pins_red(pull: Headed) -> bool:
     return pull.signals.pins.status.name == "NOT_OK"
+
+
+def _pins(pull: Headed) -> str:
+    return pull.signals.pins.detail or "not OK" if _pins_red(pull) else ""
+
+
+READERS: Mapping[str, Callable[[Headed], str]] = {
+    "unreadable": _unreadable,
+    "pins": _pins,
+}
 
 
 def reds(pull: Headed) -> Sequence[Red]:
