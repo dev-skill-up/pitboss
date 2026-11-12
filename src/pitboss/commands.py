@@ -50,6 +50,8 @@ from . import (
     syncing,
     tasklist,
     timing,
+    blockedby,
+    sharedred,
     workerlines,
     workhours,
 )
@@ -125,8 +127,18 @@ def open_pulls(found: Context) -> Sequence[pulls.Read]:
     """
     runs = functools.partial(read_runner_runs, found)
     read = sweepline.looked_pulls(found.github, found.settings, found.now, runs)
+    read = _waiting(found.github, read)[0]
     timing.note(found.args, "open pull requests read", len(read), "pull requests")
     return read
+
+
+def _waiting(
+    github: ghapi.GitHub, read: Sequence[pulls.Read]
+) -> tuple[Sequence[pulls.Read], Sequence[str]]:
+    # keywords: blocked-by, shared-red: a declared blocker first, then a shared red
+    blocked, said = blockedby.settle(github, read)
+    settled, shared = sharedred.settle(github, blocked)
+    return settled, [*said.values(), *sharedred.lines(shared).values()]
 
 
 def whole_order(found: Context) -> Context:
@@ -289,7 +301,12 @@ def _repository_sections(
     pressure = sweepline.pressure(
         found.github, shared(), found.settings.runners, found.now
     )
-    read = sweepline.open_pulls(found.github, found.settings, found.now, shared)
+    read, waiting = _waiting(
+        found.github,
+        sweepline.open_pulls(found.github, found.settings, found.now, shared),
+    )
+    for said in waiting:
+        print(said)
     timing.lap(clock, "pull requests read")
     found = dataclasses.replace(found, stands=pullmarks.pull_marks(found, read))
     broken = _pull_section(found, runs, read)

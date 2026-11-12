@@ -16,6 +16,10 @@ OF_CATEGORY = {
     workitem.Category.RULING_AS_GIVEN: brief.Kind.RULING_AS_GIVEN,
     workitem.Category.RUN_PLAN: brief.Kind.RUN_PLAN,
     workitem.Category.ADD_CI_QUOTES: brief.Kind.ADD_CI_QUOTES,
+    workitem.Category.REFRESH_BODY: brief.Kind.REFRESH_BODY,
+    workitem.Category.SHARED_RED: brief.Kind.SHARED_RED,
+    workitem.Category.FIX_BLOCKED_BY: brief.Kind.FIX_BLOCKED_BY,
+    workitem.Category.AFTER_BLOCKER: brief.Kind.AFTER_BLOCKER,
 }
 
 

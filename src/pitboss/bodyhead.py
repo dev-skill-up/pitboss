@@ -7,27 +7,15 @@ The module reads no file and calls nothing.
 """
 
 import dataclasses
-import re
 
-from . import bodydigest, ghapi, ghstore, parsing
+from . import bodydigest, ghapi, ghstore, headline, parsing
 from .running import Run
 
-LINE = re.compile(r"Head: ([0-9a-f]{40})")
+LINE = headline.LINE
 ENDING = "\r\n"
 
 
-def last_head(body: str) -> str:
-    """The head the last ``Head:`` line of a body names.
-
-    Args:
-        body: the PR body.
-
-    Returns:
-        The 40 hex digits; empty when the body has no such line.
-    """
-    found = [LINE.fullmatch(each.rstrip()) for each in body.splitlines()]
-    heads = [each.group(1) for each in found if each]
-    return heads[-1] if heads else ""
+last_head = headline.last_head
 
 
 def with_head(body: str, head: str) -> str:

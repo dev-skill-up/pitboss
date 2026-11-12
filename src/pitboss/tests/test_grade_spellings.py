@@ -43,6 +43,34 @@ SPELLINGS = (
     "changes-needed",
     "",
     "(approved)",
+    "approved.",
+    "approved,",
+    "approved;",
+    "approved:",
+    "approved.   ",
+    "approved   ",
+    "approved.\t",
+    "approved!",
+    "changes needed.",
+    "Changes needed.",
+)
+# keyword: grade-spellings (quire#1116): whole Plan lines, with the marks and the
+# spacing a reviewer may type around the verdict; each is judged by both sides
+LINES = (
+    "Plan: approved.",
+    "Plan: approved.   ",
+    "Plan: approved\t",
+    "**Plan: approved**",
+    "**Plan:** approved",
+    "*Plan: approved*",
+    "__Plan: approved__",
+    "plan: approved",
+    "PLAN: approved",
+    "Plan:approved",
+    "Plan : approved",
+    "Plan:  approved",
+    "Plan:\tapproved",
+    "Plan: **approved**",
 )
 Judge = Callable[[str], bool]
 
@@ -84,6 +112,30 @@ def read_by_the_sweep(body: str) -> bool:
     )
 
 
+def _comment_line(plan_line: str) -> str:
+    return (
+        f"## Review\nReviewed: {HEAD}\n{plan_line}\nExecution: approved\n"
+        "Verdict: approved\n"
+    )
+
+
+def differing_lines(accepts: Judge, reads: Judge) -> Sequence[str]:
+    """The whole Plan lines one side accepts and the other does not read.
+
+    Args:
+        accepts: the form check's judgement of a review.
+        reads: the sweep's judgement of it.
+
+    Returns:
+        Each line of ``LINES`` the two sides judge differently.
+    """
+    return [
+        each
+        for each in LINES
+        if accepts(_comment_line(each)) != reads(_comment_line(each))
+    ]
+
+
 def differing(accepts: Judge, reads: Judge) -> Sequence[str]:
     """The spellings one side accepts and the other does not.
 
@@ -120,6 +172,39 @@ class TestGradeSpellings(unittest.TestCase):
     def test_the_form_check_accepts_exactly_what_the_sweep_reads(self) -> None:
         """Derived from the code, for every spelling tried, Plan and Execution."""
         assert_that(differing(accepted_by_the_form_check, read_by_the_sweep), empty())
+
+    def test_c19_the_form_check_accepts_exactly_the_lines_the_sweep_reads(self) -> None:
+        """Trailing marks, whitespace, case, bold and colon spacing (quire#1116)."""
+        assert_that(
+            differing_lines(accepted_by_the_form_check, read_by_the_sweep), empty()
+        )
+
+    def test_c19_a_trailing_full_stop_and_trailing_space_grade_like_the_bare_word(
+        self,
+    ) -> None:
+        """The pattern both sides share reads ``Plan: approved.`` as an approval."""
+        for line in ("Plan: approved.", "Plan: approved.  ", "Plan: approved\t"):
+            with self.subTest(line):
+                graded = gradeline.line_approved(line, "Plan: ", "approved", "x")
+                assert_that(graded, equal_to(True))
+
+    def test_c19_a_marked_up_or_misspaced_line_is_refused_with_the_words_printed(
+        self,
+    ) -> None:
+        """Bold, other case and a space before the colon are named, not skipped."""
+        for line in ("**Plan: approved**", "plan: approved", "Plan : approved"):
+            with self.subTest(line):
+                found = reviewrules.grade_findings(_comment_line(line), FORM)
+                assert_that(found, has_length(1))
+                assert_that(found[0], contains_string("`Plan: approved`"))
+                assert_that(found[0], contains_string("`Plan: changes needed`"))
+
+    def test_c19_the_form_note_rules_out_bold_case_and_a_space_before_the_colon(
+        self,
+    ) -> None:
+        """What ``review-form`` prints, and a brief carries, names the exclusions."""
+        for word in ("bold", "space before the colon", "`.`"):
+            assert_that(gradeline.FORM_NOTE, contains_string(word))
 
     def test_plan_ok_is_refused_by_the_form_check_rp_684(self) -> None:
         """The state of rp#684: ``Plan: ok`` grades nothing and is named."""

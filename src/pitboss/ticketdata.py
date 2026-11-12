@@ -23,6 +23,7 @@ class Ticket:
         created_at: when it was opened (ISO 8601).
         comments: how many comments it has.
         pull: whether it is a PR (``issues/<number>`` answers for both).
+        merged_at: when the PR merged (ISO 8601), else empty (keyword: blocked-by).
     """
 
     open: bool
@@ -32,6 +33,7 @@ class Ticket:
     created_at: str = ""
     comments: int = 0
     pull: bool = False
+    merged_at: str = ""
 
 
 def read(github: ghapi.GitHub, reference: str) -> Ticket | None:
@@ -57,6 +59,7 @@ def read(github: ghapi.GitHub, reference: str) -> Ticket | None:
         created_at=item.get("created_at") or "",
         comments=int(item.get("comments") or 0),
         pull="pull_request" in item,
+        merged_at=(item.get("pull_request") or {}).get("merged_at") or "",
     )
 
 

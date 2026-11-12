@@ -161,7 +161,7 @@ class TestQuestions(unittest.TestCase):
         """From the second rejection on; none and one are not again."""
         rejecting = [graded(CHANGES, None, second) for second in (1, 2, 3)]
         cases = [(state(*rejecting[:count]), count >= 2) for count in range(4)]
-        check(flow.plan_rejected_again, cases)
+        check(lambda pr: flow.get_plan_rejections(pr) >= 2, cases)
 
     def test_newest_counting_review(self) -> None:
         """The newest regular review of the current head; GitHub's is none."""

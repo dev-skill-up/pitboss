@@ -69,6 +69,10 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
     steps.Task.RULING_AS_GIVEN: Category.RULING_AS_GIVEN,
     steps.Task.RUN_PLAN: Category.RUN_PLAN,
     steps.Task.ADD_CI_QUOTES: Category.ADD_CI_QUOTES,
+    steps.Task.REFRESH_BODY: Category.REFRESH_BODY,
+    steps.Task.SHARED_RED: Category.SHARED_RED,
+    steps.Task.FIX_BLOCKED_BY: Category.FIX_BLOCKED_BY,
+    steps.Task.AFTER_BLOCKER: Category.AFTER_BLOCKER,
 }
 
 

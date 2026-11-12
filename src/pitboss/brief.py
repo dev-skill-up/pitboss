@@ -1,11 +1,11 @@
 """The briefs ``pitboss next`` prints (keyword: brief, pitboss#118).
 
-A brief is built from what pitboss reads of a PR or a ticket and from the
-project's own rules, and the orchestrator pastes it unchanged, but for the one
-line of a ruling brief (``How we got here:``) that it replaces with the
-analysis, a fact the tool cannot know (pitboss#168). The sentences are
-in ``brieftext`` and are pinned by tests, so a change to them is a reviewed code
-change. Every brief starts with the ticket's original goal in one line; a review
+A brief is built from what pitboss reads of a PR or a ticket and from the project's own
+rules, and the orchestrator pastes it unchanged, but for the one line of a ruling brief
+(``How we got here:``) that it replaces with the analysis, a fact the tool cannot know
+(pitboss#168). The sentences are in ``brieftext`` and are pinned by tests, so a change
+to them is a reviewed code change.
+Every brief starts with the ticket's original goal in one line; a review
 judges the change against that goal, and its scope is exclusive.
 """
 
@@ -36,8 +36,6 @@ from . import (
 )
 
 Kind = briefkind.Kind
-
-
 REVIEWS = briefkind.REVIEWS
 # keyword: run-e2e (pitboss#199): the reviews that read a head's checks, so an
 # e2e result, which a draft's CI would leave without one
@@ -63,6 +61,10 @@ TASKS: Mapping[Kind, str] = {
     Kind.RULING_AS_GIVEN: text.TASK_RULING_AS_GIVEN,
     Kind.RUN_PLAN: brieftextwork.TASK_RUN_PLAN,
     Kind.ADD_CI_QUOTES: brieftextwork.TASK_ADD_CI_QUOTES,
+    Kind.REFRESH_BODY: brieftextwork.TASK_REFRESH_BODY,
+    Kind.SHARED_RED: brieftextwork.TASK_SHARED_RED,
+    Kind.FIX_BLOCKED_BY: brieftextwork.TASK_FIX_BLOCKED_BY,
+    Kind.AFTER_BLOCKER: brieftextwork.TASK_AFTER_BLOCKER,
 }
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_FULL: [

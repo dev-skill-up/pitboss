@@ -11,11 +11,16 @@ FIXED = "(fixed)"
 # approved. The audit row now ...``), or by a space and the reviewer's own words
 # (``Plan: approved Review of the Plan alone``); another ending grades nothing
 PROSE = r"(?:[.,:;](?: .*)?| (?!\(fixed\)).*)?"
+# keyword: grade-spellings (quire#1116): the line is read as written, so `Plan:
+# approved.` grades; a line that starts as a grade in other case, with bold or
+# italic marks, or with a space before the colon, grades nothing and is refused
+STARTS = r"[*_]*{word}\b\s*:"
 FORM_LINE = "Plan: {verdict}"
 FORM_NOTE = (
     "# the Plan line is one line, `Plan: <verdict>`, the verdict on that same line;"
     " the verdict may be followed by `.`, `,`, `:`, `;` or a space and your own"
-    " words, and a verdict on the next line is not read"
+    " words; the words are `Plan` and `Execution` as written, with no bold or italic"
+    " marks and no space before the colon; a verdict on the next line is not read"
 )
 
 
@@ -91,14 +96,17 @@ def ungraded(body: str, approved: str, changes_needed: str) -> Sequence[str]:
         Each such line, stripped of trailing space, in order.
     """
     grades = [
-        (prefix.rstrip(), pattern(prefix, approved, changes_needed))
+        (
+            re.compile(STARTS.format(word=prefix.rstrip(": ")), re.IGNORECASE),
+            pattern(prefix, approved, changes_needed),
+        )
         for prefix in (PLAN_PREFIX, EXECUTION_PREFIX)
     ]
     return [
         line.rstrip()
         for line in body.splitlines()
         for start, grade in grades
-        if line.startswith(start) and not grade.fullmatch(line.rstrip())
+        if start.match(line) and not grade.fullmatch(line.rstrip())
     ]
 
 

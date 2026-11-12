@@ -7,7 +7,7 @@ a re-run of its job but by dispatching the repository's ``relock.yml`` again.
 
 from typing import Sequence
 
-from . import config, pulls, shapes
+from . import config, pulls, shapes, steps
 from .markers import Marker
 
 
@@ -56,6 +56,13 @@ def lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[str]:
 RELOCK_WORKFLOW = "relock.yml"
 
 
+def _in_shared_red(pull: pulls.PullFacts) -> bool:
+    # keyword: shared-red: the one ticket is the step, no fix of this PR
+    return pull.step.task is steps.Task.SHARED_RED or (
+        pull.step.step is steps.Step.WAIT_FOR_SHARED_RED
+    )
+
+
 def needs(pull: pulls.PullFacts, settings: config.Config) -> str:
     """What the PR needs before a reviewer or a merge.
 
@@ -79,6 +86,8 @@ def needs(pull: pulls.PullFacts, settings: config.Config) -> str:
         again = f", then {dispatch}" if pull.relock else ""
         return f"merge {base} into {pull.pull.head.branch}, check, push{again}"
     if pulls.failed_checks(pull):
+        if _in_shared_red(pull):
+            return "the CI is red from a cause others share (SHARED RED): no fix here"
         return f"the CI is red: fix it (merge {base} first if it is behind)"
     return ""
 

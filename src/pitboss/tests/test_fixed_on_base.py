@@ -178,7 +178,7 @@ CASES: Sequence[Case] = [
         dict(pr=(3, "behind"), base=[BASE_PASSED], extra=""),
         {FAILED_3: True, "FIXED ON BASE": False},
         {FIX_CI_3: True},
-        False,
+        True,  # shared-red reads main's runs to see a cause main shares
     ),
     *[
         unpassed(label, base)

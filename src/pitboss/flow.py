@@ -11,8 +11,10 @@ from . import (
     bodydigest,
     conflicts,
     draftfacts,
+    evidence,
     floworder,
     flowstate,
+    headline,
     plancheckflow,
     planbody,
     reviewfindings,
@@ -105,18 +107,6 @@ def ci_result(pr: PullState) -> Ci | None:
     if not pr.checks or any(not each.finished for each in pr.checks):
         return None
     return Ci.GREEN
-
-
-def plan_rejected_again(pr: PullState) -> bool:
-    """Whether the plan was rejected more than once.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        True from the second rejection on.
-    """
-    return get_plan_rejections(pr) >= 2
 
 
 def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
@@ -212,7 +202,7 @@ def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
     if review.plan is Verdict.CHANGES_NEEDED:
         named = reviewfindings.named_by(pr.comments, pr.trusted, review.when)
         task = steps.Task.FIX_ROUND if named else steps.Task.REVISE_PLAN
-        first = first if plan_rejected_again(pr) else steps.worker(task)
+        first = first if get_plan_rejections(pr) >= 2 else steps.worker(task)
     elif review.execution is not Verdict.CHANGES_NEEDED:
         return None
     return rejected(pr, review, first)
@@ -363,6 +353,17 @@ def _conflict_step(pr: PullState) -> steps.Next:
     return wait or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
 
+def _stale_body(pr: PullState) -> bool:
+    # keyword: stale-head
+    body, head = pr.pull.body, pr.pull.head.sha
+    return headline.is_stale(body, head) or bool(evidence.stale_heads(body, head))
+
+
+def _refreshed(pr: PullState, found: steps.Next) -> steps.Next:
+    stale = found.step in steps.REFRESHED and _stale_body(pr)
+    return steps.worker(steps.Task.REFRESH_BODY) if stale else found
+
+
 def _no_body(pr: PullState) -> bool:
     # before any review: the first work on a PR; a relock PR fixes no ticket and
     # has no body to write: its review (pitboss#126), or ``pinsonly`` (#34)
@@ -393,7 +394,7 @@ ROWS: Sequence[Row] = (
     Row(
         name="gates",
         holds=lambda pr: True,
-        step=lambda pr: draft_gate(pr, newest_counting_review(pr)),
+        step=lambda pr: _refreshed(pr, draft_gate(pr, newest_counting_review(pr))),
     ),
 )
 STATED = floworder.STATED

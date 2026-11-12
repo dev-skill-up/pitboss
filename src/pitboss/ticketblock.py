@@ -21,7 +21,7 @@ from . import config, ghapi, ledger, parsing
 
 # a bare ``#n`` is a ticket of the blocked ticket's own repository
 BLOCKER = re.compile(
-    r"(?:cannot\s+be\s+worked\s+on\s+until|blocked\s+(?:by|on)|depends\s+on):?\s+"
+    r"(?:cannot\s+be\s+worked\s+on\s+until|blocked[\s-]+(?:by|on)|depends\s+on):?\s+"
     r"((?:[\w.-]+/[\w.-]+)?#\d+)",
     re.IGNORECASE,
 )

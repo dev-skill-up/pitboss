@@ -40,6 +40,25 @@ TASK_ADD_CI_QUOTES = (
     " pointer rule says; paste no log output. Change nothing else; the Plan is"
     " approved (pitboss#277)."
 )
+TASK_REFRESH_BODY = (
+    "Task: PR {reference}: its body names an older head than the PR's (the last"
+    " `Head:` line, or an Evidence block expanded at another commit), so `text-lint`"
+    " is red. Run `uvx pitboss body-head {reference}` (it adds the `Head:` line for"
+    " the head and changes nothing else) and `uvx pitboss expand` again for each"
+    " stale Evidence block, then `uvx pitboss lint pr-body BODYFILE` on the body as"
+    " `gh api` prints it, which must print ok. Change no code (keyword: stale-head,"
+    " quire#1115)."
+)
+TASK_SHARED_RED = (
+    "Task: PR {reference}: its failed check is red on other PRs of the repository"
+    " (or on main) with the same first error line, so the cause is shared (the"
+    " SHARED RED line of `pitboss sweep` names the check, the PRs and the line)."
+    " Fix no PR: search the open tickets for the check name, and file ONE ticket"
+    " against the shared cause (a stale pin, a stale lock or a runner outage is"
+    " the cause, not any PR), or add the PRs to the ticket that exists, then stop."
+    " Each PR goes back to its own step when the shared red is closed (keyword:"
+    " shared-red)."
+)
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
     " only a departure from the Plan's commands or the ticket's Done-when"
@@ -77,4 +96,18 @@ SENTENCES = (
     DRAFT_STATE,
     brieftextowner.OWNER,
     *brieftextbody.SENTENCES,
+)
+TASK_FIX_BLOCKED_BY = (
+    "Task: PR {reference}: its `Blocked-by:` lines name a loop (each PR waits for"
+    " the next) or a blocker that closed without merging (the `BLOCKER LOOP` or"
+    " `BLOCKER GONE` line of `pitboss sweep` names it). Correct the lines of the"
+    " body: drop the one that is wrong, or name the PR or ticket that now carries"
+    " the change, then `uvx pitboss lint pr-body BODYFILE` on the body as `gh api`"
+    " prints it must print ok. Change no code (keyword: blocked-by)."
+)
+TASK_AFTER_BLOCKER = (
+    "Task: PR {reference}: the PRs it was blocked by have merged since its red check"
+    " finished (the `BLOCKER MERGED` line). Merge the base into the branch, check,"
+    " push (never rewrite history), then `uvx pitboss body-head {reference}`: CI"
+    " runs again on the new head (keyword: blocked-by)."
 )
