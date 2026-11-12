@@ -8,7 +8,6 @@ test plants a fix round with no reviewer.
 import dataclasses
 import datetime
 import unittest
-from typing import Any
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
@@ -22,17 +21,21 @@ APPROVED_PLAN = [(3, V.APPROVED, None, 0, 0)]
 RULED = [(4, Ruling.DO_THESE_STEPS)]
 
 
-def step_with(history: History, **more: Any) -> steps.Next:
-    """The step of a PR with a history and some moves of its model.
+def step_with(
+    history: History, plan: int = 0, head: int = 0, pushed: int = 1
+) -> steps.Next:
+    """The step of a PR with a history and the counters of its model.
 
     Args:
         history: what happened on it.
-        **more: the model's other counters.
+        plan: the version of the Plan section.
+        head: the number of the head.
+        pushed: when the head was pushed.
 
     Returns:
         The step.
     """
-    return step_of(model.Model(history=history, **more))
+    return step_of(model.Model(history=history, plan=plan, head=head, pushed=pushed))
 
 
 def step_of(made: model.Model) -> steps.Next:
@@ -88,12 +91,11 @@ NOW = datetime.datetime.fromisoformat("2026-11-12T12:00:00+00:00")
 FINDINGS = "https://github.example/owner/project/pull/5#c1"
 
 
-def fix_round(started: str, **more: Any) -> pulls.PullFacts:
+def fix_round(started: str) -> pulls.PullFacts:
     """A PR whose newest review asked for changes and whose head moved since.
 
     Args:
         started: when its head's check started.
-        **more: changes to the PR's facts.
 
     Returns:
         The facts.
@@ -105,7 +107,7 @@ def fix_round(started: str, **more: Any) -> pulls.PullFacts:
     found = reviews.Found(
         sha="a" * 7, verdict=reviews.Verdict.CHANGES_NEEDED, when="t", url=FINDINGS
     )
-    return dataclasses.replace(seen, checks=(check,), review=found, **more)
+    return dataclasses.replace(seen, checks=(check,), review=found)
 
 
 class TestFixRoundWaiting(unittest.TestCase):
