@@ -53,6 +53,7 @@ pitboss = [
   "ruleconflicts.tsv",
   "actionmatrix.tsv",
   "actiongates.tsv",
+  "clauses.tsv",
 ]
 "pitboss.tests" = ["coverage_ids.txt"]
 
@@ -92,6 +93,7 @@ module = [
     "pitboss.next_commands",
     "pitboss.count_commands",
     "pitboss.rules_commands",
+    "pitboss.clauses_commands",
     "pitboss.basecheck_commands",
     "pitboss.sync_commands",
     "pitboss.nox_commands",

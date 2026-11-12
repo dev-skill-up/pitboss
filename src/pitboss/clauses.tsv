@@ -1,0 +1,344 @@
+# source	key	maps	needle
+# Every rule line of the owner's project memory (MEMORY.md bullets; description and How to apply of each topic file) and every correction of ticket 444 (its numbered cases and comments), mapped to the ids of the register or `outside: REASON`. needle: a word in the words or tests of every mapped rule (keyword: clauses).
+memory:MEMORY.md	- NEW PITBOSS GAP = POST-MORTEM, NOT FIX (Moshe 	outside: how the orchestrator files a pitboss gap (a post-mortem ticket after 477); a decision of the orchestrator, no command can see it	-
+memory:MEMORY.md	- REDRAFT/GRAPHQL ROUTES (2026-11-12 06:23Z): `g	outside: a fact about this container's GitHub routes (ccr), not a rule of pitboss	-
+memory:MEMORY.md	- GUARANTEE EVERYTHING (Moshe 2026-11-12 06:11Z,	outside: the standard of this PR (guarantee each item with a test and a verdict line); its checks are the PR's Plan rows	-
+memory:MEMORY.md	- PITBOSS GAP = POST-MORTEM (Moshe 2026-11-12 05	outside: how the orchestrator files a pitboss gap (a post-mortem ticket after 477); a decision of the orchestrator, no command can see it	-
+memory:MEMORY.md	- CI EVIDENCE SHAPE (Moshe 2026-11-12 05:53Z): a	A15	evidence
+memory:MEMORY.md	- NO PERMANENT PITBOSS COMMANDS FOR TEMPORARY NE	outside: a design rule for new pitboss commands (lasting every-PR checks only, built general), enforced by review of this PR's Plan	-
+memory:MEMORY.md	- 477 SCOPE IS THE GOAL (Moshe 2026-11-12 05:45Z	outside: the scope of PR 477 (a coverage gap is in scope), a statement about this PR	-
+memory:MEMORY.md	- NO ONE-USE COMMANDS INSIDE A PR (Moshe 2026-11	outside: a design rule for new pitboss commands (lasting every-PR checks only, built general), enforced by review of this PR's Plan	-
+memory:MEMORY.md	- CODE IS THE DOC (Moshe 2026-11-12 05:27Z): nev	A27	code
+memory:MEMORY.md	- NO MANUAL COMPARE (Moshe 2026-11-12 04:32Z): n	A36,A20	test
+memory:MEMORY.md	- NO AD HOC ADDITIONS (Moshe 2026-11-12 02:35Z):	outside: PR 477 follows its plan as written; a statement about this PR, shown by its Plan rows	-
+memory:MEMORY.md	- NO FILTERED OUTPUT (Moshe 2026-11-12 02:41Z): 	outside: a worker's reading of its own tool output; visible only in its transcript, no command sees it	-
+memory:MEMORY.md	- NOX IS A MAXIMUM (Moshe 2026-11-12 01:10Z): `p	B14	pitboss
+memory:MEMORY.md	- PITBOSS CONSOLIDATION (Moshe accepted plan 202	outside: assignment of the pitboss work to one thread; a coordination fact	-
+memory:MEMORY.md	- SLOT CAP DATA (2026-11-12 06:01Z): queue confi	B1	slot
+memory:MEMORY.md	- Moshe's restatements are NOT new rules; the fa	outside: a note on how to judge a restated rule (the failure is enforcement); the standard of this PR	-
+memory:MEMORY.md	- A RULING IS EXECUTED (Moshe 2026-11-11 22:46Z)	A2	executed
+memory:MEMORY.md	- NO "NOTHING TO DO" PR STATE (Moshe 2026-11-11 	A4	nothing
+memory:MEMORY.md	- OWNER'S CALL = PAUSED-OWNER (Moshe 2026-11-11 	A5,A6	paused-owner
+memory:MEMORY.md	- STUCK GH CI (Moshe 2026-11-11 22:34Z): runs st	B22,I34,I36	root-cause
+memory:MEMORY.md	- COORDINATOR WATCHES SLOT STATE (Moshe 2026-11-	B4	coordinator
+memory:MEMORY.md	- FREE SLOT FILLED SAME TURN.	B2	filled
+memory:MEMORY.md	- NO SCRATCH PATHS IN PLANS (Moshe 2026-11-11 16	A30,A35	scratch
+memory:MEMORY.md	- QUEUE SESSION OWNS PITBOSS decisions (during c	D3	pitboss
+memory:MEMORY.md	- PITBOSS BUGS NOT REPORTED TO COORDINATOR (Mosh	D2	coordinator
+memory:MEMORY.md	- DONE-WHEN/CASES ONLY IN TICKET BODIES (Moshe 2	A19	done-when
+memory:MEMORY.md	- EXTRA FILE = REMOVE + GITIGNORE (one PR only).	A25	gitignore
+memory:MEMORY.md	- PLAN CHECK IS NOT A ROUND.	A11	check
+memory:MEMORY.md	- POST TIMES FROM `date -u`. Check-in job at :21	B13	check-in
+memory:MEMORY.md	- QUEUE thread "Run Quire ticket queue" (cmsg_01	outside: the identifier of the queue thread, a fact	-
+memory:MEMORY.md	- TASK LIST IS REAL STATE: one line per ticket, 	B11	state
+memory:MEMORY.md	- RULING COMMENTS ALWAYS GO AHEAD; never ask.	D8	comments
+memory:MEMORY.md	- DONE-WHEN DEMONSTRATED, CHECKED: "X demonstrat	A20	demonstrated
+memory:MEMORY.md	- RUN PITBOSS, THEN SANITY-CHECK; override wrong	D1	override
+memory:MEMORY.md	- ONE VERDICT: split verdict = changes needed.	A7	changes
+memory:MEMORY.md	- PITBOSS SLOWNESS: overfetching suspected.	outside: a suspicion about pitboss's speed with no rule in it	-
+memory:MEMORY.md	- BLOCKED PRs skipped; never review an approved 	I26,A22	approved
+memory:MEMORY.md	- CHECK-IN TIMER MUST NOT LAPSE.	B13	check-in
+memory:MEMORY.md	- NO HAND-BUILT BRIEFS: only briefs pitboss prin	B6	pitboss
+memory:MEMORY.md	- MORE UPDATES: post at every merge, dispatch, h	B11,B12	every
+memory:MEMORY.md	- NO UNCERTAIN / FIGURE IT OUT: verify first.	D4	checked
+memory:MEMORY.md	- UVX PITBOSS: `uvx pitboss ...`; `uvx --refresh	C10	pitboss
+memory:MEMORY.md	- CAP (Moshe 2026-11-10 00:11Z): ONE Sonnet slot	B1,B5	running
+memory:MEMORY.md	- RULING (Opus, 2026-11-10): reviewer instructio	B17	impossible
+memory:MEMORY.md	- RULING (Opus, 2026-11-09): pitboss#302 closed.	outside: rulings on four other tickets (pitboss#302, pwa#308, quire PR 1098, bridge PR 279), each decided on its ticket	-
+memory:MEMORY.md	- macOS C-runtime job removed from package-check	outside: a change to one workflow of repository-prototype, made by its own ticket	-
+memory:MEMORY.md	- /DEV: never remove files under /dev.	C2	remove
+memory:MEMORY.md	- PINS BY SCRIPT (tools/adopt); reviewer reviews	A33	pins
+memory:MEMORY.md	- MERGE MAIN allowed for a conflict OR a needed 	outside: the BEHIND line of the sweep says merge main only for a conflict or a needed fix (updateline.need); no register row yet	-
+memory:MEMORY.md	- UNDERSTAND, ALWAYS: never push for a fresh run	C4	failure
+memory:MEMORY.md	- DELETIONS PRE-APPROVED. NO RERUNS for flakes; 	C4,C13	allowed
+memory:MEMORY.md	- IMPACT LISTS ARE GONE; Evidence 64KB allowance	outside: a size allowance and a priority of one ticket (CI speed), no pitboss command refuses by size	-
+memory:MEMORY.md	- Review never says "makes false"; no piecemeal 	A8,A9,B17	impossible
+memory:MEMORY.md	- RULING 2026-11-08: owner-ruled removals fold i	A31	started
+memory:MEMORY.md	- Slot accounting: workers, fix rounds AND revie	B1,B5	dispatch
+memory:MEMORY.md	- RULINGS 2026-11-08: p0 order fixed; PITBOSS NO	B14,A9	pitboss
+memory:MEMORY.md	- Moshe CAN set repo secrets; he can restore not	outside: a fact about the owner's access, not a rule	-
+memory:MEMORY.md	- Fake git worlds keep REAL git. Conflict merges	outside: how this repository's tests and zips are built; a worker's practice	-
+memory:MEMORY.md	- RULING (2026-11-06): no reporting to W3C/epub-	outside: rulings on quire#1063 and the engine's formats, decided on that ticket	-
+memory:MEMORY.md	- Order: running workers never interrupted; open	B9,B7	priority
+memory:MEMORY.md	- Owner's stated priority wins. Folding never ch	B8,B10	inherits
+memory:MEMORY.md	- Escalate Done-when conflicts THEN. "Platform l	A18	impossible
+memory:MEMORY.md	- Plan rejected -> fix; 2nd rejection -> Opus ru	A10	rejection
+memory:MEMORY.md	- Approved Plan never edited. CI evidence is a p	A1,A15,A16,A17	execution
+memory:MEMORY.md	- Workers: `pitboss nox` only. No attribution bl	B14,A32	attribution
+memory:MEMORY.md	- `uvx pitboss ...`; `pitboss sweep` first. Free	C10,B2	pitboss
+memory:MEMORY.md	- Runner pressure: hold pushes/merges/undrafts o	B20,T141	pressure
+memory:MEMORY.md	- Disk cleanup: never ask, clean and REPORT; rem	C1,C3	worktree
+memory:MEMORY.md	- Moshe runs `gh` commands and pastes output whe	outside: a list of the owner's access habits and the proxy's limits; facts of the environment	-
+memory:approved-plan-commands-run-as-written.md	description	A13	approved
+memory:approved-plan-commands-run-as-written.md	how-to-apply	A13	command
+memory:artifact-reads-via-new-env-thread.md	description	D10	environment
+memory:artifact-reads-via-new-env-thread.md	how-to-apply	D10	artifact
+memory:artifact-with-every-question-and-daily-opus-summary.md	description	D9	standing
+memory:artifact-with-every-question-and-daily-opus-summary.md	how-to-apply	D9	every
+memory:bats-always-in-flight.md	description	outside: the project queue policy of bats (one src PR in flight), kept in the orchestrator's notes of 2026-10-28	-
+memory:bats-always-in-flight.md	how-to-apply	outside: the project queue policy of bats (one src PR in flight), kept in the orchestrator's notes of 2026-10-28	-
+memory:behind-is-not-a-reason-to-push.md	description	outside: the BEHIND line of the sweep says merge main only for a conflict or a needed fix (updateline.need); no register row yet	-
+memory:behind-is-not-a-reason-to-push.md	how-to-apply	outside: the BEHIND line of the sweep says merge main only for a conflict or a needed fix (updateline.need); no register row yet	-
+memory:book-css-follow-other-readers-umbrella.md	description	outside: a design decision about quire's book CSS (an umbrella ticket); product, not pitboss	-
+memory:book-css-follow-other-readers-umbrella.md	how-to-apply	outside: a design decision about quire's book CSS (an umbrella ticket); product, not pitboss	-
+memory:brief-rules-go-in-printed-brief-not-md.md	description	D6	pitboss
+memory:brief-rules-go-in-printed-brief-not-md.md	how-to-apply	D6	pitboss
+memory:cap-is-a-hard-ceiling.md	description	B1	ceiling
+memory:cap-is-a-hard-ceiling.md	how-to-apply	B1	running
+memory:check-allow-list-before-running.md	description	outside: the permission classifier of the harness; no pitboss command reads it	-
+memory:check-allow-list-before-running.md	how-to-apply	outside: the permission classifier of the harness; no pitboss command reads it	-
+memory:check-in-job-is-kept-not-recreated.md	description	B13	check-in
+memory:check-in-job-is-kept-not-recreated.md	how-to-apply	B13	kept
+memory:ci-evidence-points-to-ci.md	description	A15	evidence
+memory:ci-evidence-points-to-ci.md	how-to-apply	A15	pointer
+memory:claude-jsonl-standing-rules.md	description	outside: a pointer to where the rules live	-
+memory:clean-disk-never-ask.md	description	C1	harder
+memory:clean-disk-never-ask.md	how-to-apply	C1	asking
+memory:coordinator-is-opus-authority.md	description	D13	instructions
+memory:coordinator-is-opus-authority.md	how-to-apply	D13	coordinator
+memory:dev-null-redirect-is-fine.md	description	C2	remove
+memory:dev-null-redirect-is-fine.md	how-to-apply	C2	remove
+memory:diagnose-file-override-not-report.md	description	D2	coordinator
+memory:diagnose-file-override-not-report.md	how-to-apply	D2	pitboss
+memory:diff-aware-nox-test-selection.md	description	B14	pitboss
+memory:diff-aware-nox-test-selection.md	how-to-apply	B14	pitboss
+memory:done-when-not-in-comments.md	description	A19	done-when
+memory:done-when-not-in-comments.md	how-to-apply	A19	done-when
+memory:done-when-only-in-body-before-worker.md	description	A19	done-when
+memory:done-when-only-in-body-before-worker.md	how-to-apply	A19	done-when
+memory:escalation-analysis-pitboss166.md	description	A8,A9	false
+memory:escalation-analysis-pitboss166.md	how-to-apply	A8,A9	false
+memory:escalation-analysis-pitboss168.md	description	B26	line
+memory:escalation-analysis-pitboss168.md	how-to-apply	B26	line
+memory:escalation-analysis-pitboss217.md	description	A10	ruling
+memory:every-correction-names-its-prevention.md	description	D5	prevent
+memory:every-correction-names-its-prevention.md	how-to-apply	D5	prevention
+memory:evidence-64kb-allowance.md	description	outside: a size allowance for Evidence; pitboss splits Evidence itself (expansion) and refuses nothing by size	-
+memory:evidence-64kb-allowance.md	how-to-apply	outside: a size allowance for Evidence; pitboss splits Evidence itself (expansion) and refuses nothing by size	-
+memory:evidence-overflow-is-split-by-pitboss.md	description	outside: a size allowance for Evidence; pitboss splits Evidence itself (expansion) and refuses nothing by size	-
+memory:evidence-overflow-is-split-by-pitboss.md	how-to-apply	outside: a size allowance for Evidence; pitboss splits Evidence itself (expansion) and refuses nothing by size	-
+memory:extra-file-finding-removal-and-gitignore.md	description	A25	gitignore
+memory:extra-file-finding-removal-and-gitignore.md	how-to-apply	A25	gitignore
+memory:finish-existing-quire-prs.md	description	outside: a time-boxed hold on new quire PRs of 2026-10-30, lifted	-
+memory:finish-existing-quire-prs.md	how-to-apply	outside: a time-boxed hold on new quire PRs of 2026-10-30, lifted	-
+memory:fold-newer-into-older.md	description	B8	newer
+memory:fold-newer-into-older.md	how-to-apply	B8	folded
+memory:follow-pitboss-sweep-output.md	description	D1	pitboss
+memory:follow-pitboss-sweep-output.md	how-to-apply	D1	pitboss
+memory:guards-stop-forgetting-not-cheating.md	description	outside: the stance of a review (the ticket's goal, no invented threat models); a judgment, no command sees it	-
+memory:guards-stop-forgetting-not-cheating.md	how-to-apply	outside: the stance of a review (the ticket's goal, no invented threat models); a judgment, no command sees it	-
+memory:hide-git-identity-when-testing.md	description	outside: a workaround until pitboss#364 lands; a worker's practice	-
+memory:hide-git-identity-when-testing.md	how-to-apply	outside: a workaround until pitboss#364 lands; a worker's practice	-
+memory:hypothesis-ticket-no-doc-item.md	description	A27	code
+memory:hypothesis-ticket-no-doc-item.md	how-to-apply	A27	code
+memory:ignore-session-url-in-parsers.md	description	A28	session
+memory:ignore-session-url-in-parsers.md	how-to-apply	A28	session
+memory:impact-lists-are-gone.md	description	A27,A9	removed
+memory:impact-lists-are-gone.md	how-to-apply	A27,A9	restate
+memory:impossibility-needs-evidence-first.md	description	A18	impossible
+memory:impossibility-needs-evidence-first.md	how-to-apply	A18	impossible
+memory:in-charge-of-pitboss-force-brief.md	description	D3	orchestrator
+memory:in-charge-of-pitboss-force-brief.md	how-to-apply	D3	pitboss
+memory:in-flight-lists-every-running-agent.md	description	B12	checklist
+memory:in-flight-lists-every-running-agent.md	how-to-apply	B12	checklist
+memory:let-agents-finish.md	description	B24	agent
+memory:let-agents-finish.md	how-to-apply	B24	agent
+memory:never-answer-i-havent-checked.md	description	D4	checked
+memory:never-answer-i-havent-checked.md	how-to-apply	D4	checked
+memory:never-ask-moshe-to-fetch-logs.md	description	D10	new-environment
+memory:never-ask-moshe-to-fetch-logs.md	how-to-apply	D10	artifact
+memory:never-assume-moshe-did-it.md	description	D7	assume
+memory:never-assume-moshe-did-it.md	how-to-apply	D7	owner
+memory:never-makes-false.md	description	A8	passage
+memory:never-makes-false.md	how-to-apply	A8	review
+memory:never-reopen-split-instead.md	description	B7	ticket
+memory:never-reopen-split-instead.md	how-to-apply	B7	rule
+memory:never-report-idle-slot.md	description	B3,B2	running
+memory:never-report-idle-slot.md	how-to-apply	B3,B2	nothing
+memory:no-added-lines-in-md-rst.md	description	A26	line
+memory:no-added-lines-in-md-rst.md	how-to-apply	A26	rules
+memory:no-adding-to-a-started-pr.md	description	A31	started
+memory:no-adding-to-a-started-pr.md	how-to-apply	A31	started
+memory:no-attribution-block-no-owner-review.md	description	A32	attribution
+memory:no-attribution-block-no-owner-review.md	how-to-apply	A32	request
+memory:no-handbuilt-briefs.md	description	B6	dispatch
+memory:no-handbuilt-briefs.md	how-to-apply	B6	dispatch
+memory:no-next-in-sweep-order-checklist-line.md	description	B11	task
+memory:no-next-in-sweep-order-checklist-line.md	how-to-apply	B11	list
+memory:no-not-checked-in-reports.md	description	D4	checked
+memory:no-not-checked-in-reports.md	how-to-apply	D4	checked
+memory:no-nox-all-extra-tests-named-with-reason.md	description	B14	pitboss
+memory:no-nox-all-extra-tests-named-with-reason.md	how-to-apply	B14	pitboss
+memory:no-piecemeal-doc-cuts.md	description	A9	piecemeal
+memory:no-piecemeal-doc-cuts.md	how-to-apply	A9	sections
+memory:no-reruns.md	description	C4,C13	root-cause
+memory:no-reruns.md	how-to-apply	C4,C13	re-run
+memory:no-shims-for-weak-engines.md	description	A34	bundled
+memory:no-shims-for-weak-engines.md	how-to-apply	A34	engines
+memory:no-undraft-or-ci-for-blocked-pr.md	description	I26	blocked
+memory:no-undraft-or-ci-for-blocked-pr.md	how-to-apply	I26	blocker
+memory:not-done-not-honest.md	description	B17	rule
+memory:not-done-not-honest.md	how-to-apply	B17	worker
+memory:nox-is-a-maximum.md	description	B14	pitboss
+memory:nox-is-a-maximum.md	how-to-apply	B14	pitboss
+memory:nox-reuse-targeted-never-virtue.md	description	B14	nox
+memory:nox-reuse-targeted-never-virtue.md	how-to-apply	B14	pitboss
+memory:one-sonnet-slot.md	description	B1	slot
+memory:one-sonnet-slot.md	how-to-apply	B1	ceiling
+memory:one-task-per-ticket-in-task-list.md	description	B11,B7	ticket
+memory:one-task-per-ticket-in-task-list.md	how-to-apply	B11,B7	ticket
+memory:opus-ruling-comments-standing-approval.md	description	D8	standing-approved
+memory:opus-ruling-comments-standing-approval.md	how-to-apply	D8	comments
+memory:opus-rulings-carry-owner-authority.md	description	D13	ruling
+memory:opus-rulings-carry-owner-authority.md	how-to-apply	D13	ruling
+memory:pins-never-move-by-llm.md	description	A33	pins
+memory:pins-never-move-by-llm.md	how-to-apply	A33	pins
+memory:pitboss-113-is-p0.md	description	B9	priority
+memory:pitboss-113-is-p0.md	how-to-apply	B9	running
+memory:pitboss-builds-brief-on-request-and-names-next-three.md	description	B6	pitboss
+memory:pitboss-builds-brief-on-request-and-names-next-three.md	how-to-apply	B6	rules
+memory:pitboss-gap-is-postmortem.md	description	outside: how the orchestrator files a pitboss gap (a post-mortem ticket after 477); a decision of the orchestrator, no command can see it	-
+memory:pitboss-gap-is-postmortem.md	how-to-apply	outside: how the orchestrator files a pitboss gap (a post-mortem ticket after 477); a decision of the orchestrator, no command can see it	-
+memory:pitboss-gaps-are-postmortems.md	description	outside: how the orchestrator files a pitboss gap (a post-mortem ticket after 477); a decision of the orchestrator, no command can see it	-
+memory:pitboss-gaps-are-postmortems.md	how-to-apply	outside: how the orchestrator files a pitboss gap (a post-mortem ticket after 477); a decision of the orchestrator, no command can see it	-
+memory:pitboss-is-not-subject-to-holds.md	description	T141,B20	pressure
+memory:pitboss-is-not-subject-to-holds.md	how-to-apply	T141,B20	pressure
+memory:pitboss-not-final-arbiter.md	description	D1	pitboss
+memory:pitboss-not-final-arbiter.md	how-to-apply	D1	override
+memory:pitboss-nox-for-iterating-too.md	description	B14	pitboss
+memory:pitboss-nox-for-iterating-too.md	how-to-apply	B14	pitboss
+memory:pitboss-nox-tool-decision.md	description	B14	pitboss
+memory:pitboss-nox-tool-decision.md	how-to-apply	B14	pitboss
+memory:pitboss-prs-are-never-drafts.md	description	B19,T141	runner-pressure
+memory:pitboss-prs-are-never-drafts.md	how-to-apply	B19,T141	pitboss
+memory:pitboss-prs-open-ready.md	description	B19	pitboss
+memory:pitboss-prs-open-ready.md	how-to-apply	B19	pitboss
+memory:pitboss-reads-failures-via-api.md	description	C5	failed-check
+memory:pitboss-reads-failures-via-api.md	how-to-apply	C5	through
+memory:pitboss-toml-needs-review-form.md	description	outside: the orchestrator's own working configuration; synced by C11, not a pitboss rule	-
+memory:pitboss-toml-needs-review-form.md	how-to-apply	outside: the orchestrator's own working configuration; synced by C11, not a pitboss rule	-
+memory:pitboss-work-paused.md	description	D11	until
+memory:pitboss-work-paused.md	how-to-apply	D11	slots
+memory:plan-check-before-marking-ready.md	description	A12	plan-check
+memory:plan-check-before-marking-ready.md	how-to-apply	A12	plan-check
+memory:plan-check-is-not-a-round.md	description	A11	worker
+memory:plan-check-is-not-a-round.md	how-to-apply	A11	refused
+memory:pr-body-patch-adds-second-footer.md	description	B25	text-lint
+memory:pr-body-patch-adds-second-footer.md	how-to-apply	B25	after
+memory:publish-is-automatic.md	description	outside: a fact of the package repository's publish workflow	-
+memory:publish-is-automatic.md	how-to-apply	outside: a fact of the package repository's publish workflow	-
+memory:pwa-takes-features-when-only-place.md	description	outside: a ruling on pwa#308 (a repository rule gives way when it is the only place); decided on that ticket	-
+memory:pwa-takes-features-when-only-place.md	how-to-apply	outside: a ruling on pwa#308 (a repository rule gives way when it is the only place); decided on that ticket	-
+memory:queue-session-handoff-2026-11-11-1430z.md	description	outside: a dated handoff of queue state	-
+memory:quiesce-weekly-quota-2026-10-31.md	description	D11	nothing
+memory:quiesce-weekly-quota-2026-10-31.md	how-to-apply	D11	nothing
+memory:quire-573-is-p0-and-first.md	description	outside: the priority of one ticket (quire#573), a label	-
+memory:quire-573-is-p0-and-first.md	how-to-apply	outside: the priority of one ticket (quire#573), a label	-
+memory:quire-ci-actions-by-orchestrator-only.md	description	B20,B21	dispatch
+memory:quire-ci-actions-by-orchestrator-only.md	how-to-apply	B20,B21	dispatch
+memory:quire-diligence-enqueue-over-undraft.md	description	B20	pushes
+memory:quire-diligence-enqueue-over-undraft.md	how-to-apply	B20	pushes
+memory:read-process-text-at-decision-points.md	description	A10	ruling
+memory:read-process-text-at-decision-points.md	how-to-apply	A10	rules
+memory:read-reviewer-md-before-reviewer-brief.md	description	C22,C23	reviews
+memory:read-reviewer-md-before-reviewer-brief.md	how-to-apply	C22,C23	repository
+memory:refresh-task-list-at-every-merge.md	description	B11	list
+memory:refresh-task-list-at-every-merge.md	how-to-apply	B11	rules
+memory:reject-plans-without-evidence-commands.md	description	A14,A36	evidence
+memory:reject-plans-without-evidence-commands.md	how-to-apply	A14,A36	done-when
+memory:relock-and-zip-need-no-review.md	description	C7,A29,I16	pins-check
+memory:relock-and-zip-need-no-review.md	how-to-apply	C7,A29,I16	pins-check
+memory:relock-pins-review-recipe.md	description	I16	pins-review
+memory:rerun-slots-next-before-dispatch.md	description	B5	dispatch
+memory:rerun-slots-next-before-dispatch.md	how-to-apply	B5	before
+memory:review-after-conflict-merge-is-resolution-only.md	description	A17	resolution
+memory:review-after-conflict-merge-is-resolution-only.md	how-to-apply	A17	resolution
+memory:review-doc-rule-not-written-already-impossible.md	description	D6	pitboss
+memory:review-doc-rule-not-written-already-impossible.md	how-to-apply	D6	rule
+memory:rules-go-to-memory-and-a-pitboss-ticket.md	description	D6	pitboss
+memory:rules-go-to-memory-and-a-pitboss-ticket.md	how-to-apply	D6	pitboss
+memory:ruling-remove-design-rst.md	description	outside: a removal of doc/design.rst by pitboss#300; nothing to enforce	-
+memory:ruling-remove-design-rst.md	how-to-apply	outside: a removal of doc/design.rst by pitboss#300; nothing to enforce	-
+memory:run-latest-pitboss.md	description	C10	pitboss
+memory:run-latest-pitboss.md	how-to-apply	C10	pitboss
+memory:run-pitboss-and-verify-it-makes-sense.md	description	D1	pitboss
+memory:run-pitboss-and-verify-it-makes-sense.md	how-to-apply	D1	ticket
+memory:run-pitboss-as-autoapproved.md	description	outside: the harness's permission classifier and the allowed command strings; no pitboss command reads them	-
+memory:run-pitboss-as-autoapproved.md	how-to-apply	outside: the harness's permission classifier and the allowed command strings; no pitboss command reads them	-
+memory:session-state-2026-11-04-1740z.md	description	outside: a dated queue state	-
+memory:session-state-2026-11-04-1740z.md	how-to-apply	outside: a dated queue state	-
+memory:skipped-first-item-still-fills-slot.md	description	B2	blocked
+memory:skipped-first-item-still-fills-slot.md	how-to-apply	B2	skipped
+memory:slot-cap-breach-pitboss227.md	description	B1,I36	cap
+memory:slot-cap-breach-pitboss227.md	how-to-apply	B1,I36	while
+memory:slots-next-uses-quire-config.md	description	B9	tickets
+memory:slots-next-uses-quire-config.md	how-to-apply	B9	tickets
+memory:slots-work-during-gates.md	description	B24	wait
+memory:slots-work-during-gates.md	how-to-apply	B24	wait
+memory:sweep-config-exclude-relock-scratch.md	description	C9	sweep
+memory:sweep-config-exclude-relock-scratch.md	how-to-apply	C9	sweep
+memory:sweep-pitboss-own-prs-too.md	description	C9	sweep
+memory:sweep-pitboss-own-prs-too.md	how-to-apply	C9	sweep
+memory:sync-everything-to-claude-jsonl.md	description	C11	orchestrator
+memory:sync-everything-to-claude-jsonl.md	how-to-apply	C11	create
+memory:thread-requests-repo-access-itself.md	description	D14	missing
+memory:thread-requests-repo-access-itself.md	how-to-apply	D14	repo
+memory:ticket-causing-many-issues-is-p0.md	description	outside: a priority judgment of the coordinator for a ticket whose bug keeps causing corrections (T93 plans the rule)	-
+memory:ticket-causing-many-issues-is-p0.md	how-to-apply	outside: a priority judgment of the coordinator for a ticket whose bug keeps causing corrections (T93 plans the rule)	-
+memory:verify-pause-lines-before-escalating.md	description	A5	without
+memory:verify-pause-lines-before-escalating.md	how-to-apply	A5	pause
+memory:worker-nox-durations-2026-11-04.md	description	B14	pitboss
+memory:worker-nox-durations-2026-11-04.md	how-to-apply	B14	pitboss
+memory:worker-pr-footer-check-after-hand-back.md	description	B25	text-lint
+memory:worker-pr-footer-check-after-hand-back.md	how-to-apply	B25	text-lint
+memory:workflow-config-prs-are-reviewed.md	description	A29	only
+memory:workflow-config-prs-are-reviewed.md	how-to-apply	A29	review
+ticket:444	case 1	A22	a22
+ticket:444	case 2	A22	a22
+ticket:444	case 3	T467	t467
+ticket:444	case 4	A7	a7
+ticket:444	case 5	T464	t464
+ticket:444	case 6	B6	b6
+ticket:444	case 7	B15	b15
+ticket:444	case 8	B16	b16
+ticket:444	case 9	D6	d6
+ticket:444	case 10	I10	i10
+ticket:444	case 11	I11	i11
+ticket:444	case 12	B10	b10
+ticket:444	case 13	B17	b17
+ticket:444	case 14	I14	i14
+ticket:444	case 15	I15	i15
+ticket:444	case 16	I16	i16
+ticket:444	case 17	I17	i17
+ticket:444	case 18	I18	i18
+ticket:444	case 19	D2	d2
+ticket:444	case 20	D3	d3
+ticket:444	case 21	B23	b23
+ticket:444	case 22	A35	a35
+ticket:444	case 23	A10	a10
+ticket:444	case 24	I24	i24
+ticket:444	case 25	I25	i25
+ticket:444	case 26	I26	i26
+ticket:444	case 27	I27	i27
+ticket:444	case 28	I28	i28
+ticket:444	case 29	B2	b2
+ticket:444	case 30	I30	i30
+ticket:444	case 31	I31	i31
+ticket:444	case 32	I32	i32
+ticket:444	case 33	A6	a6
+ticket:444	case 34	I34	i34
+ticket:444	case 35	A5	a5
+ticket:444	case 36	I36	i36
+ticket:444	case 37	A4	a4
+ticket:444	case 38	I38	i38
+ticket:444	comment 6778744464	A22	a22
+ticket:444	comment 6778824951	A7	a7
+ticket:444	comment 6782631559	A36	a36
+ticket:444	comment 6782733806	I24	i24
+ticket:444	comment 6783202145	T462	t462
+ticket:444	comment 6784596154	outside: moved to its own ticket pitboss#457 by the coordinator's correction (comment 6784605177); nothing of it stays in 444	-
+ticket:444	comment 6784605177	outside: moved to its own ticket pitboss#457 by the coordinator's correction (comment 6784605177); nothing of it stays in 444	-
+ticket:444	comment 6785830387	C23	c23
+ticket:444	comment 6787116877	I10	i10
+ticket:444	comment 6787214717	I36	i36
+ticket:444	comment 6787257412	T462	t462
