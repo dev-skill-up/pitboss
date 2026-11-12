@@ -14,7 +14,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import pullfile
 from . import checkcomment, fakes, refused, world
 from .linting import write_text
-from .repositories import run_git
+from .repositories import IDENTITY, run_git
 from .test_plan_check_remote import (
     clone_head,
     full_plan,
@@ -38,7 +38,7 @@ def approved_world() -> tuple[world.World, str]:
     """
     here = ticket_world()
     earlier = clone_head(here)
-    run_git(here.clone, "commit", "--allow-empty", "-m", "a later head")
+    run_git(here.clone, *IDENTITY, "commit", "--allow-empty", "-m", "a later head")
     plan = with_pointer(full_plan())
     comment = {
         "body": checkcomment.clean_text(plan),
