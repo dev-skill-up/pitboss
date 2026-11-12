@@ -33,6 +33,20 @@ def git_out(args: argparse.Namespace, *words: str) -> str:
         return ""
 
 
+def pushed_branch(args: argparse.Namespace) -> str:
+    """The branch on the remote that the worktree's branch pushes to.
+
+    Args:
+        args: the parsed arguments; ``repo`` is the worktree.
+
+    Returns:
+        The upstream branch without its remote (``worker/444`` for
+        ``origin/worker/444``); empty when the branch has no upstream.
+    """
+    upstream = git_out(args, "rev-parse", "--abbrev-ref", "@{upstream}")
+    return upstream.partition("/")[2]
+
+
 def _path(args: argparse.Namespace, kind: str) -> pathlib.Path:
     return pathlib.Path(git_out(args, "rev-parse", kind))
 
@@ -74,6 +88,7 @@ def _pull_lines(
         number=number,
         head=head,
         trusted=settings.review.trusted,
+        branch=pushed_branch(args),
     )
     return handbackcheck.pull_lines(pushed)
 

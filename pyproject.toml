@@ -54,6 +54,7 @@ pitboss = [
   "actionmatrix.tsv",
   "actiongates.tsv",
   "knownred.tsv",
+  "claims.tsv",
   "clauses.tsv",
 ]
 "pitboss.tests" = ["coverage_ids.txt"]

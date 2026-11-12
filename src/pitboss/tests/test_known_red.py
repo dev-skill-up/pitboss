@@ -208,7 +208,7 @@ def with_red_canonical_files(here: world.World) -> world.World:
 class TestThroughTheCommands(unittest.TestCase):
     """The sweep, ``slots next`` and ``act`` on a world (quire#1120)."""
 
-    def test_act_refuses_an_arm_while_a_known_red_stands(self) -> None:
+    def test_c28_act_refuses_an_arm_while_a_known_red_stands(self) -> None:
         """The matrix allows the arm at the merge step; the known red does not."""
         here = with_red_canonical_files(dropped(False))
         done = act_arm(here, "--no-dry-run")
@@ -216,7 +216,7 @@ class TestThroughTheCommands(unittest.TestCase):
         assert_that(done.code, equal_to(2))
         assert_that([call for call in here.calls if "merge" in call], equal_to([]))
 
-    def test_the_sweep_prints_fix_first_for_the_merge_and_not_ready(self) -> None:
+    def test_c28_the_sweep_prints_fix_first_for_the_merge_and_not_ready(self) -> None:
         """The READY TO MERGE line of the PR is replaced."""
         here = with_red_canonical_files(dropped(False))
         text = sweep(here).out
@@ -231,11 +231,11 @@ class TestThroughTheCommands(unittest.TestCase):
 class TestEveryCell(unittest.TestCase):
     """Each spending row against each known red."""
 
-    def test_every_withheld_row_has_an_applicator(self) -> None:
+    def test_c28_every_withheld_row_has_an_applicator(self) -> None:
         """A row added to actiongates.tsv with no cell here fails."""
         assert_that(sorted(APPLICATORS), equal_to(sorted(WITHHELD)))
 
-    def test_a_known_red_withholds_every_spending_row(self) -> None:
+    def test_c28_a_known_red_withholds_every_spending_row(self) -> None:
         """FIX FIRST names the red and its fix, in place of the spending step."""
         for name in WITHHELD:
             for row in ROWS:
@@ -247,27 +247,27 @@ class TestEveryCell(unittest.TestCase):
                     assert_that(said, contains_string(f"{row.name} is red"))
                     assert_that(said, contains_string(row.fix))
 
-    def test_a_cleared_red_offers_the_step(self) -> None:
+    def test_c28_a_cleared_red_offers_the_step(self) -> None:
         """A head with no known red gets the step, not FIX FIRST."""
         for name in WITHHELD:
             with self.subTest(name=name):
                 assert_that(played(name, None), not_(contains_string("FIX FIRST")))
 
-    def test_the_step_is_offered_again_once_the_red_is_cleared(self) -> None:
+    def test_c28_the_step_is_offered_again_once_the_red_is_cleared(self) -> None:
         """The same PR before and after the status turns green."""
         row = ROWS[0]
         pull = ready(steps.undraft())
         assert_that(undraft(red(pull, row)), contains_string("FIX FIRST"))
         assert_that(undraft(pull), contains_string("mark the PR ready"))
 
-    def test_a_push_is_the_fix_and_is_never_withheld(self) -> None:
+    def test_c28_a_push_is_the_fix_and_is_never_withheld(self) -> None:
         """The workers' pushes and rounds are the fix steps."""
         fixes = [n for n, how in knownred.spending().items() if how == "fix"]
         assert_that(fixes, has_item("Action.PUSH"))
         pull = red(ready(steps.merge()), ROWS[0])
         assert_that(knownred.refusal(pull, actions.Action.PUSH), equal_to(""))
 
-    def test_a_local_row_names_the_command_that_runs_it(self) -> None:
+    def test_c28_a_local_row_names_the_command_that_runs_it(self) -> None:
         """base-check and hand-back-check are not on the head: the row says where."""
         local = [each for each in knownred.rows() if each.source == "local"]
         assert_that(
@@ -276,7 +276,7 @@ class TestEveryCell(unittest.TestCase):
         for each in local:
             assert_that(each.fix, contains_string("`pitboss "))
 
-    def test_the_relock_re_dispatch_waits_too(self) -> None:
+    def test_c28_the_relock_re_dispatch_waits_too(self) -> None:
         """A NEEDS line that asks for a re-dispatch is withheld by a known red."""
         pull = red(ready(steps.merge()), ROWS[0])
         line = "NEEDS o/r#7: the red check passed on main since: re-dispatch x"

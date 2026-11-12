@@ -1,0 +1,13 @@
+# claim	read_back	where	test
+# Every claim a worker, a hand-back or a push reports, and the GitHub fact it is read back from (keyword: claim-readback, quire#1115).
+# where: module.function in pitboss that makes the read; test: module.Class.method in pitboss.tests that plays it.
+pushed-to-branch	the open PR of the ticket: pulls?state=open, its head.ref is the branch pushed	pushclaim.lines	test_claims.TestPushClaims.test_c29_a_push_to_another_branch_is_wrong_branch
+head-is-sha	pulls/N: head.sha is the commit pushed	pushclaim.lines	test_claims.TestPushClaims.test_c29_a_push_that_did_not_land_is_not_landed
+body-head-line	pulls/N: the last Head line of the body is head.sha	claimline.lines	test_claims.TestSweepClaim.test_c29_a_body_that_names_another_head_is_a_stale_claim
+ci-green-on-sha	commits/SHA/check-runs: every run of the head completed and none failed	pulls.green	test_report.TestWaitForCi.test_completed_check_run_is_ready
+plan-check-posted	issues/N/comments: a clean Plan check of the Plan at this head	plancheckflow.needs_check	test_hand_back_done.TestPlanCheckPosted.test_each_thing_missing_is_a_refusal_and_nothing_missing_is_none
+comment-posted	issues/N/comments: the newest trusted review comment of this head	reviews.newest	test_cases_reviews.TestUnread.test_c23_a_review_with_prose_only_is_named
+label-set	pulls/N: labels holds the label	actback.lines	test_claims.TestActClaims.test_c29_each_action_is_read_back
+pr-undrafted	pulls/N: draft is false	actback.lines	test_claims.TestActClaims.test_c29_each_action_is_read_back
+pr-merged	pulls/N: merged is true	actback.lines	test_claims.TestActClaims.test_c29_each_action_is_read_back
+branch-restarted-from-main	pulls/N: mergeable_state is not behind	updateline.needs_update	test_update.TestLine.test_line_only_for_an_update

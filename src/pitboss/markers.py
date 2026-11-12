@@ -102,6 +102,8 @@ class Marker(enum.Enum):
             ``canonical-files``, the Plan check, the review form, the pins-check),
             so the step that would spend runner time waits for its fix (keyword:
             known-red, quire#1120).
+        STALE_CLAIM: a PR's body names a head that is not its head, so a worker's
+            claim of a push was not true (keyword: claim-readback, quire#1115).
         DRAFT_STATE_CHANGED: a PR's draft state changed after the sweep marked it
             ready (keyword: draft-moves, pitboss#355).
         AUTO_MERGE_OFF: auto-merge is off on a healthy PR.
@@ -283,6 +285,7 @@ class Marker(enum.Enum):
     NOT_THE_ORCHESTRATOR_CONFIG = enum.auto()
     INCOMPLETE = enum.auto()
     FIX_FIRST = enum.auto()
+    STALE_CLAIM = enum.auto()
 
     @property
     def text(self) -> str:
@@ -304,6 +307,7 @@ SPELLED = {
     Marker.WAIT_FOR_CI: "WAIT-FOR-CI",
     Marker.WAIT_FOR_HOLD: "WAIT-FOR-HOLD",
     Marker.FIX_FIRST: "FIX FIRST",
+    Marker.STALE_CLAIM: "STALE-CLAIM",
     Marker.CHECK_IN_OVERDUE: "CHECK-IN OVERDUE",
 }
 
@@ -335,6 +339,7 @@ SELF_EXPLAINED = frozenset(
         Marker.READY_TO_MERGE,
         Marker.WAIT_FOR_HOLD,
         Marker.FIX_FIRST,
+        Marker.STALE_CLAIM,
         Marker.DROPPED_FROM_QUEUE,
         Marker.MERGE_BY_HAND,
         Marker.AUTO_MERGE_OFF,

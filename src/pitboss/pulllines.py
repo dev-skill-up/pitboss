@@ -5,6 +5,7 @@ from typing import Mapping, Sequence
 
 from . import (
     analysisline,
+    claimline,
     config,
     e2eline,
     fixedline,
@@ -57,6 +58,7 @@ def lines(
         pull,
         (
             *stall.lines(pull, now, steps),
+            *claimline.lines(pull),
             *_branch_lines(pull, settings),
             *roundline.lines(pull),
             *planeditline.lines(pull),

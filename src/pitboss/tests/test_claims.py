@@ -1,0 +1,303 @@
+"""Every claim a worker reports is read back from GitHub (keyword: claim-readback).
+
+quire#1115: a worker pushed to ``w1113-merge`` and reported it as pushed; the PR head
+stayed 75f820a while the body named 7ba2eca. Each shape is played with a fake GitHub.
+"""
+
+import argparse
+import importlib
+import json
+import pathlib
+import tempfile
+import types
+import unittest
+
+from hamcrest import assert_that, contains_string, empty, equal_to, has_item
+
+from .. import (
+    act_commands,
+    actback,
+    actions,
+    actrun,
+    claimline,
+    claims,
+    handbackcheck,
+    handbackrun,
+    parsing,
+    phrases,
+    pushclaim,
+    reviews,
+    shapes,
+)
+from . import fakes, world
+from . import test_work
+from .test_report import facts
+from .says import says
+
+TABLE = phrases.shipped_text("claims.tsv")
+OTHER_URL = "git@github.com:owner/other.git"
+LISTED = "repos/owner/other/pulls?state=open&per_page=100"
+TARGET = actrun.Target(slug="o/r", number=3, branch="b", head="h")
+
+
+def exists(name: str) -> bool:
+    """Whether a test named ``module.Class.method`` exists.
+
+    Args:
+        name: the name, from ``pitboss.tests``.
+
+    Returns:
+        True when it resolves.
+    """
+    module, _, rest = name.partition(".")
+    try:
+        found = importlib.import_module(f"{__package__}.{module}")
+        for part in rest.split("."):
+            found = getattr(found, part)
+    except (ImportError, AttributeError):
+        return False
+    return callable(found)
+
+
+def pushed_world(branch: str, sha: str) -> tuple[world.World, str]:
+    """A world whose PR works on ticket 5 and whose remote is owner/other.
+
+    Args:
+        branch: the PR's head branch on GitHub.
+        sha: the PR's head on GitHub; empty means the commit pushed.
+
+    Returns:
+        The world and the commit its clone pushes.
+    """
+    here = world.make_world()
+    fakes.run_git(here.clone, "checkout", "-q", "-b", "w5")  # names the ticket
+    fakes.run_git(here.clone, "branch", "-f", "branch-1")
+    fakes.run_git(here.clone, "remote", "add", "elsewhere", OTHER_URL)
+    target = str(world.origin_of(here.clone))
+    fakes.run_git(here.clone, "config", "remote.elsewhere.pushurl", target)
+    head = fakes.run_git(here.clone, "rev-parse", "HEAD").strip()
+    body = fakes.pull_body(
+        8, body="Fixes #5\n", head={"sha": sha or head, "ref": branch}
+    )
+    here.bodies[LISTED] = [body]
+    return here, head
+
+
+def push_ticket(here: world.World) -> world.Result:
+    """Push branch-1 as the worker of ticket 5.
+
+    Args:
+        here: the world.
+
+    Returns:
+        What the push did.
+    """
+    argv = ["push", "--now", world.START.isoformat(), "--no-dry-run", "--draft"]
+    argv += ["--ticket", "5", "elsewhere", "HEAD:branch-1"]
+    return world.again(here, *argv)
+
+
+class TestPushClaims(unittest.TestCase):
+    """``pitboss push`` reads the PR of the ticket back."""
+
+    def test_c29_a_push_to_the_prs_branch_is_confirmed(self) -> None:
+        """The PR's head branch and head are what was pushed."""
+        here, _ = pushed_world("branch-1", "")
+        done = push_ticket(here)
+        assert_that((done.code, done.out), equal_to((0, "pushed\n")))
+
+    def test_c29_a_push_to_another_branch_is_wrong_branch(self) -> None:
+        """quire#1115: the push went to branch-1, the PR's branch is w1113."""
+        here, head = pushed_world("w1113", "7" * 40)
+        done = push_ticket(here)
+        says(done.out, "WRONG-BRANCH owner/other#8", f"pushed {head} to branch-1")
+        says(done.out, "the PR's head branch is w1113 (at " + "7" * 40)
+        assert_that(done.code, equal_to(1))
+
+    def test_c29_a_push_that_did_not_land_is_not_landed(self) -> None:
+        """The PR has the branch and holds another commit."""
+        here, head = pushed_world("branch-1", "7" * 40)
+        done = push_ticket(here)
+        says(done.out, "push NOT LANDED owner/other#8", f"pushed {head}")
+        assert_that(done.code, equal_to(1))
+
+    def test_c29_a_ticket_with_no_pr_yet_is_not_judged(self) -> None:
+        """A first push has no PR to read."""
+        here, _ = pushed_world("branch-1", "")
+        here.bodies[LISTED] = []
+        assert_that(push_ticket(here).code, equal_to(0))
+
+    def test_c29_an_unreadable_list_is_not_judged(self) -> None:
+        """A read that fails says nothing more."""
+        here, _ = pushed_world("branch-1", "")
+        del here.bodies[LISTED]
+        assert_that(push_ticket(here).code, equal_to(0))
+
+    def test_c29_no_ticket_judges_nothing(self) -> None:
+        """Without a ticket there is no PR to look for."""
+        here, _ = pushed_world("w1113", "7" * 40)
+        argv = ["push", "--now", world.START.isoformat(), "--no-dry-run", "--draft"]
+        done = world.again(here, *argv, "elsewhere", "HEAD:branch-1")
+        assert_that((done.code, done.out), equal_to((0, "pushed\n")))
+
+    def test_c29_no_remote_slug_judges_nothing(self) -> None:
+        """A remote that names no repository on GitHub."""
+        out = pushclaim.say(None, (None, "owner"), "5", [])  # type: ignore[func-returns-value]
+        assert_that(out, equal_to(None))
+
+
+class TestSweepClaim(unittest.TestCase):
+    """The sweep reads the body's Head line against the PR's head."""
+
+    def test_c29_a_body_that_names_another_head_is_a_stale_claim(self) -> None:
+        """quire#1115: the body named 7ba2eca, the head stayed 75f820a."""
+        body = "Head: " + "7" * 40 + "\n"
+        pull = facts(reviews.Standing.NONE, body=body)
+        said = claimline.lines(pull)
+        assert_that(said[0], contains_string("STALE-CLAIM o/r#7"))
+        assert_that(said[0], contains_string("names " + "7" * 40))
+        assert_that(said[0], contains_string(pull.pull.head.sha))
+
+    def test_c29_a_body_that_names_the_head_is_quiet(self) -> None:
+        """The same PR with the head in the body."""
+        sha = facts(reviews.Standing.NONE).pull.head.sha
+        pull = facts(reviews.Standing.NONE, body=f"Head: {sha}\n")
+        assert_that(claimline.lines(pull), empty())
+
+    def test_c29_a_body_with_no_head_line_is_quiet(self) -> None:
+        """Nothing is claimed."""
+        assert_that(claimline.lines(facts(reviews.Standing.NONE)), empty())
+
+
+class TestActClaims(unittest.TestCase):
+    """``pitboss act`` reads the PR after its action."""
+
+    def test_c29_each_action_is_read_back(self) -> None:
+        """Every action that claims a fact says NOT LANDED when GitHub differs."""
+        held = {
+            actions.Action.UNDRAFT: {"draft": True},
+            actions.Action.MERGE: {"merged": False},
+            actions.Action.ARM: {"auto_merge": None},
+            actions.Action.CLOSE: {"state": "open"},
+            actions.Action.LABEL: {"labels": []},
+        }
+        kept = {
+            actions.Action.UNDRAFT: {"draft": False},
+            actions.Action.MERGE: {"merged": True},
+            actions.Action.ARM: {"auto_merge": {"enabled_by": "x"}},
+            actions.Action.CLOSE: {"state": "closed"},
+            actions.Action.LABEL: {"labels": [{"name": "p0"}, 3]},
+        }
+        for action in held:
+            with self.subTest(action=action.name):
+                words = ["p0"] if action is actions.Action.LABEL else []
+                bad = _read_back(action, held[action], words)
+                good = _read_back(action, kept[action], words)
+                assert_that(bad[0], contains_string("act NOT LANDED o/r#3"))
+                assert_that(good, empty())
+
+    def test_c29_a_label_without_a_name_and_a_push_claim_nothing_here(self) -> None:
+        """The label's own word is needed; a push is read back by its own command."""
+        assert_that(
+            _read_back(actions.Action.LABEL, {"labels": "x"}, []),
+            has_item(contains_string("NOT LANDED")),
+        )
+        assert_that(_read_back(actions.Action.PUSH, {}, []), empty())
+        assert_that(_read_back(actions.Action.DISPATCH, {}, []), empty())
+
+    def test_c29_a_live_action_whose_pr_did_not_change_is_refused(self) -> None:
+        """Through the command's own step: the fake GitHub applies no label."""
+        with tempfile.TemporaryDirectory() as directory:
+            slots = types.SimpleNamespace(log=pathlib.Path(directory) / "log")
+            here = types.SimpleNamespace(
+                args=argparse.Namespace(no_dry_run=True),
+                settings=types.SimpleNamespace(slots=slots),
+                now=world.START,
+                github=fakes.github(
+                    {"repos/owner/project/pulls/3": fakes.pull_body(3, labels=[])}
+                    | {"POST repos/owner/project/issues/3/labels": []}
+                ),
+            )
+            pull = test_work.facts(3, reviews.Standing.NONE)
+            with self.assertRaises(SystemExit) as stopped:
+                act_commands._make(here, actions.Action.LABEL, pull, ["p0"])  # type: ignore[arg-type]
+        assert_that(stopped.exception.code, equal_to(2))
+
+
+def _read_back(
+    action: actions.Action, got: dict[str, object], words: list[str]
+) -> list[str]:
+    class Fake:
+        def run(self, argv: list[str]) -> object:
+            return type("Done", (), {"stdout": json.dumps(got)})()
+
+    github = type("G", (), {"run": Fake().run})()
+    return list(actback.lines(github, TARGET, action, words))  # type: ignore[arg-type]
+
+
+class TestTable(unittest.TestCase):
+    """``claims.tsv`` has a read-back for every claim."""
+
+    def test_c29_the_table_is_complete(self) -> None:
+        """A claim with no row, no function or no test fails."""
+        assert_that(claims.findings(TABLE, exists), equal_to([]))
+
+    def test_c29_a_missing_claim_function_and_test_are_found(self) -> None:
+        """Each way the table can be wrong is a finding."""
+        rows = [each for each in TABLE.splitlines() if not each.startswith("label-set")]
+        text = "\n".join(
+            [*rows, "invented\tfact\tpushclaim.nowhere\ttest_claims.Nothing.at_all"]
+        )
+        found = claims.findings(text, exists)
+        assert_that(found, has_item("label-set has no read-back row"))
+        assert_that(found, has_item("invented is no claim"))
+        assert_that(
+            found, has_item("invented: the function pushclaim.nowhere does not exist")
+        )
+        assert_that(
+            found,
+            has_item("invented: the test test_claims.Nothing.at_all does not exist"),
+        )
+        assert_that(
+            claims.findings(text + "\nx\t \tnone.x\ty", exists),
+            has_item(contains_string("no GitHub fact")),
+        )
+
+    def test_c29_a_short_row_is_an_error(self) -> None:
+        """Three fields are not four."""
+        with self.assertRaises(ValueError):
+            claims.parse("a\tb\tc\n")
+
+    def test_c29_the_hand_back_names_the_wrong_branch(self) -> None:
+        """hand-back-check refuses a PR whose head branch is not the one pushed."""
+        sha = "5" * 40
+        made = dict(
+            github=fakes.github({}),
+            slug="o/r",
+            number=3,
+            head=sha,
+            trusted=frozenset(),
+        )
+        wrong = handbackcheck.Pushed(**made, branch="w1113-merge")  # type: ignore[arg-type]
+        right = handbackcheck.Pushed(**made, branch="w1113")  # type: ignore[arg-type]
+        pull = _pull("w1113", sha)
+        said = handbackcheck._head_lines(wrong, pull)
+        assert_that(said[0], contains_string("WRONG-BRANCH o/r#3"))
+        assert_that(said[0], contains_string("you pushed w1113-merge"))
+        assert_that(handbackcheck._head_lines(right, pull), empty())
+
+    def test_c29_the_pushed_branch_is_the_upstream_without_its_remote(self) -> None:
+        """origin/worker/444 is worker/444; no upstream is none."""
+
+        class Args:
+            repo = "."
+
+            def safe_run(self, words: list[str]) -> object:
+                return type("Done", (), {"stdout": "origin/worker/444\n"})()
+
+        assert_that(handbackrun.pushed_branch(Args()), equal_to("worker/444"))  # type: ignore[arg-type]
+
+
+def _pull(branch: str, sha: str) -> shapes.Pull:
+    body = fakes.pull_body(3, head={"sha": sha, "ref": branch}, body=f"Head: {sha}\n")
+    return parsing.pull(json.dumps(body))

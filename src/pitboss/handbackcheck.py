@@ -114,6 +114,8 @@ class Pushed:
         number: the PR.
         head: the worktree's head, the one that was pushed.
         trusted: the author associations whose comments count.
+        branch: the branch the worktree is on, the one the worker pushed to; empty
+            when it is not told (keyword: claim-readback, quire#1115).
     """
 
     github: ghapi.GitHub
@@ -121,6 +123,7 @@ class Pushed:
     number: int
     head: str
     trusted: AbstractSet[str]
+    branch: str = ""
 
     @property
     def name(self) -> str:
@@ -183,6 +186,14 @@ class Subject(Protocol):
             The value.
         """
 
+    @property
+    def branch(self) -> str:
+        """The branch pushed to.
+
+        Returns:
+            The value.
+        """
+
 
 def branch_pull(github: ghapi.GitHub, slug: str, branch: str) -> int | str:
     """The open PR whose head branch is a worktree's branch.
@@ -213,6 +224,12 @@ def branch_pull(github: ghapi.GitHub, slug: str, branch: str) -> int | str:
 def _head_lines(pushed: Subject, pull: shapes.Pull) -> Sequence[str]:
     named = forms.HEAD_LINE.findall(pull.body)
     found = []
+    if pushed.branch and pull.head.branch != pushed.branch:
+        found.append(  # keyword: claim-readback (quire#1115)
+            f"refused: WRONG-BRANCH {pushed.name}: the PR's head branch is"
+            f" {pull.head.branch} (at {pull.head.sha}), but you pushed"
+            f" {pushed.branch}: push to {pull.head.branch}"
+        )
     if pull.head.sha != pushed.head:
         found.append(
             f"refused: {pushed.name} holds head {pull.head.sha}, not the pushed"

@@ -9,6 +9,7 @@ and no job was put on the queue (keyword: quiet-period).
 """
 
 import argparse
+import os
 import pathlib
 import subprocess
 from typing import Sequence
@@ -29,6 +30,7 @@ from . import (
     noxcheck,
     noxgreen,
     pushcheck,
+    pushclaim,
     pushdraft,
     queue,
     queuereads,
@@ -313,6 +315,13 @@ def _after(
     if outcomes is not None:
         _conclude(None if free else found, outcomes)
         _stale(args, found, outcomes)
+        # keyword: claim-readback (quire#1115): the PR of the ticket holds the push
+        pushclaim.say(
+            found.github,
+            (_pushed_repository(args), found.settings.project.repo.owner),
+            ticketbranch.given(args, os.environ),
+            outcomes,
+        )
 
 
 def _finish(outcomes: Sequence[pushcheck.Outcome]) -> None:

@@ -8,6 +8,7 @@ from gather.commands import add_argument
 
 from . import (
     ENTRY_DATA,
+    actback,
     actions,
     actrun,
     configsettle,
@@ -64,6 +65,9 @@ def _make(
             actrun.record(action, target, facts.step, found.now),
         )
     found.github.mutate(list(actrun.argv(action, target, words)))
+    if found.args.no_dry_run:  # keyword: claim-readback (quire#1115)
+        for line in actback.lines(found.github, target, action, words):
+            _refuse(line)
 
 
 @ENTRY_DATA.register(
