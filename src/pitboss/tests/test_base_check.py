@@ -83,3 +83,9 @@ class TestTheCommand(unittest.TestCase):
         """The control of the planted case."""
         status, said = command(BODY + REASON, "HEAD")
         assert_that([status, said], equal_to([0, "base check: ok\n"]))
+
+    def test_a_name_no_test_module_defines_is_left_out(self) -> None:
+        """A greppable that names no test of the head is no test to run."""
+        body = "## Plan\n\n0. Each test. greppable `test_c13_nothing_defines_this`\n"
+        status, said = command(body, "HEAD")
+        assert_that([status, said], equal_to([0, "base check: ok\n"]))

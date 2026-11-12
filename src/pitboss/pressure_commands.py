@@ -222,8 +222,7 @@ def record_summary(args: argparse.Namespace) -> None:
 
 
 def _record_push(found: commands.Context) -> None:
-    if not found.settings.runners.held:
-        return
+    # only a push checked against a hold gets here (hold-scope: `_free` otherwise)
     try:
         record.note(found.settings.runners.record, record.Look.HOLD, found.now)
     except SystemExit as stopped:

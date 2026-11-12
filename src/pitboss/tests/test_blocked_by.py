@@ -171,6 +171,17 @@ class TestShapes(unittest.TestCase):
             equal_to(["BLOCKER WAIT owner/project#3: waits for owner/project#110"]),
         )
 
+    def test_c21_two_blockers_that_share_a_third_are_no_loop(self) -> None:
+        """A diamond reads the shared blocker once and finds no way back."""
+        diamond = {
+            110: issue("open", "Blocked-by: #111\nBlocked-by: #112"),
+            111: issue("open", "Blocked-by: #113"),
+            112: issue("open", "Blocked-by: #113"),
+            113: issue("open"),
+        }
+        here = blocked_world("Blocked-by: #110", diamond)
+        assert_that(lines_of(here, "BLOCKER LOOP"), equal_to([]))
+
     def test_c21_a_chain_longer_than_the_limit_ends(self) -> None:
         """No more than LIMIT blockers are read looking for a loop."""
         long = {n: issue("open", f"Blocked-by: #{n + 1}") for n in range(110, 190)}

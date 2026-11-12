@@ -129,3 +129,18 @@ class TestTheMatrix(unittest.TestCase):
         found = stepmatrix.findings(weak, stepmatrix.members(), texts)
         asked = [each for each in found if each.endswith("so it needs a brief")]
         assert_that(len(asked), equal_to(1))
+
+    def test_an_unknown_need_and_a_state_row_with_no_reason_are_found(self) -> None:
+        """Planted: a need the file does not know, and a state row without why."""
+        odd = {**ROWS, "Step.WAIT": ("sometimes", ""), "Step.MERGE": ("state", "")}
+        found = stepmatrix.findings(odd, stepmatrix.members(), {})
+        assert_that(found, has_item("Step.WAIT: unknown need 'sometimes'"))
+        assert_that(found, has_item("Step.MERGE: a state row names its reason"))
+
+    def test_a_state_row_prints_the_state_alone(self) -> None:
+        """No brief, round or line: the PR STATE text is all there is."""
+        alone = [name for name, (need, _) in ROWS.items() if need == "state"]
+        assert_that(len(alone) > 0, equal_to(True))
+        for name in alone:
+            with self.subTest(name):
+                assert_that(printed(name), equal_to("state"))

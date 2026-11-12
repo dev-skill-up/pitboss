@@ -8,6 +8,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import reporules
 from . import fakes, world
+from .linting import lint, write_text
 from .test_slot_commands import next_output
 
 PWA = """# pwa
@@ -74,6 +75,11 @@ class TestFindings(unittest.TestCase):
         ]
         assert_that(shown, equal_to([1, 0, 0]))
 
+    def test_c22_a_workflow_line_that_is_no_run_step_is_not_one(self) -> None:
+        """A `name:` line before a one-command step is read and passed."""
+        named = ONE_STEP.replace("+      - run:", "+      - name: x\n+        run:", 1)
+        assert_that(len(reporules.findings("body", PWA, named, "")), equal_to(0))
+
 
 class TestBrief(unittest.TestCase):
     """The review brief carries the repository's rules."""
@@ -100,3 +106,23 @@ class TestBrief(unittest.TestCase):
     def test_c22_a_repository_with_no_claude_md_has_no_section(self) -> None:
         """An unreadable file adds nothing."""
         assert_that(reporules.read(fakes.github({}), "owner/none"), equal_to(""))
+
+
+class TestLintCommand(unittest.TestCase):
+    """`lint repo-rules DIFF CLAUDE.md BODY` is the rules as a command."""
+
+    def test_c22_lint_repo_rules_flags_a_script_and_passes_a_named_avenue(self) -> None:
+        """A new script with no avenue is a finding; the avenue in the body clears it."""
+        diff = write_text("change.diff", NEW_SCRIPT)
+        claude = write_text("CLAUDE.md", PWA)
+        bare = lint("repo-rules", diff, claude, write_text("body.md", "Fixes #1\n"))
+        named = lint(
+            "repo-rules",
+            diff,
+            claude,
+            write_text(
+                "named.md", "Fixes #1\nThe avenue exhausted: bats has no sleep\n"
+            ),
+        )
+        assert_that(bare.code, equal_to(1))
+        assert_that(named.out, equal_to("ok\n"))

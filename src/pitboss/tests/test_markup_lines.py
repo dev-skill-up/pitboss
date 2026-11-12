@@ -180,6 +180,10 @@ class TestCutSpans(unittest.TestCase):
             markuplines.notes("1\t1\ta.md\0", patch), equal_to([markuplines.NOTE])
         )
 
+    def test_a_line_cut_down_to_its_list_mark_is_a_removal(self) -> None:
+        """Only the mark is left: nothing dangles."""
+        assert_that(counted(hunk(["- a red fox"], ["-"])), equal_to(0))
+
     def test_the_nearest_inputs_are_still_refused(self) -> None:
         """Done-when: word replaced, character inserted, spans swapped, new line."""
         cases = {
