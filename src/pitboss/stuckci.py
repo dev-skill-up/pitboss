@@ -3,15 +3,16 @@
 PR 468's two runs stayed ``queued`` for two hours while runs created after them
 completed on the same runners (2026-11-11 22:32Z), so ``waiting for CI`` was
 printed for ever. A run is stuck when it has been queued over ``MINUTES`` and a
-later run of the repository completed. The step is the owner's: cancel it and
-push the next real change (no empty commit, no re-run).
+later run of the repository completed. The step is the owner's, and ``rerunrule``
+says it: a run queued with no job may be re-run (C13), or cancelled with the next
+real change pushed; an empty commit is not the step.
 """
 
 import datetime
 import subprocess
 from typing import Sequence
 
-from . import ghapi, parsing, pulls, shapes, steps
+from . import ghapi, parsing, pulls, rerunrule, shapes, steps
 
 MINUTES = 30
 PREFIX = "STUCK CI"
@@ -78,7 +79,7 @@ def warning(
         f"{PREFIX} {slug}#{number}: run {run.id} queued {minutes} minutes while"
         f" {later} later runs of the repository completed; list them: gh api"
         f" repos/{slug}/actions/runs?head_sha={head}; the step is the owner's:"
-        " cancel the run and push the next real change (no empty commit, no re-run)"
+        f" {rerunrule.step(rerunrule.Run(status=run.status, jobs=0))}"
     )
 
 

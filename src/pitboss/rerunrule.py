@@ -16,7 +16,7 @@ class Run:
 
     Attributes:
         status: ``queued``, ``in_progress`` or ``completed``.
-        jobs: how many jobs the run has.
+        jobs: how many of its jobs started (a run still ``queued`` has none).
     """
 
     status: str
@@ -47,3 +47,19 @@ def refusal(run: Run) -> str:
     if stuck(run):
         return ""
     return "a re-run to get rid of a flake is refused: root-cause the log"
+
+
+def step(run: Run) -> str:
+    """What to do with a run that did not finish.
+
+    Args:
+        run: the run.
+
+    Returns:
+        The refusal when a re-run would only clear a flake; else the step that
+        allows the re-run of a run GitHub left queued with no job.
+    """
+    return refusal(run) or (
+        "re-run it, or cancel it and push the next real change: GitHub left it"
+        " queued with no job, which is no flake"
+    )

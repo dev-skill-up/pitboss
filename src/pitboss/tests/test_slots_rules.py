@@ -264,7 +264,8 @@ class TestStuckRun(unittest.TestCase):
         same([(each[0].id, each[1], each[2]) for each in found], [(1, 120, 1)])
         text = stuckci.warning("o/r", 7, "a" * 40, found[0])
         says(text, "STUCK CI o/r#7: run 1 queued 120 minutes", "1 later runs")
-        says(text, "gh api repos/o/r/actions/runs?head_sha=", "no empty commit")
+        says(text, "gh api repos/o/r/actions/runs?head_sha=", "re-run it")
+        lacks(text, "no re-run")
 
     def test_b22_a_recent_run_or_one_without_later_runs_is_not_stuck(self) -> None:
         """The nearest inputs it must still pass."""
