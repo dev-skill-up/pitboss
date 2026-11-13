@@ -9,12 +9,14 @@ reason. Writes are a dry run unless ``--no-dry-run`` is given.
 """
 
 import argparse
+import functools
 import sys
-from typing import Mapping, NoReturn, Sequence
+from typing import Callable, Mapping, NoReturn, Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, actcore, actledger, actverbs, actwiring, configsettle, logline
+from . import ENTRY_DATA, actcore, actledger, actverbs, actwiring, configsettle
+from . import logline, mode, onepath, project
 from .commandarguments import CONFIG_OPTION, DRY_RUN_ARGUMENT, NOW_ARGUMENT
 from .commands import Context, load_context
 
@@ -85,7 +87,10 @@ def act(args: argparse.Namespace) -> None:
     found = load_context(args)
     path = found.settings.slots.ledger.parent / actwiring.OWNER
     owner = actwiring.owner_of(path)
-    world = actwiring.act_of(found.github, found.settings, owner, args.run)
+    chosen = onepath.mode_of(args, found, options)
+    world = actwiring.act_of(
+        found.github, found.settings, owner, args.run, _dispatching(found, chosen)
+    )
     target = actledger.target_of(args.target)
     print(run_verb(world, args.verb, target, options))
     if args.no_dry_run:
@@ -93,6 +98,18 @@ def act(args: argparse.Namespace) -> None:
         _recorded(
             found, world, actledger.Done(verb=args.verb, target=target, options=options)
         )
+
+
+def _dispatching(
+    found: Context, chosen: mode.Mode
+) -> Callable[[], project.DispatchAnswer]:
+    # keyword: one-path: dispatch-next reads the world once, as slots next does
+    asked = (
+        chosen
+        if isinstance(chosen, mode.DispatchNext)
+        else mode.DispatchNext(want="", options={})
+    )
+    return functools.partial(onepath.dispatch, found, asked)
 
 
 def _recorded(found: Context, world: actcore.Act, done: actledger.Done) -> None:

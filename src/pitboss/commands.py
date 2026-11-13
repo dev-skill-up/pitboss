@@ -11,6 +11,8 @@ import functools
 import logging
 import os
 import pathlib
+import random
+import time
 from typing import AbstractSet, Mapping, Sequence
 
 from . import (
@@ -42,6 +44,7 @@ from . import (
     removedline,
     repoaccess,
     report,
+    retrying,
     scratch,
     scratchconfig,
     shapes,
@@ -167,10 +170,19 @@ def whole_order(found: Context) -> Context:
 
 
 def _reading(args: argparse.Namespace) -> KeywordRun:
-    # keyword: read-memo (pitboss#453): what `slots next` reads, it reads once
-    if getattr(args, "action", None) == "next":
-        return ghmemo.memoized(args.safe_run)
-    return args.safe_run  # type: ignore[no-any-return]
+    # keyword: read-retry: a read that may pass is tried again, then the command fails
+    tried = retrying.retried(
+        args.safe_run, functools.partial(random.uniform, 0.0), time.sleep
+    )
+    # keyword: read-memo (pitboss#453): what a question of what is next reads, it
+    # reads once
+    if getattr(args, "action", None) == "next" or _asks_next(args):
+        return ghmemo.memoized(tried)
+    return tried
+
+
+def _asks_next(args: argparse.Namespace) -> bool:
+    return getattr(args, "__gather_name__", "") == "next"
 
 
 def load_context(args: argparse.Namespace) -> Context:

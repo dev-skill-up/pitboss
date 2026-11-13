@@ -60,10 +60,6 @@ class Marker(enum.Enum):
         SUPERSEDED: ``SUPERSEDED <ticket>``: a ticket marked as superseded, in
             ``[slots] superseded`` or by a comment line; no start is offered for
             it (keyword: superseded-ticket, pitboss#388).
-        PROMOTE: ``PROMOTE <ticket> to <label>: caused K corrections (<list>)``:
-            K other tickets and PRs say ``Caused by`` or ``Cause:`` the ticket;
-            it is ranked as the top label with its own age, and the label stays
-            the owner's to change (keyword: promote-line, pitboss#388).
         CONFLICT: a PR has a merge conflict.
         FAILED: a check failed on a PR's head.
         RED_CAUSE: the log of a failed check and the rule that its cause is the
@@ -215,7 +211,6 @@ class Marker(enum.Enum):
     BLOCKED = enum.auto()
     BLOCKS = enum.auto()
     SUPERSEDED = enum.auto()
-    PROMOTE = enum.auto()
     CONFLICT = enum.auto()
     FAILED = enum.auto()
     RED_CAUSE = enum.auto()
@@ -362,7 +357,6 @@ SELF_EXPLAINED = frozenset(
         Marker.DRAFT_STATE_CHANGED,
         Marker.BLOCKS,
         Marker.SUPERSEDED,
-        Marker.PROMOTE,
         Marker.RED_CAUSE,
         Marker.SLOTS,
         Marker.RUNNING,

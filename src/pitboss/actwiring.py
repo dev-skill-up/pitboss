@@ -14,7 +14,7 @@ import subprocess
 import sys
 from typing import Callable, Sequence
 
-from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
+from . import acthub, actinputs, config, configrepos, project, totalverdict
 from .actcore import Act, Controls, Hub, Owner, Pull, cap_of
 from .ghapi import GitHub, run_json
 from .running import Run
@@ -67,55 +67,6 @@ def write_owner(path: pathlib.Path, owner: Owner) -> None:
     path.write_text(
         json.dumps(words, indent=1, sort_keys=True) + "\n", encoding="utf-8"
     )
-
-
-def _item(pull: Pull, repo: str, kind: str, priority: str = "") -> dispatchnext.Item:
-    reference = f"{repo}#{pull.get('number')}"
-    return dispatchnext.Item(
-        ref=reference,
-        kind=kind,
-        created=text(pull.get("created_at")),
-        priority=priority,
-    )
-
-
-def _open_work(hub: Hub, settings: config.Config) -> list[dispatchnext.Item]:
-    # the open PRs, then the open tickets of each priority label
-    repos = configrepos.slugs(settings)
-    items = [_item(pull, repo, "pr") for repo in repos for pull in hub.open_pulls(repo)]
-    for label in settings.slots.priority_labels:
-        items += [
-            _item(each, repo, "ticket", label)
-            for repo in repos
-            for each in hub.issues(repo, label)
-            if "pull_request" not in each
-        ]
-    return items
-
-
-def work(hub: Hub, settings: config.Config) -> Callable[[], dispatchnext.State]:
-    """What the order of work reads.
-
-    Args:
-        hub: GitHub.
-        settings: the configuration.
-
-    Returns:
-        What reads it when asked.
-    """
-
-    def read() -> dispatchnext.State:
-        found = ledger.configured(settings)
-        items = _open_work(hub, settings)
-        slots = [each.name for each in settings.slots.default]
-        return dispatchnext.State(
-            cap=len(slots),
-            slots=slots,
-            ledger={each.name: each.agent for each in found.slots},
-            items=items,
-        )
-
-    return read
 
 
 def prepush(
@@ -189,7 +140,13 @@ def quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(words), capture_output=True, text=True, check=False)
 
 
-def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> Act:
+def act_of(
+    github: GitHub,
+    settings: config.Config,
+    owner: Owner,
+    run: Run,
+    dispatch: Callable[[], project.DispatchAnswer],
+) -> Act:
     """The verbs' world; the verbs post as the login ``gh`` is signed in as.
 
     Args:
@@ -197,6 +154,7 @@ def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> A
         settings: the configuration.
         owner: the owner's messages.
         run: the runner git goes through.
+        dispatch: gives the head of the one order (``onepath.dispatch``).
 
     Returns:
         The world.
@@ -214,7 +172,7 @@ def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> A
         p90=p90,
         run=run,
         prepush=prepush(quiet),
-        work=work(hub, settings),
+        dispatch=dispatch,
         controls=CONTROLS,
     )
 

@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actport, dispatchnext, ticketreader, totalanswer, totaljson
+from . import actport, project, ticketreader, totalanswer, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
@@ -56,7 +56,6 @@ class Controls:
         disarm: what disarms an armed PR before its inputs change.
         items: the ticket reader.
         started: which open PRs close a ticket.
-        next_item: the order of work.
         not_overridable: the starts of the stop lines no override lifts.
     """
 
@@ -71,9 +70,6 @@ class Controls:
     items: ticketreader.Reader = ticketreader.items
     started: Callable[[Sequence[tuple[int, str | None]], str, int], Sequence[int]] = (
         ticketreader.started
-    )
-    next_item: Callable[[dispatchnext.State, str, str], dispatchnext.Item] = (
-        dispatchnext.next_item
     )
     not_overridable: Sequence[str]
 
@@ -90,7 +86,8 @@ class Act:
         p90: each repository's 90th percentile of changed lines.
         run: the runner git goes through.
         prepush: the pre-push check (its exit status and output).
-        work: the slots, the ledger and the items the order of work reads.
+        dispatch: reads the world once and gives the head of the order (keyword:
+            one-path): what ``dispatch-next`` answers.
         controls: the gates and readers.
     """
 
@@ -101,7 +98,7 @@ class Act:
     p90: Callable[[str], int]
     run: Run
     prepush: Callable[[], tuple[int, str]]
-    work: Callable[[], dispatchnext.State]
+    dispatch: Callable[[], project.DispatchAnswer]
     controls: Controls
 
 

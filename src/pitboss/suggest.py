@@ -351,7 +351,17 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
     )
 
 
-def _ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
+def ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
+    """Each suggestion as a header, its brief and an end line.
+
+    Args:
+        made: the suggestions, in order.
+        first: the rank of the first.
+        total: how many there are in all.
+
+    Yields:
+        The lines.
+    """
     marker = Marker.SUGGESTION.text
     for rank, found in enumerate(made, start=first):
         yield (
@@ -362,8 +372,16 @@ def _ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]
         yield f"--- end of suggestion {rank} ---"
 
 
-def _dispatch(source: Source, found: Suggestion) -> str:
-    # B6 (keyword: brief-save): the brief is a file, and the line names it
+def dispatched(source: Source, found: Suggestion) -> str:
+    """Save a suggestion's brief to its file (B6, keyword: brief-save).
+
+    Args:
+        source: what suggestions are made from.
+        found: the suggestion.
+
+    Returns:
+        The line that names the file.
+    """
     ledger_file = source.settings.slots.ledger
     return briefsave.save(ledger_file, found.reference, found.model, found.text)
 
@@ -389,7 +407,7 @@ def lines(source: Source) -> Iterable[str]:
     yield from diskwatch.opening(source.volume, source.big, total)
     made = [suggest(source, pick) for pick in shown]
     for found in made:
-        yield _dispatch(source, found)
-    yield from _ranked(made, 1 + cleaning, total)
+        yield dispatched(source, found)
+    yield from ranked(made, 1 + cleaning, total)
     if len(every) > len(shown):
         yield f"{marker}: {len(every) - len(shown)} more queued, not shown"

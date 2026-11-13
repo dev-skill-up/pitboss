@@ -8,7 +8,6 @@ brief (every rule file on the ticket's paths, the verdict's gates on them, and t
 instructions of the route table), refused when the recount finds a file missing.
 """
 
-import dataclasses
 import functools
 import pathlib
 from typing import Callable, Mapping
@@ -17,14 +16,15 @@ from . import (
     actgit,
     actpull,
     actwrite,
-    dispatchnext,
+    project,
+    render,
     rulecases,
     rulecount,
     rulefiles,
     ticketreader,
     totalroutes,
 )
-from .actcore import Act, Options, Refused, Target, cap_of, gate
+from .actcore import Act, Options, Refused, Target, gate
 
 Verb = Callable[[Act, Target, Options], str]
 
@@ -51,36 +51,39 @@ def brief(ticket: rulefiles.Ticket) -> str:
 def dispatch_next(act: Act, target: Target, options: Options) -> str:
     """The next piece of work, and its brief when a checkout is given.
 
+    The head of the one order of ``slots next`` (keyword: one-path): ``want``
+    names the item the caller means, which must be it.
+
     Args:
         act: the verb's world.
         target: the repository ("" for the project).
-        options: ``want`` (the item meant), ``agent``, and for a brief
-            ``checkout``, ``paths`` and ``home``.
+        options: ``want`` (the item meant), and for a brief ``checkout``,
+            ``paths`` and ``home``.
 
     Returns:
         The item's reference, then its brief.
+
+    Raises:
+        Refused: the named item is not the head, or nothing can start.
     """
-    state = act.work()
-    if cap := cap_of(act.owner):
-        state = dataclasses.replace(state, cap=cap)
-    item = act.controls.next_item(
-        state, options.get("want", ""), options.get("agent", "")
-    )
+    given = act.dispatch()
+    said = render.dispatch(given)[0]
+    if not isinstance(given, project.Dispatch):
+        raise Refused(said)
     if not options.get("checkout"):
-        return item.ref
+        return said
     ticket = rulefiles.Ticket(
         checkout=pathlib.Path(options["checkout"]),
         paths=options.get("paths", "").split(),
         home=pathlib.Path(options.get("home") or pathlib.Path.home()),
     )
-    return f"{item.ref}\n{brief(ticket)}"
+    return f"{said}\n{brief(ticket)}"
 
 
 REFUSALS = (
     Refused,
     rulefiles.Refused,
     ticketreader.Refused,
-    dispatchnext.Refused,
     rulecases.Refused,
 )
 

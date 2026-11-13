@@ -244,13 +244,9 @@ class Offered:
         occupancy: what holds the slots (keyword: slot-held, pitboss#291).
         superseded: the tickets marked as superseded, which are not offered
             (keyword: superseded-ticket, pitboss#388).
-        promoted: the ``PROMOTE`` lines (keyword: promote).
         blocks: the references that wait for each dependency that was offered
             ahead of them (keyword: blocks-line).
         labels: the ``priority_labels``, for the lines about the rank.
-        unread: whether tickets beyond the window that was read are queued, so
-            that the order ends where the window does (keyword: ticket-window,
-            pitboss#443).
     """
 
     items: Sequence[Item]
@@ -259,10 +255,8 @@ class Offered:
     blocked: Sequence[Item]
     occupancy: slotheld.Occupancy = slotheld.UNLIMITED
     superseded: Sequence[Item] = ()
-    promoted: Sequence[str] = ()
     blocks: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
     labels: Sequence[str] = ()
-    unread: bool = False
 
 
 def queued(

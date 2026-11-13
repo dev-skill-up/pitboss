@@ -4,9 +4,9 @@ import argparse
 import functools
 
 from . import ENTRY_DATA, checkinlines, commanddoc, commandtext, freecheck
-from . import nextlist, tasklist, timing
+from . import onepath, tasklist, timing
 from .commandarguments import SWEEP_ARGUMENTS
-from .commands import load_context, open_pulls, sweep_sections
+from .commands import load_context, sweep_sections
 
 
 @ENTRY_DATA.register(*SWEEP_ARGUMENTS, tasklist.ARGUMENT, name="sweep")
@@ -23,8 +23,7 @@ def sweep(args: argparse.Namespace) -> None:
     """
     clock, args = timing.clocked(args)
     found = load_context(args)
-    opened = functools.partial(open_pulls, found)
-    idle = functools.partial(freecheck.line, found, opened, nextlist.first_startable)
+    idle = functools.partial(freecheck.line, found, onepath.first_line)
     lapsed = checkinlines.print_first(found, idle)
     if sweep_sections(found, clock) or lapsed:
         raise SystemExit(1)

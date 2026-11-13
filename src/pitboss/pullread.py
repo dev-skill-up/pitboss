@@ -133,3 +133,23 @@ def read_one(
     """
     source = _source(github, settings, undraft)
     return pulls.fetch_or_unreadable(_unheld(source, settings, item[0]), *item)
+
+
+def source_for(
+    github: ghapi.GitHub,
+    settings: config.Config,
+    undraft: Callable[[], bool],
+    repo: config.Repo,
+) -> pulls.Source:
+    """Where one repository's pull requests are read from (keyword: one-path).
+
+    Args:
+        github: the API.
+        settings: the configuration.
+        undraft: says whether the runners allow an undraft now.
+        repo: the repository.
+
+    Returns:
+        The source, unheld for a repository the pressure does not apply to.
+    """
+    return _unheld(_source(github, settings, undraft), settings, repo)

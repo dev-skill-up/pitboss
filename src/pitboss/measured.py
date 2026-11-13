@@ -80,8 +80,9 @@ class MeasuredParser(cli_parser.IntermixedParser):  # noqa: SLD504,SLD401
         super().set_defaults(**kwargs)  # the help comes from the command itself
         command = kwargs.get("__gather_command__")
         if isinstance(command, Command) and kwargs.get("__gather_name__") in NAMES:
+            entered = self.get_default("__gather_command__")
             argparse.ArgumentParser.set_defaults(
-                self, __gather_command__=Measured(command=command)
+                self, __gather_command__=Measured(command=entered)
             )
 
 

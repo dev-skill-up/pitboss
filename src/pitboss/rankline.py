@@ -1,7 +1,7 @@
-"""The lines about the rank of a ticket: BLOCKED, SUPERSEDED, BLOCKS, PROMOTE.
+"""The lines about the rank of a ticket: BLOCKED, SUPERSEDED, BLOCKS.
 
 Shared by ``slots next``, ``next`` and the sweep (keyword: ticket-blocked,
-blocks-line, superseded-ticket, promote; pitboss#388).
+blocks-line, superseded-ticket; pitboss#388).
 """
 
 from typing import Iterable, Mapping, Protocol, Sequence
@@ -127,13 +127,6 @@ class Offer(Protocol):
             The labels, highest priority first.
         """
 
-    @property
-    def promoted(self) -> Sequence[str]:
-        """The promote lines.
-
-        Returns:
-            The lines.
-        """
 
 
 def _name(item: Ranked) -> str:
@@ -152,7 +145,7 @@ def _blocks(item: Ranked, waits: Sequence[str], offer: Offer) -> str:
 
 
 def lines(offer: Offer) -> Iterable[str]:
-    """The blocked, superseded, blocking and promoted lines of an offer.
+    """The blocked, superseded and blocking lines of an offer.
 
     Args:
         offer: the queued work and the tickets kept back, in whole.
@@ -160,7 +153,7 @@ def lines(offer: Offer) -> Iterable[str]:
     Yields:
         ``BLOCKED`` for each blocked ticket (and PR), ``SUPERSEDED`` for each
         superseded ticket, ``BLOCKS`` for each offered item that others wait
-        for, then the ``PROMOTE`` lines.
+        for.
     """
     for waiting in offer.blocked:
         yield blockedline.of(waiting)
@@ -169,4 +162,3 @@ def lines(offer: Offer) -> Iterable[str]:
     for first in offer.items:
         if first.reference in offer.blocks:
             yield _blocks(first, offer.blocks[first.reference], offer)
-    yield from offer.promoted

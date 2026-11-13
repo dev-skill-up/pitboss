@@ -4,15 +4,13 @@ Kept back are the tickets of a repository under the owner's hold, the tickets
 that cannot be worked on until an open ticket or PR (keyword: ticket-blocked)
 with the PRs of such tickets (blocked-pull), and the superseded tickets; the open
 ticket a blocked ticket or PR waits for is offered in its place (``dependency``,
-pitboss#280, pitboss#388). A ticket named as a cause by many others ranks first
-(``promotion``). Shared by ``slots next``, ``next`` and the sweep, so the three
-agree on which tickets are offered.
+pitboss#280, pitboss#388). The sweep's SLOTS section and the task list read it.
 """
 
 import argparse
 import dataclasses
 import functools
-from typing import AbstractSet, Callable, Iterable, Mapping, Protocol, Sequence
+from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
 
 from . import (
     blockers,
@@ -25,11 +23,9 @@ from . import (
     ghapi,
     holds,
     ledger,
-    promotion,
     pulls,
     shapes,
     ticketitem,
-    windowrun,
     work,
 )
 
@@ -108,25 +104,16 @@ class Look:
     Attributes:
         opened: the open PRs, read or not.
         marks: the blocked PRs (``pullmarks.pull_marks``).
-        staged: reads the queued work of a window of tickets instead of all of
-            them (keyword: ticket-window, pitboss#443): the items, the
-            ``PROMOTE`` lines and whether tickets beyond the window are queued.
     """
 
     opened: Sequence[pulls.Read]
     marks: Mapping[str, work.Item]
-    staged: Callable[[], tuple[Sequence[work.Item], Sequence[str], bool]] | None = None
 
 
-def _start(
-    found: Source, scope: Look, book: ledger.Ledger
-) -> tuple[Sequence[work.Item], Sequence[str], bool]:
-    # the queued work, ranked by the cause rule, and whether tickets were left unread
-    if scope.staged is not None:
-        return scope.staged()
+def _start(found: Source, scope: Look, book: ledger.Ledger) -> Sequence[work.Item]:
+    # the queued work
     listed = work.queued(scope.opened, found.github, found.settings, book)
-    items, said = _promoted(found, ticketitem.fixing(listed, scope.opened))
-    return items, said, False
+    return work.ordered(ticketitem.fixing(listed, scope.opened), ())
 
 
 def standing(found: Source, slugs: Sequence[str]) -> Mapping[str, int]:
@@ -156,25 +143,17 @@ def offered(found: Source, scope: Look, book: ledger.Ledger) -> work.Offered:
         book: the slot ledger.
 
     Returns:
-        The queued work, the held, blocked and superseded tickets apart; its
-        ``unread`` says that tickets beyond the window were not read.
+        The queued work, the held, blocked and superseded tickets apart.
     """
     opened, marks = scope.opened, scope.marks
     held = standing(found, [_slug(each) for each in opened])
-    queued, said, unread = _start(found, scope, book)
-    queued = ranked(found, opened, book, queued)
+    queued = ranked(found, opened, book, _start(found, scope, book))
     queued = _blocked_pulls(queued, marks, book, opened)
-    if scope.staged is None:
-        named, gone = _named(found, queued)
-    else:
-        named, gone, left = _named_top(found, queued, held)
-        unread = unread or left
+    named, gone = _named(found, queued)
     settled, waiting = _dependencies_first(found, opened, book, named)
     offer = apart(settled, held, gone)
     labels = found.settings.slots.priority_labels
-    return dataclasses.replace(
-        offer, promoted=said, blocks=waiting, labels=labels, unread=unread
-    )
+    return dataclasses.replace(offer, blocks=waiting, labels=labels)
 
 
 def _marked(found: Source, item: work.Item) -> tuple[work.Item, bool]:
@@ -193,42 +172,6 @@ def _named(
     # the blockers of each ticket named, and the tickets that are superseded
     both = concurrently.each(functools.partial(_marked, found), queued)
     return [each for each, _ in both], {each.reference for each, gone in both if gone}
-
-
-def _named_top(
-    found: Source, queued: Sequence[work.Item], held: Mapping[str, int]
-) -> tuple[Sequence[work.Item], AbstractSet[str], bool]:
-    # keyword: ticket-window (pitboss#453): the blockers and comments of a ticket are
-    # read in the order of the ranking, as many at a time as items are still wanted,
-    # and the items after the ones offered are not read, so they are left out
-    named: list[work.Item] = []
-    gone: set[str] = set()
-    offered = 0
-    while len(named) < len(queued) and offered < windowrun.TOP:
-        part = queued[len(named) : len(named) + windowrun.TOP - offered]
-        for item, superseded in concurrently.each(
-            functools.partial(_marked, found), part
-        ):
-            named.append(item)
-            if superseded:
-                gone.add(item.reference)
-            elif not item.blockers and not _is_held(item, held):
-                offered += 1
-    return named, gone, len(named) < len(queued)
-
-
-def _promoted(
-    found: Source, queued: Sequence[work.Item]
-) -> tuple[Sequence[work.Item], Sequence[str]]:
-    # keyword: promote (pitboss#388): a ticket many others name as a cause ranks first
-    slots = found.settings.slots
-    new = work.Category.NEW_PR
-    tickets = [each for each in queued if each.category is new]
-    sources = promotion.sources(found.github, configrepos.repositories(found.settings))
-    below = [each.reference for each in tickets if each.priority > 0]
-    named = promotion.named_by(below, sources, frozenset(slots.owner_priorities))
-    items, said = promotion.raised(queued, named, slots.priority_labels)
-    return work.ordered(items, ()), said
 
 
 def _blocked_pulls(

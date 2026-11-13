@@ -1,7 +1,6 @@
 """The ``slots`` command: the worker-slot ledger, and what to start next."""
 
 import argparse
-import functools
 import sys
 from typing import Callable, Mapping, Sequence
 
@@ -15,26 +14,22 @@ from . import (
     deviations,
     fixes,
     ledger,
-    itemfast,
     ledgerowner,
     logline,
-    mergedworktree,
     nextqueued,
     nextcommand,
+    nextfound,
+    onepath,
     freecheck,
-    nextlist,
-    prefetch,
     pulls,
     repoaccess,
     slotholder,
     slotholding,
     slotlog,
     slotreport,
-    skipitem,
     slotwindow,
     tasklistlines,
     ticketof,
-    timing,
     tracefs,
     watchrun,
 )
@@ -44,9 +39,8 @@ from .commandarguments import (
     RUNNING_ARGUMENT,
     WATCH_ARGUMENTS,
 )
-from .commands import Context, load_context, open_pulls, sweep_look, whole_order
+from .commands import Context, load_context, open_pulls
 from .markers import Marker
-from .queuereads import read_runner_runs
 from .slotaction import Action
 
 Change = Callable[
@@ -245,7 +239,7 @@ def _require_ledger(found: Context, action: Action) -> None:
     if action in REFILLS:
         _require_owner(found)
     if action not in LOG_ONLY:
-        nextlist.require_ledger(found.settings.slots.ledger)
+        nextfound.require_ledger(found.settings.slots.ledger)
 
 
 def _book(found: Context) -> ledger.Ledger:
@@ -266,31 +260,12 @@ def _changing(found: Context, action: Action) -> None:
         event = logline.hand_back(slot, head, found.now)
         logline.record(found.settings.slots.log, event)
         if action is Action.FREE:
-            nextlist.refill(found, opened, changed, name)
-
-
-def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
-    # the item's own reads first (keyword: item-brief, pitboss#443); the whole order
-    # is read only for a ticket it must place
-    runs = functools.partial(read_runner_runs, found)
-    show = itemfast.show_review if found.args.step else itemfast.show
-    fast = show(found, book, reference, runs)
-    timing.note(found.args, "item read and brief built")
-    if fast is itemfast.Outcome.WHOLE:
-        whole = whole_order(found)
-        return nextlist.show_item(whole, open_pulls(whole), book, reference)
-    return fast is itemfast.Outcome.PRINTED
+            print(onepath.refill_line(found, name))
 
 
 def _free_check(found: Context) -> None:
     _read(found)
-    checkin.say(
-        [
-            freecheck.line(
-                found, functools.partial(open_pulls, found), nextlist.first_startable
-            )
-        ]
-    )
+    checkin.say([freecheck.line(found, onepath.first_line)])
     repoaccess.finish(found.access)
 
 
@@ -309,18 +284,9 @@ READS: Mapping[Action, Callable[[Context], None]] = {
 
 
 def _next(found: Context) -> None:
-    # exits 1 when nothing is offered for the ticket
-    reference = nextcommand.reference(found.args.words, found.settings.project.repo)
-    book = _book(found)
-    if reference is None:
-        prefetch.start(found)
-        checkin.say([checkin.overdue(book, found.now)])
-        nextlist.show(found, open_pulls(found), book)
-        checkin.say(mergedworktree.steps(sweep_look(found), found.now))
-    known = reference is None or _brief(found, book, reference)
-    repoaccess.finish(found.access)
-    if not known:
-        raise SystemExit(1)
+    # keyword: one-path: the list and the item form print one value
+    nextcommand.reference(found.args.words, found.settings.project.repo)
+    onepath.answer(found, onepath.mode_of(found.args, found, {}))
 
 
 def _read(found: Context) -> ledger.Ledger:
@@ -336,10 +302,8 @@ def _read(found: Context) -> ledger.Ledger:
         "words",
         nargs="*",
         help="the words of the action; for 'next', one ticket or PR (owner/repo#N,"
-        " repo#N or #N): print its brief exactly as the first suggestion's, headed"
-        " by its place in the order (NEXT 24 of 30, out of order, 22 ahead of it);"
-        " it exits 1 with UNKNOWN on standard error when slots next offers nothing"
-        " for it",
+        " repo#N or #N): print its decision and brief when it has one, else what"
+        " slots next prints (keyword: one-path)",
     ),
     RUNNING_ARGUMENT,
     add_argument(
@@ -359,9 +323,6 @@ def _read(found: Context) -> ledger.Ledger:
         default=ledger.TASK_KINDS[0],
         help="the kind of task 'slots set' records",
     ),
-    itemfast.STEP_ARGUMENT,
-    itemfast.FORCE_ARGUMENT,
-    skipitem.SKIP_ARGUMENT,
     *WATCH_ARGUMENTS,
     NOW_ARGUMENT,
     name="slots",
@@ -389,6 +350,6 @@ def slots(args: argparse.Namespace) -> None:
     elif action in READS:
         READS[action](found)
     elif action is Action.WATCH:
-        watchrun.watch(args, load_context, nextlist.free_line_by(open_pulls))
+        watchrun.watch(args, load_context, onepath.free_line)
     else:
         _shown(found, _read(found))
