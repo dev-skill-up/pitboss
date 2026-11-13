@@ -122,7 +122,7 @@ class TestStuckRun(unittest.TestCase):
 
     def test_b22_only_a_pr_waiting_for_ci_is_read(self) -> None:
         """The runs are read for a PR at the wait; a read that fails says nothing."""
-        waiting_pr = stepped(facts(3, NONE), steps.ci_pending())
+        waiting_pr = stepped(facts(3, NONE), steps.IDLE)
         reviewing = facts(4, NONE)
         head = waiting_pr.pull.head.sha
         old = _run_json(1, "queued", 120)

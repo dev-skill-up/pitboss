@@ -86,7 +86,7 @@ def facts(body: str, rulings: Sequence[folds.Recorded]) -> pulls.PullFacts:
         checks=[],
         review=None,
         standing=reviews.Standing.NONE,
-        step=steps.ci_pending(),
+        step=steps.IDLE,
     )
     pull = dataclasses.replace(base.pull, body=body)
     signals = headchecks.HeadSignals(rulings=rulings)

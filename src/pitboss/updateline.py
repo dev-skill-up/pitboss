@@ -58,9 +58,7 @@ RELOCK_WORKFLOW = "relock.yml"
 
 def _in_shared_red(pull: pulls.PullFacts) -> bool:
     # keyword: shared-red: the one ticket is the step, no fix of this PR
-    return steps.task_of(pull.step) is steps.Task.SHARED_RED or (
-        steps.pending_is(pull.step, steps.Pending.SHARED_RED)
-    )
+    return steps.task_of(pull.step) is steps.Task.SHARED_RED
 
 
 RED_FIX = "the CI is red: fix it"  # the plain fix line; MECHANICAL-FIX replaces it

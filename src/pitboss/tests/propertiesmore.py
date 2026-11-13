@@ -44,9 +44,9 @@ def _held_first(at: model.Model, step: steps.Move) -> bool:
     # the pause, an edited Plan and a running CI come before a ruling's steps
     edited = any(each[4] != at.plan for each in at.history.reviews)
     return (
-        (steps.pending_is(step, steps.Pending.OWNER) and at.paused)
+        (isinstance(step, steps.Idle) and at.paused)
         or (_plan_edited(step) and edited)
-        or (model.ci_waits(step) and at.ci in RUNNING)
+        or (model.ci_waits(at, step) and at.ci in RUNNING)
     )
 
 

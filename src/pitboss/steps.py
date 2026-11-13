@@ -282,51 +282,21 @@ def merge() -> Next:
     return Next(step=Step.MERGE)
 
 
-class Pending(enum.Enum):
-    """Why no actor takes a PR now; it is in no answer and is never printed.
+class Idle(enum.Enum):
+    """No actor takes the PR now (keyword: one-path: it is omitted, not said).
+
+    Its one member carries nothing: a reason not to act is no decision (the
+    one-path plan, 6.2), so no reader can tell one idle PR from another.
 
     Attributes:
-        OWNER: the PR is paused; the owner decides.
-        UNDRAFT: approved, but the PR cannot be undrafted yet.
-        CI: CI on the head has not finished.
-        SHARED_RED: the PR's red check is red on others (keyword: shared-red).
-        BLOCKER: the PR names an open blocker (keyword: blocked-by).
-        HOLD: a runner-pressure hold withholds the merge or dispatch.
+        IDLE: no actor takes the PR.
     """
 
-    OWNER = enum.auto()
-    UNDRAFT = enum.auto()
-    CI = enum.auto()
-    SHARED_RED = enum.auto()
-    BLOCKER = enum.auto()
-    HOLD = enum.auto()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Idle:
-    """Nobody acts on the PR now (keyword: one-path: it is omitted, not said).
-
-    Attributes:
-        pending: why, for the settlers that read it.
-        names: the open blockers (a BLOCKER), else empty.
-    """
-
-    pending: Pending
-    names: str = ""
+    IDLE = enum.auto()
 
 
 Move = Next | Idle
-OWNER_PENDING = Idle(pending=Pending.OWNER)  # the owner decides; no actor takes it
-UNDRAFT_PENDING = Idle(pending=Pending.UNDRAFT)  # the window is not clear yet
-
-
-def ci_pending() -> Idle:
-    """A head whose CI has not finished: nobody works or reviews meanwhile.
-
-    Returns:
-        The move.
-    """
-    return Idle(pending=Pending.CI)
+IDLE = Idle.IDLE
 
 
 def step_is(move: Move, wanted: AbstractSet[Step]) -> bool:
@@ -340,19 +310,6 @@ def step_is(move: Move, wanted: AbstractSet[Step]) -> bool:
         True for a step in the set; False for any other step and for an idle PR.
     """
     return isinstance(move, Next) and move.step in wanted
-
-
-def pending_is(move: Move, wanted: Pending) -> bool:
-    """Whether no actor takes a PR for one reason.
-
-    Args:
-        move: the move.
-        wanted: the reason.
-
-    Returns:
-        True when the PR is idle for that reason.
-    """
-    return isinstance(move, Idle) and move.pending is wanted
 
 
 def task_of(move: Move) -> Task | None:

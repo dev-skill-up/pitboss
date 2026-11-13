@@ -119,7 +119,7 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
         return None
     step = facts_of(record).step
     match step:
-        case steps.Idle(pending=steps.Pending.CI) if record.stuck:
+        case steps.Idle() if record.stuck:
             return _owner_stuck(record)
         case steps.Idle():
             return None  # keyword: one-path: no actor takes an idle PR

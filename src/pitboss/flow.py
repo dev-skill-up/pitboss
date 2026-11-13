@@ -47,7 +47,7 @@ get_plan_rejections = flowquestions.get_plan_rejections
 ci_result = flowquestions.ci_result
 
 
-PAUSED = steps.OWNER_PENDING
+PAUSED = steps.IDLE
 
 
 def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
@@ -171,7 +171,7 @@ def next_step(pr: PullState) -> steps.Move:
     step = next(row.step(pr) for row in ROWS if row.holds(pr))
     acted = isinstance(step, steps.Next) and step.step in steps.HELD
     held = acted and pr.draft.hold  # keyword: hold-scope, B20
-    return steps.Idle(pending=steps.Pending.HOLD) if held else step
+    return steps.IDLE if held else step
 
 
 def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
@@ -222,7 +222,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
 
 def _ready(pr: PullState) -> steps.Move:
     # an approved draft is undrafted when the window allows, else no actor takes it
-    return steps.undraft() if pr.undraft_clear else steps.UNDRAFT_PENDING
+    return steps.undraft() if pr.undraft_clear else steps.IDLE
 
 
 def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
@@ -237,7 +237,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
     """
     ci = ci_result(pr)  # GREEN, RED, or None (still running or not started)
     if ci is None:
-        return steps.ci_pending()  # nobody works or reviews meanwhile
+        return steps.IDLE  # nobody works or reviews meanwhile
     if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait
         return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 

@@ -92,10 +92,8 @@ def p1_a_step(at: model.Model, step: steps.Move, allowed: Allowed) -> str:
     Returns:
         The finding, empty when the property holds.
     """
-    waits = model.ci_waits(step) and at.ci != "running"
-    nothing = steps.pending_is(step, steps.Pending.UNDRAFT) or (
-        isinstance(step, steps.Next) and not stepwords.describe(step).strip()
-    )
+    waits = model.ci_waits(at, step) and at.ci != "running"
+    nothing = isinstance(step, steps.Next) and not stepwords.describe(step).strip()
     return "P1: no step names an action or an owner" if waits or nothing else ""
 
 
@@ -247,7 +245,7 @@ class TestProperties(unittest.TestCase):
         found = [
             more.p2_ruling_steps(
                 dataclasses.replace(ruled_model(), ci=ci),
-                steps.ci_pending(),
+                steps.IDLE,
                 events.guard_allows,
             )[:2]
             for ci in ("green", "running")
@@ -271,7 +269,7 @@ class TestProperties(unittest.TestCase):
 
     def test_properties_p1_planted_a_pr_with_no_step_fails(self) -> None:
         """P1 planted: a step that waits for a CI that is not running fails."""
-        waiting = steps.ci_pending()
+        waiting = steps.IDLE
         green = model.Model()
         assert_that(
             p1_a_step(green, waiting, events.guard_allows), contains_string("P1")

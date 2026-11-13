@@ -8,15 +8,8 @@ import dataclasses
 from typing import Callable, Mapping, Sequence, TypedDict, Unpack
 
 from .. import rulingguard, steps
-from .model import (
-    Allowed,
-    History,
-    Model,
-    Review,
-    Ruling,
-    Verdict,
-    pull_state,
-)
+from . import model as modeled
+from .model import Allowed, History, Model, Review, Ruling, Verdict, pull_state
 
 Move = Callable[[Model], Model]
 
@@ -210,7 +203,7 @@ def simulated(model: Model, step: steps.Move, allowed: Allowed) -> Model | None:
     Returns:
         The model, None for a step that waits for the owner or ends the PR.
     """
-    if steps.pending_is(step, steps.Pending.CI):
+    if modeled.ci_waits(model, step):
         return _then(model, "ci green", ci="green")
     if not isinstance(step, steps.Next):
         return None

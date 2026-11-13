@@ -12,7 +12,6 @@ from typing import Protocol, Sequence
 
 from . import config, pullref, shapes, steps
 
-KEPT = (steps.Pending.OWNER, steps.Pending.HOLD)  # the PR keeps its own move
 FIX = steps.worker(steps.Task.FIX_BLOCKED_BY)  # a closed blocker, or a loop
 
 
@@ -98,12 +97,6 @@ def _ended(check: shapes.CheckRun) -> str:
     return check.completed_at
 
 
-def _open(names: str) -> steps.Move:
-    # keyword: one-path: no actor takes the PR while a blocker it names is open,
-    # and nothing is said of it
-    return steps.Idle(pending=steps.Pending.BLOCKER, names=names)
-
-
 def verdict(pull: AtStep, found: Sequence[Blocker]) -> steps.Move | None:
     """The step a PR has because of what it waits for.
 
@@ -116,11 +109,12 @@ def verdict(pull: AtStep, found: Sequence[Blocker]) -> steps.Move | None:
     """
     shut = [each.reference for each in found if each.state in CLOSED]
     live = [each.reference for each in found if each.state is State.OPEN]
+    # keyword: one-path: no actor takes the PR while a blocker it names is open
     when = max((each.merged_at for each in found), default="")
     if shut:
         return FIX
     if live:
-        return _open(", ".join(live))
+        return steps.IDLE
     if _red_since(pull, when):
         return steps.worker(steps.Task.AFTER_BLOCKER)
     return None
@@ -135,9 +129,9 @@ def step_of(pull: AtStep, closure: Closure) -> steps.Move | None:
 
     Returns:
         The step; None when the PR keeps its own (no blocker, a pause or hold of
-        its own, or an owed ruling).
+        its own (no actor takes it), or an owed ruling).
     """
-    kept = any(steps.pending_is(pull.step, each) for each in KEPT)
+    kept = isinstance(pull.step, steps.Idle)  # no actor takes it: it stays so
     if not closure.found or kept or steps.step_is(pull.step, steps.UNRESOLVED):
         return None
     if closure.looped:  # a loop is fixed, never waited on

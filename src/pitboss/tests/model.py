@@ -234,13 +234,17 @@ def step_of(model: Model) -> steps.Move:
     return _step_of_key(repr(key(model)), model)
 
 
-def ci_waits(step: steps.Move) -> bool:
+def ci_waits(at: Model, step: steps.Move) -> bool:
     """Whether nobody acts on a PR until its CI finishes.
 
+    A model PR is no draft, so no actor takes it only while it is paused or its
+    CI has not finished (an idle step carries no reason: plan 6.2).
+
     Args:
+        at: the PR.
         step: the PR's step.
 
     Returns:
         True for the CI's wait.
     """
-    return steps.pending_is(step, steps.Pending.CI)
+    return isinstance(step, steps.Idle) and not at.paused

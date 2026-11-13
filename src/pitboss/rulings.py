@@ -48,7 +48,7 @@ def merge_when_green(pr: flow.PullState) -> steps.Move:
     """
     ci = flow.ci_result(pr)
     if ci is None:
-        return steps.ci_pending()
+        return steps.IDLE
     green = ci is flow.Ci.GREEN
     return (
         conflicts.merge_unless_conflict(pr)

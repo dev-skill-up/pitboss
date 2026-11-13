@@ -46,7 +46,7 @@ def revised_then_ruled(times: Sequence[str]) -> Sequence[Mark]:
         The marks (A1, A2, A4).
     """
     rules = ("A2", "A1", "A1", "A1", "A4")
-    wants = (RULING_STEPS, "PLAN_EDITED", RULING_STEPS, RULING_STEPS, "IDLE:OWNER")
+    wants = (RULING_STEPS, "PLAN_EDITED", RULING_STEPS, RULING_STEPS, "IDLE")
     return [Mark(*each) for each in zip(times, rules, wants)]
 
 

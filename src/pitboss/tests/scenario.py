@@ -276,10 +276,10 @@ def kind(step: steps.Move) -> str:
 
     Returns:
         ``WORKER:RULING_STEPS``, ``REGULAR_REVIEW:RULING_STEPS``, ``MERGE``;
-        ``IDLE:OWNER`` for a PR nobody acts on.
+        ``IDLE`` for a PR nobody acts on (an idle step carries no reason).
     """
     if isinstance(step, steps.Idle):
-        return f"IDLE:{step.pending.name}"
+        return "IDLE"
     named = [step.step.name]
     named += [step.task.name] if step.task else []
     named += [step.stage.name] if step.stage else []
