@@ -24,12 +24,12 @@ from . import (
     listed,
     logline,
     mode,
+    modeextent,
     nextfound,
     project,
     pullread,
     pulls,
     quiesce,
-    readextent,
     readworld,
     render,
     sharedred,
@@ -109,20 +109,6 @@ def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Re
     )
 
 
-def _extent(chosen: mode.Mode) -> readextent.Extent:
-    match chosen:
-        case mode.ItemNext() | mode.OverrideAct():
-            return readextent.naming([chosen.item])
-        case mode.MechanicalPush():
-            return readextent.pushing(chosen.arguments)
-        case mode.Sweep():
-            return readextent.EVERY_PULL
-        case mode.WhatNext() | mode.DispatchNext() | mode.Other():
-            return readextent.naming([])
-        case _:  # pragma: no cover
-            assert_never(chosen)
-
-
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Seen:
     """The world a command read, and what it decides.
@@ -161,7 +147,9 @@ def looked(found: nextfound.Found, chosen: mode.Mode) -> Seen:
     measured = sweepline.runners_look(
         found.github, runs, found.settings.runners, found.now
     )
-    made = readworld.read_world(reading_of(found, measured), _extent(chosen))
+    made = readworld.read_world(
+        reading_of(found, measured), modeextent.extent_of(chosen)
+    )
     judged = decide.decide(made)
     return Seen(made=made, judgement=judged, runners=measured)
 
@@ -272,17 +260,16 @@ def answered(
     Returns:
         The lines, and the decisions they name, in order.
     """
-    match chosen:
-        case mode.WhatNext():
+    answers = mode.question_of(chosen).answers
+    match answers:
+        case mode.Answers.LIST:
             return _listed(project.what_next(decided))
-        case mode.ItemNext():
-            return _asked(project.item_next(decided, chosen.item))
-        case mode.DispatchNext() | mode.Sweep() | mode.OverrideAct():
-            return [], []
-        case mode.MechanicalPush() | mode.Other():
+        case mode.Answers.ITEM:
+            return _asked(project.item_next(decided, mode.item_of(chosen)))
+        case mode.Answers.NOTHING:
             return [], []
         case _:  # pragma: no cover
-            assert_never(chosen)
+            assert_never(answers)
 
 
 def seen_for(found: nextfound.Found) -> Seen:
@@ -309,7 +296,8 @@ def answer_of(found: nextfound.Found) -> None:
     lines, shown = answered(chosen, judgement.decided)
     lines = [*ticketnotes.asked(found.args, chosen, judgement.records), *lines]
     source, picks = briefed(found, judgement.records, shown)
-    tail = suggest.tail(source) if mode.listing(chosen) else []
+    listing = mode.question_of(chosen).answers is mode.Answers.LIST
+    tail = suggest.tail(source) if listing else []
     said = [*lines, *tail, *suggest.lines(source, picks)]
     logline.after(said, found.settings.slots.log)
     timing.note(found.args, "lists and briefs printed", len(picks), "briefs")

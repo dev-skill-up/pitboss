@@ -170,7 +170,7 @@ class TestAnswers(unittest.TestCase):
 
     def test_a_question_with_no_work_prints_no_decision(self) -> None:
         """``next <item>`` of an undecided item prints the one line, briefs nothing."""
-        asked = mode.ItemNext(asked=mode.Asked.NEXT, item="o/r#1")
+        asked = mode.NextItem(item="o/r#1")
         found = onepath.answered(asked, NOTHING)
         assert_that(found, equal_to(([render.NOT_ENOUGH_WORK], [])))
 

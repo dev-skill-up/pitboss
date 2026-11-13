@@ -79,7 +79,7 @@ def _exits(
 def _no_mode(
     args: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
 ) -> mode.Mode:
-    return mode.WhatNext(asked=mode.Asked.NEXT)
+    return mode.Next()
 
 
 def _not_a_mode(
@@ -170,7 +170,7 @@ class TestModes(unittest.TestCase):
     def test_the_seeds_find_a_parse_that_reaches_every_mode(self) -> None:
         """Plan 6.5: P4's seed leaves a mode unreached; the real parse does not."""
         found = proofseeds.missed(TEXTS, cli_parser.table(), mode.parse)
-        said = "P4: a parse with no image of WhatNext is not found"
+        said = "P4: a parse that leaves a mode with no image is not found"
         assert_that(found, equal_to([said]))
 
 

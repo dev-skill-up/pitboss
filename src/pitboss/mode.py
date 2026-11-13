@@ -1,80 +1,125 @@
 """What a command line asks, as one closed type (keyword: one-path).
 
-``parse`` maps every parse of the command line onto one ``Mode``: the questions of
-what is next (``next``, the ``slots`` actions that say it, ``act dispatch-next``)
-each have a constructor and a tag of their own, ``sweep`` is ``Sweep``, which
-reads every open pull request, the ``act`` verbs that look their verb up in the
-item's decision and ``pins-review`` are ``ItemNext`` with a tag of their own,
-``push --mechanical`` is ``MechanicalPush``, and every other command and action,
-which decides nothing about a step, is ``Other``. Every dispatch on a mode is a
-``match`` that ends in ``assert_never``.
+``parse`` maps every parse of the command line onto one ``Mode``: each command,
+action and item form that asks of the decisions has a constructor of its own
+(``next`` is ``Next``, ``next <item>`` is ``NextItem``, ``act merge <item>`` is
+``Merge``, ...), ``push --mechanical`` is ``MechanicalPush``, and every other
+command and action, which asks nothing of the decisions, is ``Other``. Every
+dispatch on a mode is a ``match`` that ends in ``assert_never``.
 """
 
 import argparse
 import dataclasses
 import enum
-from typing import Callable, Mapping, Sequence, assert_never
+import typing
+from dataclasses import dataclass
+from typing import Callable, Mapping, Protocol, Sequence, assert_never
 
 from . import config, ledger, nextcommand
 
 
-class Asked(enum.Enum):
-    """Which command asks what is next.
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Next:
+    """``next``: what is next."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SlotsNext:
+    """``slots next``: what is next, for a slot."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FreeCheck:
+    """``slots free-check``: whether a slot is free, and what it takes."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Tasks:
+    """``slots tasklist``: the task list of what is next."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Free:
+    """``slots free``: a slot handed back, and what it takes next."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Heard:
+    """``slots heard``: a hand-back heard, and what the slot takes next."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Watch:
+    """``slots watch``: its ``SLOT FREE`` line names the first decision."""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class NextItem:
+    """``next <item>``: the item's decision.
 
     Attributes:
-        NEXT: ``next``.
-        SLOTS_NEXT: ``slots next``.
-        FREE_CHECK: ``slots free-check``.
-        TASKLIST: ``slots tasklist``.
-        HAND_BACK: ``slots free`` and ``slots heard``, which say what the slot
-            takes next.
-        WATCH: ``slots watch``, whose ``SLOT FREE`` line names the first decision.
-        MERGE: ``act merge <item>``, which runs when the item's decision is the merge.
-        ARM: ``act arm <item>``, likewise.
-        UNDRAFT: ``act undraft <item>``, when its decision is the undraft.
-        PINS_REVIEW: ``pins-review <item>``, which reviews a relock's pins.
-    """
-
-    NEXT = enum.auto()
-    SLOTS_NEXT = enum.auto()
-    FREE_CHECK = enum.auto()
-    TASKLIST = enum.auto()
-    HAND_BACK = enum.auto()
-    WATCH = enum.auto()
-    MERGE = enum.auto()
-    ARM = enum.auto()
-    UNDRAFT = enum.auto()
-    PINS_REVIEW = enum.auto()
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WhatNext:
-    """What is next: ``next``, ``slots next`` with no item, ``slots free-check``.
-
-    Attributes:
-        asked: the command that asks.
-    """
-
-    asked: Asked
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ItemNext:
-    """What is next for one item: ``next <item>`` and the commands that act on it.
-
-    ``slots next <item>``, ``act merge``, ``arm`` and ``undraft``, and
-    ``pins-review``, each with its tag (they ask the same of the item's decision).
-
-    Attributes:
-        asked: the command that asks.
         item: the item, ``owner/name#number``.
     """
 
-    asked: Asked
     item: str
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SlotsNextItem:
+    """``slots next <item>``: the item's decision, for a slot.
+
+    Attributes:
+        item: the item, ``owner/name#number``.
+    """
+
+    item: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Merge:
+    """``act merge <item>``: runs when the item's decision is the merge.
+
+    Attributes:
+        item: the item, ``owner/name#number``.
+    """
+
+    item: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Arm:
+    """``act arm <item>``: runs when the item's decision is to arm it.
+
+    Attributes:
+        item: the item, ``owner/name#number``.
+    """
+
+    item: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Undraft:
+    """``act undraft <item>``: runs when the item's decision is the undraft.
+
+    Attributes:
+        item: the item, ``owner/name#number``.
+    """
+
+    item: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PinsReview:
+    """``pins-review <item>``: reviews a relock's pins.
+
+    Attributes:
+        item: the item, ``owner/name#number``.
+    """
+
+    item: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class DispatchNext:
     """The one next piece of work: ``act dispatch-next``.
 
@@ -87,7 +132,7 @@ class DispatchNext:
     options: Mapping[str, str]
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Sweep:
     """Every open pull request, then what is next: ``sweep``.
 
@@ -98,7 +143,7 @@ class Sweep:
     task_list: str
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class OverrideAct:
     """``act override <item> stop=... reason=...``: lift one stop of its decision.
 
@@ -113,7 +158,7 @@ class OverrideAct:
     reason: str
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class MechanicalPush:
     """``push --mechanical``: a push free of the hold for a mechanical red.
 
@@ -124,7 +169,7 @@ class MechanicalPush:
     arguments: Sequence[str]
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Other:
     """A command or action that decides nothing about a step.
 
@@ -135,44 +180,87 @@ class Other:
     command: str
 
 
-Mode = WhatNext | ItemNext | DispatchNext | Sweep | OverrideAct | MechanicalPush | Other
-NAMES: Sequence[str] = (
-    "WhatNext",
-    "ItemNext",
-    "DispatchNext",
-    "Sweep",
-    "OverrideAct",
-    "MechanicalPush",
-    "Other",
-)
+class Answers(enum.Enum):
+    """What a mode prints of the decisions.
+
+    Attributes:
+        LIST: the answer of what is next, with its tail.
+        ITEM: the decision of the item it names.
+        NOTHING: no answer of its own.
+    """
+
+    LIST = enum.auto()
+    ITEM = enum.auto()
+    NOTHING = enum.auto()
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Question:
+    """What a mode asks of the one read and of the decisions.
+
+    Attributes:
+        answers: what it prints of the decisions.
+        item: the item it names, empty for none.
+        every_pull: whether it reads every open pull request (the sweep).
+        pushing: whether it reads the pull requests of the branches it pushes.
+        pushed: the arguments of that push.
+    """
+
+    answers: Answers
+    item: str
+    every_pull: bool
+    pushing: bool
+    pushed: Sequence[str]
+
+
+Listing = Next | SlotsNext | FreeCheck | Tasks | Free | Heard | Watch
+Naming = NextItem | SlotsNextItem | Merge | Arm | Undraft | PinsReview
+Mode = Listing | Naming | DispatchNext | Sweep | OverrideAct | MechanicalPush | Other
+NAMES: Sequence[str] = tuple(each.__name__ for each in typing.get_args(Mode))
 ModeOf = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], Mode]
+
+
+class Named(Protocol):
+    """A constructor of a mode that names one item."""
+
+    def __call__(self, *, item: str) -> Mode:
+        """The mode.
+
+        Args:
+            item: the item, ``owner/name#number``.
+
+        Returns:
+            The mode that names it.
+        """
 
 
 def _item(word: object, project: config.Repo) -> str:
     return ledger.reference(str(word), project) if word else ""
 
 
-def _named(asked: Asked, words: Sequence[str], project: config.Repo) -> Mode:
+def _named(
+    bare: Callable[[], Mode], named: Named, words: Sequence[str], project: config.Repo
+) -> Mode:
     # an item form names one item in full; other words exit 2 (``nextcommand``)
     item = nextcommand.reference(words, project)
-    return WhatNext(asked=asked) if item is None else ItemNext(asked=asked, item=item)
+    return bare() if item is None else named(item=item)
 
 
 def _next(args: argparse.Namespace, project: config.Repo, _: Mapping[str, str]) -> Mode:
     ticket = getattr(args, "ticket", None)
-    return _named(Asked.NEXT, [] if ticket is None else [str(ticket)], project)
+    return _named(Next, NextItem, [] if ticket is None else [str(ticket)], project)
 
 
 def _slots_next(
     args: argparse.Namespace, project: config.Repo, _: Mapping[str, str]
 ) -> Mode:
     words = list(getattr(args, "words", ()) or ())
-    return _named(Asked.SLOTS_NEXT, words, project)
+    return _named(SlotsNext, SlotsNextItem, words, project)
 
 
-def _asking(asked: Asked) -> ModeOf:
+def _asking(bare: Callable[[], Mode]) -> ModeOf:
     def parsed(*_: object) -> Mode:
-        return WhatNext(asked=asked)
+        return bare()
 
     return parsed
 
@@ -184,10 +272,10 @@ def _dispatch_next(
     return DispatchNext(want=_item(options.get("want"), project), options=rest)
 
 
-def _acting(asked: Asked, field: str) -> ModeOf:
+def _acting(named: Named, field: str) -> ModeOf:
     # an item the command names in its argument ``field``
     def parsed(args: argparse.Namespace, project: config.Repo, *_: object) -> Mode:
-        return ItemNext(asked=asked, item=_item(getattr(args, field, ""), project))
+        return named(item=_item(getattr(args, field, ""), project))
 
     return parsed
 
@@ -217,17 +305,17 @@ PARSES: Mapping[tuple[str, str], ModeOf] = {
     ("sweep", ""): _sweep,
     ("next", ""): _next,
     ("slots", "next"): _slots_next,
-    ("slots", "free-check"): _asking(Asked.FREE_CHECK),
-    ("slots", "tasklist"): _asking(Asked.TASKLIST),
-    ("slots", "free"): _asking(Asked.HAND_BACK),
-    ("slots", "heard"): _asking(Asked.HAND_BACK),
-    ("slots", "watch"): _asking(Asked.WATCH),
+    ("slots", "free-check"): _asking(FreeCheck),
+    ("slots", "tasklist"): _asking(Tasks),
+    ("slots", "free"): _asking(Free),
+    ("slots", "heard"): _asking(Heard),
+    ("slots", "watch"): _asking(Watch),
     ("act", "dispatch-next"): _dispatch_next,
-    ("act", "merge"): _acting(Asked.MERGE, "target"),
-    ("act", "arm"): _acting(Asked.ARM, "target"),
-    ("act", "undraft"): _acting(Asked.UNDRAFT, "target"),
+    ("act", "merge"): _acting(Merge, "target"),
+    ("act", "arm"): _acting(Arm, "target"),
+    ("act", "undraft"): _acting(Undraft, "target"),
     ("act", "override"): _override,
-    ("pins-review", ""): _acting(Asked.PINS_REVIEW, "pull"),
+    ("pins-review", ""): _acting(PinsReview, "pull"),
     ("push", ""): _push,
 }
 
@@ -255,27 +343,39 @@ def parse(
     return Other(command=" ".join(filter(None, [name, action])))
 
 
-def listing(chosen: Mode) -> bool:
-    """Whether a mode prints the list of what is next (and its tail).
+def _question(answers: Answers, item: str) -> Question:
+    return Question(
+        answers=answers, item=item, every_pull=False, pushing=False, pushed=()
+    )
+
+
+LISTED = _question(Answers.LIST, "")
+QUIET = _question(Answers.NOTHING, "")
+EVERY = dataclasses.replace(QUIET, every_pull=True)
+
+
+def question_of(chosen: Mode) -> Question:
+    """What a mode asks: the one dispatch on its constructor.
 
     Args:
         chosen: the mode.
 
     Returns:
-        True for ``next``, ``slots next`` and ``slots free-check`` with no item.
+        What it answers, the item it names and what it reads beyond it.
     """
     match chosen:
-        case WhatNext():
-            return True
-        case (
-            ItemNext()
-            | DispatchNext()
-            | Sweep()
-            | OverrideAct()
-            | MechanicalPush()
-            | Other()
-        ):
-            return False
+        case Next() | SlotsNext() | FreeCheck() | Tasks() | Free() | Heard() | Watch():
+            return LISTED
+        case NextItem() | SlotsNextItem() | Merge() | Arm() | Undraft() | PinsReview():
+            return _question(Answers.ITEM, chosen.item)
+        case OverrideAct():
+            return _question(Answers.NOTHING, chosen.item)
+        case DispatchNext() | Other():
+            return QUIET
+        case Sweep():
+            return EVERY
+        case MechanicalPush():
+            return dataclasses.replace(QUIET, pushing=True, pushed=chosen.arguments)
         case _:  # pragma: no cover
             assert_never(chosen)
 
@@ -287,12 +387,6 @@ def item_of(chosen: Mode) -> str:
         chosen: the mode.
 
     Returns:
-        The item of an item form, empty for any other.
+        The item of an item form or an override, empty for any other.
     """
-    match chosen:
-        case ItemNext() | OverrideAct():
-            return chosen.item
-        case WhatNext() | DispatchNext() | Sweep() | MechanicalPush() | Other():
-            return ""
-        case _:  # pragma: no cover
-            assert_never(chosen)
+    return question_of(chosen).item

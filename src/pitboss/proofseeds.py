@@ -131,7 +131,7 @@ def missed(
     if not modeproof.total_matches(proofsource.of_texts(seeded(texts, UNMATCHED))):
         found.append("P4: a match on a mode without assert_never is not found")
     if not modeproof.images(seed_parse, declared):
-        found.append("P4: a parse with no image of WhatNext is not found")
+        found.append("P4: a parse that leaves a mode with no image is not found")
     return found
 
 
