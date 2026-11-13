@@ -120,13 +120,22 @@ def stale_runs(runs: Sequence[QueueRun]) -> Sequence[QueueRun]:
     ]
 
 
+def run_path(queue_run: QueueRun, tail: str) -> str:
+    """The API path of something of a queue run.
+
+    Args:
+        queue_run: the run.
+        tail: what of it (``jobs``, ``cancel``).
+
+    Returns:
+        The path.
+    """
+    return f"repos/{queue_run.repo.slug}/actions/runs/{queue_run.run.id}/{tail}"
+
+
 def _queued_jobs(github: ghapi.GitHub, queue_run: QueueRun) -> int:
-    waiting = ghapi.pages(
-        github,
-        f"repos/{queue_run.repo.slug}/actions/runs/{queue_run.run.id}/jobs",
-        parsing.jobs_waiting,
-    )
-    return sum(waiting)
+    path = run_path(queue_run, "jobs")
+    return sum(ghapi.pages(github, path, parsing.jobs_waiting))
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

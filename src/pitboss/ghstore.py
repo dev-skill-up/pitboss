@@ -218,10 +218,8 @@ def every_pull(
     Returns:
         The open PRs, newest first, then the closed ones, newest first.
     """
-    return [
-        *ghapi.pages(github, f"repos/{slug}/pulls?state=open", parse),
-        *ghapi.pages(github, f"repos/{slug}/pulls?state=closed", parse),
-    ]
+    listings = (f"repos/{slug}/pulls?state=open", f"repos/{slug}/pulls?state=closed")
+    return [item for path in listings for item in ghapi.pages(github, path, parse)]
 
 
 def read_outcomes(

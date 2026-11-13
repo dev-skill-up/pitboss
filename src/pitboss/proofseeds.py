@@ -13,7 +13,7 @@ import pathlib
 import sys
 from typing import Mapping, Sequence
 
-from . import cli_parser, config, machine, mode, modeproof, pathproofs, proofsource
+from . import config, mode, modeproof, pathproofs, proofsource
 
 SOURCE = "src/pitboss/"
 
@@ -60,7 +60,10 @@ SEEDS: Mapping[str, Seed] = {
 # P4's static half: a match on a mode that does not end in assert_never
 UNMATCHED = Seed(
     path="onepath.py",
-    old="        case _:  # pragma: no cover\n            assert_never(chosen)\n\n\ndef seen_for",
+    old=(
+        "        case _:  # pragma: no cover\n"
+        "            assert_never(chosen)\n\n\ndef seen_for"
+    ),
     new="        case _:  # pragma: no cover\n            pass\n\n\ndef seen_for",
 )
 
@@ -76,12 +79,12 @@ def seeded(texts: Mapping[str, str], seed: Seed) -> Mapping[str, str]:
         The files; a seed whose text is not there once changes nothing.
     """
     path = f"{SOURCE}{seed.path}"
-    text = texts.get(path, "")
+    before = texts.get(path, "")
     if not seed.old:
-        return {**texts, path: text + seed.new}
-    if text.count(seed.old) != 1:
+        return {**texts, path: before + seed.new}
+    if before.count(seed.old) != 1:
         return texts
-    return {**texts, path: text.replace(seed.old, seed.new)}
+    return {**texts, path: before.replace(seed.old, seed.new)}
 
 
 def _other_modes(
@@ -108,22 +111,23 @@ def missed(texts: Mapping[str, str], parser: argparse.ArgumentParser) -> Sequenc
             found.append(f"{name}: its seed is not found ({seed.path})")
     if not modeproof.total_matches(proofsource.of_texts(seeded(texts, UNMATCHED))):
         found.append("P4: a match on a mode without assert_never is not found")
-    stand_in: modeproof.Parse = _other_modes
+    stand_in: mode.ModeOf = _other_modes
     if not modeproof.images(stand_in, parser):
         found.append("P4: a parse with no image of WhatNext is not found")
     return found
 
 
-def main(root: pathlib.Path) -> int:
+def main(root: pathlib.Path, parser: argparse.ArgumentParser) -> int:
     """Check that each proof holds and fails on its seed.
 
     Args:
         root: the repository's root.
+        parser: the command line parser, for P4.
 
     Returns:
         0 when it does, 1 otherwise.
     """
-    found = missed(proofsource.read(root), cli_parser.make_parser(machine.read_usage))
+    found = missed(proofsource.read(root), parser)
     for each in found:
         print(each)
     print("seeds: ok" if not found else f"seeds: {len(found)} findings")
@@ -131,4 +135,4 @@ def main(root: pathlib.Path) -> int:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sys.exit(main(pathlib.Path.cwd()))
+    sys.exit(main(pathlib.Path.cwd(), modeproof.recorded()))

@@ -43,15 +43,15 @@ def one_decider(package: Package) -> Sequence[str]:
     types = _answer_types(package)
     found: list[str] = []
     for name, source in package.sources.items():
-        short = name.removeprefix("pitboss.")
+        short = proofsource.short(name)
         if short == "decide":
             continue
         bare = _imported_from_answer(source.syntax) & types
-        names = {f"answer.{each}" for each in types} | bare
+        constructors = {f"answer.{each}" for each in types} | bare
         found.extend(
             f"P1: {short}:{node.lineno} makes {proofsource.called(node)}"
             for node in ast.walk(source.syntax)
-            if isinstance(node, ast.Call) and proofsource.called(node) in names
+            if isinstance(node, ast.Call) and proofsource.called(node) in constructors
         )
     return found
 
@@ -84,7 +84,7 @@ def _caught(package: Package, name: str) -> Iterator[tuple[str, ast.ExceptHandle
 def _exits_nonzero(handler: ast.ExceptHandler) -> bool:
     for node in ast.walk(handler):
         if proofsource.called(node) == "SystemExit" and isinstance(node, ast.Call):
-            status = node.args[0] if node.args else None
+            status = proofsource.first_argument(node)
             if isinstance(status, ast.Constant) and status.value not in (0, None):
                 return True
     return False
@@ -115,6 +115,14 @@ def read_failure(package: Package) -> Sequence[str]:
     return found
 
 
+def _made_outside_reading(package: Package, owner: str, name: str) -> Sequence[str]:
+    # a class of the world is made in readworld and nowhere else
+    made = proofsource.sites(package, owner, name)
+    if [each.partition(":")[0] for each in made] == ["readworld"]:
+        return []
+    return [f"{name} is made at {made}"]
+
+
 def no_partial_world(package: Package) -> Sequence[str]:
     """P3: ``World`` has no default and is made at one site, in ``readworld``.
 
@@ -129,10 +137,8 @@ def no_partial_world(package: Package) -> Sequence[str]:
         for each in _fields(proofsource.module(package, "world"), "World")
         if each.value is not None
     ]
-    sites = proofsource.calls_of(package, {"world.World", "World"})
-    if [each.partition(":")[0] for each in sites] != ["readworld"]:
-        found.append(f"P3: World is made at {sites}")
-    return [*found, *read_failure(package)]
+    made = _made_outside_reading(package, "world", "World")
+    return [*found, *(f"P3: {each}" for each in made), *read_failure(package)]
 
 
 def _decision_shape(package: Package) -> Sequence[str]:
@@ -168,14 +174,13 @@ def _nothing_none(package: Package) -> Sequence[str]:
         for node in ast.walk(proofsource.module(package, "answer"))
         if isinstance(node, ast.AnnAssign) and "None" in ast.unparse(node.annotation)
     ]
-    for name in ("project", "render"):
-        tree = proofsource.module(package, name)
-        found.extend(
-            f"P7: {name}.{function.name} admits None"
-            for function in proofsource.functions(tree).values()
-            if _admits_none(function) or _takes_none(function)
-        )
-    deciding = proofsource.functions(proofsource.module(package, "decide"))
+    found.extend(
+        f"P7: {name}.{function.name} admits None"
+        for name in ("project", "render")
+        for function in proofsource.functions_of(package, name).values()
+        if _admits_none(function) or _takes_none(function)
+    )
+    deciding = proofsource.functions_of(package, "decide")
     found.extend(
         f"P7: decide.{name} admits None"
         for name, function in deciding.items()
@@ -186,28 +191,32 @@ def _nothing_none(package: Package) -> Sequence[str]:
     return found
 
 
-def _wait_words(package: Package) -> Sequence[str]:
-    found: list[str] = []
-    for name in SAYING:
-        tree = proofsource.module(package, name)
-        said = [*proofsource.texts_of(tree)]
-        said.extend(
+def _said(tree: ast.AST) -> Sequence[tuple[int, str]]:
+    # each text, class name and assigned name of a module, with its line
+    walked = proofsource.every_node(tree)
+    return [
+        *proofsource.texts_of(tree),
+        *(
             (node.lineno, node.name)
-            for node in ast.walk(tree)
+            for node in walked
             if isinstance(node, ast.ClassDef)
-        )
-        said.extend(
+        ),
+        *(
             (node.lineno, proofsource.dotted(target))
-            for node in ast.walk(tree)
+            for node in walked
             if isinstance(node, ast.Assign)
             for target in node.targets
-        )
-        found.extend(
-            f"P7: {name}:{line} says a wait: {text[:40]!r}"
-            for line, text in said
-            if WAIT_WORDS.search(text)
-        )
-    return found
+        ),
+    ]
+
+
+def _wait_words(package: Package) -> Sequence[str]:
+    return [
+        f"P7: {name}:{line} says a wait: {text[:40]!r}"
+        for name in SAYING
+        for line, text in _said(proofsource.module(package, name))
+        if WAIT_WORDS.search(text)
+    ]
 
 
 def _not_enough_work(package: Package) -> Sequence[str]:
@@ -224,12 +233,12 @@ def _not_enough_work(package: Package) -> Sequence[str]:
     first = [each for each in _fields(answer, "Work") if _field_name(each) == "first"]
     if [ast.unparse(each.annotation) for each in first] != ["Decision"]:
         found.append("P7: Work has no required first Decision")
-    sites = proofsource.calls_of(package, {"answer.NotEnoughWork", "NotEnoughWork"})
-    if sites != [_exhausted_arm(package)]:
-        found.append(f"P7: NotEnoughWork is made at {sites}")
-    made = proofsource.calls_of(package, {"world.Exhausted", "Exhausted"})
-    if [each.partition(":")[0] for each in made] != ["readworld"]:
-        found.append(f"P7: Exhausted is made at {made}")
+    answered = proofsource.sites(package, "answer", "NotEnoughWork")
+    if answered != [_exhausted_arm(package)]:
+        found.append(f"P7: NotEnoughWork is made at {answered}")
+    found.extend(
+        f"P7: {each}" for each in _made_outside_reading(package, "world", "Exhausted")
+    )
     return found
 
 
@@ -265,12 +274,7 @@ def no_wait(package: Package) -> Sequence[str]:
 
 def _ends_total(function: ast.FunctionDef) -> bool:
     matches = [each for each in function.body if isinstance(each, ast.Match)]
-    if not matches:
-        return False
-    last = matches[-1].cases[-1].body[-1]
-    return (
-        isinstance(last, ast.Expr) and proofsource.called(last.value) == "assert_never"
-    )
+    return bool(matches) and proofsource.ends_never(matches[-1].cases[-1].body)
 
 
 def act_agrees(package: Package) -> Sequence[str]:
@@ -283,9 +287,7 @@ def act_agrees(package: Package) -> Sequence[str]:
         What breaks it.
     """
     found: list[str] = []
-    lookup = proofsource.functions(proofsource.module(package, "gateverbs")).get(
-        "lookup"
-    )
+    lookup = proofsource.defined(package, "gateverbs", "lookup")
     if lookup is None or not _ends_total(lookup):
         found.append("P8: gateverbs.lookup is no total match on the verb")
     elif ast.unparse(lookup.args.args[0].annotation or lookup) != "answer.Decided":

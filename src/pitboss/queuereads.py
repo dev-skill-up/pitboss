@@ -69,5 +69,4 @@ def cancel(found: reading.Reading, stale: queue.QueueRun) -> None:
         found: the context.
         stale: the run.
     """
-    path = f"repos/{stale.repo.slug}/actions/runs/{stale.run.id}/cancel"
-    ghapi.post(found.github, path)
+    ghapi.post(found.github, queue.run_path(stale, "cancel"))

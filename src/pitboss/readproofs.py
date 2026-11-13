@@ -6,7 +6,7 @@ the property holds (keyword: one-path).
 
 import ast
 import re
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from . import importgraph, proofsource
 from .proofsource import Package
@@ -62,7 +62,7 @@ def one_read(package: Package) -> Sequence[str]:
     Returns:
         Each other call site and each command module that imports it.
     """
-    sites = proofsource.calls_of(package, {"readworld.read_world", "read_world"})
+    sites = proofsource.sites(package, "readworld", "read_world")
     found = [] if len(sites) == 1 else [f"P6: read_world is called at {sites}"]
     found.extend(
         f"P6: {name} imports ghapi"
@@ -82,7 +82,7 @@ def _is_command(name: str) -> bool:
 def _paths(package: Package, names: Sequence[str]) -> Sequence[tuple[str, int, str]]:
     # every request path a module writes, f-strings read with their holes
     return [
-        (name.removeprefix("pitboss."), line, text)
+        (proofsource.short(name), line, text)
         for name in names
         for line, text in proofsource.texts_of(package.sources[name].syntax)
         if LISTING.search(text)
@@ -114,7 +114,7 @@ def _open_pulls(text: str) -> bool:
 
 
 def _function_at(package: Package, name: str, line: int) -> str:
-    for function in proofsource.functions(proofsource.module(package, name)).values():
+    for function in proofsource.functions_of(package, name).values():
         if function.lineno <= line <= (function.end_lineno or function.lineno):
             return f"{name}.{function.name}"
     return f"{name}:{line}"
@@ -123,7 +123,7 @@ def _function_at(package: Package, name: str, line: int) -> str:
 def _callers(package: Package, called: str) -> Sequence[str]:
     found = []
     for name, source in package.sources.items():
-        short = name.removeprefix("pitboss.")
+        short = proofsource.short(name)
         for function in proofsource.functions(source.syntax).values():
             if any(
                 proofsource.called(node).split(".")[-1] == called
@@ -164,6 +164,28 @@ EXAMINED = {
 }
 
 
+def _walk_breaks(walk: ast.FunctionDef | None) -> Sequence[str]:
+    walked = proofsource.every_node(walk) if walk else []
+    compared = [ast.unparse(node) for node in walked if isinstance(node, ast.Compare)]
+    held = [
+        ast.unparse(node.annotation)
+        for node in walked
+        if isinstance(node, ast.AnnAssign)
+        and proofsource.dotted(node.target) == "decisions"
+    ]
+    found = []
+    if "len(decisions) >= walking.stop" not in compared:
+        found.append(f"P10: the walk's stop compares {compared}")
+    if held != ["list[answer.Decision]"]:
+        found.append(f"P10: the stop counts {held}, not decisions")
+    return found
+
+
+def _taken(function: ast.FunctionDef | None) -> Sequence[str]:
+    given = function.args.args if function else []
+    return [ast.unparse(each.annotation) for each in given if each.annotation]
+
+
 def stop_counts_decisions(package: Package) -> Sequence[str]:
     """P10: the walk stops on the count of decisions, and an item is decided alone.
 
@@ -173,33 +195,22 @@ def stop_counts_decisions(package: Package) -> Sequence[str]:
     Returns:
         What breaks it.
     """
-    found = []
-    walk = proofsource.functions(proofsource.module(package, "readworld")).get("walk")
-    compared = [
-        ast.unparse(node)
-        for node in ast.walk(walk or ast.Module(body=[], type_ignores=[]))
-        if isinstance(node, ast.Compare)
-    ]
-    if "len(decisions) >= walking.stop" not in compared:
-        found.append(f"P10: the walk's stop compares {compared}")
-    held = [
-        ast.unparse(node.annotation)
-        for node in ast.walk(walk or ast.Module(body=[], type_ignores=[]))
-        if isinstance(node, ast.AnnAssign)
-        and proofsource.dotted(node.target) == "decisions"
-    ]
-    if held != ["list[answer.Decision]"]:
-        found.append(f"P10: the stop counts {held}, not decisions")
-    deciding = proofsource.functions(proofsource.module(package, "decide"))
-    item = deciding.get("decide_item")
-    taken = (
-        [ast.unparse(a.annotation) for a in item.args.args if a.annotation]
-        if item
-        else []
-    )
+    found = [*_walk_breaks(proofsource.defined(package, "readworld", "walk"))]
+    taken = _taken(proofsource.defined(package, "decide", "decide_item"))
     if taken != ["world.Record"]:
         found.append(f"P10: decide_item takes {taken}, not one record")
     return found
+
+
+def _raising(functions: Mapping[str, ast.FunctionDef]) -> Sequence[str]:
+    return [
+        name
+        for name, function in functions.items()
+        if any(
+            isinstance(node, ast.Raise) and "ReadFailed" in ast.unparse(node)
+            for node in ast.walk(function)
+        )
+    ]
 
 
 def retried_once(package: Package) -> Sequence[str]:
@@ -211,25 +222,20 @@ def retried_once(package: Package) -> Sequence[str]:
     Returns:
         What breaks it (the read failure's own sites are P3's).
     """
-    found = []
-    retrying = proofsource.functions(proofsource.module(package, "retrying"))
+    retrying = proofsource.functions_of(package, "retrying")
     wrap = retrying.get("with_retries")
     if wrap is None:
         return ["P11: there is no retrying.with_retries"]
-    names = [each.arg for each in wrap.args.args]
-    if names != ["run", "draw", "sleep"] or wrap.args.defaults:
-        found.append(f"P11: with_retries takes {names} with defaults")
-    sites = proofsource.calls_of(package, {"retrying.with_retries", "with_retries"})
-    if len(sites) != 1:
-        found.append(f"P11: the retry wraps {sites}")
-    raising = [
-        function
-        for function in retrying.values()
-        if any(
-            isinstance(node, ast.Raise) and "ReadFailed" in ast.unparse(node)
-            for node in ast.walk(function)
-        )
-    ]
-    if [each.name for each in raising] != ["_tries"]:
-        found.append(f"P11: ReadFailed is raised in {[each.name for each in raising]}")
+    found = []
+    arguments = [each.arg for each in wrap.args.args]
+    if arguments != ["run", "draw", "sleep"] or wrap.args.defaults:
+        found.append(f"P11: with_retries takes {arguments} with defaults")
+    found.extend(
+        f"P11: the retry wraps {wrapped_at}"
+        for wrapped_at in [proofsource.sites(package, "retrying", "with_retries")]
+        if len(wrapped_at) != 1
+    )
+    raised = _raising(retrying)
+    if raised != ["_tries"]:
+        found.append(f"P11: ReadFailed is raised in {raised}")
     return found

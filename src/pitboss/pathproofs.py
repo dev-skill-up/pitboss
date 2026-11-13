@@ -21,7 +21,7 @@ def _aliases(package: Package) -> Mapping[str, Sequence[str]]:
     # each union a module names: ``answer.Answer`` is Work or NotEnoughWork
     found: dict[str, Sequence[str]] = {}
     for name in ("answer", "project"):
-        for node in proofsource.module(package, name).body:  # type: ignore[attr-defined]
+        for node in proofsource.statements(proofsource.module(package, name)):
             if isinstance(node, ast.Assign) and isinstance(node.value, ast.BinOp):
                 members = ast.unparse(node.value).split(" | ")
                 for target in node.targets:
@@ -37,12 +37,37 @@ def _given(name: str, annotation: ast.expr | None) -> str:
 
 
 def _projected(package: Package) -> Sequence[str]:
-    projections = proofsource.functions(proofsource.module(package, "project"))
     return [
         _given("project", each.returns)
-        for name, each in projections.items()
+        for name, each in proofsource.functions_of(package, "project").items()
         if not name.startswith("_")
     ]
+
+
+def _renderers(package: Package, returned: Sequence[str]) -> Sequence[str]:
+    # each public renderer whose first argument is no projection's value
+    aliases = _aliases(package)
+    allowed = {*returned, *(m for each in returned for m in aliases.get(each, ()))}
+    found = []
+    for name, function in proofsource.functions_of(package, "render").items():
+        first = function.args.args[0].annotation if function.args.args else None
+        given = _given("render", first)
+        if not name.startswith("_") and given not in allowed:
+            found.append(f"P5: render.{name} takes {given}, no projection's value")
+    return found
+
+
+def _projections_given(package: Package) -> Sequence[str]:
+    # each call of a projection given anything but the decisions as decided
+    asked = {f"project.{each}" for each in proofsource.functions_of(package, "project")}
+    found = []
+    for short, node in proofsource.nodes(package):
+        if proofsource.called(node) in asked and isinstance(node, ast.Call):
+            argument = proofsource.first_argument(node)
+            given = "" if argument is None else proofsource.dotted(argument)
+            if not given.endswith("decided"):
+                found.append(f"P5: {short}:{node.lineno} projects {given or 'a call'}")
+    return found
 
 
 def same_answer(package: Package) -> Sequence[str]:
@@ -56,29 +81,15 @@ def same_answer(package: Package) -> Sequence[str]:
         type, and each projection given anything but the decisions as decided.
     """
     returned = _projected(package)
-    found = [
-        f"P5: two projections answer {each}"
-        for each in sorted(set(returned))
-        if returned.count(each) > 1
+    return [
+        *(
+            f"P5: two projections answer {each}"
+            for each in sorted(set(returned))
+            if returned.count(each) > 1
+        ),
+        *_renderers(package, returned),
+        *_projections_given(package),
     ]
-    aliases = _aliases(package)
-    allowed = {*returned, *(m for each in returned for m in aliases.get(each, ()))}
-    renderers = proofsource.functions(proofsource.module(package, "render"))
-    for name, function in renderers.items():
-        first = function.args.args[0].annotation if function.args.args else None
-        given = _given("render", first)
-        if not name.startswith("_") and given not in allowed:
-            found.append(f"P5: render.{name} takes {given}, no projection's value")
-    asked = {
-        f"project.{each}"
-        for each in proofsource.functions(proofsource.module(package, "project"))
-    }
-    for short, node in proofsource.nodes(package):
-        if proofsource.called(node) in asked and isinstance(node, ast.Call):
-            given = proofsource.dotted(node.args[0]) if node.args else ""
-            if not given.endswith("decided"):
-                found.append(f"P5: {short}:{node.lineno} projects {given or 'a call'}")
-    return found
 
 
 PROOFS: Mapping[str, Proof] = {
@@ -116,7 +127,7 @@ def main(root: pathlib.Path) -> int:
     Returns:
         0 when every proof holds, 1 otherwise.
     """
-    found = findings(proofsource.of_texts(proofsource.read(root)))
+    found = findings(proofsource.package_at(root))
     for each in found:
         print(each)
     print("path proofs: ok" if not found else f"path proofs: {len(found)} findings")
