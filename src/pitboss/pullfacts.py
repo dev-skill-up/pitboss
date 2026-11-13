@@ -12,6 +12,7 @@ from . import (
     config,
     flowstate,
     headsignals,
+    pullrecords,
     reviews,
     rounds,
     shapes,
@@ -56,6 +57,19 @@ class PullFacts:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Posted:
+    """What a PR's own read gives its gate, typed once (keyword: gate).
+
+    Attributes:
+        object: the PR object, as ``pullobject.pull_object`` types it.
+        statuses: the newest commit status of each context of its head.
+    """
+
+    object: pullrecords.PullObject
+    statuses: Sequence[shapes.CommitStatus]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class PullRead:
     """One open PR as read, before any step is decided (``decide.facts_of``).
 
@@ -70,6 +84,7 @@ class PullRead:
             unreadable-review).
         review_rounds: what its review rounds show.
         state: what the review flow's rows ask of it (keyword: review-flow).
+        posted: what its gate reads of it.
     """
 
     repo: config.Repo
@@ -81,6 +96,7 @@ class PullRead:
     unreadable: straycomments.StrayComments
     review_rounds: rounds.Rounds
     state: flowstate.PullState
+    posted: Posted
 
 
 # a PR as read: its facts, or why they could not be read

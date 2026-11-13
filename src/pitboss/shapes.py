@@ -119,6 +119,7 @@ class CheckRun:
         completed_at: when it completed (ISO 8601, "" when it has not).
         run: the id of its Actions workflow run (0 when not an Actions check).
         succeeded: whether it completed with the conclusion ``success``.
+        said: its status and conclusion as GitHub wrote them (keyword: gate).
     """
 
     id: int
@@ -130,6 +131,7 @@ class CheckRun:
     completed_at: str = ""
     run: int = 0
     succeeded: bool = False
+    said: tuple[str, str] = ("", "")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -141,8 +143,7 @@ class CommitStatus:
         succeeded: whether its state is ``success``.
         created_at: when it was posted (ISO 8601).
         run: the id of the Actions run its target URL names (0 when none).
-        state: its state (``failure``, ``error``, ``pending``, ``success``);
-            empty when not known.
+        state: its state (``failure``, ``pending``, ...), empty when not known.
         description: the text the poster gave it, empty when none.
         url: its target URL, empty when none.
     """
@@ -381,8 +382,7 @@ class Graded:
         when: when it was written (ISO 8601).
         plan: what its ``Plan:`` line grades, None with no such line.
         execution: its verdict, None for a review of the plan alone.
-        comment: whether it is a regular review (a comment in the form, not a
-            GitHub review).
+        comment: whether it is a regular review (a comment, not a GitHub review).
         body: the digest of the PR body it records, empty when it records none.
         missed: how many of its findings it marks ``Missed earlier:`` (keyword:
             all-findings).

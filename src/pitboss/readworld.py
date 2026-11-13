@@ -152,7 +152,7 @@ def examine_pull(
     facts = flowstep.at_flow(read)  # the flow's step chooses the closures read
     blocked_by = blockedby.read_closure(github, facts)
     stuck = stuckci.lines(github, [facts], reading.now)  # keyword: stuck-ci
-    gated = reading.closures.gated(facts) if steps.step_is(facts.step, GATED) else None
+    gated = reading.closures.gated(read) if steps.step_is(facts.step, GATED) else None
     return world.PullRecord(
         row=row,
         facts=read,

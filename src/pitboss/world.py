@@ -13,7 +13,7 @@ from typing import Callable, Mapping, Sequence, assert_never
 
 from . import blockedstep, gatefacts, listed, pullfacts, shapes, sharedstep, slotbook
 
-GateRead = Callable[[pullfacts.PullFacts], gatefacts.Gate]  # keyword: gate
+GateRead = Callable[[pullfacts.PullRead], gatefacts.Gate]  # keyword: gate
 PullReader = Callable[[listed.Listed], pullfacts.PullRead]  # one PR, read once a run
 Others = Sequence[listed.Listed]  # the other open rows of a pull request's repository
 SharedRead = Callable[[pullfacts.PullFacts, Others], Sequence[sharedstep.Shared]]

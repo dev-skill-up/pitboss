@@ -2,9 +2,10 @@
 
 import json
 import re
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from . import shapes
+from .totaljson import text as text_of
 
 FAILURE = "failure"
 
@@ -109,20 +110,23 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     Returns:
         The check runs.
     """
-    return [
-        shapes.CheckRun(
-            id=item["id"],
-            name=item["name"],
-            finished=_finished(item["status"]),
-            failed=item.get("conclusion") in shapes.FAILED_CONCLUSIONS,
-            head_sha=item.get("head_sha") or "",
-            started_at=item.get("started_at") or "",
-            completed_at=item.get("completed_at") or "",
-            run=run_of(item.get("details_url")),
-            succeeded=item.get("conclusion") == "success",
-        )
-        for item in json.loads(text)["check_runs"]
-    ]
+    return [_check_run(item) for item in json.loads(text)["check_runs"]]
+
+
+def _check_run(item: Mapping[str, object]) -> shapes.CheckRun:
+    conclusion = item.get("conclusion")
+    return shapes.CheckRun(
+        id=int(str(item["id"])),
+        name=str(item["name"]),
+        finished=_finished(str(item["status"])),
+        failed=conclusion in shapes.FAILED_CONCLUSIONS,
+        head_sha=text_of(item.get("head_sha")),
+        started_at=text_of(item.get("started_at")),
+        completed_at=text_of(item.get("completed_at")),
+        run=run_of(text_of(item.get("details_url")) or None),
+        succeeded=conclusion == "success",
+        said=(str(item.get("status")), str(conclusion)),  # keyword: gate
+    )
 
 
 def run_of(url: str | None) -> int:

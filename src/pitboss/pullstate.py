@@ -99,15 +99,18 @@ def _typed[Item](
     return read if isinstance(read, (Unread, Mistyped)) else [make(e) for e in read]
 
 
-def _reads(inputs: Raw) -> records.Reads:
-    def read(key: str) -> Sequence[Raw] | Unread | Mistyped:
-        return _listing(key, inputs.get(key))
+def _listed[Item](
+    inputs: Raw, key: str, make: Callable[[Raw], Item]
+) -> Sequence[Item] | Unread | Mistyped:
+    return _typed(_listing(key, inputs.get(key)), make)
 
+
+def _reads(inputs: Raw) -> records.Reads:
     return records.Reads(
-        runs=_typed(read("check_runs"), _run),
-        statuses=_typed(read("statuses"), _status),
-        files=_typed(read("files"), _file),
-        timeline=_typed(read("timeline"), _event),
+        runs=_listed(inputs, "check_runs", _run),
+        statuses=_listed(inputs, "statuses", _status),
+        files=_listed(inputs, "files", _file),
+        timeline=_listed(inputs, "timeline", _event),
     )
 
 
@@ -136,6 +139,22 @@ def _repository(inputs: Raw) -> records.Repository:
     )
 
 
+def _state(
+    pull: records.PullObject, inputs: Raw, reads: records.Reads
+) -> records.GateState:
+    return records.GateState(
+        pull=pull,
+        repository=_repository(inputs),
+        reads=reads,
+        tickets=pullobject.tickets_of(inputs.get("tickets")),
+        blockers={
+            ref: str(said) for ref, said in object_at(inputs, "blockers").items()
+        },
+        holds=[_hold(object_at(each)) for each in list_at(inputs, "holds")],
+        absent=[name for name in INPUTS if name not in inputs],
+    )
+
+
 def parse(raw: Raw, inputs: Raw, schema: Mapping[str, str]) -> records.GateState:
     """A PR and the inputs read with it, typed: the one conversion of plan 6.1.
 
@@ -148,17 +167,36 @@ def parse(raw: Raw, inputs: Raw, schema: Mapping[str, str]) -> records.GateState
     Returns:
         The typed state.
     """
-    return records.GateState(
-        pull=pull_object(raw, schema),
-        repository=_repository(inputs),
-        reads=_reads(inputs),
-        tickets=pullobject.tickets_of(inputs.get("tickets")),
-        blockers={
-            ref: str(said) for ref, said in object_at(inputs, "blockers").items()
-        },
-        holds=[_hold(object_at(each)) for each in list_at(inputs, "holds")],
-        absent=[name for name in INPUTS if name not in inputs],
+    return _state(pull_object(raw, schema), inputs, _reads(inputs))
+
+
+def gate_read(
+    pull: records.PullObject,
+    inputs: Raw,
+    head: tuple[Sequence[records.Run], Sequence[records.Status]],
+) -> gatefacts.Gate:
+    """A PR's gate from the fields its own read typed, and the gate-only inputs.
+
+    The PR object, its head's runs and its statuses come typed from ``pulls``;
+    only the inputs no field holds are parsed here (keyword: gate).
+
+    Args:
+        pull: the PR object.
+        inputs: the gate-only reads (``gateinputs``); holds as GitHub's issues.
+        head: the head's runs and its statuses.
+
+    Returns:
+        The gate.
+    """
+    runs, statuses = head
+    typed = records.Reads(
+        runs=runs,
+        statuses=statuses,
+        files=_listed(inputs, "files", _file),
+        timeline=_listed(inputs, "timeline", _event),
     )
+    given = {**inputs, "check_runs": (), "statuses": ()}
+    return gatefacts.Gate(state=_state(pull, given, typed))
 
 
 def gate_of(pull: JsonMap, inputs: JsonMap) -> gatefacts.Gate:

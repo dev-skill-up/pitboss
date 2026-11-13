@@ -6,9 +6,11 @@ makes holds the flow's inputs: a state whose step the test names.
 
 import dataclasses
 
-from .. import flowstate, pullfacts
+from .. import flowstate, pullfacts, pullobject, totalschema
 from . import test_flow
 
+# the PR object a test's gate reads when it reads none
+NO_OBJECT = pullobject.pull_object({}, totalschema.schema())
 APPROVED = test_flow.graded(test_flow.APPROVED, test_flow.APPROVED, 1)
 PLAN_ONLY = dataclasses.replace(APPROVED, execution=None)  # its Plan approved alone
 # a green PR whose Plan and Execution are approved: the merge step
@@ -41,4 +43,5 @@ def read_of(
         unreadable=facts.unreadable,
         review_rounds=facts.review_rounds,
         state=state,
+        posted=pullfacts.Posted(object=NO_OBJECT, statuses=()),
     )

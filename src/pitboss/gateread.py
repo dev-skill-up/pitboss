@@ -1,29 +1,22 @@
 """What a PR at the merge or the undraft step is gated on, read once (keyword: gate).
 
 ``readworld`` calls it for each such PR it examines, so the decision carries the
-rows ``act`` ran before it merged (``gate``). The inputs are those the act verdict
-read (``actinputs``): the PR object, the repository's rules, the head's runs and
-statuses, the files, the tickets the body closes, the blockers, the timeline,
-the holds and the Max-lines of the repository. A read that fails after its tries
-fails the command (``retrying``); a status GitHub answers (a 404) is kept as the
+rows ``act`` ran before it merged (``gate``). The PR object, the head's runs and
+its statuses are the fields of the PR's own read (``pulls``), not read again; the
+inputs no field holds are read here once (``gateinputs``): the repository's rules,
+the files, the tickets the body closes, the blockers, the timeline, the holds and
+the Max-lines of the repository. A status GitHub answers (a 404) is kept as the
 answer.
 """
 
 import functools
 import json
-from typing import Callable
+from typing import Callable, Sequence
 
-from . import (
-    actinputs,
-    gatefacts,
-    ghapi,
-    pulls,
-    pullstate,
-    workorder,
-    world,
-)
+from . import gatefacts, gateinputs, ghapi, pullobject, pullrecords, pulls
+from . import pullstate, shapes, workorder, world
 from .textparts import split_at
-from .totaljson import at, members, name_at, records
+from .totaljson import at, name_at, records
 
 HOLD_LABEL = "pitboss-hold"
 SIZES = (
@@ -61,7 +54,7 @@ def limits(github: ghapi.GitHub) -> Callable[[str], int]:
     return functools.cache(lambda repo: _p90(github, repo))
 
 
-def holds_of(read: actinputs.Read, repo: str) -> object:
+def holds_of(read: gateinputs.Read, repo: str) -> object:
     """The holds of a repository: its open issues labelled ``pitboss-hold``.
 
     Args:
@@ -71,7 +64,43 @@ def holds_of(read: actinputs.Read, repo: str) -> object:
     Returns:
         The issues as GitHub answered; ``pullstate`` reads their scope.
     """
-    return read(actinputs.ALL + workorder.labelled_path(repo, HOLD_LABEL))
+    return read(gateinputs.ALL + workorder.labelled_path(repo, HOLD_LABEL))
+
+
+def _of_run(check: shapes.CheckRun) -> pullrecords.Run:
+    status, conclusion = check.said
+    return pullrecords.Run(
+        name=check.name,
+        status=status,
+        conclusion=conclusion,
+        number=check.id,
+        started_at=check.started_at,
+    )
+
+
+def _head(
+    pull: pulls.PullRead,
+) -> tuple[Sequence[pullrecords.Run], Sequence[pullrecords.Status]]:
+    # the head's runs and statuses, as the PR's own read typed them
+    statuses = [
+        pullrecords.Status(context=each.context, state=each.state)
+        for each in pull.posted.statuses
+    ]
+    return [_of_run(each) for each in pull.checks], statuses
+
+
+def _inputs(
+    read: gateinputs.Read, given: gateinputs.Settings, pull: pulls.PullRead
+) -> pullobject.Raw:
+    # the inputs no field of the PR's own read holds
+    repo, number = pull.repo.slug, pull.pull.number
+    named = (pull.pull.body, pull.pull.base)
+    return {
+        **gateinputs.repo_reads(read, repo, number, named),
+        **gateinputs.said(given, repo),
+        "timeline": gateinputs.timeline(read, repo, number),
+        "holds": holds_of(read, repo),
+    }
 
 
 def reader(github: ghapi.GitHub) -> world.GateRead:
@@ -84,18 +113,16 @@ def reader(github: ghapi.GitHub) -> world.GateRead:
         The reader; the login and each repository's Max-lines are read once,
         when first needed.
     """
-    read = actinputs.reader(github)
+    read = gateinputs.reader(github)
     identity = functools.cache(lambda: identity_of(github))
     limit = limits(github)
 
-    def gated(pull: pulls.PullFacts) -> gatefacts.Gate:
-        repo, number = pull.repo.slug, pull.pull.number
-        given = actinputs.Settings(
+    def gated(pull: pulls.PullRead) -> gatefacts.Gate:
+        given = gateinputs.Settings(
             identity=identity(), authors=[identity()], max_lines=limit
         )
-        raw = dict(members(read(f"repos/{repo}/pulls/{number}")))
-        inputs = actinputs.live_inputs(read, given)(repo, number, raw, [])
-        return pullstate.gate_of(raw, {**inputs, "holds": holds_of(read, repo)})
+        inputs = _inputs(read, given, pull)
+        return pullstate.gate_read(pull.posted.object, inputs, _head(pull))
 
     return gated
 

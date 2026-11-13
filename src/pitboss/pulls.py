@@ -1,6 +1,7 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
 import dataclasses
+import json
 from typing import AbstractSet, Sequence
 
 from . import (
@@ -21,6 +22,9 @@ from . import (
     mergesonly,
     parsing,
     pinsask,
+    pullfacts,
+    pullobject,
+    pullrecords,
     pullfiles,
     pullref,
     pullsource,
@@ -30,6 +34,7 @@ from . import (
     rounds,
     shapes,
     straycomments,
+    totalschema,
     unreadableform,
 )
 from .pullfacts import PullFacts as PullFacts
@@ -82,6 +87,8 @@ class Fetched:
 
     Attributes:
         pull: its details.
+        object: the PR as the gate reads it, from the same answer as ``pull``
+            (keyword: gate).
         labels: its labels.
         posted: its comments and GitHub reviews that count.
         checks: the check runs of its head.
@@ -92,6 +99,7 @@ class Fetched:
     """
 
     pull: shapes.Pull
+    object: pullrecords.PullObject
     labels: AbstractSet[str]
     posted: reviews.Sources
     checks: Sequence[shapes.CheckRun]
@@ -103,6 +111,7 @@ class Fetched:
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
+    gated = pullobject.pull_object(json.loads(text), totalschema.schema())
     posted, sent = concurrently.pair(
         lambda: headchecks.statuses(source.github, repo, pull.head.sha),
         lambda: _sources(source, repo, number),
@@ -113,6 +122,7 @@ def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     base = pull.base
     return Fetched(
         pull=pull,
+        object=gated,
         labels=parsing.labels(text),
         posted=reviews.Sources(comments=kept, reviews=sent.reviews),
         checks=current,
@@ -235,6 +245,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullRead:
         unreadable=_unreadable(source, repo, got, (found, state)),
         review_rounds=rounds.of(state, merged),
         state=state,
+        posted=pullfacts.Posted(object=got.object, statuses=got.statuses),
     )
 
 
