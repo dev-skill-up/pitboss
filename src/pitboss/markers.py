@@ -67,14 +67,6 @@ class Marker(enum.Enum):
             thirty minutes old (keyword: check-in, pitboss#450).
         GONE_AGENT: a slot whose agent is no longer running.
         CHECK_BEFORE_YOU_ANSWER: the ledger is kept by hand; check it.
-        SLOTS: the first line of ``slots next``: the running agents against the
-            cap and the free slots (keyword: slots-header, pitboss#415).
-        RUNNING: a line for each running agent by kind (``RUNNING worker <ticket>``,
-            ``RUNNING fix round <PR>``, ``RUNNING reviewer <PR>``).
-        FREE_SLOT: ``slots next`` with fewer running agents than the cap: dispatch.
-        START: the first dispatchable ``NEXT`` line, printed when a slot is free.
-        LEDGER_STALE: ``slots next`` was given no ``--running`` and the ledger
-            holds rows nobody confirmed.
         WATCH_SLOT_FREE: ``slots watch`` found a free slot: the first startable
             item and its brief command, repeated each poll until it is filled.
         LEDGER_CHANGED: ``slots watch`` wrote the ledger (an agent began or ended).
@@ -148,11 +140,6 @@ class Marker(enum.Enum):
     CHECK_IN_OVERDUE = enum.auto()
     GONE_AGENT = enum.auto()
     CHECK_BEFORE_YOU_ANSWER = enum.auto()
-    SLOTS = enum.auto()
-    RUNNING = enum.auto()
-    FREE_SLOT = enum.auto()
-    START = enum.auto()
-    LEDGER_STALE = enum.auto()
     WATCH_SLOT_FREE = enum.auto()
     LEDGER_CHANGED = enum.auto()
     WATCH_MISSING = enum.auto()
@@ -220,11 +207,6 @@ SELF_EXPLAINED = frozenset(
         Marker.ADOPT_REVIEW,
         Marker.MECHANICAL_FIX,
         Marker.SLOW_MECHANICAL_FIX,
-        Marker.SLOTS,
-        Marker.RUNNING,
-        Marker.FREE_SLOT,
-        Marker.START,
-        Marker.LEDGER_STALE,
         Marker.WATCH_SLOT_FREE,
         Marker.LEDGER_CHANGED,
         Marker.WATCH_MISSING,
@@ -272,5 +254,10 @@ RETIRED = frozenset(
         "NOT THE HEAD",
         "HOLD",
         "FIX FIRST",
+        "SLOTS",
+        "RUNNING",
+        "FREE SLOT",
+        "START",
+        "LEDGER STALE",
     }
 )
