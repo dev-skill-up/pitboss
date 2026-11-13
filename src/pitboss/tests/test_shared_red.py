@@ -15,7 +15,7 @@ CAUSE = "pin 107 commits stale"
 OTHER = "lockfile out of date"
 SHARED = "SHARED RED owner/project:"
 TICKET = "file one ticket for the red check the PRs share"
-FIX = "(fix the CI"
+FIX = ": fix CI on the head"
 PAGE = fakes.page(f"{PROJECT}/pulls?state=open")
 
 

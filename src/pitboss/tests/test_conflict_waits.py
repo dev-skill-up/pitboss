@@ -1,6 +1,6 @@
 """A dirty PR keeps its wait: a ruling or the owner comes before the conflict.
 
-The Opus ruling on pitboss#181: ``flow.next_step`` returns a wait (``steps.WAITS``,
+The Opus ruling on pitboss#181: ``flow.next_step`` returns a wait (``steps.UNRESOLVED``,
 the paused-owner label and an unreadable ruling) before the conflict, and a
 ruling's own work step after it. The sweep keeps the line of each wait next to
 ``CONFLICT``, and ``slots next`` lists nothing for it.
@@ -56,7 +56,7 @@ class TestWaits(unittest.TestCase):
     def test_the_waits_are_the_lines_of_the_round_line(self) -> None:
         """Every wait step has its sweep line, and no other step has one."""
         lined = set(roundline.LINES) | {steps.Step.PLAN_EDITED}
-        assert_that(lined, equal_to(set(steps.WAITS)))
+        assert_that(lined, equal_to(set(steps.UNRESOLVED)))
 
     def test_a_dirty_pr_held_for_the_owner_or_with_an_unreadable_ruling(self) -> None:
         """Neither is offered for a round: the gate must not move above them."""

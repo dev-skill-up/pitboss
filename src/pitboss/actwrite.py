@@ -244,7 +244,7 @@ def _body_rows(body: str, head: str, skip: Sequence[str]) -> None:
         raise actcore.Refused("the body's first line is not `Fixes #N`")
     found = [
         each
-        for each in totalbody.body_findings(body, head, {})
+        for each in totalbody.body_findings(body, head)
         if not mentions_any(each, skip)
     ]
     if found:

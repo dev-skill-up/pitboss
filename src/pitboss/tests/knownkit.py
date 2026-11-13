@@ -1,4 +1,4 @@
-"""What the 66 cases run on: the controls, each of which a removal can take out.
+"""What the 59 cases run on: the controls, each of which a removal can take out.
 
 A case passes only when its control refuses the unsafe world and lets its safe
 twin through, so a control that refuses everything does not pass. ``Kit`` holds
@@ -11,26 +11,25 @@ from typing import Callable, Mapping, MutableMapping, Sequence
 
 from .. import (
     actcore,
-    actverbs,
-    dispatchnext,
+    actrules,
+    answer,
+    gatefacts,
     handbackform,
     nolocalmutants,
+    render,
     rulecases,
     rulecount,
     rulefiles,
     ticketreader,
-    totalroutes,
-    totalverdict,
 )
 from ..totaljson import JsonMap, members
-from . import fakehub, knowngit, scratch, totalworld
+from . import fakehub, gatewords, knowngit, scratch, totalworld
 from .totalworld import World
 
 REFUSALS = (
     actcore.Refused,
     rulefiles.Refused,
     ticketreader.Refused,
-    dispatchnext.Refused,
     rulecases.Refused,
 )
 Brief = Callable[[rulefiles.Ticket], str]
@@ -43,15 +42,15 @@ Diff = Callable[
     Sequence[str],
 ]
 Findings = Callable[[str, Sequence[str], handbackform.Exists], Sequence[str]]
+Verb = Callable[[actcore.Act, actcore.Target, Mapping[str, str]], str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Kit:
-    """The controls the cases run.
+    """The controls the cases run (``knownshipped.shipped`` as pitboss ships them).
 
     Attributes:
-        policy: the verdict's rows.
-        controls: the act verbs' gates and readers.
+        rests: the gate and the act verbs' controls.
         verbs: the act verbs.
         requirements: the instructions' text.
         brief: the brief writer.
@@ -62,13 +61,10 @@ class Kit:
         registrations: the check that no command runs mutants.
     """
 
-    policy: totalverdict.Policy
-    controls: actcore.Controls
-    verbs: Mapping[str, actverbs.Verb] = dataclasses.field(
-        default_factory=lambda: actverbs.VERBS
-    )
+    rests: fakehub.Given
+    verbs: Mapping[str, Verb]
     requirements: Mapping[str, Sequence[str]] = dataclasses.field(
-        default_factory=lambda: totalroutes.REQUIREMENTS
+        default_factory=lambda: actrules.REQUIREMENTS
     )
     brief: Brief = rulefiles.write
     recount: Recount = rulecount.missing
@@ -80,35 +76,6 @@ class Kit:
     )
 
 
-def shipped_kit() -> Kit:
-    """Every control as pitboss ships it.
-
-    Returns:
-        The kit.
-    """
-    policy = totalverdict.shipped_policy()
-    return Kit(policy=policy, controls=controls_of(policy))
-
-
-def controls_of(policy: totalverdict.Policy, **changes: object) -> actcore.Controls:
-    """The act verbs' controls over a policy.
-
-    Args:
-        policy: the verdict's rows.
-        **changes: other controls to set.
-
-    Returns:
-        The controls.
-    """
-    made = actcore.Controls(
-        verdict=lambda action, pull, ctx: totalverdict.verdict(
-            action, pull, ctx, policy
-        ),
-        not_overridable=policy.not_overridable,
-    )
-    return dataclasses.replace(made, **changes)  # type: ignore[arg-type]
-
-
 BASE = totalworld.base()
 REPO = str(BASE.ctx["repo"])
 NUMBER = int(str(BASE.pull["number"]))
@@ -118,8 +85,8 @@ TARGET = actcore.Target(repo=REPO, number=NUMBER)
 OK_PREPUSH = (0, "lint passed\nok\n")
 
 
-def verdict(given: Kit, action: str, world: World) -> totalverdict.Answer:
-    """The verdict on a world, with the kit's rows.
+def verdict(given: Kit, action: str, world: World) -> gatewords.Answer:
+    """The gate's stops of an action on a world, with the kit's rows.
 
     Args:
         given: the kit.
@@ -129,7 +96,11 @@ def verdict(given: Kit, action: str, world: World) -> totalverdict.Answer:
     Returns:
         The answer.
     """
-    return given.controls.verdict(action, world.pull, world.ctx)
+    rests = given.rests
+    gated = gatefacts.Gate(pull=world.pull, inputs=world.ctx)
+    found = rests.gating(action, gated, rests.policy)
+    said = gatewords.STOP if found else gatewords.GO
+    return gatewords.Answer(word=said, lines=[each.line for each in found], stops=found)
 
 
 def stops(given: Kit, action: str, world: World, row: str) -> bool:
@@ -145,7 +116,7 @@ def stops(given: Kit, action: str, world: World, row: str) -> bool:
         True when it is STOP with a line that starts with the row.
     """
     answer = verdict(given, action, world)
-    return answer.word == totalverdict.STOP and any(
+    return answer.word == gatewords.STOP and any(
         each.startswith(row) for each in answer.lines
     )
 
@@ -161,7 +132,7 @@ def goes(given: Kit, action: str, world: World) -> bool:
     Returns:
         True for GO.
     """
-    return verdict(given, action, world).word == totalverdict.GO
+    return verdict(given, action, world).word == gatewords.GO
 
 
 def change(
@@ -236,7 +207,7 @@ def base_items(key: str) -> Sequence[object]:
 def made(
     given: Kit, world: World = BASE, owner: actcore.Owner | None = None
 ) -> fakehub.Made:
-    """A fake GitHub holding a world, with the kit's controls.
+    """A fake GitHub holding a world, with the kit's controls and gate.
 
     Args:
         given: the kit.
@@ -246,7 +217,21 @@ def made(
     Returns:
         The hub and the verb's world.
     """
-    return fakehub.holding(world, given.controls, owner)
+    return fakehub.holding(world, given_of(given), owner)
+
+
+def given_of(given: Kit, decided: answer.Decided | None = None) -> fakehub.Given:
+    """What a fake GitHub's verbs rest on, from a kit.
+
+    Args:
+        given: the kit.
+        decided: the decisions ``dispatch-next`` takes the head of (one ticket
+            when None).
+
+    Returns:
+        The controls and the gate.
+    """
+    return dataclasses.replace(given.rests, decided=decided or fakehub.work())
 
 
 def act(given: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:
@@ -275,13 +260,14 @@ def refused(run: Callable[[], object]) -> str:
         run: the call.
 
     Returns:
-        The refusal's text ("refused" when it has none), or "" when it went.
+        The refusal's text ("refused" when it has none), the decision that stands
+        when the verb did not run, or "" when it went.
     """
     try:
-        run()
+        said = run()
     except REFUSALS as error:
         return str(error) or "refused"
-    return ""
+    return str(said) if str(said).startswith(render.NOT_DONE) else ""
 
 
 CHECKOUTS = fakehub.rule_checkouts(scratch.process_directory())
@@ -342,21 +328,25 @@ def registry(
     return one
 
 
-def dispatch(
-    given: Kit, hub: fakehub.Made, state: dispatchnext.State, **options: str
-) -> str:
-    """Run ``dispatch-next`` over a state.
+def dispatch(given: Kit, decided: answer.Decided, **options: str) -> str:
+    """Run ``dispatch-next`` over the decisions of a world.
 
     Args:
         given: the kit.
-        hub: the hub and the verb's world.
-        state: what the order reads.
-        **options: ``want`` and ``agent``.
+        decided: the decisions.
+        **options: ``want``.
 
     Returns:
         The item it answers.
     """
-    world = dataclasses.replace(hub.act, work=lambda: state)
+    hub = fakehub.holding(BASE, given_of(given, decided))
+    world = dataclasses.replace(
+        hub.act,
+        questions=dataclasses.replace(
+            hub.act.questions,
+            dispatch=lambda: decided,
+        ),
+    )
     return given.verbs["dispatch-next"](world, actcore.Target(repo=REPO), options)
 
 
@@ -377,3 +367,18 @@ def pushed(
     world = dataclasses.replace(hub.act, prepush=lambda: prepush)
     options = {"worktree": str(worktree), "branch": "worker/7"}
     return given.verbs["push"](world, actcore.Target(repo=REPO), options)
+
+
+def refusal(kit: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:
+    """Run a verb on the world's PR and say how it was refused.
+
+    Args:
+        kit: the kit the verbs and the gate are of.
+        hub: the hub and the verb's world.
+        verb: the verb.
+        **options: its options (``_`` for ``-``).
+
+    Returns:
+        The refusal's text, or "" when it went.
+    """
+    return refused(lambda: act(kit, hub, verb, **options))

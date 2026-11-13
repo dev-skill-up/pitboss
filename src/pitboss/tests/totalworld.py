@@ -11,7 +11,7 @@ import json
 import pathlib
 from typing import Iterable, Mapping
 
-from .. import bodydigest, dispatchnext, totalreview
+from .. import bodydigest, totalreview
 from ..totaljson import JsonMap, members, name_at
 from ..plansection import plan_section
 
@@ -207,20 +207,6 @@ def ticket_ref(world: World) -> str:
     return next(iter(members(world.ctx.get("tickets"))))
 
 
-def item(ref: str, created: str, **fields: str) -> dispatchnext.Item:
-    """An open PR of the order of work.
-
-    Args:
-        ref: its ``owner/name#N``.
-        created: when it was opened.
-        **fields: its other fields.
-
-    Returns:
-        The item.
-    """
-    return dispatchnext.Item(ref=ref, kind="pr", created=created, **fields)
-
-
 def folder_text(name: str) -> str:
     """A file of the total verdict's data folder.
 
@@ -231,20 +217,6 @@ def folder_text(name: str) -> str:
         Its text.
     """
     return (FOLDER / name).read_text(encoding="utf-8")
-
-
-def ticket_item(ref: str, created: str, priority: str) -> dispatchnext.Item:
-    """An open ticket of the order of work.
-
-    Args:
-        ref: its ``owner/name#N``.
-        created: when it was opened.
-        priority: its priority label.
-
-    Returns:
-        The item.
-    """
-    return dispatchnext.Item(ref=ref, kind="ticket", priority=priority, created=created)
 
 
 def record(words: str) -> object:

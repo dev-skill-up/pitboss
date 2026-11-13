@@ -10,7 +10,8 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import actcore
 from . import fakehub
-from .actplay import GIVEN, file_issue, kinds, refusal, verb_refusal
+from .knownshipped import GIVEN, refusal
+from .actplay import file_issue, kinds, verb_refusal
 from .knownkit import BODY, NUMBER, REPO, act, change, made
 from .knowngit import git, repo_pair
 from .fakes import write
@@ -133,8 +134,9 @@ class TestPushAndQueue(unittest.TestCase):
         world = dataclasses.replace(hub.act, prepush=lambda: (0, "ok\n"))
         options = {"worktree": str(worktree), "branch": "main"}
         target = actcore.Target(repo=REPO)
-        pushed = verb_refusal("push", world, target, options)
-        assert_that(pushed, contains_string("default branch"))
-        write(worktree / "loose", "x")
-        cleaned = verb_refusal("clean", world, target, options)
-        assert_that(cleaned, contains_string("not committed"))
+        said = []
+        for verb in ("push", "clean"):
+            said.append(verb_refusal(GIVEN.verbs[verb], world, target, options))
+            write(worktree / "loose", "x")
+        assert_that(said[0], contains_string("default branch"))
+        assert_that(said[1], contains_string("not committed"))

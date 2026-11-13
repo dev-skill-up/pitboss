@@ -182,7 +182,7 @@ def rejection(sha: str, plan: str | None, second: int) -> Mapping[str, object]:
     }
 
 
-def step_after_two_rejections(since_head: Sequence[object]) -> steps.Next:
+def step_after_two_rejections(since_head: Sequence[object]) -> steps.Move:
     """The step of a PR whose execution was rejected at two heads.
 
     Args:

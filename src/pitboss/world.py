@@ -8,9 +8,12 @@ so a record is whole or not made: a read that failed after its tries
 
 import dataclasses
 import enum
-from typing import Sequence, assert_never
+from typing import Callable, Sequence, assert_never
 
-from . import ledger, listed, pulls, shapes
+
+from . import gatefacts, ledger, listed, pulls, shapes
+
+GateRead = Callable[[pulls.PullFacts], gatefacts.Gate]  # keyword: gate
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -25,12 +28,15 @@ class PullRecord:
         blockers: the open items it names as blockers, which take its place.
         stuck: the ``STUCK CI`` line of each run of its head queued past
             ``stuckci.MINUTES`` while later runs completed (keyword: stuck-ci).
+        gated: what its merge or undraft is gated on, read only at those steps
+            (keyword: gate); None at any other step.
     """
 
     row: listed.Listed
     facts: pulls.PullFacts
     blockers: Sequence[str]
     stuck: Sequence[str]
+    gated: gatefacts.Gate | None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

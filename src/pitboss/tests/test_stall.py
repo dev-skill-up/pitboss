@@ -81,7 +81,7 @@ def facts(branch: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
         checks=checks,
         review=None,
         standing=reviews.Standing.NONE,
-        step=steps.wait_for_ci(),
+        step=steps.ci_pending(),
     )
 
 

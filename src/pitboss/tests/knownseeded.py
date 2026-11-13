@@ -8,18 +8,17 @@ import re
 from typing import Callable, MutableMapping
 
 from .. import enumeration
-from ..totalroutes import instructions
-from . import fakehub, knownkit
+from ..actrules import instructions
+from . import knownkit
 from .knownkit import change
 from .knownplay import (
     brief_text,
-    dispatch_refused,
     held,
     pull_now,
     verb_refused,
     stopping,
 )
-from .totalworld import World, item, review
+from .totalworld import World, review
 
 CASES: MutableMapping[str, knownkit.Known] = {}
 case = knownkit.registry(CASES)
@@ -169,60 +168,6 @@ def _pages(given: knownkit.Kit) -> bool:
     return name in brief_text(
         given, "pwa", "src/static_pages.bats"
     ) and name not in brief_text(given, "pwa", "src/lib.bats")
-
-
-@case(
-    "S16",
-    "dispatch: a shared red is one ticket",
-    "three PRs red on one check with the same failing step",
-)
-def _one_cause(given: knownkit.Kit) -> bool:
-    red = {"red_check": "canonical-files", "red_step": "Audit"}
-    items = [item(f"rp#{n}", f"2026-11-0{n}", **red) for n in (1, 2, 3)]
-    filed = [
-        item(f"rp#{n}", f"2026-11-0{n}", cause_ticket="rp#700", **red)
-        for n in (1, 2, 3)
-    ]
-    hub = knownkit.made(given)
-    unfiled = dispatch_refused(given, hub, fakehub.state(items=items))
-    return bool(unfiled) and (
-        knownkit.dispatch(given, hub, fakehub.state(items=filed)) == "rp#1"
-    )
-
-
-@case(
-    "S17",
-    "dispatch: a red of the base is not the PR's",
-    "the PR is red on tools-test, and so is main",
-)
-def _base_red(given: knownkit.Kit) -> bool:
-    items = [item("rp#3", "2026-11-01", red_check="tools-test", red_step="Test")]
-    hub = knownkit.made(given)
-    red = fakehub.state(items=items, base_red=["tools-test"])
-    return (
-        bool(dispatch_refused(given, hub, red))
-        and knownkit.dispatch(given, hub, fakehub.state(items=items)) == "rp#3"
-    )
-
-
-@case(
-    "S19",
-    "dispatch: a refused plan-check goes to its own worker",
-    "the fix sent to a new worker",
-)
-def _own_worker(given: knownkit.Kit) -> bool:
-    state = fakehub.state(
-        items=[item("q#3", "2026-11-01", step="plan-check-fix", worker="agent-a")]
-    )
-    hub = knownkit.made(given)
-    return (
-        bool(
-            knownkit.refused(
-                lambda: knownkit.dispatch(given, hub, state, agent="agent-b")
-            )
-        )
-        and knownkit.dispatch(given, hub, state, agent="agent-a") == "q#3"
-    )
 
 
 @case(

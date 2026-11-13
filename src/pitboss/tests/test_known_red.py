@@ -25,7 +25,7 @@ from .. import (
     steps,
     straycomments,
 )
-from . import knownkit, world
+from . import knownkit, knownshipped, world
 from .queueworld import dropped
 from .test_commands import sweep
 from .test_report import approved_green, at_merge, lines as sweep_text
@@ -211,7 +211,7 @@ class TestThroughTheCommands(unittest.TestCase):
 
     def test_c28_act_refuses_an_arm_while_a_known_red_stands(self) -> None:
         """The verdict stops the arm on the red status; no arm is written."""
-        given = knownkit.shipped_kit()
+        given = knownshipped.shipped()
         posted = {"statuses": [{"context": "canonical-files", "state": "failure"}]}
         hub = knownkit.made(given, knownkit.change(ctx=posted))
         said = knownkit.refused(lambda: knownkit.act(given, hub, "arm"))

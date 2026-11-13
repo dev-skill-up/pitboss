@@ -146,14 +146,26 @@ def _primed(github: ghapi.GitHub, path: str) -> Iterator[shapes.Issue]:
     return iter(()) if first is None else _chained(first, stream)
 
 
+def labelled_path(repo: str, label: str) -> str:
+    """The one listing of a label's open issues, oldest first (P9).
+
+    Args:
+        repo: ``owner/name``.
+        label: the label.
+
+    Returns:
+        The path.
+    """
+    return f"repos/{repo}/issues?state=open&labels={label}&sort=created&direction=asc"
+
+
 def _label_stream(
     github: ghapi.GitHub, repos: Sequence[config.Repo], label: str
 ) -> Iterator[tuple[str, shapes.Issue]]:
     # the open tickets of a label, oldest first, across repositories: the first
     # page of every repository at once, the others when the merge reaches them
-    query = f"issues?state=open&labels={label}&sort=created&direction=asc"
     firsts = concurrently.each(
-        lambda repo: _primed(github, f"repos/{repo.slug}/{query}"), repos
+        lambda repo: _primed(github, labelled_path(repo.slug, label)), repos
     )
     streams = [
         ((f"{repo.slug}#{each.number}", each) for each in first)

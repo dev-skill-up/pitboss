@@ -7,7 +7,7 @@ merge, from rows of data, so each such case is a row and not a function.
 import functools
 from typing import MutableMapping, Sequence
 
-from .. import dispatchnext
+
 from ..totaljson import JsonMap
 from . import fakehub, knownkit
 from .totalworld import World, record
@@ -73,18 +73,6 @@ def held(given: knownkit.Kit, hub: fakehub.Made, scope: str) -> None:
     knownkit.act(given, hub, "hold", number="0", scope=scope, source="m1")
 
 
-def capped(given: knownkit.Kit, hub: fakehub.Made, message: str, cap: str) -> None:
-    """Answer an owner message with a cap.
-
-    Args:
-        given: the kit.
-        hub: the hub and the verb's world.
-        message: the owner message.
-        cap: the cap.
-    """
-    knownkit.act(given, hub, "ack", message=message, kind="cap", cap=cap)
-
-
 def verb_refused(
     given: knownkit.Kit, hub: fakehub.Made, verb: str, **options: str
 ) -> bool:
@@ -99,7 +87,7 @@ def verb_refused(
     Returns:
         True when it is refused.
     """
-    return bool(knownkit.refused(lambda: knownkit.act(given, hub, verb, **options)))
+    return bool(knownkit.refusal(given, hub, verb, **options))
 
 
 def pull_now(hub: fakehub.Made) -> JsonMap:
@@ -112,22 +100,6 @@ def pull_now(hub: fakehub.Made) -> JsonMap:
         The PR.
     """
     return hub.act.hub.pull(knownkit.REPO, knownkit.NUMBER)
-
-
-def dispatch_refused(
-    given: knownkit.Kit, hub: fakehub.Made, state: dispatchnext.State
-) -> str:
-    """Whether ``dispatch-next`` over a state is refused.
-
-    Args:
-        given: the kit.
-        hub: the hub and the verb's world.
-        state: what the order reads.
-
-    Returns:
-        The refusal's text, or "" when it answered.
-    """
-    return knownkit.refused(lambda: knownkit.dispatch(given, hub, state))
 
 
 def brief_text(given: knownkit.Kit, repo: str, *paths: str) -> str:

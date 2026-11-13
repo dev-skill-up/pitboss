@@ -24,6 +24,7 @@ import datetime
 from typing import AbstractSet, Callable, Iterable, Iterator, Mapping, Sequence
 
 from . import (
+    allowlistmiss,
     answer,
     blockedby,
     blockers,
@@ -35,6 +36,7 @@ from . import (
     listed,
     pullnames,
     pulls,
+    steps,
     stuckci,
     ticketdata,
     workorder,
@@ -42,6 +44,7 @@ from . import (
 )
 
 LIMIT = blockedby.LIMIT  # the most blockers followed from one item
+GATED = frozenset({steps.Step.MERGE, steps.Step.UNDRAFT})  # keyword: gate
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -60,6 +63,8 @@ class Reading:
             its hand-back (``blockedby``, ``sharedred``, ``finishpartial``).
         decide_item: the one decider of an item (``decide.decide_item``), which the
             walk counts its stop with.
+        gated: what a PR at the merge or the undraft step is gated on
+            (``gateread.reader``, keyword: gate).
     """
 
     github: ghapi.GitHub
@@ -71,6 +76,7 @@ class Reading:
     source: Callable[[config.Repo], pulls.Source]
     settle: Callable[[pulls.PullFacts], pulls.PullFacts]
     decide_item: Callable[[world.Record], answer.Decision | None]
+    gated: world.GateRead
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -105,11 +111,25 @@ def _blockers_of(
     named = pullnames.names(
         facts.pull.title, facts.pull.body, facts.pull.head.branch, facts.repo
     )
-    waits = [
-        blockers.pull_waits(github, settings, facts, each) for each in sorted(named)
+    waits = {
+        each: blockers.pull_waits(github, settings, facts, each)
+        for each in sorted(named)
+    }
+    found = [
+        *declared,
+        *(b for w in waits.values() if w is not None for b in w.blockers),
     ]
-    found = [*declared, *(b for w in waits if w is not None for b in w.blockers)]
+    for ticket in (each for each, w in waits.items() if w is not None):
+        found += blockers.refusal_blockers(github, settings, me, ticket)
+        found += _allowlist(github, facts)
     return [each for each in dict.fromkeys(found) if each != me]
+
+
+def _allowlist(github: ghapi.GitHub, facts: pulls.PullFacts) -> Sequence[str]:
+    # keyword: allowlist-miss (pitboss#448): a red only a merged allowlist line fixes
+    step = facts.step
+    fixing = isinstance(step, steps.Next) and step.task is steps.Task.FIX_CI
+    return allowlistmiss.missing(github, facts)[1] if fixing else ()
 
 
 def examine_pull(reading: Reading, row: listed.Listed) -> world.Record:
@@ -129,7 +149,10 @@ def examine_pull(reading: Reading, row: listed.Listed) -> world.Record:
     settled = reading.settle(fetched)
     found = _blockers_of(github, reading.settings, settled)
     stuck = stuckci.lines(github, [settled], reading.now)  # keyword: stuck-ci
-    return world.PullRecord(row=row, facts=settled, blockers=found, stuck=stuck)
+    gated = reading.gated(settled) if steps.step_is(settled.step, GATED) else None
+    return world.PullRecord(
+        row=row, facts=settled, blockers=found, stuck=stuck, gated=gated
+    )
 
 
 def examine_ticket(

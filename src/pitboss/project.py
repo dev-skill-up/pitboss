@@ -5,10 +5,11 @@ renderer takes, so two commands that ask one question print the value of one pur
 function of one world.
 """
 
+from typing import assert_never
+
 from . import answer
 
 ItemAnswer = answer.Decision | answer.Work | answer.NotEnoughWork
-DispatchAnswer = answer.DispatchAnswer
 
 
 def what_next(decided: answer.Decided) -> answer.Answer:
@@ -37,21 +38,20 @@ def item_next(decided: answer.Decided, reference: str) -> ItemAnswer:
     return decided.by_item.get(reference, decided.answer)
 
 
-def dispatch_next(decided: answer.Decided, named: str) -> DispatchAnswer:
+def dispatch_next(decided: answer.Decided) -> answer.Standing:
     """The one next piece of work: ``act dispatch-next``, the head of the order.
 
     Args:
         decided: the command's decisions.
-        named: the item the caller means, empty for any.
 
     Returns:
-        The head of the order, or that the named item is not it.
+        The first decision of the answer, or ``NotEnoughWork``.
     """
     given = decided.answer
     match given:
-        case answer.Work() if named and named != given.first.item:
-            return answer.NotFirst(head=given.first, named=named)
         case answer.Work():
             return given.first
         case answer.NotEnoughWork():
             return given
+        case _:  # pragma: no cover
+            assert_never(given)

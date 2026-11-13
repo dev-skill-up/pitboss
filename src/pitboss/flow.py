@@ -47,7 +47,7 @@ get_plan_rejections = flowquestions.get_plan_rejections
 ci_result = flowquestions.ci_result
 
 
-PAUSED = steps.Idle(pending=steps.Pending.OWNER)  # the owner decides; nobody acts
+PAUSED = steps.OWNER_PENDING
 
 
 def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
@@ -222,11 +222,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
 
 def _ready(pr: PullState) -> steps.Move:
     # an approved draft is undrafted when the window allows, else nobody acts
-    return (
-        steps.undraft()
-        if pr.undraft_clear
-        else steps.Idle(pending=steps.Pending.UNDRAFT)
-    )
+    return steps.undraft() if pr.undraft_clear else steps.UNDRAFT_PENDING
 
 
 def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:

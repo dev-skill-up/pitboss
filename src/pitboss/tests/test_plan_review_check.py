@@ -162,10 +162,10 @@ class TestTheFlow(unittest.TestCase):
     def test_each_case_has_its_step(self) -> None:
         """A draft with no review, by its check runs."""
         review = steps.regular_review(steps.Stage.PLAN_ONLY)
-        cases: Sequence[tuple[Sequence[shapes.CheckRun], str, steps.Next]] = (
-            ([], "build", steps.wait_for_ci()),
-            ([test_flow.RUNNING], "lint", steps.wait_for_ci()),
-            ([test_flow.GREEN], "lint", steps.wait_for_ci()),
+        cases: Sequence[tuple[Sequence[shapes.CheckRun], str, steps.Move]] = (
+            ([], "build", steps.ci_pending()),
+            ([test_flow.RUNNING], "lint", steps.ci_pending()),
+            ([test_flow.GREEN], "lint", steps.ci_pending()),
             ([test_flow.GREEN], "build", review),
             ([test_flow.RED], "test", review),
         )

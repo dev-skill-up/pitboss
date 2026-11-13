@@ -9,12 +9,12 @@ import dataclasses
 import datetime
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, has_length
+from hamcrest import assert_that, contains_string, equal_to
 
-from .. import fixwait, pulls, reviews, rulingreason, shapes, steps
+from .. import pulls, reviews, rulingreason, shapes, steps
 from . import model
 from .model import History, Ruling, Verdict
-from .test_work import REPO, facts
+from .test_work import facts
 
 V = Verdict
 APPROVED_PLAN = [(3, V.APPROVED, None, 0, 0)]
@@ -35,10 +35,12 @@ def step_with(
     Returns:
         The step.
     """
-    return step_of(model.Model(history=history, plan=plan, head=head, pushed=pushed))
+    found = step_of(model.Model(history=history, plan=plan, head=head, pushed=pushed))
+    assert isinstance(found, steps.Next), found
+    return found
 
 
-def step_of(made: model.Model) -> steps.Next:
+def step_of(made: model.Model) -> steps.Move:
     """The step the flow gives a PR.
 
     Args:
@@ -110,44 +112,6 @@ def fix_round(started: str) -> pulls.PullFacts:
         sha="a" * 7, verdict=reviews.Verdict.CHANGES_NEEDED, when="t", url=FINDINGS
     )
     return dataclasses.replace(seen, checks=(check,), review=found)
-
-
-class TestFixRoundWaiting(unittest.TestCase):
-    """I38: a fix round without a reviewer is named after thirty minutes."""
-
-    def test_i38_a_wait_over_thirty_minutes_is_named_with_the_findings(self) -> None:
-        """The minutes, the PR, the head and the findings' address."""
-        got = fixwait.lines([fix_round("2026-11-12T11:00:00Z")], NOW, set())
-        assert_that(got, has_length(1))
-        assert_that(
-            got[0], contains_string("FIX ROUND WAITING 60 minutes: owner/project#5")
-        )
-        assert_that(got[0], contains_string(FINDINGS))
-
-    def test_i38_a_recent_round_or_one_with_an_agent_is_not_named(self) -> None:
-        """Under thirty minutes, an agent on it, or no check yet: nothing."""
-        recent = fix_round("2026-11-12T11:45:00Z")
-        old = fix_round("2026-11-12T11:00:00Z")
-        assert_that(fixwait.lines([recent], NOW, set()), equal_to([]))
-        assert_that(fixwait.lines([old], NOW, {"owner/project#5"}), equal_to([]))
-        assert_that(fixwait.lines([fix_round("")], NOW, set()), equal_to([]))
-
-    def test_i38_the_longest_wait_comes_first_and_a_plain_review_is_not_named(
-        self,
-    ) -> None:
-        """Two rounds in order of the wait; an ordinary review is no fix round."""
-        longer = fix_round("2026-11-12T08:00:00Z")
-        shorter = dataclasses.replace(
-            fix_round("2026-11-12T11:00:00Z"),
-            pull=facts(6, reviews.Standing.OLDER_HEAD).pull,
-        )
-        plain = facts(7, reviews.Standing.NONE)
-        got = fixwait.lines([shorter, longer, plain], NOW, set())
-        assert_that(
-            [each.split(":")[0] for each in got],
-            equal_to(["FIX ROUND WAITING 240 minutes", "FIX ROUND WAITING 60 minutes"]),
-        )
-        assert_that(REPO.slug, equal_to("owner/project"))
 
 
 RULING_TEXT = "Opus ruling\nRuling: do these steps\n"

@@ -8,12 +8,9 @@ Action.DISPATCH	hold	updateline.need and rune2e	test_run_e2e.TestB20Dispatch.tes
 Action.CLOSE	free	closing a PR starts no workflow run of the project	-
 Action.LABEL	free	a label starts no workflow run of the projects	-
 Action.ARM	hold	flow.next_step: steps.HELD and holdgate.gate	test_removedline.TestDropped.test_c26_the_hold_withholds_the_re_arm_and_says_wait
-Step.WAIT_FOR_OWNER	free	waits; nothing is done	-
 Step.WORKER	pressure	a worker pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Step.UNDRAFT	hold	readyline.line	test_hold_scope.TestB20.test_b20_an_undraft_is_withheld_during_a_hold
 Step.REGULAR_REVIEW	free	a review is a comment, no runner work	-
-Step.WAIT_FOR_UNDRAFT	free	waits; nothing is done	-
-Step.WAIT_FOR_CI	free	waits; nothing is done	-
 Step.OPUS_RULING	free	a ruling is a comment	-
 Step.PAUSE_FOR_OWNER	free	waits for the owner; nothing is done	-
 Step.FIX_RULING	free	a comment	-
@@ -22,9 +19,6 @@ Step.PLAN_EDITED	free	a comment	-
 Step.PLAN_CHECK	free	a local check and a comment	-
 Step.SEND_BACK_PLAN_CHECK	free	a comment	-
 Step.RUN_E2E	hold	flow.next_step: steps.HELD	test_run_e2e.TestB20Dispatch.test_b20_a_dispatch_is_withheld_during_a_hold
-Step.WAIT_FOR_SHARED_RED	free	waits; nothing is done	-
-Step.WAIT_FOR_BLOCKER	free	waits; nothing is done	-
-Step.WAIT_FOR_HOLD	free	waits; nothing is done	-
 Step.MERGE	hold	flow.next_step: steps.HELD	test_hold_scope.TestB20.test_b20_a_merge_is_withheld_during_a_hold
 Task.FIRST_ROUND	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
 Task.FIX_CI	pressure	the worker of a task pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not

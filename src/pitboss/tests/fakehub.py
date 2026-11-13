@@ -1,19 +1,19 @@
 """GitHub for the act verbs' tests: the state they read and every write they make."""
 
 import copy
-import json
 import dataclasses
+import json
 import functools
 import pathlib
 import subprocess
 from typing import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 
-from .. import dispatchnext
-from ..actcore import Act, Controls, Owner
+from .. import answer, gatefacts, gatepolicy, steps
+from ..actcore import Act, Controls, Inputs, Owner, Questions
 from ..actport import Change, Hub, Pull
+from ..gatestop import Stop
 from ..totaljson import members, records
 from . import totalworld
-from .totalworld import World
 from .fakes import write
 
 Key = tuple[str, int]
@@ -182,20 +182,38 @@ WRITES: Mapping[str, Callable[[Memory, Change], str]] = {
 }
 
 
-def state(**changes: object) -> dispatchnext.State:
-    """A dispatch state: one free slot of a cap of 1 and one p1 ticket.
+Gating = Callable[[str, gatefacts.Gate, gatepolicy.Policy], Sequence[Stop]]
+Deciding = Callable[[steps.Next, Sequence[Stop], str, str], answer.Decision | None]
+NEXT = answer.Decision(actor=answer.Actor.WORKER, verb="", item="q#10", title="")
+
+
+def work(*items: str) -> answer.Decided:
+    """The decisions of a world whose order is the items, each a worker's.
 
     Args:
-        **changes: the fields to set.
+        *items: the items, first to take first (``q#10`` when none).
 
     Returns:
-        The state.
+        The decisions.
     """
-    ticket = totalworld.ticket_item("q#10", "2026-11-01", "p1")
-    made = dispatchnext.State(
-        cap=1, slots=["sonnet-1"], ledger={"sonnet-1": ""}, items=[ticket]
+    every = [dataclasses.replace(NEXT, item=each) for each in items or ["q#10"]]
+    return work_of(*every)
+
+
+def work_of(first: answer.Decision, *rest: answer.Decision) -> answer.Decided:
+    """The decisions of a world in the order of the decisions given.
+
+    Args:
+        first: the first decision.
+        *rest: the others.
+
+    Returns:
+        The decisions.
+    """
+    return answer.Decided(
+        answer=answer.Work(first=first, rest=rest, free=1),
+        by_item={each.item: each for each in (first, *rest)},
     )
-    return dataclasses.replace(made, **changes)  # type: ignore[arg-type]
 
 
 def git_run(cmdargs: Sequence[str], /) -> subprocess.CompletedProcess[str]:
@@ -222,7 +240,7 @@ class Made:
 
     hub: Memory
     act: Act
-    world: World
+    world: totalworld.World
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -234,7 +252,7 @@ class WorldInputs:
         hub: the fake GitHub.
     """
 
-    world: World
+    world: totalworld.World
     hub: Hub
 
     def __call__(
@@ -257,7 +275,7 @@ class WorldInputs:
         }
 
 
-def _memory(world: World) -> Memory:
+def _memory(world: totalworld.World) -> Memory:
     # the hub's state: the world's PR and its timeline
     key = (str(world.ctx["repo"]), int(str(world.pull["number"])))
     memory = Memory(pulls_made={key: copy.deepcopy(world.pull)})
@@ -265,9 +283,36 @@ def _memory(world: World) -> Memory:
     return memory
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Given:
+    """What a fake GitHub's verbs rest on.
+
+    Attributes:
+        controls: the gates and readers.
+        gating: the gate's stops (``gate.stops_for``).
+        deciding: the decision of a step after its stops.
+        policy: the gate's readings.
+        decided: the decisions ``dispatch-next`` takes the head of.
+    """
+
+    controls: Controls
+    gating: Gating
+    deciding: Deciding
+    policy: gatepolicy.Policy
+    decided: answer.Decided = dataclasses.field(default_factory=work)
+
+
+def _questions(hub: Hub, inputs: Inputs, kit: Given) -> Questions:
+    # dispatch-next's head of the fixed order; each PR decided as next decides it
+    return Questions(
+        dispatch=lambda: kit.decided,
+        decided=Decider(hub=hub, inputs=inputs, kit=kit),
+    )
+
+
 def holding(
-    world: World,
-    controls: Controls,
+    world: totalworld.World,
+    given: Given,
     owner: Owner | None = None,
     repos: Sequence[str] = (),
 ) -> Made:
@@ -275,7 +320,7 @@ def holding(
 
     Args:
         world: the world.
-        controls: the gates and readers.
+        given: the controls and the gate.
         owner: the owner's messages (none when None).
         repos: the project's repositories (the world's when none).
 
@@ -284,16 +329,17 @@ def holding(
     """
     memory = _memory(world)
     hub = port(memory)
+    inputs = WorldInputs(world=world, hub=hub)
     act = Act(
         hub=hub,
-        inputs=WorldInputs(world=world, hub=hub),
+        inputs=inputs,
         owner=owner or Owner(),
         repos=list(repos) or [str(world.ctx["repo"])],
         p90=lambda _: 2151,
         run=git_run,
         prepush=lambda: (0, "lint passed\nok\n"),
-        work=state,
-        controls=controls,
+        questions=_questions(hub, inputs, given),
+        controls=given.controls,
     )
     return Made(hub=memory, act=act, world=world)
 
@@ -316,3 +362,39 @@ def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
             write(checkout / name, str(text))
         written[repo] = checkout
     return written
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Decider:
+    """A PR's decision as ``next`` makes it, over the hub as it is now.
+
+    Attributes:
+        hub: the fake GitHub.
+        inputs: the gate's other inputs.
+        kit: the gate and the decision of a step (``decide.step_decision``).
+    """
+
+    hub: Hub
+    inputs: Inputs
+    kit: "Given"
+
+    def __call__(self, name: str) -> answer.Decided:
+        """The decisions of a world of one PR at the merge or the undraft step.
+
+        Args:
+            name: the PR, ``owner/name#number``.
+
+        Returns:
+            Its decision; ``NotEnoughWork`` when nobody acts on it.
+        """
+        repo, number = name.split("#")
+        pull = self.hub.pull(repo, int(number))
+        ctx = self.inputs(repo, int(number), pull, [])
+        step = steps.undraft() if pull.get("draft") else steps.merge()
+        gated = gatefacts.Gate(pull=pull, inputs=ctx)
+        found = self.kit.gating(gatefacts.ACTIONS[step.step], gated, self.kit.policy)
+        title = str(pull.get("title") or "")
+        decided = self.kit.deciding(step, found, name, title)
+        if decided is None:
+            return answer.Decided(answer=answer.NotEnoughWork(), by_item={})
+        return work_of(decided)

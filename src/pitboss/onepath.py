@@ -18,6 +18,8 @@ from . import (
     configloads,
     decide,
     finishpartial,
+    gateread,
+    holdconfig,
     ledger,
     mode,
     nextfound,
@@ -49,6 +51,13 @@ def _settled(found: nextfound.Found, facts: pulls.PullFacts) -> pulls.PullFacts:
     return pulls.readable(finishpartial.settle(shared)[0])[0]
 
 
+def _holds(found: nextfound.Found) -> holdconfig.Holds:
+    # the owner's holds on new pull requests, from the configuration's own file
+    args = found.args
+    named, start = configfile.named(args), configfile.working_directory(args)
+    return configloads.load_holds(named, start, found.settings.project.repo.owner)
+
+
 def reading_of(found: nextfound.Found) -> readworld.Reading:
     """What the read of a command starts from.
 
@@ -65,17 +74,17 @@ def reading_of(found: nextfound.Found) -> readworld.Reading:
     )
     runs = functools.partial(read_runner_runs, found)
     undraft = sweepline.undraft_check(found.github, settings, found.now, runs)
-    named, start = configfile.named(args), configfile.working_directory(args)
     return readworld.Reading(
         github=found.github,
         settings=settings,
         book=book,
         free=sum(1 for slot in book.slots if not slot.agent),
-        holds=configloads.load_holds(named, start, settings.project.repo.owner),
+        holds=_holds(found),
         now=found.now,
         source=functools.partial(pullread.source_for, found.github, settings, undraft),
         settle=functools.partial(_settled, found),
         decide_item=decide.decide_item,
+        gated=gateread.reader(found.github),
     )
 
 
@@ -205,19 +214,34 @@ def answer_of(found: nextfound.Found, chosen: mode.Mode) -> None:
         print(text)
 
 
-def dispatch(
-    found: nextfound.Found, chosen: mode.DispatchNext
-) -> answer.DispatchAnswer:
-    """The one next piece of work, for ``act dispatch-next``.
+def dispatch(found: nextfound.Found, chosen: mode.DispatchNext) -> answer.Decided:
+    """The decisions ``act dispatch-next`` looks the head of the order up in.
 
     Args:
         found: the context.
         chosen: the mode.
 
     Returns:
-        The head of the order, or why the named item is not it.
+        The decisions of the world.
     """
-    return project.dispatch_next(judged(found, chosen).decided, chosen.want)
+    return judged(found, chosen).decided
+
+
+def decided_for(found: nextfound.Found, item: str) -> answer.Decided:
+    """What ``act`` looks a verb up in: the item's decision (keyword: gate, P8).
+
+    The world is read with the item named, as ``next <item>`` reads it, so the
+    verb runs only when the advice for the item is that verb.
+
+    Args:
+        found: the context.
+        item: ``owner/name#number``.
+
+    Returns:
+        The decisions of the world read with the item named.
+    """
+    chosen = mode.ItemNext(asked=mode.Asked.NEXT, item=item)
+    return judged(found, chosen).decided
 
 
 def mode_of(

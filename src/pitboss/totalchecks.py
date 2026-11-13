@@ -118,7 +118,7 @@ def _status_lines(statuses: Sequence[JsonMap]) -> Sequence[tuple[str, bool]]:
     return found
 
 
-def check_lines(action: str, ctx: JsonMap) -> Sequence[str]:
+def check_stops(action: str, ctx: JsonMap) -> Sequence[tuple[str, bool]]:
     """The stop lines of the head's check runs and statuses.
 
     Args:
@@ -127,7 +127,8 @@ def check_lines(action: str, ctx: JsonMap) -> Sequence[str]:
 
     Returns:
         A line for each failed check or status (merge, arm, undraft), each one
-        still running (merge), and each required check not reported (merge).
+        still running and each required check not reported (merge), each marked
+        True when the run has not finished.
     """
     if action not in GATED_ACTIONS:
         return []
@@ -136,7 +137,7 @@ def check_lines(action: str, ctx: JsonMap) -> Sequence[str]:
     missing = [(each, True) for each in _unreported(ctx, runs, statuses)]
     found = [*_run_lines(runs), *_status_lines(statuses), *missing]
     merging = action in MERGING
-    return [line for line, merge_only in found if merging or not merge_only]
+    return [(line, waits) for line, waits in found if merging or not waits]
 
 
 def _unreported(
@@ -165,7 +166,15 @@ def _count(value: object) -> int:
     return value if isinstance(value, int) else 0
 
 
-def _markup_lines(files: Sequence[JsonMap]) -> Sequence[str]:
+def markup_lines(files: Sequence[JsonMap]) -> Sequence[str]:
+    """The added lines of a .md or .rst file.
+
+    Args:
+        files: the PR's files.
+
+    Returns:
+        A line for each such file.
+    """
     return [
         f"diff: {each.get('filename')} gets {each.get('additions')} added lines"
         " (lines are only removed from .md and .rst)"
@@ -175,29 +184,18 @@ def _markup_lines(files: Sequence[JsonMap]) -> Sequence[str]:
     ]
 
 
-def diff_lines(action: str, ctx: JsonMap, kind: str) -> Sequence[str]:
-    """The stop lines of the diff.
+def size_lines(kind: str, files: Sequence[JsonMap], most: object) -> Sequence[str]:
+    """The diff over its ticket's Max-lines.
 
     Args:
-        action: the action asked.
-        ctx: the inputs.
-        kind: the PR's kind (``change``, ``relock``, ``publish``).
+        kind: the PR's kind (a relock or a publish has no Max-lines).
+        files: the PR's files.
+        most: the Max-lines.
 
     Returns:
-        An added line of a .md or .rst file (merge, arm, undraft); more lines
-        outside generated paths than the ticket's Max-lines, and a workflow file
-        with no green text-lint (merge, arm).
+        One line when a change is over it.
     """
-    files = listed(ctx, "files")
-    found = list(_markup_lines(files)) if action in GATED_ACTIONS else []
-    if action not in MERGE_ACTIONS:
-        return found
-    total = _changed(files)
-    return [
-        *found,
-        *LIMITED.get(kind, _unlimited)(total, ctx.get("max_lines")),
-        *_workflow_lines(files, listed(ctx, "statuses")),
-    ]
+    return LIMITED.get(kind, _unlimited)(_changed(files), most)
 
 
 def _limited(total: int, most: object) -> Sequence[str]:
@@ -215,9 +213,18 @@ def _unlimited(total: int, most: object) -> Sequence[str]:
 LIMITED: Mapping[str, Callable[[int, object], Sequence[str]]] = {"change": _limited}
 
 
-def _workflow_lines(
+def workflow_lines(
     files: Sequence[JsonMap], statuses: Sequence[JsonMap]
 ) -> Sequence[str]:
+    """A workflow file changed with no green text-lint (its scratch-run citation).
+
+    Args:
+        files: the PR's files.
+        statuses: the head's statuses.
+
+    Returns:
+        One line when so.
+    """
     workflow = any(text(each.get("filename")).startswith(WORKFLOWS) for each in files)
     if workflow and not _lint_green(statuses):
         return [

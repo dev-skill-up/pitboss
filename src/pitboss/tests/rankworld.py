@@ -8,7 +8,7 @@ from hamcrest import assert_that, equal_to
 from .. import config
 from . import fakes, pressureworld, world
 
-NEXT_LINE = re.compile(r"(?m)^NEXT \d+\. (\S+#\d+) \(")
+NEXT_LINE = re.compile(r"(?m)^NEXT \d+ of \d+\. [A-Z]+: (\S+#\d+): ")
 PROJECT = world.PROJECT
 PULL = f"{PROJECT}/pulls"
 DEPENDENT = "Depends on owner/lib#3"

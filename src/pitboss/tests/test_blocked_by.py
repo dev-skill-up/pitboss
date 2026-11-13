@@ -13,7 +13,7 @@ from .test_slot_commands import next_output
 
 BEFORE = "2026-10-01T09:00:00Z"
 AFTER = "2026-10-01T11:00:00Z"
-FIX = "owner/project#3 (fix the CI"
+FIX = "WORKER: owner/project#3: fix CI on the head"
 WAIT = "blocked by owner/project#110: nobody acts until it merges"
 LOOPED = "BLOCKER LOOP owner/project#3 -> owner/project#5 -> owner/project#3"
 
@@ -95,13 +95,13 @@ class TestShapes(unittest.TestCase):
         )
 
     def test_c21_a_blocker_of_another_repository_is_waited_for_too(self) -> None:
-        """A relock waiting for a package publish names the publishing PR."""
+        """A relock waiting for a package publish is in no answer (one-path)."""
         lib = {"repos/owner/lib/issues/4": issue("open")}
         here = blocked_world("Blocked-by: owner/lib#4", {})
         here.bodies.update(lib)
         assert_that(
-            lines_of(here, "BLOCKER WAIT"),
-            equal_to(["BLOCKER WAIT owner/project#3: waits for owner/lib#4"]),
+            [lines_of(here, "BLOCKER"), "owner/project#3" in next_output(here)],
+            equal_to([[], False]),
         )
 
     def test_c21_a_blocker_that_merged_after_the_red_check_calls_for_the_merge(

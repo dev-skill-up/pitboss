@@ -7,9 +7,10 @@ import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actcore, totalverdict
-from . import fakehub, knownkit
-from .actplay import GIVEN, file_issue, hold_issue, kinds, red, refusal, stop_line
+from .. import actcore
+from . import fakehub, gatesaid, knownkit
+from .knownshipped import GIVEN, refusal
+from .actplay import file_issue, hold_issue, kinds, red, stop_line
 from .knownkit import BASE, HEAD, NUMBER, REPO, act, change, made
 from .totalworld import World
 
@@ -67,9 +68,7 @@ class TestMerge(unittest.TestCase):
     def test_c17_ack_hold_holds_every_repository(self) -> None:
         """A hold of all is an issue in each repository; it refuses arm."""
         both = [REPO, "bats-lang/pwa"]
-        hub = fakehub.holding(
-            BASE, GIVEN.controls, actcore.Owner(messages=["m2"]), both
-        )
+        hub = fakehub.holding(BASE, GIVEN.rests, actcore.Owner(messages=["m2"]), both)
         options = {"repo": "all", "number": "0", "message": "m2", "scope": "merges"}
         act(GIVEN, hub, "ack", kind="hold", **options)
         held = sorted(
@@ -110,7 +109,7 @@ class TestMerge(unittest.TestCase):
                 pull["auto_merge"] is not None,
                 knownkit.verdict(GIVEN, "merge", world).word,
             ),
-            equal_to((True, totalverdict.GO)),
+            equal_to((True, gatesaid.GO)),
         )
 
 
@@ -127,7 +126,7 @@ class TestReview(unittest.TestCase):
         timeline = hub.act.hub.timeline(REPO, NUMBER)
         assert_that(
             knownkit.verdict(GIVEN, "merge", change(ctx={"timeline": timeline})).word,
-            equal_to(totalverdict.GO),
+            equal_to(gatesaid.GO),
         )
 
     def test_c17_grade_lines_are_refused(self) -> None:
@@ -164,19 +163,22 @@ class TestOverride(unittest.TestCase):
     def test_c17_a_failed_check_is_not_overridden(self) -> None:
         """A check line is refused."""
         world = red()
-        line = stop_line(world, "check ")
+        line = stop_line(GIVEN, world, "check ")
         said = refusal(made(GIVEN, world), "override", stop=line, reason="known flake")
-        assert_that(said, contains_string("not overridable"))
+        assert_that(said, contains_string("not an overridable stop"))
 
     def test_c17_a_diff_stop_is_lifted_by_its_override(self) -> None:
         """The record lifts that one line for that head."""
         world = change(ctx={"files": [BIG]})
-        line = stop_line(world, "diff:")
+        line = stop_line(GIVEN, world, "diff:")
         hub = made(GIVEN, world)
         said = refusal(
-            hub, "override", stop="no such line", reason="owner ruling quire#1200"
+            hub,
+            "override",
+            stop="no such line",
+            reason="owner ruling quire#1200",
         )
-        assert_that(said, contains_string("not a stop"))
+        assert_that(said, contains_string("not an overridable stop"))
         why = "owner ruling quire#1200: the generated table counts"
         act(GIVEN, hub, "override", stop=line, reason=why)
         act(GIVEN, hub, "merge")
@@ -200,7 +202,7 @@ class TestHolds(unittest.TestCase):
 
     def test_c17_a_hold_of_another_repository_holds_nothing_here(self) -> None:
         """A hold of every scope in another repository leaves this one's merge alone."""
-        hub = fakehub.holding(BASE, GIVEN.controls, None, [REPO, "bats-lang/pwa"])
+        hub = fakehub.holding(BASE, GIVEN.rests, None, [REPO, "bats-lang/pwa"])
         file_issue(hub, 902, hold_issue(902, "all"), "bats-lang/pwa")
         act(GIVEN, hub, "merge")
         assert_that(kinds(hub), equal_to(["merge"]))

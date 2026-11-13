@@ -27,7 +27,7 @@ SUBJECT = forms.Subject(name="b", body="", head=HEAD)
 EVIDENCE = f"{test_flow.BODY}\n## Evidence\n\n{BLOCK}\nHead: {HEAD}\n"
 
 
-def step_of(body: str) -> steps.Next:
+def step_of(body: str) -> steps.Move:
     """The step of a PR with a body.
 
     Args:

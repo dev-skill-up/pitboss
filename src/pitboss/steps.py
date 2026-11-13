@@ -316,6 +316,8 @@ class Idle:
 
 
 Move = Next | Idle
+OWNER_PENDING = Idle(pending=Pending.OWNER)  # the owner decides; nobody acts
+UNDRAFT_PENDING = Idle(pending=Pending.UNDRAFT)  # the window is not clear yet
 
 
 def ci_pending() -> Idle:

@@ -4,7 +4,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, is_not
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import (
     bodydigest,
@@ -218,7 +218,7 @@ class TestThePlanEditedLine(unittest.TestCase):
 
     def test_a_dirty_pr_with_an_edited_plan_waits_for_the_restoring(self) -> None:
         """The conflict waits like the other holds: PLAN_EDITED is in WAITS."""
-        assert_that(steps.Step.PLAN_EDITED in steps.WAITS, equal_to(True))
+        assert_that(steps.Step.PLAN_EDITED in steps.UNRESOLVED, equal_to(True))
         here = world_with([approving(1)], body=EDITED_PLAN, **DIRTY)
         out = sweep(here).out
         assert_that(out, contains_string(EDIT_LINE))
@@ -254,7 +254,9 @@ class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):
     def test_t475_a_revision_then_do_these_steps_is_not_plan_edited(self) -> None:
         """Done-when 1: the approving review, the edited Plan, both rulings."""
         pr = urls.edited(urls.PLAN, urls.EDITED_PLAN, urls.revised_then_steps(3))
-        assert_that(flow.next_step(pr).step, is_not(steps.Step.PLAN_EDITED))
+        assert_that(
+            steps.step_of(flow.next_step(pr)) is steps.Step.PLAN_EDITED, equal_to(False)
+        )
 
 
 class TestTheOldDigestIsStillAccepted(unittest.TestCase):

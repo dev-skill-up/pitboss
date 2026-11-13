@@ -172,7 +172,11 @@ class TestFlow(unittest.TestCase):
             flow.next_step(paused),
             flow.next_step(approved),
         ]
-        want = [steps.worker(steps.Task.FIX_CI), steps.wait_for_owner(), steps.merge()]
+        want = [
+            steps.worker(steps.Task.FIX_CI),
+            steps.OWNER_PENDING,
+            steps.merge(),
+        ]
         assert_that(found, equal_to(want))
 
 

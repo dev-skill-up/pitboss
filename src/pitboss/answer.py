@@ -81,17 +81,4 @@ class Decided:
     by_item: Mapping[str, Decision]
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class NotFirst:
-    """The item the dispatch names is not the head of the order.
-
-    Attributes:
-        head: the head of the order.
-        named: the item the dispatch named.
-    """
-
-    head: Decision
-    named: str
-
-
-DispatchAnswer = Decision | NotFirst | NotEnoughWork
+Standing = Decision | NotEnoughWork  # the decision that stands: the head, or none

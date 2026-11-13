@@ -8,7 +8,7 @@ read (its inline code spans and its ``$ `` lines, what plan-check runs).
 """
 
 import re
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from .totaljson import JsonMap, name_at, text
 from .plansection import plan_section
@@ -40,17 +40,6 @@ def plan_commands(body: object) -> Sequence[str]:
     return [*spans, *re.findall(r"(?m)^\$ (.+)$", section)]
 
 
-def _blocked_findings(line: str, blockers: Mapping[str, object]) -> Sequence[str]:
-    references = REFERENCE.findall(line)
-    if not references:
-        return [f"body: a Blocked line that names no item: {line[:50]!r}"]
-    return [
-        f"body: blocked by {each}, which is {blockers.get(each, 'not read')}"
-        for each in references
-        if blockers.get(each) != "closed"
-    ]
-
-
 def _path_finding(body: object) -> Sequence[str]:
     for command in plan_commands(body):
         if found := MACHINE_PATH.search(command):
@@ -61,15 +50,12 @@ def _path_finding(body: object) -> Sequence[str]:
     return []
 
 
-def body_findings(
-    body: object, head: str, blockers: Mapping[str, object]
-) -> Sequence[str]:
-    """The stop lines of the body's own rows.
+def body_findings(body: object, head: str) -> Sequence[str]:
+    """The stop lines of the body's own rows (an open blocker is the gate's).
 
     Args:
         body: the PR body.
         head: the PR's head commit.
-        blockers: the state of each item a Blocked line may name.
 
     Returns:
         A line for each row the body breaks.
@@ -78,9 +64,11 @@ def body_findings(
     named = HEAD.findall(text(body))
     if named and named[-1] != head:
         found.append("body: the last `Head:` line names another commit than the head")
-    for line in text(body).splitlines():
-        if BLOCKED.match(line):
-            found.extend(_blocked_findings(line, blockers))
+    found += [
+        f"body: a Blocked line that names no item: {line[:50]!r}"
+        for line in text(body).splitlines()
+        if BLOCKED.match(line) and not REFERENCE.findall(line)
+    ]
     return [*found, *_path_finding(body)]
 
 

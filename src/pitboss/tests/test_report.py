@@ -53,7 +53,7 @@ def facts(
         review=found,
         standing=standing,
         unreadable=straycomments.StrayComments(newer=unread),
-        step=steps.wait_for_ci(),
+        step=steps.ci_pending(),
     )
 
 

@@ -9,11 +9,11 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to
 
 from .. import allowlistmiss, pulls, shapes
 from . import fakes, rankworld, test_flow, test_work, world
-from .rankworld import lines_are, lines_of, next_output, starts
+from .rankworld import lines_of, mentioning, next_output, starts
 
 PROTOTYPE = "repos/owner/repository-prototype"
 LINE = "project/.github/workflows/check.yml aaaa bbbb # project#9"
@@ -196,39 +196,28 @@ class TestMissing(unittest.TestCase):
         assert_that(waits_for(here), equal_to(("", [])))
 
 
-def blocked_by(blocker: str) -> str:
-    """The ``BLOCKED`` line of PR 3.
-
-    Args:
-        blocker: what it waits for.
-
-    Returns:
-        The line, with the allowlist line after it.
-    """
-    return f"BLOCKED owner/project#3 by {blocker}; allowlist line: {LINE}"
-
-
 class TestRanking(unittest.TestCase):
     """``slots next`` for a PR whose red check only the allowlist fixes."""
 
     def test_the_ticket_takes_the_place_of_the_pull_request(self) -> None:
-        """The repository-prototype ticket is ranked, the PR gets no fix-the-CI line."""
+        """The repository-prototype ticket is ranked; the waiting PR is not said."""
         here = missing_world()
         output = next_output(here)
-        lines_are(output, "BLOCKED", [blocked_by(TICKET)])
-        assert_that(starts(here), equal_to(["owner/project#1", TICKET]))
-        assert_that("owner/project#3 (fix the CI" in output, equal_to(False))
+        assert_that(starts(here), equal_to(["owner/project#1", TICKET, "owner/lib#9"]))
+        assert_that(mentioning(output, "owner/project#3"), equal_to([]))
 
     def test_the_open_pull_request_is_a_wait(self) -> None:
-        """No ticket is ranked; the PR waits for the one that adds the line."""
+        """No ticket is ranked; the PR that waits for the line is in no answer."""
         here = missing_world()
         adding(here)
         output = next_output(here)
-        lines_are(output, "BLOCKED", [blocked_by("owner/repository-prototype#8")])
         assert_that(TICKET in starts(here), equal_to(False))
+        assert_that(mentioning(output, "owner/project#3"), equal_to([]))
 
     def test_another_failed_check_is_still_fix_the_ci(self) -> None:
         """A PR with no miss in its log keeps its worker line."""
         output = next_output(missing_world("a different failure\n"))
         assert_that(lines_of(output, "BLOCKED"), equal_to([]))
-        assert_that("owner/project#3 (fix the CI" in output, equal_to(True))
+        assert_that(
+            output, contains_string("WORKER: owner/project#3: fix CI on the head")
+        )

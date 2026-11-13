@@ -212,17 +212,17 @@ def pull_state(model: Model) -> flow.PullState:
     )
 
 
-_STEPS: dict[str, steps.Next] = {}
+_STEPS: dict[str, steps.Move] = {}
 
 
-def _step_of_key(token: str, model: Model) -> steps.Next:
+def _step_of_key(token: str, model: Model) -> steps.Move:
     # models of one key read the same to the flow (see ``key``)
     if token not in _STEPS:
         _STEPS[token] = flow.next_step(pull_state(model))
     return _STEPS[token]
 
 
-def step_of(model: Model) -> steps.Next:
+def step_of(model: Model) -> steps.Move:
     """The step the flow gives a model.
 
     Args:
@@ -232,3 +232,15 @@ def step_of(model: Model) -> steps.Next:
         The step.
     """
     return _step_of_key(repr(key(model)), model)
+
+
+def ci_waits(step: steps.Move) -> bool:
+    """Whether nobody acts on a PR until its CI finishes.
+
+    Args:
+        step: the PR's step.
+
+    Returns:
+        True for the CI's wait.
+    """
+    return steps.pending_is(step, steps.Pending.CI)

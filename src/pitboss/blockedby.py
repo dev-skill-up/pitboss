@@ -145,10 +145,10 @@ def _ended(check: shapes.CheckRun) -> str:
     return check.completed_at
 
 
-def _open(me: str, names: str) -> tuple[steps.Move, str]:
-    # nobody acts on the PR while a blocker it names is open
-    idle = steps.Idle(pending=steps.Pending.BLOCKER, names=names)
-    return idle, f"BLOCKER WAIT {me}: {names}"
+def _open(names: str) -> tuple[steps.Move, str]:
+    # keyword: one-path: nobody acts on the PR while a blocker it names is open,
+    # and nothing is said of it
+    return steps.Idle(pending=steps.Pending.BLOCKER, names=names), ""
 
 
 def verdict(
@@ -174,7 +174,7 @@ def verdict(
     if shut:
         return fix, f"BLOCKER GONE {me}: {shut[0]} is closed unmerged"
     if live:
-        return _open(me, ", ".join(live))
+        return _open(", ".join(live))
     if _red_since(pull, when):
         after = steps.worker(steps.Task.AFTER_BLOCKER)
         return after, f"BLOCKER MERGED {me}: merged at {when}, after its red check"

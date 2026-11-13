@@ -268,22 +268,25 @@ def state_at(data: Timeline, when: str, settled: bool = False) -> flow.PullState
     )
 
 
-def kind(step: steps.Next) -> str:
+def kind(step: steps.Move) -> str:
     """The name of a step: its step, then its task or stage.
 
     Args:
         step: the step.
 
     Returns:
-        ``WORKER:RULING_STEPS``, ``REGULAR_REVIEW:RULING_STEPS``, ``MERGE``.
+        ``WORKER:RULING_STEPS``, ``REGULAR_REVIEW:RULING_STEPS``, ``MERGE``;
+        ``IDLE:OWNER`` for a PR nobody acts on.
     """
+    if isinstance(step, steps.Idle):
+        return f"IDLE:{step.pending.name}"
     named = [step.step.name]
     named += [step.task.name] if step.task else []
     named += [step.stage.name] if step.stage else []
     return ":".join(named)
 
 
-def step_at(data: Timeline, when: str, settled: bool = False) -> steps.Next:
+def step_at(data: Timeline, when: str, settled: bool = False) -> steps.Move:
     """The step the flow gives the PR at a time.
 
     Args:
@@ -308,4 +311,5 @@ def printed(name: str, mark: Mark) -> str:
         The line, with the step ``stepwords.describe`` says.
     """
     step = step_at(load(name), mark.when, mark.settled)
-    return f"{name} {mark.when} [{mark.rule}] {kind(step)}: {stepwords.describe(step)}"
+    said = stepwords.describe(step) if isinstance(step, steps.Next) else "nobody acts"
+    return f"{name} {mark.when} [{mark.rule}] {kind(step)}: {said}"

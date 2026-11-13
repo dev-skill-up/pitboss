@@ -12,8 +12,10 @@ label and no item gave a decision.
 import dataclasses
 from typing import Mapping, Sequence, assert_never
 
-from . import answer, steps, stepwords, world
+from . import answer, gate, gateverbs, steps, stepwords, world
+from .gatestop import Stop
 
+# who takes each step that has an actor
 ACTORS: Mapping[steps.Step, answer.Actor] = {
     steps.Step.WORKER: answer.Actor.WORKER,
     steps.Step.SEND_BACK_PLAN_CHECK: answer.Actor.WORKER,
@@ -56,15 +58,37 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
     step = record.facts.step
     if not isinstance(step, steps.Next):
         return None  # keyword: one-path: nobody acts on an idle PR
-    actor = ACTORS.get(step.step)
     loops = step.task is steps.Task.FIX_BLOCKED_BY  # a loop is fixed, not waited on
-    if actor is None or (record.blockers and not loops):
+    if step.step not in ACTORS or (record.blockers and not loops):
         return None
+    stopped = gate.stops_of(step.step, record.gated) if record.gated else ()
+    return step_decision(step, stopped, listed.reference, listed.title)
+
+
+def step_decision(
+    step: steps.Next, stopped: Sequence[Stop], item: str, title: str
+) -> answer.Decision | None:
+    """The decision of a PR at a step, after the stops of the gate.
+
+    Args:
+        step: the PR's step (one an actor takes).
+        stopped: the stops of its gate, in order; none when it goes.
+        item: the PR's reference.
+        title: its title.
+
+    Returns:
+        The step's decision; or, when a row stops it, the route of the first stop
+        (none when nobody acts on it).
+    """
+    if stopped:  # the act verdict's rows are rows of the decision
+        found = gate.ROUTES[stopped[0].route]
+        if found is None:
+            return None
+        actor, said = found
+        verb = gateverbs.verb_of(stopped[0].line, said)
+        return answer.Decision(actor=actor, verb=verb, item=item, title=title)
     return answer.Decision(
-        actor=actor,
-        verb=stepwords.describe(step),
-        item=listed.reference,
-        title=listed.title,
+        actor=ACTORS[step.step], verb=stepwords.describe(step), item=item, title=title
     )
 
 

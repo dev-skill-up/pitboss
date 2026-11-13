@@ -13,6 +13,7 @@ from gather import commands as gather_commands
 
 from .. import cli_parser, disk
 from . import fakes, fixeddisk, ownerbodies, repositories, ticket_bodies, worldcomments
+from .worldreads import GATE_READS
 
 FUTURE = "2030-01-01T00:00:00+00:00"
 START = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
@@ -100,13 +101,14 @@ QUEUE_RUNS = {
     ]
 }
 REPOSITORY_BODIES: MutableMapping[str, object] = {
+    **GATE_READS,
     PROJECT: {},
     LIBRARY: {},
     fakes.page(f"{PROJECT}/commits/main/check-runs"): {"check_runs": []},
     fakes.page(f"{PROJECT}/issues/comments"): [],
     fakes.page(f"{LIBRARY}/issues/comments"): [],
-    fakes.page(f"{PROJECT}/pulls?state=open"): [{"number": n} for n in (1, 2, 3)],
-    fakes.page(f"{LIBRARY}/pulls?state=open"): [{"number": 4}],
+    fakes.page(f"{PROJECT}/pulls?state=open"): [fakes.pull_body(n) for n in (1, 2, 3)],
+    fakes.page(f"{LIBRARY}/pulls?state=open"): [fakes.pull_body(4)],
     fakes.page(f"{PROJECT}/actions/runs?event=merge_group"): QUEUE_RUNS,
     fakes.page(f"{LIBRARY}/actions/runs?event=merge_group"): {"workflow_runs": []},
     fakes.page(f"{PROJECT}/actions/runs/11/jobs"): {"jobs": [{"status": "queued"}]},

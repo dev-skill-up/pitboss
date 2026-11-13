@@ -7,15 +7,15 @@ import json
 import subprocess
 import sys
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_item
 
-from .. import actcore, actledger, acthub, actinputs, actwiring, ghapi
+from .. import actcore, acthub, actinputs, actledger, actwiring, gateread, ghapi
 from ..totaljson import members
-from . import fakehub, fakes, world
-from .knownkit import NUMBER, REPO, base_map, made, shipped_kit
-from .says import errs, exits
+from . import fakehub, fakes, knownshipped, world
+from .knownkit import NUMBER, REPO, base_map, made
+from .says import errs, exits, outs
 from .fakes import calls_with
 from ..actledger import Done
 
@@ -105,8 +105,20 @@ def _recorded(hub: fakehub.Made, done: actledger.Done) -> str:
     return event.what if event else ""
 
 
+OPEN = "/pulls?state=open"
+
+
+def _listed(number: int) -> Mapping[str, object]:
+    # an open PR as the listing gives it: one path reads its branch and age
+    return {"number": number, "head": {"ref": f"b{number}"}, "created_at": "2026-11"}
+
+
 def _here() -> world.World:
     here = world.make_world()
+    listings = {world.PROJECT: [_listed(n) for n in (1, 2, 3)], world.LIBRARY: []}
+    here.bodies.update(
+        {fakes.page(repo + OPEN): found for repo, found in listings.items()}
+    )
     here.bodies["user"] = {"login": "pitboss-bot"}
     here.bodies["POST repos/owner/project/issues/3/labels"] = []
     here.bodies["POST repos/owner/project/issues/3/comments"] = {"html_url": "u"}
@@ -173,10 +185,10 @@ class TestCommand(unittest.TestCase):
         for words, said in (
             (("nope", PULL), "no verb"),
             (("label", PULL, "name"), "is not an option"),
-            (("merge", PULL), "act merge: refused"),
         ):
             done = _act(here, *words)
             errs(done, 2, said)
+        outs(_act(here, "merge", PULL), 2, f"NOT DONE: merge {PULL}")
         assert_that(calls_with(here.calls, "-X"), equal_to([]))
 
     def test_c17_targets(self) -> None:
@@ -189,7 +201,7 @@ class TestCommand(unittest.TestCase):
 
     def test_c17_the_ledger_event_names_the_branch(self) -> None:
         """A checked write is recorded with the PR's branch and head; another is not."""
-        hub = made(shipped_kit())
+        hub = made(knownshipped.shipped())
         target = actcore.Target(repo=REPO, number=NUMBER)
         branch = str(base_map("pull", "head")["ref"])
         merged = _recorded(hub, Done(verb="merge", target=target, options={}))
@@ -319,39 +331,24 @@ class TestWiring(unittest.TestCase):
         done = actwiring.quiet([sys.executable, "-c", code])
         assert_that((done.returncode, done.stdout), equal_to((3, "said\n")))
 
-    def test_c17_the_p90_is_read_once_and_an_unread_one_is_0(self) -> None:
-        """Nine of ten sizes are at or under the percentile."""
+    def test_c17_the_p90_is_read_once_and_an_unread_one_raises(self) -> None:
+        """Nine of ten sizes are at or under the percentile; none merged is 0.
+
+        A read GitHub refuses is not taken as 0 (one-path: no read is swallowed).
+        """
         nodes = [{"additions": size, "deletions": 0} for size in range(1, 11)]
         calls, github = _github(
             {
                 "name=r": json.dumps(
                     {"data": {"repository": {"pullRequests": {"nodes": nodes}}}}
-                )
+                ),
+                "name=empty": json.dumps(
+                    {"data": {"repository": {"pullRequests": {"nodes": []}}}}
+                ),
             }
         )
-        found = actwiring.limits(github)
-        assert_that((found("o/r"), found("o/r"), found("o/none")), equal_to((9, 9, 0)))
+        found = gateread.limits(github)
+        assert_that((found("o/r"), found("o/r"), found("o/empty")), equal_to((9, 9, 0)))
         assert_that(len(calls), equal_to(2))
-
-    def test_c17_the_order_of_work_reads_slots_prs_and_tickets(self) -> None:
-        """The configured slots and ledger.
-
-        The open PRs and the tickets of each priority.
-        """
-        here = _here()
-        for repo in ("owner/project", "owner/lib"):
-            here.bodies[f"repos/{repo}/pulls?state=open&per_page=100"] = [
-                {"number": 5, "created_at": "2026-11-01"}
-            ]
-            for label in ("p0", "p1", "p2", "p3"):
-                issues = [
-                    {"number": 6, "created_at": "2026-11-02"},
-                    {"number": 5, "pull_request": {}},
-                ]
-                here.bodies[
-                    f"repos/{repo}/issues?state=open&per_page=100&labels={label}"
-                ] = issues
-        done = _act(here, "dispatch-next", "all")
-        assert_that(
-            (done.code, done.out + done.err), equal_to((0, "owner/project#5\n"))
-        )
+        with self.assertRaises(subprocess.CalledProcessError):
+            found("o/none")

@@ -63,7 +63,7 @@ FAILED_3 = "FAILED owner/project#3: test"
 CONFLICT_3 = "CONFLICT owner/project#3: merge main into branch-3"
 REVIEW_3 = "owner/project#3 (review it"
 STATE_3 = "PR STATE owner/project#3: next step: "
-FIX_CI_3 = "owner/project#3 (fix the CI"
+FIX_CI_3 = "WORKER: owner/project#3: fix CI on the head"
 RED = dataclasses.replace(test_flow.RED, completed_at=FAILED_AT)
 PASSED = shapes.CheckRun(
     id=99, name="test", finished=True, failed=False, succeeded=True, head_sha="9" * 40
@@ -273,7 +273,7 @@ class TestAnswers(unittest.TestCase):
 
 def step_of(
     recorded: Sequence[shapes.Graded], found: Sequence[basefix.Answer], merge: str
-) -> steps.Next:
+) -> steps.Move:
     """The step of a PR whose head is red, as the flow reads its checks.
 
     Args:

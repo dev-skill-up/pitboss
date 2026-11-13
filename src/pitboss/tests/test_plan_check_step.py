@@ -159,8 +159,10 @@ class TestPlanCheckStep(unittest.TestCase):
         text = plancheck.text(plandigest.section(NO_COMMANDS), [], [], [found])
         refused = dataclasses.replace(check_comment(NO_COMMANDS), body=text)
         pr = state(body=NO_COMMANDS, comments=[refused])
-        assert_that(flow.next_step(pr).step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
-        assert_that(stepwords.describe(flow.next_step(pr)), contains_string(found))
+        step = flow.next_step(pr)
+        assert isinstance(step, steps.Next)
+        assert_that(step.step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
+        assert_that(stepwords.describe(step), contains_string(found))
 
     def test_the_world_carries_the_clean_check_of_its_plan(self) -> None:
         """The literal of the fake GitHub is the check of the default body."""

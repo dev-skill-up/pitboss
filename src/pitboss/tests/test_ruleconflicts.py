@@ -97,6 +97,18 @@ class TestPairs(unittest.TestCase):
         assert_that(found, has_item("conflict: C14  has the resolution ''"))
 
 
+def conflict_of(step: steps.Move) -> str:
+    """The pair a step names.
+
+    Args:
+        step: the step.
+
+    Returns:
+        Its ``conflict``; empty for an idle PR.
+    """
+    return step.conflict if isinstance(step, steps.Next) else ""
+
+
 class TestHit(unittest.TestCase):
     """A PR that hits a ruling pair."""
 
@@ -105,7 +117,7 @@ class TestHit(unittest.TestCase):
         hit = flow.next_step(test_flow.state(body=FIXME_BODY))
         plain = flow.next_step(test_flow.state())
         assert_that(
-            (hit.step, hit.conflict, plain.conflict),
+            (steps.step_of(hit), conflict_of(hit), conflict_of(plain)),
             equal_to((steps.Step.OPUS_RULING, "C14 T53", "")),
         )
 
@@ -115,7 +127,9 @@ class TestHit(unittest.TestCase):
         again = flow.next_step(
             test_flow.state(comments=[test_flow.ruling(4)], body=FIXME_BODY)
         )
-        assert_that((settled.conflict, again.conflict), equal_to(("", "C14 T53")))
+        assert_that(
+            (conflict_of(settled), conflict_of(again)), equal_to(("", "C14 T53"))
+        )
 
     def test_c15_a_win_is_not_a_ruling(self) -> None:
         """A pair settled by a winning rule makes no step."""

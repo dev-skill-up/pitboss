@@ -7,27 +7,27 @@ head, never a failed check or status, a hold, a block, a closed PR or a failed
 read.
 """
 
-from . import actcore, totalanswer
-from .actcore import (
-    disarm_first,
-    head_now,
-    options_of,
-    pull_of,
-    repo_write,
-    timeline_of,
-)
+from . import actcore, gateverbs, render, totalanswer
+from .actcore import disarm_first, head_now, options_of, pull_of, repo_write
 from .totaljson import text
 
 LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", actcore.HOLD_LABEL}
 WORKFLOWS = ("relock.yml", "check.yml")
 CLOSE_REASONS = ("completed", "not_planned", "duplicate")
-OVERRIDDEN = ("merge", "arm", "undraft")
+GATED = {
+    "merge": gateverbs.Verb.MERGE,
+    "arm": gateverbs.Verb.ARM,
+    "undraft": gateverbs.Verb.UNDRAFT,
+}
 
 
 def gated_write(
     action: str, act: actcore.Act, target: actcore.Target, options: actcore.Options
 ) -> str:
-    """Merge, arm or undraft a PR when the verdict is GO; arm records its head.
+    """Merge, arm or undraft a PR when its decision is that verb; arm records its head.
+
+    The verb looks itself up in the decisions (keyword: gate, P8): it runs only
+    when ``next`` would say it, and otherwise prints the decision that stands.
 
     Args:
         action: ``merge``, ``arm`` or ``undraft``.
@@ -36,9 +36,13 @@ def gated_write(
         options: none.
 
     Returns:
-        What was done.
+        What was done; or, when the decision that stands is another, that decision.
     """
-    pull = actcore.verdict_of(act, action, target)
+    verb = GATED[action]
+    found = gateverbs.lookup(act.questions.decided(target.name), verb, target.name)
+    if not gateverbs.allows(verb, found, target.name):
+        return f"{render.NOT_DONE}: {action} {target.name}: {render.standing(found)}"
+    pull = pull_of(act, target)
     if action == "arm":
         actcore.record(act, target, f"arm head={actcore.head_of(pull)}")
     actcore.put(act, target, action)
@@ -60,16 +64,6 @@ def disarm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     return f"disarm {target.name}"
 
 
-def _stopped_head(act: actcore.Act, target: actcore.Target, stop: str) -> str:
-    # the PR's head, when the stop line is one of the verdict's there
-    pull, events = pull_of(act, target), timeline_of(act, target)
-    ctx = act.inputs(target.repo, target.number, pull, events)
-    said = [act.controls.verdict(each, pull, ctx).lines for each in OVERRIDDEN]
-    if not any(stop in each for each in said):
-        raise actcore.Refused(f"not a stop line of this head: {stop[:60]!r}")
-    return actcore.head_of(pull)
-
-
 def override_stop(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
 ) -> str:
@@ -84,15 +78,19 @@ def override_stop(
         What was done.
 
     Raises:
-        actcore.Refused: the line is one no override lifts.
+        actcore.Refused: the line is not the stop of the item's decision, or is one
+            no override lifts.
     """
     stop, reason = options_of(options, "stop", "reason")
-    if stop.startswith(tuple(act.controls.not_overridable)):
+    decided = act.questions.decided(target.name)
+    found = gateverbs.lookup(decided, gateverbs.Verb.OVERRIDE, target.name)
+    if not gateverbs.overridable(found, target.name, stop):
         raise actcore.Refused(
-            "a hold, a failed check or status, a block, a read failure or a closed PR"
-            " is not overridable"
+            f"not an overridable stop of this item's decision: {stop[:60]!r} (a hold,"
+            " a red, a read GitHub answered with an error, a block or a closed PR is"
+            " never lifted)"
         )
-    head = _stopped_head(act, target, stop)
+    head = head_now(act, target)
     actcore.record(act, target, f'override head={head} stop="{stop}" reason="{reason}"')
     return f"override {target.name} at {head}"
 

@@ -15,22 +15,14 @@ import subprocess
 import sys
 from typing import Callable, Sequence
 
-from . import acthub, actinputs, answer, config, configrepos, totalverdict
-from .actcore import Act, Controls, Owner, cap_of
-from .ghapi import GitHub, run_json
+from . import acthub, actinputs, config, configrepos, gateread
+from .actcore import Act, Controls, Owner, Questions, cap_of
+from .ghapi import GitHub
 from .running import Run
-from .textparts import split_at
-from .totaljson import at, listing, members, name_at, read_file, records, text
-
-SIZES = (
-    "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name)"
-    " { pullRequests(last: 100, states: MERGED) { nodes { additions deletions } } } }"
-)
+from .totaljson import listing, members, read_file, text
 
 OWNER = "owner.json"
-CONTROLS = Controls(
-    verdict=totalverdict.verdict, not_overridable=totalverdict.NOT_OVERRIDABLE
-)
+CONTROLS = Controls()
 
 
 def owner_of(path: pathlib.Path) -> Owner:
@@ -91,44 +83,6 @@ def prepush(
     return check
 
 
-def _p90(github: GitHub, repo: str) -> int:
-    # the size of 90 of 100 merged PRs; an unread size is 0, so every size needs
-    # a ruling
-    owner, name = split_at(repo, "/")
-    words = ["gh", "api", "graphql", "-f", f"query={SIZES}"]
-    words += ["-f", f"owner={owner}", "-f", f"name={name}"]
-    try:
-        answer = run_json(github, words)
-    except Exception:  # noqa: B902 - an unread size is 0
-        answer = {}
-    nodes = records(at(answer, "data", "repository", "pullRequests", "nodes"))
-    sizes = sorted(
-        sum(int(str(each.get(key, 0))) for key in ("additions", "deletions"))
-        for each in nodes
-    )
-    return sizes[(9 * len(sizes) + 9) // 10 - 1] if sizes else 0
-
-
-def limits(github: GitHub) -> Callable[[str], int]:
-    """Each repository's 90th percentile of the lines its last 100 merged PRs changed.
-
-    Args:
-        github: the reading runner.
-
-    Returns:
-        What reads a repository's percentile (0 when it has no merged PR) once,
-        when first asked.
-    """
-    found: dict[str, int] = {}
-
-    def limit(repo: str) -> int:
-        if repo not in found:
-            found[repo] = _p90(github, repo)
-        return found[repo]
-
-    return limit
-
-
 def quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
     """Run a command line and keep its output, whatever its status.
 
@@ -143,15 +97,15 @@ def quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Asking:
-    """Whom the verbs ask: the owner, and the one order of work.
+    """Whom the verbs ask: the owner, and the decisions.
 
     Attributes:
         owner: the owner's messages.
-        dispatch: gives the head of the one order (``onepath.dispatch``).
+        questions: the head of the one order and an item's decision.
     """
 
     owner: Owner
-    dispatch: Callable[[], answer.DispatchAnswer]
+    questions: Questions
 
 
 def act_of(github: GitHub, settings: config.Config, run: Run, asking: Asking) -> Act:
@@ -166,31 +120,17 @@ def act_of(github: GitHub, settings: config.Config, run: Run, asking: Asking) ->
     Returns:
         The world.
     """
-    hub = acthub.hub_of(github)
-    repos = configrepos.slugs(settings)
-    p90 = limits(github)
-    identity = identity_of(github)
+    p90 = gateread.limits(github)
+    identity = gateread.identity_of(github)
     given = actinputs.Settings(identity=identity, authors=[identity], max_lines=p90)
     return Act(
-        hub=hub,
+        hub=acthub.hub_of(github),
         inputs=actinputs.live_inputs(actinputs.reader(github), given),
         owner=asking.owner,
-        repos=repos,
+        repos=configrepos.slugs(settings),
         p90=p90,
         run=run,
         prepush=prepush(quiet),
-        dispatch=asking.dispatch,
+        questions=asking.questions,
         controls=CONTROLS,
     )
-
-
-def identity_of(github: GitHub) -> str:
-    """The login ``gh`` is signed in as.
-
-    Args:
-        github: the reading runner.
-
-    Returns:
-        The login.
-    """
-    return name_at(json.loads(github.run(["gh", "api", "user"]).stdout), "login")

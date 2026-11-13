@@ -17,12 +17,13 @@ from . import (
     actpull,
     actwrite,
     answer,
+    gateverbs,
     render,
     rulecases,
     rulecount,
     rulefiles,
     ticketreader,
-    totalroutes,
+    actrules,
 )
 from .actcore import Act, Options, Refused, Target, gate
 
@@ -41,7 +42,7 @@ def brief(ticket: rulefiles.Ticket) -> str:
     Raises:
         Refused: the recount finds a file the brief lacks.
     """
-    text = rulefiles.write(ticket) + "\n" + totalroutes.instructions()
+    text = rulefiles.write(ticket) + "\n" + actrules.instructions()
     lost = rulecount.missing(text, ticket)
     if lost:
         raise Refused(f"the recount finds rule files the brief lacks: {lost[:3]}")
@@ -61,23 +62,28 @@ def dispatch_next(act: Act, target: Target, options: Options) -> str:
             ``paths`` and ``home``.
 
     Returns:
-        The item's reference, then its brief.
-
-    Raises:
-        Refused: the named item is not the head, or nothing can start.
+        The item's reference, then its brief; or, when the named item is not the
+        head of the order, the decision that stands; or the ``NOT ENOUGH WORK`` line.
     """
-    given = act.dispatch()
+    want = options.get("want", "")
+    verb = gateverbs.Verb.DISPATCH_NEXT
+    given = gateverbs.lookup(act.questions.dispatch(), verb, want)
     said = render.dispatch(given)[0]
     if not isinstance(given, answer.Decision):
-        raise Refused(said)
-    if not options.get("checkout"):
         return said
-    ticket = rulefiles.Ticket(
+    if want and want != given.item:
+        return f"{render.NOT_DONE}: dispatch-next {want}: {render.standing(given)}"
+    return f"{said}\n{brief(_ticket(options))}" if options.get("checkout") else said
+
+
+def _ticket(options: Options) -> rulefiles.Ticket:
+    # the checkout a brief is made from
+    home = options.get("home")
+    return rulefiles.Ticket(
         checkout=pathlib.Path(options["checkout"]),
         paths=options.get("paths", "").split(),
-        home=pathlib.Path(options.get("home") or pathlib.Path.home()),
+        home=pathlib.Path(home) if home else pathlib.Path.home(),
     )
-    return f"{said}\n{brief(ticket)}"
 
 
 REFUSALS = (

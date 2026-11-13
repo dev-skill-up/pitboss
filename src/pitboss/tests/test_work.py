@@ -8,17 +8,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import (
-    assigning,
-    config,
-    ledger,
-    parsing,
-    pullstate,
-    pulls,
-    reviews,
-    steps,
-    work,
-)
+from .. import config, parsing, pullstate, pulls, reviews, steps, work
 from . import fakes, test_flow
 
 REPO = config.make_repo("owner", "project")
@@ -38,7 +28,7 @@ NONE = reviews.Standing.NONE
 DEFAULT_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
 
 
-def stepped(facts: pulls.PullFacts, step: steps.Next) -> pulls.PullFacts:
+def stepped(facts: pulls.PullFacts, step: steps.Move) -> pulls.PullFacts:
     """A PR at another step.
 
     Args:
@@ -106,7 +96,7 @@ def item(
 
 Kind = work.Category
 REVIEW_STEP = steps.regular_review(steps.Stage.PLAN_AND_EXECUTION)
-STEP_CASES: Sequence[tuple[steps.Next, Kind | None]] = [
+STEP_CASES: Sequence[tuple[steps.Move, Kind | None]] = [
     (steps.worker(steps.Task.REVISE_PLAN), Kind.REVISE_PLAN),
     (steps.worker(steps.Task.FIX_EXECUTION), Kind.FIX_REVIEW),
     (steps.worker(steps.Task.RULING_STEPS), Kind.RULING_STEPS),
@@ -118,9 +108,9 @@ STEP_CASES: Sequence[tuple[steps.Next, Kind | None]] = [
     (steps.regular_review(steps.Stage.PLAN_ONLY), Kind.REVIEW),
     (steps.merge(), None),
     (steps.undraft(), None),
-    (steps.wait_for_ci(), None),
-    (steps.wait_for_undraft(), None),
-    (steps.wait_for_owner(), None),
+    (steps.ci_pending(), None),
+    (steps.UNDRAFT_PENDING, None),
+    (steps.OWNER_PENDING, None),
     (steps.opus_ruling(), None),
     (steps.pause_for_owner(), None),
     (steps.fix_ruling(""), None),
@@ -157,7 +147,7 @@ class TestPullItems(unittest.TestCase):
     def test_a_refused_plan_check_is_sent_back_and_is_no_round(self) -> None:
         """The list says the worker sends back the posted check, not a fix round."""
         sent = steps.Next(step=steps.Step.SEND_BACK_PLAN_CHECK, findings="row 1")
-        said = pullstate.next_step(stepped(facts(1, NONE), sent))
+        said = pullstate.next_step(stepped(facts(1, NONE), sent), sent)
         assert_that(
             ("sends back the posted check" in said, "fix the findings" in said),
             equal_to((True, False)),
@@ -276,24 +266,3 @@ class TestOrderAndAssign(unittest.TestCase):
             work.smallest_model(plain, SLOTS, {"p": ["small", "large"]}),
         ]
         assert_that(found, equal_to(["large", "large", None]))
-
-    def test_assign(self) -> None:
-        """The smallest empty slot takes the first item it may take."""
-        book = ledger.Ledger(
-            slots=(
-                ledger.Slot(name="big", model="large"),
-                ledger.Slot(name="tiny", model="small"),
-                ledger.Slot(name="busy", model="small", agent="a", task="t"),
-                ledger.Slot(name="odd", model="unknown"),
-            ),
-            failed={},
-        )
-        items = [
-            item("first", work.Category.NEW_PR),
-            item("hard", work.Category.NEW_PR, labels=["hard"]),
-        ]
-        found = assigning.assign(items, book, SLOTS)
-        assert_that(
-            [(slot.name, chosen and chosen.reference) for slot, chosen in found],
-            equal_to([("tiny", "first"), ("big", "hard"), ("odd", None)]),
-        )

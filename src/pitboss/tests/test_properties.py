@@ -24,14 +24,14 @@ DEPTH = 5
 SECONDS = 60
 Allowed = model.Allowed
 Path = tuple[model.Model, Sequence[str]]
-Simulate = Callable[[model.Model, steps.Next, Allowed], model.Model | None]
+Simulate = Callable[[model.Model, steps.Move, Allowed], model.Model | None]
 
 
 class Property(Protocol):
     """A property: the finding at a state, empty when it holds."""
 
     def __call__(
-        self, at: model.Model, step: steps.Next, allowed: Allowed
+        self, at: model.Model, step: steps.Move, allowed: Allowed
     ) -> str:  # pragma: no cover
         """Judge a state.
 
@@ -81,7 +81,7 @@ def walk(
         yield from layer
 
 
-def p1_a_step(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
+def p1_a_step(at: model.Model, step: steps.Move, allowed: Allowed) -> str:
     """P1: the PR has a step that names an action or an owner.
 
     Args:
@@ -92,14 +92,14 @@ def p1_a_step(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
     Returns:
         The finding, empty when the property holds.
     """
-    waits = step.step is steps.Step.WAIT_FOR_CI and at.ci != "running"
-    nothing = (
-        not stepwords.describe(step).strip() or step.step is steps.Step.WAIT_FOR_UNDRAFT
+    waits = model.ci_waits(step) and at.ci != "running"
+    nothing = steps.pending_is(step, steps.Pending.UNDRAFT) or (
+        isinstance(step, steps.Next) and not stepwords.describe(step).strip()
     )
     return "P1: no step names an action or an owner" if waits or nothing else ""
 
 
-def p4_one_ruling(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
+def p4_one_ruling(at: model.Model, step: steps.Move, allowed: Allowed) -> str:
     """P4: at most one ruling before a pause.
 
     Args:
@@ -115,7 +115,7 @@ def p4_one_ruling(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
 
 def p5_moves(
     at: model.Model,
-    step: steps.Next,
+    step: steps.Move,
     allowed: Allowed,
     simulate: Simulate = events.simulated,
 ) -> str:
@@ -136,7 +136,7 @@ def p5_moves(
     return "P5: the step leaves the PR at the same step" if stuck else ""
 
 
-def does_nothing(at: model.Model, step: steps.Next, allowed: Allowed) -> model.Model:
+def does_nothing(at: model.Model, step: steps.Move, allowed: Allowed) -> model.Model:
     """A step done as no change (the planted violation of P5).
 
     Args:
@@ -247,7 +247,7 @@ class TestProperties(unittest.TestCase):
         found = [
             more.p2_ruling_steps(
                 dataclasses.replace(ruled_model(), ci=ci),
-                steps.wait_for_ci(),
+                steps.ci_pending(),
                 events.guard_allows,
             )[:2]
             for ci in ("green", "running")
@@ -271,7 +271,7 @@ class TestProperties(unittest.TestCase):
 
     def test_properties_p1_planted_a_pr_with_no_step_fails(self) -> None:
         """P1 planted: a step that waits for a CI that is not running fails."""
-        waiting = steps.wait_for_ci()
+        waiting = steps.ci_pending()
         green = model.Model()
         assert_that(
             p1_a_step(green, waiting, events.guard_allows), contains_string("P1")

@@ -17,21 +17,15 @@ from typing import (
 )
 
 from .. import config, configfile, ghapi
-from . import captured, repositories
+from . import captured, repositories, worldreads
 
 HEAD = "a" * 40
 PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
 OLDER = "b" * 40
 NOT_FOUND = 127
-# the listing of every open ticket of a repository (keyword: unlabeled)
-UNLABELED_LISTING = re.compile(r"^repos/[\w.-]+/[\w.-]+/issues\?state=open&per_page")
-# the order and the time of a list a window of tickets asks for (keyword:
-# ticket-window, pitboss#443): the fake's list is whole, in one order
+# a window of tickets' order and time (keyword: ticket-window): the list is whole
 ASKED_BY_THE_WINDOW = re.compile(r"&sort=created&direction=asc|&since=[^&]*")
 REFUSED = object()  # a body that fails like a path with none, in a world that has one
-SEARCH = re.compile(r"^search/issues\?q=")
-# what mentions a ticket: a world that cans none has no mention
-TIMELINE = re.compile(r"^repos/[\w.-]+/[\w.-]+/issues/\d+/timeline")
 Answers = Mapping[str, int]
 NO_STATUS: Mapping[str, object] = {"statuses": []}
 TRACEFS_FOUND: Answers = {"grep": 0, "mount": 1}
@@ -119,9 +113,7 @@ class FakeProcesses:
             return answer(self.answers[command[0]], command)
         if command[:2] != ["gh", "api"] and command[0] != "curl":  # PyPI (#103)
             return run_for_real(command, self.cwd, self.path)
-        path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
-        path = ASKED_BY_THE_WINDOW.sub("", path)  # a world cans a list whole
-        body = self.bodies.get(path, none_listed(path))
+        path, body = canned(self.bodies, command)
         if body is None or body is REFUSED:
             raise subprocess.CalledProcessError(
                 1, command, output="", stderr=f"gh: not found: {path} (HTTP 404)\n"
@@ -129,19 +121,22 @@ class FakeProcesses:
         return Output(stdout=body if isinstance(body, str) else json.dumps(body))
 
 
-def none_listed(path: str) -> object:
-    """What a world that cans no such list or search answers.
+def canned(bodies: Mapping[str, object], command: Sequence[str]) -> tuple[str, object]:
+    """What a world cans for a ``gh api`` command (a list read as one page: page 1).
 
     Args:
-        path: the ``gh api`` path.
+        bodies: the world's bodies.
+        command: the command.
 
     Returns:
-        An empty list (a listing of every open ticket, a timeline) or search;
-        None for any other path.
+        The path asked for, and its body (None when the world cans none).
     """
-    if UNLABELED_LISTING.match(path) or TIMELINE.match(path):
-        return []
-    return {"items": []} if SEARCH.match(path) else None
+    path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
+    path = ASKED_BY_THE_WINDOW.sub("", path)  # a world cans a list whole
+    first = f"{path}&page=1" if "per_page=100" in path else page(path)
+    return path, worldreads.listed_whole(
+        bodies, path, bodies.get(path, bodies.get(first, worldreads.none_listed(path)))
+    )
 
 
 def run_for_real(

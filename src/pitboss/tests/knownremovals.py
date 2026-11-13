@@ -8,22 +8,31 @@ import dataclasses
 import pathlib
 from typing import Callable, Mapping, Sequence
 
-from .. import actcore, actverbs, totalroutes, totalverdict
-from ..totaljson import JsonMap
+from .. import actcore, actrules, actverbs, gatefacts, gatepolicy, project, render
+from ..gatestop import Stop
 from . import captured
-from .knownkit import Kit, Known, controls_of
+from .knownkit import Kit, Known
 
 Removal = Callable[[Kit], Kit]
 
 
+def _rests(given: Kit, **changes: object) -> Kit:
+    rests = dataclasses.replace(given.rests, **changes)  # type: ignore[arg-type]
+    return dataclasses.replace(given, rests=rests)
+
+
+def _part(given: Kit, name: str, **changes: object) -> Kit:
+    # one part of what the verbs rest on (the policy, the controls), changed
+    made = dataclasses.replace(getattr(given.rests, name), **changes)
+    return _rests(given, **{name: made})
+
+
 def _rows(given: Kit, **changes: object) -> Kit:
-    policy = dataclasses.replace(given.policy, **changes)  # type: ignore[arg-type]
-    return dataclasses.replace(given, policy=policy, controls=controls_of(policy))
+    return _part(given, "policy", **changes)
 
 
 def _controls(given: Kit, **changes: object) -> Kit:
-    controls = dataclasses.replace(given.controls, **changes)  # type: ignore[arg-type]
-    return dataclasses.replace(given, controls=controls)
+    return _part(given, "controls", **changes)
 
 
 def _kit(given: Kit, **changes: object) -> Kit:
@@ -40,8 +49,8 @@ def _verbs(given: Kit, **changes: actverbs.Verb) -> Kit:
     )
 
 
-def _go(action: str, pull: JsonMap, ctx: JsonMap) -> totalverdict.Answer:
-    return totalverdict.Answer(word=totalverdict.GO)
+def _go(action: str, gate: gatefacts.Gate, policy: gatepolicy.Policy) -> Sequence[Stop]:
+    return []
 
 
 def _nothing(*words: object) -> None:
@@ -61,8 +70,10 @@ def _naive_push(
 
 
 def _first(act: actcore.Act, target: actcore.Target, options: Mapping[str, str]) -> str:
-    want = options.get("want", "")
-    return next(each.ref for each in act.work().items if want in ("", each.ref))
+    return (
+        options.get("want")
+        or render.dispatch(project.dispatch_next(act.questions.dispatch()))[0]
+    )
 
 
 def _naive_items(body: str | None) -> Sequence[str]:
@@ -79,23 +90,21 @@ def _root_only(ticket: object) -> str:
 
 
 REMOVALS: Mapping[str, Removal] = {
-    "verdict_rows": lambda given: _controls(given, verdict=_go),
+    "verdict_rows": lambda given: _rests(given, gating=_go),
     "benign": lambda given: _rows(given, benign=frozenset()),
     "review_form": lambda given: _rows(
         given, review=lambda *words: "", plan=lambda *words: ""
     ),
     "body_rows": lambda given: _rows(given, body=_none),
-    "not_overridable": lambda given: _controls(
-        _rows(given, not_overridable=("\0",)), not_overridable=("\0",)
-    ),
+    "not_overridable": lambda given: _rows(given, kept=frozenset()),
     "instructions": lambda given: _kit(
         given,
         requirements={
-            **totalroutes.REQUIREMENTS,
+            **actrules.REQUIREMENTS,
             "orchestrator": ["Merge when the PR is ready."],
         },
     ),
-    "act_gate": lambda given: _controls(given, hold_gate=_nothing, verdict=_go),
+    "act_gate": lambda given: _controls(_rests(given, gating=_go), hold_gate=_nothing),
     "disarm": lambda given: _controls(given, disarm=_nothing),
     "block": lambda given: _verbs(given, block=lambda act, target, options: ""),
     "owner_gate": lambda given: _controls(given, owner_gate=_nothing),

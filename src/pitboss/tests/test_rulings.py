@@ -85,7 +85,7 @@ class TestAfter(unittest.TestCase):
         ]
         expected = [
             (steps.merge(),),
-            (steps.wait_for_ci(),),
+            (steps.ci_pending(),),
             (steps.worker(Task.FIX_CI),),
         ]
         assert_that(found, equal_to(expected))

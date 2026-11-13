@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actport, answer, ticketreader, totalanswer, totaljson
+from . import actport, answer, ticketreader, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
@@ -50,16 +50,13 @@ class Controls:
     """What the verbs rest on (each can be given, so a test can take one out).
 
     Attributes:
-        verdict: the total verdict.
         owner_gate: the owner gate.
         hold_gate: the hold gate.
         disarm: what disarms an armed PR before its inputs change.
         items: the ticket reader.
         started: which open PRs close a ticket.
-        not_overridable: the starts of the stop lines no override lifts.
     """
 
-    verdict: Callable[[str, JsonMap, JsonMap], totalanswer.Answer]
     owner_gate: Callable[["Act"], None] = lambda act: owner_gate(act)
     hold_gate: Callable[["Act", str, str], None] = lambda act, verb, repo: hold_gate(
         act, verb, repo
@@ -71,7 +68,20 @@ class Controls:
     started: Callable[[Sequence[tuple[int, str | None]], str, int], Sequence[int]] = (
         ticketreader.started
     )
-    not_overridable: Sequence[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Questions:
+    """What the verbs ask of the decisions, each reading the world once.
+
+    Attributes:
+        dispatch: the decisions ``dispatch-next`` looks the head of the order up in.
+        decided: the decisions of the world read naming an item: what merge, arm,
+            undraft and override look their verb up in (keyword: gate, P8).
+    """
+
+    dispatch: Callable[[], answer.Decided]
+    decided: Callable[[str], answer.Decided]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -86,8 +96,7 @@ class Act:
         p90: each repository's 90th percentile of changed lines.
         run: the runner git goes through.
         prepush: the pre-push check (its exit status and output).
-        dispatch: reads the world once and gives the head of the order (keyword:
-            one-path): what ``dispatch-next`` answers.
+        questions: what the verbs ask of the decisions (keyword: one-path).
         controls: the gates and readers.
     """
 
@@ -98,7 +107,7 @@ class Act:
     p90: Callable[[str], int]
     run: Run
     prepush: Callable[[], tuple[int, str]]
-    dispatch: Callable[[], answer.DispatchAnswer]
+    questions: "Questions"
     controls: Controls
 
 
@@ -235,31 +244,6 @@ def queued(timeline: Sequence[object]) -> bool:
     kinds = [each.get("event") for each in totaljson.records(timeline)]
     events = [each for each in kinds if each in QUEUE_EVENTS]
     return bool(events) and events[-1] == QUEUED
-
-
-def verdict_of(act: Act, action: str, target: Target) -> Pull:
-    """Read a PR and its inputs, and run the verdict.
-
-    Args:
-        act: the verb's world.
-        action: the action.
-        target: the PR.
-
-    Returns:
-        The PR, when the verdict is GO.
-
-    Raises:
-        Refused: the verdict is STOP; the message carries its first lines.
-    """
-    pull, events = pull_of(act, target), timeline_of(act, target)
-    ctx = {
-        **act.inputs(target.repo, target.number, pull, events),
-        "holds": list(holds(act, target.repo)),
-    }
-    answer = act.controls.verdict(action, pull, ctx)
-    if answer.word != totalanswer.GO:
-        raise Refused(f"{action} {target.name}: STOP: " + "; ".join(answer.lines[:3]))
-    return pull
 
 
 def head_of(pull: JsonMap) -> str:

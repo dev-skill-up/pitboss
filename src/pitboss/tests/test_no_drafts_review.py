@@ -76,12 +76,12 @@ class TestFlow(unittest.TestCase):
             state(REVISED, checks=each) for each in ((), (RUNNING,), (GREEN, RUNNING))
         ]
         found = [flow.next_step(with_no_drafts(each)) for each in prs]
-        assert_that(found, equal_to([steps.wait_for_ci()] * 3))
+        assert_that(found, equal_to([steps.ci_pending()] * 3))
 
     def test_a_draft_is_marked_ready_never_reviewed_alone(self) -> None:
         """The undraft when the runners allow it, else the wait for the window."""
         draft = with_no_drafts(state(draft=True, checks=()))
-        expect(steps.wait_for_undraft(), draft)
+        expect(steps.UNDRAFT_PENDING, draft)
         expect(steps.undraft(), dataclasses.replace(draft, undraft_clear=True))
 
 

@@ -64,7 +64,7 @@ from . import (
     diskline,
     pulllines,
     pullstate,
-    totalroutes,
+    actrules,
     unlabeled,
     unledgered,
     unreadableline,
@@ -392,7 +392,7 @@ def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     )
     _unledgered_section(found)
     # what each actor writes, from the checker's own table (keyword: total-routes)
-    print(totalroutes.instructions(), end="")
+    print(actrules.instructions(), end="")
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)

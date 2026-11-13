@@ -14,11 +14,12 @@ from hamcrest import assert_that, equal_to, is_
 
 from .. import expansion, flow, flowstate, plancheckflow, plandigest, shapes, steps
 from . import fakes, test_flow
-from .test_flow import APPROVED, CHANGES, Task
+from .test_flow import APPROVED, CHANGES
 from .checkcomment import clean_check
 
 REVISED = test_flow.BODY.replace("the plan", "a better plan")
 Subject = expansion.Subject
+PLAN_REVIEW = steps.regular_review(steps.Stage.PLAN_ONLY)
 
 
 def plan_digest(body: str) -> str:
@@ -104,9 +105,7 @@ class TestPairs(unittest.TestCase):
         old = approving(1, test_flow.BODY, sha=fakes.OLDER)
         pr = test_flow.state(old, comments=[ruled], body=REVISED)
         step = flow.next_step(pr)
-        assert_that(step == steps.worker(Task.FIX_EXECUTION), is_(False))
-        assert_that(step.step, equal_to(steps.Step.REGULAR_REVIEW))
-        assert_that(step.stage, equal_to(steps.Stage.PLAN_ONLY))
+        assert_that(step, equal_to(PLAN_REVIEW))
 
     def test_c31_the_execution_approval_does_not_outlive_the_head(self) -> None:
         """A review of an older head is not the review of this head."""

@@ -333,7 +333,6 @@ class TestThePieces(unittest.TestCase):
             markers.Marker.DRAFT_STATE_CHANGED,
             markers.Marker.BLOCKS,
             markers.Marker.SUPERSEDED,
-            markers.Marker.PROMOTE,
             markers.Marker.RED_CAUSE,
         }
         assert_that(own.issubset(markers.SELF_EXPLAINED), equal_to(True))

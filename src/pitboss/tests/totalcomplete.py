@@ -21,18 +21,27 @@ from .. import (
     actverbs,
     actwrite,
     enumeration,
+    gateevents,
+    actrules,
+    answer,
+    gate,
+    gatepolicy,
+    gatestop,
     ticketreader,
     totalanswer,
     totalchecks,
-    totalroutes,
     totalrows,
-    totalverdict,
 )
 from ..totaljson import JsonMap, members
-from . import totalcells, totalworld
+from . import gatesaid, totalcells, totalpairs, totalworld
 
-Verdict = Callable[[str, JsonMap, JsonMap, totalverdict.Policy], totalverdict.Answer]
+Verdict = Callable[[str, JsonMap, JsonMap, gatepolicy.Policy], gatesaid.Answer]
 ACT = re.compile(r"\bact ([a-z]+(?:-[a-z]+)*)")
+NEEDS_TEXT: Mapping[answer.Actor, str] = {
+    answer.Actor.REVIEWER: "act review",
+    answer.Actor.WORKER: "act p",
+    answer.Actor.ORCHESTRATOR: "pitboss act",
+}
 GRADES = ("approved", "approved", "approved")
 ITEMS = ("a demonstrated by b", "c")
 
@@ -64,7 +73,7 @@ class Parts:
         stale: the timeline kinds after which the review is stale.
         declared: each enum's documented values and what each means.
         verdict: the verdict.
-        routes: the routes of the stop lines.
+        routes: who acts on each route of a stop.
         verbs: the act verbs.
         requirements: each actor's instructions.
         forms: the writers and the ticket reader.
@@ -74,20 +83,16 @@ class Parts:
     variables: Sequence[enumeration.Row] = dataclasses.field(
         default_factory=lambda: enumeration.frozen(enumeration.VARIABLES)
     )
-    policy: totalverdict.Policy = dataclasses.field(
-        default_factory=totalverdict.shipped_policy
-    )
-    stale: AbstractSet[str] = dataclasses.field(
-        default_factory=totalverdict.stale_events
-    )
+    policy: gatepolicy.Policy = dataclasses.field(default_factory=gatepolicy.shipped)
+    stale: AbstractSet[str] = dataclasses.field(default_factory=gateevents.stale_events)
     declared: Mapping[str, Mapping[str, str]] = dataclasses.field(
         default_factory=lambda: totalchecks.DECLARED
     )
-    verdict: Verdict = totalverdict.verdict
-    routes: Sequence[totalroutes.Route] = totalroutes.ROUTES
+    verdict: Verdict = gatesaid.verdict
+    routes: gate.Actors = dataclasses.field(default_factory=lambda: gate.ROUTES)
     verbs: Collection[str] = tuple(actverbs.VERBS)
     requirements: Mapping[str, Sequence[str]] = dataclasses.field(
-        default_factory=lambda: dict(totalroutes.REQUIREMENTS)
+        default_factory=lambda: dict(actrules.REQUIREMENTS)
     )
     forms: Forms = Forms()
     labels: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
@@ -111,7 +116,7 @@ def _schema(parts: Parts) -> Iterator[str]:
 
 def _variables(parts: Parts) -> Iterator[str]:
     # each timeline kind in one class, and each documented enum value in its table
-    classes = (parts.policy.benign, parts.stale, totalverdict.LABEL_EVENTS)
+    classes = (parts.policy.benign, parts.stale, gateevents.LABEL_EVENTS)
     for row in parts.variables:
         count = sum(row.value in each for each in classes)
         if row.group == "timeline-kind" and count != 1:
@@ -126,26 +131,28 @@ def _variables(parts: Parts) -> Iterator[str]:
 
 
 def _total(parts: Parts, cells: Sequence[totalcells.Cell]) -> Iterator[str]:
-    lines: set[str] = set()
+    stops: dict[str, gatestop.Route] = {}
 
-    def verdict(action: str, pull: JsonMap, ctx: JsonMap) -> totalverdict.Answer:
-        answer = parts.verdict(action, pull, ctx, parts.policy)
-        lines.update(answer.lines)
-        return answer
+    def verdict(action: str, pull: JsonMap, ctx: JsonMap) -> gatesaid.Answer:
+        said = parts.verdict(action, pull, ctx, parts.policy)
+        stops.update((each.line, each.route) for each in said.stops)
+        return said
 
     shown = totalcells.tally(cells, verdict)
     wrong = set(shown) - {totalcells.FIRES, totalcells.BENIGN}
     for kind in sorted(wrong, key=lambda each: each.name):
         yield (f"total: {shown[kind]} cells of the frozen enumeration are {kind.name}")
-    for each in sorted(lines):
-        if totalroutes.FORBIDDEN.search(each):
+    for each, route in sorted(stops.items()):
+        if totalpairs.FORBIDDEN.search(each):
             yield f"total: a line that says pitboss does not know: {each[:70]}"
-        elif totalroutes.route_of(each, parts.routes) is None:
+        elif route not in parts.routes:
             yield f"total: a stop line with no route: {each[:70]}"
 
 
 def _verbs(parts: Parts) -> Iterator[str]:
-    named = {each.verb for each in parts.routes if each.verb}
+    named = {
+        verb for each in parts.routes.values() if each for verb in ACT.findall(each[1])
+    }
     for line in enumeration.lines_of(enumeration.shipped("act-routes.tsv")):
         fields = line.split("\t")
         if len(fields) == 3 and not line.startswith("class\t"):
@@ -177,16 +184,16 @@ def _forms(parts: Parts) -> Iterator[str]:
 
 def _instructions(parts: Parts) -> Iterator[str]:
     # each actor is told its route, and each route's verb is in an instruction
-    text = totalroutes.instructions(parts.requirements)
-    for actor in sorted(
-        {each.actor for each in parts.routes} & set(totalroutes.NEEDS_TEXT)
-    ):
-        said = text.split(actor.upper(), 1)
-        if len(said) < 2 or totalroutes.NEEDS_TEXT[actor] not in said[1]:
-            yield f"forms: the instructions do not tell the {actor} its route"
-    for each in parts.routes:
-        if each.verb and each.actor in parts.requirements and each.verb not in text:
-            yield f"forms: the route `act {each.verb}` is in no instruction"
+    text = actrules.instructions(parts.requirements)
+    acted = [each for each in parts.routes.values() if each]
+    for actor in sorted({who for who, _ in acted} & set(NEEDS_TEXT), key=str):
+        parts_of = text.split(actor.name, 1)
+        if len(parts_of) < 2 or NEEDS_TEXT[actor] not in parts_of[1]:
+            yield f"forms: the instructions do not tell the {actor.name} its route"
+    for actor, said in acted:
+        for verb in ACT.findall(said):
+            if actor.name.lower() in parts.requirements and verb not in text:
+                yield f"forms: the route `act {verb}` is in no instruction"
 
 
 def _repos(parts: Parts) -> Iterator[str]:

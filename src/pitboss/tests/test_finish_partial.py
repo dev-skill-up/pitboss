@@ -81,7 +81,7 @@ def lines_of(here: world.World, word: str) -> Sequence[str]:
     return [each for each in next_output(here).splitlines() if word in each]
 
 
-def at_step(step: steps.Next, *statuses: shapes.CommitStatus) -> pulls.PullFacts:
+def at_step(step: steps.Move, *statuses: shapes.CommitStatus) -> pulls.PullFacts:
     """An open PR at a step with failed statuses.
 
     Args:
@@ -135,7 +135,7 @@ class TestOffered(unittest.TestCase):
 
 
 def settled(
-    step: steps.Next, *statuses: shapes.CommitStatus
+    step: steps.Move, *statuses: shapes.CommitStatus
 ) -> tuple[pulls.PullFacts, Sequence[str]]:
     """The one PR at a step after ``settle``.
 
@@ -158,12 +158,12 @@ SEND_BACK = dataclasses.replace(
 GATED = (
     steps.regular_review(steps.Stage.PLAN_AND_EXECUTION),
     steps.undraft(),
-    steps.wait_for_ci(),
+    steps.ci_pending(),
     steps.merge(),
 )
 KEPT = (
     at_step(steps.worker(steps.Task.FIX_CI), RED),
-    at_step(steps.Next(step=steps.Step.WAIT_FOR_OWNER), RED),
+    at_step(steps.OWNER_PENDING, RED),
     at_step(steps.merge()),
     shapes.Unreadable(reference="owner/project#8", call="x", status="500"),
 )
@@ -181,14 +181,14 @@ class TestShapes(unittest.TestCase):
     def test_c24_a_refused_check_stays_the_pushing_workers_and_is_named(self) -> None:
         """Pitboss#471: no round is offered for it; the sweep says NO STEP."""
         pull, lines = settled(SEND_BACK)
-        assert_that(pull.step.step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
+        assert_that(steps.step_of(pull.step), equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
         assert_that(lines, equal_to([]))
 
     def test_c24_a_red_text_lint_on_a_pr_to_review_or_merge_is_partial(self) -> None:
         """A body that fails `lint pr-body` is finished, not reviewed or merged."""
         done = [settled(each, RED) for each in GATED]
         assert_that(
-            [pull.step.task for pull, _ in done],
+            [steps.task_of(pull.step) for pull, _ in done],
             equal_to([steps.Task.FINISH_PARTIAL] * len(GATED)),
         )
         assert_that(
@@ -205,7 +205,7 @@ class TestShapes(unittest.TestCase):
         other = dataclasses.replace(RED, context="canonical-files")
         pending = dataclasses.replace(RED, state="pending")
         pull = settled(steps.merge(), other, pending)[0]
-        assert_that(pull.step.step, equal_to(steps.Step.MERGE))
+        assert_that(steps.step_of(pull.step), equal_to(steps.Step.MERGE))
 
 
 class TestStranded(unittest.TestCase):

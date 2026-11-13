@@ -10,8 +10,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actcore, actiongates, acthub, phrases
-from . import knownkit
+from .. import actcore, acthub, actiongates, phrases
+from . import knownkit, knownshipped
 from .queueworld import dropped, dropped_held
 from .test_slot_commands import next_output
 from .says import says
@@ -113,7 +113,7 @@ class TestRearm(unittest.TestCase):
 
         (the runner-pressure hold is ``act hold --scope ci``) refuses the arm.
         """
-        given = knownkit.shipped_kit()
+        given = knownshipped.shipped()
         hub = knownkit.made(given)
         held(given, hub, "merges")
         said = knownkit.refused(lambda: knownkit.act(given, hub, "arm"))
@@ -124,7 +124,7 @@ class TestRearm(unittest.TestCase):
 
     def test_c26_an_arm_after_the_hold_is_recorded_and_made(self) -> None:
         """The hold over, the same PR is armed, its record first."""
-        given = knownkit.shipped_kit()
+        given = knownshipped.shipped()
         hub = knownkit.made(given)
         held(given, hub, "merges")
         number = [key[1] for key in hub.hub.issues_made][0]
@@ -137,9 +137,11 @@ class TestRearm(unittest.TestCase):
     def test_c26_slots_next_waits_during_the_hold_and_offers_the_merge_after(
         self,
     ) -> None:
-        """During the hold the PR's line is the wait; after it, the merge step."""
+        """During the hold nobody acts on the PR, so no line names it (one-path).
+
+        After it, its line is the merge step.
+        """
         waiting = lines_about_pr_2(next_output(dropped_held()))
         offered = lines_about_pr_2(next_output(dropped()))
-        assert_that(waiting, contains_string("HOLD: a runner-pressure hold withholds"))
-        assert_that("HOLD" in offered, equal_to(False))
-        assert_that(offered, contains_string("arm auto-merge or merge"))
+        assert_that(waiting, equal_to(""))
+        assert_that(offered, contains_string("owner/project#2"))

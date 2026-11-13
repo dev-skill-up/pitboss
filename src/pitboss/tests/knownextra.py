@@ -6,10 +6,10 @@ twin through; ``test_known`` runs every table.
 
 from typing import MutableMapping
 
-from ..actcore import Owner, Target
-from . import fakehub, knownkit, knownplay
+from ..actcore import Target
+from . import knownkit, knownplay
 from .knownkit import change, stops
-from .knownplay import capped, dispatch_refused, pull_now, review_edited, stopping
+from .knownplay import pull_now, review_edited, stopping
 from .knowngit import git, refusing_pair, repo_pair
 from .totalworld import ARMED
 
@@ -24,31 +24,6 @@ def dispatch_target() -> Target:
         The target.
     """
     return Target(repo=knownkit.REPO)
-
-
-@case(
-    "X25",
-    "owner message gate; dispatch cap",
-    "the cap is 2 in a ruling and 3 in the config",
-)
-def _cap_ruled(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(given, owner=Owner(messages=["m-cap"]))
-    three = fakehub.state(
-        cap=3, slots=["a", "b", "c"], ledger={"a": "x", "b": "y", "c": ""}
-    )
-    first = dispatch_refused(given, hub, three)
-    capped(given, hub, "m-cap", "2")
-    return "owner message" in first and bool(dispatch_refused(given, hub, three))
-
-
-@case(
-    "X26",
-    "dispatch: slots are the config's (closed world)",
-    "a ledger slot the config does not name",
-)
-def _stray_slot(given: knownkit.Kit) -> bool:
-    stray = fakehub.state(ledger={"sonnet-1": "", "old": "agent-z"})
-    return bool(dispatch_refused(given, knownkit.made(given), stray))
 
 
 @case(
@@ -75,7 +50,9 @@ def _paused_armed(given: knownkit.Kit) -> bool:
     "a `Priority: p1` line after the Done-when bullets",
 )
 def _priority(given: knownkit.Kit) -> bool:
-    return list(given.controls.items("## Done when\n\n- a\n- b\n\nPriority: p1\n")) == [
+    return list(
+        given.rests.controls.items("## Done when\n\n- a\n- b\n\nPriority: p1\n")
+    ) == [
         "a",
         "b",
     ]

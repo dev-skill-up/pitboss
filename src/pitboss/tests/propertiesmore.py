@@ -36,7 +36,21 @@ def unapplied(at: model.Model) -> bool:
     return word is model.Ruling.DO_THESE_STEPS and not later and at.pushed < when
 
 
-def p2_ruling_steps(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
+def _plan_edited(step: steps.Move) -> bool:
+    return steps.step_of(step) is steps.Step.PLAN_EDITED
+
+
+def _held_first(at: model.Model, step: steps.Move) -> bool:
+    # the pause, an edited Plan and a running CI come before a ruling's steps
+    edited = any(each[4] != at.plan for each in at.history.reviews)
+    return (
+        (steps.pending_is(step, steps.Pending.OWNER) and at.paused)
+        or (_plan_edited(step) and edited)
+        or (model.ci_waits(step) and at.ci in RUNNING)
+    )
+
+
+def p2_ruling_steps(at: model.Model, step: steps.Move, allowed: Allowed) -> str:
     """P2: a ``do these steps`` ruling no review or push followed is the step.
 
     At every state, not after a chosen last event. The only steps that come
@@ -51,16 +65,11 @@ def p2_ruling_steps(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
     Returns:
         The finding, empty when the property holds.
     """
-    edited = any(each[4] != at.plan for each in at.history.reviews)
-    first = {
-        steps.Step.WAIT_FOR_OWNER: at.paused,
-        steps.Step.PLAN_EDITED: edited,
-        steps.Step.WAIT_FOR_CI: at.ci in RUNNING,
-    }
-    ruled = step.task is steps.Task.RULING_STEPS
-    fixing = step.task is steps.Task.RESOLVE_CONFLICT and at.conflict
-    fixing = fixing or step.task is steps.Task.FIX_CI and at.ci in RED
-    ahead = first.get(step.step, False) or fixing
+    task = steps.task_of(step)
+    ruled = task is steps.Task.RULING_STEPS
+    fixing = task is steps.Task.RESOLVE_CONFLICT and at.conflict
+    fixing = fixing or task is steps.Task.FIX_CI and at.ci in RED
+    ahead = _held_first(at, step) or fixing
     return (
         "P2: the ruling's steps are not the step"
         if unapplied(at) and not ruled and not ahead
@@ -70,7 +79,7 @@ def p2_ruling_steps(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
 
 def p3_plan_digest(
     at: model.Model,
-    step: steps.Next,
+    step: steps.Move,
     allowed: Allowed,
     digest: Callable[[str], str] = expansion.section_digest,
 ) -> str:
@@ -94,7 +103,7 @@ def p3_plan_digest(
     made = [(version, head) for _, version, head in at.history.checks]
     made += [(each[4], each[3]) for each in at.history.reviews]
     moved = any(_read(digest, v, h) != _read(digest, v, at.head) for v, h in made)
-    edited = step.step is steps.Step.PLAN_EDITED and all(v == at.plan for v, _ in made)
+    edited = _plan_edited(step) and all(v == at.plan for v, _ in made)
     return (
         "P3: a later head changed the digest of an approved Plan"
         if moved or edited

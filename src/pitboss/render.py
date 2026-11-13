@@ -7,6 +7,7 @@ from typing import Sequence
 
 from . import answer, project
 
+NOT_DONE = "NOT DONE"  # a verb whose decision is another prints the one that stands
 NOT_ENOUGH_WORK = (
     "NOT ENOUGH WORK: no open pull request and no ticket of the priority labels can"
     " be started now"
@@ -76,22 +77,36 @@ def item(given: project.ItemAnswer) -> Sequence[str]:
             return answer_lines(given)
 
 
-def dispatch(given: answer.DispatchAnswer) -> Sequence[str]:
+def dispatch(given: answer.Standing) -> Sequence[str]:
     """The lines of the one next piece of work.
 
     Args:
-        given: the head of the order, or why the named item is not it.
+        given: the head of the order, or ``NotEnoughWork``.
 
     Returns:
-        The item's reference; or the line that refuses.
+        The item's reference, or the ``NOT ENOUGH WORK`` line.
     """
     match given:
         case answer.Decision():
             return [given.item]
-        case answer.NotFirst():
-            return [f"the next in the order is {given.head.item}, not {given.named}"]
         case answer.NotEnoughWork():
             return [NOT_ENOUGH_WORK]
+
+
+def standing(given: answer.Standing) -> str:
+    """The decision that stands, in a line, where a verb does not run (P8).
+
+    Args:
+        given: the decision that stands.
+
+    Returns:
+        Its line, or the ``NOT ENOUGH WORK`` line.
+    """
+    match given:
+        case answer.Decision():
+            return decision_line(given)
+        case answer.NotEnoughWork():
+            return NOT_ENOUGH_WORK
 
 
 def first(given: answer.Answer) -> str:

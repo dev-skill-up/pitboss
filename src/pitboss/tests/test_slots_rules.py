@@ -8,7 +8,6 @@ that is blocked (keyword: blocked-body), says a stuck run and a duplicate PR
 can be overridden (keywords: unknown-data, force-brief, quiesce); pitboss#444.
 """
 
-import argparse
 import dataclasses
 import datetime
 import json
@@ -17,31 +16,15 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import (
-    briefsave,
-    duplicatepr,
-    parsing,
-    pulls,
-    shapes,
-    skipitem,
-    steps,
-    stuckci,
-    work,
-)
+from .. import briefsave, parsing, pulls, shapes, steps, stuckci, work
 from . import fakes, rankworld, world
 from .cleanworld import same
 from .itemworld import one, with_pull_issues
 from .says import lacks, says
-from .rankworld import (
-    fixing,
-    lines_are,
-    mentioning,
-    next_output,
-    starts,
-)
+from .rankworld import fixing, lines_are, mentioning, next_output
 from .fastvariants import named
 from .fastworld import NINTH, fast_world, listed
-from .test_work import NONE, REPO, facts, item, stepped
+from .test_work import NONE, facts, item, stepped
 from .fakes import write
 
 NOW = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.timezone.utc)
@@ -58,51 +41,6 @@ def briefs_of(here: world.World) -> Sequence[str]:
     """
     found = here.ledger.parent / briefsave.DIRECTORY
     return sorted(each.name for each in found.iterdir()) if found.exists() else []
-
-
-class TestSkip(unittest.TestCase):
-    """B2: ``--skip`` takes an item out of the list for this run."""
-
-    def test_b2_a_skipped_item_is_left_out_and_said(self) -> None:
-        """The next item is the one the list starts; a SKIPPED line says so."""
-        here = world.make_world()
-        plain = starts(here)
-        done = listed(here, "--skip", "owner/project#1")
-        skipped = rankworld.NEXT_LINE.findall(done.out)
-        assert_that("owner/project#1" in plain, equal_to(True))
-        left = [each for each in plain if each != "owner/project#1"]
-        assert_that(skipped, equal_to(left))
-        lines_are(
-            done.out,
-            "SKIPPED:",
-            ["SKIPPED: owner/project#1 is left out of this list by --skip"],
-        )
-        lacks(done.out, "DISPATCH: owner/project#1")
-
-    def test_b2_a_bare_number_and_a_repeat_name_items_and_others_are_silent(
-        self,
-    ) -> None:
-        """``#3`` is of the project; an item the list does not hold says nothing."""
-        here = world.make_world()
-        done = listed(here, "--skip", "#3", "--skip", "owner/project#77")
-        said = [each for each in done.out.splitlines() if each.startswith("SKIPPED")]
-        same(said, ["SKIPPED: owner/project#3 is left out of this list by --skip"])
-
-    def test_b2_items_without_the_skipped_ones_keep_their_order(self) -> None:
-        """Items without the skipped ones; no skip is no line and no change."""
-        offer = work.Offered(
-            items=[
-                item("owner/project#1", work.Category.REVIEW),
-                item("owner/project#2", work.Category.REVIEW),
-            ],
-            held=[],
-            standing={},
-            blocked=[],
-        )
-        two = skipitem.without(offer, ["owner/project#1"])
-        same({each.reference for each in two.items}, {"owner/project#2"})
-        same(skipitem.lines(offer, []), [])
-        same(skipitem.named(argparse.Namespace(), REPO), [])
 
 
 class TestBriefs(unittest.TestCase):
@@ -299,7 +237,7 @@ class TestStuckRun(unittest.TestCase):
 
     def test_b22_only_a_pr_waiting_for_ci_is_read(self) -> None:
         """The runs are read for a PR at the wait; a read that fails says nothing."""
-        waiting_pr = stepped(facts(3, NONE), steps.wait_for_ci())
+        waiting_pr = stepped(facts(3, NONE), steps.ci_pending())
         reviewing = facts(4, NONE)
         head = waiting_pr.pull.head.sha
         old = _run_json(1, "queued", 120)
@@ -324,35 +262,3 @@ def _run_json(number: int, status: str, minute: int) -> dict[str, object]:
         "created_at": created.isoformat(),
         "head_branch": "b",
     }
-
-
-class TestDuplicate(unittest.TestCase):
-    """B23: two open PRs on one ticket are named."""
-
-    def test_b23_two_prs_on_one_ticket_are_named_oldest_first(self) -> None:
-        """Both fix ticket 9; the older is named first."""
-        first = facts(3, NONE, body="Fixes #9", created_at="2026-11-01T00:00:00Z")
-        second = facts(4, NONE, body="Fixes #9", created_at="2026-11-02T00:00:00Z")
-        lines = duplicatepr.lines([second, first])
-        same(
-            lines,
-            [
-                "DUPLICATE PR: owner/project#3 and owner/project#4 work ticket"
-                " owner/project#9; step: close the newer as a duplicate"
-            ],
-        )
-
-    def test_b23_one_pr_on_each_ticket_names_nothing(self) -> None:
-        """The nearest input it must still pass; one PR twice is one PR."""
-        one_pr = facts(3, NONE, body="Fixes #9\n\nFixes #9")
-        other = facts(4, NONE, body="Fixes #8")
-        same(duplicatepr.lines([one_pr, other]), [])
-
-    def test_b23_slots_next_prints_the_line(self) -> None:
-        """Two PRs of the world that fix ticket 9."""
-        here = world.make_world()
-        fixing(here, 2, "Fixes #9")
-        fixing(here, 3, "Fixes #9")
-        found = mentioning(listed(here).out, "DUPLICATE PR")
-        same(len(found), 1)
-        says(found[0], "work ticket owner/project#9", "close the newer")

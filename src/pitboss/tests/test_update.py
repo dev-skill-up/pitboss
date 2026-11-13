@@ -33,7 +33,7 @@ def facts(state: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
     """
     done = bool(checks) and all(each.finished for each in checks)
     green = test_work.facts(3, reviews.Standing.NONE, mergeable_state=state)
-    step = test_work.DEFAULT_STEP if done else steps.wait_for_ci()
+    step = test_work.DEFAULT_STEP if done else steps.ci_pending()
     return dataclasses.replace(green, checks=checks, step=step)
 
 
