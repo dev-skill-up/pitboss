@@ -12,8 +12,8 @@ label and no item gave a decision.
 import dataclasses
 from typing import Mapping, Sequence, assert_never
 
-from . import answer, blockedstep, finishstep, gate, listed, sharedstep, steps
-from . import stepwords, world
+from . import answer, blockedstep, finishstep, flowstep, gate, listed, pullfacts
+from . import sharedstep, steps, stepwords, work, world
 from .gatestop import Stop
 
 # who takes each step that has an actor
@@ -32,6 +32,8 @@ ACTORS: Mapping[steps.Step, answer.Actor] = {
     steps.Step.MERGE: answer.Actor.ORCHESTRATOR,
 }
 SLOTTED = frozenset({answer.Actor.WORKER, answer.Actor.REVIEWER})
+# the actors an agent is started and briefed for
+BRIEFED = frozenset({answer.Actor.WORKER, answer.Actor.REVIEWER, answer.Actor.RULING})
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -41,12 +43,10 @@ class Judgement:
     Attributes:
         decided: every decision, and what is next.
         records: the record of each item that has a decision (for its brief).
-        made: the world, each PR at its settled step (``settled``).
     """
 
     decided: answer.Decided
     records: Mapping[str, world.Record]
-    made: world.World
 
 
 CARRIED: Mapping[steps.Step, answer.Carried] = {  # the gated verb of each step
@@ -93,39 +93,40 @@ def _stepped(step: steps.Next, row: listed.Listed) -> answer.Decision:
     )
 
 
-def settled(record: world.PullRecord) -> world.PullRecord:
-    """A PR's record at the step its blockers, shared red and hand-back give it.
+def facts_of(record: world.PullRecord) -> pullfacts.PullFacts:
+    """A PR's facts at the step its flow, blockers, shared red and hand-back give.
 
-    The three settlers are rows of the decision (the one-path plan, 6.1), on the
-    closure the record holds: no read is made here.
+    The flow's rows and the three settlers are rows of the decision (the one-path
+    plan, 6.1), on what the record holds: no read is made here.
 
     Args:
-        record: the record, at the step its own facts give.
+        record: the record, as read.
 
     Returns:
-        The record at its settled step.
+        Its facts at its settled step.
     """
-    facts = record.facts
+    facts = flowstep.at_flow(record.facts)
     blocked = blockedstep.step_of(facts, record.blocked_by) or facts.step
     at = dataclasses.replace(facts, step=blocked)
     moved = sharedstep.stepped(at, record.shared) or blocked
     shared = dataclasses.replace(facts, step=moved)
     finished = finishstep.step_of(shared) or shared.step
-    return dataclasses.replace(record, facts=dataclasses.replace(shared, step=finished))
+    return dataclasses.replace(shared, step=finished)
 
 
 def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
     if record.held:  # a slot holds it: its agent is at work on it
         return None
-    if record.stuck and steps.pending_is(record.facts.step, steps.Pending.CI):
-        return _owner_stuck(record)
-    match record.facts.step:
+    step = facts_of(record).step
+    match step:
+        case steps.Idle(pending=steps.Pending.CI) if record.stuck:
+            return _owner_stuck(record)
         case steps.Idle():
             return None  # keyword: one-path: no actor takes an idle PR
-        case steps.Next() as step:
+        case steps.Next():
             return _at_step(record, step)
         case _:  # pragma: no cover
-            assert_never(record.facts.step)
+            assert_never(step)
 
 
 def _at_step(record: world.PullRecord, step: steps.Next) -> answer.Decision | None:
@@ -136,6 +137,26 @@ def _at_step(record: world.PullRecord, step: steps.Next) -> answer.Decision | No
     if stopped:
         return _routed(stopped[0], record.row)
     return _stepped(step, record.row)
+
+
+def starts(decided: answer.Decision, records: Mapping[str, world.Record]) -> bool:
+    """Whether an agent starts for a decision, and so gets a brief.
+
+    Args:
+        decided: the decision.
+        records: the record of each decided item.
+
+    Returns:
+        True for a decision of an actor that is briefed, but a pull request of no
+        round (a refused Plan check, sent back by the worker that pushed it) that
+        is not an Opus ruling.
+    """
+    if decided.actor not in BRIEFED:
+        return False
+    found = records[decided.item]
+    if isinstance(found, world.PullRecord) and decided.actor is not answer.Actor.RULING:
+        return work.category_of(facts_of(found)) is not None
+    return True
 
 
 def _ticket_decision(record: world.TicketRecord) -> answer.Decision | None:
@@ -162,7 +183,7 @@ def decide_item(record: world.Record) -> answer.Decision | None:
     """
     match record:
         case world.PullRecord():
-            return _pull_decision(settled(record))
+            return _pull_decision(record)
         case world.TicketRecord():
             return _ticket_decision(record)
         case world.Kept():
@@ -182,17 +203,6 @@ def _decided(
             decided.setdefault(found.item, found)
             kept.setdefault(found.item, each)
     return list(decided.values()), kept
-
-
-def _settle(records: Sequence[world.Record]) -> Sequence[world.Record]:
-    return [
-        settled(each) if isinstance(each, world.PullRecord) else each
-        for each in records
-    ]
-
-
-def _settle_map(records: Mapping[str, world.Record]) -> Mapping[str, world.Record]:
-    return dict(zip(records, _settle(list(records.values()))))
 
 
 def _answer(
@@ -219,11 +229,8 @@ def decide(made: world.World) -> Judgement:
     """
     ordered, records = _decided(made.walk.examined)
     named, named_records = _decided(made.named)
-    walked = dataclasses.replace(made.walk, examined=_settle(made.walk.examined))
     decided = answer.Decided(
         answer=_answer(made.walk, ordered, made.free),
         by_item={each.item: each for each in [*ordered, *named]},
     )
-    settled_world = dataclasses.replace(made, walk=walked, named=_settle(made.named))
-    kept = {**named_records, **records}
-    return Judgement(decided=decided, records=_settle_map(kept), made=settled_world)
+    return Judgement(decided=decided, records={**named_records, **records})

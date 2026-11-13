@@ -10,6 +10,7 @@ from typing import Sequence
 
 from . import (
     config,
+    flowstate,
     headsignals,
     reviews,
     rounds,
@@ -52,6 +53,34 @@ class PullFacts:
     step: steps.Move
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PullRead:
+    """One open PR as read, before any step is decided (``decide.facts_of``).
+
+    Attributes:
+        repo: its repository.
+        pull: the PR.
+        checks: the check runs of its head.
+        review: its newest review that counts.
+        standing: where its head stands with that review.
+        signals: what may block it besides its checks (keyword: red-status).
+        unreadable: its comments that try to be reviews and are not (keyword:
+            unreadable-review).
+        review_rounds: what its review rounds show.
+        state: what the review flow's rows ask of it (keyword: review-flow).
+    """
+
+    repo: config.Repo
+    pull: shapes.Pull
+    checks: Sequence[shapes.CheckRun]
+    review: reviews.Found | None
+    standing: reviews.Standing
+    signals: HeadSignals
+    unreadable: straycomments.StrayComments
+    review_rounds: rounds.Rounds
+    state: flowstate.PullState
 
 
 # a PR as read: its facts, or why they could not be read

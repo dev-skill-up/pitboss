@@ -7,15 +7,15 @@ from .. import actcore, actverbs, answer, blockedstep, config, decide, gate
 from .. import gatefacts
 from .. import gatepolicy, listed, parsing, pullfacts, reviews, steps, world
 from ..actport import Pull
-from . import fakehub
+from . import fakehub, flowread
 from . import knownkit
 from .fakes import pull_body
 from .knownkit import Kit
 
 
-def _facts(repo: config.Repo, number: int, step: steps.Next) -> pullfacts.PullFacts:
-    # the facts decide reads of a PR: its step
-    return pullfacts.PullFacts(
+def _facts(repo: config.Repo, number: int, step: steps.Next) -> pullfacts.PullRead:
+    # the PR as read, with the flow's state that gives its step
+    facts = pullfacts.PullFacts(
         repo=repo,
         pull=parsing.pull(json.dumps(pull_body(number))),
         checks=(),
@@ -23,6 +23,8 @@ def _facts(repo: config.Repo, number: int, step: steps.Next) -> pullfacts.PullFa
         standing=reviews.Standing.NONE,
         step=step,
     )
+    merging = step.step is steps.Step.MERGE
+    return flowread.read_of(facts, flowread.MERGING if merging else flowread.UNDRAFTING)
 
 
 def pull_record(

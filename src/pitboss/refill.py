@@ -7,7 +7,7 @@ as the suggestions place a decision in a slot; with none, the answer's first.
 
 from typing import Callable
 
-from . import agentstarts, answer, config, decide, ledger, project, render
+from . import answer, config, decide, ledger, project, render
 from . import suggest, work, world
 
 Pick = Callable[[world.Record], suggest.Pick | None]
@@ -21,7 +21,7 @@ def _fits(
 ) -> bool:
     slots, model, pick = wanted
     taken = pick(judgement.records[each.item])
-    starts = agentstarts.starts(each, judgement.records)
+    starts = decide.starts(each, judgement.records)
     if not starts or taken is None or taken.item is None:
         return False
     smallest = work.smallest_model(taken.item, slots, book.failed)

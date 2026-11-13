@@ -32,6 +32,7 @@ from . import (
     blockers,
     config,
     failures,
+    flowstep,
     ghapi,
     holdconfig,
     holds,
@@ -64,8 +65,8 @@ class Reading:
         book: the slot ledger, as the live agents make it.
         holds: the owner's holds on new pull requests (``[holds]``).
         now: the time now.
-        pull: a pull request read, at the step its own facts give (``decide``
-            settles it on the closure ``examine_pull`` reads).
+        pull: a pull request read (``decide.facts_of`` gives its step from what
+            was read and the closure ``examine_pull`` reads).
         decide_item: the one decider of an item (``decide.decide_item``), which the
             walk counts its stop with.
         closures: how a pull request's gate and shared red are read.
@@ -147,13 +148,14 @@ def examine_pull(
     """
     held = row.reference in _held(reading.book)
     github = reading.github
-    facts = reading.pull(row)
+    read = reading.pull(row)
+    facts = flowstep.at_flow(read)  # the flow's step chooses the closures read
     blocked_by = blockedby.read_closure(github, facts)
     stuck = stuckci.lines(github, [facts], reading.now)  # keyword: stuck-ci
     gated = reading.closures.gated(facts) if steps.step_is(facts.step, GATED) else None
     return world.PullRecord(
         row=row,
-        facts=facts,
+        facts=read,
         blocked_by=blocked_by,
         shared=reading.closures.shared(facts, others),
         blockers=_blockers_of(github, reading.settings, facts, blocked_by),

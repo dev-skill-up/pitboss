@@ -10,7 +10,7 @@ reason, and nothing is pushed.
 import argparse
 from typing import Callable, Protocol, Sequence
 
-from . import config, ghapi, mechanical, pushdraft, repoarg, world
+from . import config, decide, ghapi, mechanical, pushdraft, repoarg, world
 
 # the records of the open PRs of the branches pushed, read as ``next <item>`` reads an
 # item (``onepath.pull_records``, keyword: one-path)
@@ -86,7 +86,7 @@ def _classified(found: Started, pushed: tuple[str, str], records: Records) -> st
     if not read:
         return f"{reference} could not be read as an open PR of the configuration"
     rules = found.settings.runners.mechanical
-    said = mechanical.matching(read[0].facts, read[0].failures, rules)
+    said = mechanical.matching(decide.facts_of(read[0]), read[0].failures, rules)
     if not said:
         return f"{reference} is not classified MECHANICAL-FIX"
     print(SAYING.format(ref=reference, found=said))

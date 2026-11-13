@@ -13,7 +13,6 @@ import functools
 from typing import Callable, Mapping, Sequence, assert_never
 
 from . import (
-    agentstarts,
     answer,
     configfile,
     configloads,
@@ -45,7 +44,7 @@ from . import (
 )
 from .queuereads import read_runner_runs
 
-PullReader = readworld.PullReader  # the pull request, at the step its facts give
+PullReader = readworld.PullReader  # the pull request as read, once a run
 
 
 def _holds(found: nextfound.Found) -> holdconfig.Holds:
@@ -64,9 +63,9 @@ def _book(found: nextfound.Found) -> ledger.Ledger:
 def _reader(found: nextfound.Found, undraft: Callable[[], bool]) -> PullReader:
     # a run reads a pull request once: a pull request read as a shared red's
     # closure is not read again when it is examined
-    done: dict[str, pulls.PullFacts] = {}
+    done: dict[str, pulls.PullRead] = {}
 
-    def read(row: listed.Listed) -> pulls.PullFacts:
+    def read(row: listed.Listed) -> pulls.PullRead:
         if row.reference not in done:
             github, settings = found.github, found.settings
             source = pullread.source_for(github, settings, undraft, row.repo)
@@ -129,7 +128,7 @@ class Seen:
     """The world a command read, and what it decides.
 
     Attributes:
-        made: the world, each pull request at its settled step (``decide``).
+        made: the world as read (``decide.facts_of`` gives a pull request's step).
         judgement: its decisions, with their records.
         runners: the run's one look at the runners, which the read asked too.
     """
@@ -164,11 +163,12 @@ def looked(found: nextfound.Found, chosen: mode.Mode) -> Seen:
     )
     made = readworld.read_world(reading_of(found, measured), _extent(chosen))
     judged = decide.decide(made)
-    return Seen(made=judged.made, judgement=judged, runners=measured)
+    return Seen(made=made, judgement=judged, runners=measured)
 
 
 def _pull_pick(record: world.PullRecord) -> suggest.Pick:
-    row, category = record.row, work.category_of(record.facts)
+    facts = decide.facts_of(record)
+    row, category = record.row, work.category_of(facts)
     item = None
     if category is not None:
         item = workitem.Item(
@@ -182,7 +182,7 @@ def _pull_pick(record: world.PullRecord) -> suggest.Pick:
         title=row.title,
         category=category,
         item=item,
-        pull=record.facts,
+        pull=facts,
     )
 
 
@@ -231,9 +231,10 @@ def briefed(
     Returns:
         The source, with the volume read, and the picks.
     """
-    taken = [records[each.item] for each in chosen if agentstarts.starts(each, records)]
+    taken = [records[each.item] for each in chosen if decide.starts(each, records)]
     picks = [pick for pick in map(pick, taken) if pick is not None]
-    facts = [each.facts for each in taken if isinstance(each, world.PullRecord)]
+    pulled = [each for each in taken if isinstance(each, world.PullRecord)]
+    facts = [decide.facts_of(each) for each in pulled]
     items = [pick.item for pick in picks if pick.item is not None]
     failed = ledger.configured(found.settings).failed
     got = suggest.with_volume(found, suggest.sourced(found, facts, items, failed))

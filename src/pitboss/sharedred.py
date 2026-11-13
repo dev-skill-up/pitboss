@@ -15,8 +15,8 @@ error lines differ (the lines are compared whole).
 import functools
 from typing import Callable, Sequence
 
-from . import blockedby, concurrently, failures, ghapi, headchecks, listed, pulls
-from . import shapes, world
+from . import blockedby, concurrently, failures, flowstep, ghapi, headchecks, listed
+from . import pulls, shapes, world
 from .sharedstep import MAIN, Seen, Shared, at_fix, groups
 
 __all__ = ["Seen", "groups", "closure", "PREFIX"]
@@ -97,7 +97,7 @@ def closure(
 
 def _holder(github: ghapi.GitHub, read: Reader, row: listed.Listed) -> pulls.PullFacts:
     # a shared red's other holder, at the step its blockers give it
-    return blockedby.at_blockers(github, read(row))
+    return blockedby.at_blockers(github, flowstep.at_flow(read(row)))
 
 
 def holders_closure(

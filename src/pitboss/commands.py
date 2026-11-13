@@ -26,6 +26,7 @@ from . import (
     configfile,
     configloads,
     dead,
+    decide,
     diskline,
     ghclient,
     ghmemo,
@@ -193,7 +194,7 @@ def _pull_section(runs: Sequence[queue.QueueRun], seen: Seen) -> bool:
     decided = project.by_item(seen.decided)
     broken = False
     for record in world.pull_records(seen.made):
-        pull = record.facts
+        pull = decide.facts_of(record)
         print(report.pull_line(pull, newest), flush=True)
         for line in render.item_lines(decided, record.row.reference):
             print(line)
@@ -272,7 +273,7 @@ def _slot_section(found: Context, seen: Seen) -> None:
     # no slot is in flight while the running agents are not known (pitboss#94)
     named = [] if found.args.running is None else slotsheader.running(book)
     tasklist.print_block(book, given, named)
-    facts = [each.facts for each in world.pull_records(seen.made)]
+    facts = [decide.facts_of(each) for each in world.pull_records(seen.made)]
     for line in tasklist.live_lines(book, facts):
         print(line)
 

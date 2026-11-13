@@ -8,6 +8,7 @@ from hamcrest import assert_that, equal_to
 from .. import (
     config,
     failures,
+    flowstep,
     pullchecks,
     pullread,
     pullref,
@@ -117,8 +118,10 @@ def read(found: MutableMapping[str, object]) -> Sequence[pulls.PullFacts]:
     settings = fakes.settings(fakes.directory(), GATED)
     github = fakes.github(found)
     return [
-        pulls.fetch(
-            pullread.source_for(github, settings, lambda: False, repo), repo, number
+        flowstep.at_flow(
+            pulls.fetch(
+                pullread.source_for(github, settings, lambda: False, repo), repo, number
+            )
         )
         for repo, number in [(settings.project.repo, 1), (GATED_REPO, 2)]
     ]

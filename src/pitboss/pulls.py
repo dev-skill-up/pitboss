@@ -27,14 +27,13 @@ from . import (
     relock,
     reviews,
     reviewunread,
-    rulingreason,
     rounds,
     shapes,
-    steps,
     straycomments,
     unreadableform,
 )
 from .pullfacts import PullFacts as PullFacts
+from .pullfacts import PullRead as PullRead
 from .pullfacts import Read as Read
 
 reference = pullref.reference
@@ -210,20 +209,7 @@ def _signals(
     )
 
 
-def _step(
-    state: flow.PullState, signals: headchecks.HeadSignals, trusted: AbstractSet[str]
-) -> steps.Move:
-    # keyword: fixed-on-base: the flow read the answered failures as passed
-    step = pinsask.unreviewed(flow.next_step(state), signals.pins)
-    if isinstance(step, steps.Idle):
-        return step
-    ruled = rulingreason.times(state.comments, trusted, step)  # keyword: ruling-reason
-    return dataclasses.replace(
-        step, on_base=bool(signals.fixed), reason=rulingreason.reason(ruled)
-    )
-
-
-def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
+def fetch(source: Source, repo: config.Repo, number: int) -> PullRead:
     """Read one PR: its details, its head's checks and its review.
 
     Args:
@@ -232,14 +218,14 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         number: its number.
 
     Returns:
-        The PR's facts.
+        The PR as read; ``decide.facts_of`` gives its step.
     """
     got = _fetched(source, repo, number)
     found = reviews.newest(got.posted, source.review, repo.slug)
     standing, merged = _standing(source, repo, got.pull, found)
     state = _state(source, repo, got)
     signals = _signals(source, repo, got, state)
-    return PullFacts(
+    return PullRead(
         repo=repo,
         pull=got.pull,
         checks=got.checks,
@@ -247,9 +233,8 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         standing=standing,
         signals=signals,
         unreadable=_unreadable(source, repo, got, (found, state)),
-        step=_step(state, signals, source.review.trusted),
         review_rounds=rounds.of(state, merged),
-        relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
+        state=state,
     )
 
 

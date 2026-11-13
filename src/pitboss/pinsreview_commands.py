@@ -15,6 +15,7 @@ from . import (
     commandarguments,
     commands,
     configsettle,
+    decide,
     expand_commands,
     gateform,
     ghstore,
@@ -46,7 +47,7 @@ def _facts(found: commands.Context, text: str) -> pulls.PullFacts:
     ]
     if not records:
         _refuse(f"{reference}: no open PR of the configuration")
-    return records[0].facts
+    return decide.facts_of(records[0])
 
 
 def _cleared(found: commands.Context, facts: pulls.PullFacts) -> pinsreading.Reading:

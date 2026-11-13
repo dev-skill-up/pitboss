@@ -14,7 +14,7 @@ from typing import Callable, Mapping, Sequence, assert_never
 from . import blockedstep, gatefacts, listed, pullfacts, shapes, sharedstep, slotbook
 
 GateRead = Callable[[pullfacts.PullFacts], gatefacts.Gate]  # keyword: gate
-PullReader = Callable[[listed.Listed], pullfacts.PullFacts]  # one PR, read once a run
+PullReader = Callable[[listed.Listed], pullfacts.PullRead]  # one PR, read once a run
 Others = Sequence[listed.Listed]  # the other open rows of a pull request's repository
 SharedRead = Callable[[pullfacts.PullFacts, Others], Sequence[sharedstep.Shared]]
 
@@ -40,7 +40,7 @@ class PullRecord:
 
     Attributes:
         row: its listing row.
-        facts: what was read of it, at the step its own facts give.
+        facts: what was read of it (``decide.facts_of`` gives its step).
         blocked_by: what its ``Blocked-by:`` lines name, as read (``blockedby``).
         shared: the groups of failed checks it shares with other holders of its
             repository (``sharedred``), read when it is at the fix of its CI.
@@ -56,7 +56,7 @@ class PullRecord:
     """
 
     row: listed.Listed
-    facts: pullfacts.PullFacts
+    facts: pullfacts.PullRead
     blocked_by: blockedstep.Closure
     shared: Sequence[sharedstep.Shared]
     blockers: Sequence[str]

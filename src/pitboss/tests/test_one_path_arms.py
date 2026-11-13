@@ -13,7 +13,8 @@ from .. import answer, blockedstep, config, decide, gateverbs, listed
 from .. import mode, nextcommand, onepath, pullnames, pushdraft, refill, render
 from .. import slotbook, slotsheader, steps
 from .. import sweepline, work, workorder, world
-from . import fakes, gatewords, knownkit, knownshipped, test_decide, test_work
+from . import fakes, flowread, gatewords, knownkit, knownshipped, test_decide
+from . import test_work
 from . import rankworld, totalcomplete, totalpairs, totalworld
 from . import world as scenes
 from .says import errs
@@ -37,7 +38,7 @@ def pull_record(*, held: bool, stuck: Sequence[str]) -> world.PullRecord:
     """
     return world.PullRecord(
         row=listed.listed_row(REPO, "relock/", fakes.pull_body(3)),
-        facts=test_work.facts(3, test_work.NONE),
+        facts=flowread.read_of(test_work.facts(3, test_work.NONE), flowread.RUNNING),
         blocked_by=blockedstep.Closure(found=[], looped=False),
         shared=[],
         blockers=[],
