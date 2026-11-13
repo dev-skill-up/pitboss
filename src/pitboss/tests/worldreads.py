@@ -1,4 +1,7 @@
-"""What the gate reads once for a world's project (keyword: gate)."""
+"""What the gate reads once for a world's project (keyword: gate).
+
+Plan part: 3.1 (the read: the listings, the searches of org-search).
+"""
 
 import re
 import urllib.parse
@@ -101,41 +104,40 @@ def _items(
     bodies: Mapping[str, object], org: str, terms: Sequence[str]
 ) -> Iterator[tuple[str, Mapping[str, object]]]:
     # each canned item the search finds, with its age
-    pulls = "is:pr" in terms
-    labels = [each.removeprefix("label:") for each in terms if each.startswith("label:")]
+    shape = _PULLS if "is:pr" in terms else _labelled(_after(terms, "label:"))
     for key, body in bodies.items():
-        repo = _listed_repo(key, org, pulls, labels)
-        if repo and isinstance(body, list):
-            for row in listed_whole(bodies, key, body):
-                if isinstance(row, dict) and _wanted(row, pulls, terms):
-                    item = {**row, "repository_url": f"{API}repos/{repo}"}
+        found = re.match(rf"^repos/({re.escape(org)}/[\w.-]+){shape}{_PAGED}", key)
+        listed = listed_whole(bodies, key, body) if found else None
+        if found and isinstance(listed, list):
+            for row in listed:
+                if isinstance(row, dict) and _wanted(row, terms):
+                    item = {**row, "repository_url": f"{API}repos/{found[1]}"}
                     yield str(row.get("created_at", "")), item
 
 
-def _listed_repo(key: str, org: str, pulls: bool, labels: Sequence[str]) -> str:
-    # the repository of a canned listing the search reads, empty for another
-    shape = (
-        r"/pulls\?state=open"
-        if pulls
-        else r"/issues\?state=open&labels=(?:" + "|".join(map(re.escape, labels)) + ")"
-    )
-    found = re.match(
-        rf"^repos/({re.escape(org)}/[\w.-]+){shape}(?:&sort=created&direction=asc)?"
-        r"(?:&per_page=100&page=\d+)?$",
-        key,
-    )
-    return found[1] if found and (pulls or labels) else ""
+_PULLS = r"/pulls\?state=open"
+_PAGED = r"(?:&sort=created&direction=asc)?(?:&per_page=100&page=\d+)?$"
 
 
-def _wanted(row: Mapping[str, object], pulls: bool, terms: Sequence[str]) -> bool:
-    # a pull request whose branch the head qualifier takes; a ticket that is one
-    if not pulls:
+def _labelled(labels: Sequence[str]) -> str:
+    # a listing of a label's open tickets; none matches when no label is asked
+    named = "|".join(re.escape(each) for each in labels) or "(?!)"
+    return rf"/issues\?state=open&labels=(?:{named})"
+
+
+def _wanted(row: Mapping[str, object], terms: Sequence[str]) -> bool:
+    # a ticket that is one, and a pull request whose branch the head qualifier takes
+    if "is:pr" not in terms:
         return "pull_request" not in row
     head = row.get("head")
     branch = str(head.get("ref", "")) if isinstance(head, dict) else ""
-    for each in terms:
-        if each.startswith("head:") and not branch.startswith(each[5:]):
-            return False
-        if each.startswith("-head:") and branch.startswith(each[6:]):
-            return False
-    return True
+    starts = [branch.startswith(each) for each in _after(terms, "head:")]
+    left = {branch.startswith(each) for each in _after(terms, "-head:")}
+    return all(starts) and True not in left
+
+
+def _after(terms: Sequence[str], qualifier: str) -> Sequence[str]:
+    # the values a qualifier is given
+    return [
+        each.removeprefix(qualifier) for each in terms if each.startswith(qualifier)
+    ]

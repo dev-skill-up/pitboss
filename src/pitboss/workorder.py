@@ -108,25 +108,22 @@ def listing(github: ghapi.GitHub, settings: config.Config) -> Sequence[listed.Li
         for relock, terms in _queries(settings.lint.relock_prefix)
     ]
     pages = concurrently.each(lambda each: _searched(github, each[0], each[2]), asked)
-    repos = orgsearch.configured(settings)
+    configured = orgsearch.configured(settings)
     rows = [
         listed.searched_row(repo, relock, item)
         for (_, relock, _), got in zip(asked, pages)
         for item in got
-        if (repo := orgsearch.repo_of(item, repos)) is not None
+        if (repo := orgsearch.repo_of(item, configured)) is not None
     ]
-    return sorted(rows, key=lambda each: each.created_at)
+    # a tie of age keeps the configuration's order of repositories
+    rank = {slug: at for at, slug in enumerate(configured)}
+    return sorted(rows, key=lambda each: (each.created_at, rank[each.repo.slug]))
 
 
-def _found(
-    item: orgsearch.Item, repos: Mapping[str, config.Repo]
-) -> Found | None:
+def _found(item: orgsearch.Item, known: Repos) -> Found | None:
     # a ticket of a configured repository, with its reference
-    repo = orgsearch.repo_of(item, repos)
-    issue = issuelist.issue_of(item)
-    if repo is None or issue is None:
-        return None
-    return "#".join((repo.slug, str(issue.number))), issue
+    repo, issue = orgsearch.repo_of(item, known), issuelist.issue_of(item)
+    return (f"{repo.slug}#{issue.number}", issue) if repo and issue else None
 
 
 def _page(github: ghapi.GitHub, path: str, number: int, repos: Repos) -> Page:

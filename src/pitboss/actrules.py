@@ -2,6 +2,8 @@
 
 The text the brief and the sweep carry (pitboss#444): every write to GitHub is a
 ``pitboss act`` verb, and each actor is told the verbs and the form of its own.
+
+Plan part: 6.1 (the act verbs are modes of the one path) and 6.5.
 """
 
 from typing import Mapping, Sequence

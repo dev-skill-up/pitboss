@@ -4,6 +4,8 @@ Not a decision and not a wait: what the ticket's own text names that does not
 exist (T419), a hoped-for figure, a repeated run (pitboss#278) and a flake whose
 test is not quarantined (C6). They read the ticket the walk examined and the
 checkout this command runs in.
+
+Plan part: 6.2 (a note is no wait and no decision: it is printed beside one).
 """
 
 import argparse

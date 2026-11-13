@@ -198,6 +198,8 @@ class TestTheReviewedHead(unittest.TestCase):
             "body": made["body"],
             "author_association": "NONE",
             "created_at": made["created_at"],
+            "url": "",
+            "login": "",
         }
         assert_that(bodyhead.approved_head([]), equal_to(""))
         assert_that(bodyhead.approved_head([shapes.Comment(**other)]), equal_to(""))

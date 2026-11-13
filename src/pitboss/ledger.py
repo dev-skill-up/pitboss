@@ -178,7 +178,8 @@ def take(ledger: Ledger, slot_name: str, work: Work) -> Ledger | Refusal:
         return Refusal(
             reason=f"slot {slot_name} holds {slot.agent} on {slot.task}: free it first"
         )
-    taken = Slot(name=slot.name, model=slot.model, **dataclasses.asdict(work))
+    blank = slotbook.empty_slot(slot.name, slot.model)
+    taken = dataclasses.replace(blank, **dataclasses.asdict(work))
     return _replace(ledger, slot_name, taken)
 
 

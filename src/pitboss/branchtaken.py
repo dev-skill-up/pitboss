@@ -16,7 +16,11 @@ from .totaljson import text
 
 def _rows(body: str) -> Sequence[Mapping[str, object]]:
     found = json.loads(body)
-    return [each for each in found if isinstance(each, dict)] if isinstance(found, list) else []
+    return (
+        [each for each in found if isinstance(each, dict)]
+        if isinstance(found, list)
+        else []
+    )
 
 
 def named(github: ghapi.GitHub, reference: str) -> AbstractSet[str]:

@@ -2,6 +2,8 @@
 
 Apart from ``totalschema``, which reads the declarations, so that the parser of a
 PR's JSON (``pullobject``) checks them without reaching the enumeration files.
+
+Plan part: 6.1, one parse (``pullstate.parse`` is the one reader of the JSON).
 """
 
 from typing import Sequence

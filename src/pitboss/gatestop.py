@@ -2,6 +2,8 @@
 
 Each producer of ``gaterows`` and ``gateevents`` names the route of what it finds
 where it finds it; each route carries who acts on it (``Handling``).
+
+Plan part: 6.2, a stop reason is a constructor and its route a total match.
 """
 
 import dataclasses

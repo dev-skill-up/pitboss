@@ -3,6 +3,8 @@
 The worlds can a PR as ``fakes.pull_body`` makes it; the fake API answers a PR's
 details with the fields a test does not set added, as GitHub gives them, so the
 gate rows read the PR as they read GitHub's.
+
+Plan part: 6.1, one parse (the JSON a parser test feeds in).
 """
 
 import re

@@ -54,9 +54,9 @@ def items(text: str) -> Sequence[Item]:
         Its items, one for each raw item, so a short page is the last.
     """
     found = json.loads(text)
-    listed = found.get("items") if isinstance(found, dict) else None
-    rows = listed if isinstance(listed, list) else []
-    return [each for each in rows if isinstance(each, dict)]
+    rows = found.get("items", []) if isinstance(found, dict) else []
+    kept = rows if isinstance(rows, list) else []
+    return [each for each in kept if isinstance(each, dict)]
 
 
 def repo_of(item: Item, repos: Mapping[str, config.Repo]) -> config.Repo | None:

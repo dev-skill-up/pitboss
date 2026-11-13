@@ -120,13 +120,14 @@ def unlabeled_lines(output: str) -> Sequence[str]:
 
 
 # keyword: one-path: the decisions, the open PRs oldest first across repositories,
-# then the labelled tickets by priority and age (ticket 9 is PR 1's)
+# then the labelled tickets by priority and age, oldest first as the search
+# answers (keyword: org-search): 9 of the project is older than 16 of the library
 WHOLE_ORDER = [
     "owner/lib#4",
     "owner/project#1",
     "owner/project#3",
+    "owner/project#9",
     "owner/lib#16",
-    "owner/project#10",
 ]
 UNLABELED_LINES = [
     "NO PRIORITY LABEL owner/lib#14",

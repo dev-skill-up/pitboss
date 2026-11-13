@@ -1,4 +1,7 @@
-"""The kit the known cases run on, every control as pitboss ships it."""
+"""The kit the known cases run on, every control as pitboss ships it.
+
+Plan part: 6.5 (the known cases run on what pitboss ships).
+"""
 
 import functools
 import json

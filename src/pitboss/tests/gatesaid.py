@@ -1,4 +1,7 @@
-"""The gate's stops as a word and lines, as the act tests compare (keyword: gate)."""
+"""The gate's stops as a word and lines, as the act tests compare (keyword: gate).
+
+Plan part: 6.1 (the gate rows of ``decide``, as the act tests read them).
+"""
 
 from .. import gate, gatepolicy, pullstate
 from ..totaljson import JsonMap

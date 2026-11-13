@@ -1,4 +1,4 @@
-"""The order of work is read by organisation, not by repository (keyword: org-search)."""
+"""The order of work is read by organisation, not repository (keyword: org-search)."""
 
 import unittest
 

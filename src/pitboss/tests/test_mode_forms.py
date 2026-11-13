@@ -97,8 +97,10 @@ class TestPushed(unittest.TestCase):
 
     def test_6_1_a_push_names_the_pull_requests_of_its_branches(self) -> None:
         """The current branch and a refspec each name their open pull request."""
-        listing = "repos/o/r/pulls?state=open&head=o:"
-        opened = {listing + "here": [{"number": 1}], listing + "there": [{"number": 2}]}
+        opened = {
+            f"repos/o/r/pulls?head=o:{branch}&state=open": [{"number": number}]
+            for number, branch in ((1, "here"), (2, "there"))
+        }
         github = on_branch("here", "https://github.com/o/r.git", opened)
         extent = readextent.pushing(["origin", "HEAD", "there", "else"])
         found = readextent.pushed(github, extent)

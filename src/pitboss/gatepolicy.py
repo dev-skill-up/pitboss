@@ -2,6 +2,8 @@
 
 ``gate`` runs the rows of ``gaterows`` and ``gateevents`` with the readings named
 here; a test of a control replaces one reading to show which cases it holds.
+
+Plan part: 6.1 (the gate rows are rows of ``decide``) and P5.
 """
 
 import dataclasses

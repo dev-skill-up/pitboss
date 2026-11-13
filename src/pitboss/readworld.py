@@ -2,11 +2,11 @@
 
 The owner: "You need to get *fewer issues*. Sort by age, stop when you get to 5
 issues that aren't blocked." ``read_world`` reads every open pull request's row
-(org-search: a few calls for each organisation), then walks the order and examines an item (its
-details and closure) only when the walk reaches it: the pull requests that are not
-relock reviews, oldest first; then the tickets by priority label and age, a label's
-first page of each organisation merged by age and a later page read only when the
-merge has used up the one before; then the relock pull requests. The walk stops
+(org-search: two calls for each organisation), then walks the order and examines an
+item (its details and closure) only when the walk reaches it: the pull requests that
+are not relock reviews, oldest first; then the tickets by priority label and age, a
+label's first page of each organisation merged by age and a later page read only when
+the merge has used up the one before; then the relock pull requests. The walk stops
 when it holds ``max(5, the slots configured)`` decisions; an item no actor takes
 counts for nothing, so the walk reads on past it. A blocker an examined item names
 is examined in that item's place (keyword: dependency): the place a blocker takes is

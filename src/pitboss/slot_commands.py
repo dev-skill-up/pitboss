@@ -258,8 +258,8 @@ def _changing(found: Context, action: Action) -> None:
         # keyword: one-path: the one read gives the head and what the slot takes
         seen = onepath.seen_for(found)
         rows = [row for row in seen.made.listing if slot.ticket in row.works_on]
-        head = handedback.head_of(found, rows[0]) if rows else ""
-        event = logline.hand_back(slot, head, found.now)
+        pushed = handedback.head_of(found, rows[0]) if rows else ""
+        event = logline.hand_back(slot, pushed, found.now)
         logline.record(found.settings.slots.log, event)
         if action is Action.FREE:
             read = (seen.judgement, seen.made.book)

@@ -55,27 +55,15 @@ def listed_row(repo: config.Repo, prefix: str, row: Mapping[str, object]) -> Lis
     Returns:
         The row.
     """
-    number = int(str(row["number"]))
     head = row["head"] if isinstance(row["head"], dict) else {}
     branch = text(head.get("ref"))
-    title, body = (text(row.get(key)) for key in ("title", "body"))
-    return Listed(
-        reference=f"{repo.slug}#{number}",
-        repo=repo,
-        number=number,
-        title=title,
-        branch=branch,
-        head=text(head.get("sha")),
-        draft=bool(row.get("draft")),
-        created_at=str(row["created_at"]),
-        relock=relock.is_relock(branch, prefix),
-        works_on=pullnames.names(title, body, branch, repo),
-    )
+    made = searched_row(repo, relock.is_relock(branch, prefix), row)
+    names = pullnames.names(made.title, text(row.get("body")), branch, repo)
+    sha = text(head.get("sha"))
+    return dataclasses.replace(made, branch=branch, head=sha, works_on=names)
 
 
-def searched_row(
-    repo: config.Repo, relock: bool, item: Mapping[str, object]
-) -> Listed:
+def searched_row(repo: config.Repo, relock: bool, item: Mapping[str, object]) -> Listed:
     """One open pull request as an organisation's search gives it (org-search).
 
     Args:

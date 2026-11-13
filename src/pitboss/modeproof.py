@@ -29,6 +29,7 @@ VALUES: Mapping[str, Sequence[str]] = {"verb": [*actverbs.VERBS, "dispatch-next"
 OPTIONS: Mapping[str, Mapping[str, str]] = {"act": {"want": ITEM}}
 # the counts of words that make an argument a list
 MANY = (argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE)
+LEFT_OUT = (argparse.ZERO_OR_MORE, argparse.OPTIONAL)  # what a command line may omit
 
 
 @runtime_checkable
@@ -82,11 +83,17 @@ def _varied(
             yield f"{label} {each.dest}={value}", varied
 
 
+def _required(action: argparse.Action) -> bool:
+    # a positional of ``*`` or ``?`` may be left out, whatever the Python: argparse
+    # marks it required before 3.13 and not from 3.13 on
+    return action.required and action.nargs not in LEFT_OUT
+
+
 def _lines(
     name: str, arguments: Sequence[argparse.Action]
 ) -> Iterator[tuple[str, argparse.Namespace]]:
-    required = [each for each in arguments if each.required]
-    optional = [each for each in arguments if not each.required]
+    required = [each for each in arguments if _required(each)]
+    optional = [each for each in arguments if not _required(each)]
     for chosen in itertools.product(*(_values(each) for each in required)):
         base = {
             "__gather_name__": name,

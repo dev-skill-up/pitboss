@@ -134,10 +134,8 @@ def canned(bodies: Mapping[str, object], command: Sequence[str]) -> tuple[str, o
     path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
     path = ASKED_BY_THE_WINDOW.sub("", path)  # a world cans a list whole
     first = f"{path}&page=1" if "per_page=100" in path else page(path)
-    searched = worldreads.org_searched(bodies, path)
-    if path not in bodies and searched is not None:
-        return path, searched
-    found = bodies.get(path, bodies.get(first, worldreads.none_listed(path)))
+    found = None if path in bodies else worldreads.org_searched(bodies, path)
+    found = found or bodies.get(path, bodies.get(first, worldreads.none_listed(path)))
     return path, fullpull.complete(path, worldreads.listed_whole(bodies, path, found))
 
 

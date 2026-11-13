@@ -1,4 +1,7 @@
-"""A body fix between two rejections of one head (pitboss#146, keyword: ruling)."""
+"""A body fix between two rejections of one head (pitboss#146, keyword: ruling).
+
+Plan part: 6.1 (the flow's rows are rows of ``decide``).
+"""
 
 import unittest
 

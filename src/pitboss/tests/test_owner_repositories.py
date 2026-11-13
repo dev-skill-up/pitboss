@@ -8,7 +8,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import configfile, ownerconfig, repoaccess
+from .. import configfile, orgsearch, ownerconfig, repoaccess
 from . import decisionline, fakes, liveagents, ownerbodies, world
 from .ownerbodies import lines_of
 
@@ -149,17 +149,16 @@ def reviewed(here: world.World) -> str:
     return out
 
 
-def listings(here: world.World, name: str) -> int:
-    """How many times a repository's open PRs were listed.
+def listings(here: world.World) -> int:
+    """How many times the owner's open PRs were searched (keyword: org-search).
 
     Args:
         here: the world, after a command ran.
-        name: the repository's name.
 
     Returns:
-        The count.
+        The count; every repository of the owner is in the one search.
     """
-    path = f"repos/owner/{name}/pulls?state=open"
+    path = orgsearch.path("owner", "is:pr", "-head:relock/")
     return sum(1 for call in here.calls if call[-1].startswith(path))
 
 
@@ -197,8 +196,8 @@ class TestOwnerRepositories(unittest.TestCase):
     def test_an_unlisted_repository_with_an_open_pr_has_a_state_line(self) -> None:
         """``extra`` is not in ``[libraries] repositories``; its PR is shown."""
         here = with_extra()
-        reviewed(here)
-        assert_that(listings(here, "lib"), equal_to(1))
+        out = reviewed(here)
+        assert_that((listings(here), "owner/extra#" in out), equal_to((1, True)))
 
     def test_archived_and_excluded_repositories_are_left_out(self) -> None:
         """Neither is read, so neither is unreadable."""
@@ -223,10 +222,10 @@ class TestOwnerRepositories(unittest.TestCase):
         assert_that(fixture, contains_string("REVIEWER"))
 
     def test_a_repository_in_the_list_is_added_once(self) -> None:
-        """``lib`` is named by the configuration and listed: its PRs listed once."""
+        """``lib`` is named by the configuration and listed: its PRs searched once."""
         here = with_extra()
         liveagents.next_output(here)
-        assert_that(listings(here, "lib"), equal_to(1))
+        assert_that(listings(here), equal_to(1))
 
     def test_the_owner_may_be_a_user(self) -> None:
         """An owner with no organization of that name is listed as a user."""

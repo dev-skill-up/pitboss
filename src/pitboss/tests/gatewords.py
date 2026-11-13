@@ -1,4 +1,7 @@
-"""The word and lines of the gate's stops, as the act tests compare (keyword: gate)."""
+"""The word and lines of the gate's stops, as the act tests compare (keyword: gate).
+
+Plan part: 6.1 (the gate rows of ``decide``, as the act tests read them).
+"""
 
 import dataclasses
 import enum
