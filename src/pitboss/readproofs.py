@@ -16,6 +16,8 @@ IO_PACKAGE = frozenset({"pitboss.ghapi", "pitboss.ledger"})
 PURE = ("decide", "project", "render")
 LISTING = re.compile(r"/(issues|pulls)\?")
 ORDERED = "sort=created&direction=asc"
+ORDER = ("placing", "places")  # the order function (P10)
+PLACED = ["Sequence[listed.Listed]", "Named"]  # what it takes: rows and names
 
 
 def _io_of(package: Package, name: str) -> Sequence[str]:
@@ -136,10 +138,27 @@ def stop_counts_decisions(package: Package) -> Sequence[str]:
         What breaks it.
     """
     found = [*_walk_breaks(proofsource.defined(package, "readworld", "walk"))]
-    taken = proofsource.taken(proofsource.defined(package, "decide", "decide_item"))
-    if taken != ["world.Record"]:
-        found.append(f"P10: decide_item takes {taken}, not one record")
+    found += _takes(package, ("decide", "decide_item"), ["world.Record"], "one record")
+    found += _takes(package, ORDER, PLACED, "the rows and the names")
+    found += _placed(package)
     return found
+
+
+def _takes(
+    package: Package, where: tuple[str, str], wanted: Sequence[str], said: str
+) -> Sequence[str]:
+    # a function that takes other arguments than it must
+    owner, name = where
+    taken = proofsource.taken(proofsource.defined(package, owner, name))
+    return [] if taken == wanted else [f"P10: {name} takes {taken}, not {said}"]
+
+
+def _placed(package: Package) -> Sequence[str]:
+    # the order: one function of the listing rows and the blocker names examined
+    # so far gives each place, and the walk follows a blocker by it
+    sites = proofsource.calls_of(package, frozenset({"placing.places"}))
+    walked = [each for each in sites if each.partition(":")[0] == "readworld"]
+    return [] if walked else ["P10: the walk follows a blocker by no place"]
 
 
 def retried_once(package: Package) -> Sequence[str]:

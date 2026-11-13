@@ -38,6 +38,7 @@ from . import (
     holds,
     ledger,
     listed,
+    placing,
     pullnames,
     pulls,
     readextent,
@@ -267,22 +268,28 @@ def _by_reference(walking: _Walking, reference: str) -> workorder.Candidate | No
 
 
 def _with_blockers(
-    walking: _Walking, candidate: workorder.Candidate, seen: set[str]
+    walking: _Walking,
+    candidate: workorder.Candidate,
+    seen: list[tuple[str, Sequence[str]]],
 ) -> Iterator[world.Record]:
-    # the item, then each open blocker it names, examined in its place
+    # the item, then each open blocker it names, examined at the place
+    # ``placing.places`` gives it: the better of its own and its namer's
     todo = [candidate]
     followed = 0
     while todo and followed <= LIMIT:
         each = todo.pop(0)
-        if each.reference in seen:
+        if each.reference in dict(seen):
             continue
-        seen.add(each.reference)
         followed += 1
         record = _examine(walking, each)
         yield record
-        if walking.reading.decide_item(record) is None:
-            named = (_by_reference(walking, b) for b in world.blockers_of(record))
-            todo.extend(found for found in named if found is not None)
+        decided = walking.reading.decide_item(record) is not None
+        names = () if decided else world.blockers_of(record)
+        seen.append((each.reference, names))
+        placed = placing.places(list(walking.rows.values()), seen)
+        now = [b for b in names if placed[b] <= placed[each.reference]]
+        found = (_by_reference(walking, b) for b in now)
+        todo.extend(item for item in found if item is not None)
 
 
 def _decisions(
@@ -329,7 +336,7 @@ def walk(walking: _Walking, order: Iterable[workorder.Candidate]) -> world.Walk:
         order ended first (every list read to its last page).
     """
     examined: list[world.Record] = []
-    seen: set[str] = set()
+    seen: list[tuple[str, Sequence[str]]] = []
     decisions: list[answer.Decision] = []
     for candidate in order:
         go = _past(walking, candidate) if len(decisions) >= walking.stop else Go.TAKE

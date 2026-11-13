@@ -12,7 +12,7 @@ import datetime
 import subprocess
 from typing import Sequence
 
-from . import ghapi, parsing, pullfacts, pullref, rerunrule, shapes, steps
+from . import ghapi, parsing, pullfacts, rerunrule, shapes, steps
 
 MINUTES = 30
 PREFIX = "STUCK CI"
@@ -115,11 +115,6 @@ def alerts(
     ]
 
 
-def _waiting(facts: pullfacts.PullFacts) -> bool:
-    # no actor takes the PR while its head has checks that have not finished
-    return isinstance(facts.step, steps.Idle) and pullref.pending(facts) > 0
-
-
 def lines(
     github: ghapi.GitHub, facts: Sequence[pullfacts.PullFacts], now: datetime.datetime
 ) -> Sequence[str]:
@@ -133,5 +128,6 @@ def lines(
     Returns:
         The lines; a PR whose runs cannot be read says nothing.
     """
-    waiting = [each for each in facts if _waiting(each)]
+    # no actor takes the PR now: a run of its head may be what holds it
+    waiting = [each for each in facts if isinstance(each.step, steps.Idle)]
     return [said for each in waiting for said in alerts(github, each, now)]
