@@ -300,12 +300,9 @@ class Given:
     decided: answer.Decided = dataclasses.field(default_factory=work)
 
 
-def _questions(hub: Hub, inputs: Inputs, kit: Given) -> Questions:
-    # dispatch-next's head of the fixed order; each PR decided as next decides it
-    return Questions(
-        dispatch=lambda: kit.decided,
-        decided=Decider(hub=hub, inputs=inputs, kit=kit),
-    )
+def _questions(hub: Hub, inputs: Inputs, kit: Given, name: str) -> Questions:
+    # the world's decisions, with its PR decided as next decides it
+    return Questions(decided=Decider(hub=hub, inputs=inputs, kit=kit, name=name))
 
 
 def holding(
@@ -336,7 +333,7 @@ def holding(
         p90=lambda _: 2151,
         run=git_run,
         prepush=lambda: (0, "lint passed\nok\n"),
-        questions=_questions(hub, inputs, given),
+        questions=_questions(hub, inputs, given, _name_of(world)),
         controls=given.controls,
     )
     return Made(hub=memory, act=act, world=world)
@@ -362,6 +359,10 @@ def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
     return written
 
 
+def _name_of(world: totalworld.World) -> str:  # the world's PR, owner/name#number
+    return f"{world.ctx['repo']}#{world.ctx['number']}"
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Decider:
     """A PR's decision as ``next`` makes it, over the hub as it is now.
@@ -370,21 +371,21 @@ class Decider:
         hub: the fake GitHub.
         inputs: the gate's other inputs.
         kit: the gate and the decision of a step (``decide.step_decision``).
+        name: the world's PR, ``owner/name#number``.
     """
 
     hub: Hub
     inputs: Inputs
     kit: "Given"
+    name: str
 
-    def __call__(self, name: str) -> answer.Decided:
-        """The decisions of a world of one PR at the merge or the undraft step.
-
-        Args:
-            name: the PR, ``owner/name#number``.
+    def __call__(self) -> answer.Decided:
+        """The decisions of the kit's world, with its PR at the merge or undraft step.
 
         Returns:
-            Its decision; ``NotEnoughWork`` when nobody acts on it.
+            The kit's decisions, with the PR's own when an actor takes it.
         """
+        name = self.name
         repo, number = name.split("#")
         pull = self.hub.pull(repo, int(number))
         ctx = self.inputs(repo, int(number), pull, [])
@@ -393,6 +394,7 @@ class Decider:
         found = self.kit.gating(gatefacts.ACTIONS[step.step], gated, self.kit.policy)
         title = str(pull.get("title") or "")
         decided = self.kit.deciding(step, found, name, title)
+        given = self.kit.decided
         if decided is None:
-            return answer.Decided(answer=answer.NotEnoughWork(), by_item={})
-        return work_of(decided)
+            return given
+        return dataclasses.replace(given, by_item={**given.by_item, name: decided})

@@ -12,8 +12,9 @@ from typing import Callable, Protocol, Sequence
 
 from . import config, ghapi, mechanical, pushdraft, repoarg, world
 
-# the record of an open PR, read as ``next <item>`` reads it (``onepath.pull_records``)
-Records = Callable[[str], Sequence[world.PullRecord]]
+# the records of the open PRs of the branches pushed, read as ``next <item>`` reads an
+# item (``onepath.pull_records``, keyword: one-path)
+Records = Callable[[], Sequence[world.PullRecord]]
 
 SAYING = "{ref} is classified MECHANICAL-FIX ({found}): this push is never held"
 REFUSAL = (
@@ -81,7 +82,7 @@ def _classified(found: Started, pushed: tuple[str, str], records: Records) -> st
     if number is None:
         return f"{branch} has no single open PR"
     reference = f"{repoarg.named_repo(slug, found.settings).slug}#{number}"
-    read = records(reference)  # keyword: one-path
+    read = [each for each in records() if each.row.reference == reference]
     if not read:
         return f"{reference} could not be read as an open PR of the configuration"
     rules = found.settings.runners.mechanical

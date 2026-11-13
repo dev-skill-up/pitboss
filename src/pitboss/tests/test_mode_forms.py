@@ -1,0 +1,153 @@
+"""Each command that asks of the decisions has its mode (plan 6.1 Mode, P4)."""
+
+import argparse
+import subprocess
+import unittest
+from typing import Sequence
+
+from hamcrest import assert_that, equal_to
+
+from .. import config, listed, mode, modeproof, proofsource, readextent, world
+from ..running import Output, Run
+from .test_decide import BOOK
+
+PROJECT = config.make_repo("o", "r")
+EVERY: Sequence[mode.Mode] = (
+    mode.WhatNext(asked=mode.Asked.FREE_CHECK),
+    mode.ItemNext(asked=mode.Asked.MERGE, item="o/r#1"),
+    mode.DispatchNext(want="", options={}),
+    mode.Sweep(task_list=""),
+    mode.MechanicalPush(arguments=[]),
+    mode.Other(command="clean"),
+)
+
+
+def parsed(name: str, action: str = "", **fields: object) -> mode.Mode:
+    """The mode of a command line.
+
+    Args:
+        name: the command.
+        action: its action or verb, empty for none.
+        **fields: its other arguments.
+
+    Returns:
+        The mode.
+    """
+    args = argparse.Namespace(__gather_name__=name, verb=action, **fields)
+    return mode.parse(args, PROJECT, {})
+
+
+def row(number: int, branch: str) -> listed.Listed:
+    """An open pull request's listing row.
+
+    Args:
+        number: its number in ``o/r``.
+        branch: its head branch.
+
+    Returns:
+        The row.
+    """
+    return listed.Listed(
+        reference=f"o/r#{number}",
+        repo=PROJECT,
+        number=number,
+        title="",
+        branch=branch,
+        head="",
+        draft=False,
+        created_at="",
+        relock=False,
+        works_on=frozenset(),
+    )
+
+
+def on_branch(branch: str) -> Run:
+    """A runner whose git says the working directory is on a branch.
+
+    Args:
+        branch: the branch.
+
+    Returns:
+        The runner.
+    """
+
+    def run(command: Sequence[str]) -> Output:
+        return subprocess.CompletedProcess(command, 0, stdout=f"{branch}\n", stderr="")
+
+    return run
+
+
+class TestForms(unittest.TestCase):
+    """Plan 6.1: the act verbs, pins-review and push each parse to their mode."""
+
+    def test_6_1_an_act_verb_on_an_item_is_its_item_form(self) -> None:
+        """``act merge``, ``arm``, ``undraft``, ``override`` name their item and tag."""
+        found = [
+            parsed("act", verb, target="o/r#4")
+            for verb in ("merge", "arm", "undraft", "override")
+        ]
+        tags = [mode.Asked.MERGE, mode.Asked.ARM, mode.Asked.UNDRAFT]
+        tags.append(mode.Asked.OVERRIDE)
+        want = [mode.ItemNext(asked=each, item="o/r#4") for each in tags]
+        assert_that(found, equal_to(want))
+
+    def test_6_1_pins_review_is_its_item_form(self) -> None:
+        """``pins-review`` names its pull request."""
+        found = parsed("pins-review", pull="o/r#7")
+        want = mode.ItemNext(asked=mode.Asked.PINS_REVIEW, item="o/r#7")
+        assert_that(found, equal_to(want))
+
+    def test_6_1_only_a_mechanical_push_asks_of_the_decisions(self) -> None:
+        """``push --mechanical`` is its mode; a plain push decides nothing."""
+        pushed = parsed("push", mechanical=True, git_arguments=["origin", "b"])
+        plain = parsed("push", mechanical=False, git_arguments=[])
+        want = (
+            mode.MechanicalPush(arguments=["origin", "b"]),
+            mode.Other(command="push"),
+        )
+        assert_that((pushed, plain), equal_to(want))
+
+    def test_6_1_only_what_next_lists(self) -> None:
+        """``listing`` and ``item_of`` answer for every constructor."""
+        found = [(mode.listing(each), mode.item_of(each)) for each in EVERY]
+        want = [(True, ""), (False, "o/r#1"), *[(False, "")] * 4]
+        assert_that(found, equal_to(want))
+
+
+class TestPushed(unittest.TestCase):
+    """Plan 6.1: the extent of a mechanical push is the pull requests it pushes."""
+
+    def test_6_1_a_push_names_the_rows_of_its_branches(self) -> None:
+        """The current branch and a refspec each name their open pull request."""
+        rows = [row(1, "here"), row(2, "there"), row(3, "else")]
+        extent = readextent.pushing(["origin", "HEAD", "there"])
+        found = readextent.pushed(on_branch("here"), extent, rows)
+        assert_that(found, equal_to(["o/r#1", "o/r#2"]))
+
+    def test_6_1_no_push_names_nothing(self) -> None:
+        """An extent that names items reads no branch."""
+        found = readextent.pushed(on_branch("here"), readextent.naming([]), [])
+        assert_that(found, equal_to([]))
+
+    def test_6_1_the_named_pull_requests_of_a_world(self) -> None:
+        """``named_pulls`` of a world that named nothing is empty."""
+        walk = world.Exhausted(examined=[])
+        made = world.World(listing=[], walk=walk, named=[], book=BOOK, free=0)
+        assert_that(world.named_pulls(made), equal_to([]))
+
+
+class TestNoTests(unittest.TestCase):
+    """Plan 6.1 and P4: every dispatch on a mode is a match, never isinstance."""
+
+    def test_p4_an_isinstance_of_a_mode_is_a_finding(self) -> None:
+        """A test of one constructor or of a tuple of them is found; others are not."""
+        text = (
+            "from . import mode\n"
+            "a = isinstance(x, mode.WhatNext)\n"
+            "b = isinstance(x, (int, mode.Sweep))\n"
+            "c = isinstance(x, int)\n"
+            "d = len(x)\n"
+        )
+        package = proofsource.of_texts({"src/pitboss/seed.py": text})
+        found = modeproof.no_tests(package)
+        assert_that(len(found), equal_to(2))

@@ -141,7 +141,7 @@ def _gate(args: argparse.Namespace, slug: str | None) -> tuple[commands.Context,
     pushrequire.pre_push(args, found.settings.project.pre_push, directory)
     pushrequire.green_nox(args)
     pushrequire.execution(args, found.github, slug, _wanted(args))
-    records = functools.partial(onepath.pull_records, found)
+    records = functools.partial(onepath.pull_records, found)  # keyword: mechanical-fix
     free = mechanicalpush.exempt(args, found, slug, records) or _free(args, found, slug)
     if not free:
         _refuse_if_held(found)

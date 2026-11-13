@@ -3,15 +3,17 @@
 ``parse`` maps every parse of the command line onto one ``Mode``: the questions of
 what is next (``next``, the ``slots`` actions that say it, ``act dispatch-next``)
 each have a constructor and a tag of their own, ``sweep`` is ``Sweep``, which
-reads every open pull request, and every other command and action, which decides
-nothing about a step, is ``Other``. Every dispatch on a mode is a ``match`` that
-ends in ``assert_never``.
+reads every open pull request, the ``act`` verbs that look their verb up in the
+item's decision and ``pins-review`` are ``ItemNext`` with a tag of their own,
+``push --mechanical`` is ``MechanicalPush``, and every other command and action,
+which decides nothing about a step, is ``Other``. Every dispatch on a mode is a
+``match`` that ends in ``assert_never``.
 """
 
 import argparse
 import dataclasses
 import enum
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping, Sequence, assert_never
 
 from . import config, ledger, nextcommand
 
@@ -27,6 +29,11 @@ class Asked(enum.Enum):
         HAND_BACK: ``slots free`` and ``slots heard``, which say what the slot
             takes next.
         WATCH: ``slots watch``, whose ``SLOT FREE`` line names the first decision.
+        MERGE: ``act merge <item>``, which runs when the item's decision is the merge.
+        ARM: ``act arm <item>``, likewise.
+        UNDRAFT: ``act undraft <item>``, when its decision is the undraft.
+        OVERRIDE: ``act override <item>``, which lifts a stop of its decision.
+        PINS_REVIEW: ``pins-review <item>``, which reviews a relock's pins.
     """
 
     NEXT = enum.auto()
@@ -35,6 +42,11 @@ class Asked(enum.Enum):
     TASKLIST = enum.auto()
     HAND_BACK = enum.auto()
     WATCH = enum.auto()
+    MERGE = enum.auto()
+    ARM = enum.auto()
+    UNDRAFT = enum.auto()
+    OVERRIDE = enum.auto()
+    PINS_REVIEW = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -50,7 +62,10 @@ class WhatNext:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ItemNext:
-    """What is next for one item: ``next <item>`` and ``slots next <item>``.
+    """What is next for one item: ``next <item>`` and the commands that act on it.
+
+    ``slots next <item>``, ``act merge``, ``arm``, ``undraft`` and ``override``,
+    and ``pins-review``, each with its tag.
 
     Attributes:
         asked: the command that asks.
@@ -86,6 +101,17 @@ class Sweep:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class MechanicalPush:
+    """``push --mechanical``: a push free of the hold for a mechanical red.
+
+    Attributes:
+        arguments: the arguments after ``push``, which name the branches pushed.
+    """
+
+    arguments: Sequence[str]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Other:
     """A command or action that decides nothing about a step.
 
@@ -96,8 +122,15 @@ class Other:
     command: str
 
 
-Mode = WhatNext | ItemNext | DispatchNext | Sweep | Other
-NAMES: Sequence[str] = ("WhatNext", "ItemNext", "DispatchNext", "Sweep", "Other")
+Mode = WhatNext | ItemNext | DispatchNext | Sweep | MechanicalPush | Other
+NAMES: Sequence[str] = (
+    "WhatNext",
+    "ItemNext",
+    "DispatchNext",
+    "Sweep",
+    "MechanicalPush",
+    "Other",
+)
 ModeOf = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], Mode]
 
 
@@ -137,12 +170,27 @@ def _dispatch_next(
     return DispatchNext(want=_item(options.get("want"), project), options=rest)
 
 
+def _acting(asked: Asked, field: str) -> ModeOf:
+    # an item the command names in its argument ``field``
+    def parsed(args: argparse.Namespace, project: config.Repo, *_: object) -> Mode:
+        return ItemNext(asked=asked, item=_item(getattr(args, field, ""), project))
+
+    return parsed
+
+
+def _push(args: argparse.Namespace, *_: object) -> Mode:
+    # only ``--mechanical`` asks of the decisions (keyword: mechanical-fix)
+    if not getattr(args, "mechanical", False):
+        return Other(command="push")
+    return MechanicalPush(arguments=list(getattr(args, "git_arguments", ()) or ()))
+
+
 def _sweep(args: argparse.Namespace, *_: object) -> Mode:
     return Sweep(task_list=str(getattr(args, "task_list", "") or ""))
 
 
 # the commands whose second word is no action
-UNACTIONED = frozenset({"next", "sweep"})
+UNACTIONED = frozenset({"next", "sweep", "pins-review", "push"})
 PARSES: Mapping[tuple[str, str], ModeOf] = {
     ("sweep", ""): _sweep,
     ("next", ""): _next,
@@ -153,6 +201,12 @@ PARSES: Mapping[tuple[str, str], ModeOf] = {
     ("slots", "heard"): _asking(Asked.HAND_BACK),
     ("slots", "watch"): _asking(Asked.WATCH),
     ("act", "dispatch-next"): _dispatch_next,
+    ("act", "merge"): _acting(Asked.MERGE, "target"),
+    ("act", "arm"): _acting(Asked.ARM, "target"),
+    ("act", "undraft"): _acting(Asked.UNDRAFT, "target"),
+    ("act", "override"): _acting(Asked.OVERRIDE, "target"),
+    ("pins-review", ""): _acting(Asked.PINS_REVIEW, "pull"),
+    ("push", ""): _push,
 }
 
 
@@ -177,3 +231,39 @@ def parse(
     if found is not None:
         return found(args, project, options)
     return Other(command=" ".join(filter(None, [name, action])))
+
+
+def listing(chosen: Mode) -> bool:
+    """Whether a mode prints the list of what is next (and its tail).
+
+    Args:
+        chosen: the mode.
+
+    Returns:
+        True for ``next``, ``slots next`` and ``slots free-check`` with no item.
+    """
+    match chosen:
+        case WhatNext():
+            return True
+        case ItemNext() | DispatchNext() | Sweep() | MechanicalPush() | Other():
+            return False
+        case _:  # pragma: no cover
+            assert_never(chosen)
+
+
+def item_of(chosen: Mode) -> str:
+    """The item a mode names.
+
+    Args:
+        chosen: the mode.
+
+    Returns:
+        The item of an item form, empty for any other.
+    """
+    match chosen:
+        case ItemNext():
+            return chosen.item
+        case WhatNext() | DispatchNext() | Sweep() | MechanicalPush() | Other():
+            return ""
+        case _:  # pragma: no cover
+            assert_never(chosen)

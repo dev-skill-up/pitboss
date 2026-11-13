@@ -344,7 +344,7 @@ def dispatch(given: Kit, decided: answer.Decided, **options: str) -> str:
         hub.act,
         questions=dataclasses.replace(
             hub.act.questions,
-            dispatch=lambda: decided,
+            decided=lambda: decided,
         ),
     )
     return given.verbs["dispatch-next"](world, actcore.Target(repo=REPO), options)

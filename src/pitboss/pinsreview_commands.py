@@ -41,7 +41,9 @@ def _facts(found: commands.Context, text: str) -> pulls.PullFacts:
     repo = repoarg.named_repo(named.group(1), found.settings)
     reference = f"{repo.slug}#{named.group(2)}"
     # keyword: one-path: the PR's record, read as ``next <item>`` reads it
-    records = onepath.pull_records(found, reference)
+    records = [
+        each for each in onepath.pull_records(found) if each.row.reference == reference
+    ]
     if not records:
         _refuse(f"{reference}: no open PR of the configuration")
     return records[0].facts

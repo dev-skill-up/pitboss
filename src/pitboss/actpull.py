@@ -39,7 +39,7 @@ def gated_write(
         What was done; or, when the decision that stands is another, that decision.
     """
     verb = GATED[action]
-    found = gateverbs.lookup(act.questions.decided(target.name), verb, target.name)
+    found = gateverbs.lookup(act.questions.decided(), verb, target.name)
     if not gateverbs.allows(verb, found, target.name):
         return f"{render.NOT_DONE}: {action} {target.name}: {render.standing(found)}"
     pull = pull_of(act, target)
@@ -82,7 +82,7 @@ def override_stop(
             no override lifts.
     """
     stop, reason = options_of(options, "stop", "reason")
-    decided = act.questions.decided(target.name)
+    decided = act.questions.decided()
     found = gateverbs.lookup(decided, gateverbs.Verb.OVERRIDE, target.name)
     if not gateverbs.overridable(found, target.name, stop):
         raise actcore.Refused(

@@ -39,7 +39,7 @@ def asked(
     Returns:
         The lines.
     """
-    found = records.get(chosen.item) if isinstance(chosen, mode.ItemNext) else None
+    found = records.get(mode.item_of(chosen))
     if isinstance(found, world.TicketRecord):
         return lines(args, found.reference, found.issue)
     return []

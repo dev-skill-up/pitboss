@@ -186,6 +186,32 @@ def total_matches(package: proofsource.Package) -> Sequence[str]:
     ]
 
 
+def _mode_test(node: ast.Call) -> bool:
+    # ``isinstance(x, mode.C)`` or ``isinstance(x, (mode.C, ...))``
+    if proofsource.dotted(node.func) != "isinstance":
+        return False
+    kinds = node.args[1:2]
+    if kinds and isinstance(kinds[0], ast.Tuple):
+        kinds = kinds[0].elts
+    return any(proofsource.dotted(each).startswith("mode.") for each in kinds)
+
+
+def no_tests(package: proofsource.Package) -> Sequence[str]:
+    """No dispatch on a mode is an ``isinstance`` test: each is a ``match``.
+
+    Args:
+        package: the package.
+
+    Returns:
+        Each ``isinstance`` of a mode's constructor.
+    """
+    return [
+        f"P4: {short}:{node.lineno} tests a mode with isinstance, not a match"
+        for short, node in proofsource.nodes(package)
+        if isinstance(node, ast.Call) and _mode_test(node)
+    ]
+
+
 def main(root: pathlib.Path, mode_of: mode.ModeOf) -> int:
     """Run P4 on the package under a repository's root.
 
@@ -196,9 +222,11 @@ def main(root: pathlib.Path, mode_of: mode.ModeOf) -> int:
     Returns:
         0 when it holds, 1 otherwise.
     """
+    package = proofsource.package_at(root)
     found = [
         *images(mode_of, cli_parser.table()),
-        *total_matches(proofsource.package_at(root)),
+        *total_matches(package),
+        *no_tests(package),
     ]
     for each in found:
         print(each)

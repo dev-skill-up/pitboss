@@ -72,16 +72,15 @@ class Controls:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Questions:
-    """What the verbs ask of the decisions, each reading the world once.
+    """What the verbs ask of the decisions, reading the world once.
 
     Attributes:
-        dispatch: the decisions ``dispatch-next`` looks the head of the order up in.
-        decided: the decisions of the world read naming an item: what merge, arm,
-            undraft and override look their verb up in (keyword: gate, P8).
+        decided: the decisions of the one read of the command line's mode:
+            ``dispatch-next`` looks the head of the order up in them, and merge,
+            arm, undraft and override the item their mode names (keyword: gate, P8).
     """
 
-    dispatch: Callable[[], answer.Decided]
-    decided: Callable[[str], answer.Decided]
+    decided: Callable[[], answer.Decided]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

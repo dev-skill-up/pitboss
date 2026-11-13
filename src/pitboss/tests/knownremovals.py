@@ -72,7 +72,7 @@ def _naive_push(
 def _first(act: actcore.Act, target: actcore.Target, options: Mapping[str, str]) -> str:
     return (
         options.get("want")
-        or render.dispatch(project.dispatch_next(act.questions.dispatch()))[0]
+        or render.dispatch(project.dispatch_next(act.questions.decided()))[0]
     )
 
 

@@ -34,6 +34,7 @@ from . import (
     pulls,
     sharedred,
     quiesce,
+    readextent,
     readworld,
     render,
     slotholding,
@@ -120,14 +121,16 @@ def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Re
     )
 
 
-def _extent(chosen: mode.Mode) -> readworld.Extent:
+def _extent(chosen: mode.Mode) -> readextent.Extent:
     match chosen:
         case mode.ItemNext():
-            return readworld.Extent(named=[chosen.item], every_pull=False)
+            return readextent.naming([chosen.item])
+        case mode.MechanicalPush():
+            return readextent.pushing(chosen.arguments)
         case mode.Sweep():
-            return readworld.Extent(named=[], every_pull=True)
+            return readextent.EVERY_PULL
         case mode.WhatNext() | mode.DispatchNext() | mode.Other():
-            return readworld.Extent(named=[], every_pull=False)
+            return readextent.naming([])
         case _:  # pragma: no cover
             assert_never(chosen)
 
@@ -275,7 +278,7 @@ def answered(
         case mode.ItemNext():
             asked = project.item_next(decided, chosen.item)
             return render.item(asked), _printed(asked)
-        case mode.DispatchNext() | mode.Sweep() | mode.Other():
+        case mode.DispatchNext() | mode.Sweep() | mode.MechanicalPush() | mode.Other():
             return [], []
         case _:  # pragma: no cover
             assert_never(chosen)
@@ -305,58 +308,42 @@ def answer_of(found: nextfound.Found) -> None:
     lines, shown = answered(chosen, judgement.decided)
     lines = [*ticketnotes.asked(found.args, chosen, judgement.records), *lines]
     source, picks = briefed(found, judgement.records, shown)
-    tail = suggest.tail(source) if isinstance(chosen, mode.WhatNext) else []
+    tail = suggest.tail(source) if mode.listing(chosen) else []
     said = [*lines, *tail, *suggest.lines(source, picks)]
     logline.after(said, found.settings.slots.log)
     timing.note(found.args, "lists and briefs printed", len(picks), "briefs")
 
 
-def _item_read(found: nextfound.Found, item: str) -> Seen:
-    # the one read with one item named, as ``next <item>`` reads it
-    return looked(found, mode.ItemNext(asked=mode.Asked.NEXT, item=item))
+def pull_records(found: nextfound.Found) -> Sequence[world.PullRecord]:
+    """The records of the pull requests the mode of the command line names.
 
-
-def pull_records(found: nextfound.Found, item: str) -> Sequence[world.PullRecord]:
-    """The record of one open pull request, read as ``next <item>`` reads it.
+    ``pins-review <item>`` names its item and ``push --mechanical`` the branches it
+    pushes; each is read as ``next <item>`` reads an item (keyword: one-path).
 
     Args:
-        found: the context.
-        item: ``owner/name#number``.
+        found: the context; its command line says the mode.
 
     Returns:
-        Its record; none when it is no open pull request of the configuration.
+        The records of the open pull requests the mode names.
     """
-    made = _item_read(found, item).made
-    return [each for each in world.pull_records(made) if each.row.reference == item]
+    return world.named_pulls(seen_for(found).made)
 
 
-def dispatch(found: nextfound.Found, chosen: mode.DispatchNext) -> answer.Decided:
-    """The decisions ``act dispatch-next`` looks the head of the order up in.
+def decisions(found: nextfound.Found, chosen: mode.Mode) -> answer.Decided:
+    """What ``act`` looks its verb up in: the decisions of its mode's one read.
+
+    ``dispatch-next`` takes the head of the order; merge, arm, undraft and override
+    the decision of the item their mode names (keyword: gate, P8), so a verb runs
+    only when the advice for the item is that verb.
 
     Args:
         found: the context.
-        chosen: the mode.
+        chosen: the mode of the ``act`` command line.
 
     Returns:
         The decisions of the world.
     """
     return looked(found, chosen).decided
-
-
-def decided_for(found: nextfound.Found, item: str) -> answer.Decided:
-    """What ``act`` looks a verb up in: the item's decision (keyword: gate, P8).
-
-    The world is read with the item named, as ``next <item>`` reads it, so the
-    verb runs only when the advice for the item is that verb.
-
-    Args:
-        found: the context.
-        item: ``owner/name#number``.
-
-    Returns:
-        The decisions of the world read with the item named.
-    """
-    return _item_read(found, item).decided
 
 
 def mode_of(

@@ -186,7 +186,7 @@ class TestDispatchBrief(unittest.TestCase):
             hub.act,
             questions=dataclasses.replace(
                 hub.act.questions,
-                dispatch=lambda: fakehub.work("o/r#5"),
+                decided=lambda: fakehub.work("o/r#5"),
             ),
         )
         options = {

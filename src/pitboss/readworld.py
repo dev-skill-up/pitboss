@@ -38,6 +38,7 @@ from . import (
     listed,
     pullnames,
     pulls,
+    readextent,
     steps,
     stuckci,
     ticketdata,
@@ -82,20 +83,6 @@ class Reading:
     gated: world.GateRead
     quiesced: bool
     released: Callable[[Sequence[listed.Listed], ledger.Ledger], ledger.Ledger]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Extent:
-    """How much a command asks to be read.
-
-    Attributes:
-        named: the items examined whatever the walk reaches (the item the
-            command names).
-        every_pull: whether every open pull request is examined (the sweep).
-    """
-
-    named: Sequence[str]
-    every_pull: bool
 
 
 def _held(book: ledger.Ledger) -> AbstractSet[str]:
@@ -370,7 +357,7 @@ def _start(
     )
 
 
-def read_world(reading: Reading, extent: Extent) -> world.World:
+def read_world(reading: Reading, extent: readextent.Extent) -> world.World:
     """Read what a command decides from: once, and no more than the answer needs.
 
     Args:
@@ -384,7 +371,11 @@ def read_world(reading: Reading, extent: Extent) -> world.World:
     reading = dataclasses.replace(reading, book=reading.released(rows, reading.book))
     walking = _start(reading, rows, extent.every_pull)
     order = workorder.candidates(reading.github, reading.settings, rows)
-    named = [*extent.named, *reading.settings.slots.owner_priorities]
+    named = [
+        *extent.named,
+        *readextent.pushed(reading.github.run, extent, rows),
+        *reading.settings.slots.owner_priorities,
+    ]
     return world.World(
         listing=rows,
         walk=walk(walking, order),

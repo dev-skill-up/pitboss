@@ -67,7 +67,7 @@ def dispatch_next(act: Act, target: Target, options: Options) -> str:
     """
     want = options.get("want", "")
     verb = gateverbs.Verb.DISPATCH_NEXT
-    given = gateverbs.lookup(act.questions.dispatch(), verb, want)
+    given = gateverbs.lookup(act.questions.decided(), verb, want)
     said = render.dispatch(given)[0]
     if not isinstance(given, answer.Decision):
         return said

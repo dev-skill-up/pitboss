@@ -161,6 +161,18 @@ def blockers_of(record: Record) -> Sequence[str]:
             assert_never(record)
 
 
+def named_pulls(made: World) -> Sequence[PullRecord]:
+    """The open pull requests a world read because its mode named them.
+
+    Args:
+        made: the world.
+
+    Returns:
+        Their records, in the order they were named.
+    """
+    return [each for each in made.named if isinstance(each, PullRecord)]
+
+
 def pull_records(made: World) -> Sequence[PullRecord]:
     """The open pull requests a world read, in the order of the listing.
 
