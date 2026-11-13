@@ -9,7 +9,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actrules, actverbs, enumeration, gate, gatepolicy
+from .. import actrules, actverbs, enumeration, gatepolicy
 from ..gatestop import Route, Stop
 from ..totaljson import JsonMap
 from . import gatesaid, totalcomplete
@@ -72,17 +72,6 @@ PLANTS = {
     "a repository has a label pitboss does not apply": (
         dataclasses.replace(REFERENCE, labels={"bats-lang/quire": ["do-not-merge"]}),
         "has the label 'do-not-merge'",
-    ),
-    "the route of a body stop is removed": (
-        dataclasses.replace(
-            REFERENCE,
-            routes={
-                route: said
-                for route, said in gate.ROUTES.items()
-                if route is not Route.BODY
-            },
-        ),
-        "a stop line with no route: body:",
     ),
     "a verb a route names is removed (override)": (
         dataclasses.replace(

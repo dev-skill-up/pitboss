@@ -15,8 +15,7 @@ import json
 import re
 from typing import AbstractSet, Mapping, Sequence
 
-from .. import gate
-from ..gatestop import Route, Stop
+from ..gatestop import Stop
 from . import gatewords
 from .totalcells import Cell, Verdict
 from .totalworld import World, copied
@@ -189,20 +188,13 @@ def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
     return Pairs(counts=counts, exceptions=bad[:12])
 
 
-def routed(
-    stops: Sequence[Stop], table: Mapping[Route, object] = gate.ROUTES
-) -> Sequence[str]:
-    """The lines of the stops whose route has no row, or that say pitboss does not know.
+def routed(stops: Sequence[Stop]) -> Sequence[str]:
+    """The lines of the stops that say pitboss does not know.
 
     Args:
         stops: the stops.
-        table: who acts on each route (the shipped one when none).
 
     Returns:
         Each such line.
     """
-    return [
-        each.line
-        for each in stops
-        if each.route not in table or FORBIDDEN.search(each.line)
-    ]
+    return [each.line for each in stops if FORBIDDEN.search(each.line)]

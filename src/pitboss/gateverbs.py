@@ -6,13 +6,9 @@ by ``gate`` and ``decide``; nothing here reads or decides.
 """
 
 import enum
-from typing import AbstractSet, Mapping, assert_never
+from typing import Mapping, assert_never
 
-from . import answer, project, steps, stepwords
-
-UNREAD_SAID = "read the PR on GitHub and file what it answered"
-TRIAGE = "triage the red: `act dispatch-next`"
-KEPT_SAID = frozenset({UNREAD_SAID, TRIAGE})  # the routes no override lifts
+from . import answer, project
 
 
 class Verb(enum.Enum):
@@ -36,11 +32,10 @@ class Verb(enum.Enum):
 Standing = answer.Standing
 
 
-MERGE_WORDS = frozenset({stepwords.TEXTS[steps.Step.MERGE], stepwords.ENQUEUE})
-VERB_WORDS: Mapping[Verb, AbstractSet[str]] = {
-    Verb.MERGE: MERGE_WORDS,
-    Verb.ARM: MERGE_WORDS,
-    Verb.UNDRAFT: {stepwords.TEXTS[steps.Step.UNDRAFT]},
+CARRIED: Mapping[Verb, answer.Carried] = {  # the step each gated verb carries out
+    Verb.MERGE: answer.Carried.MERGE,
+    Verb.ARM: answer.Carried.MERGE,
+    Verb.UNDRAFT: answer.Carried.UNDRAFT,
 }
 
 
@@ -65,19 +60,6 @@ def lookup(decided: answer.Decided, verb: Verb, item: str) -> Standing:
             assert_never(verb)
 
 
-def verb_of(stop_line: str, said: str) -> str:
-    """The verb of a stopped PR's decision: what to do, and the stop it answers.
-
-    Args:
-        stop_line: the first stop's line.
-        said: what the actor does.
-
-    Returns:
-        The verb (an override names the stop line in it).
-    """
-    return f"{said} ({stop_line})"
-
-
 def overridable(found: Standing, item: str, line: str) -> bool:
     """Whether ``act override`` may lift a stop: the item's decision answers it.
 
@@ -92,8 +74,7 @@ def overridable(found: Standing, item: str, line: str) -> bool:
     """
     if not isinstance(found, answer.Decision) or found.item != item:
         return False
-    said = found.verb.removesuffix(f" ({line})")
-    return said != found.verb and said not in KEPT_SAID
+    return line != "" and found.lifts == line
 
 
 def allows(verb: Verb, found: Standing, item: str) -> bool:
@@ -109,4 +90,5 @@ def allows(verb: Verb, found: Standing, item: str) -> bool:
     """
     if not isinstance(found, answer.Decision) or found.item != item:
         return False
-    return found.verb in VERB_WORDS.get(verb, frozenset())
+    wanted = CARRIED.get(verb, answer.Carried.NOTHING)
+    return wanted is not answer.Carried.NOTHING and found.carried is wanted

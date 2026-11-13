@@ -36,11 +36,7 @@ BENIGN_EVENTS = frozenset(
         "head_ref_deleted",
     }
 )
-# the stops no override lifts: a hold, a run, a red, an unread input, a closed PR, a
-# blocker
-KEPT = frozenset(
-    {Route.HOLD, Route.RUNNING, Route.RED, Route.UNREAD, Route.CLOSED, Route.BLOCKED}
-)
+KEPT = frozenset(each for each in Route if not each.value.lifted)  # no override lifts
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

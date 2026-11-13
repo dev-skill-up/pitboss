@@ -28,6 +28,20 @@ class Actor(enum.Enum):
     OWNER = enum.auto()
 
 
+class Carried(enum.Enum):
+    """The ``act`` verb that carries a decision out, which looks it up (P8).
+
+    Attributes:
+        NOTHING: no gated verb (a ticket, a review, a fix, a stop's route).
+        MERGE: ``act merge`` or ``act arm``: the PR merges.
+        UNDRAFT: ``act undraft``: the PR is undrafted.
+    """
+
+    NOTHING = enum.auto()
+    MERGE = enum.auto()
+    UNDRAFT = enum.auto()
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Decision:
     """Who does what on which item, now.
@@ -37,12 +51,16 @@ class Decision:
         verb: what they do, in words.
         item: the item, ``owner/name#number``.
         title: the item's title.
+        carried: the gated verb that carries it out.
+        lifts: the stop line ``act override`` may lift for it, empty for none.
     """
 
     actor: Actor
     verb: str
     item: str
     title: str
+    carried: Carried
+    lifts: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

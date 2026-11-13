@@ -12,7 +12,7 @@ label and no item gave a decision.
 import dataclasses
 from typing import Mapping, Sequence, assert_never
 
-from . import answer, gate, gateverbs, steps, stepwords, world
+from . import answer, gate, listed, steps, stepwords, world
 from .gatestop import Stop
 
 # who takes each step that has an actor
@@ -46,52 +46,72 @@ class Judgement:
     records: Mapping[str, world.Record]
 
 
+CARRIED: Mapping[steps.Step, answer.Carried] = {  # the gated verb of each step
+    steps.Step.MERGE: answer.Carried.MERGE,
+    steps.Step.UNDRAFT: answer.Carried.UNDRAFT,
+}
+
+
+def _owner_stuck(record: world.PullRecord) -> answer.Decision:
+    # keyword: stuck-ci: the run is the owner's to re-run
+    return answer.Decision(
+        actor=answer.Actor.OWNER,
+        verb=record.stuck[0],
+        item=record.row.reference,
+        title=record.row.title,
+        carried=answer.Carried.NOTHING,
+        lifts="",
+    )
+
+
+def _routed(stop: Stop, row: listed.Listed) -> answer.Decision | None:
+    # the route of the first stop: the act verdict's rows are rows of the decision
+    routed = stop.route.value
+    if routed.actor is None:
+        return None
+    return answer.Decision(
+        actor=routed.actor,
+        verb=f"{routed.said} ({stop.line})",
+        item=row.reference,
+        title=row.title,
+        carried=answer.Carried.NOTHING,
+        lifts=stop.line if routed.lifted else "",
+    )
+
+
+def _stepped(step: steps.Next, row: listed.Listed) -> answer.Decision:
+    return answer.Decision(
+        actor=ACTORS[step.step],
+        verb=stepwords.describe(step),
+        item=row.reference,
+        title=row.title,
+        carried=CARRIED.get(step.step, answer.Carried.NOTHING),
+        lifts="",
+    )
+
+
 def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
-    listed = record.row
     if record.held:  # a slot holds it: its agent is at work on it
         return None
-    if record.stuck:  # keyword: stuck-ci: the run is the owner's to re-run
-        return answer.Decision(
-            actor=answer.Actor.OWNER,
-            verb=record.stuck[0],
-            item=listed.reference,
-            title=listed.title,
-        )
-    step = record.facts.step
-    if not isinstance(step, steps.Next):
-        return None  # keyword: one-path: no actor takes an idle PR
+    if record.stuck:
+        return _owner_stuck(record)
+    match record.facts.step:
+        case steps.Idle():
+            return None  # keyword: one-path: no actor takes an idle PR
+        case steps.Next() as step:
+            return _at_step(record, step)
+        case _:  # pragma: no cover
+            assert_never(record.facts.step)
+
+
+def _at_step(record: world.PullRecord, step: steps.Next) -> answer.Decision | None:
     loops = step.task is steps.Task.FIX_BLOCKED_BY  # a loop is fixed, not waited on
     if step.step not in ACTORS or (record.blockers and not loops):
         return None
     stopped = gate.stops_of(step.step, record.gated) if record.gated else ()
-    return step_decision(step, stopped, listed.reference, listed.title)
-
-
-def step_decision(
-    step: steps.Next, stopped: Sequence[Stop], item: str, title: str
-) -> answer.Decision | None:
-    """The decision of a PR at a step, with the stops of its gate.
-
-    Args:
-        step: the PR's step (one an actor takes).
-        stopped: the stops of its gate, in order; none when it goes.
-        item: the PR's reference.
-        title: its title.
-
-    Returns:
-        The step's decision; or, when a row stops it, the route of the first stop
-        (none when no actor takes it).
-    """
-    if stopped:  # the act verdict's rows are rows of the decision
-        found = gate.ROUTES[stopped[0].route]
-        if found is None:
-            return None
-        actor, said = found
-        verb = gateverbs.verb_of(stopped[0].line, said)
-        return answer.Decision(actor=actor, verb=verb, item=item, title=title)
-    return answer.Decision(
-        actor=ACTORS[step.step], verb=stepwords.describe(step), item=item, title=title
-    )
+    if stopped:
+        return _routed(stopped[0], record.row)
+    return _stepped(step, record.row)
 
 
 def _ticket_decision(record: world.TicketRecord) -> answer.Decision | None:
@@ -102,6 +122,8 @@ def _ticket_decision(record: world.TicketRecord) -> answer.Decision | None:
         verb=steps.FIRST_STEP_READY if record.opens_ready else steps.FIRST_STEP,
         item=record.reference,
         title=record.issue.title,
+        carried=answer.Carried.NOTHING,
+        lifts="",
     )
 
 

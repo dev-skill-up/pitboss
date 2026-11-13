@@ -5,7 +5,7 @@ The keyword is total-complete, pitboss#444.
 ``complete`` checks, over the parts as given, that every row is of a PR field and
 every documented timeline kind is in exactly one class; that every documented value
 of an enum the verdict branches on is in its table; that every frozen cell fires on
-its row or is benign, and no stop line says pitboss does not know or has no route;
+its row or is benign, and no stop line says pitboss does not know;
 that every verb a route names exists; that what ``act review`` and ``act ticket``
 write is read back as written, and the instructions tell each actor its route; and
 that every label of a repository is one pitboss applies. Each part can be given, so
@@ -24,7 +24,6 @@ from .. import (
     gateevents,
     actrules,
     answer,
-    gate,
     gatefields,
     gatepolicy,
     gatestop,
@@ -90,7 +89,7 @@ class Parts:
         default_factory=lambda: totalchecks.DECLARED
     )
     verdict: Verdict = gatesaid.verdict
-    routes: gate.Actors = dataclasses.field(default_factory=lambda: gate.ROUTES)
+    routes: Sequence[gatestop.Handling] = tuple(each.value for each in gatestop.Route)
     verbs: Collection[str] = tuple(actverbs.VERBS)
     requirements: Mapping[str, Sequence[str]] = dataclasses.field(
         default_factory=lambda: dict(actrules.REQUIREMENTS)
@@ -132,28 +131,24 @@ def _variables(parts: Parts) -> Iterator[str]:
 
 
 def _total(parts: Parts, cells: Sequence[totalcells.Cell]) -> Iterator[str]:
-    stops: dict[str, gatestop.Route] = {}
+    stops: set[str] = set()
 
     def verdict(action: str, pull: JsonMap, ctx: JsonMap) -> gatesaid.Answer:
         said = parts.verdict(action, pull, ctx, parts.policy)
-        stops.update((each.line, each.route) for each in said.stops)
+        stops.update(each.line for each in said.stops)
         return said
 
     shown = totalcells.tally(cells, verdict)
     wrong = set(shown) - {totalcells.FIRES, totalcells.BENIGN}
     for kind in sorted(wrong, key=lambda each: each.name):
         yield (f"total: {shown[kind]} cells of the frozen enumeration are {kind.name}")
-    for each, route in sorted(stops.items()):
+    for each in sorted(stops):
         if totalpairs.FORBIDDEN.search(each):
             yield f"total: a line that says pitboss does not know: {each[:70]}"
-        elif route not in parts.routes:
-            yield f"total: a stop line with no route: {each[:70]}"
 
 
 def _verbs(parts: Parts) -> Iterator[str]:
-    named = {
-        verb for each in parts.routes.values() if each for verb in ACT.findall(each[1])
-    }
+    named = {verb for each in parts.routes for verb in ACT.findall(each.said)}
     for line in enumeration.lines_of(enumeration.shipped("act-routes.tsv")):
         fields = line.split("\t")
         if len(fields) == 3 and not line.startswith("class\t"):
@@ -187,7 +182,7 @@ def _forms(parts: Parts) -> Iterator[str]:
 def _instructions(parts: Parts) -> Iterator[str]:
     # each actor is told its route, and each route's verb is in an instruction
     text = actrules.instructions(parts.requirements)
-    acted = [each for each in parts.routes.values() if each]
+    acted = [(each.actor, each.said) for each in parts.routes if each.actor]
     for actor in sorted({who for who, _ in acted} & set(NEEDS_TEXT), key=str):
         parts_of = text.split(actor.name, 1)
         if len(parts_of) < 2 or NEEDS_TEXT[actor] not in parts_of[1]:

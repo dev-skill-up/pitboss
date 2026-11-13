@@ -14,8 +14,7 @@ from .proofsource import Package
 WAIT_WORDS = re.compile(r"wait|nobody acts|after |passed over|held", re.IGNORECASE)
 REASONS = frozenset({"reason", "why", "because"})
 SAYING = ("decide", "project", "render", "answer")
-# decide_item, and its arm for a PR at a step, which the act verbs' kit tests alone
-ITEM_DECIDERS = frozenset({"decide_item", "step_decision"})
+ITEM_DECIDERS = frozenset({"decide_item"})  # P7(b): the one item decider
 
 
 def one_decider(package: Package) -> Sequence[str]:

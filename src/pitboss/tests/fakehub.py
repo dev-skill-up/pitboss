@@ -13,7 +13,7 @@ from ..actcore import Act, Controls, Inputs, Owner, Questions
 from ..actport import Change, Hub, Pull
 from ..gatestop import Stop
 from ..totaljson import members, records
-from . import totalworld
+from . import hubwork, totalworld
 from .fakes import write
 
 Key = tuple[str, int]
@@ -183,8 +183,9 @@ WRITES: Mapping[str, Callable[[Memory, Change], str]] = {
 
 
 Gating = Callable[[str, gatefacts.Gate, gatepolicy.Policy], Sequence[Stop]]
-Deciding = Callable[[steps.Next, Sequence[Stop], str, str], answer.Decision | None]
-NEXT = answer.Decision(actor=answer.Actor.WORKER, verb="", item="q#10", title="")
+Deciding = Callable[
+    [str, Pull, steps.Next, gatefacts.Gate | None], answer.Decision | None
+]
 
 
 def work(*items: str) -> answer.Decided:
@@ -196,7 +197,7 @@ def work(*items: str) -> answer.Decided:
     Returns:
         The decisions.
     """
-    every = [dataclasses.replace(NEXT, item=each) for each in items or ["q#10"]]
+    every = [hubwork.worker(each) for each in items or ["q#10"]]
     return work_of(*every)
 
 
@@ -288,15 +289,15 @@ class Given:
     Attributes:
         controls: the gates and readers.
         gating: the gate's stops (``gate.stops_for``).
-        deciding: the decision of a step after its stops.
         policy: the gate's readings.
+        deciding: the PR's decision, by the one item decider (``knownshipped``).
         decided: the decisions ``dispatch-next`` takes the head of.
     """
 
     controls: Controls
     gating: Gating
-    deciding: Deciding
     policy: gatepolicy.Policy
+    deciding: Deciding
     decided: answer.Decided = dataclasses.field(default_factory=work)
 
 
@@ -370,7 +371,7 @@ class Decider:
     Attributes:
         hub: the fake GitHub.
         inputs: the gate's other inputs.
-        kit: the gate and the decision of a step (``decide.step_decision``).
+        kit: the gate's rows and the decisions of the rest of the world.
         name: the world's PR, ``owner/name#number``.
     """
 
@@ -385,15 +386,13 @@ class Decider:
         Returns:
             The kit's decisions, with the PR's own when an actor takes it.
         """
-        name = self.name
-        repo, number = name.split("#")
+        name, (repo, number) = self.name, self.name.split("#")
         pull = self.hub.pull(repo, int(number))
         ctx = self.inputs(repo, int(number), pull, [])
         step = steps.undraft() if pull.get("draft") else steps.merge()
         gated = pullstate.gate_of(pull, ctx)
         found = self.kit.gating(gatefacts.ACTIONS[step.step], gated, self.kit.policy)
-        title = str(pull.get("title") or "")
-        decided = self.kit.deciding(step, found, name, title)
+        decided = self.kit.deciding(name, pull, step, gated if found else None)
         given = self.kit.decided
         if decided is None:
             return given

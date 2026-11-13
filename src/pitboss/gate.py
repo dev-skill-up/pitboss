@@ -11,70 +11,22 @@ shape than GitHub documents and a list GitHub answered with an error are stops o
 their own, so no row meets a value of another type.
 """
 
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from . import (
-    answer,
     gateevents,
     gatefacts,
     gatefields,
     gatepolicy,
     gaterows,
-    gateverbs,
     steps,
     totalbody,
     totalreview,
 )
-from .gatestop import Route, Stop
+from .gatestop import Stop
 from .pullrecords import GateState
 
 Gate = gatefacts.Gate
-OWNER = answer.Actor.OWNER
-ORCHESTRATOR = answer.Actor.ORCHESTRATOR
-WORKER = answer.Actor.WORKER
-REVIEWER = answer.Actor.REVIEWER
-UNREAD_SAID = gateverbs.UNREAD_SAID
-TRIAGE = gateverbs.TRIAGE
-# who acts on each stop, and how; None when no actor takes it now (a hold, a run,
-# a blocker, a closed PR, another queue's PR, GitHub not decided); every route has
-# its row (a nox check, P8)
-Actors = Mapping[Route, tuple[answer.Actor, str] | None]
-ROUTES: Actors = {
-    Route.HOLD: None,
-    Route.RUNNING: None,
-    Route.BLOCKED: None,
-    Route.CLOSED: None,
-    Route.FOREIGN: None,
-    Route.UNDECIDED: None,
-    Route.PAUSED: (OWNER, "remove paused-owner"),
-    Route.LOCK: (OWNER, "unlock the conversation"),
-    Route.REVIEWERS: (OWNER, "give or withdraw the requested human review"),
-    Route.CHANGES_REQUESTED: (OWNER, "dismiss the formal request for changes"),
-    Route.UNREAD: (ORCHESTRATOR, UNREAD_SAID),
-    Route.UNDRAFT: (ORCHESTRATOR, "`act undraft` once the Plan is approved"),
-    Route.LABEL: (
-        ORCHESTRATOR,
-        "`act label --remove` the label pitboss does not apply",
-    ),
-    Route.DISARM: (ORCHESTRATOR, "`act disarm`, then `act arm`"),
-    Route.BEHIND: (ORCHESTRATOR, "`act update-branch`"),
-    Route.UNSTABLE: (ORCHESTRATOR, TRIAGE),
-    Route.RED: (ORCHESTRATOR, TRIAGE),
-    Route.MAX_LINES: (
-        ORCHESTRATOR,
-        "`act override` naming the ruling, or split the ticket",
-    ),
-    Route.TICKET: (
-        ORCHESTRATOR,
-        "`act close` the PR or `act pr-edit` to the open ticket",
-    ),
-    Route.CONFLICT: (WORKER, "merge main into the branch, `act push`"),
-    Route.BODY: (WORKER, "`act pr-edit` with the body in its form"),
-    Route.ADDED_LINES: (WORKER, "cut the added lines, `act push`"),
-    Route.WORKFLOW: (WORKER, "cite the scratch run in the body, `act pr-edit`"),
-    Route.NO_TICKET: (WORKER, "`act pr-edit`: the first line is `Fixes #N`"),
-    Route.REVIEW: (REVIEWER, "`act review` the head as it is now"),
-}
 ACTIONS = gatefacts.ACTIONS
 
 

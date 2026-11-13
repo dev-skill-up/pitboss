@@ -1,11 +1,71 @@
 """The kit the known cases run on, every control as pitboss ships it."""
 
 import functools
+import json
 
-from .. import actcore, actverbs, decide, gate, gatepolicy
+from .. import actcore, actverbs, answer, config, decide, gate, gatefacts
+from .. import gatepolicy, listed, parsing, pullfacts, reviews, steps, world
+from ..actport import Pull
 from . import fakehub
 from . import knownkit
+from .fakes import pull_body
 from .knownkit import Kit
+
+
+def _facts(repo: config.Repo, number: int, step: steps.Next) -> pullfacts.PullFacts:
+    # the facts decide reads of a PR: its step
+    return pullfacts.PullFacts(
+        repo=repo,
+        pull=parsing.pull(json.dumps(pull_body(number))),
+        checks=(),
+        review=None,
+        standing=reviews.Standing.NONE,
+        step=step,
+    )
+
+
+def pull_record(
+    name: str, pull: Pull, step: steps.Next, gated: gatefacts.Gate | None
+) -> world.PullRecord:
+    """The record ``next`` makes of a PR of the hub at a step (P7: ``decide_item``).
+
+    Args:
+        name: the PR, ``owner/name#number``.
+        pull: its JSON on the hub.
+        step: its step.
+        gated: what its action is gated on; None when no row stops it.
+
+    Returns:
+        The record.
+    """
+    slug, number = name.split("#")
+    repo = config.make_repo(*slug.split("/"))
+    return world.PullRecord(
+        row=listed.listed_row(repo, "relock/", {**pull_body(int(number)), **pull}),
+        facts=_facts(repo, int(number), step),
+        blockers=[],
+        stuck=[],
+        gated=gated,
+        held=False,
+        failures={},
+    )
+
+
+def decision_of(
+    name: str, pull: Pull, step: steps.Next, gated: gatefacts.Gate | None
+) -> answer.Decision | None:
+    """The decision of a PR of the hub at a step, by the one item decider (P7).
+
+    Args:
+        name: the PR, ``owner/name#number``.
+        pull: its JSON on the hub.
+        step: its step.
+        gated: what its action is gated on; None when no row stops it.
+
+    Returns:
+        ``decide.decide_item`` of its record.
+    """
+    return decide.decide_item(pull_record(name, pull, step, gated))
 
 
 @functools.cache
@@ -18,8 +78,8 @@ def rests() -> fakehub.Given:
     return fakehub.Given(
         controls=actcore.Controls(),
         gating=gate.stops_for,
-        deciding=decide.step_decision,
         policy=gatepolicy.shipped(),
+        deciding=decision_of,
     )
 
 

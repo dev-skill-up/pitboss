@@ -51,6 +51,8 @@ def decision_of(number: int) -> answer.Decision:
         verb=steps.FIRST_STEP,
         item=f"o/r#{number}",
         title=f"ticket {number}",
+        carried=answer.Carried.NOTHING,
+        lifts="",
     )
 
 

@@ -152,6 +152,8 @@ class TestDecideItem(unittest.TestCase):
             verb="re-run it",
             item="owner/project#3",
             title="PR 3",
+            carried=answer.Carried.NOTHING,
+            lifts="",
         )
         assert_that(found, equal_to(said))
 
