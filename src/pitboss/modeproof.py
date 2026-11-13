@@ -1,11 +1,12 @@
 """P4: every mode goes through the path, run by ``nox -s modes`` (plan section 6.3).
 
-``python -m pitboss.modeproof`` builds the command line parser itself and walks
-each subcommand, each choice of a required argument, and each optional argument
-and flag both present and absent. ``mode.parse`` must map every such command
-line onto a ``Mode`` constructor, and every constructor must be the image of at
-least one; every ``match`` on a mode must end in ``assert_never``. A new flag
-that ``parse`` cannot map fails the session (keyword: one-path).
+``python -m pitboss.modeproof`` reads the one table the command line parser is
+built from (``cli_parser.table``) and walks each command, each choice of a
+required argument, and each optional argument and flag both present and absent.
+``mode.parse`` must map every such command line onto a ``Mode`` constructor, and
+every constructor must be the image of at least one; every ``match`` on a mode
+must end in ``assert_never``. A new flag that ``parse`` cannot map fails the
+session (keyword: one-path).
 """
 
 import argparse
@@ -14,9 +15,11 @@ import itertools
 import pathlib
 import sys
 import typing
-from typing import AbstractSet, Iterator, Mapping, Sequence
+from typing import AbstractSet, Iterator, Mapping, Protocol, Sequence, runtime_checkable
 
-from . import actverbs, cli_parser, config, machine, mode, proofsource
+from gather.api import Wrapper, unique
+
+from . import actverbs, cli_parser, config, mode, proofsource
 
 ITEM = "owner/project#1"
 PROJECT = config.make_repo("owner", "project")
@@ -28,38 +31,37 @@ OPTIONS: Mapping[str, Mapping[str, str]] = {"act": {"want": ITEM}}
 MANY = (argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE)
 
 
-def recorded() -> argparse.ArgumentParser:
-    """The command line parser of every pitboss command.
+@runtime_checkable
+class Argument(Protocol):
+    """An argument as a command declares it (``gather.commands.add_argument``)."""
 
-    Returns:
-        The parser.
-    """
-    return cli_parser.make_parser(machine.read_usage)
+    @property
+    def args(self) -> Sequence[str]:
+        """The names the argument is given as.
 
+        Returns:
+            The names (``config``, or ``--now``).
+        """
 
-# argparse has no public list of a parser's arguments or subcommands; gather reads
-# its subcommands' action the same way (keyword: one-path)
-def _actions(parser: argparse.ArgumentParser) -> Sequence[argparse.Action]:
-    return parser._actions  # noqa: SLD901
+    @property
+    def kwargs(self) -> AbstractSet[tuple[str, object]]:
+        """The rest of what ``add_argument`` is given.
 
-
-def _commands(
-    parser: argparse.ArgumentParser,
-) -> Mapping[str, argparse.ArgumentParser]:
-    found: dict[str, argparse.ArgumentParser] = {}
-    for action in _actions(parser):
-        if isinstance(action, argparse._SubParsersAction):  # noqa: SLD905
-            found.update(action.choices)
-    return found
+        Returns:
+            Each keyword and its value.
+        """
 
 
-def _defaults(parser: argparse.ArgumentParser) -> Mapping[str, object]:
-    return parser._defaults  # noqa: SLD901
-
-
-def _arguments(parser: argparse.ArgumentParser) -> Sequence[argparse.Action]:
-    help_kind = argparse._HelpAction  # noqa: SLD905
-    return [each for each in _actions(parser) if not isinstance(each, help_kind)]
+def _arguments(name: str, registered: object) -> Sequence[argparse.Action]:
+    # each argument a command declares, made by argparse as its parser makes it
+    extra = registered.extra if isinstance(registered, Wrapper) else ()
+    listed = extra if isinstance(extra, Sequence) else ()
+    made = argparse.ArgumentParser(prog=name, add_help=False)
+    return [
+        made.add_argument(*each.args, **dict(each.kwargs))  # type: ignore[arg-type]
+        for each in listed
+        if isinstance(each, Argument)
+    ]
 
 
 def _values(action: argparse.Action) -> Sequence[object]:
@@ -81,14 +83,13 @@ def _varied(
 
 
 def _lines(
-    name: str, sub: argparse.ArgumentParser
+    name: str, arguments: Sequence[argparse.Action]
 ) -> Iterator[tuple[str, argparse.Namespace]]:
-    arguments = _arguments(sub)
     required = [each for each in arguments if each.required]
     optional = [each for each in arguments if not each.required]
     for chosen in itertools.product(*(_values(each) for each in required)):
         base = {
-            **_defaults(sub),
+            "__gather_name__": name,
             **{each.dest: each.default for each in optional},
             **{each.dest: value for each, value in zip(required, chosen)},
         }
@@ -98,18 +99,18 @@ def _lines(
 
 
 def command_lines(
-    parser: argparse.ArgumentParser,
+    declared: cli_parser.Declared,
 ) -> Iterator[tuple[str, argparse.Namespace]]:
-    """Every command line the parser takes, one argument varied at a time.
+    """Every command line the declared commands take, one argument varied at a time.
 
     Args:
-        parser: the parser.
+        declared: the table the parser is built from (``cli_parser.table``).
 
     Yields:
         A label and the parsed arguments.
     """
-    for name, sub in sorted(_commands(parser).items()):
-        yield from _lines(name, sub)
+    for name, registered in sorted(unique(declared).items()):
+        yield from _lines(name, _arguments(name, registered))
 
 
 def _options(args: argparse.Namespace) -> Mapping[str, str]:
@@ -118,12 +119,12 @@ def _options(args: argparse.Namespace) -> Mapping[str, str]:
 
 
 def _mapped(
-    mode_of: mode.ModeOf, parser: argparse.ArgumentParser
+    mode_of: mode.ModeOf, declared: cli_parser.Declared
 ) -> tuple[Sequence[str], AbstractSet[str]]:
     # each command line that maps to no mode, and the modes that were mapped to
     kinds = typing.get_args(mode.Mode)
     found, seen = [], set()
-    for label, args in command_lines(parser):
+    for label, args in command_lines(declared):
         try:
             given = mode_of(args, PROJECT, _options(args))
         except SystemExit as stopped:
@@ -135,18 +136,18 @@ def _mapped(
     return found, seen
 
 
-def images(mode_of: mode.ModeOf, parser: argparse.ArgumentParser) -> Sequence[str]:
+def images(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]:
     """Map every command line through ``mode_of``.
 
     Args:
         mode_of: ``mode.parse``, or a stand-in.
-        parser: the parser.
+        declared: the table the parser is built from.
 
     Returns:
         The findings: a command line with no mode, a constructor with no command
         line.
     """
-    found, seen = _mapped(mode_of, parser)
+    found, seen = _mapped(mode_of, declared)
     return [
         *found,
         *(f"P4: no command line is {each}" for each in mode.NAMES if each not in seen),
@@ -195,7 +196,10 @@ def main(root: pathlib.Path, mode_of: mode.ModeOf) -> int:
     Returns:
         0 when it holds, 1 otherwise.
     """
-    found = [*images(mode_of, recorded()), *total_matches(proofsource.package_at(root))]
+    found = [
+        *images(mode_of, cli_parser.table()),
+        *total_matches(proofsource.package_at(root)),
+    ]
     for each in found:
         print(each)
     print("modes: ok" if not found else f"modes: {len(found)} findings")

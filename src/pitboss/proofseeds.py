@@ -13,7 +13,7 @@ import pathlib
 import sys
 from typing import Mapping, Sequence
 
-from . import config, mode, modeproof, pathproofs, proofsource
+from . import cli_parser, config, mode, modeproof, pathproofs, proofsource
 
 SOURCE = "src/pitboss/"
 
@@ -94,12 +94,12 @@ def _other_modes(
     return mode.Other(command="")
 
 
-def missed(texts: Mapping[str, str], parser: argparse.ArgumentParser) -> Sequence[str]:
+def missed(texts: Mapping[str, str], declared: cli_parser.Declared) -> Sequence[str]:
     """What the proofs fail to show: a finding on the package, a seed not found.
 
     Args:
         texts: each file's text, by its path from the root.
-        parser: the command line parser, for P4.
+        declared: the table the command line parser is built from, for P4.
 
     Returns:
         One line for each.
@@ -112,22 +112,22 @@ def missed(texts: Mapping[str, str], parser: argparse.ArgumentParser) -> Sequenc
     if not modeproof.total_matches(proofsource.of_texts(seeded(texts, UNMATCHED))):
         found.append("P4: a match on a mode without assert_never is not found")
     stand_in: mode.ModeOf = _other_modes
-    if not modeproof.images(stand_in, parser):
+    if not modeproof.images(stand_in, declared):
         found.append("P4: a parse with no image of WhatNext is not found")
     return found
 
 
-def main(root: pathlib.Path, parser: argparse.ArgumentParser) -> int:
+def main(root: pathlib.Path, declared: cli_parser.Declared) -> int:
     """Check that each proof holds and fails on its seed.
 
     Args:
         root: the repository's root.
-        parser: the command line parser, for P4.
+        declared: the table the command line parser is built from, for P4.
 
     Returns:
         0 when it does, 1 otherwise.
     """
-    found = missed(proofsource.read(root), parser)
+    found = missed(proofsource.read(root), declared)
     for each in found:
         print(each)
     print("seeds: ok" if not found else f"seeds: {len(found)} findings")
@@ -135,4 +135,4 @@ def main(root: pathlib.Path, parser: argparse.ArgumentParser) -> int:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    sys.exit(main(pathlib.Path.cwd(), modeproof.recorded()))
+    sys.exit(main(pathlib.Path.cwd(), cli_parser.table()))

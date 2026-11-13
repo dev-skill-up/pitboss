@@ -13,7 +13,7 @@ import contextlib
 import dataclasses
 import subprocess
 import sys
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Protocol, runtime_checkable
 
 from gather import commands as gather_commands
@@ -133,6 +133,23 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
             return self.parse_known_intermixed_args(args, namespace)
 
 
+# each command, with the arguments it declares: what the parser is built from
+Declared = Mapping[str, Sequence[object]]
+
+
+def table(collect: commandscan.Collect = ENTRY_DATA.collector.collect) -> Declared:
+    """The declared commands, each with its arguments (keyword: one-path).
+
+    Args:
+        collect: the scan of the commands; it is made on the first call of the
+            process only (keyword: scan-once).
+
+    Returns:
+        Each command's registrations, ``--config`` given where it is taken.
+    """
+    return configsettle.with_option(commandscan.scanned(collect))
+
+
 def make_parser(
     usage: disk.Reader,
     collect: commandscan.Collect = ENTRY_DATA.collector.collect,
@@ -151,7 +168,7 @@ def make_parser(
     Returns:
         The parser.
     """
-    collected = configsettle.with_option(commandscan.scanned(collect))
+    collected = table(collect)
     made: argparse.ArgumentParser = gather_commands.set_parser(
         collected=collected, parser=kind()
     )
