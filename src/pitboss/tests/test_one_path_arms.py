@@ -319,3 +319,19 @@ class TestReadOnce(unittest.TestCase):
         scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
         reads = [" ".join(each) for each in fakes.calls_with(here.calls, "api")]
         assert_that((bool(reads), len(reads)), equal_to((True, len(set(reads)))))
+
+
+class TestSilentModes(unittest.TestCase):
+    """Plan 6.1: a mode that is no form of ``next`` prints no answer of its own."""
+
+    def test_6_1_every_other_mode_prints_no_answer(self) -> None:
+        """Dispatch, sweep, override, a mechanical push and the rest print nothing."""
+        silent: list[mode.Mode] = [
+            mode.DispatchNext(want="", options={}),
+            mode.Sweep(task_list="t"),
+            mode.OverrideAct(item="o/r#1", stop="s", reason="r"),
+            mode.MechanicalPush(arguments=["origin"]),
+            mode.Other(command="act label"),
+        ]
+        found = [onepath.answered(each, NOTHING) for each in silent]
+        assert_that(found, equal_to([([], [])] * 5))

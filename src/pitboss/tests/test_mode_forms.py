@@ -17,6 +17,7 @@ EVERY: Sequence[mode.Mode] = (
     mode.ItemNext(asked=mode.Asked.MERGE, item="o/r#1"),
     mode.DispatchNext(want="", options={}),
     mode.Sweep(task_list=""),
+    mode.OverrideAct(item="o/r#3", stop="", reason=""),
     mode.MechanicalPush(arguments=[]),
     mode.Other(command="clean"),
 )
@@ -83,13 +84,20 @@ class TestForms(unittest.TestCase):
     def test_6_1_an_act_verb_on_an_item_is_its_item_form(self) -> None:
         """``act merge``, ``arm``, ``undraft``, ``override`` name their item and tag."""
         found = [
-            parsed("act", verb, target="o/r#4")
-            for verb in ("merge", "arm", "undraft", "override")
+            parsed("act", verb, target="o/r#4") for verb in ("merge", "arm", "undraft")
         ]
         tags = [mode.Asked.MERGE, mode.Asked.ARM, mode.Asked.UNDRAFT]
-        tags.append(mode.Asked.OVERRIDE)
         want = [mode.ItemNext(asked=each, item="o/r#4") for each in tags]
         assert_that(found, equal_to(want))
+
+    def test_6_1_an_override_names_its_stop_and_reason(self) -> None:
+        """``act override`` is its own mode, with the stop it lifts and its reason."""
+        args = argparse.Namespace(
+            __gather_name__="act", verb="override", target="o/r#2"
+        )
+        found = mode.parse(args, PROJECT, {"stop": "a line", "reason": "r"})
+        want = mode.OverrideAct(item="o/r#2", stop="a line", reason="r")
+        assert_that((found, mode.item_of(found)), equal_to((want, "o/r#2")))
 
     def test_6_1_pins_review_is_its_item_form(self) -> None:
         """``pins-review`` names its pull request."""
@@ -110,7 +118,8 @@ class TestForms(unittest.TestCase):
     def test_6_1_only_what_next_lists(self) -> None:
         """``listing`` and ``item_of`` answer for every constructor."""
         found = [(mode.listing(each), mode.item_of(each)) for each in EVERY]
-        want = [(True, ""), (False, "o/r#1"), *[(False, "")] * 4]
+        want = [(True, ""), (False, "o/r#1"), *[(False, "")] * 2, (False, "o/r#3")]
+        want += [(False, "")] * 2
         assert_that(found, equal_to(want))
 
 

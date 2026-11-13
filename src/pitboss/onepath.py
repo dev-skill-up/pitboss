@@ -123,7 +123,7 @@ def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Re
 
 def _extent(chosen: mode.Mode) -> readextent.Extent:
     match chosen:
-        case mode.ItemNext():
+        case mode.ItemNext() | mode.OverrideAct():
             return readextent.naming([chosen.item])
         case mode.MechanicalPush():
             return readextent.pushing(chosen.arguments)
@@ -259,6 +259,16 @@ def _printed(given: project.ItemAnswer) -> Sequence[answer.Decision]:
     return []  # NotEnoughWork
 
 
+def _listed(listed: answer.Answer) -> tuple[Sequence[str], Sequence[answer.Decision]]:
+    return render.answer_lines(listed), _printed(listed)
+
+
+def _asked(
+    asked: project.ItemAnswer,
+) -> tuple[Sequence[str], Sequence[answer.Decision]]:
+    return render.item(asked), _printed(asked)
+
+
 def answered(
     chosen: mode.Mode, decided: answer.Decided
 ) -> tuple[Sequence[str], Sequence[answer.Decision]]:
@@ -273,12 +283,12 @@ def answered(
     """
     match chosen:
         case mode.WhatNext():
-            listed = project.what_next(decided)
-            return render.answer_lines(listed), _printed(listed)
+            return _listed(project.what_next(decided))
         case mode.ItemNext():
-            asked = project.item_next(decided, chosen.item)
-            return render.item(asked), _printed(asked)
-        case mode.DispatchNext() | mode.Sweep() | mode.MechanicalPush() | mode.Other():
+            return _asked(project.item_next(decided, chosen.item))
+        case mode.DispatchNext() | mode.Sweep() | mode.OverrideAct():
+            return [], []
+        case mode.MechanicalPush() | mode.Other():
             return [], []
         case _:  # pragma: no cover
             assert_never(chosen)

@@ -32,7 +32,6 @@ class Asked(enum.Enum):
         MERGE: ``act merge <item>``, which runs when the item's decision is the merge.
         ARM: ``act arm <item>``, likewise.
         UNDRAFT: ``act undraft <item>``, when its decision is the undraft.
-        OVERRIDE: ``act override <item>``, which lifts a stop of its decision.
         PINS_REVIEW: ``pins-review <item>``, which reviews a relock's pins.
     """
 
@@ -45,7 +44,6 @@ class Asked(enum.Enum):
     MERGE = enum.auto()
     ARM = enum.auto()
     UNDRAFT = enum.auto()
-    OVERRIDE = enum.auto()
     PINS_REVIEW = enum.auto()
 
 
@@ -64,8 +62,8 @@ class WhatNext:
 class ItemNext:
     """What is next for one item: ``next <item>`` and the commands that act on it.
 
-    ``slots next <item>``, ``act merge``, ``arm``, ``undraft`` and ``override``,
-    and ``pins-review``, each with its tag.
+    ``slots next <item>``, ``act merge``, ``arm`` and ``undraft``, and
+    ``pins-review``, each with its tag (they ask the same of the item's decision).
 
     Attributes:
         asked: the command that asks.
@@ -101,6 +99,21 @@ class Sweep:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class OverrideAct:
+    """``act override <item> stop=... reason=...``: lift one stop of its decision.
+
+    Attributes:
+        item: the pull request, ``owner/name#number``.
+        stop: the stop line it lifts, which must be a stop of the item's decision.
+        reason: the ruling the override rests on.
+    """
+
+    item: str
+    stop: str
+    reason: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class MechanicalPush:
     """``push --mechanical``: a push free of the hold for a mechanical red.
 
@@ -122,12 +135,13 @@ class Other:
     command: str
 
 
-Mode = WhatNext | ItemNext | DispatchNext | Sweep | MechanicalPush | Other
+Mode = WhatNext | ItemNext | DispatchNext | Sweep | OverrideAct | MechanicalPush | Other
 NAMES: Sequence[str] = (
     "WhatNext",
     "ItemNext",
     "DispatchNext",
     "Sweep",
+    "OverrideAct",
     "MechanicalPush",
     "Other",
 )
@@ -178,6 +192,14 @@ def _acting(asked: Asked, field: str) -> ModeOf:
     return parsed
 
 
+def _override(
+    args: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
+) -> Mode:
+    item = _item(getattr(args, "target", ""), project)
+    stop, reason = options.get("stop", ""), options.get("reason", "")
+    return OverrideAct(item=item, stop=stop, reason=reason)
+
+
 def _push(args: argparse.Namespace, *_: object) -> Mode:
     # only ``--mechanical`` asks of the decisions (keyword: mechanical-fix)
     if not getattr(args, "mechanical", False):
@@ -204,7 +226,7 @@ PARSES: Mapping[tuple[str, str], ModeOf] = {
     ("act", "merge"): _acting(Asked.MERGE, "target"),
     ("act", "arm"): _acting(Asked.ARM, "target"),
     ("act", "undraft"): _acting(Asked.UNDRAFT, "target"),
-    ("act", "override"): _acting(Asked.OVERRIDE, "target"),
+    ("act", "override"): _override,
     ("pins-review", ""): _acting(Asked.PINS_REVIEW, "pull"),
     ("push", ""): _push,
 }
@@ -245,7 +267,14 @@ def listing(chosen: Mode) -> bool:
     match chosen:
         case WhatNext():
             return True
-        case ItemNext() | DispatchNext() | Sweep() | MechanicalPush() | Other():
+        case (
+            ItemNext()
+            | DispatchNext()
+            | Sweep()
+            | OverrideAct()
+            | MechanicalPush()
+            | Other()
+        ):
             return False
         case _:  # pragma: no cover
             assert_never(chosen)
@@ -261,7 +290,7 @@ def item_of(chosen: Mode) -> str:
         The item of an item form, empty for any other.
     """
     match chosen:
-        case ItemNext():
+        case ItemNext() | OverrideAct():
             return chosen.item
         case WhatNext() | DispatchNext() | Sweep() | MechanicalPush() | Other():
             return ""
