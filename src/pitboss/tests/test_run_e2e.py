@@ -186,9 +186,7 @@ def step_of(
         The step.
     """
     found = state(review, checks=checks, draft=True, undraft_clear=True)
-    wanted = dataclasses.replace(
-        found.draft, needs_e2e=lambda: touches and not dispatched
-    )
+    wanted = dataclasses.replace(found.draft, needs_e2e=touches and not dispatched)
     return flow.next_step(dataclasses.replace(found, draft=wanted))
 
 

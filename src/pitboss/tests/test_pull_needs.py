@@ -141,7 +141,7 @@ class TestB20Relock(unittest.TestCase):
         """The re-dispatch of relock.yml a PR needs is held, with the reason."""
         pull = pull_in("clean", True, (RED,), ANSWERED)
         held = dataclasses.replace(
-            pull, signals=dataclasses.replace(pull.signals, hold=lambda: True)
+            pull, signals=dataclasses.replace(pull.signals, hold=True)
         )
         settings = settings_of("")
         free, withheld = (updateline.needs(each, settings) for each in (pull, held))

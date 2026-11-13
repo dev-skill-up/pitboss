@@ -5,7 +5,7 @@ module with no import adds no level to the chain of modules the lint bounds.
 """
 
 import dataclasses
-from typing import Callable, Protocol, Sequence
+from typing import Protocol, Sequence
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -13,7 +13,7 @@ class Draft:
     """What the caller reads for a draft.
 
     Attributes:
-        needs_e2e: says whether the diff touches a path the e2e jobs run on and
+        needs_e2e: whether the diff touches a path the e2e jobs run on and
             no dispatched run of ``check.yml`` at the head has completed (the
             caller reads the files, the configuration and the runs; a draft's
             own run skipped the e2e jobs, so it is not one; asked only for a
@@ -22,14 +22,14 @@ class Draft:
             when none (keyword: plan-review-check, pitboss#275).
         no_drafts: whether its repository has no drafts (keyword: no-drafts,
             pitboss#390).
-        hold: says whether a runner-pressure hold covers its repository now
+        hold: whether a runner-pressure hold covers its repository now
             (the caller looks at the runners; keyword: hold-scope, B20).
     """
 
-    needs_e2e: Callable[[], bool] = lambda: False
+    needs_e2e: bool = False
     plan_review_check: str = ""
     no_drafts: bool = False
-    hold: Callable[[], bool] = lambda: False
+    hold: bool = False
 
 
 class Run(Protocol):

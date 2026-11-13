@@ -170,7 +170,7 @@ def next_step(pr: PullState) -> steps.Move:
     """
     step = next(row.step(pr) for row in ROWS if row.holds(pr))
     acted = isinstance(step, steps.Next) and step.step in steps.HELD
-    held = acted and pr.draft.hold()  # keyword: hold-scope, B20
+    held = acted and pr.draft.hold  # keyword: hold-scope, B20
     return steps.Idle(pending=steps.Pending.HOLD) if held else step
 
 

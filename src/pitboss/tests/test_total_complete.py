@@ -130,9 +130,9 @@ class TestComplete(unittest.TestCase):
             totalcomplete.complete(REFERENCE, totalcomplete.base_cells()), empty()
         )
 
-    def test_444_11_of_11_planted_holes_are_red(self) -> None:
-        """Each plant is found, by its own line."""
-        assert_that(len(PLANTS), equal_to(11))
+    def test_p8_10_of_10_planted_holes_are_red(self) -> None:
+        """Each plant is found, by its own line (P8: a route carries its row)."""
+        assert_that(len(PLANTS), equal_to(10))
         for name, (parts, said) in PLANTS.items():
             with self.subTest(name):
                 assert_that(_holes(parts), contains_string(said))

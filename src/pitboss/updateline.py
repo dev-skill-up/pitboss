@@ -81,7 +81,7 @@ def needs(pull: pulls.PullFacts, settings: config.Config) -> str:
         f"re-dispatch {pull.repo.slug}'s {RELOCK_WORKFLOW} (workflow_dispatch),"
         " never a re-run of the failed job"
     )
-    if pull.signals.hold():  # keyword: hold-scope (B20): a dispatch is held too
+    if pull.signals.hold:  # keyword: hold-scope (B20): a dispatch is held too
         dispatch = f"HOLD: {dispatch} is withheld while the RUNNER PRESSURE hold lasts"
     if pull.relock and pull.signals.fixed and not pullchecks.conflicted(pull):
         return f"the red check passed on {base} since: {dispatch}"

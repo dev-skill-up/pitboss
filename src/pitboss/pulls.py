@@ -13,6 +13,7 @@ from . import (
     draftfacts,
     earlyfound,
     flow,
+    flowquestions,
     flowstate,
     folds,
     headchecks,
@@ -123,6 +124,36 @@ def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
 
 
 def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
+    # the questions the flow asks are read here, each only where it is asked
+    found = _base_state(source, repo, got)
+    needs = _needs_e2e(source, repo, found)
+    draft = dataclasses.replace(found.draft, needs_e2e=needs)
+    unchanged = _unchanged(source, repo, found)
+    return dataclasses.replace(found, draft=draft, unchanged=unchanged)
+
+
+def _unchanged(
+    source: Source, repo: config.Repo, state: flow.PullState
+) -> AbstractSet[str]:
+    # keyword: unfixed-execution: asked only of the rejecting review's head
+    asked = flowquestions.asked_rejection(state)
+    if asked is None:
+        return frozenset()
+    same = mergesonly.unchanged(source.github, repo, state.pull, asked.sha)
+    return frozenset({asked.sha}) if same else frozenset()
+
+
+def _needs_e2e(source: Source, repo: config.Repo, state: flow.PullState) -> bool:
+    # keyword: run-e2e: asked only for a draft whose Plan is approved
+    pull = state.pull
+    if not (pull.draft and flowquestions.plan_approved(state)):
+        return False
+    github, slug = source.github, repo.slug
+    touched = pullfiles.touches(github, slug, pull.number, source.run_by_e2e)
+    return touched and not dispatchruns.completed(github, slug, pull.head.sha)
+
+
+def _base_state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
     return flow.PullState(
         pull=got.pull,
         labels=got.labels,
@@ -132,15 +163,12 @@ def _state(source: Source, repo: config.Repo, got: Fetched) -> flow.PullState:
         trusted=source.review.trusted,
         undraft_clear=got.pull.draft and source.undraft(),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
-        unchanged_since=mergesonly.unchanged_since(source.github, repo, got.pull),
+        unchanged=frozenset(),
         draft=draftfacts.Draft(
-            needs_e2e=lambda: pullfiles.touches(
-                source.github, repo.slug, got.pull.number, source.run_by_e2e
-            )
-            and not dispatchruns.completed(source.github, repo.slug, got.pull.head.sha),
+            needs_e2e=False,
             plan_review_check=source.plan_review_check,
             no_drafts=source.no_drafts(repo.slug),
-            hold=lambda: not source.undraft(),
+            hold=not source.undraft(),
         ),
     )
 

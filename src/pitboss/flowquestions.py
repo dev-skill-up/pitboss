@@ -5,7 +5,7 @@ recorded of the PR.
 """
 
 import enum
-from typing import Protocol, Sequence
+from typing import AbstractSet, Protocol, Sequence
 
 from . import bodydigest, draftfacts, expansion, plandigest, shapes
 
@@ -46,15 +46,9 @@ class PullState(Protocol):
     def draft(self) -> draftfacts.Draft:
         """Return what the caller read for a draft."""
 
-    def unchanged_since(self, sha: str) -> bool:
-        """Return whether no code moved since a head.
-
-        Args:
-            sha: the head.
-
-        Returns:
-            True when no code moved since it.
-        """
+    @property
+    def unchanged(self) -> AbstractSet[str]:
+        """Return the reviewed heads since which no code moved."""
 
 
 def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
@@ -178,6 +172,20 @@ def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
     Returns:
         The Execution-graded review if it rejects and no code moved, else None.
     """
+    asked = asked_rejection(pr)
+    return asked if asked is not None and asked.sha in pr.unchanged else None
+
+
+def asked_rejection(pr: PullState) -> shapes.Graded | None:
+    """The rejecting review whose head the read asks about (unfixed-execution).
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The newest Execution verdict if it rejects and the head moved since it
+        (other than by a body fix), else None.
+    """
     graded = [each for each in regular_reviews(pr) if each.execution is not None]
     rejecting = graded[-1] if graded else None
     if rejecting is None or rejecting.execution is not Verdict.CHANGES_NEEDED:
@@ -185,7 +193,7 @@ def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
     moved = not expansion.current_for(  # else a body fix
         expansion.Subject.HEAD, rejecting.sha, pr.pull.head.sha
     )
-    return rejecting if moved and pr.unchanged_since(rejecting.sha) else None
+    return rejecting if moved else None
 
 
 def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:

@@ -6,7 +6,7 @@ ruling. ``flow`` re-exports them under their names.
 """
 
 import dataclasses
-from typing import AbstractSet, Callable, Sequence
+from typing import AbstractSet, Sequence
 
 from . import (
     draftfacts,
@@ -35,8 +35,9 @@ class PullState:
         relock: whether the head branch starts with the relock prefix (the
             caller reads the configuration; keyword: relock).
         draft: what the caller read for a draft (``draftfacts.Draft``).
-        unchanged_since: says whether no code moved between a reviewed head and
-            the head (the caller reads the base; keyword: unfixed-execution).
+        unchanged: the reviewed heads since which no code moved to the head (the
+            caller reads the base for the one ``flowquestions.asked_rejection``
+            asks of; keyword: unfixed-execution).
     """
 
     pull: shapes.Pull
@@ -48,7 +49,7 @@ class PullState:
     undraft_clear: bool = False
     relock: bool = False
     draft: draftfacts.Draft = draftfacts.Draft()
-    unchanged_since: Callable[[str], bool] = lambda sha: False
+    unchanged: AbstractSet[str] = frozenset()
 
 
 def is_trusted_ruling(comment: shapes.Comment, trusted: AbstractSet[str]) -> bool:
@@ -323,7 +324,7 @@ def e2e_step(pr: PullState) -> steps.Move | None:
         of the head has started and not finished (it is not dispatched again);
         else the dispatch.
     """
-    if not pr.draft.needs_e2e():
+    if not pr.draft.needs_e2e:
         return None
     running = [each for each in pr.checks if not each.finished]
     return steps.ci_pending() if running else steps.run_e2e(pr.pull.head.branch)

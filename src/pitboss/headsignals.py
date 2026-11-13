@@ -5,7 +5,7 @@ facts of a whole PR (keyword: one-path).
 """
 
 import dataclasses
-from typing import AbstractSet, Callable, Sequence
+from typing import AbstractSet, Sequence
 
 from . import basefix, pinsreading, shapes
 
@@ -32,7 +32,7 @@ class HeadSignals:
         fixed: the base's later passing run of each failed check of the head,
             when it has one for every failed check, in a repository with a merge
             queue (keyword: fixed-on-base, pitboss#314).
-        hold: says whether a runner-pressure hold covers its repository now
+        hold: whether a runner-pressure hold covers its repository now
             (keyword: hold-scope, B20).
     """
 
@@ -43,4 +43,4 @@ class HeadSignals:
     approved_plans: Sequence[str] = ()
     pins: pinsreading.Reading = pinsreading.NOTHING
     fixed: Sequence[basefix.Answer] = ()
-    hold: Callable[[], bool] = lambda: False
+    hold: bool = False
