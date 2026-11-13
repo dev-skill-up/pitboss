@@ -1,31 +1,24 @@
-"""The one order of work, read lazily from the listings (keyword: one-path).
+"""The one order of work, read lazily from the searches (keyword: one-path).
 
 The open pull requests that are not relock reviews, oldest first; then the tickets
-by priority label and age, a label's first page of each repository merged by age
+by priority label and age, a label's first page of each organisation merged by age
 and a later page read only when the merge has used up the one before; then the
-relock pull requests (keyword: relock-last). Nothing here reads an item's details:
-the walk (``readworld``) examines an item only when it reaches it.
+relock pull requests (keyword: relock-last). Each read is a search of one
+organisation, filtered here to the configured repositories (keyword: org-search),
+so no read is made for each repository. Nothing here reads an item's details: the
+walk (``readworld``) examines an item only when it reaches it.
 """
 
 import dataclasses
 import heapq
-import json
 from typing import Iterator, Mapping, Sequence
 
-from . import (
-    concurrently,
-    config,
-    configrepos,
-    ghapi,
-    issuelist,
-    ledger,
-    listed,
-    shapes,
-    ticketdata,
-)
+from . import concurrently, config, ghapi, issuelist, ledger, listed, orgsearch
+from . import shapes, ticketdata
 
 STOP = 5  # the least number of decisions a walk stops at
-Items = Sequence[shapes.Issue | None]  # a page's raw items (none for a pull request)
+Found = tuple[str, shapes.Issue]  # a ticket's reference, and the ticket
+Items = Sequence[Found | None]  # a page's raw items (none for another repository's)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -51,7 +44,7 @@ class FullPage:
     """A page as long as a page can be: there may be one after it.
 
     Attributes:
-        items: the page's raw items (none for a pull request).
+        items: the page's raw items (none for another repository's).
         following: the number of the page after it.
     """
 
@@ -64,13 +57,14 @@ class LastPage:
     """A page shorter than a page can be: the list ends with it.
 
     Attributes:
-        items: the page's raw items (none for a pull request).
+        items: the page's raw items (none for another repository's).
     """
 
     items: Items
 
 
 Page = FullPage | LastPage
+Repos = Mapping[str, config.Repo]  # the configured repositories by owner/name
 
 
 def stop_count(book: ledger.Ledger) -> int:
@@ -85,9 +79,17 @@ def stop_count(book: ledger.Ledger) -> int:
     return max(STOP, len(book.slots))
 
 
-def _rows(text: str) -> Sequence[Mapping[str, object]]:
-    found = json.loads(text)
-    return [each for each in found if isinstance(each, dict)]
+def _searched(
+    github: ghapi.GitHub, org: str, terms: Sequence[str]
+) -> Sequence[orgsearch.Item]:
+    return ghapi.pages(github, orgsearch.path(org, *terms), orgsearch.items)
+
+
+def _queries(prefix: str) -> Sequence[tuple[bool, Sequence[str]]]:
+    # the open pull requests that are not relock reviews, and those that are
+    if not prefix:
+        return [(False, ["is:pr"])]
+    return [(False, ["is:pr", f"-head:{prefix}"]), (True, ["is:pr", f"head:{prefix}"])]
 
 
 def listing(github: ghapi.GitHub, settings: config.Config) -> Sequence[listed.Listed]:
@@ -98,56 +100,67 @@ def listing(github: ghapi.GitHub, settings: config.Config) -> Sequence[listed.Li
         settings: the configuration.
 
     Returns:
-        The listing rows: one listing of each repository, read at once.
+        The listing rows: the searches of each organisation, read at once.
     """
-    repos = configrepos.repositories(settings)
-    pages = concurrently.each(
-        lambda repo: ghapi.pages(github, f"repos/{repo.slug}/pulls?state=open", _rows),
-        repos,
-    )
-    prefix = settings.lint.relock_prefix
+    asked = [
+        (org, relock, terms)
+        for org in orgsearch.orgs(settings)
+        for relock, terms in _queries(settings.lint.relock_prefix)
+    ]
+    pages = concurrently.each(lambda each: _searched(github, each[0], each[2]), asked)
+    repos = orgsearch.configured(settings)
     rows = [
-        listed.listed_row(repo, prefix, row)
-        for repo, got in zip(repos, pages)
-        for row in got
+        listed.searched_row(repo, relock, item)
+        for (_, relock, _), got in zip(asked, pages)
+        for item in got
+        if (repo := orgsearch.repo_of(item, repos)) is not None
     ]
     return sorted(rows, key=lambda each: each.created_at)
 
 
-def _page(github: ghapi.GitHub, path: str, number: int) -> Page:
-    items = issuelist.listed(
-        ghapi.get(github, f"{path}&per_page={ghapi.PAGE_SIZE}&page={number}")
-    )
+def _found(
+    item: orgsearch.Item, repos: Mapping[str, config.Repo]
+) -> Found | None:
+    # a ticket of a configured repository, with its reference
+    repo = orgsearch.repo_of(item, repos)
+    issue = issuelist.issue_of(item)
+    if repo is None or issue is None:
+        return None
+    return "#".join((repo.slug, str(issue.number))), issue
+
+
+def _page(github: ghapi.GitHub, path: str, number: int, repos: Repos) -> Page:
+    asked = f"{path}&per_page={ghapi.PAGE_SIZE}&page={number}"
+    items = [_found(each, repos) for each in orgsearch.items(ghapi.get(github, asked))]
     if len(items) == ghapi.PAGE_SIZE:
         return FullPage(items=items, following=number + 1)
     return LastPage(items=items)
 
 
-def _stream(github: ghapi.GitHub, path: str) -> Iterator[shapes.Issue]:
-    # a page is raw items (the list holds pull requests): a full one may have more
-    page = _page(github, path, 1)
+def _stream(github: ghapi.GitHub, path: str, repos: Repos) -> Iterator[Found]:
+    # a page is raw items (the search holds other repositories): a full one may
+    # have more
+    page = _page(github, path, 1, repos)
     while isinstance(page, FullPage):
         yield from filter(None, page.items)
-        page = _page(github, path, page.following)
+        page = _page(github, path, page.following, repos)
     yield from filter(None, page.items)
 
 
-def _chained(
-    first: shapes.Issue, rest: Iterator[shapes.Issue]
-) -> Iterator[shapes.Issue]:
+def _chained(first: Found, rest: Iterator[Found]) -> Iterator[Found]:
     yield first
     yield from rest
 
 
-def _primed(github: ghapi.GitHub, path: str) -> Iterator[shapes.Issue]:
+def _primed(github: ghapi.GitHub, path: str, repos: Repos) -> Iterator[Found]:
     # the stream with its first page read now, so the first pages read at once
-    stream = _stream(github, path)
+    stream = _stream(github, path, repos)
     first = next(stream, None)
     return iter(()) if first is None else _chained(first, stream)
 
 
 def labelled_path(repo: str, label: str) -> str:
-    """The one listing of a label's open issues, oldest first (P9).
+    """The one listing of a label's open issues of a repository, oldest first (P9).
 
     Args:
         repo: ``owner/name``.
@@ -160,23 +173,18 @@ def labelled_path(repo: str, label: str) -> str:
 
 
 def _label_stream(
-    github: ghapi.GitHub, repos: Sequence[config.Repo], label: str
-) -> Iterator[tuple[str, shapes.Issue]]:
-    # the open tickets of a label, oldest first, across repositories: the first
-    # page of every repository at once, the others when the merge reaches them
+    github: ghapi.GitHub, settings: config.Config, label: str
+) -> Iterator[Found]:
+    # the open tickets of a label, oldest first: the first page of each
+    # organisation's search at once, the others when the merge reaches them
+    repos = orgsearch.configured(settings)
     firsts = concurrently.each(
-        lambda repo: _primed(github, labelled_path(repo.slug, label)), repos
+        lambda org: _primed(
+            github, orgsearch.path(org, "is:issue", f"label:{label}"), repos
+        ),
+        orgsearch.orgs(settings),
     )
-    streams = [_named(repo, first) for repo, first in zip(repos, firsts)]
-    return heapq.merge(*streams, key=lambda pair: pair[1].created_at)
-
-
-def _named(
-    repo: config.Repo, issues: Iterator[shapes.Issue]
-) -> Iterator[tuple[str, shapes.Issue]]:
-    # each issue of one repository's stream with its reference, bound to that one
-    for each in issues:
-        yield "#".join((repo.slug, str(each.number))), each
+    return heapq.merge(*firsts, key=lambda pair: pair[1].created_at)
 
 
 def issue_of(reference: str, ticket: ticketdata.Ticket) -> shapes.Issue:
@@ -224,7 +232,7 @@ def _labelled(
     # owner ranks by another label is in that label only
     stated = settings.slots.owner_priorities
     merged = heapq.merge(
-        _label_stream(github, configrepos.repositories(settings), label),
+        _label_stream(github, settings, label),
         _owner_stated(github, settings, label),
         key=lambda pair: pair[1].created_at,
     )

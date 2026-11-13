@@ -42,25 +42,29 @@ GateScope = Callable[[config.Config], AbstractSet[str] | None]
 def item_gates(
     args: argparse.Namespace, settings: config.Config
 ) -> AbstractSet[str] | None:
-    """The repositories whose review gates a command reads.
+    """The repositories whose review gates a command reads when it loads.
 
     ``slots next ITEM`` builds the brief of one item from its own repository, so
     it reads that repository's gate and no other (keyword: item-brief,
-    pitboss#453).
+    pitboss#453). The other questions of what is next read none when they load:
+    a pull request's gate is read with it, and a brief's with its item, so the
+    reads follow the printed lines, not the repositories (keyword: org-search).
 
     Args:
         args: the parsed arguments.
         settings: the configuration.
 
     Returns:
-        The one repository's ``owner/name``; None (every repository) for any
-        other command.
+        The repositories' ``owner/name``; None (every repository) for a command
+        that asks no question of what is next.
     """
     words = getattr(args, "words", None)
-    if getattr(args, "action", None) != "next" or not words or len(words) != 1:
-        return None
-    named = ledger.reference(words[0], settings.project.repo)
-    return frozenset({named.rpartition("#")[0]})
+    asks = {getattr(args, "action", None), getattr(args, "__gather_name__", None)}
+    asks.add(getattr(args, "verb", None))
+    if getattr(args, "action", None) == "next" and words and len(words) == 1:
+        named = ledger.reference(words[0], settings.project.repo)
+        return frozenset({named.rpartition("#")[0]})
+    return frozenset() if asks & {"next", "dispatch-next"} else None
 
 
 def without(settings: config.Config, failures: Mapping[str, str]) -> config.Config:

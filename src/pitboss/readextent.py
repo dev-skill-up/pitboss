@@ -6,10 +6,11 @@ the branches ``push --mechanical`` pushes (keyword: mechanical-fix).
 """
 
 import dataclasses
+import subprocess
+import urllib.parse
 from typing import Sequence
 
-from . import listed, pushdraft
-from .running import Run
+from . import exempt, ghapi, pushdraft
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -31,22 +32,42 @@ class Extent:
     pushed: Sequence[str]
 
 
-def pushed(run: Run, extent: Extent, rows: Sequence[listed.Listed]) -> Sequence[str]:
-    """The open pull requests of the branches a push names, from the listing.
+def _origin(github: ghapi.GitHub) -> str:
+    # the repository the working directory pushes to; empty when git names none
+    try:
+        url = github.run(["git", "remote", "get-url", "origin"]).stdout
+    except subprocess.CalledProcessError:
+        return ""
+    return exempt.slug_of(url) or ""
+
+
+def _opened(github: ghapi.GitHub, slug: str, branch: str) -> Sequence[str]:
+    # the open pull requests of one branch of the repository
+    head = urllib.parse.quote(f"{slug.partition('/')[0]}:{branch}", safe=":/")
+    found = ghapi.get_json(github, f"repos/{slug}/pulls?state=open&head={head}")
+    rows = found if isinstance(found, list) else []
+    return [f"{slug}#{each['number']}" for each in rows if isinstance(each, dict)]
+
+
+def pushed(github: ghapi.GitHub, extent: Extent) -> Sequence[str]:
+    """The open pull requests of the branches a push names, one read for each.
+
+    The search rows have no branch (keyword: org-search), so each branch the push
+    names is asked of its repository, the one the working directory pushes to.
 
     Args:
-        run: the runner git reads the current branch through.
+        github: the API, whose runner git reads the branch and the remote through.
         extent: the extent, which says whether a push names its branches.
-        rows: every open pull request, as listed.
 
     Returns:
         Their references; none when no push is named.
     """
     if not extent.pushing:
         return []
-    current = pushdraft.current_branch(run)
+    current = pushdraft.current_branch(github.run)
     branches = pushdraft.branches(extent.pushed, current)
-    return [each.reference for each in rows if each.branch in branches]
+    slug = _origin(github) if branches else ""
+    return [each for branch in branches if slug for each in _opened(github, slug, branch)]
 
 
 def naming(items: Sequence[str]) -> Extent:

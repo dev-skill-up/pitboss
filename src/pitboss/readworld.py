@@ -1,11 +1,11 @@
 """The one read of a command: the listings, then items oldest first (one-path).
 
 The owner: "You need to get *fewer issues*. Sort by age, stop when you get to 5
-issues that aren't blocked." ``read_world`` reads every open pull request's listing
-row (one call for each repository), then walks the order and examines an item (its
+issues that aren't blocked." ``read_world`` reads every open pull request's row
+(org-search: a few calls for each organisation), then walks the order and examines an item (its
 details and closure) only when the walk reaches it: the pull requests that are not
 relock reviews, oldest first; then the tickets by priority label and age, a label's
-first page of each repository merged by age and a later page read only when the
+first page of each organisation merged by age and a later page read only when the
 merge has used up the one before; then the relock pull requests. The walk stops
 when it holds ``max(5, the slots configured)`` decisions; an item no actor takes
 counts for nothing, so the walk reads on past it. A blocker an examined item names
@@ -30,6 +30,7 @@ from . import (
     blockedby,
     blockedstep,
     blockers,
+    branchtaken,
     config,
     failures,
     flowstep,
@@ -181,6 +182,7 @@ def examine_ticket(
         Its record; a ticket the listings or the ledger already decide is kept.
     """
     reference = ticket.reference
+    taken = {*taken, *branchtaken.named(reading.github, reference)}
     kept = _kept(reading.book, reference, taken)
     if kept is not None:
         return kept
@@ -386,7 +388,7 @@ def read_world(reading: Reading, extent: readextent.Extent) -> world.World:
     order = workorder.candidates(reading.github, reading.settings, rows)
     named = [
         *extent.named,
-        *readextent.pushed(reading.github.run, extent, rows),
+        *readextent.pushed(reading.github, extent),
         *reading.settings.slots.owner_priorities,
     ]
     return world.World(

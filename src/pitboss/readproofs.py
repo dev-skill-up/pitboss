@@ -15,7 +15,8 @@ IO_MODULES = ("subprocess", "urllib", "socket")
 IO_PACKAGE = frozenset({"pitboss.ghapi", "pitboss.ledger"})
 PURE = ("decide", "project", "render")
 LISTING = re.compile(r"/(issues|pulls)\?")
-ORDERED = "sort=created&direction=asc"
+# a listing's order, and an organisation's search's (keyword: org-search)
+ORDERED = ("sort=created&direction=asc", "sort=created&order=asc")
 ORDER = ("placing", "places")  # the order function (P10)
 PLACED = ["Sequence[listed.Listed]", "Named"]  # what it takes: rows and names
 
@@ -85,7 +86,7 @@ def _listing_breaks(package: Package) -> Sequence[str]:
     return [
         f"P9: {name}:{line} lists unordered: {text}"
         for name, line, text in paths
-        if ORDERED not in text and not _open_pulls(text)
+        if not any(each in text for each in ORDERED) and not _open_pulls(text)
     ]
 
 

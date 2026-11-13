@@ -18,6 +18,7 @@ from . import (
     configloads,
     decide,
     gateread,
+    gates,
     handedback,
     holdconfig,
     ledger,
@@ -67,7 +68,8 @@ def _reader(found: nextfound.Found, undraft: Callable[[], bool]) -> PullReader:
 
     def read(row: listed.Listed) -> pulls.PullRead:
         if row.reference not in done:
-            github, settings = found.github, found.settings
+            github = found.github
+            settings = gates.settled(github, found.settings, {row.repo.slug})
             source = pullread.source_for(github, settings, undraft, row.repo)
             done[row.reference] = pulls.fetch(source, row.repo, row.number)
         return done[row.reference]
@@ -226,7 +228,10 @@ def briefed(
     items = [pick.item for pick in picks if pick.item is not None]
     failed = ledger.configured(found.settings).failed
     got = suggest.with_volume(found, suggest.sourced(found, facts, items, failed))
-    return got, picks
+    # keyword: org-search: the gates of the briefed items' repositories, no other
+    slugs = {pick.reference.rpartition("#")[0] for pick in picks}
+    gated = gates.settled(found.github, got.settings, slugs)
+    return dataclasses.replace(got, settings=gated), picks
 
 
 def _printed(given: project.ItemAnswer) -> Sequence[answer.Decision]:

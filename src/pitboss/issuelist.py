@@ -1,7 +1,7 @@
 """The issues list holds PRs: its pages are counted by raw items (pitboss#391)."""
 
 import json
-from typing import Sequence, TypedDict
+from typing import Mapping, Sequence, TypedDict, cast
 
 from . import shapes
 
@@ -19,6 +19,18 @@ class _Raw(TypedDict, total=False):
     body: str | None
     comments: int | None
     pull_request: object
+
+
+def issue_of(item: Mapping[str, object]) -> shapes.Issue | None:
+    """The issue an item of a list or a search is.
+
+    Args:
+        item: the raw item.
+
+    Returns:
+        The issue; none for a pull request, which the lists include.
+    """
+    return _issue(cast(_Raw, item))
 
 
 def _issue(item: _Raw) -> shapes.Issue | None:

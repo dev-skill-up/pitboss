@@ -1,14 +1,15 @@
 """Each command that asks of the decisions has its mode (plan 6.1 Mode, P4)."""
 
 import argparse
+import json
 import subprocess
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, listed, mode, modeproof, proofsource, readextent, world
-from ..running import Output, Run
+from .. import config, ghapi, mode, modeproof, proofsource, readextent, world
+from ..running import Output
 from .test_decide import BOOK
 
 PROJECT = config.make_repo("o", "r")
@@ -29,44 +30,28 @@ def parsed(name: str, action: str = "", **fields: object) -> mode.Mode:
     return mode.parse(args, PROJECT, {})
 
 
-def row(number: int, branch: str) -> listed.Listed:
-    """An open pull request's listing row.
+def on_branch(branch: str, origin: str, opened: Mapping[str, object]) -> ghapi.GitHub:
+    """An API whose git is on a branch and pushes to a remote.
 
     Args:
-        number: its number in ``o/r``.
-        branch: its head branch.
+        branch: the current branch.
+        origin: what ``git remote get-url origin`` prints; empty fails.
+        opened: each pull requests listing path and its body.
 
     Returns:
-        The row.
-    """
-    return listed.Listed(
-        reference=f"o/r#{number}",
-        repo=PROJECT,
-        number=number,
-        title="",
-        branch=branch,
-        head="",
-        draft=False,
-        created_at="",
-        relock=False,
-        works_on=frozenset(),
-    )
-
-
-def on_branch(branch: str) -> Run:
-    """A runner whose git says the working directory is on a branch.
-
-    Args:
-        branch: the branch.
-
-    Returns:
-        The runner.
+        The API.
     """
 
     def run(command: Sequence[str]) -> Output:
-        return subprocess.CompletedProcess(command, 0, stdout=f"{branch}\n", stderr="")
+        if command[:2] == ["gh", "api"]:
+            said = json.dumps(opened.get(command[-1], []))
+        elif "get-url" in command and not origin:
+            raise subprocess.CalledProcessError(2, command)
+        else:
+            said = f"{origin if 'get-url' in command else branch}\n"
+        return subprocess.CompletedProcess(command, 0, stdout=said, stderr="")
 
-    return run
+    return ghapi.GitHub(run=run, mutate=run)
 
 
 class TestForms(unittest.TestCase):
@@ -110,16 +95,24 @@ class TestForms(unittest.TestCase):
 class TestPushed(unittest.TestCase):
     """Plan 6.1: the extent of a mechanical push is the pull requests it pushes."""
 
-    def test_6_1_a_push_names_the_rows_of_its_branches(self) -> None:
+    def test_6_1_a_push_names_the_pull_requests_of_its_branches(self) -> None:
         """The current branch and a refspec each name their open pull request."""
-        rows = [row(1, "here"), row(2, "there"), row(3, "else")]
-        extent = readextent.pushing(["origin", "HEAD", "there"])
-        found = readextent.pushed(on_branch("here"), extent, rows)
+        listing = "repos/o/r/pulls?state=open&head=o:"
+        opened = {listing + "here": [{"number": 1}], listing + "there": [{"number": 2}]}
+        github = on_branch("here", "https://github.com/o/r.git", opened)
+        extent = readextent.pushing(["origin", "HEAD", "there", "else"])
+        found = readextent.pushed(github, extent)
         assert_that(found, equal_to(["o/r#1", "o/r#2"]))
+
+    def test_6_1_a_push_with_no_remote_names_nothing(self) -> None:
+        """A checkout whose remote git cannot name reads no pull request."""
+        github = on_branch("here", "", {})
+        found = readextent.pushed(github, readextent.pushing(["origin", "HEAD"]))
+        assert_that(found, equal_to([]))
 
     def test_6_1_no_push_names_nothing(self) -> None:
         """An extent that names items reads no branch."""
-        found = readextent.pushed(on_branch("here"), readextent.naming([]), [])
+        found = readextent.pushed(on_branch("here", "", {}), readextent.naming([]))
         assert_that(found, equal_to([]))
 
     def test_6_1_the_named_pull_requests_of_a_world(self) -> None:
