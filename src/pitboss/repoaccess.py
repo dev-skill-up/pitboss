@@ -39,19 +39,6 @@ class Access:
 GateScope = Callable[[config.Config], AbstractSet[str] | None]
 
 
-def every_gate(settings: config.Config) -> AbstractSet[str] | None:
-    """Read the gate of every repository (the default scope).
-
-    Args:
-        settings: the configuration.
-
-    Returns:
-        None, which stands for every repository.
-    """
-    del settings
-    return None
-
-
 def item_gates(
     args: argparse.Namespace, settings: config.Config
 ) -> AbstractSet[str] | None:
@@ -116,7 +103,7 @@ def read(
     github: ghapi.GitHub,
     name: str,
     start: pathlib.Path,
-    gated: GateScope = every_gate,
+    gated: GateScope,
 ) -> Access:
     """Read a configuration, and what the session can read of it.
 
@@ -150,7 +137,7 @@ def readable(
     github: ghapi.GitHub,
     settings: config.Config,
     left_out: AbstractSet[str],
-    gated: GateScope = every_gate,
+    gated: GateScope,
 ) -> Access:
     """Take in the owner's repositories, and leave out, and report, the unreadable.
 

@@ -8,7 +8,6 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, configfile
 from . import fakes, world
 from .linting import BODY, HEAD, write_text
 
@@ -33,15 +32,6 @@ def command(*argv: str) -> world.Result:
     """
     given = write_text("listed.toml", LISTED)
     return world.invoke(world.make_world(), "lint", *argv, "--config", given)
-
-
-def settings() -> config.Config:
-    """The configuration that still lists a footer.
-
-    Returns:
-        The configuration.
-    """
-    return configfile.load(write_text("listed.toml", LISTED), fakes.directory())
 
 
 class TestTheCommand(unittest.TestCase):

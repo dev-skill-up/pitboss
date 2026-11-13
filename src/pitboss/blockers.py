@@ -13,7 +13,7 @@ ticket-blocked, blocked-pull, pitboss#388).
 import dataclasses
 import re
 import functools
-from typing import AbstractSet, Iterable, Mapping, Protocol, Sequence
+from typing import AbstractSet, Iterable, Protocol, Sequence
 
 from . import (
     config,
@@ -30,7 +30,6 @@ from . import (
 
 NAME = re.compile(r"(?:[\w.-]+/)?[\w.-]*#\d+")
 URL = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
-LINK = "https://github.com/{slug}/issues/{number}"
 
 
 Ticket = ticketdata.Ticket
@@ -52,65 +51,7 @@ def named(text: str, repo: config.Repo) -> Iterable[str]:
     ]
 
 
-read = ticketdata.read
 open_ticket = ticketdata.open_ticket
-
-
-def candidates(
-    github: ghapi.GitHub,
-    pull: pullfacts.PullFacts,
-    fixed: AbstractSet[str],
-    description: str,
-) -> Mapping[str, str]:
-    """Every ticket the description, the PR's labels or its tickets' labels name.
-
-    Args:
-        github: the API.
-        pull: the PR.
-        fixed: the tickets the PR's body says it fixes.
-        description: the failed status's description.
-
-    Returns:
-        Each reference with where it was named.
-    """
-    repo = pull.repo
-    found = {each: "the status description" for each in named(description, repo)}
-    for label in sorted(pull.signals.labels):
-        for each in named(label, repo):
-            found.setdefault(each, f"the label {label} of the PR")
-    for each_fixed in sorted(fixed):
-        ticket = read(github, each_fixed)
-        for label in sorted(ticket.labels if ticket else ()):
-            for each in named(label, repo):
-                found.setdefault(each, f"the label {label} of {each_fixed}")
-    return found
-
-
-def lines(
-    github: ghapi.GitHub,
-    pull: pullfacts.PullFacts,
-    fixed: AbstractSet[str],
-    description: str,
-) -> Sequence[str]:
-    """The open tickets that block a PR, each with its link and where it was named.
-
-    Args:
-        github: the API.
-        pull: the PR.
-        fixed: the tickets the PR's body says it fixes.
-        description: the failed status's description.
-
-    Returns:
-        One text for each open ticket; a closed or unreadable one is left out.
-    """
-    shown = []
-    for reference, where in candidates(github, pull, fixed, description).items():
-        ticket = read(github, reference)
-        if ticket is not None and ticket.open:
-            slug, _, number = reference.rpartition("#")
-            link = LINK.format(slug=slug, number=number)
-            shown.append(f"blocked by the open ticket {link} (named by {where})")
-    return shown
 
 
 def _is_open(github: ghapi.GitHub, reference: str) -> bool:

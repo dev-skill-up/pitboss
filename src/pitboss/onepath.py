@@ -253,13 +253,21 @@ def _printed(given: project.ItemAnswer) -> Sequence[answer.Decision]:
             return [given]
         case answer.Work():
             return render.every(given)
-        case answer.NotEnoughWork():
-            return []
+    return []  # NotEnoughWork
 
 
-def _said(
+def answered(
     chosen: mode.Mode, decided: answer.Decided
 ) -> tuple[Sequence[str], Sequence[answer.Decision]]:
+    """What a question of what is next prints, and the decisions it prints.
+
+    Args:
+        chosen: the mode; only ``next`` and ``next <item>`` print an answer.
+        decided: the decisions of the world.
+
+    Returns:
+        The lines, and the decisions they name, in order.
+    """
     match chosen:
         case mode.WhatNext():
             listed = project.what_next(decided)
@@ -294,7 +302,7 @@ def answer_of(found: nextfound.Found) -> None:
     chosen = mode_of(found.args, found, {})
     judgement = looked(found, chosen).judgement
     timing.note(found.args, "world read and decided", len(judgement.records), "items")
-    lines, shown = _said(chosen, judgement.decided)
+    lines, shown = answered(chosen, judgement.decided)
     lines = [*ticketnotes.asked(found.args, chosen, judgement.records), *lines]
     source, picks = briefed(found, judgement.records, shown)
     tail = suggest.tail(source) if isinstance(chosen, mode.WhatNext) else []

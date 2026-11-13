@@ -172,15 +172,12 @@ def _signals(
     plans = flowstate.approved_digests(state.graded)
     # keyword: pins-only (pitboss#34): asked only where a review would be offered
     pins = pinsask.at_review(source.pins, repo, got.pull, flow.next_step(state))
-    # keyword: superseded-pointer (pitboss#317)
-    gone = pullfiles.superseded(source.github, repo.slug, got.pull)
     return dataclasses.replace(
         found,
         gate=unmet,
         approved_plans=plans,
         pins=pins,
         fixed=got.fixed,
-        gone=gone,
         hold=state.draft.hold,
     )
 

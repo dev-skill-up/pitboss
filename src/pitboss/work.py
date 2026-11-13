@@ -8,9 +8,9 @@ included). The order of work is ``workorder``'s and the decisions ``decide``'s
 (keyword: one-path).
 """
 
-from typing import AbstractSet, Iterable, Mapping, Sequence
+from typing import Mapping, Sequence
 
-from . import config, pullfacts, pullnames, reviews, steps, workitem
+from . import config, pullfacts, reviews, steps, workitem
 
 Category = workitem.Category
 CATEGORY_WORDS = workitem.CATEGORY_WORDS
@@ -74,30 +74,6 @@ def fix_round(pull: pullfacts.PullFacts) -> bool:
     found = pull.review
     asked = found is not None and found.verdict is reviews.Verdict.CHANGES_NEEDED
     return asked and pull.standing is reviews.Standing.OLDER_HEAD
-
-
-def taken(facts: Iterable[pullfacts.PullFacts]) -> AbstractSet[str]:
-    """The tickets open PRs already work on.
-
-    A PR works on a ticket (keyword: taken) only when its title or body fixes
-    it with a ``Fixes`` or ``Closes`` form, or its branch ends in the ticket's
-    number (``pullnames.names``); a mention elsewhere, in a Plan or an
-    Evidence block, names none.
-
-    Args:
-        facts: the open PRs.
-
-    Returns:
-        The tickets' references.
-    """
-    return frozenset().union(
-        *(
-            pullnames.names(
-                each.pull.title, each.pull.body, each.pull.head.branch, each.repo
-            )
-            for each in facts
-        )
-    )
 
 
 def smallest_model(

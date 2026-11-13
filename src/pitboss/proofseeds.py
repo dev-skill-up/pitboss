@@ -93,19 +93,31 @@ def seeded(texts: Mapping[str, str], seed: Seed) -> Mapping[str, str]:
     return {**texts, path: before.replace(seed.old, seed.new)}
 
 
-def _other_modes(
+def other_modes(
     args: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
 ) -> mode.Mode:
-    # P4's dynamic half: a parse that sends every command line to Other
+    """P4's seeded parse: every command line is ``Other``.
+
+    Args:
+        args: the parsed arguments.
+        project: the project.
+        options: the options.
+
+    Returns:
+        ``Other``, so the other modes are the image of no command line.
+    """
     return mode.Other(command="")
 
 
-def missed(texts: Mapping[str, str], declared: cli_parser.Declared) -> Sequence[str]:
+def missed(
+    texts: Mapping[str, str], declared: cli_parser.Declared, seed_parse: mode.ModeOf
+) -> Sequence[str]:
     """What the proofs fail to show: a finding on the package, a seed not found.
 
     Args:
         texts: each file's text, by its path from the root.
         declared: the table the command line parser is built from, for P4.
+        seed_parse: P4's seeded parse, which must leave a mode with no image.
 
     Returns:
         One line for each.
@@ -117,8 +129,7 @@ def missed(texts: Mapping[str, str], declared: cli_parser.Declared) -> Sequence[
             found.append(f"{name}: its seed is not found ({seed.path})")
     if not modeproof.total_matches(proofsource.of_texts(seeded(texts, UNMATCHED))):
         found.append("P4: a match on a mode without assert_never is not found")
-    stand_in: mode.ModeOf = _other_modes
-    if not modeproof.images(stand_in, declared):
+    if not modeproof.images(seed_parse, declared):
         found.append("P4: a parse with no image of WhatNext is not found")
     return found
 
@@ -133,7 +144,7 @@ def main(root: pathlib.Path, declared: cli_parser.Declared) -> int:
     Returns:
         0 when it does, 1 otherwise.
     """
-    found = missed(proofsource.read(root), declared)
+    found = missed(proofsource.read(root), declared, other_modes)
     for each in found:
         print(each)
     print("seeds: ok" if not found else f"seeds: {len(found)} findings")

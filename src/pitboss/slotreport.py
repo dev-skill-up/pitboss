@@ -10,10 +10,10 @@ from .markers import Marker
 def slot_lines(book: ledger.Ledger, taken: slotheld.Occupancy) -> Sequence[str]:
     """The ledger, with a loud line for each empty slot that is free.
 
-    An empty slot that a PR's round or an unrecorded agent holds is not free:
-    its row says so, and ``SLOT HELD`` and ``UNRECORDED AGENT`` lines follow
-    (keyword: slot-held, pitboss#291). When the agents are not known no slot row
-    is printed, only the line that says so (pitboss#94).
+    An empty slot that an unrecorded agent holds is not free: its row says so,
+    and ``UNRECORDED AGENT`` lines follow (keyword: slot-held, pitboss#291).
+    When the agents are not known no slot row is printed, only the line that
+    says so (pitboss#94).
 
     Args:
         book: the ledger.
@@ -50,21 +50,6 @@ def _slot_line(slot: ledger.Slot) -> str:
     return (
         f"{Marker.EMPTY_SLOT.text}: {name}: run 'pitboss slots next' and start its line"
     )
-
-
-def print_free_slots(queued: int, taken: slotheld.Occupancy) -> None:
-    """Print the line that says slots are free while work is queued.
-
-    Args:
-        queued: how many items are queued.
-        taken: what holds the slots beyond the ledger's agents.
-    """
-    free = taken.free
-    if taken.known and free and queued:
-        print(
-            f"{Marker.SLOTS_FREE.text} {free}: {queued} queued; a wake-up"
-            " (send_later) is required before this turn ends, or nothing starts them"
-        )
 
 
 def print_ledger(book: ledger.Ledger, taken: slotheld.Occupancy) -> None:

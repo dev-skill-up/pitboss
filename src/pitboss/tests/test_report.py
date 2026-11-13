@@ -1,6 +1,5 @@
 """Tests for the sweep's PR line."""
 
-import dataclasses
 import json
 import unittest
 
@@ -110,40 +109,3 @@ class TestWaitForCi(unittest.TestCase):
     def test_completed_check_run_is_ready(self) -> None:
         """A completed check run that did not fail makes the head green."""
         assert_that(pullref.green(approved_green()), equal_to(True))
-
-
-def at_merge(pull: pulls.PullFacts) -> pulls.PullFacts:
-    """A PR at the MERGE step.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        The PR.
-    """
-    return dataclasses.replace(pull, step=steps.merge())
-
-
-def by_hand(pull: pulls.PullFacts) -> pulls.PullFacts:
-    """A PR of a library without auto-merge, at the MERGE step.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        The PR.
-    """
-    repo = config.Repo(owner="owner", name="lib", slug="owner/lib")
-    return dataclasses.replace(pull, step=steps.merge(), repo=repo)
-
-
-NO_AUTO_MERGE_LIB = '[libraries]\nrepositories = ["lib"]\nno_auto_merge = ["lib"]\n'
-
-
-def by_hand_settings() -> config.Config:
-    """A configuration whose library ``lib`` has no auto-merge.
-
-    Returns:
-        The configuration.
-    """
-    return fakes.settings(fakes.directory(), NO_AUTO_MERGE_LIB)

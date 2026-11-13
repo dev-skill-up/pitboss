@@ -13,12 +13,9 @@ from typing import Mapping
 
 from hamcrest import assert_that, empty, equal_to, has_item
 
-from .. import stepwords, phrases, reviews, stepmatrix, steps
-from . import test_work, world
+from .. import stepwords, phrases, stepmatrix, steps
 
-QUIET = ("state", "next")
 ROWS = stepmatrix.parse(phrases.shipped_text("stepmatrix.tsv"))
-BASE = test_work.facts(3, reviews.Standing.NONE)
 
 
 def steps_of() -> Mapping[str, steps.Next]:
@@ -37,10 +34,6 @@ def steps_of() -> Mapping[str, steps.Next]:
         **given,
         **{f"Task.{each.name}": steps.worker(each) for each in steps.Task},
     }
-
-
-def _world() -> world.World:
-    return world.make_world()
 
 
 class MoreSteps(enum.Enum):

@@ -57,21 +57,6 @@ def items(ticket: str) -> Sequence[str]:
     return [text for _, text in _marked(ticket)]
 
 
-def bullets(ticket: str) -> Sequence[str]:
-    """The bullets of a ticket's Done-when, each with the marker it was written with.
-
-    Args:
-        ticket: the ticket's text.
-
-    Returns:
-        The items that are bullets, each as ``MARKER TEXT`` (``* `` for a ticket
-        written with ``* ``, ``1. `` for a numbered one), so a Plan copies it as
-        the ticket has it (keyword: plan-done-when, pitboss#282); an item that is a
-        paragraph has no marker and is not listed.
-    """
-    return [f"{marker} {text}" for marker, text in _marked(ticket) if marker]
-
-
 def _marked(ticket: str) -> Sequence[tuple[str, str]]:
     # each item's marker (empty for a paragraph) and its text
     lines = _lines(ticket)

@@ -8,7 +8,6 @@ that is blocked (keyword: blocked-body), says a stuck run and a duplicate PR
 can be overridden (keywords: unknown-data, force-brief, quiesce); pitboss#444.
 """
 
-import dataclasses
 import datetime
 import json
 import unittest
@@ -16,7 +15,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import briefsave, parsing, pulls, shapes, steps, stuckci
+from .. import briefsave, parsing, shapes, steps, stuckci
 from . import fakes, world
 from .cleanworld import same
 from .says import lacks, says
@@ -64,20 +63,6 @@ class TestBriefs(unittest.TestCase):
         line = briefsave.save(directory / "ledger.json", "o/r#1", "small", "text")
         says(line, "DISPATCH: o/r#1: brief NOT saved", "do not hand-build one")
         same(briefsave.name_of("owner/lib#12"), "owner-lib-12.brief")
-
-
-def relocking(*step: steps.Next) -> pulls.PullFacts:
-    """The oldest PR, a relock PR, at a step (the review when none is given).
-
-    Args:
-        *step: the step to give it, if any.
-
-    Returns:
-        The PR.
-    """
-    oldest = facts(2, NONE, created_at="2026-01-01T00:00:00+00:00")
-    relock = dataclasses.replace(oldest, relock=True)
-    return stepped(relock, step[0]) if step else relock
 
 
 def run_of(number: int, status: str, minute: int) -> shapes.WorkflowRun:

@@ -4,22 +4,8 @@ Apart from ``pulls``, the reader, so a module that only judges facts does not si
 on the reader (keyword: one-path).
 """
 
-from . import conflicts, pullref, reviews, steps
+from . import conflicts, reviews, steps
 from .pullfacts import PullFacts
-
-failed_checks = pullref.failed_checks
-
-
-def unhealthy(facts: PullFacts) -> bool:
-    """Whether the PR has a failed check, a conflict or is a draft.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when it is any of them.
-    """
-    return bool(failed_checks(facts)) or conflicted(facts) or facts.pull.draft
 
 
 def conflicted(facts: PullFacts) -> bool:
@@ -47,15 +33,3 @@ def approved(facts: PullFacts) -> bool:
     return facts.standing in counted and (
         steps.task_of(facts.step) is not steps.Task.RULING_STEPS
     )
-
-
-def at_merge(facts: PullFacts) -> bool:
-    """Whether the PR's step is the merge.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True at the merge.
-    """
-    return steps.step_is(facts.step, {steps.Step.MERGE})

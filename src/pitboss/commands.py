@@ -262,7 +262,7 @@ def _slot_section(found: Context, seen: Seen) -> None:
     report.print_reminders(found.settings)
     written = ledger.configured(found.settings)
     book = slotholding.derived(written, found.args.running)
-    slotreport.print_ledger(book, slotholding.occupy((), book, found.args.running))
+    slotreport.print_ledger(book, slotholding.occupy(book, found.args.running))
     given = project.what_next(seen.decided)
     idle = _idle(found, book, given)
     logline.after([*render.answer_lines(given), *idle], found.settings.slots.log)

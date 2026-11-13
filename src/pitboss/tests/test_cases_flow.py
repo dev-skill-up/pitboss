@@ -5,16 +5,13 @@ The flow tests plant the timeline of the case on the model of a PR; the sweep
 test plants a fix round with no reviewer.
 """
 
-import dataclasses
-import datetime
 import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import pulls, reviews, rulingreason, shapes, steps
+from .. import rulingreason, shapes, steps
 from . import model
 from .model import History, Ruling, Verdict
-from .test_work import facts
 
 V = Verdict
 APPROVED_PLAN = [(3, V.APPROVED, None, 0, 0)]
@@ -89,29 +86,6 @@ class TestAfterTheRuling(unittest.TestCase):
         )
         got = step_with(history, plan=1, head=1, pushed=6)
         assert_that((got.step, got.task), equal_to((steps.Step.REGULAR_REVIEW, None)))
-
-
-NOW = datetime.datetime.fromisoformat("2026-11-12T12:00:00+00:00")
-FINDINGS = "https://github.example/owner/project/pull/5#c1"
-
-
-def fix_round(started: str) -> pulls.PullFacts:
-    """A PR whose newest review asked for changes and whose head moved since.
-
-    Args:
-        started: when its head's check started.
-
-    Returns:
-        The facts.
-    """
-    seen = facts(5, reviews.Standing.OLDER_HEAD)
-    check = shapes.CheckRun(
-        id=1, name="build", finished=True, failed=False, started_at=started
-    )
-    found = reviews.Found(
-        sha="a" * 7, verdict=reviews.Verdict.CHANGES_NEEDED, when="t", url=FINDINGS
-    )
-    return dataclasses.replace(seen, checks=(check,), review=found)
 
 
 RULING_TEXT = "Opus ruling\nRuling: do these steps\n"

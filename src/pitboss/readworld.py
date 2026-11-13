@@ -233,15 +233,14 @@ class _Walking:
 def _kept_by(walking: _Walking, candidate: workorder.Candidate) -> world.Kept | None:
     # an item the ledger, a hold or the quiesce already decides, with no read of it
     reference = candidate.reference
-    match candidate:
-        case listed.Listed():  # a pull request a slot holds; the sweep reads it
-            held = reference in _held(walking.reading.book) and not walking.every_pull
-            by = world.Keeper.SLOT
-        case workorder.Ticket():
-            slug = reference.rpartition("#")[0]
-            holding = slug in walking.held_repos or walking.reading.quiesced
-            held = holding and reference not in walking.taken
-            by = world.Keeper.HOLD
+    if isinstance(candidate, listed.Listed):  # a PR a slot holds; the sweep reads it
+        held = reference in _held(walking.reading.book) and not walking.every_pull
+        by = world.Keeper.SLOT
+    else:  # a ticket
+        slug = reference.rpartition("#")[0]
+        holding = slug in walking.held_repos or walking.reading.quiesced
+        held = holding and reference not in walking.taken
+        by = world.Keeper.HOLD
     return world.Kept(reference=reference, by=by) if held else None
 
 
@@ -249,14 +248,12 @@ def _examine(walking: _Walking, candidate: workorder.Candidate) -> world.Record:
     kept = _kept_by(walking, candidate)
     if kept is not None:
         return kept
-    match candidate:
-        case listed.Listed():
-            rows = walking.rows.values()
-            others = [each for each in rows if each.repo == candidate.repo]
-            others = [each for each in others if each != candidate]
-            return examine_pull(walking.reading, candidate, others)
-        case workorder.Ticket():
-            return examine_ticket(walking.reading, candidate, walking.taken)
+    if isinstance(candidate, workorder.Ticket):
+        return examine_ticket(walking.reading, candidate, walking.taken)
+    rows = walking.rows.values()
+    others = [each for each in rows if each.repo == candidate.repo]
+    others = [each for each in others if each != candidate]
+    return examine_pull(walking.reading, candidate, others)
 
 
 def _by_reference(walking: _Walking, reference: str) -> workorder.Candidate | None:

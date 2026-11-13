@@ -18,18 +18,6 @@ def agents(book: ledger.Ledger) -> AbstractSet[str]:
     return {each.agent for each in book.slots}
 
 
-def tasks(book: ledger.Ledger) -> AbstractSet[str]:
-    """The tasks the slots of a ledger hold for a running agent.
-
-    Args:
-        book: the ledger.
-
-    Returns:
-        Their references.
-    """
-    return {each.task for each in book.slots if each.agent}
-
-
 def holder(slot: ledger.Slot) -> str:
     """The agent of a slot with its kind, task and the time it started.
 

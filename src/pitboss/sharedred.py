@@ -13,7 +13,7 @@ error lines differ (the lines are compared whole).
 """
 
 import dataclasses
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Sequence
 
 from . import failures, ghapi, headchecks, pulls, shapes, steps
 
@@ -78,23 +78,6 @@ def groups(seen: Sequence[Seen]) -> Sequence[Shared]:
         for (slug, check, line), who in found.items()
         if len(set(who)) >= 2
     ]
-
-
-def text(shared: Shared) -> str:
-    """The sweep's line for a group.
-
-    Args:
-        shared: the group.
-
-    Returns:
-        ``SHARED RED`` and the check, the PRs and the first error line.
-    """
-    who = ", ".join(shared.holders)
-    return (
-        f"{PREFIX} {shared.slug}: {shared.check} fails on {who} with the same first"
-        f" error: {shared.line}; one ticket against the shared cause, no fix of"
-        " the PRs (they wait for it)"
-    )
 
 
 def stepped(pull: pulls.PullFacts, shared: Sequence[Shared]) -> steps.Move | None:
@@ -215,15 +198,3 @@ def _replaced(read: pulls.Read, shared: Sequence[Shared]) -> pulls.Read:
         return read
     step = stepped(read, [each for each in shared if each.slug == read.repo.slug])
     return dataclasses.replace(read, step=step) if step else read
-
-
-def lines(found: Sequence[Shared]) -> Mapping[str, str]:
-    """The sweep's lines of the groups, by repository and check.
-
-    Args:
-        found: the groups.
-
-    Returns:
-        Each group's line.
-    """
-    return {f"{each.slug} {each.check}": text(each) for each in found}

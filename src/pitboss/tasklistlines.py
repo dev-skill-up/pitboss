@@ -11,7 +11,7 @@ line (keyword: check-in), so a status carries no time typed from memory.
 import datetime
 import json
 import subprocess
-from typing import Sequence
+from typing import Sequence, assert_never
 
 from . import answer, checkin, ghapi, ledger, nextfound, render, slotlog, slotsheader
 
@@ -84,6 +84,8 @@ def _decisions(given: answer.Answer) -> Sequence[answer.Decision]:
             return render.every(given)
         case answer.NotEnoughWork():
             return []
+        case _:  # pragma: no cover
+            assert_never(given)
 
 
 def lines(

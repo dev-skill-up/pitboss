@@ -6,7 +6,6 @@ order; and a ticket labelled p3 that the owner had stated as p0 was ranked by it
 label.
 """
 
-import re
 import unittest
 from typing import Mapping, Sequence
 
@@ -16,64 +15,9 @@ from .. import configfile, ownerlabels
 from . import fakes, quietworld, world
 from .rankworld import publish
 from .suggestions import next_output, parsed
-from .test_commands import sweep
-from .ownerbodies import lines_of
 from .says import says
 
 PROJECT = world.PROJECT
-
-
-def offered(output: str) -> Sequence[str]:
-    """The tickets an output lists to start, in order.
-
-    Args:
-        output: what ``slots next`` printed.
-
-    Returns:
-        Their references.
-    """
-    return re.findall(r"^NEXT \d+\. (\S+#\d+) \(start a PR", output, re.MULTILINE)
-
-
-def printed(here: world.World, start: str) -> Sequence[Sequence[str]]:
-    """The lines that start so, in what ``slots next`` and the sweep print.
-
-    Args:
-        here: the world.
-        start: the first characters of the lines.
-
-    Returns:
-        The lines of ``slots next``, then those of the sweep.
-    """
-    outputs = (next_output(here), sweep(here).out)
-    return [lines_of(each, start) for each in outputs]
-
-
-def after_first(output: str) -> Sequence[str]:
-    """The lines of an output after its first, less the PITBOSS-SLOT marker.
-
-    Args:
-        output: what a command printed.
-
-    Returns:
-        The lines.
-    """
-    return [each for each in output.splitlines()[1:] if each[:13] != "PITBOSS-SLOT:"]
-
-
-PLACES = [
-    ("#1", "NEXT 2 of 4, first in the order (place from", "resolve the conflict"),
-    (
-        "project#3",
-        "NEXT 3 of 4, out of order, 1 ahead of it (place from",
-        "review the Plan",
-    ),
-    (
-        "owner/project#9",
-        "NEXT 4 of 4, out of order, 2 ahead of it",
-        "start a PR",
-    ),
-]
 
 
 class TestOneItem(unittest.TestCase):
@@ -124,21 +68,11 @@ def priorities(
 
 NINTH = "owner/project#9"
 SAID = f"LABEL DISAGREES: {NINTH} is labelled p3, the owner's stated priority is p0"
-BOTH = [[SAID], [SAID]]
 ALL = ["p0", "p1", "p2", "p3"]
 SOME = ["p0", "p1"]
 OWNER = {NINTH: "p0"}
 TEN = "owner/project#10"
 ELEVEN = "owner/project#11"
-CASES = [
-    # the labels, the owner's priorities, the tickets, the offer in order, the lines
-    (ALL, OWNER, OPEN, [NINTH, TEN, ELEVEN], [SAID]),
-    (ALL, {}, OPEN, [TEN, ELEVEN, NINTH], []),
-    (ALL, OWNER | {ELEVEN: "p2"}, OPEN, [NINTH, TEN, ELEVEN], [SAID]),
-    (SOME, OWNER, OPEN, [NINTH, TEN], [SAID]),
-    (SOME, {}, OPEN, [TEN], []),
-    (SOME, OWNER, CLOSED_NINE, [TEN], []),
-]
 
 
 class TestOwnerPriorities(unittest.TestCase):

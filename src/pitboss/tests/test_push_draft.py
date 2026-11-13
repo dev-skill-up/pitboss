@@ -1,14 +1,11 @@
 """A push to the branch of a draft PR is free; a changed draft state is told (#355)."""
 
-import re
 import unittest
-from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import pushdraft
-from . import fakes, world
-from .test_commands import sweep
+from . import world
 from .pushworld import elsewhere
 
 OTHER_URL = "git@github.com:owner/other.git"
@@ -16,8 +13,6 @@ PULLS = "repos/owner/other/pulls?head=owner:{branch}&state=open"
 JOBS = world.project_page("actions/runs/11/jobs")
 HELD = "RUNNER PRESSURE"
 FREE = "the open PR of branch-1 is a draft: a push to a draft is never held"
-DRAFT_LINE = re.compile(r"^DRAFT STATE.*$", re.MULTILINE)
-SHARED = "actor `moshez` is the shared agent account; check the workers' rounds"
 
 
 def held_world(listed: object, branch: str) -> world.World:
@@ -109,31 +104,3 @@ class TestBranches(unittest.TestCase):
     def test_a_detached_head_names_no_branch(self) -> None:
         """With no current branch there is nothing to ask GitHub."""
         assert_that(pushdraft.branches(["origin"], ""), equal_to([]))
-
-
-def event(kind: str, hour: int) -> Mapping[str, str]:
-    """A timeline event of the day before the tests' sweep.
-
-    Args:
-        kind: GitHub's event name.
-        hour: the hour of 2029-12-31.
-
-    Returns:
-        The event's JSON.
-    """
-    return {"event": kind, "created_at": f"2029-12-31T{hour:02}:00:00Z"}
-
-
-def told(*events: Mapping[str, str]) -> Sequence[str]:
-    """The draft-state lines of a sweep of a world whose PR 3 has a timeline.
-
-    Args:
-        *events: the timeline of PR 3.
-
-    Returns:
-        The lines.
-    """
-    here = world.make_world()
-    timeline = [("issues/3/timeline", list(events))]
-    here.bodies.update(fakes.bodies_under(world.PROJECT, timeline))
-    return DRAFT_LINE.findall(sweep(here).out)

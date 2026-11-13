@@ -263,28 +263,6 @@ def depends_world(body: str) -> world.World:
     return here
 
 
-def printed(here: world.World, word: str, expected: Sequence[str]) -> None:
-    """Require the lines ``slots next`` prints under a marker.
-
-    Args:
-        here: the world.
-        word: the marker.
-        expected: the lines, in order.
-    """
-    assert_that(lines_of(next_output(here), word), equal_to(expected))
-
-
-def lines_are(output: str, word: str, expected: Sequence[str]) -> None:
-    """Require the lines of an output under a marker.
-
-    Args:
-        output: the output.
-        word: the marker.
-        expected: the lines, in order.
-    """
-    assert_that(lines_of(output, word), equal_to(expected))
-
-
 def suggestions(here: world.World) -> str:
     """What ``next`` prints, given the agents the ledger holds as live.
 

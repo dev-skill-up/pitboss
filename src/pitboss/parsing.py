@@ -351,26 +351,3 @@ def timeline_events(text: str) -> Sequence[shapes.TimelineEvent]:
         )
         for item in json.loads(text)
     ]
-
-
-def job_results(text: str) -> Sequence[shapes.JobResult]:
-    """Parse a page of the jobs of a run, with the failed steps of each.
-
-    Args:
-        text: the response body of ``actions/runs/<id>/jobs``.
-
-    Returns:
-        Every job.
-    """
-    return [
-        shapes.JobResult(
-            name=item["name"],
-            conclusion=item.get("conclusion") or "",
-            failed_steps=[
-                step["name"]
-                for step in item.get("steps") or []
-                if step.get("conclusion") == FAILURE
-            ],
-        )
-        for item in json.loads(text)["jobs"]
-    ]

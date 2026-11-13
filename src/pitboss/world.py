@@ -143,24 +143,6 @@ class World:
     free: int
 
 
-def reference_of(record: Record) -> str:
-    """The item a record is of.
-
-    Args:
-        record: the record.
-
-    Returns:
-        Its ``owner/name#number``.
-    """
-    match record:
-        case PullRecord():
-            return record.row.reference
-        case TicketRecord() | Kept():
-            return record.reference
-        case _:  # pragma: no cover
-            assert_never(record)
-
-
 def blockers_of(record: Record) -> Sequence[str]:
     """The open items a record names as blockers.
 

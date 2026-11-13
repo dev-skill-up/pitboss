@@ -184,7 +184,7 @@ def _check(found: Context, book: ledger.Ledger) -> None:
 
 def _print(found: Context, book: ledger.Ledger) -> None:
     # the PRs are not read here: only the live agents that hold no slot count
-    taken = slotholding.written((), book, found.args.running)
+    taken = slotholding.written(book, found.args.running)
     slotreport.print_ledger(book, taken)
 
 
@@ -192,7 +192,7 @@ def _shown(found: Context, book: ledger.Ledger) -> None:
     # pitboss#94: the rows are the live agents', not the hand's
     running = found.args.running
     derived = slotholding.derived(book, running)
-    taken = slotholding.occupy((), derived, running)
+    taken = slotholding.occupy(derived, running)
     slotreport.print_ledger(derived, taken)
 
 

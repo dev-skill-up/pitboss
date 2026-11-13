@@ -213,18 +213,16 @@ def ended(command: cli_parser.Command) -> tuple[object, str]:
         command: the command.
 
     Returns:
-        The exit status and what it wrote on standard error.
-
-    Raises:
-        AssertionError: the entry did not end it.
+        The exit status (None when the entry did not end it) and what it wrote on
+        standard error.
     """
-    said = io.StringIO()
+    said, code = io.StringIO(), None
     try:
         with contextlib.redirect_stderr(said):
             cli_parser.Entered(command=command)(args=argparse.Namespace())
     except SystemExit as stopped:
-        return stopped.code, said.getvalue()
-    raise AssertionError("the entry did not end the command")
+        code = stopped.code
+    return code, said.getvalue()
 
 
 class TestEntry(unittest.TestCase):

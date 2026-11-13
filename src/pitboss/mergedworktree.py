@@ -15,7 +15,7 @@ import pathlib
 import subprocess
 from typing import Sequence
 
-from . import dead, disk, judging, local, survey, untracked, worktrees
+from . import dead, judging, local, survey, untracked, worktrees
 from .markers import Marker
 from .running import Run, git
 
@@ -92,29 +92,3 @@ def remove(how: Removal, branch: str) -> Sequence[str]:
         *(line for line, _ in done),
         f"worktrees: {len(done)} listed, freed {freed} bytes",
     ]
-
-
-def steps(look: dead.Look, now: datetime.datetime) -> Sequence[str]:
-    """The removal steps of the worktrees whose PR merged or closed.
-
-    Args:
-        look: what to look at and keep.
-        now: the time now.
-
-    Returns:
-        A ``REMOVE WORKTREE`` line for each, with its size and the command; none
-        when the PRs cannot be read.
-    """
-    try:
-        done = worktrees.find(look)
-    except (subprocess.CalledProcessError, OSError):  # pragma: no cover
-        return []
-    lines = []
-    for each in done:
-        path = each.worktree.path
-        size = disk.size_text(_why_kept(_unmarked(look, path), path, now)[1])
-        lines.append(
-            f"{REMOVE} {path} ({size}, {each.reason.value}): run"
-            f" `pitboss merged --no-dry-run {each.worktree.branch}`"
-        )
-    return lines

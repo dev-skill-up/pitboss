@@ -12,7 +12,7 @@ orchestrator's own list that names several tickets.
 
 import pathlib
 import re
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, assert_never
 
 from gather.commands import add_argument
 
@@ -108,6 +108,8 @@ def _next_lines(given: answer.Answer) -> Sequence[str]:
             listed = render.every(given)
         case answer.NotEnoughWork():
             return [*found, f"{LABEL} {render.NOT_ENOUGH_WORK}"]
+        case _:  # pragma: no cover
+            assert_never(given)
     for index, each in enumerate(listed, start=slotheld.LEAD + 1):
         line = render.decision_line(each)
         found.append(f"{LABEL} next {index}. {line} ({each.title[:60]})")
