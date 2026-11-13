@@ -13,65 +13,56 @@ import os
 import pathlib
 import random
 import time
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Protocol, Sequence
 
 from . import (
     account,
+    answer,
+    actrules,
     autoclean,
-    blockedby,
     cleanconfig,
     cleanjob,
-    concurrently,
     config,
     configfile,
     configloads,
     dead,
-    draftmoves,
-    finishpartial,
-    gates,
+    diskline,
     ghapi,
     ghmemo,
     headchecks,
     ledger,
     ledgerowner,
     localsections,
+    logline,
     machine as machines,
-    offering,
-    pullmarks,
+    project,
     pulls,
     queue,
-    readyline,
-    removedline,
+    render,
     repoaccess,
     report,
     retrying,
     scratch,
     scratchconfig,
-    shapes,
-    sharedred,
     slotholding,
+    slotidle,
+    slotlog,
     slotreport,
+    slotsheader,
     summaryline,
     sweepline,
     syncguard,
     syncing,
     tasklist,
     timing,
-    workerlines,
-    workhours,
-)
-from . import (
-    diskline,
-    pulllines,
-    pullstate,
-    actrules,
     unlabeled,
     unledgered,
-    unreadableline,
+    workerlines,
+    workhours,
+    world,
 )
-from .failures import describe, read_all
 from .running import KeywordRun
-from .queuereads import read_queue_runs, read_runner_runs, runner_runs
+from .queuereads import read_queue_runs
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -86,7 +77,6 @@ class Context:
         github: the API.
         now: the time now.
         args: the parsed arguments.
-        stands: the PRs whose ticket waits for an open blocker (blocked-pull).
     """
 
     settings: config.Config
@@ -96,10 +86,37 @@ class Context:
     github: ghapi.GitHub
     now: datetime.datetime
     args: argparse.Namespace
-    stands: pullmarks.Stands = dataclasses.field(default_factory=dict)
 
 
 working_directory = configfile.working_directory
+
+
+class Seen(Protocol):
+    """The one read of a command and its decisions (``onepath.Seen``)."""
+
+    @property
+    def made(self) -> world.World:
+        """The world read.
+
+        Returns:
+            The world.
+        """
+
+    @property
+    def decided(self) -> answer.Decided:
+        """Its decisions.
+
+        Returns:
+            The decisions.
+        """
+
+    @property
+    def runners(self) -> sweepline.Look:
+        """The run's one look at the runners, which the read asked too.
+
+        Returns:
+            The look.
+        """
 
 
 def running_in(args: argparse.Namespace) -> AbstractSet[pathlib.Path]:
@@ -127,46 +144,6 @@ def load_settings(args: argparse.Namespace) -> config.Config:
         The configuration.
     """
     return configfile.load(configfile.named(args), working_directory(args))
-
-
-def open_pulls(found: Context) -> Sequence[pulls.Read]:
-    """Read every open PR the configuration names, and record the look at the runners.
-
-    Args:
-        found: the context.
-
-    Returns:
-        The PRs, a PR whose API call failed as an ``Unreadable``.
-    """
-    runs = functools.partial(read_runner_runs, found)
-    read = sweepline.looked_pulls(found.github, found.settings, found.now, runs)
-    read = _waiting(found.github, read)[0]
-    timing.note(found.args, "open pull requests read", len(read), "pull requests")
-    return read
-
-
-def _waiting(
-    github: ghapi.GitHub, read: Sequence[pulls.Read]
-) -> tuple[Sequence[pulls.Read], Sequence[str]]:
-    # keywords: blocked-by, shared-red: a declared blocker first, then a shared red
-    blocked, said = blockedby.settle(github, read)
-    settled, shared = sharedred.settle(github, blocked)
-    finished, partial = finishpartial.settle(settled)  # keyword: finish-partial
-    lines = [*said.values(), *sharedred.lines(shared).values(), *partial]
-    return finished, [*lines, *finishpartial.stranded(finished)]
-
-
-def whole_order(found: Context) -> Context:
-    """The context with every repository's gate, which the whole order needs.
-
-    Args:
-        found: the context, with the gate of the item's repository alone.
-
-    Returns:
-        The context with every repository's gate read.
-    """
-    every = gates.settled(found.github, found.settings)
-    return dataclasses.replace(found, settings=every)
 
 
 def _reading(args: argparse.Namespace) -> KeywordRun:
@@ -209,67 +186,18 @@ def load_context(args: argparse.Namespace) -> Context:
     )
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Detail:
-    """What the sweep reads of one PR beyond its facts.
-
-    Attributes:
-        pull: the PR.
-        failures: each failed check's id and what was read of it.
-        said: what is said of the PR's removal from the merge queue.
-        moves: what is said of a draft-state change that was not the sweep's.
-    """
-
-    pull: pulls.PullFacts
-    failures: Mapping[int, shapes.Failure]
-    said: removedline.Said
-    moves: Sequence[str]
-
-
-def _detail(
-    found: Context, runs: Sequence[queue.QueueRun], pull: pulls.Read
-) -> Detail | shapes.Unreadable:
-    if isinstance(pull, shapes.Unreadable):
-        return pull
-    return Detail(
-        pull=pull,
-        failures=read_all(found.github, pull),
-        said=removedline.tell(found.github, found.settings, pull, runs),
-        moves=draftmoves.tell(found.github, pull.repo.slug, pull.pull.number),
-    )
-
-
-def _pull_lines(
-    found: Context, newest: Mapping[str, queue.QueueRun], got: Detail
-) -> bool:
-    pull = got.pull
-    print(report.pull_line(pull, newest), flush=True)
-    if pullmarks.say_blocked(found.stands, pull):
-        return False
-    latest = newest.get(pulls.reference(pull))
-    queued = latest is not None and not latest.run.finished
-    why = {check_id: describe(each) for check_id, each in got.failures.items()}
-    steps = {check_id: each.steps for check_id, each in got.failures.items()}
-    shown = pulllines.lines(pull, found.now, found.settings, (steps, got.failures))
-    acts = report.action_lines(pull, found.settings, queued, why)
-    blocked = pullstate.blocked_lines(found.github, found.settings, pull, ())
-    for line in (*shown, *got.moves, *removedline.settle(got.said, acts), *blocked):
-        print(line)
-    return pulls.conflicted(pull) or bool(
-        headchecks.unanswered(pull.checks, pull.signals)
-    )
-
-
-def _pull_section(
-    found: Context, runs: Sequence[queue.QueueRun], read: Sequence[pulls.Read]
-) -> bool:
+def _pull_section(runs: Sequence[queue.QueueRun], seen: Seen) -> bool:
+    # keyword: one-path: each open pull request's facts, then its decision
     newest = queue.newest_by_reference(runs)
+    decided = project.by_item(seen.decided)
     broken = False
-    for got in concurrently.as_ready(lambda pull: _detail(found, runs, pull), read):
-        if isinstance(got, shapes.Unreadable):
-            print(unreadableline.unreadable_line(got))
-        else:
-            broken = _pull_lines(found, newest, got) or broken
+    for record in world.pull_records(seen.made):
+        pull = record.facts
+        print(report.pull_line(pull, newest), flush=True)
+        for line in render.item_lines(decided, record.row.reference):
+            print(line)
+        unanswered = headchecks.unanswered(pull.checks, pull.signals)
+        broken = pulls.conflicted(pull) or bool(unanswered) or broken
     return broken
 
 
@@ -310,24 +238,13 @@ def _clean_section(found: Context) -> account.Report:
 
 
 def _repository_sections(
-    found: Context, clock: timing.Clock, cleaned: account.Report
-) -> tuple[Context, bool, Sequence[pulls.Read]]:
+    found: Context, clock: timing.Clock, cleaned: account.Report, seen: Seen
+) -> bool:
     runs = read_queue_runs(found)
     timing.lap(clock, "merge queue runs read")
-    shared = functools.partial(runner_runs, found, runs)
-    # Before the PRs are read: a draft's undraft check writes the first look.
-    pressure = sweepline.pressure(
-        found.github, shared(), found.settings.runners, found.now
-    )
-    read, waiting = _waiting(
-        found.github,
-        sweepline.open_pulls(found.github, found.settings, found.now, shared),
-    )
-    for said in waiting:
-        print(said)
-    timing.lap(clock, "pull requests read")
-    found = dataclasses.replace(found, stands=pullmarks.pull_marks(found, read))
-    broken = _pull_section(found, runs, read)
+    # keyword: one-path: the look the read made, said once
+    pressure = sweepline.pressure(seen.runners, found.settings.runners)
+    broken = _pull_section(runs, seen)
     timing.lap(clock, "pull requests done")
     report.print_queue(pressure, runs, found.settings, found.now)
     timing.lap(clock, "merge queue done")
@@ -337,26 +254,42 @@ def _repository_sections(
     for line in diskline.lines(cleaned, found.clean.min_free_gib):
         print(line)
     timing.lap(clock, "checkouts done")
-    return found, broken, read
+    return broken
 
 
-def _slot_section(found: Context, read: Sequence[pulls.Read]) -> None:
+def _slot_section(found: Context, seen: Seen) -> None:
+    # keyword: one-path: the ledger, then what is next as the one answer says it
     report.print_reminders(found.settings)
     written = ledger.configured(found.settings)
     book = slotholding.derived(written, found.args.running)
-    scope = offering.Look(opened=read, marks=found.stands)
-    offer = slotholding.counted(
-        offering.offered(found, scope, book), read, book, found.args
-    )
-    slotreport.print_ledger(book, offer.occupancy)
-    sweepline.slots(read, offer, offering.disagreements(found, offer))
-    sweepline.logged(book, offer, found.settings.slots.log, found.now)
+    slotreport.print_ledger(book, slotholding.occupy((), book, found.args.running))
+    given = project.what_next(seen.decided)
+    idle = _idle(found, book, given)
+    logline.after([*render.answer_lines(given), *idle], found.settings.slots.log)
     workerlines.print_lines(written, found.now, found.args, found.settings.slots)
-    undrafts = readyline.texts(found.settings, pullmarks.awake(read, offer), found.now)
     unlabeled.print_lines(found.github, found.settings)
-    tasklist.print_block(book, list(undrafts), offer.items, offer.occupancy)
-    for line in tasklist.live_lines(book, read):
+    # no slot is in flight while the running agents are not known (pitboss#94)
+    named = [] if found.args.running is None else slotsheader.running(book)
+    tasklist.print_block(book, given, named)
+    facts = [each.facts for each in world.pull_records(seen.made)]
+    for line in tasklist.live_lines(book, facts):
         print(line)
+
+
+def _idle(found: Context, book: ledger.Ledger, given: answer.Answer) -> Sequence[str]:
+    # keyword: slot-idle: a slot empty too long (so free) while there is work
+    work = isinstance(given, answer.Work) and found.args.running is not None
+    log = found.settings.slots.log
+    return slotidle.lines(book, slotlog.read(log), found.now) if work else []
+
+
+def _closing_sections(found: Context) -> None:
+    summaryline.print_lines(
+        found.github, found.settings, configfile.named(found.args), found.now
+    )
+    _unledgered_section(found)
+    # what each actor writes, from the checker's own table (keyword: total-routes)
+    print(actrules.instructions(), end="")
 
 
 def _unledgered_section(found: Context) -> None:
@@ -368,12 +301,13 @@ def _unledgered_section(found: Context) -> None:
         print(said)
 
 
-def sweep_sections(found: Context, clock: timing.Clock) -> bool:
+def sweep_sections(found: Context, clock: timing.Clock, seen: Seen) -> bool:
     """Report on PRs, runner pressure, queue runs, stragglers, worktrees, slots, LOG.
 
     Args:
         found: the context, loaded with the clocked arguments.
         clock: the sweep's clock.
+        seen: the one read of the sweep and its decisions (keyword: one-path).
 
     Returns:
         True for a failed check, a conflict, or an unread repository.
@@ -385,14 +319,9 @@ def sweep_sections(found: Context, clock: timing.Clock) -> bool:
     timing.lap(clock, "update check and configuration read")
     cleaned = _clean_section(found)
     timing.lap(clock, "cleaning done")
-    found, broken, read = _repository_sections(found, clock, cleaned)
-    _slot_section(found, read)
-    summaryline.print_lines(
-        found.github, found.settings, configfile.named(args), found.now
-    )
-    _unledgered_section(found)
-    # what each actor writes, from the checker's own table (keyword: total-routes)
-    print(actrules.instructions(), end="")
+    broken = _repository_sections(found, clock, cleaned, seen)
+    _slot_section(found, seen)
+    _closing_sections(found)
     timing.lap(clock, "slots done")
     unconfigured = syncguard.unconfigured(args)
     crowded = tasklist.refused(args.task_list, found.settings.project.repo)

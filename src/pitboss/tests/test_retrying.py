@@ -8,7 +8,7 @@ import subprocess
 import unittest
 from typing import MutableSequence, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import cli_parser, retrying
 from ..running import KeywordRun
@@ -125,6 +125,14 @@ class TestRetry(unittest.TestCase):
             reader(answering(gone), 1.0, slept)(REQUEST)
         assert_that((raised.exception.stdout, slept), equal_to(("{}", [])))
 
+    def test_a_bound_session_refusal_is_an_answer(self) -> None:
+        """A path the session is not bound to names no status and is not tried again."""
+        refused = (f"gh: This GitHub API path is not available: {retrying.BOUND}", "")
+        run, slept = answering(refused), list[float]()
+        with self.assertRaises(subprocess.CalledProcessError):
+            reader(run, 1.0, slept)(REQUEST)
+        assert_that((slept, len(run.asked)), equal_to(([], 1)))
+
     def test_a_rate_limit_403_is_tried_again(self) -> None:
         """A 403 that names a rate limit passes on the second try."""
         limited = ("gh: API rate limit exceeded (HTTP 403)", "")
@@ -172,14 +180,68 @@ def failing(*, args: argparse.Namespace) -> None:
     raise retrying.ReadFailed("repos/o/r/pulls: HTTP 502")
 
 
+def unanswered(*, args: argparse.Namespace) -> None:
+    """A command whose read GitHub answered 404 and no reader took.
+
+    Args:
+        args: the parsed arguments.
+
+    Raises:
+        subprocess.CalledProcessError: always.
+    """
+    raise subprocess.CalledProcessError(
+        1, REQUEST, "", UNAVAILABLE[0].replace("503", "404")
+    )
+
+
+def refused_write(*, args: argparse.Namespace) -> None:
+    """A command whose write failed.
+
+    Args:
+        args: the parsed arguments.
+
+    Raises:
+        subprocess.CalledProcessError: always.
+    """
+    raise subprocess.CalledProcessError(1, ["git", "push"], "", "rejected")
+
+
+def ended(command: cli_parser.Command) -> tuple[object, str]:
+    """Run a command through the entry, which must end it.
+
+    Args:
+        command: the command.
+
+    Returns:
+        The exit status and what it wrote on standard error.
+
+    Raises:
+        AssertionError: the entry did not end it.
+    """
+    said = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(said):
+            cli_parser.Entered(command=command)(args=argparse.Namespace())
+    except SystemExit as stopped:
+        return stopped.code, said.getvalue()
+    raise AssertionError("the entry did not end the command")
+
+
 class TestEntry(unittest.TestCase):
     """The command entry, the one place a failed read ends a command."""
 
     def test_a_failed_read_exits_one_with_the_request_on_stderr(self) -> None:
         """Status 1, the request and its status on standard error."""
-        said = io.StringIO()
-        entered = cli_parser.Entered(command=failing)
-        with contextlib.redirect_stderr(said), self.assertRaises(SystemExit) as ended:
+        code, said = ended(failing)
+        assert_that((code, "repos/o/r/pulls: HTTP 502" in said), equal_to((1, True)))
+
+    def test_an_answer_no_reader_took_exits_one(self) -> None:
+        """A 404 of a read that is no blocker's: no decision on a partial world."""
+        code, said = ended(unanswered)
+        assert_that((code, "issues/1: HTTP 404" in said), equal_to((1, True)))
+
+    def test_a_failed_write_is_not_a_read(self) -> None:
+        """Only a read ends as a failed read; another command's failure is raised."""
+        entered = cli_parser.Entered(command=refused_write)
+        with self.assertRaises(subprocess.CalledProcessError):
             entered(args=argparse.Namespace())
-        assert_that(ended.exception.code, equal_to(1))
-        assert_that(said.getvalue(), contains_string("repos/o/r/pulls: HTTP 502"))

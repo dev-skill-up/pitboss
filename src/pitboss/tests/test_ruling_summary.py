@@ -6,7 +6,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import roundline, rulingsummary, shapes, steps, stepwords
+from .. import rulingsummary, shapes
 from . import fakes, world
 from .test_evidence_rules import read, words
 
@@ -264,23 +264,6 @@ class TestNote(unittest.TestCase):
         for path in (here.clone, here.clone / "missing" / "record.log"):
             with self.subTest(path=path), self.assertRaises(SystemExit):
                 rulingsummary.note(path, NOW)
-
-
-class TestEscalationCard(unittest.TestCase):
-    """The step that has the orchestrator ask the owner carries the artifact."""
-
-    def test_the_sentence_is_pinned(self) -> None:
-        """Each escalation step and its sweep line carry the sentence."""
-        assert_that(steps.OWNER_ARTIFACT, equal_to(ARTIFACT))
-        shown = [
-            stepwords.TEXTS[steps.Step.PAUSE_FOR_OWNER],
-            stepwords.TEXTS[steps.Step.RULING_ESCALATES],
-            roundline.LINES[steps.Step.PAUSE_FOR_OWNER][1],
-            roundline.LINES[steps.Step.RULING_ESCALATES][1],
-        ]
-        for text in shown:
-            with self.subTest(text=text):
-                assert_that(text, contains_string(ARTIFACT))
 
 
 class TestRules(unittest.TestCase):

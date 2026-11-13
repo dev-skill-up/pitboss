@@ -161,3 +161,41 @@ def raises_with(error: type[Exception], words: str, call: Callable[[], object]) 
         assert_that(str(raised), contains_string(words))
         return
     raise AssertionError(f"no {error.__name__}")  # pragma: no cover
+
+
+class Finished(Protocol):
+    """What ran, with its exit code and both outputs."""
+
+    @property
+    def code(self) -> object:
+        """The exit code.
+
+        Returns:
+            The value.
+        """
+
+    @property
+    def out(self) -> str:
+        """The standard output.
+
+        Returns:
+            The value.
+        """
+
+    @property
+    def err(self) -> str:
+        """The standard error.
+
+        Returns:
+            The value.
+        """
+
+
+def read_failed(done: Finished) -> None:
+    """Require a command that ended on a failed read: status 1, nothing decided.
+
+    Args:
+        done: what the command did.
+    """
+    assert_that((done.code, done.out), equal_to((1, "")))
+    says(done.err, "READ FAILED")

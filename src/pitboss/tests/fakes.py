@@ -17,7 +17,7 @@ from typing import (
 )
 
 from .. import config, configfile, ghapi
-from . import captured, repositories, worldreads
+from . import captured, fullpull, repositories, worldreads
 
 HEAD = "a" * 40
 PLAN_AND_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -134,9 +134,8 @@ def canned(bodies: Mapping[str, object], command: Sequence[str]) -> tuple[str, o
     path = command[-1] if command[2] != "-X" else f"{command[3]} {command[-1]}"
     path = ASKED_BY_THE_WINDOW.sub("", path)  # a world cans a list whole
     first = f"{path}&page=1" if "per_page=100" in path else page(path)
-    return path, worldreads.listed_whole(
-        bodies, path, bodies.get(path, bodies.get(first, worldreads.none_listed(path)))
-    )
+    found = bodies.get(path, bodies.get(first, worldreads.none_listed(path)))
+    return path, fullpull.complete(path, worldreads.listed_whole(bodies, path, found))
 
 
 def run_for_real(
@@ -210,6 +209,24 @@ def page(path: str, number: int = 1) -> str:
     return f"{path}{separator}per_page=100&page={number}"
 
 
+def listed_row(
+    bodies: MutableMapping[str, object], repo: str, number: int, **fields: object
+) -> None:
+    """Give a PR's row of a repository's open listing fields, as GitHub's carries.
+
+    Args:
+        bodies: the canned answers.
+        repo: the repository's ``repos/owner/name`` path.
+        number: the PR.
+        **fields: the fields the row gets (its body, its head).
+    """
+    listing = bodies[page(f"{repo}/pulls?state=open")]
+    assert isinstance(listing, list)
+    listing[:] = [
+        {**row, **fields} if row.get("number") == number else row for row in listing
+    ]
+
+
 def pull_body(number: int, **changes: object) -> MutableMapping[str, object]:
     """A PR's JSON.
 
@@ -225,7 +242,7 @@ def pull_body(number: int, **changes: object) -> MutableMapping[str, object]:
         "title": f"PR {number}",
         "created_at": "2026-10-01T00:00:00+00:00",
         "draft": False,
-        "user": {"login": "author"},
+        "user": {"login": "pitboss-bot"},
         "body": PLAN_AND_EXECUTION,
         "head": {"sha": HEAD, "ref": f"branch-{number}"},
         "base": {"ref": "main"},

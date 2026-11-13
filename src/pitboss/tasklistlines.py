@@ -13,16 +13,7 @@ import json
 import subprocess
 from typing import Sequence
 
-from . import (
-    checkin,
-    ghapi,
-    ledger,
-    nextfound,
-    slotlog,
-    slotsheader,
-    work,
-    workitem,
-)
+from . import answer, checkin, ghapi, ledger, nextfound, render, slotlog, slotsheader
 
 MERGED_HOURS = 24
 RUNNING = "✱"
@@ -75,22 +66,29 @@ def running_line(slot: ledger.Slot) -> str:
     )
 
 
-def queued_line(item: work.Item) -> str:
-    """The ``○`` line of an item that waits.
+def queued_line(decision: answer.Decision) -> str:
+    """The ``○`` line of a decision no agent has taken yet.
 
     Args:
-        item: the item.
+        decision: the decision.
 
     Returns:
-        The line, with the next step.
+        The line: who acts, on what, and how.
     """
-    step = workitem.CATEGORY_WORDS.get(item.category, item.category.name.lower())
-    return f"{QUEUED} {item.reference}: {step} ({item.title[:60]})"
+    return f"{QUEUED} {render.decision_line(decision)} ({decision.title[:60]})"
+
+
+def _decisions(given: answer.Answer) -> Sequence[answer.Decision]:
+    match given:
+        case answer.Work():
+            return render.every(given)
+        case answer.NotEnoughWork():
+            return []
 
 
 def lines(
     book: ledger.Ledger,
-    items: Sequence[work.Item],
+    given: answer.Answer,
     merged: Sequence[str],
     now: datetime.datetime,
 ) -> Sequence[str]:
@@ -98,7 +96,7 @@ def lines(
 
     Args:
         book: the ledger as the live agents make it.
-        items: the ordered items that wait.
+        given: what is next (``project.what_next``).
         merged: the ``✓`` lines.
         now: the time now.
 
@@ -107,9 +105,7 @@ def lines(
     """
     flying = slotsheader.running(book)
     held = {each for slot in flying for each in (slot.task, slot.ticket) if each}
-    waiting = [
-        each for each in items if each.reference not in held and each.ticket not in held
-    ]
+    waiting = [each for each in _decisions(given) if each.item not in held]
     at = datetime.datetime.fromisoformat(book.checkin) if book.checkin else now
     return [
         f"Task list: {checkin.status_line(book, at)}",
@@ -135,7 +131,7 @@ def handed_line(slot: ledger.Slot) -> str:
 def show(
     found: nextfound.Found,
     book: ledger.Ledger,
-    items: Sequence[work.Item],
+    given: answer.Answer,
     handed: Sequence[ledger.Slot] = (),
 ) -> None:
     """Print the task list of ``slots tasklist``.
@@ -143,7 +139,7 @@ def show(
     Args:
         found: the context.
         book: the ledger as the live agents make it.
-        items: the ordered items that wait.
+        given: what is next (``project.what_next``).
         handed: the slots whose worker handed back (keyword: hand-back-done).
     """
     slug = found.settings.project.repo.slug
@@ -151,5 +147,5 @@ def show(
         *map(handed_line, handed),
         *merged_recently(found.github, slug, found.now),
     ]
-    for text in lines(book, items, merged, found.now):
+    for text in lines(book, given, merged, found.now):
         print(text)

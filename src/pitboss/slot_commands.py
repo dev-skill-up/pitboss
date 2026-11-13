@@ -12,21 +12,21 @@ from . import (
     checkin,
     configfile,
     deviations,
-    fixes,
+    handedback,
     ledger,
     ledgerowner,
     logline,
-    nextqueued,
-    nextcommand,
     nextfound,
     onepath,
     freecheck,
-    pulls,
+    project,
+    refill,
     repoaccess,
     slotholder,
     slotholding,
     slotlog,
     slotreport,
+    slotsheader,
     slotwindow,
     tasklistlines,
     ticketof,
@@ -39,7 +39,7 @@ from .commandarguments import (
     RUNNING_ARGUMENT,
     WATCH_ARGUMENTS,
 )
-from .commands import Context, load_context, open_pulls
+from .commands import Context, load_context
 from .markers import Marker
 from .slotaction import Action
 
@@ -255,12 +255,14 @@ def _changing(found: Context, action: Action) -> None:
         name = found.args.words[0]
         slot = ledger.find(before, name)
         assert isinstance(slot, ledger.Slot)  # the change was done, so it exists
-        opened = open_pulls(found)
-        head = fixes.head_fixing(slot.ticket, pulls.readable(opened))
-        event = logline.hand_back(slot, head, found.now)
+        # keyword: one-path: the one read gives the head and what the slot takes
+        seen = onepath.seen_for(found)
+        heads = [row.head for row in seen.made.listing if slot.ticket in row.works_on]
+        event = logline.hand_back(slot, heads[0] if heads else "", found.now)
         logline.record(found.settings.slots.log, event)
         if action is Action.FREE:
-            print(onepath.refill_line(found, name))
+            read = (seen.judgement, seen.made.book)
+            print(refill.line(read, found.settings.slots, name, onepath.pick))
 
 
 def _free_check(found: Context) -> None:
@@ -270,10 +272,15 @@ def _free_check(found: Context) -> None:
 
 
 def _tasklist(found: Context) -> None:
-    live, items, handed = nextqueued.queued_items(
-        found, open_pulls(found), ledger.configured(found.settings)
+    # keyword: one-path: what waits is what the one answer decides
+    seen = onepath.seen_for(found)
+    written = _book(found)
+    handed = handedback.slots(found, seen.made.listing, written)
+    done = handedback.release(found.args, (each.agent for each in handed))
+    given = project.what_next(seen.decided)
+    tasklistlines.show(
+        found, slotholding.live(found.args, written, done), given, handed
     )
-    tasklistlines.show(found, live, items, handed)
     repoaccess.finish(found.access)
 
 
@@ -285,8 +292,7 @@ READS: Mapping[Action, Callable[[Context], None]] = {
 
 def _next(found: Context) -> None:
     # keyword: one-path: the list and the item form print one value
-    nextcommand.reference(found.args.words, found.settings.project.repo)
-    onepath.answer_of(found, onepath.mode_of(found.args, found, {}))
+    onepath.answer_of(found)
     repoaccess.finish(found.access)
 
 
@@ -351,6 +357,17 @@ def slots(args: argparse.Namespace) -> None:
     elif action in READS:
         READS[action](found)
     elif action is Action.WATCH:
-        watchrun.watch(args, load_context, onepath.free_line)
+        watchrun.watch(args, load_context, _free_line)
     else:
         _shown(found, _read(found))
+
+
+def _free_line(found: nextfound.Found, book: ledger.Ledger, cap: int) -> str:
+    # the ``SLOT FREE`` line of ``slots watch``, naming the first decision
+    since = slotsheader.free_since(book, found.settings.slots.log, found.now)
+    free = cap - len(slotsheader.running(book))
+    return (
+        f"{Marker.WATCH_SLOT_FREE.text}: {free} of {cap} free since"
+        f" {slotlog.utc(since).strftime(slotsheader.TIME_FORMAT)}; first startable:"
+        f" {onepath.first_line(found)}"
+    )

@@ -129,9 +129,11 @@ def pulls(
         opened: the branches whose PR is open.
         slug: the repository, or empty for the configured one.
     """
-    page = fakes.page(f"repos/{slug}/pulls?state=all")
+    page = fakes.page(f"repos/{slug}/pulls?state=closed")
     if not slug:
-        page = world.project_page("pulls?state=all")
+        page = world.project_page("pulls?state=closed")
+    else:  # another repository has its open listing too, as GitHub's does
+        scene.here.bodies.setdefault(fakes.page(f"repos/{slug}/pulls?state=open"), [])
     states = [(name, MERGED) for name in merged] + [(name, OPEN) for name in opened]
     scene.here.bodies[page] = [{"head": {"ref": ref}, **it} for ref, it in states]
 

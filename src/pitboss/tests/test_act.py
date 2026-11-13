@@ -39,7 +39,7 @@ class TestMerge(unittest.TestCase):
         act(GIVEN, hub, "merge")
         assert_that(kinds(hub), equal_to(["merge"]))
 
-    def test_c17_a_failed_check_refuses_the_merge_and_writes_nothing(self) -> None:
+    def test_c17_c28_a_failed_check_refuses_the_merge_and_writes_nothing(self) -> None:
         """A STOP writes nothing."""
         hub = made(GIVEN, red())
         assert_that(refusal(hub, "merge"), contains_string("check"))
@@ -167,7 +167,7 @@ class TestOverride(unittest.TestCase):
         said = refusal(made(GIVEN, world), "override", stop=line, reason="known flake")
         assert_that(said, contains_string("not an overridable stop"))
 
-    def test_c17_a_diff_stop_is_lifted_by_its_override(self) -> None:
+    def test_d2_d3_a_stop_is_lifted_by_the_orchestrators_override(self) -> None:
         """The record lifts that one line for that head."""
         world = change(ctx={"files": [BIG]})
         line = stop_line(GIVEN, world, "diff:")

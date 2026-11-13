@@ -9,14 +9,15 @@ the items a Blocked line or a block record names, and the timeline. A read that
 fails is kept as ``{"_error": ...}`` so the verdict stops on it.
 """
 
+import copy
 import dataclasses
 import json
 import re
 from typing import Callable, Sequence
 
-from . import ghapi, ticketreader, totalbody, totalreview
+from . import ghapi, ticketreader, totalbody
 from .actcore import Inputs, Pull
-from .totaljson import JsonMap, lines_of, members, name_at, records, text
+from .totaljson import lines_of, members, name_at, records, text
 
 Read = Callable[[str], object]
 
@@ -96,20 +97,42 @@ def _states(read: Read, refs: Sequence[str]) -> dict[str, object]:
     return found
 
 
-def _blockers(
-    read: Read, body: str, events: Sequence[JsonMap], who: tuple[str, str]
-) -> dict[str, object]:
-    # who: the repository and the act identity
-    repo, identity = who
+def named_blockers(body: str) -> Sequence[str]:
+    """The references a PR's ``Blocked-by:`` lines name (keyword: blocked-by).
+
+    ``act block`` writes such a line, so the body is the one place a block is
+    read (keyword: one-path, P8).
+
+    Args:
+        body: the PR's body.
+
+    Returns:
+        The references, as written.
+    """
     lines = [line for line in body.splitlines() if totalbody.BLOCKED.match(line)]
-    named = [each for line in lines for each in totalbody.REFERENCE.findall(line)]
-    named += [
-        rest.split()[0]
-        for _, rest in totalreview.act_records(events, identity, "blocked-by")
-        if rest.split()
-    ]
+    return [each for line in lines for each in totalbody.REFERENCE.findall(line)]
+
+
+def blockers_in(pull: Pull, inputs: Pull) -> Pull:
+    """A copy of a PR's inputs with each blocker its body names that they lack.
+
+    Args:
+        pull: the PR.
+        inputs: its inputs; their ``blockers`` are the states read.
+
+    Returns:
+        The copy; a blocker named and not read is "not read".
+    """
+    named = named_blockers(text(pull.get("body")))
+    found = copy.deepcopy(dict(inputs))
+    states = members(found.get("blockers"))
+    found["blockers"] = {**dict.fromkeys(named, "not read"), **states}
+    return found
+
+
+def _blockers(read: Read, body: str, repo: str) -> dict[str, object]:
     found: dict[str, object] = {}
-    for each in named:
+    for each in named_blockers(body):
         full = each if not each.startswith("#") else f"{repo}{each}"
         answer = _states(read, [full])[full]
         found[each] = text(members(answer).get("state")) or "not read"
@@ -160,14 +183,13 @@ def live_inputs(read: Read, settings: Settings) -> Inputs:
         events = timeline or read(
             f"{ALL}repos/{repo}/issues/{number}/timeline?per_page=100"
         )
-        who = (repo, settings.identity)
         return {
             **_repo_reads(read, repo, number, pull),
             "authors": set(settings.authors) | {settings.identity},
             "act_identity": settings.identity,
             "max_lines": settings.max_lines(repo),
             "timeline": events,
-            "blockers": _blockers(read, text(pull.get("body")), records(events), who),
+            "blockers": _blockers(read, text(pull.get("body")), repo),
         }
 
     return made

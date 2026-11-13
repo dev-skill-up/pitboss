@@ -5,8 +5,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from . import watchworld, world
-from . import fakes
+from . import decisionline, fakes, watchworld, world
 from .rankworld import blocked_world
 from .test_slot_commands import next_output
 from .test_not_the_head import QUEUE, fill
@@ -14,9 +13,10 @@ from .ownerbodies import lines_of
 from .test_slots_watch import worker
 from .transcripts import write
 
-SERIAL = 'serial = ["owner/project"]\n'
-SKIPPED = "offered because a ticket of its repository is in flight"
-NONE = "no open ticket or PR is queued: file the next ticket"
+NONE = (
+    "NOT ENOUGH WORK: no open pull request and no ticket of the priority labels can"
+    " be started now"
+)
 
 
 def free_lines(tickets: Mapping[int, tuple[str, str]], extra: str) -> Sequence[str]:
@@ -38,13 +38,11 @@ def free_lines(tickets: Mapping[int, tuple[str, str]], extra: str) -> Sequence[s
 class TestFirstStartable(unittest.TestCase):
     """What the line offers when nothing may start."""
 
-    def test_a_serial_repository_hands_over_its_head_with_the_reason(self) -> None:
-        """Every ticket of the repository is held while one runs."""
-        said = free_lines(QUEUE, SERIAL)
-        assert_that(
-            (len(said), SKIPPED in said[0], "owner/project#12 (" in said[0]),
-            equal_to((2, True, True)),
-        )
+    def test_the_first_decision_is_handed_over(self) -> None:
+        """A worker runs on ticket 9: the first decision is the next ticket's."""
+        said = free_lines(QUEUE, "")
+        first = "first startable: WORKER: owner/project#12: write the code"
+        assert_that((len(said), first in said[0]), equal_to((2, True)))
 
     def test_an_empty_queue_says_to_file_a_ticket(self) -> None:
         """No ticket and no PR at all."""
@@ -86,17 +84,17 @@ def open_pull_3(here: world.World, runs: Sequence[object]) -> None:
 
 
 def start_for(checks: str) -> str:
-    """The START line of ``slots next`` with PR 3 at a CI state.
+    """The decision of PR 3 in ``slots next`` at a CI state.
 
     Args:
         checks: ``red``, ``green`` or ``pending``.
 
     Returns:
-        The line.
+        The line, empty when PR 3 has no decision.
     """
     here = world.make_world()
     open_pull_3(here, CHECKS[checks])
-    return lines_of(next_output(here), "START")[0]
+    return decisionline.of(next_output(here), "owner/project#3")
 
 
 class TestSkipped(unittest.TestCase):
@@ -107,7 +105,7 @@ class TestSkipped(unittest.TestCase):
         found = {name: start_for(name) for name in CHECKS}
         assert_that(
             {
-                name: ("review it" in line, "fix the CI" in line)
+                name: ("REVIEWER" in line, "fix CI on the head" in line)
                 for name, line in found.items()
             },
             equal_to(
@@ -118,28 +116,15 @@ class TestSkipped(unittest.TestCase):
                 }
             ),
         )
-        assert_that("owner/project#9 (start a PR" in found["pending"], equal_to(True))
+        assert_that(found["pending"], equal_to(""))
 
     def test_a_blocked_ticket_offers_its_blocker_with_its_priority_and_age(
         self,
     ) -> None:
-        """The blocker takes the blocked ticket's label and date."""
-        listed = "\n".join(lines_of(next_output(blocked_world()), "NEXT"))
+        """The blocker takes the blocked ticket's place; the blocked one is in none."""
+        listed = next_output(blocked_world())
+        lib = decisionline.of(listed, "owner/lib#3")
         assert_that(
-            [
-                "owner/project#9 (" in listed,
-                "owner/lib#3 (start a PR urgent, opened 2026-09-01" in listed,
-            ],
-            equal_to([False, True]),
+            [decisionline.of(listed, "owner/project#9"), lib.startswith("NEXT 3 of")],
+            equal_to(["", True]),
         )
-
-    def test_a_serial_repository_is_held_while_a_pr_of_it_is_open(self) -> None:
-        """A pending PR holds the repository's tickets; without the key none is."""
-        here, plain = watchworld.planted_each((SERIAL, ""))
-        for each in (here, plain):
-            open_pull_3(each, [PENDING])
-        found = [
-            "owner/project#9" in "".join(lines_of(next_output(each), "START"))
-            for each in (here, plain)
-        ]
-        assert_that(found, equal_to([False, True]))

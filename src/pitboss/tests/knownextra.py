@@ -99,16 +99,16 @@ def _skip_e2e(given: knownkit.Kit) -> bool:
 
 @case(
     "X32",
-    "body row: Blocked line",
+    "blocked row: Blocked line",
     "the body says `Blocked by owner/lib#4`, an open PR",
 )
 def _blocked_line(given: knownkit.Kit) -> bool:
+    # keyword: one-path: the one read gives each named blocker's state
     body = knownkit.BODY + "\nBlocked by owner/lib#4\n"
     opened = change(pull={"body": body}, ctx={"blockers": {"owner/lib#4": "open"}})
-    alone = change(pull={"body": body})
-    return all(
-        stops(given, "merge", each, "body: blocked by") for each in (opened, alone)
-    )
+    closed = change(ctx={"blockers": {"owner/lib#4": "closed"}})
+    blocked = stops(given, "merge", opened, "blocked: owner/lib#4")
+    return blocked and not stops(given, "merge", closed, "blocked:")
 
 
 @case("X34", "act push: read back", "the origin refuses the push")

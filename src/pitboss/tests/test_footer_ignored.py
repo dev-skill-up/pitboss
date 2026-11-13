@@ -8,10 +8,9 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, configfile, pullstate, reviews
+from .. import config, configfile
 from . import fakes, world
 from .linting import BODY, HEAD, write_text
-from .test_report import facts
 
 LISTED = (
     "[project]\nowner = 'o'\nrepository = 'r'\nmain_clone = '/c'\n"
@@ -63,18 +62,3 @@ class TestTheCommand(unittest.TestCase):
                 json.loads(written.read_text())["state"],
                 equal_to("success" if text is sent[0] else "failure"),
             )
-
-
-class TestTheSweep(unittest.TestCase):
-    """``pullstate.body_findings``, which the sweep reads a failed status with."""
-
-    def test_a_body_in_form_with_no_footer_has_no_finding(self) -> None:
-        """No footer, no finding; a footer does not hide the one a wrong body has."""
-        standing = reviews.Standing.CHANGES_NEEDED
-        found = [
-            pullstate.body_findings(
-                settings(), facts(standing, body=body, head=PULL["head"])
-            )
-            for body in BODIES
-        ]
-        assert_that([len(each) for each in found], equal_to([0, 1]))

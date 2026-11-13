@@ -1,11 +1,9 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
 import dataclasses
-import subprocess
 from typing import AbstractSet, Sequence
 
 from . import (
-    analysis,
     basefix,
     bodydigest,
     concurrently,
@@ -283,7 +281,6 @@ def _unreadable(
     return straycomments.StrayComments(
         newer=unreadableform.unread(*seen, rules, found.when if found else ""),
         graded=unreadableform.find(*seen, rules[1], reviews.line_pattern),
-        unanalysed=analysis.unanalysed(*seen),
         premature=earlyfound.newer(got.premature, found.when if found else ""),
         no_execution=reviewunread.without_execution(state),
     )
@@ -368,24 +365,3 @@ def readable(found: Sequence[Read]) -> Sequence[PullFacts]:
         The ones that were read.
     """
     return [each for each in found if isinstance(each, PullFacts)]
-
-
-def fetch_or_unreadable(source: Source, repo: config.Repo, number: int) -> Read:
-    """Read one PR, or say which of its API calls failed.
-
-    Args:
-        source: where to read from.
-        repo: its repository.
-        number: its number.
-
-    Returns:
-        The PR's facts, or the failed call.
-    """
-    try:
-        return fetch(source, repo, number)
-    except subprocess.CalledProcessError as error:
-        return shapes.Unreadable(
-            reference=f"{repo.slug}#{number}",
-            call=ghapi.call_of(error),
-            status=ghapi.status_of(error),
-        )

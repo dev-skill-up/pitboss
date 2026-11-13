@@ -2,7 +2,7 @@
 
 Only ``decide`` makes them; the projections pick from them and the renderers say
 them. A decision has an actor, a verb and an item, and no field for a reason not
-to act: an item nobody acts on has no value here at all.
+to act: an item no actor takes has no value here at all.
 """
 
 import dataclasses

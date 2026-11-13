@@ -1,117 +1,32 @@
 """The runner-pressure line of the sweep: it reads the record and writes its look."""
 
-import concurrent.futures
-import dataclasses
 import datetime
 import functools
-import pathlib
 import threading
 from typing import Callable, Iterable, Sequence
 
+from . import config, exempt, ghapi, holdscope, queue, report, unreadableline
 from .markers import Marker
-from . import (
-    config,
-    ghapi,
-    holds,
-    exempt,
-    holdscope,
-    ledger,
-    logline,
-    pulls,
-    pullread,
-    queue,
-    rankline,
-    report,
-    slotreport,
-    slotidle,
-    slotlog,
-    unreadableline,
-    work,
-)
+
+# the run's one look: the jobs and what it showed, or an unreadable record's code
+_Got = tuple[queue.Jobs, queue.Seen] | str | int | None
+Look = Callable[[], _Got]
 
 
-def slots(
-    open_now: Sequence[pulls.Read],
-    offer: work.Offered,
-    said: Iterable[str] = (),
-) -> None:
-    """Print the withheld-tickets line, the hold, rank and free-slots lines.
-
-    Args:
-        open_now: the open PRs, read or not.
-        offer: the queued work and the tickets held back (``offering.offered``).
-        said: more lines, after the rank ones (``offering.disagreements``).
-    """
-    unreadableline.print_withheld(open_now)
-    for line in holds.sweep_lines(offer.standing):
-        print(line)
-    # a blocked PR's line stands with the PR (keyword: blocked-pull)
-    tickets = [each for each in offer.blocked if each.category is work.Category.NEW_PR]
-    for line in rankline.lines(dataclasses.replace(offer, blocked=tickets)):
-        print(line)
-    for line in said:
-        print(line)
-    slotreport.print_free_slots(len(offer.items), offer.occupancy)
-
-
-def idle(
-    book: ledger.Ledger,
-    offer: work.Offered,
-    log: pathlib.Path,
-    now: datetime.datetime,
-) -> None:
-    """Print the ``SLOT IDLE`` lines, while work is queued.
-
-    Args:
-        book: the ledger.
-        offer: the queued work (``offering.offered``).
-        log: the slot log, which tells how long a slot stayed empty.
-        now: the time now.
-    """
-    if offer.items and offer.occupancy.known and offer.occupancy.free:
-        for line in slotidle.lines(book, slotlog.read(log), now):
-            print(line)
-
-
-def logged(
-    book: ledger.Ledger, offer: work.Offered, log: pathlib.Path, now: datetime.datetime
-) -> None:
-    """Print the ``SLOT IDLE`` lines, then the ``LOG`` lines not yet printed.
-
-    Each ``LOG`` line is a hand-back or a clean-up, printed once (keyword:
-    log-line, pitboss#347); the orchestrator posts it as it is.
-
-    Args:
-        book: the ledger.
-        offer: the queued work (``offering.offered``).
-        log: the slot log, which tells how long a slot stayed empty.
-        now: the time now.
-    """
-    idle(book, offer, log, now)
-    logline.post(log)
-
-
-def pressure(
-    github: ghapi.GitHub,
-    runs: Iterable[queue.QueueRun],
-    runners: config.Runners,
-    now: datetime.datetime,
-) -> str:
+def pressure(measured: Look, runners: config.Runners) -> str:
     """Look at the runners and say the pressure line, and who is exempt from it.
 
     Under a hold the line is followed by one that says ``pitboss is exempt from
     holds`` (keyword: pitboss-exempt, pitboss#113).
 
     Args:
-        github: the API.
-        runs: the runs of the repositories that share the runners.
+        measured: the run's one look at the runners (``runners_look``).
         runners: the repositories, the record and the quiet period.
-        now: the time now.
 
     Returns:
         The lines.
     """
-    said = looked(github, runs, runners, now)
+    said = looked(measured, runners)
     held = any(
         each.startswith(Marker.RUNNER_PRESSURE.text) for each in said.split("\n")
     )
@@ -119,60 +34,40 @@ def pressure(
     return "\n".join([said, *more] if held else [said])
 
 
-def looked(
-    github: ghapi.GitHub,
-    runs: Iterable[queue.QueueRun],
-    runners: config.Runners,
-    now: datetime.datetime,
-) -> str:
+def looked(measured: Look, runners: config.Runners) -> str:
     """Look at the runners and say the pressure line.
 
     A record that cannot be read does not stop the sweep: the line says the
     quiet period cannot be told, which is a hold.
 
     Args:
-        github: the API.
-        runs: the runs of the repositories that share the runners.
+        measured: the run's one look at the runners (``runners_look``).
         runners: the repositories, the record and the quiet period.
-        now: the time now.
 
     Returns:
         The line.
     """
     if not runners.held:
         return report.no_hold_line()
-    measured = measure(github, runs, runners, now)
-    if not isinstance(measured, tuple):
-        return report.unreadable_record_line(measured)
-    jobs, found = measured
+    got = measured()
+    if not isinstance(got, tuple):
+        return report.unreadable_record_line(got)
+    jobs, found = got
     if not jobs.unread:
         return report.seen_line(found)
     return partial_pressure(jobs, found.owed)
 
 
-def measure(
+def _measure(
     github: ghapi.GitHub,
-    runs: Iterable[queue.QueueRun],
+    runs: Callable[[], Iterable[queue.QueueRun]],
     runners: config.Runners,
     now: datetime.datetime,
-) -> tuple[queue.Jobs, queue.Seen] | str | int | None:
-    """Count the jobs waiting and what the quiet period owes, and record the look.
-
-    The look is written to the record (keyword: quiet-period, pitboss#215), so
-    the quiet period can end with no one running ``pressure`` by hand.
-
-    Args:
-        github: the API.
-        runs: the runs of the repositories that share the runners.
-        runners: the repositories, the record and the quiet period.
-        now: the time now.
-
-    Returns:
-        The jobs and what the look showed, or the exit code of a record that
-        cannot be read or written.
-    """
+) -> _Got:
+    # count the jobs and what the quiet period owes, and record the look (keyword:
+    # quiet-period, pitboss#215): the quiet period ends with no one running pressure
     try:
-        jobs = queue.count_jobs(github, runs)
+        jobs = queue.count_jobs(github, runs())
         found = queue.count(jobs, runners, now)
         queue.note_look(jobs, runners, now)
         return jobs, found
@@ -202,92 +97,38 @@ def partial_pressure(jobs: queue.Jobs, owed: int) -> str:
     return "\n".join([*named, f"{head}; {report.HOLD_ACTIONS}"])
 
 
-def open_pulls(
+def runners_look(
     github: ghapi.GitHub,
-    settings: config.Config,
-    now: datetime.datetime,
     runs: Callable[[], Sequence[queue.QueueRun]],
-) -> Sequence[pulls.Read]:
-    """Read every open PR the configuration names.
+    runners: config.Runners,
+    now: datetime.datetime,
+) -> Look:
+    """The run's one look at the runners: made on the first ask, recorded once.
+
+    The undraft check of each pull request and the sweep's pressure line ask
+    the same look (keyword: one-path, quiet-period), so the record's first look
+    is said by the line that reads it.
 
     Args:
         github: the API.
-        settings: the configuration.
-        now: the time now.
-        runs: reads the queue runs of the repositories that share the runners,
-            when an undraft needs them.
-
-    Returns:
-        The PRs, a PR whose API call failed as an ``Unreadable``.
-    """
-    return pullread.read_each(
-        github, settings, undraft_check(github, settings, now, runs)
-    )
-
-
-def undraft_check(
-    github: ghapi.GitHub,
-    settings: config.Config,
-    now: datetime.datetime,
-    runs: Callable[[], Sequence[queue.QueueRun]],
-) -> Callable[[], bool]:
-    """The question whether an undraft is allowed, asked once for the run.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-        now: the time now.
         runs: reads the queue runs of the repositories that share the runners.
+        runners: the repositories, the record and the quiet period.
+        now: the time now.
 
     Returns:
-        The question.
+        The look.
     """
-    ask = functools.cache(functools.partial(clear, github, runs, settings.runners, now))
+    ask = functools.cache(functools.partial(_measure, github, runs, runners, now))
     turn = threading.Lock()
 
-    def once() -> bool:
+    def once() -> _Got:
         with turn:  # the look is made once, though PRs and the run both ask
             return ask()
 
     return once
 
 
-def looked_pulls(
-    github: ghapi.GitHub,
-    settings: config.Config,
-    now: datetime.datetime,
-    runs: Callable[[], Sequence[queue.QueueRun]],
-) -> Sequence[pulls.Read]:
-    """Look at the runners, record the look, and read every open PR.
-
-    ``next`` makes this look even when no PR needs an undraft (keyword:
-    quiet-period, pitboss#215); the PRs are asked about it from the same look.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-        now: the time now.
-        runs: reads the queue runs of the repositories that share the runners.
-
-    Returns:
-        The PRs, a PR whose API call failed as an ``Unreadable``.
-    """
-    undraft = undraft_check(github, settings, now, runs)
-    # the look, whether or not a PR asks: it waits for the queue runs, which the
-    # PRs are read beside (keyword: pull-read, pitboss#453)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-        looking = pool.submit(undraft)
-        read = pullread.read_each(github, settings, undraft)
-        looking.result()
-    return read
-
-
-def clear(
-    github: ghapi.GitHub,
-    runs: Callable[[], Sequence[queue.QueueRun]],
-    runners: config.Runners,
-    now: datetime.datetime,
-) -> bool:
+def clear(measured: Look, runners: config.Runners) -> bool:
     """Whether the runners allow a CI-triggering action now; the look is recorded.
 
     No job waits for a runner and the quiet period is over, as ``pitboss
@@ -296,18 +137,16 @@ def clear(
     ``[runners]`` table never holds.
 
     Args:
-        github: the API.
-        runs: reads the runs of the repositories that share the runners.
+        measured: the run's one look at the runners (``runners_look``).
         runners: the repositories, the record and the quiet period.
-        now: the time now.
 
     Returns:
         True when an undraft may be done now.
     """
     if not runners.held:
         return True
-    measured = measure(github, runs(), runners, now)
-    if not isinstance(measured, tuple):
+    got = measured()
+    if not isinstance(got, tuple):
         return False
-    jobs, found = measured
+    jobs, found = got
     return not (jobs.waiting or jobs.unread or found.owed)

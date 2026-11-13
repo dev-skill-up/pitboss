@@ -113,7 +113,10 @@ def populate(here: world.World) -> None:
         fakes.commit_file(path, path.name)
         fakes.push(path)
     pulls = [pull("merged-work", MERGED), pull("open-work", OPEN)]
-    here.bodies.update({world.project_page("pulls?state=all"): pulls})
+    library_open = cleanworld.library_page("pulls?state=open")
+    here.bodies.update(
+        {world.project_page("pulls?state=closed"): pulls, library_open: []}
+    )
     cleanworld.library_clone(here, "quiet-clone")
     temps = temps_of(here)
     files = {

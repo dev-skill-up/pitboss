@@ -14,7 +14,7 @@ suite (every Python version, docs, dry_release) is CI's Run Nox step."""
 
 NEXT = """\
 The pull requests and tickets are read oldest first, and the read stops once
-it holds max(5, the slots configured) decisions: an item nobody acts on now is
+it holds max(5, the slots configured) decisions: an item no actor takes now is
 read past and never printed. A read that fails is tried again (at most four
 tries, a wait drawn from 0 to 0.5 x 2^k seconds before try k); after the last
 the command exits 1 with a READ FAILED line on standard error."""

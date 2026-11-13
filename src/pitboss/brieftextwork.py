@@ -56,8 +56,8 @@ TASK_REFRESH_BODY = (
 )
 TASK_SHARED_RED = (
     "Task: PR {reference}: its failed check is red on other PRs of the repository"
-    " (or on main) with the same first error line, so the cause is shared (the"
-    " SHARED RED line of `pitboss sweep` names the check, the PRs and the line)."
+    " (or on main) with the same first error line, so the cause is shared (read"
+    " its failure, and the same check of the repository's other open PRs and main)."
     " Fix no PR: search the open tickets for the check name, and file ONE ticket"
     " against the shared cause (a stale pin, a stale lock or a runner outage is"
     " the cause, not any PR), or add the PRs to the ticket that exists, then stop."
@@ -104,21 +104,21 @@ SENTENCES = (
 )
 TASK_FIX_BLOCKED_BY = (
     "Task: PR {reference}: its `Blocked-by:` lines name a loop (each PR waits for"
-    " the next) or a blocker that closed without merging (the `BLOCKER LOOP` or"
-    " `BLOCKER GONE` line of `pitboss sweep` names it). Correct the lines of the"
+    " the next) or a blocker that closed without merging or cannot be read."
+    " Correct the lines of the"
     " body: drop the one that is wrong, or name the PR or ticket that now carries"
     " the change, then `uvx pitboss lint pr-body BODYFILE` on the body as `gh api`"
     " prints it must print ok. Change no code (keyword: blocked-by)."
 )
 TASK_AFTER_BLOCKER = (
     "Task: PR {reference}: the PRs it was blocked by have merged since its red check"
-    " finished (the `BLOCKER MERGED` line). Merge the base into the branch, check,"
+    " finished. Merge the base into the branch, check,"
     " push (never rewrite history), then `uvx pitboss body-head {reference}`: CI"
     " runs again on the new head (keyword: blocked-by)."
 )
 TASK_FINISH_PARTIAL = (
     "Task: PR {reference}: a worker handed it back unfinished and nothing offered it"
-    " again (the FINISH PARTIAL line of `pitboss sweep` names what is missing). Resume"
+    " again (its decision names what is missing). Resume"
     " this PR on its own branch, never a new one: do what the line says (post the"
     " `uvx pitboss plan-check`, fix the body until `uvx pitboss lint pr-body BODYFILE`"
     " prints ok, push the unpushed commits), change nothing else, then stop with the"

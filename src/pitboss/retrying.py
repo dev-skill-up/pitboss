@@ -6,9 +6,10 @@ manage, not deterministic code." A transport error, a 5xx, a 429 and a 403 that
 names a rate limit are tried again, at most ``ATTEMPTS`` times in all; before try k
 (1, 2, 3) the wait is drawn uniformly from 0 to ``BASE`` times 2 to the k seconds. A
 404, 410 or 422 is GitHub's answer (a blocker that is gone), as any other status
-is; neither is tried again, and the caller reads it as it always did. A read is made
-with ``--include``, so a ``Retry-After`` of the failed try is read: up to ``CAP``
-seconds it is the lower end of the wait. After the last try the read raises
+is, and so is a session's refusal of a path it is not bound to (``BOUND``, which
+names no status); none is tried again, and the caller reads it as it always did. A
+read is made with ``--include``, so a ``Retry-After`` of the failed try is read: up
+to ``CAP`` seconds it is the lower end of the wait. After the last try the read raises
 ``ReadFailed``, which only the command entry catches (``cli_parser``): the command
 exits nonzero with the request and its status on standard error, and no decision
 is made on a partial world.
@@ -27,6 +28,8 @@ ANSWERS = frozenset({404, 410, 422})
 WRITES = frozenset({"-X", "--method", "-f", "-F", "--field", "--raw-field", "--input"})
 _STATUS = re.compile(r"HTTP (\d{3})")
 _RATE = re.compile(r"rate limit", re.IGNORECASE)
+# what gh prints for a path a session bound to its repositories may not read
+BOUND = "sessions are bound to their configured repositories"
 CAP = 4.0  # seconds: the most a Retry-After raises the lower end of a wait
 _LINE = r"[^\r\n]*\r?\n"  # the rest of a line of a response's head
 _HEAD = re.compile(rf"HTTP/[0-9.]+ [0-9]{{3}}{_LINE}(?:[A-Za-z0-9-]+:{_LINE})*\r?\n")
@@ -77,11 +80,12 @@ def again(error: subprocess.CalledProcessError) -> bool:
         error: the failed run.
 
     Returns:
-        True for a transport error, a 5xx, a 429 or a 403 for a rate limit.
+        True for a transport error, a 5xx, a 429 or a 403 for a rate limit; never
+        for a bound session's refusal, which is an answer.
     """
     status = status_of(error)
     if status is None:
-        return True
+        return BOUND not in str(error.stderr or "")
     limited = status == 403 and bool(_RATE.search(str(error.stderr or "")))
     return status >= 500 or status == 429 or limited
 

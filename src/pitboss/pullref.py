@@ -1,7 +1,6 @@
 """The reference and the failed checks of a PR, read without ``pulls``.
 
-``pulls`` reads the PRs; the gates that only name a PR or look at its checks
-(``holdgate``, ``knownred``) take them from here, so they sit below it.
+``pulls`` reads the PRs and names them with these, which need nothing of it.
 """
 
 from typing import Protocol, Sequence

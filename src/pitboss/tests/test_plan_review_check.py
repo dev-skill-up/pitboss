@@ -8,7 +8,6 @@ finished, and the lint stayed red until the head moved (quire#1058).
 
 import dataclasses
 import pathlib
-import re
 import unittest
 from typing import Mapping, Sequence
 
@@ -17,6 +16,7 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import brief, draftfacts, shapes, steps
 from . import fakes, test_flow, world
 from .briefmake import make, text
+from .pinsworld import offered as state_line
 from .says import has_none
 from .test_commands import sweep
 from .test_flow import state
@@ -24,8 +24,7 @@ from .test_flow_sweep import CHANGES, HEAD, OLDER, graded, world_with
 from .test_slot_commands import next_output
 
 CHECK_RUNS = f"{world.PROJECT}/commits/{HEAD}/check-runs"
-WAITING = "next step: waiting for CI at this head"
-REVIEW_LINE = "DRAFT ROUND owner/project#3: review it"
+REVIEW = "REVIEWER: owner/project#3: grade the Plan ONLY"
 NOT_STARTED = "NOT STARTED: check is <state>"
 SETTING = '\n[sweep]\nplan_review_check = "check"\n'
 
@@ -86,55 +85,39 @@ def draft(
 
 
 def offered(here: world.World) -> bool:
-    """Whether ``slots next`` lists PR 3 for a review.
+    """Whether ``slots next`` decides PR 3's review.
 
     Args:
         here: the world.
 
     Returns:
-        True when a NEXT line is its review.
+        True when its decision is its review.
     """
-    line = re.compile(r"^NEXT \d+\. owner/project#3 \(review it", re.MULTILINE)
-    return bool(line.search(next_output(here)))
-
-
-def state_line(here: world.World) -> str:
-    """PR 3's PR STATE line.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The line.
-    """
-    lines = next_output(here).splitlines()
-    return "".join(each for each in lines if "PR STATE owner/project#3" in each)
+    return REVIEW in state_line(here)
 
 
 class TestTheSweep(unittest.TestCase):
     """The sweep and ``slots next`` offer the review once the check completed."""
 
     def test_the_review_waits_for_the_check_run(self) -> None:
-        """Waiting for CI, no review suggestion and no round line."""
+        """PR 3 has no decision, in ``slots next`` and in the sweep."""
         for name, runs in WAITS.items():
             here = draft(runs)
-            assert_that(state_line(here), contains_string(WAITING), name)
-            assert_that(offered(here), equal_to(False), name)
-            assert_that(REVIEW_LINE in sweep(here).out, equal_to(False), name)
+            assert_that(state_line(here), equal_to(""), name)
+            assert_that(REVIEW in sweep(here).out, equal_to(False), name)
 
     def test_the_review_is_offered_when_the_check_run_completed(self) -> None:
-        """The review suggestion, first in the list, and the round line."""
+        """The review is PR 3's decision, in ``slots next`` and in the sweep."""
         for name, runs in GOES.items():
             here = draft(runs)
-            assert_that(state_line(here), contains_string("next step: review"), name)
             assert_that(offered(here), equal_to(True), name)
-            assert_that(REVIEW_LINE in sweep(here).out, equal_to(True), name)
+            assert_that(REVIEW in sweep(here).out, equal_to(True), name)
 
     def test_a_revised_plan_waits_too(self) -> None:
         """The case of quire#1058: the head moved by an empty Plan commit."""
         rounds = [graded(CHANGES, None, 1, sha=OLDER)]
         waiting = draft([IN_PROGRESS], rounds)
-        assert_that(state_line(waiting), contains_string(WAITING))
+        assert_that(state_line(waiting), equal_to(""))
         done = draft([COMPLETED], rounds)
         assert_that(offered(done), equal_to(True))
 

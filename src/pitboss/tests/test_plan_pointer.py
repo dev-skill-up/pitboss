@@ -7,14 +7,11 @@ from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
 from .. import expansion, plancheck, plancommands, plandigest, planpointers
 from .linting import lint, write_text
-from .test_commands import sweep
-from .test_flow_sweep import world_with
 from .test_plan_check import checked, rows
 from .test_plan_command_lint import body_of as plan_body
 from .says import outs
 
 FILES_ONLY = "## Plan\n1. `src/a.py`\n2. `src/b.py`\n3. `src/c.py`\n"
-ONE_MISSING = "## Plan\n1. `git status`\n2. `src/b.py`\n"
 CASES: Mapping[str, tuple[str, Sequence[int]]] = {
     "file names and nothing else": (FILES_ONLY, [1, 2, 3]),
     "a file with no word about it": ("## Plan\n1. `src/a.py` and `src/b.py`\n", [1]),
@@ -119,13 +116,3 @@ class TestPlanCheck(unittest.TestCase):
         """The label of the plan-pointer check."""
         verdict = plancheck.verdict([], ["plan-pointer: a"])
         assert_that(verdict, equal_to("Plan check: refused, Plan pointer findings: 1"))
-
-
-class TestSweep(unittest.TestCase):
-    """The sweep's PLAN ROW line names the finding by its keyword."""
-
-    def test_the_sweep_prints_the_pointer_finding(self) -> None:
-        """A PR whose second Plan row is a file name."""
-        out = sweep(world_with([], body=body_of(ONE_MISSING))).out
-        assert_that(out, contains_string("PLAN ROW owner/project#3:"))
-        assert_that(out, contains_string("(plan-pointer)"))

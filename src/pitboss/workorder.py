@@ -167,11 +167,16 @@ def _label_stream(
     firsts = concurrently.each(
         lambda repo: _primed(github, labelled_path(repo.slug, label)), repos
     )
-    streams = [
-        ((f"{repo.slug}#{each.number}", each) for each in first)
-        for repo, first in zip(repos, firsts)
-    ]
+    streams = [_named(repo, first) for repo, first in zip(repos, firsts)]
     return heapq.merge(*streams, key=lambda pair: pair[1].created_at)
+
+
+def _named(
+    repo: config.Repo, issues: Iterator[shapes.Issue]
+) -> Iterator[tuple[str, shapes.Issue]]:
+    # each issue of one repository's stream with its reference, bound to that one
+    for each in issues:
+        yield "#".join((repo.slug, str(each.number))), each
 
 
 def issue_of(reference: str, ticket: ticketdata.Ticket) -> shapes.Issue:

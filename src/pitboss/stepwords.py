@@ -74,6 +74,8 @@ def describe(step: Next) -> str:
     """
     if step.step is Step.MERGE and step.on_base:
         return ENQUEUE
+    if step.task is not None and step.findings:  # what is missing, said with it
+        return f"{step.task.value}: {step.findings}"
     if step.task is not None:
         return step.task.value
     if step.stage is not None and step.on_base:

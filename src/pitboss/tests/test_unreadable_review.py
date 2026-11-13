@@ -1,4 +1,4 @@
-"""Tests for UNREADABLE REVIEW: a review comment not in the form (pitboss#106)."""
+"""A trusted comment with a grade line that is not in the review form (pitboss#106)."""
 
 import dataclasses
 import unittest
@@ -14,8 +14,6 @@ URL = "https://github.com/owner/project/pull/3#issuecomment-6529013244"
 REVIEW = test_flow.REVIEW
 IN_FORM = f"## Review\nReviewed: {HEAD}\nPlan: approved\nVerdict: approved\n"
 OFF_FORM = "Plan: approved\nVerdict: changes needed\nExecution: wrong\n"
-WRONG = "is not in the review form: the first line is 'Plan: approved', not '## Review'"
-MARK = "UNREADABLE REVIEW"
 
 
 def comment(body: str, author: str = "MEMBER") -> shapes.Comment:
@@ -47,37 +45,6 @@ def found(
     _, form = reviews.rules(REVIEW, slug)
     posted = [comment(body, author)]
     return unreadableform.find(posted, REVIEW.trusted, form, reviews.line_pattern)
-
-
-def marked(body: str) -> Sequence[str]:
-    """The UNREADABLE REVIEW lines of a sweep of a world with one comment.
-
-    Args:
-        body: the text of PR 3's only comment.
-
-    Returns:
-        The lines.
-    """
-    swept = test_plan_revision.outputs(comment(body))[0]
-    return [line for line in swept.splitlines() if MARK in line]
-
-
-class TestSweepPrintsIt(unittest.TestCase):
-    """The sweep line, end to end."""
-
-    def test_a_comment_not_in_the_form_is_named(self) -> None:
-        """Plan, Verdict and Execution lines under another first line are named."""
-        lines = marked(OFF_FORM)
-        assert_that(len(lines), equal_to(1))
-        assert_that(lines[0], contains_string(f"{MARK} owner/project#3: {URL} {WRONG}"))
-
-    def test_a_review_in_form_is_not(self) -> None:
-        """A review in the repository's form prints no such line."""
-        assert_that(marked(IN_FORM), equal_to([]))
-
-    def test_a_comment_with_no_grade_line_is_not(self) -> None:
-        """A comment with no Verdict, Plan or Execution line is no review."""
-        assert_that(marked("LGTM\n"), equal_to([]))
 
 
 class TestFinding(unittest.TestCase):

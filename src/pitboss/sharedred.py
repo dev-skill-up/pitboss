@@ -13,7 +13,7 @@ error lines differ (the lines are compared whole).
 """
 
 import dataclasses
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from . import failures, ghapi, headchecks, pulls, shapes, steps
 
@@ -185,6 +185,29 @@ def settle(
     seen = _of_prs(github, red)
     found = groups([*seen, *_of_main(github, red, seen)])
     return [_replaced(each, found) for each in reads], found
+
+
+def settle_one(
+    github: ghapi.GitHub,
+    read: pulls.Read,
+    others: Callable[[], Sequence[pulls.Read]],
+) -> pulls.Read:
+    """Settle one PR's shared red, reading the others of its repository only if red.
+
+    The closure of an examined PR (keyword: one-path): a PR at the fix step is
+    compared with the same check of the repository's other open PRs and of main.
+
+    Args:
+        github: the API.
+        read: the PR.
+        others: reads the repository's other open PRs, each settled by its
+            blockers.
+
+    Returns:
+        The PR, at the ticket step or the wait when it is in a group.
+    """
+    fixing = [each for each in pulls.readable([read]) if _at_fix(each)]
+    return settle(github, [read, *(others() if fixing else [])])[0][0]
 
 
 def _replaced(read: pulls.Read, shared: Sequence[Shared]) -> pulls.Read:

@@ -7,13 +7,26 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import fixes, foldline, folds, forms, headchecks, pulls, shapes
-from . import test_stall
+from .. import (
+    config,
+    fixes,
+    foldline,
+    folds,
+    forms,
+    headchecks,
+    parsing,
+    pulls,
+    reviews,
+    shapes,
+    steps,
+)
+from . import fakes
 from .formchecks import body_checks, subject
 from .linting import BODY, lines, lint, write_text
 from .test_textlint import event, posted, run
 from .says import exits
 
+HEAD_SEVEN = {"sha": fakes.HEAD, "ref": "branch-7"}
 URL = "https://github.com/o/r/pull/7#issuecomment-1"
 OTHER_URL = "https://github.com/o/r/pull/7#issuecomment-2"
 STEPS = "Opus ruling\nRuling: do these steps\n"
@@ -64,7 +77,17 @@ def facts(body: str, rulings: Sequence[folds.Recorded]) -> pulls.PullFacts:
     Returns:
         The PR.
     """
-    base = test_stall.facts("fold", [])
+    base = pulls.PullFacts(
+        repo=config.Repo(owner="o", name="r", slug="o/r"),
+        pull=parsing.pull(
+            json.dumps(fakes.pull_body(7, head={"sha": fakes.HEAD, "ref": "branch-7"}))
+        ),
+        relock=False,
+        checks=[],
+        review=None,
+        standing=reviews.Standing.NONE,
+        step=steps.ci_pending(),
+    )
     pull = dataclasses.replace(base.pull, body=body)
     signals = headchecks.HeadSignals(rulings=rulings)
     return dataclasses.replace(base, pull=pull, signals=signals)

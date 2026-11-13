@@ -6,12 +6,11 @@ import subprocess
 import urllib.parse
 from typing import AbstractSet, Sequence
 
-from . import config, configrepos, ghapi
+from . import config, configrepos, ghapi, retrying
 
 # an organization, then (only after a 404) a user
 PATHS = ("orgs/{owner}/repos", "users/{owner}/repos")
-# what gh prints for a path a session bound to its repositories may not read
-BOUND = "sessions are bound to their configured repositories"
+BOUND = retrying.BOUND
 # the search answers at most 1000 results, so ten pages of 100
 SEARCH_PAGES = 10
 

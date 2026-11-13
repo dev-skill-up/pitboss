@@ -4,10 +4,9 @@ The facts and the lines are ``slotheld``'s (pitboss#291).
 """
 
 import argparse
-import dataclasses
 from typing import AbstractSet, Iterable, Sequence
 
-from . import ledger, pulls, slotheld, work
+from . import ledger, pulls, slotheld, slotholder, work
 
 HOLDING = (
     work.Category.FIX_REVIEW,
@@ -62,14 +61,7 @@ def live(
 
 
 def _only(book: ledger.Ledger, alive: AbstractSet[str]) -> ledger.Ledger:
-    slots = tuple(_if_running(slot, alive) for slot in book.slots)
-    return dataclasses.replace(book, slots=slots)
-
-
-def _if_running(slot: ledger.Slot, alive: AbstractSet[str]) -> ledger.Slot:
-    if not slot.agent or slot.agent in alive:
-        return slot
-    return ledger.Slot(name=slot.name, model=slot.model)
+    return slotholder.without(book, slotholder.agents(book) - {"", *alive})
 
 
 def holding(
@@ -165,25 +157,3 @@ def written(
         free=0 if loose else max(0, empty - len(held)),
         references=frozenset() if loose else frozenset(h.reference for h in held),
     )
-
-
-def counted(
-    offer: work.Offered,
-    opened: Sequence[pulls.Read],
-    book: ledger.Ledger,
-    args: argparse.Namespace,
-) -> work.Offered:
-    """The offered work, with what holds the slots beyond the ledger's agents.
-
-    Args:
-        offer: the queued work (``offering.offered``).
-        opened: the open PRs, read or not.
-        book: the ledger.
-        args: the parsed arguments; ``running`` names the agents the session runs.
-
-    Returns:
-        The offer with its occupancy.
-    """
-    running = getattr(args, "running", None)
-    taken = occupy(pulls.readable(opened), book, running)
-    return dataclasses.replace(offer, occupancy=taken)

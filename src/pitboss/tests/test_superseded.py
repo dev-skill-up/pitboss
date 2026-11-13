@@ -5,25 +5,17 @@ other tickets, which were not ranked with its p0 and its age of 2026-10-13.
 """
 
 import unittest
+from typing import Mapping
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import supersedes
 from . import rankworld, world
 from .fastvariants import mark_superseded as listed
-from .rankworld import (
-    lines_are,
-    lines_of,
-    mentioning,
-    next_output,
-    printed,
-    starts,
-    sweep,
-)
-from .test_closing_comment import BLOCKED_BY_FOUR, FOUR, tracking_world
+from .rankworld import mentioning, next_output, starts, sweep
+from .test_closing_comment import FOUR, PULLS, tracking_world
 
 NINTH = "owner/project#9"
-SAID = f"SUPERSEDED {NINTH}"
 ONLY = ["owner/project#1", "owner/project#3", "owner/project#10"]
 
 
@@ -64,56 +56,53 @@ class TestParse(unittest.TestCase):
         assert_that(supersedes.marked([]), equal_to(False))
 
 
+def offered(text: str, *comments: Mapping[str, str]) -> bool:
+    """Whether ticket 9, with a body and comments, is offered by ``slots next``.
+
+    Args:
+        text: the body of ticket 9.
+        *comments: its comments.
+
+    Returns:
+        True when a ``NEXT`` line names it.
+    """
+    return NINTH in starts(rankworld.blocked_world(text, comments=list(comments)))
+
+
 class TestSlotsNext(unittest.TestCase):
-    """The offer and the line of ``slots next``."""
+    """The offer of ``slots next``."""
 
     def test_the_configuration_marks_it(self) -> None:
-        """SUPERSEDED, and no start line for ticket 9; the others are offered."""
+        """No line for ticket 9 at all; the others are offered."""
         here = world.make_world()
         listed(here)
         both = [world.TICKET, rankworld.LATER]
         here.bodies[rankworld.LIST] = both
         output = next_output(here)
-        lines_are(output, "SUPERSEDED", [SAID])
         assert_that(starts(here), equal_to(ONLY))
-        started = mentioning(output, "owner/project#9 (start a PR")
-        assert_that(started, equal_to([]))
+        assert_that(mentioning(output, NINTH), equal_to([]))
 
     def test_a_comment_line_marks_it(self) -> None:
         """A member's line ``Superseded by ...`` does, a stranger's does not."""
         member = rankworld.comment("Superseded by owner/lib#3")
         stranger = rankworld.comment("Superseded.", "NONE")
-        here = rankworld.blocked_world("A ticket", comments=[member])
-        printed(here, "SUPERSEDED", [SAID])
-        other = rankworld.blocked_world("A ticket", comments=[stranger])
-        printed(other, "SUPERSEDED", [])
+        found = [offered("A ticket", member), offered("A ticket", stranger)]
+        assert_that(found, equal_to([False, True]))
 
     def test_the_body_does_not_mark_it(self) -> None:
         """Only a comment does."""
-        here = rankworld.blocked_world("Superseded.")
-        printed(here, "SUPERSEDED", [])
+        assert_that(offered("Superseded."), equal_to(True))
 
     def test_the_tracking_ticket_and_its_four_blockers(self) -> None:
-        """quire#573: SUPERSEDED, BLOCKED by four, each blocker ranked with it."""
+        """quire#573: no line for it, each blocker offered in its place."""
         here = tracking_world()
         listed(here)
-        output = next_output(here)
-        lines_are(output, "SUPERSEDED", [SAID])
-        lines_are(output, "BLOCKED", [BLOCKED_BY_FOUR])
-        assert_that(
-            starts(here),
-            equal_to(["owner/project#1", "owner/project#3", *FOUR, "owner/project#10"]),
-        )
-        assert_that(len(lines_of(output, "BLOCKS")), equal_to(4))
-        for each in FOUR:
-            found = f"{each} (start a PR urgent, opened 2026-09-01,"
-            assert_that(output, contains_string(found))
+        assert_that(starts(here), equal_to([*PULLS, *FOUR]))
 
     def test_the_sweep_prints_the_same(self) -> None:
-        """The sweep has the line once, and counts no start for the ticket."""
+        """The sweep's order is the same, with no start for the ticket."""
         here = tracking_world()
         listed(here)
         out = sweep(here).out
-        lines_are(out, "SUPERSEDED", [SAID])
-        lines_are(out, "BLOCKED", [BLOCKED_BY_FOUR])
-        assert_that(out, contains_string("SLOTS FREE 1: 7 queued"))
+        assert_that(rankworld.NEXT_LINE.findall(out), equal_to([*PULLS, *FOUR]))
+        rankworld.absent(out, f"start a PR: {NINTH}")

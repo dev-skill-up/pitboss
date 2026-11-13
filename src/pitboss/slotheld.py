@@ -13,7 +13,6 @@ the PRs is ``slotholding``.
 import dataclasses
 from typing import AbstractSet, Sequence
 
-QUEUED = "QUEUED: waits for a free slot; the running agent is never interrupted"
 RUNNING_FIRST = "running workers and reviewers: never interrupted, never stopped"
 LEAD = 1
 NOT_LIMITED = 10**9
@@ -56,20 +55,6 @@ class Occupancy:
 
 
 UNLIMITED = Occupancy()
-
-
-def waits(taken: Occupancy, reference: str) -> bool:
-    """Whether a step waits for a free slot.
-
-    Args:
-        taken: the occupancy.
-        reference: the PR or ticket the step is for.
-
-    Returns:
-        True when no slot is free and the step is not the round of a PR that
-        holds one.
-    """
-    return taken.free == 0 and reference not in taken.references
 
 
 def held_line(each: Held) -> str:

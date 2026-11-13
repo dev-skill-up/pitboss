@@ -2,14 +2,14 @@
 # Every Task, Step and Action: the gate it passes before it changes GitHub or starts runner work (keyword: action-gates, quire#1110).
 # gate: hold (withheld while a runner-pressure hold or its quiet period lasts), pressure (the push goes through `pitboss push`, which reads `pitboss pressure`), free (changes nothing on GitHub and starts no runner work: `where` says why).
 Action.PUSH	pressure	pitboss push: pressure_commands	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
-Action.MERGE	hold	flow.next_step: steps.HELD and holdgate.gate	test_hold_scope.TestB20.test_b20_a_merge_is_withheld_during_a_hold
-Action.UNDRAFT	hold	readyline.line	test_hold_scope.TestB20.test_b20_an_undraft_is_withheld_during_a_hold
+Action.MERGE	hold	flow.next_step: steps.HELD and gaterows.hold_stops	test_hold_scope.TestB20.test_b20_a_merge_is_withheld_during_a_hold
+Action.UNDRAFT	hold	flow.next_step: steps.HELD	test_hold_scope.TestB20.test_b20_an_undraft_is_withheld_during_a_hold
 Action.DISPATCH	hold	updateline.need and rune2e	test_run_e2e.TestB20Dispatch.test_b20_a_dispatch_is_withheld_during_a_hold
 Action.CLOSE	free	closing a PR starts no workflow run of the project	-
 Action.LABEL	free	a label starts no workflow run of the projects	-
-Action.ARM	hold	flow.next_step: steps.HELD and holdgate.gate	test_removedline.TestDropped.test_c26_the_hold_withholds_the_re_arm_and_says_wait
+Action.ARM	hold	gaterows.hold_stops	test_action_gates.TestRearm.test_c26_an_arm_during_a_hold_is_refused_and_changes_nothing
 Step.WORKER	pressure	a worker pushes with pitboss push	test_hold_scope.TestB20.test_b20_a_push_is_held_and_a_draft_push_is_not
-Step.UNDRAFT	hold	readyline.line	test_hold_scope.TestB20.test_b20_an_undraft_is_withheld_during_a_hold
+Step.UNDRAFT	hold	flow.next_step: steps.HELD	test_hold_scope.TestB20.test_b20_an_undraft_is_withheld_during_a_hold
 Step.REGULAR_REVIEW	free	a review is a comment, no runner work	-
 Step.OPUS_RULING	free	a ruling is a comment	-
 Step.PAUSE_FOR_OWNER	free	waits for the owner; nothing is done	-

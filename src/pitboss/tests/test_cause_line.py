@@ -1,4 +1,4 @@
-"""A red check prints its log and the rule on its cause (pitboss#420)."""
+"""A red check's brief prints its log and the rule on its cause (pitboss#420)."""
 
 import dataclasses
 import unittest
@@ -21,10 +21,6 @@ SENTENCE = (
     " problem, such as a run stuck queued with no jobs, is not)"
 )
 LOG = "Failed check log: test: https://github.com/owner/project/runs/8"
-LINE = (
-    "RED CAUSE owner/project#1: test: log https://github.com/owner/project/runs/8; "
-    + SENTENCE
-)
 
 
 def pr_three(check: object) -> world.World:
@@ -55,16 +51,11 @@ def matching(lines: Sequence[str], *words: str) -> Sequence[str]:
 
 
 class TestCauseLine(unittest.TestCase):
-    """The sweep's RED CAUSE line."""
+    """The rule, and where a log is; the sweep says neither."""
 
     def test_the_rule_is_pinned(self) -> None:
         """The rule's words are the ones the ticket asks for."""
         assert_that(causetext.RULE, equal_to(SENTENCE))
-
-    def test_a_red_check_prints_its_log_and_the_rule(self) -> None:
-        """A failed check gets a RED CAUSE line naming its log."""
-        lines = sweep(world.make_world()).out.splitlines()
-        assert_that(LINE in lines, equal_to(True))
 
     def test_an_actions_check_names_its_job(self) -> None:
         """A check of a workflow run is located by the run and the job."""

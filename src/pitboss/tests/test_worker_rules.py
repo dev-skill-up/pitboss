@@ -15,7 +15,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import draftmoves, partial, ticketbranch, workeredits
+from .. import partial, ticketbranch, workeredits
 from . import fakes, world
 from .cleanworld import same
 from .says import says
@@ -289,30 +289,3 @@ class TestPartialKeepsTheSlot(unittest.TestCase):
         says(refused.out, "keeps its slot")
         same(here.ledger.read_text(), before)
         assert_that('"worker"' in before, equal_to(True))
-
-
-class TestDraftState(unittest.TestCase):
-    """B21: a worker's change of a PR's draft state is flagged."""
-
-    def test_b21_a_change_after_the_sweep_marked_ready_is_flagged(self) -> None:
-        """The newest later draft-state event is named, with the actor's note."""
-        events = [
-            {"event": "ready_for_review", "created_at": "2026-11-01T00:00:00Z"},
-            {"event": "labeled", "created_at": "2026-11-01T00:01:00Z"},
-            {"event": "convert_to_draft", "created_at": "2026-11-02T00:00:00Z"},
-        ]
-        path = "repos/owner/project/issues/3/timeline"
-        github = fakes.github({fakes.page(path): events})
-        said = draftmoves.tell(github, "owner/project", 3)
-        same(len(said), 1)
-        assert_that(said[0], contains_string("owner/project#3: convert_to_draft"))
-        assert_that(
-            said[0], contains_string("came after the sweep marked the PR ready")
-        )
-
-    def test_b21_the_sweeps_own_change_and_no_timeline_say_nothing(self) -> None:
-        """The nearest inputs it must still pass: the first ready, and no read."""
-        path = fakes.page("repos/owner/project/issues/3/timeline")
-        first = [{"event": "ready_for_review", "created_at": "2026-11-01T00:00:00Z"}]
-        same(draftmoves.tell(fakes.github({path: first}), "owner/project", 3), [])
-        same(draftmoves.tell(fakes.github({}), "owner/project", 3), [])

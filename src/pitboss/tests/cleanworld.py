@@ -276,13 +276,25 @@ def workspace_scene(here: world.World) -> None:
     fakes.make_unfetchable(workspace, "nofetch")
     fakes.run_git(workspace, "init", "-q", str(workspace / "noremote"))
     done = {"state": "closed", "merged_at": "x"}
-    here.bodies[world.project_page("pulls?state=all")] = [
+    here.bodies[world.project_page("pulls?state=closed")] = [
         {"head": {"ref": "merged-work"}, **done},
         {"head": {"ref": "pinned-work"}, **done},
         {"head": {"ref": "open-work"}, "state": "open"},
     ]
     closed = {"head": {"ref": "lib-work"}, "state": "closed", "merged_at": None}
-    here.bodies[fakes.page(f"{world.LIBRARY}/pulls?state=all")] = [closed]
+    here.bodies[library_page("pulls?state=closed")] = [closed]
+
+
+def library_page(path: str) -> str:
+    """The first page of a path of the library's API.
+
+    Args:
+        path: the path after ``repos/owner/lib/``.
+
+    Returns:
+        The page's key.
+    """
+    return fakes.page(f"{world.LIBRARY}/{path}")
 
 
 def rewrite(here: world.World, settings: str) -> None:

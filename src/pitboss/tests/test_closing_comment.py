@@ -8,11 +8,11 @@ pitboss#369 had merged.
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import ticketblock
 from . import rankworld, world
-from .rankworld import lines_are, next_output, printed, starts, sweep
+from .rankworld import starts, sweep
 
 REPOSITORY = rankworld.REPOSITORY
 STATUS = (
@@ -21,7 +21,8 @@ STATUS = (
     " when #383, #384, #94 and #369 have merged."
 )
 FOUR = ["owner/lib#383", "owner/lib#384", "owner/lib#94", "owner/lib#369"]
-BLOCKED_BY_FOUR = "BLOCKED owner/project#9 by " + ", ".join(FOUR)
+PULLS = ["owner/project#1", "owner/project#3"]
+NINTH = "owner/project#9"
 
 
 def tracking_world(
@@ -104,44 +105,23 @@ class TestClosing(unittest.TestCase):
 
 
 class TestSlotsNext(unittest.TestCase):
-    """The line and the offer of ``slots next`` for the tracking ticket."""
+    """The offer of ``slots next`` for the tracking ticket."""
 
     def test_the_line_names_every_open_blocker(self) -> None:
-        """BLOCKED lists them, there is no start line, and each blocker is offered."""
+        """No start for ticket 9; each open blocker is offered in its place."""
         here = tracking_world()
-        output = next_output(here)
-        lines_are(output, "BLOCKED", [BLOCKED_BY_FOUR])
-        assert_that(
-            starts(here),
-            equal_to(["owner/project#1", "owner/project#3", *FOUR, "owner/project#10"]),
-        )
-        blocks = [
-            f"BLOCKS {each}: blocks owner/project#9; ranked urgent, opened 2026-09-01"
-            for each in FOUR
-        ]
-        lines_are(output, "BLOCKS", blocks)
+        assert_that(starts(here), equal_to([*PULLS, *FOUR]))
 
     def test_a_blocker_that_has_merged_is_left_out(self) -> None:
-        """Two of the four are closed: the line names the two that are open."""
+        """Two of the four are closed: the two that are open are offered."""
         here = tracking_world(open_ones=(94, 369))
-        expected = "BLOCKED owner/project#9 by owner/lib#94, owner/lib#369"
-        printed(here, "BLOCKED", [expected])
+        found = starts(here)
+        assert_that(found, equal_to([*PULLS, *FOUR[2:], "owner/project#10"]))
 
     def test_every_blocker_has_merged(self) -> None:
         """The ticket is offered again, in its own place."""
         here = tracking_world(open_ones=())
-        printed(here, "BLOCKED", [])
-        assert_that(
-            starts(here),
-            equal_to(
-                [
-                    "owner/project#1",
-                    "owner/project#3",
-                    "owner/project#9",
-                    "owner/project#10",
-                ]
-            ),
-        )
+        assert_that(starts(here), equal_to([*PULLS, NINTH, "owner/project#10"]))
 
     def test_a_comment_that_is_not_the_newest_does_not_count(self) -> None:
         """A newer comment that does not say it replaces the status."""
@@ -151,10 +131,9 @@ class TestSlotsNext(unittest.TestCase):
             rankworld.comment(STATUS),
             newer,
         ]
-        printed(here, "BLOCKED", [])
+        assert_that(starts(here), equal_to([*PULLS, NINTH, "owner/project#10"]))
 
     def test_the_sweep_prints_the_same(self) -> None:
-        """The sweep has the BLOCKED line and no start for the ticket."""
+        """The sweep's order is the same, with no start for the ticket."""
         out = sweep(tracking_world()).out
-        lines_are(out, "BLOCKED", [BLOCKED_BY_FOUR])
-        assert_that(out, contains_string("SLOTS FREE 1: 7 queued"))
+        assert_that(rankworld.NEXT_LINE.findall(out), equal_to([*PULLS, *FOUR]))

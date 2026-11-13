@@ -16,15 +16,14 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import briefsave, parsing, pulls, shapes, steps, stuckci, work
-from . import fakes, rankworld, world
+from .. import briefsave, parsing, pulls, shapes, steps, stuckci
+from . import fakes, world
 from .cleanworld import same
 from .itemworld import one, with_pull_issues
 from .says import lacks, says
-from .rankworld import fixing, lines_are, mentioning, next_output
-from .fastvariants import named
+from .rankworld import mentioning
 from .fastworld import NINTH, fast_world, listed
-from .test_work import NONE, facts, item, stepped
+from .test_work import NONE, facts, stepped
 from .fakes import write
 
 NOW = datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.timezone.utc)
@@ -70,23 +69,6 @@ class TestBriefs(unittest.TestCase):
         says(found.err, "DISPATCH: owner/project#9", "brief saved to")
         same(briefs_of(here), ["owner-project-9.brief"])
 
-    def test_b6_force_prints_and_saves_the_brief_of_an_item_answered_unknown(
-        self,
-    ) -> None:
-        """Plain: UNKNOWN and no file. ``--force``: the brief, its file and the line."""
-        here = with_pull_issues(named())
-        plain = one(here, NINTH)
-        same((plain.code, plain.out, briefs_of(here)), (1, "", []))
-        forced = one(here, NINTH, "--force")
-        same(forced.code, 0)
-        assert_that(len(forced.out) > 0, equal_to(True))
-        says(
-            forced.err, "FORCED: the plain command refuses", "DISPATCH: owner/project#9"
-        )
-        same(briefs_of(here), ["owner-project-9.brief"])
-        saved = here.ledger.parent / briefsave.DIRECTORY / "owner-project-9.brief"
-        assert_that(saved.read_text().strip() in forced.out, equal_to(True))
-
     def test_b6_a_brief_that_cannot_be_written_says_so(self) -> None:
         """The directory is a file: the line says NOT saved and why."""
         directory = fakes.directory()
@@ -108,76 +90,6 @@ def relocking(*step: steps.Next) -> pulls.PullFacts:
     oldest = facts(2, NONE, created_at="2026-01-01T00:00:00+00:00")
     relock = dataclasses.replace(oldest, relock=True)
     return stepped(relock, step[0]) if step else relock
-
-
-def order_of(*every: work.Item) -> Sequence[str]:
-    """The references of the items, ordered.
-
-    Args:
-        *every: the items.
-
-    Returns:
-        The references.
-    """
-    return tuple(each.reference for each in work.ordered(list(every), []))
-
-
-class TestRelockLast(unittest.TestCase):
-    """B9: the review of a relock PR ranks after the other work."""
-
-    def test_b9_a_relock_review_is_last(self) -> None:
-        """Even oldest, it stands after another PR and a ticket."""
-        new = item("owner/project#9", work.Category.NEW_PR)
-        pulled = work.pull_items([relocking(), facts(3, NONE)])
-        same(
-            order_of(*pulled, new),
-            ("owner/project#3", "owner/project#9", "owner/project#2"),
-        )
-
-    def test_b9_a_relock_pr_at_another_step_keeps_its_place(self) -> None:
-        """The nearest input it must still keep first: a relock PR to fix."""
-        fix = relocking(steps.worker(steps.Task.FIX_CI))
-        pulled = work.pull_items([facts(3, NONE), fix])
-        same(order_of(*pulled), ("owner/project#2", "owner/project#3"))
-
-
-def blocked(line: str, state: str = "open") -> world.World:
-    """A world where PR 3 fixes ticket 9 and its body has a line.
-
-    Args:
-        line: the line the body has.
-        state: the state of ``owner/lib#3``.
-
-    Returns:
-        The world.
-    """
-    here = rankworld.depends_world("")
-    fixing(here, 3, f"Fixes #9\n\n{line}")
-    here.bodies[rankworld.BLOCKER] = {**rankworld.LIB_THREE, "state": state}
-    rankworld.serve(here, "owner/project", 9, rankworld.ticket())
-    return here
-
-
-class TestBlockedBody(unittest.TestCase):
-    """B10: a PR whose body says it is blocked on a ticket is not offered a step."""
-
-    def test_b10_a_pr_blocked_on_another_ticket_has_no_step(self) -> None:
-        """``Blocked on`` and ``Blocked by`` in the PR's body: BLOCKED, no PR STATE."""
-        for line in ("Blocked on owner/lib#3", "blocked by owner/lib#3"):
-            with self.subTest(line):
-                output = next_output(blocked(line))
-                lines_are(output, "BLOCKED", ["BLOCKED owner/project#3 by owner/lib#3"])
-                rankworld.absent(output, "PR STATE owner/project#3")
-
-    def test_b10_a_closed_blocker_or_its_own_ticket_blocks_nothing(self) -> None:
-        """The nearest inputs it must still pass: closed, and the PR's own ticket."""
-        for line, state in (
-            ("Blocked on owner/lib#3", "closed"),
-            ("Blocked on #9", "open"),
-        ):
-            with self.subTest(line, state=state):
-                output = next_output(blocked(line, state))
-                lines_are(output, "BLOCKED", [])
 
 
 def run_of(number: int, status: str, minute: int) -> shapes.WorkflowRun:

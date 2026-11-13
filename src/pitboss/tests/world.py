@@ -2,6 +2,7 @@
 
 import argparse
 import contextlib
+import copy
 import dataclasses
 import datetime
 import io
@@ -102,8 +103,8 @@ QUEUE_RUNS = {
 }
 REPOSITORY_BODIES: MutableMapping[str, object] = {
     **GATE_READS,
-    PROJECT: {},
-    LIBRARY: {},
+    PROJECT: {"default_branch": "main"},
+    LIBRARY: {"default_branch": "main"},
     fakes.page(f"{PROJECT}/commits/main/check-runs"): {"check_runs": []},
     fakes.page(f"{PROJECT}/issues/comments"): [],
     fakes.page(f"{LIBRARY}/issues/comments"): [],
@@ -114,12 +115,10 @@ REPOSITORY_BODIES: MutableMapping[str, object] = {
     fakes.page(f"{PROJECT}/actions/runs/11/jobs"): {"jobs": [{"status": "queued"}]},
     fakes.page(f"{PROJECT}/actions/runs/12/jobs"): {"jobs": []},
     f"POST {PROJECT}/actions/runs/11/cancel": {},
-    fakes.page(f"{PROJECT}/pulls?state=all"): [
+    fakes.page(f"{PROJECT}/pulls?state=closed"): [
         {"head": {"ref": "merged-work"}, "state": "closed", "merged_at": "x"}
     ],
-    fakes.page(f"{LIBRARY}/pulls?state=all"): [],
-    fakes.page(f"{PROJECT}/issues?state=all"): [],
-    fakes.page(f"{LIBRARY}/issues?state=all"): [],
+    fakes.page(f"{LIBRARY}/pulls?state=closed"): [],
     fakes.page(f"{PROJECT}/issues?state=open&labels=urgent"): [TICKET],
     fakes.page(f"{LIBRARY}/issues?state=open&labels=urgent"): [],
     **ticket_bodies.ISSUES,
@@ -233,7 +232,8 @@ def bodies() -> MutableMapping[str, object]:
     for slug, number, checks, state in PULLS:
         found.update(pull_bodies(slug, number, checks, state))
     found.update(RED_BODIES)
-    return found
+    # each world its own copy: a test that edits a canned body edits only its world
+    return copy.deepcopy(found)
 
 
 def configure(workspace: pathlib.Path) -> pathlib.Path:

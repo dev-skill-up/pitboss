@@ -96,7 +96,10 @@ def override_stop(
 
 
 def block(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
-    """Record that a PR waits on another item; the verdict reads it.
+    """Write that a PR waits on another item as a ``Blocked-by:`` line of its body.
+
+    The body is what the one read reads, so ``next`` and ``act`` see the same
+    block (keyword: one-path, P8; blocked-by).
 
     Args:
         act: the verb's world.
@@ -108,8 +111,8 @@ def block(act: actcore.Act, target: actcore.Target, options: actcore.Options) ->
     """
     on = actcore.option(options, "on")
     disarm_first(act, target, f"blocked by {on}")
-    head = head_now(act, target)
-    actcore.record(act, target, f"blocked-by head={head} {on}")
+    body = text(pull_of(act, target).get("body")).rstrip("\n")
+    actcore.put(act, target, "pr-edit", {"body": f"{body}\nBlocked-by: {on}\n"})
     return f"block {target.name} on {on}"
 
 

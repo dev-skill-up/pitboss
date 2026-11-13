@@ -11,6 +11,7 @@ version, so a subcommand is parsed with it.
 import argparse
 import contextlib
 import dataclasses
+import subprocess
 import sys
 from collections.abc import Iterator, Sequence
 from typing import Protocol, runtime_checkable
@@ -50,12 +51,21 @@ class Entered:
 
         Raises:
             SystemExit: a read failed: status 1, the request on standard error.
+            subprocess.CalledProcessError: a command other than a read failed.
         """
         try:
             self.command(args=args)
         except retrying.ReadFailed as failed:
             print(f"READ FAILED: {failed}", file=sys.stderr)
             raise SystemExit(1) from failed
+        except subprocess.CalledProcessError as answered:
+            # a 404, 410 or 422 is an answer; one no reader takes is a failed read,
+            # and no decision is made on a partial world (keyword: read-retry)
+            if not retrying.reads(list(answered.cmd)):
+                raise
+            said = f"{answered.cmd[-1]}: {retrying.said(answered)}"
+            print(f"READ FAILED: {said}", file=sys.stderr)
+            raise SystemExit(1) from answered
 
 
 @contextlib.contextmanager

@@ -16,13 +16,12 @@ from .. import finishpartial, pulls, shapes, steps, work
 from . import fakes, quietworld, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
-from .test_work import NONE, facts, item
+from .test_work import NONE, facts
 
 PROJECT = world.PROJECT
 COMMANDS = "Fixes #7\n\n## Plan\nthe plan\n\n$ echo hi\n\n## Execution\nx\n"
 NOT_CHECKED = "no clean Plan check covers the Plan"
-STATE = "PR STATE owner/project#3: next step: finish the PR a worker handed back"
-PARTIAL = "FINISH PARTIAL owner/project#3:"
+PARTIAL = "WORKER: owner/project#3: finish this PR, handed back unfinished"
 FINISH = work.Category.FINISH_PARTIAL
 RED = shapes.CommitStatus(
     context="text-lint",
@@ -103,34 +102,29 @@ class TestOffered(unittest.TestCase):
         """The step is the finishing, its line names the missing check."""
         here = partial_world()
         text = next_output(here)
-        assert_that(text, contains_string(STATE))
-        assert_that(text, contains_string("NEXT 3. owner/project#3 (finish the PR"))
-        assert_that(text, contains_string(NOT_CHECKED))
+        assert_that(text, contains_string(f"NEXT 3 of 5. {PARTIAL}: {NOT_CHECKED}"))
 
     def test_c24_the_sweep_names_the_pr_and_what_is_missing(self) -> None:
-        """The FINISH PARTIAL line is in the sweep."""
+        """The decision is in the sweep, with what is missing."""
         out = sweep(partial_world()).out
-        assert_that(out, contains_string(PARTIAL))
+        assert_that(out, contains_string(f"{PARTIAL}: {NOT_CHECKED}"))
 
     def test_c24_a_pr_a_slot_holds_is_not_offered_again(self) -> None:
         """The ledger holds PR 3: it is the worker's, not offered to a second."""
         here = partial_world()
         hold_pr_3(here)
-        assert_that(lines_of(here, "start owner/project#3"), equal_to([]))
-        assert_that(lines_of(here, "NEXT 3. owner/project#3"), equal_to([]))
+        assert_that(lines_of(here, "owner/project#3"), equal_to([]))
 
     def test_c24_a_slot_released_with_work_unfinished_offers_it(self) -> None:
-        """The ledger has no holder: the free slot starts the PR."""
+        """The ledger has no holder: a free slot is dispatched to the PR."""
         here = partial_world()
-        text = lines_of(here, "EMPTY SLOT")
-        assert_that(text[0], contains_string("start owner/project#3 (finish the PR"))
+        text = lines_of(here, "DISPATCH: owner/project#3 for slot")
+        assert_that(len(text), equal_to(1))
 
     def test_c24_a_ready_pr_with_a_clean_check_is_not_partial(self) -> None:
         """The default PR 3 (reviewable, no commands) keeps the review step."""
         text = next_output(quietworld.unheld(world.make_world()))
-        assert_that(
-            text, contains_string("PR STATE owner/project#3: next step: review")
-        )
+        assert_that(text, contains_string("REVIEWER: owner/project#3: grade Plan"))
         assert_that(text.count(PARTIAL), equal_to(0))
 
 
@@ -158,12 +152,12 @@ SEND_BACK = dataclasses.replace(
 GATED = (
     steps.regular_review(steps.Stage.PLAN_AND_EXECUTION),
     steps.undraft(),
-    steps.ci_pending(),
     steps.merge(),
 )
 KEPT = (
     at_step(steps.worker(steps.Task.FIX_CI), RED),
     at_step(steps.OWNER_PENDING, RED),
+    at_step(steps.ci_pending(), RED),
     at_step(steps.merge()),
     shapes.Unreadable(reference="owner/project#8", call="x", status="500"),
 )
@@ -226,14 +220,6 @@ class TestStranded(unittest.TestCase):
 
 class TestOrder(unittest.TestCase):
     """It is a PR that needs work: oldest first, ahead of the new tickets."""
-
-    def test_c24_it_comes_before_a_new_ticket_and_by_age(self) -> None:
-        """Two finishing items, oldest first, then the ticket."""
-        kinds = {9: work.Category.NEW_PR, 5: FINISH, 4: FINISH}
-        made = [item(f"owner/project#{each}", kind) for each, kind in kinds.items()]
-        young = dataclasses.replace(made[1], created_at="2027")
-        ordered = work.ordered([made[0], young, made[2]], [])
-        assert_that([each.reference[-1] for each in ordered], equal_to(["4", "5", "9"]))
 
     def test_c24_the_brief_resumes_the_same_pr(self) -> None:
         """The brief tells the worker to resume the PR, not start a new one."""

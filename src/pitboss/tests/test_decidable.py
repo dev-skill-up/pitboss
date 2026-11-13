@@ -19,9 +19,9 @@ class TestDecidable(unittest.TestCase):
     """The file against the register."""
 
     def test_the_shipped_file_matches_the_register(self) -> None:
-        """Thirty-one rows of kind output or outside, each with a valid row."""
+        """Thirty-two rows of kind output or outside, each with a valid row."""
         assert_that(decidable.findings(REGISTER, HELD), empty())
-        assert_that(HELD, has_length(31))
+        assert_that(HELD, has_length(32))
 
     def test_a_new_output_rule_without_a_row_is_found(self) -> None:
         """Planted: a rule of kind output that the file does not know."""

@@ -12,14 +12,13 @@ from typing import Mapping, Sequence
 
 from hamcrest import (
     assert_that,
-    contains_exactly,
     contains_string,
     equal_to,
     has_length,
 )
 
 from .. import brief, ticketblock
-from . import briefmake, fakes, liveagents, quietworld, rankworld, world
+from . import briefmake, decisionline, fakes, liveagents, quietworld, rankworld, world
 from .test_commands import sweep
 from .test_holds import START_LINE
 from .test_slot_commands import next_output
@@ -37,6 +36,21 @@ REPOSITORY = rankworld.REPOSITORY
 
 blocked_world = rankworld.blocked_world
 comment = rankworld.comment
+
+
+def unsaid(here: world.World, *tickets: str) -> bool:
+    """Whether ``slots next`` says nothing of the tickets that wait (keyword: one-path).
+
+    Args:
+        here: the world.
+        *tickets: the waiting tickets.
+
+    Returns:
+        True when no line is a BLOCKED line and none is a decision of one of them.
+    """
+    printed = next_output(here)
+    decided = [decisionline.of(printed, each) for each in tickets]
+    return BLOCKED_LINE.findall(printed) == [] and decided == [""] * len(tickets)
 
 
 def offered(here: world.World) -> Sequence[str]:
@@ -75,17 +89,15 @@ class TestSlotsNext(unittest.TestCase):
     """What ``slots next`` offers while the blocker is open, then closed."""
 
     def test_the_blocker_is_open(self) -> None:
-        """The ticket has a BLOCKED line and no NEXT; its blocker has one (#280)."""
+        """The ticket waits, with no line; its blocker is offered (#280)."""
         here = blocked_world()
         assert_that(offered(here), equal_to(["owner/lib#3", "owner/project#10"]))
-        found = BLOCKED_LINE.findall(next_output(here))
-        assert_that(found, equal_to(["BLOCKED owner/project#9 by owner/lib#3"]))
+        assert_that(unsaid(here, "owner/project#9"), equal_to(True))
 
     def test_the_blocker_is_closed(self) -> None:
-        """The ticket is listed in its place in the order, with no BLOCKED line."""
+        """The ticket is listed in its place in the order."""
         here = blocked_world(state="closed")
         assert_that(offered(here), equal_to(["owner/project#9", "owner/project#10"]))
-        assert_that(BLOCKED_LINE.findall(next_output(here)), equal_to([]))
 
     def test_the_open_then_closed_order_differs_only_by_the_ticket(self) -> None:
         """Closing the blocker swaps the blocker's line for the ticket's."""
@@ -105,7 +117,7 @@ class TestSlotsNext(unittest.TestCase):
         """A comment of a member counts, as the body does."""
         here = blocked_world("A ticket", comments=[comment("Blocked by owner/lib#3")])
         assert_that(offered(here), equal_to(["owner/lib#3", "owner/project#10"]))
-        assert_that(len(BLOCKED_LINE.findall(next_output(here))), equal_to(1))
+        assert_that(unsaid(here, "owner/project#9"), equal_to(True))
 
     def test_a_comment_of_a_stranger_does_not_count(self) -> None:
         """Only the trusted authors' comments are read."""
@@ -128,20 +140,6 @@ class TestSlotsNext(unittest.TestCase):
             world.again(here, "next", "--now", FUTURE, *live).out,
         )
         assert_that(suggested, equal_to(["owner/lib#3", "owner/project#10"]))
-
-
-class TestSweep(unittest.TestCase):
-    """The sweep prints the same line."""
-
-    def test_the_line(self) -> None:
-        """The BLOCKED line is in the sweep while the blocker is open."""
-        found = BLOCKED_LINE.findall(sweep(blocked_world()).out)
-        assert_that(found, equal_to(["BLOCKED owner/project#9 by owner/lib#3"]))
-
-    def test_no_line_when_closed(self) -> None:
-        """Closed, the ticket has no line."""
-        out = sweep(blocked_world(state="closed")).out
-        assert_that(BLOCKED_LINE.findall(out), equal_to([]))
 
 
 # pitboss#280: bats-lang/quire#830 said "Depends on #828" and was offered as NEXT 2;
@@ -193,30 +191,6 @@ def add_label(here: world.World, label: str, tickets: Sequence[object]) -> None:
         )
 
 
-def next_text(here: world.World) -> str:
-    """What ``next`` prints.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The output.
-    """
-    return world.again(here, "next", "--now", FUTURE, *liveagents.running(here)).out
-
-
-def blocked_lines(here: world.World) -> Sequence[str]:
-    """The BLOCKED lines of ``slots next``.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The lines.
-    """
-    return BLOCKED_LINE.findall(next_output(here))
-
-
 class TestForm(unittest.TestCase):
     """The sentence that names a dependency."""
 
@@ -247,10 +221,7 @@ class TestOrder(unittest.TestCase):
         """NEXT for the dependency, ahead of ticket 10, and none for ticket 9."""
         here = depends_world()
         assert_that(offered(here), equal_to(["owner/lib#3", "owner/project#10"]))
-        assert_that(
-            blocked_lines(here),
-            contains_exactly("BLOCKED owner/project#9 by owner/lib#3"),
-        )
+        assert_that(unsaid(here, "owner/project#9"), equal_to(True))
 
     def test_a_dependency_listed_later_is_moved_ahead(self) -> None:
         """Ticket 9 depends on 11 (label later), which is listed after ticket 10."""
@@ -260,17 +231,15 @@ class TestOrder(unittest.TestCase):
         add_label(here, "later", [{**THIRD, "labels": [{"name": "later"}]}])
         serve_ticket(here, 11, {"state": "open", "labels": []})
         assert_that(offered(here), equal_to(["owner/project#11", "owner/project#10"]))
-        inherited = "owner/project#11 (start a PR urgent, opened 2026-09-01,"
-        assert_that(next_text(here), contains_string(inherited))
 
-    def test_the_sweep_prints_the_same(self) -> None:
-        """The sweep has the BLOCKED line and counts the dependency as queued work."""
+    def test_the_sweep_offers_the_same(self) -> None:
+        """The sweep's list has the dependency, and nothing of the ticket."""
         here = depends_world()
         here.bodies[LIST] = [{**world.TICKET, "body": DEPENDS}]
         out = sweep(here).out
-        assert_that(len(BLOCKED_LINE.findall(out)), equal_to(1))
-        # the world's two PRs that need work, and the dependency
-        assert_that(out, contains_string("SLOTS FREE 1: 3 queued"))
+        assert_that(decisionline.of(out, "owner/lib#3"), contains_string("WORKER"))
+        assert_that(decisionline.of(out, "owner/project#9"), equal_to(""))
+        assert_that(BLOCKED_LINE.findall(out), equal_to([]))
 
     def test_a_dependency_of_a_dependency_is_offered(self) -> None:
         """Ticket 9 waits for lib#3, which waits for lib#7: lib#7 is the work."""
@@ -282,13 +251,7 @@ class TestOrder(unittest.TestCase):
             "body": "",
         }
         assert_that(offered(here), equal_to(["owner/lib#7", "owner/project#10"]))
-        assert_that(
-            blocked_lines(here),
-            contains_exactly(
-                "BLOCKED owner/lib#3 by owner/lib#7",
-                "BLOCKED owner/project#9 by owner/lib#3",
-            ),
-        )
+        assert_that(unsaid(here, "owner/lib#3", "owner/project#9"), equal_to(True))
 
     def test_a_cycle_offers_neither(self) -> None:
         """Two tickets that depend on each other are both blocked."""
@@ -325,8 +288,6 @@ class TestOrder(unittest.TestCase):
         suggested = re.findall(r"start a PR: (\S+#\d+):", out)
         assert_that(suggested, equal_to(["owner/lib#3", "owner/project#10"]))
         assert_that(out, contains_string("is never ground for a split"))
-        inherited = "owner/lib#3 (start a PR urgent, opened 2026-09-01,"
-        assert_that(out, contains_string(inherited))
 
 
 class TestBrief(unittest.TestCase):

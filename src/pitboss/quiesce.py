@@ -2,8 +2,8 @@
 
 Owner, 2026-10-31: when the owner quiesces the work, no new work starts until he
 lifts it. ``pitboss quiesce on`` writes a file beside the ledger; while it is
-there ``slots next`` offers no start, no brief and no empty slot, and says so.
-``pitboss quiesce off`` removes it.
+there the one read keeps every ticket as held (``readworld``, keyword: one-path), so
+no decision starts one. ``pitboss quiesce off`` removes it.
 """
 
 import pathlib
@@ -13,9 +13,8 @@ from . import directories
 NAME = "quiesced"
 LINE = (
     "QUIESCED: nothing starts until the owner lifts it (pitboss quiesce off): no"
-    " NEXT line, no brief, no empty slot"
+    " ticket is started"
 )
-REFUSED = "UNKNOWN: {reference} is not offered: " + LINE
 
 
 def is_on(ledger: pathlib.Path) -> bool:
@@ -55,18 +54,3 @@ def switch_off(ledger: pathlib.Path) -> str:
     """
     ledger.with_name(NAME).unlink(missing_ok=True)
     return "quiesce is off: slots next offers work again"
-
-
-def say(ledger: pathlib.Path) -> bool:
-    """Print the quiesce line when work is quiesced.
-
-    Args:
-        ledger: the ledger's file.
-
-    Returns:
-        Whether work is quiesced, so that nothing else is offered.
-    """
-    quiesced = is_on(ledger)
-    if quiesced:
-        print(LINE)
-    return quiesced

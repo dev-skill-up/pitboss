@@ -7,7 +7,7 @@ details and closure) only when the walk reaches it: the pull requests that are n
 relock reviews, oldest first; then the tickets by priority label and age, a label's
 first page of each repository merged by age and a later page read only when the
 merge has used up the one before; then the relock pull requests. The walk stops
-when it holds ``max(5, the slots configured)`` decisions; an item nobody acts on
+when it holds ``max(5, the slots configured)`` decisions; an item no actor takes
 counts for nothing, so the walk reads on past it. A blocker an examined item names
 is examined in that item's place (keyword: dependency): the place a blocker takes is
 the better of its own and its first namer's, so nothing the walk did not read can
@@ -21,6 +21,7 @@ after its tries (``retrying``) fails the command: nothing is decided on a part.
 
 import dataclasses
 import datetime
+import enum
 from typing import AbstractSet, Callable, Iterable, Iterator, Mapping, Sequence
 
 from . import (
@@ -29,6 +30,7 @@ from . import (
     blockedby,
     blockers,
     config,
+    failures,
     ghapi,
     holdconfig,
     holds,
@@ -55,28 +57,31 @@ class Reading:
         github: the API (its reads are tried again, then fail: ``retrying``).
         settings: the configuration.
         book: the slot ledger, as the live agents make it.
-        free: how many slots are free now.
         holds: the owner's holds on new pull requests (``[holds]``).
         now: the time now.
-        source: where a pull request of a repository is read from.
-        settle: a pull request's step settled by its blockers, its shared red and
-            its hand-back (``blockedby``, ``sharedred``, ``finishpartial``).
+        pull: a pull request read, given the other open rows of its repository,
+            its step settled by its blockers, its shared red and its hand-back
+            (``blockedby``, ``sharedred``, ``finishpartial``).
         decide_item: the one decider of an item (``decide.decide_item``), which the
             walk counts its stop with.
         gated: what a PR at the merge or the undraft step is gated on
             (``gateread.reader``, keyword: gate).
+        quiesced: whether the owner quiesced the work (``quiesce``): no ticket
+            starts, so each is kept as held.
+        released: the ledger less the slots whose worker handed back the head
+            the listing gives (``handedback``, keyword: hand-back-done).
     """
 
     github: ghapi.GitHub
     settings: config.Config
     book: ledger.Ledger
-    free: int
     holds: holdconfig.Holds
     now: datetime.datetime
-    source: Callable[[config.Repo], pulls.Source]
-    settle: Callable[[pulls.PullFacts], pulls.PullFacts]
+    pull: Callable[[listed.Listed, Sequence[listed.Listed]], pulls.PullFacts]
     decide_item: Callable[[world.Record], answer.Decision | None]
     gated: world.GateRead
+    quiesced: bool
+    released: Callable[[Sequence[listed.Listed], ledger.Ledger], ledger.Ledger]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -120,38 +125,51 @@ def _blockers_of(
         *(b for w in waits.values() if w is not None for b in w.blockers),
     ]
     for ticket in (each for each, w in waits.items() if w is not None):
-        found += blockers.refusal_blockers(github, settings, me, ticket)
+        refused = blockers.refusal_blockers(github, settings, me, ticket)
+        # a ticket the PR works on never blocks it (keyword: plan-refusal)
+        found += [each for each in refused if each not in waits]
         found += _allowlist(github, facts)
     return [each for each in dict.fromkeys(found) if each != me]
 
 
+def _fixing(facts: pulls.PullFacts) -> bool:
+    # whether the pull request's step is a fix of its CI
+    step = facts.step
+    return isinstance(step, steps.Next) and step.task is steps.Task.FIX_CI
+
+
 def _allowlist(github: ghapi.GitHub, facts: pulls.PullFacts) -> Sequence[str]:
     # keyword: allowlist-miss (pitboss#448): a red only a merged allowlist line fixes
-    step = facts.step
-    fixing = isinstance(step, steps.Next) and step.task is steps.Task.FIX_CI
-    return allowlistmiss.missing(github, facts)[1] if fixing else ()
+    return allowlistmiss.missing(github, facts)[1] if _fixing(facts) else ()
 
 
-def examine_pull(reading: Reading, row: listed.Listed) -> world.Record:
+def examine_pull(
+    reading: Reading, row: listed.Listed, others: Sequence[listed.Listed]
+) -> world.PullRecord:
     """Read one open pull request and its closure.
 
     Args:
         reading: what the read starts from.
         row: its listing row.
+        others: the other open rows of its repository (a shared red's closure).
 
     Returns:
-        Its record; a pull request a slot holds is kept, not read.
+        Its record, which says whether a slot holds it.
     """
-    if row.reference in _held(reading.book):
-        return world.Kept(reference=row.reference, by=world.Keeper.SLOT)
+    held = row.reference in _held(reading.book)
     github = reading.github
-    fetched = pulls.fetch(reading.source(row.repo), row.repo, row.number)
-    settled = reading.settle(fetched)
+    settled = reading.pull(row, others)
     found = _blockers_of(github, reading.settings, settled)
     stuck = stuckci.lines(github, [settled], reading.now)  # keyword: stuck-ci
     gated = reading.gated(settled) if steps.step_is(settled.step, GATED) else None
     return world.PullRecord(
-        row=row, facts=settled, blockers=found, stuck=stuck, gated=gated
+        row=row,
+        facts=settled,
+        blockers=found,
+        stuck=stuck,
+        gated=gated,
+        held=held,
+        failures=failures.read_all(github, settled) if _fixing(settled) else {},
     )
 
 
@@ -209,16 +227,35 @@ class _Walking:
     taken: AbstractSet[str]
     held_repos: AbstractSet[str]
     stop: int
+    every_pull: bool
+
+
+def _kept_by(walking: _Walking, candidate: workorder.Candidate) -> world.Kept | None:
+    # an item the ledger, a hold or the quiesce already decides, with no read of it
+    reference = candidate.reference
+    match candidate:
+        case listed.Listed():  # a pull request a slot holds; the sweep reads it
+            held = reference in _held(walking.reading.book) and not walking.every_pull
+            by = world.Keeper.SLOT
+        case workorder.Ticket():
+            slug = reference.rpartition("#")[0]
+            holding = slug in walking.held_repos or walking.reading.quiesced
+            held = holding and reference not in walking.taken
+            by = world.Keeper.HOLD
+    return world.Kept(reference=reference, by=by) if held else None
 
 
 def _examine(walking: _Walking, candidate: workorder.Candidate) -> world.Record:
+    kept = _kept_by(walking, candidate)
+    if kept is not None:
+        return kept
     match candidate:
         case listed.Listed():
-            return examine_pull(walking.reading, candidate)
+            rows = walking.rows.values()
+            others = [each for each in rows if each.repo == candidate.repo]
+            others = [each for each in others if each != candidate]
+            return examine_pull(walking.reading, candidate, others)
         case workorder.Ticket():
-            slug = candidate.reference.rpartition("#")[0]
-            if slug in walking.held_repos and candidate.reference not in walking.taken:
-                return world.Kept(reference=candidate.reference, by=world.Keeper.HOLD)
             return examine_ticket(walking.reading, candidate, walking.taken)
 
 
@@ -258,15 +295,44 @@ def _with_blockers(
             todo.extend(found for found in named if found is not None)
 
 
-def walk(
-    walking: _Walking, order: Iterable[workorder.Candidate], every_pull: bool
-) -> world.Walk:
+def _decisions(
+    walking: _Walking, records: Sequence[world.Record]
+) -> Sequence[answer.Decision]:
+    # the decisions of the records, which the stop counts
+    decide_item = walking.reading.decide_item
+    return [found for each in records if (found := decide_item(each)) is not None]
+
+
+class Go(enum.Enum):
+    """What the walk does with the next candidate.
+
+    Attributes:
+        TAKE: examine it.
+        SKIP: pass it (a ticket past the stop, in the sweep).
+        STOP: end the walk.
+    """
+
+    TAKE = enum.auto()
+    SKIP = enum.auto()
+    STOP = enum.auto()
+
+
+def _past(walking: _Walking, candidate: workorder.Candidate) -> Go:
+    # past the stop, only the sweep goes on, and only to its pull requests
+    if not walking.every_pull:
+        return Go.STOP
+    return Go.TAKE if isinstance(candidate, listed.Listed) else Go.SKIP
+
+
+def walk(walking: _Walking, order: Iterable[workorder.Candidate]) -> world.Walk:
     """Examine the order until it holds the stop count of decisions.
+
+    The sweep reads every open pull request: past the stop it skips the tickets
+    and examines the pull requests left.
 
     Args:
         walking: what the walk knows.
         order: the candidates, first to take first.
-        every_pull: whether every open pull request is examined (the sweep).
 
     Returns:
         ``Stopped`` when the decisions reached the stop, ``Exhausted`` when the
@@ -276,13 +342,15 @@ def walk(
     seen: set[str] = set()
     decisions: list[answer.Decision] = []
     for candidate in order:
-        pulls_left = every_pull and isinstance(candidate, listed.Listed)
-        if len(decisions) >= walking.stop and not pulls_left:
-            return world.Stopped(examined=examined, stop=walking.stop)
-        for record in _with_blockers(walking, candidate, seen):
-            examined.append(record)
-            found = walking.reading.decide_item(record)
-            decisions.extend([found] if found is not None else [])
+        go = _past(walking, candidate) if len(decisions) >= walking.stop else Go.TAKE
+        if go is Go.STOP:
+            break
+        if go is Go.TAKE:
+            records = list(_with_blockers(walking, candidate, seen))
+            examined.extend(records)
+            decisions.extend(_decisions(walking, records))
+    if len(decisions) >= walking.stop:
+        return world.Stopped(examined=examined, stop=walking.stop)
     return world.Exhausted(examined=examined)
 
 
@@ -291,7 +359,9 @@ def _named(walking: _Walking, references: Sequence[str]) -> Sequence[world.Recor
     return [_examine(walking, each) for each in found if each is not None]
 
 
-def _start(reading: Reading, rows: Sequence[listed.Listed]) -> _Walking:
+def _start(
+    reading: Reading, rows: Sequence[listed.Listed], every_pull: bool
+) -> _Walking:
     slugs = [each.repo.slug for each in rows]
     return _Walking(
         reading=reading,
@@ -299,6 +369,7 @@ def _start(reading: Reading, rows: Sequence[listed.Listed]) -> _Walking:
         taken=frozenset().union(*(each.works_on for each in rows)),
         held_repos=frozenset(holds.standing(reading.holds, slugs)),
         stop=workorder.stop_count(reading.book),
+        every_pull=every_pull,
     )
 
 
@@ -313,12 +384,14 @@ def read_world(reading: Reading, extent: Extent) -> world.World:
         The world.
     """
     rows = workorder.listing(reading.github, reading.settings)
-    walking = _start(reading, rows)
+    reading = dataclasses.replace(reading, book=reading.released(rows, reading.book))
+    walking = _start(reading, rows, extent.every_pull)
     order = workorder.candidates(reading.github, reading.settings, rows)
+    named = [*extent.named, *reading.settings.slots.owner_priorities]
     return world.World(
         listing=rows,
-        walk=walk(walking, order, extent.every_pull),
-        named=_named(walking, extent.named),
+        walk=walk(walking, order),
+        named=_named(walking, list(dict.fromkeys(named))),
         book=reading.book,
-        free=reading.free,
+        free=sum(1 for slot in reading.book.slots if not slot.agent),
     )

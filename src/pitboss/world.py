@@ -8,7 +8,7 @@ so a record is whole or not made: a read that failed after its tries
 
 import dataclasses
 import enum
-from typing import Callable, Sequence, assert_never
+from typing import Callable, Mapping, Sequence, assert_never
 
 
 from . import gatefacts, ledger, listed, pulls, shapes
@@ -30,6 +30,10 @@ class PullRecord:
             ``stuckci.MINUTES`` while later runs completed (keyword: stuck-ci).
         gated: what its merge or undraft is gated on, read only at those steps
             (keyword: gate); None at any other step.
+        held: whether a slot holds it (read only by the sweep, which shows every
+            open pull request; a held one is no decision).
+        failures: what was read of each failed check, by its id, read only when
+            the step is a fix of the CI (``mechanical`` classifies them).
     """
 
     row: listed.Listed
@@ -37,6 +41,8 @@ class PullRecord:
     blockers: Sequence[str]
     stuck: Sequence[str]
     gated: gatefacts.Gate | None
+    held: bool
+    failures: Mapping[int, shapes.Failure]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -171,3 +177,20 @@ def blockers_of(record: Record) -> Sequence[str]:
             return ()
         case _:  # pragma: no cover
             assert_never(record)
+
+
+def pull_records(made: World) -> Sequence[PullRecord]:
+    """The open pull requests a world read, in the order of the listing.
+
+    Args:
+        made: the world.
+
+    Returns:
+        The record of each pull request examined.
+    """
+    read = {
+        each.row.reference: each
+        for each in [*made.walk.examined, *made.named]
+        if isinstance(each, PullRecord)
+    }
+    return [read[row.reference] for row in made.listing if row.reference in read]

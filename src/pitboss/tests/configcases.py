@@ -301,8 +301,10 @@ def seen(here: world.World, found: world.Result, command: str) -> Sequence[objec
         .replace(str(here.workspace), "<workspace>")
         for text in (found.out, found.err)
     ]
+    # the elapsed seconds of the sweep's progress lines are the machine's
+    timed = [re.sub(r"\b\d+s\b", "<s>", each) for each in texts]
     # the scratch roots of the cleaning worlds are directories of their own
-    lines = ["\n".join(sorted(each.splitlines())) for each in texts]
+    lines = ["\n".join(sorted(each.splitlines())) for each in timed]
     # a repository's size depends on the time its commits were made
     sizes = [re.sub(r"\d+\.\d+ MiB", "<size> MiB", each) for each in lines]
     return (*(re.sub(r"tmp[0-9a-z_]{8}", "<tmp>", each) for each in sizes), found.code)

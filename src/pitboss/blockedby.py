@@ -5,11 +5,11 @@ its CI fix. A PR declares what it waits for with ``Blocked-by: owner/name#N``
 (``blockedform``), one line for each blocker. Each blocker is read once, and the PR's
 step becomes:
 
-* a blocker that is open: WAIT_FOR_BLOCKER naming it; no fix, review or merge;
-* a loop (A blocked by B blocked by A, found within ``LIMIT`` reads): FIX_BLOCKED_BY
-  and a ``BLOCKER LOOP`` line, never a wait for each other;
-* a blocker closed without merging, or unreadable: FIX_BLOCKED_BY and a
-  ``BLOCKER GONE`` line;
+* a blocker that is open: no step (``steps.Idle``), so no line names the PR; the
+  blocker has its own decision in its place (keyword: one-path);
+* a loop (A blocked by B blocked by A, found within ``LIMIT`` reads): FIX_BLOCKED_BY,
+  never a wait for each other;
+* a blocker closed without merging, or unreadable: FIX_BLOCKED_BY;
 * every blocker merged after the PR's red checks finished: AFTER_BLOCKER (merge the
   base into the branch, check, push, so CI runs again); once the head is newer the
   PR is at its own step.
@@ -17,14 +17,14 @@ step becomes:
 Shapes derived from the code and the register: a PR needing another PR merged, a
 relock pin waiting for a package publish (the PR names the publishing PR or
 ticket), and merge-queue ordering (the later PR names the earlier) are this form; a
-ticket blocked by a ticket (``ticketblock``) and a hold (``WAIT_FOR_HOLD``) were
+ticket blocked by a ticket (``ticketblock``) and a hold of the runners were
 modelled before; a folded ticket is one PR for several tickets (``folds``). A
 tracking ticket's ``closes when`` is ``ticketblock``'s.
 """
 
 import dataclasses
 import enum
-from typing import Mapping, MutableMapping, Sequence
+from typing import MutableMapping, Sequence
 
 from . import configrepos, ghapi, pulls, shapes, steps, ticketblock, ticketdata
 
@@ -145,62 +145,51 @@ def _ended(check: shapes.CheckRun) -> str:
     return check.completed_at
 
 
-def _open(names: str) -> tuple[steps.Move, str]:
-    # keyword: one-path: nobody acts on the PR while a blocker it names is open,
+def _open(names: str) -> steps.Move:
+    # keyword: one-path: no actor takes the PR while a blocker it names is open,
     # and nothing is said of it
-    return steps.Idle(pending=steps.Pending.BLOCKER, names=names), ""
+    return steps.Idle(pending=steps.Pending.BLOCKER, names=names)
 
 
-def verdict(
-    pull: pulls.PullFacts, found: Sequence[Blocker], path: Sequence[str]
-) -> tuple[steps.Move | None, str]:
-    """The step a PR has because of what it waits for, and the sweep's line.
+def verdict(pull: pulls.PullFacts, found: Sequence[Blocker]) -> steps.Move | None:
+    """The step a PR has because of what it waits for.
 
     Args:
         pull: the PR.
-        found: its blockers as read.
-        path: the loop through it, or none.
+        found: its blockers as read, with no loop through it.
 
     Returns:
-        The step (None when the PR keeps its own) and the line (empty then).
+        The step; None when the PR keeps its own.
     """
-    me = pulls.reference(pull)
     shut = [each.reference for each in found if each.state in CLOSED]
     live = [each.reference for each in found if each.state is State.OPEN]
     when = max((each.merged_at for each in found), default="")
-    fix = steps.worker(steps.Task.FIX_BLOCKED_BY)
-    if path:
-        return fix, f"BLOCKER LOOP {' -> '.join(path)}: each waits for the next"
     if shut:
-        return fix, f"BLOCKER GONE {me}: {shut[0]} is closed unmerged"
+        return steps.worker(steps.Task.FIX_BLOCKED_BY)
     if live:
         return _open(", ".join(live))
     if _red_since(pull, when):
-        after = steps.worker(steps.Task.AFTER_BLOCKER)
-        return after, f"BLOCKER MERGED {me}: merged at {when}, after its red check"
-    return None, ""
+        return steps.worker(steps.Task.AFTER_BLOCKER)
+    return None
 
 
 def _settled(
     github: ghapi.GitHub, seen: MutableMapping[str, Blocker], pull: pulls.PullFacts
-) -> tuple[pulls.PullFacts, str]:
+) -> pulls.PullFacts:
     names = declared(pull)
     kept = any(steps.pending_is(pull.step, each) for each in KEPT)
     if not names or kept or steps.step_is(pull.step, steps.UNRESOLVED):
-        return pull, ""
+        return pull
     for each in names:
         seen.setdefault(each, read(github, each))
     me = pulls.reference(pull)
     chains = [loop(seen, github, me, each) for each in names]
-    step, line = verdict(
-        pull, [seen[each] for each in names], next(filter(None, chains), [])
-    )
-    return (dataclasses.replace(pull, step=step) if step else pull), line
+    fix = steps.worker(steps.Task.FIX_BLOCKED_BY)
+    step = fix if any(chains) else verdict(pull, [seen[each] for each in names])
+    return dataclasses.replace(pull, step=step) if step else pull
 
 
-def settle(
-    github: ghapi.GitHub, reads: Sequence[pulls.Read]
-) -> tuple[Sequence[pulls.Read], Mapping[str, str]]:
+def settle(github: ghapi.GitHub, reads: Sequence[pulls.Read]) -> Sequence[pulls.Read]:
     """Give each PR that declares a blocker the step the blocker calls for.
 
     Args:
@@ -208,17 +197,10 @@ def settle(
         reads: every open PR.
 
     Returns:
-        The PRs, and the sweep's line for each that was changed, by reference.
+        The PRs.
     """
     seen: MutableMapping[str, Blocker] = {}
-    settled: list[pulls.Read] = []
-    said: dict[str, str] = {}
-    for each in reads:
-        if isinstance(each, shapes.Unreadable):
-            settled.append(each)
-            continue
-        changed, line = _settled(github, seen, each)
-        settled.append(changed)
-        if line:
-            said[pulls.reference(each)] = line
-    return settled, said
+    return [
+        each if isinstance(each, shapes.Unreadable) else _settled(github, seen, each)
+        for each in reads
+    ]

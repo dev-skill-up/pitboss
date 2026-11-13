@@ -40,7 +40,7 @@ def built_scene() -> worldcopy.Made:
     cleanworld.mark_live_since(here.workspace / "live-work", 4, started)
     done = {"state": "closed", "merged_at": "x"}
     branches = ("merged-work", *UNSAFE)
-    page = world.project_page("pulls?state=all")
+    page = world.project_page("pulls?state=closed")
     here.bodies[page] = [{"head": {"ref": branch}, **done} for branch in branches]
     return here, []
 

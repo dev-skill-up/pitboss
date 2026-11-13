@@ -5,10 +5,11 @@ from typing import Mapping, MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import failures, pullread, pulls, reviews, shapes, steps
+from .. import config, failures, pullread, pulls, reviews, shapes, steps
 from . import fakes
 
 GATED = "[review]\ngated = ['gated']\n[libraries]\nrepositories = ['gated']\n"
+GATED_REPO = config.make_repo("owner", "gated")
 AUTHORED = {"sha": "1", "parents": [{"sha": "0"}]}
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 FIX = {"sha": "3", "parents": [{"sha": "2"}]}
@@ -104,7 +105,13 @@ def read(found: MutableMapping[str, object]) -> Sequence[pulls.PullFacts]:
         The PRs.
     """
     settings = fakes.settings(fakes.directory(), GATED)
-    return pullread.read_open(fakes.github(found), settings, lambda: False)
+    github = fakes.github(found)
+    return [
+        pulls.fetch(
+            pullread.source_for(github, settings, lambda: False, repo), repo, number
+        )
+        for repo, number in [(settings.project.repo, 1), (GATED_REPO, 2)]
+    ]
 
 
 def summary(facts: pulls.PullFacts) -> Mapping[str, object]:

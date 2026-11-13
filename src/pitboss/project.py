@@ -5,7 +5,7 @@ renderer takes, so two commands that ask one question print the value of one pur
 function of one world.
 """
 
-from typing import assert_never
+from typing import Mapping, assert_never
 
 from . import answer
 
@@ -55,3 +55,15 @@ def dispatch_next(decided: answer.Decided) -> answer.Standing:
             return given
         case _:  # pragma: no cover
             assert_never(given)
+
+
+def by_item(decided: answer.Decided) -> Mapping[str, answer.Decision]:
+    """The decision of each item that has one: the sweep's line of each pull request.
+
+    Args:
+        decided: the command's decisions.
+
+    Returns:
+        Each decided item's decision.
+    """
+    return decided.by_item

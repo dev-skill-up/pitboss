@@ -36,12 +36,12 @@ class TestHandedBack(unittest.TestCase):
     def test_a_record_of_the_prs_head_empties_the_slot(self) -> None:
         """agent-1 runs, but handed back this head: both slots are empty."""
         shown = ran(handed(CLEAN_HEAD["sha"]), ("slots", "next"), "agent-1")
-        said(shown, "EMPTY SLOT", 2)
+        said(shown, "SLOTS FREE", ["SLOTS FREE: 2"])
 
     def test_a_record_of_another_head_keeps_the_slot(self) -> None:
         """A hand-back of an older head is no hand-back of this one."""
         shown = ran(handed("2" * 40), ("slots", "next"), "agent-1")
-        said(shown, "EMPTY SLOT", 1)
+        said(shown, "SLOTS FREE", ["SLOTS FREE: 1"])
 
     def test_the_task_list_shows_it_as_handed_back(self) -> None:
         """Handed back, not running; the other head shows it running."""

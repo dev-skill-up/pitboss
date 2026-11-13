@@ -18,9 +18,6 @@ from .. import (
     updateline,
 )
 from . import quietworld, test_flow, test_work, world
-from .test_commands import sweep
-from .test_flow_sweep import TWO_PLAN_REJECTIONS, world_with
-from .test_slot_commands import next_output
 
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
 DISPATCH = " ".join(
@@ -135,23 +132,6 @@ class TestNeeds(unittest.TestCase):
         step = steps.worker(steps.Task.SHARED_RED)
         found = updateline.needs(dataclasses.replace(pull, step=step), settings_of(""))
         assert_that(found, contains_string("(SHARED RED): no fix here"))
-
-
-class TestListed(unittest.TestCase):
-    """The need reaches ``slots next`` and the sweep."""
-
-    def test_the_list_and_the_sweep_say_what_a_red_pr_needs(self) -> None:
-        """A NEXT line ends with the need; the sweep has a NEEDS line."""
-        here = world_with(TWO_PLAN_REJECTIONS, mergeable_state="behind")
-        listed = next_output(here)
-        swept = sweep(here).out
-        assert_that(
-            [
-                "PR 1; needs: the CI is red: fix it" in listed,
-                "NEEDS owner/project#1: " in swept,
-            ],
-            equal_to([True, True]),
-        )
 
 
 class TestB20Relock(unittest.TestCase):

@@ -12,7 +12,7 @@ from .says import says
 HEAD = test_flow_sweep.HEAD
 OLDER = test_flow_sweep.OLDER
 REVISED = fakes.PLAN_AND_EXECUTION + "\nThe Plan was rewritten after the review.\n"
-REVIEW_KIND = "(review it (a reviewer that is not its author)"
+REVIEW_KIND = "REVIEWER: owner/project#3: grade the Plan ONLY"
 PLAN_ALONE = "SUGGESTION 2 of 3: review the Plan alone: owner/project#3"
 
 
@@ -58,7 +58,7 @@ class TestRevisedPlan(unittest.TestCase):
         out = listing(OLDER, None, REVISED, "older-head")
         assert_that(out, contains_string(REVIEW_KIND))
         assert_that(out, contains_string(PLAN_ALONE))
-        assert_that(out.index("project#3 ("), less_than(out.index("project#9 (")))
+        assert_that(out.index(REVIEW_KIND), less_than(out.index("owner/project#9: ")))
 
     def test_the_plan_was_edited_on_the_live_body(self) -> None:
         """The head is the reviewed one, the body is not: the same review line."""
@@ -71,7 +71,9 @@ class TestRevisedPlan(unittest.TestCase):
         """The same body and head: the fix line, the revision of the Plan."""
         read = fakes.PLAN_AND_EXECUTION
         out = listing(HEAD, read, read, "plan-changes-needed")
-        assert_that(out, contains_string("(revise the plan,"))
+        assert_that(
+            out, contains_string("WORKER: owner/project#3: revise the PLAN only")
+        )
 
     def test_t221_the_unmoved_head_is_offered_for_the_plan_review_again(
         self,

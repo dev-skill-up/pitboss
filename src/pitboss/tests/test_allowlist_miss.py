@@ -203,7 +203,8 @@ class TestRanking(unittest.TestCase):
         """The repository-prototype ticket is ranked; the waiting PR is not said."""
         here = missing_world()
         output = next_output(here)
-        assert_that(starts(here), equal_to(["owner/project#1", TICKET, "owner/lib#9"]))
+        # ticket 9 is the one PR 3 fixes, so it is taken (B7)
+        assert_that(starts(here), equal_to(["owner/project#1", TICKET]))
         assert_that(mentioning(output, "owner/project#3"), equal_to([]))
 
     def test_the_open_pull_request_is_a_wait(self) -> None:

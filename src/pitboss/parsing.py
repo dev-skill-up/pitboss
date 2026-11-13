@@ -84,7 +84,7 @@ def outcomes(text: str) -> Sequence[shapes.Outcome]:
     """Parse a page of pull requests into what became of their branches.
 
     Args:
-        text: the response body of ``pulls?state=all``.
+        text: the response body of a page of ``pulls``, open or closed.
 
     Returns:
         The outcomes.

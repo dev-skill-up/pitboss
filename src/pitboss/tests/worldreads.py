@@ -15,7 +15,7 @@ GATE_READS: Mapping[str, object] = {
     "user": {"login": "pitboss-bot"},
     **{
         f"name={name}": {"data": {"repository": {"pullRequests": {"nodes": []}}}}
-        for name in ("project", "lib")
+        for name in ("project", "lib", "pitboss")
     },
 }
 

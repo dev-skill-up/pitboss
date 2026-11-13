@@ -10,7 +10,6 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, parsing, pulls, report, reviews, shapes, steps, straycomments
 from . import fakes
-from .says import says
 
 
 def run(finished: bool) -> shapes.CheckRun:
@@ -83,24 +82,11 @@ def approved_green() -> pulls.PullFacts:
     return facts(reviews.Standing.APPROVED, checks=[run(True)])
 
 
-def lines(pull: pulls.PullFacts) -> str:
-    """The action lines of a PR, as one text.
-
-    Args:
-        pull: the PR.
-
-    Returns:
-        The lines, joined.
-    """
-    settings = fakes.settings(fakes.directory())
-    return "\n".join(report.action_lines(pull, settings, False, {}))
-
-
 class TestWaitForCi(unittest.TestCase):
-    """A head with no completed check run waits for CI and is never ready."""
+    """A head is green only when every check run completed and none failed."""
 
-    def test_a_head_with_no_completed_check_run_waits(self) -> None:
-        """No run, a run in progress, and a draft with no run all wait."""
+    def test_a_head_with_no_completed_check_run_is_not_green(self) -> None:
+        """No run, a run in progress, and a draft with no run are not green."""
         approved = reviews.Standing.APPROVED
         cases = {
             "no check runs": facts(approved),
@@ -109,62 +95,11 @@ class TestWaitForCi(unittest.TestCase):
         }
         for name, pull in cases.items():
             with self.subTest(name):
-                assert_that(lines(pull), contains_string("WAIT-FOR-CI o/r#7"))
-                assert_that("READY" in lines(pull), equal_to(False))
                 assert_that(pulls.green(pull), equal_to(False))
 
     def test_completed_check_run_is_ready(self) -> None:
-        """A completed green check run ends the wait and the PR is ready."""
-        pull = approved_green()
-        assert_that("WAIT-FOR-CI" in lines(pull), equal_to(False))
-        assert_that(lines(pull), contains_string("READY TO MERGE o/r#7"))
-
-
-class TestAutoMergeOff(unittest.TestCase):
-    """``AUTO MERGE OFF`` is for a head whose newest review approved it (#85)."""
-
-    def test_only_an_approved_head_is_told_to_arm_again(self) -> None:
-        """No review and an older head's review print no line; approval does."""
-        for standing, printed in [
-            (reviews.Standing.NONE, False),
-            (reviews.Standing.OLDER_HEAD, False),
-            (reviews.Standing.APPROVED_BEFORE_MERGES, False),
-            (reviews.Standing.CHANGES_NEEDED, False),
-            (reviews.Standing.PLAN_CHANGES_NEEDED, False),
-            (reviews.Standing.PLAN_APPROVED, False),
-            (reviews.Standing.APPROVED, True),
-        ]:
-            with self.subTest(standing.name):
-                pull = facts(standing, checks=[run(True)], mergeable_state="has_hooks")
-                assert_that("AUTO MERGE OFF" in lines(pull), equal_to(printed))
-
-
-class TestMergeByTheRuling(unittest.TestCase):
-    """A head the Opus ruling approved is told to merge (pitboss#129)."""
-
-    def test_the_lines_of_a_head_the_ruling_approved(self) -> None:
-        """Merge by hand names the ruling; a review's approval keeps its text."""
-        cases = [
-            (reviews.Standing.CHANGES_NEEDED, "execution approved by the Opus ruling"),
-            (reviews.Standing.APPROVED, "approved"),
-        ]
-        for standing, tail in cases:
-            with self.subTest(tail):
-                pull = by_hand(facts(standing, checks=[run(True)]))
-                found = report.action_lines(pull, by_hand_settings(), False, {})
-                expected = f"MERGE BY HAND owner/lib#7: green, clean, {tail}"
-                says("\n".join(found), expected)
-
-    def test_ready_to_merge_for_the_ruling_and_no_other_merge_line(self) -> None:
-        """READY TO MERGE says to arm it; a head not green and clean has none."""
-        standing = reviews.Standing.CHANGES_NEEDED
-        shown = [
-            lines(at_merge(facts(standing, checks=[run(done)])))
-            for done in (True, False)
-        ]
-        assert_that(shown[0], contains_string("READY TO MERGE o/r#7"))
-        merges = ("AUTO MERGE OFF" in shown[0], "MERGE" in shown[1])
-        assert_that(merges, equal_to((False, False)))
+        """A completed check run that did not fail makes the head green."""
+        assert_that(pulls.green(approved_green()), equal_to(True))
 
 
 def at_merge(pull: pulls.PullFacts) -> pulls.PullFacts:

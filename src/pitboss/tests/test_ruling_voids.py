@@ -9,7 +9,7 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, shapes, steps
-from . import fakes, quietworld, test_flow, world
+from . import actreviewed, fakes, quietworld, test_flow, world
 from .suggestions import kind_of_third, next_output
 from .test_flow import APPROVED, state
 from .test_flow_sweep import graded as comment
@@ -19,7 +19,9 @@ from .test_flow_sweep import world_with
 
 RULING_URL = "https://example.org/ruling/2"
 MERGE = steps.merge()
-BODY = fakes.PLAN_AND_EXECUTION
+# it fixes ticket 9 already, so the act review approval reads the same body
+BODY = f"Fixes #9\n\n{fakes.PLAN_AND_EXECUTION}"
+MERGING = actreviewed.MERGING.format(number=3)
 
 
 def approved_then_ruled() -> flow.PullState:
@@ -43,6 +45,19 @@ def world_of(*rounds: shapes.Comment) -> world.World:
     """
     first = comment_reading(comment("approved", "approved", 1), BODY)
     return world_with([first, *rounds], body=BODY)
+
+
+def approved_sweep(here: world.World) -> str:
+    """The sweep of a world whose PR 3 has an ``act review`` approval.
+
+    Args:
+        here: the world.
+
+    Returns:
+        What it printed.
+    """
+    actreviewed.approve(here, 3)
+    return sweep(here).out
 
 
 class TestRulingVoidsApproval(unittest.TestCase):
@@ -82,13 +97,10 @@ class TestRulingVoidsApproval(unittest.TestCase):
             comments=[test_flow.ruling(2)],
         )
         test_flow.expect(MERGE, pr)
-        merge = "READY TO MERGE owner/project#3"
-        assert_that(
-            sweep(quietworld.calm(world_of(test_flow.ruling(2), later))).out,
-            contains_string(merge),
-        )
+        swept = approved_sweep(quietworld.calm(world_of(test_flow.ruling(2), later)))
+        assert_that(swept, contains_string(MERGING))
 
-    def test_the_sweep_does_not_say_ready_to_merge_after_the_ruling(self) -> None:
-        """The merge line is gone while the ruling is unapplied."""
-        out = sweep(world_of(test_flow.ruling(2))).out
-        assert_that("READY TO MERGE owner/project#3" in out, equal_to(False))
+    def test_the_sweep_does_not_offer_the_merge_after_the_ruling(self) -> None:
+        """The merge is no decision while the ruling is unapplied."""
+        swept = approved_sweep(world_of(test_flow.ruling(2)))
+        assert_that(MERGING in swept, equal_to(False))

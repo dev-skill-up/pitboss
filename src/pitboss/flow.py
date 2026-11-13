@@ -221,7 +221,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
 
 
 def _ready(pr: PullState) -> steps.Move:
-    # an approved draft is undrafted when the window allows, else nobody acts
+    # an approved draft is undrafted when the window allows, else no actor takes it
     return steps.undraft() if pr.undraft_clear else steps.UNDRAFT_PENDING
 
 

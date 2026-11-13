@@ -1,14 +1,12 @@
 """A push to the branch of a draft PR is free; a changed draft state is told (#355)."""
 
 import re
-import pathlib
-import tempfile
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
-from .. import draftmoves, pushdraft, shapes
+from .. import pushdraft
 from . import fakes, world
 from .test_commands import sweep
 from .pushworld import elsewhere
@@ -139,59 +137,3 @@ def told(*events: Mapping[str, str]) -> Sequence[str]:
     timeline = [("issues/3/timeline", list(events))]
     here.bodies.update(fakes.bodies_under(world.PROJECT, timeline))
     return DRAFT_LINE.findall(sweep(here).out)
-
-
-class TestDraftMoves(unittest.TestCase):
-    """A draft-state change after the sweep marked the PR ready."""
-
-    def test_a_conversion_after_ready_is_told(self) -> None:
-        """The line names the event, its time and the shared account."""
-        found = told(event("ready_for_review", 20), event("convert_to_draft", 21))
-        expected = (
-            "DRAFT STATE CHANGED owner/project#3: convert_to_draft at"
-            " 2029-12-31T21:00:00Z came after the sweep marked the PR ready; "
-        )
-        assert_that(len(found), equal_to(1))
-        assert_that(found[0], contains_string(expected))
-        assert_that(found[0], contains_string(SHARED))
-
-    def test_the_newest_change_is_told(self) -> None:
-        """A second marking after a conversion is the one told."""
-        found = told(
-            event("ready_for_review", 20),
-            event("convert_to_draft", 21),
-            event("ready_for_review", 22),
-        )
-        assert_that(found[0], contains_string("ready_for_review at 2029-12-31T22"))
-
-    def test_nothing_after_the_marking_is_not_told(self) -> None:
-        """A PR marked ready once, never marked, or converted first says nothing."""
-        found = [
-            told(event("ready_for_review", 20)),
-            told(),
-            told(event("convert_to_draft", 20), event("ready_for_review", 21)),
-        ]
-        assert_that(found, equal_to([[], [], []]))
-
-    def test_the_events_of_a_timeline(self) -> None:
-        """Events of other kinds after the marking are not changes of state."""
-        make = shapes.TimelineEvent
-        events = [make(kind="ready_for_review", at="a"), make(kind="labeled", at="b")]
-        assert_that(draftmoves.after_marked_ready(events), equal_to(None))
-
-
-class TestFailures(unittest.TestCase):
-    """What cannot be read says nothing, or names no branch."""
-
-    def test_an_unreadable_timeline_says_nothing(self) -> None:
-        """The failed call is not a draft-state change."""
-        refused = fakes.github(
-            {fakes.page("repos/o/r/issues/3/timeline"): fakes.REFUSED}
-        )
-        assert_that(draftmoves.tell(refused, "o/r", 3), equal_to([]))
-
-    def test_a_failing_git_names_no_branch(self) -> None:
-        """No branch is told, so nothing is asked of GitHub."""
-        with tempfile.TemporaryDirectory() as empty:
-            run = fakes.FakeProcesses(bodies={}, cwd=pathlib.Path(empty))
-            assert_that(pushdraft.current_branch(run), equal_to(""))

@@ -22,24 +22,14 @@ CANCEL = f"POST {world.PROJECT}/actions/runs/11/cancel"
 OPEN_PULLS = world.project_page("pulls?state=open")
 JOBS_FAILED = "owner/project#2: jobs answered HTTP 404"
 QUEUE_CALL_FAILS = (
-    [
-        "partial: 1 queue run(s) not counted",
-        "WAIT-FOR-HOLD owner/project#2: a runner-pressure hold or its quiet period"
-        " withholds arm auto-merge or merge; wait until `pitboss pressure` is clear",
-        "WAIT-FOR-HOLD owner/lib#4: a runner-pressure hold or its quiet period"
-        " withholds the merge; wait until `pitboss pressure` is clear",
-        f"UNREADABLE {JOBS_FAILED}",
-    ],
+    ["partial: 1 queue run(s) not counted", f"UNREADABLE {JOBS_FAILED}"],
     0,
     JOBS_FAILED,
 )
 SWEEP_LINES = (
     "owner/project#1 [dirty] auto-merge=off pending=0 failed=[test (job 8)]",
-    "CONFLICT owner/project#1: merge main into branch-1",
-    "FAILED owner/project#1: test: failed step",
-    "WAIT-FOR-HOLD owner/project#2: a runner-pressure hold",  # keyword: hold-gate
+    "WORKER: owner/project#1: resolve the conflict",
     "queue=in_progress",
-    "WAIT-FOR-HOLD owner/lib#4: a runner-pressure hold",
     "RUNNER PRESSURE: 1 queue-run jobs",
     "STALE QUEUE RUN owner/project 11 (pr-2, queued)",
     "QUEUE RUN owner/project 12 (pr-2, in_progress): 48 of 60 minutes",
@@ -48,7 +38,7 @@ SWEEP_LINES = (
     "STALE WORKTREE {workspace}/merged-work [merged-work] (its PR merged)",
     "SWEEP REMINDER: Is any ticket closeable?",
     "EMPTY SLOT: tiny (small)",
-    "SLOTS FREE 1: ",
+    "SLOTS FREE: 2",
 )
 CANCEL_LINES = (
     "CANCELLED STALE QUEUE RUN owner/project 11 (dry run",
@@ -127,22 +117,12 @@ def reviewed_third(reviewed: str | None) -> world.World:
     here.bodies[compare + head] = {"commits": [fix]}
     here.bodies[compare + "4" * 40] = {"commits": []}
     if reviewed:
+        runs = world.project_page(f"commits/{reviewed}/check-runs")
+        here.bodies.setdefault(runs, {"check_runs": []})
         body = f"## Review\nReviewed: {reviewed}\nVerdict: approved\n"
         comments = world.project_page("issues/3/comments")
         here.bodies[comments] = [dict(world.COMMENT, body=body)]
     return quietworld.calm(here)
-
-
-def failed_line(here: world.World) -> str:
-    """The FAILED line of the first PR in a sweep.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The line.
-    """
-    return [x for x in sweep(here).out.splitlines() if x.startswith("FAILED")][0]
 
 
 def free_lines(result: world.Result) -> Sequence[str]:
@@ -182,6 +162,18 @@ def clear_queue(here: world.World) -> None:
     here.bodies[OPEN_PULLS] = []
 
 
+def third_line(out: str) -> str:
+    """PR 3's line of the sweep.
+
+    Args:
+        out: what the sweep printed.
+
+    Returns:
+        The line that starts with PR 3.
+    """
+    return "".join(x for x in out.splitlines() if x.startswith("owner/project#3 "))
+
+
 class TestSweep(unittest.TestCase):
     """The sweep and the pressure check."""
 
@@ -208,20 +200,19 @@ class TestSweep(unittest.TestCase):
         found = (expected in result.out, "Traceback" in result.err, result.code)
         assert_that(found, equal_to((True, False, 0)))
 
-    def test_sweep_goes_on_when_one_call_fails(self) -> None:
-        """One PR's failed API call is a line naming it; the others are swept (#101)."""
+    def test_sweep_fails_when_a_read_is_answered_with_an_error(self) -> None:
+        """A PR's read GitHub answers 404: no decision on a partial world."""
         here = quietworld.calm(syncworld.make_synced().here)
         here.bodies[OPEN_PULLS] = [{"number": 1}, {"number": 2}]
         world.unread_first(here)
         result = sweep(here)
-        expected = "UNREADABLE owner/project#1: check-runs answered HTTP 404"
         found = (
-            expected in result.out,
-            "READY TO MERGE owner/project#2" in result.out,
+            "READ FAILED: repos/owner/project/commits/" in result.err,
+            "NEXT " in result.out,
             "Traceback" in result.err,
             result.code,
         )
-        assert_that(found, equal_to((True, True, False, 0)))
+        assert_that(found, equal_to((True, False, False, 1)))
 
     def test_sweep_goes_on_when_a_queue_run_call_fails(self) -> None:
         """A queue run whose jobs call fails is named and the sweep goes on (#101)."""
@@ -232,23 +223,8 @@ class TestSweep(unittest.TestCase):
         lines = result.out.splitlines()
         pressure = world.again(here, "pressure").code  # a failed call is no free runner
         found = [x.rsplit("; ", 1)[-1] for x in lines if "partial" in x]
-        found += [x for x in lines if "jobs answered" in x or "WAIT-FOR-HOLD" in x]
+        found += [x for x in lines if "jobs answered" in x]
         assert_that((found, result.code, pressure), equal_to(QUEUE_CALL_FAILS))
-
-    def test_sweep_says_why(self) -> None:
-        """A failed check's line says its failed step, output and annotations."""
-        expected = (
-            "FAILED owner/project#1: test: failed step 'Run bats check'"
-            " | check failed | 1 error | src/a.bats:3: bad type"
-        )
-        assert_that(failed_line(world.make_world()), equal_to(expected))
-
-    def test_sweep_says_nothing_when_nothing_is_read(self) -> None:
-        """A failed check GitHub answers nothing for is named alone."""
-        here = world.make_world()
-        for path in (world.RED_JOB, world.RED_RUN, world.RED_NOTES):
-            del here.bodies[path]
-        assert_that(failed_line(here), equal_to("FAILED owner/project#1: test"))
 
     def test_sweep_healthy(self) -> None:
         """With no red or conflicted PR the sweep exits 0."""
@@ -256,16 +232,16 @@ class TestSweep(unittest.TestCase):
         here.bodies[OPEN_PULLS] = [{"number": 2}]
         exits(sweep(here), 0)
 
-    def test_auto_merge_off_needs_an_approved_head(self) -> None:
-        """No review and an older head's get no AUTO MERGE OFF; approval does (#85)."""
+    def test_a_review_counts_only_for_the_head_it_names(self) -> None:
+        """No review and an older head's are not counted; the head's is (#85)."""
         found = [
-            "AUTO MERGE OFF owner/project#3" in sweep(reviewed_third(each)).out
+            "review=approved-this-head" in third_line(sweep(reviewed_third(each)).out)
             for each in (None, "4" * 40, "3" * 40)
         ]
         assert_that(found, equal_to([False, False, True]))
 
     def test_slots_free(self) -> None:
-        """Free slots with work queued print SLOTS FREE n, a PR's round holds one."""
+        """Work prints SLOTS FREE, a datum of the answer; no work prints none."""
         found = []
         for taken, empty_queue in (
             ((), False),
@@ -278,7 +254,7 @@ class TestSweep(unittest.TestCase):
             if empty_queue:
                 clear_queue(here)
             found.append(free_lines(sweep(here)))
-        expected = [["SLOTS FREE 1: "], [], [], []]
+        expected = [["SLOTS FREE: "]] * 3 + [[]]
         assert_that(found, equal_to(expected))
 
     def test_unreadable_project(self) -> None:

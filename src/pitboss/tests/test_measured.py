@@ -172,7 +172,7 @@ class TestTheCommandsThatAreMeasured(unittest.TestCase):
         assert_that(lines[-len(tail) :], equal_to(tail))
         says(tail[0], "slots next: ")
         assert_that(tail[-1], matches_regexp(PREFIX + r"all: GitHub API \d+ calls"))
-        says(" ".join(tail), "ranking: ", "lists and briefs printed: ")
+        says(" ".join(tail), "world read and decided: ", "lists and briefs printed: ")
 
     def test_the_sweep_ends_with_its_breakdown_too(self) -> None:
         """The sweep keeps the clock the command gave it: one set of lines."""

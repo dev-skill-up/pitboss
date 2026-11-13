@@ -15,13 +15,12 @@ class TestOrders(unittest.TestCase):
     """The cases of the order of work."""
 
     def test_i26_a_blocked_pr_has_no_step(self) -> None:
-        """The B10 tests: a blocker in the body takes the step away."""
+        """The B10 test: a blocker in the body takes the decision away."""
         ran = shown(
-            "test_slots_rules",
-            "test_b10_a_pr_blocked_on_another_ticket_has_no_step",
-            "test_b10_a_closed_blocker_or_its_own_ticket_blocks_nothing",
+            "test_one_path_rules",
+            "test_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request",
         )
-        assert_that(ran >= 2, "both ran")
+        assert_that(ran >= 1, "it ran")
 
     def test_i34_a_queued_run_with_later_completed_runs_is_stuck(self) -> None:
         """The B22 tests: the line, and none without a later completed run."""

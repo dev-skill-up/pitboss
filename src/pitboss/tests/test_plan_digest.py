@@ -16,7 +16,7 @@ from .. import (
     shapes,
     steps,
 )
-from . import fakes, world
+from . import decisionline, fakes, world
 from . import test_plan_digest_urls as urls
 from .test_plan_digest_urls import pointed
 from .briefmake import text as brief_text
@@ -28,7 +28,6 @@ from .test_flow_sweep import (
     CHANGES,
     DIRTY,
     graded,
-    listed_for_third,
     world_with,
 )
 from .test_slot_commands import next_output
@@ -40,9 +39,11 @@ EDITED_EXECUTION = "## Plan\nthe plan\n\n## Execution\nthe work, and more\n"
 
 
 LINE = f"Plan digest: {digest(PLAN)}"
-EDIT_LINE = "PLAN EDITED owner/project#3"
-RULING_DUE = "RULING DUE owner/project#3"
+# keyword: one-path: the decisions of PR 3 the sweep and the list print
+EDIT_LINE = "RULING: owner/project#3: the Plan was edited after its approval"
+RULING_DUE = "RULING: owner/project#3: start an Opus agent"
 RULING_WORDS = "revise the plan"
+THIRD = "owner/project#3"
 PLAN_DIGEST_START = "Plan digest: you grade the Plan, so add "
 NO_PLAN = "## Execution\nwork\n"
 
@@ -92,8 +93,7 @@ def looked_at(rounds: Sequence[shapes.Comment], body: str) -> tuple[str, str]:
     """
     here = world_with(rounds, body=body)
     swept = [x for x in sweep(here).out.splitlines() if "project#3 " in x]
-    listed = [x for x in next_output(here).splitlines() if "project#3 (" in x]
-    return "".join(swept), "".join(listed)
+    return "".join(swept), decisionline.of(next_output(here), "owner/project#3")
 
 
 def plan_digest_run(text: str) -> tuple[object, str, str]:
@@ -161,7 +161,7 @@ class TestThePlanEditedLine(unittest.TestCase):
     """The sweep's line and the list of ``slots next``."""
 
     def test_an_edited_plan_is_named_and_offered_for_no_round(self) -> None:
-        """The sweep prints PLAN EDITED, and slots next prints the ruling brief for it.
+        """The decision is the ruling on the edit, with the ruling brief for it.
 
         Keyword plan-edited-brief, quire#1115: no brief was offered, so one was
         built by hand.
@@ -169,7 +169,7 @@ class TestThePlanEditedLine(unittest.TestCase):
         here = world_with([approving(1)], body=EDITED_PLAN)
         swept, listed = looked_at([approving(1)], EDITED_PLAN)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, equal_to(""))
+        assert_that(listed, contains_string(EDIT_LINE))
         offered = next_output(here)
         assert_that(offered, contains_string("make an Opus ruling: owner/project#3"))
         assert_that(offered, contains_string("PITBOSS-SLOT: owner/project#3 ruling"))
@@ -178,7 +178,7 @@ class TestThePlanEditedLine(unittest.TestCase):
         """The line names the PR and the way out."""
         out = sweep(world_with([approving(1)], body=EDITED_PLAN)).out
         assert_that(out, contains_string(EDIT_LINE))
-        assert_that(out, contains_string("only a ruling `revise the plan`"))
+        assert_that(out, contains_string("a ruling that says `revise the plan`"))
 
     def test_an_unedited_plan_has_no_line_and_the_ruling_is_due(self) -> None:
         """The Execution rejection is ruled on against the Plan as written."""
@@ -213,17 +213,17 @@ class TestThePlanEditedLine(unittest.TestCase):
         rounds = [approving(1), graded(CHANGES, None, 2)]
         _, edited = looked_at(rounds, EDITED_PLAN)
         _, unedited = looked_at(rounds, PLAN)
-        assert_that(edited, equal_to(""))
-        assert_that(unedited, contains_string("(revise the plan,"))
+        assert_that(edited, contains_string(EDIT_LINE))
+        assert_that(unedited, contains_string(": revise the PLAN only"))
 
-    def test_a_dirty_pr_with_an_edited_plan_waits_for_the_restoring(self) -> None:
-        """The conflict waits like the other holds: PLAN_EDITED is in WAITS."""
+    def test_a_dirty_pr_with_an_edited_plan_is_ruled_on_first(self) -> None:
+        """The edit is decided before the conflict: PLAN_EDITED is unresolved."""
         assert_that(steps.Step.PLAN_EDITED in steps.UNRESOLVED, equal_to(True))
         here = world_with([approving(1)], body=EDITED_PLAN, **DIRTY)
         out = sweep(here).out
         assert_that(out, contains_string(EDIT_LINE))
-        assert_that(out, contains_string("CONFLICT owner/project#3"))
-        assert_that(listed_for_third(here), equal_to([]))
+        third = decisionline.of(out, THIRD)
+        assert_that("resolve the conflict" in third, equal_to(False))
 
     def test_a_ruling_before_the_approval_does_not(self) -> None:
         """The ruling must come after the approval."""
@@ -233,9 +233,9 @@ class TestThePlanEditedLine(unittest.TestCase):
     def test_a_ruling_of_another_word_is_executed_not_held(self) -> None:
         """pitboss#475: `do these steps` is offered at once, not PLAN EDITED."""
         rounds = [approving(1), ruling(2, "do these steps")]
-        swept, listed = looked_at(rounds, EDITED_PLAN)
-        assert_that(listed, contains_string("(do the ruling's steps,"))
-        assert_that(EDIT_LINE in swept, equal_to(False))
+        _, listed = looked_at(rounds, EDITED_PLAN)
+        steps_line = ": do exactly the steps of the Opus ruling"
+        assert_that(listed, contains_string(steps_line))
 
 
 class TestTheDigestOfAPlanWithCiPointers(unittest.TestCase):

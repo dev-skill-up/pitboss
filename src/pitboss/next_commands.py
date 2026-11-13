@@ -35,5 +35,5 @@ def show_next(args: argparse.Namespace) -> None:
     """
     tracefs.say(args.safe_run)
     found = load_context(args)
-    onepath.answer_of(found, onepath.mode_of(args, found, {}))
+    onepath.answer_of(found)
     repoaccess.finish(found.access)

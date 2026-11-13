@@ -11,15 +11,7 @@ import pathlib
 import subprocess
 from typing import AbstractSet, Iterable, Sequence
 
-from . import (
-    handbackrecord,
-    ledger,
-    local,
-    nextfound,
-    pulls,
-    running,
-    work,
-)
+from . import handbackrecord, ledger, listed, local, nextfound, running, slotholder
 
 
 def _worktree_dir(found: nextfound.Found, branch: str) -> pathlib.Path | None:
@@ -37,32 +29,29 @@ def _worktree_dir(found: nextfound.Found, branch: str) -> pathlib.Path | None:
         return None
 
 
-def _recorded(found: nextfound.Found, pull: pulls.PullFacts) -> bool:
-    directory = _worktree_dir(found, pull.pull.head.branch)
-    return directory is not None and handbackrecord.recorded(
-        directory, pull.pull.head.sha
-    )
+def _recorded(found: nextfound.Found, row: listed.Listed) -> bool:
+    directory = _worktree_dir(found, row.branch)
+    return directory is not None and handbackrecord.recorded(directory, row.head)
 
 
 def _done(
-    found: nextfound.Found, slot: ledger.Slot, facts: Sequence[pulls.PullFacts]
+    found: nextfound.Found, slot: ledger.Slot, rows: Sequence[listed.Listed]
 ) -> bool:
     wanted = {slot.task, slot.ticket}
     return any(
-        wanted & (work.taken([pull]) | {pulls.reference(pull)})
-        and _recorded(found, pull)
-        for pull in facts
+        wanted & {*row.works_on, row.reference} and _recorded(found, row)
+        for row in rows
     )
 
 
 def slots(
-    found: nextfound.Found, opened: Sequence[pulls.Read], book: ledger.Ledger
+    found: nextfound.Found, rows: Sequence[listed.Listed], book: ledger.Ledger
 ) -> Sequence[ledger.Slot]:
     """The slots whose worker's PR head is a recorded hand-back.
 
     Args:
         found: the context.
-        opened: the open PRs, read or not.
+        rows: the open PRs, as listed.
         book: the ledger.
 
     Returns:
@@ -70,8 +59,7 @@ def slots(
         head that ``hand-back-check`` accepted in the PR's worktree.
     """
     held = [each for each in book.slots if each.agent and (each.task or each.ticket)]
-    facts = pulls.readable(opened) if held else []
-    return [each for each in held if _done(found, each, facts)]
+    return [each for each in held if _done(found, each, rows)]
 
 
 def release(args: argparse.Namespace, agents: Iterable[str]) -> AbstractSet[str]:
@@ -94,17 +82,18 @@ def release(args: argparse.Namespace, agents: Iterable[str]) -> AbstractSet[str]
     return done
 
 
-def agents(
-    found: nextfound.Found, opened: Sequence[pulls.Read], book: ledger.Ledger
-) -> AbstractSet[str]:
-    """The workers of ``slots`` that handed back, cut from the running agents.
+def ledger_after_hand_backs(
+    found: nextfound.Found, rows: Sequence[listed.Listed], book: ledger.Ledger
+) -> ledger.Ledger:
+    """The ledger less the slots whose worker handed back (keyword: hand-back-done).
 
     Args:
         found: the context.
-        opened: the open PRs, read or not.
-        book: the ledger.
+        rows: the open PRs, as listed.
+        book: the ledger as the live agents make it.
 
     Returns:
-        Their agents.
+        The ledger, each slot whose worker's PR head is a recorded hand-back empty.
     """
-    return release(found.args, (each.agent for each in slots(found, opened, book)))
+    done = release(found.args, (each.agent for each in slots(found, rows, book)))
+    return slotholder.without(book, done)

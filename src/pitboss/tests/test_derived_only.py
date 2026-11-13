@@ -6,8 +6,9 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import mergesonly, shapes, tasklist
-from . import quietworld, world
+from .. import mergesonly, shapes
+from . import decisionline, quietworld, world
+from .suggestions import kind_of_third
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, OLDER, graded, world_with
 
@@ -16,30 +17,30 @@ SOURCE = "src/pitboss/pulls.py"
 RENAMED: Mapping[str, str] = {"filename": SOURCE, "previous_filename": ZIP}
 
 
-def third_line(files: Sequence[Mapping[str, str]]) -> str:
-    """What the sweep prints for PR 3, approved at an older head.
+def approved_older(files: Sequence[Mapping[str, str]]) -> world.World:
+    """A world where PR 3 was approved at an older head.
 
     Args:
         files: the files the one commit since that head changes.
 
     Returns:
-        The sweep's lines of PR 3.
+        The world.
     """
     here = world_with([graded("approved", APPROVED, 1, OLDER)])
     here.bodies.update({f"{world.PROJECT}/commits/2": {"files": files}})
-    return "\n".join(filter(is_third, sweep(quietworld.calm(here)).out.splitlines()))
+    return quietworld.calm(here)
 
 
-def is_third(line: str) -> bool:
-    """Whether a sweep line is about PR 3.
+def third_line(files: Sequence[Mapping[str, str]]) -> str:
+    """PR 3's state line in the sweep, approved at an older head.
 
     Args:
-        line: the line.
+        files: the files the one commit since that head changes.
 
     Returns:
-        True for PR 3's.
+        The line.
     """
-    return "project#3" in line and not line.startswith(tasklist.LABEL)
+    return decisionline.state(sweep(approved_older(files)).out, "owner/project#3")
 
 
 def named(*names: str) -> Sequence[Mapping[str, str]]:
@@ -55,21 +56,23 @@ def named(*names: str) -> Sequence[Mapping[str, str]]:
 
 
 class TestSweepLines(unittest.TestCase):
-    """The sweep line of a PR approved before a commit that changes files."""
+    """The review of a PR approved before a commit that changes files."""
 
     def test_only_the_zip_is_approved_before_merges(self) -> None:
-        """Only skill-zips/ differs: approved, and READY TO MERGE holds."""
-        swept = third_line(named(ZIP))
-        assert_that(swept, contains_string("review=approved-before-merges"))
-        assert_that(swept, contains_string("READY TO MERGE owner/project#3"))
+        """Only skill-zips/ differs: approved, and the review is of the resolution."""
+        assert_that(
+            third_line(named(ZIP)), contains_string("review=approved-before-merges")
+        )
+        kind = kind_of_third(approved_older(named(ZIP)))
+        assert_that(kind, equal_to("review the merge resolution only"))
 
     def test_the_zip_and_another_file_is_reviewed_as_before(self) -> None:
         """A mixed diff stays an older head; so do the nearest names."""
         mixed = [named(ZIP, SOURCE), named("skill-zips.txt"), [RENAMED]]
         for files in mixed:
-            swept = third_line(files)
-            assert_that(swept, contains_string("review=older-head"))
-            assert_that("READY TO MERGE" in swept, equal_to(False))
+            assert_that(third_line(files), contains_string("review=older-head"))
+            kind = kind_of_third(approved_older(files))
+            assert_that(kind, equal_to("review the Execution"))
 
 
 class TestParts(unittest.TestCase):

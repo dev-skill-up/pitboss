@@ -2,7 +2,7 @@
 
 In a repository with a merge queue the sweep never offers an update or a merge of
 the base into a PR but for a conflict, and a PR red only from checks that passed
-on the base since is enqueued when approved and reviewed when not.
+on the base since is reviewed (an approved one stays at the act verdict's red row).
 """
 
 import dataclasses
@@ -11,8 +11,8 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import basefix, fixedline, flow, headchecks, reviews, shapes, steps, stepwords
-from . import fakes, quietworld, syncworld, test_commands, test_flow, test_work, world
+from .. import basefix, flow, shapes, steps, stepwords
+from . import fakes, quietworld, syncworld, test_commands, test_flow, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -51,18 +51,10 @@ BASE_NEWER_FAILED = dict(
 )
 BASE_OTHER = dict(BASE_PASSED, name="lint")
 ENQUEUE = "enqueue it (the merge queue tests it on main)"
-REQUEST = "request the review"
-FIXED = (
-    "FIXED ON BASE owner/project#{n}: test (job 8) failed at 2026-10-01T10:00:00Z,"
-    " passed on the base at 2026-10-01T12:00:00Z (job 99); the red CI is no work"
-    " and main is not merged into branch-{n}: {action}"
-)
-FIXED_3 = FIXED.format(n=3, action=REQUEST)
-FIXED_2 = FIXED.format(n=2, action=ENQUEUE)
-FAILED_3 = "FAILED owner/project#3: test"
-CONFLICT_3 = "CONFLICT owner/project#3: merge main into branch-3"
-REVIEW_3 = "owner/project#3 (review it"
-STATE_3 = "PR STATE owner/project#3: next step: "
+REQUEST_3 = "REVIEWER: owner/project#3: request the review: "
+REVIEW_3 = "REVIEWER: owner/project#3: grade Plan and Execution together"
+CONFLICT_3 = "WORKER: owner/project#3: resolve the conflict"
+TRIAGE_2 = "ORCHESTRATOR: owner/project#2: triage the red"
 FIX_CI_3 = "WORKER: owner/project#3: fix CI on the head"
 RED = dataclasses.replace(test_flow.RED, completed_at=FAILED_AT)
 PASSED = shapes.CheckRun(
@@ -120,9 +112,9 @@ def add_pull(
         here.bodies[path] = {"check_runs": list(runs)}
 
 
-# each: what the world is, the sweep lines that start with a text (or not), the
-# words ``slots next`` has (or not), and whether the base's check runs were read
-Case = tuple[str, dict[str, object], Mapping[str, bool], Mapping[str, bool], bool]
+# each: what the world is, the words ``slots next`` has (or not), and whether the
+# base's check runs were read
+Case = tuple[str, dict[str, object], Mapping[str, bool], bool]
 
 
 def unpassed(label: str, base: Sequence[object]) -> Case:
@@ -138,8 +130,7 @@ def unpassed(label: str, base: Sequence[object]) -> Case:
     return (
         f"red, the base has not passed it since ({label})",
         {"pr": (3, "behind"), "base": base},
-        {FAILED_3: True, "FIXED ON BASE": False},
-        {FIX_CI_3: True},
+        {FIX_CI_3: True, REQUEST_3: False},
         True,
     )
 
@@ -148,36 +139,32 @@ CASES: Sequence[Case] = [
     (
         "behind, red, fixed on the base, no review",
         dict(pr=(3, "behind"), base=[BASE_PASSED]),
-        {FIXED_3: True, FAILED_3: False, "UPDATE": False, CONFLICT_3: False},
-        {REVIEW_3: True, FIX_CI_3: False, STATE_3 + REQUEST: True},
+        {REQUEST_3 + "grade Plan": True, FIX_CI_3: False, CONFLICT_3: False},
         True,
     ),
     (
+        # the act verdict's red-check row stops the merge step (act would refuse it)
         "clean, red, fixed on the base, approved",
         dict(pr=(2, "clean"), base=[BASE_PASSED]),
-        {FIXED_2: True, "FAILED owner/project#2": False, "READY TO MERGE": False},
-        {STATE_3.replace("#3", "#2") + ENQUEUE: True},
+        {TRIAGE_2: True, ENQUEUE: False},
         True,
     ),
     (
         "behind and conflicting, red, fixed on the base",
         dict(pr=(3, "dirty"), base=[BASE_PASSED]),
-        {CONFLICT_3: True, "FIXED ON BASE owner/project#3": False},
-        {"owner/project#3 (resolve the conflict": True, FIX_CI_3: False},
+        {CONFLICT_3: True, FIX_CI_3: False},
         True,
     ),
     (
         "behind but mergeable, green",
         dict(pr=(3, "behind"), base=[], checks=[GREEN_RUN]),
-        {"UPDATE": False, "FIXED ON BASE": False, "FAILED owner/project#3": False},
-        {REVIEW_3: True, "(update": False},
+        {REVIEW_3: True, REQUEST_3: False},
         True,  # PR 1 of the world is red
     ),
     (
         "red, fixed on the base, in a repository with no merge queue",
         dict(pr=(3, "behind"), base=[BASE_PASSED], extra=""),
-        {FAILED_3: True, "FIXED ON BASE": False},
-        {FIX_CI_3: True},
+        {FIX_CI_3: True, REQUEST_3: False},
         True,  # shared-red reads main's runs to see a cause main shares
     ),
     *[
@@ -198,18 +185,17 @@ CASES: Sequence[Case] = [
 class TestSweep(unittest.TestCase):
     """``pitboss sweep`` and ``pitboss slots next`` of a merge-queue repository."""
 
-    def test_a_pr_gets_the_line_its_state_calls_for(self) -> None:
-        """Only a conflict is merged; a red CI the base passed is enqueued or not."""
-        for label, build, said, listed, read in CASES:
+    def test_a_pr_gets_the_decision_its_state_calls_for(self) -> None:
+        """Only a conflict is merged; a red CI the base passed asks for the review."""
+        for label, build, listed, read in CASES:
             with self.subTest(label):
                 here = quietworld.unheld(red_world(**build))  # type: ignore[arg-type]
-                out, text = sweep(here).out.splitlines(), next_output(here)
+                text = next_output(here)
                 found = (
-                    {head: any(line.startswith(head) for line in out) for head in said},
                     {word: word in text for word in listed},
                     any("commits/main/check-runs" in " ".join(c) for c in here.calls),
                 )
-                assert_that(found, equal_to((said, listed, read)))
+                assert_that(found, equal_to((listed, read)))
 
 
 def exit_and_logs(base: Sequence[object]) -> tuple[int, bool]:
@@ -236,24 +222,6 @@ class TestExit(unittest.TestCase):
         """Answered: exit 0 and no log read; unanswered: exit 1 and the log read."""
         found = [exit_and_logs(base) for base in ([BASE_PASSED], [])]
         assert_that(found, equal_to([(0, False), (1, True)]))
-
-
-class TestLine(unittest.TestCase):
-    """``fixedline.lines`` alone."""
-
-    def test_another_step_is_named_as_it_is(self) -> None:
-        """A review that asked for changes: the fix of the review, no CI fix."""
-        step = steps.worker(steps.Task.FIX_EXECUTION)
-        pull = dataclasses.replace(
-            test_work.facts(3, reviews.Standing.CHANGES_NEEDED),
-            checks=(RED,),
-            step=step,
-            signals=headchecks.HeadSignals(fixed=[ANSWER]),
-        )
-        assert_that(
-            fixedline.lines(pull)[0].endswith(f"next step: {stepwords.describe(step)}"),
-            equal_to(True),
-        )
 
 
 class TestAnswers(unittest.TestCase):
@@ -317,4 +285,6 @@ class TestFlow(unittest.TestCase):
             stepwords.describe(dataclasses.replace(review, on_base=True)),
             stepwords.describe(merge).startswith(ENQUEUE),
         ]
-        assert_that(said, equal_to([ENQUEUE, f"{REQUEST}: {both.value}", False]))
+        assert_that(
+            said, equal_to([ENQUEUE, f"request the review: {both.value}", False])
+        )

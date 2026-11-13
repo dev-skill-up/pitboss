@@ -1,6 +1,7 @@
 """The one decider on hand-made worlds (keyword: one-path)."""
 
 import unittest
+from typing import Sequence
 
 from hamcrest import assert_that, equal_to, instance_of
 
@@ -9,7 +10,16 @@ from .. import answer, decide, ledger, shapes, steps, world
 BOOK = ledger.Ledger(slots=[], failed={})
 
 
-def _ticket(number: int, **changes: bool) -> world.TicketRecord:
+def ticket(number: int, **changes: bool) -> world.TicketRecord:
+    """A p2 ticket of ``o/r``, as the walk reads it.
+
+    Args:
+        number: its number.
+        **changes: ``superseded`` or ``blocked``.
+
+    Returns:
+        Its record.
+    """
     issue = shapes.Issue(
         number=number,
         title=f"ticket {number}",
@@ -27,7 +37,15 @@ def _ticket(number: int, **changes: bool) -> world.TicketRecord:
     )
 
 
-def _decision(number: int) -> answer.Decision:
+def decision_of(number: int) -> answer.Decision:
+    """The decision the one decider makes for a startable ticket of ``o/r``.
+
+    Args:
+        number: its number.
+
+    Returns:
+        The decision.
+    """
     return answer.Decision(
         actor=answer.Actor.WORKER,
         verb=steps.FIRST_STEP,
@@ -36,8 +54,16 @@ def _decision(number: int) -> answer.Decision:
     )
 
 
-def _work(numbers: list[int]) -> answer.Work:
-    every = [_decision(n) for n in numbers]
+def work_of(numbers: Sequence[int]) -> answer.Work:
+    """The work of startable tickets of ``o/r``, in order, with one free slot.
+
+    Args:
+        numbers: their numbers.
+
+    Returns:
+        The work.
+    """
+    every = [decision_of(n) for n in numbers]
     return answer.Work(first=every[0], rest=every[1:], free=1)
 
 
@@ -45,7 +71,15 @@ def _world(walk: world.Walk) -> world.World:
     return world.World(listing=[], walk=walk, named=[], book=BOOK, free=1)
 
 
-def _answer(walk: world.Walk) -> answer.Answer:
+def answer_of(walk: world.Walk) -> answer.Answer:
+    """What the one decider answers for a walk.
+
+    Args:
+        walk: the walk.
+
+    Returns:
+        The answer.
+    """
     return decide.decide(_world(walk)).decided.answer
 
 
@@ -58,21 +92,21 @@ class TestNotEnoughWork(unittest.TestCase):
             world.Kept(reference="o/r#1", by=world.Keeper.PULL),
             world.Kept(reference="o/r#2", by=world.Keeper.HOLD),
             world.Kept(reference="o/r#3", by=world.Keeper.SLOT),
-            _ticket(4, blocked=True),
-            _ticket(5, superseded=True),
+            ticket(4, blocked=True),
+            ticket(5, superseded=True),
         ]
         found = decide.decide(_world(world.Exhausted(examined=examined)))
         assert_that(found.decided.answer, instance_of(answer.NotEnoughWork))
         assert_that(found.decided.by_item, equal_to({}))
 
-    def test_a_startable_ticket_on_a_last_page_is_work(self) -> None:
+    def test_b2_a_blocked_ticket_is_skipped_and_a_startable_one_is_work(self) -> None:
         """One startable p2 ticket after the waiting ones is the work, named."""
-        examined: list[world.Record] = [_ticket(4, blocked=True), _ticket(6)]
-        given = _answer(world.Exhausted(examined=examined))
-        assert_that(given, equal_to(_work([6])))
+        examined: list[world.Record] = [ticket(4, blocked=True), ticket(6)]
+        given = answer_of(world.Exhausted(examined=examined))
+        assert_that(given, equal_to(work_of([6])))
 
     def test_a_stopped_walk_is_work(self) -> None:
         """A walk that reached its stop answers its decisions, in order."""
-        examined: list[world.Record] = [_ticket(n) for n in range(1, 6)]
-        given = _answer(world.Stopped(examined=examined, stop=5))
-        assert_that(given, equal_to(_work([1, 2, 3, 4, 5])))
+        examined: list[world.Record] = [ticket(n) for n in range(1, 6)]
+        given = answer_of(world.Stopped(examined=examined, stop=5))
+        assert_that(given, equal_to(work_of([1, 2, 3, 4, 5])))

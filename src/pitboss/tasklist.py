@@ -1,10 +1,9 @@
 """The orchestrator's task list: the sweep's ``TASK LIST`` block (keyword: task-list).
 
 The block is the items the sweep says are in flight (a slot holds an agent on
-them) or next (the ``NEXT`` order of ``slots next``, pitboss#344), one line each, for
-the orchestrator to post as it is. Its ``next`` line 1 is the running workers and
-reviewers, and a step that waits for a free slot ends with the ``QUEUED`` words
-(pitboss#291). A ticket that was filed or asked for is not
+them) or next (the decisions of ``slots next``, pitboss#344, keyword: one-path), one
+line each, for the orchestrator to post as it is. Its ``next`` line 1 is the running
+workers and reviewers. A ticket that was filed or asked for is not
 added to the list by the orchestrator: it joins only when the block names it, so a
 ticket outside the order (a priority label below the configured ones, a held or
 blocked ticket) is not in it. ``sweep --task-list FILE`` refuses a line of the
@@ -17,7 +16,7 @@ from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import config, ledger, pulls, slotheld, slotsheader, work
+from . import answer, config, ledger, pulls, render, slotheld, slotsheader
 from .markers import Marker
 
 ARGUMENT = add_argument(
@@ -39,10 +38,7 @@ _REFERENCE = re.compile(r"(?:[\w.-]+/[\w.-]+)?#\d+")
 
 
 def block(
-    book: ledger.Ledger,
-    ready: Sequence[str],
-    items: Sequence[work.Item],
-    taken: slotheld.Occupancy = slotheld.UNLIMITED,
+    book: ledger.Ledger, given: answer.Answer, named: Sequence[ledger.Slot]
 ) -> Sequence[str]:
     """The ``TASK LIST`` block: the header, what is in flight, then what is next.
 
@@ -50,26 +46,20 @@ def block(
     task-list-live, pitboss#415), so the free slot is the first thing it says.
 
     Its first ``next`` line (1) is the running workers and reviewers line; the
-    items are numbered as ``slots next`` numbers them after ``ready``, and an item
-    that waits for a free slot ends with the ``QUEUED`` words.
+    decisions follow, numbered as ``slots next`` numbers them.
 
     Args:
         book: the ledger; a slot with an agent is in flight.
-        ready: the texts of the ``NEXT`` lines of the drafts to mark ready.
-        items: the ordered items.
-        taken: what holds the slots.
+        given: what is next (``project.what_next``).
+        named: the slots said to be in flight (``slotholding.flying``): none
+            when the running agents are not known.
 
     Returns:
         The lines, one for each ticket (or PR) and no other.
     """
     flying = slotsheader.running(book)
     free = [] if flying else [f"{Marker.NO_AGENT_RUNNING.text}: the slot is free"]
-    return [
-        HEADER,
-        *free,
-        *(_flight(each) for each in flying if taken.known),
-        *_next_lines(ready, items, taken),
-    ]
+    return [HEADER, *free, *map(_flight, named), *_next_lines(given)]
 
 
 def _flight(slot: ledger.Slot) -> str:
@@ -79,17 +69,17 @@ def _flight(slot: ledger.Slot) -> str:
     )
 
 
-def live_lines(book: ledger.Ledger, opened: Sequence[pulls.Read]) -> Sequence[str]:
+def live_lines(book: ledger.Ledger, facts: Sequence[pulls.PullFacts]) -> Sequence[str]:
     """A line for each open PR: its CI state and the agent that owns it.
 
     Args:
         book: the ledger.
-        opened: the open PRs, read or not.
+        facts: the open PRs read.
 
     Returns:
         The lines (keyword: task-list-live, pitboss#415).
     """
-    return [_open_line(each, book) for each in pulls.readable(opened)]
+    return [_open_line(each, book) for each in facts]
 
 
 def _ci_state(pull: pulls.PullFacts) -> str:
@@ -111,39 +101,30 @@ def _open_line(pull: pulls.PullFacts, book: ledger.Ledger) -> str:
     )
 
 
-def _queued(each: work.Item, taken: slotheld.Occupancy) -> str:
-    return f" {slotheld.QUEUED}" if slotheld.waits(taken, each.reference) else ""
-
-
-def _next_lines(
-    ready: Sequence[str], items: Sequence[work.Item], taken: slotheld.Occupancy
-) -> Sequence[str]:
+def _next_lines(given: answer.Answer) -> Sequence[str]:
     found = [f"{LABEL} next {slotheld.LEAD}. {slotheld.RUNNING_FIRST}"]
-    first = slotheld.LEAD + 1
-    for index, text in enumerate(ready, start=first):
-        found.append(f"{LABEL} next {index}. {text}")
-    for index, each in enumerate(items, start=len(ready) + first):
-        title = each.title[:60]
-        found.append(f"{LABEL} next {index}. {each.reference}: {title}")
-        found[-1] += _queued(each, taken)
+    match given:
+        case answer.Work():
+            listed = render.every(given)
+        case answer.NotEnoughWork():
+            return [*found, f"{LABEL} {render.NOT_ENOUGH_WORK}"]
+    for index, each in enumerate(listed, start=slotheld.LEAD + 1):
+        line = render.decision_line(each)
+        found.append(f"{LABEL} next {index}. {line} ({each.title[:60]})")
     return found
 
 
 def print_block(
-    book: ledger.Ledger,
-    ready: Sequence[str],
-    items: Sequence[work.Item],
-    taken: slotheld.Occupancy = slotheld.UNLIMITED,
+    book: ledger.Ledger, given: answer.Answer, named: Sequence[ledger.Slot]
 ) -> None:
     """Print the ``TASK LIST`` block of a sweep.
 
     Args:
         book: the ledger.
-        ready: the texts of the ``NEXT`` lines of the drafts to mark ready.
-        items: the ordered items.
-        taken: what holds the slots.
+        given: what is next (``project.what_next``).
+        named: the slots said to be in flight.
     """
-    for line in block(book, ready, items, taken):
+    for line in block(book, given, named):
         print(line)
 
 

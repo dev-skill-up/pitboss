@@ -3,9 +3,10 @@
 A renderer decides nothing: it says the value it is given.
 """
 
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from . import answer, project
+from .markers import Marker
 
 NOT_DONE = "NOT DONE"  # a verb whose decision is another prints the one that stands
 NOT_ENOUGH_WORK = (
@@ -53,7 +54,8 @@ def answer_lines(given: answer.Answer) -> Sequence[str]:
             listed = every(given)
             total = len(listed)
             lines = [
-                f"NEXT {rank} of {total}. {decision_line(each)} ({each.title})"
+                f"{Marker.NEXT.text} {rank} of {total}. {decision_line(each)}"
+                f" ({each.title})"
                 for rank, each in enumerate(listed, start=1)
             ]
             return [*lines, f"SLOTS FREE: {given.free}"]
@@ -123,3 +125,16 @@ def first(given: answer.Answer) -> str:
             return decision_line(given.first)
         case answer.NotEnoughWork():
             return NOT_ENOUGH_WORK
+
+
+def item_lines(given: Mapping[str, answer.Decision], reference: str) -> Sequence[str]:
+    """The line of one item's decision, as the sweep says it under the item.
+
+    Args:
+        given: each decided item's decision (``project.by_item``).
+        reference: the item.
+
+    Returns:
+        Its decision's line; none when it has no decision.
+    """
+    return [decision_line(given[reference])] if reference in given else []

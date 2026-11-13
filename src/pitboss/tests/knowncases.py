@@ -7,7 +7,7 @@ twin through; ``test_known`` runs every table.
 import copy
 from typing import Mapping, MutableMapping
 
-from .. import rulecases
+from .. import actcore, rulecases
 from . import knownkit, knownplay
 from .knownkit import change, stops
 from .knownplay import (
@@ -37,8 +37,14 @@ def _merges_held(given: knownkit.Kit) -> bool:
     )
     hub = knownkit.made(given)
     held(given, hub, "merges")
+    # the act gate's first half: an owner message with no disposition refuses
+    pending = knownkit.made(given, owner=actcore.Owner(messages=["m1"]))
+    asked = "owner message m1" in knownkit.refusal(given, pending, "merge")
     return (
-        free and verb_refused(given, hub, "merge") and not pull_now(hub).get("merged")
+        free
+        and asked
+        and verb_refused(given, hub, "merge")
+        and not pull_now(hub).get("merged")
     )
 
 
@@ -172,22 +178,20 @@ def _rulings(given: knownkit.Kit) -> bool:
 
 @case(
     "G14",
-    "block record read by the verdict",
+    "block record read by the one read",
     "a PR that waits on another PR, known only to the orchestrator",
 )
 def _block(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(given)
-    knownkit.act(given, hub, "block", on="bats-lang/quire#1110")
-    timeline = hub.act.hub.timeline(knownkit.REPO, knownkit.NUMBER)
-    world = change(ctx={"timeline": timeline})
-    opened, closed = (
-        change(ctx={"timeline": timeline, "blockers": {"bats-lang/quire#1110": state}})
-        for state in ("open", "closed")
-    )
-    return (
-        stops(given, "merge", opened, "blocked:")
-        and stops(given, "merge", world, "blocked:")
-        and knownkit.goes(given, "merge", closed)
+    # keyword: one-path: the block is a Blocked-by line the one read reads
+    blocked = knownkit.made(given)
+    knownkit.act(given, blocked, "block", on="bats-lang/quire#1110")
+    body = str(pull_now(blocked).get("body"))
+    return all(
+        [
+            "\nBlocked-by: bats-lang/quire#1110\n" in body,
+            not knownkit.refusal(given, knownkit.made(given), "merge"),
+            "NOT DONE: merge" in knownkit.refusal(given, blocked, "merge"),
+        ]
     )
 
 

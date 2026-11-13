@@ -269,7 +269,7 @@ def read_outcomes(
         The outcome of each branch.
     """
     found: dict[str, shapes.Outcome] = {}
-    listed = ghapi.pages(github, f"repos/{repo.slug}/pulls?state=all", parsing.outcomes)
+    listed = ghapi.every_pull(github, repo.slug, parsing.outcomes)
     for outcome in listed:
         found.setdefault(outcome.branch, outcome)
     return found

@@ -1,7 +1,7 @@
 """The ``pins-review`` command: the review comment of a green relock (pitboss#350).
 
-This is the pins-review area. The sweep names the command on the ``PINS-ONLY OK``
-line of a relock PR in a gated repository whose review gate is pending.
+This is the pins-review area: the comment a relock PR in a gated repository needs
+when its review gate is pending.
 """
 
 import argparse
@@ -14,18 +14,16 @@ from . import (
     ENTRY_DATA,
     commandarguments,
     commands,
-    config,
     configsettle,
     expand_commands,
     gateform,
-    ghapi,
     ghstore,
+    onepath,
     pinsonly,
     pinsreading,
     pinsreview,
     pulls,
     repoarg,
-    shapes,
 )
 
 USAGE_ERROR = 2
@@ -35,31 +33,26 @@ def _refuse(why: str) -> NoReturn:
     raise SystemExit(f"pitboss pins-review: refused: {why}")
 
 
-def _facts(github: ghapi.GitHub, settings: config.Config, text: str) -> pulls.PullFacts:
-    found = expand_commands.PULL.match(text)
-    if not found:
+def _facts(found: commands.Context, text: str) -> pulls.PullFacts:
+    named = expand_commands.PULL.match(text)
+    if not named:
         print(f"{text}: not OWNER/NAME#NUMBER", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)
-    source = pulls.Source(
-        github=github,
-        review=settings.review,
-        undraft=lambda: True,
-        relock_prefix=settings.lint.relock_prefix,
-    )
-    repo = repoarg.named_repo(found.group(1), settings)
-    read = pulls.fetch_or_unreadable(source, repo, int(found.group(2)))
-    if isinstance(read, shapes.Unreadable):
-        _refuse(f"{read.reference}: {read.call} answered {read.status}")
-    return read
+    repo = repoarg.named_repo(named.group(1), found.settings)
+    reference = f"{repo.slug}#{named.group(2)}"
+    # keyword: one-path: the PR's record, read as ``next <item>`` reads it
+    records = onepath.pull_records(found, reference)
+    if not records:
+        _refuse(f"{reference}: no open PR of the configuration")
+    return records[0].facts
 
 
-def _cleared(
-    github: ghapi.GitHub, settings: config.Config, facts: pulls.PullFacts
-) -> pinsreading.Reading:
+def _cleared(found: commands.Context, facts: pulls.PullFacts) -> pinsreading.Reading:
+    settings = found.settings
     why = pinsreview.unready(facts, settings.lint.relock_prefix)
     if why:
         _refuse(why)
-    reading = pinsonly.verify(github.run, settings, facts.repo, facts.pull)
+    reading = pinsonly.verify(found.github.run, settings, facts.repo, facts.pull)
     why = pinsreview.unclear(reading)
     if why:
         _refuse(why)
@@ -76,6 +69,7 @@ def _cleared(
         " else the copy fetched by the repository's name)",
     ),
     commandarguments.DRY_RUN_ARGUMENT,
+    commandarguments.NOW_ARGUMENT,
     name="pins-review",
 )
 def pins_review(args: argparse.Namespace) -> None:
@@ -95,12 +89,11 @@ def pins_review(args: argparse.Namespace) -> None:
         args: the parsed arguments.
     """
     configsettle.find_or_say(args)
-    settings = commands.load_settings(args)
-    github = ghapi.GitHub(mutate=args.run, run=args.safe_run)
-    facts = _facts(github, settings, args.pull)
-    reading = _cleared(github, settings, facts)
-    form = gateform.read(args.safe_run, settings, facts.repo.slug).form
+    found = commands.load_context(args)
+    facts = _facts(found, args.pull)
+    reading = _cleared(found, facts)
+    form = gateform.read(args.safe_run, found.settings, facts.repo.slug).form
     text = pinsreview.comment(form, facts.pull.head.sha, reading)
     path = f"repos/{facts.repo.slug}/issues/{facts.pull.number}/comments"
     print(text, end="")
-    print(f"# {ghstore.post(github, path, text).url}")
+    print(f"# {ghstore.post(found.github, path, text).url}")

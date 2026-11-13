@@ -103,7 +103,7 @@ class Task(enum.Enum):
     SHARED_RED = "file one ticket against the shared cause of the red check; fix no PR"
     FIX_BLOCKED_BY = "correct the Blocked-by lines (a loop, or a blocker closed)"
     AFTER_BLOCKER = "the blockers merged: merge the base into the branch, check, push"
-    FINISH_PARTIAL = "finish this PR, handed back unfinished: do what the lines name"
+    FINISH_PARTIAL = "finish this PR, handed back unfinished"
 
 
 class Stage(enum.Enum):
@@ -283,7 +283,7 @@ def merge() -> Next:
 
 
 class Pending(enum.Enum):
-    """Why nobody acts on a PR now; it is in no answer and is never printed.
+    """Why no actor takes a PR now; it is in no answer and is never printed.
 
     Attributes:
         OWNER: the PR is paused; the owner decides.
@@ -316,7 +316,7 @@ class Idle:
 
 
 Move = Next | Idle
-OWNER_PENDING = Idle(pending=Pending.OWNER)  # the owner decides; nobody acts
+OWNER_PENDING = Idle(pending=Pending.OWNER)  # the owner decides; no actor takes it
 UNDRAFT_PENDING = Idle(pending=Pending.UNDRAFT)  # the window is not clear yet
 
 
@@ -343,7 +343,7 @@ def step_is(move: Move, wanted: AbstractSet[Step]) -> bool:
 
 
 def pending_is(move: Move, wanted: Pending) -> bool:
-    """Whether nobody acts on a PR for one reason.
+    """Whether no actor takes a PR for one reason.
 
     Args:
         move: the move.

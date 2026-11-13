@@ -41,7 +41,7 @@ def case(args: argparse.Namespace) -> None:
     """
     slug, number, text = pullfile.read("case post", args.ticket, args.file)
     github = pullfile.github_of(args)
-    pulls = ghapi.pages(github, f"repos/{slug}/pulls?state=all", _pulls)
+    pulls = ghapi.every_pull(github, slug, _pulls)
     repo = config.make_repo(*slug.split("/"))
     started = casepost.started_by(args.ticket, pulls, repo)
     if why := casepost.refusal(args.ticket, started):

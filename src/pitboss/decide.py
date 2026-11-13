@@ -3,7 +3,7 @@
 ``decide`` is pure and is the only function that makes a ``Decision`` or an
 answer. An item is decided from its own record alone (``decide_item``): it is a
 decision when some actor acts on it now, and nothing otherwise. Nothing is said
-of an item nobody acts on: no line, no reason, no category (the owner: "JUST.
+of an item no actor takes: no line, no reason, no category (the owner: "JUST.
 DONT. MENTION. IT."). The answer to what is next is ``Work`` when there is a
 decision, and ``NotEnoughWork`` only when the walk read every page of every
 label and no item gave a decision.
@@ -48,6 +48,8 @@ class Judgement:
 
 def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
     listed = record.row
+    if record.held:  # a slot holds it: its agent is at work on it
+        return None
     if record.stuck:  # keyword: stuck-ci: the run is the owner's to re-run
         return answer.Decision(
             actor=answer.Actor.OWNER,
@@ -57,7 +59,7 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
         )
     step = record.facts.step
     if not isinstance(step, steps.Next):
-        return None  # keyword: one-path: nobody acts on an idle PR
+        return None  # keyword: one-path: no actor takes an idle PR
     loops = step.task is steps.Task.FIX_BLOCKED_BY  # a loop is fixed, not waited on
     if step.step not in ACTORS or (record.blockers and not loops):
         return None
@@ -78,7 +80,7 @@ def step_decision(
 
     Returns:
         The step's decision; or, when a row stops it, the route of the first stop
-        (none when nobody acts on it).
+        (none when no actor takes it).
     """
     if stopped:  # the act verdict's rows are rows of the decision
         found = gate.ROUTES[stopped[0].route]
@@ -110,7 +112,7 @@ def decide_item(record: world.Record) -> answer.Decision | None:
         record: the item and its closure.
 
     Returns:
-        Its decision, or None when nobody acts on it now (it is in no answer).
+        Its decision, or None when no actor takes it now (it is in no answer).
     """
     match record:
         case world.PullRecord():

@@ -18,6 +18,7 @@ from . import (
     configfile,
     configloads,
     diskwatch,
+    exempt,
     fixes,
     gates,
     ghapi,
@@ -122,6 +123,35 @@ def sourced(
         items=items,
         failed=failed,
     )
+
+
+def with_volume(found: nextfound.Found, source: Source) -> Source:
+    """A source with the workspace's volume read (keyword: disk-watch).
+
+    Args:
+        found: the context.
+        source: the source.
+
+    Returns:
+        The source; the volume is no input of a decision, only of the briefs.
+    """
+    volume, big = diskwatch.read_crowded(
+        found.args.usage, found.settings.project.workspace, found.clean.scratch
+    )
+    return dataclasses.replace(source, volume=volume, big=big)
+
+
+def tail(source: Source) -> Sequence[str]:
+    """The lines after the list: the ``DISK`` line and the override rule.
+
+    Args:
+        source: what suggestions are made from, with the volume read.
+
+    Returns:
+        The lines.
+    """
+    found = [diskwatch.line(source.volume)] if source.volume else []
+    return [*found, exempt.OVERRIDE]  # keyword: pitboss-exempt (pitboss#113)
 
 
 def review_kind(pull: pulls.PullFacts) -> brief.Kind:

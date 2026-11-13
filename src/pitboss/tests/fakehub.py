@@ -8,7 +8,7 @@ import pathlib
 import subprocess
 from typing import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 
-from .. import answer, gatefacts, gatepolicy, steps
+from .. import actinputs, answer, gatefacts, gatepolicy, steps
 from ..actcore import Act, Controls, Inputs, Owner, Questions
 from ..actport import Change, Hub, Pull
 from ..gatestop import Stop
@@ -267,12 +267,10 @@ class WorldInputs:
             timeline: its timeline, when read; the hub's when empty.
 
         Returns:
-            The inputs.
+            The inputs, with the blockers the body names (``blockers_of``).
         """
-        return {
-            **copy.deepcopy(self.world.ctx),
-            "timeline": timeline or self.hub.timeline(where, which),
-        }
+        events = timeline or self.hub.timeline(where, which)
+        return actinputs.blockers_in(pull, {**self.world.ctx, "timeline": events})
 
 
 def _memory(world: totalworld.World) -> Memory:

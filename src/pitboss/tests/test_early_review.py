@@ -14,36 +14,19 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, config, dispatchruns, earlyfound, earlyreview, markers
 from .. import parsing, shapes
-from . import fakes, quietworld, world
+from . import actreviewed, fakes, quietworld, world
 from .briefmake import make
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, HEAD, OLDER, graded, older_checks, world_with
-from .test_slot_commands import next_output
-from .says import says
 from ..textparts import having
 
 Body = Mapping[str, object]
-LINE = "EXECUTION REVIEW EARLY: owner/project#3 reviewed at 2026-10-30T00:00:02Z, CI"
-DRAFT_WORDS = "the PR was a draft and no dispatched run of check.yml had completed"
 BEFORE, AFTER = "2026-10-30T00:00:00Z", "2026-10-30T00:00:09Z"
 READY = {"event": "ready_for_review", "created_at": "2026-10-30T00:00:05Z"}
 ADDRESS = "https://github.com/owner/project/pull/3#issuecomment-6619082966"
-
-
-def early(done: str, sha: str = HEAD) -> str:
-    """The start of the line for review 6619082966.
-
-    Args:
-        done: when the last check completed, or ``not yet``.
-        sha: the head it reviewed.
-
-    Returns:
-        The text up to the reason.
-    """
-    return (
-        f"{LINE} completed {done}; one Execution review is due"
-        f" (review 6619082966 of {sha} does not count: "
-    )
+COUNTED = "approved-this-head"
+# an early review does not count: one review of the head is due
+REVIEW_DUE = "REVIEWER: owner/project#3: grade Plan and Execution together"
 
 
 def run_of(status: str, at: str, number: int = 9) -> Body:
@@ -130,16 +113,16 @@ def printed(
     return sweep(here).out
 
 
-def quiet(out: str) -> bool:
-    """Whether the sweep says no review came before green.
+def review_of(out: str) -> str:
+    """The ``review=`` field of PR 3's status line: what the counted reviews say.
 
     Args:
         out: the sweep's output.
 
     Returns:
-        True when it has no such line.
+        Its value; an early review is not counted (``none`` or ``plan-approved``).
     """
-    return "EXECUTION REVIEW EARLY" not in out
+    return third_of(out).split(" review=")[1].split()[0]
 
 
 def third_of(out: str) -> str:
@@ -162,7 +145,7 @@ DISPATCHED_AFTER = {"id": 5, "updated_at": AFTER}
 
 
 class TestTheSweep(unittest.TestCase):
-    """The line, for the facts of quire#1038 and for its opposites."""
+    """Whether the review counts, for the facts of quire#1038 and their opposites."""
 
     def test_a_draft_with_no_complete_run_is_reviewed_too_early(self) -> None:
         """Plan approved, draft, Execution approved at the head, no run."""
@@ -170,44 +153,33 @@ class TestTheSweep(unittest.TestCase):
             world_with([PLAN_ONLY, reviewed(2)], draft=True),
             [run_of("queued", "", 11), DONE],
         )
-        out = sweep(here).out
-        said = f"{early('not yet')}{DRAFT_WORDS}; 1 of 2 checks of the head had not"
-        assert_that(out, contains_string(said))
-        assert_that("review=approved-this-head" in third_of(out), equal_to(False))
-        state = [
-            each for each in next_output(here).splitlines() if "project#3:" in each
-        ]
-        says("".join(state), "the plan is approved")
+        assert_that(review_of(sweep(here).out), equal_to("plan-approved"))
 
     def test_the_same_pr_with_a_complete_run_before_the_comment_shows_none(
         self,
     ) -> None:
         """A dispatched run and every check run completed before the comment."""
         out = printed([PLAN_ONLY, reviewed(2)], True, [DONE], [DISPATCHED_BEFORE])
-        assert_that(quiet(out), equal_to(True))
+        assert_that(review_of(out), equal_to(COUNTED))
 
     def test_a_dispatched_run_that_completed_after_the_comment_is_no_run(self) -> None:
         """The run completed once the review had been written."""
         out = printed([PLAN_ONLY, reviewed(2)], True, [DONE], [DISPATCHED_AFTER])
-        assert_that(out, contains_string(f"{early(BEFORE)}{DRAFT_WORDS}"))
+        assert_that(review_of(out), equal_to("plan-approved"))
 
     def test_a_ready_pr_is_judged_by_its_checks(self) -> None:
         """Not a draft: a check that completed after the comment is unfinished."""
         out = printed([reviewed(2)], False, [DONE, LATE])
-        assert_that(out, contains_string(f"{early(AFTER)}1 of 2 checks of the head"))
-        assert_that("review=approved-this-head" in third_of(out), equal_to(False))
+        assert_that(review_of(out), equal_to("none"))
+        assert_that(out, contains_string(REVIEW_DUE))
 
     def test_a_failed_check_is_no_green_and_a_skipped_one_is(self) -> None:
         """Completed is not green; a check skipped by design is."""
-        for conclusion, early_words in (("failure", "1 of 2 checks"), ("skipped", "")):
+        for conclusion, counts in (("failure", False), ("skipped", True)):
             with self.subTest(conclusion=conclusion):
                 other = dict(run_of("completed", BEFORE, 12), conclusion=conclusion)
                 out = printed([reviewed(2)], False, [DONE, other])
-                counted = "review=approved-this-head" in third_of(out)
-                said = f"{early(BEFORE)}{early_words} of the head had not passed"
-                assert_that(quiet(out), equal_to(not early_words))
-                assert_that(counted, equal_to(not early_words))
-                assert_that(said in out, equal_to(bool(early_words)))
+                assert_that(review_of(out) == COUNTED, equal_to(counts))
 
     def test_an_execution_not_graded_is_the_plan_stage_of_a_draft(self) -> None:
         """A draft's Plan-stage review counts, and is not early."""
@@ -215,57 +187,58 @@ class TestTheSweep(unittest.TestCase):
             PLAN_ONLY, body=PLAN_ONLY.body + "Execution: not graded\n"
         )
         out = printed([plan], True, [])
-        assert_that(quiet(out), equal_to(True))
+        assert_that(review_of(out), equal_to("plan-approved"))
 
     def test_a_ready_pr_with_no_check_run_is_reviewed_too_early(self) -> None:
         """No run at all is no complete run."""
         out = printed([reviewed(2)], False, [])
-        assert_that(out, contains_string(f"{early('not yet')}no check run of the head"))
+        assert_that(review_of(out), equal_to("none"))
 
     def test_a_ready_pr_with_complete_checks_has_its_review(self) -> None:
         """Every check completed before the comment."""
         out = printed([reviewed(2)], False, [DONE])
-        assert_that(quiet(out), equal_to(True))
-        assert_that(third_of(out), contains_string("review=approved-this-head"))
+        assert_that(review_of(out), equal_to(COUNTED))
 
     def test_a_plan_alone_review_of_a_draft_counts(self) -> None:
         """A draft's Plan review is the stage of a draft."""
         out = printed([PLAN_ONLY], True, [])
-        assert_that(quiet(out), equal_to(True))
+        assert_that(review_of(out), equal_to("plan-approved"))
 
     def test_a_pr_made_ready_after_the_comment_was_a_draft_then(self) -> None:
         """The timeline says when the draft was marked ready."""
         here = served(world_with([reviewed(2)]), [DONE], [READY])
-        said = f"{early(BEFORE)}{DRAFT_WORDS}"
-        says(sweep(here).out, said)
+        out = sweep(here).out
+        assert_that(review_of(out), equal_to("none"))
+        assert_that(out, contains_string(REVIEW_DUE))
 
     def test_a_pr_made_ready_before_the_comment_was_not_a_draft(self) -> None:
         """The same timeline, with the comment after the event."""
         late = dataclasses.replace(reviewed(2), created_at="2026-10-30T00:00:07Z")
         here = served(world_with([late]), [DONE], [READY])
-        assert_that(quiet(sweep(here).out), equal_to(True))
+        assert_that(review_of(sweep(here).out), equal_to(COUNTED))
 
     def test_a_review_of_an_older_head_reads_the_checks_of_that_head(self) -> None:
         """The reviewed head's runs are read, not the current head's."""
         here = served(world_with([reviewed(2, sha=OLDER)]), [DONE])
         out = sweep(older_checks(here, {"check_runs": [run_of("queued", "")]})).out
-        said = f"{early('not yet', OLDER)}1 of 1 checks"
-        assert_that(out, contains_string(said))
+        assert_that(review_of(out), equal_to("none"))
 
     def test_an_early_review_older_than_a_counted_one_is_not_said(self) -> None:
         """A later counted review of the head decides: no line, ready to merge."""
         counted = graded(APPROVED, APPROVED, 20)
         here = served(world_with([reviewed(2, sha=OLDER), counted]), [DONE])
-        out = sweep(
-            quietworld.calm(older_checks(here, {"check_runs": [run_of("queued", "")]}))
-        ).out
-        assert_that(quiet(out), equal_to(True))
-        assert_that(out, contains_string("READY TO MERGE owner/project#3"))
+        here = quietworld.calm(
+            older_checks(here, {"check_runs": [run_of("queued", "")]})
+        )
+        actreviewed.approve(here, 3)
+        out = sweep(here).out
+        assert_that(review_of(out), equal_to(COUNTED))
+        assert_that(out, contains_string(actreviewed.MERGING.format(number=3)))
 
     def test_an_abbreviated_head_is_the_current_head(self) -> None:
         """A short SHA that names the head reads the head's runs."""
         here = served(world_with([reviewed(2, sha=HEAD[:7])]), [DONE])
-        assert_that(quiet(sweep(here).out), equal_to(True))
+        assert_that(review_of(sweep(here).out), equal_to(COUNTED))
 
 
 THIRD = parsing.pull(json.dumps(world_with([]).bodies[f"{world.PROJECT}/pulls/3"]))
@@ -319,23 +292,12 @@ class TestThePieces(unittest.TestCase):
         text = '{"workflow_runs": [{"updated_at": "t"}, {}]}'
         assert_that(dispatchruns.run_times(text), equal_to(["t", ""]))
 
-    def test_the_marker_is_spelled_in_words(self) -> None:
-        """One text for the marker."""
-        found = markers.Marker.EXECUTION_REVIEW_EARLY.text
-        assert_that(found, equal_to("EXECUTION REVIEW EARLY"))
-        assert_that(markers.Marker.BEHIND.text, equal_to("BEHIND"))
-        own = {
-            markers.Marker.EXECUTION_REVIEW_EARLY,
-            markers.Marker.BEHIND,
-            markers.Marker.READY_TO_MERGE,
-            markers.Marker.MERGE_BY_HAND,
-            markers.Marker.AUTO_MERGE_OFF,
-            markers.Marker.DRAFT_STATE_CHANGED,
-            markers.Marker.BLOCKS,
-            markers.Marker.SUPERSEDED,
-            markers.Marker.RED_CAUSE,
-        }
-        assert_that(own.issubset(markers.SELF_EXPLAINED), equal_to(True))
+    def test_the_lines_the_decisions_do_not_say_are_retired(self) -> None:
+        """The early review, BEHIND and the merge offers are no marker any more."""
+        retired = {"EXECUTION REVIEW EARLY", "BEHIND", "READY TO MERGE", "RED CAUSE"}
+        printed = {each.text for each in markers.Marker}
+        assert_that(retired & printed, equal_to(set()))
+        assert_that(retired.issubset(markers.RETIRED), equal_to(True))
 
 
 class TestTheBrief(unittest.TestCase):

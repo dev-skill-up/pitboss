@@ -8,6 +8,7 @@ import dataclasses
 from typing import AbstractSet, Mapping
 
 from . import config, pullnames, relock
+from .totaljson import text
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -19,8 +20,8 @@ class Listed:
         repo: its repository.
         number: its number.
         title: its title.
-        body: its body.
         branch: its head branch.
+        head: its head commit.
         draft: whether it is a draft.
         created_at: when it was opened (ISO 8601), its place in the order.
         relock: whether its head branch starts with the relock prefix; its
@@ -32,8 +33,8 @@ class Listed:
     repo: config.Repo
     number: int
     title: str
-    body: str
     branch: str
+    head: str
     draft: bool
     created_at: str
     relock: bool
@@ -52,16 +53,16 @@ def listed_row(repo: config.Repo, prefix: str, row: Mapping[str, object]) -> Lis
         The row.
     """
     number = int(str(row["number"]))
-    head = row["head"]
-    branch = str(head["ref"]) if isinstance(head, dict) else ""
-    title, body = (str(row.get(key) or "") for key in ("title", "body"))
+    head = row["head"] if isinstance(row["head"], dict) else {}
+    branch = text(head.get("ref"))
+    title, body = (text(row.get(key)) for key in ("title", "body"))
     return Listed(
         reference=f"{repo.slug}#{number}",
         repo=repo,
         number=number,
         title=title,
-        body=body,
         branch=branch,
+        head=text(head.get("sha")),
         draft=bool(row.get("draft")),
         created_at=str(row["created_at"]),
         relock=relock.is_relock(branch, prefix),

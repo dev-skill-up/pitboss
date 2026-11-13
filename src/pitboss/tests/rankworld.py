@@ -66,6 +66,24 @@ def serve(
         found: its JSON.
     """
     here.bodies[f"repos/{slug}/issues/{number}"] = dict(found)
+    # the open listings carry the same ticket, as GitHub's do
+    for path, rows in list(here.bodies.items()):
+        if f"repos/{slug}/issues?state=open" in path and isinstance(rows, list):
+            here.bodies[path] = _relisted(rows, found)
+
+
+def _relisted(rows: Sequence[object], found: Mapping[str, object]) -> Sequence[object]:
+    # a listing with the ticket as it is now: replaced while open, gone once closed
+    open_now = [dict(found)] if found["state"] == "open" else []
+    return [
+        each
+        for row in rows
+        for each in (
+            open_now
+            if isinstance(row, Mapping) and row.get("number") == found["number"]
+            else [row]
+        )
+    ]
 
 
 def fixing(here: world.World, number: int, text: str) -> None:
@@ -79,6 +97,13 @@ def fixing(here: world.World, number: int, text: str) -> None:
     found = here.bodies[f"{PULL}/{number}"]
     assert isinstance(found, dict)
     found["body"] = f"{text}\n\n{found['body']}"
+    # the open listing carries the same body, as GitHub's does
+    listing = here.bodies[fakes.page(f"{PULL}?state=open")]
+    assert isinstance(listing, list)
+    listing[:] = [
+        {**row, "body": found["body"]} if row.get("number") == number else row
+        for row in listing
+    ]
 
 
 def dependent_world(blocker: str = "open", pull: int = 3) -> world.World:

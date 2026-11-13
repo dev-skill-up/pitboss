@@ -6,16 +6,14 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import sharedred
-from . import fakes, quietworld, world
-from .test_commands import sweep
+from . import decisionline, fakes, quietworld, world
 from .test_slot_commands import next_output
 
 PROJECT = world.PROJECT
 CAUSE = "pin 107 commits stale"
 OTHER = "lockfile out of date"
-SHARED = "SHARED RED owner/project:"
-TICKET = "file one ticket for the red check the PRs share"
-FIX = ": fix CI on the head"
+TICKET = "file one ticket against the shared cause of the red check; fix no PR"
+FIX = "fix CI on the head"
 PAGE = fakes.page(f"{PROJECT}/pulls?state=open")
 
 
@@ -93,16 +91,17 @@ def shared_world(causes: Mapping[int, str], main: str | None = None) -> world.Wo
     return quietworld.unheld(here)
 
 
-def said(here: world.World) -> Sequence[str]:
-    """The SHARED RED lines of a sweep.
+def decided(here: world.World) -> Mapping[int, str]:
+    """The decision of each red PR of ``slots next``, by number.
 
     Args:
         here: the world.
 
     Returns:
-        The lines.
+        The decision lines of PRs 3, 5 and 6, empty for a PR with none.
     """
-    return [line for line in sweep(here).out.splitlines() if SHARED in line]
+    text = next_output(here)
+    return {n: decisionline.of(text, f"owner/project#{n}") for n in (3, 5, 6)}
 
 
 def offers(text: str, word: str) -> Sequence[str]:
@@ -121,45 +120,39 @@ def offers(text: str, word: str) -> Sequence[str]:
 
 
 class TestGroups(unittest.TestCase):
-    """The check, the PRs and the line are one finding."""
+    """The check, the PRs and the line are one finding (keyword: one-path)."""
 
     def test_c20_three_prs_with_one_cause_are_reported_once(self) -> None:
-        """One line names the check, all three PRs and the first error line."""
-        found = said(shared_world({3: CAUSE, 5: CAUSE, 6: CAUSE}))
-        words = ["canonical-files", CAUSE, *[f"owner/project#{n}" for n in (3, 5, 6)]]
-        assert_that(
-            [len(found), [w in found[0] for w in words]],
-            equal_to([1, [True] * len(words)]),
-        )
+        """The lowest PR files the one ticket; the others have no decision."""
+        found = decided(shared_world({3: CAUSE, 5: CAUSE, 6: CAUSE}))
+        assert_that(found[3], contains_string(f"owner/project#3: {TICKET}"))
+        assert_that([found[5], found[6]], equal_to(["", ""]))
 
     def test_c20_slots_next_offers_one_ticket_and_no_fix(self) -> None:
-        """The lowest PR files the ticket, the others wait, nobody fixes."""
+        """One ticket decision, and no PR is offered its own fix."""
         text = next_output(shared_world({3: CAUSE, 5: CAUSE, 6: CAUSE}))
-        fixes = [f"owner/project#{n} {FIX}" for n in (3, 5, 6)]
         assert_that(
-            [len(offers(text, TICKET)), "SHARED RED line" in text, "UNKNOWN" in text]
-            + [word in text for word in fixes],
-            equal_to([1, True, False, False, False, False]),
+            [len(offers(text, TICKET)), len(offers(text, FIX)), "UNKNOWN" in text],
+            equal_to([1, 0, False]),
         )
 
     def test_c20_different_causes_are_not_shared(self) -> None:
         """Two PRs failing the same check for different lines are fixed each."""
-        here = shared_world({3: CAUSE, 5: OTHER})
-        text = next_output(here)
+        found = decided(shared_world({3: CAUSE, 5: OTHER}))
         assert_that(
-            [said(here), f"owner/project#3 {FIX}" in text, TICKET in text],
-            equal_to([[], True, False]),
+            [FIX in found[3], FIX in found[5], TICKET in "".join(found.values())],
+            equal_to([True, True, False]),
         )
 
     def test_c20_main_red_and_a_pr_red_are_one_finding(self) -> None:
         """A check red on main with the PR's line is shared with main."""
-        found = said(shared_world({3: CAUSE}, main=CAUSE))
-        assert_that(len(found), equal_to(1))
-        assert_that(found[0], contains_string("main, owner/project#3"))
+        found = decided(shared_world({3: CAUSE}, main=CAUSE))
+        assert_that(found[3], contains_string(TICKET))
 
     def test_c20_main_red_for_another_cause_is_not_shared(self) -> None:
         """Main's failed check with another line is not the PR's cause."""
-        assert_that(said(shared_world({3: CAUSE}, main=OTHER)), equal_to([]))
+        found = decided(shared_world({3: CAUSE}, main=OTHER))
+        assert_that(found[3], contains_string(FIX))
 
 
 class TestUnits(unittest.TestCase):

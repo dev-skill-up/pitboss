@@ -209,6 +209,27 @@ def pages(
     return found
 
 
+def every_pull(
+    github: GitHub, slug: str, parse: Callable[[str], Sequence[_Item]]
+) -> Sequence[_Item]:
+    """Every PR of a repository, open ones first, then the closed ones.
+
+    Two listings, never one listing of every state (the one-path plan, P9).
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        parse: reads the items out of one page.
+
+    Returns:
+        The open PRs, newest first, then the closed ones, newest first.
+    """
+    return [
+        *pages(github, f"repos/{slug}/pulls?state=open", parse),
+        *pages(github, f"repos/{slug}/pulls?state=closed", parse),
+    ]
+
+
 def pages_at_once(
     github: GitHub,
     path: str,

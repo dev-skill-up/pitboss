@@ -31,7 +31,7 @@ WORKER = answer.Actor.WORKER
 REVIEWER = answer.Actor.REVIEWER
 UNREAD_SAID = gateverbs.UNREAD_SAID
 TRIAGE = gateverbs.TRIAGE
-# who acts on each stop, and how; None when nobody acts on it now (a hold, a run,
+# who acts on each stop, and how; None when no actor takes it now (a hold, a run,
 # a blocker, a closed PR, another queue's PR, GitHub not decided); every route has
 # its row (a nox check, P8)
 Actors = Mapping[Route, tuple[answer.Actor, str] | None]

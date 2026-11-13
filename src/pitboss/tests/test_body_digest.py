@@ -6,7 +6,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, shapes
-from . import fakes, world
+from . import decisionline, fakes, world
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, world_with
 from .test_slot_commands import next_output
@@ -16,6 +16,8 @@ from ..textparts import having
 EDITED = fakes.PLAN_AND_EXECUTION + "\nEvidence added after the review.\n"
 OLD_LINE = f"Body: {bodydigest.digest(fakes.PLAN_AND_EXECUTION)}"
 NEW_LINE = f"Body: {bodydigest.digest(EDITED)}"
+REVIEWING = "REVIEWER: owner/project#3: review"
+RULING = "RULING: owner/project#3: start an Opus agent"
 
 
 def review(
@@ -65,8 +67,8 @@ def looked_at(
         "commits": [{"sha": "1", "parents": [{"sha": "0"}]}]
     }
     swept = [x for x in sweep(here).out.splitlines() if "project#3 " in x]
-    listed = [x for x in next_output(here).splitlines() if "project#3 (" in x]
-    return "".join(swept), "".join(listed)
+    listed = decisionline.of(next_output(here), "owner/project#3")
+    return "".join(swept), listed or ""
 
 
 class TestBodyEditedAfterTheReview(unittest.TestCase):
@@ -76,14 +78,14 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         """review=older-body, and a review is next, no fix round (pitboss#294)."""
         swept, listed = looked_at([review(1, OLD_LINE)], EDITED)
         assert_that(swept, contains_string("review=older-body"))
-        assert_that(listed, contains_string("(review it"))
+        assert_that(listed, contains_string(REVIEWING))
 
     def test_an_approval_is_answered_the_same_way(self) -> None:
         """An approving review and an edited body: older-body, a review line."""
         approving = review(1, OLD_LINE, verdict=APPROVED)
         swept, listed = looked_at([approving], EDITED)
         assert_that(swept, contains_string("review=older-body"))
-        assert_that(listed, contains_string("(review it"))
+        assert_that(listed, contains_string(REVIEWING))
 
     def test_an_older_body_pr_is_neither_armed_nor_merged(self) -> None:
         """No AUTO MERGE OFF and no READY TO MERGE line while the body is newer."""
@@ -105,17 +107,14 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         rounds = [review(1, OLD_LINE), review(2, NEW_LINE)]
         swept, listed = looked_at(rounds, EDITED)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, equal_to(""))
-        assert_that(
-            sweep(world_with(rounds, body=EDITED)).out,
-            contains_string("RULING DUE owner/project#3"),
-        )
+        assert_that(listed, contains_string(RULING))
+        assert_that(sweep(world_with(rounds, body=EDITED)).out, contains_string(RULING))
 
     def test_body_unchanged(self) -> None:
         """The same body: the review still stands, the ruling is next."""
         swept, listed = looked_at([review(1, OLD_LINE)], fakes.PLAN_AND_EXECUTION)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, equal_to(""))
+        assert_that(listed, contains_string(RULING))
 
     def test_body_unchanged_with_other_line_endings(self) -> None:
         """A web edit's CRLF and a final newline are the same body."""
@@ -127,7 +126,7 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
         """An edited body changes nothing for a review with no Body line."""
         swept, listed = looked_at([review(1, None)], EDITED)
         assert_that(swept, contains_string("review=changes-needed"))
-        assert_that(listed, equal_to(""))
+        assert_that(listed, contains_string(RULING))
 
     def test_new_head(self) -> None:
         """A head that moved by no code is older-head, with the body edit or without."""
@@ -136,7 +135,7 @@ class TestBodyEditedAfterTheReview(unittest.TestCase):
                 swept, listed = looked_at([review(1, OLD_LINE, OLDER)], body)
                 assert_that(swept, contains_string("review=older-head"))
                 assert_that("older-body" in swept, equal_to(False))
-                assert_that(listed, equal_to(""))  # no code moved: the ruling is due
+                assert_that(listed, contains_string(RULING))  # no code moved
 
 
 class TestTheDigest(unittest.TestCase):

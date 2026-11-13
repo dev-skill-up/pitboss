@@ -2,20 +2,16 @@
 
 import json
 import unittest
-from typing import Mapping, Sequence
+from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import pullfiles, testnames
-from . import diffrepo, pinsworld, world
+from . import diffrepo
 from .repositories import run_git
 from .test_ci_pointer_check import repository
-from .test_commands import sweep
-from .test_flow_sweep import world_with
-from .test_plan_command_lint import body_of as plan_body
 from .test_testnames import checkout, cite, run
 
-PLAN = "## Plan\n1. `rg -n test_old tests/`\n"
 SAID = "\n## Execution\nThe ruling replaced `test_old` with `test_exists`.\n"
 MISSING = "\n## Execution\nThe ruling replaced `test_old` with `test_nowhere`.\n"
 UNSAID = "\n## Execution\nRan `test_exists`.\n"
@@ -34,35 +30,6 @@ def pages(patch: str) -> str:
         The response body.
     """
     return json.dumps([{"filename": "t.py", "patch": patch}, {"filename": "x"}])
-
-
-def with_files(here: world.World, files: Sequence[object]) -> world.World:
-    """Give PR 3 the files.
-
-    Args:
-        here: the world.
-        files: the page of the files it changes.
-
-    Returns:
-        The same world.
-    """
-    here.bodies[pinsworld.FILES_PAGE] = files
-    return here
-
-
-def sweeping(text: str, patch: str) -> str:
-    """The sweep's output for PR 3 whose body is a Plan and the Execution.
-
-    Args:
-        text: the Execution section, from its heading.
-        patch: the patch of the one test file the PR changes.
-
-    Returns:
-        The output.
-    """
-    body = plan_body(PLAN.removeprefix("## Plan\n"), ["git status"]) + text
-    changed = [{"filename": "t.py", "patch": patch}]
-    return sweep(with_files(world_with([], body=body), changed)).out
 
 
 class TestLint(unittest.TestCase):
@@ -126,24 +93,3 @@ class TestFiles(unittest.TestCase):
             pullfiles.changed_tests(pages(RENAMED)),
             equal_to(["-test_old", "+test_old"]),
         )
-
-
-class TestSweep(unittest.TestCase):
-    """The sweep keeps offering the review and prints the line."""
-
-    def test_each_case(self) -> None:
-        """Done-when: the line is printed with the Execution line, not without."""
-        said = sweeping(SAID, PATCH)
-        assert_that(
-            said,
-            contains_string(
-                "SUPERSEDED POINTER owner/project#3: row 1 names test_old,"
-                " the Execution says test_exists"
-            ),
-        )
-        for name, (text, patch) in {
-            "no Execution line": (UNSAID, PATCH),
-            "the name is added back": (SAID, RENAMED),
-        }.items():
-            with self.subTest(name):
-                assert_that("SUPERSEDED" in sweeping(text, patch), equal_to(False))

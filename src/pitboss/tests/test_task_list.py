@@ -12,8 +12,8 @@ from hamcrest import (
     starts_with,
 )
 
-from .. import config, ledger, tasklist, work
-from . import fakes, liveagents, test_work, world
+from .. import config, tasklist
+from . import fakes, liveagents, world
 from .test_handback import start
 from .test_quiet import at
 
@@ -95,21 +95,6 @@ class TestBlock(unittest.TestCase):
         shown = sweep(here).out
         assert_that(shown, contains_string("TASK LIST next 4. owner/project#9"))
         assert_that("#77" in shown, equal_to(False))
-
-    def test_ready_drafts_are_numbered_after_the_running_line(self) -> None:
-        """A draft to mark ready follows the running line; the items follow it."""
-        queued = [test_work.item("owner/project#5", work.Category.NEW_PR)]
-        book = ledger.Ledger(slots=(), failed={})
-        ready = ["owner/project#4 (mark the PR ready)"]
-        assert_that(
-            tasklist.block(book, ready, queued)[3:],
-            equal_to(
-                [
-                    "TASK LIST next 2. owner/project#4 (mark the PR ready)",
-                    "TASK LIST next 3. owner/project#5: t",
-                ]
-            ),
-        )
 
 
 class TestOneTicketPerLine(unittest.TestCase):

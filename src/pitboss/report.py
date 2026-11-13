@@ -1,23 +1,9 @@
-"""The sweep's lines: every line that calls for an action says the action."""
+"""The sweep's lines of facts: a PR, the queue, the runners and the reminders."""
 
 import datetime
 from typing import Mapping, Sequence
 
-from . import (
-    brieftextowner,
-    causeline,
-    config,
-    configrepos,
-    headchecks,
-    holdgate,
-    knownred,
-    pinsline,
-    pulls,
-    queue,
-    reviews,
-    shapes,
-    steps,
-)
+from . import brieftextowner, config, pulls, queue, reviews
 from .markers import Marker
 
 STANDING_WORDS = {
@@ -68,145 +54,13 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
     )
 
 
-def _ruled(pull: pulls.PullFacts) -> bool:
-    return pulls.at_merge(pull) and not pulls.approved(pull)
-
-
-def _ready_line(pull: pulls.PullFacts, settings: config.Config) -> str | None:
-    clean = pull.pull.mergeable_state is shapes.MergeState.CLEAN
-    ruled = _ruled(pull)
-    ready = pulls.green(pull) and clean and (pulls.approved(pull) or ruled)
-    if not ready or pull.pull.auto_merge or pull.signals.gate:
-        return None  # keyword: review-gate: a pending gate is no READY TO MERGE
-    name = pulls.reference(pull)
-    if configrepos.merges_by_hand(settings, pull.repo):
-        why = "execution approved by the Opus ruling" if ruled else "approved"
-        said = pinsline.why(pull.signals.pins, why)
-        return f"{Marker.MERGE_BY_HAND.text} {name}: green, clean, {said}"
-    return f"{Marker.READY_TO_MERGE.text} {name}: arm auto-merge or merge"
-
-
-def action_lines(
-    pull: pulls.PullFacts,
-    settings: config.Config,
-    queued: bool,
-    why: Mapping[int, str],
-) -> Sequence[str]:
-    """The actions one PR calls for.
-
-    Args:
-        pull: the PR.
-        settings: the configuration.
-        queued: whether the PR's newest queue run is unfinished.
-        why: what was read of each failed check (by id), for its line.
-
-    Returns:
-        The lines.
-    """
-    behind = _behind_lines(pull, settings)
-    merge = _merge_line(pull, settings, queued) if not behind else None
-    found = [
-        *_wait_lines(pull),
-        *_conflict_lines(pull),
-        *_failure_lines(pull, why),
-        *pinsline.lines(pulls.reference(pull), pull.signals.pins, _posting(pull)),
-        *behind,
-        *([merge] if merge else []),
-    ]
-    # keywords: hold-gate (quire#1110), known-red (quire#1120): before the hold
-    return holdgate.gate(pull, knownred.gate(pull, found, holdgate.PREFIXES))
-
-
-def _merge_line(
-    pull: pulls.PullFacts, settings: config.Config, queued: bool
-) -> str | None:
-    # the merge line of a PR that is not behind: ready, by hand, or auto-merge off
-    merge = _ready_line(pull, settings)
-    if merge is None and _auto_merge_off(pull, settings, queued):
-        return f"{Marker.AUTO_MERGE_OFF.text} {pulls.reference(pull)}: arm it again"
-    return merge
-
-
-# keyword: behind-approved (pitboss#369): the strict up-to-date rule held pwa#293
-# behind main after its review and checks; the merge of main is reviewed by the proof
-BEHIND_STATES = frozenset({shapes.MergeState.BEHIND})
-BEHIND_WORDS = (
-    "update the branch, then the merge-main proof (bats merge-proof) is the review"
+# keyword: hold-actions (pitboss#200): the one text of the actions a runner hold
+# covers; the skill's references/ci.md ("What costs runs") quotes it word for word.
+HOLD_ACTIONS = (
+    "HOLD pushes to non-draft PRs, undrafts, enqueues, merges,"
+    " workflow dispatches (a dispatch on a draft too) and re-runs"
+    " (pushes to drafts are free)"
 )
-
-
-def _behind_lines(pull: pulls.PullFacts, settings: config.Config) -> Sequence[str]:
-    # a merge-queue repository builds each entry on the current base: behind is no work
-    queued = pull.repo.slug in settings.merge_queue.repositories
-    said = [f"{Marker.BEHIND.text}: {BEHIND_WORDS}"]
-    return (
-        said
-        if pull.pull.mergeable_state in BEHIND_STATES
-        and _approved_green(pull)
-        and not queued
-        else []
-    )
-
-
-def _approved_green(pull: pulls.PullFacts) -> bool:
-    return (pulls.approved(pull) or _ruled(pull)) and pulls.green(pull)
-
-
-def _posting(pull: pulls.PullFacts) -> str:
-    # keyword: pins-review (pitboss#350): only a relock PR can have the comment posted
-    if pull.relock and pull.signals.gate:
-        return pinsline.posting_words(pulls.reference(pull))
-    return ""
-
-
-def _conflict_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    if not pulls.conflicted(pull):
-        return []
-    return [
-        f"{Marker.CONFLICT.text} {pulls.reference(pull)}: merge {pull.pull.base} into"
-        f" {pull.pull.head.branch} (never rewrite history)"
-    ]
-
-
-def _wait_lines(pull: pulls.PullFacts) -> Sequence[str]:
-    # keyword: draft-review (pitboss#156): a draft at a round has its own line
-    # (draftline), not a wait for a CI it never runs
-    # the RUN E2E step has its own line too (keyword: run-e2e, pitboss#199)
-    at_round = steps.step_of(pull.step) in (
-        steps.Step.REGULAR_REVIEW,
-        steps.Step.WORKER,
-        steps.Step.RUN_E2E,
-    )
-    if (pull.pull.draft and at_round) or not pulls.waiting_for_ci(pull):
-        return []
-    return [
-        f"{Marker.WAIT_FOR_CI.text} {pulls.reference(pull)}: no check run of the head"
-        " has completed; not ready for review or to merge"
-    ]
-
-
-def _failure_lines(pull: pulls.PullFacts, why: Mapping[int, str]) -> Sequence[str]:
-    ref = pulls.reference(pull)  # keyword: red-cause (pitboss#420)
-    return [
-        said
-        for check in headchecks.unanswered(pull.checks, pull.signals)
-        for said in causeline.failed(ref, pull.repo.slug, check, why.get(check.id, ""))
-    ]
-
-
-def _auto_merge_off(
-    pull: pulls.PullFacts, settings: config.Config, queued: bool
-) -> bool:
-    manual = configrepos.merges_by_hand(settings, pull.repo)
-    # keyword: auto-merge-approved (pitboss#85): AUTO MERGE OFF is printed only for
-    # a head a review approved; a head the Opus ruling approved gets READY TO MERGE
-    # while auto-merge is off.
-    healthy = pull.standing is reviews.Standing.APPROVED and pulls.approved(pull)
-    healthy = healthy and not pulls.unhealthy(pull)
-    return healthy and not manual and not queued and not pull.pull.auto_merge
-
-
-HOLD_ACTIONS = holdgate.HOLD_ACTIONS  # keyword: hold-actions (pitboss#200)
 
 
 def pressure_line(waiting: int) -> str:

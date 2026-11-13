@@ -23,7 +23,9 @@ def sweep(args: argparse.Namespace) -> None:
     """
     clock, args = timing.clocked(args)
     found = load_context(args)
-    idle = functools.partial(freecheck.line, found, onepath.first_line)
+    # keyword: one-path: one read; the check-in's first line and the sections share it
+    seen = onepath.seen_for(found)
+    idle = functools.partial(freecheck.line, found, lambda _: onepath.first_of(seen))
     lapsed = checkinlines.print_first(found, idle)
-    if sweep_sections(found, clock) or lapsed:
+    if sweep_sections(found, clock, seen) or lapsed:
         raise SystemExit(1)
