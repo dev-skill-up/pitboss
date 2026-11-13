@@ -153,7 +153,8 @@ def _reading(args: argparse.Namespace) -> KeywordRun:
     )
     # keyword: read-memo (pitboss#453): a question of what is next reads a path once
     asks = {getattr(args, "action", None), getattr(args, "__gather_name__", None)}
-    return ghmemo.memoized(tried) if "next" in asks else tried
+    asks.add(getattr(args, "verb", None))  # act dispatch-next writes nothing to GitHub
+    return ghmemo.memoized(tried) if asks & {"next", "dispatch-next"} else tried
 
 
 def load_context(args: argparse.Namespace) -> Context:

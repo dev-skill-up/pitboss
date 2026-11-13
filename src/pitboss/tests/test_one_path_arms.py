@@ -307,3 +307,15 @@ class TestOneDecision(unittest.TestCase):
         ]
         want = "WORKER: owner/project#1: resolve the conflict"
         assert_that((said, agree), equal_to((want, [True, True])))
+
+
+class TestReadOnce(unittest.TestCase):
+    """Plan 6.1: a request is made once, in ``act dispatch-next`` as in ``next``."""
+
+    def test_6_1_dispatch_next_makes_each_read_once(self) -> None:
+        """No ``gh api`` read of ``act dispatch-next`` is made twice."""
+        here = scenes.make_world()
+        words = ("dispatch-next", "owner/project", "--config", here.config)
+        scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
+        reads = [" ".join(each) for each in fakes.calls_with(here.calls, "api")]
+        assert_that((bool(reads), len(reads)), equal_to((True, len(set(reads)))))
