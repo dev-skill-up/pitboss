@@ -10,6 +10,7 @@ branch, is kept.
 import subprocess
 
 from .actcore import Act, Options, Refused, Target, disarm_first, option, options_of
+from .actstands import Said, Stands, Why
 from .running import git
 
 DEFAULT_BRANCHES = ("main", "master")
@@ -51,7 +52,7 @@ def _ready(act: Act, worktree: str, branch: str) -> str:
     return _git(act, worktree, "rev-parse", "HEAD")
 
 
-def push(act: Act, target: Target, options: Options) -> str:
+def push(act: Act, target: Target, options: Options) -> Said:
     """Push a worktree's head to the branch dispatch assigned, and read it back.
 
     Args:
@@ -60,11 +61,8 @@ def push(act: Act, target: Target, options: Options) -> str:
         options: ``worktree`` and ``branch`` (the assigned one).
 
     Returns:
-        The head pushed.
-
-    Raises:
-        Refused: another branch, the default branch, an empty commit, a pre-push
-            check that did not say ok, or a remote that does not hold the head.
+        The head pushed, or that the remote does not hold it. Another branch, the
+        default branch, an empty commit or a failed pre-push check is refused.
     """
     worktree, branch = options_of(options, "worktree", "branch")
     head = _ready(act, worktree, branch)
@@ -74,10 +72,9 @@ def push(act: Act, target: Target, options: Options) -> str:
     back = _git(act, worktree, "ls-remote", "origin", f"refs/heads/{branch}").split()
     if not back or back[0] != head:
         remote = back[0][:12] if back else "absent"
-        raise Refused(
-            f"not pushed: the remote's {branch} is {remote}, the head is {head[:12]}"
-            f" ({said[-80:]})"
-        )
+        line = f"not pushed: the remote's {branch} is {remote}, the head is"
+        line += f" {head[:12]} ({said[-80:]})"
+        return Stands(why=Why.NOT_PUSHED, line=line)
     return head
 
 

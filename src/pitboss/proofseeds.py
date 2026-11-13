@@ -66,12 +66,12 @@ SEEDS: Mapping[str, Seed] = {
 }
 # P4's static half: a match on a mode that does not end in assert_never
 UNMATCHED = Seed(
-    path="onepath.py",
+    path="mode.py",
     old=(
         "        case _:  # pragma: no cover\n"
-        "            assert_never(chosen)\n\n\ndef seen_for"
+        "            assert_never(chosen)\n\n\ndef item_of"
     ),
-    new="        case _:  # pragma: no cover\n            pass\n\n\ndef seen_for",
+    new="        case _:  # pragma: no cover\n            pass\n\n\ndef item_of",
 )
 
 

@@ -16,7 +16,7 @@ from typing import Mapping, NoReturn, Sequence
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, actcore, actledger, actverbs, actwiring, configsettle
-from . import logline, onepath, render
+from . import actstands, logline, onepath, render
 from .commandarguments import CONFIG_OPTION, DRY_RUN_ARGUMENT, NOW_ARGUMENT
 from .commands import Context, load_context
 
@@ -68,9 +68,12 @@ def run_verb(
     if verb not in actverbs.VERBS:
         _refuse(f"act: no verb {verb!r}: {', '.join(sorted(actverbs.VERBS))}")
     try:
-        return actverbs.VERBS[verb](world, target, options)
+        said = actverbs.VERBS[verb](world, target, options)
     except actverbs.REFUSALS as error:
         _refuse(f"act {verb}: refused: {error}")
+    if isinstance(said, actstands.Stands):
+        _refuse(f"act {verb}: refused: {said.line}")
+    return said
 
 
 @ENTRY_DATA.register(

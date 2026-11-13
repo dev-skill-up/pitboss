@@ -154,16 +154,19 @@ def images(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]
     ]
 
 
+def _names_mode(pattern: ast.pattern) -> bool:
+    # a constructor of ``Mode``, as ``mode.X`` elsewhere or ``X`` in ``mode`` itself
+    if not isinstance(pattern, ast.MatchClass):
+        return False
+    name = proofsource.dotted(pattern.cls)
+    return name.removeprefix("mode.") in mode.NAMES and name.count(".") <= 1
+
+
 def _is_mode_match(node: ast.Match) -> bool:
     return any(
-        isinstance(each.pattern, ast.MatchClass)
-        and proofsource.dotted(each.pattern.cls).startswith("mode.")
+        _names_mode(each.pattern)
         or isinstance(each.pattern, ast.MatchOr)
-        and any(
-            isinstance(alternative, ast.MatchClass)
-            and proofsource.dotted(alternative.cls).startswith("mode.")
-            for alternative in each.pattern.patterns
-        )
+        and any(_names_mode(alternative) for alternative in each.pattern.patterns)
         for each in node.cases
     )
 

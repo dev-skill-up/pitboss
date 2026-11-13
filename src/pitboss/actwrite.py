@@ -21,6 +21,7 @@ from .actcore import (
     repo_write,
     timeline_of,
 )
+from .actstands import Said, Stands, Why
 from .plansection import plan_section
 from .ticketreader import written
 from .totaljson import JsonMap, members, records, text
@@ -98,18 +99,17 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     return words
 
 
-def _size(act: actcore.Act, repo: str, options: actcore.Options) -> int:
+def _size(act: actcore.Act, repo: str, options: actcore.Options) -> int | Stands:
     # the ticket's Max-lines; over the repository's p90 only with a ruling
     size = int(actcore.option(options, "max-lines"))
     most = act.p90(repo)
     if size > most and not options.get("ruling"):
-        raise actcore.Refused(
-            f"Max-lines {size} is over {repo}'s p90 {most}: a ruling names it"
-        )
+        line = f"Max-lines {size} is over {repo}'s p90 {most}: a ruling names it"
+        return Stands(why=Why.OVER_P90, line=line)
     return size
 
 
-def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
+def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> Said:
     """File a ticket in the one form the ticket reader takes.
 
     It is refused with no item or path, or with a size over the repository's p90
@@ -128,6 +128,8 @@ def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     done_when = [each for each in items if each.strip()]
     paths = actcore.option(options, "paths").split()
     size = _size(act, target.repo, options)
+    if isinstance(size, Stands):
+        return size
     body = written(done_when, paths, size, actcore.option(options, "priority"))
     fields = {"title": actcore.option(options, "title"), "body": body, "labels": ""}
     return repo_write(act, target.repo, "issue", fields)
@@ -146,7 +148,7 @@ def _place(target: actcore.Target) -> tuple[str, int]:
 
 def ticket_edit(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
-) -> str:
+) -> Said:
     """Change a ticket that no PR has started.
 
     Args:
@@ -155,17 +157,13 @@ def ticket_edit(
         options: ``body``: the new body, in the ticket form.
 
     Returns:
-        What was done.
-
-    Raises:
-        actcore.Refused: a PR closes the ticket, so a worker started it.
+        What was done, or that a PR closes the ticket, so a worker started it.
     """
     started = act.controls.started(_bodies(act, target.repo), *_place(target))
     if started:
-        raise actcore.Refused(
-            f"PR #{started[0]} closes {target.name}, so a worker"
-            " started: a started ticket gets nothing added (file a new ticket)"
-        )
+        line = f"PR #{started[0]} closes {target.name}, so a worker started:"
+        line += " a started ticket gets nothing added (file a new ticket)"
+        return Stands(why=Why.STARTED, line=line)
     body = actcore.option(options, "body")
     act.controls.items(body)
     put(act, target, "issue-edit", {"body": body})
@@ -188,7 +186,9 @@ def comment(act: actcore.Act, target: actcore.Target, options: actcore.Options) 
     return put(act, target, "comment", {"body": body})
 
 
-def _own_comment(act: actcore.Act, target: actcore.Target, identifier: str) -> None:
+def _own_comment(
+    act: actcore.Act, target: actcore.Target, identifier: str
+) -> actcore.Stood:
     found = [
         each
         for each in records(timeline_of(act, target))
@@ -196,13 +196,14 @@ def _own_comment(act: actcore.Act, target: actcore.Target, identifier: str) -> N
     ]
     identity = text(act.inputs(target.repo, target.number, {}, []).get("act_identity"))
     if not found or members(found[0].get("user")).get("login") != identity:
-        raise actcore.Refused("not a comment pitboss act posted")
+        return [Stands(why=Why.NOT_OURS, line="not a comment pitboss act posted")]
     _plain(text(found[0].get("body")))
+    return []
 
 
 def comment_edit(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
-) -> str:
+) -> Said:
     """Replace the text of pitboss's own evidence comment (never a review or record).
 
     Args:
@@ -214,7 +215,8 @@ def comment_edit(
         What was done.
     """
     identifier, body = options_of(options, "id", "body")
-    _own_comment(act, target, identifier)
+    if stood := _own_comment(act, target, identifier):
+        return stood[0]
     _plain(body)
     put(act, target, "comment-edit", {"id": identifier, "body": body})
     return f"comment-edit {identifier}"
@@ -222,7 +224,7 @@ def comment_edit(
 
 def comment_delete(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
-) -> str:
+) -> Said:
     """Delete pitboss's own evidence comment (never a review or record).
 
     Args:
@@ -234,7 +236,8 @@ def comment_delete(
         What was done.
     """
     identifier = actcore.option(options, "id")
-    _own_comment(act, target, identifier)
+    if stood := _own_comment(act, target, identifier):
+        return stood[0]
     put(act, target, "comment-delete", {"id": identifier})
     return f"comment-delete {identifier}"
 

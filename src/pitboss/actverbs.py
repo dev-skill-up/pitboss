@@ -26,8 +26,9 @@ from . import (
     actrules,
 )
 from .actcore import Act, Options, Refused, Target, gate
+from .actstands import Said
 
-Verb = Callable[[Act, Target, Options], str]
+Verb = Callable[[Act, Target, Options], Said]
 
 
 def brief(ticket: rulefiles.Ticket) -> str:
@@ -96,7 +97,7 @@ REFUSALS = (
 
 def gate_first(
     gated: tuple[str, Verb], act: Act, target: Target, options: Options
-) -> str:
+) -> Said:
     """Run a verb after the owner gate and the hold gate.
 
     Args:
@@ -106,11 +107,11 @@ def gate_first(
         options: its options.
 
     Returns:
-        What the verb said.
+        What the verb said, or what stands instead of it.
     """
     name, verb = gated
-    gate(act, name, target.repo)
-    return verb(act, target, options)
+    stood = gate(act, name, target.repo)
+    return stood[0] if stood else verb(act, target, options)
 
 
 GATED: Mapping[str, Verb] = {

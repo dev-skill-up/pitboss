@@ -7,7 +7,7 @@ head, never a failed check or status, a hold, a block, a closed PR or a failed
 read.
 """
 
-from . import actcore, gateverbs, render, totalanswer
+from . import actcore, actstands, gateverbs, render, totalanswer
 from .actcore import disarm_first, head_now, options_of, pull_of, repo_write
 from .totaljson import text
 
@@ -66,7 +66,7 @@ def disarm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
 
 def override_stop(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
-) -> str:
+) -> actstands.Said:
     """Lift one stop line for the PR's head, with a reason.
 
     Args:
@@ -75,21 +75,17 @@ def override_stop(
         options: ``stop`` (the line) and ``reason`` (the ruling it rests on).
 
     Returns:
-        What was done.
-
-    Raises:
-        actcore.Refused: the line is not the stop of the item's decision, or is one
-            no override lifts.
+        What was done, or that the line is no stop of the item's decision that an
+        override lifts.
     """
     stop, reason = options_of(options, "stop", "reason")
     decided = act.questions.decided()
     found = gateverbs.lookup(decided, gateverbs.Verb.OVERRIDE, target.name)
     if not gateverbs.overridable(found, target.name, stop):
-        raise actcore.Refused(
-            f"not an overridable stop of this item's decision: {stop[:60]!r} (a hold,"
-            " a red, a read GitHub answered with an error, a block or a closed PR is"
-            " never lifted)"
-        )
+        line = f"not an overridable stop of this item's decision: {stop[:60]!r}"
+        line += " (a hold, a red, a read GitHub answered with an error, a block or"
+        line += " a closed PR is never lifted)"
+        return actstands.Stands(why=actstands.Why.NOT_A_STOP, line=line)
     head = head_now(act, target)
     actcore.record(act, target, f'override head={head} stop="{stop}" reason="{reason}"')
     return f"override {target.name} at {head}"

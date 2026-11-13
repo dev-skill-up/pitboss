@@ -12,6 +12,7 @@ from typing import Callable, Mapping, MutableMapping, Sequence
 from .. import (
     actcore,
     actrules,
+    actstands,
     answer,
     handbackform,
     pullstate,
@@ -42,7 +43,7 @@ Diff = Callable[
     Sequence[str],
 ]
 Findings = Callable[[str, Sequence[str], handbackform.Exists], Sequence[str]]
-Verb = Callable[[actcore.Act, actcore.Target, Mapping[str, str]], str]
+Verb = Callable[[actcore.Act, actcore.Target, Mapping[str, str]], actstands.Said]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -250,7 +251,14 @@ def act(given: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:
     target = actcore.Target(
         repo=words.pop("repo", REPO), number=int(words.pop("number", str(NUMBER)))
     )
-    return given.verbs[verb](hub.act, target, words)
+    return _said(given.verbs[verb](hub.act, target, words))
+
+
+def _said(answered: actstands.Said) -> str:
+    # what a verb did; what stands instead is raised as the refusal it was
+    if isinstance(answered, actstands.Stands):
+        raise actcore.Refused(answered.line)
+    return answered
 
 
 def refused(run: Callable[[], object]) -> str:
@@ -264,10 +272,10 @@ def refused(run: Callable[[], object]) -> str:
         when the verb did not run, or "" when it went.
     """
     try:
-        said = run()
+        went = run()
     except REFUSALS as error:
         return str(error) or "refused"
-    return str(said) if str(said).startswith(render.NOT_DONE) else ""
+    return str(went) if str(went).startswith(render.NOT_DONE) else ""
 
 
 CHECKOUTS = fakehub.rule_checkouts(scratch.process_directory())
@@ -347,7 +355,9 @@ def dispatch(given: Kit, decided: answer.Decided, **options: str) -> str:
             decided=lambda: decided,
         ),
     )
-    return given.verbs["dispatch-next"](world, actcore.Target(repo=REPO), options)
+    return _said(
+        given.verbs["dispatch-next"](world, actcore.Target(repo=REPO), options)
+    )
 
 
 def pushed(
@@ -366,7 +376,7 @@ def pushed(
     hub = made(given)
     world = dataclasses.replace(hub.act, prepush=lambda: prepush)
     options = {"worktree": str(worktree), "branch": "worker/7"}
-    return given.verbs["push"](world, actcore.Target(repo=REPO), options)
+    return _said(given.verbs["push"](world, actcore.Target(repo=REPO), options))
 
 
 def refusal(kit: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:

@@ -104,10 +104,10 @@ REMOVALS: Mapping[str, Removal] = {
             "orchestrator": ["Merge when the PR is ready."],
         },
     ),
-    "act_gate": lambda given: _controls(_rests(given, gating=_go), hold_gate=_nothing),
+    "act_gate": lambda given: _controls(_rests(given, gating=_go), hold_gate=_none),
     "disarm": lambda given: _controls(given, disarm=_nothing),
     "block": lambda given: _verbs(given, block=lambda act, target, options: ""),
-    "owner_gate": lambda given: _controls(given, owner_gate=_nothing),
+    "owner_gate": lambda given: _controls(given, owner_gate=_none),
     "push": lambda given: _verbs(given, push=_naive_push),
     "clean": lambda given: _verbs(
         given, clean=lambda act, target, options: "removable"

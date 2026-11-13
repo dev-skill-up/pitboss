@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actport, answer, ticketreader, totaljson
+from . import actport, actstands, answer, ticketreader, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
@@ -33,6 +33,7 @@ QUEUE_EVENTS = frozenset({QUEUED, "removed_from_merge_queue"})
 
 
 Refused = actport.Refused
+Stood = Sequence[actstands.Stands]  # what stands instead of a write, if anything
 Change = actport.Change
 Hub = actport.Hub
 Target = actport.Target
@@ -57,8 +58,8 @@ class Controls:
         started: which open PRs close a ticket.
     """
 
-    owner_gate: Callable[["Act"], None] = lambda act: owner_gate(act)
-    hold_gate: Callable[["Act", str, str], None] = lambda act, verb, repo: hold_gate(
+    owner_gate: Callable[["Act"], Stood] = lambda act: owner_gate(act)
+    hold_gate: Callable[["Act", str, str], Stood] = lambda act, verb, repo: hold_gate(
         act, verb, repo
     )
     disarm: Callable[["Act", Target, str], None] = (
@@ -110,23 +111,26 @@ class Act:
     controls: Controls
 
 
-def owner_gate(act: Act) -> None:
-    """Refuse while an owner message has no disposition.
+def owner_gate(act: Act) -> Stood:
+    """What stands while an owner message has no disposition.
 
     Args:
         act: the verb's world.
 
-    Raises:
-        Refused: the first such message.
+    Returns:
+        Each such message, in order.
     """
     pending = [
         each for each in act.owner.messages if each not in act.owner.dispositions
     ]
-    if pending:
-        raise Refused(
-            f"owner message {pending[0]} has no disposition: `pitboss act ack"
-            f" {pending[0]} --kind hold|cap|ruling|none`"
+    return [
+        actstands.Stands(
+            why=actstands.Why.OWNER_MESSAGE,
+            line=f"owner message {each} has no disposition: `pitboss act ack"
+            f" {each} --kind hold|cap|ruling|none`",
         )
+        for each in pending
+    ]
 
 
 def holds(act: Act, repo: str) -> Sequence[Pull]:
@@ -152,35 +156,43 @@ def holds(act: Act, repo: str) -> Sequence[Pull]:
     return found
 
 
-def hold_gate(act: Act, verb: str, repo: str) -> None:
-    """Refuse a verb a hold covers.
+def hold_gate(act: Act, verb: str, repo: str) -> Stood:
+    """What stands when a hold covers a verb.
 
     Args:
         act: the verb's world.
         verb: the verb.
         repo: its repository ("" or "all" for every repository of the project).
 
-    Raises:
-        Refused: the first hold that covers it.
+    Returns:
+        Each hold that covers it, in order.
     """
     if verb in ENDS_A_HOLD:
-        return
-    for each in [repo] if repo not in EVERY_REPOSITORY else act.repos:
-        for hold in holds(act, each):
-            if hold["scope"] == "all" or verb in HELD.get(text(hold["scope"]), ()):
-                raise Refused(f"hold: {hold['title']} holds {verb} in {each}")
+        return []
+    return [
+        actstands.Stands(
+            why=actstands.Why.HOLD,
+            line=f"hold: {hold['title']} holds {verb} in {each}",
+        )
+        for each in ([repo] if repo not in EVERY_REPOSITORY else act.repos)
+        for hold in holds(act, each)
+        if hold["scope"] == "all" or verb in HELD.get(text(hold["scope"]), ())
+    ]
 
 
-def gate(act: Act, verb: str, repo: str) -> None:
+def gate(act: Act, verb: str, repo: str) -> Stood:
     """The owner gate, then the hold gate.
 
     Args:
         act: the verb's world.
         verb: the verb.
         repo: its repository.
+
+    Returns:
+        What stands instead of the verb, the owner gate's first.
     """
-    act.controls.owner_gate(act)
-    act.controls.hold_gate(act, verb, repo)
+    stood = act.controls.owner_gate(act)
+    return stood or act.controls.hold_gate(act, verb, repo)
 
 
 def put(
