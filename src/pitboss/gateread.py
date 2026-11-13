@@ -11,12 +11,19 @@ answer.
 
 import functools
 import json
-import re
-from typing import Callable, Sequence
+from typing import Callable
 
-from . import actinputs, gatefacts, ghapi, pulls, workorder, world
+from . import (
+    actinputs,
+    gatefacts,
+    ghapi,
+    pulls,
+    pullstate,
+    workorder,
+    world,
+)
 from .textparts import split_at
-from .totaljson import JsonMap, at, members, name_at, records, text
+from .totaljson import at, members, name_at, records
 
 HOLD_LABEL = "pitboss-hold"
 SIZES = (
@@ -54,7 +61,7 @@ def limits(github: ghapi.GitHub) -> Callable[[str], int]:
     return functools.cache(lambda repo: _p90(github, repo))
 
 
-def holds_of(read: actinputs.Read, repo: str) -> Sequence[JsonMap]:
+def holds_of(read: actinputs.Read, repo: str) -> object:
     """The holds of a repository: its open issues labelled ``pitboss-hold``.
 
     Args:
@@ -62,20 +69,9 @@ def holds_of(read: actinputs.Read, repo: str) -> Sequence[JsonMap]:
         repo: ``owner/name``.
 
     Returns:
-        Each hold's ``title``, ``number`` and ``scope``.
+        The issues as GitHub answered; ``pullstate`` reads their scope.
     """
-    listing = records(read(actinputs.ALL + workorder.labelled_path(repo, HOLD_LABEL)))
-    found = []
-    for issue in listing:
-        scope = re.search(r"scope=(\w+)", text(issue.get("body")))
-        found.append(
-            {
-                "title": issue.get("title"),
-                "number": issue.get("number"),
-                "scope": scope.group(1) if scope else "all",
-            }
-        )
-    return found
+    return read(actinputs.ALL + workorder.labelled_path(repo, HOLD_LABEL))
 
 
 def reader(github: ghapi.GitHub) -> world.GateRead:
@@ -99,9 +95,7 @@ def reader(github: ghapi.GitHub) -> world.GateRead:
         )
         raw = dict(members(read(f"repos/{repo}/pulls/{number}")))
         inputs = actinputs.live_inputs(read, given)(repo, number, raw, [])
-        return gatefacts.Gate(
-            pull=raw, inputs={**inputs, "holds": holds_of(read, repo)}
-        )
+        return pullstate.gate_of(raw, {**inputs, "holds": holds_of(read, repo)})
 
     return gated
 

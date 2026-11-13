@@ -6,7 +6,7 @@ inputs read with it are ``pullstate`` (keyword: one-path).
 
 from typing import Mapping, Sequence, TypeVar
 
-from . import totalschema
+from . import schematypes
 from .pullrecords import Closure, Merging, Mistyped, PullObject, Where
 
 Kind = TypeVar("Kind")
@@ -92,9 +92,9 @@ def _nullable(value: object) -> str | None:
 def _breaks(raw: Raw, schema: Mapping[str, str]) -> list[Mistyped]:
     found = []
     for name, declaration in schema.items():
-        if name not in raw and totalschema.required(declaration):
+        if name not in raw and schematypes.required(declaration):
             found.append(Mistyped(name=name, said="absent"))
-        elif name in raw and not totalschema.typed(raw[name], declaration):
+        elif name in raw and not schematypes.typed(raw[name], declaration):
             found.append(Mistyped(name=name, said=str(raw[name])[:50]))
     return found
 

@@ -9,9 +9,11 @@ gate rows read typed fields and nothing past here reads JSON (keyword: one-path)
 import re
 from typing import AbstractSet, Mapping, Sequence
 
+from . import gatefacts, totalschema
 from . import pullrecords as records
 from .pullobject import Raw, count_at, list_at, object_at, pull_object, text_at
 from .pullrecords import Unread
+from .totaljson import JsonMap
 
 INPUTS = (
     "repo",
@@ -160,3 +162,17 @@ def parse(raw: Raw, inputs: Raw, schema: Mapping[str, str]) -> records.GateState
         holds=[_hold(object_at(each)) for each in list_at(inputs, "holds")],
         absent=[name for name in INPUTS if name not in inputs],
     )
+
+
+def gate_of(pull: JsonMap, inputs: JsonMap) -> gatefacts.Gate:
+    """A PR's gate from GitHub's answers, parsed once (plan 6.1).
+
+    Args:
+        pull: the PR object.
+        inputs: the other reads; the holds as GitHub's issues.
+
+    Returns:
+        The gate.
+    """
+    state = parse(pull, inputs, totalschema.schema())
+    return gatefacts.Gate(pull=pull, inputs=inputs, state=state)

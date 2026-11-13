@@ -7,7 +7,7 @@ by ``gate``.
 import dataclasses
 from typing import Mapping
 
-from . import steps
+from . import pullrecords, steps
 from .totaljson import JsonMap
 
 # the act each gated step takes
@@ -25,7 +25,9 @@ class Gate:
         pull: the PR object.
         inputs: the other inputs (the head's runs, the files, the tickets, the
             timeline, the holds, the blockers, the rules).
+        state: the same, typed once (plan 6.1); the rows move to it one by one.
     """
 
     pull: JsonMap
     inputs: JsonMap
+    state: pullrecords.GateState

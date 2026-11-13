@@ -10,6 +10,7 @@ from typing import Callable, Mapping, Protocol, Sequence
 
 from . import totalchecks, totalreview, totalrows, totalschema
 from .gatestop import Body, Plan, Review, Route, Stop
+from .pullrecords import GateState
 from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS, PAUSED
 from .totaljson import JsonMap, failed_read, listed, members, name_at, records, text
 
@@ -184,17 +185,17 @@ def check_stops(action: str, ctx: JsonMap) -> Sequence[Stop]:
     ]
 
 
-def hold_stops(action: str, ctx: JsonMap) -> Sequence[Stop]:
+def hold_stops(action: str, state: GateState) -> Sequence[Stop]:
     """The stops of the holds that cover the action.
 
     Args:
         action: the action.
-        ctx: the inputs, with ``holds``.
+        state: the typed state.
 
     Returns:
         A stop for each.
     """
-    lines = totalchecks.hold_lines(action, listed(ctx, "holds"))
+    lines = totalchecks.hold_lines(action, state.holds)
     return [Stop(route=Route.HOLD, line=each) for each in lines]
 
 

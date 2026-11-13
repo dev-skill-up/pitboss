@@ -13,8 +13,8 @@ from .. import (
     actcore,
     actrules,
     answer,
-    gatefacts,
     handbackform,
+    pullstate,
     nolocalmutants,
     render,
     rulecases,
@@ -97,7 +97,7 @@ def verdict(given: Kit, action: str, world: World) -> gatewords.Answer:
         The answer.
     """
     rests = given.rests
-    gated = gatefacts.Gate(pull=world.pull, inputs=world.ctx)
+    gated = pullstate.gate_of(world.pull, world.ctx)
     found = rests.gating(action, gated, rests.policy)
     said = gatewords.STOP if found else gatewords.GO
     return gatewords.Answer(word=said, lines=[each.line for each in found], stops=found)

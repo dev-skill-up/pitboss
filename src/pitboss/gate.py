@@ -75,16 +75,15 @@ SHAPE_ERRORS = (AttributeError, TypeError, KeyError, ValueError)
 ACTIONS = gatefacts.ACTIONS
 
 
-def _found(
-    action: str, pull: JsonMap, ctx: JsonMap, policy: gatepolicy.Policy
-) -> Sequence[Stop]:
+def _found(action: str, gate: Gate, policy: gatepolicy.Policy) -> Sequence[Stop]:
     # every row's stops, in the order act ran them
+    pull, ctx, state = gate.pull, {**gate.inputs, "action": action}, gate.state
     kind = totalbody.kind(pull, listed(ctx, "files"))
     change = kind == totalbody.CHANGE
     return [
         *gaterows.read_stops(ctx),
         *gaterows.field_stops(pull, ctx, policy.schema),
-        *gaterows.hold_stops(action, ctx),
+        *gaterows.hold_stops(action, state),
         *gaterows.check_stops(action, ctx),
         *(gaterows.review_stops(action, pull, ctx, policy) if change else ()),
         *gaterows.body_stops(pull, ctx, policy),
@@ -114,7 +113,7 @@ def stops_for(
     if missing := gaterows.unread_stops(ctx):
         return missing
     try:
-        found = _found(action, gate.pull, ctx, rows)
+        found = _found(action, gate, rows)
     except SHAPE_ERRORS as error:  # a response out of GitHub's schema is unread
         why = f"{type(error).__name__}: {str(error)[:60]}"
         line = f"input: the response is not of GitHub's schema ({why})"

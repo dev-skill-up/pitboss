@@ -11,6 +11,7 @@ a status on ``success``; every other documented value is red or waiting
 import re
 from typing import Callable, Mapping, Sequence
 
+from .pullrecords import Hold
 from .totaljson import JsonMap, listed, strings, text
 from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS
 
@@ -241,12 +242,12 @@ def _lint_green(statuses: Sequence[JsonMap]) -> bool:
     )
 
 
-def hold_lines(action: str, holds: Sequence[JsonMap]) -> Sequence[str]:
+def hold_lines(action: str, holds: Sequence[Hold]) -> Sequence[str]:
     """The stop lines of the holds whose scope covers the action.
 
     Args:
         action: the action asked.
-        holds: the holds, each with its ``scope`` and ``title``.
+        holds: the holds, typed.
 
     Returns:
         A line for each hold that covers it.
@@ -255,7 +256,7 @@ def hold_lines(action: str, holds: Sequence[JsonMap]) -> Sequence[str]:
     if action == "undraft":
         scopes.add("undrafts")
     return [
-        f"hold: {each.get('title', each.get('number'))} holds {each.get('scope')}"
+        f"hold: {each.title} holds {each.scope}"
         for each in holds
-        if each.get("scope") in scopes
+        if each.scope in scopes
     ]

@@ -1,6 +1,6 @@
 """The gate's stops as a word and lines, as the act tests compare (keyword: gate)."""
 
-from .. import gate, gatefacts, gatepolicy
+from .. import gate, gatepolicy, pullstate
 from ..totaljson import JsonMap
 from .gatewords import GO, STOP, Answer, Word
 
@@ -21,7 +21,7 @@ def verdict(
     Returns:
         GO when nothing stops it; STOP with the lines otherwise.
     """
-    found = gate.stops_for(action, gatefacts.Gate(pull=pull, inputs=ctx), policy)
+    found = gate.stops_for(action, pullstate.gate_of(pull, ctx), policy)
     return Answer(
         word=STOP if found else GO, lines=[each.line for each in found], stops=found
     )

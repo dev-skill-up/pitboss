@@ -8,7 +8,7 @@ import pathlib
 import subprocess
 from typing import Callable, Mapping, MutableMapping, MutableSequence, Sequence
 
-from .. import actinputs, answer, gatefacts, gatepolicy, steps
+from .. import actinputs, answer, gatefacts, gatepolicy, pullstate, steps
 from ..actcore import Act, Controls, Inputs, Owner, Questions
 from ..actport import Change, Hub, Pull
 from ..gatestop import Stop
@@ -389,7 +389,7 @@ class Decider:
         pull = self.hub.pull(repo, int(number))
         ctx = self.inputs(repo, int(number), pull, [])
         step = steps.undraft() if pull.get("draft") else steps.merge()
-        gated = gatefacts.Gate(pull=pull, inputs=ctx)
+        gated = pullstate.gate_of(pull, ctx)
         found = self.kit.gating(gatefacts.ACTIONS[step.step], gated, self.kit.policy)
         title = str(pull.get("title") or "")
         decided = self.kit.deciding(step, found, name, title)
