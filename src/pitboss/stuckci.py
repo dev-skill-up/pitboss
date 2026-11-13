@@ -12,7 +12,7 @@ import datetime
 import subprocess
 from typing import Sequence
 
-from . import ghapi, parsing, pulls, rerunrule, shapes, steps
+from . import ghapi, parsing, pullfacts, rerunrule, shapes, steps
 
 MINUTES = 30
 PREFIX = "STUCK CI"
@@ -93,7 +93,7 @@ def _runs(
 
 
 def alerts(
-    github: ghapi.GitHub, pull: pulls.PullFacts, now: datetime.datetime
+    github: ghapi.GitHub, pull: pullfacts.PullFacts, now: datetime.datetime
 ) -> Sequence[str]:
     """The ``STUCK CI`` lines of one PR.
 
@@ -116,7 +116,7 @@ def alerts(
 
 
 def lines(
-    github: ghapi.GitHub, facts: Sequence[pulls.PullFacts], now: datetime.datetime
+    github: ghapi.GitHub, facts: Sequence[pullfacts.PullFacts], now: datetime.datetime
 ) -> Sequence[str]:
     """The ``STUCK CI`` lines of the PRs that wait for CI.
 

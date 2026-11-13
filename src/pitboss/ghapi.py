@@ -7,7 +7,7 @@ import urllib.parse
 from typing import Callable, Iterable, Mapping, Sequence, TypeVar
 
 from . import concurrently
-from .ghclient import GitHub as GitHub
+from .running import GitHub as GitHub
 
 PAGE_SIZE = 100
 _Item = TypeVar("_Item")

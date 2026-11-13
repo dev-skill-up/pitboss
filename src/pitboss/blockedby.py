@@ -26,7 +26,16 @@ import dataclasses
 import enum
 from typing import MutableMapping, Sequence
 
-from . import configrepos, ghapi, pulls, shapes, steps, ticketblock, ticketdata
+from . import (
+    configrepos,
+    ghapi,
+    pullfacts,
+    pullref,
+    shapes,
+    steps,
+    ticketblock,
+    ticketdata,
+)
 
 LIMIT = 32  # the most blockers read to look for a loop
 KEPT = (steps.Pending.OWNER, steps.Pending.HOLD)  # the PR keeps its own move
@@ -90,7 +99,7 @@ def read(github: ghapi.GitHub, reference: str) -> Blocker:
     )
 
 
-def declared(pull: pulls.PullFacts) -> Sequence[str]:
+def declared(pull: pullfacts.PullFacts) -> Sequence[str]:
     """What the body of a PR says it waits for.
 
     Args:
@@ -100,7 +109,7 @@ def declared(pull: pulls.PullFacts) -> Sequence[str]:
         The references, each once, never the PR itself.
     """
     names = ticketblock.named(pull.pull.body, pull.repo)
-    return [each for each in dict.fromkeys(names) if each != pulls.reference(pull)]
+    return [each for each in dict.fromkeys(names) if each != pullref.reference(pull)]
 
 
 def loop(
@@ -132,9 +141,9 @@ def loop(
     return []
 
 
-def _red_since(pull: pulls.PullFacts, merged: str) -> bool:
+def _red_since(pull: pullfacts.PullFacts, merged: str) -> bool:
     # the head is red, and every failed check ended before the blockers merged
-    failing = pulls.failed_checks(pull)
+    failing = pullref.failed_checks(pull)
     last = max(map(_ended, failing), default="")
     return (
         bool(last) and last < merged and steps.Task.FIX_CI is steps.task_of(pull.step)
@@ -151,7 +160,7 @@ def _open(names: str) -> steps.Move:
     return steps.Idle(pending=steps.Pending.BLOCKER, names=names)
 
 
-def verdict(pull: pulls.PullFacts, found: Sequence[Blocker]) -> steps.Move | None:
+def verdict(pull: pullfacts.PullFacts, found: Sequence[Blocker]) -> steps.Move | None:
     """The step a PR has because of what it waits for.
 
     Args:
@@ -174,22 +183,24 @@ def verdict(pull: pulls.PullFacts, found: Sequence[Blocker]) -> steps.Move | Non
 
 
 def _settled(
-    github: ghapi.GitHub, seen: MutableMapping[str, Blocker], pull: pulls.PullFacts
-) -> pulls.PullFacts:
+    github: ghapi.GitHub, seen: MutableMapping[str, Blocker], pull: pullfacts.PullFacts
+) -> pullfacts.PullFacts:
     names = declared(pull)
     kept = any(steps.pending_is(pull.step, each) for each in KEPT)
     if not names or kept or steps.step_is(pull.step, steps.UNRESOLVED):
         return pull
     for each in names:
         seen.setdefault(each, read(github, each))
-    me = pulls.reference(pull)
+    me = pullref.reference(pull)
     chains = [loop(seen, github, me, each) for each in names]
     fix = steps.worker(steps.Task.FIX_BLOCKED_BY)
     step = fix if any(chains) else verdict(pull, [seen[each] for each in names])
     return dataclasses.replace(pull, step=step) if step else pull
 
 
-def settle(github: ghapi.GitHub, reads: Sequence[pulls.Read]) -> Sequence[pulls.Read]:
+def settle(
+    github: ghapi.GitHub, reads: Sequence[pullfacts.Read]
+) -> Sequence[pullfacts.Read]:
     """Give each PR that declares a blocker the step the blocker calls for.
 
     Args:

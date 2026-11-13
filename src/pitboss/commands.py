@@ -36,7 +36,7 @@ from . import (
     logline,
     machine as machines,
     project,
-    pulls,
+    pullchecks,
     queue,
     render,
     repoaccess,
@@ -197,7 +197,7 @@ def _pull_section(runs: Sequence[queue.QueueRun], seen: Seen) -> bool:
         for line in render.item_lines(decided, record.row.reference):
             print(line)
         unanswered = headchecks.unanswered(pull.checks, pull.signals)
-        broken = pulls.conflicted(pull) or bool(unanswered) or broken
+        broken = pullchecks.conflicted(pull) or bool(unanswered) or broken
     return broken
 
 

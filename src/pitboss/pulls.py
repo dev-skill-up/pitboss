@@ -8,7 +8,6 @@ from . import (
     bodydigest,
     concurrently,
     config,
-    conflicts,
     expansion,
     dispatchruns,
     draftfacts,
@@ -35,98 +34,10 @@ from . import (
     unreadableform,
 )
 from .pullfacts import PullFacts as PullFacts
+from .pullfacts import Read as Read
 
 reference = pullref.reference
 failed_checks = pullref.failed_checks
-
-
-def unhealthy(facts: PullFacts) -> bool:
-    """Whether the PR has a failed check, a conflict or is a draft.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when it is any of them.
-    """
-    return bool(failed_checks(facts)) or conflicted(facts) or facts.pull.draft
-
-
-def pending(facts: PullFacts) -> int:
-    """How many of the head's checks have not finished.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        The count.
-    """
-    return sum(1 for check in facts.checks if not check.finished)
-
-
-def waiting_for_ci(facts: PullFacts) -> bool:
-    """Whether the head has no completed check run.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when no check run of the head has completed.
-    """
-    return not any(check.finished for check in facts.checks)
-
-
-def green(facts: PullFacts) -> bool:
-    """Whether a check of the head finished, all did, and none failed.
-
-    A head with no completed check run is waiting for CI, never green.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when green.
-    """
-    return not waiting_for_ci(facts) and not pending(facts) and not failed_checks(facts)
-
-
-def conflicted(facts: PullFacts) -> bool:
-    """Whether the PR has a merge conflict.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True on a conflict.
-    """
-    return conflicts.is_dirty(facts.pull)
-
-
-def approved(facts: PullFacts) -> bool:
-    """Whether the head's review approves it, no ruling having voided it.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True when approved (keyword: ruling-voids, pitboss#467).
-    """
-    counted = (reviews.Standing.APPROVED, reviews.Standing.APPROVED_BEFORE_MERGES)
-    return facts.standing in counted and (
-        steps.task_of(facts.step) is not steps.Task.RULING_STEPS
-    )
-
-
-def at_merge(facts: PullFacts) -> bool:
-    """Whether the PR's step is the merge.
-
-    Args:
-        facts: the PR.
-
-    Returns:
-        True at the merge.
-    """
-    return steps.step_is(facts.step, {steps.Step.MERGE})
 
 
 Source = pullsource.Source
@@ -315,9 +226,6 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullFacts:
         review_rounds=rounds.of(state, merged),
         relock=relock.is_relock(got.pull.head.branch, source.relock_prefix),
     )
-
-
-Read = PullFacts | shapes.Unreadable
 
 
 def readable(found: Sequence[Read]) -> Sequence[PullFacts]:

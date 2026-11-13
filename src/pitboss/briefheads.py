@@ -1,11 +1,11 @@
 """The commits and addresses a brief names for a PR (keyword: review-brief)."""
 
-from . import bodydigest, brief, expansion, plandigest, pulls, steps
+from . import bodydigest, brief, expansion, plandigest, pullfacts, steps
 
 RULED = (steps.Task.FIX_EXECUTION, steps.Task.RULING_STEPS)
 
 
-def of(base: str, pull: pulls.PullFacts | None) -> brief.Heads:
+def of(base: str, pull: pullfacts.PullFacts | None) -> brief.Heads:
     """What a brief names of a PR.
 
     Args:

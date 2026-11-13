@@ -11,7 +11,7 @@ from . import (
     shapes,
     supersede,
 )
-from .pullfacts import HeadSignals as HeadSignals
+from .headsignals import HeadSignals as HeadSignals
 
 RED_STATES = frozenset({"failure", "error"})
 # keyword: review-gate: the commit status a repository's review gate sets

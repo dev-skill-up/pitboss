@@ -2,10 +2,10 @@
 
 from typing import AbstractSet, Sequence
 
-from . import fixnames, ledger, pulls
+from . import fixnames, ledger, pullfacts
 
 
-def fixed_tickets(pull: pulls.PullFacts) -> AbstractSet[str]:
+def fixed_tickets(pull: pullfacts.PullFacts) -> AbstractSet[str]:
     """The tickets a PR's body says it fixes or closes.
 
     A PR that closes several tickets (an Opus ruling allows it, keyword: fold,
@@ -28,7 +28,7 @@ def fixed_tickets(pull: pulls.PullFacts) -> AbstractSet[str]:
 first_fixed = fixnames.first_fixed
 
 
-def head_fixing(ticket: str, facts: Sequence[pulls.PullFacts]) -> str:
+def head_fixing(ticket: str, facts: Sequence[pullfacts.PullFacts]) -> str:
     """The head of the first open PR that fixes a ticket.
 
     Args:
@@ -42,7 +42,7 @@ def head_fixing(ticket: str, facts: Sequence[pulls.PullFacts]) -> str:
     return heads[0] if heads else ""
 
 
-def of_pull(pull: pulls.PullFacts) -> str:
+def of_pull(pull: pullfacts.PullFacts) -> str:
     """The ticket a PR says it fixes.
 
     Args:

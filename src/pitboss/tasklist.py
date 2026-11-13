@@ -16,7 +16,7 @@ from typing import Mapping, Sequence
 
 from gather.commands import add_argument
 
-from . import answer, config, ledger, pulls, render, slotheld, slotsheader
+from . import answer, config, ledger, pullref, pulls, render, slotheld, slotsheader
 from .markers import Marker
 
 ARGUMENT = add_argument(
@@ -85,7 +85,7 @@ def live_lines(book: ledger.Ledger, facts: Sequence[pulls.PullFacts]) -> Sequenc
 def _ci_state(pull: pulls.PullFacts) -> str:
     if pulls.failed_checks(pull):
         return "red"
-    return "green" if pulls.green(pull) else "pending"
+    return "green" if pullref.green(pull) else "pending"
 
 
 def _open_line(pull: pulls.PullFacts, book: ledger.Ledger) -> str:

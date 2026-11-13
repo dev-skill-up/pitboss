@@ -21,7 +21,8 @@ from . import (
     ghapi,
     ledger,
     planrefusal,
-    pulls,
+    pullfacts,
+    pullref,
     supersedes,
     ticketblock,
     ticketdata,
@@ -57,7 +58,7 @@ open_ticket = ticketdata.open_ticket
 
 def candidates(
     github: ghapi.GitHub,
-    pull: pulls.PullFacts,
+    pull: pullfacts.PullFacts,
     fixed: AbstractSet[str],
     description: str,
 ) -> Mapping[str, str]:
@@ -87,7 +88,7 @@ def candidates(
 
 def lines(
     github: ghapi.GitHub,
-    pull: pulls.PullFacts,
+    pull: pullfacts.PullFacts,
     fixed: AbstractSet[str],
     description: str,
 ) -> Sequence[str]:
@@ -221,7 +222,10 @@ def _rank(settings: config.Config, labels: AbstractSet[str]) -> int:
 
 
 def pull_waits(
-    github: ghapi.GitHub, settings: config.Config, pull: pulls.PullFacts, ticket: str
+    github: ghapi.GitHub,
+    settings: config.Config,
+    pull: pullfacts.PullFacts,
+    ticket: str,
 ) -> Waits | None:
     """What the ticket a PR fixes waits for (keyword: blocked-pull, pitboss#388).
 
@@ -242,7 +246,7 @@ def pull_waits(
         return None
     texts = [pull.pull.body, *_texts(github, settings, found, ticket)]
     return Waits(
-        blockers=open_blockers(github, ticket, texts, {pulls.reference(pull)}),
+        blockers=open_blockers(github, ticket, texts, {pullref.reference(pull)}),
         created_at=found.created_at,
         priority=_rank(settings, found.labels),
     )

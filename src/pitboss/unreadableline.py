@@ -2,11 +2,11 @@
 
 from typing import Sequence
 
-from . import pulls, shapes
+from . import pullfacts, shapes
 from .markers import Marker
 
 
-def print_withheld(found: Sequence[pulls.Read]) -> None:
+def print_withheld(found: Sequence[pullfacts.Read]) -> None:
     """Say that tickets are not offered because a PR could not be read.
 
     Args:

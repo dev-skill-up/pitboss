@@ -2,9 +2,9 @@
 
 import functools
 import json
-from typing import Callable, Sequence, TypeVar
+from typing import Callable, Mapping, Sequence, TypeVar
 
-from . import evidencesplit, ghapi, totaljson
+from . import config, evidencesplit, ghapi, parsing, shapes, totaljson
 from .running import Run
 
 DRY_RUN_URL = "(dry run: no URL yet)"
@@ -222,3 +222,22 @@ def every_pull(
         *ghapi.pages(github, f"repos/{slug}/pulls?state=open", parse),
         *ghapi.pages(github, f"repos/{slug}/pulls?state=closed", parse),
     ]
+
+
+def read_outcomes(
+    github: ghapi.GitHub, repo: config.Repo
+) -> Mapping[str, shapes.Outcome]:
+    """What became of each branch's newest PR.
+
+    Args:
+        github: the API.
+        repo: the repository.
+
+    Returns:
+        The outcome of each branch.
+    """
+    found: dict[str, shapes.Outcome] = {}
+    listed = every_pull(github, repo.slug, parsing.outcomes)
+    for outcome in listed:
+        found.setdefault(outcome.branch, outcome)
+    return found

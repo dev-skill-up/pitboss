@@ -10,7 +10,7 @@ included). The order of work is ``workorder``'s and the decisions ``decide``'s
 
 from typing import AbstractSet, Iterable, Mapping, Sequence
 
-from . import config, pullnames, pulls, reviews, steps, workitem
+from . import config, pullfacts, pullnames, reviews, steps, workitem
 
 Category = workitem.Category
 CATEGORY_WORDS = workitem.CATEGORY_WORDS
@@ -35,7 +35,7 @@ CATEGORY_OF_TASK: Mapping[steps.Task | None, Category] = {
 }
 
 
-def category_of(pull: pulls.PullFacts) -> Category | None:
+def category_of(pull: pullfacts.PullFacts) -> Category | None:
     """The kind of round a PR is offered for, from its step alone.
 
     Args:
@@ -59,7 +59,7 @@ def category_of(pull: pulls.PullFacts) -> Category | None:
     return Category.REVIEW_FIX_ROUND if fixing else Category.REVIEW
 
 
-def fix_round(pull: pulls.PullFacts) -> bool:
+def fix_round(pull: pullfacts.PullFacts) -> bool:
     """Whether the newest review asked for changes and the head moved since.
 
     Only then the review has two different heads to diff (keyword: fix-round,
@@ -76,7 +76,7 @@ def fix_round(pull: pulls.PullFacts) -> bool:
     return asked and pull.standing is reviews.Standing.OLDER_HEAD
 
 
-def taken(facts: Iterable[pulls.PullFacts]) -> AbstractSet[str]:
+def taken(facts: Iterable[pullfacts.PullFacts]) -> AbstractSet[str]:
     """The tickets open PRs already work on.
 
     A PR works on a ticket (keyword: taken) only when its title or body fixes

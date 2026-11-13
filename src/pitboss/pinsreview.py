@@ -9,7 +9,7 @@ dispatched. This module judges whether the PR may have one and writes it.
 
 import re
 
-from . import config, pinsreading, pulls, relock
+from . import config, pinsreading, pullref, pulls, relock
 
 RULING = (
     "Owner ruling (2026-11-07T11:50Z): relocks are mechanical; green CI and"
@@ -36,12 +36,12 @@ def unready(facts: pulls.PullFacts, prefix: str) -> str:
     reference = pulls.reference(facts)
     if not relock.is_relock(facts.pull.head.branch, prefix):
         return f"{reference} is not on a relock branch (head {facts.pull.head.branch})"
-    if pulls.green(facts):
+    if pullref.green(facts):
         return ""
     failed = ",".join(check.name for check in pulls.failed_checks(facts))
     return (
         f"{reference} is not green: {len(facts.checks)} checks,"
-        f" pending={pulls.pending(facts)} failed=[{failed}]"
+        f" pending={pullref.pending(facts)} failed=[{failed}]"
     )
 
 

@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import gradeline, reviews, shapes, work
-from . import decisionline, fakes, quietworld, test_commands, test_pulls, world
+from . import decisionline, fakes, quietworld, test_commands, world
 from .actreviewed import TO_REVIEW
 
 APPROVED = reviews.Verdict.APPROVED
@@ -200,22 +200,3 @@ class TestSweepAndNext(unittest.TestCase):
             swept = world.invoke(here, "sweep", here.config, *AFTER).out
             armed.append(TO_REVIEW in decisionline.of(swept, "owner/project#3"))
         assert_that(armed, equal_to([False, True]))
-
-
-class TestCarryOver(unittest.TestCase):
-    """An approval of the plan alone is not carried over merges of the base."""
-
-    def test_older_plan_approval_is_not_an_approval(self) -> None:
-        """Only merges since the head it named: the standing is the older head's."""
-        for plan_line, expected in [
-            ("", STANDING.APPROVED_BEFORE_MERGES),
-            ("Plan: approved\n", STANDING.OLDER_HEAD),
-        ]:
-            found = test_pulls.bodies([test_pulls.AUTHORED, test_pulls.MERGE])
-            comment = dict(test_pulls.OLD_GATED_APPROVAL)
-            comment["body"] = str(comment["body"]).replace(
-                "Verdict:", plan_line + "Verdict:"
-            )
-            found[fakes.page("repos/owner/project/issues/1/comments")] = [comment]
-            project, _ = test_pulls.read(found)
-            assert_that(project.standing, equal_to(expected))

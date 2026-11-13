@@ -4,6 +4,7 @@ Commands get gather's runners, which log, raise ``CalledProcessError`` on
 failure, and (``run`` only) do nothing in a dry run; tests pass fakes.
 """
 
+import dataclasses
 from typing import Callable, Protocol, Sequence
 
 
@@ -102,3 +103,28 @@ def through(
     if words[:2] != ["gh", "api"] or len(words) != 3 or args or kwargs:
         return run(cmdargs, *args, **kwargs)
     return read(words)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GitHub:
+    """GitHub's REST API, through ``gh api``.
+
+    Attributes:
+        run: the runner reads go through.
+        mutate: the runner changes go through (a dry run unless asked).
+    """
+
+    run: Run
+    mutate: Run
+
+
+def read_only(run: Run) -> GitHub:
+    """The API for a command that only reads (it never changes GitHub).
+
+    Args:
+        run: the runner reads go through.
+
+    Returns:
+        The API, whose changes go through the same runner.
+    """
+    return GitHub(run=run, mutate=run)

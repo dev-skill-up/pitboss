@@ -3,7 +3,7 @@
 import datetime
 from typing import Mapping, Sequence
 
-from . import brieftextowner, config, pulls, queue, reviews
+from . import brieftextowner, config, pullfacts, pullref, queue, reviews
 from .markers import Marker
 
 STANDING_WORDS = {
@@ -18,12 +18,12 @@ STANDING_WORDS = {
 }
 
 
-def _queue_word(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
-    found = newest.get(pulls.reference(pull))
+def _queue_word(pull: pullfacts.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
+    found = newest.get(pullref.reference(pull))
     return queue.state(found) if found else "-"
 
 
-def _unread_note(pull: pulls.PullFacts) -> str:
+def _unread_note(pull: pullfacts.PullFacts) -> str:
     if not pull.unreadable.newer:
         return ""
     return (
@@ -31,7 +31,7 @@ def _unread_note(pull: pulls.PullFacts) -> str:
     )
 
 
-def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
+def pull_line(pull: pullfacts.PullFacts, newest: Mapping[str, queue.QueueRun]) -> str:
     """The summary line of one PR.
 
     Args:
@@ -42,12 +42,12 @@ def pull_line(pull: pulls.PullFacts, newest: Mapping[str, queue.QueueRun]) -> st
         The line.
     """
     failed = ",".join(
-        f"{check.name} (job {check.id})" for check in pulls.failed_checks(pull)
+        f"{check.name} (job {check.id})" for check in pullref.failed_checks(pull)
     )
     return (
-        f"{pulls.reference(pull)} [{pull.pull.mergeable_state.name.lower()}]"
+        f"{pullref.reference(pull)} [{pull.pull.mergeable_state.name.lower()}]"
         f" auto-merge={'on' if pull.pull.auto_merge else 'off'}"
-        f" pending={pulls.pending(pull)} failed=[{failed}]"
+        f" pending={pullref.pending(pull)} failed=[{failed}]"
         f" queue={_queue_word(pull, newest)}"
         f" review={STANDING_WORDS[pull.standing]}{_unread_note(pull)}"
         f" {pull.pull.title[:55]} ({pull.pull.head.branch})"

@@ -2,10 +2,10 @@
 
 from typing import Sequence
 
-from . import causeline, pulls
+from . import causeline, pullfacts, pullref
 
 
-def of(found: pulls.PullFacts) -> Sequence[str]:
+def of(found: pullfacts.PullFacts) -> Sequence[str]:
     """The log location of each failed check of a PR a worker fixes the CI of.
 
     Args:
@@ -14,5 +14,5 @@ def of(found: pulls.PullFacts) -> Sequence[str]:
     Returns:
         ``<check name>: <url>`` for each failed check of its head.
     """
-    failed = pulls.failed_checks(found)
+    failed = pullref.failed_checks(found)
     return [causeline.named_location(found.repo.slug, each) for each in failed]

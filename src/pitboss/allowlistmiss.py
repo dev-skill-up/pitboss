@@ -14,7 +14,7 @@ import re
 import subprocess
 from typing import Sequence
 
-from . import ghapi, pulls, shapes
+from . import ghapi, pullfacts, pullref, shapes
 
 CHECK = "canonical-files"
 ALLOWLIST = "tools/pin-audit/allowlist.txt"
@@ -26,7 +26,7 @@ MISS = re.compile(
 NEXT = "the hash of this file as the next hash:"
 
 
-def failed(pull: pulls.PullFacts) -> Sequence[shapes.CheckRun]:
+def failed(pull: pullfacts.PullFacts) -> Sequence[shapes.CheckRun]:
     """The failed ``canonical-files`` checks of a PR's head.
 
     Args:
@@ -37,7 +37,7 @@ def failed(pull: pulls.PullFacts) -> Sequence[shapes.CheckRun]:
     """
     return [
         each
-        for each in pulls.failed_checks(pull)
+        for each in pullref.failed_checks(pull)
         if each.name.rpartition("/")[2].strip() == CHECK
     ]
 
@@ -57,14 +57,16 @@ def line_of(log: str) -> str:
     return next((each.strip() for each in after.splitlines() if each.strip()), "")
 
 
-def _read(github: ghapi.GitHub, pull: pulls.PullFacts, check: shapes.CheckRun) -> str:
+def _read(
+    github: ghapi.GitHub, pull: pullfacts.PullFacts, check: shapes.CheckRun
+) -> str:
     try:
         return ghapi.get(github, f"repos/{pull.repo.slug}/actions/jobs/{check.id}/logs")
     except subprocess.CalledProcessError:
         return ""
 
 
-def wanted(github: ghapi.GitHub, pull: pulls.PullFacts) -> str:
+def wanted(github: ghapi.GitHub, pull: pullfacts.PullFacts) -> str:
     """The allowlist line the failed ``canonical-files`` of a PR asks for.
 
     Args:
@@ -151,7 +153,9 @@ def asking(github: ghapi.GitHub, slug: str, line: str) -> str:
     return f"{slug}#{found[0]}" if found else ""
 
 
-def missing(github: ghapi.GitHub, pull: pulls.PullFacts) -> tuple[str, Sequence[str]]:
+def missing(
+    github: ghapi.GitHub, pull: pullfacts.PullFacts
+) -> tuple[str, Sequence[str]]:
     """The line a PR with a red ``canonical-files`` waits for, and what adds it.
 
     Args:

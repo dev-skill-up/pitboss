@@ -16,13 +16,14 @@ import sys
 import typing
 from typing import Callable, Iterator, Mapping, Sequence
 
-from . import act_commands, actverbs, cli_parser, config, machine, mode, proofsource
+from . import actverbs, cli_parser, config, machine, mode, proofsource
 
 ITEM = "owner/project#1"
 PROJECT = config.make_repo("owner", "project")
 # the values of an argument argparse gives no choices for
 VALUES: Mapping[str, Sequence[str]] = {"verb": [*actverbs.VERBS, "dispatch-next"]}
-WORDS: Mapping[str, Sequence[str]] = {"act": ["want=" + ITEM]}
+# the options an act command line gives, as ``name=value`` words read
+OPTIONS: Mapping[str, Mapping[str, str]] = {"act": {"want": ITEM}}
 Parse = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], mode.Mode]
 
 
@@ -83,9 +84,8 @@ def command_lines(
 
 
 def _options(args: argparse.Namespace) -> Mapping[str, str]:
-    words = WORDS.get(str(getattr(args, "__gather_name__", "")), [])
     given = getattr(args, "words", None)
-    return act_commands.options_of(words) if given and words else {}
+    return OPTIONS.get(str(getattr(args, "__gather_name__", "")), {}) if given else {}
 
 
 def images(parse: Parse, parser: argparse.ArgumentParser) -> Sequence[str]:

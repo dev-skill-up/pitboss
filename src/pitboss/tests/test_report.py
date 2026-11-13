@@ -8,7 +8,17 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import config, parsing, pulls, report, reviews, shapes, steps, straycomments
+from .. import (
+    config,
+    parsing,
+    pullref,
+    pulls,
+    report,
+    reviews,
+    shapes,
+    steps,
+    straycomments,
+)
 from . import fakes
 
 
@@ -95,11 +105,11 @@ class TestWaitForCi(unittest.TestCase):
         }
         for name, pull in cases.items():
             with self.subTest(name):
-                assert_that(pulls.green(pull), equal_to(False))
+                assert_that(pullref.green(pull), equal_to(False))
 
     def test_completed_check_run_is_ready(self) -> None:
         """A completed check run that did not fail makes the head green."""
-        assert_that(pulls.green(approved_green()), equal_to(True))
+        assert_that(pullref.green(approved_green()), equal_to(True))
 
 
 def at_merge(pull: pulls.PullFacts) -> pulls.PullFacts:

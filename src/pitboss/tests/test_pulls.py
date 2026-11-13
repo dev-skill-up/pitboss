@@ -5,7 +5,17 @@ from typing import Mapping, MutableMapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, failures, pullread, pulls, reviews, shapes, steps
+from .. import (
+    config,
+    failures,
+    pullchecks,
+    pullread,
+    pullref,
+    pulls,
+    reviews,
+    shapes,
+    steps,
+)
 from . import fakes
 
 GATED = "[review]\ngated = ['gated']\n[libraries]\nrepositories = ['gated']\n"
@@ -126,11 +136,11 @@ def summary(facts: pulls.PullFacts) -> Mapping[str, object]:
     return {
         "reference": pulls.reference(facts),
         "standing": facts.standing,
-        "approved": pulls.approved(facts),
-        "conflicted": pulls.conflicted(facts),
+        "approved": pullchecks.approved(facts),
+        "conflicted": pullchecks.conflicted(facts),
         "failed": [check.id for check in pulls.failed_checks(facts)],
-        "pending": pulls.pending(facts),
-        "green": pulls.green(facts),
+        "pending": pullref.pending(facts),
+        "green": pullref.green(facts),
     }
 
 
@@ -323,3 +333,22 @@ class TestFailures(unittest.TestCase):
         empty = shapes.Failure(steps=[], title="", summary="", annotations=[])
         found = (len(failures.describe(long)), failures.describe(empty))
         assert_that(found, equal_to((300, "")))
+
+
+class TestCarryOver(unittest.TestCase):
+    """An approval of the plan alone is not carried over merges of the base."""
+
+    def test_older_plan_approval_is_not_an_approval(self) -> None:
+        """Only merges since the head it named: the standing is the older head's."""
+        for plan_line, expected in [
+            ("", reviews.Standing.APPROVED_BEFORE_MERGES),
+            ("Plan: approved\n", reviews.Standing.OLDER_HEAD),
+        ]:
+            found = bodies([AUTHORED, MERGE])
+            comment = dict(OLD_GATED_APPROVAL)
+            comment["body"] = str(comment["body"]).replace(
+                "Verdict:", plan_line + "Verdict:"
+            )
+            found[fakes.page("repos/owner/project/issues/1/comments")] = [comment]
+            project, _ = read(found)
+            assert_that(project.standing, equal_to(expected))
