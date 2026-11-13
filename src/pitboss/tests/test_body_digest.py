@@ -1,12 +1,13 @@
 """A fixed PR body is answered by a re-review (keyword: body-digest, pitboss#147)."""
 
+import dataclasses
 import unittest
 from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import bodydigest, shapes
-from . import decisionline, fakes, world
+from . import blank, decisionline, fakes, world
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, world_with
 from .test_slot_commands import next_output
@@ -42,7 +43,8 @@ def review(
         *([body_line] if body_line else []),
         f"Verdict: {verdict}",
     ]
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body="\n".join(lines) + "\n",
         author_association="MEMBER",
         created_at=f"2026-10-30T00:00:{second:02d}Z",

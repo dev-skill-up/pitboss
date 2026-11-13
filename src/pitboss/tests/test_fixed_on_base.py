@@ -12,7 +12,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import basefix, flow, shapes, steps, stepwords
-from . import fakes, quietworld, syncworld, test_commands, test_flow, world
+from . import blank, fakes, quietworld, syncworld, test_commands, test_flow, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
 
@@ -57,8 +57,14 @@ CONFLICT_3 = "WORKER: owner/project#3: resolve the conflict"
 TRIAGE_2 = "ORCHESTRATOR: owner/project#2: triage the red"
 FIX_CI_3 = "WORKER: owner/project#3: fix CI on the head"
 RED = dataclasses.replace(test_flow.RED, completed_at=FAILED_AT)
-PASSED = shapes.CheckRun(
-    id=99, name="test", finished=True, failed=False, succeeded=True, head_sha="9" * 40
+PASSED = dataclasses.replace(
+    blank.CHECK_RUN,
+    id=99,
+    name="test",
+    finished=True,
+    failed=False,
+    succeeded=True,
+    head_sha="9" * 40,
 )
 ANSWER = basefix.Answer(failed=RED, passed=PASSED)
 

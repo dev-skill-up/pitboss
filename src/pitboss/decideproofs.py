@@ -8,7 +8,7 @@ import ast
 import re
 from typing import Iterator, Sequence
 
-from . import proofsource
+from . import proofsource, worldfields
 from .proofsource import Package
 
 WAIT_WORDS = re.compile(r"wait|nobody acts|after |passed over|held", re.IGNORECASE)
@@ -33,14 +33,8 @@ def one_decider(package: Package) -> Sequence[str]:
     return [f"P1: decide.decide takes {said}"]
 
 
-def _fields(tree: ast.AST, name: str) -> Sequence[ast.AnnAssign]:
-    found = proofsource.classes(tree).get(name)
-    body = [] if found is None else found.body
-    return [each for each in body if isinstance(each, ast.AnnAssign)]
-
-
-def _field_name(field: ast.AnnAssign) -> str:
-    return proofsource.dotted(field.target)
+_fields = worldfields.fields
+_field_name = worldfields.field_name
 
 
 def _caught(package: Package, name: str) -> Iterator[tuple[str, ast.ExceptHandler]]:
@@ -81,20 +75,15 @@ def read_failure(package: Package) -> Sequence[str]:
 
 
 def no_partial_world(package: Package) -> Sequence[str]:
-    """P3: ``World`` has no default, and a failed read ends the command.
+    """P3: no record ``World`` holds has a default; a failed read ends the command.
 
     Args:
         package: the package.
 
     Returns:
-        Each default and each break of the one read failure.
+        Each default in the World's closure and each break of the one read failure.
     """
-    found = [
-        f"P3: World.{_field_name(each)} has a default"
-        for each in _fields(proofsource.module(package, "world"), "World")
-        if each.value is not None
-    ]
-    return [*found, *read_failure(package)]
+    return [*worldfields.defaults(package), *read_failure(package)]
 
 
 def _decision_shape(package: Package) -> Sequence[str]:

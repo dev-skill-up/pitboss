@@ -8,6 +8,7 @@ sweep offered its merge, and ``pitboss next`` offered the Plan
 review again.
 """
 
+import dataclasses
 import pathlib
 import unittest
 from typing import Sequence
@@ -15,7 +16,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import gradeline, reviews, shapes, steps, stepwords
-from . import decisionline, quietworld, test_flow, test_flow_sweep, world
+from . import blank, decisionline, quietworld, test_flow, test_flow_sweep, world
 from .actreviewed import TO_REVIEW
 from .test_commands import sweep
 
@@ -39,7 +40,9 @@ def plan_only(body: str) -> shapes.Comment:
         The comment.
     """
     when = "2026-10-30T00:00:04Z"
-    return shapes.Comment(body=body, author_association="MEMBER", created_at=when)
+    return dataclasses.replace(
+        blank.COMMENT, body=body, author_association="MEMBER", created_at=when
+    )
 
 
 def played(body: str) -> Sequence[shapes.Comment]:

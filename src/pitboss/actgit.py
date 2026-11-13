@@ -78,7 +78,7 @@ def push(act: Act, target: Target, options: Options) -> Said:
     return head
 
 
-def clean(act: Act, target: Target, options: Options) -> str:
+def clean(act: Act, target: Target, options: Options) -> Said:
     """Say whether a finished worktree may be removed.
 
     Args:
@@ -87,15 +87,15 @@ def clean(act: Act, target: Target, options: Options) -> str:
         options: ``worktree``.
 
     Returns:
-        ``removable``.
-
-    Raises:
-        Refused: changes not committed, or a commit on no remote branch (KEPT).
+        ``removable``, or what keeps it: changes not committed, or a commit on no
+        remote branch.
     """
     worktree = option(options, "worktree")
     if _git(act, worktree, "status", "--porcelain"):
-        raise Refused("KEPT: the worktree has changes not committed")
+        line = "KEPT: the worktree has changes not committed"
+        return Stands(why=Why.KEPT_CHANGES, line=line)
     left = _git(act, worktree, "log", "--oneline", "--branches", "--not", "--remotes")
     if left:
-        raise Refused(f"KEPT: a commit on no remote branch: {left.splitlines()[0]}")
+        line = f"KEPT: a commit on no remote branch: {left.splitlines()[0]}"
+        return Stands(why=Why.KEPT_UNPUSHED, line=line)
     return "removable"

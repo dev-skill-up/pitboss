@@ -26,10 +26,14 @@ class Draft:
             (the caller looks at the runners; keyword: hold-scope, B20).
     """
 
-    needs_e2e: bool = False
-    plan_review_check: str = ""
-    no_drafts: bool = False
-    hold: bool = False
+    needs_e2e: bool
+    plan_review_check: str
+    no_drafts: bool
+    hold: bool
+
+
+# a PR with no draft question
+NONE = Draft(needs_e2e=False, plan_review_check="", no_drafts=False, hold=False)
 
 
 class Run(Protocol):

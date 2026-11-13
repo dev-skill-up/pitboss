@@ -20,6 +20,7 @@ from . import (
 )
 from .test_commands import sweep
 from .test_slot_commands import next_output
+from . import blank
 
 HEAD = "3" * 40
 OLDER = "2" * 40
@@ -66,9 +67,7 @@ def graded(
         f"Verdict: {verdict}",
     ]
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return shapes.Comment(
-        body="\n".join(lines) + "\n", author_association="MEMBER", created_at=when
-    )
+    return blank.member_comment("\n".join(lines) + "\n", when)
 
 
 def reading(review: shapes.Comment, body: str) -> shapes.Comment:

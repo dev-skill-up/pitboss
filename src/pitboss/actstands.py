@@ -4,7 +4,7 @@ A verb refused for what it is given (an option, the checkout, a file's form) rai
 ``Refused``; a verb that GitHub's state stops is no exception but this value: an
 owner message with no disposition, a hold, a line that is no stop of the item's
 decision, a size over the repository's p90, a ticket a PR started, a comment
-pitboss did not post, a push the remote does not hold.
+pitboss did not post, a push the remote does not hold, a worktree kept.
 """
 
 import dataclasses
@@ -22,6 +22,8 @@ class Why(enum.Enum):
         STARTED: a PR closes the ticket, so a worker started it.
         NOT_OURS: the comment is not one ``pitboss act`` posted.
         NOT_PUSHED: the remote branch does not hold the head pushed.
+        KEPT_CHANGES: a worktree has changes not committed, so it is kept.
+        KEPT_UNPUSHED: a worktree has a commit on no remote branch, so it is kept.
     """
 
     OWNER_MESSAGE = enum.auto()
@@ -31,6 +33,8 @@ class Why(enum.Enum):
     STARTED = enum.auto()
     NOT_OURS = enum.auto()
     NOT_PUSHED = enum.auto()
+    KEPT_CHANGES = enum.auto()
+    KEPT_UNPUSHED = enum.auto()
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

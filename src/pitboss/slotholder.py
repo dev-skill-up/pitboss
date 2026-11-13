@@ -43,9 +43,8 @@ def without(book: ledger.Ledger, gone: AbstractSet[str]) -> ledger.Ledger:
     Returns:
         The ledger.
     """
-    empty = ledger.Slot
     slots = tuple(
-        empty(name=each.name, model=each.model) if each.agent in gone else each
+        ledger.empty_slot(each.name, each.model) if each.agent in gone else each
         for each in book.slots
     )
     return dataclasses.replace(book, slots=slots)

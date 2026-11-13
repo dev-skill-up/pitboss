@@ -250,7 +250,8 @@ class TestReads(unittest.TestCase):
 
     def test_a_review_slot_is_named_by_its_pr(self) -> None:
         """A slot of a review names the PR it reviews."""
-        slot = slotbook.Slot(name="s1", model="m", task="o/r#3", kind="review")
+        slot = slotbook.empty_slot("s1", "m")
+        slot = dataclasses.replace(slot, task="o/r#3", kind="review")
         assert_that(slotsheader.subject(slot), equal_to("o/r#3"))
 
     def test_with_no_runners_table_nothing_is_held(self) -> None:

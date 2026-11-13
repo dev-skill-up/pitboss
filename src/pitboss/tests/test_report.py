@@ -1,5 +1,6 @@
 """Tests for the sweep's PR line."""
 
+import dataclasses
 import json
 import unittest
 
@@ -18,7 +19,8 @@ from .. import (
     steps,
     straycomments,
 )
-from . import fakes
+from .. import headsignals, rounds
+from . import blank, fakes
 
 
 def run(finished: bool) -> shapes.CheckRun:
@@ -30,7 +32,9 @@ def run(finished: bool) -> shapes.CheckRun:
     Returns:
         The check run.
     """
-    return shapes.CheckRun(id=1, name="check", finished=finished, failed=False)
+    return dataclasses.replace(
+        blank.CHECK_RUN, id=1, name="check", finished=finished, failed=False
+    )
 
 
 def facts(
@@ -60,8 +64,11 @@ def facts(
         checks=checks,
         review=found,
         standing=standing,
-        unreadable=straycomments.StrayComments(newer=unread),
+        unreadable=dataclasses.replace(straycomments.NONE, newer=unread),
         step=steps.IDLE,
+        signals=headsignals.NONE,
+        review_rounds=rounds.NONE,
+        relock=False,
     )
 
 

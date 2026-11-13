@@ -5,9 +5,9 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to, instance_of
 
-from .. import answer, decide, ledger, shapes, steps, world
+from .. import answer, decide, shapes, slotbook, steps, world
 
-BOOK = ledger.Ledger(slots=[], failed={})
+BOOK = slotbook.ledger_of([])
 
 
 def ticket(number: int, **changes: bool) -> world.TicketRecord:
@@ -26,6 +26,7 @@ def ticket(number: int, **changes: bool) -> world.TicketRecord:
         created_at="2026-11-01T00:00:00Z",
         labels=frozenset({"p2"}),
         body="",
+        comments=0,
     )
     return world.TicketRecord(
         reference=f"o/r#{number}",

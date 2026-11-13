@@ -13,7 +13,7 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, pulls, shapes
-from . import world
+from . import blank, world
 from .test_push_draft import OTHER_URL, gits
 from .test_work import NONE, facts
 from .says import exits, says
@@ -46,7 +46,8 @@ def check(
         The check run.
     """
     done = NOW - MINUTE * minutes_ago
-    return shapes.CheckRun(
+    return dataclasses.replace(
+        blank.CHECK_RUN,
         id=number,
         name=name,
         finished=True,

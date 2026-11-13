@@ -9,6 +9,7 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import config, parsing, pulls, reviews, steps, work
+from .. import headsignals, rounds, straycomments
 from . import fakes, test_flow
 
 REPO = config.make_repo("owner", "project")
@@ -64,6 +65,10 @@ def facts(
         review=None,
         standing=standing,
         step=DEFAULT_STEP,
+        signals=headsignals.NONE,
+        unreadable=straycomments.NONE,
+        review_rounds=rounds.NONE,
+        relock=False,
     )
 
 

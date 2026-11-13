@@ -85,7 +85,13 @@ def posted(*pairs: tuple[str, str]) -> Sequence[shapes.CommitStatus]:
     """
     return [
         shapes.CommitStatus(
-            context=context, succeeded=state == "success", created_at="", state=state
+            context=context,
+            succeeded=state == "success",
+            created_at="",
+            state=state,
+            run=0,
+            description="",
+            url="",
         )
         for context, state in pairs
     ]

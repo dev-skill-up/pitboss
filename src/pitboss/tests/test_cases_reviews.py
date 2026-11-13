@@ -10,8 +10,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brieftext, flow, reviewunread, shapes
-from . import model
+from .. import brieftext, flow, reviewunread
+from . import blank, model
 from .model import History, Verdict
 
 V = Verdict
@@ -42,8 +42,12 @@ def named_for(body: str) -> Sequence[str]:
     Returns:
         What ``reviewunread.without_execution`` names.
     """
-    comment = shapes.Comment(
-        body=body, author_association="MEMBER", created_at=model.stamp(5), url=URL
+    comment = dataclasses.replace(
+        blank.COMMENT,
+        body=body,
+        author_association="MEMBER",
+        created_at=model.stamp(5),
+        url=URL,
     )
     state = state_of(TWO_PLANS)
     state = dataclasses.replace(state, comments=[*state.comments, comment])

@@ -46,10 +46,10 @@ class PullState:
     graded: Sequence[shapes.Graded]
     comments: Sequence[shapes.Comment]
     trusted: AbstractSet[str]
-    undraft_clear: bool = False
-    relock: bool = False
-    draft: draftfacts.Draft = draftfacts.Draft()
-    unchanged: AbstractSet[str] = frozenset()
+    undraft_clear: bool
+    relock: bool
+    draft: draftfacts.Draft
+    unchanged: AbstractSet[str]
 
 
 def is_trusted_ruling(comment: shapes.Comment, trusted: AbstractSet[str]) -> bool:

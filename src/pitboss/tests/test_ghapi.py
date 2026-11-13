@@ -93,7 +93,12 @@ class TestParsing(unittest.TestCase):
         """Issues leave out PRs; outcomes say whether a PR merged."""
         found = [issuelist.issues(ISSUES), parsing.outcomes(OUTCOMES)]
         issue = shapes.Issue(
-            number=1, title="t", created_at="c", labels=frozenset({"p"}), body=""
+            number=1,
+            title="t",
+            created_at="c",
+            labels=frozenset({"p"}),
+            body="",
+            comments=0,
         )
         expected = [
             [issue],

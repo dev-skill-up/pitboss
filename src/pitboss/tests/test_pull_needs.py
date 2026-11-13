@@ -17,6 +17,7 @@ from .. import (
     steps,
     updateline,
 )
+from .. import headsignals
 from . import quietworld, test_flow, test_work, world
 
 QUEUE = "\n[merge_queue]\nrepositories = ['project']\n"
@@ -28,10 +29,10 @@ DISPATCH = " ".join(
 )
 BEHIND = "merge main into branch-3, check, push"
 PASSED = dataclasses.replace(test_flow.GREEN, id=3, name="test")
-ANSWERED = headchecks.HeadSignals(
-    fixed=[basefix.Answer(failed=test_flow.RED, passed=PASSED)]
+ANSWERED = dataclasses.replace(
+    headsignals.NONE, fixed=[basefix.Answer(failed=test_flow.RED, passed=PASSED)]
 )
-OPEN = headchecks.HeadSignals()
+OPEN = headsignals.NONE
 GREEN = test_work.GREEN
 RED = test_flow.RED
 RED_NEED = "the CI is red: fix it (merge main first if it is behind)"

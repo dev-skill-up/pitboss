@@ -47,13 +47,11 @@ class PullFacts:
     checks: Sequence[shapes.CheckRun]
     review: reviews.Found | None
     standing: reviews.Standing
-    signals: HeadSignals = dataclasses.field(default_factory=headsignals.HeadSignals)
-    unreadable: straycomments.StrayComments = dataclasses.field(
-        default_factory=straycomments.StrayComments
-    )
+    signals: HeadSignals
+    unreadable: straycomments.StrayComments
     step: steps.Move
-    review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
-    relock: bool = False
+    review_rounds: rounds.Rounds
+    relock: bool
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

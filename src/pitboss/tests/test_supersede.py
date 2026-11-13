@@ -7,7 +7,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_exactly, contains_string, equal_to
 
 from .. import parsing, shapes, supersede
-from . import decisionline, fakes, world
+from . import blank, decisionline, fakes, world
 from .says import read_failed
 from .test_commands import sweep
 
@@ -33,7 +33,8 @@ def check(name: str = "lint", run: int = RUN) -> shapes.CheckRun:
     Returns:
         The check run.
     """
-    return shapes.CheckRun(
+    return dataclasses.replace(
+        blank.CHECK_RUN,
         id=125548778441,
         name=name,
         finished=True,
@@ -67,6 +68,7 @@ def status(
         run=run,
         state="success" if succeeded else "failure",
         url=f"https://github.com/o/r/actions/runs/{run}" if run else "",
+        description="",
     )
 
 
@@ -168,9 +170,7 @@ class TestParsing(unittest.TestCase):
             found,
             contains_exactly(
                 status("text-lint", created="2026-11-03T01:06:05Z", run=41524542678),
-                shapes.CommitStatus(
-                    context="x", succeeded=False, created_at="", state="pending"
-                ),
+                dataclasses.replace(status("x", "", 0, False), state="pending"),
             ),
         )
 

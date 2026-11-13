@@ -21,7 +21,11 @@ class StrayComments:
             approved Plan and have no ``Execution:`` line (keyword: review-unread).
     """
 
-    newer: str = ""
-    graded: Sequence[unreadableform.UnreadableReview] = ()
-    premature: Sequence[earlyfound.Premature] = ()
-    no_execution: Sequence[str] = ()
+    newer: str
+    graded: Sequence[unreadableform.UnreadableReview]
+    premature: Sequence[earlyfound.Premature]
+    no_execution: Sequence[str]
+
+
+# no stray comment
+NONE = StrayComments(newer="", graded=(), premature=(), no_execution=())

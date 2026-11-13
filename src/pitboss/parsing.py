@@ -35,7 +35,7 @@ def pull(text: str) -> shapes.Pull:
         draft=bool(data.get("draft")),
         author=data["user"]["login"],
         body=data.get("body") or "",
-        head=shapes.Head(sha=data["head"]["sha"], branch=data["head"]["ref"]),
+        head=shapes.Head(sha=data["head"]["sha"], branch=data["head"]["ref"], repo=""),
         base=data["base"]["ref"],
         mergeable_state=shapes.MERGE_STATES.get(
             data.get("mergeable_state") or "", shapes.MergeState.UNKNOWN

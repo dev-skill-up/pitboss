@@ -7,7 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import reviews, shapes, unreadableform
-from . import test_flow, test_plan_revision
+from . import blank, test_flow, test_plan_revision
 
 HEAD = test_plan_revision.HEAD
 URL = "https://github.com/owner/project/pull/3#issuecomment-6529013244"
@@ -26,7 +26,9 @@ def comment(body: str, author: str = "MEMBER") -> shapes.Comment:
     Returns:
         The comment.
     """
-    return shapes.Comment(body=body, author_association=author, created_at="1", url=URL)
+    return dataclasses.replace(
+        blank.COMMENT, body=body, author_association=author, created_at="1", url=URL
+    )
 
 
 def found(

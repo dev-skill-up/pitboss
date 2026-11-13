@@ -105,9 +105,9 @@ class Fetched:
     posted: reviews.Sources
     sent: reviews.Sources
     checks: Sequence[shapes.CheckRun]
-    statuses: Sequence[shapes.CommitStatus] = ()
-    premature: Sequence[earlyfound.Premature] = ()
-    fixed: Sequence[basefix.Answer] = ()
+    statuses: Sequence[shapes.CommitStatus]
+    premature: Sequence[earlyfound.Premature]
+    fixed: Sequence[basefix.Answer]
 
 
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:

@@ -8,12 +8,14 @@ keyword body-edits; the final text for a capture without edits), and the merge
 state is clean: a mark is placed where that holds.
 """
 
+import dataclasses
 import enum
 import json
 import pathlib
 from typing import AbstractSet, Mapping, NamedTuple, NotRequired, Sequence, TypedDict
 
 from .. import capture, config, flow, parsing, reviews, shapes, steps, stepwords
+from . import pullstates
 
 DIRECTORY = pathlib.Path(__file__).with_name("scenarios")
 HEADER = "Independent review (a separate reviewer agent, not the author) of head"
@@ -258,8 +260,8 @@ def state_at(data: Timeline, when: str, settled: bool = False) -> flow.PullState
     """
     posted = _posted(data, when)
     pull = parsing.pull(_pull(data, when))
-    return flow.PullState(
-        pull=pull,
+    return dataclasses.replace(
+        pullstates.bare(pull),
         labels=labels_at(data, when),
         checks=_checks(data, pull.head.sha, when, settled),
         graded=reviews.recorded(REVIEW, data["slug"], posted),

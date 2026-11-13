@@ -13,14 +13,13 @@ from .. import (
     foldline,
     folds,
     forms,
-    headchecks,
     parsing,
     pulls,
     reviews,
-    shapes,
     steps,
 )
-from . import fakes
+from .. import headsignals, rounds, straycomments
+from . import blank, fakes
 from .formchecks import body_checks, subject
 from .linting import BODY, lines, lint, write_text
 from .test_textlint import event, posted, run
@@ -87,9 +86,12 @@ def facts(body: str, rulings: Sequence[folds.Recorded]) -> pulls.PullFacts:
         review=None,
         standing=reviews.Standing.NONE,
         step=steps.IDLE,
+        signals=headsignals.NONE,
+        unreadable=straycomments.NONE,
+        review_rounds=rounds.NONE,
     )
     pull = dataclasses.replace(base.pull, body=body)
-    signals = headchecks.HeadSignals(rulings=rulings)
+    signals = dataclasses.replace(headsignals.NONE, rulings=rulings)
     return dataclasses.replace(base, pull=pull, signals=signals)
 
 
@@ -104,8 +106,12 @@ class TestFolds(unittest.TestCase):
     def test_recorded(self) -> None:
         """Only a trusted author's ruling comment is recorded."""
         comments = [
-            shapes.Comment(
-                body=body, author_association=who, created_at="", url=f"u{who}"
+            dataclasses.replace(
+                blank.COMMENT,
+                body=body,
+                author_association=who,
+                created_at="",
+                url=f"u{who}",
             )
             for body, who in [(STEPS, "OWNER"), (STEPS, "NONE"), ("hello", "OWNER")]
         ]

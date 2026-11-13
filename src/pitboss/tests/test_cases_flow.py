@@ -5,12 +5,13 @@ The flow tests plant the timeline of the case on the model of a PR; the sweep
 test plants a fix round with no reviewer.
 """
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import rulingreason, shapes, steps
-from . import model
+from . import blank, model
 from .model import History, Ruling, Verdict
 
 V = Verdict
@@ -93,7 +94,9 @@ CHECK_TEXT = "Plan check\nrow 1: ran\nPlan check: ok\n"
 
 
 def _comment(body: str, at: str) -> shapes.Comment:
-    return shapes.Comment(created_at=at, body=body, author_association="MEMBER")
+    return dataclasses.replace(
+        blank.COMMENT, created_at=at, body=body, author_association="MEMBER"
+    )
 
 
 class TestRulingReason(unittest.TestCase):

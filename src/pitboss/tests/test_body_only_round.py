@@ -10,7 +10,7 @@ import unittest
 from hamcrest import assert_that, equal_to
 
 from .. import flow, flowstate, plancheckflow, shapes, steps
-from . import test_flow
+from . import blank, test_flow
 from .checkcomment import clean_text
 from .test_flow import expect, state
 
@@ -32,7 +32,8 @@ def check_after(text: str, digest: str = "") -> shapes.Comment:
     """
     clean = clean_text(test_flow.BODY).replace(OK, text)
     body = clean.replace(clean.splitlines()[1], digest or clean.splitlines()[1])
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=body,
         author_association="MEMBER",
         created_at="2026-10-30T00:00:04Z",

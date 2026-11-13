@@ -4,6 +4,7 @@ import functools
 import json
 
 from .. import actcore, actverbs, answer, blockedstep, config, decide, gate
+from .. import headsignals, rounds, straycomments
 from .. import gatefacts
 from .. import gatepolicy, listed, parsing, pullfacts, reviews, steps, world
 from ..actport import Pull
@@ -22,6 +23,10 @@ def _facts(repo: config.Repo, number: int, step: steps.Next) -> pullfacts.PullRe
         review=None,
         standing=reviews.Standing.NONE,
         step=step,
+        signals=headsignals.NONE,
+        unreadable=straycomments.NONE,
+        review_rounds=rounds.NONE,
+        relock=False,
     )
     merging = step.step is steps.Step.MERGE
     return flowread.read_of(facts, flowread.MERGING if merging else flowread.UNDRAFTING)

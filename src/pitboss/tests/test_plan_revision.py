@@ -1,11 +1,12 @@
 """Tests for the plan revision round (keyword: plan-revision, pitboss#82)."""
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, equal_to
 
 from .. import gradeline, reviews, shapes, work
-from . import decisionline, fakes, quietworld, test_commands, world
+from . import blank, decisionline, fakes, quietworld, test_commands, world
 from .actreviewed import TO_REVIEW
 
 APPROVED = reviews.Verdict.APPROVED
@@ -37,7 +38,8 @@ def review_comment(
         *([f"Execution: {execution}"] if execution else []),
         f"Verdict: {verdict}",
     ]
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body="\n".join(lines).replace("a" * 40, HEAD) + "\n",
         author_association="MEMBER",
         created_at="2026-10-30T00:00:01Z",
@@ -88,8 +90,13 @@ def review_of(
     Returns:
         The standing.
     """
-    found = reviews.Found(
-        sha=HEAD, verdict=verdict, when="", plan_approved=plan, plan_alone=alone
+    found = dataclasses.replace(
+        reviews.BARE,
+        sha=HEAD,
+        verdict=verdict,
+        when="",
+        plan_approved=plan,
+        plan_alone=alone,
     )
     return reviews.head_standing(found, HEAD)
 
@@ -142,6 +149,8 @@ class TestReadingLines(unittest.TestCase):
             commit_id=HEAD,
             author_association="MEMBER",
             submitted_at="1",
+            body="",
+            login="",
         )
         sources = [
             reviews.Sources(comments=comments, reviews=submitted)

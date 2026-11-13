@@ -12,7 +12,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import allowlistmiss, pulls, shapes
-from . import fakes, rankworld, test_flow, test_work, world
+from . import blank, fakes, rankworld, test_flow, test_work, world
 from .rankworld import lines_of, mentioning, next_output, starts
 
 PROTOTYPE = "repos/owner/repository-prototype"
@@ -147,7 +147,9 @@ def check(number: int, name: str, failed: bool = True) -> shapes.CheckRun:
     Returns:
         The check.
     """
-    return shapes.CheckRun(id=number, name=name, finished=True, failed=failed)
+    return dataclasses.replace(
+        blank.CHECK_RUN, id=number, name=name, finished=True, failed=failed
+    )
 
 
 class TestFailed(unittest.TestCase):

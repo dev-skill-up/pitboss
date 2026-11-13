@@ -40,7 +40,11 @@ SEEDS: Mapping[str, Seed] = {
         new="def decide(made: world.World, more: int) -> Judgement:",
     ),
     "P2": Seed(path="render.py", old="", new="\nimport subprocess\n"),
-    "P3": Seed(path="world.py", old="    free: int\n", new="    free: int = 0\n"),
+    "P3": Seed(
+        path="shapes.py",
+        old="    said: tuple[str, str]\n",
+        new="    said: tuple[str, str] = ('', '')\n",
+    ),
     "P5": Seed(
         path="render.py", old="", new="\ndef said(given: int) -> str:\n    return ''\n"
     ),

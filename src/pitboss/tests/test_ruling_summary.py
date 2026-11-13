@@ -1,5 +1,6 @@
 """Tests for the daily Opus ruling summary and the owner's artifact (pitboss#237)."""
 
+import dataclasses
 import datetime
 import pathlib
 import unittest
@@ -7,7 +8,7 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import rulingsummary, shapes
-from . import fakes, world
+from . import blank, fakes, world
 from .test_evidence_rules import read, words
 
 AFTER = ("--now", world.FUTURE)
@@ -68,8 +69,8 @@ def ruled(when: str, author: str = "MEMBER", url: str = "") -> shapes.Comment:
     Returns:
         The comment.
     """
-    return shapes.Comment(
-        body=RULING, author_association=author, created_at=when, url=url
+    return dataclasses.replace(
+        blank.COMMENT, body=RULING, author_association=author, created_at=when, url=url
     )
 
 
@@ -96,7 +97,9 @@ def plain(when: str) -> shapes.Comment:
     Returns:
         The comment.
     """
-    return shapes.Comment(body="LGTM", author_association="MEMBER", created_at=when)
+    return dataclasses.replace(
+        blank.COMMENT, body="LGTM", author_association="MEMBER", created_at=when
+    )
 
 
 def ran(here: world.World, command: str) -> str:

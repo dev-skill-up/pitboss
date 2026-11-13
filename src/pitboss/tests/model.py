@@ -11,7 +11,7 @@ import dataclasses
 from typing import Callable, Sequence
 
 from .. import bodydigest, expansion, flow, plandigest, rulingwords, shapes, steps
-from . import checkcomment, test_flow
+from . import blank, checkcomment, pullstates, test_flow
 
 Verdict = shapes.Verdict
 Ruling = rulingwords.Ruling
@@ -142,7 +142,8 @@ def sha_of(head: int) -> str:
 
 
 def _plan_check(plan: int, head: int, second: int) -> shapes.Comment:
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=checkcomment.clean_text(body_of(plan, head)),
         author_association="MEMBER",
         created_at=stamp(second),
@@ -151,7 +152,8 @@ def _plan_check(plan: int, head: int, second: int) -> shapes.Comment:
 
 
 def _ruling(second: int, word: Ruling) -> shapes.Comment:
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=f"Opus ruling\nRuling: {word.value}\n",
         author_association="MEMBER",
         created_at=stamp(second),
@@ -162,7 +164,8 @@ def _ruling(second: int, word: Ruling) -> shapes.Comment:
 def _graded(each: Review) -> shapes.Graded:
     second, plan, execution, head, version = each
     body = body_of(version, head)
-    return shapes.Graded(
+    return dataclasses.replace(
+        blank.GRADED,
         sha=sha_of(head),
         when=stamp(second),
         plan=plan,
@@ -175,7 +178,8 @@ def _graded(each: Review) -> shapes.Graded:
 def _check_runs(model: Model) -> Sequence[shapes.CheckRun]:
     finished, failed = STATES[model.ci]
     return [
-        shapes.CheckRun(
+        dataclasses.replace(
+            blank.CHECK_RUN,
             id=1,
             name="build",
             finished=finished,
@@ -202,13 +206,12 @@ def pull_state(model: Model) -> flow.PullState:
     made = model.history
     comments = [_plan_check(plan, at, second) for second, plan, at in made.checks]
     comments += [_ruling(second, word) for second, word in made.rulings]
-    return flow.PullState(
-        pull=pull,
+    return dataclasses.replace(
+        pullstates.bare(pull),
         labels={steps.PAUSED_LABEL} if model.paused else set(),
         checks=_check_runs(model),
         graded=[_graded(each) for each in made.reviews],
         comments=comments,
-        trusted=frozenset({"MEMBER"}),
     )
 
 

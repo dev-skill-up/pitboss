@@ -10,7 +10,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import draftfacts, flow, shapes, steps
-from . import fakes, suggestions, world
+from . import blank, fakes, suggestions, world
 from .test_flow import RED, expect, state
 
 LOG = "Failed check log: test: https://github.com/owner/project/runs/8"
@@ -44,7 +44,9 @@ def failing(name: str) -> shapes.CheckRun:
     Returns:
         The run.
     """
-    return shapes.CheckRun(id=len(name), name=name, finished=True, failed=True)
+    return dataclasses.replace(
+        blank.CHECK_RUN, id=len(name), name=name, finished=True, failed=True
+    )
 
 
 def set_check(name: str) -> flow.PullState:

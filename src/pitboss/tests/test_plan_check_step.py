@@ -7,7 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, plancheck, plandigest, shapes, steps, stepwords
-from . import checkcomment, fakes, worldcomments
+from . import blank, checkcomment, fakes, worldcomments
 from .test_flow import CHANGES, expect, graded
 from .test_flow import BODY
 from .test_flow import state as checked_state
@@ -53,7 +53,8 @@ def check_comment(body: str, author: str = "MEMBER") -> shapes.Comment:
         The comment.
     """
     text = plancheck.text(plandigest.section(body), ["row 1: ran"], [])
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=text,
         author_association=author,
         created_at="2026-10-30T00:00:01Z",

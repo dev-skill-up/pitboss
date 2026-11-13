@@ -7,8 +7,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
-from .. import brief, causeline, causetext, shapes
-from . import suggestions, world
+from .. import brief, causeline, causetext
+from . import blank, suggestions, world
 from .briefmake import make, pinned, text
 from .says import has_none
 from .test_commands import sweep
@@ -59,7 +59,9 @@ class TestCauseLine(unittest.TestCase):
 
     def test_an_actions_check_names_its_job(self) -> None:
         """A check of a workflow run is located by the run and the job."""
-        check = shapes.CheckRun(id=8, name="test", finished=True, failed=True, run=5)
+        check = dataclasses.replace(
+            blank.CHECK_RUN, id=8, name="test", finished=True, failed=True, run=5
+        )
         assert_that(
             causeline.log_location("o/r", check),
             equal_to("https://github.com/o/r/actions/runs/5/job/8"),

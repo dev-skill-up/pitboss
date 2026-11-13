@@ -14,7 +14,7 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, draftfacts, shapes, steps
-from . import fakes, test_flow, world
+from . import blank, fakes, test_flow, world
 from .briefmake import make, text
 from .pinsworld import offered as state_line
 from .says import has_none
@@ -168,7 +168,9 @@ class TestTheFlow(unittest.TestCase):
 
     def test_a_name_that_only_ends_alike_is_another_check(self) -> None:
         """Only ``caller / name`` matches, not any name that ends in it."""
-        other = shapes.CheckRun(id=4, name="precheck", finished=True, failed=False)
+        other = dataclasses.replace(
+            blank.CHECK_RUN, id=4, name="precheck", finished=True, failed=False
+        )
         assert_that(draftfacts.completed([other], "check"), equal_to(False))
 
 

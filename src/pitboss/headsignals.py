@@ -36,11 +36,24 @@ class HeadSignals:
             (keyword: hold-scope, B20).
     """
 
-    statuses: Sequence[shapes.CommitStatus] = ()
-    labels: AbstractSet[str] = frozenset()
-    gate: str = ""
-    rulings: Sequence[tuple[str, str]] = ()
-    approved_plans: Sequence[str] = ()
-    pins: pinsreading.Reading = pinsreading.NOTHING
-    fixed: Sequence[basefix.Answer] = ()
-    hold: bool = False
+    statuses: Sequence[shapes.CommitStatus]
+    labels: AbstractSet[str]
+    gate: str
+    rulings: Sequence[tuple[str, str]]
+    approved_plans: Sequence[str]
+    pins: pinsreading.Reading
+    fixed: Sequence[basefix.Answer]
+    hold: bool
+
+
+# the signals of a head that has none
+NONE = HeadSignals(
+    statuses=(),
+    labels=frozenset(),
+    gate="",
+    rulings=(),
+    approved_plans=(),
+    pins=pinsreading.NOTHING,
+    fixed=(),
+    hold=False,
+)

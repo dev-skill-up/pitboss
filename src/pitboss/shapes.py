@@ -56,7 +56,7 @@ class Head:
 
     sha: str
     branch: str
-    repo: str = ""
+    repo: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -126,12 +126,12 @@ class CheckRun:
     name: str
     finished: bool
     failed: bool
-    head_sha: str = ""
-    started_at: str = ""
-    completed_at: str = ""
-    run: int = 0
-    succeeded: bool = False
-    said: tuple[str, str] = ("", "")
+    head_sha: str
+    started_at: str
+    completed_at: str
+    run: int
+    succeeded: bool
+    said: tuple[str, str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -151,10 +151,10 @@ class CommitStatus:
     context: str
     succeeded: bool
     created_at: str
-    run: int = 0
-    state: str = ""
-    description: str = ""
-    url: str = ""
+    run: int
+    state: str
+    description: str
+    url: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -189,8 +189,8 @@ class Comment:
     body: str
     author_association: str
     created_at: str
-    url: str = ""
-    login: str = ""
+    url: str
+    login: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -210,8 +210,8 @@ class PullReview:
     commit_id: str
     author_association: str
     submitted_at: str
-    body: str = ""
-    login: str = ""
+    body: str
+    login: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -279,7 +279,7 @@ class Issue:
     created_at: str
     labels: AbstractSet[str]
     body: str
-    comments: int = 0
+    comments: int
 
 
 RED_CONCLUSIONS = frozenset({"failure", "timed_out", "startup_failure"})
@@ -385,7 +385,7 @@ class Graded:
     when: str
     plan: Verdict | None
     execution: Verdict | None
-    comment: bool = True
-    body: str = ""
-    missed: int = 0
-    plan_digest: str = ""
+    comment: bool
+    body: str
+    missed: int
+    plan_digest: str

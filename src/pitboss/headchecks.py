@@ -11,6 +11,7 @@ from . import (
     shapes,
     supersede,
 )
+from . import pinsreading
 from .headsignals import HeadSignals as HeadSignals
 
 RED_STATES = frozenset({"failure", "error"})
@@ -178,7 +179,16 @@ def signals(
     Returns:
         The signals of the head, with no ``gate``.
     """
-    return HeadSignals(statuses=red(posted, current), labels=labels, rulings=rulings)
+    return HeadSignals(
+        statuses=red(posted, current),
+        labels=labels,
+        rulings=rulings,
+        gate="",
+        approved_plans=(),
+        pins=pinsreading.NOTHING,
+        fixed=(),
+        hold=False,
+    )
 
 
 def gate(

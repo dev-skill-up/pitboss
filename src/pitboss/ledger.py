@@ -9,6 +9,7 @@ from typing import Callable, Iterable, Sequence
 from . import config, slotbook
 from .slotbook import Ledger as Ledger
 from .slotbook import Slot as Slot
+from .slotbook import empty_slot as empty_slot
 
 reference = slotbook.reference
 
@@ -53,13 +54,12 @@ def read(path: pathlib.Path, defaults: Iterable[config.SlotSpec]) -> Ledger:
         The ledger.
     """
     if not path.exists():
-        return Ledger(
-            slots=tuple(Slot(name=spec.name, model=spec.model) for spec in defaults),
-            failed={},
+        return slotbook.ledger_of(
+            tuple(empty_slot(spec.name, spec.model) for spec in defaults)
         )
     data = json.loads(path.read_text())
     return Ledger(
-        slots=tuple(Slot(**item) for item in data["slots"]),
+        slots=tuple(slotbook.slot_of(item) for item in data["slots"]),
         failed={key: tuple(value) for key, value in data["failed"].items()},
         config=data.get("config", ""),
         deviations={
@@ -203,7 +203,7 @@ def free(ledger: Ledger, slot_name: str, done: str) -> Ledger | Refusal:
             reason=f"slot {slot_name} holds {held}, not {done}: only the agent"
             " that handed back is done"
         )
-    return _replace(ledger, slot_name, Slot(name=slot.name, model=slot.model))
+    return _replace(ledger, slot_name, empty_slot(slot.name, slot.model))
 
 
 def add(
@@ -225,7 +225,7 @@ def add(
     if spec.model not in models:
         configured = ", ".join(models) or "none: set [slots] models"
         return Refusal(reason=f"model {spec.model!r} is not one of {configured}")
-    added = Slot(name=spec.name, model=spec.model)
+    added = empty_slot(spec.name, spec.model)
     return dataclasses.replace(ledger, slots=(*ledger.slots, added))
 
 

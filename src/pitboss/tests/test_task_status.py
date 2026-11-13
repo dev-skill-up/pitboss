@@ -1,9 +1,10 @@
 """The status and the task list are printed from state, never typed (pitboss#471)."""
 
+import dataclasses
 import datetime
 import unittest
 
-from .. import checkin, ledger, steps, tasklistlines
+from .. import checkin, ledger, slotbook, steps, tasklistlines
 from .. import world as world_module
 from . import fakes, suggestions, world
 from .cleanworld import same
@@ -11,9 +12,11 @@ from .test_decide import answer_of, ticket
 
 NOW = datetime.datetime(2026, 11, 11, 10, 21, 13, tzinfo=datetime.timezone.utc)
 LATER = NOW + datetime.timedelta(minutes=30)
-BOOK = ledger.Ledger(slots=(), failed={})
+BOOK = slotbook.ledger_of(())
 STALE = "two Opus rulings (pitboss#459 and #460) await a permission decision"
-SLOT = ledger.Slot(name="s1", model="m", agent="a1", task="o/r#9", ticket="o/r#9")
+SLOT = dataclasses.replace(
+    slotbook.empty_slot("s1", "m"), agent="a1", task="o/r#9", ticket="o/r#9"
+)
 CLOSED = "repos/o/r/pulls?state=closed&sort=updated&direction=desc&per_page=30"
 
 
@@ -60,7 +63,10 @@ class TestPrompt(unittest.TestCase):
         prompt = f"{checkin.PROMPT}\nNote: {STALE}\n"
         given = answer_of(world_module.Exhausted(examined=[]))
         shown = tasklistlines.lines(
-            ledger.Ledger(slots=(SLOT,), failed={}), given, [], NOW
+            slotbook.ledger_of((SLOT,)),
+            given,
+            [],
+            NOW,
         )
         same((STALE in prompt, any(STALE in each for each in shown)), (True, False))
 
@@ -71,7 +77,7 @@ class TestTaskList(unittest.TestCase):
     def test_a_line_for_each_running_merged_and_waiting(self) -> None:
         """The header holds the times; the marks lead the lines; none is grouped."""
         given = answer_of(world_module.Exhausted(examined=[ticket(9), ticket(10)]))
-        book = ledger.Ledger(slots=(SLOT,), failed={}, checkin=NOW.isoformat())
+        book = dataclasses.replace(slotbook.ledger_of((SLOT,)), checkin=NOW.isoformat())
         shown = tasklistlines.lines(book, given, ["✓ o/r#8: d (merged)"], NOW)
         same(
             shown[1:],

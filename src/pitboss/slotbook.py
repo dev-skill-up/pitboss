@@ -32,13 +32,62 @@ class Slot:
 
     name: str
     model: str
-    agent: str = ""
-    task: str = ""
-    waiting: bool = False
-    started: str = ""
-    heard: str = ""
-    ticket: str = ""
-    kind: str = ""
+    agent: str
+    task: str
+    waiting: bool
+    started: str
+    heard: str
+    ticket: str
+    kind: str
+
+
+TEXTS = ("name", "model", "agent", "task", "started", "heard", "ticket", "kind")
+
+
+def empty_slot(name: str, model: str) -> Slot:
+    """A slot with no agent in it.
+
+    Args:
+        name: the slot's name.
+        model: the model its worker runs on.
+
+    Returns:
+        The slot.
+    """
+    return Slot(
+        name=name,
+        model=model,
+        agent="",
+        task="",
+        waiting=False,
+        started="",
+        heard="",
+        ticket="",
+        kind="",
+    )
+
+
+def slot_of(item: Mapping[str, object]) -> Slot:
+    """A slot as the ledger file holds it; a key an older file lacks is empty.
+
+    Args:
+        item: the slot's object in the file.
+
+    Returns:
+        The slot.
+    """
+    said = {key: str(item.get(key) or "") for key in TEXTS}
+    return Slot(
+        name=said["name"],
+        model=said["model"],
+        agent=said["agent"],
+        task=said["task"],
+        waiting=bool(item.get("waiting")),
+        started=said["started"],
+        heard=said["heard"],
+        ticket=said["ticket"],
+        kind=said["kind"],
+    )
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -62,10 +111,24 @@ class Ledger:
 
     slots: Sequence[Slot]
     failed: Mapping[str, Sequence[str]]
-    config: str = ""
-    deviations: Mapping[str, Sequence[str]] = dataclasses.field(default_factory=dict)
-    checkin: str = ""
-    checkin_first: str = ""
+    config: str
+    deviations: Mapping[str, Sequence[str]]
+    checkin: str
+    checkin_first: str
+
+
+def ledger_of(slots: Sequence[Slot]) -> Ledger:
+    """A ledger of these slots that records nothing else yet.
+
+    Args:
+        slots: the slots, in order.
+
+    Returns:
+        The ledger, with no failed model, configuration, deviation or check-in.
+    """
+    return Ledger(
+        slots=slots, failed={}, config="", deviations={}, checkin="", checkin_first=""
+    )
 
 
 def reference(text: str, project: config.Repo) -> str:

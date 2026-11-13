@@ -14,7 +14,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, config, dispatchruns, earlyfound, earlyreview, markers
 from .. import parsing, shapes
-from . import actreviewed, fakes, quietworld, world
+from . import actreviewed, blank, fakes, quietworld, world
 from .briefmake import make
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, HEAD, OLDER, graded, older_checks, world_with
@@ -282,7 +282,11 @@ class TestThePieces(unittest.TestCase):
 
     def test_the_unfinished_checks_are_counted(self) -> None:
         """Later or open ones count; none at all is said; all done is empty."""
-        runs = [shapes.CheckRun(id=1, name="a", finished=False, failed=False)]
+        runs = [
+            dataclasses.replace(
+                blank.CHECK_RUN, id=1, name="a", finished=False, failed=False
+            )
+        ]
         found = earlyreview.unfinished_checks(runs, AFTER)
         assert_that(found, equal_to("1 of 1 checks of the head had not completed"))
         assert_that(earlyreview.unfinished_checks([], AFTER), contains_string("no"))

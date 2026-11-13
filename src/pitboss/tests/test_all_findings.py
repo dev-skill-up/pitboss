@@ -1,11 +1,12 @@
 """A review lists every finding in one round; the later round checks those (#169)."""
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, equal_to
 
 from .. import brief, missed, shapes
-from . import test_brief
+from . import blank, test_brief
 from .briefmake import APPROVED, HEAD, PLAN_REVIEWS, pinned, text
 from .says import has_none
 
@@ -58,8 +59,14 @@ def review_at(when: str, lines: int, comment: bool = True) -> shapes.Graded:
         The review.
     """
     mark = shapes.Verdict.CHANGES_NEEDED
-    return shapes.Graded(
-        sha="a", when=when, plan=mark, execution=None, comment=comment, missed=lines
+    return dataclasses.replace(
+        blank.GRADED,
+        sha="a",
+        when=when,
+        plan=mark,
+        execution=None,
+        comment=comment,
+        missed=lines,
     )
 
 

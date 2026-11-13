@@ -16,7 +16,7 @@ from .. import (
     shapes,
     steps,
 )
-from . import decisionline, fakes, world
+from . import blank, decisionline, fakes, world
 from . import test_plan_digest_urls as urls
 from .test_plan_digest_urls import pointed
 from .briefmake import text as brief_text
@@ -74,7 +74,8 @@ def ruling(second: int, word: str = RULING_WORDS) -> shapes.Comment:
     Returns:
         The comment.
     """
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=f"Opus ruling\nRuling: {word}\n",
         author_association="MEMBER",
         created_at=f"2026-10-30T00:00:{second:02d}Z",

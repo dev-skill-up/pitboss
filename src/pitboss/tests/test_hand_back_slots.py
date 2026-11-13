@@ -1,15 +1,16 @@
 """A slot is done once its worker's hand-back is recorded for the head (pitboss#471)."""
 
+import dataclasses
 import pathlib
 import unittest
 
-from .. import handbackrecord, ledger
+from .. import handbackrecord, ledger, slotbook
 from . import fakes, world
 from .handbackworld import git
 from .liveagents import CLEAN_HEAD, calm, ran, said
 
 PULL = "owner/project#1"
-BIG = ledger.Slot(name="big", model="large")
+BIG = slotbook.empty_slot("big", "large")
 
 
 def handed(recorded: str) -> world.World:
@@ -25,8 +26,12 @@ def handed(recorded: str) -> world.World:
     path = fakes.add_worktree(here.clone, CLEAN_HEAD["ref"])
     directory = git(path, "rev-parse", "--absolute-git-dir")
     handbackrecord.record(pathlib.Path(directory), recorded)
-    tiny = ledger.Slot(name="tiny", model="small", agent="agent-1", task=PULL)
-    ledger.write(here.ledger, ledger.Ledger(slots=(tiny, BIG), failed={}))
+    tiny = slotbook.empty_slot("tiny", "small")
+    tiny = dataclasses.replace(tiny, agent="agent-1", task=PULL)
+    ledger.write(
+        here.ledger,
+        slotbook.ledger_of((tiny, BIG)),
+    )
     return here
 
 

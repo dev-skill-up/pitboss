@@ -275,6 +275,8 @@ def refused(run: Callable[[], object]) -> str:
         went = run()
     except REFUSALS as error:
         return str(error) or "refused"
+    if isinstance(went, actstands.Stands):
+        return went.line
     return str(went) if str(went).startswith(render.NOT_DONE) else ""
 
 
