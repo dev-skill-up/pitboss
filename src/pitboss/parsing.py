@@ -113,6 +113,12 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     return [_check_run(item) for item in json.loads(text)["check_runs"]]
 
 
+def _login(item: Mapping[str, object]) -> str:
+    # the author's login, empty when GitHub gives no user
+    user = item.get("user")
+    return text_of(user.get("login")) if isinstance(user, dict) else ""
+
+
 def _check_run(item: Mapping[str, object]) -> shapes.CheckRun:
     conclusion = item.get("conclusion")
     return shapes.CheckRun(
@@ -239,6 +245,7 @@ def comments(text: str) -> Sequence[shapes.Comment]:
             author_association=item["author_association"],
             created_at=item["created_at"],
             url=item.get("html_url") or "",
+            login=_login(item),
         )
         for item in json.loads(text)
     ]
@@ -259,6 +266,8 @@ def reviews(text: str) -> Sequence[shapes.PullReview]:
             commit_id=item["commit_id"],
             author_association=item["author_association"],
             submitted_at=item.get("submitted_at") or "",
+            body=text_of(item.get("body")),
+            login=_login(item),
         )
         for item in json.loads(text)
     ]

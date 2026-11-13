@@ -14,7 +14,7 @@ import json
 from typing import Callable, Sequence
 
 from . import gatefacts, gateinputs, ghapi, pullobject, pullrecords, pulls
-from . import pullstate, shapes, workorder, world
+from . import pullstate, reviews, shapes, workorder, world
 from .textparts import split_at
 from .totaljson import at, name_at, records
 
@@ -78,15 +78,35 @@ def _of_run(check: shapes.CheckRun) -> pullrecords.Run:
     )
 
 
-def _head(
-    pull: pulls.PullRead,
-) -> tuple[Sequence[pullrecords.Run], Sequence[pullrecords.Status]]:
-    # the head's runs and statuses, as the PR's own read typed them
+def _events(sources: reviews.Sources) -> Sequence[pullrecords.Event]:
+    # the PR's comments and reviews as the gate's events, oldest first: the
+    # PR's own read of them, not its timeline read again
+    said = [
+        (each.created_at, _as_event("commented", "", each)) for each in sources.comments
+    ]
+    said += [
+        (each.submitted_at, _as_event("reviewed", each.state, each))
+        for each in sources.reviews
+    ]
+    return [event for _, event in sorted(said, key=lambda each: each[0])]
+
+
+def _as_event(
+    kind: str, state: str, each: shapes.Comment | shapes.PullReview
+) -> pullrecords.Event:
+    return pullrecords.Event(
+        kind=kind, state=state, login=each.login, body=each.body, label=""
+    )
+
+
+def _head(pull: pulls.PullRead) -> pullstate.Head:
+    # the head's runs and statuses and the PR's events, as its own read typed them
     statuses = [
         pullrecords.Status(context=each.context, state=each.state)
         for each in pull.posted.statuses
     ]
-    return [_of_run(each) for each in pull.checks], statuses
+    runs = [_of_run(each) for each in pull.checks]
+    return runs, statuses, _events(pull.posted.sources)
 
 
 def _inputs(
@@ -98,7 +118,6 @@ def _inputs(
     return {
         **gateinputs.repo_reads(read, repo, number, named),
         **gateinputs.said(given, repo),
-        "timeline": gateinputs.timeline(read, repo, number),
         "holds": holds_of(read, repo),
     }
 

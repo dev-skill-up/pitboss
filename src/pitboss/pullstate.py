@@ -34,6 +34,9 @@ INPUTS = (
 )
 
 
+# the head's runs, its statuses and the PR's events, typed by the PR's own read
+Head = tuple[Sequence[records.Run], Sequence[records.Status], Sequence[records.Event]]
+
 # the member each list's rows branch on, a string GitHub documents, and whether
 # it may be null
 BRANCHED_ON: Mapping[str, tuple[str, bool]] = {
@@ -170,32 +173,29 @@ def parse(raw: Raw, inputs: Raw, schema: Mapping[str, str]) -> records.GateState
     return _state(pull_object(raw, schema), inputs, _reads(inputs))
 
 
-def gate_read(
-    pull: records.PullObject,
-    inputs: Raw,
-    head: tuple[Sequence[records.Run], Sequence[records.Status]],
-) -> gatefacts.Gate:
+def gate_read(pull: records.PullObject, inputs: Raw, head: Head) -> gatefacts.Gate:
     """A PR's gate from the fields its own read typed, and the gate-only inputs.
 
-    The PR object, its head's runs and its statuses come typed from ``pulls``;
+    The PR object, its head's runs, its statuses, its comments and its reviews
+    come typed from ``pulls``;
     only the inputs no field holds are parsed here (keyword: gate).
 
     Args:
         pull: the PR object.
         inputs: the gate-only reads (``gateinputs``); holds as GitHub's issues.
-        head: the head's runs and its statuses.
+        head: the head's runs, its statuses and the PR's events.
 
     Returns:
         The gate.
     """
-    runs, statuses = head
+    runs, statuses, events = head
     typed = records.Reads(
         runs=runs,
         statuses=statuses,
         files=_listed(inputs, "files", _file),
-        timeline=_listed(inputs, "timeline", _event),
+        timeline=events,
     )
-    given = {**inputs, "check_runs": (), "statuses": ()}
+    given = {**inputs, "check_runs": (), "statuses": (), "timeline": ()}
     return gatefacts.Gate(state=_state(pull, given, typed))
 
 

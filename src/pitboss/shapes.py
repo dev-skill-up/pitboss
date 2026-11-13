@@ -183,12 +183,14 @@ class Comment:
         author_association: its author's relation to the repository.
         created_at: when it was written (ISO 8601).
         url: its address (``html_url``), empty when the API gave none.
+        login: its author's login (the gate reads ``act``'s records by it).
     """
 
     body: str
     author_association: str
     created_at: str
     url: str = ""
+    login: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -200,12 +202,16 @@ class PullReview:
         commit_id: the commit it reviewed.
         author_association: its author's relation to the repository.
         submitted_at: when it was submitted (ISO 8601).
+        body: its text (the gate reads a review attempt in it).
+        login: its author's login.
     """
 
     state: str
     commit_id: str
     author_association: str
     submitted_at: str
+    body: str = ""
+    login: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -232,21 +238,6 @@ class TimelineEvent:
 
     kind: str
     at: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class JobResult:
-    """A job of a workflow run.
-
-    Attributes:
-        name: its name (``android / build-android``).
-        conclusion: how it ended, empty while it runs.
-        failed_steps: the names of its steps that failed.
-    """
-
-    name: str
-    conclusion: str
-    failed_steps: Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

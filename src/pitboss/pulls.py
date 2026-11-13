@@ -91,6 +91,7 @@ class Fetched:
             (keyword: gate).
         labels: its labels.
         posted: its comments and GitHub reviews that count.
+        sent: every comment and GitHub review of it, as read (keyword: gate).
         checks: the check runs of its head.
         statuses: the newest commit status of each context of its head.
         premature: its Execution reviews left out of ``posted``.
@@ -102,6 +103,7 @@ class Fetched:
     object: pullrecords.PullObject
     labels: AbstractSet[str]
     posted: reviews.Sources
+    sent: reviews.Sources
     checks: Sequence[shapes.CheckRun]
     statuses: Sequence[shapes.CommitStatus] = ()
     premature: Sequence[earlyfound.Premature] = ()
@@ -125,6 +127,7 @@ def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
         object=gated,
         labels=parsing.labels(text),
         posted=reviews.Sources(comments=kept, reviews=sent.reviews),
+        sent=sent,
         checks=current,
         statuses=posted,
         premature=early,
@@ -219,6 +222,11 @@ def _signals(
     )
 
 
+def _posted(got: Fetched) -> pullfacts.Posted:
+    # what the gate reads of the PR, from this one read (keyword: gate)
+    return pullfacts.Posted(object=got.object, statuses=got.statuses, sources=got.sent)
+
+
 def fetch(source: Source, repo: config.Repo, number: int) -> PullRead:
     """Read one PR: its details, its head's checks and its review.
 
@@ -245,7 +253,7 @@ def fetch(source: Source, repo: config.Repo, number: int) -> PullRead:
         unreadable=_unreadable(source, repo, got, (found, state)),
         review_rounds=rounds.of(state, merged),
         state=state,
-        posted=pullfacts.Posted(object=got.object, statuses=got.statuses),
+        posted=_posted(got),
     )
 
 

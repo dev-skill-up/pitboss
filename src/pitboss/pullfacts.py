@@ -63,10 +63,13 @@ class Posted:
     Attributes:
         object: the PR object, as ``pullobject.pull_object`` types it.
         statuses: the newest commit status of each context of its head.
+        sources: every comment and GitHub review of it, as read (the counted
+            ones are a part of these).
     """
 
     object: pullrecords.PullObject
     statuses: Sequence[shapes.CommitStatus]
+    sources: reviews.Sources
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
