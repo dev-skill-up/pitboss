@@ -5,7 +5,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import branchtaken, config, ghapi, orgsearch, workorder
+from .. import branchtaken, config, ghapi, orgsearch, pullsearch
 from . import fakes
 
 QUIRE = config.make_repo("o", "quire")
@@ -47,23 +47,22 @@ class TestOrgSearch(unittest.TestCase):
         bodies: dict[str, object] = {searched: {"items": []}}
         fake = fakes.FakeProcesses(bodies=bodies)
         github = ghapi.GitHub(run=fake, mutate=fake)
-        found = workorder.listing(github, dataclasses.replace(settings, lint=lint))
-        assert_that((found, len(fake.calls)), equal_to(([], 1)))
+        found = pullsearch.opened(github, dataclasses.replace(settings, lint=lint))
+        assert_that((found.read, len(fake.calls)), equal_to(([], 1)))
 
 
 class TestBranchTaken(unittest.TestCase):
-    """A ticket a branch names is taken, from its own repository's one read."""
+    """Plan 3.1: a ticket's repository's open branches, from one read of it."""
 
-    def test_6_2_a_branch_that_ends_in_the_number_takes_the_ticket(self) -> None:
-        """``fix-12`` takes ``#12``; a row with no head or a number names none."""
+    def test_3_1_each_open_pull_requests_branch_is_read(self) -> None:
+        """A row with no head gives no branch."""
         rows = [{"head": {"ref": "fix-12"}}, {"head": None}, {"head": {"ref": "x"}}]
         bodies: dict[str, object] = {fakes.page("repos/o/quire/pulls?state=open"): rows}
-        github = fakes.github(bodies)
-        found = branchtaken.named(github, "o/quire#12")
-        assert_that(found, equal_to(frozenset({"o/quire#12"})))
+        found = branchtaken.branches(fakes.github(bodies), "o/quire")
+        assert_that(found, equal_to(["fix-12", "x"]))
 
-    def test_6_2_an_answer_that_is_no_list_takes_nothing(self) -> None:
-        """A listing that is not a list names no ticket."""
+    def test_3_1_an_answer_that_is_no_list_has_no_branch(self) -> None:
+        """A listing that is not a list gives no branch."""
         bodies: dict[str, object] = {fakes.page("repos/o/quire/pulls?state=open"): {}}
         github: ghapi.GitHub = fakes.github(bodies)
-        assert_that(branchtaken.named(github, "o/quire#1"), equal_to(frozenset()))
+        assert_that(branchtaken.branches(github, "o/quire"), equal_to([]))

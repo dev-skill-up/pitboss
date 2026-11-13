@@ -1,4 +1,7 @@
-"""A read that fails is tried again, then the command fails (keyword: read-retry)."""
+"""A read that fails is tried again, then the command fails (keyword: read-retry).
+
+Plan part: 3.2 (a read that fails is retried, then the command fails).
+"""
 
 import argparse
 import contextlib
@@ -101,7 +104,7 @@ def reader(run: Script, share: float, slept: MutableSequence[float]) -> KeywordR
 class TestRetry(unittest.TestCase):
     """The tries of a read, the waits between them, and what ends them."""
 
-    def test_four_failures_raise_with_the_request_and_status(self) -> None:
+    def test_3_2_four_failures_raise_with_the_request_and_status(self) -> None:
         """Four tries, three waits of at most 1, 2 and 4 s, then ReadFailed."""
         run, slept = answering(*[UNAVAILABLE] * 4), list[float]()
         with self.assertRaises(retrying.ReadFailed) as raised:
@@ -109,7 +112,7 @@ class TestRetry(unittest.TestCase):
         assert_that(str(raised.exception), equal_to("repos/o/r/issues/1: HTTP 503"))
         assert_that((slept, len(run.asked)), equal_to(([1.0, 2.0, 4.0], 4)))
 
-    def test_a_retry_after_is_the_lower_end(self) -> None:
+    def test_3_2_a_retry_after_is_the_lower_end(self) -> None:
         """A Retry-After of 3 s waits 3 s at least; one of 9 s counts as 4 s."""
         after = ("gh: (HTTP 429)", "HTTP/1.1 429 x\r\nRetry-After: 3\r\n\r\n{}")
         long = ("gh: (HTTP 429)", "HTTP/1.1 429 x\r\nRetry-After: 9\r\n\r\n{}")
@@ -117,7 +120,7 @@ class TestRetry(unittest.TestCase):
         read = reader(answering(after, long, f"{HEADERS}[1]"), 0.0, slept)
         assert_that((read(REQUEST).stdout, slept), equal_to(("[1]", [3.0, 4.0])))
 
-    def test_a_404_is_an_answer(self) -> None:
+    def test_3_2_a_404_is_an_answer(self) -> None:
         """A blocker that is gone is not tried again; the body has no headers."""
         gone = ("gh: Not Found (HTTP 404)", "HTTP/1.1 404 x\r\nA: b\r\n\r\n{}")
         slept = list[float]()
@@ -125,7 +128,7 @@ class TestRetry(unittest.TestCase):
             reader(answering(gone), 1.0, slept)(REQUEST)
         assert_that((raised.exception.stdout, slept), equal_to(("{}", [])))
 
-    def test_a_bound_session_refusal_is_an_answer(self) -> None:
+    def test_3_2_a_bound_session_refusal_is_an_answer(self) -> None:
         """A path the session is not bound to names no status and is not tried again."""
         refused = (f"gh: This GitHub API path is not available: {retrying.BOUND}", "")
         run, slept = answering(refused), list[float]()
@@ -133,20 +136,20 @@ class TestRetry(unittest.TestCase):
             reader(run, 1.0, slept)(REQUEST)
         assert_that((slept, len(run.asked)), equal_to(([], 1)))
 
-    def test_a_rate_limit_403_is_tried_again(self) -> None:
+    def test_3_2_a_rate_limit_403_is_tried_again(self) -> None:
         """A 403 that names a rate limit passes on the second try."""
         limited = ("gh: API rate limit exceeded (HTTP 403)", "")
         slept = list[float]()
         read = reader(answering(limited, "[]"), 0.5, slept)
         assert_that((read(REQUEST).stdout, slept), equal_to(("[]", [0.5])))
 
-    def test_a_transport_error_is_tried_again(self) -> None:
+    def test_3_2_a_transport_error_is_tried_again(self) -> None:
         """A failure with no status passes on the second try; each page's headers go."""
         run = answering(("dial tcp: refused", ""), f"{HEADERS}[1]{HEADERS}[2]")
         assert_that(reader(run, 1.0, [])(REQUEST).stdout, equal_to("[1][2]"))
         assert_that(run.asked[0], equal_to(["gh", "api", "--include", REQUEST[2]]))
 
-    def test_a_write_is_run_once(self) -> None:
+    def test_3_2_a_write_is_run_once(self) -> None:
         """A POST is never tried again and is run as it is."""
         run = answering(UNAVAILABLE)
         write = ["gh", "api", "-X", "POST", "repos/o/r/issues"]
@@ -154,7 +157,7 @@ class TestRetry(unittest.TestCase):
             reader(run, 1.0, [])(write)
         assert_that(run.asked, equal_to([write]))
 
-    def test_a_mutation_is_no_read(self) -> None:
+    def test_3_2_a_mutation_is_no_read(self) -> None:
         """A GraphQL mutation is a write; a query is a read."""
         query = ["gh", "api", "graphql", "-f", "query=query { a }"]
         mutation = ["gh", "api", "graphql", "-f", "query=mutation { a }"]
@@ -162,7 +165,7 @@ class TestRetry(unittest.TestCase):
             [retrying.reads(query), retrying.reads(mutation)], equal_to([True, False])
         )
 
-    def test_a_failure_with_no_status_is_said_by_its_exit(self) -> None:
+    def test_3_2_a_failure_with_no_status_is_said_by_its_exit(self) -> None:
         """A transport error is said by gh's exit status."""
         error = subprocess.CalledProcessError(4, ["gh"], "", "dial tcp")
         assert_that(retrying.said(error), equal_to("gh exited 4"))
@@ -228,17 +231,17 @@ def ended(command: cli_parser.Command) -> tuple[object, str]:
 class TestEntry(unittest.TestCase):
     """The command entry, the one place a failed read ends a command."""
 
-    def test_a_failed_read_exits_one_with_the_request_on_stderr(self) -> None:
+    def test_3_2_a_failed_read_exits_one_with_the_request_on_stderr(self) -> None:
         """Status 1, the request and its status on standard error."""
         code, said = ended(failing)
         assert_that((code, "repos/o/r/pulls: HTTP 502" in said), equal_to((1, True)))
 
-    def test_an_answer_no_reader_took_exits_one(self) -> None:
+    def test_3_2_an_answer_no_reader_took_exits_one(self) -> None:
         """A 404 of a read that is no blocker's: no decision on a partial world."""
         code, said = ended(unanswered)
         assert_that((code, "issues/1: HTTP 404" in said), equal_to((1, True)))
 
-    def test_a_failed_write_is_not_a_read(self) -> None:
+    def test_3_2_a_failed_write_is_not_a_read(self) -> None:
         """Only a read ends as a failed read; another command's failure is raised."""
         entered = cli_parser.Entered(command=refused_write)
         with self.assertRaises(subprocess.CalledProcessError):

@@ -163,7 +163,7 @@ class TestSlots(unittest.TestCase):
         """A ticket an open PR fixes is not offered."""
         each(
             "test_one_path_rules",
-            ["test_b7_a_ticket_an_open_pull_request_fixes_is_not_offered"],
+            ["test_3_1_3_b7_a_ticket_an_open_pull_request_fixes_is_not_offered"],
         )
 
     def test_b8_a_newer_ticket_is_folded_into_the_older(self) -> None:
@@ -260,7 +260,7 @@ class TestHousekeeping(unittest.TestCase):
         """A relock review is last and a pins-only relock needs none."""
         each(
             "test_one_path_rules",
-            ["test_c7_a_relock_pull_request_comes_after_the_tickets"],
+            ["test_3_1_2_c7_a_relock_pull_request_comes_after_the_tickets"],
         )
 
     def test_c9_the_sweep_lists_every_org_repository(self) -> None:

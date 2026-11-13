@@ -17,8 +17,8 @@ PURE = ("decide", "project", "render")
 LISTING = re.compile(r"/(issues|pulls)\?")
 # a listing's order, and an organisation's search's (keyword: org-search)
 ORDERED = ("sort=created&direction=asc", "sort=created&order=asc")
-ORDER = ("placing", "places")  # the order function (P10)
-PLACED = ["Sequence[listed.Listed]", "Named"]  # what it takes: rows and names
+ORDER = ("placing", "order")  # the order function (P10)
+PLACED = ["Sequence[str]", "Named"]  # what it takes: rows and names
 
 
 def _io_of(package: Package, name: str) -> Sequence[str]:
@@ -156,10 +156,10 @@ def _takes(
 
 def _placed(package: Package) -> Sequence[str]:
     # the order: one function of the listing rows and the blocker names examined
-    # so far gives each place, and the walk follows a blocker by it
-    sites = proofsource.calls_of(package, frozenset({"placing.places"}))
+    # so far gives the order, and the walk takes its next items from it
+    sites = proofsource.calls_of(package, frozenset({"placing.order"}))
     walked = [each for each in sites if each.partition(":")[0] == "readworld"]
-    return [] if walked else ["P10: the walk follows a blocker by no place"]
+    return [] if walked else ["P10: the walk takes its items from no order"]
 
 
 def retried_once(package: Package) -> Sequence[str]:

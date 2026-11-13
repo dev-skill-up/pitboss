@@ -4,6 +4,9 @@ Each test names the rule of ``rules.tsv`` it shows: the tickets an open pull
 request works on are taken, the order is the pull requests, then the tickets by
 label and age across the repositories, then the relock pull requests, a blocker
 takes the place of what it blocks, and a waiting item is in no answer.
+
+Plan part: 3.1 (the order, the taken set, a blocker in the place of what it
+blocks) and 6.1 (the projection of a brief).
 """
 
 import re
@@ -89,7 +92,7 @@ def library_world(number: int) -> fixture.World:
 class TestOrder(unittest.TestCase):
     """What the walk offers, and in which order."""
 
-    def test_b7_a_ticket_an_open_pull_request_fixes_is_not_offered(self) -> None:
+    def test_3_1_3_b7_a_ticket_an_open_pull_request_fixes_is_not_offered(self) -> None:
         """Ticket 9 is offered until pull request 2 says it fixes it."""
         here = fixture.make_world()
         before = items(here)
@@ -99,7 +102,7 @@ class TestOrder(unittest.TestCase):
             equal_to((True, False)),
         )
 
-    def test_b9_pull_requests_come_first_then_tickets_by_age_across_repositories(
+    def test_3_1_2_b9_pull_requests_first_then_tickets_by_age_across_repositories(
         self,
     ) -> None:
         """The pull requests, then an older library ticket before the project's."""
@@ -108,7 +111,7 @@ class TestOrder(unittest.TestCase):
         wanted = ["owner/project#1", "owner/project#3", "owner/lib#5"]
         assert_that(items(here), equal_to([*wanted, "owner/project#9"]))
 
-    def test_c7_a_relock_pull_request_comes_after_the_tickets(self) -> None:
+    def test_3_1_2_c7_a_relock_pull_request_comes_after_the_tickets(self) -> None:
         """Pull request 3 on a relock branch is offered after ticket 9."""
         here = fixture.make_world()
         relock = {"sha": "3" * 40, "ref": "relock/2026-11-13"}
@@ -119,7 +122,7 @@ class TestOrder(unittest.TestCase):
         ]
         assert_that(items(here)[-2:], equal_to(["owner/project#9", "owner/project#3"]))
 
-    def test_i17_a_mention_of_a_ticket_does_not_take_it(self) -> None:
+    def test_3_1_3_i17_a_mention_of_a_ticket_does_not_take_it(self) -> None:
         """Pull request 2 fixes another ticket and only mentions 9: 9 is offered."""
         here = fixture.make_world()
         with_body(here, 2, f"Fixes #2\n\nthe ruling mentions #9{PLAN}")
@@ -129,7 +132,7 @@ class TestOrder(unittest.TestCase):
 class TestBlockers(unittest.TestCase):
     """A blocker is examined in the place of what it blocks."""
 
-    def test_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request(
+    def test_3_1_5_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request(
         self,
     ) -> None:
         """Pull request 3 is in no answer; the ticket it names is in its place."""
@@ -143,7 +146,7 @@ class TestBlockers(unittest.TestCase):
 class TestBriefs(unittest.TestCase):
     """What a worker is told."""
 
-    def test_b21_a_worker_brief_says_never_to_change_the_draft_state(self) -> None:
+    def test_6_1_b21_a_worker_brief_says_never_to_change_the_draft_state(self) -> None:
         """The brief of the ticket's worker carries the draft-state sentence."""
         output = liveagents.next_output(fixture.make_world())
         assert_that(output, contains_string(brieftextwork.DRAFT_STATE))

@@ -1,12 +1,12 @@
-"""The one order of work, read lazily from the searches (keyword: one-path).
+"""The tickets of the order of work, read lazily from the searches (one-path).
 
-The open pull requests that are not relock reviews, oldest first; then the tickets
-by priority label and age, a label's first page of each organisation merged by age
-and a later page read only when the merge has used up the one before; then the
-relock pull requests (keyword: relock-last). Each read is a search of one
-organisation, filtered here to the configured repositories (keyword: org-search),
-so no read is made for each repository. Nothing here reads an item's details: the
-walk (``readworld``) examines an item only when it reaches it.
+The order is the open pull requests that are not relock reviews (``pullsearch``),
+then the tickets by priority label and age, a label's first page of each
+organisation merged by age and a later page read only when the merge has used up
+the one before, then the relock pull requests (keyword: relock-last). Each read is
+a search of one organisation, filtered here to the configured repositories
+(keyword: org-search), so no read is made for each repository. Nothing here reads
+an item's details: the walk (``readworld``) examines an item only when it reaches it.
 """
 
 import dataclasses
@@ -77,47 +77,6 @@ def stop_count(book: ledger.Ledger) -> int:
         The count.
     """
     return max(STOP, len(book.slots))
-
-
-def _searched(
-    github: ghapi.GitHub, org: str, terms: Sequence[str]
-) -> Sequence[orgsearch.Item]:
-    return ghapi.pages(github, orgsearch.path(org, *terms), orgsearch.items)
-
-
-def _queries(prefix: str) -> Sequence[tuple[bool, Sequence[str]]]:
-    # the open pull requests that are not relock reviews, and those that are
-    if not prefix:
-        return [(False, ["is:pr"])]
-    return [(False, ["is:pr", f"-head:{prefix}"]), (True, ["is:pr", f"head:{prefix}"])]
-
-
-def listing(github: ghapi.GitHub, settings: config.Config) -> Sequence[listed.Listed]:
-    """Every open pull request of the configuration, oldest first.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-
-    Returns:
-        The listing rows: the searches of each organisation, read at once.
-    """
-    asked = [
-        (org, relock, terms)
-        for org in orgsearch.orgs(settings)
-        for relock, terms in _queries(settings.lint.relock_prefix)
-    ]
-    pages = concurrently.each(lambda each: _searched(github, each[0], each[2]), asked)
-    configured = orgsearch.configured(settings)
-    rows = [
-        listed.searched_row(repo, relock, item)
-        for (_, relock, _), got in zip(asked, pages)
-        for item in got
-        if (repo := orgsearch.repo_of(item, configured)) is not None
-    ]
-    # a tie of age keeps the configuration's order of repositories
-    rank = {slug: at for at, slug in enumerate(configured)}
-    return sorted(rows, key=lambda each: (each.created_at, rank[each.repo.slug]))
 
 
 def _found(item: orgsearch.Item, known: Repos) -> Found | None:
@@ -255,22 +214,3 @@ def tickets(github: ghapi.GitHub, settings: config.Config) -> Iterator[Ticket]:
             if reference not in seen:
                 seen.add(reference)
                 yield Ticket(reference=reference, issue=issue, priority=priority)
-
-
-def candidates(
-    github: ghapi.GitHub, settings: config.Config, rows: Sequence[listed.Listed]
-) -> Iterator[Candidate]:
-    """The order of work, lazily: what the walk may examine, first to take first.
-
-    Args:
-        github: the API.
-        settings: the configuration.
-        rows: the listing rows, oldest first.
-
-    Yields:
-        The pull requests that are not relock reviews, then the tickets, then
-        the relock pull requests (keyword: relock-last).
-    """
-    yield from (each for each in rows if not each.relock)
-    yield from tickets(github, settings)
-    yield from (each for each in rows if each.relock)

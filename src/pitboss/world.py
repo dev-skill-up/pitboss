@@ -7,11 +7,11 @@ so a record is whole or not made: a read that failed after its tries
 """
 
 import dataclasses
-import enum
 from typing import Callable, Mapping, Sequence, assert_never
 
 
-from . import blockedstep, gatefacts, listed, pullfacts, shapes, sharedstep, slotbook
+from . import blockedstep, gatefacts, holdconfig, listed, pullfacts, shapes
+from . import sharedstep, slotbook, stuckwords
 
 GateRead = Callable[[pullfacts.PullRead], gatefacts.Gate]  # keyword: gate
 PullReader = Callable[[listed.Listed], pullfacts.PullRead]  # one PR, read once a run
@@ -45,12 +45,10 @@ class PullRecord:
         shared: the groups of failed checks it shares with other holders of its
             repository (``sharedred``), read when it is at the fix of its CI.
         blockers: the open items it names as blockers, which take its place.
-        stuck: the ``STUCK CI`` line of each run of its head queued past
-            ``stuckci.MINUTES`` while later runs completed (keyword: stuck-ci).
+        stuck: each run of its head queued past ``stuckci.MINUTES`` while later
+            runs completed, as read (keyword: stuck-ci; ``decide`` says the step).
         gated: what its merge or undraft is gated on, read only at those steps
             (keyword: gate); None at any other step.
-        held: whether a slot holds it (read only by the sweep, which shows every
-            open pull request; a held one is no decision).
         failures: what was read of each failed check, by its id, read only when
             the step is a fix of the CI (``mechanical`` classifies them).
     """
@@ -60,9 +58,8 @@ class PullRecord:
     blocked_by: blockedstep.Closure
     shared: Sequence[sharedstep.Shared]
     blockers: Sequence[str]
-    stuck: Sequence[str]
+    stuck: Sequence[stuckwords.Stuck]
     gated: gatefacts.Gate | None
-    held: bool
     failures: Mapping[int, shapes.Failure]
 
 
@@ -77,6 +74,8 @@ class TicketRecord:
         superseded: the configuration or a comment marks it superseded.
         blockers: the open items it says it waits for (``ticketblock``).
         opens_ready: its repository opens pull requests ready (keyword: no-drafts).
+        branches: the head branch of each open pull request of its repository
+            (keyword: taken: a branch that ends in its number works on it).
     """
 
     reference: str
@@ -85,36 +84,27 @@ class TicketRecord:
     superseded: bool
     blockers: Sequence[str]
     opens_ready: bool
-
-
-class Keeper(enum.Enum):
-    """What the listings or the ledger say of an item, with no read of it.
-
-    Attributes:
-        SLOT: a slot of the ledger works on it.
-        PULL: an open pull request works on it (keyword: taken).
-        HOLD: its repository is under the owner's hold (``holds.standing``).
-    """
-
-    SLOT = enum.auto()
-    PULL = enum.auto()
-    HOLD = enum.auto()
+    branches: Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Kept:
-    """An item the walk reached and did not read: what is known of it decides it.
+class Unread:
+    """An item the walk reached and did not read: its grounds already decide it.
+
+    ``decide.pull_kept`` or ``decide.ticket_kept`` says from the grounds alone that
+    no actor takes it (a slot holds
+    it, a pull request works on it, a hold covers its repository).
 
     Attributes:
         reference: its ``owner/name#number``.
-        by: what keeps it.
+        pull: whether it is a pull request (else a ticket).
     """
 
     reference: str
-    by: Keeper
+    pull: bool
 
 
-Record = PullRecord | TicketRecord | Kept
+Record = PullRecord | TicketRecord | Unread
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -145,23 +135,36 @@ Walk = Stopped | Exhausted
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Grounds:
+    """What is known before any item is read: ``decide`` judges occupancy from it.
+
+    Attributes:
+        listing: the open pull requests of the configuration, as listed.
+        book: the slot ledger, as the live agents make it.
+        holds: the owner's holds on new pull requests (``[holds]``).
+        quiesced: whether the owner quiesced the work (``quiesce``).
+    """
+
+    listing: Sequence[listed.Listed]
+    book: slotbook.Ledger
+    holds: holdconfig.Holds
+    quiesced: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class World:
     """Everything one command decides from.
 
     Attributes:
-        listing: every open pull request of the configuration, as listed.
+        grounds: the listing, the ledger and the holds.
         walk: how the walk in the order ended, and what it examined.
         named: the records of the items examined whatever the walk reached (the
             item the command names, the owner's priorities).
-        book: the slot ledger, as the live agents make it.
-        free: how many slots are free now.
     """
 
-    listing: Sequence[listed.Listed]
+    grounds: Grounds
     walk: Walk
     named: Sequence[Record]
-    book: slotbook.Ledger
-    free: int
 
 
 def blockers_of(record: Record) -> Sequence[str]:
@@ -176,7 +179,7 @@ def blockers_of(record: Record) -> Sequence[str]:
     match record:
         case PullRecord() | TicketRecord():
             return record.blockers
-        case Kept():
+        case Unread():
             return ()
         case _:  # pragma: no cover
             assert_never(record)
@@ -208,4 +211,6 @@ def pull_records(made: World) -> Sequence[PullRecord]:
         for each in [*made.walk.examined, *made.named]
         if isinstance(each, PullRecord)
     }
-    return [read[row.reference] for row in made.listing if row.reference in read]
+    return [
+        read[row.reference] for row in made.grounds.listing if row.reference in read
+    ]

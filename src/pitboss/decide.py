@@ -10,10 +10,11 @@ label and no item gave a decision.
 """
 
 import dataclasses
-from typing import Mapping, Sequence, assert_never
+from typing import AbstractSet, Mapping, Sequence, assert_never
 
-from . import answer, blockedstep, finishstep, flowstep, gate, listed, pullfacts
-from . import sharedstep, steps, stepwords, work, world
+from . import answer, blockedstep, configrepos, finishstep, flowstep, gate, holds
+from . import listed, pullfacts, pullnames, sharedstep, slotbook, steps, stepwords
+from . import stuckwords, work, world
 from .gatestop import Stop
 
 # who takes each step that has an actor
@@ -59,7 +60,7 @@ def _owner_stuck(record: world.PullRecord) -> answer.Decision:
     # keyword: stuck-ci: the run is the owner's to re-run
     return answer.Decision(
         actor=answer.Actor.OWNER,
-        verb=record.stuck[0],
+        verb=stuckwords.warning(record.stuck[0]),
         item=record.row.reference,
         title=record.row.title,
         carried=answer.Carried.NOTHING,
@@ -115,8 +116,6 @@ def facts_of(record: world.PullRecord) -> pullfacts.PullFacts:
 
 
 def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
-    if record.held:  # a slot holds it: its agent is at work on it
-        return None
     step = facts_of(record).step
     match step:
         case steps.Idle() if record.stuck:
@@ -186,23 +185,93 @@ def decide_item(record: world.Record) -> answer.Decision | None:
             return _pull_decision(record)
         case world.TicketRecord():
             return _ticket_decision(record)
-        case world.Kept():
+        case world.Unread():
             return None
         case _:  # pragma: no cover
             assert_never(record)
 
 
+def _slotted(book: slotbook.Ledger) -> AbstractSet[str]:
+    # the items a slot's agent works on
+    return frozenset(slot.task for slot in book.slots if slot.agent)
+
+
+def pull_kept(grounds: world.Grounds, reference: str) -> bool:
+    """Whether the grounds alone say no actor takes a pull request (plan 3.1(3)).
+
+    Args:
+        grounds: the listing, the ledger and the holds.
+        reference: the pull request, ``owner/name#number``.
+
+    Returns:
+        True when a slot holds it.
+    """
+    return reference in _slotted(grounds.book)
+
+
+def ticket_kept(grounds: world.Grounds, reference: str) -> bool:
+    """Whether the grounds alone say no actor takes a ticket (plan 3.1(3)).
+
+    Args:
+        grounds: the listing, the ledger and the holds.
+        reference: the ticket, ``owner/name#number``.
+
+    Returns:
+        True when a slot holds it, an open pull request works on it (keyword:
+        taken), or the owner's hold or the quiesce covers its repository.
+    """
+    if pull_kept(grounds, reference):
+        return True
+    if any(reference in row.works_on for row in grounds.listing):
+        return True
+    opened = [row.repo.slug for row in grounds.listing]
+    standing = holds.standing(grounds.holds, opened)
+    return grounds.quiesced or reference.rpartition("#")[0] in standing
+
+
+def _branch_taken(record: world.TicketRecord) -> bool:
+    # keyword: taken: an open pull request's branch ends in the ticket's number
+    repo = configrepos.repo_of(record.reference)
+    return any(
+        record.reference in pullnames.names("", "", branch, repo)
+        for branch in record.branches
+    )
+
+
+def decide_in(grounds: world.Grounds, record: world.Record) -> answer.Decision | None:
+    """The startable predicate: the grounds' occupancy, then the item's own record.
+
+    Args:
+        grounds: the listing, the ledger and the holds.
+        record: the item and its closure.
+
+    Returns:
+        Its decision, or None when no actor takes it now.
+    """
+    match record:
+        case world.PullRecord():
+            occupied = pull_kept(grounds, record.row.reference)
+        case world.TicketRecord():
+            taken = _branch_taken(record)
+            occupied = ticket_kept(grounds, record.reference) or taken
+        case world.Unread():
+            occupied = True
+        case _:  # pragma: no cover
+            assert_never(record)
+    return None if occupied else decide_item(record)
+
+
 def _decided(
-    records: Sequence[world.Record],
+    grounds: world.Grounds, records: Sequence[world.Record]
 ) -> tuple[Sequence[answer.Decision], Mapping[str, world.Record]]:
     decided: dict[str, answer.Decision] = {}
-    kept: dict[str, world.Record] = {}
+    held: dict[str, world.Record] = {}
     for each in records:
-        found = decide_item(each)
+        found = decide_in(grounds, each)
         if found is not None:
             decided.setdefault(found.item, found)
-            kept.setdefault(found.item, each)
-    return list(decided.values()), kept
+            held.setdefault(found.item, each)
+    return list(decided.values()), held
 
 
 def _answer(
@@ -227,10 +296,12 @@ def decide(made: world.World) -> Judgement:
         The decisions; ``NotEnoughWork`` only when the walk was exhausted and no
         item gave a decision.
     """
-    ordered, records = _decided(made.walk.examined)
-    named, named_records = _decided(made.named)
+    grounds = made.grounds
+    ordered, records = _decided(grounds, made.walk.examined)
+    named, named_records = _decided(grounds, made.named)
+    free = sum(1 for slot in grounds.book.slots if not slot.agent)
     decided = answer.Decided(
-        answer=_answer(made.walk, ordered, made.free),
+        answer=_answer(made.walk, ordered, free),
         by_item={each.item: each for each in [*ordered, *named]},
     )
     return Judgement(decided=decided, records={**named_records, **records})

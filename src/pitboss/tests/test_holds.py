@@ -220,7 +220,9 @@ class TestStanding(unittest.TestCase):
 
     def test_the_count_is_over_max_open(self) -> None:
         """Only a repository with more than max_open open PRs is held."""
-        table = holdconfig.Holds(new_pull_requests=frozenset({"a/x", "a/y"}))
+        table = holdconfig.Holds(
+            new_pull_requests=frozenset({"a/x", "a/y"}), max_open=0
+        )
         opened = ["a/x", "a/x", "a/y", "a/z"]
         assert_that(holds.standing(table, opened), equal_to({"a/x": 2, "a/y": 1}))
         two = holdconfig.Holds(new_pull_requests=table.new_pull_requests, max_open=1)
@@ -239,7 +241,7 @@ class TestConfiguration(unittest.TestCase):
             new_pull_requests=frozenset({"owner/quire", "other/lib"}), max_open=2
         )
         assert_that(holdconfig.from_document(document, "owner"), equal_to(expected))
-        assert_that(holdconfig.from_document({}, "owner"), equal_to(holdconfig.Holds()))
+        assert_that(holdconfig.from_document({}, "owner"), equal_to(holdconfig.NONE))
 
     def test_refused(self) -> None:
         """A table that is not one, a name that is not a list, a bad count."""

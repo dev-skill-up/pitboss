@@ -12,10 +12,10 @@ import datetime
 import subprocess
 from typing import Sequence
 
-from . import ghapi, parsing, pullfacts, rerunrule, shapes, steps
+from . import ghapi, parsing, pullfacts, shapes, steps, stuckwords
 
 MINUTES = 30
-PREFIX = "STUCK CI"
+PREFIX = stuckwords.PREFIX
 
 
 def when(text: str) -> datetime.datetime:
@@ -75,12 +75,10 @@ def warning(
         The line, with the command that lists the runs and the owner's step.
     """
     run, minutes, later = found
-    return (
-        f"{PREFIX} {slug}#{number}: run {run.id} queued {minutes} minutes while"
-        f" {later} later runs of the repository completed; list them: gh api"
-        f" repos/{slug}/actions/runs?head_sha={head}; the step is the owner's:"
-        f" {rerunrule.step(rerunrule.Run(status=run.status, jobs=0))}"
+    made = stuckwords.Stuck(
+        slug=slug, number=number, head=head, run=run, minutes=minutes, later=later
     )
+    return stuckwords.warning(made)
 
 
 def _runs(
@@ -94,8 +92,8 @@ def _runs(
 
 def alerts(
     github: ghapi.GitHub, pull: pullfacts.PullFacts, now: datetime.datetime
-) -> Sequence[str]:
-    """The ``STUCK CI`` lines of one PR.
+) -> Sequence[stuckwords.Stuck]:
+    """The stuck runs of one PR's head, as read.
 
     Args:
         github: the API.
@@ -103,16 +101,29 @@ def alerts(
         now: the time now.
 
     Returns:
-        A line for each stuck run of its head; none when its runs cannot be read.
+        Each stuck run of its head; none when its runs cannot be read.
     """
     slug, head = pull.repo.slug, pull.pull.head.sha
     try:
         mine, every = _runs(github, slug, head)
     except subprocess.CalledProcessError:
         return []
-    return [
-        warning(slug, pull.pull.number, head, one) for one in stuck(mine, every, now)
-    ]
+    found = stuck(mine, every, now)
+    return [_stuck(pull, run, minutes, later) for run, minutes, later in found]
+
+
+def _stuck(
+    pull: pullfacts.PullFacts, run: shapes.WorkflowRun, minutes: int, later: int
+) -> stuckwords.Stuck:
+    head = pull.pull.head.sha
+    return stuckwords.Stuck(
+        slug=pull.repo.slug,
+        number=pull.pull.number,
+        head=head,
+        run=run,
+        minutes=minutes,
+        later=later,
+    )
 
 
 def lines(
@@ -128,6 +139,22 @@ def lines(
     Returns:
         The lines; a PR whose runs cannot be read says nothing.
     """
+    return [stuckwords.warning(each) for each in runs_of(github, facts, now)]
+
+
+def runs_of(
+    github: ghapi.GitHub, facts: Sequence[pullfacts.PullFacts], now: datetime.datetime
+) -> Sequence[stuckwords.Stuck]:
+    """The stuck runs of the PRs that wait for CI, as read.
+
+    Args:
+        github: the API.
+        facts: the open PRs that were read.
+        now: the time now.
+
+    Returns:
+        Each stuck run; a PR whose runs cannot be read has none.
+    """
     # no actor takes the PR now: a run of its head may be what holds it
     waiting = [each for each in facts if isinstance(each.step, steps.Idle)]
-    return [said for each in waiting for said in alerts(github, each, now)]
+    return [found for each in waiting for found in alerts(github, each, now)]

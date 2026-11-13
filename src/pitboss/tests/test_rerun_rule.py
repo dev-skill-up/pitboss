@@ -6,7 +6,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brieftext, causetext, rerunrule, report, shapes, stuckci
+from .. import brieftext, causetext, rerunrule, report, stuckci
+from . import queuedrun
 
 STUCK = rerunrule.Run(status="queued", jobs=0)
 FLAKE = rerunrule.Run(status="completed", jobs=3)
@@ -42,15 +43,7 @@ class TestRerunRule(unittest.TestCase):
 
     def test_c13_the_stuck_warning_is_the_rerun_rules_step(self) -> None:
         """The production caller: the warning of a queued run says ``step``."""
-        run = shapes.WorkflowRun(
-            id=1,
-            status="queued",
-            conclusion=None,
-            finished=False,
-            created_at="2026-11-12T00:00:00Z",
-            head_branch="b",
-        )
-        text = stuckci.warning("o/r", 7, "a" * 40, (run, 90, 2))
+        text = stuckci.warning("o/r", 7, "a" * 40, (queuedrun.RUN, 90, 2))
         assert_that(text, contains_string(rerunrule.step(STUCK)))
         assert_that("no re-run" in text, equal_to(False))
 

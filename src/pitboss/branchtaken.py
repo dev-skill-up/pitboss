@@ -2,15 +2,15 @@
 
 The organisations' searches give no branch, so the tickets a branch names
 (``pullnames.names``: ``fix-12`` works on ``#12``) are not in the listing's taken
-set. A ticket the walk examines is checked here, with one read of its own
-repository's open pull requests: a read for each examined ticket, never one for
-each repository.
+set. The open pull requests' branches of a repository are read here once a walk,
+when the walk first examines a ticket of it (``readworld``); ``decide`` says which
+tickets they name.
 """
 
 import json
-from typing import AbstractSet, Mapping, Sequence
+from typing import Mapping, Sequence
 
-from . import configrepos, ghapi, pullnames
+from . import ghapi
 from .totaljson import text
 
 
@@ -23,20 +23,16 @@ def _rows(body: str) -> Sequence[Mapping[str, object]]:
     )
 
 
-def named(github: ghapi.GitHub, reference: str) -> AbstractSet[str]:
-    """The tickets the open pull requests of a ticket's repository name by branch.
+def branches(github: ghapi.GitHub, slug: str) -> Sequence[str]:
+    """The head branch of each open pull request of a repository.
 
     Args:
         github: the API.
-        reference: the ticket, ``owner/name#number``.
+        slug: the repository, ``owner/name``.
 
     Returns:
-        The tickets' references.
+        The branches, as read (``decide`` says which ticket each names).
     """
-    repo = configrepos.repo_of(reference)
-    rows = ghapi.pages(github, f"repos/{repo.slug}/pulls?state=open", _rows)
+    rows = ghapi.pages(github, f"repos/{slug}/pulls?state=open", _rows)
     heads = [each.get("head") for each in rows]
-    branches = [text(each.get("ref")) for each in heads if isinstance(each, dict)]
-    return frozenset().union(
-        *(pullnames.names("", "", branch, repo) for branch in branches)
-    )
+    return [text(each.get("ref")) for each in heads if isinstance(each, dict)]

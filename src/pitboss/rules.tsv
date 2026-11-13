@@ -41,10 +41,10 @@ B3	2026-10-29	output	Never tell the owner nothing is running	brieftextrules.remi
 B4	2026-11-11	output	The coordinator corrects a message that says the slot is idle	brieftextrules.reminder	test_rules_standing.test_b4_a_slot_idle_message_is_corrected
 B5	2026-11-09	output	Re-run slots next before each dispatch	brieftextrules.reminder	test_rules_standing.test_b5_slots_next_is_read_again_before_a_dispatch
 B6	2026-11-10	enforced	Only briefs pitboss prints; no hand-typed brief paths	briefsave.save	test_slots_rules.test_b6_the_listed_briefs_are_saved_and_dispatch_lines_name_them test_slots_rules.test_b6_a_brief_that_cannot_be_written_says_so
-B7	2026-10-29	enforced	One ticket, one PR, one task per ticket	readworld.examine_ticket	test_register_rules.test_b7_one_ticket_has_one_pr test_one_path_rules.test_b7_a_ticket_an_open_pull_request_fixes_is_not_offered
+B7	2026-10-29	enforced	One ticket, one PR, one task per ticket	readworld.examine_ticket	test_register_rules.test_b7_one_ticket_has_one_pr test_one_path_rules.test_3_1_3_b7_a_ticket_an_open_pull_request_fixes_is_not_offered
 B8	2026-11-08	output	Fold the newer ticket into the older	foldline.lines	test_register_rules.test_b8_a_newer_ticket_is_folded_into_the_older
-B9	2026-10-29	enforced	Order: running workers, PRs before tickets, priority, age	workorder.candidates	test_one_path_rules.test_b9_pull_requests_come_first_then_tickets_by_age_across_repositories
-B10	2026-11-11	enforced	A blocker inherits the blocked item's rank	readworld.walk	test_one_path_rules.test_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request
+B9	2026-10-29	enforced	Order: running workers, PRs before tickets, priority, age	workorder.candidates	test_one_path_rules.test_3_1_2_b9_pull_requests_first_then_tickets_by_age_across_repositories
+B10	2026-11-11	enforced	A blocker inherits the blocked item's rank	readworld.walk	test_one_path_rules.test_3_1_5_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request
 B11	2026-11-05	output	The task list is real state	tasklist.live_lines	test_register_rules.test_b11_the_task_list_is_state
 B12	2026-11-09	output	The checklist lists every running agent	tasklist.live_lines	test_register_rules.test_b12_the_checklist_lists_every_running_agent
 B13	2026-11-10	output	The check-in job is kept; a lapsed check-in is flagged	checkin.overdue	test_register_rules.test_b13_a_lapsed_check_in_is_flagged
@@ -55,7 +55,7 @@ B17	2026-11-10	enforced	A partial hand-back is refused unless Impossible: cmd ->
 B18	2026-11-08	enforced	Every hand-back and every disk clean is logged once	slotlog.changes	test_register_rules.test_b18_a_hand_back_is_logged_once
 B19	2026-10-30	enforced	Pitboss's own PRs are never drafts	draftrule.findings	test_register_rules.test_b19_a_draft_is_refused test_no_drafts.test_b19_a_draft_push_to_pitboss_is_refused_with_no_setting test_no_drafts.test_b19_only_pitboss_and_the_listed_repositories_have_no_drafts test_no_drafts.test_b19_the_sweep_reads_a_pitboss_pr_as_never_a_draft
 B20	2026-10-30	enforced	A runner-pressure hold covers pushes, merges and dispatches	record.remaining	test_register_rules.test_b20_a_hold_covers_a_push
-B21	2026-11-05	output	A worker never changes a PR's draft state	brief.build	test_one_path_rules.test_b21_a_worker_brief_says_never_to_change_the_draft_state
+B21	2026-11-05	output	A worker never changes a PR's draft state	brief.build	test_one_path_rules.test_6_1_b21_a_worker_brief_says_never_to_change_the_draft_state
 B22	2026-11-11	enforced	Stuck GitHub runs are root-caused, not waited on	stuckci.lines	test_slots_rules.test_b22_a_queued_run_with_later_completed_runs_is_stuck test_slots_rules.test_b22_a_recent_run_or_one_without_later_runs_is_not_stuck test_slots_rules.test_b22_only_a_pr_waiting_for_ci_is_read
 B23	2026-11-11	enforced	Another session's agents survive a restart and can duplicate a ticket	slotholding.derived	test_cases_agents.test_b23_i36_an_agent_the_ledger_lacks_fills_the_cap
 B24	2026-10-28	output	Never sit in a long wait; no polling	polling.waits	test_register_rules.test_b24_a_polling_agent_is_named
@@ -67,7 +67,7 @@ C3	2026-11-04	enforced	A merged worktree goes on merge	mergedworktree.remove	tes
 C4	2026-11-09	enforced	Never re-run CI to get rid of a flake; root-cause a failure from its log (a re-run that works around a GitHub problem is allowed)	rerunrule.refusal	test_register_rules.test_c4_a_flake_is_not_rerun
 C5	2026-10-30	enforced	Failed-check details are read through the API	supersede.settle	test_register_rules.test_c5_a_failed_check_is_read_through_the_api
 C6	2026-10-30	output	A flake is never closed until addressed	flake.unmarked_line	test_register_rules.test_c6_a_flake_is_not_closed_until_addressed
-C7	2026-11-07	enforced	A relock with green CI and pins-check OK merges with no review and ranks last	workorder.candidates	test_register_rules.test_c7_a_green_relock_ranks_last test_one_path_rules.test_c7_a_relock_pull_request_comes_after_the_tickets
+C7	2026-11-07	enforced	A relock with green CI and pins-check OK merges with no review and ranks last	workorder.candidates	test_register_rules.test_c7_a_green_relock_ranks_last test_one_path_rules.test_3_1_2_c7_a_relock_pull_request_comes_after_the_tickets
 C8	2026-11-08	output	An unset secret fails	brieftextrules.reminder	test_rules_standing.test_c8_an_unset_secret_fails
 C9	2026-11-06	output	The sweep lists every org repo	ownerrepos.widened	test_register_rules.test_c9_the_sweep_lists_every_org_repository
 C10	2026-10-30	output	The sweep and slots run from the newest pitboss	outdated.lines	test_register_rules.test_c10_the_sweep_runs_from_the_newest_pitboss
@@ -95,10 +95,10 @@ I10	2026-11-11	enforced	plan-check does not require an approved Plan's CI pointe
 I14	2026-11-11	enforced	plan-check --post writes the Plan check comment itself	plancheckprior.post	test_cases_plan_check.test_i14_the_comment_is_the_output_with_its_heading
 I15	2026-11-11	enforced	After a revise the plan ruling the review is offered, never a Plan rewrite	flow.next_step	test_cases_flow.test_i15_a_revised_plan_after_the_ruling_is_reviewed_not_rewritten
 I16	2026-11-11	enforced	A relock review runs with pins-review outside the slot and ranks last	workorder.candidates	test_relock.test_i16_a_relock_review_ranks_last
-I17	2026-11-11	enforced	A comment mention of a ticket does not take it	readworld.examine_ticket	test_one_path_rules.test_i17_a_mention_of_a_ticket_does_not_take_it
+I17	2026-11-11	enforced	A comment mention of a ticket does not take it	readworld.examine_ticket	test_one_path_rules.test_3_1_3_i17_a_mention_of_a_ticket_does_not_take_it
 I18	2026-11-11	enforced	A resolver error in a package install is not this PR's; the next push re-runs it	redclass.classify	test_cases_red.test_i18_a_resolver_error_is_external_and_the_next_push_reruns_it test_cases_red.test_i18_a_failure_with_no_resolver_error_is_not_established
 I24	2026-11-11	enforced	A Plan check newer than the ruling at the head is offered the review, with both times	rulingreason.reason	test_cases_flow.test_i24_a_plan_check_before_the_ruling_still_asks_for_its_steps test_cases_flow.test_i24_a_plan_check_after_the_ruling_at_the_head_is_the_review test_cases_flow.test_i24_the_review_line_names_the_ruling_and_the_plan_check_times test_cases_flow.test_i24_another_step_or_a_missing_comment_says_nothing
-I26	2026-11-11	enforced	A PR with an open blocker has no step	decide.decide_item	test_cases_open.test_i26_a_blocked_pr_has_no_step test_one_path_rules.test_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request
+I26	2026-11-11	enforced	A PR with an open blocker has no step	decide.decide_item	test_cases_open.test_i26_a_blocked_pr_has_no_step test_one_path_rules.test_3_1_5_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request
 I27	2026-11-11	enforced	Evidence blocks name the body's head; a push that moves the head says to expand again	evidence.stale_heads	test_evidence_head.test_i27_a_block_expanded_at_another_head_is_refused test_evidence_head.test_i27_plan_check_refuses_a_block_from_another_head test_cases_push.test_i27_a_push_with_expanded_evidence_prints_the_stale_line test_cases_push.test_i27_a_pr_with_no_evidence_prints_nothing
 I28	2026-11-11	enforced	A review of an approved Plan has an Execution line; one without is named REVIEW UNREAD	reviewunread.without_execution	test_cases_reviews.test_i28_the_execution_brief_asks_for_the_execution_line test_cases_reviews.test_i28_a_plan_only_review_after_an_approved_plan_is_named test_cases_reviews.test_i28_a_review_with_no_comment_is_named_by_its_time test_cases_reviews.test_i28_the_first_plan_review_and_a_full_review_are_not_named
 I30	2026-11-11	enforced	ci-run compares a Plan's run with the head it was approved at	cirun.findings	test_cases_plan_check.test_i10_i30_the_run_of_the_head_it_was_approved_at_passes test_cases_plan_check.test_i10_i30_an_edited_plan_has_no_prior_check

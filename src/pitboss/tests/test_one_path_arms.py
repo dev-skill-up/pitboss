@@ -11,10 +11,10 @@ from hamcrest import assert_that, contains_string, equal_to, none
 
 from .. import answer, blockedstep, config, decide, gateverbs, listed
 from .. import mode, nextcommand, onepath, pullnames, pushdraft, refill, render
-from .. import slotbook, slotsheader, steps
+from .. import slotbook, slotsheader, steps, stuckwords
 from .. import sweepline, work, workorder, world
 from . import fakes, flowread, gatewords, knownkit, knownshipped, test_decide
-from . import test_work
+from . import queuedrun, test_work
 from . import rankworld, totalcomplete, totalpairs, totalworld
 from . import world as scenes
 from .says import errs
@@ -26,12 +26,21 @@ PLAIN = "repos/owner/project/issues?state=open&labels=p1"
 REFERENCE = "o/r#1"
 
 
-def pull_record(*, held: bool, stuck: Sequence[str]) -> world.PullRecord:
+STUCK = stuckwords.Stuck(
+    slug="owner/project",
+    number=3,
+    head="a" * 40,
+    run=queuedrun.RUN,
+    minutes=90,
+    later=2,
+)
+
+
+def pull_record(stuck: Sequence[stuckwords.Stuck]) -> world.PullRecord:
     """An open, green PR of the project, as the walk reads it.
 
     Args:
-        held: whether a slot holds it.
-        stuck: the owner's verbs for a stuck run, if any.
+        stuck: its runs stuck in the queue, as read.
 
     Returns:
         Its record.
@@ -44,7 +53,6 @@ def pull_record(*, held: bool, stuck: Sequence[str]) -> world.PullRecord:
         blockers=[],
         stuck=stuck,
         gated=None,
-        held=held,
         failures={},
     )
 
@@ -96,7 +104,7 @@ def ticket_judgement() -> decide.Judgement:
         The judgement.
     """
     walk = world.Stopped(examined=[test_decide.ticket(1)], stop=1)
-    made = world.World(listing=[], walk=walk, named=[], book=test_decide.BOOK, free=1)
+    made = world.World(grounds=test_decide.GROUNDS, walk=walk, named=[])
     return decide.decide(made)
 
 
@@ -144,15 +152,16 @@ class TestDecideItem(unittest.TestCase):
 
     def test_a_pr_a_slot_holds_has_no_decision(self) -> None:
         """Its agent is at work on it: no actor is told to take it."""
-        found = decide.decide_item(pull_record(held=True, stuck=["re-run it"]))
+        grounds = test_decide.slotted("owner/project#3")
+        found = decide.decide_in(grounds, pull_record([STUCK]))
         assert_that(found, none())
 
     def test_a_stuck_run_is_the_owners(self) -> None:
         """A run stuck past its limit is the owner's verb on the PR."""
-        found = decide.decide_item(pull_record(held=False, stuck=["re-run it"]))
+        found = decide.decide_item(pull_record([STUCK]))
         said = answer.Decision(
             actor=answer.Actor.OWNER,
-            verb="re-run it",
+            verb=stuckwords.warning(STUCK),
             item="owner/project#3",
             title="PR 3",
             carried=answer.Carried.NOTHING,
@@ -180,9 +189,9 @@ class TestAnswers(unittest.TestCase):
         assert_that(found, equal_to(([], [])))
 
     def test_a_kept_item_gives_a_slot_nothing(self) -> None:
-        """An item the read kept is no pick."""
-        kept = world.Kept(by=world.Keeper.HOLD, reference=REFERENCE)
-        assert_that(onepath.pick(kept), none())
+        """An item the walk did not read is no pick."""
+        unread = world.Unread(reference=REFERENCE, pull=False)
+        assert_that(onepath.pick(unread), none())
 
     def test_an_emptied_slot_takes_the_first_when_none_fits(self) -> None:
         """With no decision a slot can take, the line is the answer's first."""

@@ -17,6 +17,7 @@ from . import (
     configfile,
     configloads,
     decide,
+    examine,
     gateread,
     gates,
     handedback,
@@ -83,6 +84,21 @@ def _closures(found: nextfound.Found, read: PullReader) -> world.Closures:
     return world.Closures(gated=gateread.reader(found.github), shared=shared)
 
 
+def _examiner(found: nextfound.Found, read: PullReader) -> readworld.Examiner:
+    # how the walk reads an item it reaches (``examine``)
+    context = examine.Context(
+        github=found.github,
+        settings=found.settings,
+        now=found.now,
+        pull=read,
+        closures=_closures(found, read),
+    )
+    return readworld.Examiner(
+        pull=functools.partial(examine.examine_pull, context),
+        ticket=functools.partial(examine.examine_ticket, context),
+    )
+
+
 def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Reading:
     """What the read of a command starts from.
 
@@ -91,24 +107,28 @@ def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Re
         measured: the run's one look at the runners.
 
     Returns:
-        The reading: the ledger as the live agents make it, the holds, how a
-        pull request is read and settled, the decider, the hand-backs.
+        The reading: the ledger, the holds, the examiner, the decider.
     """
     settings = found.settings
     undraft = functools.partial(sweepline.clear, measured, settings.runners)
-    read = _reader(found, undraft)
+    examiner = _examiner(found, _reader(found, undraft))
     return readworld.Reading(
         github=found.github,
         settings=settings,
         book=_book(found),
         holds=_holds(found),
-        now=found.now,
-        pull=read,
-        decide_item=decide.decide_item,
-        closures=_closures(found, read),
+        judge=JUDGE,
+        examiner=examiner,
         quiesced=quiesce.is_on(settings.slots.ledger),
         released=functools.partial(handedback.ledger_after_hand_backs, found),
     )
+
+
+JUDGE = readworld.Judge(
+    decides=decide.decide_in,
+    pull_kept=decide.pull_kept,
+    ticket_kept=decide.ticket_kept,
+)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -200,7 +220,7 @@ def pick(record: world.Record) -> suggest.Pick | None:
             return _pull_pick(record)
         case world.TicketRecord():
             return _ticket_pick(record)
-        case world.Kept():
+        case world.Unread():
             return None
         case _:  # pragma: no cover
             assert_never(record)

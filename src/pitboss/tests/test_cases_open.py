@@ -18,7 +18,7 @@ class TestOrders(unittest.TestCase):
         """The B10 test: a blocker in the body takes the decision away."""
         ran = shown(
             "test_one_path_rules",
-            "test_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request",
+            "test_3_1_5_b10_i26_a_blocker_takes_the_place_of_the_blocked_pull_request",
         )
         assert_that(ran >= 1, "it ran")
 

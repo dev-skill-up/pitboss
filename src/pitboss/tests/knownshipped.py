@@ -59,7 +59,6 @@ def pull_record(
         blockers=[],
         stuck=[],
         gated=gated,
-        held=False,
         failures={},
     )
 

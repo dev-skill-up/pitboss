@@ -14,7 +14,7 @@ from .proofsource import Package
 WAIT_WORDS = re.compile(r"wait|nobody acts|after |passed over|held", re.IGNORECASE)
 REASONS = frozenset({"reason", "why", "because"})
 SAYING = ("decide", "project", "render", "answer")
-ITEM_DECIDERS = frozenset({"decide_item"})  # P7(b): the one item decider
+ITEM_DECIDERS = frozenset({"decide_item", "decide_in"})  # P7(b): an item alone
 
 
 def one_decider(package: Package) -> Sequence[str]:
