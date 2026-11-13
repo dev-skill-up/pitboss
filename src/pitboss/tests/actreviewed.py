@@ -62,5 +62,15 @@ def approve(here: world.World, number: int, ticket: int = 9) -> None:
         "body": review,
         "created_at": "2030-01-01T00:00:00Z",
     }
-    timeline = fakes.page(f"{world.PROJECT}/issues/{number}/timeline")
-    here.bodies[timeline] = [event]
+    _post(here, number, event)
+
+
+def _post(here: world.World, number: int, event: Mapping[str, object]) -> None:
+    # the review is on the PR's timeline and among its comments, which the
+    # gate reads (plan 6.1)
+    pages = [f"{world.PROJECT}/issues/{number}/{each}" for each in ("timeline",)]
+    here.bodies[fakes.page(pages[0])] = [event]
+    comments = fakes.page(f"{world.PROJECT}/issues/{number}/comments")
+    found = here.bodies.get(comments)
+    kept = list(found) if isinstance(found, list) else []
+    here.bodies[comments] = [*kept, {**event, "author_association": "MEMBER"}]
