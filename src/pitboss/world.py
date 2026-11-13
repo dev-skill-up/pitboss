@@ -11,9 +11,9 @@ import enum
 from typing import Callable, Mapping, Sequence, assert_never
 
 
-from . import gatefacts, ledger, listed, pulls, shapes
+from . import gatefacts, listed, pullfacts, shapes, slotbook
 
-GateRead = Callable[[pulls.PullFacts], gatefacts.Gate]  # keyword: gate
+GateRead = Callable[[pullfacts.PullFacts], gatefacts.Gate]  # keyword: gate
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -37,7 +37,7 @@ class PullRecord:
     """
 
     row: listed.Listed
-    facts: pulls.PullFacts
+    facts: pullfacts.PullFacts
     blockers: Sequence[str]
     stuck: Sequence[str]
     gated: gatefacts.Gate | None
@@ -139,7 +139,7 @@ class World:
     listing: Sequence[listed.Listed]
     walk: Walk
     named: Sequence[Record]
-    book: ledger.Ledger
+    book: slotbook.Ledger
     free: int
 
 

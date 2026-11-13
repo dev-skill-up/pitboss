@@ -34,41 +34,7 @@ from . import (
     straycomments,
     unreadableform,
 )
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class PullFacts:
-    """What one open PR looks like now.
-
-    Attributes:
-        repo: its repository.
-        pull: the PR.
-        checks: the check runs of its head.
-        review: its newest review that counts.
-        standing: where its head stands with that review.
-        signals: what may block it besides its checks (keyword: red-status).
-        unreadable: its comments that try to be reviews and are not (keyword:
-            unreadable-review).
-        step: the one step the PR is at (keyword: review-flow).
-        review_rounds: what its review rounds show.
-        relock: whether its head branch starts with the relock prefix
-            (keyword: relock).
-    """
-
-    repo: config.Repo
-    pull: shapes.Pull
-    checks: Sequence[shapes.CheckRun]
-    review: reviews.Found | None
-    standing: reviews.Standing
-    signals: headchecks.HeadSignals = dataclasses.field(
-        default_factory=headchecks.HeadSignals
-    )
-    unreadable: straycomments.StrayComments = dataclasses.field(
-        default_factory=straycomments.StrayComments
-    )
-    step: steps.Move
-    review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
-    relock: bool = False
+from .pullfacts import PullFacts as PullFacts
 
 
 reference = pullref.reference

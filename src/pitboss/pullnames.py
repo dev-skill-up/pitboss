@@ -7,7 +7,7 @@ A mention in a Plan or an Evidence block names no ticket the PR works on
 import re
 from typing import AbstractSet
 
-from . import config, ledger
+from . import config, slotbook
 
 _TRAILING_NUMBER = re.compile(r"[-/](\d+)$")
 _ISSUE_URL = re.compile(r"github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)")
@@ -32,7 +32,7 @@ def names(title: str, body: str, branch: str, repo: config.Repo) -> AbstractSet[
         named = _NAME.match(closing.group(1))
         url = _ISSUE_URL.search(closing.group(1))
         if named:
-            found.add(ledger.reference(named.group(0), repo))
+            found.add(slotbook.reference(named.group(0), repo))
         elif url:
             found.add(f"{url.group(1)}#{url.group(2)}")
     trailing = _TRAILING_NUMBER.search(branch)
