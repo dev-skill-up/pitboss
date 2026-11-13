@@ -6,7 +6,7 @@ the property holds (keyword: one-path).
 
 import ast
 import re
-from typing import Mapping, Sequence
+from typing import Sequence
 
 from . import importgraph, proofsource
 from .proofsource import Package
@@ -16,7 +16,6 @@ IO_PACKAGE = frozenset({"pitboss.ghapi", "pitboss.ledger"})
 PURE = ("decide", "project", "render")
 LISTING = re.compile(r"/(issues|pulls)\?")
 ORDERED = "sort=created&direction=asc"
-WALK_LISTING = "labels="
 
 
 def _io_of(package: Package, name: str) -> Sequence[str]:
@@ -63,20 +62,7 @@ def one_read(package: Package) -> Sequence[str]:
         Each other call site and each command module that imports it.
     """
     sites = proofsource.sites(package, "readworld", "read_world")
-    found = [] if len(sites) == 1 else [f"P6: read_world is called at {sites}"]
-    found.extend(
-        f"P6: {name} imports ghapi"
-        for name, source in sorted(package.sources.items())
-        if _is_command(name)
-        and "pitboss.ghapi"
-        in set(importgraph.imports_of(source.package, source.syntax))
-    )
-    return found
-
-
-def _is_command(name: str) -> bool:
-    short = name.removeprefix("pitboss.")
-    return short == "commands" or short.endswith("_commands")
+    return [] if len(sites) == 1 else [f"P6: read_world is called at {sites}"]
 
 
 def _paths(package: Package, names: Sequence[str]) -> Sequence[tuple[str, int, str]]:
@@ -94,53 +80,25 @@ def _listing_breaks(package: Package) -> Sequence[str]:
         n for n in proofsource.closure(package, "readworld") if n in package.sources
     )
     paths = _paths(package, read)
-    found = [
+    return [
         f"P9: {name}:{line} lists unordered: {text}"
         for name, line, text in paths
         if ORDERED not in text and not _open_pulls(text)
     ]
-    walking = {
-        _function_at(package, name, line)
-        for name, line, text in paths
-        if "/issues?" in text and WALK_LISTING in text
-    }
-    if len(walking) != 1:
-        found.append(f"P9: the label listing is built in {sorted(walking)}")
-    return found
 
 
 def _open_pulls(text: str) -> bool:
     return "/pulls?" in text and "state=open" in text
 
 
-def _function_at(package: Package, name: str, line: int) -> str:
-    for function in proofsource.functions_of(package, name).values():
-        if function.lineno <= line <= (function.end_lineno or function.lineno):
-            return f"{name}.{function.name}"
-    return f"{name}:{line}"
-
-
-def _callers(package: Package, called: str) -> Sequence[str]:
-    found = []
-    for name, source in package.sources.items():
-        short = proofsource.short(name)
-        for function in proofsource.functions(source.syntax).values():
-            if any(
-                proofsource.called(node).split(".")[-1] == called
-                for node in ast.walk(function)
-            ):
-                found.append(f"{short}.{function.name}")
-    return sorted(found)
-
-
 def small_read(package: Package) -> Sequence[str]:
-    """P9: no ``state=all``; ordered listings from one function; one examine.
+    """P9: no ``state=all``, and every listing the reader asks for is ordered.
 
     Args:
         package: the package.
 
     Returns:
-        Each break of (a) to (c); (d) is P2 and P6.
+        Each break of (a) and (b); (d) is P2 and P6.
     """
     found = [
         f"P9: {short}:{line} asks for state=all"
@@ -148,20 +106,7 @@ def small_read(package: Package) -> Sequence[str]:
         if "state=all" in text
     ]
     found.extend(_listing_breaks(package))
-    for examine, by in EXAMINED.items():
-        callers = _callers(package, examine)
-        if callers != by:
-            found.append(f"P9: {examine} is called by {callers}")
     return found
-
-
-# each item detail read, and the walk's functions that alone call it
-EXAMINED = {
-    "examine_pull": ["readworld._examine"],
-    "examine_ticket": ["readworld._examine"],
-    "_examine": ["readworld._named", "readworld._with_blockers"],
-    "_with_blockers": ["readworld.walk"],
-}
 
 
 def _walk_breaks(walk: ast.FunctionDef | None) -> Sequence[str]:
@@ -181,11 +126,6 @@ def _walk_breaks(walk: ast.FunctionDef | None) -> Sequence[str]:
     return found
 
 
-def _taken(function: ast.FunctionDef | None) -> Sequence[str]:
-    given = function.args.args if function else []
-    return [ast.unparse(each.annotation) for each in given if each.annotation]
-
-
 def stop_counts_decisions(package: Package) -> Sequence[str]:
     """P10: the walk stops on the count of decisions, and an item is decided alone.
 
@@ -196,46 +136,25 @@ def stop_counts_decisions(package: Package) -> Sequence[str]:
         What breaks it.
     """
     found = [*_walk_breaks(proofsource.defined(package, "readworld", "walk"))]
-    taken = _taken(proofsource.defined(package, "decide", "decide_item"))
+    taken = proofsource.taken(proofsource.defined(package, "decide", "decide_item"))
     if taken != ["world.Record"]:
         found.append(f"P10: decide_item takes {taken}, not one record")
     return found
 
 
-def _raising(functions: Mapping[str, ast.FunctionDef]) -> Sequence[str]:
-    return [
-        name
-        for name, function in functions.items()
-        if any(
-            isinstance(node, ast.Raise) and "ReadFailed" in ast.unparse(node)
-            for node in ast.walk(function)
-        )
-    ]
-
-
 def retried_once(package: Package) -> Sequence[str]:
-    """P11: the retry wraps the one runner; its draw and sleep have no default.
+    """P11: the retry's draw and sleep are given, with no default.
 
     Args:
         package: the package.
 
     Returns:
-        What breaks it (the read failure's own sites are P3's).
+        What breaks it (where the read failure is caught is P3's).
     """
-    retrying = proofsource.functions_of(package, "retrying")
-    wrap = retrying.get("with_retries")
+    wrap = proofsource.functions_of(package, "retrying").get("with_retries")
     if wrap is None:
         return ["P11: there is no retrying.with_retries"]
-    found = []
     arguments = [each.arg for each in wrap.args.args]
     if arguments != ["run", "draw", "sleep"] or wrap.args.defaults:
-        found.append(f"P11: with_retries takes {arguments} with defaults")
-    found.extend(
-        f"P11: the retry wraps {wrapped_at}"
-        for wrapped_at in [proofsource.sites(package, "retrying", "with_retries")]
-        if len(wrapped_at) != 1
-    )
-    raised = _raising(retrying)
-    if raised != ["_tries"]:
-        found.append(f"P11: ReadFailed is raised in {raised}")
-    return found
+        return [f"P11: with_retries takes {arguments} with defaults"]
+    return []

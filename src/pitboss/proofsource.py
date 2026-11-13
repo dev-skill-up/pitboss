@@ -304,6 +304,19 @@ def defined(package: Package, owner: str, name: str) -> ast.FunctionDef | None:
     return functions_of(package, owner).get(name)
 
 
+def taken(function: ast.FunctionDef | None) -> Sequence[str]:
+    """The annotations of a function's positional arguments, as written.
+
+    Args:
+        function: the function; None for none.
+
+    Returns:
+        Each annotation; an argument with none is left out.
+    """
+    given = function.args.args if function else []
+    return [ast.unparse(each.annotation) for each in given if each.annotation]
+
+
 def _joined(node: ast.JoinedStr) -> str:
     return "".join(
         str(each.value) if isinstance(each, ast.Constant) else "{}"

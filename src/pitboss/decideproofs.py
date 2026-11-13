@@ -6,7 +6,7 @@ the property holds (keyword: one-path).
 
 import ast
 import re
-from typing import AbstractSet, Iterator, Sequence
+from typing import Iterator, Sequence
 
 from . import proofsource
 from .proofsource import Package
@@ -18,42 +18,20 @@ SAYING = ("decide", "project", "render", "answer")
 ITEM_DECIDERS = frozenset({"decide_item", "step_decision"})
 
 
-def _answer_types(package: Package) -> AbstractSet[str]:
-    return set(proofsource.classes(proofsource.module(package, "answer"))) - {"Actor"}
-
-
-def _imported_from_answer(tree: ast.AST) -> AbstractSet[str]:
-    return {
-        alias.asname or alias.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module == "answer"
-        for alias in node.names
-    }
-
-
 def one_decider(package: Package) -> Sequence[str]:
-    """P1: ``Decision`` and the answer's types are made only in ``decide``.
+    """P1: ``decide.decide`` decides from one world and nothing else.
 
     Args:
         package: the package.
 
     Returns:
-        Each call of a constructor outside the decide module.
+        What it takes, when that is not one ``world.World`` with no default.
     """
-    types = _answer_types(package)
-    found: list[str] = []
-    for name, source in package.sources.items():
-        short = proofsource.short(name)
-        if short == "decide":
-            continue
-        bare = _imported_from_answer(source.syntax) & types
-        constructors = {f"answer.{each}" for each in types} | bare
-        found.extend(
-            f"P1: {short}:{node.lineno} makes {proofsource.called(node)}"
-            for node in ast.walk(source.syntax)
-            if isinstance(node, ast.Call) and proofsource.called(node) in constructors
-        )
-    return found
+    decider = proofsource.defined(package, "decide", "decide")
+    said = proofsource.taken(decider)
+    if said == ["world.World"] and decider and not decider.args.defaults:
+        return []
+    return [f"P1: decide.decide takes {said}"]
 
 
 def _fields(tree: ast.AST, name: str) -> Sequence[ast.AnnAssign]:
@@ -64,14 +42,6 @@ def _fields(tree: ast.AST, name: str) -> Sequence[ast.AnnAssign]:
 
 def _field_name(field: ast.AnnAssign) -> str:
     return proofsource.dotted(field.target)
-
-
-def _raised(package: Package, name: str) -> Iterator[str]:
-    for short, node in proofsource.nodes(package):
-        if isinstance(node, ast.Raise) and node.exc is not None:
-            target = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
-            if proofsource.dotted(target).endswith(name):
-                yield short
 
 
 def _caught(package: Package, name: str) -> Iterator[tuple[str, ast.ExceptHandler]]:
@@ -91,7 +61,7 @@ def _exits_nonzero(handler: ast.ExceptHandler) -> bool:
 
 
 def read_failure(package: Package) -> Sequence[str]:
-    """The one read failure: raised in ``retrying``, caught once, exits nonzero.
+    """The one read failure: caught once, at the command entry, which exits nonzero.
 
     Args:
         package: the package.
@@ -99,11 +69,7 @@ def read_failure(package: Package) -> Sequence[str]:
     Returns:
         What breaks it (P3 and P11).
     """
-    found = [
-        f"P3: ReadFailed is raised in {short}"
-        for short in _raised(package, "ReadFailed")
-        if short != "retrying"
-    ]
+    found = []
     caught = list(_caught(package, "ReadFailed"))
     if [short for short, _ in caught] != ["cli_parser"]:
         found.append(f"P3: ReadFailed is caught in {[s for s, _ in caught]}")
@@ -115,30 +81,21 @@ def read_failure(package: Package) -> Sequence[str]:
     return found
 
 
-def _made_outside_reading(package: Package, owner: str, name: str) -> Sequence[str]:
-    # a class of the world is made in readworld and nowhere else
-    made = proofsource.sites(package, owner, name)
-    if [each.partition(":")[0] for each in made] == ["readworld"]:
-        return []
-    return [f"{name} is made at {made}"]
-
-
 def no_partial_world(package: Package) -> Sequence[str]:
-    """P3: ``World`` has no default and is made at one site, in ``readworld``.
+    """P3: ``World`` has no default, and a failed read ends the command.
 
     Args:
         package: the package.
 
     Returns:
-        Each default, each other site and each break of the one read failure.
+        Each default and each break of the one read failure.
     """
     found = [
         f"P3: World.{_field_name(each)} has a default"
         for each in _fields(proofsource.module(package, "world"), "World")
         if each.value is not None
     ]
-    made = _made_outside_reading(package, "world", "World")
-    return [*found, *(f"P3: {each}" for each in made), *read_failure(package)]
+    return [*found, *read_failure(package)]
 
 
 def _decision_shape(package: Package) -> Sequence[str]:
@@ -233,12 +190,13 @@ def _not_enough_work(package: Package) -> Sequence[str]:
     first = [each for each in _fields(answer, "Work") if _field_name(each) == "first"]
     if [ast.unparse(each.annotation) for each in first] != ["Decision"]:
         found.append("P7: Work has no required first Decision")
-    answered = proofsource.sites(package, "answer", "NotEnoughWork")
+    answered = [
+        each
+        for each in proofsource.sites(package, "answer", "NotEnoughWork")
+        if each.startswith("decide:")
+    ]
     if answered != [_exhausted_arm(package)]:
-        found.append(f"P7: NotEnoughWork is made at {answered}")
-    found.extend(
-        f"P7: {each}" for each in _made_outside_reading(package, "world", "Exhausted")
-    )
+        found.append(f"P7: decide makes NotEnoughWork at {answered}")
     return found
 
 

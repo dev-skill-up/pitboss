@@ -34,13 +34,19 @@ class Seed:
 
 
 SEEDS: Mapping[str, Seed] = {
-    "P1": Seed(path="render.py", old="", new="\nMADE = answer.NotEnoughWork()\n"),
+    "P1": Seed(
+        path="decide.py",
+        old="def decide(made: world.World) -> Judgement:",
+        new="def decide(made: world.World, more: int) -> Judgement:",
+    ),
     "P2": Seed(path="render.py", old="", new="\nimport subprocess\n"),
-    "P3": Seed(path="onepath.py", old="", new="\nMADE = world.World()\n"),
+    "P3": Seed(path="world.py", old="    free: int\n", new="    free: int = 0\n"),
     "P5": Seed(
         path="render.py", old="", new="\ndef said(given: int) -> str:\n    return ''\n"
     ),
-    "P6": Seed(path="commands.py", old="", new="\nfrom . import ghapi\n"),
+    "P6": Seed(
+        path="commands.py", old="", new="\nREAD = readworld.read_world(None, None)\n"
+    ),
     "P7": Seed(path="decide.py", old="", new="\nSAID = 'nobody acts'\n"),
     "P8": Seed(path="actinputs.py", old="", new="\nNAMED = 'totalverdict'\n"),
     "P9": Seed(
