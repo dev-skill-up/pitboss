@@ -8,7 +8,6 @@ from typing import Callable, Iterable, Mapping, Sequence, TypeVar
 
 from . import concurrently
 from .ghclient import GitHub as GitHub
-from .ghclient import read_only as read_only
 
 PAGE_SIZE = 100
 _Item = TypeVar("_Item")

@@ -11,9 +11,9 @@ import argparse
 import dataclasses
 import pathlib
 import sys
-from typing import Callable, Mapping, Sequence
+from typing import Mapping, Sequence
 
-from . import cli_parser, machine, mode, modeproof, pathproofs, proofsource
+from . import cli_parser, config, machine, mode, modeproof, pathproofs, proofsource
 
 SOURCE = "src/pitboss/"
 
@@ -37,11 +37,15 @@ SEEDS: Mapping[str, Seed] = {
     "P1": Seed(path="render.py", old="", new="\nMADE = answer.NotEnoughWork()\n"),
     "P2": Seed(path="render.py", old="", new="\nimport subprocess\n"),
     "P3": Seed(path="onepath.py", old="", new="\nMADE = world.World()\n"),
-    "P5": Seed(path="render.py", old="", new="\ndef said(given: int) -> str:\n    return ''\n"),
+    "P5": Seed(
+        path="render.py", old="", new="\ndef said(given: int) -> str:\n    return ''\n"
+    ),
     "P6": Seed(path="commands.py", old="", new="\nfrom . import ghapi\n"),
     "P7": Seed(path="decide.py", old="", new="\nSAID = 'nobody acts'\n"),
     "P8": Seed(path="actinputs.py", old="", new="\nNAMED = 'totalverdict'\n"),
-    "P9": Seed(path="workorder.py", old="", new="\nPATH = 'repos/o/r/issues?state=all'\n"),
+    "P9": Seed(
+        path="workorder.py", old="", new="\nPATH = 'repos/o/r/issues?state=all'\n"
+    ),
     "P10": Seed(
         path="decide.py",
         old="def decide_item(record: world.Record)",
@@ -81,7 +85,7 @@ def seeded(texts: Mapping[str, str], seed: Seed) -> Mapping[str, str]:
 
 
 def _other_modes(
-    args: argparse.Namespace, project: object, options: Mapping[str, str]
+    args: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
 ) -> mode.Mode:
     # P4's dynamic half: a parse that sends every command line to Other
     return mode.Other(command="")
@@ -104,7 +108,7 @@ def missed(texts: Mapping[str, str], parser: argparse.ArgumentParser) -> Sequenc
             found.append(f"{name}: its seed is not found ({seed.path})")
     if not modeproof.total_matches(proofsource.of_texts(seeded(texts, UNMATCHED))):
         found.append("P4: a match on a mode without assert_never is not found")
-    stand_in: Callable[..., mode.Mode] = _other_modes
+    stand_in: modeproof.Parse = _other_modes
     if not modeproof.images(stand_in, parser):
         found.append("P4: a parse with no image of WhatNext is not found")
     return found

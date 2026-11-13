@@ -8,12 +8,10 @@ from hamcrest import (
     assert_that,
     contains_string,
     equal_to,
-    has_length,
-    starts_with,
 )
 
 from .. import config, tasklist
-from . import fakes, liveagents, world
+from . import liveagents, world
 from .test_handback import start
 from .test_quiet import at
 

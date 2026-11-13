@@ -19,10 +19,9 @@ from hamcrest import assert_that, contains_string, equal_to
 from .. import briefsave, parsing, pulls, shapes, steps, stuckci
 from . import fakes, world
 from .cleanworld import same
-from .itemworld import one, with_pull_issues
 from .says import lacks, says
 from .rankworld import mentioning
-from .fastworld import NINTH, fast_world, listed
+from .fastworld import listed
 from .test_work import NONE, facts, stepped
 from .fakes import write
 

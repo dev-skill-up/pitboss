@@ -30,7 +30,7 @@ def _io_of(package: Package, name: str) -> Sequence[str]:
     opens = [
         node.lineno
         for node in ast.walk(source.syntax)
-        if proofsource.called(node) == "open"
+        if isinstance(node, ast.Call) and proofsource.called(node) == "open"
     ]
     return [*found, *(f"open at line {line}" for line in opens)]
 
@@ -68,7 +68,8 @@ def one_read(package: Package) -> Sequence[str]:
         f"P6: {name} imports ghapi"
         for name, source in sorted(package.sources.items())
         if _is_command(name)
-        and "pitboss.ghapi" in set(importgraph.imports_of(source.package, source.syntax))
+        and "pitboss.ghapi"
+        in set(importgraph.imports_of(source.package, source.syntax))
     )
     return found
 
@@ -89,7 +90,9 @@ def _paths(package: Package, names: Sequence[str]) -> Sequence[tuple[str, int, s
 
 
 def _listing_breaks(package: Package) -> Sequence[str]:
-    read = sorted(n for n in proofsource.closure(package, "readworld") if n in package.sources)
+    read = sorted(
+        n for n in proofsource.closure(package, "readworld") if n in package.sources
+    )
     paths = _paths(package, read)
     found = [
         f"P9: {name}:{line} lists unordered: {text}"
@@ -182,13 +185,18 @@ def stop_counts_decisions(package: Package) -> Sequence[str]:
     held = [
         ast.unparse(node.annotation)
         for node in ast.walk(walk or ast.Module(body=[], type_ignores=[]))
-        if isinstance(node, ast.AnnAssign) and proofsource.dotted(node.target) == "decisions"
+        if isinstance(node, ast.AnnAssign)
+        and proofsource.dotted(node.target) == "decisions"
     ]
     if held != ["list[answer.Decision]"]:
         found.append(f"P10: the stop counts {held}, not decisions")
     deciding = proofsource.functions(proofsource.module(package, "decide"))
     item = deciding.get("decide_item")
-    taken = [ast.unparse(a.annotation) for a in item.args.args if a.annotation] if item else []
+    taken = (
+        [ast.unparse(a.annotation) for a in item.args.args if a.annotation]
+        if item
+        else []
+    )
     if taken != ["world.Record"]:
         found.append(f"P10: decide_item takes {taken}, not one record")
     return found
@@ -217,7 +225,10 @@ def retried_once(package: Package) -> Sequence[str]:
     raising = [
         function
         for function in retrying.values()
-        if any(isinstance(node, ast.Raise) and "ReadFailed" in ast.unparse(node) for node in ast.walk(function))
+        if any(
+            isinstance(node, ast.Raise) and "ReadFailed" in ast.unparse(node)
+            for node in ast.walk(function)
+        )
     ]
     if [each.name for each in raising] != ["_tries"]:
         found.append(f"P11: ReadFailed is raised in {[each.name for each in raising]}")

@@ -41,7 +41,7 @@ def one_decider(package: Package) -> Sequence[str]:
         Each call of a constructor outside the decide module.
     """
     types = _answer_types(package)
-    found = []
+    found: list[str] = []
     for name, source in package.sources.items():
         short = name.removeprefix("pitboss.")
         if short == "decide":
@@ -138,7 +138,9 @@ def no_partial_world(package: Package) -> Sequence[str]:
 def _decision_shape(package: Package) -> Sequence[str]:
     fields = _fields(proofsource.module(package, "answer"), "Decision")
     names = {_field_name(each) for each in fields}
-    found = [f"P7: Decision has no {each}" for each in sorted({"actor", "verb"} - names)]
+    found = [
+        f"P7: Decision has no {each}" for each in sorted({"actor", "verb"} - names)
+    ]
     for each in fields:
         said = ast.unparse(each.annotation)
         if each.value is not None or "None" in said or "Optional" in said:
@@ -154,7 +156,9 @@ def _admits_none(function: ast.FunctionDef) -> bool:
 
 
 def _takes_none(function: ast.FunctionDef) -> bool:
-    said = [ast.unparse(each.annotation) for each in function.args.args if each.annotation]
+    said = [
+        ast.unparse(each.annotation) for each in function.args.args if each.annotation
+    ]
     return any("None" in each for each in said)
 
 
@@ -175,14 +179,15 @@ def _nothing_none(package: Package) -> Sequence[str]:
     found.extend(
         f"P7: decide.{name} admits None"
         for name, function in deciding.items()
-        if _admits_none(function) and not name.startswith("_")
+        if _admits_none(function)
+        and not name.startswith("_")
         and name not in ITEM_DECIDERS
     )
     return found
 
 
 def _wait_words(package: Package) -> Sequence[str]:
-    found = []
+    found: list[str] = []
     for name in SAYING:
         tree = proofsource.module(package, name)
         said = [*proofsource.texts_of(tree)]
@@ -206,7 +211,7 @@ def _wait_words(package: Package) -> Sequence[str]:
 
 
 def _not_enough_work(package: Package) -> Sequence[str]:
-    found = []
+    found: list[str] = []
     answer = proofsource.module(package, "answer")
     union = [
         ast.unparse(node.value)
@@ -233,7 +238,9 @@ def _exhausted_arm(package: Package) -> str:
     for node in ast.walk(proofsource.module(package, "decide")):
         if isinstance(node, ast.match_case) and isinstance(node.guard, ast.UnaryOp):
             pattern = node.pattern
-            if isinstance(pattern, ast.MatchClass) and isinstance(node.guard.op, ast.Not):
+            if isinstance(pattern, ast.MatchClass) and isinstance(
+                node.guard.op, ast.Not
+            ):
                 if proofsource.dotted(pattern.cls) == "world.Exhausted":
                     return f"decide:{node.body[0].lineno}"
     return "decide:none"
@@ -261,7 +268,9 @@ def _ends_total(function: ast.FunctionDef) -> bool:
     if not matches:
         return False
     last = matches[-1].cases[-1].body[-1]
-    return isinstance(last, ast.Expr) and proofsource.called(last.value) == "assert_never"
+    return (
+        isinstance(last, ast.Expr) and proofsource.called(last.value) == "assert_never"
+    )
 
 
 def act_agrees(package: Package) -> Sequence[str]:
@@ -273,8 +282,10 @@ def act_agrees(package: Package) -> Sequence[str]:
     Returns:
         What breaks it.
     """
-    found = []
-    lookup = proofsource.functions(proofsource.module(package, "gateverbs")).get("lookup")
+    found: list[str] = []
+    lookup = proofsource.functions(proofsource.module(package, "gateverbs")).get(
+        "lookup"
+    )
     if lookup is None or not _ends_total(lookup):
         found.append("P8: gateverbs.lookup is no total match on the verb")
     elif ast.unparse(lookup.args.args[0].annotation or lookup) != "answer.Decided":

@@ -3,7 +3,7 @@
 import unittest
 from typing import Mapping
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string
 
 from .. import calllog
 from . import fakes, world

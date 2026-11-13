@@ -15,7 +15,12 @@ from . import importgraph
 PACKAGE = "pitboss"
 # the proofs name what they look for; their own text is not the package's
 PROOFS = frozenset(
-    {"pitboss.decideproofs", "pitboss.readproofs", "pitboss.pathproofs", "pitboss.proofseeds"}
+    {
+        "pitboss.decideproofs",
+        "pitboss.readproofs",
+        "pitboss.pathproofs",
+        "pitboss.proofseeds",
+    }
 )
 
 
@@ -213,7 +218,7 @@ def texts_of(tree: ast.AST) -> Iterator[tuple[int, str]]:
     for node in ast.walk(tree):
         if isinstance(node, ast.JoinedStr):
             yield node.lineno, "".join(
-                each.value if isinstance(each, ast.Constant) else "{}"
+                str(each.value) if isinstance(each, ast.Constant) else "{}"
                 for each in node.values
             )
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):

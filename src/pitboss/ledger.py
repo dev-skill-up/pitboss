@@ -6,10 +6,11 @@ import json
 import pathlib
 from typing import Callable, Iterable, Sequence
 
-from . import config
+from . import config, slotbook
 from .slotbook import Ledger as Ledger
 from .slotbook import Slot as Slot
-from .slotbook import reference as reference
+
+reference = slotbook.reference
 
 
 class Mark(enum.Enum):

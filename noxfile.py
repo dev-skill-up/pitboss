@@ -7,7 +7,15 @@ import urllib.request
 import nox
 
 nox.options.envdir = "build/nox"
-nox.options.sessions = ["lint", "modes", "tests", "mypy", "docs", "skills", "dry_release"]
+nox.options.sessions = [
+    "lint",
+    "modes",
+    "tests",
+    "mypy",
+    "docs",
+    "skills",
+    "dry_release",
+]
 
 VERSIONS = ["3.12", "3.13", "3.14"]
 COVER = "--cover="

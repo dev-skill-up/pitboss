@@ -5,8 +5,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brieftextfix, suggest
-from . import fakes, suggestions, test_flow_sweep, world
+from .. import brieftextfix
+from . import fakes, test_flow_sweep, world
 from .test_flow_sweep import APPROVED, CHANGES, HEAD, OLDER, graded, world_with
 from .suggestions import (
     default_suggestions,
@@ -17,7 +17,6 @@ from .suggestions import (
     third,
     with_more_tickets,
 )
-from .says import errs
 
 MERGE = {"sha": "2", "parents": [{"sha": "1"}, {"sha": "9"}]}
 COMMENT_URL = "https://example.org/owner/project/pull/3#issuecomment-1"

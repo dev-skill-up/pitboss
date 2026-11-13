@@ -69,7 +69,10 @@ def same_answer(package: Package) -> Sequence[str]:
         given = _given("render", first)
         if not name.startswith("_") and given not in allowed:
             found.append(f"P5: render.{name} takes {given}, no projection's value")
-    asked = {f"project.{each}" for each in proofsource.functions(proofsource.module(package, "project"))}
+    asked = {
+        f"project.{each}"
+        for each in proofsource.functions(proofsource.module(package, "project"))
+    }
     for short, node in proofsource.nodes(package):
         if proofsource.called(node) in asked and isinstance(node, ast.Call):
             given = proofsource.dotted(node.args[0]) if node.args else ""

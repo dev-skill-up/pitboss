@@ -26,7 +26,9 @@ WORDS: Mapping[str, Sequence[str]] = {"act": ["want=" + ITEM]}
 Parse = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], mode.Mode]
 
 
-def _subcommands(parser: argparse.ArgumentParser) -> Mapping[str, argparse.ArgumentParser]:
+def _subcommands(
+    parser: argparse.ArgumentParser,
+) -> Mapping[str, argparse.ArgumentParser]:
     found: dict[str, argparse.ArgumentParser] = {}
     for action in parser._actions:  # noqa: SLD402
         if isinstance(action, argparse._SubParsersAction):  # noqa: SLD402
@@ -67,7 +69,10 @@ def command_lines(
         required = [each for each in arguments if each.required]
         optional = [each for each in arguments if not each.required]
         for chosen in itertools.product(*(_values(each) for each in required)):
-            base = {**sub._defaults, **{a.dest: a.default for a in optional}}  # noqa: SLD402
+            base = {
+                **sub._defaults,
+                **{a.dest: a.default for a in optional},
+            }  # noqa: SLD402
             base.update({a.dest: v for a, v in zip(required, chosen)})
             label = " ".join([name, *(str(each) for each in chosen)])
             yield label, argparse.Namespace(**base)
@@ -105,7 +110,9 @@ def images(parse: Parse, parser: argparse.ArgumentParser) -> Sequence[str]:
         if not isinstance(given, kinds):
             found.append(f"P4: {label} is {type(given).__name__}, no mode")
         seen.add(type(given).__name__)
-    found.extend(f"P4: no command line is {each}" for each in mode.NAMES if each not in seen)
+    found.extend(
+        f"P4: no command line is {each}" for each in mode.NAMES if each not in seen
+    )
     return found
 
 
@@ -136,9 +143,14 @@ def total_matches(package: proofsource.Package) -> Sequence[str]:
     for short, node in proofsource.nodes(package):
         if isinstance(node, ast.Match) and _is_mode_match(node):
             last = node.cases[-1].body[-1]
-            ends = isinstance(last, ast.Expr) and proofsource.called(last.value) == "assert_never"
+            ends = (
+                isinstance(last, ast.Expr)
+                and proofsource.called(last.value) == "assert_never"
+            )
             if not ends:
-                found.append(f"P4: {short}:{node.lineno} matches a mode without assert_never")
+                found.append(
+                    f"P4: {short}:{node.lineno} matches a mode without assert_never"
+                )
     return found
 
 

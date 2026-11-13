@@ -13,10 +13,9 @@ from typing import Mapping, Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import configfile, ownerlabels
-from . import fakes, quietworld, test_flow_sweep, world
-from .itemworld import one, with_pull_issues
+from . import fakes, quietworld, world
 from .rankworld import publish
-from .suggestions import next_output, parsed, third
+from .suggestions import next_output, parsed
 from .test_commands import sweep
 from .ownerbodies import lines_of
 from .says import says

@@ -8,8 +8,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string
 
-from .. import dead, judging, local, mergedworktree, worktrees
-from . import cleanworld, fakes, suggestions, world, worldcopy
+from .. import dead, judging, local, worktrees
+from . import cleanworld, fakes, world, worldcopy
 from .fakes import write
 
 AFTER = ("--now", world.FUTURE)
