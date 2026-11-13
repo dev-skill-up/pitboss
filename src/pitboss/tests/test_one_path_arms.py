@@ -14,7 +14,7 @@ from .. import mode, nextcommand, onepath, pullnames, pushdraft, refill, render
 from .. import sharedred, shapes, slotbook, slotsheader, steps
 from .. import sweepline, work, workorder, world
 from . import fakes, gatewords, knownkit, knownshipped, test_decide, test_work
-from . import totalcomplete, totalpairs, totalworld
+from . import rankworld, totalcomplete, totalpairs, totalworld
 from . import world as scenes
 from .says import errs
 
@@ -46,6 +46,20 @@ def pull_record(*, held: bool, stuck: Sequence[str]) -> world.PullRecord:
     )
 
 
+def command_line(*words: str) -> scenes.Result:
+    """Run a command on the command line, in a world of the project.
+
+    Args:
+        *words: the command, its arguments and its options.
+
+    Returns:
+        What the command did.
+    """
+    here = scenes.make_world()
+    given = ("--config", here.config, "--now", scenes.FUTURE)
+    return scenes.invoke(here, *words, *given)
+
+
 def act_line(*words: str) -> scenes.Result:
     """Run ``act`` on the command line, in a world of the project.
 
@@ -55,9 +69,21 @@ def act_line(*words: str) -> scenes.Result:
     Returns:
         What the command did.
     """
-    here = scenes.make_world()
-    given = ("--config", here.config, "--now", scenes.FUTURE)
-    return scenes.invoke(here, "act", *words, *given)
+    return command_line("act", *words)
+
+
+def decision_in(item: str, *words: str) -> str:
+    """The first line a command prints of an item's decision.
+
+    Args:
+        item: the item.
+        *words: the command and its arguments.
+
+    Returns:
+        The line, empty when there is none.
+    """
+    found = rankworld.mentioning(command_line(*words).out, f": {item}: ")
+    return next(iter(found), "")
 
 
 def ticket_judgement() -> decide.Judgement:
@@ -266,3 +292,18 @@ class TestPairs(unittest.TestCase):
 
         found = totalpairs.run(base, cells, verdict)
         assert_that(found.exceptions[0], contains_string("want GO"))
+
+
+class TestOneDecision(unittest.TestCase):
+    """Plan 6.5: the same decision for the same item, whichever command asks."""
+
+    def test_6_5_the_four_commands_print_one_decision(self) -> None:
+        """The head of dispatch-next has one decision line in each other command."""
+        item = act_line("dispatch-next", "owner/project").out.strip()
+        said = decision_in(item, "next", item)
+        agree = [
+            said in decision_in(item, *words)
+            for words in (("slots", "next", item), ("slots", "next"))
+        ]
+        want = "WORKER: owner/project#1: resolve the conflict"
+        assert_that((said, agree), equal_to((want, [True, True])))

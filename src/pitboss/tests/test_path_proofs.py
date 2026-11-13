@@ -4,6 +4,7 @@ import argparse
 import contextlib
 import io
 import pathlib
+import re
 import tempfile
 import unittest
 from typing import Mapping
@@ -46,6 +47,11 @@ def _edited(path: str, old: str, new: str) -> proofsource.Package:
     texts = proofseeds.seeded(TEXTS, seed)
     assert_that(texts != TEXTS, equal_to(True), f"{path}: {old!r} is not once")
     return proofsource.of_texts(texts)
+
+
+def _path_of(name: str) -> str:
+    # a module's file, as ``proofsource.read`` names it
+    return f"src/{name.replace('.', '/')}.py"
 
 
 def _bare_root(base: str) -> pathlib.Path:
@@ -227,3 +233,18 @@ class TestOneParse(unittest.TestCase):
         new = "\nfrom . import totaljson\n"
         found = pathproofs.one_parse(_edited("gaterows.py", "", new))
         assert_that(found, equal_to(["6.1: gaterows reads JSON; only the parsers do"]))
+
+
+class TestNoCheckIn(unittest.TestCase):
+    """Plan 6.5: no check-in decision."""
+
+    def test_6_5_decide_reaches_no_check_in(self) -> None:
+        """Only the ledger's record of the last post names a check-in."""
+        package = proofsource.of_texts(TEXTS)
+        reached = proofsource.closure(package, "decide")
+        named = sorted(
+            proofsource.short(each)
+            for each in reached
+            if re.search(r"(?i)check-?in", TEXTS.get(_path_of(each), ""))
+        )
+        assert_that(named, equal_to(["slotbook"]))

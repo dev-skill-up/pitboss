@@ -115,11 +115,14 @@ class TestInputs(unittest.TestCase):
         want = pullrecords.File(name="a.py", additions=3, deletions=0)
         assert_that(_state(files=given).reads.files, equal_to([want]))
 
-    def test_6_1_a_failed_read_is_unread_and_no_list_is_empty(self) -> None:
-        """Plan 6.1: an input GitHub answered with an error; one that is no list."""
-        reads = _state(files={"_error": "HTTP 502"}, statuses="odd").reads
-        failed = pullrecords.Unread(why="HTTP 502")
-        assert_that((reads.files, reads.statuses), equal_to((failed, [])))
+    def test_6_1_a_list_github_answered_with_an_error_is_unread(self) -> None:
+        """Plan 6.1: GitHub's error is the read's reason."""
+        files = _state(files={"_error": "HTTP 502"}).reads.files
+        assert_that(files, equal_to(pullrecords.Unread(why="HTTP 502")))
+
+    def test_6_1_a_read_that_is_no_list_is_empty(self) -> None:
+        """Plan 6.1: a value that is no list holds no item, as the gate read it."""
+        assert_that(_state(statuses="odd").reads.statuses, equal_to([]))
 
     def test_6_1_a_member_of_another_type_is_mistyped(self) -> None:
         """Plan 6.1: a conclusion that is a list is not of GitHub's schema."""

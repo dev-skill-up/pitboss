@@ -203,7 +203,7 @@ class TestFields(unittest.TestCase):
     def test_6_1_a_required_field_absent(self) -> None:
         """A title not given: no text, and absent."""
         made = gatestate.state(pull=gatestate.pull_of(title_is_text=False, said={}))
-        found = gatefields.field_stops(made, "merge", {"title": "string"})
+        found = gatefields.field_stops(made, "merge", {"title": "required, string:"})
         _says(found, ["title=None: not text", "title: a required field is absent"])
 
 
