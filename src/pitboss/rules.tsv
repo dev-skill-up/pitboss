@@ -40,7 +40,7 @@ B2	2026-10-29	enforced	A freed slot is filled in the same turn; skip blocked ite
 B3	2026-10-29	output	Never tell the owner nothing is running	brieftextrules.reminder	test_rules_standing.test_b3_never_tell_the_owner_nothing_is_running
 B4	2026-11-11	output	The coordinator corrects a message that says the slot is idle	brieftextrules.reminder	test_rules_standing.test_b4_a_slot_idle_message_is_corrected
 B5	2026-11-09	output	Re-run slots next before each dispatch	brieftextrules.reminder	test_rules_standing.test_b5_slots_next_is_read_again_before_a_dispatch
-B6	2026-11-10	enforced	Only briefs pitboss prints; no hand-typed brief paths	briefsave.save	test_slots_rules.test_b6_the_listed_briefs_are_saved_and_dispatch_lines_name_them test_slots_rules.test_b6_the_brief_of_one_item_is_saved_and_the_line_is_on_standard_error test_slots_rules.test_b6_a_brief_that_cannot_be_written_says_so
+B6	2026-11-10	enforced	Only briefs pitboss prints; no hand-typed brief paths	briefsave.save	test_slots_rules.test_b6_the_listed_briefs_are_saved_and_dispatch_lines_name_them test_slots_rules.test_b6_a_brief_that_cannot_be_written_says_so
 B7	2026-10-29	enforced	One ticket, one PR, one task per ticket	readworld.examine_ticket	test_register_rules.test_b7_one_ticket_has_one_pr test_one_path_rules.test_b7_a_ticket_an_open_pull_request_fixes_is_not_offered
 B8	2026-11-08	output	Fold the newer ticket into the older	foldline.lines	test_register_rules.test_b8_a_newer_ticket_is_folded_into_the_older
 B9	2026-10-29	enforced	Order: running workers, PRs before tickets, priority, age	workorder.candidates	test_one_path_rules.test_b9_pull_requests_come_first_then_tickets_by_age_across_repositories
