@@ -3,11 +3,12 @@
 (keyword: act-verbs, pitboss#444): each runs the verdict and the gates.
 """
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actcore
+from .. import actcore, answer, render
 from . import fakehub, gatesaid, knownkit
 from .knownshipped import GIVEN, refusal
 from .actplay import file_issue, hold_issue, kinds, red, stop_line
@@ -44,6 +45,17 @@ class TestMerge(unittest.TestCase):
         hub = made(GIVEN, red())
         assert_that(refusal(hub, "merge"), contains_string("check"))
         assert_that(hub.hub.writes, empty())
+
+    def test_p8_a_pr_no_actor_takes_with_no_work_is_not_enough_work(self) -> None:
+        """A closed PR has no decision: with no other work, merge says so."""
+        idle = answer.NotEnoughWork()
+        none = dataclasses.replace(fakehub.work(), answer=idle, by_item={})
+        given = knownkit.given_of(GIVEN, none)
+        hub = fakehub.holding(change(pull={"state": "closed"}), given)
+        said = act(GIVEN, hub, "merge")
+        name = f"{REPO}#{NUMBER}"
+        wanted = f"{render.NOT_DONE}: merge {name}: {render.NOT_ENOUGH_WORK}"
+        assert_that((said, hub.hub.writes), equal_to((wanted, [])))
 
     def test_c17_an_owner_message_with_no_disposition_refuses(self) -> None:
         """An ack none needs a quote; after it the merge goes and the note is filed."""

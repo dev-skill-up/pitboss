@@ -1,10 +1,11 @@
 """The order of work is read by organisation, not repository (keyword: org-search)."""
 
+import dataclasses
 import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import branchtaken, config, ghapi, orgsearch
+from .. import branchtaken, config, ghapi, orgsearch, workorder
 from . import fakes
 
 QUIRE = config.make_repo("o", "quire")
@@ -35,6 +36,19 @@ class TestOrgSearch(unittest.TestCase):
         ]
         found = [orgsearch.repo_of(each, repos) for each in items]
         assert_that(found, equal_to([QUIRE, None, None, None]))
+
+    def test_6_1_with_no_relock_prefix_one_search_lists_every_pull_request(
+        self,
+    ) -> None:
+        """No prefix names a relock branch, so the open PRs are one search."""
+        settings = fakes.settings(fakes.directory())
+        lint = dataclasses.replace(settings.lint, relock_prefix="")
+        searched = fakes.page(orgsearch.path("owner", "is:pr"))
+        bodies: dict[str, object] = {searched: {"items": []}}
+        fake = fakes.FakeProcesses(bodies=bodies)
+        github = ghapi.GitHub(run=fake, mutate=fake)
+        found = workorder.listing(github, dataclasses.replace(settings, lint=lint))
+        assert_that((found, len(fake.calls)), equal_to(([], 1)))
 
 
 class TestBranchTaken(unittest.TestCase):

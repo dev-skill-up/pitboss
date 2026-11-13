@@ -185,6 +185,7 @@ class TestCommand(unittest.TestCase):
         for words, said in (
             (("nope", PULL), "no verb"),
             (("label", PULL, "name"), "is not an option"),
+            (("comment-edit", PULL, "id=1", "body=x"), "not a comment pitboss"),
         ):
             done = _act(here, *words)
             errs(done, 2, said)
