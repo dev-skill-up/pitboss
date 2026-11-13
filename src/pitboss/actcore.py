@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actport, project, ticketreader, totalanswer, totaljson
+from . import actport, answer, ticketreader, totalanswer, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
@@ -98,7 +98,7 @@ class Act:
     p90: Callable[[str], int]
     run: Run
     prepush: Callable[[], tuple[int, str]]
-    dispatch: Callable[[], project.DispatchAnswer]
+    dispatch: Callable[[], answer.DispatchAnswer]
     controls: Controls
 
 

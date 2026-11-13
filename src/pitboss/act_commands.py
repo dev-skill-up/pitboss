@@ -16,7 +16,7 @@ from typing import Callable, Mapping, NoReturn, Sequence
 from gather.commands import add_argument
 
 from . import ENTRY_DATA, actcore, actledger, actverbs, actwiring, configsettle
-from . import logline, mode, onepath, project
+from . import answer, logline, mode, onepath
 from .commandarguments import CONFIG_OPTION, DRY_RUN_ARGUMENT, NOW_ARGUMENT
 from .commands import Context, load_context
 
@@ -88,9 +88,8 @@ def act(args: argparse.Namespace) -> None:
     path = found.settings.slots.ledger.parent / actwiring.OWNER
     owner = actwiring.owner_of(path)
     chosen = onepath.mode_of(args, found, options)
-    world = actwiring.act_of(
-        found.github, found.settings, owner, args.run, _dispatching(found, chosen)
-    )
+    asking = actwiring.Asking(owner=owner, dispatch=_dispatching(found, chosen))
+    world = actwiring.act_of(found.github, found.settings, args.run, asking)
     target = actledger.target_of(args.target)
     print(run_verb(world, args.verb, target, options))
     if args.no_dry_run:
@@ -102,7 +101,7 @@ def act(args: argparse.Namespace) -> None:
 
 def _dispatching(
     found: Context, chosen: mode.Mode
-) -> Callable[[], project.DispatchAnswer]:
+) -> Callable[[], answer.DispatchAnswer]:
     # keyword: one-path: dispatch-next reads the world once, as slots next does
     asked = (
         chosen

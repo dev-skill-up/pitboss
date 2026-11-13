@@ -1,22 +1,24 @@
-"""A read of GitHub that fails is tried again, then the command fails (keyword: read-retry).
+"""A read of GitHub that fails is tried again, then the command fails (read-retry).
 
 The owner (the one-path plan, 3.2): "Retry with reasonable back-off with jitter and
 otherwise fail pitboss next. If GitHub is having an outage, that's an LLM issue to
 manage, not deterministic code." A transport error, a 5xx, a 429 and a 403 that
 names a rate limit are tried again, at most ``ATTEMPTS`` times in all; before try k
 (1, 2, 3) the wait is drawn uniformly from 0 to ``BASE`` times 2 to the k seconds. A
-404, 410 or 422 is GitHub's answer (a blocker that is gone) and any other status is
-too: neither is tried again, and the caller reads it as it always did. After the
+404, 410 or 422 is GitHub's answer (a blocker that is gone), as any other status
+is; neither is tried again, and the caller reads it as it always did. After the
 last try the read raises ``ReadFailed``, which only the command entry catches
 (``cli_parser``): the command exits nonzero with the request and its status on
 standard error, and no decision is made on a partial world.
 """
 
 import dataclasses
+import functools
 import re
 import subprocess
 from typing import Callable, Sequence
 
+from . import running
 from .running import KeywordRun, Output
 
 ATTEMPTS = 4
@@ -29,24 +31,8 @@ Draw = Callable[[float], float]
 Sleep = Callable[[float], None]
 
 
-class ReadFailed(Exception):  # noqa: SLD401
-    """A read of GitHub failed on every try.
-
-    Attributes:
-        request: the path asked for.
-        status: how the last try failed (``HTTP 503``, ``gh exited 1``).
-    """
-
-    def __init__(self, request: str, status: str) -> None:  # noqa: SLD303
-        """Name the request and its last status.
-
-        Args:
-            request: the path asked for.
-            status: how the last try failed.
-        """
-        super().__init__(f"read failed after {ATTEMPTS} tries: {request}: {status}")
-        self.request = request
-        self.status = status
+class ReadFailed(Exception):
+    """A read of GitHub failed on every try: its text is the request and status."""
 
 
 def status_of(error: subprocess.CalledProcessError) -> int | None:
@@ -116,18 +102,15 @@ class Retried:
             **kwargs: its keywords.
 
         Returns:
-            The finished process.
-
-        Raises:
-            ReadFailed: a read failed on every try.
+            The finished process; a read that failed on every try raises
+            ``ReadFailed``.
         """
-        words = tuple(cmdargs)
-        if words[:2] != ("gh", "api") or len(words) != 3 or args or kwargs:
-            return self.run(cmdargs, *args, **kwargs)
-        return _tries(self, words)
+        return running.through(
+            self.run, functools.partial(_tries, self), cmdargs, *args, **kwargs
+        )
 
 
-def _tries(retried: Retried, words: tuple[str, ...]) -> Output:
+def _tries(retried: Retried, words: Sequence[str]) -> Output:
     last = ""
     for attempt in range(ATTEMPTS):
         if attempt:
@@ -138,10 +121,10 @@ def _tries(retried: Retried, words: tuple[str, ...]) -> Output:
             if not again(error):
                 raise
             last = said(error)
-    raise ReadFailed(words[-1], last)
+    raise ReadFailed(f"{words[-1]}: {last}")
 
 
-def retried(run: KeywordRun, draw: Draw, sleep: Sleep) -> KeywordRun:
+def with_retries(run: KeywordRun, draw: Draw, sleep: Sleep) -> KeywordRun:
     """A runner whose reads are tried again with a bounded wait, then fail.
 
     Args:

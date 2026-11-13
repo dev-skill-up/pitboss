@@ -10,9 +10,11 @@ one command that changes nothing it reads again.
 
 import concurrent.futures
 import dataclasses
+import functools
 import threading
 from typing import MutableMapping, Sequence
 
+from . import running
 from .running import KeywordRun, Output
 
 LIMIT = 24  # reads running at once, over every pool that asks
@@ -67,17 +69,19 @@ class Memo:
             The finished process, as the first asker got it; the same error is
             raised for a read that failed.
         """
-        words = tuple(cmdargs)
-        if words[:2] != ("gh", "api") or len(words) != 3 or args or kwargs:
-            return self.run(cmdargs, *args, **kwargs)
-        known, first = _claim(self, "\0".join(words))
-        if first:
-            try:
-                with self.turns:
-                    known.set_result(self.run(cmdargs))
-            except BaseException as why:
-                _failed(known, why)
-        return known.result()
+        read = functools.partial(_memo_read, self)
+        return running.through(self.run, read, cmdargs, *args, **kwargs)
+
+
+def _memo_read(memo: Memo, words: Sequence[str]) -> Output:
+    known, first = _claim(memo, "\0".join(words))
+    if first:
+        try:
+            with memo.turns:
+                known.set_result(memo.run(list(words)))
+        except BaseException as why:
+            _failed(known, why)
+    return known.result()
 
 
 def memoized(run: KeywordRun) -> KeywordRun:

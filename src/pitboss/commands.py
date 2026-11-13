@@ -171,18 +171,12 @@ def whole_order(found: Context) -> Context:
 
 def _reading(args: argparse.Namespace) -> KeywordRun:
     # keyword: read-retry: a read that may pass is tried again, then the command fails
-    tried = retrying.retried(
+    tried = retrying.with_retries(
         args.safe_run, functools.partial(random.uniform, 0.0), time.sleep
     )
-    # keyword: read-memo (pitboss#453): what a question of what is next reads, it
-    # reads once
-    if getattr(args, "action", None) == "next" or _asks_next(args):
-        return ghmemo.memoized(tried)
-    return tried
-
-
-def _asks_next(args: argparse.Namespace) -> bool:
-    return getattr(args, "__gather_name__", "") == "next"
+    # keyword: read-memo (pitboss#453): a question of what is next reads a path once
+    asks = {getattr(args, "action", None), getattr(args, "__gather_name__", None)}
+    return ghmemo.memoized(tried) if "next" in asks else tried
 
 
 def load_context(args: argparse.Namespace) -> Context:

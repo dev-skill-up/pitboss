@@ -12,7 +12,7 @@ import contextlib
 import dataclasses
 import sys
 import time
-from typing import Callable, Iterator, Protocol, runtime_checkable
+from typing import Callable, Iterator
 
 from . import cli_parser, startup, timing
 
@@ -21,16 +21,7 @@ NAMES = frozenset(
 )
 
 
-@runtime_checkable
-class Command(Protocol):
-    """A command, which gather calls with the keyword ``args``."""
-
-    def __call__(self, *, args: argparse.Namespace) -> None:
-        """Run the command.
-
-        Args:
-            args: the parsed arguments.
-        """
+Command = cli_parser.Command
 
 
 def name_of(args: argparse.Namespace) -> str:

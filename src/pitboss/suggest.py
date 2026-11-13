@@ -1,8 +1,7 @@
-"""The top suggestions of ``next`` and ``slots next``, each with its brief.
+"""The briefs of the decisions of ``next`` and ``slots next`` (keyword: brief).
 
-On a crowded volume (90% used or more) the clean suggestion comes first; the first
-pick is the one the process requires, the others could start next. The order is
-``work.queued``'s, Opus rulings first: owed, they take no slot (keyword: brief).
+On a crowded volume (90% used or more) the clean suggestion comes first; then the
+decisions a slot or an Opus agent takes, in the order ``decide`` gives them.
 """
 
 import dataclasses
@@ -28,8 +27,6 @@ from . import (
     reporules,
     reviews,
     ruleconflicts,
-    slotheld,
-    stepmatrix,
     steps,
     suggestflake,
     suggestkind,
@@ -84,7 +81,6 @@ class Source:
         failed: each reference's failed models.
         volume: the workspace's volume as read (disk-watch), None when unread.
         big: the largest scratch entries, read only for a crowded volume.
-        occupancy: what holds the slots (keyword: slot-held, pitboss#291).
     """
 
     github: ghapi.GitHub
@@ -96,7 +92,6 @@ class Source:
     failed: Mapping[str, Sequence[str]]
     volume: diskwatch.Reading | None = None
     big: Sequence[diskwatch.Big] = ()
-    occupancy: slotheld.Occupancy = slotheld.UNLIMITED
 
 
 def sourced(
@@ -127,45 +122,6 @@ def sourced(
         items=items,
         failed=failed,
     )
-
-
-def _ruling_pick(each: pulls.PullFacts) -> Pick:
-    return Pick(reference=pulls.reference(each), title=each.pull.title, pull=each)
-
-
-def _queued_pick(each: work.Item, by_reference: Mapping[str, pulls.PullFacts]) -> Pick:
-    return Pick(
-        reference=each.reference,
-        title=each.title,
-        category=each.category,
-        item=each,
-        pull=by_reference.get(each.reference),
-    )
-
-
-def picks(source: Source) -> Sequence[Pick]:
-    """Everything that could start, in the order to take it.
-
-    Args:
-        source: what suggestions are made from.
-
-    Returns:
-        The PRs at a ruling, oldest first, then the queued work (keyword: slot-held).
-    """
-    by_reference = {pulls.reference(each): each for each in source.facts}
-    ruled = sorted(
-        (each for each in source.facts if each.step.step in stepmatrix.RULINGS),
-        key=lambda each: each.pull.created_at,
-    )
-    return [
-        *map(_ruling_pick, ruled),
-        *(
-            _queued_pick(each, by_reference)
-            for each in source.items
-            if source.occupancy.known
-            and not slotheld.waits(source.occupancy, each.reference)
-        ),
-    ]
 
 
 def review_kind(pull: pulls.PullFacts) -> brief.Kind:
@@ -351,17 +307,7 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
     )
 
 
-def ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
-    """Each suggestion as a header, its brief and an end line.
-
-    Args:
-        made: the suggestions, in order.
-        first: the rank of the first.
-        total: how many there are in all.
-
-    Yields:
-        The lines.
-    """
+def _ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
     marker = Marker.SUGGESTION.text
     for rank, found in enumerate(made, start=first):
         yield (
@@ -372,42 +318,32 @@ def ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
         yield f"--- end of suggestion {rank} ---"
 
 
-def dispatched(source: Source, found: Suggestion) -> str:
-    """Save a suggestion's brief to its file (B6, keyword: brief-save).
-
-    Args:
-        source: what suggestions are made from.
-        found: the suggestion.
-
-    Returns:
-        The line that names the file.
-    """
+def _dispatch(source: Source, found: Suggestion) -> str:
+    # B6 (keyword: brief-save): the brief is a file, and the line names it
     ledger_file = source.settings.slots.ledger
     return briefsave.save(ledger_file, found.reference, found.model, found.text)
 
 
-def lines(source: Source) -> Iterable[str]:
-    """The top suggestions, each as a header, its brief and an end line.
+def lines(source: Source, every: Sequence[Pick]) -> Iterable[str]:
+    """The briefs of the first decisions, each as a header, its brief and an end line.
 
     Args:
         source: what suggestions are made from.
+        every: the decisions a slot or an Opus agent takes, as picks, in order.
 
     Yields:
-        Up to ``TOP`` suggestions in order, then how many more are queued; one
-        line when nothing could start. On a volume 90 % used or with under 1 GiB
-        free the first is ``clean the disk``; under 1 GiB none is a worker's.
+        Up to ``TOP`` suggestions in order, then how many more there are. On a
+        volume 90 % used or with under 1 GiB free the first is ``clean the
+        disk``; under 1 GiB none is a worker's.
     """
     marker = Marker.SUGGESTION.text
-    every = [] if diskwatch.starved(source.volume) else picks(source)
-    shown = every[:TOP]
-    if not shown and not diskwatch.starved(source.volume):
-        yield f"{marker}: none: nothing is queued that could start"
+    shown = [] if diskwatch.starved(source.volume) else every[:TOP]
     cleaning = diskwatch.crowded(source.volume)
     total = len(shown) + cleaning
     yield from diskwatch.opening(source.volume, source.big, total)
     made = [suggest(source, pick) for pick in shown]
     for found in made:
-        yield dispatched(source, found)
-    yield from ranked(made, 1 + cleaning, total)
+        yield _dispatch(source, found)
+    yield from _ranked(made, 1 + cleaning, total)
     if len(every) > len(shown):
-        yield f"{marker}: {len(every) - len(shown)} more queued, not shown"
+        yield f"{marker}: {len(every) - len(shown)} more, not shown"

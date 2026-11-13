@@ -4,7 +4,7 @@ Commands get gather's runners, which log, raise ``CalledProcessError`` on
 failure, and (``run`` only) do nothing in a dry run; tests pass fakes.
 """
 
-from typing import Protocol, Sequence
+from typing import Callable, Protocol, Sequence
 
 
 class Output(Protocol):
@@ -77,3 +77,28 @@ def changed_files(run: Run, directory: object, *options: str) -> int:
         The count.
     """
     return len(git(run, directory, "status", "--porcelain", *options).splitlines())
+
+
+def through(
+    run: KeywordRun,
+    read: Callable[[Sequence[str]], Output],
+    cmdargs: Sequence[str],
+    *args: object,
+    **kwargs: object,
+) -> Output:
+    """Run a command; a plain ``gh api <path>`` read goes through ``read``.
+
+    Args:
+        run: the runner any other command goes through.
+        read: what a plain read goes through (the memo, the tries).
+        cmdargs: the command line.
+        *args: its other positional arguments.
+        **kwargs: its keywords.
+
+    Returns:
+        The finished process.
+    """
+    words = list(cmdargs)
+    if words[:2] != ["gh", "api"] or len(words) != 3 or args or kwargs:
+        return run(cmdargs, *args, **kwargs)
+    return read(words)

@@ -128,7 +128,6 @@ class Offer(Protocol):
         """
 
 
-
 def _name(item: Ranked) -> str:
     # a ticket, or the ticket a PR fixes with the PR after it
     if item.category.name == TICKET or not item.ticket:

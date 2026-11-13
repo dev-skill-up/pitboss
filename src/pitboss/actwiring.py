@@ -8,14 +8,15 @@ cap`` set; the verbs read it and ``ack`` writes it back. The order of work reads
 configured slots, the ledger, the open PRs and the open tickets of each priority.
 """
 
+import dataclasses
 import json
 import pathlib
 import subprocess
 import sys
 from typing import Callable, Sequence
 
-from . import acthub, actinputs, config, configrepos, project, totalverdict
-from .actcore import Act, Controls, Hub, Owner, Pull, cap_of
+from . import acthub, actinputs, answer, config, configrepos, totalverdict
+from .actcore import Act, Controls, Owner, cap_of
 from .ghapi import GitHub, run_json
 from .running import Run
 from .textparts import split_at
@@ -140,21 +141,27 @@ def quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(words), capture_output=True, text=True, check=False)
 
 
-def act_of(
-    github: GitHub,
-    settings: config.Config,
-    owner: Owner,
-    run: Run,
-    dispatch: Callable[[], project.DispatchAnswer],
-) -> Act:
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Asking:
+    """Whom the verbs ask: the owner, and the one order of work.
+
+    Attributes:
+        owner: the owner's messages.
+        dispatch: gives the head of the one order (``onepath.dispatch``).
+    """
+
+    owner: Owner
+    dispatch: Callable[[], answer.DispatchAnswer]
+
+
+def act_of(github: GitHub, settings: config.Config, run: Run, asking: Asking) -> Act:
     """The verbs' world; the verbs post as the login ``gh`` is signed in as.
 
     Args:
         github: the reading and the writing runner.
         settings: the configuration.
-        owner: the owner's messages.
         run: the runner git goes through.
-        dispatch: gives the head of the one order (``onepath.dispatch``).
+        asking: the owner's messages and the one order.
 
     Returns:
         The world.
@@ -167,12 +174,12 @@ def act_of(
     return Act(
         hub=hub,
         inputs=actinputs.live_inputs(actinputs.reader(github), given),
-        owner=owner,
+        owner=asking.owner,
         repos=repos,
         p90=p90,
         run=run,
         prepush=prepush(quiet),
-        dispatch=dispatch,
+        dispatch=asking.dispatch,
         controls=CONTROLS,
     )
 

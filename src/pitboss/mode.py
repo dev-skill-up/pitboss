@@ -2,27 +2,42 @@
 
 ``parse`` maps every parse of the command line onto one ``Mode``; the questions of
 what is next (``next``, ``slots next``, ``slots free-check``, ``act
-dispatch-next``) each have a constructor of their own, and every other command and
-action is ``Other``, which decides nothing about a step. Every dispatch on a mode is
-a ``match`` that ends in ``assert_never``.
+dispatch-next``) each have a constructor and a tag of their own, and every other
+command and action is ``Other``, which decides nothing about a step. Every dispatch
+on a mode is a ``match`` that ends in ``assert_never``.
 """
 
 import argparse
 import dataclasses
-from typing import Mapping, Sequence
+import enum
+from typing import Callable, Mapping, Sequence
 
 from . import config, ledger
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WhatNext:
-    """What is next: ``next`` and ``slots next`` with no item.
+class Asked(enum.Enum):
+    """Which command asks what is next.
 
     Attributes:
-        command: the command as typed (``next``, ``slots next``).
+        NEXT: ``next``.
+        SLOTS_NEXT: ``slots next``.
+        FREE_CHECK: ``slots free-check``.
     """
 
-    command: str
+    NEXT = enum.auto()
+    SLOTS_NEXT = enum.auto()
+    FREE_CHECK = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WhatNext:
+    """What is next: ``next``, ``slots next`` with no item, ``slots free-check``.
+
+    Attributes:
+        asked: the command that asks.
+    """
+
+    asked: Asked
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -30,17 +45,12 @@ class ItemNext:
     """What is next for one item: ``next <item>`` and ``slots next <item>``.
 
     Attributes:
-        command: the command as typed.
+        asked: the command that asks.
         item: the item, ``owner/name#number``.
     """
 
-    command: str
+    asked: Asked
     item: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class FreeCheck:
-    """Whether a free slot has work: ``slots free-check``."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -67,12 +77,48 @@ class Other:
     command: str
 
 
-Mode = WhatNext | ItemNext | FreeCheck | DispatchNext | Other
-NAMES: Sequence[str] = ("WhatNext", "ItemNext", "FreeCheck", "DispatchNext", "Other")
+Mode = WhatNext | ItemNext | DispatchNext | Other
+NAMES: Sequence[str] = ("WhatNext", "ItemNext", "DispatchNext", "Other")
+ModeOf = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], Mode]
 
 
-def _item(words: Sequence[str], project: config.Repo) -> str:
-    return ledger.reference(words[0], project) if words and words[0] else ""
+def _item(word: object, project: config.Repo) -> str:
+    return ledger.reference(str(word), project) if word else ""
+
+
+def _next(args: argparse.Namespace, project: config.Repo, _: Mapping[str, str]) -> Mode:
+    ticket = getattr(args, "ticket", None)
+    if ticket is None:
+        return WhatNext(asked=Asked.NEXT)
+    return ItemNext(asked=Asked.NEXT, item=_item(ticket, project))
+
+
+def _slots_next(
+    args: argparse.Namespace, project: config.Repo, _: Mapping[str, str]
+) -> Mode:
+    words = list(getattr(args, "words", ()) or ())
+    if not words:
+        return WhatNext(asked=Asked.SLOTS_NEXT)
+    return ItemNext(asked=Asked.SLOTS_NEXT, item=_item(words[0], project))
+
+
+def _free_check(*_: object) -> Mode:
+    return WhatNext(asked=Asked.FREE_CHECK)
+
+
+def _dispatch_next(
+    _: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
+) -> Mode:
+    rest = {key: value for key, value in options.items() if key != "want"}
+    return DispatchNext(want=_item(options.get("want"), project), options=rest)
+
+
+PARSES: Mapping[tuple[str, str], ModeOf] = {
+    ("next", ""): _next,
+    ("slots", "next"): _slots_next,
+    ("slots", "free-check"): _free_check,
+    ("act", "dispatch-next"): _dispatch_next,
+}
 
 
 def parse(
@@ -89,22 +135,10 @@ def parse(
         The mode.
     """
     name = str(getattr(args, "__gather_name__", ""))
-    action = str(getattr(args, "action", "") or "")
-    verb = str(getattr(args, "verb", "") or "")
+    action = str(getattr(args, "action", "") or getattr(args, "verb", "") or "")
     if name == "next":
-        ticket = getattr(args, "ticket", None)
-        if ticket is None:
-            return WhatNext(command="next")
-        return ItemNext(command="next", item=_item([ticket], project))
-    if name == "slots" and action == "next":
-        words = list(getattr(args, "words", ()) or ())
-        if not words:
-            return WhatNext(command="slots next")
-        return ItemNext(command="slots next", item=_item(words, project))
-    if name == "slots" and action == "free-check":
-        return FreeCheck()
-    if name == "act" and verb == "dispatch-next":
-        rest = {key: value for key, value in options.items() if key != "want"}
-        want = _item([options.get("want", "")], project)
-        return DispatchNext(want=want, options=rest)
-    return Other(command=" ".join(filter(None, [name, action or verb])))
+        action = ""
+    found = PARSES.get((name, action))
+    if found is not None:
+        return found(args, project, options)
+    return Other(command=" ".join(filter(None, [name, action])))

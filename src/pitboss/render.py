@@ -5,7 +5,7 @@ A renderer decides nothing: it says the value it is given.
 
 from typing import Sequence
 
-from . import decide, project
+from . import answer, project
 
 NOT_ENOUGH_WORK = (
     "NOT ENOUGH WORK: no open pull request and no ticket of the priority labels can"
@@ -13,7 +13,7 @@ NOT_ENOUGH_WORK = (
 )
 
 
-def decision_line(decision: decide.Decision) -> str:
+def decision_line(decision: answer.Decision) -> str:
     """One decision in a line.
 
     Args:
@@ -22,10 +22,22 @@ def decision_line(decision: decide.Decision) -> str:
     Returns:
         ``ACTOR: owner/name#N: what to do``.
     """
-    return f"{decision.actor.value}: {decision.item}: {decision.verb}"
+    return f"{decision.actor.name}: {decision.item}: {decision.verb}"
 
 
-def answer(given: decide.Answer) -> Sequence[str]:
+def every(given: answer.Work) -> Sequence[answer.Decision]:
+    """The decisions of work, first to take first.
+
+    Args:
+        given: the work.
+
+    Returns:
+        The first decision, then the others.
+    """
+    return [given.first, *given.rest]
+
+
+def answer_lines(given: answer.Answer) -> Sequence[str]:
     """The lines of what is next.
 
     Args:
@@ -36,15 +48,15 @@ def answer(given: decide.Answer) -> Sequence[str]:
         slots; or the one ``NOT ENOUGH WORK`` line.
     """
     match given:
-        case decide.Work():
-            every = [given.first, *given.rest]
-            total = len(every)
-            listed = [
+        case answer.Work():
+            listed = every(given)
+            total = len(listed)
+            lines = [
                 f"NEXT {rank} of {total}. {decision_line(each)} ({each.title})"
-                for rank, each in enumerate(every, start=1)
+                for rank, each in enumerate(listed, start=1)
             ]
-            return [*listed, f"SLOTS FREE: {given.free}"]
-        case decide.NotEnoughWork():
+            return [*lines, f"SLOTS FREE: {given.free}"]
+        case answer.NotEnoughWork():
             return [NOT_ENOUGH_WORK]
 
 
@@ -58,13 +70,13 @@ def item(given: project.ItemAnswer) -> Sequence[str]:
         The decision's line, or the lines of the list.
     """
     match given:
-        case project.ItemDecided():
-            return [decision_line(given.decision)]
-        case decide.Work() | decide.NotEnoughWork():
-            return answer(given)
+        case answer.Decision():
+            return [decision_line(given)]
+        case answer.Work() | answer.NotEnoughWork():
+            return answer_lines(given)
 
 
-def dispatch(given: project.DispatchAnswer) -> Sequence[str]:
+def dispatch(given: answer.DispatchAnswer) -> Sequence[str]:
     """The lines of the one next piece of work.
 
     Args:
@@ -74,15 +86,15 @@ def dispatch(given: project.DispatchAnswer) -> Sequence[str]:
         The item's reference; or the line that refuses.
     """
     match given:
-        case project.Dispatch():
-            return [given.decision.item]
-        case project.NotFirst():
+        case answer.Decision():
+            return [given.item]
+        case answer.NotFirst():
             return [f"the next in the order is {given.head.item}, not {given.named}"]
-        case decide.NotEnoughWork():
+        case answer.NotEnoughWork():
             return [NOT_ENOUGH_WORK]
 
 
-def first(given: decide.Answer) -> str:
+def first(given: answer.Answer) -> str:
     """The first decision of what is next, in a line.
 
     Args:
@@ -92,7 +104,7 @@ def first(given: decide.Answer) -> str:
         The first decision's line, or the ``NOT ENOUGH WORK`` line.
     """
     match given:
-        case decide.Work():
+        case answer.Work():
             return decision_line(given.first)
-        case decide.NotEnoughWork():
+        case answer.NotEnoughWork():
             return NOT_ENOUGH_WORK

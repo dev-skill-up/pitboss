@@ -8,39 +8,9 @@ so a record is whole or not made: a read that failed after its tries
 
 import dataclasses
 import enum
-from typing import AbstractSet, Sequence, assert_never
+from typing import Sequence, assert_never
 
-from . import config, ledger, pulls, shapes
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Listed:
-    """One row of an open pull requests listing (``pulls?state=open``).
-
-    Attributes:
-        reference: its ``owner/name#number``.
-        repo: its repository.
-        number: its number.
-        title: its title.
-        body: its body.
-        branch: its head branch.
-        draft: whether it is a draft.
-        created_at: when it was opened (ISO 8601), its place in the order.
-        relock: whether its head branch starts with the relock prefix; its
-            review ranks after every other item.
-        works_on: the tickets it works on (``pullnames.names``, keyword: taken).
-    """
-
-    reference: str
-    repo: config.Repo
-    number: int
-    title: str
-    body: str
-    branch: str
-    draft: bool
-    created_at: str
-    relock: bool
-    works_on: AbstractSet[str]
+from . import ledger, listed, pulls, shapes
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -48,7 +18,7 @@ class PullRecord:
     """An open pull request examined, with its closure.
 
     Attributes:
-        listed: its listing row.
+        row: its listing row.
         facts: what was read of it, its step settled by its blockers, its
             shared red and its hand-back (``blockedby``, ``sharedred``,
             ``finishpartial``).
@@ -57,7 +27,7 @@ class PullRecord:
             ``stuckci.MINUTES`` while later runs completed (keyword: stuck-ci).
     """
 
-    listed: Listed
+    row: listed.Listed
     facts: pulls.PullFacts
     blockers: Sequence[str]
     stuck: Sequence[str]
@@ -120,9 +90,11 @@ class Stopped:
 
     Attributes:
         examined: the records, in the order they were examined.
+        stop: the stop count, ``max(5, the slots configured)``.
     """
 
     examined: Sequence[Record]
+    stop: int
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -150,15 +122,13 @@ class World:
             item the command names, the owner's priorities).
         book: the slot ledger, as the live agents make it.
         free: how many slots are free now.
-        stop: the stop count, ``max(5, the slots configured)``.
     """
 
-    listing: Sequence[Listed]
+    listing: Sequence[listed.Listed]
     walk: Walk
     named: Sequence[Record]
     book: ledger.Ledger
     free: int
-    stop: int
 
 
 def reference_of(record: Record) -> str:
@@ -172,7 +142,7 @@ def reference_of(record: Record) -> str:
     """
     match record:
         case PullRecord():
-            return record.listed.reference
+            return record.row.reference
         case TicketRecord() | Kept():
             return record.reference
         case _:  # pragma: no cover

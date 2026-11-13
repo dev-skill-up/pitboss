@@ -286,7 +286,8 @@ READS: Mapping[Action, Callable[[Context], None]] = {
 def _next(found: Context) -> None:
     # keyword: one-path: the list and the item form print one value
     nextcommand.reference(found.args.words, found.settings.project.repo)
-    onepath.answer(found, onepath.mode_of(found.args, found, {}))
+    onepath.answer_of(found, onepath.mode_of(found.args, found, {}))
+    repoaccess.finish(found.access)
 
 
 def _read(found: Context) -> ledger.Ledger:

@@ -12,11 +12,24 @@ import argparse
 import contextlib
 import dataclasses
 import sys
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Iterator, Sequence
+from typing import Protocol, runtime_checkable
 
 from gather import commands as gather_commands
 
 from . import ENTRY_DATA, commanddoc, commandscan, configsettle, disk, retrying
+
+
+@runtime_checkable
+class Command(Protocol):
+    """A command, which gather calls with the keyword ``args``."""
+
+    def __call__(self, *, args: argparse.Namespace) -> None:
+        """Run the command.
+
+        Args:
+            args: the parsed arguments.
+        """
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -27,7 +40,7 @@ class Entered:
         command: the function the command runs.
     """
 
-    command: Callable[..., None]
+    command: Command
 
     def __call__(self, *, args: argparse.Namespace) -> None:
         """Run the command; a read that failed on every try ends it (read-retry).
@@ -41,7 +54,7 @@ class Entered:
         try:
             self.command(args=args)
         except retrying.ReadFailed as failed:
-            print(f"READ FAILED: {failed.request}: {failed.status}", file=sys.stderr)
+            print(f"READ FAILED: {failed}", file=sys.stderr)
             raise SystemExit(1) from failed
 
 
@@ -81,7 +94,7 @@ class IntermixedParser(argparse.ArgumentParser):  # noqa: SLD504,SLD401
                 subcommand runs (keyword: command-help, pitboss#301).
         """
         command = kwargs.get("__gather_command__")
-        if command is not None:
+        if isinstance(command, Command):
             self.description = commanddoc.text(command)
             self.formatter_class = argparse.RawDescriptionHelpFormatter
             kwargs = {**kwargs, "__gather_command__": Entered(command=command)}

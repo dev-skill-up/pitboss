@@ -16,7 +16,7 @@ from . import (
     actgit,
     actpull,
     actwrite,
-    project,
+    answer,
     render,
     rulecases,
     rulecount,
@@ -68,7 +68,7 @@ def dispatch_next(act: Act, target: Target, options: Options) -> str:
     """
     given = act.dispatch()
     said = render.dispatch(given)[0]
-    if not isinstance(given, project.Dispatch):
+    if not isinstance(given, answer.Decision):
         raise Refused(said)
     if not options.get("checkout"):
         return said

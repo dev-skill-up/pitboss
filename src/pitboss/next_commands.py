@@ -1,10 +1,10 @@
-"""The ``next`` command: what is next, or what is next for one item (keyword: one-path)."""
+"""The ``next`` command: what is next, or for one item (keyword: one-path)."""
 
 import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, commanddoc, commandtext, onepath, tracefs
+from . import ENTRY_DATA, commanddoc, commandtext, onepath, repoaccess, tracefs
 from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
 from .commands import load_context
 
@@ -35,4 +35,5 @@ def show_next(args: argparse.Namespace) -> None:
     """
     tracefs.say(args.safe_run)
     found = load_context(args)
-    onepath.answer(found, onepath.mode_of(args, found, {}))
+    onepath.answer_of(found, onepath.mode_of(args, found, {}))
+    repoaccess.finish(found.access)
