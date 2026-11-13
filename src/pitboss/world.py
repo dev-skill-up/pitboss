@@ -11,9 +11,27 @@ import enum
 from typing import Callable, Mapping, Sequence, assert_never
 
 
-from . import gatefacts, listed, pullfacts, shapes, slotbook
+from . import blockedstep, gatefacts, listed, pullfacts, shapes, sharedstep, slotbook
 
 GateRead = Callable[[pullfacts.PullFacts], gatefacts.Gate]  # keyword: gate
+PullReader = Callable[[listed.Listed], pullfacts.PullFacts]  # one PR, read once a run
+Others = Sequence[listed.Listed]  # the other open rows of a pull request's repository
+SharedRead = Callable[[pullfacts.PullFacts, Others], Sequence[sharedstep.Shared]]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Closures:
+    """How the closures of a pull request that need more than its own reads are read.
+
+    Attributes:
+        gated: what a PR at the merge or the undraft step is gated on
+            (``gateread.reader``, keyword: gate).
+        shared: the groups a red PR's failed checks are in, given the other open
+            rows of its repository (``sharedred.closure``, keyword: shared-red).
+    """
+
+    gated: GateRead
+    shared: SharedRead
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -22,9 +40,10 @@ class PullRecord:
 
     Attributes:
         row: its listing row.
-        facts: what was read of it, its step settled by its blockers, its
-            shared red and its hand-back (``blockedby``, ``sharedred``,
-            ``finishpartial``).
+        facts: what was read of it, at the step its own facts give.
+        blocked_by: what its ``Blocked-by:`` lines name, as read (``blockedby``).
+        shared: the groups of failed checks it shares with other holders of its
+            repository (``sharedred``), read when it is at the fix of its CI.
         blockers: the open items it names as blockers, which take its place.
         stuck: the ``STUCK CI`` line of each run of its head queued past
             ``stuckci.MINUTES`` while later runs completed (keyword: stuck-ci).
@@ -38,6 +57,8 @@ class PullRecord:
 
     row: listed.Listed
     facts: pullfacts.PullFacts
+    blocked_by: blockedstep.Closure
+    shared: Sequence[sharedstep.Shared]
     blockers: Sequence[str]
     stuck: Sequence[str]
     gated: gatefacts.Gate | None

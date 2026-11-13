@@ -12,7 +12,8 @@ label and no item gave a decision.
 import dataclasses
 from typing import Mapping, Sequence, assert_never
 
-from . import answer, gate, listed, steps, stepwords, world
+from . import answer, blockedstep, finishstep, gate, listed, sharedstep, steps
+from . import stepwords, world
 from .gatestop import Stop
 
 # who takes each step that has an actor
@@ -40,10 +41,12 @@ class Judgement:
     Attributes:
         decided: every decision, and what is next.
         records: the record of each item that has a decision (for its brief).
+        made: the world, each PR at its settled step (``settled``).
     """
 
     decided: answer.Decided
     records: Mapping[str, world.Record]
+    made: world.World
 
 
 CARRIED: Mapping[steps.Step, answer.Carried] = {  # the gated verb of each step
@@ -90,10 +93,31 @@ def _stepped(step: steps.Next, row: listed.Listed) -> answer.Decision:
     )
 
 
+def settled(record: world.PullRecord) -> world.PullRecord:
+    """A PR's record at the step its blockers, shared red and hand-back give it.
+
+    The three settlers are rows of the decision (the one-path plan, 6.1), on the
+    closure the record holds: no read is made here.
+
+    Args:
+        record: the record, at the step its own facts give.
+
+    Returns:
+        The record at its settled step.
+    """
+    facts = record.facts
+    blocked = blockedstep.step_of(facts, record.blocked_by) or facts.step
+    at = dataclasses.replace(facts, step=blocked)
+    moved = sharedstep.stepped(at, record.shared) or blocked
+    shared = dataclasses.replace(facts, step=moved)
+    finished = finishstep.step_of(shared) or shared.step
+    return dataclasses.replace(record, facts=dataclasses.replace(shared, step=finished))
+
+
 def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
     if record.held:  # a slot holds it: its agent is at work on it
         return None
-    if record.stuck:
+    if record.stuck and steps.pending_is(record.facts.step, steps.Pending.CI):
         return _owner_stuck(record)
     match record.facts.step:
         case steps.Idle():
@@ -138,7 +162,7 @@ def decide_item(record: world.Record) -> answer.Decision | None:
     """
     match record:
         case world.PullRecord():
-            return _pull_decision(record)
+            return _pull_decision(settled(record))
         case world.TicketRecord():
             return _ticket_decision(record)
         case world.Kept():
@@ -158,6 +182,17 @@ def _decided(
             decided.setdefault(found.item, found)
             kept.setdefault(found.item, each)
     return list(decided.values()), kept
+
+
+def _settle(records: Sequence[world.Record]) -> Sequence[world.Record]:
+    return [
+        settled(each) if isinstance(each, world.PullRecord) else each
+        for each in records
+    ]
+
+
+def _settle_map(records: Mapping[str, world.Record]) -> Mapping[str, world.Record]:
+    return dict(zip(records, _settle(list(records.values()))))
 
 
 def _answer(
@@ -184,8 +219,11 @@ def decide(made: world.World) -> Judgement:
     """
     ordered, records = _decided(made.walk.examined)
     named, named_records = _decided(made.named)
+    walked = dataclasses.replace(made.walk, examined=_settle(made.walk.examined))
     decided = answer.Decided(
         answer=_answer(made.walk, ordered, made.free),
         by_item={each.item: each for each in [*ordered, *named]},
     )
-    return Judgement(decided=decided, records={**named_records, **records})
+    settled_world = dataclasses.replace(made, walk=walked, named=_settle(made.named))
+    kept = {**named_records, **records}
+    return Judgement(decided=decided, records=_settle_map(kept), made=settled_world)

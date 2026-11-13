@@ -3,7 +3,8 @@
 import functools
 import json
 
-from .. import actcore, actverbs, answer, config, decide, gate, gatefacts
+from .. import actcore, actverbs, answer, blockedstep, config, decide, gate
+from .. import gatefacts
 from .. import gatepolicy, listed, parsing, pullfacts, reviews, steps, world
 from ..actport import Pull
 from . import fakehub
@@ -43,6 +44,8 @@ def pull_record(
     return world.PullRecord(
         row=listed.listed_row(repo, "relock/", {**pull_body(int(number)), **pull}),
         facts=_facts(repo, int(number), step),
+        blocked_by=blockedstep.Closure(found=[], looped=False),
+        shared=[],
         blockers=[],
         stuck=[],
         gated=gated,

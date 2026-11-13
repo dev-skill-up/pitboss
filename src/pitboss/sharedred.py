@@ -12,93 +12,17 @@ the check and its first error line agree; it leaves out causes whose first
 error lines differ (the lines are compared whole).
 """
 
-import dataclasses
+import functools
 from typing import Callable, Sequence
 
-from . import failures, ghapi, headchecks, pulls, shapes, steps
+from . import blockedby, concurrently, failures, ghapi, headchecks, listed, pulls
+from . import shapes, world
+from .sharedstep import MAIN, Seen, Shared, at_fix, groups
+
+__all__ = ["Seen", "groups", "closure", "PREFIX"]
 
 PREFIX = "SHARED RED"
-MAIN = "main"
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Seen:
-    """One failed check of one PR, or of the main branch.
-
-    Attributes:
-        slug: the repository, ``owner/name``.
-        holder: the PR's ``owner/name#number``, or ``main``.
-        check: the check's name.
-        line: the first error line read of the failure (see ``failures``).
-    """
-
-    slug: str
-    holder: str
-    check: str
-    line: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Shared:
-    """A check red on several holders with the same first error line.
-
-    Attributes:
-        slug: the repository.
-        check: the check's name.
-        line: the first error line.
-        holders: the PRs (by number) and ``main`` that have it.
-    """
-
-    slug: str
-    check: str
-    line: str
-    holders: Sequence[str]
-
-
-def _number(holder: str) -> int:
-    return int(holder.rpartition("#")[2]) if "#" in holder else 0
-
-
-def groups(seen: Sequence[Seen]) -> Sequence[Shared]:
-    """The failures that two or more holders of one repository share.
-
-    Args:
-        seen: every failed check of the open PRs and of main.
-
-    Returns:
-        One group for each repository, check and error line with at least two
-        holders; a failure with no line and no step is never shared.
-    """
-    found: dict[tuple[str, str, str], list[str]] = {}
-    for each in seen:
-        if each.line:
-            found.setdefault((each.slug, each.check, each.line), []).append(each.holder)
-    return [
-        Shared(slug=slug, check=check, line=line, holders=sorted(set(who), key=_number))
-        for (slug, check, line), who in found.items()
-        if len(set(who)) >= 2
-    ]
-
-
-def stepped(pull: pulls.PullFacts, shared: Sequence[Shared]) -> steps.Move | None:
-    """The step a PR has instead of its own fix, while a shared red is open.
-
-    Args:
-        pull: the PR.
-        shared: the groups of its repository.
-
-    Returns:
-        The one ticket step for the lowest-numbered PR of a group, the wait for
-        the others; None when the PR is at no fix step or in no group.
-    """
-    mine = pulls.reference(pull)
-    groups_of = [each for each in shared if mine in each.holders]
-    if not (_at_fix(pull) and groups_of):
-        return None
-    first = [each for each in groups_of[0].holders if each != MAIN][0]
-    if first == mine:
-        return steps.worker(steps.Task.SHARED_RED)
-    return steps.Idle(pending=steps.Pending.SHARED_RED)
+Reader = world.PullReader
 
 
 def _seen(
@@ -117,10 +41,6 @@ def _seen(
         for check in checks
         if check.failed
     ]
-
-
-def _at_fix(pull: pulls.PullFacts) -> bool:
-    return steps.task_of(pull.step) is steps.Task.FIX_CI
 
 
 def _of_prs(github: ghapi.GitHub, red: Sequence[pulls.PullFacts]) -> Sequence[Seen]:
@@ -151,50 +71,51 @@ def _of_main(
     return found
 
 
-def settle(
-    github: ghapi.GitHub, reads: Sequence[pulls.Read]
-) -> tuple[Sequence[pulls.Read], Sequence[Shared]]:
-    """Replace the fix step of every PR in a shared red, and say the groups.
+def closure(
+    github: ghapi.GitHub,
+    pull: pulls.PullFacts,
+    others: Callable[[], Sequence[pulls.PullFacts]],
+) -> Sequence[Shared]:
+    """Read a red PR's closure: the groups its failed checks are in (plan 3.1, 4).
 
     Args:
         github: the API.
-        reads: every open PR.
+        pull: the PR.
+        others: reads the repository's other open PRs, each at the step its
+            blockers give it.
 
     Returns:
-        The PRs, those in a group at the ticket step or the wait, and the groups.
+        The groups of its repository; none when the PR is at no fix step.
     """
-    open_pulls = pulls.readable(reads)
-    red = [each for each in open_pulls if _at_fix(each)]
+    if not at_fix(pull):
+        return []
+    red = [each for each in [pull, *others()] if at_fix(each)]
     seen = _of_prs(github, red)
     found = groups([*seen, *_of_main(github, red, seen)])
-    return [_replaced(each, found) for each in reads], found
+    return [each for each in found if each.slug == pull.repo.slug]
 
 
-def settle_one(
+def _holder(github: ghapi.GitHub, read: Reader, row: listed.Listed) -> pulls.PullFacts:
+    # a shared red's other holder, at the step its blockers give it
+    return blockedby.at_blockers(github, read(row))
+
+
+def holders_closure(
     github: ghapi.GitHub,
-    read: pulls.Read,
-    others: Callable[[], Sequence[pulls.Read]],
-) -> pulls.Read:
-    """Settle one PR's shared red, reading the others of its repository only if red.
-
-    The closure of an examined PR (keyword: one-path): a PR at the fix step is
-    compared with the same check of the repository's other open PRs and of main.
+    read: Reader,
+    pull: pulls.PullFacts,
+    others: Sequence[listed.Listed],
+) -> Sequence[Shared]:
+    """Read a red PR's closure from the other open rows of its repository.
 
     Args:
         github: the API.
-        read: the PR.
-        others: reads the repository's other open PRs, each settled by its
-            blockers.
+        read: reads one pull request (once a run).
+        pull: the PR.
+        others: the other open rows of its repository.
 
     Returns:
-        The PR, at the ticket step or the wait when it is in a group.
+        The groups of its repository (``closure``).
     """
-    fixing = [each for each in pulls.readable([read]) if _at_fix(each)]
-    return settle(github, [read, *(others() if fixing else [])])[0][0]
-
-
-def _replaced(read: pulls.Read, shared: Sequence[Shared]) -> pulls.Read:
-    if isinstance(read, shapes.Unreadable):
-        return read
-    step = stepped(read, [each for each in shared if each.slug == read.repo.slug])
-    return dataclasses.replace(read, step=step) if step else read
+    holder = functools.partial(_holder, github, read)
+    return closure(github, pull, functools.partial(concurrently.each, holder, others))

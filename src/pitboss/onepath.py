@@ -15,12 +15,9 @@ from typing import Callable, Mapping, Sequence, assert_never
 from . import (
     agentstarts,
     answer,
-    blockedby,
-    concurrently,
     configfile,
     configloads,
     decide,
-    finishpartial,
     gateread,
     handedback,
     holdconfig,
@@ -32,11 +29,11 @@ from . import (
     project,
     pullread,
     pulls,
-    sharedred,
     quiesce,
     readextent,
     readworld,
     render,
+    sharedred,
     slotholding,
     suggest,
     sweepline,
@@ -48,8 +45,7 @@ from . import (
 )
 from .queuereads import read_runner_runs
 
-# how a run reads a listing row: the pull request, settled by its blockers
-PullReader = Callable[[listed.Listed], pulls.Read]
+PullReader = readworld.PullReader  # the pull request, at the step its facts give
 
 
 def _holds(found: nextfound.Found) -> holdconfig.Holds:
@@ -66,31 +62,24 @@ def _book(found: nextfound.Found) -> ledger.Ledger:
 
 
 def _reader(found: nextfound.Found, undraft: Callable[[], bool]) -> PullReader:
-    # a run reads a pull request once, settled by its blockers: a pull request
-    # read as a shared red's closure is not read again when it is examined
-    done: dict[str, pulls.Read] = {}
+    # a run reads a pull request once: a pull request read as a shared red's
+    # closure is not read again when it is examined
+    done: dict[str, pulls.PullFacts] = {}
 
-    def read(row: listed.Listed) -> pulls.Read:
+    def read(row: listed.Listed) -> pulls.PullFacts:
         if row.reference not in done:
             github, settings = found.github, found.settings
             source = pullread.source_for(github, settings, undraft, row.repo)
-            facts = pulls.fetch(source, row.repo, row.number)
-            done[row.reference] = blockedby.settle(github, [facts])[0]
+            done[row.reference] = pulls.fetch(source, row.repo, row.number)
         return done[row.reference]
 
     return read
 
 
-def _settled(
-    found: nextfound.Found,
-    read: PullReader,
-    row: listed.Listed,
-    others: Sequence[listed.Listed],
-) -> pulls.PullFacts:
-    # its shared red reads the repository's other open pull requests only when red
-    siblings = functools.partial(concurrently.each, read, others)
-    shared = sharedred.settle_one(found.github, read(row), siblings)
-    return pulls.readable(finishpartial.settle([shared])[0])[0]
+def _closures(found: nextfound.Found, read: PullReader) -> world.Closures:
+    # the gate and the shared red of a pull request, read as its closure
+    shared = functools.partial(sharedred.holders_closure, found.github, read)
+    return world.Closures(gated=gateread.reader(found.github), shared=shared)
 
 
 def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Reading:
@@ -113,9 +102,9 @@ def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Re
         book=_book(found),
         holds=_holds(found),
         now=found.now,
-        pull=functools.partial(_settled, found, read),
+        pull=read,
         decide_item=decide.decide_item,
-        gated=gateread.reader(found.github),
+        closures=_closures(found, read),
         quiesced=quiesce.is_on(settings.slots.ledger),
         released=functools.partial(handedback.ledger_after_hand_backs, found),
     )
@@ -140,7 +129,7 @@ class Seen:
     """The world a command read, and what it decides.
 
     Attributes:
-        made: the world.
+        made: the world, each pull request at its settled step (``decide``).
         judgement: its decisions, with their records.
         runners: the run's one look at the runners, which the read asked too.
     """
@@ -174,7 +163,8 @@ def looked(found: nextfound.Found, chosen: mode.Mode) -> Seen:
         found.github, runs, found.settings.runners, found.now
     )
     made = readworld.read_world(reading_of(found, measured), _extent(chosen))
-    return Seen(made=made, judgement=decide.decide(made), runners=measured)
+    judged = decide.decide(made)
+    return Seen(made=judged.made, judgement=judged, runners=measured)
 
 
 def _pull_pick(record: world.PullRecord) -> suggest.Pick:

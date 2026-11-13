@@ -9,9 +9,9 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, none
 
-from .. import answer, config, decide, gateverbs, listed
+from .. import answer, blockedstep, config, decide, gateverbs, listed
 from .. import mode, nextcommand, onepath, pullnames, pushdraft, refill, render
-from .. import sharedred, shapes, slotbook, slotsheader, steps
+from .. import slotbook, slotsheader, steps
 from .. import sweepline, work, workorder, world
 from . import fakes, gatewords, knownkit, knownshipped, test_decide, test_work
 from . import rankworld, totalcomplete, totalpairs, totalworld
@@ -38,6 +38,8 @@ def pull_record(*, held: bool, stuck: Sequence[str]) -> world.PullRecord:
     return world.PullRecord(
         row=listed.listed_row(REPO, "relock/", fakes.pull_body(3)),
         facts=test_work.facts(3, test_work.NONE),
+        blocked_by=blockedstep.Closure(found=[], looped=False),
+        shared=[],
         blockers=[],
         stuck=stuck,
         gated=None,
@@ -254,12 +256,6 @@ class TestReads(unittest.TestCase):
         """No ``[runners]`` table: the runners are not looked at."""
         runners = fakes.settings(fakes.directory()).runners
         assert_that(sweepline.clear(lambda: "not read", runners), equal_to(True))
-
-    def test_an_unreadable_pr_is_settled_as_it_is(self) -> None:
-        """A PR whose read failed is in no shared red."""
-        read = shapes.Unreadable(reference="o/r#3", call="check-runs", status="500")
-        found = sharedred.settle_one(fakes.github({}), read, lambda: [])
-        assert_that(found, equal_to(read))
 
     def test_a_full_page_reads_the_next(self) -> None:
         """Plan 6.2: a page of the page size is not the last one."""

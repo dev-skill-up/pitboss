@@ -28,6 +28,7 @@ from . import (
     allowlistmiss,
     answer,
     blockedby,
+    blockedstep,
     blockers,
     config,
     failures,
@@ -50,6 +51,9 @@ LIMIT = blockedby.LIMIT  # the most blockers followed from one item
 GATED = frozenset({steps.Step.MERGE, steps.Step.UNDRAFT})  # keyword: gate
 
 
+PullReader = world.PullReader
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Reading:
     """What the read starts from.
@@ -60,13 +64,11 @@ class Reading:
         book: the slot ledger, as the live agents make it.
         holds: the owner's holds on new pull requests (``[holds]``).
         now: the time now.
-        pull: a pull request read, given the other open rows of its repository,
-            its step settled by its blockers, its shared red and its hand-back
-            (``blockedby``, ``sharedred``, ``finishpartial``).
+        pull: a pull request read, at the step its own facts give (``decide``
+            settles it on the closure ``examine_pull`` reads).
         decide_item: the one decider of an item (``decide.decide_item``), which the
             walk counts its stop with.
-        gated: what a PR at the merge or the undraft step is gated on
-            (``gateread.reader``, keyword: gate).
+        closures: how a pull request's gate and shared red are read.
         quiesced: whether the owner quiesced the work (``quiesce``): no ticket
             starts, so each is kept as held.
         released: the ledger less the slots whose worker handed back the head
@@ -78,9 +80,9 @@ class Reading:
     book: ledger.Ledger
     holds: holdconfig.Holds
     now: datetime.datetime
-    pull: Callable[[listed.Listed, Sequence[listed.Listed]], pulls.PullFacts]
+    pull: PullReader
     decide_item: Callable[[world.Record], answer.Decision | None]
-    gated: world.GateRead
+    closures: world.Closures
     quiesced: bool
     released: Callable[[Sequence[listed.Listed], ledger.Ledger], ledger.Ledger]
 
@@ -90,16 +92,16 @@ def _held(book: ledger.Ledger) -> AbstractSet[str]:
 
 
 def _blockers_of(
-    github: ghapi.GitHub, settings: config.Config, facts: pulls.PullFacts
+    github: ghapi.GitHub,
+    settings: config.Config,
+    facts: pulls.PullFacts,
+    closure: blockedstep.Closure,
 ) -> Sequence[str]:
     # the open items a pull request waits for: its own Blocked-by lines, and the
     # blockers of the tickets it fixes (keyword: blocked-pull)
     me = pulls.reference(facts)
-    declared = [
-        each
-        for each in blockedby.declared(facts)
-        if blockedby.read(github, each).state is blockedby.State.OPEN
-    ]
+    open_ones = [each for each in closure.found if each.state is blockedstep.State.OPEN]
+    declared = [each.reference for each in open_ones]
     named = pullnames.names(
         facts.pull.title, facts.pull.body, facts.pull.head.branch, facts.repo
     )
@@ -145,18 +147,20 @@ def examine_pull(
     """
     held = row.reference in _held(reading.book)
     github = reading.github
-    settled = reading.pull(row, others)
-    found = _blockers_of(github, reading.settings, settled)
-    stuck = stuckci.lines(github, [settled], reading.now)  # keyword: stuck-ci
-    gated = reading.gated(settled) if steps.step_is(settled.step, GATED) else None
+    facts = reading.pull(row)
+    blocked_by = blockedby.read_closure(github, facts)
+    stuck = stuckci.lines(github, [facts], reading.now)  # keyword: stuck-ci
+    gated = reading.closures.gated(facts) if steps.step_is(facts.step, GATED) else None
     return world.PullRecord(
         row=row,
-        facts=settled,
-        blockers=found,
+        facts=facts,
+        blocked_by=blocked_by,
+        shared=reading.closures.shared(facts, others),
+        blockers=_blockers_of(github, reading.settings, facts, blocked_by),
         stuck=stuck,
         gated=gated,
         held=held,
-        failures=failures.read_all(github, settled) if _fixing(settled) else {},
+        failures=failures.read_all(github, facts) if _fixing(facts) else {},
     )
 
 
