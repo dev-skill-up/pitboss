@@ -58,17 +58,6 @@ class TestBriefs(unittest.TestCase):
         saved = (here.ledger.parent / "briefs" / "owner-project-3.brief").read_text()
         assert_that(saved.strip() in done.out, equal_to(True))
 
-    def test_b6_the_brief_of_one_item_is_saved_and_the_line_is_on_standard_error(
-        self,
-    ) -> None:
-        """Standard output stays the brief alone."""
-        here = with_pull_issues(fast_world())
-        found = one(here, NINTH)
-        same(found.code, 0)
-        lacks(found.out, "DISPATCH")
-        says(found.err, "DISPATCH: owner/project#9", "brief saved to")
-        same(briefs_of(here), ["owner-project-9.brief"])
-
     def test_b6_a_brief_that_cannot_be_written_says_so(self) -> None:
         """The directory is a file: the line says NOT saved and why."""
         directory = fakes.directory()

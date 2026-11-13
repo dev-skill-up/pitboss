@@ -70,7 +70,7 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
 def step_decision(
     step: steps.Next, stopped: Sequence[Stop], item: str, title: str
 ) -> answer.Decision | None:
-    """The decision of a PR at a step, after the stops of the gate.
+    """The decision of a PR at a step, with the stops of its gate.
 
     Args:
         step: the PR's step (one an actor takes).

@@ -8,7 +8,16 @@ no module that reads (P2).
 import dataclasses
 from typing import AbstractSet, Callable, Sequence
 
-from . import basefix, config, pinsreading, reviews, rounds, shapes, steps, straycomments
+from . import (
+    basefix,
+    config,
+    pinsreading,
+    reviews,
+    rounds,
+    shapes,
+    steps,
+    straycomments,
+)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -74,9 +83,7 @@ class PullFacts:
     checks: Sequence[shapes.CheckRun]
     review: reviews.Found | None
     standing: reviews.Standing
-    signals: HeadSignals = dataclasses.field(
-        default_factory=HeadSignals
-    )
+    signals: HeadSignals = dataclasses.field(default_factory=HeadSignals)
     unreadable: straycomments.StrayComments = dataclasses.field(
         default_factory=straycomments.StrayComments
     )

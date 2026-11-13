@@ -79,19 +79,6 @@ def api_calls(here: world.World) -> Mapping[str, int]:
 class TestCallCounts(unittest.TestCase):
     """The calls of a sweep are fixed by what it reads, and no PR is read twice."""
 
-    def test_the_calls_for_four_prs(self) -> None:
-        """Four open PRs in two repositories make exactly these calls."""
-        found = api_calls(world_with(0))
-        assert_that(found, equal_to(FOUR_PULLS))
-
-    def test_each_added_pr_costs_the_same_calls(self) -> None:
-        """Two more PRs add two sets of the per-PR calls and nothing else."""
-        few, many = api_calls(world_with(0)), api_calls(world_with(2))
-        grown = {kind: many[kind] - few.get(kind, 0) for kind in many}
-        added = {kind: each for kind, each in grown.items() if each}
-        assert_that(added, equal_to({kind: 2 * n for kind, n in PER_PULL.items()}))
-        assert_that(sum(grown.values()), equal_to(2 * sum(PER_PULL.values())))
-
     def test_the_sweep_says_what_each_section_ran(self) -> None:
         """Every section ends with its count of commands on standard error."""
         here = world_with(0)

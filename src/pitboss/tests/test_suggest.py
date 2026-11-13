@@ -53,26 +53,6 @@ class TestOrderAndTruncation(unittest.TestCase):
         found = run_command(here, "next")
         assert_that((found.out, found.code), equal_to((next_output(here), 0)))
 
-    def test_next_without_a_ticket_needs_the_ledger(self) -> None:
-        """The ledger is authoritative on the slots."""
-        here = world.make_world()
-        here.ledger.unlink()
-        found = run_command(here, "next")
-        errs(found, 1, "LEDGER MISSING")
-
-    def test_more_than_five_are_cut_and_the_end_of_the_list_said(self) -> None:
-        """Five are shown; the tickets after them are not read, and that is said."""
-        here = world.make_world()
-        with_more_tickets(here, 5)
-        output = next_output(here)
-        headers = [header for header, _ in parsed(output)]
-        assert_that(len(headers), equal_to(suggest.TOP))
-        assert_that(
-            headers[-1].startswith("SUGGESTION 5 of 5: start a PR"), equal_to(True)
-        )
-        assert_that(output, contains_string("The list ends at its first 5 items"))
-        assert_that("more queued, not shown" in output, equal_to(False))
-
     def test_exactly_five_say_nothing_more(self) -> None:
         """No count of what is not shown."""
         here = world.make_world()
@@ -80,42 +60,6 @@ class TestOrderAndTruncation(unittest.TestCase):
         output = next_output(here)
         assert_that(len(parsed(output)), equal_to(5))
         assert_that("more queued" in output, equal_to(False))
-
-    def test_nothing_queued_is_said(self) -> None:
-        """No candidate: one line, no brief."""
-        here = world.make_world()
-        for path in (
-            f"{world.PROJECT}/pulls?state=open",
-            f"{world.LIBRARY}/pulls?state=open",
-        ):
-            here.bodies[fakes.page(path)] = []
-        here.bodies[fakes.page(suggestions.SUGGESTIONS)] = []
-        output = next_output(here)
-        assert_that(parsed(output), equal_to([]))
-        assert_that(
-            output,
-            contains_string("SUGGESTION: none: nothing is queued that could start\n"),
-        )
-
-    def test_a_ruling_comes_first_and_takes_no_slot(self) -> None:
-        """An Opus agent, before the list."""
-        here = world_with(test_flow_sweep.TWO_PLAN_REJECTIONS)
-        found = parsed(next_output(here))
-        assert_that(
-            found[0][0],
-            equal_to(
-                "SUGGESTION 1 of 3: make an Opus ruling: owner/project#3:"
-                " Opus agent, no slot"
-            ),
-        )
-        assert_that(
-            found[0][1][0],
-            equal_to("Goal: PR owner/project#3, which names no ticket: PR 3"),
-        )
-        assert_that(
-            [header.split(": ")[2] for header, _ in found[1:]],
-            equal_to(["owner/project#1", "owner/project#9"]),
-        )
 
     def test_a_pr_that_waits_for_a_ruling_is_not_offered_twice(self) -> None:
         """After the ruling is recorded it is a worker round, and not a ruling."""

@@ -2,12 +2,13 @@
 
 import functools
 import json
-from typing import Sequence
+from typing import Callable, Sequence, TypeVar
 
 from . import evidencesplit, ghapi, totaljson
 from .running import Run
 
 DRY_RUN_URL = "(dry run: no URL yet)"
+Item = TypeVar("Item")
 
 
 def made(text: str, body: str) -> evidencesplit.Comment:
@@ -199,4 +200,25 @@ def pull_bodies(github: ghapi.GitHub, slug: str) -> Sequence[tuple[int, str]]:
     Returns:
         The pairs.
     """
-    return ghapi.every_pull(github, slug, _bodies)
+    return every_pull(github, slug, _bodies)
+
+
+def every_pull(
+    github: ghapi.GitHub, slug: str, parse: Callable[[str], Sequence[Item]]
+) -> Sequence[Item]:
+    """Every PR of a repository, open ones first, then the closed ones.
+
+    Two listings, never one listing of every state (the one-path plan, P9).
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        parse: reads the items out of one page.
+
+    Returns:
+        The open PRs, newest first, then the closed ones, newest first.
+    """
+    return [
+        *ghapi.pages(github, f"repos/{slug}/pulls?state=open", parse),
+        *ghapi.pages(github, f"repos/{slug}/pulls?state=closed", parse),
+    ]

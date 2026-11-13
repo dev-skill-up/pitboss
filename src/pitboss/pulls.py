@@ -36,7 +36,6 @@ from . import (
 )
 from .pullfacts import PullFacts as PullFacts
 
-
 reference = pullref.reference
 failed_checks = pullref.failed_checks
 

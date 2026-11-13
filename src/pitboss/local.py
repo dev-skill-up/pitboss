@@ -8,7 +8,7 @@ import sys
 import time
 from typing import Callable, Iterable, Mapping, Sequence
 
-from . import concurrently, config, ghapi, parsing, shapes
+from . import concurrently, config, ghapi, ghstore, parsing, shapes
 from .running import Run, changed_files, git
 
 SLOW_FETCH_SECONDS = 3
@@ -269,7 +269,7 @@ def read_outcomes(
         The outcome of each branch.
     """
     found: dict[str, shapes.Outcome] = {}
-    listed = ghapi.every_pull(github, repo.slug, parsing.outcomes)
+    listed = ghstore.every_pull(github, repo.slug, parsing.outcomes)
     for outcome in listed:
         found.setdefault(outcome.branch, outcome)
     return found

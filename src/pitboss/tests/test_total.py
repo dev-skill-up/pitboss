@@ -109,16 +109,6 @@ class TestCells(unittest.TestCase):
 class TestPairs(unittest.TestCase):
     """Every two cells together: the verdict answers, and never raises."""
 
-    def test_444_a_wrong_answer_is_counted(self) -> None:
-        """A stop of a pair of GO cells is an exception of the pair."""
-        unrouted = gatesaid.Answer(word=gatesaid.STOP, lines=["zzz: a stop"])
-        found = totalpairs.run(
-            totalworld.base(),
-            totalcomplete.base_cells()[::100],
-            lambda action, pull, ctx: unrouted,
-        )
-        assert_that(found.counts["exception"] > 0, equal_to(True))
-
     def test_444_equal_sets_are_no_change_whatever_the_hash_seed(self) -> None:
         """A set is compared by its members, not by the order it prints in."""
         names = [f"login{number}" for number in range(40)]

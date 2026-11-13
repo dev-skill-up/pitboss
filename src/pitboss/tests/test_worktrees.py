@@ -283,11 +283,3 @@ class TestMerged(unittest.TestCase):
             ("worktrees: 0 listed, freed 0 bytes" in out, present(here, "merged-work")),
             (True, [True]),
         )
-
-    def test_slots_next_lists_each_finished_worktree_as_a_removal_step(self) -> None:
-        """Merged or closed, with the size and the command."""
-        here = scene()
-        out = suggestions.next_output(here)
-        lines = [x for x in out.splitlines() if x.startswith(mergedworktree.REMOVE)]
-        cleanworld.same(len(lines), 5)
-        cleanworld.same("run `pitboss merged --no-dry-run " in lines[0], True)

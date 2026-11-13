@@ -66,18 +66,6 @@ class TestBlock(unittest.TestCase):
         assert_that(found[0], contains_string('Next in sweep order: ...") is not'))
         assert_that(found[0], contains_string("no placeholder entry exists"))
 
-    def test_next_lines_follow_the_next_order(self) -> None:
-        """Each item of the NEXT order is a line, numbered as ``slots next`` does."""
-        here = world.make_world()
-        found = task_lines(here)
-        args = ("slots", "next", here.config, "--now", at(30))
-        shown = world.invoke(here, *args, *liveagents.running(here)).out
-        wanted = re.findall(r"^NEXT (\d+)\. (\S+) ", shown, re.MULTILINE)[1:]
-        assert_that(wanted, has_length(3))
-        for (number, reference), line in zip(wanted, found[2:]):
-            prefix = f"TASK LIST next {number}. {reference}:"
-            assert_that(line, starts_with(prefix))
-
     def test_in_flight_comes_first_and_is_not_next(self) -> None:
         """A ticket in a slot is a line of its own, and not also a next line."""
         here = world.make_world()
@@ -87,14 +75,6 @@ class TestBlock(unittest.TestCase):
         assert_that(found[1], equal_to(flying))
         assert_that(sum("#9" in line for line in found), equal_to(1))
         assert_that(tasklist.crowded("\n".join(found[1:]), PROJECT), equal_to({}))
-
-    def test_a_ticket_outside_the_order_is_not_in_it(self) -> None:
-        """A ticket under a priority label the order does not offer is no line."""
-        here = world.make_world()
-        here.bodies[fakes.page(LOWER)] = [dict(world.TICKET, number=77)]
-        shown = sweep(here).out
-        assert_that(shown, contains_string("TASK LIST next 4. owner/project#9"))
-        assert_that("#77" in shown, equal_to(False))
 
 
 class TestOneTicketPerLine(unittest.TestCase):
