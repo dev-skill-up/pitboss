@@ -8,9 +8,11 @@ import dataclasses
 import enum
 from typing import Callable, Mapping, Sequence
 
-Review = Callable[[str, str, object, Mapping[str, object]], str]
-Plan = Callable[[str, object], str]
-Body = Callable[[object, str], Sequence[str]]
+from .pullrecords import Ticket, Unread
+
+Review = Callable[[str, str, str, Mapping[str, Ticket | Unread]], str]
+Plan = Callable[[str, str], str]
+Body = Callable[[str, str], Sequence[str]]
 
 
 class Route(enum.Enum):

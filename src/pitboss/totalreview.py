@@ -8,6 +8,7 @@ section and of each ticket the body closes. ``review_reading`` reads only that f
 anything else (``Plan: ok``, ``Verdict: approved.``, a prose ``Plan:`` line, a
 missing digest) is not an approval. An edit of the body, the Plan or a ticket after
 the review changes a digest, so the review is stale with no rule per kind of edit.
+It reads the typed timeline and tickets ``pullstate`` made (plan 6.1).
 """
 
 import re
@@ -15,7 +16,7 @@ from typing import Mapping, Sequence
 
 from . import bodydigest
 from .plansection import plan_section
-from .totaljson import JsonMap, field, members, name_at, text
+from .pullrecords import Event, Ticket, Unread
 
 GRADES = ("approved", "changes needed")
 GRADE_LINE = re.compile(r"(Plan|Execution): (approved|changes needed)( \([^()\n]*\))?")
@@ -24,22 +25,24 @@ HEAD_LINE = re.compile(r"(Reviewed: |\bof head )([0-9a-f]{40})\b")
 ATTEMPT = re.compile(r"(?im)^\W*verdict\b")
 LOOSE_GRADE = re.compile(r"\W*(plan|execution)\b\W*:", re.I)
 DIGEST = re.compile(r"Body: [0-9a-f]{16}")
-Tickets = Mapping[str, object]
+TicketReads = Mapping[str, Ticket | Unread]
+# the timeline kinds a review is posted as
+REVIEW_KINDS = frozenset({"commented", "reviewed"})
 
 
-def digest_of(value: object) -> str:
-    """The digest of a text that may be absent.
+def digest_of(value: str) -> str:
+    """The digest of a body.
 
     Args:
-        value: a body as read (a string, or something else for none).
+        value: the body (an absent one is empty).
 
     Returns:
-        ``bodydigest.digest`` of it, of ``""`` when it is not a string.
+        ``bodydigest.digest`` of it.
     """
-    return bodydigest.digest(text(value))
+    return bodydigest.digest(value)
 
 
-def review_attempts(timeline: Sequence[JsonMap]) -> Sequence[JsonMap]:
+def review_attempts(timeline: Sequence[Event]) -> Sequence[Event]:
     """The comments and formal reviews that try to be a review, oldest first.
 
     Args:
@@ -51,22 +54,21 @@ def review_attempts(timeline: Sequence[JsonMap]) -> Sequence[JsonMap]:
     return [
         each
         for each in timeline
-        if each.get("event") in ("commented", "reviewed")
-        and ATTEMPT.search(text(each.get("body")))
+        if each.kind in REVIEW_KINDS and ATTEMPT.search(each.body)
     ]
 
 
-def ticket_lines(tickets: Tickets) -> Sequence[str]:
+def ticket_lines(tickets: TicketReads) -> Sequence[str]:
     """The ``Ticket:`` lines of a review: each ticket and the digest of its body.
 
     Args:
-        tickets: each ticket the body closes, as read.
+        tickets: each ticket the body closes, typed (one not read has no body).
 
     Returns:
         ``Ticket: <ref> <digest>`` for each, in the order of the references.
     """
     return [
-        f"Ticket: {ref} {digest_of(field(value, 'body'))}"
+        f"Ticket: {ref} {digest_of('' if isinstance(value, Unread) else value.body)}"
         for ref, value in sorted(tickets.items())
     ]
 
@@ -93,7 +95,7 @@ def _starting(lines: Sequence[str], prefix: str) -> Sequence[str]:
     return [line for line in lines if line[: len(prefix)] == prefix]
 
 
-def _body_finding(lines: Sequence[str], body: object) -> str:
+def _body_finding(lines: Sequence[str], body: str) -> str:
     digests = _starting(lines, "Body:")
     if len(digests) != 1 or not DIGEST.fullmatch(digests[0]):
         return "the newest review has no single `Body: <digest>` line"
@@ -118,7 +120,7 @@ def _grade_finding(lines: Sequence[str]) -> str:
     return ""
 
 
-def _ticket_finding(lines: Sequence[str], tickets: Tickets) -> str:
+def _ticket_finding(lines: Sequence[str], tickets: TicketReads) -> str:
     for want in ticket_lines(tickets):
         if want not in lines:
             ref = want.split()[1]
@@ -129,7 +131,7 @@ def _ticket_finding(lines: Sequence[str], tickets: Tickets) -> str:
     return ""
 
 
-def review_reading(review: str, head: str, body: object, tickets: Tickets) -> str:
+def review_reading(review: str, head: str, body: str, tickets: TicketReads) -> str:
     """Why the newest review does not approve this head, body and tickets.
 
     Args:
@@ -162,7 +164,7 @@ def _verdict_finding(lines: Sequence[str]) -> str:
     return ""
 
 
-def plan_reading(review: str, body: object) -> str:
+def plan_reading(review: str, body: str) -> str:
     """Why the newest review does not approve the Plan the body holds now.
 
     Args:
@@ -187,7 +189,7 @@ def plan_reading(review: str, body: object) -> str:
 
 
 def act_records(
-    timeline: Sequence[JsonMap], identity: str, kind: str
+    timeline: Sequence[Event], identity: str, kind: str
 ) -> Sequence[tuple[str, str]]:
     """The records ``pitboss act`` posted on a PR, of one kind.
 
@@ -204,9 +206,8 @@ def act_records(
     )
     found = []
     for each in timeline:
-        author = members(each.get("user") or each.get("actor"))
-        if each.get("event") != "commented" or name_at(author, "login") != identity:
+        if each.kind != "commented" or each.login != identity:
             continue
-        if match := record.match(text(each.get("body"))):
+        if match := record.match(each.body):
             found.append((match.group(1), match.group(2)))
     return found

@@ -7,7 +7,7 @@ inputs read with it are ``pullstate`` (keyword: one-path).
 from typing import Mapping, Sequence, TypeVar
 
 from . import schematypes
-from .pullrecords import Closure, Merging, Mistyped, PullObject, Where
+from .pullrecords import Closure, Merging, Mistyped, PullObject, Ticket, Unread, Where
 
 Kind = TypeVar("Kind")
 URL_FIELDS = ("comments_url", "commits_url", "html_url", "issue_url", "statuses_url")
@@ -107,6 +107,7 @@ def _where(raw: Raw) -> Where:
         base_ref=text_at(raw, "base", "ref"),
         base_repo=text_at(raw, "base", "repo", "full_name"),
         head_sha=text_at(raw, "head", "sha"),
+        head_ref=text_at(raw, "head", "ref"),
         head_repo=text_at(raw, "head", "repo", "full_name"),
         author=text_at(raw, "user", "login"),
         association=text_at(raw, "author_association"),
@@ -115,11 +116,12 @@ def _where(raw: Raw) -> Where:
 
 def _closure(raw: Raw) -> Closure:
     merger = raw.get("merged_by")
+    named = None if merger is None else text_at(merger, "login") or str(merger)
     return Closure(
         state=text_at(raw, "state"),
         closed_at=_nullable(raw.get("closed_at")),
         merged_at=_nullable(raw.get("merged_at")),
-        merged_by=text_at(merger, "login") or _nullable(merger),
+        merged_by=named,
         merged=bool(raw.get("merged")),
         locked=bool(raw.get("locked")),
         lock_reason=_nullable(raw.get("active_lock_reason")),
@@ -153,7 +155,46 @@ def pull_object(raw: Raw, schema: Mapping[str, str]) -> PullObject:
         closure=_closure(raw),
         merging=_merging(raw),
         title_is_text=isinstance(raw.get("title"), str),
+        body_is_text=isinstance(raw.get("body"), (str, type(None))),
         body=text_at(raw, "body"),
         said={name: str(value)[:50] for name, value in raw.items()},
         breaks=_breaks(raw, schema),
     )
+
+
+def said_at(each: Raw, name: str) -> str:
+    """A member as the stop lines show it.
+
+    Args:
+        each: the object.
+        name: the member.
+
+    Returns:
+        Its text; ``None`` when it is absent or null.
+    """
+    return str(each.get(name))
+
+
+def _issue(value: object) -> Ticket | Unread:
+    issue = object_at(value)
+    if not isinstance(value, dict) or "_error" in issue:
+        return Unread(why=text_at(issue, "_error"))
+    return Ticket(
+        state=said_at(issue, "state"),
+        reason=said_at(issue, "state_reason"),
+        locked=bool(issue.get("locked")),
+        is_pull=bool(issue.get("pull_request")),
+        body=text_at(issue, "body"),
+    )
+
+
+def tickets_of(read: object) -> Mapping[str, Ticket | Unread]:
+    """Each ticket the body closes, typed.
+
+    Args:
+        read: the tickets as read, by reference.
+
+    Returns:
+        Each ticket, or why it was not read.
+    """
+    return {ref: _issue(issue) for ref, issue in object_at(read).items()}

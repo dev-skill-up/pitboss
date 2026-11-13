@@ -2,15 +2,17 @@
 
 A label pitboss does not apply, and any event that is not benign, make the newest
 review one of an older state (pitboss#444, the act verdict's row of the timeline).
+It reads the typed timeline ``pullstate`` made (plan 6.1).
 """
 
 import functools
 from typing import AbstractSet, Sequence
 
 from . import enumeration, totalreview
+from .gaterows import listed
 from .gatestop import Route, Stop
+from .pullrecords import Event, GateState
 from .totalanswer import KNOWN_LABELS
-from .totaljson import JsonMap, listed, name_at
 
 LABEL_EVENTS = frozenset({"labeled", "unlabeled"})
 
@@ -25,11 +27,11 @@ def stale_events() -> AbstractSet[str]:
     return frozenset(enumeration.shipped("stale-events.txt").split())
 
 
-def _event_stop(event: JsonMap, benign: AbstractSet[str]) -> Sequence[Stop]:
+def _event_stop(event: Event, benign: AbstractSet[str]) -> Sequence[Stop]:
     # a label pitboss does not apply, or an event after which the review is stale
-    kind = event.get("event")
+    kind = event.kind
     if kind in LABEL_EVENTS:
-        label = name_at(event, "label", "name")
+        label = event.label
         if label in KNOWN_LABELS:
             return []
         line = f"event {kind} {label or None}: a label pitboss does not apply"
@@ -40,18 +42,18 @@ def _event_stop(event: JsonMap, benign: AbstractSet[str]) -> Sequence[Stop]:
     return [Stop(route=Route.REVIEW, line=line)]
 
 
-def event_stops(ctx: JsonMap, benign: AbstractSet[str]) -> Sequence[Stop]:
+def event_stops(state: GateState, benign: AbstractSet[str]) -> Sequence[Stop]:
     """The stops of the events since the newest review.
 
     Args:
-        ctx: the inputs.
+        state: the typed state.
         benign: the kinds that leave the review current.
 
     Returns:
         A stop for a label pitboss does not apply, and for an event that makes
         the review of an older state.
     """
-    timeline = listed(ctx, "timeline")
+    timeline = listed(state.reads.timeline)
     attempts = totalreview.review_attempts(timeline)
     since = timeline[timeline.index(attempts[-1]) + 1 :] if attempts else []
     return [stop for event in since for stop in _event_stop(event, benign)]

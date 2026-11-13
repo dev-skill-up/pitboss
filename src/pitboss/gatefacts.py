@@ -8,7 +8,6 @@ import dataclasses
 from typing import Mapping
 
 from . import pullrecords, steps
-from .totaljson import JsonMap
 
 # the act each gated step takes
 ACTIONS: Mapping[steps.Step, str] = {
@@ -19,15 +18,10 @@ ACTIONS: Mapping[steps.Step, str] = {
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Gate:
-    """What a PR at the merge or the undraft step is gated on, as GitHub answered.
+    """What a PR at the merge or the undraft step is gated on.
 
     Attributes:
-        pull: the PR object.
-        inputs: the other inputs (the head's runs, the files, the tickets, the
-            timeline, the holds, the blockers, the rules).
-        state: the same, typed once (plan 6.1); the rows move to it one by one.
+        state: the PR and the inputs read with it, typed once (plan 6.1).
     """
 
-    pull: JsonMap
-    inputs: JsonMap
     state: pullrecords.GateState

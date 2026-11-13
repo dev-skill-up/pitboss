@@ -44,6 +44,7 @@ SEEDS: Mapping[str, Seed] = {
     "P5": Seed(
         path="render.py", old="", new="\ndef said(given: int) -> str:\n    return ''\n"
     ),
+    "6.1": Seed(path="gaterows.py", old="", new="\nfrom . import totaljson\n"),
     "P6": Seed(
         path="commands.py", old="", new="\nREAD = readworld.read_world(None, None)\n"
     ),

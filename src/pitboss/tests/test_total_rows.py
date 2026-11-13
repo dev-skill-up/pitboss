@@ -7,7 +7,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import totalbody, totalchecks, totaljson, totalreview
+from .. import totalbody, totaljson, totalreview
 from . import gatesaid
 from .knownkit import BASE, HEAD, change
 from .says import says
@@ -55,7 +55,7 @@ class TestVerdict(unittest.TestCase):
 
 
 class TestBody(unittest.TestCase):
-    """The body's rows and its kind."""
+    """The body's rows."""
 
     def test_444_a_blocked_line_that_names_nothing(self) -> None:
         """It stops, saying so."""
@@ -63,27 +63,6 @@ class TestBody(unittest.TestCase):
             f"Fixes #1\n\nBlocked by the release\n\nHead: {HEAD}\n", HEAD
         )
         says(" ".join(found), "names no item")
-
-    def test_444_a_publish_branch(self) -> None:
-        """Archives and their sums on a ``publish/`` branch are a publish."""
-        files = [
-            {"filename": "pkg/json_2026.11.1.0.bats"},
-            {"filename": "pkg/json_2026.11.1.0.bats.sha256"},
-        ]
-        assert_that(
-            totalbody.kind({"head": {"ref": "publish/json"}}, files),
-            equal_to("publish"),
-        )
-
-
-class TestChecks(unittest.TestCase):
-    """The newest run of each name."""
-
-    def test_444_an_older_run_listed_later_is_not_current(self) -> None:
-        """Order in the list does not decide; the start time does."""
-        newer = {"name": "check", "id": 2, "started_at": "2026-11-02"}
-        older = {"name": "check", "id": 1, "started_at": "2026-11-01"}
-        assert_that(list(totalchecks.current_runs([newer, older])), equal_to([newer]))
 
 
 class TestReview(unittest.TestCase):

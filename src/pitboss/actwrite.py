@@ -11,7 +11,7 @@ gets nothing added.
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actcore, bodydigest, totalbody, totalreview
+from . import actcore, bodydigest, pullobject, totalbody, totalreview
 from .actcore import (
     disarm_first,
     head_now,
@@ -49,7 +49,7 @@ def review_text(
         The head, the grades, the verdict and the digests of the body, its Plan and
         each ticket, then the findings.
     """
-    body = pull.get("body")
+    body = text(pull.get("body"))
     section = plan_section(body)
     lines = [
         f"Reviewed: {actcore.head_of(pull)}",
@@ -58,7 +58,7 @@ def review_text(
         f"Verdict: {grades[2]}",
         f"Body: {totalreview.digest_of(body)}",
         *([] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]),
-        *totalreview.ticket_lines(tickets),
+        *totalreview.ticket_lines(pullobject.tickets_of(tickets)),
     ]
     return "\n".join(lines) + f"\n\n{findings}"
 

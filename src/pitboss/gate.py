@@ -5,7 +5,10 @@ it merged, armed or undrafted (``gaterows``): when a row stops it, its decision 
 the route of the first stop, so the advice and ``act`` are one value. ``act
 merge``, ``arm`` and ``undraft`` look the item's decision up (``gateverbs``) and
 run only when it is theirs. A recorded ``act override`` lifts one stop at one head,
-never a hold, a red, an unread input, a closed PR or a blocker.
+never a hold, a red, an unread input, a closed PR or a blocker. The rows read the
+typed state ``pullstate`` made (plan 6.1): an input not given, a list of another
+shape than GitHub documents and a list GitHub answered with an error are stops of
+their own, so no row meets a value of another type.
 """
 
 from typing import Mapping, Sequence
@@ -14,6 +17,7 @@ from . import (
     answer,
     gateevents,
     gatefacts,
+    gatefields,
     gatepolicy,
     gaterows,
     gateverbs,
@@ -22,7 +26,7 @@ from . import (
     totalreview,
 )
 from .gatestop import Route, Stop
-from .totaljson import JsonMap, listed, name_at, text
+from .pullrecords import GateState
 
 Gate = gatefacts.Gate
 OWNER = answer.Actor.OWNER
@@ -71,27 +75,25 @@ ROUTES: Actors = {
     Route.NO_TICKET: (WORKER, "`act pr-edit`: the first line is `Fixes #N`"),
     Route.REVIEW: (REVIEWER, "`act review` the head as it is now"),
 }
-SHAPE_ERRORS = (AttributeError, TypeError, KeyError, ValueError)
 ACTIONS = gatefacts.ACTIONS
 
 
-def _found(action: str, gate: Gate, policy: gatepolicy.Policy) -> Sequence[Stop]:
+def _found(action: str, state: GateState, policy: gatepolicy.Policy) -> Sequence[Stop]:
     # every row's stops, in the order act ran them
-    pull, ctx, state = gate.pull, {**gate.inputs, "action": action}, gate.state
-    kind = totalbody.kind(pull, listed(ctx, "files"))
+    kind = gaterows.kind_of(state)
     change = kind == totalbody.CHANGE
     return [
-        *gaterows.read_stops(ctx),
-        *gaterows.field_stops(pull, ctx, policy.schema),
+        *gaterows.read_stops(state),
+        *gatefields.field_stops(state, action, policy.schema),
         *gaterows.hold_stops(action, state),
-        *gaterows.check_stops(action, ctx),
-        *(gaterows.review_stops(action, pull, ctx, policy) if change else ()),
-        *gaterows.body_stops(pull, ctx, policy),
-        *gaterows.merge_stops(action, pull, ctx),
-        *gaterows.diff_stops(action, ctx, kind),
-        *(gaterows.unticketed_stops(ctx) if change else ()),
-        *gaterows.ticket_stops(ctx),
-        *gateevents.event_stops(ctx, policy.benign),
+        *gaterows.check_stops(action, state),
+        *(gaterows.review_stops(action, state, policy) if change else ()),
+        *gaterows.body_stops(state, policy),
+        *gaterows.merge_stops(action, state),
+        *gaterows.diff_stops(action, state, kind),
+        *(gaterows.unticketed_stops(state) if change else ()),
+        *gaterows.ticket_stops(state),
+        *gateevents.event_stops(state, policy.benign),
     ]
 
 
@@ -108,17 +110,12 @@ def stops_for(
     Returns:
         Every stop no override lifts; none when the action may be taken.
     """
-    rows = policy or gatepolicy.shipped()
-    ctx = {**gate.inputs, "action": action}
-    if missing := gaterows.unread_stops(ctx):
-        return missing
-    try:
-        found = _found(action, gate, rows)
-    except SHAPE_ERRORS as error:  # a response out of GitHub's schema is unread
-        why = f"{type(error).__name__}: {str(error)[:60]}"
-        line = f"input: the response is not of GitHub's schema ({why})"
-        return [Stop(route=Route.UNREAD, line=line)]
-    lifted = _overridden(name_at(gate.pull, "head", "sha"), ctx)
+    rows, state = policy or gatepolicy.shipped(), gate.state
+    alone = gaterows.unread_stops(state) or gaterows.schema_stops(state)
+    if alone:
+        return alone
+    found = _found(action, state, rows)
+    lifted = _overridden(state)
     return [
         each
         for each in found
@@ -139,8 +136,9 @@ def stops_of(step: steps.Step, gate: Gate) -> Sequence[Stop]:
     return stops_for(ACTIONS[step], gate)
 
 
-def _overridden(head: str, ctx: JsonMap) -> str:
+def _overridden(state: GateState) -> str:
     # the override records of the head, as one text
-    identity = text(ctx.get("act_identity"))
-    records = totalreview.act_records(listed(ctx, "timeline"), identity, "override")
+    identity, head = state.repository.identity, state.pull.where.head_sha
+    timeline = gaterows.listed(state.reads.timeline)
+    records = totalreview.act_records(timeline, identity, "override")
     return "\n".join(rest for at, rest in records if at == head)

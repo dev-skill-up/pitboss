@@ -25,14 +25,15 @@ from .. import (
     actrules,
     answer,
     gate,
+    gatefields,
     gatepolicy,
     gatestop,
     ticketreader,
     totalanswer,
+    pullobject,
     totalchecks,
-    totalrows,
 )
-from ..totaljson import JsonMap, members
+from ..totaljson import JsonMap, members, text
 from . import gatesaid, totalcells, totalpairs, totalworld
 
 Verdict = Callable[[str, JsonMap, JsonMap, gatepolicy.Policy], gatesaid.Answer]
@@ -101,7 +102,7 @@ class Parts:
 def _schema(parts: Parts) -> Iterator[str]:
     yield from (
         f"schema: the row of {field} is of no documented PR field"
-        for field in totalrows.rows(parts.policy.schema)
+        for field in gatefields.ROWS
         if field not in parts.policy.schema
     )
     yield from _variables(parts)
@@ -167,10 +168,11 @@ def _forms(parts: Parts) -> Iterator[str]:
     written = parts.forms.review(
         world.pull, GRADES, "The change does what the ticket says.", tickets
     )
-    head = totalworld.head_of(world)
-    why = parts.policy.review(
-        written, head, world.pull.get("body"), tickets
-    ) or parts.policy.plan(written, world.pull.get("body"))
+    head, body = totalworld.head_of(world), text(world.pull.get("body"))
+    typed = pullobject.tickets_of(tickets)
+    why = parts.policy.review(written, head, body, typed) or parts.policy.plan(
+        written, body
+    )
     if why:
         yield (
             "forms: what `act review` writes, the verdict does not read as an"

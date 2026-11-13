@@ -115,17 +115,25 @@ class TestInputs(unittest.TestCase):
         want = pullrecords.File(name="a.py", additions=3, deletions=0)
         assert_that(_state(files=given).reads.files, equal_to([want]))
 
-    def test_6_1_a_failed_read_is_unread(self) -> None:
-        """Plan 6.1: an input GitHub answered with an error, or not a list."""
+    def test_6_1_a_failed_read_is_unread_and_no_list_is_empty(self) -> None:
+        """Plan 6.1: an input GitHub answered with an error; one that is no list."""
         reads = _state(files={"_error": "HTTP 502"}, statuses="odd").reads
         failed = pullrecords.Unread(why="HTTP 502")
-        odd = pullrecords.Unread(why="not a list: odd")
-        assert_that((reads.files, reads.statuses), equal_to((failed, odd)))
+        assert_that((reads.files, reads.statuses), equal_to((failed, [])))
+
+    def test_6_1_a_member_of_another_type_is_mistyped(self) -> None:
+        """Plan 6.1: a conclusion that is a list is not of GitHub's schema."""
+        runs = _state(check_runs=[{"name": "t", "conclusion": [5]}]).reads.runs
+        assert_that(runs, equal_to(pullrecords.Mistyped(name="conclusion", said="[5]")))
 
     def test_6_1_events_are_typed(self) -> None:
         """Plan 6.1: the timeline: a review's author, a label event's label."""
         timeline = _state(timeline=[REVIEWED, LABELED]).reads.timeline
-        events = [] if isinstance(timeline, pullrecords.Unread) else timeline
+        events = (
+            []
+            if isinstance(timeline, (pullrecords.Unread, pullrecords.Mistyped))
+            else timeline
+        )
         got = [(e.kind, e.state, e.login, e.label) for e in events]
         want = [("reviewed", "approved", "r", ""), ("labeled", "", "a", "x")]
         assert_that(got, equal_to(want))

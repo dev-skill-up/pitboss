@@ -1,7 +1,7 @@
 """The static proofs of the one path, run by ``nox -s lint`` (plan section 6.3).
 
 ``python -m pitboss.pathproofs`` reads ``src/pitboss`` from the current directory,
-runs P1 to P11 but P4 (the ``modes`` session) and prints each finding; the
+runs P1 to P11 but P4 (the ``modes`` session) and 6.1, and prints each finding; the
 status is 1 when there is one. It parses the package and runs none of its code
 (keyword: one-path).
 """
@@ -15,6 +15,8 @@ from . import decideproofs, proofsource, readproofs
 from .proofsource import Package
 
 Proof = Callable[[Package], Sequence[str]]
+# the one place PR JSON becomes typed state (plan 6.1): only these read JSON
+PARSERS = frozenset({"pullstate", "pullobject", "listed"})
 
 
 def _aliases(package: Package) -> Mapping[str, Sequence[str]]:
@@ -92,11 +94,30 @@ def same_answer(package: Package) -> Sequence[str]:
     ]
 
 
+def one_parse(package: Package) -> Sequence[str]:
+    """Plan 6.1: in what ``decide`` reaches, only the parsers import ``totaljson``.
+
+    Args:
+        package: the package.
+
+    Returns:
+        A finding for each other module of the closure that imports it.
+    """
+    json = f"{proofsource.PACKAGE}.totaljson"
+    return [
+        f"6.1: {proofsource.short(each)} reads JSON; only the parsers do"
+        for each in sorted(proofsource.closure(package, "decide"))
+        if json in package.edges.get(each, ())
+        and proofsource.short(each) not in PARSERS
+    ]
+
+
 PROOFS: Mapping[str, Proof] = {
     "P1": decideproofs.one_decider,
     "P2": readproofs.no_io,
     "P3": decideproofs.no_partial_world,
     "P5": same_answer,
+    "6.1": one_parse,
     "P6": readproofs.one_read,
     "P7": decideproofs.no_wait,
     "P8": decideproofs.act_agrees,

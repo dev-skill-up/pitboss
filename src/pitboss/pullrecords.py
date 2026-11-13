@@ -42,6 +42,7 @@ class Where:
         base_ref: the base branch.
         base_repo: the base's repository.
         head_sha: the head commit.
+        head_ref: the head branch.
         head_repo: the head's repository.
         author: the author's login.
         association: the author's association.
@@ -53,6 +54,7 @@ class Where:
     base_ref: str
     base_repo: str
     head_sha: str
+    head_ref: str
     head_repo: str
     author: str
     association: str
@@ -113,6 +115,7 @@ class PullObject:
         closure: whether it is open.
         merging: what GitHub says of merging it.
         title_is_text: whether the title is text.
+        body_is_text: whether the body is text or null.
         body: the body; null is empty.
         said: each field as text, for a stop line.
         breaks: the fields absent or mistyped, in the schema's order.
@@ -122,6 +125,7 @@ class PullObject:
     closure: Closure
     merging: Merging
     title_is_text: bool
+    body_is_text: bool
     body: str
     said: Mapping[str, str]
     breaks: Sequence[Mistyped]
@@ -254,6 +258,9 @@ class Repository:
 class Reads:
     """The lists read of the head and the PR.
 
+    Each is ``Unread`` when GitHub answered an error, and ``Mistyped`` when a member
+    a row branches on is of another type than documented.
+
     Attributes:
         runs: the head's check runs.
         statuses: the head's statuses.
@@ -261,10 +268,10 @@ class Reads:
         timeline: the PR's events, oldest first.
     """
 
-    runs: Sequence[Run] | Unread
-    statuses: Sequence[Status] | Unread
-    files: Sequence[File] | Unread
-    timeline: Sequence[Event] | Unread
+    runs: Sequence[Run] | Unread | Mistyped
+    statuses: Sequence[Status] | Unread | Mistyped
+    files: Sequence[File] | Unread | Mistyped
+    timeline: Sequence[Event] | Unread | Mistyped
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

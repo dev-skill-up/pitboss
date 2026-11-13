@@ -217,3 +217,13 @@ class TestEdits(unittest.TestCase):
         """There is no second verdict."""
         found = decideproofs.act_agrees(_edited("totalverdict.py", "", "\n"))
         assert_that(found, has_item("P8: the totalverdict module exists"))
+
+
+class TestOneParse(unittest.TestCase):
+    """Plan 6.1: in what decide reaches, only the parsers read JSON."""
+
+    def test_6_1_a_row_that_reads_json_is_a_finding(self) -> None:
+        """A row module that imports ``totaljson`` is named."""
+        new = "\nfrom . import totaljson\n"
+        found = pathproofs.one_parse(_edited("gaterows.py", "", new))
+        assert_that(found, equal_to(["6.1: gaterows reads JSON; only the parsers do"]))

@@ -7,12 +7,12 @@ gate rows read typed fields and nothing past here reads JSON (keyword: one-path)
 """
 
 import re
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import gatefacts, totalschema
+from . import gatefacts, pullobject, totalschema
 from . import pullrecords as records
 from .pullobject import Raw, count_at, list_at, object_at, pull_object, text_at
-from .pullrecords import Unread
+from .pullrecords import Mistyped, Unread
 from .totaljson import JsonMap
 
 INPUTS = (
@@ -34,20 +34,35 @@ INPUTS = (
 )
 
 
-def _listing(value: object) -> Sequence[Raw] | Unread:
-    # a list read: GitHub's error, or a list of objects
+# the member each list's rows branch on, a string GitHub documents, and whether
+# it may be null
+BRANCHED_ON: Mapping[str, tuple[str, bool]] = {
+    "check_runs": ("conclusion", True),
+    "statuses": ("state", False),
+    "timeline": ("event", False),
+}
+
+
+def _listing(key: str, value: object) -> Sequence[Raw] | Unread | Mistyped:
+    # a list read: GitHub's error, a member of another type than documented, or
+    # its objects (anything that is no list is an empty one)
     if isinstance(value, dict) and "_error" in value:
         return Unread(why=str(value["_error"]))
-    if not isinstance(value, list):
-        return Unread(why=f"not a list: {str(value)[:40]}")
-    return [object_at(each) for each in value]
+    found = [object_at(each) for each in pullobject.typed_or(value, list, [])]
+    name, nullable = BRANCHED_ON.get(key, ("", True))
+    for each in found:
+        value = each.get(name)
+        typed = isinstance(value, str) or (nullable and value is None)
+        if name in each and not typed:
+            return Mistyped(name=name, said=str(value)[:40])
+    return found
 
 
 def _run(each: Raw) -> records.Run:
     return records.Run(
-        name=text_at(each, "name"),
-        status=text_at(each, "status"),
-        conclusion=str(each.get("conclusion")),
+        name=pullobject.said_at(each, "name"),
+        status=pullobject.said_at(each, "status"),
+        conclusion=pullobject.said_at(each, "conclusion"),
         number=count_at(each, "id"),
         started_at=text_at(each, "started_at"),
     )
@@ -55,7 +70,8 @@ def _run(each: Raw) -> records.Run:
 
 def _status(each: Raw) -> records.Status:
     return records.Status(
-        context=text_at(each, "context"), state=text_at(each, "state")
+        context=pullobject.said_at(each, "context"),
+        state=pullobject.said_at(each, "state"),
     )
 
 
@@ -77,41 +93,22 @@ def _event(each: Raw) -> records.Event:
     )
 
 
+def _typed[Item](
+    read: Sequence[Raw] | Unread | Mistyped, make: Callable[[Raw], Item]
+) -> Sequence[Item] | Unread | Mistyped:
+    return read if isinstance(read, (Unread, Mistyped)) else [make(e) for e in read]
+
+
 def _reads(inputs: Raw) -> records.Reads:
-    runs = _listing(inputs.get("check_runs"))
-    statuses = _listing(inputs.get("statuses"))
-    files = _listing(inputs.get("files"))
-    timeline = _listing(inputs.get("timeline"))
+    def read(key: str) -> Sequence[Raw] | Unread | Mistyped:
+        return _listing(key, inputs.get(key))
+
     return records.Reads(
-        runs=runs if isinstance(runs, Unread) else [_run(e) for e in runs],
-        statuses=(
-            statuses if isinstance(statuses, Unread) else [_status(e) for e in statuses]
-        ),
-        files=files if isinstance(files, Unread) else [_file(e) for e in files],
-        timeline=(
-            timeline if isinstance(timeline, Unread) else [_event(e) for e in timeline]
-        ),
+        runs=_typed(read("check_runs"), _run),
+        statuses=_typed(read("statuses"), _status),
+        files=_typed(read("files"), _file),
+        timeline=_typed(read("timeline"), _event),
     )
-
-
-def _issue(value: object) -> records.Ticket | Unread:
-    issue = object_at(value)
-    if "_error" in issue or not issue:
-        return Unread(why=str(issue.get("_error", "nothing read"))[:40])
-    return records.Ticket(
-        state=text_at(issue, "state"),
-        reason=str(issue.get("state_reason")),
-        locked=bool(issue.get("locked")),
-        is_pull=bool(issue.get("pull_request")),
-        body=text_at(issue, "body"),
-    )
-
-
-def _tickets(read: Raw) -> Mapping[str, records.Ticket | Unread]:
-    found = {}
-    for ref, issue in read.items():
-        found[ref] = _issue(issue)
-    return found
 
 
 def _hold(issue: Raw) -> records.Hold:
@@ -155,7 +152,7 @@ def parse(raw: Raw, inputs: Raw, schema: Mapping[str, str]) -> records.GateState
         pull=pull_object(raw, schema),
         repository=_repository(inputs),
         reads=_reads(inputs),
-        tickets=_tickets(object_at(inputs, "tickets")),
+        tickets=pullobject.tickets_of(inputs.get("tickets")),
         blockers={
             ref: str(said) for ref, said in object_at(inputs, "blockers").items()
         },
@@ -174,5 +171,4 @@ def gate_of(pull: JsonMap, inputs: JsonMap) -> gatefacts.Gate:
     Returns:
         The gate.
     """
-    state = parse(pull, inputs, totalschema.schema())
-    return gatefacts.Gate(pull=pull, inputs=inputs, state=state)
+    return gatefacts.Gate(state=parse(pull, inputs, totalschema.schema()))
