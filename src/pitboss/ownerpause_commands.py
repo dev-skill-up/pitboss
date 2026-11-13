@@ -4,14 +4,14 @@ import argparse
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, ghapi, ownerpause, pullfile, steps
+from . import ENTRY_DATA, ghclient, ownerpause, pullfile, steps
 
 
-def _check(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
+def _check(github: ghclient.GitHub, slug: str, number: int, text: str) -> str:
     return ownerpause.refusal(text)
 
 
-def _label(github: ghapi.GitHub, slug: str, number: int) -> None:
+def _label(github: ghclient.GitHub, slug: str, number: int) -> None:
     label = ["-f", f"labels[]={steps.PAUSED_LABEL}"]
     path = ownerpause.label_path(slug, number)
     github.mutate(["gh", "api", "-X", "POST", *label, path])

@@ -1,6 +1,5 @@
 """Reading GitHub through ``gh api``, with the session's own auth and proxy."""
 
-import dataclasses
 import json
 import re
 import subprocess
@@ -8,35 +7,11 @@ import urllib.parse
 from typing import Callable, Iterable, Mapping, Sequence, TypeVar
 
 from . import concurrently
-from .running import Run
+from .ghclient import GitHub as GitHub
+from .ghclient import read_only as read_only
 
 PAGE_SIZE = 100
 _Item = TypeVar("_Item")
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class GitHub:
-    """GitHub's REST API, through ``gh api``.
-
-    Attributes:
-        run: the runner reads go through.
-        mutate: the runner changes go through (a dry run unless asked).
-    """
-
-    run: Run
-    mutate: Run
-
-
-def read_only(run: Run) -> GitHub:
-    """The API for a command that only reads (it never changes GitHub).
-
-    Args:
-        run: the runner reads go through.
-
-    Returns:
-        The API, whose changes go through the same runner.
-    """
-    return GitHub(run=run, mutate=run)
 
 
 def workflow_runs_path(slug: str, workflow: str) -> str:

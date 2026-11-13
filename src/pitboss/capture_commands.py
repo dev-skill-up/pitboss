@@ -8,11 +8,11 @@ from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, capture, expand_commands, ghapi
+from . import ENTRY_DATA, capture, expand_commands, ghclient
 
 
 def _edits(
-    github: ghapi.GitHub, slug: str, number: int, source: str | None
+    github: ghclient.GitHub, slug: str, number: int, source: str | None
 ) -> Sequence[capture.Item]:
     if source:
         return capture.body_edits(json.loads(pathlib.Path(source).read_text("utf-8")))
@@ -24,7 +24,7 @@ def _edits(
         ) from error
 
 
-def _timeline(pull: str, github: ghapi.GitHub, source: str | None) -> str:
+def _timeline(pull: str, github: ghclient.GitHub, source: str | None) -> str:
     found = expand_commands.PULL.match(pull)
     if not found:
         raise SystemExit(f"capture-timeline: {pull}: not OWNER/NAME#NUMBER")
@@ -59,7 +59,7 @@ def capture_timeline(args: argparse.Namespace) -> None:
     Args:
         args: the parsed arguments.
     """
-    text = _timeline(args.pull, ghapi.read_only(args.safe_run), args.edits)
+    text = _timeline(args.pull, ghclient.read_only(args.safe_run), args.edits)
     if args.to:
         pathlib.Path(args.to).write_text(text, encoding="utf-8")
     else:

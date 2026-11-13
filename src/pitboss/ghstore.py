@@ -138,3 +138,65 @@ def store_of(runners: tuple[Run, Run], slug: str, pull: int) -> evidencesplit.St
         delete=functools.partial(delete, github, every),
         set_body=functools.partial(set_body, github, f"repos/{slug}/pulls/{pull}"),
     )
+
+
+def body(github: ghapi.GitHub, path: str) -> str:
+    """The description of a pull request or an issue.
+
+    Args:
+        github: the API.
+        path: its path.
+
+    Returns:
+        The text; empty when it has none.
+    """
+    return totaljson.text(ghapi.get_object(github, path).get("body"))
+
+
+def _texts(page: str) -> Sequence[str]:
+    return [totaljson.text(each.get("body")) for each in json.loads(page)]
+
+
+def comment_texts(github: ghapi.GitHub, path: str) -> Sequence[str]:
+    """The text of every comment of a pull request or an issue.
+
+    Args:
+        github: the API.
+        path: its path.
+
+    Returns:
+        The texts, oldest first.
+    """
+    return ghapi.pages(github, f"{path}/comments", _texts)
+
+
+def label_names(github: ghapi.GitHub, path: str) -> Sequence[str]:
+    """The names of the labels of a pull request or an issue.
+
+    Args:
+        github: the API.
+        path: its issue path.
+
+    Returns:
+        The names.
+    """
+    found = totaljson.listed(ghapi.get_object(github, path), "labels")
+    return [totaljson.text(each.get("name")) for each in found]
+
+
+def _bodies(text: str) -> Sequence[tuple[int, str]]:
+    found = json.loads(text)
+    return [(int(each["number"]), totaljson.text(each.get("body"))) for each in found]
+
+
+def pull_bodies(github: ghapi.GitHub, slug: str) -> Sequence[tuple[int, str]]:
+    """The number and description of every pull request of a repository.
+
+    Args:
+        github: the API.
+        slug: the repository.
+
+    Returns:
+        The pairs.
+    """
+    return ghapi.every_pull(github, slug, _bodies)

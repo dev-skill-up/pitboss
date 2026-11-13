@@ -27,7 +27,7 @@ from . import (
     configloads,
     dead,
     diskline,
-    ghapi,
+    ghclient,
     ghmemo,
     headchecks,
     ledger,
@@ -83,7 +83,7 @@ class Context:
     access: repoaccess.Access
     clean: cleanconfig.Clean
     scratch: scratchconfig.Scratch
-    github: ghapi.GitHub
+    github: ghclient.GitHub
     now: datetime.datetime
     args: argparse.Namespace
 
@@ -167,7 +167,7 @@ def load_context(args: argparse.Namespace) -> Context:
     """
     logging.getLogger("commander_data.run").setLevel(logging.WARNING)
     now = timing.current_time(args)
-    github = ghapi.GitHub(run=_reading(args), mutate=args.run)
+    github = ghclient.GitHub(run=_reading(args), mutate=args.run)
     start = working_directory(args)
     given = configfile.named(args)
     access = repoaccess.read(

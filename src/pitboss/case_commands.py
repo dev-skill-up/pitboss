@@ -1,16 +1,10 @@
 """The ``case`` command: edit a ticket's body, never its comments (pitboss#444)."""
 
 import argparse
-import json
-from typing import Sequence
 
 from gather.commands import add_argument
 
-from . import ENTRY_DATA, casepost, config, ghapi, ghstore, pullfile
-
-
-def _pulls(text: str) -> Sequence[tuple[int, str]]:
-    return [(int(each["number"]), str(each["body"] or "")) for each in json.loads(text)]
+from . import ENTRY_DATA, casepost, config, ghstore, pullfile
 
 
 @ENTRY_DATA.register(
@@ -41,13 +35,13 @@ def case(args: argparse.Namespace) -> None:
     """
     slug, number, text = pullfile.read("case post", args.ticket, args.file)
     github = pullfile.github_of(args)
-    pulls = ghapi.every_pull(github, slug, _pulls)
+    pulls = ghstore.pull_bodies(github, slug)
     repo = config.make_repo(*slug.split("/"))
     started = casepost.started_by(args.ticket, pulls, repo)
     if why := casepost.refusal(args.ticket, started):
         pullfile.refuse("case post", why)
     path = f"repos/{slug}/issues/{number}"
-    body = str(json.loads(ghapi.get(github, path)).get("body") or "")
+    body = ghstore.body(github, path)
     edit = casepost.with_done_when if args.done_when else casepost.with_case
     ghstore.send(github, "PATCH", path, edit(body, text))
     print(f"https://github.com/{slug}/issues/{number}")

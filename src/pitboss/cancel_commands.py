@@ -3,11 +3,11 @@
 import argparse
 import subprocess
 
-from . import ENTRY_DATA, ghapi, queue
+from . import ENTRY_DATA, queue
 from .commandarguments import CHANGING_ARGUMENTS
 from .commands import load_context
 from .markers import Marker
-from .queuereads import read_queue_runs
+from .queuereads import cancel, read_queue_runs
 
 
 @ENTRY_DATA.register(*CHANGING_ARGUMENTS, name="cancel-stale-runs")
@@ -22,8 +22,7 @@ def cancel_stale_runs(args: argparse.Namespace) -> None:
     for stale in queue.stale_runs(read_queue_runs(found)):
         name = f"{stale.repo.slug} {stale.run.id}"
         try:
-            path = f"repos/{stale.repo.slug}/actions/runs/{stale.run.id}/cancel"
-            ghapi.post(found.github, path)
+            cancel(found, stale)
         except subprocess.CalledProcessError:
             print(f"{Marker.COULD_NOT_CANCEL_STALE_QUEUE_RUN.text} {name}")
             continue

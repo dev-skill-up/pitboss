@@ -1,8 +1,6 @@
 """The ``ruling`` command: post an Opus ruling file as a PR comment (pitboss#466)."""
 
 import argparse
-import json
-from typing import Sequence
 
 from gather.commands import add_argument
 
@@ -11,7 +9,8 @@ from . import (
     ENTRY_DATA,
     folds,
     forms,
-    ghapi,
+    ghclient,
+    ghstore,
     pullfile,
     rulingform,
     rulinglint,
@@ -19,28 +18,14 @@ from . import (
 )
 
 
-def _texts(page: str) -> Sequence[str]:
-    found = (each.get("body") for each in json.loads(page))
-    return [str(each or "") for each in found]
-
-
-def _already(github: ghapi.GitHub, slug: str, number: int) -> str:
+def _already(github: ghclient.GitHub, slug: str, number: int) -> str:
     # keyword: one-ruling (A6): the PR's comments and labels, as GitHub has them
     path = f"repos/{slug}/issues/{number}"
-    texts = ghapi.pages(github, f"{path}/comments", _texts)
-    labels = [
-        str(each["name"])
-        for each in json.loads(ghapi.get(github, path)).get("labels", [])
-    ]
-    return rulingguard.refusal(texts, labels)
+    texts = ghstore.comment_texts(github, path)
+    return rulingguard.refusal(texts, ghstore.label_names(github, path))
 
 
-def _body(github: ghapi.GitHub, path: str) -> str:
-    # the body of a PR or an issue
-    return str(ghapi.get_object(github, path).get("body") or "")
-
-
-def step_findings(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
+def step_findings(github: ghclient.GitHub, slug: str, number: int, text: str) -> str:
     """What a ruling's edit steps leave failing on a PR and its ticket.
 
     The keyword is ruling-lint (bats#654): the steps must pass the gates they
@@ -57,16 +42,16 @@ def step_findings(github: ghapi.GitHub, slug: str, number: int, text: str) -> st
     """
     if not rulinglint.orders_edits(text):
         return ""
-    body = _body(github, f"repos/{slug}/pulls/{number}")
+    body = ghstore.body(github, f"repos/{slug}/pulls/{number}")
     ticket = ""
     for each in folds.tickets(body)[:1]:
         where, _, issue = each.partition("#")
-        ticket = _body(github, f"repos/{where or slug}/issues/{issue}")
+        ticket = ghstore.body(github, f"repos/{where or slug}/issues/{issue}")
     head = "".join(forms.HEAD_LINE.findall(body)[-1:])
     return "; ".join(rulinglint.findings(text, ticket, body, head))
 
 
-def _check(github: ghapi.GitHub, slug: str, number: int, text: str) -> str:
+def _check(github: ghclient.GitHub, slug: str, number: int, text: str) -> str:
     return (
         rulingform.refusal(text)
         or step_findings(github, slug, number, text)
