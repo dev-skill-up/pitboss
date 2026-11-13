@@ -17,7 +17,7 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         newest approving review recorded (its ``Plan digest:``) and no Opus
         ruling ``revise the plan`` came after that review; else none.
     """
-    if pull.step.step is not steps.Step.PLAN_EDITED:
+    if steps.step_of(pull.step) is not steps.Step.PLAN_EDITED:
         return []
     return [
         f"{Marker.PLAN_EDITED.text} {pulls.reference(pull)}: the Plan section of"

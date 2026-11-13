@@ -88,6 +88,8 @@ def category_of(pull: pulls.PullFacts) -> Category | None:
         The category, or None when its step is offered for no round.
     """
     step = pull.step
+    if isinstance(step, steps.Idle):
+        return None
     if step.step is steps.Step.WORKER:
         return CATEGORY_OF_TASK.get(step.task, Category.FIX_REVIEW)
     # review-flow: the step alone decides, so ``next`` and ``slots next`` agree

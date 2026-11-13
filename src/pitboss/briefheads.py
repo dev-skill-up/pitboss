@@ -25,7 +25,12 @@ def of(base: str, pull: pulls.PullFacts | None) -> brief.Heads:
         base=pull.pull.base,
         approved=found.sha if found else "",
         findings=found.url if found else "",
-        ruling=step.comment if step.task in RULED else "",
+        ruling=_ruling(step),
         body_digest=bodydigest.digest(pull.pull.body),
         plan_digest=expansion.section_digest(plandigest.section(pull.pull.body)),
     )
+
+
+def _ruling(step: steps.Move) -> str:
+    # keyword: unfixed-execution: the ruling an Execution fix follows
+    return step.comment if isinstance(step, steps.Next) and step.task in RULED else ""

@@ -8,12 +8,12 @@ on the base.
 
 from typing import Sequence
 
-from . import basefix, pulls, steps
+from . import basefix, pulls, steps, stepwords
 from .markers import Marker
 
 ACTIONS = {
-    steps.Step.MERGE: steps.ENQUEUE,
-    steps.Step.REGULAR_REVIEW: steps.REQUEST_REVIEW,
+    steps.Step.MERGE: stepwords.ENQUEUE,
+    steps.Step.REGULAR_REVIEW: stepwords.REQUEST_REVIEW,
 }
 
 
@@ -36,11 +36,15 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         the PR has a conflict (its line is ``CONFLICT``: the base is merged in
         only then).
     """
-    if not pull.signals.fixed or pulls.conflicted(pull):
+    step = pull.step
+    if (
+        not isinstance(step, steps.Next)
+        or not pull.signals.fixed
+        or pulls.conflicted(pull)
+    ):
         return []
     said = "; ".join(_passed(each) for each in pull.signals.fixed)
-    step = pull.step
-    action = ACTIONS.get(step.step) or f"next step: {steps.describe(step)}"
+    action = ACTIONS.get(step.step) or f"next step: {stepwords.describe(step)}"
     return [
         f"{Marker.FIXED_ON_BASE.text} {pulls.reference(pull)}: {said}; the red CI"
         f" is no work and {pull.pull.base} is not merged into"

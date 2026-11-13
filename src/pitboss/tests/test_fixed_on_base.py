@@ -11,7 +11,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import basefix, fixedline, flow, headchecks, reviews, shapes, steps
+from .. import basefix, fixedline, flow, headchecks, reviews, shapes, steps, stepwords
 from . import fakes, quietworld, syncworld, test_commands, test_flow, test_work, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
@@ -251,7 +251,7 @@ class TestLine(unittest.TestCase):
             signals=headchecks.HeadSignals(fixed=[ANSWER]),
         )
         assert_that(
-            fixedline.lines(pull)[0].endswith(f"next step: {steps.describe(step)}"),
+            fixedline.lines(pull)[0].endswith(f"next step: {stepwords.describe(step)}"),
             equal_to(True),
         )
 
@@ -313,8 +313,8 @@ class TestFlow(unittest.TestCase):
         both = steps.Stage.PLAN_AND_EXECUTION
         merge, review = steps.merge(), steps.regular_review(both)
         said = [
-            steps.describe(dataclasses.replace(merge, on_base=True)),
-            steps.describe(dataclasses.replace(review, on_base=True)),
-            steps.describe(merge).startswith(ENQUEUE),
+            stepwords.describe(dataclasses.replace(merge, on_base=True)),
+            stepwords.describe(dataclasses.replace(review, on_base=True)),
+            stepwords.describe(merge).startswith(ENQUEUE),
         ]
         assert_that(said, equal_to([ENQUEUE, f"{REQUEST}: {both.value}", False]))

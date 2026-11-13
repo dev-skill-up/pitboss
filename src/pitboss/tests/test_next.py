@@ -6,7 +6,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import steps
+from .. import steps, stepwords
 from . import fakes, quietworld, test_flow_sweep, world
 
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
@@ -73,7 +73,7 @@ def line(step: steps.Next, ticket: str, pull: str) -> str:
     Returns:
         The line, with its newline.
     """
-    return f"{step.step.name}: {ticket} ({pull}): {steps.describe(step)}\n"
+    return f"{step.step.name}: {ticket} ({pull}): {stepwords.describe(step)}\n"
 
 
 def says(found: world.Result, want: steps.Next, ticket: str, pull: str) -> None:

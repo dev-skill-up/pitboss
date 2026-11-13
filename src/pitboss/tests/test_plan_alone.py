@@ -13,7 +13,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import gradeline, reviews, shapes, steps
+from .. import gradeline, reviews, shapes, steps, stepwords
 from . import test_flow, test_flow_sweep, world
 from .test_commands import sweep
 
@@ -89,7 +89,7 @@ def assert_worker_round_not_the_review(draft: bool) -> None:
     Args:
         draft: whether PR 3 is a draft.
     """
-    want = steps.describe(steps.worker(steps.Task.RUN_PLAN))
+    want = stepwords.describe(steps.worker(steps.Task.RUN_PLAN))
     printed = next_printed(played(PLAN_ONLY_BODY), draft=draft)
     assert_that(printed, contains_string(want))
     assert_that("REGULAR_REVIEW" in printed, equal_to(False))

@@ -39,12 +39,15 @@ newest_ruling = flowstate.newest_ruling
 readable_ruling = flowstate.readable_ruling
 has_conflict = conflicts.has_conflict
 AFTER = rulingafter.AFTER
-Row = floworder.Row[PullState, steps.Next]
+Row = floworder.Row[PullState, steps.Move]
 newest_counting_review = flowquestions.newest_counting_review
 plan_approved = flowquestions.plan_approved
 plan_revised = flowquestions.plan_revised
 get_plan_rejections = flowquestions.get_plan_rejections
 ci_result = flowquestions.ci_result
+
+
+PAUSED = steps.Idle(pending=steps.Pending.OWNER)  # the owner decides; nobody acts
 
 
 def rejected(pr: PullState, review: Graded, first: steps.Next) -> steps.Next:
@@ -154,7 +157,7 @@ def rejection_step(pr: PullState, review: Graded) -> steps.Next | None:
     return rejected(pr, review, first)
 
 
-def next_step(pr: PullState) -> steps.Next:
+def next_step(pr: PullState) -> steps.Move:
     """The one step a PR is at (the owner's pseudo code, 2026-10-30).
 
     The first row of ``ROWS`` that holds decides (keyword: flow-order, item 11).
@@ -166,12 +169,13 @@ def next_step(pr: PullState) -> steps.Next:
         The step.
     """
     step = next(row.step(pr) for row in ROWS if row.holds(pr))
-    held = step.step in steps.HELD and pr.draft.hold()  # keyword: hold-scope, B20
-    return steps.Next(step=steps.Step.WAIT_FOR_HOLD) if held else step
+    acted = isinstance(step, steps.Next) and step.step in steps.HELD
+    held = acted and pr.draft.hold()  # keyword: hold-scope, B20
+    return steps.Idle(pending=steps.Pending.HOLD) if held else step
 
 
 def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
-    """The wait that a rejection is at (keyword: wait-first, pitboss#183).
+    """The owed ruling or pause a rejection is at (keyword: wait-first, pitboss#183).
 
     A fix (of a conflict or of a red CI) is not offered while the rejection step
     is a ruling due, a pause or a ruling that escalates.
@@ -181,13 +185,13 @@ def waiting_step(pr: PullState, review: Graded | None) -> steps.Next | None:
         review: the newest review that counts, or None.
 
     Returns:
-        The wait step, or None when there is no review or its step is no wait.
+        That step, or None when there is no review or its step is no such step.
     """
     held = rejection_step(pr, review) if review else None
-    return held if held is not None and held.step in steps.WAITS else None
+    return held if held is not None and held.step in steps.UNRESOLVED else None
 
 
-def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
+def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
     """The draft gate of ``next_step`` (a red check but the Plan's is fixed first).
 
     Args:
@@ -198,7 +202,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
         The step.
     """
     if pr.pull.draft:
-        ready = steps.undraft() if pr.undraft_clear else steps.wait_for_undraft()
+        ready = _ready(pr)
         if pr.draft.no_drafts:  # keyword: no-drafts (pitboss#390): never reviewed
             return ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
@@ -216,7 +220,16 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Next:
     return ci_gate(pr, review)
 
 
-def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
+def _ready(pr: PullState) -> steps.Move:
+    # an approved draft is undrafted when the window allows, else nobody acts
+    return (
+        steps.undraft()
+        if pr.undraft_clear
+        else steps.Idle(pending=steps.Pending.UNDRAFT)
+    )
+
+
+def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
     """The CI gate of ``next_step``: nothing below runs until CI is green.
 
     Args:
@@ -228,7 +241,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Next:
     """
     ci = ci_result(pr)  # GREEN, RED, or None (still running or not started)
     if ci is None:
-        return steps.wait_for_ci()  # nobody works or reviews meanwhile
+        return steps.ci_pending()  # nobody works or reviews meanwhile
     if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait
         return waiting_step(pr, review) or steps.worker(steps.Task.FIX_CI)
 
@@ -297,17 +310,17 @@ def execution_gate(pr: PullState, review: Graded) -> steps.Next:
     return conflicts.merge_unless_conflict(pr)
 
 
-def _ruling_held(pr: PullState) -> steps.Next:
+def _ruling_held(pr: PullState) -> steps.Move:
     # the newest Opus ruling must be readable, and an approved Plan stays as it is
     # (keyword: plan-digest, pitboss#172)
     held = flowstate.ruling_hold(pr)
     if held is None:  # pragma: no cover
-        return steps.wait_for_owner()  # unreachable: the row holds only when held
+        return PAUSED  # unreachable: the row holds only when held
     return rulingafter.held_step(held, flowstate.ruling_unapplied(pr))
 
 
 def _conflict_step(pr: PullState) -> steps.Next:
-    # keyword: conflict-first (pitboss#148, #181): a fix but while steps.WAITS holds
+    # keyword: conflict-first (pitboss#148, #181): a fix but while UNRESOLVED holds
     wait = waiting_step(pr, newest_counting_review(pr))
     return wait or steps.worker(steps.Task.RESOLVE_CONFLICT)
 
@@ -319,8 +332,9 @@ def _stale_body(pr: PullState) -> bool:
     return headline.is_stale(pr.pull.body, head) or bool(stale)
 
 
-def _refreshed(pr: PullState, found: steps.Next) -> steps.Next:
-    stale = found.step in steps.REFRESHED and _stale_body(pr)
+def _refreshed(pr: PullState, found: steps.Move) -> steps.Move:
+    refreshed = isinstance(found, steps.Next) and found.step in steps.REFRESHED
+    stale = refreshed and _stale_body(pr)
     return steps.worker(steps.Task.REFRESH_BODY) if stale else found
 
 
@@ -337,7 +351,7 @@ ROWS: Sequence[Row] = (
     Row(
         name="paused-owner",
         holds=lambda pr: steps.PAUSED_LABEL in pr.labels,
-        step=lambda pr: steps.wait_for_owner(),
+        step=lambda pr: PAUSED,
     ),
     Row(
         name="ruling-hold",

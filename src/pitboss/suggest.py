@@ -146,9 +146,10 @@ def review_kind(pull: pulls.PullFacts) -> brief.Kind:
         return brief.Kind.REVIEW_RESOLUTION
     if pull.relock and not work.fix_round(pull):
         return brief.Kind.REVIEW_RELOCK  # keyword: relock (pitboss#126)
-    if pull.step.stage is steps.Stage.PLAN_ONLY:
+    stage = pull.step.stage if isinstance(pull.step, steps.Next) else None
+    if stage is steps.Stage.PLAN_ONLY:
         return brief.Kind.REVIEW_PLAN
-    if pull.step.stage is steps.Stage.PLAN_AND_EXECUTION:
+    if stage is steps.Stage.PLAN_AND_EXECUTION:
         return brief.Kind.REVIEW_FULL  # the Plan was never approved: graded alone
     if work.fix_round(pull):
         return brief.Kind.REVIEW_FIX_ROUND
@@ -173,7 +174,8 @@ def kind_of(pick: Pick) -> brief.Kind:
     )
     if pick.category in reviewed and pick.pull is not None:
         return review_kind(pick.pull)
-    if pick.pull is not None and pick.pull.step.task is steps.Task.FIX_ROUND:
+    fixing = pick.pull is not None and steps.task_of(pick.pull.step)
+    if fixing is steps.Task.FIX_ROUND:
         return brief.Kind.FIX_ROUND  # keyword: fix-round-kind (pitboss#390)
     return suggestkind.OF_CATEGORY[pick.category]
 

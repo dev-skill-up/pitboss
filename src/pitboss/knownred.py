@@ -56,7 +56,7 @@ class Headed(Protocol):
         """Return what may block it besides its checks."""
 
     @property
-    def step(self) -> steps.Next:
+    def step(self) -> steps.Move:
         """Return the one step the PR is at."""
 
     @property
@@ -135,7 +135,8 @@ def _read(pull: Headed, row: Row) -> str:
         return _status(pull, row.source.removeprefix(STATUS))
     if row.source.startswith(STEPS):
         wanted = row.source.removeprefix(STEPS).split("+")
-        return "no clean Plan check" if pull.step.step.name in wanted else ""
+        found = steps.step_of(pull.step)
+        return "no clean Plan check" if found and found.name in wanted else ""
     reader = READERS.get(row.source)
     return reader(pull) if reader else ""
 

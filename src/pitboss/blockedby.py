@@ -29,7 +29,7 @@ from typing import Mapping, MutableMapping, Sequence
 from . import configrepos, ghapi, pulls, shapes, steps, ticketblock, ticketdata
 
 LIMIT = 32  # the most blockers read to look for a loop
-KEPT = steps.WAITS | {steps.Step.WAIT_FOR_OWNER, steps.Step.WAIT_FOR_HOLD}
+KEPT = (steps.Pending.OWNER, steps.Pending.HOLD)  # the PR keeps its own move
 
 
 class State(enum.Enum):
@@ -136,16 +136,24 @@ def _red_since(pull: pulls.PullFacts, merged: str) -> bool:
     # the head is red, and every failed check ended before the blockers merged
     failing = pulls.failed_checks(pull)
     last = max(map(_ended, failing), default="")
-    return bool(last) and last < merged and steps.Task.FIX_CI is pull.step.task
+    return (
+        bool(last) and last < merged and steps.Task.FIX_CI is steps.task_of(pull.step)
+    )
 
 
 def _ended(check: shapes.CheckRun) -> str:
     return check.completed_at
 
 
+def _open(me: str, names: str) -> tuple[steps.Move, str]:
+    # nobody acts on the PR while a blocker it names is open
+    idle = steps.Idle(pending=steps.Pending.BLOCKER, names=names)
+    return idle, f"BLOCKER WAIT {me}: {names}"
+
+
 def verdict(
     pull: pulls.PullFacts, found: Sequence[Blocker], path: Sequence[str]
-) -> tuple[steps.Next | None, str]:
+) -> tuple[steps.Move | None, str]:
     """The step a PR has because of what it waits for, and the sweep's line.
 
     Args:
@@ -166,8 +174,7 @@ def verdict(
     if shut:
         return fix, f"BLOCKER GONE {me}: {shut[0]} is closed unmerged"
     if live:
-        wait = steps.Next(step=steps.Step.WAIT_FOR_BLOCKER, comment=", ".join(live))
-        return wait, f"BLOCKER WAIT {me}: waits for {wait.comment}"
+        return _open(me, ", ".join(live))
     if _red_since(pull, when):
         after = steps.worker(steps.Task.AFTER_BLOCKER)
         return after, f"BLOCKER MERGED {me}: merged at {when}, after its red check"
@@ -178,7 +185,8 @@ def _settled(
     github: ghapi.GitHub, seen: MutableMapping[str, Blocker], pull: pulls.PullFacts
 ) -> tuple[pulls.PullFacts, str]:
     names = declared(pull)
-    if not names or pull.step.step in KEPT:
+    kept = any(steps.pending_is(pull.step, each) for each in KEPT)
+    if not names or kept or steps.step_is(pull.step, steps.UNRESOLVED):
         return pull, ""
     for each in names:
         seen.setdefault(each, read(github, each))

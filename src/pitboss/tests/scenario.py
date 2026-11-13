@@ -13,7 +13,7 @@ import json
 import pathlib
 from typing import AbstractSet, Mapping, NamedTuple, NotRequired, Sequence, TypedDict
 
-from .. import capture, config, flow, parsing, reviews, shapes, steps
+from .. import capture, config, flow, parsing, reviews, shapes, steps, stepwords
 
 DIRECTORY = pathlib.Path(__file__).with_name("scenarios")
 HEADER = "Independent review (a separate reviewer agent, not the author) of head"
@@ -305,7 +305,7 @@ def printed(name: str, mark: Mark) -> str:
         mark: the mark.
 
     Returns:
-        The line, with the step ``steps.describe`` says.
+        The line, with the step ``stepwords.describe`` says.
     """
     step = step_at(load(name), mark.when, mark.settled)
-    return f"{name} {mark.when} [{mark.rule}] {kind(step)}: {steps.describe(step)}"
+    return f"{name} {mark.when} [{mark.rule}] {kind(step)}: {stepwords.describe(step)}"

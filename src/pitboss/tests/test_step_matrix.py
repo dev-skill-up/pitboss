@@ -15,6 +15,7 @@ from typing import AbstractSet, Mapping
 from hamcrest import assert_that, empty, equal_to, has_item
 
 from .. import (
+    stepwords,
     configfile,
     phrases,
     pulllines,
@@ -90,7 +91,7 @@ class TestTheMatrix(unittest.TestCase):
 
     def test_every_member_has_a_row_and_every_row_a_member(self) -> None:
         """Both directions, derived from the enums."""
-        texts = {each: steps.describe(step) for each, step in steps_of().items()}
+        texts = {each: stepwords.describe(step) for each, step in steps_of().items()}
         assert_that(stepmatrix.findings(ROWS, stepmatrix.members(), texts), empty())
 
     def test_a_new_member_without_a_row_is_found(self) -> None:
@@ -105,8 +106,8 @@ class TestTheMatrix(unittest.TestCase):
         """The PR STATE line of every member is a sentence, never UNKNOWN or empty."""
         for name, step in steps_of().items():
             with self.subTest(name):
-                assert_that(steps.describe(step).strip() != "", equal_to(True))
-                assert_that("UNKNOWN" in steps.describe(step), equal_to(False))
+                assert_that(stepwords.describe(step).strip() != "", equal_to(True))
+                assert_that("UNKNOWN" in stepwords.describe(step), equal_to(False))
 
     def test_every_step_is_printed_in_the_channel_its_row_names(self) -> None:
         """The code prints what the row needs: a brief, a briefed round or a line."""
@@ -124,7 +125,7 @@ class TestTheMatrix(unittest.TestCase):
 
     def test_a_step_that_asks_for_a_ruling_must_be_a_brief_row(self) -> None:
         """Planted: PLAN_EDITED as a line row is found by its own text."""
-        texts = {"Step.PLAN_EDITED": steps.describe(steps.plan_edited())}
+        texts = {"Step.PLAN_EDITED": stepwords.describe(steps.plan_edited())}
         weak = {**ROWS, "Step.PLAN_EDITED": ("line", "")}
         found = stepmatrix.findings(weak, stepmatrix.members(), texts)
         asked = [each for each in found if each.endswith("so it needs a brief")]

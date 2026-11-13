@@ -27,7 +27,7 @@ sweep's line for a PR that is offered for nothing and waits for nobody.
 import dataclasses
 from typing import Sequence
 
-from . import pulls, steps, textlint, work
+from . import pulls, steps, stepwords, textlint, work
 
 PREFIX = "FINISH PARTIAL"
 STRANDED = "NO STEP"
@@ -38,8 +38,6 @@ UNOFFERED = {steps.Step.PLAN_CHECK, steps.Step.SEND_BACK_PLAN_CHECK}
 GATED = {
     steps.Step.REGULAR_REVIEW,
     steps.Step.UNDRAFT,
-    steps.Step.WAIT_FOR_UNDRAFT,
-    steps.Step.WAIT_FOR_CI,
     steps.Step.MERGE,
 }
 NO_CHECK = (
@@ -57,11 +55,11 @@ def reasons(pull: pulls.PullFacts) -> Sequence[str]:
     Returns:
         The reasons, none when the PR is not partial.
     """
-    step = pull.step
+    step = steps.step_of(pull.step)
     found = []
-    if step.step is steps.Step.PLAN_CHECK:
+    if step is steps.Step.PLAN_CHECK:
         found.append(NO_CHECK)
-    if step.step in {steps.Step.PLAN_CHECK} | GATED:
+    if step in {steps.Step.PLAN_CHECK} | GATED:
         found += [
             RED_BODY.format(description=each.description or each.state)
             for each in pull.signals.statuses
@@ -112,7 +110,18 @@ def stranded(reads: Sequence[pulls.Read]) -> Sequence[str]:
         One line each, naming the PR and its step; none while every PR has a step.
     """
     return [
-        f"{STRANDED} {pulls.reference(each)}: {steps.describe(each.step)}"
+        f"{STRANDED} {pulls.reference(each)}: {stepwords.describe(step)}"
+        for each, step in _moving(reads)
+        if step.step in UNOFFERED and work.category_of(each) is None
+    ]
+
+
+def _moving(
+    reads: Sequence[pulls.Read],
+) -> Sequence[tuple[pulls.PullFacts, steps.Next]]:
+    # keyword: one-path: an idle PR is stranded by nobody
+    return [
+        (each, each.step)
         for each in pulls.readable(reads)
-        if each.step.step in UNOFFERED and work.category_of(each) is None
+        if isinstance(each.step, steps.Next)
     ]

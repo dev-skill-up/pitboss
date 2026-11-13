@@ -10,7 +10,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import steps
+from .. import steps, stepwords
 from . import fakes, test_flow_sweep as flows, world
 from .test_commands import sweep
 from .test_slot_commands import next_output
@@ -73,7 +73,7 @@ def state_line(label: str) -> str:
         The line: the wait step in words, after ``draft`` for a draft.
     """
     prefix, step = STATED[label]
-    return f"PR STATE owner/project#3: {prefix}next step: {steps.describe(step)}"
+    return f"PR STATE owner/project#3: {prefix}next step: {stepwords.describe(step)}"
 
 
 class TestCleanWaits(unittest.TestCase):

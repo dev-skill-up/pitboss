@@ -68,7 +68,7 @@ class PullFacts:
     unreadable: straycomments.StrayComments = dataclasses.field(
         default_factory=straycomments.StrayComments
     )
-    step: steps.Next
+    step: steps.Move
     review_rounds: rounds.Rounds = dataclasses.field(default_factory=rounds.Rounds)
     relock: bool = False
 
@@ -149,7 +149,9 @@ def approved(facts: PullFacts) -> bool:
         True when approved (keyword: ruling-voids, pitboss#467).
     """
     counted = (reviews.Standing.APPROVED, reviews.Standing.APPROVED_BEFORE_MERGES)
-    return facts.standing in counted and facts.step.task is not steps.Task.RULING_STEPS
+    return facts.standing in counted and (
+        steps.task_of(facts.step) is not steps.Task.RULING_STEPS
+    )
 
 
 def at_merge(facts: PullFacts) -> bool:
@@ -161,7 +163,7 @@ def at_merge(facts: PullFacts) -> bool:
     Returns:
         True at the merge.
     """
-    return facts.step.step is steps.Step.MERGE
+    return steps.step_is(facts.step, {steps.Step.MERGE})
 
 
 Source = pullsource.Source
@@ -312,9 +314,11 @@ def _signals(
 
 def _step(
     state: flow.PullState, signals: headchecks.HeadSignals, trusted: AbstractSet[str]
-) -> steps.Next:
+) -> steps.Move:
     # keyword: fixed-on-base: the flow read the answered failures as passed
     step = pinsask.unreviewed(flow.next_step(state), signals.pins)
+    if isinstance(step, steps.Idle):
+        return step
     ruled = rulingreason.times(state.comments, trusted, step)  # keyword: ruling-reason
     return dataclasses.replace(
         step, on_base=bool(signals.fixed), reason=rulingreason.reason(ruled)

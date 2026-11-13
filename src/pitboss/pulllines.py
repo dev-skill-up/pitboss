@@ -4,6 +4,7 @@ import datetime
 from typing import Mapping, Sequence
 
 from . import (
+    stepwords,
     adoptline,
     analysisline,
     claimline,
@@ -30,7 +31,7 @@ from . import (
 from .markers import Marker
 
 # the lines that ask for runner time: the e2e dispatch, and a relock's re-dispatch
-SPENDING = (steps.describe(steps.Next(step=steps.Step.RUN_E2E)),)
+SPENDING = (stepwords.describe(steps.Next(step=steps.Step.RUN_E2E)),)
 
 
 def lines(

@@ -12,7 +12,7 @@ label and no item gave a decision.
 import dataclasses
 from typing import Mapping, Sequence, assert_never
 
-from . import answer, steps, world
+from . import answer, steps, stepwords, world
 
 ACTORS: Mapping[steps.Step, answer.Actor] = {
     steps.Step.WORKER: answer.Actor.WORKER,
@@ -54,13 +54,15 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
             title=listed.title,
         )
     step = record.facts.step
+    if not isinstance(step, steps.Next):
+        return None  # keyword: one-path: nobody acts on an idle PR
     actor = ACTORS.get(step.step)
     loops = step.task is steps.Task.FIX_BLOCKED_BY  # a loop is fixed, not waited on
     if actor is None or (record.blockers and not loops):
         return None
     return answer.Decision(
         actor=actor,
-        verb=steps.describe(step),
+        verb=stepwords.describe(step),
         item=listed.reference,
         title=listed.title,
     )

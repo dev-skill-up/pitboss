@@ -60,7 +60,7 @@ def line(pull: pulls.PullFacts, runners: config.Runners, now: datetime.datetime)
             f"{reference} ({Marker.FIX_FIRST.text}:"
             f" {knownred.say(pull, 'the undraft')})"
         )
-    if pull.step.step is steps.Step.UNDRAFT:
+    if steps.step_of(pull.step) is steps.Step.UNDRAFT:
         return (
             f"{reference} (mark the PR ready: update_pull_request draft=false for"
             f" {reference}; the next step is the CI gate on the undrafted head)"
@@ -81,7 +81,7 @@ def texts(
     Yields:
         The texts, in the order of ``facts``.
     """
-    wanted = (steps.Step.UNDRAFT, steps.Step.WAIT_FOR_UNDRAFT)
     for pull in facts:
-        if pull.step.step in wanted:
+        ready = steps.step_is(pull.step, {steps.Step.UNDRAFT})
+        if ready or steps.pending_is(pull.step, steps.Pending.UNDRAFT):
             yield line(pull, settings.runners, now)

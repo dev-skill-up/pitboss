@@ -283,7 +283,7 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
     return None if reviewed or pushed else ruled
 
 
-def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Next:
+def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
     """The Plan review of a draft, once the check its repository requires is done.
 
     quire's lint refuses an approval of a head with no completed green ``check``
@@ -301,11 +301,11 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Next:
     name = pr.draft.plan_review_check
     due = step.step is steps.Step.REGULAR_REVIEW and name
     if due and not draftfacts.completed(pr.checks, name):
-        return steps.wait_for_ci()
+        return steps.ci_pending()
     return step
 
 
-def e2e_step(pr: PullState) -> steps.Next | None:
+def e2e_step(pr: PullState) -> steps.Move | None:
     """The step of a draft whose changed e2e suite has run in no check run.
 
     A draft's CI skips the e2e jobs, so an approval of it reads no e2e result
@@ -326,4 +326,4 @@ def e2e_step(pr: PullState) -> steps.Next | None:
     if not pr.draft.needs_e2e():
         return None
     running = [each for each in pr.checks if not each.finished]
-    return steps.wait_for_ci() if running else steps.run_e2e(pr.pull.head.branch)
+    return steps.ci_pending() if running else steps.run_e2e(pr.pull.head.branch)

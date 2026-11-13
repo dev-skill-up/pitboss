@@ -49,9 +49,12 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
         One line, RULING DUE, PAUSE, RULING UNREADABLE or RULING
         ESCALATES, or none for any other step.
     """
-    if pull.step.step is steps.Step.FIX_RULING:
-        return [_unreadable(pull)]
-    found = LINES.get(pull.step.step)
+    step = pull.step
+    if not isinstance(step, steps.Next):
+        return []
+    if step.step is steps.Step.FIX_RULING:
+        return [_unreadable(pull, step.comment)]
+    found = LINES.get(step.step)
     if found is None:
         return []
     marker, action = found
@@ -60,7 +63,7 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
 
 def _missed(pull: pulls.PullFacts) -> str:
     # keyword: all-findings (pitboss#169): the post-ruling escalation analysis
-    if pull.step.step is not steps.Step.PAUSE_FOR_OWNER:
+    if steps.step_of(pull.step) is not steps.Step.PAUSE_FOR_OWNER:
         return ""
     shown = pull.review_rounds
     return (
@@ -69,8 +72,8 @@ def _missed(pull: pulls.PullFacts) -> str:
     )
 
 
-def _unreadable(pull: pulls.PullFacts) -> str:
-    where = pull.step.comment or "its newest Opus ruling comment"
+def _unreadable(pull: pulls.PullFacts, comment: str) -> str:
+    where = comment or "its newest Opus ruling comment"
     return (
         f"{Marker.RULING_UNREADABLE.text} {pulls.reference(pull)}: {where} is not"
         " in the ruling form: the second line must be 'Ruling: <word>', <word>"

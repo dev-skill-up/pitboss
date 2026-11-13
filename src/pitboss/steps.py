@@ -6,7 +6,7 @@ gives one; ``describe`` says it in a line.
 
 import dataclasses
 import enum
-from typing import Mapping
+from typing import AbstractSet
 
 PAUSED_LABEL = "paused-owner"
 RULING_FIRST_LINE = "Opus ruling"
@@ -34,12 +34,9 @@ class Step(enum.Enum):
     """What happens next to a PR.
 
     Attributes:
-        WAIT_FOR_OWNER: the PR is paused; the owner decides.
         WORKER: a worker does a task.
         UNDRAFT: mark the PR ready (a draft approved at its head, pitboss#176).
         REGULAR_REVIEW: a new reviewer grades a stage.
-        WAIT_FOR_UNDRAFT: approved, but the PR cannot be undrafted yet.
-        WAIT_FOR_CI: CI on the head has not finished; nobody works meanwhile.
         OPUS_RULING: one Opus agent makes a binding ruling.
         PAUSE_FOR_OWNER: pause the PR and tell the owner the options.
         FIX_RULING: the newest Opus ruling has no readable ``Ruling:`` line.
@@ -48,18 +45,12 @@ class Step(enum.Enum):
         PLAN_CHECK: no comment records a clean ``pitboss plan-check`` (plan-check).
         SEND_BACK_PLAN_CHECK: the Plan check refused the Plan: send it back (#471).
         RUN_E2E: dispatch ``check.yml`` at the head of a draft whose diff touches e2e.
-        WAIT_FOR_SHARED_RED: the PR's red check is red on others (keyword: shared-red).
-        WAIT_FOR_BLOCKER: the PR waits for an open blocker (keyword: blocked-by).
-        WAIT_FOR_HOLD: a runner-pressure hold withholds the merge or dispatch.
         MERGE: the PR merges.
     """
 
-    WAIT_FOR_OWNER = enum.auto()
     WORKER = enum.auto()
     UNDRAFT = enum.auto()
     REGULAR_REVIEW = enum.auto()
-    WAIT_FOR_UNDRAFT = enum.auto()
-    WAIT_FOR_CI = enum.auto()
     OPUS_RULING = enum.auto()
     PAUSE_FOR_OWNER = enum.auto()
     FIX_RULING = enum.auto()
@@ -68,9 +59,6 @@ class Step(enum.Enum):
     PLAN_CHECK = enum.auto()
     SEND_BACK_PLAN_CHECK = enum.auto()
     RUN_E2E = enum.auto()
-    WAIT_FOR_SHARED_RED = enum.auto()
-    WAIT_FOR_BLOCKER = enum.auto()
-    WAIT_FOR_HOLD = enum.auto()
     MERGE = enum.auto()
 
 
@@ -168,9 +156,9 @@ class Next:
     conflict: str = ""
 
 
-# the steps at which a PR waits for a ruling or the owner (pitboss#148) or for an
-# edited approved Plan to be restored (pitboss#172): no conflict is resolved meanwhile
-WAITS = frozenset(
+# the steps at which a ruling or the owner is owed (pitboss#148) or an edited
+# approved Plan is to be restored (pitboss#172): no conflict is resolved meanwhile
+UNRESOLVED = frozenset(
     {
         Step.OPUS_RULING,
         Step.PAUSE_FOR_OWNER,
@@ -179,93 +167,7 @@ WAITS = frozenset(
     }
 )
 HELD = frozenset({Step.MERGE, Step.RUN_E2E})  # keyword: hold-scope, B20
-TEXTS: Mapping[Step, str] = {
-    Step.WAIT_FOR_OWNER: (
-        f"the PR is paused (label {PAUSED_LABEL}); nobody works on it until the"
-        " owner decides"
-    ),
-    Step.UNDRAFT: "mark the PR ready; the next step is the CI gate on the head",
-    Step.WAIT_FOR_UNDRAFT: (
-        "the plan is approved but the PR cannot be undrafted yet (runner pressure"
-        " or the quiet period); wait for the window"
-    ),
-    Step.WAIT_FOR_CI: "CI on the current head has not finished: nobody acts meanwhile",
-    Step.OPUS_RULING: (
-        "start an Opus agent whose only brief is to make a ruling, and record it"
-        f" as a PR comment whose first line is {RULING_FIRST_LINE!r}"
-    ),
-    Step.PAUSE_FOR_OWNER: (
-        f"label the PR and its ticket {PAUSED_LABEL}, comment what the rounds"
-        " disagreed about, the options and a `How we got here` section, and report"
-        " the number and the options to the owner on a card that has the section"
-        f" and, on the card, {OWNER_ARTIFACT}"
-    ),
-    Step.FIX_RULING: (
-        "the newest Opus ruling has no readable `Ruling:` second line; an agent"
-        " edits or reposts the comment; no Opus agent is asked for"
-    ),
-    Step.RULING_ESCALATES: (
-        "the Opus ruling escalated to the owner: label the PR and its ticket"
-        f" {PAUSED_LABEL}, comment the options and a `How we got here` section,"
-        " and report the number and the options to the owner on a card that has"
-        f" the section and, on the card, {OWNER_ARTIFACT}"
-    ),
-    Step.PLAN_EDITED: (
-        "the Plan was edited after its approval: restore the approved Plan, or"
-        " ask an Opus agent for a ruling that says `revise the plan`; no review"
-        " or fix is offered meanwhile"
-    ),
-    Step.PLAN_CHECK: (
-        "post the Plan check: run `uvx pitboss plan-check <body file>` on the PR"
-        " body and post its whole"
-        f" output as a PR comment (its first line is {PLAN_CHECK_FIRST_LINE!r});"
-        " the Plan review is offered once it says `Plan check: ok` for this Plan"
-    ),
-    Step.SEND_BACK_PLAN_CHECK: (
-        "the Plan check is refused ({comment}): the worker that pushed the PR"
-        " sends back the posted check; this is no fix round: {findings}"
-    ),
-    Step.RUN_E2E: f"{RUN_E2E_MARKER}: dispatch check.yml on {{branch}}",
-    Step.WAIT_FOR_BLOCKER: "blocked by {comment}: nobody acts until it merges",
-    Step.WAIT_FOR_SHARED_RED: "shared red (SHARED RED line): wait for its ticket",
-    Step.WAIT_FOR_HOLD: "HOLD: a runner-pressure hold withholds this merge or dispatch",
-    Step.MERGE: "CI is green and there is no conflict: arm auto-merge or merge",
-}
-
-
-# keyword: fixed-on-base (pitboss#314): the words of a red CI the base has answered
-ENQUEUE = "enqueue it (the merge queue tests it on main)"
-REQUEST_REVIEW = "request the review"
 REFRESHED = frozenset({Step.REGULAR_REVIEW, Step.UNDRAFT, Step.MERGE})
-
-
-def describe(step: Next) -> str:
-    """Say what to do for a step, in one line.
-
-    Args:
-        step: the step.
-
-    Returns:
-        Its task, its stage, or the text of the step.
-    """
-    if step.step is Step.MERGE and step.on_base:
-        return ENQUEUE
-    if step.task is not None:
-        return step.task.value
-    if step.stage is not None and step.on_base:
-        return f"{REQUEST_REVIEW}: {step.stage.value}"
-    if step.stage is not None:
-        return step.stage.value
-    return TEXTS[step.step].format_map(dataclasses.asdict(step))
-
-
-def wait_for_owner() -> Next:
-    """The step of a PR paused for the owner.
-
-    Returns:
-        The step.
-    """
-    return Next(step=Step.WAIT_FOR_OWNER)
 
 
 def worker(task: Task, comment: str = "") -> Next:
@@ -300,24 +202,6 @@ def regular_review(stage: Stage) -> Next:
         The step.
     """
     return Next(step=Step.REGULAR_REVIEW, stage=stage)
-
-
-def wait_for_undraft() -> Next:
-    """The step of a draft with an approved plan that cannot be undrafted yet.
-
-    Returns:
-        The step.
-    """
-    return Next(step=Step.WAIT_FOR_UNDRAFT)
-
-
-def wait_for_ci() -> Next:
-    """The step of a head whose CI has not finished.
-
-    Returns:
-        The step.
-    """
-    return Next(step=Step.WAIT_FOR_CI)
 
 
 def opus_ruling() -> Next:
@@ -396,3 +280,98 @@ def merge() -> Next:
         The step.
     """
     return Next(step=Step.MERGE)
+
+
+class Pending(enum.Enum):
+    """Why nobody acts on a PR now; it is in no answer and is never printed.
+
+    Attributes:
+        OWNER: the PR is paused; the owner decides.
+        UNDRAFT: approved, but the PR cannot be undrafted yet.
+        CI: CI on the head has not finished.
+        SHARED_RED: the PR's red check is red on others (keyword: shared-red).
+        BLOCKER: the PR names an open blocker (keyword: blocked-by).
+        HOLD: a runner-pressure hold withholds the merge or dispatch.
+    """
+
+    OWNER = enum.auto()
+    UNDRAFT = enum.auto()
+    CI = enum.auto()
+    SHARED_RED = enum.auto()
+    BLOCKER = enum.auto()
+    HOLD = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Idle:
+    """Nobody acts on the PR now (keyword: one-path: it is omitted, not said).
+
+    Attributes:
+        pending: why, for the settlers that read it.
+        names: the open blockers (a BLOCKER), else empty.
+    """
+
+    pending: Pending
+    names: str = ""
+
+
+Move = Next | Idle
+
+
+def ci_pending() -> Idle:
+    """A head whose CI has not finished: nobody works or reviews meanwhile.
+
+    Returns:
+        The move.
+    """
+    return Idle(pending=Pending.CI)
+
+
+def step_is(move: Move, wanted: AbstractSet[Step]) -> bool:
+    """Whether a move is a step of a set.
+
+    Args:
+        move: the move.
+        wanted: the steps.
+
+    Returns:
+        True for a step in the set; False for any other step and for an idle PR.
+    """
+    return isinstance(move, Next) and move.step in wanted
+
+
+def pending_is(move: Move, wanted: Pending) -> bool:
+    """Whether nobody acts on a PR for one reason.
+
+    Args:
+        move: the move.
+        wanted: the reason.
+
+    Returns:
+        True when the PR is idle for that reason.
+    """
+    return isinstance(move, Idle) and move.pending is wanted
+
+
+def task_of(move: Move) -> Task | None:
+    """The task of a worker's step.
+
+    Args:
+        move: the move.
+
+    Returns:
+        The task, or None for any other step and for an idle PR.
+    """
+    return move.task if isinstance(move, Next) else None
+
+
+def step_of(move: Move) -> Step | None:
+    """The step of a move.
+
+    Args:
+        move: the move.
+
+    Returns:
+        The step, or None for an idle PR.
+    """
+    return move.step if isinstance(move, Next) else None

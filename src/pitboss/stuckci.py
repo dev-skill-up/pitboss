@@ -128,5 +128,5 @@ def lines(
     Returns:
         The lines; a PR whose runs cannot be read says nothing.
     """
-    waiting = [each for each in facts if steps.Step.WAIT_FOR_CI is each.step.step]
+    waiting = [each for each in facts if steps.pending_is(each.step, steps.Pending.CI)]
     return [said for each in waiting for said in alerts(github, each, now)]

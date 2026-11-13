@@ -97,7 +97,7 @@ def text(shared: Shared) -> str:
     )
 
 
-def stepped(pull: pulls.PullFacts, shared: Sequence[Shared]) -> steps.Next | None:
+def stepped(pull: pulls.PullFacts, shared: Sequence[Shared]) -> steps.Move | None:
     """The step a PR has instead of its own fix, while a shared red is open.
 
     Args:
@@ -115,7 +115,7 @@ def stepped(pull: pulls.PullFacts, shared: Sequence[Shared]) -> steps.Next | Non
     first = [each for each in groups_of[0].holders if each != MAIN][0]
     if first == mine:
         return steps.worker(steps.Task.SHARED_RED)
-    return steps.Next(step=steps.Step.WAIT_FOR_SHARED_RED)
+    return steps.Idle(pending=steps.Pending.SHARED_RED)
 
 
 def _seen(
@@ -137,7 +137,7 @@ def _seen(
 
 
 def _at_fix(pull: pulls.PullFacts) -> bool:
-    return pull.step.task is steps.Task.FIX_CI
+    return steps.task_of(pull.step) is steps.Task.FIX_CI
 
 
 def _of_prs(github: ghapi.GitHub, red: Sequence[pulls.PullFacts]) -> Sequence[Seen]:

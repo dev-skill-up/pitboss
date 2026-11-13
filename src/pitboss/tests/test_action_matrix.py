@@ -13,7 +13,7 @@ from typing import Mapping
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_item, is_
 
-from .. import actions, ruleconflicts, steps
+from .. import actions, ruleconflicts, steps, stepwords
 from . import events, model, test_properties
 from .says import says
 
@@ -188,6 +188,6 @@ class TestActionMatrix(unittest.TestCase):
     def test_c16_action_matrix_every_reachable_state_prints_a_next_step(self) -> None:
         """No walked state has an empty step or an UNKNOWN one."""
         for each, path in test_properties.walk():
-            said = steps.describe(model.step_of(each))
+            said = stepwords.describe(model.step_of(each))
             assert_that(said.strip() != "", is_(True), str(path))
             assert_that("UNKNOWN" in said, is_(False), str(path))

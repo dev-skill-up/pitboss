@@ -6,7 +6,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import roundline, rulingsummary, shapes, steps
+from .. import roundline, rulingsummary, shapes, steps, stepwords
 from . import fakes, world
 from .test_evidence_rules import read, words
 
@@ -273,8 +273,8 @@ class TestEscalationCard(unittest.TestCase):
         """Each escalation step and its sweep line carry the sentence."""
         assert_that(steps.OWNER_ARTIFACT, equal_to(ARTIFACT))
         shown = [
-            steps.TEXTS[steps.Step.PAUSE_FOR_OWNER],
-            steps.TEXTS[steps.Step.RULING_ESCALATES],
+            stepwords.TEXTS[steps.Step.PAUSE_FOR_OWNER],
+            stepwords.TEXTS[steps.Step.RULING_ESCALATES],
             roundline.LINES[steps.Step.PAUSE_FOR_OWNER][1],
             roundline.LINES[steps.Step.RULING_ESCALATES][1],
         ]

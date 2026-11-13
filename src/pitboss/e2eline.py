@@ -11,7 +11,7 @@ step ``slots next`` prints for the PR, in the same words, and it replaces
 
 from typing import Sequence
 
-from . import pulls, steps
+from . import pulls, steps, stepwords
 
 
 def lines(pull: pulls.PullFacts) -> Sequence[str]:
@@ -23,10 +23,11 @@ def lines(pull: pulls.PullFacts) -> Sequence[str]:
     Returns:
         The line, none when the PR's step is another.
     """
-    if pull.step.step is not steps.Step.RUN_E2E:
+    step = pull.step
+    if not isinstance(step, steps.Next) or step.step is not steps.Step.RUN_E2E:
         return []
     return [
-        f"{steps.describe(pull.step)} ({pulls.reference(pull)}); a draft's CI skips"
+        f"{stepwords.describe(step)} ({pulls.reference(pull)}); a draft's CI skips"
         " e2e, so no review approves it until the dispatched run of check.yml"
         " at its head has completed"
     ]

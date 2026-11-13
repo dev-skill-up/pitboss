@@ -17,7 +17,7 @@ from typing import Callable, Iterator, Protocol, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import expansion, plandigest, steps
+from .. import expansion, plandigest, steps, stepwords
 from . import events, model, propertiesmore as more
 
 DEPTH = 5
@@ -94,7 +94,7 @@ def p1_a_step(at: model.Model, step: steps.Next, allowed: Allowed) -> str:
     """
     waits = step.step is steps.Step.WAIT_FOR_CI and at.ci != "running"
     nothing = (
-        not steps.describe(step).strip() or step.step is steps.Step.WAIT_FOR_UNDRAFT
+        not stepwords.describe(step).strip() or step.step is steps.Step.WAIT_FOR_UNDRAFT
     )
     return "P1: no step names an action or an owner" if waits or nothing else ""
 

@@ -172,7 +172,7 @@ def _wait_lines(pull: pulls.PullFacts) -> Sequence[str]:
     # keyword: draft-review (pitboss#156): a draft at a round has its own line
     # (draftline), not a wait for a CI it never runs
     # the RUN E2E step has its own line too (keyword: run-e2e, pitboss#199)
-    at_round = pull.step.step in (
+    at_round = steps.step_of(pull.step) in (
         steps.Step.REGULAR_REVIEW,
         steps.Step.WORKER,
         steps.Step.RUN_E2E,

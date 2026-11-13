@@ -12,7 +12,7 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, dispatchruns, flow, markers, pullfiles, shapes, steps
+from .. import brief, dispatchruns, flow, markers, pullfiles, shapes, steps, stepwords
 from . import fakes, quietworld, test_flow, world
 from .briefmake import make
 from .test_commands import sweep
@@ -217,7 +217,7 @@ class TestTheFlow(unittest.TestCase):
             steps.run_e2e(branch),
         ]
         assert_that(found, equal_to(wanted))
-        assert_that(steps.describe(wanted[0]), contains_string(f"on {branch}"))
+        assert_that(stepwords.describe(wanted[0]), contains_string(f"on {branch}"))
 
 
 class TestTheBrief(unittest.TestCase):

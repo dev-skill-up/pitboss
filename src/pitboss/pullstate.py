@@ -13,6 +13,7 @@ when a commit status of its head failed, with the context, the link, and for a
 from typing import Iterable, Sequence
 
 from . import (
+    stepwords,
     blockers,
     config,
     contradictions,
@@ -44,25 +45,23 @@ PIN_CAUSE = (
 )
 
 
-def next_step(pull: pulls.PullFacts) -> str:
+def next_step(pull: pulls.PullFacts, step: steps.Next) -> str:
     """The next step of a PR, in words.
 
     Args:
         pull: the PR.
+        step: its step (an idle PR has no line: keyword: one-path).
 
     Returns:
-        What the list says for a PR offered for a round, ``waiting for CI at
-        this head`` for a head whose CI has not finished, else the step's text
+        What the list says for a PR offered for a round, else the step's text
         (a refused Plan check quotes its findings).
     """
     category = work.category_of(pull)
-    if category in work.REVIEWS and pull.step.on_base:
-        return steps.REQUEST_REVIEW  # keyword: fixed-on-base (pitboss#314)
+    if category in work.REVIEWS and step.on_base:
+        return stepwords.REQUEST_REVIEW  # keyword: fixed-on-base (pitboss#314)
     if category is not None:
-        return work.CATEGORY_WORDS[category] + pull.step.reason
-    if pull.step.step is steps.Step.WAIT_FOR_CI:
-        return "waiting for CI at this head"
-    return steps.describe(pull.step)
+        return work.CATEGORY_WORDS[category] + step.reason
+    return stepwords.describe(step)
 
 
 def body_findings(settings: config.Config, pull: pulls.PullFacts) -> Sequence[str]:
@@ -177,8 +176,9 @@ def lines(
         draft = "draft " if pull.pull.draft else ""
         if pull.pull.draft and pull.repo.slug in settings.project.no_drafts:
             draft = f"draft ({exempt.OPEN_READY}) "  # keyword: pitboss-exempt
-        yield (
-            f"{Marker.PR_STATE.text} {pulls.reference(pull)}: {draft}next step:"
-            f" {next_step(pull)}"
-        )
+        if isinstance(pull.step, steps.Next):  # keyword: one-path: idle is omitted
+            yield (
+                f"{Marker.PR_STATE.text} {pulls.reference(pull)}: {draft}next step:"
+                f" {next_step(pull, pull.step)}"
+            )
         yield from blocked_lines(github, settings, pull, facts)
