@@ -67,19 +67,6 @@ def get_object(github: GitHub, path: str) -> Mapping[str, object]:
     return found if isinstance(found, dict) else {}
 
 
-def run_json(github: GitHub, words: Sequence[str]) -> object:
-    """Run a ``gh`` read and parse its JSON.
-
-    Args:
-        github: the API.
-        words: the command.
-
-    Returns:
-        The parsed output.
-    """
-    return json.loads(github.run(words).stdout)
-
-
 def branch_pulls(
     github: GitHub, slug: str, branch: str
 ) -> Sequence[Mapping[str, object]]:

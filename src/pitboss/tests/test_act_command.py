@@ -352,3 +352,17 @@ class TestWiring(unittest.TestCase):
         assert_that(len(calls), equal_to(12))
         with self.assertRaises(subprocess.CalledProcessError):
             found("o/none")
+
+    def test_c17_the_p90_reads_a_second_page_when_the_first_is_full(self) -> None:
+        """A full page with fewer merged PRs than wanted is followed by the next."""
+        first = [{"number": n, "merged_at": "x" if n < 4 else None} for n in range(100)]
+        second = [{"number": 200, "merged_at": "x"}]
+        answers = {
+            CLOSED.format(repo="o/r"): json.dumps(first),
+            CLOSED.format(repo="o/r").replace("&page=1", "&page=2"): json.dumps(second),
+        }
+        for number in (0, 1, 2, 3, 200):
+            answers[f"repos/o/r/pulls/{number}"] = json.dumps({"additions": number})
+        calls, github = _github(answers)
+        assert_that(gateread.limits(github)("o/r"), equal_to(200))
+        assert_that(len(calls), equal_to(7))

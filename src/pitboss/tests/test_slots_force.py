@@ -15,6 +15,7 @@ from .itemworld import one, with_pull_issues
 from .says import says
 from .rankworld import mentioning
 from .test_case_post import BODY, CASE, case_world, post, started
+from .fastvariants import named
 from .fastworld import NINTH, fast_world, listed
 
 STARTS = "WORKER: owner/project#9: write the code"
@@ -76,3 +77,16 @@ class TestQuiesce(unittest.TestCase):
         done = one(here, NINTH)
         same(done.code, 0)
         says(done.out, STARTS)
+
+
+class TestForce(unittest.TestCase):
+    """``--force`` decides a ticket an open PR keeps by its own record."""
+
+    def test_force_briefs_a_ticket_that_a_pr_keeps(self) -> None:
+        """Plain, the PR keeps ticket 9 and nothing starts it; forced, it is briefed."""
+        here = with_pull_issues(named())
+        plain, forced = (one(here, NINTH, *more) for more in ((), ("--force",)))
+        same(
+            (plain.code, forced.code, STARTS in plain.out, STARTS in forced.out),
+            (1, 0, False, True),
+        )

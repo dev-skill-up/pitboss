@@ -104,6 +104,16 @@ class TestTicketBranch(unittest.TestCase):
         assert_that(ticketbranch.refusal("444", ""), contains_string("(detached HEAD)"))
         assert_that(ticketbranch.refusal("x", "main"), contains_string("ticket x"))
 
+    def test_b15_a_ticket_with_an_open_pr_is_worked_on_its_head_branch(self) -> None:
+        """The PR's head branch is the one; another, or a detached head, is refused."""
+        heads = ["claude/thread-1", "claude/thread-2"]
+        same(ticketbranch.refusal("owner/pitboss#444", "claude/thread-2", heads), "")
+        other = ticketbranch.refusal("owner/pitboss#444", "worker/444", heads)
+        assert_that(other, contains_string("worker/444"))
+        assert_that(other, contains_string("claude/thread-1, claude/thread-2"))
+        detached = ticketbranch.refusal("owner/pitboss#444", "", heads)
+        assert_that(detached, contains_string("(detached HEAD)"))
+
     def test_b15_the_ticket_is_the_option_or_the_environment(self) -> None:
         """``--ticket`` first, then ``$PITBOSS_TICKET``, else none."""
         env = {"PITBOSS_TICKET": "7"}
