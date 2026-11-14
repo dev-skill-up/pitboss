@@ -20,13 +20,13 @@ WORKER_SENTENCE = (
     " removed line with characters deleted and none inserted or reordered is a"
     " removal, so cut the span and keep the rest; a blank line and inserted markup"
     " (a bold title) are added lines; `pitboss plan-check` refuses a"
-    " diff that adds any other line (keyword: markup-lines, pitboss#343, #373)."
+    " diff that adds any other line."
 )
 REVIEW_SENTENCE = (
     "Doc lines: a diff that adds a line to a .md or .rst file is changes needed,"
     " whatever the ticket says, except a changed line that is its removed line with"
     " characters deleted and none inserted or reordered, which is a removal;"
-    " lines are only removed (keyword: markup-lines, pitboss#343, #373)."
+    " lines are only removed."
 )
 
 

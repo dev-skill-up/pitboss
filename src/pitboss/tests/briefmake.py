@@ -75,6 +75,8 @@ COMMITS = brief.Heads(
     findings="https://example.org/c/1",
     body_digest=BODY_DIGEST,
     plan_digest=PLAN_DIGEST,
+    branch="fix-branch",
+    plan_approved=True,
 )
 RULES = brief.Rules(config="proj", form=FORM, project=PROJECT)
 PLAN_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN)

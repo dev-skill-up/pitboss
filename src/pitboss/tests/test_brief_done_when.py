@@ -19,15 +19,10 @@ ONE_PR = (
 )
 DONE_WHEN = (
     "Done-when: read the Done-when in the body of the ticket o/r#7; only the body"
-    " has it, and a comment adds nothing to it (owner, 2026-11-08T23:06Z: 'NOT"
-    " ADDING STUFF IN COMMENTS, ONLY BY EDITING THE BODY, AND ONLY BEFORE A WORKER"
-    " HAS STARTED'). Its Done-when, as written, is the standard: you copy each of"
-    " its bullets word for word into a numbered Plan row of its own, with the"
-    " exact evidence command (a measurement it names is the one the row runs,"
-    " never a substitute), and nobody narrows it or offers an alternative to it:"
-    f" {RULE} (owner, 2026-11-08T23:10Z: 'NO HAND BACK. FINISH PLAN AS WRITTEN OR"
-    " *DEMONSTRATE* IT'S IMPOSSIBLE, AND THERE BETTER BE A MATHEMATICAL THEOREM"
-    " BEHIND IT.')."
+    " has it, and a comment adds nothing to it. Copy each of its bullets word for"
+    " word into a numbered Plan row of its own, with the exact evidence command"
+    " (a measurement it names is the one the row runs, never a substitute); never"
+    f" narrow it or offer an alternative: {RULE}."
 )
 DIGEST_LINE = (
     f"Done-when digest: the PR body has the line `Done-when digest: {DIGEST}`, the"

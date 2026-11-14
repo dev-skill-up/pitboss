@@ -20,8 +20,7 @@ GIBIBYTE = 2**30
 TOTAL = 100 * GIBIBYTE
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"
-    " right after each run; a run that needs more than 1 GiB is left to CI"
-    " (pitboss#288)."
+    " right after each run; a run that needs more than 1 GiB is left to CI."
 )
 NO_LOOP = (
     "Repeated runs: a Plan whose evidence is a repeated local run (a loop of N"

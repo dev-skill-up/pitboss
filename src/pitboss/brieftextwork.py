@@ -76,8 +76,7 @@ DEVIATIONS = (
 )
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"
-    " right after each run; a run that needs more than 1 GiB is left to CI"
-    "."
+    " right after each run; a run that needs more than 1 GiB is left to CI."
 )
 DEPENDENCY = (
     "Dependency: a ticket that depends on another open ticket is not impossible in"

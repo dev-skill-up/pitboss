@@ -37,6 +37,8 @@ def branch_of(name: str) -> argparse.Namespace:
     """
 
     def run(command: Sequence[str]) -> fakes.Output:
+        if list(command[:2]) == ["gh", "api"]:
+            return fakes.Output(stdout="[]")  # no open PR works on the ticket
         assert_that(list(command), equal_to(["git", "branch", "--show-current"]))
         return fakes.Output(stdout=name + "\n")
 
