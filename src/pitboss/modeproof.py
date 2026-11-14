@@ -21,9 +21,29 @@ from typing import AbstractSet, Iterator, Mapping, Protocol, Sequence, runtime_c
 
 from gather.api import Wrapper, unique
 
-from . import actverbs, cli_parser, config, mode, proofsource
+from . import actverbs, cli_parser, config, mode, modecommand, proofsource
 
 ITEM = "owner/project#1"
+ENUMERATED = ("Command", "SlotsCommand")  # modes whose members are each a mode
+
+
+def constructor(chosen: object) -> str:
+    """The name of a mode's constructor: its class, or its member of an enumeration.
+
+    Args:
+        chosen: the mode.
+
+    Returns:
+        ``Next``, ..., ``Command.SYNC``, ``SlotsCommand.ADD``, ...
+    """
+    return str(chosen).split("(", 1)[0]
+
+
+# every constructor of ``Mode``: each class, and each member of the enumerations
+CONSTRUCTORS: Sequence[str] = (
+    *(each for each in mode.NAMES if each not in ENUMERATED),
+    *(constructor(each) for each in modecommand.UNASKED.values()),
+)
 PROJECT = config.make_repo("owner", "project")
 # the values of an argument argparse gives no choices for
 VALUES: Mapping[str, Sequence[str]] = {"verb": [*actverbs.VERBS, "dispatch-next"]}
@@ -167,7 +187,7 @@ def _mapped(
             continue
         if not isinstance(given, kinds):
             found.append(f"P4: {label} is {type(given).__name__}, no mode")
-        seen.add(type(given).__name__)
+        seen.add(constructor(given))
     return found, seen
 
 
@@ -206,7 +226,7 @@ def unlisted(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[st
             base = given
             continue
         name = label.split()[0]
-        asks = base is not None and type(base) is not mode.Unasked
+        asks = base is not None and constructor(base).split(".")[0] not in ENUMERATED
         if asks and given == base and dest not in ASKS_NOTHING.get(name, ()):
             found[f"P4: {name} {dest} changes no mode, not in ASKS_NOTHING"] = None
     return list(found)
@@ -226,17 +246,25 @@ def images(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]
     found, seen = _mapped(mode_of, declared)
     return [
         *found,
-        *(f"P4: no command line is {each}" for each in mode.NAMES if each not in seen),
+        *(
+            f"P4: no command line is {each}"
+            for each in CONSTRUCTORS
+            if each not in seen
+        ),
         *unlisted(mode_of, declared),
     ]
 
 
 def _names_mode(pattern: ast.pattern) -> bool:
-    # a constructor of ``Mode``, as ``mode.X`` elsewhere or ``X`` in ``mode`` itself
+    # a constructor of ``Mode``: ``mode.X()`` (``X()`` in ``mode`` itself), the
+    # class of an enumeration of modes, or one of its members
+    if isinstance(pattern, ast.MatchValue):
+        parts = proofsource.dotted(pattern.value).split(".")
+        return len(parts) > 1 and parts[-2] in ENUMERATED
     if not isinstance(pattern, ast.MatchClass):
         return False
     name = proofsource.dotted(pattern.cls)
-    return name.removeprefix("mode.") in mode.NAMES and name.count(".") <= 1
+    return name.split(".")[-1] in mode.NAMES and name.count(".") <= 1
 
 
 def _is_mode_match(node: ast.Match) -> bool:
@@ -266,14 +294,55 @@ def total_matches(package: proofsource.Package) -> Sequence[str]:
     ]
 
 
-def _mode_test(node: ast.Call) -> bool:
-    # ``isinstance(x, mode.C)`` or ``isinstance(x, (mode.C, ...))``
+def _leaves(node: ast.expr) -> Iterator[str]:
+    # the names a ``A | B | ...`` expression joins
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+        yield from _leaves(node.left)
+        yield from _leaves(node.right)
+    else:
+        yield proofsource.dotted(node).split(".")[-1]
+
+
+def aliases(package: proofsource.Package) -> AbstractSet[str]:
+    """The names a module of the package gives to a union of modes.
+
+    Args:
+        package: the package.
+
+    Returns:
+        Each name assigned at the top of a module to ``A | B | ...`` whose names
+        are all constructors of ``Mode`` or such names (``Listing``, ``SlotsMode``).
+    """
+    joined = {
+        target.id: set(_leaves(each.value))
+        for source in package.sources.values()
+        for each in proofsource.statements(source.syntax)
+        if isinstance(each, ast.Assign) and isinstance(each.value, ast.BinOp)
+        for target in each.targets
+        if isinstance(target, ast.Name)
+    }
+    found: set[str] = set()
+    while grown := {
+        name
+        for name, leaves in joined.items()
+        if name not in found and leaves <= {*mode.NAMES, *found}
+    }:
+        found |= grown
+    return found
+
+
+def _mode_test(node: ast.Call, unions: AbstractSet[str]) -> bool:
+    # ``isinstance(x, mode.C)``, of a tuple of them, or of a union of modes
     if proofsource.dotted(node.func) != "isinstance":
         return False
     kinds = node.args[1:2]
     if kinds and isinstance(kinds[0], ast.Tuple):
         kinds = kinds[0].elts
-    return any(proofsource.dotted(each).startswith("mode.") for each in kinds)
+    names = [proofsource.dotted(each) for each in kinds]
+    return any(
+        each.startswith(("mode.", "modecommand.")) or each.split(".")[-1] in unions
+        for each in names
+    )
 
 
 def no_tests(package: proofsource.Package) -> Sequence[str]:
@@ -283,12 +352,13 @@ def no_tests(package: proofsource.Package) -> Sequence[str]:
         package: the package.
 
     Returns:
-        Each ``isinstance`` of a mode's constructor.
+        Each ``isinstance`` of a mode's constructor or of a union of modes.
     """
+    unions = aliases(package)
     return [
         f"P4: {short}:{node.lineno} tests a mode with isinstance, not a match"
         for short, node in proofsource.nodes(package)
-        if isinstance(node, ast.Call) and _mode_test(node)
+        if isinstance(node, ast.Call) and _mode_test(node, unions)
     ]
 
 

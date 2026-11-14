@@ -4,12 +4,12 @@ import argparse
 import json
 import subprocess
 import unittest
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
 from .. import actfacts, config, ghapi, mode, modecommand, modeproof, proofsource
-from .. import readextent, world
+from .. import modequestion, readextent, world
 from ..running import Output
 from .test_decide import GROUNDS
 
@@ -88,7 +88,7 @@ class TestForms(unittest.TestCase):
         plain = parsed("push", mechanical=False, git_arguments=[])
         want = (
             mode.MechanicalPush(arguments=["origin", "b"]),
-            mode.Unasked(command=modecommand.Command.PUSH),
+            modecommand.Command.PUSH,
         )
         assert_that((pushed, plain), equal_to(want))
 
@@ -103,19 +103,19 @@ class TestPushed(unittest.TestCase):
             for number, branch in ((1, "here"), (2, "there"))
         }
         github = on_branch("here", "https://github.com/o/r.git", opened)
-        extent = readextent.pushing(["origin", "HEAD", "there", "else"])
+        extent = modequestion.pushing(["origin", "HEAD", "there", "else"])
         found = readextent.pushed(github, extent)
         assert_that(found, equal_to(["o/r#1", "o/r#2"]))
 
     def test_6_1_a_push_with_no_remote_names_nothing(self) -> None:
         """A checkout whose remote git cannot name reads no pull request."""
         github = on_branch("here", "", {})
-        found = readextent.pushed(github, readextent.pushing(["origin", "HEAD"]))
+        found = readextent.pushed(github, modequestion.pushing(["origin", "HEAD"]))
         assert_that(found, equal_to([]))
 
     def test_6_1_no_push_names_nothing(self) -> None:
         """An extent that names items reads no branch."""
-        found = readextent.pushed(on_branch("here", "", {}), readextent.naming([]))
+        found = readextent.pushed(on_branch("here", "", {}), modequestion.naming([]))
         assert_that(found, equal_to([]))
 
     def test_6_1_the_named_pull_requests_of_a_world(self) -> None:
@@ -125,18 +125,45 @@ class TestPushed(unittest.TestCase):
         assert_that(world.named_pulls(made), equal_to([]))
 
 
+def _counted(check: Callable[[proofsource.Package], Sequence[str]], text: str) -> int:
+    # the findings of a check of P4 on one seeded module
+    return len(check(proofsource.of_texts({"src/pitboss/seed.py": text})))
+
+
 class TestNoTests(unittest.TestCase):
     """Plan 6.1 and P4: every dispatch on a mode is a match, never isinstance."""
 
-    def test_p4_an_isinstance_of_a_mode_is_a_finding(self) -> None:
-        """A test of one constructor or of a tuple of them is found; others are not."""
+    def test_p4_an_isinstance_of_a_mode_or_a_union_of_modes_is_a_finding(
+        self,
+    ) -> None:
+        """A test of a constructor, a tuple of them, or a name for a union of modes."""
         text = (
-            "from . import mode\n"
+            "from . import mode, modecommand\n"
+            "Both = mode.Next | mode.Sweep\n"
+            "More = Both | modecommand.Command\n"
+            "Other = int | str\n"
             "a = isinstance(x, mode.Next)\n"
             "b = isinstance(x, (int, mode.Sweep))\n"
             "c = isinstance(x, int)\n"
             "d = len(x)\n"
+            "e = isinstance(x, More)\n"
+            "f = isinstance(x, other.Both)\n"
+            "g = isinstance(x, modecommand.SlotsCommand)\n"
+            "h = isinstance(x, Other)\n"
         )
-        package = proofsource.of_texts({"src/pitboss/seed.py": text})
-        found = modeproof.no_tests(package)
-        assert_that(len(found), equal_to(2))
+        assert_that(_counted(modeproof.no_tests, text), equal_to(5))
+
+    def test_p4_a_match_on_a_member_of_an_enumerated_mode_is_a_mode_match(
+        self,
+    ) -> None:
+        """A match naming ``SlotsCommand.ADD`` without ``assert_never`` is found."""
+        text = (
+            "from . import modecommand\n"
+            "match x:\n"
+            "    case modecommand.SlotsCommand.ADD:\n"
+            "        pass\n"
+            "match y:\n"
+            "    case 3:\n"
+            "        pass\n"
+        )
+        assert_that(_counted(modeproof.total_matches, text), equal_to(1))

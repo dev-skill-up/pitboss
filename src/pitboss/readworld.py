@@ -40,6 +40,7 @@ from . import (
     placing,
     pullrecords,
     pullsearch,
+    modequestion,
     readextent,
     ticketdata,
     workorder,
@@ -341,7 +342,7 @@ def _named(walking: _Walking, references: Sequence[str]) -> Sequence[world.Recor
     return list(_each(walking, list(filter(None, found))).values())
 
 
-def read_world(reading: Reading, extent: readextent.Extent) -> world.World:
+def read_world(reading: Reading, extent: modequestion.Extent) -> world.World:
     """Read what a command decides from: once, and no more than the answer needs.
 
     Args:
@@ -371,7 +372,7 @@ def read_world(reading: Reading, extent: readextent.Extent) -> world.World:
     )
 
 
-def _asked_for(reading: Reading, extent: readextent.Extent) -> Sequence[str]:
+def _asked_for(reading: Reading, extent: modequestion.Extent) -> Sequence[str]:
     # the items read whatever the walk reached: those the command names, the
     # pull request of the branch it pushes, the owner's priorities
     named = [

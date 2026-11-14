@@ -27,8 +27,9 @@ from .totaljson import JsonMap, members, text
 from .textparts import mentions_any
 
 GRADES = ("approved", "changes needed")
+# the keys of a review and of act's records; a Verdict line is totalreview's reading
 GRADE_KEY = re.compile(
-    r"^\W*(verdict|reviewed|plan|execution|body|ticket|pitboss-act)\b\W*:?", re.I
+    r"^\W*(reviewed|plan|execution|body|ticket|pitboss-act)\b\W*:?", re.I
 )
 SCRATCH = ("bats-lang/relock-scratch",)
 
@@ -71,7 +72,14 @@ def keyed(words: str) -> str:
     Returns:
         That line; "" when no line does.
     """
-    return next((line for line in words.splitlines() if GRADE_KEY.match(line)), "")
+    return next(
+        (
+            line
+            for line in words.splitlines()
+            if GRADE_KEY.match(line) or totalreview.is_attempt(line)
+        ),
+        "",
+    )
 
 
 def _plain(words: str) -> None:

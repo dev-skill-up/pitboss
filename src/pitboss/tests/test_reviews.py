@@ -133,6 +133,13 @@ class TestNewest(unittest.TestCase):
         assert_that(found, equal_to(NEWEST))
         assert_that(reviews.newest(empty, REVIEW, "o/x"), equal_to(None))
 
+    def test_6_1_a_newer_attempt_that_is_no_review_decides_alone(self) -> None:
+        """Plan 6.1: the flow reads "reviewed" as the gate does: the newest attempt."""
+        approval = _comment(_body("approved"), "04:04", "MEMBER")
+        attempt = _comment("Verdict: approved, mostly\n", "04:05", "MEMBER")
+        sources = reviews.Sources(comments=[approval, attempt], reviews=[])
+        assert_that(reviews.newest(sources, TWO, "o/x"), equal_to(None))
+
 
 ONE = "Independent review of head {sha}: {verdict}"
 ONE_FORM = form("Independent review of head {sha}: {verdict}")

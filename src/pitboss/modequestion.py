@@ -5,6 +5,53 @@
 
 import dataclasses
 import enum
+from typing import Sequence
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Extent:
+    """How much a command asks to be read.
+
+    Attributes:
+        named: the items examined whatever the walk reaches (the item the
+            command names).
+        every_pull: whether every open pull request is examined (the sweep).
+        pushing: whether the open pull requests of the branches a ``git push``
+            pushes are named too (``push --mechanical``, keyword: mechanical-fix).
+        pushed: the arguments of that push, which name its branches.
+    """
+
+    named: Sequence[str]
+    every_pull: bool
+    pushing: bool
+    pushed: Sequence[str]
+
+
+def naming(items: Sequence[str]) -> Extent:
+    """The extent of a command that names items.
+
+    Args:
+        items: the items, ``owner/name#number`` each (none for the walk alone).
+
+    Returns:
+        The extent.
+    """
+    return Extent(named=items, every_pull=False, pushing=False, pushed=())
+
+
+EVERY_PULL = Extent(named=(), every_pull=True, pushing=False, pushed=())
+
+
+def pushing(arguments: Sequence[str]) -> Extent:
+    """The extent of ``push --mechanical``: the pull requests of its branches.
+
+    Args:
+        arguments: the push's arguments.
+
+    Returns:
+        The extent.
+    """
+    return Extent(named=(), every_pull=False, pushing=True, pushed=arguments)
 
 
 class Answers(enum.Enum):
@@ -28,10 +75,12 @@ class Question:
     Attributes:
         answers: what it prints of the decisions.
         item: the item it names, empty for none.
+        extent: what its one read reads (the item it names, every PR, a push).
     """
 
     answers: Answers
     item: str
+    extent: Extent
 
 
 def asking(answers: Answers, item: str) -> Question:
@@ -44,8 +93,22 @@ def asking(answers: Answers, item: str) -> Question:
     Returns:
         The question.
     """
-    return Question(answers=answers, item=item)
+    named = naming([item] if item else [])
+    return Question(answers=answers, item=item, extent=named)
 
 
 LISTED = asking(Answers.LIST, "")
 QUIET = asking(Answers.NOTHING, "")
+SWEEPING = Question(answers=Answers.NOTHING, item="", extent=EVERY_PULL)  # the sweep
+
+
+def pushes(arguments: Sequence[str]) -> Question:
+    """What ``push --mechanical`` asks: no answer, the pull requests of its branches.
+
+    Args:
+        arguments: the push's arguments.
+
+    Returns:
+        The question.
+    """
+    return Question(answers=Answers.NOTHING, item="", extent=pushing(arguments))

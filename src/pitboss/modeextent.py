@@ -1,73 +1,68 @@
-"""The extent of the one read a mode asks for (plan 6.1, keyword: one-path).
+"""The extent of the one read a mode asks for, and the modes of ``slots`` (one-path).
 
-The modes are grouped by what a command does with them: a function that takes one
-group is called only in the ``case _`` of a match on the mode, so a new mode that is
-in no case and no group fails mypy there.
+The extent is ``mode.question_of``'s; ``slots_of`` is a ``match`` on the mode that
+names every constructor in its cases and ends in ``assert_never`` (plan 6.1), never
+an ``isinstance`` of a group (P4 sees class patterns, not an alias), so a new mode
+that is in no case fails mypy.
 """
 
 import sys
 from typing import NoReturn, assert_never
 
-from . import mode, readextent
+from . import mode, modecommand, modequestion
 
-# the modes of the verbs and the lists, which both groups hold
-Common = (
-    mode.ActOn
-    | mode.Arm
-    | mode.DispatchAny
-    | mode.DispatchWanted
-    | mode.Merge
-    | mode.Next
-    | mode.NextItem
-    | mode.OverrideAct
-    | mode.PinsReview
-    | mode.Undraft
-)
-
-# the modes whose read is the item they name (``modeextent``)
-Named = (
-    Common
-    | mode.Free
-    | mode.FreeCheck
-    | mode.Heard
-    | mode.SlotsNext
+# the modes an action of ``slots`` parses to (``slot_commands``)
+SlotsMode = (
+    mode.SlotsNext
     | mode.SlotsNextItem
+    | mode.FreeCheck
     | mode.Tasks
-    | mode.Unasked
     | mode.Watch
+    | mode.Free
+    | mode.Heard
+    | modecommand.SlotsCommand
 )
 
-# the modes of other commands than ``slots`` (``slot_commands``)
-NotSlots = Common | mode.MechanicalPush | mode.Sweep
 
-
-def extent_of(chosen: mode.Mode) -> readextent.Extent:
+def extent_of(chosen: mode.Mode) -> modequestion.Extent:
     """What a mode reads: the item it names, the branches it pushes, or every PR.
 
     Args:
         chosen: the mode.
 
     Returns:
-        The extent of its one read.
+        The extent of its one read, as ``mode.question_of`` states it.
+    """
+    return mode.question_of(chosen).extent
+
+
+def slots_of(chosen: mode.Mode) -> SlotsMode | None:
+    """The mode as one of ``slots``; none for another command's.
+
+    Args:
+        chosen: the mode.
+
+    Returns:
+        It, when an action of ``slots`` parses to it; else None.
     """
     match chosen:
-        case mode.Sweep():
-            return readextent.EVERY_PULL
-        case mode.MechanicalPush():
-            return readextent.pushing(chosen.arguments)
-        case _ if isinstance(chosen, Named):
-            return _named(chosen)
-        case _:  # pragma: no cover - the groups hold every mode (mypy)
+        case mode.SlotsNext() | mode.SlotsNextItem() | mode.FreeCheck() | mode.Free():
+            return chosen
+        case mode.Tasks() | mode.Watch() | mode.Heard() | modecommand.SlotsCommand():
+            return chosen
+        case mode.ActOn() | mode.Arm() | mode.DispatchAny() | mode.Merge():
+            return None
+        case mode.DispatchWanted() | mode.NextItem() | mode.Undraft() | mode.Next():
+            return None
+        case mode.OverrideAct() | mode.PinsReview() | mode.Sweep():
+            return None
+        case mode.MechanicalPush() | modecommand.Command():
+            return None
+        case _:  # pragma: no cover - the cases hold every mode (mypy)
             assert_never(chosen)
 
 
-def _named(chosen: Named) -> readextent.Extent:
-    # the item the mode names; none for a list, or a verb on a repository or all
-    item = mode.item_of(chosen)
-    return readextent.naming([item] if item else [])
-
-
-def foreign(command: str, chosen: NotSlots) -> NoReturn:
+def foreign(command: str, chosen: mode.Mode) -> NoReturn:
     """Exit 2: no action of ``command`` parses to another command's mode.
 
     It never returns: the mode is of another command.

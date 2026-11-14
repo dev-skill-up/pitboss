@@ -40,6 +40,7 @@ from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
 from .commandarguments import WATCH_ARGUMENTS
 from .commands import Context, load_context
 from .markers import Marker
+from .modecommand import SlotsCommand
 from .slotaction import Action
 
 Change = Callable[
@@ -204,7 +205,7 @@ def _changed(action: Action, found: Context) -> ledger.Ledger:
     count, change = CHANGES[action]
     if len(found.args.words) != count:
         raise _refuse(f"slots {action.word} takes {count} words")
-    outcome = change(ledger.configured(found.settings), found.args.words, found)
+    outcome = change(_book(found), found.args.words, found)
     if isinstance(outcome, ledger.Refusal):
         raise _refuse(f"refused: {outcome.reason}")
     ledger.write(found.settings.slots.ledger, outcome)
@@ -284,29 +285,10 @@ def _tasklist(found: Context) -> None:
     repoaccess.finish(found.access)
 
 
-def _next(found: Context) -> None:
-    # keyword: one-path: the list and the item form print one value
-    onepath.answer_of(found)
-    repoaccess.finish(found.access)
-
-
-def _watch(found: Context) -> None:
-    free = functools.partial(slotfreeline.line, onepath.first_line)
-    watchrun.watch(found.args, load_context, free)
-
-
-READS: Mapping[Action, Callable[[Context], None]] = {  # an action's mode asks these
-    Action.NEXT: _next,
-    Action.FREE_CHECK: _free_check,
-    Action.TASKLIST: _tasklist,
-    Action.WATCH: _watch,
-}
-
-
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
-    return ledger.configured(found.settings)
+    return _book(found)
 
 
 @ENTRY_DATA.register(
@@ -356,30 +338,45 @@ def slots(args: argparse.Namespace) -> None:
 
 def _by_mode(found: Context, action: Action, chosen: mode.Mode) -> None:
     # run a ``slots`` action by its mode (keyword: one-path); another's exits 2
-    match chosen:
-        case mode.SlotsNext() | mode.SlotsNextItem() | mode.FreeCheck() | mode.Tasks():
-            READS[action](found)
+    slotted = modeextent.slots_of(chosen)
+    match slotted:
+        case mode.SlotsNext() | mode.SlotsNextItem():
+            onepath.answer_of(found)
+            repoaccess.finish(found.access)
+        case mode.FreeCheck():
+            _free_check(found)
+        case mode.Tasks():
+            _tasklist(found)
         case mode.Watch():
-            READS[action](found)
+            free = functools.partial(slotfreeline.line, onepath.first_line)
+            watchrun.watch(found.args, load_context, free)
         case mode.Free() | mode.Heard():
             _changing(found, action)
-        case mode.Unasked():
-            _unasked(found, action)
-        case _ if isinstance(chosen, modeextent.NotSlots):  # pragma: no cover
-            modeextent.foreign("slots", chosen)  # no action of slots parses to one
-        case _:  # pragma: no cover - the groups hold every mode (mypy)
+        case SlotsCommand():
+            _unasked(found, slotted)
+        case None:  # pragma: no cover - no action of slots parses to another's
+            modeextent.foreign("slots", chosen)
+        case _:  # pragma: no cover - the cases hold every mode of slots (mypy)
+            assert_never(slotted)
+
+
+def _unasked(found: Context, chosen: SlotsCommand) -> None:
+    # an action that asks nothing of the decisions, by its own mode
+    action = Action[chosen.name]
+    match chosen:
+        case SlotsCommand.CHECK:
+            _check(found, _book(found))
+        case SlotsCommand.REPORT:
+            slotwindow.report(found)
+        case SlotsCommand.TIME:
+            slotwindow.worked(found)
+        case SlotsCommand.SHOW:
+            _shown(found, _read(found))
+        case SlotsCommand.ADD | SlotsCommand.CHECKIN | SlotsCommand.DEVIATION:
+            _changing(found, action)
+        case SlotsCommand.FAILED | SlotsCommand.REMOVE | SlotsCommand.RESUME:
+            _changing(found, action)
+        case SlotsCommand.SET | SlotsCommand.WAIT:
+            _changing(found, action)
+        case _:  # pragma: no cover - the cases hold every member (mypy)
             assert_never(chosen)
-
-
-def _unasked(found: Context, action: Action) -> None:
-    # an action that asks nothing of the decisions
-    if action in CHANGES:
-        _changing(found, action)
-    elif action is Action.CHECK:
-        _check(found, ledger.configured(found.settings))
-    elif action is Action.REPORT:
-        slotwindow.report(found)
-    elif action is Action.TIME:
-        slotwindow.worked(found)
-    else:
-        _shown(found, _read(found))

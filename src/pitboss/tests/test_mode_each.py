@@ -3,10 +3,10 @@
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, equal_to, none
 
 from .. import answer, gateverbs, mode, modecommand, modeextent, modequestion
-from .. import onepath, readextent
+from .. import onepath
 
 ITEM = "o/r#5"
 LISTS: Sequence[mode.Mode] = (
@@ -31,8 +31,9 @@ QUIET: Sequence[mode.Mode] = (
     mode.Sweep(task_list=""),
     mode.OverrideAct(item=ITEM, stop="s", reason="r"),
     mode.MechanicalPush(arguments=["origin"]),
-    mode.Unasked(command=modecommand.Command.CLEAN),
-    mode.DispatchWanted(want=ITEM, options={}),
+    modecommand.Command.CLEAN,
+    modecommand.SlotsCommand.SHOW,
+    mode.DispatchWanted(item=ITEM, options={}),
     mode.ActOn(verb=gateverbs.OwnVerb.LABEL, target=ITEM, item=ITEM, options={}),
 )
 NO_WORK = answer.Decided(answer=answer.NotEnoughWork(), by_item={}, acting=None)
@@ -56,21 +57,21 @@ class TestEachConstructor(unittest.TestCase):
             )
             for each in (*LISTS, *NAMES)
         ]
-        listed = (modequestion.Answers.LIST, "", readextent.naming([]))
-        named = (modequestion.Answers.ITEM, ITEM, readextent.naming([ITEM]))
+        listed = (modequestion.Answers.LIST, "", modequestion.naming([]))
+        named = (modequestion.Answers.ITEM, ITEM, modequestion.naming([ITEM]))
         assert_that(found, equal_to([listed] * len(LISTS) + [named] * len(NAMES)))
 
     def test_6_1_the_other_modes_read_what_they_ask(self) -> None:
         """Dispatch and the rest read nothing named; the sweep every PR; a push its."""
         found = [modeextent.extent_of(each) for each in QUIET]
         want = [
-            readextent.naming([]),
-            readextent.EVERY_PULL,
-            readextent.naming([ITEM]),
-            readextent.pushing(["origin"]),
-            readextent.naming([]),
-            readextent.naming([ITEM]),
-            readextent.naming([ITEM]),
+            modequestion.naming([]),
+            modequestion.EVERY_PULL,
+            modequestion.naming([ITEM]),
+            modequestion.pushing(["origin"]),
+            modequestion.naming([]),
+            modequestion.naming([ITEM]),
+            modequestion.naming([ITEM]),
         ]
         assert_that(found, equal_to(want))
 
@@ -87,11 +88,11 @@ class TestSlotsModes(unittest.TestCase):
     def test_6_1_a_mode_of_another_command_is_no_action_of_slots(self) -> None:
         """Every mode no action of ``slots`` parses to exits 2."""
         slotted = {"SlotsNext", "SlotsNextItem", "FreeCheck", "Tasks", "Free"}
-        slotted |= {"Heard", "Watch", "Unasked"}
+        slotted |= {"Heard", "Watch", "SlotsCommand"}
         every = (*LISTS, *NAMES, *QUIET)
         others = [each for each in every if type(each).__name__ not in slotted]
         for each in others:
-            assert isinstance(each, modeextent.NotSlots)
+            assert_that(modeextent.slots_of(each), none())
             with self.assertRaises(SystemExit):
                 modeextent.foreign("slots", each)
-        assert_that(len(others), equal_to(12))
+        assert_that(len(others), equal_to(13))

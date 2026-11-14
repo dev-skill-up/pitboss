@@ -344,14 +344,14 @@ class TestSilentModes(unittest.TestCase):
         """Dispatch, sweep, override, a mechanical push and the rest print nothing."""
         silent: list[mode.Mode] = [
             mode.DispatchAny(options={}),
-            mode.DispatchWanted(want="o/r#1", options={}),
+            mode.DispatchWanted(item="o/r#1", options={}),
             mode.Sweep(task_list="t"),
             mode.OverrideAct(item="o/r#1", stop="s", reason="r"),
             mode.MechanicalPush(arguments=["origin"]),
             mode.ActOn(
                 verb=gateverbs.OwnVerb.LABEL, target="o/r#1", item="o/r#1", options={}
             ),
-            mode.Unasked(command=modecommand.UNASKED["sync"]),
+            modecommand.UNASKED["sync"],
         ]
         found = [onepath.answered(each, NOTHING) for each in silent]
         assert_that(found, equal_to([([], [])] * 7))

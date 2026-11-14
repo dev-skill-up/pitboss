@@ -1,8 +1,10 @@
 """The commands and actions that ask nothing of the decisions (keyword: one-path).
 
-``Command`` is a closed enumeration of their words, so a new command has no mode
-until it is named here or given a constructor of ``mode.Mode``; ``mode.parse``
-exits 2 for any other (P4).
+``Command`` and ``SlotsCommand`` are closed enumerations of their words, and each
+member is a constructor of ``mode.Mode`` of its own (plan 6.1: one for each command
+and action), so a match names the member it handles and ends in ``assert_never``. A
+new command has no mode until it is named here or given a constructor of
+``mode.Mode``; ``mode.parse`` exits 2 for any other (P4).
 """
 
 import enum
@@ -43,18 +45,6 @@ class Command(enum.Enum):
         RULES_CHECK: ``rules check``.
         RULING_POST: ``ruling post``.
         RULING_SUMMARY: ``ruling-summary``.
-        SLOTS_ADD: ``slots add``.
-        SLOTS_CHECK: ``slots check``.
-        SLOTS_CHECKIN: ``slots checkin``.
-        SLOTS_DEVIATION: ``slots deviation``.
-        SLOTS_FAILED: ``slots failed``.
-        SLOTS_REMOVE: ``slots remove``.
-        SLOTS_REPORT: ``slots report``.
-        SLOTS_RESUME: ``slots resume``.
-        SLOTS_SET: ``slots set``.
-        SLOTS_SHOW: ``slots show``.
-        SLOTS_TIME: ``slots time``.
-        SLOTS_WAIT: ``slots wait``.
         STATUS_PROMPT: ``status-prompt``.
         SYNC: ``sync``.
         WORKER_ACTIONS: ``worker-actions``.
@@ -90,21 +80,44 @@ class Command(enum.Enum):
     RULES_CHECK = "rules check"
     RULING_POST = "ruling post"
     RULING_SUMMARY = "ruling-summary"
-    SLOTS_ADD = "slots add"
-    SLOTS_CHECK = "slots check"
-    SLOTS_CHECKIN = "slots checkin"
-    SLOTS_DEVIATION = "slots deviation"
-    SLOTS_FAILED = "slots failed"
-    SLOTS_REMOVE = "slots remove"
-    SLOTS_REPORT = "slots report"
-    SLOTS_RESUME = "slots resume"
-    SLOTS_SET = "slots set"
-    SLOTS_SHOW = "slots show"
-    SLOTS_TIME = "slots time"
-    SLOTS_WAIT = "slots wait"
     STATUS_PROMPT = "status-prompt"
     SYNC = "sync"
     WORKER_ACTIONS = "worker-actions"
 
 
-UNASKED: Mapping[str, Command] = {each.value: each for each in Command}
+class SlotsCommand(enum.Enum):
+    """An action of ``slots`` that asks nothing of the decisions, by its words.
+
+    Attributes:
+        ADD: ``slots add``.
+        CHECK: ``slots check``.
+        CHECKIN: ``slots checkin``.
+        DEVIATION: ``slots deviation``.
+        FAILED: ``slots failed``.
+        REMOVE: ``slots remove``.
+        REPORT: ``slots report``.
+        RESUME: ``slots resume``.
+        SET: ``slots set``.
+        SHOW: ``slots show``.
+        TIME: ``slots time``.
+        WAIT: ``slots wait``.
+    """
+
+    ADD = "slots add"
+    CHECK = "slots check"
+    CHECKIN = "slots checkin"
+    DEVIATION = "slots deviation"
+    FAILED = "slots failed"
+    REMOVE = "slots remove"
+    REPORT = "slots report"
+    RESUME = "slots resume"
+    SET = "slots set"
+    SHOW = "slots show"
+    TIME = "slots time"
+    WAIT = "slots wait"
+
+
+Unasked = Command | SlotsCommand  # each member is a mode of its own (plan 6.1)
+UNASKED: Mapping[str, Unasked] = {
+    each.value: each for kind in (Command, SlotsCommand) for each in kind
+}

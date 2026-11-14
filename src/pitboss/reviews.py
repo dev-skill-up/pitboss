@@ -5,7 +5,7 @@ import re
 from typing import AbstractSet, Callable, Iterable, Sequence
 
 from . import bodydigest, config, gradeline, missed, reviewnote
-from . import reviewplain, sessionurl, shapes
+from . import reviewplain, sessionurl, shapes, totalreview
 
 _SHA = "(?P<sha>[0-9a-f]{7,40})"
 _FULL_SHA = 40
@@ -317,11 +317,20 @@ def newest(sources: Sources, review: config.Review, slug: str) -> Found | None:
         slug: the repository's ``owner/name``.
 
     Returns:
-        The newest review, or None.
+        The newest review, or None; none too when a newer comment by a trusted
+        author tries to be a review and is not one (the gate's reading).
     """
     gated = slug in review.gated
     found = _gated(sources, review, slug) if gated else _open(sources, review)
-    return max(found, key=lambda item: item.when, default=None)
+    newest = max(found, key=lambda item: item.when, default=None)
+    tried = [
+        each.created_at
+        for each in sources.comments
+        if each.author_association in review.trusted and totalreview.is_attempt(each.body)
+    ]
+    # the newest attempt decides alone, as the gate reads it (plan 6.1, one-path)
+    later = newest is not None and max(tried, default="") > newest.when
+    return None if later else newest
 
 
 def rules(review: config.Review, slug: str) -> tuple[Reader, config.ReviewForm]:

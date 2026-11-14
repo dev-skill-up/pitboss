@@ -5,8 +5,9 @@ action and item form that asks of the decisions has a constructor of its own
 (``next`` is ``Next``, ``next <item>`` is ``NextItem``, ``act merge <item>`` is
 ``Merge``, ...), ``push --mechanical`` is ``MechanicalPush``, every other act
 verb is ``ActOn`` of its ``gateverbs.Verb``, and every other command and action,
-which asks nothing of the decisions, is ``Unasked`` of its ``modecommand.Command``:
-a new command or verb has no mode until it is named, and ``parse`` exits 2 for it.
+which asks nothing of the decisions, is its own member of ``modecommand.Command`` or
+``modecommand.SlotsCommand``: a new command or verb has no mode until it is named,
+and ``parse`` exits 2 for it.
 Every dispatch on a mode is a ``match`` that ends in ``assert_never``.
 """
 
@@ -16,7 +17,7 @@ from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol, Sequence, assert_never, get_args
 
 from . import config, gateverbs, modecommand, nextcommand, slotbook
-from .modequestion import LISTED, QUIET, Answers, Question, asking
+from .modequestion import LISTED, QUIET, SWEEPING, Answers, Question, asking, pushes
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -136,11 +137,11 @@ class DispatchWanted:
     """The one next piece of work, when it is the item meant: ``want=<item>``.
 
     Attributes:
-        want: the item the caller means.
+        item: the item the caller means.
         options: the other options (``checkout``, ``paths``, ``home``).
     """
 
-    want: str
+    item: str
     options: Mapping[str, str]
 
 
@@ -199,22 +200,11 @@ class ActOn:
     options: Mapping[str, str]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class Unasked:
-    """A command or action that asks nothing of the decisions.
-
-    Attributes:
-        command: which one.
-    """
-
-    command: modecommand.Command
-
-
 Listing = Next | SlotsNext | FreeCheck | Tasks | Free | Heard | Watch
 Naming = NextItem | SlotsNextItem | Merge | Arm | Undraft | PinsReview
 Dispatching = DispatchAny | DispatchWanted
 Acting = Dispatching | OverrideAct | ActOn
-Mode = Listing | Naming | Acting | Sweep | MechanicalPush | Unasked
+Mode = Listing | Naming | Acting | Sweep | MechanicalPush | modecommand.Unasked
 NAMES: Sequence[str] = tuple(each.__name__ for each in get_args(Mode))
 ModeOf = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], Mode]
 
@@ -270,7 +260,7 @@ def _dispatch_next(
     rest = {key: value for key, value in options.items() if key != "want"}
     want = _item(options.get("want"), project)
     return (
-        DispatchWanted(want=want, options=rest) if want else DispatchAny(options=rest)
+        DispatchWanted(item=want, options=rest) if want else DispatchAny(options=rest)
     )
 
 
@@ -293,7 +283,7 @@ def _override(
 def _push(args: argparse.Namespace, *_: object) -> Mode:
     # only ``--mechanical`` asks of the decisions (keyword: mechanical-fix)
     if not getattr(args, "mechanical", False):
-        return Unasked(command=modecommand.Command.PUSH)
+        return modecommand.Command.PUSH
     return MechanicalPush(arguments=list(getattr(args, "git_arguments", ()) or ()))
 
 
@@ -361,7 +351,7 @@ def parse(
     if words not in modecommand.UNASKED:
         sys.stderr.write(f"{words}: no mode names it, no verb (keyword: one-path)\n")
         raise SystemExit(2)
-    return Unasked(command=modecommand.UNASKED[words])
+    return modecommand.UNASKED[words]
 
 
 def question_of(chosen: Mode) -> Question:
@@ -378,11 +368,13 @@ def question_of(chosen: Mode) -> Question:
             return LISTED
         case NextItem() | SlotsNextItem() | Merge() | Arm() | Undraft() | PinsReview():
             return asking(Answers.ITEM, chosen.item)
-        case OverrideAct() | ActOn():
+        case OverrideAct() | ActOn() | DispatchWanted():
             return asking(Answers.NOTHING, chosen.item)
-        case DispatchWanted():
-            return asking(Answers.NOTHING, chosen.want)
-        case DispatchAny() | Unasked() | Sweep() | MechanicalPush():
+        case Sweep():
+            return SWEEPING
+        case MechanicalPush():
+            return pushes(chosen.arguments)
+        case DispatchAny() | modecommand.Command() | modecommand.SlotsCommand():
             return QUIET
         case _:  # pragma: no cover
             assert_never(chosen)

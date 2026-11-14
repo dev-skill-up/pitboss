@@ -116,9 +116,9 @@ def other_modes(
         options: the options.
 
     Returns:
-        ``Unasked``, so the other modes are the image of no command line.
+        A command that asks nothing, so the other modes are the image of none.
     """
-    return mode.Unasked(command=next(iter(modecommand.Command)))
+    return next(iter(modecommand.Command))
 
 
 def new_command(declared: cli_parser.Declared) -> cli_parser.Declared:

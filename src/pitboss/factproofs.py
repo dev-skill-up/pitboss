@@ -1,7 +1,7 @@
 """Plan 6.1 and 4.3: each fact of the one path is derived once (keyword: one-path).
 
 The plan names the facts that several parsers derived (4.3: "CI is green", "which
-pull request works on ticket T", "blocked", "held") and wants each parsed once into
+pull request works on ticket T", "blocked", "held", "reviewed") and wants each parsed once into
 one field (6.1). Each fact here has its owner, the module of its one derivation, and
 the evidence any derivation of it must read. Evidence of a fact in another module
 the one path reaches (what ``onepath`` and ``actverbs`` import) is a second one:
@@ -12,7 +12,9 @@ the one path reaches (what ``onepath`` and ``actverbs`` import) is a second one:
 * blocked: a pattern of ``blocked`` (``blockedform.named``), or a blocker's state
   compared to open or closed (``blockedstep.Blocker.open``);
 * held: a ``Hold`` made, or a hold's scope compared (``holdparse.parse`` and
-  ``holdparse.covers``).
+  ``holdparse.covers``);
+* reviewed: a pattern of a line that starts with ``verdict``, which says whether
+  a text tries to be a review (``totalreview.is_attempt``; ``reviews.newest`` takes it from there).
 """
 
 import ast
@@ -93,6 +95,9 @@ FACTS: Mapping[str, Fact] = {
     ),
     "blocked": Fact(owners={"blockedform", "blockedstep"}, evidence=_blocked),
     "held": Fact(owners={"holdparse"}, evidence=_hold),
+    "reviewed": Fact(
+        owners={"totalreview"}, evidence=functools.partial(_pattern, r"\^.*verdict\b")
+    ),
 }
 
 
