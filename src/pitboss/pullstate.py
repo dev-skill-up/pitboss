@@ -29,7 +29,6 @@ INPUTS = (
     "max_lines",
     "holds",
     "timeline",
-    "blockers",
 )
 
 
@@ -138,9 +137,6 @@ def _state(
         repository=_repository(inputs),
         reads=reads,
         tickets=pullobject.tickets_of(inputs.get("tickets")),
-        blockers={
-            ref: str(said) for ref, said in object_at(inputs, "blockers").items()
-        },
         holds=holds,
         absent=[name for name in INPUTS if name not in inputs],
         attempts=totalreview.review_attempts(records.listed(reads.timeline)),

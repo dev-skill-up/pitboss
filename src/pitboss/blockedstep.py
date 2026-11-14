@@ -68,6 +68,18 @@ class Blocker:
     body: str
 
 
+def is_open(blocker: Blocker) -> bool:
+    """Whether a blocker is still open: the one reading of its state (plan 6.1).
+
+    Args:
+        blocker: the blocker as read.
+
+    Returns:
+        True when it is open.
+    """
+    return blocker.state is State.OPEN
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Closure:
     """What a PR's ``Blocked-by:`` lines name, as read.
@@ -108,7 +120,7 @@ def verdict(pull: AtStep, found: Sequence[Blocker]) -> steps.Move | None:
         The step; None when the PR keeps its own.
     """
     shut = [each.reference for each in found if each.state in CLOSED]
-    live = [each.reference for each in found if each.state is State.OPEN]
+    live = [each.reference for each in found if is_open(each)]
     # keyword: one-path: no actor takes the PR while a blocker it names is open
     when = max((each.merged_at for each in found), default="")
     if shut:

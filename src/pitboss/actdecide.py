@@ -54,7 +54,7 @@ def hold_row(read: actfacts.ActRead, held: holdparse.Held) -> Sequence[answer.No
         )
         for repo in read.repos
         for hold in held.get(repo, ())
-        if hold.scope == "all" or read.verb in actport.HELD.get(hold.scope, ())
+        if holdparse.covers(hold, read.verb)
     ]
 
 

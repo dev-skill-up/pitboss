@@ -295,7 +295,6 @@ class GateState:
         repository: what the repository and the project say.
         reads: the lists read.
         tickets: each ticket the body closes.
-        blockers: the state of each item a Blocked-by line names.
         holds: the repository's holds.
         absent: each input that was not given at all.
         attempts: the timeline's review attempts, oldest first: the one parse of
@@ -306,7 +305,6 @@ class GateState:
     repository: Repository
     reads: Reads
     tickets: Mapping[str, Ticket | Unread]
-    blockers: Mapping[str, str]
     holds: Sequence[Hold]
     absent: Sequence[str]
     attempts: Sequence[Event]

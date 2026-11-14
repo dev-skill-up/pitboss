@@ -3,16 +3,18 @@
 ``pulls`` reads a PR once: its object, its head's runs and statuses, its comments
 and reviews. The gate needs more, read here once each: the repository's rules for
 the base (required checks, the merge queue), its default branch, the files, the
-tickets the body closes, the items a ``Blocked-by:`` line names and the timeline.
-A read that fails is kept as ``{"_error": ...}`` so the gate stops on it.
+tickets the body closes and the timeline; an open blocker is the decision's
+(``examine``, plan 6.1).
+A read GitHub answers with an error (a 404) is kept as ``{"_error": ...}`` so the
+gate stops on it; a read that fails on every try ends the command (plan 3.2).
 """
 
-import copy
 import dataclasses
 import json
+import subprocess
 from typing import Callable, Sequence
 
-from . import blockedform, config, ghapi, pullnames
+from . import config, ghapi, pullnames
 from .actport import Pull
 from .totaljson import lines_of, members, records, text
 
@@ -57,9 +59,9 @@ def reader(github: ghapi.GitHub) -> Read:
         try:
             out = github.run(["gh", "api", *words]).stdout
             return lines_of(out) if many else json.loads(out)
-        except (
-            Exception
-        ) as error:  # noqa: B902 - any failed read is the verdict's to stop on
+        except subprocess.CalledProcessError as error:
+            # GitHub's answer (a 404, a 422); a read that failed every try is
+            # ``retrying.ReadFailed``, which ends the command (plan 3.2, P11)
             return {"_error": str(error)[:200]}
 
     return read
@@ -86,36 +88,9 @@ def _states(read: Read, refs: Sequence[str]) -> dict[str, object]:
     return found
 
 
-def blockers_in(pull: Pull, inputs: Pull, repo: str) -> Pull:
-    """A copy of a PR's inputs with each blocker its body names that they lack.
-
-    Args:
-        pull: the PR.
-        inputs: its inputs; their ``blockers`` are the states read.
-        repo: its repository, ``owner/name``.
-
-    Returns:
-        The copy; a blocker named and not read is "not read".
-    """
-    named = blockedform.named(text(pull.get("body")), repo)
-    found = copy.deepcopy(dict(inputs))
-    states = members(found.get("blockers"))
-    found["blockers"] = {**dict.fromkeys(named, "not read"), **states}
-    return found
-
-
 def _repo(slug: str) -> config.Repo:
     # the repository of an ``owner/name``
     return config.make_repo(*slug.split("/", 1))
-
-
-def _blockers(read: Read, body: str, repo: str) -> dict[str, object]:
-    # keyword: blocked-by: the state of each item the one parse names
-    found: dict[str, object] = {}
-    for each in blockedform.named(body, repo):
-        answer = _states(read, [each])[each]
-        found[each] = text(members(answer).get("state")) or "not read"
-    return found
 
 
 def repo_reads(read: Read, repo: str, number: int, pull: tuple[str, str]) -> Pull:
@@ -142,7 +117,6 @@ def repo_reads(read: Read, repo: str, number: int, pull: tuple[str, str]) -> Pul
         "tickets": _states(read, tickets),
         "files": read(f"{ALL}repos/{repo}/pulls/{number}/files?per_page=100"),
         "holds": [],
-        "blockers": _blockers(read, body, repo),
     }
 
 

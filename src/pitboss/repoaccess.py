@@ -14,6 +14,7 @@ from . import (
     gates,
     ghapi,
     ledger,
+    mode,
     ownerrepos,
 )
 from .markers import Marker
@@ -47,9 +48,10 @@ def item_gates(
 
     ``slots next ITEM`` builds the brief of one item from its own repository, so
     it reads that repository's gate and no other (keyword: item-brief,
-    pitboss#453). The other questions of what is next read none when they load:
-    a pull request's gate is read with it, and a brief's with its item, so the
-    reads follow the printed lines, not the repositories (keyword: org-search).
+    pitboss#453). Every other command that has a mode (``mode.PARSES``: what is
+    next, the sweep, the act verbs) reads none when it loads: the one path reads a
+    pull request's gate with it, once a repository (``onepath``), so the reads
+    follow the printed lines, not the repositories (keyword: org-search).
 
     Args:
         args: the parsed arguments.
@@ -57,15 +59,16 @@ def item_gates(
 
     Returns:
         The repositories' ``owner/name``; None (every repository) for a command
-        that asks no question of what is next.
+        with no mode, which reads a review outside the one path.
     """
     words = getattr(args, "words", None)
-    asks = {getattr(args, "action", None), getattr(args, "__gather_name__", None)}
-    asks.add(getattr(args, "verb", None))
-    if getattr(args, "action", None) == "next" and words and len(words) == 1:
+    command = str(getattr(args, "__gather_name__", "") or "")
+    action = str(getattr(args, "action", "") or getattr(args, "verb", "") or "")
+    if action == "next" and words and len(words) == 1:
         named = ledger.reference(words[0], settings.project.repo)
         return frozenset({named.rpartition("#")[0]})
-    return frozenset() if asks & {"next", "dispatch-next"} else None
+    asked = (command, "" if command in mode.UNACTIONED else action) in mode.PARSES
+    return frozenset() if asked else None
 
 
 def without(settings: config.Config, failures: Mapping[str, str]) -> config.Config:

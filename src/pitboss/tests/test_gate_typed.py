@@ -117,11 +117,6 @@ class TestRows(unittest.TestCase):
         made = gatestate.state(holds=[Hold(title="freeze", scope="all")])
         _says(gaterows.hold_stops("merge", made), ["hold: freeze holds all"])
 
-    def test_6_1_an_open_blocker(self) -> None:
-        """A blocker that is not closed."""
-        made = gatestate.state(blockers={"#9": "open", "#8": "closed"})
-        _says(gaterows.body_stops(made, POLICY), ["blocked: #9, which is open"])
-
     def test_6_1_a_paused_pr_armed_and_a_formal_request(self) -> None:
         """Changes requested, and auto-merge on a paused PR."""
         merging = gatestate.merge_fields(auto_merge=True, labels=["paused-owner"])

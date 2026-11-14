@@ -87,7 +87,6 @@ class Route(enum.Enum):
         RUNNING: a check or status of the head has not finished.
         RED: a check or status of the head failed.
         REVIEW: the newest review is not of the head as it is.
-        BLOCKED: an item the PR names as its blocker is open.
         BODY: the body breaks one of its rows.
         ADDED_LINES: a .md or .rst file gets added lines.
         MAX_LINES: the diff is over the ticket's Max-lines.
@@ -148,7 +147,6 @@ class Route(enum.Enum):
         "the newest review is not of the head as it is",
         "`act review` the head as it is now",
     )
-    BLOCKED = _untaken("an item the PR names as its blocker is open")
     BODY = _lifted(
         WORKER,
         "the body breaks one of its rows",

@@ -9,7 +9,6 @@ import subprocess
 from typing import Callable, Mapping, MutableMapping, MutableSequence, Protocol
 from typing import Sequence
 
-from .. import gateinputs
 from ..actcore import Act, Controls, Decisions, Owner, Questions
 from ..actport import Change, Hub, Pull
 from ..totaljson import members, records
@@ -263,11 +262,10 @@ class WorldInputs:
             timeline: its timeline, when read; the hub's when empty.
 
         Returns:
-            The inputs, with the blockers the body names (``blockers_of``).
+            The inputs, with the timeline.
         """
         events = timeline or self.hub.timeline(where, which)
-        given = {**self.world.ctx, "timeline": events}
-        return gateinputs.blockers_in(pull, given, where)
+        return {**self.world.ctx, "timeline": events}
 
 
 def _memory(world: totalworld.World) -> Memory:

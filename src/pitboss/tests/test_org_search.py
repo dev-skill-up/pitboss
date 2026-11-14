@@ -5,7 +5,8 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import branchtaken, config, ghapi, orgsearch, pullsearch
+from .. import branchtaken, config, ghapi, holdissues, orgsearch, pullrecords
+from .. import pullsearch
 from . import fakes
 
 QUIRE = config.make_repo("o", "quire")
@@ -49,6 +50,19 @@ class TestOrgSearch(unittest.TestCase):
         github = ghapi.GitHub(run=fake, mutate=fake)
         found = pullsearch.opened(github, dataclasses.replace(settings, lint=lint))
         assert_that((found.read, len(fake.calls)), equal_to(([], 1)))
+
+    def test_6_1_the_holds_are_one_search_of_the_organisation(self) -> None:
+        """A hold of a configured repository is parsed; another repository's is not."""
+        terms = ("owner", "is:issue", "label:pitboss-hold")
+        api = "https://api.github.com/repos/owner/"
+        items = [
+            {"repository_url": api + "project", "title": "", "number": 4},
+            {"repository_url": api + "other", "title": "freeze", "number": 5},
+        ]
+        github = fakes.github({fakes.page(orgsearch.path(*terms)): {"items": items}})
+        found = holdissues.read(github, fakes.settings(fakes.directory()))
+        held = [pullrecords.Hold(title="4", scope="all")]
+        assert_that(found, equal_to({"owner/project": held}))
 
 
 class TestBranchTaken(unittest.TestCase):

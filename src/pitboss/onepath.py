@@ -14,6 +14,7 @@ from typing import Callable, Mapping, Sequence, assert_never
 
 from . import (
     answer,
+    config,
     configfile,
     configloads,
     decide,
@@ -67,12 +68,14 @@ def _reader(found: nextfound.Found, undraft: Callable[[], bool]) -> PullReader:
     # a run reads a pull request once: a pull request read as a shared red's
     # closure is not read again when it is examined
     done: dict[str, pulls.PullRead] = {}
+    gated: dict[str, config.Config] = {}  # a repository's gate, read once
 
     def read(row: listed.Listed) -> pulls.PullRead:
         if row.reference not in done:
-            github = found.github
-            settings = gates.settled(github, found.settings, {row.repo.slug})
-            source = pullread.source_for(github, settings, undraft, row.repo)
+            github, slug = found.github, row.repo.slug
+            if slug not in gated:
+                gated[slug] = gates.settled(github, found.settings, {slug})
+            source = pullread.source_for(github, gated[slug], undraft, row.repo)
             done[row.reference] = pulls.fetch(source, row.repo, row.number)
         return done[row.reference]
 

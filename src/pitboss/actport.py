@@ -5,29 +5,10 @@ verbs against either.
 """
 
 import dataclasses
-from typing import AbstractSet, Callable, Mapping, MutableMapping, Sequence
+from typing import Callable, Mapping, MutableMapping, Sequence
 
 Pull = dict[str, object]
 Options = Mapping[str, str]
-HELD: Mapping[str, AbstractSet[str]] = {
-    "pushes": frozenset({"push", "update-branch"}),
-    "merges": frozenset({"merge", "arm"}),
-    "undrafts": frozenset({"undraft"}),
-    "ci": frozenset(
-        {
-            "push",
-            "update-branch",
-            "merge",
-            "arm",
-            "undraft",
-            "rerun",
-            "dispatch-workflow",
-            "label",
-            "pr-create",
-        }
-    ),
-    "dispatch": frozenset({"dispatch-next"}),
-}
 ENDS_A_HOLD = frozenset(
     {
         "hold",

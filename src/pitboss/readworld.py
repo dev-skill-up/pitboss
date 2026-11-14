@@ -231,7 +231,11 @@ def _wave(
             fresh = _fresh(walked)
             if len(fresh) >= wanted:
                 break
-    resolved = [_resolved(walking, walked, each) for each in fresh[:wanted]]
+    taken = fresh[:wanted]
+    unlisted = [each for each in taken if each not in walked.listed]
+    read = concurrently.each(lambda each: _by_reference(walking, each), unlisted)
+    found = {**dict(zip(unlisted, read)), **walked.listed}  # the blockers at once
+    resolved = [_resolved(walked, each, found.get(each)) for each in taken]
     return [each for each in resolved if each is not None]
 
 
@@ -242,10 +246,9 @@ def _fresh(walked: _Walked) -> Sequence[str]:
 
 
 def _resolved(
-    walking: _Walking, walked: _Walked, reference: str
+    walked: _Walked, reference: str, found: workorder.Candidate | None
 ) -> workorder.Candidate | None:
     # a candidate listed, or a blocker read by its reference
-    found = walked.listed.get(reference) or _by_reference(walking, reference)
     if found is None:  # a blocker that is no open item: nothing to examine
         walked.examined[reference] = world.Occupied(reference=reference, pull=False)
     return found
@@ -334,11 +337,8 @@ def _each(
 
 def _named(walking: _Walking, references: Sequence[str]) -> Sequence[world.Record]:
     # the items read whatever the walk reached, in the order named
-    found: list[workorder.Candidate] = []
-    for each in references:
-        candidate = _by_reference(walking, each)
-        found += [candidate] if candidate is not None else []
-    return list(_each(walking, found).values())
+    found = concurrently.each(lambda each: _by_reference(walking, each), references)
+    return list(_each(walking, list(filter(None, found))).values())
 
 
 def read_world(reading: Reading, extent: readextent.Extent) -> world.World:

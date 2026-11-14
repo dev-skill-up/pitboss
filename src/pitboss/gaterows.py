@@ -160,25 +160,19 @@ def review_stops(action: str, state: GateState, policy: Readings) -> Sequence[St
 
 
 def body_stops(state: GateState, policy: Readings) -> Sequence[Stop]:
-    """The stops of the body's rows and of the block records.
+    """The stops of the body's rows (an open blocker is the decision's: plan 6.1).
 
     Args:
         state: the typed state.
         policy: the reading of a body.
 
     Returns:
-        A stop for each row the body breaks, and each open blocker.
+        A stop for each row the body breaks.
     """
     head = state.pull.where.head_sha
-    found = [
+    return [
         Stop(route=Route.BODY, line=each) for each in policy.body(state.pull.body, head)
     ]
-    found += [
-        Stop(route=Route.BLOCKED, line=f"blocked: {ref}, which is {said}")
-        for ref, said in state.blockers.items()
-        if said != "closed"
-    ]
-    return found
 
 
 def diff_stops(action: str, state: GateState, kind: str) -> Sequence[Stop]:

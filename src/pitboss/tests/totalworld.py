@@ -118,7 +118,6 @@ def _ctx(repo: str, number: object, head: str) -> Pull:
         "check_runs": [*runs, dict(GATE_RUN)],
         "statuses": [dict(each) for each in STATUSES],
         "tickets": {f"{repo}#1": dict(OPEN_TICKET)},
-        "blockers": {},
         "files": [dict(FILE)],
         "max_lines": 462,
         "holds": [],

@@ -145,7 +145,6 @@ def state(**changes: object) -> records.GateState:
         repository=REPOSITORY,
         reads=lists_of(),
         tickets={},
-        blockers={},
         holds=[],
         absent=[],
         attempts=[],

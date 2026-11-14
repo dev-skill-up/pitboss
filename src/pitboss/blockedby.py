@@ -94,7 +94,7 @@ def loop(
             visited.add(path[-1])
             found = seen.setdefault(path[-1], read(github, path[-1]))
             more = blockedform.named(found.body, path[-1].rpartition("#")[0])
-            todo += [[*path, each] for each in more if found.state is State.OPEN]
+            todo += [[*path, each] for each in more if blockedstep.is_open(found)]
     return []
 
 

@@ -66,7 +66,7 @@ def _blockers_of(
     # the open items a pull request waits for: its own Blocked-by lines, and the
     # blockers of the tickets it fixes (keyword: blocked-pull)
     me = pulls.reference(facts)
-    open_ones = [each for each in closure.found if each.state is blockedstep.State.OPEN]
+    open_ones = [each for each in closure.found if blockedstep.is_open(each)]
     declared = [each.reference for each in open_ones]
     named = pullnames.names(
         facts.pull.title, facts.pull.body, facts.pull.head.branch, facts.repo

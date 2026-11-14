@@ -195,6 +195,11 @@ class TestAnswers(unittest.TestCase):
         occupied = world.Occupied(reference=REFERENCE, pull=False)
         assert_that(onepath.pick(occupied), none())
 
+    def test_6_1_a_kept_item_has_no_decision_of_its_own(self) -> None:
+        """Plan 6.1: an item the grounds keep is decided as no actor's, alone."""
+        occupied = world.Occupied(reference=REFERENCE, pull=True)
+        assert_that(decide.decide_item(occupied), none())
+
     def test_an_emptied_slot_takes_the_first_when_none_fits(self) -> None:
         """With no decision a slot can take, the line is the answer's first."""
         judgement = ticket_judgement()

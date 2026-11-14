@@ -9,15 +9,17 @@ the one path reaches (what ``onepath`` and ``actverbs`` import) is a second one:
 * checks: an ``any`` or ``all`` that reads a run's ``failed`` or ``finished``
   (``checkoutcome.result``, ``any_finished``, ``all_finished``);
 * works on: a pattern of a closing keyword, ``fix`` (``pullnames.names``);
-* blocked: a pattern of ``blocked`` (``blockedform.named``);
-* held: a ``Hold`` made, a hold issue read (``holdparse.parse``).
+* blocked: a pattern of ``blocked`` (``blockedform.named``), or a blocker's state
+  compared to open or closed (``blockedstep.Blocker.open``);
+* held: a ``Hold`` made, or a hold's scope compared (``holdparse.parse`` and
+  ``holdparse.covers``).
 """
 
 import ast
 import dataclasses
 import functools
 import re
-from typing import Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import proofsource
 from .proofsource import Package
@@ -31,11 +33,12 @@ class Fact:
     """A fact of the one path and its one derivation.
 
     Attributes:
-        owner: the module of the one function that derives it.
+        owners: the modules of the one function that derives it (``blocked``: its
+            parse, and the reading of a blocker's state).
         evidence: whether a node reads what a derivation of it reads.
     """
 
-    owner: str
+    owners: AbstractSet[str]
     evidence: Evidence
 
 
@@ -57,19 +60,39 @@ def _pattern(word: str, node: ast.AST) -> bool:
 
 
 def _hold(node: ast.AST) -> bool:
-    # a hold made: what a reading of an issue as a hold gives
-    return proofsource.called(node).rpartition(".")[2] == "Hold"
+    # a hold made, or a hold's scope compared: a reading of what a hold holds
+    if proofsource.called(node).rpartition(".")[2] == "Hold":
+        return True
+    return _compares(node, lambda each: getattr(each, "attr", None) == "scope")
+
+
+def _blocked(node: ast.AST) -> bool:
+    # a pattern of ``blocked``, or a blocker's state compared to closed or open
+    if _pattern(WORDS["blockedform"], node):
+        return True
+    return _compares(
+        node,
+        lambda each: getattr(each, "value", None) == "closed"
+        or getattr(each, "attr", None) == "OPEN",
+    )
+
+
+def _compares(node: ast.AST, operand: Evidence) -> bool:
+    # a comparison one of whose operands is the one asked for
+    if not isinstance(node, ast.Compare):
+        return False
+    return any(operand(each) for each in [node.left, *node.comparators])
 
 
 # a closing keyword, a block; a list of key names (``Fixtures``, ``Blocked-by``) is none
 WORDS = {"pullnames": r"fix(?:e[sd])?\b", "blockedform": "blocked(?!-by)"}
 FACTS: Mapping[str, Fact] = {
-    "checks": Fact(owner="checkoutcome", evidence=_aggregate),
-    **{
-        fact: Fact(owner=owner, evidence=functools.partial(_pattern, WORDS[owner]))
-        for fact, owner in (("works on", "pullnames"), ("blocked", "blockedform"))
-    },
-    "held": Fact(owner="holdparse", evidence=_hold),
+    "checks": Fact(owners={"checkoutcome"}, evidence=_aggregate),
+    "works on": Fact(
+        owners={"pullnames"}, evidence=functools.partial(_pattern, WORDS["pullnames"])
+    ),
+    "blocked": Fact(owners={"blockedform", "blockedstep"}, evidence=_blocked),
+    "held": Fact(owners={"holdparse"}, evidence=_hold),
 }
 
 
@@ -89,9 +112,9 @@ def one_fact(package: Package) -> Sequence[str]:
     }
     return [
         f"6.1: {where}:{getattr(node, 'lineno', 0)} derives {name} again;"
-        f" {made.owner} is its one derivation"
+        f" {', '.join(sorted(made.owners))} is its one derivation"
         for where, node in proofsource.nodes(package)
         if where in reached
         for name, made in FACTS.items()
-        if where != made.owner and made.evidence(node)
+        if where not in made.owners and made.evidence(node)
     ]

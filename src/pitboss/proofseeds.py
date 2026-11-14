@@ -171,9 +171,12 @@ def missed(
         found.append("P4: a match on a mode without assert_never is not found")
     if not modeproof.images(seed_parse, declared):
         found.append("P4: a parse that leaves a mode with no image is not found")
-    for name, table in (("command", new_command), ("flag", new_flag)):
-        if not modeproof.images(mode.parse, table(declared)):
-            found.append(f"P4: a new {name} with no mode is not found")
+    tables = (("command", new_command), ("flag", new_flag))
+    found += [
+        f"P4: a new {name} with no mode is not found"
+        for name, table in tables
+        if not modeproof.images(mode.parse, table(declared))
+    ]
     return found
 
 

@@ -181,12 +181,7 @@ def run(act: Act, asked: Asked, table: Mapping[str, Verb]) -> str:
 
     Returns:
         What it did; or the ``NOT DONE`` line of what stands instead of it.
-
-    Raises:
-        Refused: no such verb.
     """
-    if asked.verb not in table:
-        raise Refused(f"no verb {asked.verb!r}: {', '.join(sorted(table))}")
     verb = gateverbs.verb_of(asked.verb)
     found = gateverbs.lookup(act.questions.decided(asked), verb, asked.target.name)
     if _stands(verb, found, asked):

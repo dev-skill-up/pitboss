@@ -17,6 +17,7 @@ from .. import (
     cli_parser,
     config,
     decideproofs,
+    factproofs,
     mode,
     modeproof,
     pathproofs,
@@ -246,6 +247,22 @@ class TestOneParse(unittest.TestCase):
         new = "\nfrom . import totaljson\n"
         found = pathproofs.one_parse(_edited("gaterows.py", "", new))
         assert_that(found, equal_to(["6.1: gaterows reads JSON; only the parsers do"]))
+
+
+class TestOneFact(unittest.TestCase):
+    """Plan 6.1 and 4.3: each fact is derived once (``factproofs``)."""
+
+    def test_6_1_a_second_reading_of_each_fact_is_a_finding(self) -> None:
+        """A blocked pattern, a blocker's state, a hold's scope, a works-on pattern."""
+        seeds = {
+            "blocked": "\nB = re.compile('Blocked by #1')\n",
+            "blocker": "\nS = 'open' == 'closed'\n",
+            "held": "\nH = Hold(title='', scope='all').scope == 'all'\n",
+            "works on": "\nW = re.compile('fixes #1')\n",
+        }
+        for name, new in seeds.items():
+            found = factproofs.one_fact(_edited("pullref.py", "", new))
+            assert_that("\n".join(found), contains_string("6.1: pullref:"), name)
 
 
 class TestNoCheckIn(unittest.TestCase):

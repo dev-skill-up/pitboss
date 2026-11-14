@@ -12,9 +12,9 @@ state ``pullstate`` made (plan 6.1).
 import re
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import checkruns
+from . import checkruns, holdparse
 from .pullrecords import CheckRead, File, Hold, Status
-from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS
+from .totalanswer import GATED_ACTIONS
 
 SELF = "pitboss-gate"
 PENDING_STATES = frozenset({"pending"})
@@ -212,11 +212,8 @@ def hold_lines(action: str, holds: Sequence[Hold]) -> Sequence[str]:
     Returns:
         A line for each hold that covers it.
     """
-    scopes = {"all", "merges" if action in MERGE_ACTIONS else action}
-    if action == "undraft":
-        scopes.add("undrafts")
     return [
         f"hold: {each.title} holds {each.scope}"
         for each in holds
-        if each.scope in scopes
+        if holdparse.covers(each, action)
     ]

@@ -173,12 +173,6 @@ class TestInputs(unittest.TestCase):
         got = (repository.repo, repository.required_checks, repository.merge_queue)
         assert_that((*got, repository.max_lines), equal_to(("o/r", {"c"}, True, 4)))
 
-    def test_6_1_the_blockers_and_the_authors(self) -> None:
-        """Plan 6.1: the blockers' states; the authors as a set."""
-        state = _state(blockers={"o/r#2": "open"}, authors={"bot"})
-        got = (state.blockers, state.repository.authors)
-        assert_that(got, equal_to(({"o/r#2": "open"}, {"bot"})))
-
     def test_6_1_an_input_not_given_is_named(self) -> None:
         """Plan 6.1: an input absent is explicit, never a default."""
         state = pullstate.parse(PULL, {}, SCHEMA)
