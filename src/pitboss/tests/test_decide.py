@@ -83,7 +83,9 @@ def work_of(numbers: Sequence[int]) -> answer.Work:
 def _world(walk: world.Walk) -> world.World:
     book = slotbook.ledger_of([slotbook.empty_slot("s1", "m")])
     grounds = dataclasses.replace(GROUNDS, book=book)
-    return world.World(grounds=grounds, walk=walk, named=[], act=actfacts.NO_ACT)
+    return world.World(
+        grounds=grounds, walk=walk, named=[], act=actfacts.NO_ACT, forced=()
+    )
 
 
 def answer_of(walk: world.Walk) -> answer.Answer:

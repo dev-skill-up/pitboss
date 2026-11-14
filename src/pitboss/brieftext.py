@@ -48,8 +48,9 @@ DENIED = (
 )
 LOCAL = (
     f"Local checks: wrap each in `timeout {LIMIT}`; a check that runs out of time"
-    " (`timeout` exits 124) is left to CI, never rerun with a longer limit. Never leave a command running, and never remove files"
-    " under /dev (redirecting to /dev/null is fine)."
+    " (`timeout` exits 124) is left to CI, never rerun with a longer limit. Never"
+    " leave a command running, and never remove files under /dev (redirecting to"
+    " /dev/null is fine)."
 )
 HOLD_BUG = (
     "A hold that comes from a known pitboss bug with a ticket is not waited out:"
@@ -97,7 +98,10 @@ HAND_BACK = (
     " else. Before you hand back, save it to a file and run `uvx pitboss"
     " hand-back-check FILE`; hand back only on its `ok`."
 )
-NEW_PR_CHECKOUT = "with `git fetch origin {base}` then `git worktree add -b <branch> <dir> origin/{base}`"
+NEW_PR_CHECKOUT = (
+    "with `git fetch origin {base}` then `git worktree add -b <branch> <dir>"
+    " origin/{base}`"
+)
 PR_CHECKOUT = (
     "with `git fetch origin {branch}` then `git worktree add <dir> {branch}`; if"
     " origin/{base} has moved, merge it into the branch (never rebase or force-push)"

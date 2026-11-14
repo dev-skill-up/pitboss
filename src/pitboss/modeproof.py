@@ -63,7 +63,7 @@ ASKS_NOTHING: Mapping[str, AbstractSet[str]] = {
         {
             *("config", "config_option", "now", "running", "words", "kind"),
             *("rearmed", "done", "since", "until", "interval", "rounds"),
-            "process_start",
+            *("process_start", "force"),  # force names an item: words varies alone
         }
     ),
     "sweep": frozenset({"config", "config_option", "now", "running"}),

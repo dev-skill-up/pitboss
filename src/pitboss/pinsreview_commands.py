@@ -40,14 +40,19 @@ def _facts(found: commands.Context, text: str) -> pulls.PullFacts:
         print(f"{text}: not OWNER/NAME#NUMBER", file=sys.stderr)
         raise SystemExit(USAGE_ERROR)
     repo = repoarg.named_repo(named.group(1), found.settings)
-    reference = f"{repo.slug}#{named.group(2)}"
+    reference = "#".join((repo.slug, named.group(2)))
     # keyword: one-path: the PR's record, read as ``next <item>`` reads it
-    records = [
-        each for each in onepath.pull_records(found) if each.row.reference == reference
-    ]
-    if not records:
+    record = next(
+        (
+            each
+            for each in onepath.pull_records(found)
+            if each.row.reference == reference
+        ),
+        None,
+    )
+    if record is None:
         _refuse(f"{reference}: no open PR of the configuration")
-    return decide.facts_of(records[0])
+    return decide.facts_of(record)
 
 
 def _cleared(found: commands.Context, facts: pulls.PullFacts) -> pinsreading.Reading:

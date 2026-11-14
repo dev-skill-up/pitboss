@@ -7,7 +7,7 @@ import dataclasses
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string
 
 from .. import flow, steps
 from . import fakes, suggestions, world

@@ -121,7 +121,9 @@ class TestPushed(unittest.TestCase):
     def test_6_1_the_named_pull_requests_of_a_world(self) -> None:
         """``named_pulls`` of a world that named nothing is empty."""
         walk = world.Exhausted(examined=[])
-        made = world.World(grounds=GROUNDS, walk=walk, named=[], act=actfacts.NO_ACT)
+        made = world.World(
+            grounds=GROUNDS, walk=walk, named=[], act=actfacts.NO_ACT, forced=()
+        )
         assert_that(world.named_pulls(made), equal_to([]))
 
 

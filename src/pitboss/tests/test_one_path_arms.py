@@ -105,7 +105,11 @@ def ticket_judgement() -> decide.Judgement:
     """
     walk = world.Stopped(examined=[test_decide.ticket(1)], stop=1)
     made = world.World(
-        grounds=test_decide.GROUNDS, walk=walk, named=[], act=actfacts.NO_ACT
+        grounds=test_decide.GROUNDS,
+        walk=walk,
+        named=[],
+        act=actfacts.NO_ACT,
+        forced=(),
     )
     return decide.decide(made)
 

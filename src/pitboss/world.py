@@ -175,7 +175,7 @@ class World:
     walk: Walk
     named: Sequence[Record]
     act: actfacts.ActRead
-    forced: Sequence[str] = ()
+    forced: Sequence[str]
 
 
 def blockers_of(record: Record) -> Sequence[str]:

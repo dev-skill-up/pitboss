@@ -3,22 +3,22 @@
 ``parse`` maps every parse of the command line onto one ``Mode``: each command,
 action and item form that asks of the decisions has a constructor of its own
 (``next`` is ``Next``, ``next <item>`` is ``NextItem``, ``act merge <item>`` is
-``Merge``, ...), ``push --mechanical`` is ``MechanicalPush``, every other act
-verb is ``ActOn`` of its ``gateverbs.Verb``, and every other command and action,
-which asks nothing of the decisions, is its own member of ``modecommand.Command`` or
+``Merge``, ...), ``push --mechanical`` is ``MechanicalPush``, every other act verb
+is ``ActOn`` of its ``gateverbs.Verb``, and every other command and action, which
+asks nothing of the decisions, is its own member of ``modecommand.Command`` or
 ``modecommand.SlotsCommand``: a new command or verb has no mode until it is named,
-and ``parse`` exits 2 for it.
-Every dispatch on a mode is a ``match`` that ends in ``assert_never``.
+and ``parse`` exits 2 for it. Every dispatch on a mode is a ``match`` ending in
+``assert_never``.
 """
 
 import argparse
 import sys
 from dataclasses import dataclass
+from functools import partial
 from typing import Callable, Mapping, Protocol, Sequence, assert_never, get_args
 
-from . import config, gateverbs, modecommand, nextcommand, slotbook
-from .modequestion import LISTED, QUIET, SWEEPING, Answers, Question, asking, forcing
-from .modequestion import pushes
+from . import config, gateverbs, modecommand, modequestion, nextcommand, slotbook
+from .modequestion import LISTED, QUIET, SWEEPING, Answers, Question, asking, pushes
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -248,11 +248,7 @@ def _slots_next(
 ) -> Mode:
     words = list(getattr(args, "words", ()) or ())
     force = bool(getattr(args, "force", False))
-
-    def named(*, item: str) -> Mode:
-        return SlotsNextItem(item=item, force=force)
-
-    return _named(SlotsNext, named, words, project)
+    return _named(SlotsNext, partial(SlotsNextItem, force=force), words, project)
 
 
 def _asking(bare: Callable[[], Mode]) -> ModeOf:
@@ -362,7 +358,7 @@ def parse(
     return modecommand.UNASKED[words]
 
 
-def question_of(chosen: Mode) -> Question:
+def question_of(chosen: Mode) -> Question:  # noqa: SLD601 one match on every mode
     """What a mode asks: the one dispatch on its constructor.
 
     Args:
@@ -375,7 +371,7 @@ def question_of(chosen: Mode) -> Question:
         case Next() | SlotsNext() | FreeCheck() | Tasks() | Free() | Heard() | Watch():
             return LISTED
         case SlotsNextItem(force=True):
-            return forcing(chosen.item)
+            return modequestion.forcing(chosen.item)
         case NextItem() | SlotsNextItem() | Merge() | Arm() | Undraft() | PinsReview():
             return asking(Answers.ITEM, chosen.item)
         case OverrideAct() | ActOn() | DispatchWanted():

@@ -282,11 +282,11 @@ def _opening(spec: Spec) -> Sequence[str]:
     # keyword: conflict-body (pitboss#208): a conflict merge refreshes the body
     if spec.kind is Kind.RESOLVE_CONFLICT:
         return [brieftextconflict.CONFLICT_BODY]
-    shown = spec.kind in (Kind.NEW_PR, Kind.FIRST_ROUND)
-    if not shown:
+    if spec.kind not in (Kind.NEW_PR, Kind.FIRST_ROUND):
         return []
     recorded = [brieftextwhen.DONE_WHEN_DIGEST] if spec.subject.done_when_digest else []
-    return [text.BODY, *recorded]
+    drafts = [DRAFTS[spec.rules.project.drafts]] if spec.kind is Kind.NEW_PR else []
+    return [*drafts, text.BODY, *recorded]
 
 
 # keyword: ci-pointer (pitboss#179): the sentences of the Plan a worker writes
@@ -317,23 +317,18 @@ def _push_lines(kind: Kind, project: briefconfig.Brief) -> Sequence[str]:
     return PUSHLESS.get(kind, pushes)
 
 
-def _plan_locked(spec: Spec) -> bool:
-    # keyword: plan-digest: only a Plan a review approved is not to be edited
-    return spec.kind in APPROVED_PLAN_WORKERS and spec.heads.plan_approved
-
-
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
-    new = spec.kind is Kind.NEW_PR
+    # keyword: plan-digest: only a Plan a review approved is not to be edited
+    locked = spec.kind in APPROVED_PLAN_WORKERS and spec.heads.plan_approved
     sentences = [
         TASKS[spec.kind],
         *_ruling(spec),
         brieftextwhen.ONE_PR,
         text.WORKTREE,
         brieftextwhen.DONE_WHEN,
-        *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
-        *([text.NO_PLAN_EDIT] if _plan_locked(spec) else []),
+        *([text.NO_PLAN_EDIT] if locked else []),
         text.EDIT,
         text.DENIED,
         text.LOCAL,

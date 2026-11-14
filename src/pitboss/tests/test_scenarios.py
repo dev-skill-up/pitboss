@@ -233,7 +233,6 @@ EDITS_ANSWER: capture.Item = {
         }
     }
 }
-GRAPHQL = f"query={capture.EDITS_QUERY}"
 
 
 def seven() -> tuple[ghapi.GitHub, str]:
@@ -247,21 +246,17 @@ def seven() -> tuple[ghapi.GitHub, str]:
     return github, json.dumps(got, sort_keys=True)
 
 
-def arguments(
-    to: str | None, edits: str | None = None, graphql: object = EDITS_ANSWER
-) -> argparse.Namespace:
+def arguments(to: str | None, edits: str | None = None) -> argparse.Namespace:
     """The command's arguments for PR 7 with the canned API.
 
     Args:
         to: the file to write, or None to print.
-        edits: the file of body edits, or None to ask GraphQL.
-        graphql: what GraphQL answers (None: the call is refused).
+        edits: the file of body edits, or None for no edits.
 
     Returns:
         The namespace.
     """
-    bodies = {**github_bodies(), GRAPHQL: graphql}
-    run = fakes.FakeProcesses(bodies=bodies)
+    run = fakes.FakeProcesses(bodies=dict(github_bodies()))
     return argparse.Namespace(pull="o/r#7", to=to, edits=edits, safe_run=run)
 
 

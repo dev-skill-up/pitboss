@@ -347,6 +347,21 @@ def _named(
     return list(_each(walking, list(filter(None, found)), forced).values())
 
 
+def _walking_of(reading: Reading, extent: modequestion.Extent) -> _Walking:
+    # the walk's start: the open pull requests read, the ledger's slots released
+    read = pullsearch.opened(reading.github, reading.settings)
+    released = reading.released(list(read.read), reading.book)
+    reading = dataclasses.replace(reading, book=released)
+    return _Walking(
+        reading=reading,
+        read=read,
+        stop=workorder.stop_count(reading.book),
+        every_pull=extent.every_pull,
+        branches={},
+        held=holdissues.read(reading.github, reading.settings),
+    )
+
+
 def read_world(reading: Reading, extent: modequestion.Extent) -> world.World:
     """Read what a command decides from: once, and no more than the answer needs.
 
@@ -357,18 +372,9 @@ def read_world(reading: Reading, extent: modequestion.Extent) -> world.World:
     Returns:
         The world.
     """
-    read = pullsearch.opened(reading.github, reading.settings)
-    released = reading.released(list(read.read), reading.book)
-    reading = dataclasses.replace(reading, book=released)
-    walking = _Walking(
-        reading=reading,
-        read=read,
-        stop=workorder.stop_count(reading.book),
-        every_pull=extent.every_pull,
-        branches={},
-        held=holdissues.read(reading.github, reading.settings),
-    )
+    walking = _walking_of(reading, extent)
     walked = walk(walking)
+    reading = walking.reading
     return world.World(
         grounds=_grounds(walking),
         walk=walked,

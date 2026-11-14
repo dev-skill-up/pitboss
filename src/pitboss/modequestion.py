@@ -39,14 +39,10 @@ def naming(items: Sequence[str]) -> Extent:
     Returns:
         The extent.
     """
-    return Extent(
-        named=items, every_pull=False, pushing=False, pushed=(), forced=()
-    )
+    return Extent(named=items, every_pull=False, pushing=False, pushed=(), forced=())
 
 
-EVERY_PULL = Extent(
-    named=(), every_pull=True, pushing=False, pushed=(), forced=()
-)
+EVERY_PULL = Extent(named=(), every_pull=True, pushing=False, pushed=(), forced=())
 
 
 def pushing(arguments: Sequence[str]) -> Extent:
@@ -58,9 +54,7 @@ def pushing(arguments: Sequence[str]) -> Extent:
     Returns:
         The extent.
     """
-    return Extent(
-        named=(), every_pull=False, pushing=True, pushed=arguments, forced=()
-    )
+    return Extent(named=(), every_pull=False, pushing=True, pushed=arguments, forced=())
 
 
 class Answers(enum.Enum):
@@ -115,9 +109,7 @@ def forcing(item: str) -> Question:
     Returns:
         The question.
     """
-    named = Extent(
-        named=[item], every_pull=False, pushing=False, pushed=(), forced=[item]
-    )
+    named = dataclasses.replace(naming([item]), forced=[item])
     return Question(answers=Answers.ITEM, item=item, extent=named)
 
 
