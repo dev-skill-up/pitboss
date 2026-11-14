@@ -35,7 +35,7 @@ TASK_RUN_PLAN = (
     " and no `Execution:` line), after an Opus ruling, so its commands were never"
     " run. Run each precise command of the Plan as written, and fill the Execution"
     " and Evidence of the PR body with what they printed. The Plan is approved: do"
-    " not change it (pitboss#201)."
+    " not change it."
 )
 TASK_ADD_CI_QUOTES = (
     "Task: PR {reference} is ready and its checks passed, and its Plan has CI-quote"
@@ -43,7 +43,7 @@ TASK_ADD_CI_QUOTES = (
     " that starts `CI quote:` and points to the run (the workflow, the job URL of"
     " the head, the step and a greppable string that step prints), as the CI"
     " pointer rule says; paste no log output. Change nothing else; the Plan is"
-    " approved (pitboss#277)."
+    " approved."
 )
 TASK_REFRESH_BODY = (
     "Task: PR {reference}: its body names an older head than the PR's (the last"
@@ -51,8 +51,7 @@ TASK_REFRESH_BODY = (
     " is red. Run `uvx pitboss body-head {reference}` (it adds the `Head:` line for"
     " the head and changes nothing else) and `uvx pitboss expand` again for each"
     " stale Evidence block, then `uvx pitboss lint pr-body BODYFILE` on the body as"
-    " `gh api` prints it, which must print ok. Change no code (keyword: stale-head,"
-    " quire#1115)."
+    " `gh api` prints it, which must print ok. Change no code."
 )
 TASK_SHARED_RED = (
     "Task: PR {reference}: its failed check is red on other PRs of the repository"
@@ -61,8 +60,7 @@ TASK_SHARED_RED = (
     " Fix no PR: search the open tickets for the check name, and file ONE ticket"
     " against the shared cause (a stale pin, a stale lock or a runner outage is"
     " the cause, not any PR), or add the PRs to the ticket that exists, then stop."
-    " Each PR goes back to its own step when the shared red is closed (keyword:"
-    " shared-red)."
+    " Each PR goes back to its own step when the shared red is closed."
 )
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
@@ -107,13 +105,13 @@ TASK_FIX_BLOCKED_BY = (
     " Correct the lines of the"
     " body: drop the one that is wrong, or name the PR or ticket that now carries"
     " the change, then `uvx pitboss lint pr-body BODYFILE` on the body as `gh api`"
-    " prints it must print ok. Change no code (keyword: blocked-by)."
+    " prints it must print ok. Change no code."
 )
 TASK_AFTER_BLOCKER = (
     "Task: PR {reference}: the PRs it was blocked by have merged since its red check"
     " finished. Merge the base into the branch, check,"
     " push (never rewrite history), then `uvx pitboss body-head {reference}`: CI"
-    " runs again on the new head (keyword: blocked-by)."
+    " runs again on the new head."
 )
 TASK_FINISH_PARTIAL = (
     "Task: PR {reference}: a worker handed it back unfinished and nothing offered it"
@@ -121,7 +119,7 @@ TASK_FINISH_PARTIAL = (
     " this PR on its own branch, never a new one: do what the line says (post the"
     " `uvx pitboss plan-check`, fix the body until `uvx pitboss lint pr-body BODYFILE`"
     " prints ok, push the unpushed commits), change nothing else, then stop with the"
-    " hand-back (keyword: finish-partial)."
+    " hand-back."
 )
 
 Kind = briefkind.Kind
