@@ -7,13 +7,7 @@ import dataclasses
 import enum
 from typing import AbstractSet, Sequence
 
-FINISHED_STATUSES = frozenset({"completed"})
 WAITING_STATUSES = frozenset({"queued"})
-# A cancelled check (concurrency cancel-in-progress) is superseded, not red;
-# skipped and neutral ones are not here either.
-FAILED_CONCLUSIONS = frozenset(
-    {"failure", "timed_out", "action_required", "startup_failure"}
-)
 
 
 class MergeState(enum.Enum):
@@ -56,7 +50,7 @@ class Head:
 
     sha: str
     branch: str
-    repo: str = ""
+    repo: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -119,17 +113,19 @@ class CheckRun:
         completed_at: when it completed (ISO 8601, "" when it has not).
         run: the id of its Actions workflow run (0 when not an Actions check).
         succeeded: whether it completed with the conclusion ``success``.
+        said: its status and conclusion as GitHub wrote them (keyword: gate).
     """
 
     id: int
     name: str
     finished: bool
     failed: bool
-    head_sha: str = ""
-    started_at: str = ""
-    completed_at: str = ""
-    run: int = 0
-    succeeded: bool = False
+    head_sha: str
+    started_at: str
+    completed_at: str
+    run: int
+    succeeded: bool
+    said: tuple[str, str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -141,8 +137,7 @@ class CommitStatus:
         succeeded: whether its state is ``success``.
         created_at: when it was posted (ISO 8601).
         run: the id of the Actions run its target URL names (0 when none).
-        state: its state (``failure``, ``error``, ``pending``, ``success``);
-            empty when not known.
+        state: its state (``failure``, ``pending``, ...), empty when not known.
         description: the text the poster gave it, empty when none.
         url: its target URL, empty when none.
     """
@@ -150,10 +145,10 @@ class CommitStatus:
     context: str
     succeeded: bool
     created_at: str
-    run: int = 0
-    state: str = ""
-    description: str = ""
-    url: str = ""
+    run: int
+    state: str
+    description: str
+    url: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -182,12 +177,14 @@ class Comment:
         author_association: its author's relation to the repository.
         created_at: when it was written (ISO 8601).
         url: its address (``html_url``), empty when the API gave none.
+        login: its author's login (the gate reads ``act``'s records by it).
     """
 
     body: str
     author_association: str
     created_at: str
-    url: str = ""
+    url: str
+    login: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -199,12 +196,16 @@ class PullReview:
         commit_id: the commit it reviewed.
         author_association: its author's relation to the repository.
         submitted_at: when it was submitted (ISO 8601).
+        body: its text (the gate reads a review attempt in it).
+        login: its author's login.
     """
 
     state: str
     commit_id: str
     author_association: str
     submitted_at: str
+    body: str
+    login: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -231,21 +232,6 @@ class TimelineEvent:
 
     kind: str
     at: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class JobResult:
-    """A job of a workflow run.
-
-    Attributes:
-        name: its name (``android / build-android``).
-        conclusion: how it ended, empty while it runs.
-        failed_steps: the names of its steps that failed.
-    """
-
-    name: str
-    conclusion: str
-    failed_steps: Sequence[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -287,7 +273,7 @@ class Issue:
     created_at: str
     labels: AbstractSet[str]
     body: str
-    comments: int = 0
+    comments: int
 
 
 RED_CONCLUSIONS = frozenset({"failure", "timed_out", "startup_failure"})
@@ -381,8 +367,7 @@ class Graded:
         when: when it was written (ISO 8601).
         plan: what its ``Plan:`` line grades, None with no such line.
         execution: its verdict, None for a review of the plan alone.
-        comment: whether it is a regular review (a comment in the form, not a
-            GitHub review).
+        comment: whether it is a regular review (a comment, not a GitHub review).
         body: the digest of the PR body it records, empty when it records none.
         missed: how many of its findings it marks ``Missed earlier:`` (keyword:
             all-findings).
@@ -394,7 +379,7 @@ class Graded:
     when: str
     plan: Verdict | None
     execution: Verdict | None
-    comment: bool = True
-    body: str = ""
-    missed: int = 0
-    plan_digest: str = ""
+    comment: bool
+    body: str
+    missed: int
+    plan_digest: str

@@ -35,7 +35,7 @@ from . import (
     filegates,
     forms,
     generatedfiles,
-    ghapi,
+    ghclient,
     headfindings,
     markuplines,
     plancheck,
@@ -245,7 +245,7 @@ def _prior(args: argparse.Namespace, body: str) -> shapes.Comment | None:
     if not args.pull:
         return None
     slug, number = pullfile.split("plan-check", args.pull)
-    found = plancheckprior.comments(ghapi.read_only(args.safe_run), slug, number)
+    found = plancheckprior.comments(ghclient.read_only(args.safe_run), slug, number)
     return plancheckprior.relied_on(found, body)
 
 
@@ -262,7 +262,7 @@ def _remote(
 ) -> list[str]:
     # keywords: ci-run, plan-done-when (pitboss#317, #396): GitHub's word on the run
     ref, prior = given
-    github = ghapi.read_only(args.safe_run)
+    github = ghclient.read_only(args.safe_run)
     named = forms.FIXES.search(body)
     ticket = named.group(1) if named else ""
     earlier = functools.partial(_contained, args, ref) if prior else cirun.never

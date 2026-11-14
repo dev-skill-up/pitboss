@@ -14,7 +14,7 @@ from typing import Sequence
 EXCEPTION = "known pitboss bug"
 WINDOW = 500
 SHOWN = 80
-_WAITS = re.compile(
+_HOLD_PHRASES = re.compile(
     r"\bsleeps? for (?:it|the (?:hold|pressure))\b"
     r"|\bwait(?:s|ed)? (?:out|for) (?:the|a) hold\b"
     r"|\bunder (?:a|the) hold\b"
@@ -40,6 +40,6 @@ def findings(name: str, body: str) -> Sequence[str]:
         f"{name}: the text tells an agent to wait out a hold, with no exception"
         f" for a hold that comes from a {EXCEPTION} (hold-wait): "
         f"{text[found.start() : found.start() + SHOWN]}"
-        for found in _WAITS.finditer(text)
+        for found in _HOLD_PHRASES.finditer(text)
         if EXCEPTION not in text[found.end() : found.end() + WINDOW]
     ]

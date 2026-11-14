@@ -13,7 +13,7 @@ from typing import Mapping
 
 from hamcrest import assert_that, contains_string, empty, equal_to, has_item, is_
 
-from .. import actions, ruleconflicts, steps
+from .. import actions, ruleconflicts, steps, stepwords
 from . import events, model, test_properties
 from .says import says
 
@@ -131,11 +131,15 @@ class TestActionMatrix(unittest.TestCase):
 
     def test_c16_action_matrix_a_refusal_names_the_states_that_allow_it(self) -> None:
         """A merge at CI is refused naming Step.MERGE; at the merge step it is not."""
-        waiting = steps.Next(step=steps.Step.WAIT_FOR_CI)
+        waiting = steps.Next(step=steps.Step.REGULAR_REVIEW)
         merging = dataclasses.replace(waiting, step=steps.Step.MERGE)
         plain = actions.Standing.PLAIN
         said = actions.refusal(_grid(), actions.Action.MERGE, waiting, plain)
-        says(said, "merge is refused: the PR is at Step.WAIT", "allowed at Step.MERGE")
+        says(
+            said,
+            "merge is refused: the PR is at Step.REGULAR_REVIEW",
+            "allowed at Step.MERGE",
+        )
         assert_that(
             actions.refusal(_grid(), actions.Action.MERGE, merging, plain), equal_to("")
         )
@@ -178,6 +182,8 @@ class TestActionMatrix(unittest.TestCase):
         grid = _grid()
         for each, path in test_properties.walk():
             step = model.step_of(each)
+            if not isinstance(step, steps.Next):
+                continue  # keyword: one-path: an idle PR has no row
             row = grid[f"Step.{step.step.name}"]
             assert_that(set(row), equal_to(set(actions.columns())), str(path))
             if step.task is not None:
@@ -188,6 +194,9 @@ class TestActionMatrix(unittest.TestCase):
     def test_c16_action_matrix_every_reachable_state_prints_a_next_step(self) -> None:
         """No walked state has an empty step or an UNKNOWN one."""
         for each, path in test_properties.walk():
-            said = steps.describe(model.step_of(each))
+            step = model.step_of(each)
+            if not isinstance(step, steps.Next):
+                continue  # keyword: one-path: an idle PR is omitted
+            said = stepwords.describe(step)
             assert_that(said.strip() != "", is_(True), str(path))
             assert_that("UNKNOWN" in said, is_(False), str(path))

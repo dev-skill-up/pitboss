@@ -12,13 +12,16 @@ import collections
 import copy
 import dataclasses
 import json
-from typing import AbstractSet, Callable, Mapping, Sequence
+import re
+from typing import AbstractSet, Mapping, Sequence
 
-from .. import totalanswer, totalroutes, totalverdict
+from ..gatestop import Stop
+from . import gatewords
 from .totalcells import Cell, Verdict
 from .totalworld import World, copied
 
 ABSENT = "<absent>"
+FORBIDDEN = re.compile(r"no row|not one the verdict|unknown to pitboss")
 Change = Mapping[tuple[str, str], object]
 
 
@@ -122,7 +125,7 @@ def apply(origin: World, *changes: Change) -> World:
 
 def _one_action(
     origin: World,
-    found: Sequence[tuple[Change, totalanswer.Word]],
+    found: Sequence[tuple[Change, gatewords.Word]],
     verdict: Verdict,
     action: str,
 ) -> tuple[collections.Counter[str], list[str]]:
@@ -138,7 +141,7 @@ def _one_action(
 
 def _pair(
     origin: World,
-    pair: tuple[tuple[Change, totalanswer.Word], tuple[Change, totalanswer.Word]],
+    pair: tuple[tuple[Change, gatewords.Word], tuple[Change, gatewords.Word]],
     verdict: Verdict,
     action: str,
 ) -> tuple[str, Sequence[str]]:
@@ -148,9 +151,9 @@ def _pair(
         return "same input", []
     both = apply(origin, first, second)
     answer = verdict(action, both.pull, both.ctx)
-    go = first_word == second_word == totalverdict.GO
-    want = totalverdict.GO if go else totalverdict.STOP
-    lost = [each for each in answer.lines if totalroutes.route_of(each) is None]
+    go = first_word == second_word == gatewords.GO
+    want = gatewords.GO if go else gatewords.STOP
+    lost = routed(answer.stops)
     if answer.word == want and not lost:
         return answer.word.name, []
     said = f"{action} {sorted(first)} {sorted(second)}: {answer.word.name}"
@@ -170,8 +173,8 @@ def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
     """
     counts: collections.Counter[str] = collections.Counter()
     bad: list[str] = []
-    by_action: dict[str, list[tuple[Change, totalanswer.Word]]] = (
-        collections.defaultdict(list)
+    by_action: dict[str, list[tuple[Change, gatewords.Word]]] = collections.defaultdict(
+        list
     )
     for each in cells:
         change = change_of(start(base, each.action), each.world)
@@ -185,20 +188,13 @@ def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
     return Pairs(counts=counts, exceptions=bad[:12])
 
 
-def routed(
-    lines: Sequence[str], table: Callable[[str], object] = totalroutes.route_of
-) -> Sequence[str]:
-    """The lines with no route, or that say pitboss does not know.
+def routed(stops: Sequence[Stop]) -> Sequence[str]:
+    """The lines of the stops that say pitboss does not know.
 
     Args:
-        lines: stop lines.
-        table: the routing (the shipped one when none).
+        stops: the stops.
 
     Returns:
-        Each line that has no route or is forbidden.
+        Each such line.
     """
-    return [
-        each
-        for each in lines
-        if table(each) is None or totalroutes.FORBIDDEN.search(each)
-    ]
+    return [each.line for each in stops if FORBIDDEN.search(each.line)]

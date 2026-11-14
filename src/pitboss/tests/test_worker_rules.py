@@ -7,15 +7,13 @@ partial-hand-back) and no change of a PR's draft state (keyword: draft-moves).
 """
 
 import argparse
-import json
-import pathlib
 import subprocess
 import unittest
 from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import draftmoves, partial, ticketbranch, workeredits
+from .. import partial, ticketbranch
 from . import fakes, world
 from .cleanworld import same
 from .says import says
@@ -23,7 +21,6 @@ from .handbackrun import hand_back, no_jobs
 from .handbackworld import ready
 from .test_push_draft import held_world
 
-ROOT = pathlib.Path("/work/tree")
 COMPLETE = "Deviations: none\nNot done: none\n"
 PARTIAL = "Deviations: none\nNot done: item 9\n"
 IMPOSSIBLE = "Impossible: nox -s tests -> No module named gather\n"
@@ -40,6 +37,8 @@ def branch_of(name: str) -> argparse.Namespace:
     """
 
     def run(command: Sequence[str]) -> fakes.Output:
+        if list(command[:2]) == ["gh", "api"]:
+            return fakes.Output(stdout="[]")  # no open PR works on the ticket
         assert_that(list(command), equal_to(["git", "branch", "--show-current"]))
         return fakes.Output(stdout=name + "\n")
 
@@ -105,6 +104,16 @@ class TestTicketBranch(unittest.TestCase):
         assert_that(ticketbranch.refusal("444", ""), contains_string("(detached HEAD)"))
         assert_that(ticketbranch.refusal("x", "main"), contains_string("ticket x"))
 
+    def test_b15_a_ticket_with_an_open_pr_is_worked_on_its_head_branch(self) -> None:
+        """The PR's head branch is the one; another, or a detached head, is refused."""
+        heads = ["claude/thread-1", "claude/thread-2"]
+        same(ticketbranch.refusal("owner/pitboss#444", "claude/thread-2", heads), "")
+        other = ticketbranch.refusal("owner/pitboss#444", "worker/444", heads)
+        assert_that(other, contains_string("worker/444"))
+        assert_that(other, contains_string("claude/thread-1, claude/thread-2"))
+        detached = ticketbranch.refusal("owner/pitboss#444", "", heads)
+        assert_that(detached, contains_string("(detached HEAD)"))
+
     def test_b15_the_ticket_is_the_option_or_the_environment(self) -> None:
         """``--ticket`` first, then ``$PITBOSS_TICKET``, else none."""
         env = {"PITBOSS_TICKET": "7"}
@@ -147,96 +156,6 @@ class TestTicketBranch(unittest.TestCase):
         same([each for each in other.calls if list(each[:2]) == ["git", "push"]], [])
         fakes.run_git(other.clone, "checkout", "-b", "worker/444")
         same(push().code, 0)
-
-
-def entry(name: str, **given: object) -> str:
-    """One line of a worker's output that calls a tool.
-
-    Args:
-        name: the tool.
-        **given: its input.
-
-    Returns:
-        The JSON line.
-    """
-    use = dict(type="tool_use", name=name, input=given)
-    return json.dumps(dict(message=dict(content=[use])))
-
-
-def edits_of(*calls: str) -> Sequence[str]:
-    """What ``workeredits`` says of tool calls in the fixed worktree.
-
-    Args:
-        *calls: the transcript lines.
-
-    Returns:
-        The lines it gives.
-    """
-    return workeredits.lines(list(calls), ROOT)
-
-
-class TestWorkerEdits(unittest.TestCase):
-    """B16: the edit tools are listed; other worktrees and shell edits refused."""
-
-    def test_b16_the_edit_tools_are_counted(self) -> None:
-        """Each tool and how many times; none when the worker edited nothing."""
-        inside = str(ROOT / "a.py")
-        output = [
-            entry("Edit", file_path=inside),
-            entry("Edit", file_path=inside),
-            entry("Write", file_path=inside),
-            entry("Read", file_path=inside),
-            "not json",
-        ]
-        same(edits_of(*output), ["EDIT TOOLS: Edit 2, Write 1"])
-        same(edits_of(), ["EDIT TOOLS: none"])
-
-    def test_b16_a_file_in_another_worktree_is_refused(self) -> None:
-        """The path is outside the worker's worktree; a sibling prefix is too."""
-        for path in ("/work/other/a.py", "/work/tree2/a.py"):
-            with self.subTest(path):
-                found = edits_of(entry("Write", file_path=path))
-                assert_that(found[1], contains_string("line 1: Write changed " + path))
-                assert_that(found[1], contains_string("outside the worktree"))
-        same(edits_of(entry("Edit", file_path="/work/tree"))[1:], [])
-        found = edits_of(entry("NotebookEdit", notebook_path="/x/n"))
-        assert_that(found[1], contains_string("NotebookEdit changed /x/n"))
-        same(edits_of(entry("Edit"))[1:], [])
-
-    def test_b16_a_shell_command_that_edits_files_is_refused(self) -> None:
-        """sed -i, a heredoc, tee, a redirected cat and python -c; not ls or sed -n."""
-        edits = [
-            "sed -i s/a/b/ f.py",
-            "cat <<EOF > f.py",
-            "echo x | tee f.py",
-            "cat a >> f.py",
-            "python3 -c 'open(1)'",
-            "perl -pi -e s/a/b/ f.py",
-        ]
-        plain = ["ls -l", "sed -n 1p f.py", "git status", "cat f.py | head"]
-        for command in [*edits, *plain]:
-            with self.subTest(command):
-                found = edits_of(entry("Bash", command=command))[1:]
-                if command in edits:
-                    assert_that(found[0], contains_string("a shell command edits"))
-                else:
-                    same(found, [])
-
-    def test_b16_hand_back_check_reads_the_output_file(self) -> None:
-        """An output with an edit outside the worktree is refused; inside, ok."""
-        here = ready(world.make_world())
-        quiet = no_jobs()
-        top = here.clone.resolve()
-        good = [entry("Edit", file_path=str(top / "a.py"))]
-        bad = [entry("Edit", file_path="/elsewhere/b.py")]
-        shown = []
-        for lines in (good, bad):
-            path = fakes.directory() / "output.jsonl"
-            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            shown.append(hand_back(here, quiet, "--output", path.as_posix()))
-        same((shown[0].code, shown[0].out), (0, "EDIT TOOLS: Edit 1\nok\n"))
-        same(shown[1].code, 1)
-        says(shown[1].out, "EDIT TOOLS: Edit 1", "outside the worktree")
 
 
 class TestPartialHandBack(unittest.TestCase):
@@ -289,30 +208,3 @@ class TestPartialKeepsTheSlot(unittest.TestCase):
         says(refused.out, "keeps its slot")
         same(here.ledger.read_text(), before)
         assert_that('"worker"' in before, equal_to(True))
-
-
-class TestDraftState(unittest.TestCase):
-    """B21: a worker's change of a PR's draft state is flagged."""
-
-    def test_b21_a_change_after_the_sweep_marked_ready_is_flagged(self) -> None:
-        """The newest later draft-state event is named, with the actor's note."""
-        events = [
-            {"event": "ready_for_review", "created_at": "2026-11-01T00:00:00Z"},
-            {"event": "labeled", "created_at": "2026-11-01T00:01:00Z"},
-            {"event": "convert_to_draft", "created_at": "2026-11-02T00:00:00Z"},
-        ]
-        path = "repos/owner/project/issues/3/timeline"
-        github = fakes.github({fakes.page(path): events})
-        said = draftmoves.tell(github, "owner/project", 3)
-        same(len(said), 1)
-        assert_that(said[0], contains_string("owner/project#3: convert_to_draft"))
-        assert_that(
-            said[0], contains_string("came after the sweep marked the PR ready")
-        )
-
-    def test_b21_the_sweeps_own_change_and_no_timeline_say_nothing(self) -> None:
-        """The nearest inputs it must still pass: the first ready, and no read."""
-        path = fakes.page("repos/owner/project/issues/3/timeline")
-        first = [{"event": "ready_for_review", "created_at": "2026-11-01T00:00:00Z"}]
-        same(draftmoves.tell(fakes.github({path: first}), "owner/project", 3), [])
-        same(draftmoves.tell(fakes.github({}), "owner/project", 3), [])

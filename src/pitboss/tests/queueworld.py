@@ -23,19 +23,6 @@ FAILED_JOB = {
 PASSED_JOB = {"name": "check / check", "conclusion": "success", "steps": []}
 
 
-def project_page(path: str, number: int = 1) -> str:
-    """The paged path of a list under the project.
-
-    Args:
-        path: the list's path under the project.
-        number: the page.
-
-    Returns:
-        The path ``ghapi.pages`` asks for.
-    """
-    return fakes.page(f"{world.PROJECT}/{path}", number)
-
-
 def _run(identifier: int, branch: str, minute: int) -> dict[str, object]:
     return {
         "id": identifier,

@@ -10,11 +10,12 @@ from .says import has_all, has_none
 
 NEW_PR_PROCESS = [
     "Task: do the whole of ticket o/r#7 in one PR: write the code, then open the PR.",
-    "Worktree: work in your own `git worktree add` of o/r from origin/main after"
-    " `git fetch origin main`; never in the main clone. A task that changes a"
-    " repository other than the ticket's gets a `git worktree add` of that"
-    " repository, the only place to commit, and a shared clone (`main_clone`, the"
-    " repository-prototype clone) is never checked out to another branch.",
+    "Worktree: work in your own git worktree of o/r, made with `git fetch origin"
+    " main` then `git worktree add -b <branch> <dir> origin/main`; never in the"
+    " main clone. A task that changes a repository other than the ticket's gets a"
+    " worktree of that repository, the only place to commit, and a shared clone"
+    " (`main_clone`, the repository-prototype clone) is never checked out to"
+    " another branch.",
     "Done-when: read the Done-when in the body of the ticket o/r#7; only the body"
     " has it, and a comment adds nothing to it",
     "Draft: open the PR as a draft whose body has a Plan section",
@@ -29,8 +30,8 @@ NEW_PR_BODY = [
     " A row the Plan points to CI has no row in the body.",
 ]
 NEW_PR_RULES = [
-    "Edit: change files with the Edit tool only (no sed, no shell redirection, no"
-    " ad hoc rm)",
+    "Edit: clean up with `uvx pitboss clean-container proj` only; change an"
+    " existing comment or PR body only after reading its current text in full",
     "Push: push with `uvx pitboss push proj --no-dry-run` (add `--draft` for a"
     " draft PR), after every commit.",
     "No waiting: never wait for CI. Push, then hand back at once.",
@@ -42,7 +43,9 @@ FIRST_ROUND = [
     "Task: PR o/r#3 has no Plan and Execution body. Fix as best you can and write"
     " the Plan and Execution in the body.",
     "PR body: its first line is `Fixes o/r#7`;",
-    "on the PR's branch, current with origin/main;",
+    "with `git fetch origin fix-branch` then `git worktree add <dir> fix-branch`;"
+    " if origin/main has moved, merge it into the branch (never rebase or"
+    " force-push)",
 ]
 REVISE_PLAN = [
     "Task: PR o/r#3: the review at https://example.org/c/1 did not approve the"
@@ -140,7 +143,7 @@ class TestWorkerBriefs(unittest.TestCase):
 
     def test_the_first_round_writes_the_body(self) -> None:
         """The PR exists; its body is what is written."""
-        pinned(brief.Kind.FIRST_ROUND, FIRST_ROUND)
+        pinned(brief.Kind.FIRST_ROUND, FIRST_ROUND, branch="fix-branch")
         has_none(text(brief.Kind.FIRST_ROUND), ["Draft:"])
 
     def test_a_plan_revision_changes_only_what_the_findings_name(self) -> None:

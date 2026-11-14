@@ -10,8 +10,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brieftext, flow, reviewline, reviewunread, shapes
-from . import model, test_work
+from .. import brieftext, flow, reviewunread
+from . import blank, model
 from .model import History, Verdict
 
 V = Verdict
@@ -42,8 +42,12 @@ def named_for(body: str) -> Sequence[str]:
     Returns:
         What ``reviewunread.without_execution`` names.
     """
-    comment = shapes.Comment(
-        body=body, author_association="MEMBER", created_at=model.stamp(5), url=URL
+    comment = dataclasses.replace(
+        blank.COMMENT,
+        body=body,
+        author_association="MEMBER",
+        created_at=model.stamp(5),
+        url=URL,
     )
     state = state_of(TWO_PLANS)
     state = dataclasses.replace(state, comments=[*state.comments, comment])
@@ -88,13 +92,3 @@ class TestUnread(unittest.TestCase):
         )
         for state in (first, full, other_head):
             assert_that(reviewunread.without_execution(state), equal_to([]))
-
-    def test_i28_the_sweep_line_comes_with_the_other_review_lines(self) -> None:
-        """`reviewline.lines` ends with the REVIEW UNREAD lines of the PR."""
-        pull = dataclasses.replace(
-            test_work.facts(5, test_work.NONE),
-            unreadable=dataclasses.replace(
-                test_work.facts(5, test_work.NONE).unreadable, no_execution=[URL]
-            ),
-        )
-        assert_that(reviewline.lines(pull)[-1], contains_string("REVIEW UNREAD"))

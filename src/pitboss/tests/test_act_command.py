@@ -7,15 +7,15 @@ import json
 import subprocess
 import sys
 import unittest
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, has_item
 
-from .. import actcore, actledger, acthub, actinputs, actwiring, ghapi
+from .. import actcore, acthub, actinputs, actledger, actwiring, gateread, ghapi
 from ..totaljson import members
-from . import fakehub, fakes, world
-from .knownkit import NUMBER, REPO, base_map, made, shipped_kit
-from .says import errs, exits
+from . import fakehub, fakes, knownshipped, world
+from .knownkit import NUMBER, REPO, base_map, made
+from .says import errs, exits, outs
 from .fakes import calls_with
 from ..actledger import Done
 
@@ -65,9 +65,9 @@ ISSUE_CALL = [
 ]
 HUB_ANSWERS = {
     "repos/o/r/pulls/3": json.dumps({"number": 3}),
-    "repos/o/r/pulls?state=open&per_page=100": '{"number": 1}\n{"number": 2}\n',
-    "repos/o/r/issues/3/timeline?per_page=100": "[]\n",
-    "repos/o/r/issues?state=open&per_page=100&labels=pitboss-hold": "",
+    "repos/o/r/pulls?state=open&per_page=100&page=1": '[{"number": 1}, {"number": 2}]',
+    "repos/o/r/issues/3/timeline?per_page=100&page=1": "[]",
+    "repos/o/r/issues?state=open&labels=pitboss-hold&per_page=100&page=1": "[]",
     "repos/o/r": json.dumps({"default_branch": "trunk"}),
     "repos/o/r/pulls": "7\n",
 }
@@ -86,8 +86,8 @@ INPUT_ANSWERS = {
     ),
     "repos/o/r/issues/1": json.dumps({"state": "open"}),
     "repos/x/y/issues/4": json.dumps({"state": "closed"}),
-    "repos/o/r/pulls/3/files?per_page=100": json.dumps([{"filename": "a"}]),
-    "repos/o/r/issues/3/timeline?per_page=100": "",
+    "repos/o/r/pulls/3/files?per_page=100&page=1": json.dumps([{"filename": "a"}]),
+    "repos/o/r/issues/3/timeline?per_page=100&page=1": "[]",
 }
 BLOCKED_PULL = {
     "body": "Fixes #1\n\nBlocked by x/y#4 and #9\n",
@@ -105,18 +105,30 @@ def _recorded(hub: fakehub.Made, done: actledger.Done) -> str:
     return event.what if event else ""
 
 
+OPEN = "/pulls?state=open"
+# the closed pull requests, newest created first, as the p90 reads them
+CLOSED = (
+    "repos/{repo}/pulls?state=closed&sort=created&direction=desc&per_page=100&page=1"
+)
+
+
+def _listed(number: int) -> Mapping[str, object]:
+    # an open PR as the listing gives it: one path reads its branch and age
+    return {"number": number, "head": {"ref": f"b{number}"}, "created_at": "2026-11"}
+
+
 def _here() -> world.World:
     here = world.make_world()
+    listings = {world.PROJECT: [_listed(n) for n in (1, 2, 3)], world.LIBRARY: []}
+    here.bodies.update(
+        {fakes.page(repo + OPEN): found for repo, found in listings.items()}
+    )
     here.bodies["user"] = {"login": "pitboss-bot"}
     here.bodies["POST repos/owner/project/issues/3/labels"] = []
     here.bodies["POST repos/owner/project/issues/3/comments"] = {"html_url": "u"}
-    here.bodies["name=project"] = {
-        "data": {
-            "repository": {
-                "pullRequests": {"nodes": [{"additions": 3, "deletions": 1}]}
-            }
-        }
-    }
+    here.bodies[CLOSED.format(repo="owner/project")] = [{"number": 3, "merged_at": "x"}]
+    pull = here.bodies["repos/owner/project/pulls/3"]
+    pull.update(additions=3, deletions=1)  # type: ignore[attr-defined]
     return here
 
 
@@ -173,10 +185,12 @@ class TestCommand(unittest.TestCase):
         for words, said in (
             (("nope", PULL), "no verb"),
             (("label", PULL, "name"), "is not an option"),
-            (("merge", PULL), "act merge: refused"),
         ):
             done = _act(here, *words)
             errs(done, 2, said)
+        edited = _act(here, "comment-edit", PULL, "id=1", "body=x")
+        outs(edited, 2, "not a comment pitboss")
+        outs(_act(here, "merge", PULL), 2, f"NOT DONE: merge {PULL}")
         assert_that(calls_with(here.calls, "-X"), equal_to([]))
 
     def test_c17_targets(self) -> None:
@@ -189,7 +203,7 @@ class TestCommand(unittest.TestCase):
 
     def test_c17_the_ledger_event_names_the_branch(self) -> None:
         """A checked write is recorded with the PR's branch and head; another is not."""
-        hub = made(shipped_kit())
+        hub = made(knownshipped.shipped())
         target = actcore.Target(repo=REPO, number=NUMBER)
         branch = str(base_map("pull", "head")["ref"])
         merged = _recorded(hub, Done(verb="merge", target=target, options={}))
@@ -261,7 +275,7 @@ class TestInputs(unittest.TestCase):
     """The verdict's inputs, read live."""
 
     def test_c17_every_required_input_is_read(self) -> None:
-        """Rules, runs, statuses, tickets, files, blockers and the timeline.
+        """Rules, runs, statuses, tickets, files and the timeline.
 
         A failed read is kept.
         """
@@ -279,7 +293,6 @@ class TestInputs(unittest.TestCase):
             (ctx["check_runs"], ctx["files"], ctx["timeline"]),
             equal_to(([{"name": "check"}], [{"filename": "a"}], [])),
         )
-        assert_that(ctx["blockers"], equal_to({"x/y#4": "closed", "#9": "not read"}))
         assert_that(list(members(ctx["tickets"])), equal_to(["o/r#1"]))
         assert_that("_error" in members(ctx["statuses"]), equal_to(True))
         assert_that(ctx["authors"], equal_to({"bot", "dependabot[bot]"}))
@@ -319,39 +332,37 @@ class TestWiring(unittest.TestCase):
         done = actwiring.quiet([sys.executable, "-c", code])
         assert_that((done.returncode, done.stdout), equal_to((3, "said\n")))
 
-    def test_c17_the_p90_is_read_once_and_an_unread_one_is_0(self) -> None:
-        """Nine of ten sizes are at or under the percentile."""
-        nodes = [{"additions": size, "deletions": 0} for size in range(1, 11)]
-        calls, github = _github(
-            {
-                "name=r": json.dumps(
-                    {"data": {"repository": {"pullRequests": {"nodes": nodes}}}}
-                )
-            }
-        )
-        found = actwiring.limits(github)
-        assert_that((found("o/r"), found("o/r"), found("o/none")), equal_to((9, 9, 0)))
-        assert_that(len(calls), equal_to(2))
+    def test_c17_the_p90_is_read_once_and_an_unread_one_raises(self) -> None:
+        """Nine of ten sizes are at or under the percentile; none merged is 0.
 
-    def test_c17_the_order_of_work_reads_slots_prs_and_tickets(self) -> None:
-        """The configured slots and ledger.
-
-        The open PRs and the tickets of each priority.
+        A read GitHub refuses is not taken as 0 (one-path: no read is swallowed).
         """
-        here = _here()
-        for repo in ("owner/project", "owner/lib"):
-            here.bodies[f"repos/{repo}/pulls?state=open&per_page=100"] = [
-                {"number": 5, "created_at": "2026-11-01"}
-            ]
-            for label in ("p0", "p1", "p2", "p3"):
-                issues = [
-                    {"number": 6, "created_at": "2026-11-02"},
-                    {"number": 5, "pull_request": {}},
-                ]
-                here.bodies[
-                    f"repos/{repo}/issues?state=open&per_page=100&labels={label}"
-                ] = issues
-        done = _act(here, "dispatch-next", "all")
-        assert_that(
-            (done.code, done.out + done.err), equal_to((0, "owner/project#5\n"))
-        )
+        path = CLOSED.format(repo="o/r")
+        answers = {
+            path: json.dumps([{"number": n, "merged_at": "x"} for n in range(1, 11)])
+        }
+        answers[CLOSED.format(repo="o/empty")] = "[]"
+        for size in range(1, 11):
+            answers[f"repos/o/r/pulls/{size}"] = json.dumps(
+                {"additions": size, "deletions": 0}
+            )
+        calls, github = _github(answers)
+        found = gateread.limits(github)
+        assert_that((found("o/r"), found("o/r"), found("o/empty")), equal_to((9, 9, 0)))
+        assert_that(len(calls), equal_to(12))
+        with self.assertRaises(subprocess.CalledProcessError):
+            found("o/none")
+
+    def test_c17_the_p90_reads_a_second_page_when_the_first_is_full(self) -> None:
+        """A full page with fewer merged PRs than wanted is followed by the next."""
+        first = [{"number": n, "merged_at": "x" if n < 4 else None} for n in range(100)]
+        second = [{"number": 200, "merged_at": "x"}]
+        answers = {
+            CLOSED.format(repo="o/r"): json.dumps(first),
+            CLOSED.format(repo="o/r").replace("&page=1", "&page=2"): json.dumps(second),
+        }
+        for number in (0, 1, 2, 3, 200):
+            answers[f"repos/o/r/pulls/{number}"] = json.dumps({"additions": number})
+        calls, github = _github(answers)
+        assert_that(gateread.limits(github)("o/r"), equal_to(200))
+        assert_that(len(calls), equal_to(7))

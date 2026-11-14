@@ -12,12 +12,13 @@ B11	outside	the task list is the harness's state, not a file pitboss reads
 B12	outside	the checklist is the harness's state, not a file pitboss reads
 B13	checked	checkin.overdue
 B14	outside	how many times a worker ran pitboss nox is not recorded; the result of the pushed head is checked by hand-back-check
+B21	outside	a draft-state change shows only in each pull request's timeline, which the one read does not request (P9 of the one-path plan: item details only from the walk's examine); the brief states the rule (brief.build)
 B24	checked	polling.waits
 C6	checked	flake.unmarked_line
 C8	outside	whether a secret is set is the repository settings' state, which the token pitboss runs with cannot read
 C9	checked	ownerrepos.widened
 C10	checked	outdated.lines
-D1	checked	itempick.taken
+D1	checked	holdwait.findings
 D2	outside	whether an agent reports a bug to the coordinator is a conversation pitboss never receives
 D3	outside	whether the orchestrator waits for the owner is a conversation pitboss never receives
 D4	outside	what an agent says about having checked is conversation, and a sentence that says it is no test of whether it was done

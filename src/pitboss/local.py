@@ -8,7 +8,7 @@ import sys
 import time
 from typing import Callable, Iterable, Mapping, Sequence
 
-from . import concurrently, config, ghapi, parsing, shapes
+from . import concurrently, config, shapes
 from .running import Run, changed_files, git
 
 SLOW_FETCH_SECONDS = 3
@@ -254,25 +254,6 @@ class Sweeper:
     run: Run
     settings: config.Config
     outcomes: Mapping[str, shapes.Outcome]
-
-
-def read_outcomes(
-    github: ghapi.GitHub, repo: config.Repo
-) -> Mapping[str, shapes.Outcome]:
-    """What became of each branch's newest PR.
-
-    Args:
-        github: the API.
-        repo: the repository.
-
-    Returns:
-        The outcome of each branch.
-    """
-    found: dict[str, shapes.Outcome] = {}
-    listed = ghapi.pages(github, f"repos/{repo.slug}/pulls?state=all", parsing.outcomes)
-    for outcome in listed:
-        found.setdefault(outcome.branch, outcome)
-    return found
 
 
 def _outside(sweeper: Sweeper, worktree: Worktree) -> bool:

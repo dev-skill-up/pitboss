@@ -4,14 +4,16 @@
 hand-typed ``Plan: ok`` has no way to be written; ``act ticket`` writes the one
 ticket form the reader takes; ``act pr-create`` and ``act pr-edit`` check the body
 rows first; ``act comment`` carries no review or act line; a comment is edited or
-deleted only when it is pitboss's own evidence. A started ticket (a PR closes it)
-gets nothing added.
+deleted only when it is pitboss's own evidence, and a started ticket (a PR closes
+it) gets nothing added: those are decided in the one read (``actdecide``), and
+``actverbs.run`` applies a verb only when its answer is to go.
 """
 
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actcore, bodydigest, totalbody, totalreview
+from . import actcore, bodydigest, pullnames, pullobject, reviewattempt, totalbody
+from . import totalreview
 from .actcore import (
     disarm_first,
     head_now,
@@ -19,18 +21,17 @@ from .actcore import (
     pull_of,
     put,
     repo_write,
-    timeline_of,
 )
 from .plansection import plan_section
 from .ticketreader import written
-from .totaljson import JsonMap, members, records, text
+from .totaljson import JsonMap, members, text
 from .textparts import mentions_any
 
 GRADES = ("approved", "changes needed")
+# the keys of a review and of act's records; a Verdict line is totalreview's reading
 GRADE_KEY = re.compile(
-    r"^\W*(verdict|reviewed|plan|execution|body|ticket|pitboss-act)\b\W*:?", re.I
+    r"^\W*(reviewed|plan|execution|body|ticket|pitboss-act)\b\W*:?", re.I
 )
-FIXES = re.compile(r"Fixes (\S+/\S+)?#\d+\n")
 SCRATCH = ("bats-lang/relock-scratch",)
 
 
@@ -49,7 +50,7 @@ def review_text(
         The head, the grades, the verdict and the digests of the body, its Plan and
         each ticket, then the findings.
     """
-    body = pull.get("body")
+    body = text(pull.get("body"))
     section = plan_section(body)
     lines = [
         f"Reviewed: {actcore.head_of(pull)}",
@@ -58,16 +59,34 @@ def review_text(
         f"Verdict: {grades[2]}",
         f"Body: {totalreview.digest_of(body)}",
         *([] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]),
-        *totalreview.ticket_lines(tickets),
+        *totalreview.ticket_lines(pullobject.tickets_of(tickets)),
     ]
     return "\n".join(lines) + f"\n\n{findings}"
 
 
+def keyed(words: str) -> str:
+    """The first line of a text that starts with a review or act key.
+
+    Args:
+        words: the text.
+
+    Returns:
+        That line; "" when no line does.
+    """
+    return next(
+        (
+            line
+            for line in words.splitlines()
+            if GRADE_KEY.match(line) or reviewattempt.is_attempt(line)
+        ),
+        "",
+    )
+
+
 def _plain(words: str) -> None:
-    bad = [line for line in words.splitlines() if GRADE_KEY.match(line)]
-    if bad:
+    if bad := keyed(words):
         raise actcore.Refused(
-            f"a line starts with a review or act key: {bad[0][:40]!r}; use the verb"
+            f"a line starts with a review or act key: {bad[:40]!r}; use the verb"
         )
 
 
@@ -98,22 +117,11 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     return words
 
 
-def _size(act: actcore.Act, repo: str, options: actcore.Options) -> int:
-    # the ticket's Max-lines; over the repository's p90 only with a ruling
-    size = int(actcore.option(options, "max-lines"))
-    most = act.p90(repo)
-    if size > most and not options.get("ruling"):
-        raise actcore.Refused(
-            f"Max-lines {size} is over {repo}'s p90 {most}: a ruling names it"
-        )
-    return size
-
-
 def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """File a ticket in the one form the ticket reader takes.
 
-    It is refused with no item or path, or with a size over the repository's p90
-    and no ruling.
+    It is refused with no item or path; a size over the repository's p90 with no
+    ruling is decided in the one read (``actdecide``).
 
     Args:
         act: the verb's world.
@@ -127,27 +135,16 @@ def ticket(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     items = actcore.option(options, "done-when").splitlines()
     done_when = [each for each in items if each.strip()]
     paths = actcore.option(options, "paths").split()
-    size = _size(act, target.repo, options)
+    size = int(actcore.option(options, "max-lines"))
     body = written(done_when, paths, size, actcore.option(options, "priority"))
     fields = {"title": actcore.option(options, "title"), "body": body, "labels": ""}
     return repo_write(act, target.repo, "issue", fields)
 
 
-def _bodies(act: actcore.Act, repo: str) -> Sequence[tuple[int, str]]:
-    # each open PR's number and body
-    pulls = act.hub.open_pulls(repo)
-    found = [(each.get("number"), text(each.get("body"))) for each in pulls]
-    return [(number, body) for number, body in found if isinstance(number, int)]
-
-
-def _place(target: actcore.Target) -> tuple[str, int]:
-    return target.repo, target.number
-
-
 def ticket_edit(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
 ) -> str:
-    """Change a ticket that no PR has started.
+    """Change a ticket that no PR has started, to a body in the ticket form.
 
     Args:
         act: the verb's world.
@@ -156,18 +153,8 @@ def ticket_edit(
 
     Returns:
         What was done.
-
-    Raises:
-        actcore.Refused: a PR closes the ticket, so a worker started it.
     """
-    started = act.controls.started(_bodies(act, target.repo), *_place(target))
-    if started:
-        raise actcore.Refused(
-            f"PR #{started[0]} closes {target.name}, so a worker"
-            " started: a started ticket gets nothing added (file a new ticket)"
-        )
     body = actcore.option(options, "body")
-    act.controls.items(body)
     put(act, target, "issue-edit", {"body": body})
     return f"ticket-edit {target.name}"
 
@@ -188,18 +175,6 @@ def comment(act: actcore.Act, target: actcore.Target, options: actcore.Options) 
     return put(act, target, "comment", {"body": body})
 
 
-def _own_comment(act: actcore.Act, target: actcore.Target, identifier: str) -> None:
-    found = [
-        each
-        for each in records(timeline_of(act, target))
-        if str(each.get("id")) == identifier
-    ]
-    identity = text(act.inputs(target.repo, target.number, {}, []).get("act_identity"))
-    if not found or members(found[0].get("user")).get("login") != identity:
-        raise actcore.Refused("not a comment pitboss act posted")
-    _plain(text(found[0].get("body")))
-
-
 def comment_edit(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
 ) -> str:
@@ -214,7 +189,6 @@ def comment_edit(
         What was done.
     """
     identifier, body = options_of(options, "id", "body")
-    _own_comment(act, target, identifier)
     _plain(body)
     put(act, target, "comment-edit", {"id": identifier, "body": body})
     return f"comment-edit {identifier}"
@@ -234,17 +208,22 @@ def comment_delete(
         What was done.
     """
     identifier = actcore.option(options, "id")
-    _own_comment(act, target, identifier)
     put(act, target, "comment-delete", {"id": identifier})
     return f"comment-delete {identifier}"
 
 
+def _fixes_first(body: str) -> bool:
+    # the body's first line is ``Fixes #N``, as the one parse reads a closing keyword
+    first, newline, _ = body.partition("\n")
+    return bool(newline) and pullnames.written(first) == [first.removeprefix("Fixes ")]
+
+
 def _body_rows(body: str, head: str, skip: Sequence[str]) -> None:
-    if not FIXES.match(body):
+    if not _fixes_first(body):
         raise actcore.Refused("the body's first line is not `Fixes #N`")
     found = [
         each
-        for each in totalbody.body_findings(body, head, {})
+        for each in totalbody.body_findings(body, head)
         if not mentions_any(each, skip)
     ]
     if found:
@@ -264,7 +243,6 @@ def pr_create(
     Returns:
         The PR's number.
     """
-    act.controls.items(actcore.option(options, "ticket"))
     body = actcore.option(options, "body")
     _body_rows(body, "", ("Head", "blocked by"))
     fields = {

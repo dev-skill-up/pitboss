@@ -197,3 +197,16 @@ def build(sources: Sources, analysis: Analysis, now: str) -> redmodel.Report:
         tickets=context.tickets,
         transcripts=context.searched.count,
     )
+
+
+def unreadable(github: ghapi.GitHub, repos: Sequence[config.Repo]) -> Mapping[str, str]:
+    """The repositories that cannot be read, each with why.
+
+    Args:
+        github: the API.
+        repos: the repositories.
+
+    Returns:
+        Each unreadable repository's slug and the reason.
+    """
+    return ghapi.unreadable(github, [each.slug for each in repos])

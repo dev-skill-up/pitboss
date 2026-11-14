@@ -13,7 +13,7 @@ from typing import Callable, Mapping, Sequence
 
 from . import ghapi
 from .actport import Change, Hub, Pull
-from .totaljson import lines_of, members, records, text
+from .totaljson import members, records, text
 
 Words = Callable[[Change], Sequence[str]]
 QUEUE = (
@@ -165,8 +165,8 @@ def _one(github: ghapi.GitHub, path: str) -> object:
 
 
 def _every(github: ghapi.GitHub, path: str) -> Sequence[Pull]:
-    out = github.run(["gh", "api", "--paginate", "--jq", ".[]", path]).stdout
-    return [dict(each) for each in records(lines_of(out))]
+    # pages by number: --paginate follows Link URLs the proxy refuses (proxy-paging)
+    return [dict(each) for each in records(ghapi.every(github, path))]
 
 
 def _one_pull(github: ghapi.GitHub, repo: str, number: int) -> Pull:
@@ -175,18 +175,16 @@ def _one_pull(github: ghapi.GitHub, repo: str, number: int) -> Pull:
 
 
 def _timeline(github: ghapi.GitHub, repo: str, number: int) -> Sequence[object]:
-    return _every(github, f"repos/{repo}/issues/{number}/timeline?per_page=100")
+    return _every(github, f"repos/{repo}/issues/{number}/timeline")
 
 
 def _labeled(github: ghapi.GitHub, repo: str, label: str) -> Sequence[Pull]:
     quoted = urllib.parse.quote(label)
-    return _every(
-        github, f"repos/{repo}/issues?state=open&per_page=100&labels={quoted}"
-    )
+    return _every(github, f"repos/{repo}/issues?state=open&labels={quoted}")
 
 
 def _open_pulls(github: ghapi.GitHub, repo: str) -> Sequence[Pull]:
-    return _every(github, f"repos/{repo}/pulls?state=open&per_page=100")
+    return _every(github, f"repos/{repo}/pulls?state=open")
 
 
 def _write(github: ghapi.GitHub, change: Change) -> str:

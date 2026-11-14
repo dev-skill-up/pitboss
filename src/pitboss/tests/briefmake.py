@@ -65,7 +65,7 @@ OWNER = (
     "Owner: a ticket, brief, plan or review never states what the owner cannot or"
     " will not do, or that something is outside his reach, unless the sentence"
     " quotes his own words and their date; without a quote the step is asked of"
-    " him as a request in the hand-back, never assumed impossible (pitboss#352)."
+    " him as a request in the hand-back, never assumed impossible."
 )
 SUBJECT = brief.Subject(reference="o/r#3", ticket="o/r#7", repo="o/r", goal=GOAL)
 COMMITS = brief.Heads(
@@ -75,6 +75,7 @@ COMMITS = brief.Heads(
     findings="https://example.org/c/1",
     body_digest=BODY_DIGEST,
     plan_digest=PLAN_DIGEST,
+    plan_approved=True,
 )
 RULES = brief.Rules(config="proj", form=FORM, project=PROJECT)
 PLAN_REVIEWS = (brief.Kind.REVIEW_FULL, brief.Kind.REVIEW_PLAN)

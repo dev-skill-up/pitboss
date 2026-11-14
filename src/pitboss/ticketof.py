@@ -5,7 +5,7 @@ import re
 import subprocess
 from typing import Mapping
 
-from . import config, fixes, ghapi, ledger
+from . import config, ghapi, ledger, pullnames
 
 _FULL = re.compile(r"^(?P<owner>[\w.-]+)/(?P<name>[\w.-]+)#(?P<number>\d+)$")
 
@@ -44,5 +44,5 @@ def resolve(github: ghapi.GitHub, task: str) -> str | ledger.Refusal:
         return _unnamed(task, f"{path} cannot be read")
     if "pull_request" not in item:
         return task
-    ticket = fixes.first_fixed(str(item.get("body") or ""), repo)
+    ticket = pullnames.first_closed(str(item.get("body") or ""), repo)
     return ticket or _unnamed(task, "its body has no Fixes line")

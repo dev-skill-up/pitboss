@@ -16,7 +16,8 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, shapes, steps
-from . import fakes, test_flow, world
+from ..tasklist import LABEL
+from . import actreviewed, fakes, test_flow, world
 from .briefmake import make, text
 from .says import has_none, says
 from .test_commands import sweep
@@ -32,10 +33,13 @@ from .test_flow_sweep import (
 )
 from .test_slot_commands import next_output
 
-TICKET_LINE = re.compile(r"^NEXT \d+\. \S+#\d+ \(start a PR", re.MULTILINE)
+TICKET_LINE = re.compile(r"^NEXT \d+ of \d+\. WORKER: \S+#\d+: write the code", re.M)
 THIRD_LINE = re.compile(
-    r"^NEXT \d+\. owner/project#3 \((review it|[^,(]*)", re.MULTILINE
+    r"^NEXT \d+ of \d+\. [A-Z]+: owner/project#3: (.*) \(PR 3\)$", re.M
 )
+PLAN_REVIEW = "grade the Plan ONLY (no Execution line); changes needed rejects it"
+REVISE = "revise the PLAN only, change no code"
+RULING = "start an Opus agent whose only brief is to make a ruling"
 CI_LINE = "CI: first read the checks of the head SHA above"
 
 
@@ -70,7 +74,7 @@ def without_checks() -> world.World:
 
 
 def listed(here: world.World) -> tuple[str, bool]:
-    """PR 3's kind in ``slots next``, and whether it comes before every ticket.
+    """PR 3's decision in ``slots next``, and whether it comes before every ticket.
 
     Args:
         here: the world.
@@ -87,36 +91,35 @@ def listed(here: world.World) -> tuple[str, bool]:
 
 
 class TestDraftsInSlotsNext(unittest.TestCase):
-    """Each draft is listed, first, with the kind its step names."""
+    """Each draft is listed, first, with the decision its step names."""
 
     def test_a_draft_with_no_review_is_listed_before_a_ticket(self) -> None:
         """Review none, the runners busy."""
-        assert_that(listed(world_with([], draft=True)), equal_to(("review it", True)))
+        assert_that(listed(world_with([], draft=True)), equal_to((PLAN_REVIEW, True)))
 
     def test_a_draft_with_no_review_is_listed_when_the_runners_are_quiet(
         self,
     ) -> None:
         """The cause: it was UNDRAFT, which no slot takes."""
         here = quiet(world_with([], draft=True))
-        assert_that(listed(here), equal_to(("review it", True)))
+        assert_that(listed(here), equal_to((PLAN_REVIEW, True)))
 
     def test_a_draft_with_a_review_of_an_older_head_is_listed(self) -> None:
         """Older-head, after a merge of the base or a revision of the plan."""
         rounds = [graded(CHANGES, None, 1, sha=OLDER)]
         here = quiet(world_with(rounds, draft=True))
-        assert_that(listed(here), equal_to(("review it", True)))
+        assert_that(listed(here), equal_to((PLAN_REVIEW, True)))
 
     def test_t132_a_draft_whose_plan_is_rejected_at_its_head_is_a_fix(self) -> None:
         """Changes needed on the Plan: revise the plan, before any ticket."""
         here = quiet(world_with([graded(CHANGES, None, 1)], draft=True))
-        assert_that(listed(here), equal_to(("revise the plan", True)))
+        assert_that(listed(here), equal_to((REVISE, True)))
 
-    def test_a_draft_with_changes_needed_at_its_head_is_a_ruling_not_a_line(
-        self,
-    ) -> None:
-        """Changes needed on the Execution: Opus rules first, no NEXT line."""
+    def test_a_draft_with_changes_needed_at_its_head_is_a_ruling(self) -> None:
+        """Changes needed on the Execution: Opus rules first."""
         here = quiet(world_with([graded(None, CHANGES, 1)], draft=True))
-        assert_that(listed(here), equal_to(("", False)))
+        words, first = listed(here)
+        assert_that((words.startswith(RULING), first), equal_to((True, True)))
 
     def test_a_draft_with_the_plan_approved_and_changes_needed_is_a_ruling(
         self,
@@ -125,22 +128,23 @@ class TestDraftsInSlotsNext(unittest.TestCase):
         rounds = [graded(APPROVED, None, 1, sha=OLDER), graded(None, CHANGES, 2)]
         busy = world_with(rounds, draft=True)
         for here in (busy, quiet(world_with(rounds, draft=True))):
-            assert_that(listed(here), equal_to(("", False)))
+            words, first = listed(here)
+            assert_that((words.startswith(RULING), first), equal_to((True, True)))
 
     def test_a_draft_with_the_plan_approved_is_not_a_review(self) -> None:
-        """It is refused a review: its NEXT line is the hold on its undraft (#273)."""
+        """Busy runners hold its undraft: a wait, in no answer (#273)."""
         approved = graded(APPROVED, None, 1)
-        words = listed(world_with([approved], draft=True))[0]
-        assert_that(words, starts_with("HOLD on undrafts"))
+        assert_that(listed(world_with([approved], draft=True)), equal_to(("", False)))
 
     def test_a_pr_waiting_for_ci_has_no_next_line(self) -> None:
-        """No round and no ready line: the order is unknown."""
+        """A wait: in no answer."""
         assert_that(listed(without_checks()), equal_to(("", False)))
 
     def test_a_draft_with_the_plan_approved_is_undrafted_when_quiet(self) -> None:
         """The undraft is no round: its NEXT line is the action itself (#273)."""
         approved = graded(APPROVED, None, 1)
         here = quiet(world_with([approved], draft=True))
+        actreviewed.approve(here, 3)
         assert_that(listed(here)[0], starts_with("mark the PR ready"))
         says(sweep(here).out, "owner/project#3")
 
@@ -158,15 +162,26 @@ def swept(rounds: Sequence[shapes.Comment], **changes: object) -> str:
     return sweep(world_with(rounds, **changes)).out
 
 
+def said_of_third(out: str) -> Sequence[str]:
+    """The lines of a sweep that say something of PR 3 but the task list's.
+
+    Args:
+        out: what the sweep printed.
+
+    Returns:
+        The lines.
+    """
+    lines = out.splitlines()
+    return [x for x in lines if "owner/project#3:" in x and not x.startswith(LABEL)]
+
+
 class TestDraftsInTheSweep(unittest.TestCase):
-    """The sweep prints the instruction, not only the review column."""
+    """The sweep prints the decision, not only the review column."""
 
     def test_the_sweep_says_what_a_draft_needs(self) -> None:
-        """One DRAFT ROUND line, in place of WAIT-FOR-CI."""
+        """The Plan review, by a reviewer."""
         out = swept([], draft=True)
-        assert_that(out, contains_string("DRAFT ROUND owner/project#3: review it"))
-        assert_that(out, contains_string("it is listed first in `slots next`"))
-        assert_that("WAIT-FOR-CI owner/project#3" in out, equal_to(False))
+        assert_that(out, contains_string(f"REVIEWER: owner/project#3: {PLAN_REVIEW}"))
 
     def test_the_sweep_says_the_fix_of_a_rejected_draft(self) -> None:
         """The same words as the list; busy runners, so no second Plan review.
@@ -174,29 +189,26 @@ class TestDraftsInTheSweep(unittest.TestCase):
         pitboss#130: the world is not ``quiet``, so ``undraft_clear`` is false.
         """
         out = swept([graded(CHANGES, None, 1)], draft=True)
-        assert_that(out, contains_string("DRAFT ROUND owner/project#3: revise the"))
-        assert_that("DRAFT ROUND owner/project#3: review it" in out, equal_to(False))
+        assert_that(out, contains_string(f"WORKER: owner/project#3: {REVISE}"))
+        assert_that("REVIEWER: owner/project#3" in out, equal_to(False))
 
     def test_t132_slots_next_sends_a_twice_rejected_draft_to_opus_while_busy(
         self,
     ) -> None:
-        """pitboss#130: ``slots next`` offers a ruling, and no review line for PR 3."""
+        """pitboss#130: ``slots next`` decides a ruling for PR 3, no review."""
         rounds = [graded(CHANGES, None, 1, sha=OLDER), graded(CHANGES, None, 2)]
         here = world_with(rounds, draft=True)
-        ruling = "make an Opus ruling: owner/project#3"
-        assert_that(next_output(here), contains_string(ruling))
-        assert_that(listed_for_third(here), equal_to([]))
+        third = "".join(listed_for_third(here))
+        assert_that(third, contains_string(f"RULING: owner/project#3: {RULING}"))
 
     def test_a_draft_that_waits_for_its_undraft_has_no_round(self) -> None:
-        """No round to offer, so no DRAFT ROUND line."""
+        """Its undraft is held: a wait, with no line but the task list's."""
         out = swept([graded(APPROVED, None, 1)], draft=True)
-        assert_that("DRAFT ROUND" in out, equal_to(False))
+        assert_that(said_of_third(out), equal_to([]))
 
     def test_a_ready_pr_without_a_check_run_is_not_a_draft_round(self) -> None:
-        """It must still be refused a review: it waits for its CI."""
-        out = sweep(without_checks()).out
-        assert_that("DRAFT ROUND" in out, equal_to(False))
-        assert_that(out, contains_string("WAIT-FOR-CI owner/project#3"))
+        """It waits for its CI: no line but the task list's, no review."""
+        assert_that(said_of_third(sweep(without_checks()).out), equal_to([]))
 
 
 class TestTheFlow(unittest.TestCase):

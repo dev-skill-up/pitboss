@@ -8,11 +8,9 @@ import copy
 from typing import Mapping, MutableMapping
 
 from .. import actcore, rulecases
-from . import fakehub, knownkit, knownplay
+from . import knownkit, knownplay
 from .knownkit import change, stops
 from .knownplay import (
-    capped,
-    dispatch_refused,
     held,
     pull_now,
     verb_refused,
@@ -20,7 +18,7 @@ from .knownplay import (
     stopping,
 )
 
-from .totalworld import files_of, item, record
+from .totalworld import files_of, record
 from ..totaljson import members
 
 CASES: MutableMapping[str, knownkit.Known] = {}
@@ -32,27 +30,6 @@ def _fixme(action: str, world: Mapping[str, object], everywhere: bool) -> str:
     return "STOP" if stop else "GO"
 
 
-@case(
-    "G1",
-    "dispatch: cap and slots are the config's",
-    "one agent runs, cap 1, the ledger offers a second slot",
-)
-def _cap(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(given, owner=actcore.Owner(messages=["m1"]))
-    first = dispatch_refused(given, hub, fakehub.state())
-    capped(given, hub, "m1", "1")
-    busy = fakehub.state(ledger={"sonnet-1": "agent-a"})
-    wide = fakehub.state(
-        slots=["sonnet-1", "sonnet-2"], ledger={"sonnet-1": "", "sonnet-2": ""}
-    )
-    both = dispatch_refused(given, hub, busy) and dispatch_refused(given, hub, wide)
-    return (
-        bool(first and both)
-        and actcore.cap_of(hub.act.owner) == 1
-        and knownkit.dispatch(given, hub, fakehub.state()) == "q#10"
-    )
-
-
 @case("G2", "hold record + act gate", "merge of an approved PR while merges are held")
 def _merges_held(given: knownkit.Kit) -> bool:
     free = not knownkit.refused(
@@ -60,8 +37,14 @@ def _merges_held(given: knownkit.Kit) -> bool:
     )
     hub = knownkit.made(given)
     held(given, hub, "merges")
+    # the act gate's first half: an owner message with no disposition refuses
+    pending = knownkit.made(given, owner=actcore.Owner(messages=["m1"]))
+    asked = "owner message m1" in knownkit.refusal(given, pending, "merge")
     return (
-        free and verb_refused(given, hub, "merge") and not pull_now(hub).get("merged")
+        free
+        and asked
+        and verb_refused(given, hub, "merge")
+        and not pull_now(hub).get("merged")
     )
 
 
@@ -143,9 +126,9 @@ def _scratch_path(given: knownkit.Kit) -> bool:
     evidence = knownkit.BODY + "\n## Evidence\n\n```\n$ ls /tmp/claude-0/x\n```\n"
     null = knownplay.plan_row("| 9 | `bats check 2>/dev/null` | exits 0 |")
     edit = knownplay.edit_refused(given, bad)
-    clean = not given.policy.body(
-        evidence, knownkit.HEAD, {}
-    ) and not given.policy.body(null, knownkit.HEAD, {})
+    clean = not given.rests.policy.body(
+        evidence, knownkit.HEAD
+    ) and not given.rests.policy.body(null, knownkit.HEAD)
     return (
         bad != knownkit.BODY
         and stops(given, "merge", change(pull={"body": bad}), "body: names the path")
@@ -194,40 +177,21 @@ def _rulings(given: knownkit.Kit) -> bool:
 
 
 @case(
-    "G13",
-    "dispatch: a shared red is one ticket",
-    "three PRs red on canonical-files at the same step",
-)
-def _shared_red(given: knownkit.Kit) -> bool:
-    items = [
-        item(f"rp#{n}", f"2026-11-0{n}", red_check="canonical-files", red_step="Audit")
-        for n in (1, 2, 3)
-    ]
-    hub = knownkit.made(given)
-    one = knownkit.dispatch(given, hub, fakehub.state(items=items[:1]))
-    return bool(dispatch_refused(given, hub, fakehub.state(items=items))) and (
-        one == "rp#1"
-    )
-
-
-@case(
     "G14",
-    "block record read by the verdict",
+    "block record read by the one read",
     "a PR that waits on another PR, known only to the orchestrator",
 )
 def _block(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(given)
-    knownkit.act(given, hub, "block", on="bats-lang/quire#1110")
-    timeline = hub.act.hub.timeline(knownkit.REPO, knownkit.NUMBER)
-    world = change(ctx={"timeline": timeline})
-    opened, closed = (
-        change(ctx={"timeline": timeline, "blockers": {"bats-lang/quire#1110": state}})
-        for state in ("open", "closed")
-    )
-    return (
-        stops(given, "merge", opened, "blocked:")
-        and stops(given, "merge", world, "blocked:")
-        and knownkit.goes(given, "merge", closed)
+    # keyword: one-path: the block is a Blocked-by line the one read reads
+    blocked = knownkit.made(given)
+    knownkit.act(given, blocked, "block", on="bats-lang/quire#1110")
+    body = str(pull_now(blocked).get("body"))
+    return all(
+        [
+            "\nBlocked-by: bats-lang/quire#1110\n" in body,
+            not knownkit.refusal(given, knownkit.made(given), "merge"),
+            "NOT DONE: merge" in knownkit.refusal(given, blocked, "merge"),
+        ]
     )
 
 

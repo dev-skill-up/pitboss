@@ -8,7 +8,7 @@ from hamcrest import assert_that, equal_to
 from .. import config
 from . import fakes, pressureworld, world
 
-NEXT_LINE = re.compile(r"(?m)^NEXT \d+\. (\S+#\d+) \(")
+NEXT_LINE = re.compile(r"(?m)^NEXT \d+ of \d+\. [A-Z]+: (\S+#\d+): ")
 PROJECT = world.PROJECT
 PULL = f"{PROJECT}/pulls"
 DEPENDENT = "Depends on owner/lib#3"
@@ -66,6 +66,24 @@ def serve(
         found: its JSON.
     """
     here.bodies[f"repos/{slug}/issues/{number}"] = dict(found)
+    # the open listings carry the same ticket, as GitHub's do
+    for path, rows in list(here.bodies.items()):
+        if f"repos/{slug}/issues?state=open" in path and isinstance(rows, list):
+            here.bodies[path] = _relisted(rows, found)
+
+
+def _relisted(rows: Sequence[object], found: Mapping[str, object]) -> Sequence[object]:
+    # a listing with the ticket as it is now: replaced while open, gone once closed
+    open_now = [dict(found)] if found["state"] == "open" else []
+    return [
+        each
+        for row in rows
+        for each in (
+            open_now
+            if isinstance(row, Mapping) and row.get("number") == found["number"]
+            else [row]
+        )
+    ]
 
 
 def fixing(here: world.World, number: int, text: str) -> None:
@@ -79,6 +97,13 @@ def fixing(here: world.World, number: int, text: str) -> None:
     found = here.bodies[f"{PULL}/{number}"]
     assert isinstance(found, dict)
     found["body"] = f"{text}\n\n{found['body']}"
+    # the open listing carries the same body, as GitHub's does
+    listing = here.bodies[fakes.page(f"{PULL}?state=open")]
+    assert isinstance(listing, list)
+    listing[:] = [
+        {**row, "body": found["body"]} if row.get("number") == number else row
+        for row in listing
+    ]
 
 
 def dependent_world(blocker: str = "open", pull: int = 3) -> world.World:
@@ -236,28 +261,6 @@ def depends_world(body: str) -> world.World:
     here = blocked_world(body)
     here.bodies[BLOCKER] = dict(LIB_THREE)
     return here
-
-
-def printed(here: world.World, word: str, expected: Sequence[str]) -> None:
-    """Require the lines ``slots next`` prints under a marker.
-
-    Args:
-        here: the world.
-        word: the marker.
-        expected: the lines, in order.
-    """
-    assert_that(lines_of(next_output(here), word), equal_to(expected))
-
-
-def lines_are(output: str, word: str, expected: Sequence[str]) -> None:
-    """Require the lines of an output under a marker.
-
-    Args:
-        output: the output.
-        word: the marker.
-        expected: the lines, in order.
-    """
-    assert_that(lines_of(output, word), equal_to(expected))
 
 
 def suggestions(here: world.World) -> str:

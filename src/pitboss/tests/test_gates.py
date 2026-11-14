@@ -8,7 +8,8 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, gates, ghapi, headchecks, shapes
-from . import fakes, quietworld, suggestions, test_commands, test_flow_sweep, world
+from . import decisionline, fakes, quietworld, suggestions, test_commands
+from . import test_flow_sweep, world
 from .gateworld import (
     FORM,
     GATE,
@@ -31,6 +32,8 @@ PENDING = {
         }
     ]
 }
+
+REVIEW = "REVIEWER: owner/project#{number}: grade Plan and Execution together"
 
 
 def library_form(text: str | None) -> str:
@@ -82,7 +85,13 @@ def posted(*pairs: tuple[str, str]) -> Sequence[shapes.CommitStatus]:
     """
     return [
         shapes.CommitStatus(
-            context=context, succeeded=state == "success", created_at="", state=state
+            context=context,
+            succeeded=state == "success",
+            created_at="",
+            state=state,
+            run=0,
+            description="",
+            url="",
         )
         for context, state in pairs
     ]
@@ -90,13 +99,15 @@ def posted(*pairs: tuple[str, str]) -> Sequence[shapes.CommitStatus]:
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class FailingGate:
-    """Processes that fail to read a workflow file, with HTTP 500.
+    """Processes that fail to read a workflow file.
 
     Attributes:
         inner: the processes the others go to.
+        status: the HTTP status of the failure.
     """
 
     inner: fakes.Processes
+    status: int
 
     def __call__(self, cmdargs: Sequence[str], /, **kwargs: object) -> fakes.Output:
         """Run a command, failing on a workflow read.
@@ -113,19 +124,23 @@ class FailingGate:
         """
         if cmdargs[-1].endswith(gates.WORKFLOW):
             raise subprocess.CalledProcessError(
-                1, list(cmdargs), output="", stderr="gh: server error (HTTP 500)\n"
+                1, list(cmdargs), output="", stderr=f"gh: (HTTP {self.status})\n"
             )
         return self.inner(cmdargs, **kwargs)
 
 
-def failing_world() -> world.World:
-    """A world whose reads of a gate workflow fail with HTTP 500.
+def failing_world(status: int) -> world.World:
+    """A world whose reads of a gate workflow fail.
+
+    Args:
+        status: the HTTP status of the failure.
 
     Returns:
         The world.
     """
     here = world.make_world()
-    return dataclasses.replace(here, processes=FailingGate(inner=here.processes))
+    failing = FailingGate(inner=here.processes, status=status)
+    return dataclasses.replace(here, processes=failing)
 
 
 class TestForm(unittest.TestCase):
@@ -164,7 +179,7 @@ class TestReading(unittest.TestCase):
 
     def test_any_other_failure_is_raised(self) -> None:
         """A server error is not 'no gate'."""
-        failing = FailingGate(inner=fakes.FakeProcesses(bodies={}))
+        failing = FailingGate(inner=fakes.FakeProcesses(bodies={}), status=500)
         api = ghapi.GitHub(run=failing, mutate=failing)
         with self.assertRaises(subprocess.CalledProcessError):
             gates.read(api, config.parse_repo("gated", "o"))
@@ -202,7 +217,7 @@ class TestReviewForm(unittest.TestCase):
 
     def test_a_failed_read_stops_the_command(self) -> None:
         """Neither gated nor not gated is printed."""
-        found = world.again(failing_world(), "review-form", "lib")
+        found = world.again(failing_world(500), "review-form", "lib")
         message = f"cannot read {gates.WORKFLOW} of owner/lib: HTTP 500"
         assert_that((found.out, found.code), equal_to(("", message)))
 
@@ -250,10 +265,16 @@ class TestSettled(unittest.TestCase):
     """The commands that sweep and brief know the gates."""
 
     def test_a_workflow_that_cannot_be_read_is_said_and_the_sweep_goes_on(self) -> None:
-        """UNREADABLE for each repository, as the configuration has it."""
-        out = test_commands.sweep(failing_world()).out
-        said = f"UNREADABLE owner/lib: {gates.WORKFLOW} answered HTTP 500: gated as"
+        """A refusal (403) is an answer: UNREADABLE, as the configuration has it."""
+        out = test_commands.sweep(failing_world(403)).out
+        said = f"UNREADABLE owner/lib: {gates.WORKFLOW} answered HTTP 403: gated as"
         assert_that(out, contains_string(said))
+
+    def test_a_workflow_read_that_keeps_failing_ends_the_sweep(self) -> None:
+        """A 500 on every try: status 1, the request on standard error (3.2)."""
+        found = test_commands.sweep(failing_world(500))
+        assert_that((found.code, found.out), equal_to((1, "")))
+        assert_that(found.err, contains_string("review-gate.yml: HTTP 500"))
 
     def test_a_reviewer_brief_quotes_the_form_the_gate_accepts(self) -> None:
         """Done-when 2: the form, filled in, and what else the gate wants."""
@@ -280,35 +301,23 @@ class TestSettled(unittest.TestCase):
 
 
 class TestPendingGate(unittest.TestCase):
-    """The sweep says a gate that is not success (the case of capacitor-plugins)."""
+    """A gate that is not success is in no answer (keyword: one-path, P8)."""
 
-    def test_the_head_without_a_status_is_pending(self) -> None:
-        """A gated repository's PR with no status at all."""
-        line = "GATE PENDING owner/project#2: adversarial-review no status posted"
-        assert_that(swept(), contains_string(line))
+    def test_the_gate_status_is_said_by_no_line(self) -> None:
+        """No status, a pending one, a success: PR 3's decision is its review."""
+        for status in (None, PENDING, SUCCESS):
+            with self.subTest(str(status)[:20]):
+                out = swept(status)
+                assert_that("GATE PENDING" in out, equal_to(False))
+                third = decisionline.of(out, "owner/project#3")
+                assert_that(third, contains_string(REVIEW.format(number=3)))
 
-    def test_a_pending_status_is_named_with_its_text_and_link(self) -> None:
-        """The state, what the gate said and where."""
-        line = (
-            "GATE PENDING owner/project#3: adversarial-review pending: No"
-            " adversarial review yet (https://example.org/run/1):"
-        )
-        assert_that(swept(PENDING), contains_string(line))
-
-    def test_an_approved_pr_whose_gate_is_pending_is_not_ready_to_merge(self) -> None:
-        """PR 2 is green, clean and approved: ready, unless the gate says no."""
-        ready = "READY TO MERGE owner/project#2"
-        assert_that(
-            [ready in swept_ungated(), ready in swept()], equal_to([True, False])
-        )
-
-    def test_a_gate_that_passes_prints_nothing(self) -> None:
-        """Success is quiet."""
-        assert_that("GATE PENDING owner/project#3" in swept(SUCCESS), equal_to(False))
-
-    def test_an_ungated_repository_prints_none(self) -> None:
-        """No workflow, no line."""
-        assert_that("GATE PENDING" in swept_ungated(), equal_to(False))
+    def test_an_approved_pr_of_a_gated_repository_is_not_merged(self) -> None:
+        """PR 2's old-form approval is the merge step only where nothing gates it."""
+        ungated = decisionline.of(swept_ungated(), "owner/project#2")
+        gated = decisionline.of(swept(), "owner/project#2")
+        assert_that(ungated, contains_string("`act review` the head as it is now"))
+        assert_that(gated, contains_string(REVIEW.format(number=2)))
 
     def test_the_status_is_read_from_the_head_statuses(self) -> None:
         """Without a description or a link, only the state."""

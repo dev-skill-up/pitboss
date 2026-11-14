@@ -1,9 +1,8 @@
-"""The first lines of ``slots next``: who runs, the cap, the free slots (slots-header).
+"""The running agents of a ledger, how each is named, and when a slot was freed.
 
-The orchestrator composed "the next slot goes to X" from memory and let a slot sit
-empty after a hand-back (pitboss#415), so the first lines of the list say it:
-``SLOTS`` (the count against the cap and the free slots), a ``RUNNING`` line for
-each agent by kind, and, below the cap, ``FREE SLOT`` and ``START``.
+The ``SLOTS``, ``RUNNING``, ``FREE SLOT``, ``START`` and ``LEDGER STALE`` lines
+of ``slots next`` are retired (keyword: one-path): its answer is the decisions
+and the free slots as a datum of it.
 """
 
 import datetime
@@ -11,7 +10,6 @@ import pathlib
 from typing import Sequence
 
 from . import ledger, slotlog
-from .markers import Marker
 
 KIND_WORDS = {
     "start": "worker",
@@ -50,20 +48,6 @@ def subject(slot: ledger.Slot) -> str:
     return slot.task or slot.ticket or slot.agent
 
 
-def running_line(slot: ledger.Slot) -> str:
-    """The ``RUNNING`` line of one agent.
-
-    Args:
-        slot: its slot.
-
-    Returns:
-        ``RUNNING worker <ticket>``, ``RUNNING fix round <PR>``, ``RUNNING
-        reviewer <PR>`` or ``RUNNING ruling <task>``.
-    """
-    word = KIND_WORDS.get(slot.kind or DEFAULT_KIND, slot.kind)
-    return f"{Marker.RUNNING.text} {word} {subject(slot)}"
-
-
 def free_since(
     book: ledger.Ledger, log: pathlib.Path, now: datetime.datetime
 ) -> datetime.datetime:
@@ -85,75 +69,3 @@ def free_since(
             newest[entry.slot] = entry
     times = [each.time for each in newest.values() if each.state is slotlog.State.EMPTY]
     return min(times, default=slotlog.utc(now))
-
-
-def _free_names(book: ledger.Ledger) -> str:
-    names = [slot.name for slot in book.slots if not slot.agent]
-    return ", ".join(names) or "none"
-
-
-def lines(
-    book: ledger.Ledger,
-    cap: int,
-    since: datetime.datetime,
-    start: str | None,
-) -> Sequence[str]:
-    """The ``SLOTS``, ``RUNNING``, ``FREE SLOT`` and ``START`` lines.
-
-    Args:
-        book: the ledger as the live agents make it.
-        cap: the number of slots (``[slots] default``).
-        since: when the oldest free slot was freed.
-        start: the first dispatchable ``NEXT`` line, or None when nothing is queued.
-
-    Returns:
-        The lines: the count and the free slots, one line for each running agent,
-        and below the cap ``FREE SLOT`` and the ``START`` line.
-    """
-    busy = running(book)
-    found = [
-        f"{Marker.SLOTS.text} {len(busy)} of {cap}, free: {_free_names(book)}",
-        *map(running_line, busy),
-    ]
-    if len(busy) >= cap:
-        return found
-    found.append(free_slot_line(cap - len(busy), cap, since))
-    return [*found, *([f"{Marker.START.text} {start}"] if start else [])]
-
-
-def free_slot_line(free: int, cap: int, since: datetime.datetime) -> str:
-    """The ``FREE SLOT`` line.
-
-    Args:
-        free: how many slots are free.
-        cap: the number of slots.
-        since: when the oldest free slot was freed.
-
-    Returns:
-        The line.
-    """
-    return (
-        f"{Marker.FREE_SLOT.text}: {free} of {cap} free since"
-        f" {slotlog.utc(since).strftime(TIME_FORMAT)}; dispatch before reading"
-        " anything else"
-    )
-
-
-def stale_line(book: ledger.Ledger, written: pathlib.Path) -> Sequence[str]:
-    """The ``LEDGER STALE`` line of a read that was told no running agents.
-
-    Args:
-        book: the ledger as written.
-        written: the ledger file.
-
-    Returns:
-        One line when a row holds an agent, else none.
-    """
-    rows = len(running(book))
-    if not rows:
-        return []
-    when = datetime.datetime.fromtimestamp(written.stat().st_mtime, datetime.UTC)
-    return [
-        f"{Marker.LEDGER_STALE.text}: last written {when.strftime(TIME_FORMAT)},"
-        f" {rows} rows name agents nobody has confirmed"
-    ]

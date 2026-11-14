@@ -14,11 +14,11 @@ from .. import (
     reviews,
     rulings,
     sessionurl,
-    shapes,
     unreadableform,
 )
 from .linting import BODY, FOOTER, HEAD, lint, write_text
 from .formchecks import subject
+from . import blank
 
 SESSION = "https://claude.ai/code/session_01HwLsLqpK11q86JDdqHKAzP"
 URL_AFTER = f"\n{SESSION}\n"
@@ -90,7 +90,13 @@ def unreadable_count(body: str) -> int:
         The number of UNREADABLE REVIEW findings.
     """
     posted = [
-        shapes.Comment(body=body, author_association="MEMBER", created_at="1", url="u")
+        dataclasses.replace(
+            blank.COMMENT,
+            body=body,
+            author_association="MEMBER",
+            created_at="1",
+            url="u",
+        )
     ]
     _, form = reviews.rules(REVIEW_CONFIG, "o/x")
     found = unreadableform.find(
@@ -206,7 +212,8 @@ class TestReviews(unittest.TestCase):
 
     def test_a_review_attempt_after_the_url_line_is_seen(self) -> None:
         """A comment that tries to be a review is one whatever line the URL is."""
-        attempt = shapes.Comment(
+        attempt = dataclasses.replace(
+            blank.COMMENT,
             body=f"{SESSION}\n## Re-review: approved\n",
             author_association="MEMBER",
             created_at="2",
@@ -219,8 +226,12 @@ class TestReviews(unittest.TestCase):
     def test_grade_lines_need_no_stripping(self) -> None:
         """A grade is a line of its own, so the URL line changes none."""
         text = f"{SESSION}\n{REVIEW_TEXT}Plan: approved\nExecution: changes needed\n"
-        comment = shapes.Comment(
-            body=text, author_association="MEMBER", created_at="2", url="u"
+        comment = dataclasses.replace(
+            blank.COMMENT,
+            body=text,
+            author_association="MEMBER",
+            created_at="2",
+            url="u",
         )
         (found,) = reviews.from_comments(
             [comment], REVIEW_CONFIG.trusted, reviews.read_comment, REVIEW_FORM

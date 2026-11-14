@@ -3,7 +3,7 @@
 import dataclasses
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, earlyfound, ghapi, pinsask, pinsreading
+from . import config, earlyfound, ghapi, pinsask
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -31,10 +31,10 @@ class Source:
     github: ghapi.GitHub
     review: config.Review
     undraft: Callable[[], bool]
-    relock_prefix: str = config.DEFAULT_RELOCK_PREFIX
-    run_by_e2e: Sequence[str] = config.DEFAULT_RUN_BY_E2E
-    plan_review_check: str = ""
-    merge_queue: AbstractSet[str] = frozenset()
-    early: earlyfound.Split = earlyfound.keep_all
-    pins: pinsask.Ask = lambda repo, pull: pinsreading.NOTHING
-    no_drafts: Callable[[str], bool] = lambda slug: False
+    relock_prefix: str
+    run_by_e2e: Sequence[str]
+    plan_review_check: str
+    merge_queue: AbstractSet[str]
+    early: earlyfound.Split
+    pins: pinsask.Ask
+    no_drafts: Callable[[str], bool]

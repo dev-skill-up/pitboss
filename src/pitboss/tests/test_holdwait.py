@@ -60,7 +60,7 @@ def worker_briefs() -> Sequence[tuple[str, str]]:
 class TestHoldWait(unittest.TestCase):
     """The checker for a text that tells an agent to wait out a hold."""
 
-    def test_a_wait_without_the_exception_is_refused(self) -> None:
+    def test_d1_a_wait_without_the_exception_is_refused(self) -> None:
         """Each way of saying it is found, once, naming the text."""
         for each in WAITS:
             with self.subTest(each):
@@ -69,7 +69,7 @@ class TestHoldWait(unittest.TestCase):
                 assert_that(found[0], contains_string("t.md: the text tells an agent"))
                 assert_that(found[0], contains_string("(hold-wait)"))
 
-    def test_a_wait_with_the_exception_after_it_passes(self) -> None:
+    def test_d1_a_wait_with_the_exception_after_it_passes(self) -> None:
         """The exception in the words that follow, wrapped lines included."""
         assert_that(holdwait.findings("t.md", EXCEPTED), equal_to([]))
         wrapped = EXCEPTED.replace(" a known", "\na known")

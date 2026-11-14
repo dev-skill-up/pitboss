@@ -7,13 +7,14 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import totalbody, totalchecks, totaljson, totalreview, totalverdict
+from .. import totalbody, totaljson, totalreview
+from . import gatesaid
 from .knownkit import BASE, HEAD, change
 from .says import says
 
 
 def _first(action: str, pull: totaljson.JsonMap, ctx: totaljson.JsonMap) -> str:
-    return next(iter(totalverdict.verdict(action, pull, ctx).lines), "")
+    return next(iter(gatesaid.verdict(action, pull, ctx).lines), "")
 
 
 class TestVerdict(unittest.TestCase):
@@ -40,49 +41,28 @@ class TestVerdict(unittest.TestCase):
     def test_444_an_action_no_row_gates_goes(self) -> None:
         """``close`` has no review or check row."""
         assert_that(
-            totalverdict.verdict("close", BASE.pull, BASE.ctx).word,
-            equal_to(totalverdict.GO),
+            gatesaid.verdict("close", BASE.pull, BASE.ctx).word,
+            equal_to(gatesaid.GO),
         )
 
     def test_444_a_label_pitboss_applies_leaves_the_review_current(self) -> None:
         """A ``labeled`` event of a known label after the review stops nothing."""
         world = change(events=[{"event": "labeled", "label": {"name": "dependencies"}}])
         assert_that(
-            totalverdict.verdict("merge", world.pull, world.ctx).word,
-            equal_to(totalverdict.GO),
+            gatesaid.verdict("merge", world.pull, world.ctx).word,
+            equal_to(gatesaid.GO),
         )
 
 
 class TestBody(unittest.TestCase):
-    """The body's rows and its kind."""
+    """The body's rows."""
 
     def test_444_a_blocked_line_that_names_nothing(self) -> None:
         """It stops, saying so."""
         found = totalbody.body_findings(
-            f"Fixes #1\n\nBlocked by the release\n\nHead: {HEAD}\n", HEAD, {}
+            f"Fixes #1\n\nBlocked by the release\n\nHead: {HEAD}\n", HEAD
         )
         says(" ".join(found), "names no item")
-
-    def test_444_a_publish_branch(self) -> None:
-        """Archives and their sums on a ``publish/`` branch are a publish."""
-        files = [
-            {"filename": "pkg/json_2026.11.1.0.bats"},
-            {"filename": "pkg/json_2026.11.1.0.bats.sha256"},
-        ]
-        assert_that(
-            totalbody.kind({"head": {"ref": "publish/json"}}, files),
-            equal_to("publish"),
-        )
-
-
-class TestChecks(unittest.TestCase):
-    """The newest run of each name."""
-
-    def test_444_an_older_run_listed_later_is_not_current(self) -> None:
-        """Order in the list does not decide; the start time does."""
-        newer = {"name": "check", "id": 2, "started_at": "2026-11-02"}
-        older = {"name": "check", "id": 1, "started_at": "2026-11-01"}
-        assert_that(list(totalchecks.current_runs([newer, older])), equal_to([newer]))
 
 
 class TestReview(unittest.TestCase):

@@ -1,22 +1,51 @@
 """GitHub for the act verbs' tests: the state they read and every write they make."""
 
 import copy
-import json
 import dataclasses
+import json
 import functools
 import pathlib
 import subprocess
-from typing import Callable, Mapping, MutableMapping, MutableSequence, Sequence
+from typing import Callable, Mapping, MutableMapping, MutableSequence, Protocol
+from typing import Sequence
 
-from .. import dispatchnext
-from ..actcore import Act, Controls, Owner
+from ..actcore import Act, Controls, Decisions, Owner, Questions
 from ..actport import Change, Hub, Pull
 from ..totaljson import members, records
 from . import totalworld
-from .totalworld import World
 from .fakes import write
 
 Key = tuple[str, int]
+
+
+class Deciders(Protocol):
+    """How a verb's decisions are made over a hub, bound to the kit."""
+
+    def __call__(self, *, name: str, acts: MutableSequence[Act]) -> Decisions:
+        """The decisions of a world's PR.
+
+        Args:
+            name: the world's PR, ``owner/name#number``.
+            acts: the verb's world, once it is made (its one entry).
+
+        Returns:
+            The decisions, as each verb asks.
+        """
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Rests:
+    """What a fake GitHub's verbs rest on (``knownkit.rests_of`` makes it).
+
+    Attributes:
+        controls: the readers and the disarm.
+        decided: how the verb's decisions are made.
+        said: what the pre-push check says, its exit status and its output.
+    """
+
+    controls: Controls
+    decided: Deciders
+    said: tuple[int, str] = (0, "lint passed\nok\n")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -182,22 +211,6 @@ WRITES: Mapping[str, Callable[[Memory, Change], str]] = {
 }
 
 
-def state(**changes: object) -> dispatchnext.State:
-    """A dispatch state: one free slot of a cap of 1 and one p1 ticket.
-
-    Args:
-        **changes: the fields to set.
-
-    Returns:
-        The state.
-    """
-    ticket = totalworld.ticket_item("q#10", "2026-11-01", "p1")
-    made = dispatchnext.State(
-        cap=1, slots=["sonnet-1"], ledger={"sonnet-1": ""}, items=[ticket]
-    )
-    return dataclasses.replace(made, **changes)  # type: ignore[arg-type]
-
-
 def git_run(cmdargs: Sequence[str], /) -> subprocess.CompletedProcess[str]:
     """Run a command for real, raising when it fails.
 
@@ -222,7 +235,7 @@ class Made:
 
     hub: Memory
     act: Act
-    world: World
+    world: totalworld.World
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -234,7 +247,7 @@ class WorldInputs:
         hub: the fake GitHub.
     """
 
-    world: World
+    world: totalworld.World
     hub: Hub
 
     def __call__(
@@ -249,15 +262,13 @@ class WorldInputs:
             timeline: its timeline, when read; the hub's when empty.
 
         Returns:
-            The inputs.
+            The inputs, with the timeline.
         """
-        return {
-            **copy.deepcopy(self.world.ctx),
-            "timeline": timeline or self.hub.timeline(where, which),
-        }
+        events = timeline or self.hub.timeline(where, which)
+        return {**self.world.ctx, "timeline": events}
 
 
-def _memory(world: World) -> Memory:
+def _memory(world: totalworld.World) -> Memory:
     # the hub's state: the world's PR and its timeline
     key = (str(world.ctx["repo"]), int(str(world.pull["number"])))
     memory = Memory(pulls_made={key: copy.deepcopy(world.pull)})
@@ -266,8 +277,8 @@ def _memory(world: World) -> Memory:
 
 
 def holding(
-    world: World,
-    controls: Controls,
+    world: totalworld.World,
+    given: Rests,
     owner: Owner | None = None,
     repos: Sequence[str] = (),
 ) -> Made:
@@ -275,7 +286,7 @@ def holding(
 
     Args:
         world: the world.
-        controls: the gates and readers.
+        given: the controls and the gate.
         owner: the owner's messages (none when None).
         repos: the project's repositories (the world's when none).
 
@@ -283,19 +294,34 @@ def holding(
         The hub and the verb's world.
     """
     memory = _memory(world)
-    hub = port(memory)
+    project = (owner or Owner(), list(repos) or [str(world.ctx["repo"])])
+    act = _act(port(memory), world, given, project)
+    return Made(hub=memory, act=act, world=world)
+
+
+def _act(
+    hub: Hub,
+    world: totalworld.World,
+    given: Rests,
+    project: tuple[Owner, Sequence[str]],
+) -> Act:
+    # the verb's world over the hub (the owner's messages and the project's
+    # repositories), its decisions made as ``decide`` makes them
+    inputs = WorldInputs(world=world, hub=hub)
+    made: list[Act] = []
     act = Act(
         hub=hub,
-        inputs=WorldInputs(world=world, hub=hub),
-        owner=owner or Owner(),
-        repos=list(repos) or [str(world.ctx["repo"])],
+        inputs=inputs,
+        owner=project[0],
+        repos=project[1],
         p90=lambda _: 2151,
         run=git_run,
-        prepush=lambda: (0, "lint passed\nok\n"),
-        work=state,
-        controls=controls,
+        prepush=lambda: given.said,
+        questions=Questions(decided=given.decided(name=_name_of(world), acts=made)),
+        controls=given.controls,
     )
-    return Made(hub=memory, act=act, world=world)
+    made.append(act)
+    return act
 
 
 def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
@@ -316,3 +342,7 @@ def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
             write(checkout / name, str(text))
         written[repo] = checkout
     return written
+
+
+def _name_of(world: totalworld.World) -> str:  # the world's PR, owner/name#number
+    return f"{world.ctx['repo']}#{world.ctx['number']}"

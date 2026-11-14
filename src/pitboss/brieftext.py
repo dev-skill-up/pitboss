@@ -9,11 +9,11 @@ from . import causetext
 from .envrules import LIMIT
 
 WORKTREE = (
-    "Worktree: work in your own `git worktree add` of {repo} {checkout}; never in"
+    "Worktree: work in your own git worktree of {repo}, made {checkout}; never in"
     " the main clone. A task that changes a repository other than the ticket's"
-    " gets a `git worktree add` of that repository, the only place to commit, and"
-    " a shared clone (`main_clone`, the repository-prototype clone) is never"
-    " checked out to another branch."
+    " gets a worktree of that repository, the only place to commit, and a shared"
+    " clone (`main_clone`, the repository-prototype clone) is never checked out to"
+    " another branch."
 )
 DRAFT = (
     "Draft: open the PR as a draft whose body has a Plan section (what you will"
@@ -36,10 +36,9 @@ BODY = (
     " row in the body."
 )
 EDIT = (
-    "Edit: change files with the Edit tool only (no sed, no shell redirection, no"
-    " ad hoc rm); clean up with `uvx pitboss clean-container {config}` only;"
-    " change an existing comment or PR body only after reading its current text in"
-    " full, and send the complete replacement, never a placeholder."
+    "Edit: clean up with `uvx pitboss clean-container {config}` only; change an"
+    " existing comment or PR body only after reading its current text in full, and"
+    " send the complete replacement, never a placeholder."
 )
 DENIED = (
     "Denied: when the classifier denies a command, look in the repository's"
@@ -48,9 +47,10 @@ DENIED = (
     " fits."
 )
 LOCAL = (
-    f"Local checks: wrap each in `timeout {LIMIT}`; a 124 is left to CI, never rerun"
-    " with a longer limit. Never leave a command running, and never remove files"
-    " under /dev (redirecting to /dev/null is fine)."
+    f"Local checks: wrap each in `timeout {LIMIT}`; a check that runs out of time"
+    " (`timeout` exits 124) is left to CI, never rerun with a longer limit. Never"
+    " leave a command running, and never remove files under /dev (redirecting to"
+    " /dev/null is fine)."
 )
 HOLD_BUG = (
     "A hold that comes from a known pitboss bug with a ticket is not waited out:"
@@ -96,10 +96,16 @@ HAND_BACK = (
     " sessions and their status), and the `Deviations:` line (only a departure"
     " from the Plan's commands or the ticket's Done-when, or `none`); nothing"
     " else. Before you hand back, save it to a file and run `uvx pitboss"
-    " hand-back-check FILE` (keyword: hand-back-done); hand back only on its `ok`."
+    " hand-back-check FILE`; hand back only on its `ok`."
 )
-NEW_PR_CHECKOUT = "from origin/{base} after `git fetch origin {base}`"
-PR_CHECKOUT = "on the PR's branch, current with origin/{base}"
+NEW_PR_CHECKOUT = (
+    "with `git fetch origin {base}` then `git worktree add -b <branch> <dir>"
+    " origin/{base}`"
+)
+PR_CHECKOUT = (
+    "with `git fetch origin {branch}` then `git worktree add <dir> {branch}`; if"
+    " origin/{base} has moved, merge it into the branch (never rebase or force-push)"
+)
 
 TASK_NEW_PR = (
     "Task: do the whole of ticket {reference} in one PR: write the code, then open"
@@ -127,7 +133,7 @@ TASK_FIX_REVIEW = (
 TASK_FIX_CI = (
     "Task: PR {reference}: CI on the head {head} is red. Fix CI (a red CI is never"
     " a rejection); change only what makes it red. Read the log of each failed"
-    " check first: " + causetext.RULE + ".{logs}"
+    " check first: " + causetext.RULE + "."
 )
 
 TASK_RULING_STEPS = (

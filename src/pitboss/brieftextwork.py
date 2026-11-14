@@ -35,7 +35,7 @@ TASK_RUN_PLAN = (
     " and no `Execution:` line), after an Opus ruling, so its commands were never"
     " run. Run each precise command of the Plan as written, and fill the Execution"
     " and Evidence of the PR body with what they printed. The Plan is approved: do"
-    " not change it (pitboss#201)."
+    " not change it."
 )
 TASK_ADD_CI_QUOTES = (
     "Task: PR {reference} is ready and its checks passed, and its Plan has CI-quote"
@@ -43,7 +43,7 @@ TASK_ADD_CI_QUOTES = (
     " that starts `CI quote:` and points to the run (the workflow, the job URL of"
     " the head, the step and a greppable string that step prints), as the CI"
     " pointer rule says; paste no log output. Change nothing else; the Plan is"
-    " approved (pitboss#277)."
+    " approved."
 )
 TASK_REFRESH_BODY = (
     "Task: PR {reference}: its body names an older head than the PR's (the last"
@@ -51,18 +51,16 @@ TASK_REFRESH_BODY = (
     " is red. Run `uvx pitboss body-head {reference}` (it adds the `Head:` line for"
     " the head and changes nothing else) and `uvx pitboss expand` again for each"
     " stale Evidence block, then `uvx pitboss lint pr-body BODYFILE` on the body as"
-    " `gh api` prints it, which must print ok. Change no code (keyword: stale-head,"
-    " quire#1115)."
+    " `gh api` prints it, which must print ok. Change no code."
 )
 TASK_SHARED_RED = (
     "Task: PR {reference}: its failed check is red on other PRs of the repository"
-    " (or on main) with the same first error line, so the cause is shared (the"
-    " SHARED RED line of `pitboss sweep` names the check, the PRs and the line)."
+    " (or on main) with the same first error line, so the cause is shared (read"
+    " its failure, and the same check of the repository's other open PRs and main)."
     " Fix no PR: search the open tickets for the check name, and file ONE ticket"
     " against the shared cause (a stale pin, a stale lock or a runner outage is"
     " the cause, not any PR), or add the PRs to the ticket that exists, then stop."
-    " Each PR goes back to its own step when the shared red is closed (keyword:"
-    " shared-red)."
+    " Each PR goes back to its own step when the shared red is closed."
 )
 DEVIATIONS = (
     "Deviations: the hand-back, and the PR body, have a `Deviations:` line naming"
@@ -72,24 +70,23 @@ DEVIATIONS = (
     " virtualenv, a redirected output file or a research fetch is never a"
     " deviation, and the line is `Deviations: none` beside them; it is part of"
     " the form of the hand-back, and a hand-back without it is NOT STARTED and"
-    " is sent back (pitboss#257, pitboss#345)."
+    " is sent back."
 )
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"
-    " right after each run; a run that needs more than 1 GiB is left to CI"
-    " (pitboss#288)."
+    " right after each run; a run that needs more than 1 GiB is left to CI."
 )
 DEPENDENCY = (
     "Dependency: a ticket that depends on another open ticket is not impossible in"
-    " one PR and is never ground for a split (owner, 2026-11-06): if you hand back"
+    " one PR and is never ground for a split: if you hand back"
     " NOT STARTED for it, name the ticket it waits for; the orchestrator does that"
     " ticket first, and adds a repository the mission needs (add_repo) without"
-    " asking (pitboss#280)."
+    " asking."
 )
 DRAFT_STATE = (
     "Draft state: never change a PR's draft state, in either direction (the"
     " sweep marks a PR ready); if your push shows a state you did not expect, say"
-    " so in your hand-back (pitboss#355)."
+    " so in your hand-back."
 )
 SENTENCES = (
     NOX,
@@ -104,25 +101,25 @@ SENTENCES = (
 )
 TASK_FIX_BLOCKED_BY = (
     "Task: PR {reference}: its `Blocked-by:` lines name a loop (each PR waits for"
-    " the next) or a blocker that closed without merging (the `BLOCKER LOOP` or"
-    " `BLOCKER GONE` line of `pitboss sweep` names it). Correct the lines of the"
+    " the next) or a blocker that closed without merging or cannot be read."
+    " Correct the lines of the"
     " body: drop the one that is wrong, or name the PR or ticket that now carries"
     " the change, then `uvx pitboss lint pr-body BODYFILE` on the body as `gh api`"
-    " prints it must print ok. Change no code (keyword: blocked-by)."
+    " prints it must print ok. Change no code."
 )
 TASK_AFTER_BLOCKER = (
     "Task: PR {reference}: the PRs it was blocked by have merged since its red check"
-    " finished (the `BLOCKER MERGED` line). Merge the base into the branch, check,"
+    " finished. Merge the base into the branch, check,"
     " push (never rewrite history), then `uvx pitboss body-head {reference}`: CI"
-    " runs again on the new head (keyword: blocked-by)."
+    " runs again on the new head."
 )
 TASK_FINISH_PARTIAL = (
     "Task: PR {reference}: a worker handed it back unfinished and nothing offered it"
-    " again (the FINISH PARTIAL line of `pitboss sweep` names what is missing). Resume"
+    " again (its decision names what is missing). Resume"
     " this PR on its own branch, never a new one: do what the line says (post the"
     " `uvx pitboss plan-check`, fix the body until `uvx pitboss lint pr-body BODYFILE`"
     " prints ok, push the unpushed commits), change nothing else, then stop with the"
-    " hand-back (keyword: finish-partial)."
+    " hand-back."
 )
 
 Kind = briefkind.Kind

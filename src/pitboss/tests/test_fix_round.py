@@ -12,8 +12,7 @@ from typing import Tuple
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import flow, plancheck, plancheckflow, plandigest, reviewfindings, shapes, steps
-from ..markers import Marker
-from . import test_flow, world
+from . import blank, decisionline, test_flow, world
 from . import test_flow_sweep as sweeps
 from .suggestions import kind_of_third, next_output
 from .test_flow import CHANGES, OLDER, expect, graded, state
@@ -45,8 +44,12 @@ def said(second: int, text: str, author: str = "MEMBER") -> shapes.Comment:
         The comment.
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return shapes.Comment(
-        body=text, author_association=author, created_at=when, url="https://x.org/r"
+    return dataclasses.replace(
+        blank.COMMENT,
+        body=text,
+        author_association=author,
+        created_at=when,
+        url="https://x.org/r",
     )
 
 
@@ -159,8 +162,7 @@ class TestPlanCheckRefusal(unittest.TestCase):
         """The list quotes the findings, offers no round and starts no agent."""
         refused, here = refused_world()
         out = next_output(here)
-        shown = [x for x in out.splitlines() if x.startswith(Marker.PR_STATE.text)]
-        owned = [each for each in shown if "project#3" in each]
+        owned = [decisionline.of(out, "owner/project#3")]
         assert_that(owned[0], contains_string("the worker that pushed the PR sends"))
         assert_that(owned[0], contains_string(QUOTED))
         assert_that(owned[0], contains_string(refused.url))

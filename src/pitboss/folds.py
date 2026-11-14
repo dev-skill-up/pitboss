@@ -10,9 +10,8 @@ import json
 import re
 from typing import AbstractSet, Sequence
 
-from . import flowstate, parsing, rulingwords, shapes
+from . import flowstate, parsing, pullnames, rulingwords, shapes
 
-CLOSING = re.compile(r"\b(?:Fixes|Closes)\s+((?:[\w.-]+/[\w.-]+)?#\d+)", re.IGNORECASE)
 # the comment's address, then its text
 Recorded = tuple[str, str]
 
@@ -26,7 +25,7 @@ def tickets(body: str) -> Sequence[str]:
     Returns:
         Each ticket once, upper-cased and sorted.
     """
-    return sorted({each.upper() for each in CLOSING.findall(body)})
+    return sorted({each.upper() for each in pullnames.written(body)})
 
 
 def cites(body: str, url: str) -> bool:

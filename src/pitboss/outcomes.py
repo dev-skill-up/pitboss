@@ -3,7 +3,7 @@
 import subprocess
 from typing import Iterable, Mapping
 
-from . import concurrently, config, configrepos, ghapi, local, shapes
+from . import concurrently, config, configrepos, ghapi, ghstore, shapes
 
 
 def outcomes_of(
@@ -29,7 +29,7 @@ def outcomes_of(
     def attempt(slug: str) -> Mapping[str, shapes.Outcome] | None:
         repo = repos.get(slug) or config.parse_repo(slug, owner)
         try:
-            return local.read_outcomes(github, repo)
+            return ghstore.read_outcomes(github, repo)
         except subprocess.CalledProcessError:
             return None
 

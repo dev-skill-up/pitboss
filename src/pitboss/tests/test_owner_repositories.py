@@ -6,12 +6,13 @@ import subprocess
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, equal_to, has_item
+from hamcrest import assert_that, contains_string, equal_to
 
-from .. import configfile, ownerconfig, repoaccess
-from . import fakes, liveagents, ownerbodies, world
+from .. import configfile, orgsearch, ownerconfig, repoaccess
+from . import decisionline, fakes, liveagents, ownerbodies, world
 from .ownerbodies import lines_of
 
+EXTRA = "owner/extra#5"
 GONE = "UNREADABLE owner/gone: gh: not found: repos/owner/gone (HTTP 404)"
 GIVE_ACCESS = ": give the session access or take it out of the configuration"
 INCOMPLETE = (
@@ -129,9 +130,36 @@ def owner_listing(result: world.Result) -> tuple[int, int, int]:
     """
     return (
         len(lines_of(result.out, "UNREADABLE owner:")),
-        len(lines_of(result.out, "PR STATE owner/extra#5")),
+        int(bool(decisionline.of(result.out, EXTRA))),
         len(lines_of(result.out, "INCOMPLETE: the repositories of owner")),
     )
+
+
+def reviewed(here: world.World) -> str:
+    """Run ``slots next`` and require a review of ``extra``'s PR 5.
+
+    Args:
+        here: the world.
+
+    Returns:
+        What it printed.
+    """
+    out = liveagents.next_output(here)
+    assert_that(decisionline.of(out, EXTRA), contains_string("REVIEWER"))
+    return out
+
+
+def listings(here: world.World) -> int:
+    """How many times the owner's open PRs were searched (keyword: org-search).
+
+    Args:
+        here: the world, after a command ran.
+
+    Returns:
+        The count; every repository of the owner is in the one search.
+    """
+    path = orgsearch.path("owner", "is:pr", "-head:relock/")
+    return sum(1 for call in here.calls if call[-1].startswith(path))
 
 
 def run_next(here: world.World, *command: str) -> world.Result:
@@ -167,10 +195,9 @@ class TestOwnerRepositories(unittest.TestCase):
 
     def test_an_unlisted_repository_with_an_open_pr_has_a_state_line(self) -> None:
         """``extra`` is not in ``[libraries] repositories``; its PR is shown."""
-        out = liveagents.next_output(with_extra())
-        states = [line.split(":")[0] for line in lines_of(out, "PR STATE")]
-        assert_that(states, has_item("PR STATE owner/extra#5"))
-        assert_that(states, has_item("PR STATE owner/lib#4"))
+        here = with_extra()
+        out = reviewed(here)
+        assert_that((listings(here), "owner/extra#" in out), equal_to((1, True)))
 
     def test_archived_and_excluded_repositories_are_left_out(self) -> None:
         """Neither is read, so neither is unreadable."""
@@ -191,20 +218,20 @@ class TestOwnerRepositories(unittest.TestCase):
         here = with_extra(("owner/fixture", False))
         served(here, "fixture")
         out = liveagents.next_output(here)
-        assert_that(len(lines_of(out, "PR STATE owner/fixture#5")), equal_to(1))
+        fixture = decisionline.of(out, "owner/fixture#5")
+        assert_that(fixture, contains_string("REVIEWER"))
 
     def test_a_repository_in_the_list_is_added_once(self) -> None:
-        """``lib`` is named by the configuration and listed: one PR line."""
-        out = liveagents.next_output(with_extra())
-        assert_that(len(lines_of(out, "PR STATE owner/lib#4")), equal_to(1))
+        """``lib`` is named by the configuration and listed: its PRs searched once."""
+        here = with_extra()
+        liveagents.next_output(here)
+        assert_that(listings(here), equal_to(1))
 
     def test_the_owner_may_be_a_user(self) -> None:
         """An owner with no organization of that name is listed as a user."""
         here = with_extra()
         here.bodies[ownerbodies.USERS_LISTING] = here.bodies.pop(ownerbodies.LISTING)
-        out = liveagents.next_output(here)
-        assert_that(len(lines_of(out, "PR STATE owner/extra#5")), equal_to(1))
-        assert_that(lines_of(out, "UNREADABLE owner:"), equal_to([]))
+        assert_that(lines_of(reviewed(here), "UNREADABLE owner:"), equal_to([]))
 
 
 class TestIncomplete(unittest.TestCase):
@@ -263,7 +290,7 @@ class TestIncomplete(unittest.TestCase):
             .startswith("INCOMPLETE: the repositories of owner were not listed"),
             equal_to(True),
         )
-        assert_that(lines_of(result.out, "PR STATE owner/extra"), equal_to([]))
+        assert_that(decisionline.of(result.out, EXTRA), equal_to(""))
 
     def test_a_bound_session_lists_through_the_search(self) -> None:
         """The refusal of the organization's path is answered by the search."""

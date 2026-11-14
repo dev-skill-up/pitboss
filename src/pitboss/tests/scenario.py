@@ -8,12 +8,14 @@ keyword body-edits; the final text for a capture without edits), and the merge
 state is clean: a mark is placed where that holds.
 """
 
+import dataclasses
 import enum
 import json
 import pathlib
 from typing import AbstractSet, Mapping, NamedTuple, NotRequired, Sequence, TypedDict
 
-from .. import capture, config, flow, parsing, reviews, shapes, steps
+from .. import capture, config, flow, parsing, reviews, shapes, steps, stepwords
+from . import pullstates
 
 DIRECTORY = pathlib.Path(__file__).with_name("scenarios")
 HEADER = "Independent review (a separate reviewer agent, not the author) of head"
@@ -258,8 +260,8 @@ def state_at(data: Timeline, when: str, settled: bool = False) -> flow.PullState
     """
     posted = _posted(data, when)
     pull = parsing.pull(_pull(data, when))
-    return flow.PullState(
-        pull=pull,
+    return dataclasses.replace(
+        pullstates.bare(pull),
         labels=labels_at(data, when),
         checks=_checks(data, pull.head.sha, when, settled),
         graded=reviews.recorded(REVIEW, data["slug"], posted),
@@ -268,22 +270,25 @@ def state_at(data: Timeline, when: str, settled: bool = False) -> flow.PullState
     )
 
 
-def kind(step: steps.Next) -> str:
+def kind(step: steps.Move) -> str:
     """The name of a step: its step, then its task or stage.
 
     Args:
         step: the step.
 
     Returns:
-        ``WORKER:RULING_STEPS``, ``REGULAR_REVIEW:RULING_STEPS``, ``MERGE``.
+        ``WORKER:RULING_STEPS``, ``REGULAR_REVIEW:RULING_STEPS``, ``MERGE``;
+        ``IDLE`` for a PR nobody acts on (an idle step carries no reason).
     """
+    if isinstance(step, steps.Idle):
+        return "IDLE"
     named = [step.step.name]
     named += [step.task.name] if step.task else []
     named += [step.stage.name] if step.stage else []
     return ":".join(named)
 
 
-def step_at(data: Timeline, when: str, settled: bool = False) -> steps.Next:
+def step_at(data: Timeline, when: str, settled: bool = False) -> steps.Move:
     """The step the flow gives the PR at a time.
 
     Args:
@@ -305,7 +310,8 @@ def printed(name: str, mark: Mark) -> str:
         mark: the mark.
 
     Returns:
-        The line, with the step ``steps.describe`` says.
+        The line, with the step ``stepwords.describe`` says.
     """
     step = step_at(load(name), mark.when, mark.settled)
-    return f"{name} {mark.when} [{mark.rule}] {kind(step)}: {steps.describe(step)}"
+    said = stepwords.describe(step) if isinstance(step, steps.Next) else "nobody acts"
+    return f"{name} {mark.when} [{mark.rule}] {kind(step)}: {said}"

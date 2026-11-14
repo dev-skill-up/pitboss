@@ -1,19 +1,18 @@
 """``pitboss act``: the one path for every write to GitHub (pitboss#444).
 
-The keyword is act-verbs. A verb reads the state, runs the verdict, writes, and reads
-back; the agent gives only the intent. Every verb that changes GitHub first
-passes the owner gate (an owner message with no disposition refuses it) and the
-hold gate (a hold whose scope covers the verb refuses it). The invariant "armed
+The keyword is act-verbs. A verb's answer is decided in the command's one read
+(``actdecide``: an owner message with no disposition, a hold whose scope covers the
+verb, the fact the verb turns on), and ``actverbs.run`` applies it only when that
+answer is to go; the agent gives only the intent. The invariant "armed
 means GO": a verb that changes an input of the verdict on an armed PR disarms it
 first. GitHub is a port (``Hub``) with one write (``Change``), so the verbs run
 the same against GitHub (``acthub``) and against a test's fake.
 """
 
 import dataclasses
-import re
-from typing import Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import actport, dispatchnext, ticketreader, totalanswer, totaljson
+from . import actport, answer, config, pullnames, pullrecords, ticketreader, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
@@ -21,11 +20,9 @@ Pull = actport.Pull
 Options = actport.Options
 option = actport.option
 options_of = actport.options_of
-HOLD_LABEL = "pitboss-hold"
+HOLD_LABEL = pullrecords.HOLD_LABEL  # the one label of a hold (keyword: hold)
 ACK_LABEL = "pitboss-ack"
 RECORD = "pitboss-act:"
-HELD = actport.HELD
-ENDS_A_HOLD = actport.ENDS_A_HOLD
 DISARMING = frozenset({"all", "merges", "ci"})
 EVERY_REPOSITORY = frozenset({"", "all"})
 QUEUED = "added_to_merge_queue"
@@ -39,6 +36,7 @@ Target = actport.Target
 
 
 Owner = actport.Owner
+Decisions = Callable[[actport.Asked], answer.Decided]  # the decisions, as asked
 cap_of = actport.cap_of
 
 
@@ -50,32 +48,30 @@ class Controls:
     """What the verbs rest on (each can be given, so a test can take one out).
 
     Attributes:
-        verdict: the total verdict.
-        owner_gate: the owner gate.
-        hold_gate: the hold gate.
         disarm: what disarms an armed PR before its inputs change.
         items: the ticket reader.
-        started: which open PRs close a ticket.
-        next_item: the order of work.
-        not_overridable: the starts of the stop lines no override lifts.
+        works_on: the tickets a PR works on, by its title, body and branch (the one
+            parse, ``pullnames.names``).
     """
 
-    verdict: Callable[[str, JsonMap, JsonMap], totalanswer.Answer]
-    owner_gate: Callable[["Act"], None] = lambda act: owner_gate(act)
-    hold_gate: Callable[["Act", str, str], None] = lambda act, verb, repo: hold_gate(
-        act, verb, repo
-    )
     disarm: Callable[["Act", Target, str], None] = (
         lambda act, target, why: disarm_if_armed(act, target, why)
     )
-    items: ticketreader.Reader = ticketreader.items
-    started: Callable[[Sequence[tuple[int, str | None]], str, int], Sequence[int]] = (
-        ticketreader.started
-    )
-    next_item: Callable[[dispatchnext.State, str, str], dispatchnext.Item] = (
-        dispatchnext.next_item
-    )
-    not_overridable: Sequence[str]
+    items: ticketreader.Reader = ticketreader.done_when
+    works_on: Callable[[str, str, str, config.Repo], AbstractSet[str]] = pullnames.names
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Questions:
+    """What the verbs ask of the decisions, reading the world once.
+
+    Attributes:
+        decided: the decisions of the one read of the command line's mode, given
+            the verb asked: every verb looks its answer up in them (keyword: gate,
+            P8).
+    """
+
+    decided: Decisions
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -90,8 +86,8 @@ class Act:
         p90: each repository's 90th percentile of changed lines.
         run: the runner git goes through.
         prepush: the pre-push check (its exit status and output).
-        work: the slots, the ledger and the items the order of work reads.
-        controls: the gates and readers.
+        questions: what the verbs ask of the decisions (keyword: one-path).
+        controls: the readers and the disarm.
     """
 
     hub: Hub
@@ -101,81 +97,8 @@ class Act:
     p90: Callable[[str], int]
     run: Run
     prepush: Callable[[], tuple[int, str]]
-    work: Callable[[], dispatchnext.State]
+    questions: "Questions"
     controls: Controls
-
-
-def owner_gate(act: Act) -> None:
-    """Refuse while an owner message has no disposition.
-
-    Args:
-        act: the verb's world.
-
-    Raises:
-        Refused: the first such message.
-    """
-    pending = [
-        each for each in act.owner.messages if each not in act.owner.dispositions
-    ]
-    if pending:
-        raise Refused(
-            f"owner message {pending[0]} has no disposition: `pitboss act ack"
-            f" {pending[0]} --kind hold|cap|ruling|none`"
-        )
-
-
-def holds(act: Act, repo: str) -> Sequence[Pull]:
-    """The holds of a repository.
-
-    Args:
-        act: the verb's world.
-        repo: the repository.
-
-    Returns:
-        Each hold's ``title`` and ``scope``.
-    """
-    found = []
-    for issue in act.hub.issues(repo, HOLD_LABEL):
-        scope = re.search(r"scope=(\w+)", text(issue.get("body")))
-        found.append(
-            {
-                "title": issue.get("title"),
-                "number": issue.get("number"),
-                "scope": scope.group(1) if scope else "all",
-            }
-        )
-    return found
-
-
-def hold_gate(act: Act, verb: str, repo: str) -> None:
-    """Refuse a verb a hold covers.
-
-    Args:
-        act: the verb's world.
-        verb: the verb.
-        repo: its repository ("" or "all" for every repository of the project).
-
-    Raises:
-        Refused: the first hold that covers it.
-    """
-    if verb in ENDS_A_HOLD:
-        return
-    for each in [repo] if repo not in EVERY_REPOSITORY else act.repos:
-        for hold in holds(act, each):
-            if hold["scope"] == "all" or verb in HELD.get(text(hold["scope"]), ()):
-                raise Refused(f"hold: {hold['title']} holds {verb} in {each}")
-
-
-def gate(act: Act, verb: str, repo: str) -> None:
-    """The owner gate, then the hold gate.
-
-    Args:
-        act: the verb's world.
-        verb: the verb.
-        repo: its repository.
-    """
-    act.controls.owner_gate(act)
-    act.controls.hold_gate(act, verb, repo)
 
 
 def put(
@@ -238,31 +161,6 @@ def queued(timeline: Sequence[object]) -> bool:
     kinds = [each.get("event") for each in totaljson.records(timeline)]
     events = [each for each in kinds if each in QUEUE_EVENTS]
     return bool(events) and events[-1] == QUEUED
-
-
-def verdict_of(act: Act, action: str, target: Target) -> Pull:
-    """Read a PR and its inputs, and run the verdict.
-
-    Args:
-        act: the verb's world.
-        action: the action.
-        target: the PR.
-
-    Returns:
-        The PR, when the verdict is GO.
-
-    Raises:
-        Refused: the verdict is STOP; the message carries its first lines.
-    """
-    pull, events = pull_of(act, target), timeline_of(act, target)
-    ctx = {
-        **act.inputs(target.repo, target.number, pull, events),
-        "holds": list(holds(act, target.repo)),
-    }
-    answer = act.controls.verdict(action, pull, ctx)
-    if answer.word != totalanswer.GO:
-        raise Refused(f"{action} {target.name}: STOP: " + "; ".join(answer.lines[:3]))
-    return pull
 
 
 def head_of(pull: JsonMap) -> str:

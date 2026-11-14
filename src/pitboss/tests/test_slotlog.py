@@ -1,5 +1,6 @@
 """Tests for the slot log: a fixed log replayed, and how the log is kept."""
 
+import dataclasses
 import datetime
 import json
 import pathlib
@@ -8,7 +9,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import ledger, slotlog
+from .. import ledger, slotbook, slotlog
 from . import fakes
 
 DAY = "2030-01-01"
@@ -90,16 +91,15 @@ class TestKeeping(unittest.TestCase):
 
     def test_changes_and_append(self) -> None:
         """Only a slot that differs from its last entry, or is gone, is logged."""
-        slots = (ledger.Slot(name="a", model="m"), ledger.Slot(name="b", model="m"))
-        book = ledger.Ledger(slots=slots, failed={})
+        book = slotbook.ledger_of(
+            (ledger.empty_slot("a", "m"), ledger.empty_slot("b", "m"))
+        )
         first = slotlog.changes((), book, at(1))
         assert_that([e.state for e in first], equal_to([slotlog.State.EMPTY] * 2))
         assert_that(slotlog.changes(first, book, at(2)), equal_to([]))
-        busy = ledger.Ledger(
-            slots=(
-                ledger.Slot(name="a", model="m", agent="w", task="t", waiting=True),
-            ),
-            failed={},
+        working = ledger.empty_slot("a", "m")
+        busy = slotbook.ledger_of(
+            (dataclasses.replace(working, agent="w", task="t", waiting=True),)
         )
         later = slotlog.changes(first, busy, at(3))
         assert_that(

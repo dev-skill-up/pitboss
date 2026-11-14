@@ -11,9 +11,10 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import actverbs, enumeration, totaljson, totalroutes, totalverdict
+from .. import actrules, actverbs, enumeration, gatepolicy, totaljson
 from . import (
     coverwrites,
+    gatesaid,
     scratch,
     totalcells,
     totalcomplete,
@@ -36,13 +37,13 @@ SHA256 = {
 
 def _verdict(
     action: str, pull: totaljson.JsonMap, ctx: totaljson.JsonMap
-) -> totalverdict.Answer:
-    return totalverdict.verdict(action, pull, ctx, _policy())
+) -> gatesaid.Answer:
+    return gatesaid.verdict(action, pull, ctx, _policy())
 
 
 @functools.cache
-def _policy() -> totalverdict.Policy:
-    return totalverdict.shipped_policy()
+def _policy() -> gatepolicy.Policy:
+    return gatepolicy.shipped()
 
 
 @functools.cache
@@ -84,42 +85,29 @@ class TestCells(unittest.TestCase):
     """Every value of every variable, for each action, against the GO world."""
 
     def test_444_732_cells_with_0_uncovered(self) -> None:
-        """526 fire on their own row, 206 are benign by a named reason.
+        """523 fire on their own row, 209 are benign by a named reason.
 
         None is uncovered.
         """
         found = totalcells.tally(totalcomplete.base_cells(), _verdict)
         assert_that(
             (len(totalcomplete.base_cells()), dict(found)),
-            equal_to((732, {totalcells.FIRES: 526, totalcells.BENIGN: 206})),
+            equal_to((732, {totalcells.FIRES: 523, totalcells.BENIGN: 209})),
         )
 
     def test_444_every_stop_line_has_a_route(self) -> None:
         """No line the cells give is without a route."""
-        lines = sorted(
-            {
-                line
-                for cell in totalcomplete.base_cells()
-                for line in _verdict(cell.action, cell.world.pull, cell.world.ctx).lines
-            }
-        )
-        assert_that((totalpairs.routed(lines), len(lines) > 200), equal_to(([], True)))
+        stops = [
+            stop
+            for cell in totalcomplete.base_cells()
+            for stop in _verdict(cell.action, cell.world.pull, cell.world.ctx).stops
+        ]
+        lines = {each.line for each in stops}
+        assert_that((totalpairs.routed(stops), len(lines) > 200), equal_to(([], True)))
 
 
 class TestPairs(unittest.TestCase):
     """Every two cells together: the verdict answers, and never raises."""
-
-    def test_444_a_wrong_answer_is_counted(self) -> None:
-        """A stop line with no route is an exception of the pair."""
-        unrouted = totalverdict.Answer(
-            word=totalverdict.STOP, lines=["zzz: a line no route takes"]
-        )
-        found = totalpairs.run(
-            totalworld.base(),
-            totalcomplete.base_cells()[::100],
-            lambda action, pull, ctx: unrouted,
-        )
-        assert_that(found.counts["exception"] > 0, equal_to(True))
 
     def test_444_equal_sets_are_no_change_whatever_the_hash_seed(self) -> None:
         """A set is compared by its members, not by the order it prints in."""
@@ -210,4 +198,4 @@ class TestInstructions(unittest.TestCase):
         """The text of ``instructions()``, whole."""
         here = world.make_world()
         done = world.again(here, "sweep", f"--now={world.FUTURE}")
-        assert_that(totalroutes.instructions() in done.out, equal_to(True))
+        assert_that(actrules.instructions() in done.out, equal_to(True))

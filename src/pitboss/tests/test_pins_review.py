@@ -7,7 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import forms, pinsreading, pinsreview
-from . import fakes, repositories, world
+from . import actreviewed, fakes, repositories, world
 from . import gateworld as gate_fixture
 from . import pinsworld as pw
 from .formchecks import subject
@@ -19,7 +19,6 @@ CHECKS = fakes.page(f"{world.PROJECT}/commits/{pw.HEAD}/check-runs")
 POSTED = {"id": 5, "html_url": "https://github.example/owner/project/pull/3#c5"}
 PENDING_RUN = {"id": 9, "name": "slow", "status": "in_progress"}
 REFUSED = "pitboss pins-review: refused: "
-NAMES = f"run `pitboss pins-review {PULL} --no-dry-run`"
 UNFIT_LINES = (
     "OK: café",
     "OK: ```x",
@@ -289,12 +288,12 @@ class TestRefusal(unittest.TestCase):
         assert_that(pinsreview.unclear(ok_reading(pw.OK_ANSWER)), equal_to(""))
 
     def test_a_pull_request_that_cannot_be_read(self) -> None:
-        """A PR the API does not know is refused with the call that failed."""
+        """A PR the API answers 404 for is not in the world: refused, by name."""
         here = gated_relock()
         argv = ("pins-review", "owner/project#99", "--config", here.config)
         done = world.invoke(here, *argv)
         assert_that(str(done.code), contains_string(f"{REFUSED}owner/project#99:"))
-        assert_that(str(done.code), contains_string("answered HTTP 404"))
+        assert_that(str(done.code), contains_string("no open PR of the configuration"))
 
     def test_a_pull_request_that_is_not_a_reference(self) -> None:
         """The argument is OWNER/NAME#NUMBER; anything else exits 2."""
@@ -304,33 +303,23 @@ class TestRefusal(unittest.TestCase):
         assert_that((done.err.strip(), done.code), equal_to(want))
 
 
-def names_the_command(here: world.World) -> bool:
-    """Whether the sweep of the world names the command on a PINS-ONLY OK line.
+class TestTheDecision(unittest.TestCase):
+    """A pins-only relock that printed OK is decided by the merge step (gate)."""
 
-    Args:
-        here: the world.
-
-    Returns:
-        True when the PINS-ONLY OK line names ``pins-review``.
-    """
-    out = pw.swept(here)
-    assert_that(pw.pins_lines(out), contains_string("PINS-ONLY OK"))
-    return NAMES in pw.pins_lines(out) and "pins-review" in out
-
-
-class TestSweepNamesIt(unittest.TestCase):
-    """The PINS-ONLY OK line of a pending gate names the command."""
-
-    def test_only_a_relock_whose_gate_is_pending_is_told_to_post(self) -> None:
-        """Gated relock: yes; a gate that passes, no gate, not a relock: no."""
+    def test_a_relock_is_the_merge_whatever_its_gate_status(self) -> None:
+        """Gated relock, default command, gate passing, no gate: the merge."""
         passing = gated_relock()
         passing.bodies[gate_fixture.THIRD_STATUS] = gate_fixture.SUCCESS
         worlds = {
-            "pending": (gated_relock(), True),
-            "default command": (with_gate(pw.with_bats(pw.relock(""))), True),
-            "passing": (passing, False),
-            "no gate": (plain_relock(), False),
-            "not a relock": (off_branch(), False),
+            "pending": gated_relock(),
+            "default command": with_gate(pw.with_bats(pw.relock(""))),
+            "passing": passing,
+            "no gate": plain_relock(),
         }
-        found = {label: names_the_command(here) for label, (here, _) in worlds.items()}
-        assert_that(found, equal_to({k: want for k, (_, want) in worlds.items()}))
+        merge = actreviewed.MERGING.format(number=3)
+        found = {label: merge in pw.offered(here) for label, here in worlds.items()}
+        assert_that(found, equal_to(dict.fromkeys(worlds, True)))
+
+    def test_not_a_relock_needs_the_act_review(self) -> None:
+        """A pins-only PR on another branch is the gate's review step."""
+        assert_that(pw.offered(off_branch()), contains_string("`act review`"))

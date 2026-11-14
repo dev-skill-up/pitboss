@@ -7,12 +7,13 @@ about the slot alone: ten minutes free by the slot log, whatever the queue holds
 """
 
 import datetime
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, TypeVar
 
-from . import ledger, nextfound, pulls, slotholding, slotidle, slotlog
+from . import ledger, nextfound, slotholding, slotidle, slotlog
 from .markers import Marker
 
 FREE_MINUTES = 10
+Found = TypeVar("Found", bound=nextfound.Found)
 
 
 def minutes(
@@ -36,16 +37,15 @@ def minutes(
 
 
 def line(
-    found: nextfound.Found,
-    opened: Callable[[], Sequence[pulls.Read]],
-    first: Callable[[nextfound.Found, Sequence[pulls.Read], ledger.Ledger], str],
+    found: Found,
+    first: Callable[[Found], str],
 ) -> str | None:
     """The ``IDLE SLOT`` line of ``sweep`` and ``slots free-check``, when it applies.
 
     Args:
         found: the context.
-        opened: reads the open PRs; called only when the line applies.
-        first: says the first startable item (``nextlist.first_startable``).
+        first: says the first decision (``onepath.first_line``); called only when
+            the line applies.
 
     Returns:
         ``IDLE SLOT: free for N minutes, next is <the slots next line>``, or
@@ -57,5 +57,5 @@ def line(
     if waited is None:
         return None
     return f"{Marker.IDLE_SLOT.text}: free for {waited} minutes, next is " + first(
-        found, opened(), book
+        found
     )

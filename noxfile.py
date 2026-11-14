@@ -7,7 +7,15 @@ import urllib.request
 import nox
 
 nox.options.envdir = "build/nox"
-nox.options.sessions = ["lint", "tests", "mypy", "docs", "skills", "dry_release"]
+nox.options.sessions = [
+    "lint",
+    "modes",
+    "tests",
+    "mypy",
+    "docs",
+    "skills",
+    "dry_release",
+]
 
 VERSIONS = ["3.12", "3.13", "3.14"]
 COVER = "--cover="
@@ -180,6 +188,22 @@ def lint(session):
         "--check-yield-types=False",
         "src/",
     )
+    # the one path's static proofs, P1 to P11 but P4 (plan section 6.3)
+    session.run("python", "-m", "pitboss.pathproofs")
+
+
+@nox.session(python=VERSIONS[-1])
+def modes(session):
+    # P4: every command line the parser takes maps onto a Mode (plan section 6.3)
+    session.install("-e", ".")
+    session.run("python", "-m", "pitboss.modeproof")
+
+
+@nox.session(python=VERSIONS[-1])
+def seeded(session):
+    # each proof fails on its seeded violation, in CI's mutation job (section 6.5)
+    session.install("-e", ".")
+    session.run("python", "-m", "pitboss.proofseeds")
 
 
 @nox.session(python=VERSIONS[-1])

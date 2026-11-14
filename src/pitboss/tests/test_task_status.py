@@ -1,17 +1,22 @@
 """The status and the task list are printed from state, never typed (pitboss#471)."""
 
+import dataclasses
 import datetime
 import unittest
 
-from .. import checkin, ledger, tasklistlines, work
+from .. import checkin, ledger, slotbook, steps, tasklistlines
+from .. import world as world_module
 from . import fakes, suggestions, world
 from .cleanworld import same
+from .test_decide import answer_of, ticket
 
 NOW = datetime.datetime(2026, 11, 11, 10, 21, 13, tzinfo=datetime.timezone.utc)
 LATER = NOW + datetime.timedelta(minutes=30)
-BOOK = ledger.Ledger(slots=(), failed={})
+BOOK = slotbook.ledger_of(())
 STALE = "two Opus rulings (pitboss#459 and #460) await a permission decision"
-SLOT = ledger.Slot(name="s1", model="m", agent="a1", task="o/r#9", ticket="o/r#9")
+SLOT = dataclasses.replace(
+    slotbook.empty_slot("s1", "m"), agent="a1", task="o/r#9", ticket="o/r#9"
+)
 CLOSED = "repos/o/r/pulls?state=closed&sort=updated&direction=desc&per_page=30"
 
 
@@ -56,8 +61,12 @@ class TestPrompt(unittest.TestCase):
     def test_a_stale_line_in_a_prompt_is_not_in_the_printed_status(self) -> None:
         """The output is made from the ledger and GitHub alone."""
         prompt = f"{checkin.PROMPT}\nNote: {STALE}\n"
+        given = answer_of(world_module.Exhausted(examined=[]))
         shown = tasklistlines.lines(
-            ledger.Ledger(slots=(SLOT,), failed={}), [], [], NOW
+            slotbook.ledger_of((SLOT,)),
+            given,
+            [],
+            NOW,
         )
         same((STALE in prompt, any(STALE in each for each in shown)), (True, False))
 
@@ -67,21 +76,16 @@ class TestTaskList(unittest.TestCase):
 
     def test_a_line_for_each_running_merged_and_waiting(self) -> None:
         """The header holds the times; the marks lead the lines; none is grouped."""
-        held = work.Item(
-            category=work.Category.NEW_PR, reference="o/r#9", created_at="", title="h"
-        )
-        waits = work.Item(
-            category=work.Category.REVIEW, reference="o/r#10", created_at="", title="p"
-        )
-        book = ledger.Ledger(slots=(SLOT,), failed={}, checkin=NOW.isoformat())
-        shown = tasklistlines.lines(book, [held, waits], ["✓ o/r#8: d (merged)"], NOW)
+        given = answer_of(world_module.Exhausted(examined=[ticket(9), ticket(10)]))
+        book = dataclasses.replace(slotbook.ledger_of((SLOT,)), checkin=NOW.isoformat())
+        shown = tasklistlines.lines(book, given, ["✓ o/r#8: d (merged)"], NOW)
         same(
             shown[1:],
             [
                 "",
                 "✱ o/r#9: worker a1 (slot s1)",
                 "✓ o/r#8: d (merged)",
-                "○ o/r#10: review it (a reviewer that is not its author) (p)",
+                f"○ WORKER: o/r#10: {steps.FIRST_STEP} (ticket 10)",
             ],
         )
         same(shown[0].startswith("Task list: check-in 10:21Z; next due 10:51Z"), True)

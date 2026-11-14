@@ -11,7 +11,7 @@ OWNER = (
     "Owner: a ticket, brief, plan or review never states what the owner cannot or"
     " will not do, or that something is outside his reach, unless the sentence"
     " quotes his own words and their date; without a quote the step is asked of"
-    " him as a request in the hand-back, never assumed impossible (pitboss#352)."
+    " him as a request in the hand-back, never assumed impossible."
 )
 WORKER_ACTIONS = (
     "Worker actions: a statement about what a worker did is made from the output"

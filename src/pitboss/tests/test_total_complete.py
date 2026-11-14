@@ -9,9 +9,10 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actverbs, enumeration, totalroutes, totalverdict
+from .. import actrules, actverbs, enumeration, gatepolicy, ticketreader
+from ..gatestop import Route, Stop
 from ..totaljson import JsonMap
-from . import totalcomplete
+from . import gatesaid, totalcomplete
 
 REFERENCE = totalcomplete.Parts(
     labels={"bats-lang/quire": ["paused-owner", "dependencies"]}
@@ -28,14 +29,16 @@ def _variable(group: str, value: str) -> totalcomplete.Parts:
 
 
 def _no_row(
-    action: str, pull: JsonMap, ctx: JsonMap, rules: totalverdict.Policy
-) -> totalverdict.Answer:
-    answer = totalverdict.verdict(action, pull, ctx, rules)
+    action: str, pull: JsonMap, ctx: JsonMap, rules: gatepolicy.Policy
+) -> gatesaid.Answer:
+    answer = gatesaid.verdict(action, pull, ctx, rules)
     if pull.get("milestone") is not None:
         return answer
-    return totalverdict.Answer(
-        word=totalverdict.STOP,
-        lines=[*answer.lines, "milestone: a milestone with no row"],
+    line = "milestone: a milestone with no row"
+    return gatesaid.Answer(
+        word=gatesaid.STOP,
+        lines=[*answer.lines, line],
+        stops=[*answer.stops, Stop(route=Route.UNREAD, line=line)],
     )
 
 
@@ -49,8 +52,9 @@ def _loose_review(
     )
 
 
-def _priority_read(body: str | None) -> Sequence[str]:
-    return [*totalcomplete.Forms().items(body), "Priority: p1"]
+def _priority_read(body: str | None) -> ticketreader.Read:
+    found = getattr(totalcomplete.Forms().items(body), "found")
+    return ticketreader.Items(found=[*found, "Priority: p1"])
 
 
 PLANTS = {
@@ -70,17 +74,6 @@ PLANTS = {
         dataclasses.replace(REFERENCE, labels={"bats-lang/quire": ["do-not-merge"]}),
         "has the label 'do-not-merge'",
     ),
-    "the route of a body stop is removed": (
-        dataclasses.replace(
-            REFERENCE,
-            routes=[
-                each
-                for each in totalroutes.ROUTES
-                if not each.pattern.startswith("body:")
-            ],
-        ),
-        "a stop line with no route: body:",
-    ),
     "a verb a route names is removed (override)": (
         dataclasses.replace(
             REFERENCE, verbs=[each for each in actverbs.VERBS if each != "override"]
@@ -99,11 +92,11 @@ PLANTS = {
         dataclasses.replace(
             REFERENCE,
             requirements={
-                **totalroutes.REQUIREMENTS,
+                **actrules.REQUIREMENTS,
                 "reviewer": ["Review the pull request."],
             },
         ),
-        "instructions do not tell the reviewer",
+        "instructions do not tell the REVIEWER",
     ),
     "a documented kind is dropped from its class": (
         dataclasses.replace(
@@ -138,9 +131,9 @@ class TestComplete(unittest.TestCase):
             totalcomplete.complete(REFERENCE, totalcomplete.base_cells()), empty()
         )
 
-    def test_444_11_of_11_planted_holes_are_red(self) -> None:
-        """Each plant is found, by its own line."""
-        assert_that(len(PLANTS), equal_to(11))
+    def test_p8_10_of_10_planted_holes_are_red(self) -> None:
+        """Each plant is found, by its own line (P8: a route carries its row)."""
+        assert_that(len(PLANTS), equal_to(10))
         for name, (parts, said) in PLANTS.items():
             with self.subTest(name):
                 assert_that(_holes(parts), contains_string(said))
@@ -150,7 +143,7 @@ class TestComplete(unittest.TestCase):
         schema = dict(REFERENCE.policy.schema)
         del schema["draft"]
         declared = {**REFERENCE.declared, "check-conclusion": {"success": "passed"}}
-        orchestrator = {**totalroutes.REQUIREMENTS, "orchestrator": [ACT_ONLY]}
+        orchestrator = {**actrules.REQUIREMENTS, "orchestrator": [ACT_ONLY]}
         parts = dataclasses.replace(
             REFERENCE,
             policy=dataclasses.replace(REFERENCE.policy, schema=schema),
@@ -162,5 +155,5 @@ class TestComplete(unittest.TestCase):
             assert_that(found, contains_string(said))
         assert_that(
             _holes(dataclasses.replace(REFERENCE, requirements={})),
-            contains_string("do not tell the reviewer"),
+            contains_string("do not tell the REVIEWER"),
         )

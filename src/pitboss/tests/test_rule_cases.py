@@ -9,9 +9,7 @@ from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import dispatchnext, rulecases
-from . import fakehub
-from .totalworld import item
+from .. import rulecases
 from .says import raises_with
 
 GO, STOP, OTHER = (
@@ -72,16 +70,3 @@ class TestCases(unittest.TestCase):
             rulecases.diff_findings([GO, OTHER], [GO, flipped, OTHER], {"A": "C"}),
             equal_to([]),
         )
-
-
-class TestOrder(unittest.TestCase):
-    """The order of work when nothing is free."""
-
-    def test_444_nothing_free_is_refused(self) -> None:
-        """No item, or only blocked ones."""
-        blocked = item("o/r#1", "2026-11-01", blocked_by="o/r#2")
-        for items in ([], [blocked]):
-            given = functools.partial(
-                dispatchnext.next_item, fakehub.state(items=items)
-            )
-            raises_with(dispatchnext.Refused, "nothing in the order is free", given)

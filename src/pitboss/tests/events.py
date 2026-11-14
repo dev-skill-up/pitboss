@@ -8,6 +8,7 @@ import dataclasses
 from typing import Callable, Mapping, Sequence, TypedDict, Unpack
 
 from .. import rulingguard, steps
+from . import model as modeled
 from .model import Allowed, History, Model, Review, Ruling, Verdict, pull_state
 
 Move = Callable[[Model], Model]
@@ -191,7 +192,7 @@ def _worked(model: Model, step: steps.Next) -> Model:
     return dataclasses.replace(done, plan=model.plan + 1, history=made)
 
 
-def simulated(model: Model, step: steps.Next, allowed: Allowed) -> Model | None:
+def simulated(model: Model, step: steps.Move, allowed: Allowed) -> Model | None:
     """The model after the step is done as it says.
 
     Args:
@@ -202,9 +203,12 @@ def simulated(model: Model, step: steps.Next, allowed: Allowed) -> Model | None:
     Returns:
         The model, None for a step that waits for the owner or ends the PR.
     """
+    if modeled.ci_waits(model, step):
+        return _then(model, "ci green", ci="green")
+    if not isinstance(step, steps.Next):
+        return None
     made = _checked(model, model.plan, model.head)
     done: Mapping[steps.Step, Callable[[], Model | None]] = {
-        steps.Step.WAIT_FOR_CI: lambda: _then(model, "ci green", ci="green"),
         steps.Step.OPUS_RULING: lambda: ruled(model, Ruling.DO_THESE_STEPS, allowed),
         steps.Step.PAUSE_FOR_OWNER: lambda: paused(model),
         steps.Step.PLAN_CHECK: lambda: _then(model, "plan check", history=made),

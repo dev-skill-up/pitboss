@@ -3,21 +3,21 @@
 The keyword is ticket-reader, pitboss#444.
 """
 
-import functools
 import unittest
 
-from hamcrest import assert_that, equal_to
+from hamcrest import assert_that, contains_string, equal_to, instance_of
 
 from .. import ticketreader
-from .says import raises_with
 
 
 def _refused(body: str | None, said: str) -> None:
-    raises_with(ticketreader.Refused, said, functools.partial(ticketreader.items, body))
+    found = ticketreader.done_when(body)
+    assert_that(found, instance_of(ticketreader.NotInForm))
+    assert_that(str(getattr(found, "problem", "")), contains_string(said))
 
 
 def _read(body: str, items: list[str]) -> None:
-    assert_that(list(ticketreader.items(body)), equal_to(items))
+    assert_that(ticketreader.done_when(body), equal_to(ticketreader.Items(found=items)))
 
 
 class TestItems(unittest.TestCase):
@@ -60,21 +60,3 @@ class TestItems(unittest.TestCase):
         """The writer's items are the reader's."""
         body = ticketreader.written(["a demonstrated by b", "c"], ["src/"], 100, "p1")
         _read(body, ["a demonstrated by b", "c"])
-
-
-class TestClosing(unittest.TestCase):
-    """Which PRs close a ticket."""
-
-    def test_444_every_closing_keyword_and_form(self) -> None:
-        """A short and a full reference close.
-
-        Another repository's and another number do not.
-        """
-        bodies = [
-            (1, "Fixes #4"),
-            (2, "resolved: o/r#4"),
-            (3, "Closes x/y#4"),
-            (4, "fix #40"),
-            (5, None),
-        ]
-        assert_that(list(ticketreader.started(bodies, "o/r", 4)), equal_to([1, 2]))

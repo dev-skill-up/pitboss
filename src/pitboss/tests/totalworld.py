@@ -11,8 +11,8 @@ import json
 import pathlib
 from typing import Iterable, Mapping
 
-from .. import bodydigest, dispatchnext, totalreview
-from ..totaljson import JsonMap, members, name_at
+from .. import bodydigest, pullobject, totalreview
+from ..totaljson import JsonMap, members, name_at, text
 from ..plansection import plan_section
 
 FOLDER = pathlib.Path(__file__).with_name("total")
@@ -71,9 +71,9 @@ def review(
         "Plan: approved",
         f"Execution: {grade}",
         f"Verdict: {grade}",
-        f"Body: {totalreview.digest_of(body)}",
+        f"Body: {totalreview.digest_of(text(body))}",
         *plan,
-        *totalreview.ticket_lines(tickets),
+        *totalreview.ticket_lines(pullobject.tickets_of(tickets)),
     ]
     return {
         "event": "commented",
@@ -118,7 +118,6 @@ def _ctx(repo: str, number: object, head: str) -> Pull:
         "check_runs": [*runs, dict(GATE_RUN)],
         "statuses": [dict(each) for each in STATUSES],
         "tickets": {f"{repo}#1": dict(OPEN_TICKET)},
-        "blockers": {},
         "files": [dict(FILE)],
         "max_lines": 462,
         "holds": [],
@@ -207,20 +206,6 @@ def ticket_ref(world: World) -> str:
     return next(iter(members(world.ctx.get("tickets"))))
 
 
-def item(ref: str, created: str, **fields: str) -> dispatchnext.Item:
-    """An open PR of the order of work.
-
-    Args:
-        ref: its ``owner/name#N``.
-        created: when it was opened.
-        **fields: its other fields.
-
-    Returns:
-        The item.
-    """
-    return dispatchnext.Item(ref=ref, kind="pr", created=created, **fields)
-
-
 def folder_text(name: str) -> str:
     """A file of the total verdict's data folder.
 
@@ -231,20 +216,6 @@ def folder_text(name: str) -> str:
         Its text.
     """
     return (FOLDER / name).read_text(encoding="utf-8")
-
-
-def ticket_item(ref: str, created: str, priority: str) -> dispatchnext.Item:
-    """An open ticket of the order of work.
-
-    Args:
-        ref: its ``owner/name#N``.
-        created: when it was opened.
-        priority: its priority label.
-
-    Returns:
-        The item.
-    """
-    return dispatchnext.Item(ref=ref, kind="ticket", priority=priority, created=created)
 
 
 def record(words: str) -> object:

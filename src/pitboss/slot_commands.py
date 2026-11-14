@@ -3,7 +3,7 @@
 import argparse
 import functools
 import sys
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping, Sequence, assert_never
 
 from gather.commands import add_argument
 
@@ -13,40 +13,34 @@ from . import (
     checkin,
     configfile,
     deviations,
-    fixes,
+    handedback,
     ledger,
-    itemfast,
     ledgerowner,
     logline,
-    mergedworktree,
-    nextqueued,
-    nextcommand,
+    mode,
+    modeextent,
+    nextfound,
+    onepath,
     freecheck,
-    nextlist,
-    prefetch,
-    pulls,
+    project,
+    refill,
     repoaccess,
     slotholder,
     slotholding,
+    slotfreeline,
     slotlog,
     slotreport,
-    skipitem,
     slotwindow,
     tasklistlines,
     ticketof,
-    timing,
     tracefs,
     watchrun,
 )
-from .commandarguments import (
-    CONFIG_ARGUMENT,
-    NOW_ARGUMENT,
-    RUNNING_ARGUMENT,
-    WATCH_ARGUMENTS,
-)
-from .commands import Context, load_context, open_pulls, sweep_look, whole_order
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
+from .commandarguments import WATCH_ARGUMENTS
+from .commands import Context, load_context
 from .markers import Marker
-from .queuereads import read_runner_runs
+from .modecommand import SlotsCommand
 from .slotaction import Action
 
 Change = Callable[
@@ -190,7 +184,7 @@ def _check(found: Context, book: ledger.Ledger) -> None:
 
 def _print(found: Context, book: ledger.Ledger) -> None:
     # the PRs are not read here: only the live agents that hold no slot count
-    taken = slotholding.written((), book, found.args.running)
+    taken = slotholding.written(book, found.args.running)
     slotreport.print_ledger(book, taken)
 
 
@@ -198,7 +192,7 @@ def _shown(found: Context, book: ledger.Ledger) -> None:
     # pitboss#94: the rows are the live agents', not the hand's
     running = found.args.running
     derived = slotholding.derived(book, running)
-    taken = slotholding.occupy((), derived, running)
+    taken = slotholding.occupy(derived, running)
     slotreport.print_ledger(derived, taken)
 
 
@@ -211,7 +205,7 @@ def _changed(action: Action, found: Context) -> ledger.Ledger:
     count, change = CHANGES[action]
     if len(found.args.words) != count:
         raise _refuse(f"slots {action.word} takes {count} words")
-    outcome = change(ledger.configured(found.settings), found.args.words, found)
+    outcome = change(_book(found), found.args.words, found)
     if isinstance(outcome, ledger.Refusal):
         raise _refuse(f"refused: {outcome.reason}")
     ledger.write(found.settings.slots.ledger, outcome)
@@ -245,7 +239,7 @@ def _require_ledger(found: Context, action: Action) -> None:
     if action in REFILLS:
         _require_owner(found)
     if action not in LOG_ONLY:
-        nextlist.require_ledger(found.settings.slots.ledger)
+        nextfound.require_ledger(found.settings.slots.ledger)
 
 
 def _book(found: Context) -> ledger.Ledger:
@@ -261,72 +255,40 @@ def _changing(found: Context, action: Action) -> None:
         name = found.args.words[0]
         slot = ledger.find(before, name)
         assert isinstance(slot, ledger.Slot)  # the change was done, so it exists
-        opened = open_pulls(found)
-        head = fixes.head_fixing(slot.ticket, pulls.readable(opened))
-        event = logline.hand_back(slot, head, found.now)
+        # keyword: one-path: the one read gives the head and what the slot takes
+        seen = onepath.seen_for(found)
+        rows = [row for row in seen.made.grounds.listing if slot.ticket in row.works_on]
+        pushed = handedback.head_of(found, rows[0]) if rows else ""
+        event = logline.hand_back(slot, pushed, found.now)
         logline.record(found.settings.slots.log, event)
         if action is Action.FREE:
-            nextlist.refill(found, opened, changed, name)
-
-
-def _brief(found: Context, book: ledger.Ledger, reference: str) -> bool:
-    # the item's own reads first (keyword: item-brief, pitboss#443); the whole order
-    # is read only for a ticket it must place
-    runs = functools.partial(read_runner_runs, found)
-    show = itemfast.show_review if found.args.step else itemfast.show
-    fast = show(found, book, reference, runs)
-    timing.note(found.args, "item read and brief built")
-    if fast is itemfast.Outcome.WHOLE:
-        whole = whole_order(found)
-        return nextlist.show_item(whole, open_pulls(whole), book, reference)
-    return fast is itemfast.Outcome.PRINTED
+            read = (seen.judgement, seen.made.grounds.book)
+            print(refill.line(read, found.settings.slots, name, onepath.pick))
 
 
 def _free_check(found: Context) -> None:
     _read(found)
-    checkin.say(
-        [
-            freecheck.line(
-                found, functools.partial(open_pulls, found), nextlist.first_startable
-            )
-        ]
-    )
+    checkin.say([freecheck.line(found, onepath.first_line)])
     repoaccess.finish(found.access)
 
 
 def _tasklist(found: Context) -> None:
-    live, items, handed = nextqueued.queued_items(
-        found, open_pulls(found), ledger.configured(found.settings)
+    # keyword: one-path: what waits is what the one answer decides
+    seen = onepath.seen_for(found)
+    written = _book(found)
+    handed = handedback.slots(found, seen.made.grounds.listing, written)
+    done = handedback.release(found.args, (each.agent for each in handed))
+    given = project.what_next(seen.decided)
+    tasklistlines.show(
+        found, slotholding.live(found.args, written, done), given, handed
     )
-    tasklistlines.show(found, live, items, handed)
     repoaccess.finish(found.access)
-
-
-READS: Mapping[Action, Callable[[Context], None]] = {
-    Action.FREE_CHECK: _free_check,
-    Action.TASKLIST: _tasklist,
-}
-
-
-def _next(found: Context) -> None:
-    # exits 1 when nothing is offered for the ticket
-    reference = nextcommand.reference(found.args.words, found.settings.project.repo)
-    book = _book(found)
-    if reference is None:
-        prefetch.start(found)
-        checkin.say([checkin.overdue(book, found.now)])
-        nextlist.show(found, open_pulls(found), book)
-        checkin.say(mergedworktree.steps(sweep_look(found), found.now))
-    known = reference is None or _brief(found, book, reference)
-    repoaccess.finish(found.access)
-    if not known:
-        raise SystemExit(1)
 
 
 def _read(found: Context) -> ledger.Ledger:
     if found.args.words:
         raise _refuse(f"slots {found.args.action} takes no words")
-    return ledger.configured(found.settings)
+    return _book(found)
 
 
 @ENTRY_DATA.register(
@@ -336,10 +298,8 @@ def _read(found: Context) -> ledger.Ledger:
         "words",
         nargs="*",
         help="the words of the action; for 'next', one ticket or PR (owner/repo#N,"
-        " repo#N or #N): print its brief exactly as the first suggestion's, headed"
-        " by its place in the order (NEXT 24 of 30, out of order, 22 ahead of it);"
-        " it exits 1 with UNKNOWN on standard error when slots next offers nothing"
-        " for it",
+        " repo#N or #N): print its decision and brief when it has one, else what"
+        " slots next prints (keyword: one-path)",
     ),
     RUNNING_ARGUMENT,
     add_argument(
@@ -351,6 +311,13 @@ def _read(found: Context) -> ledger.Ledger:
     add_argument(
         "--done", default=None, help="the agent that handed back, for 'slots free'"
     ),
+    add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="for 'slots next <ticket>': jump the queue: decide and brief the"
+        " ticket whatever keeps it (an open PR on it, a slot, a hold)",
+    ),
     add_argument("--since", default=None, help="report window start (ISO, UTC)"),
     add_argument("--until", default=None, help="report window end (ISO, UTC)"),
     add_argument(
@@ -359,9 +326,6 @@ def _read(found: Context) -> ledger.Ledger:
         default=ledger.TASK_KINDS[0],
         help="the kind of task 'slots set' records",
     ),
-    itemfast.STEP_ARGUMENT,
-    itemfast.FORCE_ARGUMENT,
-    skipitem.SKIP_ARGUMENT,
     *WATCH_ARGUMENTS,
     NOW_ARGUMENT,
     name="slots",
@@ -376,19 +340,50 @@ def slots(args: argparse.Namespace) -> None:
     tracefs.say(args.safe_run)
     found = load_context(args)
     _require_ledger(found, action)
-    if action in CHANGES:
-        _changing(found, action)
-    elif action is Action.CHECK:
-        _check(found, ledger.configured(found.settings))
-    elif action is Action.REPORT:
-        slotwindow.report(found)
-    elif action is Action.TIME:
-        slotwindow.worked(found)
-    elif action is Action.NEXT:
-        _next(found)
-    elif action in READS:
-        READS[action](found)
-    elif action is Action.WATCH:
-        watchrun.watch(args, load_context, nextlist.free_line_by(open_pulls))
-    else:
-        _shown(found, _read(found))
+    _by_mode(found, action, onepath.mode_of(args, found, {}))
+
+
+def _by_mode(found: Context, action: Action, chosen: mode.Mode) -> None:
+    # run a ``slots`` action by its mode (keyword: one-path); another's exits 2
+    slotted = modeextent.slots_of(chosen)
+    match slotted:
+        case mode.SlotsNext() | mode.SlotsNextItem():
+            onepath.answer_of(found)
+            repoaccess.finish(found.access)
+        case mode.FreeCheck():
+            _free_check(found)
+        case mode.Tasks():
+            _tasklist(found)
+        case mode.Watch():
+            free = functools.partial(slotfreeline.line, onepath.first_line)
+            watchrun.watch(found.args, load_context, free)
+        case mode.Free() | mode.Heard():
+            _changing(found, action)
+        case SlotsCommand():
+            _unasked(found, slotted)
+        case None:  # pragma: no cover - no action of slots parses to another's
+            modeextent.foreign("slots", chosen)
+        case _:  # pragma: no cover - the cases hold every mode of slots (mypy)
+            assert_never(slotted)
+
+
+def _unasked(found: Context, chosen: SlotsCommand) -> None:
+    # an action that asks nothing of the decisions, by its own mode
+    action = Action[chosen.name]
+    match chosen:
+        case SlotsCommand.CHECK:
+            _check(found, _book(found))
+        case SlotsCommand.REPORT:
+            slotwindow.report(found)
+        case SlotsCommand.TIME:
+            slotwindow.worked(found)
+        case SlotsCommand.SHOW:
+            _shown(found, _read(found))
+        case SlotsCommand.ADD | SlotsCommand.CHECKIN | SlotsCommand.DEVIATION:
+            _changing(found, action)
+        case SlotsCommand.FAILED | SlotsCommand.REMOVE | SlotsCommand.RESUME:
+            _changing(found, action)
+        case SlotsCommand.SET | SlotsCommand.WAIT:
+            _changing(found, action)
+        case _:  # pragma: no cover - the cases hold every member (mypy)
+            assert_never(chosen)

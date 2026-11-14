@@ -5,15 +5,16 @@ twin through; ``test_known`` runs every table.
 """
 
 import pathlib
-from typing import MutableMapping, Sequence
+from typing import MutableMapping
 
-from .. import dispatchnext, handbackform
-from . import fakehub, knownkit, scratch
+from .. import handbackform, ticketreader
+from . import fakegiven, knownkit, knownruns, scratch
 from .knowngit import git, remote_head, repo_pair
-from .knownkit import brief_for, change, pushed, refused
+from .knownkit import brief_for, change, refused
+from .knownruns import pushed
 from .knownplay import arm_record, held, pull_now, verb_refused, review_edited, stopping
 
-from .totalworld import ARMED, files_of, item, record, ticket_item
+from .totalworld import ARMED, files_of, record
 from .fakes import write
 
 CASES: MutableMapping[str, knownkit.Known] = {}
@@ -41,13 +42,11 @@ def _pwa_shell(given: knownkit.Kit) -> bool:
     return "We write bats, not shell" in text and not given.recount(text, ticket)
 
 
-def _unfinished_first(given: knownkit.Kit, items: Sequence[dispatchnext.Item]) -> bool:
-    # the newer ticket is refused while the unfinished PR is dispatched
-    hub, state = knownkit.made(given), fakehub.state(items=items)
-    newer = refused(lambda: knownkit.dispatch(given, hub, state, want="q#1200"))
-    return (
-        bool(newer) and knownkit.dispatch(given, hub, state, want="q#1119") == "q#1119"
-    )
+def _unfinished_first(given: knownkit.Kit) -> bool:
+    # the newer ticket is refused while the unfinished PR is the head of the order
+    decided = fakegiven.work("q#1119", "q#1200")
+    newer = refused(lambda: knownruns.dispatch(given, decided, want="q#1200"))
+    return bool(newer) and knownruns.dispatch(given, decided, want="q#1119") == "q#1119"
 
 
 @case(
@@ -56,16 +55,12 @@ def _unfinished_first(given: knownkit.Kit, items: Sequence[dispatchnext.Item]) -
     "a partial hand-back, and the unfinished PR passed over for a newer ticket",
 )
 def _partial(given: knownkit.Kit) -> bool:
-    items = [
-        item("q#1119", "2026-11-10"),
-        ticket_item("q#1200", "2026-11-12", "p0"),
-    ]
     url = "https://github.com/bats-lang/quire/pull/1119"
     partial = (
         f"## Items\n- [1] done | evidence: {url}\n- [2] done, except the e2e spec |"
         f" evidence: {url}\n"
     )
-    order = _unfinished_first(given, items)
+    order = _unfinished_first(given)
     return (
         bool(given.findings(partial, ["1", "2"], handbackform.in_checkout(None)))
         and order
@@ -179,13 +174,10 @@ def _found_by(given: knownkit.Kit) -> bool:
         "## Done when\n\n- a demonstrated by b\n- c demonstrated by d\n\nFound by"
         " quire#1118.\n"
     )
-    read = list(given.controls.items(body)) == [
-        "a demonstrated by b",
-        "c demonstrated by d",
-    ]
-    return read and bool(
-        refused(lambda: given.controls.items(body.replace("Found by", "Also see")))
-    )
+    found = ["a demonstrated by b", "c demonstrated by d"]
+    read = given.rests.controls.items(body) == ticketreader.Items(found=found)
+    other = given.rests.controls.items(body.replace("Found by", "Also see"))
+    return read and isinstance(other, ticketreader.NotInForm)
 
 
 @case(

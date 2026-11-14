@@ -11,7 +11,7 @@ was right; the flow step was wrong).
 
 import re
 import unittest
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
@@ -21,11 +21,11 @@ from .test_slot_commands import next_output
 
 PROJECT = world.PROJECT
 SLUG = "owner/project"
-CONFLICT_LINE = re.compile(r"^CONFLICT (\S+#\d+):", re.MULTILINE)
+CONFLICT_LINE = re.compile(r"^WORKER: (\S+#\d+): resolve the conflict$", re.MULTILINE)
 RESOLVE_LINE = re.compile(
-    r"^NEXT \d+\. (\S+#\d+) \(resolve the conflict,", re.MULTILINE
+    r"^NEXT \d+ of \d+\. WORKER: (\S+#\d+): resolve the conflict ", re.MULTILINE
 )
-NEXT_LINE = re.compile(r"^NEXT \d+\. (\S+#\d+) \((.*?),", re.MULTILINE)
+NEXT_LINE = re.compile(r"^NEXT \d+ of \d+\. [A-Z]+: (\S+#\d+): (.*?) \(", re.MULTILINE)
 
 
 def make_dirty(
@@ -46,13 +46,10 @@ def make_dirty(
     """
     head = str(number) * 40
     branch = {"sha": head, "ref": f"branch-{number}"}
-    here.bodies[f"{PROJECT}/pulls/{number}"] = fakes.pull_body(
-        number,
-        head=branch,
-        mergeable_state="dirty",
-        created_at=created_at,
-        **changes,
-    )
+    opened = {"created_at": created_at, **changes}
+    pull = fakes.pull_body(number, head=branch, mergeable_state="dirty", **opened)
+    here.bodies[f"{PROJECT}/pulls/{number}"] = pull
+    _relisted(here, pull)
     answers = {
         f"commits/{head}/check-runs": {"check_runs": list(checks)},
         f"commits/{head}/status": fakes.NO_STATUS,
@@ -63,8 +60,17 @@ def make_dirty(
         here.bodies[fakes.page(f"{PROJECT}/{each}")] = body
 
 
+def _relisted(here: world.World, pull: Mapping[str, object]) -> None:
+    # the open listing carries the same PR, as GitHub's does
+    listing = fakes.page(f"{PROJECT}/pulls?state=open")
+    rows = here.bodies[listing]
+    assert isinstance(rows, list)
+    number = pull["number"]
+    here.bodies[listing] = [pull if row["number"] == number else row for row in rows]
+
+
 def both_sets(here: world.World) -> tuple[AbstractSet[str], AbstractSet[str]]:
-    """The PRs the sweep prints CONFLICT for, and ``slots next`` resolves.
+    """The PRs the sweep and ``slots next`` decide a conflict resolution for.
 
     Args:
         here: the world.
@@ -115,7 +121,9 @@ class TestConflictFirst(unittest.TestCase):
         for number in (1, 2, 3):
             assert_that(
                 listed,
-                contains_string(f"owner/project#{number} (resolve the conflict,"),
+                contains_string(
+                    f"WORKER: owner/project#{number}: resolve the conflict"
+                ),
             )
 
     def test_the_sweep_and_slots_next_agree_on_the_conflicted_pull_requests(

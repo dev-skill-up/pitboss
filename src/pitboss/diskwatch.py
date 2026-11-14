@@ -236,3 +236,21 @@ def opening(each: Reading | None, big: Sequence[Big], total: int) -> Sequence[st
         said.extend(suggestion(each, big))
         said.append("--- end of suggestion 1 ---")
     return said
+
+
+def read_crowded(
+    reader: disk.Reader, place: pathlib.Path, roots: Iterable[pathlib.Path]
+) -> tuple[Reading | None, Sequence[Big]]:
+    """Read a volume, and its largest scratch entries when it is crowded.
+
+    Args:
+        reader: reads a volume.
+        place: the workspace.
+        roots: the scratch directories (``[clean] scratch``).
+
+    Returns:
+        The reading (None when unread) and the entries, walked only when crowded.
+    """
+    volume = read(reader, place)
+    crowded = volume is not None and volume.crowded
+    return volume, largest(machine.real(), roots) if crowded else ()

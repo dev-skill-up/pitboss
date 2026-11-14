@@ -13,13 +13,13 @@ import dataclasses
 import enum
 from typing import Callable, Iterator, Mapping, Sequence
 
-from .. import enumeration, totalschema, totalverdict
+from .. import checkoutcome, enumeration, gatepolicy, totalschema
 from ..totaljson import JsonMap, members, records
-from . import totalworld
+from . import gatewords, totalworld
 from .totalworld import World
 
 ACTIONS = ("merge", "arm", "undraft")
-SAFE_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
+SAFE_CONCLUSIONS = checkoutcome.OK_CONCLUSIONS  # the one rule (T445)
 MERGES_ON = ("clean", "blocked", "has_hooks", "behind")
 READS = ("check_runs", "statuses", "files", "timeline")
 UNDRAFT = frozenset({"undraft"})
@@ -60,7 +60,7 @@ NULL = frozenset({"null"})
 READ_OK = frozenset({"200"})
 READ_FINE = frozenset({"200", "304"})
 CHANGES = frozenset({"changes"})
-Verdict = Callable[[str, JsonMap, JsonMap], totalverdict.Answer]
+Verdict = Callable[[str, JsonMap, JsonMap], gatewords.Answer]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -142,7 +142,7 @@ def _field(given: Given) -> Iterator[Cell]:
 
 def _kind(given: Given) -> Iterator[Cell]:
     event = {"event": given.value, "label": {"name": "brand-new"}}
-    safe = given.value in totalverdict.BENIGN_EVENTS
+    safe = given.value in gatepolicy.BENIGN_EVENTS
     yield _cell(given, world_of(given, events=[event]), safe, f"event {given.value}")
 
 
@@ -362,7 +362,7 @@ def cells(base: World) -> Sequence[Cell]:
     return found
 
 
-def judge(cell: Cell, answer: totalverdict.Answer) -> Shown:
+def judge(cell: Cell, answer: gatewords.Answer) -> Shown:
     """What one cell's verdict shows.
 
     Args:
@@ -373,8 +373,8 @@ def judge(cell: Cell, answer: totalverdict.Answer) -> Shown:
         What it shows.
     """
     if cell.safe:
-        return BENIGN if answer.word == totalverdict.GO else Shown.OVERBLOCK
-    if answer.word == totalverdict.GO:
+        return BENIGN if answer.word == gatewords.GO else Shown.OVERBLOCK
+    if answer.word == gatewords.GO:
         return Shown.UNCOVERED
     hit = any(line.startswith((cell.row, "input")) for line in answer.lines)
     return FIRES if hit else Shown.WRONGROW

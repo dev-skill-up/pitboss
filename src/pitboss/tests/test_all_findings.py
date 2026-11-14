@@ -3,13 +3,12 @@
 import dataclasses
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
 from .. import brief, missed, shapes
-from . import test_brief, test_flow, test_flow_sweep as flows
+from . import blank, test_brief
 from .briefmake import APPROVED, HEAD, PLAN_REVIEWS, pinned, text
 from .says import has_none
-from .test_commands import sweep
 
 FIRST_ROUND = (
     "in the first round of a stage, read the whole PR body, the whole diff and"
@@ -48,20 +47,6 @@ OUTSIDE_THE_FIX_ROUND = ["whole diff", "whole PR body", "Dry run", "Missed earli
 MARKED = "Missed earlier: the Plan command does not build the tests"
 
 
-def marked(review: shapes.Comment, lines: int) -> shapes.Comment:
-    """A review with lines that mark findings missed earlier.
-
-    Args:
-        review: the review comment.
-        lines: how many lines to add.
-
-    Returns:
-        The comment with those lines after its ``Verdict:`` line.
-    """
-    added = "".join(f"{MARKED} {n}\n" for n in range(lines))
-    return dataclasses.replace(review, body=review.body + added)
-
-
 def review_at(when: str, lines: int, comment: bool = True) -> shapes.Graded:
     """A review that rejects the Plan and marks findings missed earlier.
 
@@ -74,8 +59,14 @@ def review_at(when: str, lines: int, comment: bool = True) -> shapes.Graded:
         The review.
     """
     mark = shapes.Verdict.CHANGES_NEEDED
-    return shapes.Graded(
-        sha="a", when=when, plan=mark, execution=None, comment=comment, missed=lines
+    return dataclasses.replace(
+        blank.GRADED,
+        sha="a",
+        when=when,
+        plan=mark,
+        execution=None,
+        comment=comment,
+        missed=lines,
     )
 
 
@@ -138,31 +129,3 @@ class TestCount(unittest.TestCase):
         ]
         assert_that(missed.split(made, "2"), equal_to((3, 4)))
         assert_that(missed.split(made, ""), equal_to((7, 0)))
-
-
-class TestSweep(unittest.TestCase):
-    """PAUSE counts the findings marked missed earlier, before and after the ruling."""
-
-    def test_pause_counts_the_findings_marked_missed_earlier(self) -> None:
-        """Done-when 3: one before the ruling, two after it."""
-        rounds = [
-            marked(flows.graded(flows.CHANGES, None, 1, sha=flows.OLDER), 1),
-            flows.graded(flows.CHANGES, None, 2),
-            test_flow.ruling(3),
-            marked(flows.graded(flows.CHANGES, None, 4), 2),
-        ]
-        swept = sweep(flows.world_with(rounds)).out
-        assert_that(swept, contains_string(flows.PAUSE_LINE))
-        assert_that(
-            swept,
-            contains_string(
-                "findings the reviews mark `missed earlier`: 2 after the ruling,"
-                " 1 before it"
-            ),
-        )
-
-    def test_the_other_ruling_lines_print_no_count(self) -> None:
-        """RULING DUE is before any ruling and prints none."""
-        swept = sweep(flows.world_with(flows.TWO_PLAN_REJECTIONS)).out
-        assert_that(swept, contains_string(flows.RULING_LINE))
-        assert_that("missed earlier" in swept, equal_to(False))

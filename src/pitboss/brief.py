@@ -164,6 +164,9 @@ class Heads:
             body has none.
         ruling: the address of the Opus ruling a round follows or does,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
+        branch: the PR's head branch, empty for a ticket (keyword: branch-naming).
+        plan_approved: whether a review that counts approved the PR's Plan
+            (keyword: plan-digest).
     """
 
     head: str
@@ -173,6 +176,8 @@ class Heads:
     body_digest: str = ""
     plan_digest: str = ""
     ruling: str = ""
+    branch: str = ""
+    plan_approved: bool = False
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -213,8 +218,6 @@ class Spec:
         e2e: whether the PR's diff touches what the e2e suite runs on, so that
             a review reads the run of its head that ran e2e, the dispatched one
             for a draft (keyword: run-e2e, pitboss#199).
-        logs: `<check name>: <url>` of each failed check, for a FIX_CI brief
-            (keyword: red-cause, pitboss#420).
         conflict: the lines of a rule conflict a RULING brief adds (keyword:
             rule-conflicts, quire#1115).
     """
@@ -225,7 +228,6 @@ class Spec:
     rules: Rules
     ready: bool = False
     e2e: bool = False
-    logs: Sequence[str] = ()
     conflict: Sequence[str] = ()
 
 
@@ -242,7 +244,6 @@ def fields(spec: Spec) -> Mapping[str, str]:
         **_about(spec.subject),
         **_named(spec.heads, CHECKOUTS[spec.kind is Kind.NEW_PR]),
         "config": spec.rules.config,
-        "logs": "".join(f"\nFailed check log: {each}" for each in spec.logs),
     }
 
 
@@ -267,7 +268,7 @@ def _named(heads: Heads, where: str) -> Mapping[str, str]:
         "base": heads.base,
         "approved": heads.approved,
         "review": review,
-        "checkout": where.format(base=heads.base),
+        "checkout": where.format(base=heads.base, branch=heads.branch),
         "body_digest": heads.body_digest,
         "plan_digest_line": brieftextwhen.plan_digest_line(heads.plan_digest),
     }
@@ -281,11 +282,11 @@ def _opening(spec: Spec) -> Sequence[str]:
     # keyword: conflict-body (pitboss#208): a conflict merge refreshes the body
     if spec.kind is Kind.RESOLVE_CONFLICT:
         return [brieftextconflict.CONFLICT_BODY]
-    shown = spec.kind in (Kind.NEW_PR, Kind.FIRST_ROUND)
-    if not shown:
+    if spec.kind not in (Kind.NEW_PR, Kind.FIRST_ROUND):
         return []
     recorded = [brieftextwhen.DONE_WHEN_DIGEST] if spec.subject.done_when_digest else []
-    return [text.BODY, *recorded]
+    drafts = [DRAFTS[spec.rules.project.drafts]] if spec.kind is Kind.NEW_PR else []
+    return [*drafts, text.BODY, *recorded]
 
 
 # keyword: ci-pointer (pitboss#179): the sentences of the Plan a worker writes
@@ -318,20 +319,20 @@ def _push_lines(kind: Kind, project: briefconfig.Brief) -> Sequence[str]:
 
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
-    new = spec.kind is Kind.NEW_PR
+    # keyword: plan-digest: only a Plan a review approved is not to be edited
+    locked = spec.kind in APPROVED_PLAN_WORKERS and spec.heads.plan_approved
     sentences = [
         TASKS[spec.kind],
         *_ruling(spec),
         brieftextwhen.ONE_PR,
         text.WORKTREE,
         brieftextwhen.DONE_WHEN,
-        *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
-        *([text.NO_PLAN_EDIT] if spec.kind in APPROVED_PLAN_WORKERS else []),
+        *([text.NO_PLAN_EDIT] if locked else []),
         text.EDIT,
         text.DENIED,
         text.LOCAL,
-        *envrules.lines(values["repo"]),  # keyword: env-check
+        *envrules.lines(values["repo"], spec.heads.branch),  # keyword: env-check
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         brieftextlint.MARKUP_LINES,

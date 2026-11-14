@@ -5,10 +5,12 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
 from .. import brief, briefconfig, briefrepo, configfile, configloads, exempt
-from . import fakes, quietworld, world
+from . import decisionline, fakes, quietworld, world
+from .actreviewed import TO_REVIEW
 from .briefmake import text
 from .says import has_all, has_none
 from .exemptworld import of, push, swept, with_pitboss
+from .itemworld import one
 from .test_flow_sweep import approved_draft
 from .test_quiet import clear_world, lines, pushes, record_path, waiting_world
 from .test_slot_commands import next_output
@@ -23,6 +25,7 @@ READY = "Ready: this project's PRs are not drafts"
 DRAFT = "Draft: open the PR as a draft"
 SAYING = "pitboss is exempt from holds"
 PITBOSS_NEW = "dev-skill-up/pitboss#9"
+TICKET_99 = {"number": 99, "title": "A ticket", "state": "open", "body": ""}
 
 
 def drafted_pair() -> world.World:
@@ -140,51 +143,43 @@ def held_pair() -> world.World:
     return here
 
 
+def pitboss_decision(here: world.World) -> str:
+    """The pitboss PR's decision, the project's held PR having none.
+
+    Args:
+        here: the world.
+
+    Returns:
+        The pitboss PR's decision line.
+    """
+    shown = next_output(here)
+    assert_that(decisionline.of(shown, QUIRE), equal_to(""))
+    return decisionline.of(shown, PITBOSS_PR)
+
+
 class TestSweep(unittest.TestCase):
     """Two drafts with an approved Plan, one in quire's repository, under pressure."""
 
     def test_the_next_list_holds_the_undraft_of_the_other_repository_only(self) -> None:
-        """The pitboss PR is not held or undrafted; the other waits for the end."""
-        shown = next_output(held_pair())
-        other, pitboss = of(shown, "NEXT", QUIRE), of(shown, "NEXT", PITBOSS_PR)
-        assert_that("HOLD on undrafts" in other[0], equal_to(True))
-        assert_that(len(pitboss), equal_to(1))
-        assert_that("HOLD" in pitboss[0], equal_to(False))
-        assert_that("mark the PR ready" in pitboss[0], equal_to(False))
+        """The pitboss PR has its decision; the other, held, is in no answer."""
+        assert_that(
+            pitboss_decision(held_pair()), contains_string("grade the Execution")
+        )
 
-    def test_a_pitboss_draft_is_marked_ready_without_a_hold(self) -> None:
-        """A draft that is there all the same is marked ready, never held."""
-        shown = next_output(drafted_pair())
-        pitboss = of(shown, "NEXT", PITBOSS_PR)
-        assert_that(len(pitboss), equal_to(1))
-        assert_that(pitboss[0], contains_string("mark the PR ready"))
-        assert_that("HOLD" in pitboss[0], equal_to(False))
-        state = of(shown, "PR STATE", PITBOSS_PR)
-        assert_that(state[0], contains_string("draft (open ready"))
+    def test_a_pitboss_draft_is_undrafted_without_a_hold(self) -> None:
+        """A draft that is there is at its undraft (the gate's), never held."""
+        assert_that(pitboss_decision(drafted_pair()), contains_string(TO_REVIEW))
 
     def test_the_sweep_says_so_once(self) -> None:
-        """The pressure line holds, pitboss is told apart, and no PR line waits."""
-        here = held_pair()
-        out = swept(here)
-        task = [each for each in of(out, "TASK LIST", PITBOSS_PR) if " next " in each]
-        state = of(next_output(here), "PR STATE", PITBOSS_PR)
-        words = ("HOLD", "WAIT_FOR_UNDRAFT", "UNDRAFT", "mark the PR ready", "pressure")
+        """The pressure line holds, pitboss is told apart, and no line waits."""
+        out = swept(held_pair())
         found = (
             "RUNNER PRESSURE" in out,
             out.count(SAYING),
-            [len(task), len(state)],
-            [word for word in words if word in task[0] + state[0]],
             of(out, "HOLD", "new"),
+            decisionline.of(out, QUIRE),
         )
-        assert_that(found, equal_to((True, 1, [1, 1], [], [])))
-
-    def test_the_other_repository_still_waits(self) -> None:
-        """Its PR STATE line is the wait for an undraft, with no word of drafts."""
-        state = of(next_output(held_pair()), "PR STATE", QUIRE)
-        assert_that(len(state), equal_to(1))
-        assert_that(state[0], starts_with(f"PR STATE {QUIRE}: draft next step: "))
-        assert_that(state[0], contains_string("runner pressure"))
-        assert_that("open ready" in state[0], equal_to(False))
+        assert_that(found, equal_to((True, 1, [], "")))
 
     def test_no_pressure_no_saying(self) -> None:
         """A sweep that shows no hold does not mention the exemption."""
@@ -249,6 +244,8 @@ class TestNoDrafts(unittest.TestCase):
     def test_the_first_step_of_a_pitboss_ticket_is_to_open_ready(self) -> None:
         """``next`` on a ticket of pitboss says ready, on one of the project draft."""
         here = with_pitboss(world.make_world())
+        for repository in ("dev-skill-up/pitboss", "owner/project"):
+            here.bodies[f"repos/{repository}/issues/99"] = dict(TICKET_99)
         steps = [
             world.again(here, "next", f"{repository}#99").out.strip()
             for repository in ("dev-skill-up/pitboss", "owner/project")
@@ -259,12 +256,10 @@ class TestNoDrafts(unittest.TestCase):
     def test_the_next_line_of_a_ticket_says_open_ready(self) -> None:
         """A ticket of pitboss is started ready; one of the project is not told so."""
         shown = next_output(held_pair())
-        ready = []
-        for each in shown.splitlines():
-            if "(start a PR" in each:
-                ready.append((each.split()[2], exempt.OPEN_READY in each))
-        expected = [(PITBOSS_NEW, True), ("owner/project#9", False)]
-        assert_that(sorted(ready), equal_to(expected))
+        own = decisionline.of(shown, "owner/project#9")
+        pitboss = one(held_pair(), PITBOSS_NEW).out.splitlines()[0]
+        assert_that(pitboss, contains_string("open the PR ready for review"))
+        assert_that("ready for review" in own, equal_to(False))
 
 
 def _pushed_once(done: world.Result, here: world.World) -> None:

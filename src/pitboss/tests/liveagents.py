@@ -38,6 +38,7 @@ def calm() -> world.World:
     """
     here = world.make_world()
     here.bodies.update({PULL_ONE: fakes.pull_body(1, head=CLEAN_HEAD)})
+    fakes.listed_row(here.bodies, world.PROJECT, 1, head=CLEAN_HEAD)
     return here
 
 

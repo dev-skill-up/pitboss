@@ -40,10 +40,10 @@ class Reading:
     """
 
     status: Status
-    detail: str = ""
+    detail: str
 
 
-NOTHING = Reading(status=Status.NOT_PINS_ONLY)
+NOTHING = Reading(status=Status.NOT_PINS_ONLY, detail="")
 
 
 def cleared(found: Reading) -> bool:

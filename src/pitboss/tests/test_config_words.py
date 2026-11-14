@@ -7,7 +7,7 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import configsearch
-from . import configcases, fakes, test_quiet, world
+from . import configcases, fakes, rankworld, test_quiet, world
 
 NOW = ("--now", world.FUTURE)
 PUSH = ("--no-dry-run", "--now", test_quiet.at(16), "origin", "branch-1")
@@ -118,12 +118,26 @@ class TestPush(unittest.TestCase):
         assert_that(found[0][0], equal_to(True))
 
 
+def twelfth() -> world.World:
+    """A new world whose project has an open ticket 12.
+
+    Returns:
+        The world.
+    """
+    here = configcases.fresh()
+    rankworld.serve(here, "owner/project", 12, rankworld.ticket(number=12))
+    return here
+
+
 class TestNext(unittest.TestCase):
     """``next`` takes a ticket whichever way it is given its configuration."""
 
     def test_the_ticket_is_read(self) -> None:
         """``next #12`` is the ticket ``#12`` and ``--config`` changes nothing."""
-        ran = [run_form(("next",), ("#12", *NOW), form) for form in ("bare", "option")]
+        ran = [
+            run_form(("next",), ("#12", *NOW), form, twelfth())
+            for form in ("bare", "option")
+        ]
         seen = [configcases.seen(here, result, "next") for here, result in ran]
         assert_that(seen[0], equal_to(seen[1]))
         assert_that(ran[0][1].out, contains_string("owner/project#12"))

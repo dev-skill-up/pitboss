@@ -86,8 +86,8 @@ class TestSweep(unittest.TestCase):
             [PLAN_ONLY_APPROVED], body=body(QUOTES_PLAN, UNQUOTED), draft=False
         )
         listed = "".join(test_flow_sweep.listed_for_third(here))
-        assert_that(listed, contains_string(f"({WANTED},"))
-        assert_that("review it" in listed, equal_to(False))
+        assert_that(listed, contains_string(f"WORKER: owner/project#3: {WANTED}"))
+        assert_that("REVIEWER" in listed, equal_to(False))
 
 
 class TestBriefs(unittest.TestCase):

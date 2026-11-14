@@ -81,9 +81,10 @@ class TestFreeCheck(unittest.TestCase):
             assert_that(out == "", equal_to(not told))
 
     def test_next_line_is_named(self) -> None:
-        """The line carries the slots next command of the first item."""
+        """The line carries the first decision."""
         out = slots(emptied(), "free-check", *at_(11)).out
-        assert_that(out, contains_string("pitboss slots next"))
+        first = "WORKER: owner/project#1: resolve the conflict"
+        assert_that(out, equal_to(IDLE.format(11) + first + "\n"))
 
     def test_sweep_starts_with_the_line(self) -> None:
         """A sweep's first line is the free-check line, and not at nine."""
@@ -98,11 +99,14 @@ class TestCheckIn(unittest.TestCase):
     """The ledger keeps the time of each check-in."""
 
     def test_next_and_sweep_by_minutes(self) -> None:
-        """Over thirty minutes both print the line first; thirty, none."""
+        """Over thirty minutes the sweep prints the line first; thirty, none.
+
+        ``slots next`` prints the answer alone: no check-in is a decision.
+        """
         here = checked_in()
-        for argv in (("slots", "next"), ("sweep",)):
-            assert_that(first_line(here, 31, *argv), equal_to(LATE.format(31)))
-            quiet(here, 30, "CHECK-IN", *argv)
+        assert_that(first_line(here, 31, "sweep"), equal_to(LATE.format(31)))
+        quiet(here, 30, "CHECK-IN", "sweep")
+        quiet(here, 31, "CHECK-IN", "slots", "next")
 
     def test_sweep_overdue_fails(self) -> None:
         """A sweep thirty-one minutes after the check-in exits non-zero."""

@@ -28,12 +28,6 @@ CHECK_KEYS = (
     "details_url",
 )
 EDIT_KEYS = ("created_at", "editor", "body")
-EDITS_QUERY = (
-    "query($owner: String!, $name: String!, $number: Int!) {"
-    " repository(owner: $owner, name: $name) { pullRequest(number: $number) {"
-    " userContentEdits(first: 100) { nodes { createdAt editor { login } diff }"
-    " } } } }"
-)
 EVENTS = ("labeled", "unlabeled", "ready_for_review", "convert_to_draft")
 
 
@@ -148,7 +142,7 @@ def body_edits(data: Item) -> Sequence[Item]:
     """The body of a PR after each of its edits (keyword: body-edits).
 
     Args:
-        data: GraphQL's answer for the PR (``data.repository.pullRequest``
+        data: a saved answer for the PR (``data.repository.pullRequest``
             with ``userContentEdits.nodes``), newest edit first; each node's
             ``diff`` is the whole body as that edit left it.
 
@@ -168,23 +162,6 @@ def _edit(node: Item) -> Item:
 
 def _inner(node: Item, key: str, field: str) -> object:
     return as_object(node.get(key) or {}).get(field)
-
-
-def live_edits(github: ghapi.GitHub, slug: str, number: int) -> Item:
-    """Read the edits of a PR's body from GraphQL.
-
-    Args:
-        github: the API.
-        slug: the PR's repository, ``owner/name``.
-        number: its number.
-
-    Returns:
-        GraphQL's answer, as ``body_edits`` reads it.
-    """
-    owner, name = slug.split("/")
-    command = ["gh", "api", "graphql", "-F", f"owner={owner}", "-F", f"name={name}"]
-    command += ["-F", f"number={number}", "-f", f"query={EDITS_QUERY}"]
-    return as_object(ghapi.run_json(github, command))
 
 
 def _posted(github: ghapi.GitHub, base: str, number: int) -> Item:

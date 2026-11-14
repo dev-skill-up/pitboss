@@ -5,29 +5,10 @@ verbs against either.
 """
 
 import dataclasses
-from typing import AbstractSet, Callable, Mapping, MutableMapping, Sequence
+from typing import Callable, Mapping, MutableMapping, Sequence
 
 Pull = dict[str, object]
 Options = Mapping[str, str]
-HELD: Mapping[str, AbstractSet[str]] = {
-    "pushes": frozenset({"push", "update-branch"}),
-    "merges": frozenset({"merge", "arm"}),
-    "undrafts": frozenset({"undraft"}),
-    "ci": frozenset(
-        {
-            "push",
-            "update-branch",
-            "merge",
-            "arm",
-            "undraft",
-            "rerun",
-            "dispatch-workflow",
-            "label",
-            "pr-create",
-        }
-    ),
-    "dispatch": frozenset({"dispatch-next"}),
-}
 ENDS_A_HOLD = frozenset(
     {
         "hold",
@@ -164,3 +145,18 @@ def options_of(options: Options, *names: str) -> Sequence[str]:
         Their values, in the order named.
     """
     return [option(options, name) for name in names]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Asked:
+    """The verb a command line asks for, on what, with what.
+
+    Attributes:
+        verb: the verb.
+        target: what it acts on.
+        options: its ``name=value`` options.
+    """
+
+    verb: str
+    target: Target
+    options: Mapping[str, str]

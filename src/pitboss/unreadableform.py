@@ -4,12 +4,11 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, gradeline, sessionurl, shapes
+from . import config, gradeline, reviewattempt, sessionurl, shapes
 
 PatternOf = Callable[[str, config.ReviewForm], re.Pattern[str]]
 Reader = Callable[[str, config.ReviewForm], tuple[str, shapes.Verdict] | None]
 
-_GRADE_LINE = re.compile(r"^\s*(?:Verdict|Plan|Execution):", re.MULTILINE)
 _SHOWN = 80
 
 
@@ -94,7 +93,7 @@ def find(
     graded = [
         item
         for item in posted
-        if item.author_association in trusted and _GRADE_LINE.search(item.body)
+        if item.author_association in trusted and reviewattempt.grades(item.body)
     ]
     problems = [(item, _problem(item, form, pattern_of)) for item in graded]
     return [

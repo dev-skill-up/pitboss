@@ -20,7 +20,7 @@ from .. import (
     shapes,
     steps,
 )
-from . import fakes, scratch
+from . import blank, fakes, pullstates, scratch
 from .checkcomment import clean_check
 
 HEAD = fakes.HEAD
@@ -34,9 +34,15 @@ REVIEW = dataclasses.replace(
     gated_form=dataclasses.replace(FORM, lines=("## Gated review", *FORM.lines[1:])),
 )
 BODY = "Fixes #7\n\n## Plan\nthe plan\n\n## Execution\nthe work\n"
-GREEN = shapes.CheckRun(id=1, name="build", finished=True, failed=False)
-RED = shapes.CheckRun(id=2, name="test", finished=True, failed=True)
-RUNNING = shapes.CheckRun(id=3, name="lint", finished=False, failed=False)
+GREEN = dataclasses.replace(
+    blank.CHECK_RUN, id=1, name="build", finished=True, failed=False
+)
+RED = dataclasses.replace(
+    blank.CHECK_RUN, id=2, name="test", finished=True, failed=True
+)
+RUNNING = dataclasses.replace(
+    blank.CHECK_RUN, id=3, name="lint", finished=False, failed=False
+)
 CHANGES = shapes.Verdict.CHANGES_NEEDED
 APPROVED = shapes.Verdict.APPROVED
 Task = steps.Task
@@ -66,7 +72,9 @@ def graded(
         The review.
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return shapes.Graded(sha=sha, when=when, plan=plan, execution=execution)
+    return dataclasses.replace(
+        blank.GRADED, sha=sha, when=when, plan=plan, execution=execution
+    )
 
 
 def reading(review: shapes.Graded, body: str) -> shapes.Graded:
@@ -100,7 +108,8 @@ def ruling(
     Returns:
         The comment.
     """
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=f"Opus ruling\n{line}\n",
         author_association=author,
         created_at=f"2026-10-30T00:00:{second:02d}Z",
@@ -143,13 +152,12 @@ def state(
         The state.
     """
     pull = pull_of(**changes)
-    return flow.PullState(
-        pull=pull,
+    return dataclasses.replace(
+        pullstates.bare(pull),
         labels=labels,
         checks=checks,
         graded=recorded,
         comments=[*comments, clean_check(pull.body)],
-        trusted=frozenset({"MEMBER"}),
         undraft_clear=undraft_clear,
     )
 
@@ -163,7 +171,9 @@ def with_no_drafts(pr: flow.PullState) -> flow.PullState:
     Returns:
         The same with that recorded.
     """
-    return dataclasses.replace(pr, draft=draftfacts.Draft(no_drafts=True))
+    return dataclasses.replace(
+        pr, draft=dataclasses.replace(draftfacts.NONE, no_drafts=True)
+    )
 
 
 def github_review(
@@ -180,12 +190,12 @@ def github_review(
         The review.
     """
     when = f"2026-10-30T00:00:{second:02d}Z"
-    return shapes.Graded(
-        sha=sha, when=when, plan=None, execution=execution, comment=False
+    return dataclasses.replace(
+        blank.GRADED, sha=sha, when=when, plan=None, execution=execution, comment=False
     )
 
 
-def expect(want: steps.Next, pr: flow.PullState) -> None:
+def expect(want: steps.Move, pr: flow.PullState) -> None:
     """Check the step of a PR.
 
     Args:
@@ -249,7 +259,7 @@ class TestBranches(unittest.TestCase):
     def test_a_paused_pr_waits_for_the_owner(self) -> None:
         """Before anything else, whatever the body is."""
         labels = frozenset({steps.PAUSED_LABEL})
-        expect(steps.wait_for_owner(), state(body="", labels=labels))
+        expect(steps.IDLE, state(body="", labels=labels))
 
     def test_no_plan_and_execution_body_is_the_first_work(self) -> None:
         """The worker writes the body, before any review or gate."""
@@ -269,13 +279,13 @@ class TestBranches(unittest.TestCase):
     def test_a_draft_with_the_plan_approved_waits_for_the_window(self) -> None:
         """It cannot be undrafted yet."""
         approved = state(graded(*PLAN_APPROVED_ALONE, 1), checks=(), draft=True)
-        expect(steps.wait_for_undraft(), approved)
+        expect(steps.IDLE, approved)
 
     def test_nothing_runs_until_ci_finishes(self) -> None:
         """Nobody works or reviews while CI runs or has not started."""
         review = graded(*PLAN_REJECTED, 1)
         for checks in ((), (RUNNING,), (GREEN, RUNNING)):
-            expect(steps.wait_for_ci(), state(review, checks=checks))
+            expect(steps.IDLE, state(review, checks=checks))
 
     def test_red_ci_goes_to_the_worker(self) -> None:
         """Even where a review stands."""
@@ -383,4 +393,7 @@ class TestRulingBranches(unittest.TestCase):
         """The pause label is checked first."""
         labels = frozenset({steps.PAUSED_LABEL})
         comments = [ruling(5, line="no ruling line")]
-        expect(steps.wait_for_owner(), state(comments=comments, labels=labels))
+        expect(
+            steps.IDLE,
+            state(comments=comments, labels=labels),
+        )

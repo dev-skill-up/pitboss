@@ -144,10 +144,11 @@ def tally(phase: Phase) -> Mapping[str, int]:
         phase: the phase.
 
     Returns:
-        Each kind and its count, the most numerous first.
+        Each kind and its count, the most numerous first, equal counts by name
+        (calls end in the order the threads finish, which varies).
     """
     counts = collections.Counter(each.kind for each in phase.calls)
-    return dict(counts.most_common())
+    return dict(sorted(counts.items(), key=lambda each: (-each[1], each[0])))
 
 
 def record(log: Log, command: Sequence[str], began: float, now: float) -> None:

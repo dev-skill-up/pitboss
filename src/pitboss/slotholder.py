@@ -1,5 +1,6 @@
 """Who holds a slot, for a refusal (case 36, keyword: slot-cap)."""
 
+import dataclasses
 from typing import AbstractSet
 
 from . import ledger
@@ -17,18 +18,6 @@ def agents(book: ledger.Ledger) -> AbstractSet[str]:
     return {each.agent for each in book.slots}
 
 
-def tasks(book: ledger.Ledger) -> AbstractSet[str]:
-    """The tasks the slots of a ledger hold for a running agent.
-
-    Args:
-        book: the ledger.
-
-    Returns:
-        Their references.
-    """
-    return {each.task for each in book.slots if each.agent}
-
-
 def holder(slot: ledger.Slot) -> str:
     """The agent of a slot with its kind, task and the time it started.
 
@@ -42,3 +31,20 @@ def holder(slot: ledger.Slot) -> str:
         f"{slot.agent} ({slot.kind or 'no kind'}, {slot.task or 'no task'},"
         f" since {slot.started or 'unknown'})"
     )
+
+
+def without(book: ledger.Ledger, gone: AbstractSet[str]) -> ledger.Ledger:
+    """The ledger with the slot of each agent that is gone empty.
+
+    Args:
+        book: the ledger.
+        gone: the agents whose slots are emptied.
+
+    Returns:
+        The ledger.
+    """
+    slots = tuple(
+        ledger.empty_slot(each.name, each.model) if each.agent in gone else each
+        for each in book.slots
+    )
+    return dataclasses.replace(book, slots=slots)

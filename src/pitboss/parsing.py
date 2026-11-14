@@ -2,19 +2,16 @@
 
 import json
 import re
-from typing import AbstractSet, Sequence
+from typing import AbstractSet, Mapping, Sequence
 
-from . import shapes
+from . import checkoutcome, shapes, totaljson
+from .totaljson import text as text_of
 
 FAILURE = "failure"
 
 
 def _each(text: str, key: str) -> Sequence[str]:
     return [str(item[key]) for item in json.loads(text)]
-
-
-def _finished(status: str) -> bool:
-    return status in shapes.FINISHED_STATUSES
 
 
 def pull(text: str) -> shapes.Pull:
@@ -34,7 +31,7 @@ def pull(text: str) -> shapes.Pull:
         draft=bool(data.get("draft")),
         author=data["user"]["login"],
         body=data.get("body") or "",
-        head=shapes.Head(sha=data["head"]["sha"], branch=data["head"]["ref"]),
+        head=shapes.Head(sha=data["head"]["sha"], branch=data["head"]["ref"], repo=""),
         base=data["base"]["ref"],
         mergeable_state=shapes.MERGE_STATES.get(
             data.get("mergeable_state") or "", shapes.MergeState.UNKNOWN
@@ -84,7 +81,7 @@ def outcomes(text: str) -> Sequence[shapes.Outcome]:
     """Parse a page of pull requests into what became of their branches.
 
     Args:
-        text: the response body of ``pulls?state=all``.
+        text: the response body of a page of ``pulls``, open or closed.
 
     Returns:
         The outcomes.
@@ -100,6 +97,9 @@ def outcomes(text: str) -> Sequence[shapes.Outcome]:
     ]
 
 
+CHECK_TEXTS = ("name", "head_sha", "started_at", "completed_at", "details_url")
+
+
 def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     """Parse a page of check runs.
 
@@ -109,20 +109,38 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     Returns:
         The check runs.
     """
-    return [
-        shapes.CheckRun(
-            id=item["id"],
-            name=item["name"],
-            finished=_finished(item["status"]),
-            failed=item.get("conclusion") in shapes.FAILED_CONCLUSIONS,
-            head_sha=item.get("head_sha") or "",
-            started_at=item.get("started_at") or "",
-            completed_at=item.get("completed_at") or "",
-            run=run_of(item.get("details_url")),
-            succeeded=item.get("conclusion") == "success",
-        )
-        for item in json.loads(text)["check_runs"]
-    ]
+    return [one_check(item) for item in json.loads(text)["check_runs"]]
+
+
+def _login(item: Mapping[str, object]) -> str:
+    # the author's login, empty when GitHub gives no user
+    user = item.get("user")
+    return text_of(user.get("login")) if isinstance(user, dict) else ""
+
+
+def one_check(item: Mapping[str, object]) -> shapes.CheckRun:
+    """One check run, as GitHub answers it: its outcome by ``checkoutcome``.
+
+    Args:
+        item: the check run's object.
+
+    Returns:
+        The check run.
+    """
+    conclusion, status = item.get("conclusion"), text_of(item.get("status"))
+    words = {key: text_of(item.get(key)) for key in CHECK_TEXTS}
+    return shapes.CheckRun(
+        id=totaljson.count(item, "id"),
+        finished=checkoutcome.finished(status),
+        failed=checkoutcome.failed(status, conclusion),
+        name=words["name"],
+        head_sha=words["head_sha"],
+        started_at=words["started_at"],
+        completed_at=words["completed_at"],
+        run=run_of(words["details_url"] or None),
+        succeeded=conclusion == "success",
+        said=(status, str(conclusion)),  # keyword: gate
+    )
 
 
 def run_of(url: str | None) -> int:
@@ -235,6 +253,7 @@ def comments(text: str) -> Sequence[shapes.Comment]:
             author_association=item["author_association"],
             created_at=item["created_at"],
             url=item.get("html_url") or "",
+            login=_login(item),
         )
         for item in json.loads(text)
     ]
@@ -255,6 +274,8 @@ def reviews(text: str) -> Sequence[shapes.PullReview]:
             commit_id=item["commit_id"],
             author_association=item["author_association"],
             submitted_at=item.get("submitted_at") or "",
+            body=text_of(item.get("body")),
+            login=_login(item),
         )
         for item in json.loads(text)
     ]
@@ -289,7 +310,7 @@ def workflow_runs(text: str) -> Sequence[shapes.WorkflowRun]:
             id=item["id"],
             status=item["status"],
             conclusion=item.get("conclusion"),
-            finished=_finished(item["status"]),
+            finished=checkoutcome.finished(item["status"]),
             created_at=item["created_at"],
             head_branch=item.get("head_branch") or "",
         )
@@ -350,27 +371,4 @@ def timeline_events(text: str) -> Sequence[shapes.TimelineEvent]:
             kind=item.get("event") or "", at=item.get("created_at") or ""
         )
         for item in json.loads(text)
-    ]
-
-
-def job_results(text: str) -> Sequence[shapes.JobResult]:
-    """Parse a page of the jobs of a run, with the failed steps of each.
-
-    Args:
-        text: the response body of ``actions/runs/<id>/jobs``.
-
-    Returns:
-        Every job.
-    """
-    return [
-        shapes.JobResult(
-            name=item["name"],
-            conclusion=item.get("conclusion") or "",
-            failed_steps=[
-                step["name"]
-                for step in item.get("steps") or []
-                if step.get("conclusion") == FAILURE
-            ],
-        )
-        for item in json.loads(text)["jobs"]
     ]

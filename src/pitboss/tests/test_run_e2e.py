@@ -6,14 +6,14 @@ ruling was given on a PR whose e2e suite was red.
 """
 
 import dataclasses
-import re
 import unittest
 from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, dispatchruns, flow, markers, pullfiles, shapes, steps
-from . import fakes, quietworld, test_flow, world
+from .. import brief, dispatchruns, flow, markers, pullfiles, shapes, steps, stepwords
+from . import decisionline, fakes, quietworld, test_flow, world
+from .actreviewed import TO_REVIEW
 from .briefmake import make
 from .test_commands import sweep
 from .test_flow import state
@@ -40,7 +40,6 @@ E2E_FILE = {"filename": "e2e/reader.spec.js"}
 MOVED = {"filename": "src/reader.js", "previous_filename": "e2e/reader.js"}
 OTHER_FILE = {"filename": "src/reader.js"}
 NOT_STARTED = "NOT STARTED: e2e has not run at"
-WAITING = "waiting for CI at this head"
 
 
 def served(here: world.World, page: str, body: object) -> world.World:
@@ -77,7 +76,7 @@ def said(
     *runs: Mapping[str, object],
     dispatch: Sequence[Mapping[str, int]] = NO_RUN,
 ) -> tuple[str, str]:
-    """What the sweep prints and PR 3's PR STATE line, for a draft PR 3.
+    """What the sweep prints and PR 3's decision in ``slots next``, for a draft PR 3.
 
     Args:
         rounds: PR 3's comments.
@@ -86,48 +85,46 @@ def said(
         dispatch: the completed dispatched runs of its head.
 
     Returns:
-        The sweep's output, and the PR STATE line of PR 3.
+        The sweep's output, and PR 3's decision line (empty while it waits).
     """
     here = served(world_with(rounds, draft=True), "files", list(changed))
     quietworld.unheld(here)
     served(here, "runs", {"check_runs": list(runs)})
     served(here, "dispatch", {"workflow_runs": list(dispatch)})
-    lines = next_output(here).splitlines()
-    found = "".join(each for each in lines if "PR STATE owner/project#3" in each)
-    return sweep(here).out, found
+    return sweep(here).out, decisionline.of(next_output(here), "owner/project#3")
 
 
 APPROVED_PLAN = [graded(APPROVED, None, 1)]
 APPROVED_REVIEW = test_flow.graded(test_flow.APPROVED, None, 1)
 REJECTED_REVIEW = test_flow.graded(None, test_flow.CHANGES, 2)
 # the Plan approved, the files changed, the check runs, the completed dispatched
-# runs, and what the draft says
+# runs, and what PR 3's decision says (nothing while it waits for CI)
 SWEEPS = {
-    "a changed e2e and no check run": ([E2E_FILE], [], NO_RUN, f"next step: {LINE}"),
-    "a rename out of e2e": ([MOVED], [], NO_RUN, f"next step: {LINE}"),
+    "a changed e2e and no check run": ([E2E_FILE], [], NO_RUN, LINE),
+    "a rename out of e2e": ([MOVED], [], NO_RUN, LINE),
     "a draft run that skipped e2e (quire#1038)": (
         [E2E_FILE],
         [RAN],
         NO_RUN,
-        f"next step: {LINE}",
+        LINE,
     ),
     "a completed dispatched run of the head": (
         [E2E_FILE],
         [RAN],
         DONE_RUN,
-        "next step: mark the PR ready",
+        TO_REVIEW,
     ),
     "a run that is running": (
         [E2E_FILE],
         [RUNNING],
         NO_RUN,
-        f"next step: {WAITING}",
+        "",
     ),
     "a change outside e2e": (
         [OTHER_FILE],
         [],
         NO_RUN,
-        "next step: mark the PR ready",
+        TO_REVIEW,
     ),
 }
 
@@ -140,7 +137,7 @@ class TestTheSweep(unittest.TestCase):
         for name, (files, runs, dispatch, step) in SWEEPS.items():
             out, line = said(APPROVED_PLAN, files, *runs, dispatch=dispatch)
             assert_that(LINE in out, equal_to(LINE in step), name)
-            assert_that(line, contains_string(step), name)
+            assert_that(step in line and bool(step) == bool(line), equal_to(True), name)
 
     def test_a_dispatch_of_another_workflow_does_not_end_the_step(self) -> None:
         """Only a completed dispatch of check.yml counts, not any workflow's."""
@@ -161,9 +158,9 @@ class TestTheSweep(unittest.TestCase):
         assert_that(LINE in out, equal_to(False))
 
     def test_the_line_replaces_the_wait_and_the_review(self) -> None:
-        """No WAIT-FOR-CI line, and no review of the PR is listed."""
-        out, _ = said(APPROVED_PLAN, [E2E_FILE])
-        assert_that("WAIT-FOR-CI owner/project#3" in out, equal_to(False))
+        """PR 3's decision is the dispatch, not a wait and not a review."""
+        _, line = said(APPROVED_PLAN, [E2E_FILE])
+        assert_that(line, contains_string(f"ORCHESTRATOR: owner/project#3: {LINE}"))
 
     def test_a_plan_that_is_not_approved_is_reviewed_first(self) -> None:
         """The Plan review comes before any e2e run."""
@@ -189,9 +186,7 @@ def step_of(
         The step.
     """
     found = state(review, checks=checks, draft=True, undraft_clear=True)
-    wanted = dataclasses.replace(
-        found.draft, needs_e2e=lambda: touches and not dispatched
-    )
+    wanted = dataclasses.replace(found.draft, needs_e2e=touches and not dispatched)
     return flow.next_step(dataclasses.replace(found, draft=wanted))
 
 
@@ -217,7 +212,7 @@ class TestTheFlow(unittest.TestCase):
             steps.run_e2e(branch),
         ]
         assert_that(found, equal_to(wanted))
-        assert_that(steps.describe(wanted[0]), contains_string(f"on {branch}"))
+        assert_that(stepwords.describe(wanted[0]), contains_string(f"on {branch}"))
 
 
 class TestTheBrief(unittest.TestCase):
@@ -280,10 +275,9 @@ class TestB20Dispatch(unittest.TestCase):
     """The hold withholds the dispatch (B20)."""
 
     def test_b20_a_dispatch_is_withheld_during_a_hold(self) -> None:
-        """The check workflow is not dispatched during a hold; a control."""
+        """The check workflow is not dispatched during a hold, and PR 3 waits."""
         held = held_e2e()
         clear = quietworld.unheld(held_e2e())
         shown = [LINE in sweep(each).out for each in (held, clear)]
         assert_that(shown, equal_to([False, True]))
-        waiting = " ".join(re.findall(r"PR STATE .*", next_output(held)))
-        assert_that(waiting, contains_string("HOLD: a runner-pressure"))
+        assert_that(decisionline.of(next_output(held), "owner/project#3"), equal_to(""))

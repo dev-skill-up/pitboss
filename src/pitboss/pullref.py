@@ -1,12 +1,11 @@
 """The reference and the failed checks of a PR, read without ``pulls``.
 
-``pulls`` reads the PRs; the gates that only name a PR or look at its checks
-(``holdgate``, ``knownred``) take them from here, so they sit below it.
+``pulls`` reads the PRs and names them with these, which need nothing of it.
 """
 
 from typing import Protocol, Sequence
 
-from . import config, shapes
+from . import checkoutcome, config, shapes
 
 
 class Named(Protocol):
@@ -47,3 +46,41 @@ def failed_checks(facts: Named) -> Sequence[shapes.CheckRun]:
         The checks.
     """
     return [check for check in facts.checks if check.failed]
+
+
+def pending(facts: Named) -> int:
+    """How many of the head's checks have not finished.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        The count.
+    """
+    return sum(1 for check in facts.checks if not check.finished)
+
+
+def waiting_for_ci(facts: Named) -> bool:
+    """Whether the head has no completed check run.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when no check run of the head has completed.
+    """
+    return not checkoutcome.any_finished(facts.checks)
+
+
+def green(facts: Named) -> bool:
+    """Whether a check of the head finished, all did, and none failed.
+
+    A head with no completed check run is waiting for CI, never green.
+
+    Args:
+        facts: the PR.
+
+    Returns:
+        True when green.
+    """
+    return checkoutcome.result(facts.checks) is checkoutcome.Ci.GREEN

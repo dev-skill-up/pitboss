@@ -6,10 +6,11 @@ twin through; ``test_known`` runs every table.
 
 from typing import MutableMapping
 
-from ..actcore import Owner, Target
-from . import fakehub, knownkit, knownplay
+from .. import actfacts, ticketreader
+from ..actcore import Target
+from . import knownkit, knownplay, knownruns
 from .knownkit import change, stops
-from .knownplay import capped, dispatch_refused, pull_now, review_edited, stopping
+from .knownplay import pull_now, review_edited, stopping
 from .knowngit import git, refusing_pair, repo_pair
 from .totalworld import ARMED
 
@@ -24,31 +25,6 @@ def dispatch_target() -> Target:
         The target.
     """
     return Target(repo=knownkit.REPO)
-
-
-@case(
-    "X25",
-    "owner message gate; dispatch cap",
-    "the cap is 2 in a ruling and 3 in the config",
-)
-def _cap_ruled(given: knownkit.Kit) -> bool:
-    hub = knownkit.made(given, owner=Owner(messages=["m-cap"]))
-    three = fakehub.state(
-        cap=3, slots=["a", "b", "c"], ledger={"a": "x", "b": "y", "c": ""}
-    )
-    first = dispatch_refused(given, hub, three)
-    capped(given, hub, "m-cap", "2")
-    return "owner message" in first and bool(dispatch_refused(given, hub, three))
-
-
-@case(
-    "X26",
-    "dispatch: slots are the config's (closed world)",
-    "a ledger slot the config does not name",
-)
-def _stray_slot(given: knownkit.Kit) -> bool:
-    stray = fakehub.state(ledger={"sonnet-1": "", "old": "agent-z"})
-    return bool(dispatch_refused(given, knownkit.made(given), stray))
 
 
 @case(
@@ -75,10 +51,8 @@ def _paused_armed(given: knownkit.Kit) -> bool:
     "a `Priority: p1` line after the Done-when bullets",
 )
 def _priority(given: knownkit.Kit) -> bool:
-    return list(given.controls.items("## Done when\n\n- a\n- b\n\nPriority: p1\n")) == [
-        "a",
-        "b",
-    ]
+    body = "## Done when\n\n- a\n- b\n\nPriority: p1\n"
+    return given.rests.controls.items(body) == ticketreader.Items(found=["a", "b"])
 
 
 @case(
@@ -120,24 +94,10 @@ def _skip_e2e(given: knownkit.Kit) -> bool:
     )
 
 
-@case(
-    "X32",
-    "body row: Blocked line",
-    "the body says `Blocked by owner/lib#4`, an open PR",
-)
-def _blocked_line(given: knownkit.Kit) -> bool:
-    body = knownkit.BODY + "\nBlocked by owner/lib#4\n"
-    opened = change(pull={"body": body}, ctx={"blockers": {"owner/lib#4": "open"}})
-    alone = change(pull={"body": body})
-    return all(
-        stops(given, "merge", each, "body: blocked by") for each in (opened, alone)
-    )
-
-
 @case("X34", "act push: read back", "the origin refuses the push")
 def _origin_refuses(given: knownkit.Kit) -> bool:
     return "not pushed" in knownkit.refused(
-        lambda: knownkit.pushed(given, refusing_pair())
+        lambda: knownruns.pushed(given, refusing_pair())
     )
 
 
@@ -150,15 +110,11 @@ def _kept(given: knownkit.Kit) -> bool:
     worktree = repo_pair()
     options = {"worktree": str(worktree)}
     hub = knownkit.made(given)
-    kept = knownkit.refused(
-        lambda: given.verbs["clean"](hub.act, dispatch_target(), options)
-    )
-    knownkit.pushed(given, worktree)
+    asked = actfacts.Asked(verb="clean", target=dispatch_target(), options=options)
+    kept = knownkit.refused(lambda: knownkit.ran(given, hub.act, asked))
+    knownruns.pushed(given, worktree)
     git(worktree, "fetch", "-q", "origin")
-    return (
-        "KEPT" in kept
-        and given.verbs["clean"](hub.act, dispatch_target(), options) == "removable"
-    )
+    return "KEPT" in kept and knownkit.ran(given, hub.act, asked) == "removable"
 
 
 @case(

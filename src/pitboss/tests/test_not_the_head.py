@@ -1,4 +1,4 @@
-"""``next TICKET`` says when its ticket is not the head of the queue (pitboss#415)."""
+"""``next TICKET`` prints the ticket's decision, wherever it ranks (pitboss#415)."""
 
 import unittest
 from typing import Mapping
@@ -57,28 +57,21 @@ def fill(here: world.World, tickets: Mapping[int, tuple[str, str]]) -> world.Wor
 
 
 class TestNotTheHead(unittest.TestCase):
-    """A p0 filed after a p1 listing takes the head."""
+    """An item form prints the item's decision, with no line about the head.
 
-    def test_the_p1_ticket_is_told_the_head_is_the_p0(self) -> None:
-        """The first line names the rank, the head and its brief command."""
-        here = queued()
-        first = next_for(here, TEN).out.splitlines()[0]
-        assert_that(
-            first,
-            equal_to(
-                f"NOT THE HEAD: {TEN} is rank 2; the head is {TWELVE} (p0, opened"
-                f" 2026-09-04); its brief: pitboss slots next {TWELVE}"
-                f" --config {here.config}"
-            ),
-        )
+    ``NOT THE HEAD`` is retired (keyword: one-path, 6.2): the item form prints its
+    decision, and the list is where the order is said.
+    """
 
-    def test_the_head_gets_no_such_line(self) -> None:
-        """The output of the head is unchanged."""
-        here = queued()
-        assert_that(lines_of(next_for(here, TWELVE).out, "NOT THE HEAD"), equal_to([]))
+    def test_the_p1_ticket_prints_its_own_decision(self) -> None:
+        """The first line is ticket 10's decision; nothing names the head."""
+        out = next_for(queued(), TEN).out
+        first = out.splitlines()[0]
+        assert_that(first.startswith(f"WORKER: {TEN}: write the code"), equal_to(True))
+        assert_that(lines_of(out, "NOT THE HEAD"), equal_to([]))
 
-    def test_a_ticket_outside_the_order_gets_no_such_line(self) -> None:
-        """A ticket the list does not offer has no rank to compare."""
-        here = queued()
-        found = next_for(here, "owner/project#99").out
-        assert_that(lines_of(found, "NOT THE HEAD"), equal_to([]))
+    def test_the_head_prints_its_own_decision(self) -> None:
+        """The head's item form is its decision too."""
+        first = next_for(queued(), TWELVE).out.splitlines()[0]
+        wanted = f"WORKER: {TWELVE}: write the code"
+        assert_that(first.startswith(wanted), equal_to(True))

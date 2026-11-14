@@ -5,8 +5,8 @@ no-reruns	all	never rerun
 no-empty-commit	all	pushes nothing	No commit without a change: a change to the PR body only (a Plan revision, a refreshed Head line) is an edit of the body and pushes nothing; never push a commit to make a check run.
 long-checks	all	more than {limit} seconds	Long checks: a check that takes more than {limit} seconds is not run here (not in the foreground, not in the background, not split); push and let CI run it, and name CI's run as the evidence.
 hand-back-check	all	hand-back-check
-branch-naming	all	worker/	Branch: the ticket's branch is `worker/<ticket number>`; push to it and to no other.
-pr-body-form	all	lint pr-body	PR body form: when you change the PR body, its first line stays `Fixes TICKET`, its `Head:` line names the head, it ends with one footer, and `uvx pitboss lint pr-body BODYFILE --head SHA` on the body as GitHub stores it must print ok.
+branch-naming	all	worker/	Branch: the branch of the PR you open is `worker/<ticket number>`; push to it and to no other.
+pr-body-form	all	lint pr-body	PR body form: when you change the PR body, its first line is `Fixes TICKET`, a `Head:` line names the head, it ends with one footer, and `uvx pitboss lint pr-body BODYFILE --head SHA` on the body as GitHub stores it must print ok.
 disk	all	clean-container
 env-check	all	pitboss env-check	Environment: before you give up for a missing tool, run `uvx pitboss env-check --config {config}`; it prints `env: ok` or names what is missing and the exact command to get it. Hand back for a missing environment only with its output; a hand-back that gives up without it is refused.
 compiler	bats	bootstrap/c	Compiler: a bats-lang repository needs `bats` on PATH. Use a built one (`dist/debug/bats` of a checkout, or the one the project lines name), else build one from the checked-in seed: `cp -R bootstrap/c /tmp/seed && make -C /tmp/seed debug/bats`, then put `/tmp/seed/debug` on PATH. The first build of a checkout is cold (minutes): when a build or check would pass the long-check limit, leave it to CI.

@@ -13,10 +13,11 @@ test module, nox -s ... or virtue is never run by hand: the whole
 suite (every Python version, docs, dry_release) is CI's Run Nox step."""
 
 NEXT = """\
-A MISSING NAMES line means no worker is spent on that ticket: the ticket is
-fixed to name what exists (a file it asks to create is named by its
-directory, not as a path) before a worker starts, and a worker that sees
-the line hands back NOT STARTED with it."""
+The pull requests and tickets are read oldest first, and the read stops once
+it holds max(5, the slots configured) decisions: an item no actor takes now is
+read past and never printed. A read that fails is tried again (at most four
+tries, a wait drawn from 0 to 0.5 x 2^k seconds before try k); after the last
+the command exits 1 with a READ FAILED line on standard error."""
 
 SWEEP = """\
 A PR line reads: owner/name#12 [clean] auto-merge=off pending=0

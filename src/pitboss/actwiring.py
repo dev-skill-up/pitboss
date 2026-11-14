@@ -8,28 +8,21 @@ cap`` set; the verbs read it and ``ack`` writes it back. The order of work reads
 configured slots, the ledger, the open PRs and the open tickets of each priority.
 """
 
+import dataclasses
 import json
 import pathlib
 import subprocess
 import sys
 from typing import Callable, Sequence
 
-from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
-from .actcore import Act, Controls, Hub, Owner, Pull, cap_of
-from .ghapi import GitHub, run_json
+from . import acthub, actinputs, config, configrepos, gateread
+from .actcore import Act, Controls, Owner, Questions, cap_of
+from .ghapi import GitHub
 from .running import Run
-from .textparts import split_at
-from .totaljson import at, listing, members, name_at, read_file, records, text
-
-SIZES = (
-    "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name)"
-    " { pullRequests(last: 100, states: MERGED) { nodes { additions deletions } } } }"
-)
+from .totaljson import listing, members, read_file, text
 
 OWNER = "owner.json"
-CONTROLS = Controls(
-    verdict=totalverdict.verdict, not_overridable=totalverdict.NOT_OVERRIDABLE
-)
+CONTROLS = Controls()
 
 
 def owner_of(path: pathlib.Path) -> Owner:
@@ -69,55 +62,6 @@ def write_owner(path: pathlib.Path, owner: Owner) -> None:
     )
 
 
-def _item(pull: Pull, repo: str, kind: str, priority: str = "") -> dispatchnext.Item:
-    reference = f"{repo}#{pull.get('number')}"
-    return dispatchnext.Item(
-        ref=reference,
-        kind=kind,
-        created=text(pull.get("created_at")),
-        priority=priority,
-    )
-
-
-def _open_work(hub: Hub, settings: config.Config) -> list[dispatchnext.Item]:
-    # the open PRs, then the open tickets of each priority label
-    repos = configrepos.slugs(settings)
-    items = [_item(pull, repo, "pr") for repo in repos for pull in hub.open_pulls(repo)]
-    for label in settings.slots.priority_labels:
-        items += [
-            _item(each, repo, "ticket", label)
-            for repo in repos
-            for each in hub.issues(repo, label)
-            if "pull_request" not in each
-        ]
-    return items
-
-
-def work(hub: Hub, settings: config.Config) -> Callable[[], dispatchnext.State]:
-    """What the order of work reads.
-
-    Args:
-        hub: GitHub.
-        settings: the configuration.
-
-    Returns:
-        What reads it when asked.
-    """
-
-    def read() -> dispatchnext.State:
-        found = ledger.configured(settings)
-        items = _open_work(hub, settings)
-        slots = [each.name for each in settings.slots.default]
-        return dispatchnext.State(
-            cap=len(slots),
-            slots=slots,
-            ledger={each.name: each.agent for each in found.slots},
-            items=items,
-        )
-
-    return read
-
-
 def prepush(
     run: Callable[[Sequence[str]], subprocess.CompletedProcess[str]],
 ) -> Callable[[], tuple[int, str]]:
@@ -139,44 +83,6 @@ def prepush(
     return check
 
 
-def _p90(github: GitHub, repo: str) -> int:
-    # the size of 90 of 100 merged PRs; an unread size is 0, so every size needs
-    # a ruling
-    owner, name = split_at(repo, "/")
-    words = ["gh", "api", "graphql", "-f", f"query={SIZES}"]
-    words += ["-f", f"owner={owner}", "-f", f"name={name}"]
-    try:
-        answer = run_json(github, words)
-    except Exception:  # noqa: B902 - an unread size is 0
-        answer = {}
-    nodes = records(at(answer, "data", "repository", "pullRequests", "nodes"))
-    sizes = sorted(
-        sum(int(str(each.get(key, 0))) for key in ("additions", "deletions"))
-        for each in nodes
-    )
-    return sizes[(9 * len(sizes) + 9) // 10 - 1] if sizes else 0
-
-
-def limits(github: GitHub) -> Callable[[str], int]:
-    """Each repository's 90th percentile of the lines its last 100 merged PRs changed.
-
-    Args:
-        github: the reading runner.
-
-    Returns:
-        What reads a repository's percentile (0 when it has no merged PR) once,
-        when first asked.
-    """
-    found: dict[str, int] = {}
-
-    def limit(repo: str) -> int:
-        if repo not in found:
-            found[repo] = _p90(github, repo)
-        return found[repo]
-
-    return limit
-
-
 def quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
     """Run a command line and keep its output, whatever its status.
 
@@ -189,43 +95,42 @@ def quiet(words: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(words), capture_output=True, text=True, check=False)
 
 
-def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> Act:
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Asking:
+    """Whom the verbs ask: the owner, and the decisions.
+
+    Attributes:
+        owner: the owner's messages.
+        questions: the head of the one order and an item's decision.
+    """
+
+    owner: Owner
+    questions: Questions
+
+
+def act_of(github: GitHub, settings: config.Config, run: Run, asking: Asking) -> Act:
     """The verbs' world; the verbs post as the login ``gh`` is signed in as.
 
     Args:
         github: the reading and the writing runner.
         settings: the configuration.
-        owner: the owner's messages.
         run: the runner git goes through.
+        asking: the owner's messages and the one order.
 
     Returns:
         The world.
     """
-    hub = acthub.hub_of(github)
-    repos = configrepos.slugs(settings)
-    p90 = limits(github)
-    identity = identity_of(github)
+    p90 = gateread.limits(github)
+    identity = gateread.identity_of(github)
     given = actinputs.Settings(identity=identity, authors=[identity], max_lines=p90)
     return Act(
-        hub=hub,
+        hub=acthub.hub_of(github),
         inputs=actinputs.live_inputs(actinputs.reader(github), given),
-        owner=owner,
-        repos=repos,
+        owner=asking.owner,
+        repos=configrepos.slugs(settings),
         p90=p90,
         run=run,
         prepush=prepush(quiet),
-        work=work(hub, settings),
+        questions=asking.questions,
         controls=CONTROLS,
     )
-
-
-def identity_of(github: GitHub) -> str:
-    """The login ``gh`` is signed in as.
-
-    Args:
-        github: the reading runner.
-
-    Returns:
-        The login.
-    """
-    return name_at(json.loads(github.run(["gh", "api", "user"]).stdout), "login")

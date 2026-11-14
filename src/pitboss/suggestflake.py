@@ -16,7 +16,7 @@ def is_flake(github: ghapi.GitHub, ticket: str) -> bool:
         True when it can be read and ``flake.is_flake`` holds.
     """
     found = ticketread.issue(github, ticket) if ticket.rpartition("#")[0] else None
-    return found is not None and flake.is_flake(found.labels, found.title, found.body)
+    return flake.issue_is_flake(found)
 
 
 def rules_of(github: ghapi.GitHub, ticket: str, rules: brief.Rules) -> brief.Rules:

@@ -33,7 +33,7 @@ def facts(state: str, checks: Sequence[shapes.CheckRun]) -> pulls.PullFacts:
     """
     done = bool(checks) and all(each.finished for each in checks)
     green = test_work.facts(3, reviews.Standing.NONE, mergeable_state=state)
-    step = test_work.DEFAULT_STEP if done else steps.wait_for_ci()
+    step = test_work.DEFAULT_STEP if done else steps.IDLE
     return dataclasses.replace(green, checks=checks, step=step)
 
 
@@ -67,15 +67,6 @@ CASES = [
 
 class TestSweepAndNext(unittest.TestCase):
     """``pitboss sweep`` and ``pitboss slots next``."""
-
-    def test_sweep_lists_it_and_next_lists_the_step(self) -> None:
-        """The sweep names the update; ``slots next`` lists what the step says."""
-        here = behind_world()
-        found = (
-            UPDATE_LINE in sweep(here).out.splitlines(),
-            "(update" in next_output(here),
-        )
-        assert_that(found, equal_to((True, False)))
 
     def test_a_merge_queue_repository_lists_no_update(self) -> None:
         """Configured as merge-queue, nothing is named update."""

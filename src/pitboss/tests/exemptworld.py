@@ -6,10 +6,6 @@ from typing import Sequence
 from .. import config, configfile
 from . import quietworld, world
 from .test_quiet import at
-from .test_slot_commands import next_output
-
-STATE = "PR STATE owner/project#3"
-HELD_WORDS = "HOLD: a runner-pressure hold withholds"
 
 
 def push(here: world.World, *more: str) -> world.Result:
@@ -81,18 +77,6 @@ def swept(here: world.World) -> str:
         Its output.
     """
     return world.invoke(here, "sweep", here.config, "--now", world.FUTURE).out
-
-
-def state_line(here: world.World) -> str:
-    """The PR STATE line of PR 3 in ``slots next``.
-
-    Args:
-        here: the world.
-
-    Returns:
-        The line.
-    """
-    return "".join(each for each in next_output(here).splitlines() if STATE in each)
 
 
 def runners_in(here: world.World) -> config.Runners:

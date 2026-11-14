@@ -6,8 +6,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import flow, plancheck, plandigest, shapes, steps
-from . import checkcomment, fakes, worldcomments
+from .. import flow, plancheck, plandigest, shapes, steps, stepwords
+from . import blank, checkcomment, fakes, worldcomments
 from .test_flow import CHANGES, expect, graded
 from .test_flow import BODY
 from .test_flow import state as checked_state
@@ -53,7 +53,8 @@ def check_comment(body: str, author: str = "MEMBER") -> shapes.Comment:
         The comment.
     """
     text = plancheck.text(plandigest.section(body), ["row 1: ran"], [])
-    return shapes.Comment(
+    return dataclasses.replace(
+        blank.COMMENT,
         body=text,
         author_association=author,
         created_at="2026-10-30T00:00:01Z",
@@ -122,7 +123,7 @@ class TestPlanCheckStep(unittest.TestCase):
         """No review: the fix round quotes the findings (pitboss#390)."""
         expect(FIX, state(body=WITH_COMMANDS, draft=True, comments=[REFUSED]))
         expect(FIX, state(body=WITH_COMMANDS, draft=False, comments=[REFUSED]))
-        assert_that(steps.describe(FIX), contains_string(QUOTED))
+        assert_that(stepwords.describe(FIX), contains_string(QUOTED))
 
     def test_a_refusal_of_another_plan_is_a_check_to_run(self) -> None:
         """The edited Plan has no check of its own yet."""
@@ -159,8 +160,10 @@ class TestPlanCheckStep(unittest.TestCase):
         text = plancheck.text(plandigest.section(NO_COMMANDS), [], [], [found])
         refused = dataclasses.replace(check_comment(NO_COMMANDS), body=text)
         pr = state(body=NO_COMMANDS, comments=[refused])
-        assert_that(flow.next_step(pr).step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
-        assert_that(steps.describe(flow.next_step(pr)), contains_string(found))
+        step = flow.next_step(pr)
+        assert isinstance(step, steps.Next)
+        assert_that(step.step, equal_to(steps.Step.SEND_BACK_PLAN_CHECK))
+        assert_that(stepwords.describe(step), contains_string(found))
 
     def test_the_world_carries_the_clean_check_of_its_plan(self) -> None:
         """The literal of the fake GitHub is the check of the default body."""
@@ -169,7 +172,7 @@ class TestPlanCheckStep(unittest.TestCase):
 
     def test_the_step_says_what_to_do(self) -> None:
         """The line `next` prints."""
-        said = steps.describe(steps.plan_check())
+        said = stepwords.describe(steps.plan_check())
         assert_that(
             said,
             contains_string(

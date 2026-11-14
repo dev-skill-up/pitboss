@@ -4,10 +4,9 @@
 recorded of the PR.
 """
 
-import enum
-from typing import Protocol, Sequence
+from typing import AbstractSet, Protocol, Sequence
 
-from . import bodydigest, draftfacts, expansion, plandigest, shapes
+from . import bodydigest, checkoutcome, draftfacts, expansion, plandigest, shapes
 
 current_for = expansion.current_for
 Subject = expansion.Subject
@@ -15,16 +14,7 @@ Verdict = shapes.Verdict
 Graded = shapes.Graded
 
 
-class Ci(enum.Enum):
-    """The result of the checks on the current head, once finished.
-
-    Attributes:
-        GREEN: every check finished and none failed.
-        RED: a check failed.
-    """
-
-    GREEN = enum.auto()
-    RED = enum.auto()
+Ci = checkoutcome.Ci  # the head's CI, decided once (``checkoutcome.result``)
 
 
 class PullState(Protocol):
@@ -46,15 +36,9 @@ class PullState(Protocol):
     def draft(self) -> draftfacts.Draft:
         """Return what the caller read for a draft."""
 
-    def unchanged_since(self, sha: str) -> bool:
-        """Return whether no code moved since a head.
-
-        Args:
-            sha: the head.
-
-        Returns:
-            True when no code moved since it.
-        """
+    @property
+    def unchanged(self) -> AbstractSet[str]:
+        """Return the reviewed heads since which no code moved."""
 
 
 def _of_head(pr: PullState, reviews: Sequence[Graded]) -> Sequence[Graded]:
@@ -133,23 +117,6 @@ def get_plan_rejections(pr: PullState) -> int:
     return sum(each.plan is Verdict.CHANGES_NEEDED for each in reviews)
 
 
-def ci_result(pr: PullState) -> Ci | None:
-    """The result of the checks on the current head.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        RED when a check failed, GREEN when all finished and none failed,
-        None while some run or none has started.
-    """
-    if any(each.failed for each in pr.checks):
-        return Ci.RED
-    if not pr.checks or any(not each.finished for each in pr.checks):
-        return None
-    return Ci.GREEN
-
-
 def plan_rejected_last(pr: PullState) -> bool:
     """Whether the newest regular review graded the Plan changes needed.
 
@@ -178,6 +145,20 @@ def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
     Returns:
         The Execution-graded review if it rejects and no code moved, else None.
     """
+    asked = asked_rejection(pr)
+    return asked if asked is not None and asked.sha in pr.unchanged else None
+
+
+def asked_rejection(pr: PullState) -> shapes.Graded | None:
+    """The rejecting review whose head the read asks about (unfixed-execution).
+
+    Args:
+        pr: the PR.
+
+    Returns:
+        The newest Execution verdict if it rejects and the head moved since it
+        (other than by a body fix), else None.
+    """
     graded = [each for each in regular_reviews(pr) if each.execution is not None]
     rejecting = graded[-1] if graded else None
     if rejecting is None or rejecting.execution is not Verdict.CHANGES_NEEDED:
@@ -185,7 +166,7 @@ def unfixed_rejection(pr: PullState) -> shapes.Graded | None:
     moved = not expansion.current_for(  # else a body fix
         expansion.Subject.HEAD, rejecting.sha, pr.pull.head.sha
     )
-    return rejecting if moved and pr.unchanged_since(rejecting.sha) else None
+    return rejecting if moved else None
 
 
 def regular_reviews(pr: PullState) -> Sequence[shapes.Graded]:
