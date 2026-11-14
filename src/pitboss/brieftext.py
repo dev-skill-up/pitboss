@@ -36,10 +36,9 @@ BODY = (
     " row in the body."
 )
 EDIT = (
-    "Edit: change files with the Edit tool only (no sed, no shell redirection, no"
-    " ad hoc rm); clean up with `uvx pitboss clean-container {config}` only;"
-    " change an existing comment or PR body only after reading its current text in"
-    " full, and send the complete replacement, never a placeholder."
+    "Edit: clean up with `uvx pitboss clean-container {config}` only; change an"
+    " existing comment or PR body only after reading its current text in full, and"
+    " send the complete replacement, never a placeholder."
 )
 DENIED = (
     "Denied: when the classifier denies a command, look in the repository's"
