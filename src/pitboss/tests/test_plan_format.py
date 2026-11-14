@@ -94,7 +94,10 @@ BODY_REFUSED = [
     ({**BODY, "extra": 1}, "extra: not a field of the schema"),
     ({**BODY, "plan": 3}, "plan: not a JSON object"),
     ({**BODY, "plan": {"rows": [{"item": "x", "command": "pitboss nox"}]}}, "runs nox"),
-    ({**BODY, "plan": {"rows": [{"item": "x", "command": "ls /home/x"}]}}, "one machine"),
+    (
+        {**BODY, "plan": {"rows": [{"item": "x", "command": "ls /home/x"}]}},
+        "one machine",
+    ),
     ({**BODY, "plan": {"intro": "$ x", "rows": SAMPLE["rows"]}}, "intro: does not"),
 ]
 

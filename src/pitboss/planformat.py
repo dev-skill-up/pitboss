@@ -269,7 +269,9 @@ def body_findings(made: str, head: str) -> Sequence[str]:
         Each finding; none for a body the parser takes.
     """
     section = plandigest.section(made)
-    rows, refused, _ = plancheck.report(section, lambda each: plancheck.finished(0, 0.0))
+    rows, refused, _ = plancheck.report(
+        section, lambda each: plancheck.finished(0, 0.0)
+    )
     return [
         *forms.pr_body(forms.Subject(name=NAME, body=made, head=head)),
         *totalbody.body_findings(made, head),
