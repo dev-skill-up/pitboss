@@ -4,7 +4,7 @@ import dataclasses
 import re
 from typing import AbstractSet, Callable, Sequence
 
-from . import config, gradeline, sessionurl, shapes, totalreview
+from . import config, gradeline, reviewattempt, sessionurl, shapes
 
 PatternOf = Callable[[str, config.ReviewForm], re.Pattern[str]]
 Reader = Callable[[str, config.ReviewForm], tuple[str, shapes.Verdict] | None]
@@ -93,7 +93,7 @@ def find(
     graded = [
         item
         for item in posted
-        if item.author_association in trusted and totalreview.grades(item.body)
+        if item.author_association in trusted and reviewattempt.grades(item.body)
     ]
     problems = [(item, _problem(item, form, pattern_of)) for item in graded]
     return [

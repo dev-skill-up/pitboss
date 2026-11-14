@@ -12,7 +12,8 @@ it) gets nothing added: those are decided in the one read (``actdecide``), and
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actcore, bodydigest, pullnames, pullobject, totalbody, totalreview
+from . import actcore, bodydigest, pullnames, pullobject, reviewattempt, totalbody
+from . import totalreview
 from .actcore import (
     disarm_first,
     head_now,
@@ -76,7 +77,7 @@ def keyed(words: str) -> str:
         (
             line
             for line in words.splitlines()
-            if GRADE_KEY.match(line) or totalreview.is_attempt(line)
+            if GRADE_KEY.match(line) or reviewattempt.is_attempt(line)
         ),
         "",
     )

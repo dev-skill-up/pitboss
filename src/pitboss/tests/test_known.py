@@ -1,4 +1,4 @@
-"""The 59 cases and the 19 removals.
+"""The 58 cases and the 19 removals.
 
 Each control refuses its unsafe world and lets its safe twin through; each
 control is what holds some case, and every case is held by one.
@@ -34,11 +34,11 @@ def _held() -> Mapping[str, Sequence[str]]:
 
 
 class TestKnown(unittest.TestCase):
-    """The 27 known gaps and 32 seeded faults, with every control as shipped."""
+    """The 27 known gaps and 31 seeded faults, with every control as shipped."""
 
     def test_count(self) -> None:
-        """The cases are the 27 gaps and the 32 seeded faults."""
-        assert_that(CASES, has_length(59))
+        """The cases are the 27 gaps and the 31 seeded faults."""
+        assert_that(CASES, has_length(58))
 
     def test_every_case_holds(self) -> None:
         """No case misses with the shipped controls."""
@@ -50,9 +50,10 @@ class TestKnown(unittest.TestCase):
         G1, X25 and X26 (a cap and the slots refuse a dispatch) are gone because a
         free slot is a datum, never a filter; G13, S16, S17 and S19 (a shared red, a
         red of the base, a fix's own worker) are decided where the step is settled
-        (``sharedred``, ``flow``) and tested there (``test_shared_red``).
+        (``sharedred``, ``flow``) and tested there (``test_shared_red``). X32 (the
+        gate's open blocker) is gone: an open blocker is the decision's (plan 6.1).
         """
-        gone = {"G1", "G13", "X25", "X26", "S16", "S17", "S19", "X36"}
+        gone = {"G1", "G13", "X25", "X26", "S16", "S17", "S19", "X32", "X36"}
         names = {f"G{n}" for n in range(1, 30)} | {f"S{n:02d}" for n in range(1, 25)}
         names |= {f"X{n}" for n in range(25, 39)}
         names -= gone

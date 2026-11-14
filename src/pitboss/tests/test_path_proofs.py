@@ -253,7 +253,7 @@ class TestOneFact(unittest.TestCase):
     """Plan 6.1 and 4.3: each fact is derived once (``factproofs``)."""
 
     def test_6_1_a_second_reading_of_each_fact_is_a_finding(self) -> None:
-        """A pattern of blocked, works on or a Verdict line; a blocker's state; a scope."""
+        """A blocked, works-on or Verdict pattern; a blocker's state; a hold's scope."""
         seeds = {
             "blocked": "\nB = re.compile('Blocked by #1')\n",
             "blocker": "\nS = 'open' == 'closed'\n",

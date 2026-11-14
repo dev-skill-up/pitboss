@@ -15,6 +15,7 @@ import re
 from typing import Mapping, Sequence
 
 from . import bodydigest
+from .reviewattempt import LOOSE_GRADE, is_attempt
 from .plansection import plan_section
 from .pullrecords import Event, Ticket, Unread
 
@@ -22,8 +23,6 @@ GRADES = ("approved", "changes needed")
 GRADE_LINE = re.compile(r"(Plan|Execution): (approved|changes needed)( \([^()\n]*\))?")
 VERDICT_LINE = re.compile(r"\W*verdict\b", re.I)
 HEAD_LINE = re.compile(r"(Reviewed: |\bof head )([0-9a-f]{40})\b")
-ATTEMPT = re.compile(r"(?im)^\W*verdict\b")
-LOOSE_GRADE = re.compile(r"\W*(plan|execution)\b\W*:", re.I)
 DIGEST = re.compile(r"Body: [0-9a-f]{16}")
 TicketReads = Mapping[str, Ticket | Unread]
 # the timeline kinds a review is posted as
@@ -42,34 +41,6 @@ def digest_of(value: str) -> str:
     return bodydigest.digest(value)
 
 
-def is_attempt(body: str) -> bool:
-    """Whether a text tries to be a review: the one reading of "reviewed" (plan 6.1).
-
-    The gate and the flow both take the newest attempt as the review that decides,
-    alone (``review_attempts``, ``reviews.newest``).
-
-    Args:
-        body: a comment's or a formal review's text.
-
-    Returns:
-        True when a line starts with ``Verdict`` (loosely).
-    """
-    return bool(ATTEMPT.search(body))
-
-
-def grades(body: str) -> bool:
-    """Whether a text grades: it tries to be a review, or has a Plan or Execution line.
-
-    Args:
-        body: a comment's text.
-
-    Returns:
-        True when it is an attempt (``is_attempt``) or a line is a grade's (loosely).
-    """
-    lines = body.splitlines()
-    return is_attempt(body) or any(LOOSE_GRADE.match(line) for line in lines)
-
-
 def review_attempts(timeline: Sequence[Event]) -> Sequence[Event]:
     """The comments and formal reviews that try to be a review, oldest first.
 
@@ -80,9 +51,7 @@ def review_attempts(timeline: Sequence[Event]) -> Sequence[Event]:
         Each event whose text has a line that starts with ``Verdict`` (loosely).
     """
     return [
-        each
-        for each in timeline
-        if each.kind in REVIEW_KINDS and is_attempt(each.body)
+        each for each in timeline if each.kind in REVIEW_KINDS and is_attempt(each.body)
     ]
 
 
