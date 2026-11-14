@@ -65,9 +65,9 @@ ISSUE_CALL = [
 ]
 HUB_ANSWERS = {
     "repos/o/r/pulls/3": json.dumps({"number": 3}),
-    "repos/o/r/pulls?state=open&per_page=100": '{"number": 1}\n{"number": 2}\n',
-    "repos/o/r/issues/3/timeline?per_page=100": "[]\n",
-    "repos/o/r/issues?state=open&per_page=100&labels=pitboss-hold": "",
+    "repos/o/r/pulls?state=open&per_page=100&page=1": '[{"number": 1}, {"number": 2}]',
+    "repos/o/r/issues/3/timeline?per_page=100&page=1": "[]",
+    "repos/o/r/issues?state=open&labels=pitboss-hold&per_page=100&page=1": "[]",
     "repos/o/r": json.dumps({"default_branch": "trunk"}),
     "repos/o/r/pulls": "7\n",
 }
@@ -86,8 +86,8 @@ INPUT_ANSWERS = {
     ),
     "repos/o/r/issues/1": json.dumps({"state": "open"}),
     "repos/x/y/issues/4": json.dumps({"state": "closed"}),
-    "repos/o/r/pulls/3/files?per_page=100": json.dumps([{"filename": "a"}]),
-    "repos/o/r/issues/3/timeline?per_page=100": "",
+    "repos/o/r/pulls/3/files?per_page=100&page=1": json.dumps([{"filename": "a"}]),
+    "repos/o/r/issues/3/timeline?per_page=100&page=1": "[]",
 }
 BLOCKED_PULL = {
     "body": "Fixes #1\n\nBlocked by x/y#4 and #9\n",
