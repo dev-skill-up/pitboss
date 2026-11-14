@@ -70,6 +70,7 @@ class TestEachConstructor(unittest.TestCase):
             modequestion.naming([ITEM]),
             modequestion.pushing(["origin"]),
             modequestion.naming([]),
+            modequestion.naming([]),
             modequestion.naming([ITEM]),
             modequestion.naming([ITEM]),
         ]
