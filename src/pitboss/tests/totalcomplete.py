@@ -20,6 +20,7 @@ from typing import AbstractSet, Callable, Collection, Iterator, Mapping, Sequenc
 from .. import (
     actverbs,
     actwrite,
+    config,
     enumeration,
     ticketreader,
     totalanswer,
@@ -157,10 +158,11 @@ def _verbs(parts: Parts) -> Iterator[str]:
 def _forms(parts: Parts) -> Iterator[str]:
     world = totalworld.base()
     tickets = members(world.ctx.get("tickets"))
-    written = parts.forms.review(
+    head = totalworld.head_of(world)
+    written = actwrite.heading(config.DEFAULT_REVIEW_FORM, head, GRADES[2])
+    written += parts.forms.review(
         world.pull, GRADES, "The change does what the ticket says.", tickets
     )
-    head = totalworld.head_of(world)
     why = parts.policy.review(
         written, head, world.pull.get("body"), tickets
     ) or parts.policy.plan(written, world.pull.get("body"))

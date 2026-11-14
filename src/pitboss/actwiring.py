@@ -203,7 +203,6 @@ def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> A
         The world.
     """
     hub = acthub.hub_of(github)
-    repos = configrepos.slugs(settings)
     p90 = limits(github)
     identity = identity_of(github)
     given = actinputs.Settings(identity=identity, authors=[identity], max_lines=p90)
@@ -211,7 +210,7 @@ def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> A
         hub=hub,
         inputs=actinputs.live_inputs(actinputs.reader(github), given),
         owner=owner,
-        repos=repos,
+        repos=configrepos.slugs(settings),
         p90=p90,
         run=run,
         prepush=prepush(quiet),

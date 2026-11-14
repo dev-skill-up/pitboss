@@ -1,16 +1,19 @@
-"""The Plan section of a PR body, written from JSON (keyword: plan-format, pitboss#483).
+"""``pitboss format plan``: a Plan section from JSON (keyword: plan-format).
 
-``planformat.schema.json`` is the form of the JSON: an ``intro`` and the ``rows``, each
-a Done-when ``item`` with the ``command`` its Evidence runs or the ``ci`` pointer. The
-command rows are numbered first, so row N is the row of the Nth Evidence block.
+The JSON's form is ``planformat.schema.json``; the command rows are numbered first,
+so row N is the row of the Nth Evidence block (``plan-row``).
 """
 
-import importlib.resources
-import json
+import argparse
+import pathlib
 import re
-from typing import Iterator, Mapping
+import sys
+from typing import Iterator, Mapping, Sequence
 
-from .totaljson import JsonMap, listing, members, text
+from gather.commands import add_argument
+
+from . import ENTRY_DATA
+from .totaljson import JsonMap, listing, members, read_file, text
 
 SCHEMA = "planformat.schema.json"
 TYPES: Mapping[str, type] = {"object": dict, "array": list, "string": str}
@@ -23,8 +26,7 @@ def schema() -> JsonMap:
     Returns:
         The schema, as the repository holds it.
     """
-    found = importlib.resources.files("pitboss") / SCHEMA
-    return members(json.loads(found.read_text(encoding="utf-8")))
+    return members(read_file(pathlib.Path(__file__).with_name(SCHEMA)))
 
 
 def _object(value: JsonMap, rules: JsonMap, where: str) -> Iterator[str]:
@@ -61,15 +63,19 @@ def refusals(value: object, rules: JsonMap, where: str = "") -> Iterator[str]:
         yield f"{where}: does not match {pattern}"
     if isinstance(value, dict):
         yield from _object(value, rules, where)
-    items = listing(value)
-    if len(items) < int(str(rules.get("minItems", 0))):
-        yield f"{where}: fewer than {rules.get('minItems')} items"
-    for index, each in enumerate(items):
-        yield from refusals(each, members(rules.get("items")), f"{where}[{index}]")
+    yield from _array(listing(value), rules, where)
     choices = [members(each) for each in listing(rules.get("oneOf"))]
     if choices and sum(not any(refusals(value, each)) for each in choices) != 1:
         names = [text(key) for each in choices for key in listing(each["required"])]
         yield f"{where}: has not exactly one of {', '.join(names)}"
+
+
+def _array(items: Sequence[object], rules: JsonMap, where: str) -> Iterator[str]:
+    least = rules.get("minItems")
+    if isinstance(least, int) and len(items) < least:
+        yield f"{where}: fewer than {least} items"
+    for index, each in enumerate(items):
+        yield from refusals(each, members(rules.get("items")), f"{where}[{index}]")
 
 
 def _row(row: JsonMap) -> str:
@@ -92,3 +98,30 @@ def section(plan: JsonMap) -> str:
     numbered = [f"{number}. {_row(row)}" for number, row in enumerate(ordered, 1)]
     intro = [text(plan["intro"]), ""] if "intro" in plan else []
     return "\n".join(["## Plan", "", *intro, *numbered]) + "\n"
+
+
+@ENTRY_DATA.register(
+    add_argument("kind", choices=("plan",), help="the section: plan"),
+    add_argument("file", help="the JSON, in the form of planformat.schema.json"),
+    name="format",
+)
+def format_section(args: argparse.Namespace) -> None:
+    """Print the Plan section of a JSON file; exit 1 naming each field at fault.
+
+    Args:
+        args: the parsed arguments.
+
+    Raises:
+        SystemExit: a file that is no JSON, or a JSON the schema refuses.
+    """
+    try:
+        found = read_file(pathlib.Path(args.file))
+    except (OSError, ValueError) as error:
+        print(f"{args.file}: {error}", file=sys.stderr)
+        raise SystemExit(1)
+    refused = list(refusals(found, schema()))
+    for each in refused:
+        print(f"{args.file}: {each}", file=sys.stderr)
+    if refused:
+        raise SystemExit(1)
+    print(section(members(found)), end="")

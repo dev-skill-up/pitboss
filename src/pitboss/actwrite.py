@@ -1,8 +1,7 @@
 """The verbs that write the texts the checker reads (keyword: act-verbs).
 
-``act review`` writes the one review form the verdict reads (``review_text``), its
-first lines the repository's form, so a hand-typed ``Plan: ok`` has no way to be
-written; ``act ticket`` writes the one
+``act review`` writes the one review form the verdict reads (``review_text``), so a
+hand-typed ``Plan: ok`` has no way to be written; ``act ticket`` writes the one
 ticket form the reader takes; ``act pr-create`` and ``act pr-edit`` check the body
 rows first; ``act comment`` carries no review or act line; a comment is edited or
 deleted only when it is pitboss's own evidence. A started ticket (a PR closes it)
@@ -36,41 +35,25 @@ SCRATCH = ("bats-lang/relock-scratch",)
 
 
 def review_text(
-    pull: JsonMap,
-    grades: Sequence[str],
-    findings: str,
-    tickets: JsonMap,
-    form: config.ReviewForm = config.DEFAULT_REVIEW_FORM,
+    pull: JsonMap, grades: Sequence[str], findings: str, tickets: JsonMap
 ) -> str:
-    """The review ``act review`` writes, first the lines of the repository's form.
+    """The review ``act review`` writes below the ``heading``.
 
     Args:
         pull: the PR as read.
         grades: the Plan, Execution ("" for none: the Plan alone) and verdict grades.
         findings: what the review found.
         tickets: each ticket the body closes, as read.
-        form: the form ``pitboss review-form`` prints for the PR's repository.
 
     Returns:
-        The form's lines filled, a head and verdict line it lacks, the grades, the
-        digests of the body, its Plan and each ticket, then the findings.
+        The grades and the digests of the body, its Plan and each ticket, then the
+        findings.
     """
-    body, head = pull.get("body"), actcore.head_of(pull)
-    word = form.approved if grades[2] == GRADES[0] else form.changes_needed
-    top = [
-        line.replace("{sha}", head).replace("{verdict}", word) for line in form.lines
-    ]
-    named = [] if _has(top, totalreview.HEAD_LINE.search) else [f"Reviewed: {head}"]
-    said = (
-        [] if _has(top, totalreview.VERDICT_LINE.match) else [f"Verdict: {grades[2]}"]
-    )
+    body = pull.get("body")
     section = plan_section(body)
     lines = [
-        *top,
-        *named,
         f"Plan: {grades[0]}",
         *([f"Execution: {grades[1]}"] if grades[1] else []),
-        *said,
         f"Body: {totalreview.digest_of(body)}",
         *([] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]),
         *totalreview.ticket_lines(tickets),
@@ -78,9 +61,22 @@ def review_text(
     return "\n".join(lines) + f"\n\n{findings}"
 
 
-def _has(lines: Sequence[str], found: Callable[[str], object]) -> bool:
-    # whether the form's lines already name the head (or the verdict)
-    return any(found(each) for each in lines)
+def heading(form: config.ReviewForm, sha: str, grade: str) -> str:
+    """The first lines of a review: the form ``pitboss review-form`` prints.
+
+    Args:
+        form: the form of the PR's repository.
+        sha: the PR's head.
+        grade: the verdict grade.
+
+    Returns:
+        The form's lines filled, then a head and a verdict line they lack.
+    """
+    word = form.approved if grade == GRADES[0] else form.changes_needed
+    top = "\n".join(form.lines).replace("{sha}", sha).replace("{verdict}", word)
+    more = [f"Reviewed: {sha}"][bool(totalreview.HEAD_LINE.search(top)) :]
+    more += [f"Verdict: {grade}"][bool(totalreview.ATTEMPT.search(top)) :]
+    return "\n".join([top, *more, ""])
 
 
 def _plain(words: str) -> None:
@@ -113,7 +109,8 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     _plain(findings)
     pull = pull_of(act, target)
     tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
-    words = review_text(pull, grades, findings, tickets, act.form(target.repo))
+    words = heading(act.form(target.repo), actcore.head_of(pull), grades[2])
+    words += review_text(pull, grades, findings, tickets)
     put(act, target, "comment", {"body": words})
     return words
 
