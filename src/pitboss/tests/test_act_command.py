@@ -127,7 +127,8 @@ def _here() -> world.World:
     here.bodies["POST repos/owner/project/issues/3/labels"] = []
     here.bodies["POST repos/owner/project/issues/3/comments"] = {"html_url": "u"}
     here.bodies[CLOSED.format(repo="owner/project")] = [{"number": 3, "merged_at": "x"}]
-    here.bodies["repos/owner/project/pulls/3"].update(additions=3, deletions=1)  # type: ignore[attr-defined]
+    pull = here.bodies["repos/owner/project/pulls/3"]
+    pull.update(additions=3, deletions=1)  # type: ignore[attr-defined]
     return here
 
 
