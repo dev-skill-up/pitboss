@@ -29,6 +29,7 @@ class Command(enum.Enum):
         COUNT: ``count``.
         ENV_CHECK: ``env-check``.
         EXPAND: ``expand``.
+        FORMAT: ``format``.
         HAND_BACK_CHECK: ``hand-back-check``.
         HOOK: ``hook``.
         LINT: ``lint``.
@@ -64,6 +65,7 @@ class Command(enum.Enum):
     COUNT = "count"
     ENV_CHECK = "env-check"
     EXPAND = "expand"
+    FORMAT = "format"
     HAND_BACK_CHECK = "hand-back-check"
     HOOK = "hook"
     LINT = "lint"
