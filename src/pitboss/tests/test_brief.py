@@ -35,7 +35,7 @@ RESOLUTION = "\n".join(
         " or has not passed, hand back `NOT STARTED: <check> is <state> at <sha>`"
         " and review nothing. Read the complete run of this head. A draft, or a"
         " head with an unfinished check, is `NOT STARTED`, not a verdict"
-        " (pitboss#202).",
+        ".",
         "Form: read `references/adversarial-review.md` of the sweep skill, then"
         " post one comment on the PR in the form of the repository, from `uvx"
         " pitboss review-form proj o/r`:",

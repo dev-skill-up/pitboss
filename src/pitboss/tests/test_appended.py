@@ -28,7 +28,7 @@ SENTENCES = {
     "Search: ": (
         "update the docstring next to each piece of code the change alters, and"
         " cut other text that no longer matches it; a change never adds a line"
-        " to a doc, so a doc is cut, not reworded (pitboss#396)."
+        " to a doc, so a doc is cut, not reworded."
     ),
 }
 CONSTANTS = (brieftext.TRY_COMMANDS, brieftext.NO_APPEND, brieftext.SEARCH)

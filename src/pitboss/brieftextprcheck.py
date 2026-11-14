@@ -7,5 +7,5 @@ reviewed code change.
 PRCHECK_REVIEW = (
     "Checklist: in a checkout of {repo} at the head, run `bats prcheck"
     " --checklist` and state each line of its output in the review, as"
-    " `checked, ok` or as a finding (keyword: prcheck-checklist, pitboss#438)."
+    " `checked, ok` or as a finding."
 )

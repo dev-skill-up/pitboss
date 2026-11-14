@@ -1,4 +1,4 @@
-"""``next`` says the free space and cleans before it suggests (pitboss#288)."""
+"""``next`` says the free space and cleans before it suggests."""
 
 import dataclasses
 import pathlib
@@ -25,7 +25,7 @@ TEMP_RUNS = (
 NO_LOOP = (
     "Repeated runs: a Plan whose evidence is a repeated local run (a loop of N"
     " runs of a check) is a long run, which CI is the evidence for; it is changes"
-    " needed, and the finding is `move the evidence to CI` (pitboss#288)."
+    " needed, and the finding is `move the evidence to CI`."
 )
 
 

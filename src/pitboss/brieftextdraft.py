@@ -23,7 +23,7 @@ PUSHES = {
 CI_DRAFT_CHECK = (
     "Draft: this PR is a draft, and this repository's lint refuses an approving"
     " review of a head with no completed green `{check}` check run, draft or not,"
-    " and a draft runs that job (keyword: plan-review-check, pitboss#275). Read"
+    " and a draft runs that job. Read"
     " the `{check}` check run of the head SHA above first; if it has not"
     " completed, hand back `NOT STARTED: {check} is <state>` (queued, in"
     " progress, or none) and review nothing. Read the diff and the PR body, and"

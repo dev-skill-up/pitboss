@@ -11,7 +11,7 @@ from .briefmake import pinned
 SENTENCE = (
     "Nox rows: a Plan row never runs `nox`, `pitboss nox` or `uvx ... nox`; give"
     " the CI pointer instead: the workflow, the run of the head, the job, the step"
-    " `Run Nox` and a greppable test name (pitboss#251)."
+    " `Run Nox` and a greppable test name."
 )
 NOX_ROWS = (
     "timeout 598 nox -r -s tests-3.13 -- x",

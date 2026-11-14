@@ -13,7 +13,7 @@ CHECK = "plan-nox"
 SENTENCE = (
     "Nox rows: a Plan row never runs `nox`, `pitboss nox` or `uvx ... nox`; give"
     " the CI pointer instead: the workflow, the run of the head, the job, the step"
-    " `Run Nox` and a greppable test name (pitboss#251)."
+    " `Run Nox` and a greppable test name."
 )
 SEGMENTS = re.compile(r"[;&|()\n`]+")
 # the words that may stand before nox in a row that runs it

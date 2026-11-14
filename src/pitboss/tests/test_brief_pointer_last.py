@@ -10,7 +10,7 @@ from .says import has_none
 
 SENTENCE = (
     "Number the Plan rows with every command row first and the CI-pointer rows"
-    " last; plan-row pairs the Nth Evidence command with row N (pitboss#274)."
+    " last; plan-row pairs the Nth Evidence command with row N."
 )
 
 

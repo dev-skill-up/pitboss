@@ -56,7 +56,7 @@ HOLD_BUG = (
     "A hold that comes from a known pitboss bug with a ticket is not waited out:"
     " push the branch with plain `git push origin <branch>` and cite the ticket in"
     " the hand-back (with no ticket yet, file one first); every other hold is"
-    " kept (pitboss#218)."
+    " kept."
 )
 PUSH_HELD = (
     "Push: push with `uvx pitboss push {config} --no-dry-run` (add `--draft` for a"
@@ -85,7 +85,7 @@ NO_APPEND = (
 SEARCH = (
     "Search: update the docstring next to each piece of code the change alters,"
     " and cut other text that no longer matches it; a change never adds a line"
-    " to a doc, so a doc is cut, not reworded (pitboss#396)."
+    " to a doc, so a doc is cut, not reworded."
 )
 NO_WAITING = "No waiting: never wait for CI. Push, then hand back at once."
 FINISH = "Finish inside the turn. Do not merge. Do not write the review."
@@ -123,7 +123,7 @@ TASK_REVISE_PLAN = (
     " `Head:` line as it is, and hand back the body digest (`pitboss"
     " body-digest`): the head has not moved, so the sweep offers the review of"
     " the Plan again (`older-body`) and the next round is the next round of the"
-    " Plan stage (keyword: plan-revision, pitboss#221)."
+    " Plan stage."
 )
 TASK_FIX_REVIEW = (
     "Task: PR {reference}: fix the findings of {review}, each one, and nothing"
@@ -158,7 +158,7 @@ CI = (
     "CI: first read the checks of the head SHA above; if one has not finished or"
     " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
     " review nothing. Read the complete run of this head. A draft, or a head with"
-    " an unfinished check, is `NOT STARTED`, not a verdict (pitboss#202)."
+    " an unfinished check, is `NOT STARTED`, not a verdict."
 )
 SEPARATE_DRAFT = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
@@ -176,7 +176,7 @@ SEPARATE_DRAFT_DRY = (
 )
 CI_DRAFT = (
     "Draft: this PR is a draft, and a draft runs no CI job (its check is reported"
-    " skipped, never missing; keyword: draft-ci, pitboss#321), so there is no CI"
+    " skipped, never missing), so there is no CI"
     " to read and none to wait for. You read the diff and the PR body only (and"
     " dry-run the Plan's commands); never hand back"
     " `NOT STARTED` for a missing check run of a draft."
@@ -211,7 +211,7 @@ NO_PLAN_FINDING = (
 )
 BODY_DIGEST = (
     "Body: the PR body is part of what you read. This brief read it as it stood"
-    " when the sweep printed it (keyword: review-brief, pitboss#338): add the"
+    " when the sweep printed it: add the"
     " line `Body: {body_digest}` to the comment, beside the `Verdict:` line, as"
     " given. The sweep shows `review=older-body` for a body edited after the"
     " review of an unmoved head, and a review that records the new digest"

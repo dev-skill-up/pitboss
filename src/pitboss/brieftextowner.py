@@ -19,6 +19,6 @@ WORKER_ACTIONS = (
     ' calls and the final report` is reported with its count, never as "it did'
     ' not"; an unexplained action by the shared `moshez` account is ours until'
     " that command shows otherwise, and is never attributed to the owner"
-    " (pitboss#352)."
+    "."
 )
 REMINDERS = (OWNER, WORKER_ACTIONS, *brieftextrules.REMINDERS)

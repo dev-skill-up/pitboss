@@ -55,7 +55,7 @@ REVISE_PLAN = [
     " `Head:` line as it is, and hand back the body digest (`pitboss"
     " body-digest`): the head has not moved, so the sweep offers the review of"
     " the Plan again (`older-body`) and the next round is the next round of the"
-    " Plan stage (keyword: plan-revision, pitboss#221).",
+    " Plan stage.",
 ]
 FIX_REVIEW = [
     "Task: PR o/r#3: fix the findings of the review at https://example.org/c/1,"
