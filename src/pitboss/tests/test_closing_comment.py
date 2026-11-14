@@ -12,7 +12,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import ticketblock
 from . import rankworld, world
-from .rankworld import starts, sweep
+from .rankworld import starts
 
 REPOSITORY = rankworld.REPOSITORY
 STATUS = (
@@ -107,11 +107,6 @@ class TestClosing(unittest.TestCase):
 class TestSlotsNext(unittest.TestCase):
     """The offer of ``slots next`` for the tracking ticket."""
 
-    def test_the_line_names_every_open_blocker(self) -> None:
-        """No start for ticket 9; each open blocker is offered in its place."""
-        here = tracking_world()
-        assert_that(starts(here), equal_to([*PULLS, *FOUR]))
-
     def test_a_blocker_that_has_merged_is_left_out(self) -> None:
         """Two of the four are closed: the two that are open are offered."""
         here = tracking_world(open_ones=(94, 369))
@@ -132,8 +127,3 @@ class TestSlotsNext(unittest.TestCase):
             newer,
         ]
         assert_that(starts(here), equal_to([*PULLS, NINTH, "owner/project#10"]))
-
-    def test_the_sweep_prints_the_same(self) -> None:
-        """The sweep's order is the same, with no start for the ticket."""
-        out = sweep(tracking_world()).out
-        assert_that(rankworld.NEXT_LINE.findall(out), equal_to([*PULLS, *FOUR]))

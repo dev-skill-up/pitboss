@@ -10,7 +10,7 @@ import re
 from typing import Mapping, Sequence
 
 from . import pullrecords
-from .totaljson import text
+from .totaljson import count, text
 
 HOLD_LABEL = pullrecords.HOLD_LABEL
 Held = Mapping[str, Sequence[pullrecords.Hold]]  # each repository's holds
@@ -26,5 +26,5 @@ def parse(issue: Mapping[str, object]) -> pullrecords.Hold:
         Its title (its number when it has none) and its scope.
     """
     scope = re.search(r"scope=(\w+)", text(issue.get("body")))
-    title = text(issue.get("title")) or text(issue.get("number"))
+    title = text(issue.get("title")) or str(count(issue, "number"))
     return pullrecords.Hold(title=title, scope=scope.group(1) if scope else "all")

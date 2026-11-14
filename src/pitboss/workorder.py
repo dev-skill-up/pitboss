@@ -166,16 +166,18 @@ def issue_of(reference: str, ticket: ticketdata.Ticket) -> shapes.Issue:
 def _owner_stated(
     github: ghapi.GitHub, settings: config.Config, label: str
 ) -> Iterator[tuple[str, shapes.Issue]]:
-    # the open tickets the owner ranks by this label, oldest first
+    # the open tickets the owner ranks by this label, oldest first; read only when
+    # the walk reaches the label (``tickets`` is lazy by label), at once, since the
+    # order by age needs each one's creation (keyword: org-search)
     stated = sorted(
         reference
         for reference, named in settings.slots.owner_priorities.items()
         if named == label
     )
-    found = [(each, ticketdata.open_ticket(github, each)) for each in stated]
+    found = concurrently.each(lambda each: ticketdata.open_ticket(github, each), stated)
     opened = [
         (reference, issue_of(reference, ticket))
-        for reference, ticket in found
+        for reference, ticket in zip(stated, found)
         if ticket is not None and not ticket.pull
     ]
     return iter(sorted(opened, key=lambda pair: pair[1].created_at))

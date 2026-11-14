@@ -94,6 +94,22 @@ def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
         return _as_user(github, owner, refused)
 
 
+def listed_slugs(github: ghapi.GitHub, owner: str) -> AbstractSet[str]:
+    """The repositories an owner's list holds (keyword: repo-access).
+
+    Args:
+        github: the API.
+        owner: the user or organisation.
+
+    Returns:
+        Their ``owner/name``; none when the list cannot be read.
+    """
+    try:
+        return frozenset(slug for slug, _ in _listing(github, owner))
+    except subprocess.CalledProcessError:
+        return frozenset()
+
+
 def widened(
     github: ghapi.GitHub, settings: config.Config, left_out: AbstractSet[str]
 ) -> tuple[config.Config, str, AbstractSet[str]]:

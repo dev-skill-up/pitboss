@@ -6,6 +6,7 @@ import pathlib
 from typing import AbstractSet, Callable, Mapping, Sequence
 
 from . import (
+    concurrently,
     config,
     configfile,
     configloads,
@@ -137,6 +138,18 @@ def _unlisted(settings: config.Config, seen: AbstractSet[str]) -> Sequence[str]:
     ]
 
 
+def _not_listed(github: ghapi.GitHub, wanted: Sequence[str]) -> Sequence[str]:
+    # keyword: repo-access: one list of each other owner, not one read a repository
+    # (the owner: "You just don't do O(n) queries"); only what a list does not hold
+    # is read alone, to say why it cannot be read
+    owners = sorted({slug.partition("/")[0] for slug in wanted})
+    lists = concurrently.each(
+        lambda owner: ownerrepos.listed_slugs(github, owner), owners
+    )
+    seen = frozenset().union(*lists)
+    return [slug for slug in wanted if slug not in seen]
+
+
 def readable(
     github: ghapi.GitHub,
     settings: config.Config,
@@ -162,7 +175,7 @@ def readable(
     """
     wide, unlisted, seen = ownerrepos.widened(github, settings, left_out)
     wanted = _unlisted(wide, seen)
-    failures = ghapi.unreadable(github, wanted)
+    failures = ghapi.unreadable(github, _not_listed(github, wanted))
     _say(failures, wide.project.repo.owner, unlisted)
     if wide.project.repo.slug in failures:
         raise SystemExit(f"cannot read {wide.project.repo.slug}")

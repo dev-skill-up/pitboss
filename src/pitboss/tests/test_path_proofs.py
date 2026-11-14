@@ -222,10 +222,11 @@ class TestEdits(unittest.TestCase):
     def test_p8_each_verb_is_matched_applied_and_looked_up(self) -> None:
         """Every verb is one the lookup matches and act applies, and run looks it up."""
         lookup = "found = gateverbs.lookup("
+        unlooked = lookup.replace("(", "_none(")
         seeds = {
             ("actverbs.py", '    "ack": actwrite.ack,\n', ""): "verb ack has nothing",
             ("gateverbs.py", '    ACK = "ack"\n', ""): "act verb ack is no verb",
-            ("actverbs.py", lookup, lookup.replace("(", "_none(")): "does not look",
+            ("actverbs.py", lookup, unlooked): "actverbs.run does not look",
         }
         for (path, old, new), said in seeds.items():
             found = decideproofs.act_agrees(_edited(path, old, new))

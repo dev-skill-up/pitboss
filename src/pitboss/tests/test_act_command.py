@@ -292,7 +292,7 @@ class TestInputs(unittest.TestCase):
             (ctx["check_runs"], ctx["files"], ctx["timeline"]),
             equal_to(([{"name": "check"}], [{"filename": "a"}], [])),
         )
-        assert_that(ctx["blockers"], equal_to({"x/y#4": "closed", "#9": "not read"}))
+        assert_that(ctx["blockers"], equal_to({"x/y#4": "closed", "o/r#9": "not read"}))
         assert_that(list(members(ctx["tickets"])), equal_to(["o/r#1"]))
         assert_that("_error" in members(ctx["statuses"]), equal_to(True))
         assert_that(ctx["authors"], equal_to({"bot", "dependabot[bot]"}))

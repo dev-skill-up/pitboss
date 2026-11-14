@@ -148,16 +148,15 @@ VERBS: Mapping[str, Verb] = {
 }
 
 
-def _not_done(name: str, target: Target, found: gateverbs.Looked) -> str:
-    # the line of what stands instead of a verb (P8)
+def _said(found: gateverbs.Looked) -> str:
+    # what stands instead of a verb (P8)
     match found:
         case answer.NotDone():
-            said = found.line
+            return found.line
         case answer.Decision() | answer.NotEnoughWork():
-            said = render.standing(found)
+            return render.standing(found)
         case None:  # pragma: no cover
-            said = ""
-    return f"{render.NOT_DONE}: {name} {target.name}: {said}"
+            return ""
 
 
 def _stands(verb: gateverbs.Verb, found: gateverbs.Looked, asked: Asked) -> bool:
@@ -191,5 +190,9 @@ def run(act: Act, asked: Asked, table: Mapping[str, Verb]) -> str:
     verb = gateverbs.verb_of(asked.verb)
     found = gateverbs.lookup(act.questions.decided(asked), verb, asked.target.name)
     if _stands(verb, found, asked):
-        return _not_done(asked.verb, asked.target, found)
+        said = _said(found)
+        if verb is gateverbs.ItemVerb.OVERRIDE:
+            stop = asked.options.get("stop", "")[:60]
+            said = f"not an overridable stop of this item's decision: {stop!r}; {said}"
+        return f"{render.NOT_DONE}: {asked.verb} {asked.target.name}: {said}"
     return table[asked.verb](act, asked.target, asked.options)

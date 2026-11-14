@@ -5,7 +5,7 @@ import pathlib
 
 from .. import actcore, actfacts, answer
 from . import fakehub
-from .knownkit import BASE, REPO, Kit, given_of, made, ran, rests_of
+from .knownkit import BASE, REPO, Kit, given_of, ran, rests_of
 
 
 def dispatch(given: Kit, decided: answer.Decided, **options: str) -> str:
@@ -45,7 +45,9 @@ def pushed(
     Returns:
         What it said.
     """
-    world = dataclasses.replace(made(given).act, prepush=lambda: prepush)
+    # the decisions read the pre-push check of the world they are made in
+    rests = dataclasses.replace(rests_of(given_of(given)), said=prepush)
+    world = fakehub.holding(BASE, rests).act
     return push_in(given, world, worktree, actcore.Target(repo=REPO))
 
 

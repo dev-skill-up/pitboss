@@ -11,6 +11,8 @@ session (keyword: one-path).
 
 import argparse
 import ast
+import contextlib
+import io
 import itertools
 import pathlib
 import sys
@@ -159,7 +161,7 @@ def _mapped(
     found, seen = [], set()
     for label, args in command_lines(declared):
         try:
-            given = mode_of(args, PROJECT, _options(args))
+            given = _quietly(mode_of, args)
         except SystemExit as stopped:
             found.append(f"P4: {label} exits {stopped.code} instead of a mode")
             continue
@@ -172,9 +174,15 @@ def _mapped(
 def _parsed(mode_of: mode.ModeOf, args: argparse.Namespace) -> mode.Mode | None:
     # the mode of a command line; None when it has none (``_mapped`` says so)
     try:
-        return mode_of(args, PROJECT, _options(args))
+        return _quietly(mode_of, args)
     except SystemExit:
         return None
+
+
+def _quietly(mode_of: mode.ModeOf, args: argparse.Namespace) -> mode.Mode:
+    # the parse of one command line, what it says of a line it refuses kept back
+    with contextlib.redirect_stderr(io.StringIO()):
+        return mode_of(args, PROJECT, _options(args))
 
 
 def unlisted(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]:

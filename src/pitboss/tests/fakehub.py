@@ -41,10 +41,12 @@ class Rests:
     Attributes:
         controls: the readers and the disarm.
         decided: how the verb's decisions are made.
+        said: what the pre-push check says, its exit status and its output.
     """
 
     controls: Controls
     decided: Deciders
+    said: tuple[int, str] = (0, "lint passed\nok\n")
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -316,7 +318,7 @@ def _act(
         repos=project[1],
         p90=lambda _: 2151,
         run=git_run,
-        prepush=lambda: (0, "lint passed\nok\n"),
+        prepush=lambda: given.said,
         questions=Questions(decided=given.decided(name=_name_of(world), acts=made)),
         controls=given.controls,
     )

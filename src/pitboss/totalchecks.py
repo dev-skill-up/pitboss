@@ -33,7 +33,7 @@ DECLARED: Mapping[str, Mapping[str, str]] = {
         "skipped": "passed",
         "failure": "red",
         "timed_out": "red",
-        "cancelled": "red",
+        "cancelled": "passed",
         "action_required": "red",
         "stale": "red",
     },

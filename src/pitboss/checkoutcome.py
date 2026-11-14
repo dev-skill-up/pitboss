@@ -2,15 +2,15 @@
 
 The one rule, which the parser, the flow, the gate and the reports all take:
 passing is an allowlist. A run is finished when its status is ``completed``, and a
-finished run has failed unless its conclusion is ``success``, ``neutral`` or
-``skipped`` (a cancelled or stale run is red: a run cancelled by a later one is
-not current, ``checkruns.latest``). The head's CI is ``result`` of its current runs.
+finished run has failed unless its conclusion is ``success``, ``neutral``,
+``skipped`` or ``cancelled`` (T445: a run cancelled by concurrency is superseded,
+not red); a stale run is red. The head's CI is ``result`` of its current runs.
 """
 
 import enum
 from typing import Protocol, Sequence
 
-OK_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
+OK_CONCLUSIONS = frozenset({"success", "neutral", "skipped", "cancelled"})
 FINISHED_STATUSES = frozenset({"completed"})
 
 

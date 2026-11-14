@@ -11,9 +11,9 @@ Every dispatch on a mode is a ``match`` that ends in ``assert_never``.
 """
 
 import argparse
-import typing
+import sys
 from dataclasses import dataclass
-from typing import Callable, Mapping, Protocol, Sequence, assert_never
+from typing import Callable, Mapping, Protocol, Sequence, assert_never, get_args
 
 from . import config, gateverbs, modecommand, nextcommand, slotbook
 from .modequestion import LISTED, QUIET, Answers, Question, asking
@@ -215,7 +215,7 @@ Naming = NextItem | SlotsNextItem | Merge | Arm | Undraft | PinsReview
 Dispatching = DispatchAny | DispatchWanted
 Acting = Dispatching | OverrideAct | ActOn
 Mode = Listing | Naming | Acting | Sweep | MechanicalPush | Unasked
-NAMES: Sequence[str] = tuple(each.__name__ for each in typing.get_args(Mode))
+NAMES: Sequence[str] = tuple(each.__name__ for each in get_args(Mode))
 ModeOf = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], Mode]
 
 
@@ -359,7 +359,8 @@ def parse(
         return found(args, project, options)
     words = " ".join(filter(None, [name, action]))
     if words not in modecommand.UNASKED:
-        raise SystemExit(f"{words}: no mode names it (keyword: one-path)")
+        sys.stderr.write(f"{words}: no mode names it, no verb (keyword: one-path)\n")
+        raise SystemExit(2)
     return Unasked(command=modecommand.UNASKED[words])
 
 

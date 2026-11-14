@@ -13,11 +13,13 @@ import re
 from typing import Sequence
 
 # a bare ``#n`` is a ticket of the blocked item's own repository
+ITEM = r"(?:[\w.-]+/[\w.-]+)?#\d+"
 BLOCKER = re.compile(
     r"(?:cannot\s+be\s+worked\s+on\s+until|blocked[\s-]+(?:by|on)|depends\s+on):?\s+"
-    r"(?P<repo>[\w.-]+/[\w.-]+)?#(?P<number>\d+)",
+    rf"(?P<items>{ITEM}(?:(?:\s*,)?\s+(?:and\s+)?{ITEM}|\s*,\s*{ITEM})*)",
     re.IGNORECASE,
 )
+NAMED = re.compile(r"(?P<repo>[\w.-]+/[\w.-]+)?#(?P<number>\d+)")
 
 LOOSE = re.compile(r"\W*blocked\b", re.I)  # a line that starts like a block
 REFERENCE = re.compile(r"(?:[\w.-]+/[\w.-]+)?#\d+")
@@ -34,10 +36,13 @@ def named(text: str, slug: str) -> Sequence[str]:
         slug: the repository of a bare ``#n``, ``owner/name``.
 
     Returns:
-        The references as ``owner/name#number``, in the order of the text.
+        The references as ``owner/name#number``, in the order of the text; a
+        list (``x/y#4 and #9``, ``#3, #4``) names each of its items.
     """
     return [
-        f"{each['repo'] or slug}#{each['number']}" for each in BLOCKER.finditer(text)
+        f"{each['repo'] or slug}#{each['number']}"
+        for listed in BLOCKER.finditer(text)
+        for each in NAMED.finditer(listed["items"])
     ]
 
 

@@ -128,9 +128,9 @@ def new_command(declared: cli_parser.Declared) -> cli_parser.Declared:
         declared: the table the parser is built from.
 
     Returns:
-        The table with ``clean``'s registration under a new name.
+        The table with its first command's registration under a new name.
     """
-    return {**declared, "seeded": declared["clean"]}
+    return {**declared, "seeded": next(iter(declared.values()))}
 
 
 def new_flag(declared: cli_parser.Declared) -> cli_parser.Declared:

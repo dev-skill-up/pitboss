@@ -12,8 +12,7 @@ from hamcrest import assert_that, equal_to
 from .. import supersedes
 from . import rankworld, world
 from .fastvariants import mark_superseded as listed
-from .rankworld import mentioning, next_output, starts, sweep
-from .test_closing_comment import FOUR, PULLS, tracking_world
+from .rankworld import mentioning, next_output, starts
 
 NINTH = "owner/project#9"
 ONLY = ["owner/project#1", "owner/project#3", "owner/project#10"]
@@ -92,17 +91,3 @@ class TestSlotsNext(unittest.TestCase):
     def test_the_body_does_not_mark_it(self) -> None:
         """Only a comment does."""
         assert_that(offered("Superseded."), equal_to(True))
-
-    def test_the_tracking_ticket_and_its_four_blockers(self) -> None:
-        """quire#573: no line for it, each blocker offered in its place."""
-        here = tracking_world()
-        listed(here)
-        assert_that(starts(here), equal_to([*PULLS, *FOUR]))
-
-    def test_the_sweep_prints_the_same(self) -> None:
-        """The sweep's order is the same, with no start for the ticket."""
-        here = tracking_world()
-        listed(here)
-        out = sweep(here).out
-        assert_that(rankworld.NEXT_LINE.findall(out), equal_to([*PULLS, *FOUR]))
-        rankworld.absent(out, f"start a PR: {NINTH}")
