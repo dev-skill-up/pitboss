@@ -52,6 +52,10 @@ def run_logged(
     calllog.logging_run(run, log, ticks())(command)
 
 
+def _one(name: str) -> calllog.Call:
+    return calllog.Call(name=name, kind=name.strip(), seconds=1.0)
+
+
 class TestKind(unittest.TestCase):
     """Alike commands count as one kind."""
 
@@ -140,12 +144,9 @@ class TestLogged(unittest.TestCase):
         """Threads end in any order: two kinds of one count give one line."""
         names = ["gh api issues/timeline", "gh api actions/runs/jobs"]
         for order in (names, names[::-1]):
-            calls = [calllog.Call(name=each, kind=each, seconds=1.0) for each in order]
-            phase = calllog.Phase(seconds=2.0, calls=calls)
-            assert_that(
-                list(calllog.tally(phase)),
-                equal_to(["gh api actions/runs/jobs", "gh api issues/timeline"]),
-            )
+            phase = calllog.Phase(seconds=2.0, calls=list(map(_one, order)))
+            found = list(calllog.tally(phase))
+            assert_that(found, equal_to(sorted(names)))
 
     def test_tally_and_slowest(self) -> None:
         """Kinds are counted, most numerous first, and calls ranked by time."""
