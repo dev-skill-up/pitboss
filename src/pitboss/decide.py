@@ -130,7 +130,7 @@ def _pull_decision(record: world.PullRecord) -> answer.Decision | None:
 
 def _at_step(record: world.PullRecord, step: steps.Next) -> answer.Decision | None:
     loops = step.task is steps.Task.FIX_BLOCKED_BY  # a loop is fixed, not waited on
-    if step.step not in ACTORS or (record.blockers and not loops):
+    if step.step not in ACTORS or (world.blockers_of(record) and not loops):
         return None
     stopped = gate.stops_of(step.step, record.gated) if record.gated else ()
     if stopped:

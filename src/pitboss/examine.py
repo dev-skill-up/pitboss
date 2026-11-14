@@ -57,17 +57,12 @@ class Context:
     closures: world.Closures
 
 
-def _blockers_of(
-    github: ghapi.GitHub,
-    settings: config.Config,
-    facts: pulls.PullFacts,
-    closure: blockedstep.Closure,
+def _waits(
+    github: ghapi.GitHub, settings: config.Config, facts: pulls.PullFacts
 ) -> Sequence[str]:
-    # the open items a pull request waits for: its own Blocked-by lines, and the
-    # blockers of the tickets it fixes (keyword: blocked-pull)
+    # the open items a pull request waits for besides its own Blocked-by lines:
+    # the blockers of the tickets it fixes (keyword: blocked-pull)
     me = pulls.reference(facts)
-    open_ones = [each for each in closure.found if blockedstep.is_open(each)]
-    declared = [each.reference for each in open_ones]
     named = pullnames.names(
         facts.pull.title, facts.pull.body, facts.pull.head.branch, facts.repo
     )
@@ -75,10 +70,7 @@ def _blockers_of(
         each: blockers.pull_waits(github, settings, facts, each)
         for each in sorted(named)
     }
-    found = [
-        *declared,
-        *(b for w in waits.values() if w is not None for b in w.blockers),
-    ]
+    found = [b for w in waits.values() if w is not None for b in w.blockers]
     for ticket in (each for each, w in waits.items() if w is not None):
         refused = blockers.refusal_blockers(github, settings, me, ticket)
         # a ticket the PR works on never blocks it (keyword: plan-refusal)
@@ -119,14 +111,15 @@ def examine_pull(
     read = reading.pull(row)
     facts = flowstep.at_flow(read)  # the flow's step chooses the closures read
     blocked_by = blockedby.read_closure(github, facts)
-    named = _blockers_of(github, reading.settings, facts, blocked_by)
+    waits = _waits(github, reading.settings, facts)
+    blocked = blockedstep.open_named(blocked_by) or waits
     fixing = _fixing(facts)
     return world.PullRecord(
         row=row,
         facts=read,
         blocked_by=blocked_by,
-        shared=_shared(reading, facts, others) if not named else (),
-        blockers=named,
+        shared=_shared(reading, facts, others) if not blocked else (),
+        waits=waits,
         stuck=stuckci.runs_of(github, [facts], reading.now),  # keyword: stuck-ci
         gated=_gated(reading, read, facts, holds),
         failures=failures.read_all(github, facts) if fixing else {},

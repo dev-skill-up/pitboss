@@ -56,7 +56,7 @@ def pull_record(
         facts=_facts(repo, int(number), step),
         blocked_by=blockedstep.Closure(found=[], looped=False),
         shared=[],
-        blockers=[],
+        waits=[],
         stuck=[],
         gated=gated,
         failures={},

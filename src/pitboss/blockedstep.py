@@ -93,6 +93,18 @@ class Closure:
     looped: bool
 
 
+def open_named(closure: Closure) -> Sequence[str]:
+    """The open items a PR's ``Blocked-by:`` lines name (``is_open`` of each).
+
+    Args:
+        closure: what its lines name, as read.
+
+    Returns:
+        Their references, in the order named.
+    """
+    return [each.reference for each in closure.found if is_open(each)]
+
+
 CLOSED = frozenset({State.CLOSED, State.UNREADABLE})
 
 

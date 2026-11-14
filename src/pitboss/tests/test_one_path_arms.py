@@ -50,7 +50,7 @@ def pull_record(stuck: Sequence[stuckwords.Stuck]) -> world.PullRecord:
         facts=flowread.read_of(test_work.facts(3, test_work.NONE), flowread.RUNNING),
         blocked_by=blockedstep.Closure(found=[], looped=False),
         shared=[],
-        blockers=[],
+        waits=[],
         stuck=stuck,
         gated=None,
         failures={},

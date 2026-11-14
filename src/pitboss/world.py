@@ -45,7 +45,9 @@ class PullRecord:
         blocked_by: what its ``Blocked-by:`` lines name, as read (``blockedby``).
         shared: the groups of failed checks it shares with other holders of its
             repository (``sharedred``), read when it is at the fix of its CI.
-        blockers: the open items it names as blockers, which take its place.
+        waits: the open items it waits for besides its ``Blocked-by:`` lines (the
+            blockers of the tickets it fixes, a refusal's, an allowlist's);
+            ``blockers_of`` joins them to the open ones its lines name.
         stuck: each run of its head queued past ``stuckci.MINUTES`` while later
             runs completed, as read (keyword: stuck-ci; ``decide`` says the step).
         gated: what its merge or undraft is gated on, read only at those steps
@@ -58,7 +60,7 @@ class PullRecord:
     facts: pullfacts.PullRead
     blocked_by: blockedstep.Closure
     shared: Sequence[sharedstep.Shared]
-    blockers: Sequence[str]
+    waits: Sequence[str]
     stuck: Sequence[stuckwords.Stuck]
     gated: gatefacts.Gate | None
     failures: Mapping[int, shapes.Failure]
@@ -184,7 +186,11 @@ def blockers_of(record: Record) -> Sequence[str]:
         Its blockers; none for an item that was not read.
     """
     match record:
-        case PullRecord() | TicketRecord():
+        case PullRecord():
+            named = [*blockedstep.open_named(record.blocked_by), *record.waits]
+            me = record.row.reference
+            return [each for each in dict.fromkeys(named) if each != me]
+        case TicketRecord():
             return record.blockers
         case Occupied():
             return ()
