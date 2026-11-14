@@ -136,6 +136,17 @@ class TestLogged(unittest.TestCase):
         found = [first.seconds, len(first.calls), second.seconds, len(second.calls)]
         assert_that(found, equal_to([4.0, 1, 3.0, 0]))
 
+    def test_equal_counts_are_ordered_by_name_whatever_ended_first(self) -> None:
+        """Threads end in any order: two kinds of one count give one line."""
+        names = ["gh api issues/timeline", "gh api actions/runs/jobs"]
+        for order in (names, names[::-1]):
+            calls = [calllog.Call(name=each, kind=each, seconds=1.0) for each in order]
+            phase = calllog.Phase(seconds=2.0, calls=calls)
+            assert_that(
+                list(calllog.tally(phase)),
+                equal_to(["gh api actions/runs/jobs", "gh api issues/timeline"]),
+            )
+
     def test_tally_and_slowest(self) -> None:
         """Kinds are counted, most numerous first, and calls ranked by time."""
         calls = [
