@@ -212,8 +212,5 @@ def hold_lines(action: str, holds: Sequence[Hold]) -> Sequence[str]:
     Returns:
         A line for each hold that covers it.
     """
-    return [
-        f"hold: {each.title} holds {each.scope}"
-        for each in holds
-        if holdparse.covers(each, action)
-    ]
+    held = holdparse.covering(holds, action)
+    return [f"hold: {each.title} holds {each.scope}" for each in held]

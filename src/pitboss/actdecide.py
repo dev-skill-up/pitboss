@@ -53,8 +53,7 @@ def hold_row(read: actfacts.ActRead, held: holdparse.Held) -> Sequence[answer.No
             why=answer.Why.HOLD, line=f"hold: {hold.title} holds {read.verb} in {repo}"
         )
         for repo in read.repos
-        for hold in held.get(repo, ())
-        if holdparse.covers(hold, read.verb)
+        for hold in holdparse.covering(held.get(repo, ()), read.verb)
     ]
 
 

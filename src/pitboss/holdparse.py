@@ -7,7 +7,7 @@ as a hold, which the gate and ``act`` both take (plan 6.1: one parse per fact);
 """
 
 import re
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Iterable, Mapping, Sequence
 
 from . import pullrecords
 from .totaljson import count, text
@@ -61,3 +61,18 @@ def covers(hold: pullrecords.Hold, verb: str) -> bool:
         True when its scope is ``all`` or holds the verb.
     """
     return hold.scope == "all" or verb in HELD.get(hold.scope, ())
+
+
+def covering(
+    holds: Iterable[pullrecords.Hold], verb: str
+) -> Sequence[pullrecords.Hold]:
+    """The holds that hold a verb, in order: what the gate and ``act`` both stop on.
+
+    Args:
+        holds: the holds, as parsed.
+        verb: the act verb, or the gate's action.
+
+    Returns:
+        Each that covers it (``covers``).
+    """
+    return [each for each in holds if covers(each, verb)]
