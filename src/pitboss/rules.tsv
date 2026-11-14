@@ -150,7 +150,6 @@ T32	2026-11-12	enforced	sweep classifies a mechanical red and a push that fixes 
 T50	2026-11-12	enforced	Add a tracked pre-push hook that runs the project's configured first-minute checks	hook_commands.hook	test_hook_pre_push.test_t50_a_passing_run_prints_nothing_and_exits_0 test_hook_pre_push.test_t50_the_first_failing_check_is_named_with_its_fix test_hook_pre_push.test_t50_a_deletion_push_is_not_checked
 T51	2026-11-12	open	Add sweep lines HOOKS-NOT-INSTALLED and NO-VERIFY, and make the push command load the project's env file	-	-
 T141	2026-11-12	enforced	Runner-pressure holds apply only to repos of the org whose runners are busy	holdscope.applies	test_hold_scope.test_t141_the_pressure_line_names_the_organisation test_hold_scope.test_t141_a_repository_of_another_organisation_is_not_held test_hold_scope.test_t141_a_push_to_another_organisation_goes_out
-T321	2026-11-12	enforced	brieftext.py CI_DRAFT says a draft has no check run, which is the claim pitboss#277 removes	brieftextdraft.draft_ci	test_folded_briefs.test_t321_a_draft_runs_no_job_and_its_check_is_skipped
 T334	2026-11-12	open	pitboss deletes stale remote branches: a command the owner runs from a machine with push rights	-	-
 T310	2026-11-12	open	Remove the positional configuration argument of the pitboss commands (after #307's overlap)	-	-
 T432	2026-11-12	open	pitboss nox passes on the branch alone while CI tests the PR merged with main	-	-

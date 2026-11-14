@@ -117,6 +117,15 @@ class TestReviews(unittest.TestCase):
             ["test_a_review_of_a_stage_lists_every_finding_in_the_first_round"],
         )
 
+    def test_a17_a_merge_of_main_is_reviewed_for_the_merge_alone(self) -> None:
+        """The merge-only review brief asks for nothing outside its scope."""
+        each(
+            "test_brief",
+            [
+                "test_a_merge_only_review_asks_for_nothing_outside_its_scope",
+            ],
+        )
+
     def test_a24_an_escalation_carries_how_we_got_here(self) -> None:
         """A card without the section is refused."""
         each("test_how_we_got_here", ["test_a_card_without_it_is_refused"])

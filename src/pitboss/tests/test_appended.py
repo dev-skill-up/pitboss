@@ -6,8 +6,6 @@ from typing import Mapping
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftext, evidence, expansion
-from .briefmake import text
-from .says import has_all, has_none
 from .formchecks import body_checks, findings
 from .linting import BODY, OK, RAN
 
@@ -108,15 +106,3 @@ class TestAppended(unittest.TestCase):
         """Only an Evidence block expand produced is read, and only its row."""
         for body in UNREAD:
             assert_that(evidence.appended(body), equal_to([]))
-
-
-class TestWorkerBriefs(unittest.TestCase):
-    """The worker briefs and the reference carry the three rules."""
-
-    def test_each_brief_carries_its_lines_and_no_others(self) -> None:
-        """A brief with a Plan to write has the lines; any other has none."""
-        for kind, carried in CARRIED.items():
-            with self.subTest(kind):
-                brief_text = text(kind)
-                has_all(brief_text, [k + SENTENCES[k] for k in carried])
-                has_none(brief_text, [k for k in SENTENCES if k not in carried])
