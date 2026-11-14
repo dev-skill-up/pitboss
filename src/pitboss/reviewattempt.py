@@ -1,7 +1,7 @@
 """Whether a text tries to be a review: the one reading of "reviewed" (plan 6.1).
 
-The gate (``totalreview.review_attempts``) and the flow (``reviews.newest``) both
-take the newest attempt as the review that decides, alone (keyword: one-path).
+The gate (``totalreview.review_attempts``), the review writer (``actwrite``) and the
+unreadable-review lines (``unreadableform``) read it here (keyword: one-path).
 """
 
 import re
@@ -13,8 +13,8 @@ LOOSE_GRADE = re.compile(r"\W*(plan|execution)\b\W*:", re.I)
 def is_attempt(body: str) -> bool:
     """Whether a text tries to be a review: the one reading of "reviewed" (plan 6.1).
 
-    The gate and the flow both take the newest attempt as the review that decides,
-    alone (``review_attempts``, ``reviews.newest``).
+    The gate takes the newest attempt as the review that decides, alone
+    (``totalreview.review_attempts``).
 
     Args:
         body: a comment's or a formal review's text.

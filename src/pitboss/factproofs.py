@@ -15,8 +15,7 @@ is a second one:
 * held: a ``Hold`` made, or a hold's scope compared (``holdparse.parse`` and
   ``holdparse.covers``);
 * reviewed: a pattern of a line that starts with ``verdict``, which says whether
-  a text tries to be a review (``reviewattempt.is_attempt``, which the gate and
-  ``reviews.newest`` both read).
+  a text tries to be a review (``reviewattempt.is_attempt``).
 """
 
 import ast
