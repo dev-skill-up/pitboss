@@ -13,7 +13,6 @@ from .. import flow, steps
 from . import fakes, suggestions, world
 from .test_flow import RED, expect, state
 
-LOG = "Failed check log: test: https://github.com/owner/project/runs/8"
 RUNNING = {"id": 9, "name": "test", "status": "in_progress", "conclusion": None}
 
 
@@ -55,19 +54,6 @@ class TestDraftRedCi(unittest.TestCase):
     def test_t464_the_step_is_a_fix(self) -> None:
         """A failed check on a draft's head is fixed, not reviewed."""
         expect(steps.worker(steps.Task.FIX_CI), state(checks=(RED,), draft=True))
-
-    def test_t464_the_offered_step_names_the_check_and_its_job(self) -> None:
-        """The suggestion is a fix of the CI with the failed check's log."""
-        header, lines = suggestions.third(draft_world([world.RED]))
-        assert_that(header, contains_string("fix the CI"))
-        assert_that(LOG in lines, equal_to(True))
-
-    def test_t464_the_brief_is_a_fix_on_the_branch_with_the_check(self) -> None:
-        """Its PITBOSS-SLOT line ends in fix and the brief holds the check."""
-        output = suggestions.next_output(draft_world([world.RED]))
-        slot = "PITBOSS-SLOT: owner/project#3 fix"
-        assert_that(slot in output.splitlines(), equal_to(True))
-        assert_that(output, contains_string("test: https://github.com"))
 
     def test_t464_a_running_check_keeps_the_review(self) -> None:
         """A draft whose check still runs is not fixed."""

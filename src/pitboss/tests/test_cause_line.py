@@ -1,15 +1,14 @@
 """A red check's brief prints its log and the rule on its cause (pitboss#420)."""
 
-import dataclasses
 import unittest
 
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to, starts_with
+from hamcrest import assert_that, equal_to
 
-from .. import brief, causeline, causetext
-from . import blank, suggestions, world
-from .briefmake import make, pinned, text
+from .. import brief, causetext
+from . import suggestions, world
+from .briefmake import pinned, text
 from .says import has_none
 from .test_commands import sweep
 
@@ -20,7 +19,6 @@ SENTENCE = (
     " is to get rid of a flake is refused (a re-run that works around a GitHub"
     " problem, such as a run stuck queued with no jobs, is not)"
 )
-LOG = "Failed check log: test: https://github.com/owner/project/runs/8"
 
 
 def pr_three(check: object) -> world.World:
@@ -57,16 +55,6 @@ class TestCauseLine(unittest.TestCase):
         """The rule's words are the ones the ticket asks for."""
         assert_that(causetext.RULE, equal_to(SENTENCE))
 
-    def test_an_actions_check_names_its_job(self) -> None:
-        """A check of a workflow run is located by the run and the job."""
-        check = dataclasses.replace(
-            blank.CHECK_RUN, id=8, name="test", finished=True, failed=True, run=5
-        )
-        assert_that(
-            causeline.log_location("o/r", check),
-            equal_to("https://github.com/o/r/actions/runs/5/job/8"),
-        )
-
     def test_a_green_check_prints_none_of_it(self) -> None:
         """PR 3, whose check passed, has no FAILED line, RED CAUSE line or rule."""
         lines = [
@@ -88,20 +76,7 @@ class TestCauseBrief(unittest.TestCase):
         for kind in set(brief.Kind) - {brief.Kind.FIX_CI}:
             has_none(text(kind), [SENTENCE, "Failed check log:"])
 
-    def test_the_fix_ci_suggestion_prints_each_failed_checks_log(self) -> None:
-        """A red PR's FIX_CI brief has the log line right after its Task."""
-        header, lines = suggestions.third(pr_three(world.RED))
-        assert_that(header, contains_string("fix the CI"))
-        assert_that(lines[1], starts_with("Task: "))
-        assert_that(lines[2], equal_to(LOG))
-        assert_that(matching(lines, "Failed check"), equal_to([LOG]))
-
     def test_a_brief_with_no_failed_check_has_no_log_line(self) -> None:
         """A PR whose check passed gets a brief with no log line."""
         lines = suggestions.third(pr_three(world.GREEN))[1]
         assert_that(matching(lines, "Failed check"), equal_to([]))
-
-    def test_the_log_is_printed_without_formatting(self) -> None:
-        """A name with braces is printed as it is."""
-        spec = dataclasses.replace(make(brief.Kind.FIX_CI), logs=["a{b}: x/{y}"])
-        assert_that(brief.build(spec), contains_string("Failed check log: a{b}: x/{y}"))

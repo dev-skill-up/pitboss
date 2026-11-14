@@ -127,7 +127,7 @@ TASK_FIX_REVIEW = (
 TASK_FIX_CI = (
     "Task: PR {reference}: CI on the head {head} is red. Fix CI (a red CI is never"
     " a rejection); change only what makes it red. Read the log of each failed"
-    " check first: " + causetext.RULE + ".{logs}"
+    " check first: " + causetext.RULE + "."
 )
 
 TASK_RULING_STEPS = (

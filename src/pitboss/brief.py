@@ -218,8 +218,6 @@ class Spec:
         e2e: whether the PR's diff touches what the e2e suite runs on, so that
             a review reads the run of its head that ran e2e, the dispatched one
             for a draft (keyword: run-e2e, pitboss#199).
-        logs: `<check name>: <url>` of each failed check, for a FIX_CI brief
-            (keyword: red-cause, pitboss#420).
         conflict: the lines of a rule conflict a RULING brief adds (keyword:
             rule-conflicts, quire#1115).
     """
@@ -230,7 +228,6 @@ class Spec:
     rules: Rules
     ready: bool = False
     e2e: bool = False
-    logs: Sequence[str] = ()
     conflict: Sequence[str] = ()
 
 
@@ -247,7 +244,6 @@ def fields(spec: Spec) -> Mapping[str, str]:
         **_about(spec.subject),
         **_named(spec.heads, CHECKOUTS[spec.kind is Kind.NEW_PR]),
         "config": spec.rules.config,
-        "logs": "".join(f"\nFailed check log: {each}" for each in spec.logs),
     }
 
 
