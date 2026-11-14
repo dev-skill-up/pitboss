@@ -106,6 +106,10 @@ def _recorded(hub: fakehub.Made, done: actledger.Done) -> str:
 
 
 OPEN = "/pulls?state=open"
+# the closed pull requests, newest created first, as the p90 reads them
+CLOSED = (
+    "repos/{repo}/pulls?state=closed&sort=created&direction=desc&per_page=100&page=1"
+)
 
 
 def _listed(number: int) -> Mapping[str, object]:
@@ -122,13 +126,8 @@ def _here() -> world.World:
     here.bodies["user"] = {"login": "pitboss-bot"}
     here.bodies["POST repos/owner/project/issues/3/labels"] = []
     here.bodies["POST repos/owner/project/issues/3/comments"] = {"html_url": "u"}
-    here.bodies["name=project"] = {
-        "data": {
-            "repository": {
-                "pullRequests": {"nodes": [{"additions": 3, "deletions": 1}]}
-            }
-        }
-    }
+    here.bodies[CLOSED.format(repo="owner/project")] = [{"number": 3, "merged_at": "x"}]
+    here.bodies["repos/owner/project/pulls/3"].update(additions=3, deletions=1)  # type: ignore[attr-defined]
     return here
 
 
@@ -337,19 +336,18 @@ class TestWiring(unittest.TestCase):
 
         A read GitHub refuses is not taken as 0 (one-path: no read is swallowed).
         """
-        nodes = [{"additions": size, "deletions": 0} for size in range(1, 11)]
-        calls, github = _github(
-            {
-                "name=r": json.dumps(
-                    {"data": {"repository": {"pullRequests": {"nodes": nodes}}}}
-                ),
-                "name=empty": json.dumps(
-                    {"data": {"repository": {"pullRequests": {"nodes": []}}}}
-                ),
-            }
-        )
+        path = CLOSED.format(repo="o/r")
+        answers = {
+            path: json.dumps([{"number": n, "merged_at": "x"} for n in range(1, 11)])
+        }
+        answers[CLOSED.format(repo="o/empty")] = "[]"
+        for size in range(1, 11):
+            answers[f"repos/o/r/pulls/{size}"] = json.dumps(
+                {"additions": size, "deletions": 0}
+            )
+        calls, github = _github(answers)
         found = gateread.limits(github)
         assert_that((found("o/r"), found("o/r"), found("o/empty")), equal_to((9, 9, 0)))
-        assert_that(len(calls), equal_to(2))
+        assert_that(len(calls), equal_to(12))
         with self.assertRaises(subprocess.CalledProcessError):
             found("o/none")
