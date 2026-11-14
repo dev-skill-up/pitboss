@@ -183,6 +183,25 @@ def pages(
     return found
 
 
+def _array(text: str) -> Sequence[object]:
+    # a page of a list; an answer that is no list has no items
+    found = json.loads(text)
+    return found if isinstance(found, list) else []
+
+
+def every(github: GitHub, path: str) -> Sequence[object]:
+    """Read a list to its last page, the pages asked for by number (proxy-paging).
+
+    Args:
+        github: the API.
+        path: the list's path, with or without a query, with no ``per_page``.
+
+    Returns:
+        Every item.
+    """
+    return pages(github, path, _array)
+
+
 def pages_at_once(
     github: GitHub,
     path: str,

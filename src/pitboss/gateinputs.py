@@ -16,7 +16,7 @@ from typing import Callable, Sequence
 
 from . import config, ghapi, pullnames
 from .actport import Pull
-from .totaljson import lines_of, members, records, text
+from .totaljson import members, records, text
 
 Read = Callable[[str], object]
 
@@ -52,13 +52,10 @@ def reader(github: ghapi.GitHub) -> Read:
     """
 
     def read(path: str) -> object:
-        many = path.startswith(ALL)
-        words = (
-            ["--paginate", "--jq", ".[]", path.removeprefix(ALL)] if many else [path]
-        )
         try:
-            out = github.run(["gh", "api", *words]).stdout
-            return lines_of(out) if many else json.loads(out)
+            if path.startswith(ALL):  # pages by number (keyword: proxy-paging)
+                return ghapi.every(github, path.removeprefix(ALL))
+            return json.loads(github.run(["gh", "api", path]).stdout)
         except subprocess.CalledProcessError as error:
             # GitHub's answer (a 404, a 422); a read that failed every try is
             # ``retrying.ReadFailed``, which ends the command (plan 3.2, P11)
@@ -115,7 +112,7 @@ def repo_reads(read: Read, repo: str, number: int, pull: tuple[str, str]) -> Pul
         "required_checks": checks,
         "merge_queue": queue,
         "tickets": _states(read, tickets),
-        "files": read(f"{ALL}repos/{repo}/pulls/{number}/files?per_page=100"),
+        "files": read(f"{ALL}repos/{repo}/pulls/{number}/files"),
         "holds": [],
     }
 
@@ -148,4 +145,4 @@ def timeline(read: Read, repo: str, number: int) -> object:
     Returns:
         Its events, or the record of the failed read.
     """
-    return read(f"{ALL}repos/{repo}/issues/{number}/timeline?per_page=100")
+    return read(f"{ALL}repos/{repo}/issues/{number}/timeline")

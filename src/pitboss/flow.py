@@ -204,7 +204,8 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
     if pr.pull.draft:
         ready = _ready(pr)
         if pr.draft.no_drafts:  # keyword: no-drafts (pitboss#390): never reviewed
-            return ready
+            # a red CI is fixed by the worker before the undraft (draft-red-ci)
+            return ci_gate(pr, review) if _red_besides(pr) else ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
         rejection = rejection_step(pr, review) if review else None
         if _red_besides(pr) and not rejection:  # keyword: draft-red-ci
