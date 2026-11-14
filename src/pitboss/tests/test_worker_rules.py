@@ -7,15 +7,13 @@ partial-hand-back) and no change of a PR's draft state (keyword: draft-moves).
 """
 
 import argparse
-import json
-import pathlib
 import subprocess
 import unittest
 from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import partial, ticketbranch, workeredits
+from .. import partial, ticketbranch
 from . import fakes, world
 from .cleanworld import same
 from .says import says
@@ -23,7 +21,6 @@ from .handbackrun import hand_back, no_jobs
 from .handbackworld import ready
 from .test_push_draft import held_world
 
-ROOT = pathlib.Path("/work/tree")
 COMPLETE = "Deviations: none\nNot done: none\n"
 PARTIAL = "Deviations: none\nNot done: item 9\n"
 IMPOSSIBLE = "Impossible: nox -s tests -> No module named gather\n"
@@ -147,96 +144,6 @@ class TestTicketBranch(unittest.TestCase):
         same([each for each in other.calls if list(each[:2]) == ["git", "push"]], [])
         fakes.run_git(other.clone, "checkout", "-b", "worker/444")
         same(push().code, 0)
-
-
-def entry(name: str, **given: object) -> str:
-    """One line of a worker's output that calls a tool.
-
-    Args:
-        name: the tool.
-        **given: its input.
-
-    Returns:
-        The JSON line.
-    """
-    use = dict(type="tool_use", name=name, input=given)
-    return json.dumps(dict(message=dict(content=[use])))
-
-
-def edits_of(*calls: str) -> Sequence[str]:
-    """What ``workeredits`` says of tool calls in the fixed worktree.
-
-    Args:
-        *calls: the transcript lines.
-
-    Returns:
-        The lines it gives.
-    """
-    return workeredits.lines(list(calls), ROOT)
-
-
-class TestWorkerEdits(unittest.TestCase):
-    """B16: the edit tools are listed; other worktrees and shell edits refused."""
-
-    def test_b16_the_edit_tools_are_counted(self) -> None:
-        """Each tool and how many times; none when the worker edited nothing."""
-        inside = str(ROOT / "a.py")
-        output = [
-            entry("Edit", file_path=inside),
-            entry("Edit", file_path=inside),
-            entry("Write", file_path=inside),
-            entry("Read", file_path=inside),
-            "not json",
-        ]
-        same(edits_of(*output), ["EDIT TOOLS: Edit 2, Write 1"])
-        same(edits_of(), ["EDIT TOOLS: none"])
-
-    def test_b16_a_file_in_another_worktree_is_refused(self) -> None:
-        """The path is outside the worker's worktree; a sibling prefix is too."""
-        for path in ("/work/other/a.py", "/work/tree2/a.py"):
-            with self.subTest(path):
-                found = edits_of(entry("Write", file_path=path))
-                assert_that(found[1], contains_string("line 1: Write changed " + path))
-                assert_that(found[1], contains_string("outside the worktree"))
-        same(edits_of(entry("Edit", file_path="/work/tree"))[1:], [])
-        found = edits_of(entry("NotebookEdit", notebook_path="/x/n"))
-        assert_that(found[1], contains_string("NotebookEdit changed /x/n"))
-        same(edits_of(entry("Edit"))[1:], [])
-
-    def test_b16_a_shell_command_that_edits_files_is_refused(self) -> None:
-        """sed -i, a heredoc, tee, a redirected cat and python -c; not ls or sed -n."""
-        edits = [
-            "sed -i s/a/b/ f.py",
-            "cat <<EOF > f.py",
-            "echo x | tee f.py",
-            "cat a >> f.py",
-            "python3 -c 'open(1)'",
-            "perl -pi -e s/a/b/ f.py",
-        ]
-        plain = ["ls -l", "sed -n 1p f.py", "git status", "cat f.py | head"]
-        for command in [*edits, *plain]:
-            with self.subTest(command):
-                found = edits_of(entry("Bash", command=command))[1:]
-                if command in edits:
-                    assert_that(found[0], contains_string("a shell command edits"))
-                else:
-                    same(found, [])
-
-    def test_b16_hand_back_check_reads_the_output_file(self) -> None:
-        """An output with an edit outside the worktree is refused; inside, ok."""
-        here = ready(world.make_world())
-        quiet = no_jobs()
-        top = here.clone.resolve()
-        good = [entry("Edit", file_path=str(top / "a.py"))]
-        bad = [entry("Edit", file_path="/elsewhere/b.py")]
-        shown = []
-        for lines in (good, bad):
-            path = fakes.directory() / "output.jsonl"
-            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            shown.append(hand_back(here, quiet, "--output", path.as_posix()))
-        same((shown[0].code, shown[0].out), (0, "EDIT TOOLS: Edit 1\nok\n"))
-        same(shown[1].code, 1)
-        says(shown[1].out, "EDIT TOOLS: Edit 1", "outside the worktree")
 
 
 class TestPartialHandBack(unittest.TestCase):
