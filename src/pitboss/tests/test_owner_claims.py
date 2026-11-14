@@ -4,13 +4,11 @@ import json
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
-from .. import brief, brieftextowner, brieftextrules, brieftextwork, report
+from .. import brief
 from . import fakes, world
 from .briefmake import OWNER, pinned
-from .test_evidence_rules import words
-from .test_commands import sweep
 from .test_deviations import WORKERS
 from .says import ended, says
 

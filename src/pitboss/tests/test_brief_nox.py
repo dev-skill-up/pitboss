@@ -7,7 +7,6 @@ from hamcrest import assert_that, equal_to, starts_with
 from .. import brief, nox_commands
 from .briefmake import pinned, text
 from .says import has_none
-from .briefmake import PLAN_REVIEWS
 
 NOX = (
     "Nox: where the checks are nox sessions, run `timeout 598 pitboss nox` before"

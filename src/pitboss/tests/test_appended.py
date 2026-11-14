@@ -10,7 +10,6 @@ from .briefmake import text
 from .says import has_all, has_none
 from .formchecks import body_checks, findings
 from .linting import BODY, OK, RAN
-from .test_evidence_rules import words
 
 SENTENCES = {
     "Try commands: ": (

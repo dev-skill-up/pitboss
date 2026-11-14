@@ -2,10 +2,8 @@
 
 import unittest
 
-from hamcrest import assert_that, equal_to
-
-from .. import brief, brieftextci
-from .briefmake import pinned, text
+from .. import brief
+from .briefmake import text
 from .says import has_none
 
 SENTENCE = (

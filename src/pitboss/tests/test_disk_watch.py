@@ -14,7 +14,6 @@ from .briefmake import pinned, text
 from .says import has_none
 from .suggestions import next_output, parsed
 from .test_brief_nox import WORKERS
-from .briefmake import PLAN_REVIEWS
 
 GIBIBYTE = 2**30
 TOTAL = 100 * GIBIBYTE
