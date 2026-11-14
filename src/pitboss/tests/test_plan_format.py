@@ -165,7 +165,8 @@ class TestFormatBody(unittest.TestCase):
             ran.append(command)
             return linting.OK
 
+        shell("seen")  # the double records a run, so a run would show below
         edited = {**BODY, "summary": "$ touch x"}
         with self.assertRaisesRegex(ValueError, "would run"):
             planformat.make_body(edited, shell, linting.HEAD)
-        assert_that(ran, equal_to([]))
+        assert_that(ran, equal_to(["seen"]))
