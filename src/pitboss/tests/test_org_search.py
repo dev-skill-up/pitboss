@@ -1,6 +1,5 @@
 """The order of work is read by organisation, not repository (keyword: org-search)."""
 
-import dataclasses
 import unittest
 
 from hamcrest import assert_that, equal_to
@@ -10,6 +9,11 @@ from .. import pullsearch
 from . import fakes
 
 QUIRE = config.make_repo("o", "quire")
+
+
+def _no_relock() -> config.Config:
+    # a configuration whose relock prefix names no branch: one search of the PRs
+    return fakes.settings(fakes.directory(), '[relock]\nprefix = ""\n')
 
 
 class TestOrgSearch(unittest.TestCase):
@@ -42,14 +46,33 @@ class TestOrgSearch(unittest.TestCase):
         self,
     ) -> None:
         """No prefix names a relock branch, so the open PRs are one search."""
-        settings = fakes.settings(fakes.directory())
-        lint = dataclasses.replace(settings.lint, relock_prefix="")
+        settings = _no_relock()
         searched = fakes.page(orgsearch.path("owner", "is:pr"))
         bodies: dict[str, object] = {searched: {"items": []}}
         fake = fakes.FakeProcesses(bodies=bodies)
         github = ghapi.GitHub(run=fake, mutate=fake)
-        found = pullsearch.opened(github, dataclasses.replace(settings, lint=lint))
+        found = pullsearch.opened(github, settings)
         assert_that((found.read, len(fake.calls)), equal_to(([], 1)))
+
+    def test_3_1_a_full_page_of_a_search_reads_the_next_when_the_walk_needs_it(
+        self,
+    ) -> None:
+        """Plan 3.1: the second page is read only once the walk passes the first."""
+        settings = _no_relock()
+        path = orgsearch.path("owner", "is:pr")
+        url = "https://api.github.com/repos/owner/project"
+        made = [
+            {"number": n, "created_at": f"2026-01-01T00:{n // 60:02d}:{n % 60:02d}Z"}
+            for n in range(1, 102)
+        ]
+        items = [{**each, "repository_url": url} for each in made]
+        pages = {fakes.page(path, 1): items[:100], fakes.page(path, 2): items[100:]}
+        bodies: dict[str, object] = {
+            each: {"items": rows} for each, rows in pages.items()
+        }
+        found = pullsearch.opened(fakes.github(bodies), settings)
+        walked = [row.number for row in found.pulls]
+        assert_that((walked[-1], len(found.read)), equal_to((101, 101)))
 
     def test_6_1_the_holds_are_one_search_of_the_organisation(self) -> None:
         """A hold of a configured repository is parsed; another repository's is not."""

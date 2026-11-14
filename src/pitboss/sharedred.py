@@ -85,10 +85,9 @@ def closure(
             blockers give it.
 
     Returns:
-        The groups of its repository; none when the PR is at no fix step.
+        The groups of its repository. Its caller reads it only for a PR at the fix
+        of its CI (``examine._shared``, keyword: shared-red).
     """
-    if not at_fix(pull):
-        return []
     red = [each for each in [pull, *others()] if at_fix(each)]
     seen = _of_prs(github, red)
     found = groups([*seen, *_of_main(github, red, seen)])
