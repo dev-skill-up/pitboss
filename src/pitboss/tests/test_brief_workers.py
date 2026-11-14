@@ -143,7 +143,7 @@ class TestWorkerBriefs(unittest.TestCase):
 
     def test_the_first_round_writes_the_body(self) -> None:
         """The PR exists; its body is what is written."""
-        pinned(brief.Kind.FIRST_ROUND, FIRST_ROUND)
+        pinned(brief.Kind.FIRST_ROUND, FIRST_ROUND, branch="fix-branch")
         has_none(text(brief.Kind.FIRST_ROUND), ["Draft:"])
 
     def test_a_plan_revision_changes_only_what_the_findings_name(self) -> None:
