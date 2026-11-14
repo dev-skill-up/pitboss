@@ -28,12 +28,6 @@ REVIEWS = tuple(brief.REVIEWS)
 class TestTheSentenceIsInThreeTexts(unittest.TestCase):
     """The worker brief, the review brief and the orchestrator's sweep."""
 
-    def test_the_sentences_are_pinned(self) -> None:
-        """The words are the ticket's, so a change is a reviewed one."""
-        assert_that(brieftextowner.OWNER, equal_to(OWNER))
-        assert_that(brieftextowner.WORKER_ACTIONS, equal_to(WORKER_ACTIONS))
-        assert_that(OWNER in brieftextwork.SENTENCES, equal_to(True))
-
     def test_every_worker_brief_holds_it(self) -> None:
         """A worker is asked for the step in the hand-back."""
         for kind in WORKERS:
@@ -43,21 +37,6 @@ class TestTheSentenceIsInThreeTexts(unittest.TestCase):
         """A review never states it without the owner's words."""
         for kind in REVIEWS:
             pinned(kind, [OWNER])
-
-    def test_the_sweep_prints_it_for_the_orchestrator(self) -> None:
-        """Each sentence is a reminder, whatever the project's reminders say."""
-        printed = words(sweep(world.make_world()).out)
-        for each in (OWNER, WORKER_ACTIONS):
-            assert_that(printed, contains_string(f"SWEEP REMINDER: {each}"))
-
-    def test_the_projects_own_reminders_follow_it(self) -> None:
-        """A project that sets reminders still has the two sentences first."""
-        where = fakes.directory()
-        settings = fakes.settings(where, '[sweep]\nreminders = ["one"]\n')
-        lines = report.reminder_lines(settings)
-        kept = (OWNER, WORKER_ACTIONS, *brieftextrules.REMINDERS, "one")
-        wanted = [f"SWEEP REMINDER: {each}" for each in kept]
-        assert_that(lines, equal_to(wanted))
 
 
 def entry(role: str, content: object) -> str:

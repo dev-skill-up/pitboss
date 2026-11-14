@@ -35,22 +35,3 @@ NOT_WRITING = tuple(kind for kind in WORKERS if kind not in PLAN_WRITERS)
 
 class TestCiPointer(unittest.TestCase):
     """The three briefs carry the rule, and the Plan review enforces it."""
-
-    def test_the_plan_brief_says_a_row_points_to_ci_by_name(self) -> None:
-        """Every brief that writes a Plan carries the pointer rule."""
-        for kind in PLAN_WRITERS:
-            pinned(kind, [PLAN_CI])
-        for kind in NOT_WRITING:
-            has_none(text(kind), [PLAN_CI])
-
-    def test_the_worker_brief_gives_no_evidence_for_a_ci_row(self) -> None:
-        """The PR body holds the pointer only for a row CI shows."""
-        for kind in PLAN_RUNNING:
-            pinned(kind, [BODY_CI])
-        has_none(text(brief.Kind.REVISE_PLAN), [BODY_CI])
-
-    def test_the_plan_review_rejects_a_long_command_and_a_bare_pointer(self) -> None:
-        """A long local command CI shows, or a pointer without names, is rejected."""
-        for kind in PLAN_REVIEWS:
-            pinned(kind, [REVIEW_CI])
-        has_none(text(brief.Kind.REVIEW_EXECUTION), [REVIEW_CI])

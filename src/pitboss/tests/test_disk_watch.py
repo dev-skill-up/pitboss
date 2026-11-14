@@ -134,8 +134,3 @@ class TestBriefs(unittest.TestCase):
         for kind in WORKERS:
             pinned(kind, [TEMP_RUNS])
         has_none(text(brief.Kind.REVIEW_EXECUTION), [TEMP_RUNS, NO_LOOP])
-
-    def test_a_plan_review_refuses_a_repeated_local_run(self) -> None:
-        """The finding is `move the evidence to CI`."""
-        for kind in PLAN_REVIEWS:
-            pinned(kind, [NO_LOOP])

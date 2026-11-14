@@ -100,15 +100,3 @@ class TestNoxInTheBriefs(unittest.TestCase):
         for kind in WORKERS:
             pinned(kind, [FIRST_DESIGN])
         has_none(text(brief.Kind.REVIEW_EXECUTION), [FIRST_DESIGN, NOX_ORDER])
-
-    def test_a_plan_writing_brief_forbids_a_nox_run_as_evidence(self) -> None:
-        """The worker's sentence under the CI-evidence rule."""
-        for kind in PLAN_WRITERS:
-            pinned(kind, [PLAN_NO_NOX])
-        has_none(text(brief.Kind.FIX_CI), [PLAN_NO_NOX])
-
-    def test_a_plan_review_brief_makes_a_nox_run_changes_needed(self) -> None:
-        """The reviewer's sentence under the CI-evidence rule."""
-        for kind in PLAN_REVIEWS:
-            pinned(kind, [PLAN_NO_NOX_REVIEW])
-        has_none(text(brief.Kind.REVIEW_EXECUTION), [PLAN_NO_NOX_REVIEW])

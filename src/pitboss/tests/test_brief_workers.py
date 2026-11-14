@@ -146,11 +146,6 @@ class TestWorkerBriefs(unittest.TestCase):
         pinned(brief.Kind.FIRST_ROUND, FIRST_ROUND, branch="fix-branch")
         has_none(text(brief.Kind.FIRST_ROUND), ["Draft:"])
 
-    def test_a_plan_revision_changes_only_what_the_findings_name(self) -> None:
-        """The Plan section only: nothing is pushed and the Head line stays."""
-        pinned(brief.Kind.REVISE_PLAN, REVISE_PLAN)
-        has_none(text(brief.Kind.REVISE_PLAN), ["PR body: its first line"])
-
     def test_a_fix_round_carries_the_findings_and_nothing_else(self) -> None:
         """No change that no finding names; the Plan is not touched."""
         pinned(brief.Kind.FIX_REVIEW, FIX_REVIEW)

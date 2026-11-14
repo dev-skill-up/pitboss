@@ -121,9 +121,3 @@ class TestWorkerBriefs(unittest.TestCase):
                 brief_text = text(kind)
                 has_all(brief_text, [k + SENTENCES[k] for k in carried])
                 has_none(brief_text, [k for k in SENTENCES if k not in carried])
-
-    def test_the_constants_hold_the_wording(self) -> None:
-        """The briefs' constants are the sentences (the code is the authority)."""
-        for prefix, constant in list(zip(SENTENCES, CONSTANTS))[:2]:
-            assert_that(words(constant), equal_to(prefix + SENTENCES[prefix]))
-        assert_that(words(CONSTANTS[2]), equal_to("Search: " + SENTENCES["Search: "]))

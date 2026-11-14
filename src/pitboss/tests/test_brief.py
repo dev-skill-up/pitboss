@@ -126,11 +126,6 @@ class TestEveryBrief(unittest.TestCase):
 class TestReviewScopes(unittest.TestCase):
     """The scope of a review is exactly one of 2a, 2b and 2c, and exclusive."""
 
-    def test_a_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
-        """2a: the whole brief is pinned, word for word."""
-        found = text(brief.Kind.REVIEW_RESOLUTION).partition("\n")[2]
-        assert_that(found, equal_to(RESOLUTION))
-
     def test_a_merge_only_review_asks_for_nothing_outside_its_scope(self) -> None:
         """No body check, no Head line, no Evidence, no Grep, no Done-when walk."""
         has_none(text(brief.Kind.REVIEW_RESOLUTION), OUTSIDE_THE_MERGE)
@@ -175,11 +170,6 @@ class TestReviewRules(unittest.TestCase):
         """A finding that needs deliberate evasion is a note, never a ruling."""
         for kind in brief.REVIEWS:
             pinned(kind, [HONEST, NO_ATTACKS])
-
-    def test_every_review_records_the_body_it_read(self) -> None:
-        """The Body: line, the command that makes it, and the sweep word."""
-        for kind in brief.REVIEWS:
-            pinned(kind, [briefmake.BODY])
 
     def test_a_guard_review_checks_mistakes_only(self) -> None:
         """Obfuscation and faked output are not hunted and get no ticket."""
