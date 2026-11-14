@@ -16,6 +16,7 @@ from typing import Callable, Sequence
 
 from . import acthub, actinputs, config, configrepos, dispatchnext, ledger, totalverdict
 from .actcore import Act, Controls, Hub, Owner, Pull, cap_of
+from .gateform import read as read_form
 from .ghapi import GitHub, run_json
 from .running import Run
 from .textparts import split_at
@@ -216,6 +217,7 @@ def act_of(github: GitHub, settings: config.Config, owner: Owner, run: Run) -> A
         prepush=prepush(quiet),
         work=work(hub, settings),
         controls=CONTROLS,
+        form=lambda repo: read_form(github.run, settings, repo).form,
     )
 
 

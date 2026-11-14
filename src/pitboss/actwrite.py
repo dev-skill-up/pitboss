@@ -1,7 +1,8 @@
 """The verbs that write the texts the checker reads (keyword: act-verbs).
 
-``act review`` writes the one review form the verdict reads (``review_text``), so a
-hand-typed ``Plan: ok`` has no way to be written; ``act ticket`` writes the one
+``act review`` writes the one review form the verdict reads (``review_text``), its
+first lines the repository's form, so a hand-typed ``Plan: ok`` has no way to be
+written; ``act ticket`` writes the one
 ticket form the reader takes; ``act pr-create`` and ``act pr-edit`` check the body
 rows first; ``act comment`` carries no review or act line; a comment is edited or
 deleted only when it is pitboss's own evidence. A started ticket (a PR closes it)
@@ -11,7 +12,7 @@ gets nothing added.
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actcore, bodydigest, totalbody, totalreview
+from . import actcore, bodydigest, config, totalbody, totalreview
 from .actcore import (
     disarm_first,
     head_now,
@@ -35,32 +36,51 @@ SCRATCH = ("bats-lang/relock-scratch",)
 
 
 def review_text(
-    pull: JsonMap, grades: Sequence[str], findings: str, tickets: JsonMap
+    pull: JsonMap,
+    grades: Sequence[str],
+    findings: str,
+    tickets: JsonMap,
+    form: config.ReviewForm = config.DEFAULT_REVIEW_FORM,
 ) -> str:
-    """The review ``act review`` writes.
+    """The review ``act review`` writes, first the lines of the repository's form.
 
     Args:
         pull: the PR as read.
-        grades: the Plan, Execution and verdict grades.
+        grades: the Plan, Execution ("" for none: the Plan alone) and verdict grades.
         findings: what the review found.
         tickets: each ticket the body closes, as read.
+        form: the form ``pitboss review-form`` prints for the PR's repository.
 
     Returns:
-        The head, the grades, the verdict and the digests of the body, its Plan and
-        each ticket, then the findings.
+        The form's lines filled, a head and verdict line it lacks, the grades, the
+        digests of the body, its Plan and each ticket, then the findings.
     """
-    body = pull.get("body")
+    body, head = pull.get("body"), actcore.head_of(pull)
+    word = form.approved if grades[2] == GRADES[0] else form.changes_needed
+    top = [
+        line.replace("{sha}", head).replace("{verdict}", word) for line in form.lines
+    ]
+    named = [] if _has(top, totalreview.HEAD_LINE.search) else [f"Reviewed: {head}"]
+    said = (
+        [] if _has(top, totalreview.VERDICT_LINE.match) else [f"Verdict: {grades[2]}"]
+    )
     section = plan_section(body)
     lines = [
-        f"Reviewed: {actcore.head_of(pull)}",
+        *top,
+        *named,
         f"Plan: {grades[0]}",
-        f"Execution: {grades[1]}",
-        f"Verdict: {grades[2]}",
+        *([f"Execution: {grades[1]}"] if grades[1] else []),
+        *said,
         f"Body: {totalreview.digest_of(body)}",
         *([] if section is None else [f"Plan-digest: {bodydigest.digest(section)}"]),
         *totalreview.ticket_lines(tickets),
     ]
     return "\n".join(lines) + f"\n\n{findings}"
+
+
+def _has(lines: Sequence[str], found: Callable[[str], object]) -> bool:
+    # whether the form's lines already name the head (or the verdict)
+    return any(found(each) for each in lines)
 
 
 def _plain(words: str) -> None:
@@ -77,8 +97,8 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     Args:
         act: the verb's world.
         target: the PR.
-        options: ``plan``, ``execution``, ``verdict`` (each approved or changes
-            needed) and ``findings``.
+        options: ``plan``, ``execution`` (none for a review of the Plan alone),
+            ``verdict`` (each approved or changes needed) and ``findings``.
 
     Returns:
         The review's text.
@@ -87,13 +107,13 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
         actcore.Refused: a grade in another form, or findings that carry a grade line.
     """
     grades = [text(options.get(each)) for each in ("plan", "execution", "verdict")]
-    if any(each not in GRADES for each in grades):
+    if not set(grades) <= {*GRADES, ""} or "" in (grades[0], grades[2]):
         raise actcore.Refused("a grade is approved or changes needed")
     findings = actcore.option(options, "findings")
     _plain(findings)
     pull = pull_of(act, target)
     tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
-    words = review_text(pull, grades, findings, tickets)
+    words = review_text(pull, grades, findings, tickets, act.form(target.repo))
     put(act, target, "comment", {"body": words})
     return words
 

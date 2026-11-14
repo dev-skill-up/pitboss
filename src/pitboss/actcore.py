@@ -13,7 +13,7 @@ import dataclasses
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actport, dispatchnext, ticketreader, totalanswer, totaljson
+from . import actport, config, dispatchnext, ticketreader, totalanswer, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
@@ -92,6 +92,7 @@ class Act:
         prepush: the pre-push check (its exit status and output).
         work: the slots, the ledger and the items the order of work reads.
         controls: the gates and readers.
+        form: the form of a repository's reviews (``pitboss review-form``).
     """
 
     hub: Hub
@@ -103,6 +104,7 @@ class Act:
     prepush: Callable[[], tuple[int, str]]
     work: Callable[[], dispatchnext.State]
     controls: Controls
+    form: Callable[[str], config.ReviewForm] = lambda repo: config.DEFAULT_REVIEW_FORM
 
 
 def owner_gate(act: Act) -> None:

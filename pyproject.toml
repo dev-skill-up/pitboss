@@ -57,6 +57,7 @@ pitboss = [
   "claims.tsv",
   "clauses.tsv",
   "standing.tsv",
+  "planformat.schema.json",
   "enumeration/*.tsv",
   "enumeration/*.txt",
 ]
