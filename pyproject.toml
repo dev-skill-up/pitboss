@@ -116,7 +116,3 @@ module = [
     "pitboss.hook_commands",
 ]
 disallow_untyped_decorators = false
-
-# uvx --from . reuses a built environment until a key changes; the source is one
-[tool.uv]
-cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*" }, { git = { commit = true } }]

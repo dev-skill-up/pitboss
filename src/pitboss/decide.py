@@ -252,13 +252,25 @@ def decide_in(grounds: world.Grounds, record: world.Record) -> answer.Decision |
     return None if occupied else decide_item(record)
 
 
+def _judged(
+    grounds: world.Grounds, record: world.Record, forced: Sequence[str]
+) -> answer.Decision | None:
+    # a forced item is decided by its record alone, whatever keeps it (force)
+    alone = decide_item(record)
+    if alone is not None and alone.item in forced:
+        return alone
+    return decide_in(grounds, record)
+
+
 def _decided(
-    grounds: world.Grounds, records: Sequence[world.Record]
+    grounds: world.Grounds,
+    records: Sequence[world.Record],
+    forced: Sequence[str] = (),
 ) -> tuple[Sequence[answer.Decision], Mapping[str, world.Record]]:
     decided: dict[str, answer.Decision] = {}
     held: dict[str, world.Record] = {}
     for each in records:
-        found = decide_in(grounds, each)
+        found = _judged(grounds, each, forced)
         if found is not None:
             decided.setdefault(found.item, found)
             held.setdefault(found.item, each)
@@ -289,7 +301,7 @@ def decide(made: world.World) -> Judgement:
     """
     grounds = made.grounds
     ordered, records = _decided(grounds, made.walk.examined)
-    named, named_records = _decided(grounds, made.named)
+    named, named_records = _decided(grounds, made.named, made.forced)
     free = sum(1 for slot in grounds.book.slots if not slot.agent)
     decided = answer.Decided(
         answer=_answer(made.walk, ordered, free),

@@ -310,7 +310,9 @@ def _swept(walking: _Walking, walked: _Walked) -> None:
 
 
 def _each(
-    walking: _Walking, wave: Sequence[workorder.Candidate]
+    walking: _Walking,
+    wave: Sequence[workorder.Candidate],
+    forced: Sequence[str] = (),
 ) -> Mapping[str, world.Record]:
     # one wave, examined at once (plan 3.1: one wave of workers); the open
     # branches of a ticket's repository are read once a walk (keyword: taken)
@@ -319,7 +321,7 @@ def _each(
             reference=each.reference, pull=isinstance(each, listed.Listed)
         )
         for each in wave
-        if _occupied(walking, each)
+        if each.reference not in forced and _occupied(walking, each)
     }
     read = [each for each in wave if each.reference not in occupied]
     slugs = {
@@ -336,10 +338,13 @@ def _each(
     return {each.reference: {**occupied, **examined}[each.reference] for each in wave}
 
 
-def _named(walking: _Walking, references: Sequence[str]) -> Sequence[world.Record]:
-    # the items read whatever the walk reached, in the order named
+def _named(
+    walking: _Walking, references: Sequence[str], forced: Sequence[str]
+) -> Sequence[world.Record]:
+    # the items read whatever the walk reached, in the order named; a forced one
+    # is read whatever keeps it (keyword: force)
     found = concurrently.each(lambda each: _by_reference(walking, each), references)
-    return list(_each(walking, list(filter(None, found))).values())
+    return list(_each(walking, list(filter(None, found)), forced).values())
 
 
 def read_world(reading: Reading, extent: modequestion.Extent) -> world.World:
@@ -367,8 +372,9 @@ def read_world(reading: Reading, extent: modequestion.Extent) -> world.World:
     return world.World(
         grounds=_grounds(walking),
         walk=walked,
-        named=_named(walking, _asked_for(reading, extent)),
+        named=_named(walking, _asked_for(reading, extent), extent.forced),
         act=reading.acts(),
+        forced=extent.forced,
     )
 
 

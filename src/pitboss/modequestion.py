@@ -19,12 +19,15 @@ class Extent:
         pushing: whether the open pull requests of the branches a ``git push``
             pushes are named too (``push --mechanical``, keyword: mechanical-fix).
         pushed: the arguments of that push, which name its branches.
+        forced: the named items taken whatever keeps them (``slots next
+            --force``, keyword: force).
     """
 
     named: Sequence[str]
     every_pull: bool
     pushing: bool
     pushed: Sequence[str]
+    forced: Sequence[str]
 
 
 def naming(items: Sequence[str]) -> Extent:
@@ -36,10 +39,14 @@ def naming(items: Sequence[str]) -> Extent:
     Returns:
         The extent.
     """
-    return Extent(named=items, every_pull=False, pushing=False, pushed=())
+    return Extent(
+        named=items, every_pull=False, pushing=False, pushed=(), forced=()
+    )
 
 
-EVERY_PULL = Extent(named=(), every_pull=True, pushing=False, pushed=())
+EVERY_PULL = Extent(
+    named=(), every_pull=True, pushing=False, pushed=(), forced=()
+)
 
 
 def pushing(arguments: Sequence[str]) -> Extent:
@@ -51,7 +58,9 @@ def pushing(arguments: Sequence[str]) -> Extent:
     Returns:
         The extent.
     """
-    return Extent(named=(), every_pull=False, pushing=True, pushed=arguments)
+    return Extent(
+        named=(), every_pull=False, pushing=True, pushed=arguments, forced=()
+    )
 
 
 class Answers(enum.Enum):
@@ -95,6 +104,21 @@ def asking(answers: Answers, item: str) -> Question:
     """
     named = naming([item] if item else [])
     return Question(answers=answers, item=item, extent=named)
+
+
+def forcing(item: str) -> Question:
+    """What ``slots next --force <item>`` asks: the item, whatever keeps it.
+
+    Args:
+        item: the item.
+
+    Returns:
+        The question.
+    """
+    named = Extent(
+        named=[item], every_pull=False, pushing=False, pushed=(), forced=[item]
+    )
+    return Question(answers=Answers.ITEM, item=item, extent=named)
 
 
 LISTED = asking(Answers.LIST, "")

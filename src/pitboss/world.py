@@ -168,12 +168,14 @@ class World:
             item the command names, the owner's priorities).
         act: what the act verb the command asks for is decided from
             (``actfacts.NO_ACT`` for any other command).
+        forced: the named items decided whatever keeps them (keyword: force).
     """
 
     grounds: Grounds
     walk: Walk
     named: Sequence[Record]
     act: actfacts.ActRead
+    forced: Sequence[str] = ()
 
 
 def blockers_of(record: Record) -> Sequence[str]:

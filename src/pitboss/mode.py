@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol, Sequence, assert_never, get_args
 
 from . import config, gateverbs, modecommand, nextcommand, slotbook
-from .modequestion import LISTED, QUIET, SWEEPING, Answers, Question, asking, pushes
+from .modequestion import LISTED, QUIET, SWEEPING, Answers, Question, asking, forcing
+from .modequestion import pushes
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -72,9 +73,11 @@ class SlotsNextItem:
 
     Attributes:
         item: the item, ``owner/name#number``.
+        force: take it whatever keeps it (``--force``, keyword: force).
     """
 
     item: str
+    force: bool = False
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -244,7 +247,12 @@ def _slots_next(
     args: argparse.Namespace, project: config.Repo, _: Mapping[str, str]
 ) -> Mode:
     words = list(getattr(args, "words", ()) or ())
-    return _named(SlotsNext, SlotsNextItem, words, project)
+    force = bool(getattr(args, "force", False))
+
+    def named(*, item: str) -> Mode:
+        return SlotsNextItem(item=item, force=force)
+
+    return _named(SlotsNext, named, words, project)
 
 
 def _asking(bare: Callable[[], Mode]) -> ModeOf:
@@ -366,6 +374,8 @@ def question_of(chosen: Mode) -> Question:
     match chosen:
         case Next() | SlotsNext() | FreeCheck() | Tasks() | Free() | Heard() | Watch():
             return LISTED
+        case SlotsNextItem(force=True):
+            return forcing(chosen.item)
         case NextItem() | SlotsNextItem() | Merge() | Arm() | Undraft() | PinsReview():
             return asking(Answers.ITEM, chosen.item)
         case OverrideAct() | ActOn() | DispatchWanted():

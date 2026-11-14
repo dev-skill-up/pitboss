@@ -311,6 +311,13 @@ def _read(found: Context) -> ledger.Ledger:
     add_argument(
         "--done", default=None, help="the agent that handed back, for 'slots free'"
     ),
+    add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="for 'slots next <ticket>': jump the queue: decide and brief the"
+        " ticket whatever keeps it (an open PR on it, a slot, a hold)",
+    ),
     add_argument("--since", default=None, help="report window start (ISO, UTC)"),
     add_argument("--until", default=None, help="report window end (ISO, UTC)"),
     add_argument(
