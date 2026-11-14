@@ -47,8 +47,8 @@ DENIED = (
     " fits."
 )
 LOCAL = (
-    f"Local checks: wrap each in `timeout {LIMIT}`; a 124 is left to CI, never rerun"
-    " with a longer limit. Never leave a command running, and never remove files"
+    f"Local checks: wrap each in `timeout {LIMIT}`; a check that runs out of time"
+    " (`timeout` exits 124) is left to CI, never rerun with a longer limit. Never leave a command running, and never remove files"
     " under /dev (redirecting to /dev/null is fine)."
 )
 HOLD_BUG = (
