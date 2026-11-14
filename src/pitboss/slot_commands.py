@@ -3,7 +3,7 @@
 import argparse
 import functools
 import sys
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping, Sequence, assert_never
 
 from gather.commands import add_argument
 
@@ -365,8 +365,10 @@ def _by_mode(found: Context, action: Action, chosen: mode.Mode) -> None:
             _changing(found, action)
         case mode.Unasked():
             _unasked(found, action)
-        case _:  # pragma: no cover - no action of slots parses to another mode
-            modeextent.foreign("slots", chosen)
+        case _ if isinstance(chosen, modeextent.NotSlots):  # pragma: no cover
+            modeextent.foreign("slots", chosen)  # no action of slots parses to one
+        case _:  # pragma: no cover - the groups hold every mode (mypy)
+            assert_never(chosen)
 
 
 def _unasked(found: Context, action: Action) -> None:

@@ -6,7 +6,7 @@ in no case and no group fails mypy there.
 """
 
 import sys
-from typing import NoReturn
+from typing import NoReturn, assert_never
 
 from . import mode, readextent
 
@@ -55,8 +55,10 @@ def extent_of(chosen: mode.Mode) -> readextent.Extent:
             return readextent.EVERY_PULL
         case mode.MechanicalPush():
             return readextent.pushing(chosen.arguments)
-        case _:
+        case _ if isinstance(chosen, Named):
             return _named(chosen)
+        case _:  # pragma: no cover - the groups hold every mode (mypy)
+            assert_never(chosen)
 
 
 def _named(chosen: Named) -> readextent.Extent:
