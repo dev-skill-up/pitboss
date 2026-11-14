@@ -164,6 +164,9 @@ class Heads:
             body has none.
         ruling: the address of the Opus ruling a round follows or does,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
+        branch: the PR's head branch, empty for a ticket (keyword: branch-naming).
+        plan_approved: whether a review that counts approved the PR's Plan
+            (keyword: plan-digest).
     """
 
     head: str
@@ -173,6 +176,8 @@ class Heads:
     body_digest: str = ""
     plan_digest: str = ""
     ruling: str = ""
+    branch: str = ""
+    plan_approved: bool = False
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -316,6 +321,11 @@ def _push_lines(kind: Kind, project: briefconfig.Brief) -> Sequence[str]:
     return PUSHLESS.get(kind, pushes)
 
 
+def _plan_locked(spec: Spec) -> bool:
+    # keyword: plan-digest: only a Plan a review approved is not to be edited
+    return spec.kind in APPROVED_PLAN_WORKERS and spec.heads.plan_approved
+
+
 def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
     project = spec.rules.project
     new = spec.kind is Kind.NEW_PR
@@ -327,11 +337,11 @@ def _worker(spec: Spec, values: Mapping[str, str]) -> list[str]:
         brieftextwhen.DONE_WHEN,
         *([DRAFTS[project.drafts]] if new else []),
         *_opening(spec),
-        *([text.NO_PLAN_EDIT] if spec.kind in APPROVED_PLAN_WORKERS else []),
+        *([text.NO_PLAN_EDIT] if _plan_locked(spec) else []),
         text.EDIT,
         text.DENIED,
         text.LOCAL,
-        *envrules.lines(values["repo"]),  # keyword: env-check
+        *envrules.lines(values["repo"], spec.heads.branch),  # keyword: env-check
         *brieftextwork.SENTENCES,
         brieftextlint.LINT_TEST,
         brieftextlint.MARKUP_LINES,

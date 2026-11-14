@@ -28,6 +28,10 @@ def of(base: str, pull: pullfacts.PullFacts | None) -> brief.Heads:
         ruling=_ruling(step),
         body_digest=bodydigest.digest(pull.pull.body),
         plan_digest=expansion.section_digest(plandigest.section(pull.pull.body)),
+        branch=pull.pull.head.branch,
+        # the newest review that counts grades the Plan approved, or leaves it as
+        # an earlier one graded it (keyword: plan-digest)
+        plan_approved=found is not None and found.plan_approved is not False,
     )
 
 
