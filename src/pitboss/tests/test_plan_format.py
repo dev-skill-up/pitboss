@@ -1,14 +1,14 @@
 """``pitboss format plan`` writes a Plan section from JSON (keyword: plan-format)."""
 
-import dataclasses
 import json
-import subprocess
 import unittest
 
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import expansion, planformat
 from . import diffrepo, linting, world
+from .says import exits
+from .test_expand_commands import real_world
 
 CI = {"workflow": "pr-main.yml", "job": "tests", "step": "Run Nox", "grep": "test_b"}
 SAMPLE = {
@@ -28,6 +28,18 @@ REFUSED = [
     ([], "(the file): not a JSON object"),
     ("{", "plan.json: Expecting"),
 ]
+
+
+def refused(done: world.Result, field: str) -> None:
+    """Check that a command exited 1, printed nothing and named the fault.
+
+    Args:
+        done: what the command did.
+        field: what its standard error holds.
+    """
+    exits(done, 1)
+    assert_that(done.out, equal_to(""))
+    assert_that(done.err, contains_string(field))
 
 
 def formatted(value: object) -> world.Result:
@@ -72,9 +84,7 @@ class TestFormatPlan(unittest.TestCase):
         """Each field at fault is named; nothing is printed on standard output."""
         for value, field in REFUSED:
             with self.subTest(field):
-                done = formatted(value)
-                assert_that((done.code, done.out), equal_to((1, "")))
-                assert_that(done.err, contains_string(field))
+                refused(formatted(value), field)
 
 
 DIGEST = "0123456789abcdef"
@@ -100,18 +110,6 @@ BODY_REFUSED = [
     ),
     ({**BODY, "plan": {"intro": "$ x", "rows": SAMPLE["rows"]}}, "intro: does not"),
 ]
-
-
-def real_world() -> world.World:
-    """A world whose commands really run.
-
-    Returns:
-        The world.
-    """
-    return dataclasses.replace(
-        world.make_world(),
-        processes=subprocess.run,  # type: ignore[arg-type]
-    )
 
 
 def body_of(case: unittest.TestCase, value: object) -> world.Result:
@@ -148,20 +146,16 @@ class TestFormatBody(unittest.TestCase):
         """Each field at fault is named; nothing is printed on standard output."""
         for value, field in BODY_REFUSED:
             with self.subTest(field):
-                done = body_of(self, value)
-                assert_that((done.code, done.out), equal_to((1, "")))
-                assert_that(done.err, contains_string(field))
+                refused(body_of(self, value), field)
 
     def test_a_file_that_is_no_json_exits_1(self) -> None:
         """The reader's error is named."""
-        done = world.invoke(world.make_world(), "format", "body", "/nonexistent.json")
-        assert_that((done.code, done.out), equal_to((1, "")))
+        done = world.invoke(world.make_world(), "format", "body", "/no.json")
+        refused(done, "no.json")
 
     def test_the_parser_refuses_what_the_schema_lets_through(self) -> None:
         """A second ticket in the summary is a finding and no body is printed."""
-        done = body_of(self, {**BODY, "summary": "Closes #5 too."})
-        assert_that((done.code, done.out), equal_to((1, "")))
-        assert_that(done.err, contains_string("one-ticket"))
+        refused(body_of(self, {**BODY, "summary": "Closes #5 too."}), "one-ticket")
 
     def test_a_field_that_would_run_is_refused_before_anything_runs(self) -> None:
         """A line starting ``$ `` in the summary is not run, even past the schema."""
@@ -171,7 +165,7 @@ class TestFormatBody(unittest.TestCase):
             ran.append(command)
             return linting.OK
 
-        with self.assertRaises(ValueError) as caught:
-            planformat.make_body({**BODY, "summary": "$ touch x"}, shell, linting.HEAD)
-        assert_that(str(caught.exception), contains_string("would run"))
+        edited = {**BODY, "summary": "$ touch x"}
+        with self.assertRaisesRegex(ValueError, "would run"):
+            planformat.make_body(edited, shell, linting.HEAD)
         assert_that(ran, equal_to([]))
