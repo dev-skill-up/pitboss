@@ -115,5 +115,6 @@ module = [
     "pitboss.act_commands",
     "pitboss.envcheck_commands",
     "pitboss.hook_commands",
+    "pitboss.planformat",
 ]
 disallow_untyped_decorators = false

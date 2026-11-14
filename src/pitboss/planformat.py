@@ -119,9 +119,7 @@ def format_section(args: argparse.Namespace) -> None:
     except (OSError, ValueError) as error:
         print(f"{args.file}: {error}", file=sys.stderr)
         raise SystemExit(1)
-    refused = list(refusals(found, schema()))
-    for each in refused:
-        print(f"{args.file}: {each}", file=sys.stderr)
-    if refused:
+    if refused := [f"{args.file}: {each}" for each in refusals(found, schema())]:
+        print(*refused, sep="\n", file=sys.stderr)
         raise SystemExit(1)
     print(section(members(found)), end="")
