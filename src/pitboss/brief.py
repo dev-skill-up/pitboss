@@ -268,7 +268,7 @@ def _named(heads: Heads, where: str) -> Mapping[str, str]:
         "base": heads.base,
         "approved": heads.approved,
         "review": review,
-        "checkout": where.format(base=heads.base),
+        "checkout": where.format(base=heads.base, branch=heads.branch),
         "body_digest": heads.body_digest,
         "plan_digest_line": brieftextwhen.plan_digest_line(heads.plan_digest),
     }

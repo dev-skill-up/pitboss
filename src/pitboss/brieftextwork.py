@@ -72,24 +72,24 @@ DEVIATIONS = (
     " virtualenv, a redirected output file or a research fetch is never a"
     " deviation, and the line is `Deviations: none` beside them; it is part of"
     " the form of the hand-back, and a hand-back without it is NOT STARTED and"
-    " is sent back (pitboss#257, pitboss#345)."
+    " is sent back."
 )
 TEMP_RUNS = (
     "Temp files: a check that runs more than once gets its own `TMPDIR`, removed"
     " right after each run; a run that needs more than 1 GiB is left to CI"
-    " (pitboss#288)."
+    "."
 )
 DEPENDENCY = (
     "Dependency: a ticket that depends on another open ticket is not impossible in"
-    " one PR and is never ground for a split (owner, 2026-11-06): if you hand back"
+    " one PR and is never ground for a split: if you hand back"
     " NOT STARTED for it, name the ticket it waits for; the orchestrator does that"
     " ticket first, and adds a repository the mission needs (add_repo) without"
-    " asking (pitboss#280)."
+    " asking."
 )
 DRAFT_STATE = (
     "Draft state: never change a PR's draft state, in either direction (the"
     " sweep marks a PR ready); if your push shows a state you did not expect, say"
-    " so in your hand-back (pitboss#355)."
+    " so in your hand-back."
 )
 SENTENCES = (
     NOX,

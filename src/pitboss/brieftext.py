@@ -9,11 +9,11 @@ from . import causetext
 from .envrules import LIMIT
 
 WORKTREE = (
-    "Worktree: work in your own `git worktree add` of {repo} {checkout}; never in"
+    "Worktree: work in your own git worktree of {repo}, made {checkout}; never in"
     " the main clone. A task that changes a repository other than the ticket's"
-    " gets a `git worktree add` of that repository, the only place to commit, and"
-    " a shared clone (`main_clone`, the repository-prototype clone) is never"
-    " checked out to another branch."
+    " gets a worktree of that repository, the only place to commit, and a shared"
+    " clone (`main_clone`, the repository-prototype clone) is never checked out to"
+    " another branch."
 )
 DRAFT = (
     "Draft: open the PR as a draft whose body has a Plan section (what you will"
@@ -96,10 +96,13 @@ HAND_BACK = (
     " sessions and their status), and the `Deviations:` line (only a departure"
     " from the Plan's commands or the ticket's Done-when, or `none`); nothing"
     " else. Before you hand back, save it to a file and run `uvx pitboss"
-    " hand-back-check FILE` (keyword: hand-back-done); hand back only on its `ok`."
+    " hand-back-check FILE`; hand back only on its `ok`."
 )
-NEW_PR_CHECKOUT = "from origin/{base} after `git fetch origin {base}`"
-PR_CHECKOUT = "on the PR's branch, current with origin/{base}"
+NEW_PR_CHECKOUT = "with `git fetch origin {base}` then `git worktree add -b <branch> <dir> origin/{base}`"
+PR_CHECKOUT = (
+    "with `git fetch origin {branch}` then `git worktree add <dir> {branch}`; if"
+    " origin/{base} has moved, merge it into the branch (never rebase or force-push)"
+)
 
 TASK_NEW_PR = (
     "Task: do the whole of ticket {reference} in one PR: write the code, then open"
