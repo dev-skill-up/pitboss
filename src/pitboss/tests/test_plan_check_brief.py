@@ -12,7 +12,7 @@ PLAN_CHECK_BRIEF = (
     " `Plan digest:` line is the one you record); without it, or with a row that"
     " it says was NOT RUN (a command that cannot start, that waits on a lock or a"
     " queue, or that exceeds `timeout 598`), the Plan is changes needed and you do"
-    " not approve it."
+    " not approve it (keyword: plan-check, pitboss#192)."
 )
 
 

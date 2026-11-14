@@ -138,7 +138,7 @@ class TestDraftCi(unittest.TestCase):
             text(brief.Kind.REVIEW_PLAN, ready=False),
             [
                 "a draft runs no CI job (its check is reported skipped, never"
-                " missing)",
+                " missing; keyword: draft-ci, pitboss#321)",
                 "never hand back `NOT STARTED` for a missing check run of a draft",
             ],
         )

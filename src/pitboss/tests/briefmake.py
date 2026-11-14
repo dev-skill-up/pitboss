@@ -47,7 +47,7 @@ BODY_DIGEST = "d" * 16
 PLAN_DIGEST = "e" * 16
 BODY = (
     "Body: the PR body is part of what you read. This brief read it as it stood"
-    " when the sweep printed it: add the"
+    " when the sweep printed it (keyword: review-brief, pitboss#338): add the"
     f" line `Body: {BODY_DIGEST}` to the comment, beside the `Verdict:` line, as"
     " given. The sweep shows `review=older-body` for a body edited after the"
     " review of an unmoved head, and a review that records the new digest"
