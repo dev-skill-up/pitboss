@@ -3,7 +3,7 @@
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, empty, equal_to, has_length
+from hamcrest import assert_that, contains_string, empty, equal_to, has_length
 
 from .. import forms, noxrow, plancheck
 
