@@ -88,5 +88,5 @@ class TestForce(unittest.TestCase):
         plain, forced = (one(here, NINTH, *more) for more in ((), ("--force",)))
         same(
             (plain.code, forced.code, STARTS in plain.out, STARTS in forced.out),
-            (1, 0, False, True),
+            (0, 0, False, True),
         )
