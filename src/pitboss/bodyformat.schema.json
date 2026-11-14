@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A PR body, as pitboss format body reads it",
+  "type": "object", "required": ["ticket", "digest", "summary", "plan", "execution"], "additionalProperties": false, "properties": {
+    "ticket": {"type": "string", "pattern": "^#[0-9]+$"},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+    "summary": {"type": "string", "pattern": "^[^\\n$#][^\\n]*$"},
+    "plan": {"type": "object"},
+    "execution": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^[^\\n]+$"}}
+  }
+}

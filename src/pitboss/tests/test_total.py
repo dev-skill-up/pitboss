@@ -30,7 +30,7 @@ SHA256 = {
         "2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc"
     ),
     enumeration.ACTIONS: (
-        "c4f777245a4492773e9774b4acd2391b6d8c938125d1d9ec2442735785c65d82"
+        "f44496cc5b0518262b11f30be4ddae819b2f8b533a8b31364db68b45924f7e3f"
     ),
 }
 
@@ -78,7 +78,7 @@ class TestFrozen(unittest.TestCase):
             len(enumeration.frozen(enumeration.VARIABLES)),
             len(enumeration.frozen(enumeration.ACTIONS)),
         )
-        assert_that(counts, equal_to((188, 322)))
+        assert_that(counts, equal_to((188, 323)))
 
 
 class TestCells(unittest.TestCase):
@@ -136,7 +136,7 @@ class TestCover(unittest.TestCase):
         assert_that(dict(kinds), equal_to({"read": 24, "verb": 12, "unused": 12}))
 
     def test_444_cover_commands_at_0_uncovered(self) -> None:
-        """38 commands: 11 write through a verb, 27 write nothing."""
+        """39 commands: 11 write through a verb, 28 write nothing."""
         names = [
             name
             for name in enumeration.values("pitboss-command")
@@ -146,7 +146,7 @@ class TestCover(unittest.TestCase):
             row.kind for row in coverwrites.commands(SOURCE, names, actverbs.VERBS)
         )
         assert_that(
-            (len(names), dict(kinds)), equal_to((38, {"fires": 11, "benign": 27}))
+            (len(names), dict(kinds)), equal_to((39, {"fires": 11, "benign": 28}))
         )
 
     def test_444_the_registered_commands_are_the_frozen_list_less_mutation_check(
