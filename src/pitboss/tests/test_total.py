@@ -85,14 +85,14 @@ class TestCells(unittest.TestCase):
     """Every value of every variable, for each action, against the GO world."""
 
     def test_444_732_cells_with_0_uncovered(self) -> None:
-        """526 fire on their own row, 206 are benign by a named reason.
+        """523 fire on their own row, 209 are benign by a named reason.
 
         None is uncovered.
         """
         found = totalcells.tally(totalcomplete.base_cells(), _verdict)
         assert_that(
             (len(totalcomplete.base_cells()), dict(found)),
-            equal_to((732, {totalcells.FIRES: 526, totalcells.BENIGN: 206})),
+            equal_to((732, {totalcells.FIRES: 523, totalcells.BENIGN: 209})),
         )
 
     def test_444_every_stop_line_has_a_route(self) -> None:

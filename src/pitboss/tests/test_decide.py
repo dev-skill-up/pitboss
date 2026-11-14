@@ -114,7 +114,7 @@ class TestNotEnoughWork(unittest.TestCase):
         assert_that(found.decided.answer, instance_of(answer.NotEnoughWork))
         assert_that(found.decided.by_item, equal_to({}))
 
-    def test_6_2_a_blocked_ticket_is_skipped_and_a_startable_one_is_work(self) -> None:
+    def test_6_2_b2_a_blocked_ticket_is_skipped_a_startable_one_is_work(self) -> None:
         """One startable p2 ticket after the waiting ones is the work, named."""
         examined: list[world.Record] = [ticket(4, blocked=True), ticket(6)]
         given = answer_of(world.Exhausted(examined=examined))

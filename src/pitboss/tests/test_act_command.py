@@ -185,10 +185,11 @@ class TestCommand(unittest.TestCase):
         for words, said in (
             (("nope", PULL), "no verb"),
             (("label", PULL, "name"), "is not an option"),
-            (("comment-edit", PULL, "id=1", "body=x"), "not a comment pitboss"),
         ):
             done = _act(here, *words)
             errs(done, 2, said)
+        edited = _act(here, "comment-edit", PULL, "id=1", "body=x")
+        outs(edited, 2, "not a comment pitboss")
         outs(_act(here, "merge", PULL), 2, f"NOT DONE: merge {PULL}")
         assert_that(calls_with(here.calls, "-X"), equal_to([]))
 

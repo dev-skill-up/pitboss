@@ -13,13 +13,13 @@ import dataclasses
 import enum
 from typing import Callable, Iterator, Mapping, Sequence
 
-from .. import enumeration, gatepolicy, totalschema
+from .. import checkoutcome, enumeration, gatepolicy, totalschema
 from ..totaljson import JsonMap, members, records
 from . import gatewords, totalworld
 from .totalworld import World
 
 ACTIONS = ("merge", "arm", "undraft")
-SAFE_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
+SAFE_CONCLUSIONS = checkoutcome.OK_CONCLUSIONS  # the one rule (T445)
 MERGES_ON = ("clean", "blocked", "has_hooks", "behind")
 READS = ("check_runs", "statuses", "files", "timeline")
 UNDRAFT = frozenset({"undraft"})
