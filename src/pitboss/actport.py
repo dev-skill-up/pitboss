@@ -164,3 +164,18 @@ def options_of(options: Options, *names: str) -> Sequence[str]:
         Their values, in the order named.
     """
     return [option(options, name) for name in names]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Asked:
+    """The verb a command line asks for, on what, with what.
+
+    Attributes:
+        verb: the verb.
+        target: what it acts on.
+        options: its ``name=value`` options.
+    """
+
+    verb: str
+    target: Target
+    options: Mapping[str, str]

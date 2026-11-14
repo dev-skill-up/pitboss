@@ -8,7 +8,7 @@ the package's code.
 import ast
 import dataclasses
 import pathlib
-from typing import AbstractSet, Iterator, Mapping, Sequence, TypeVar
+from typing import AbstractSet, Iterable, Iterator, Mapping, Sequence, TypeVar
 
 from . import importgraph
 
@@ -17,6 +17,7 @@ PACKAGE = "pitboss"
 PROOFS = frozenset(
     {
         "pitboss.decideproofs",
+        "pitboss.factproofs",
         "pitboss.readproofs",
         "pitboss.pathproofs",
         "pitboss.proofseeds",
@@ -369,3 +370,20 @@ def searched(package: Package) -> Iterator[tuple[str, int, str]]:
         literals = [] if name in PROOFS else texts_of(source.syntax)
         for line, text in literals:
             yield short(name), line, text
+
+
+def assigned(found: Iterable[ast.AST], name: str) -> Sequence[ast.AnnAssign]:
+    """The annotated assignments of one name among some nodes.
+
+    Args:
+        found: the nodes.
+        name: the name assigned (``decisions``).
+
+    Returns:
+        Each, in order.
+    """
+    return [
+        node
+        for node in found
+        if isinstance(node, ast.AnnAssign) and dotted(node.target) == name
+    ]

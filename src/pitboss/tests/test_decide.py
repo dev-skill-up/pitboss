@@ -9,12 +9,14 @@ from typing import Sequence
 
 from hamcrest import assert_that, equal_to, instance_of
 
-from .. import answer, config, decide, holdconfig, listed, shapes, slotbook, steps
-from .. import world
+from .. import actfacts, answer, config, decide, holdconfig, listed, shapes, slotbook
+from .. import steps, world
 from . import fakes
 
 BOOK = slotbook.ledger_of([])
-GROUNDS = world.Grounds(listing=[], book=BOOK, holds=holdconfig.NONE, quiesced=False)
+GROUNDS = world.Grounds(
+    listing=[], book=BOOK, holds=holdconfig.NONE, held={}, quiesced=False
+)
 
 
 def ticket(number: int, **changes: bool) -> world.TicketRecord:
@@ -42,7 +44,7 @@ def ticket(number: int, **changes: bool) -> world.TicketRecord:
         superseded=changes.get("superseded", False),
         blockers=["o/r#99"] if changes.get("blocked", False) else [],
         opens_ready=False,
-        branches=[f"fix-{number}"] if changes.get("taken", False) else [],
+        branch_named={f"o/r#{number}"} if changes.get("taken", False) else set(),
     )
 
 
@@ -81,7 +83,7 @@ def work_of(numbers: Sequence[int]) -> answer.Work:
 def _world(walk: world.Walk) -> world.World:
     book = slotbook.ledger_of([slotbook.empty_slot("s1", "m")])
     grounds = dataclasses.replace(GROUNDS, book=book)
-    return world.World(grounds=grounds, walk=walk, named=[])
+    return world.World(grounds=grounds, walk=walk, named=[], act=actfacts.NO_ACT)
 
 
 def answer_of(walk: world.Walk) -> answer.Answer:
@@ -100,10 +102,10 @@ class TestNotEnoughWork(unittest.TestCase):
     """``NotEnoughWork`` only when every page was read and nothing can start."""
 
     def test_6_2_everything_waiting_is_not_enough_work(self) -> None:
-        """Unread, branch-taken, blocked and superseded items give no decision."""
+        """Occupied, branch-taken, blocked and superseded items give no decision."""
         examined: list[world.Record] = [
-            world.Unread(reference="o/r#1", pull=False),
-            world.Unread(reference="o/r#2", pull=True),
+            world.Occupied(reference="o/r#1", pull=False),
+            world.Occupied(reference="o/r#2", pull=True),
             ticket(3, taken=True),
             ticket(4, blocked=True),
             ticket(5, superseded=True),
@@ -168,7 +170,7 @@ class TestKept(unittest.TestCase):
         ]
         assert_that(found, equal_to([True, True, True, False]))
 
-    def test_3_1_an_unread_item_has_no_decision(self) -> None:
+    def test_3_1_an_occupied_item_has_no_decision(self) -> None:
         """``decide_in`` of an item the walk did not read is nothing."""
-        unread = world.Unread(reference="o/r#1", pull=False)
-        assert_that(decide.decide_in(GROUNDS, unread), equal_to(None))
+        occupied = world.Occupied(reference="o/r#1", pull=False)
+        assert_that(decide.decide_in(GROUNDS, occupied), equal_to(None))

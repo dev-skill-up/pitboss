@@ -4,9 +4,9 @@
 rows ``act`` ran before it merged (``gate``). The PR object, the head's runs and
 its statuses are the fields of the PR's own read (``pulls``), not read again; the
 inputs no field holds are read here once (``gateinputs``): the repository's rules,
-the files, the tickets the body closes, the blockers, the timeline, the holds and
-the Max-lines of the repository. A status GitHub answers (a 404) is kept as the
-answer.
+the files, the tickets the body closes, the blockers, the timeline and the
+Max-lines of the repository; its holds are the world's (``holdissues``). A status
+GitHub answers (a 404) is kept as the answer.
 """
 
 import functools
@@ -14,11 +14,10 @@ import json
 from typing import Callable, Sequence
 
 from . import gatefacts, gateinputs, ghapi, pullobject, pullrecords, pulls
-from . import pullstate, reviews, shapes, workorder, world
+from . import pullstate, reviews, shapes, world
 from .textparts import split_at
 from .totaljson import at, name_at, records
 
-HOLD_LABEL = "pitboss-hold"
 SIZES = (
     "query($owner: String!, $name: String!) { repository(owner: $owner, name: $name)"
     " { pullRequests(last: 100, states: MERGED) { nodes { additions deletions } } } }"
@@ -54,30 +53,6 @@ def limits(github: ghapi.GitHub) -> Callable[[str], int]:
     return functools.cache(lambda repo: _p90(github, repo))
 
 
-def holds_of(read: gateinputs.Read, repo: str) -> object:
-    """The holds of a repository: its open issues labelled ``pitboss-hold``.
-
-    Args:
-        read: reads one path.
-        repo: ``owner/name``.
-
-    Returns:
-        The issues as GitHub answered; ``pullstate`` reads their scope.
-    """
-    return read(gateinputs.ALL + workorder.labelled_path(repo, HOLD_LABEL))
-
-
-def _of_run(check: shapes.CheckRun) -> pullrecords.Run:
-    status, conclusion = check.said
-    return pullrecords.Run(
-        name=check.name,
-        status=status,
-        conclusion=conclusion,
-        number=check.id,
-        started_at=check.started_at,
-    )
-
-
 def _events(sources: reviews.Sources) -> Sequence[pullrecords.Event]:
     # the PR's comments and reviews as the gate's events, oldest first: the
     # PR's own read of them, not its timeline read again
@@ -105,8 +80,7 @@ def _head(pull: pulls.PullRead) -> pullstate.Head:
         pullrecords.Status(context=each.context, state=each.state)
         for each in pull.posted.statuses
     ]
-    runs = [_of_run(each) for each in pull.checks]
-    return runs, statuses, _events(pull.posted.sources)
+    return pull.checks, statuses, _events(pull.posted.sources)
 
 
 def _inputs(
@@ -118,7 +92,6 @@ def _inputs(
     return {
         **gateinputs.repo_reads(read, repo, number, named),
         **gateinputs.said(given, repo),
-        "holds": holds_of(read, repo),
     }
 
 
@@ -136,12 +109,14 @@ def reader(github: ghapi.GitHub) -> world.GateRead:
     identity = functools.cache(lambda: identity_of(github))
     limit = limits(github)
 
-    def gated(pull: pulls.PullRead) -> gatefacts.Gate:
+    def gated(
+        pull: pulls.PullRead, holds: Sequence[pullrecords.Hold]
+    ) -> gatefacts.Gate:
         given = gateinputs.Settings(
             identity=identity(), authors=[identity()], max_lines=limit
         )
         inputs = _inputs(read, given, pull)
-        return pullstate.gate_read(pull.posted.object, inputs, _head(pull))
+        return pullstate.gate_read(pull.posted.object, inputs, _head(pull), holds)
 
     return gated
 

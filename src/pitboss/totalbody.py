@@ -11,12 +11,11 @@ is the typed one ``pullstate`` made (plan 6.1): an absent body is empty.
 import re
 from typing import Sequence
 
+from . import blockedform
 from .plansection import plan_section
 
 MACHINE_PATH = re.compile(r"(?<![\w.>&-])(~|/(tmp|home|root|mnt))/[^\s`'\")|]*")
 HEAD = re.compile(r"(?m)^Head: (\S+)\s*$")
-BLOCKED = re.compile(r"\W*blocked\b", re.I)
-REFERENCE = re.compile(r"(?:[\w.-]+/[\w.-]+)?#\d+")
 RELOCK_FILE = re.compile(
     r"^(\.github/[\w.-]+-version|\.github/workflows/[\w.-]+\.ya?ml|bats\.lock"
     r"|bootstrap/c/.+|(.+/)?package\.json|(.+/)?pnpm-lock\.yaml"
@@ -66,8 +65,7 @@ def body_findings(body: str, head: str) -> Sequence[str]:
         found.append("body: the last `Head:` line names another commit than the head")
     found += [
         f"body: a Blocked line that names no item: {line[:50]!r}"
-        for line in body.splitlines()
-        if BLOCKED.match(line) and not REFERENCE.findall(line)
+        for line in blockedform.unnamed(body)
     ]
     return [*found, *_path_finding(body)]
 

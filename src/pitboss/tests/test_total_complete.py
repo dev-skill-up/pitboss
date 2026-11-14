@@ -9,7 +9,7 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actrules, actverbs, enumeration, gatepolicy
+from .. import actrules, actverbs, enumeration, gatepolicy, ticketreader
 from ..gatestop import Route, Stop
 from ..totaljson import JsonMap
 from . import gatesaid, totalcomplete
@@ -52,8 +52,9 @@ def _loose_review(
     )
 
 
-def _priority_read(body: str | None) -> Sequence[str]:
-    return [*totalcomplete.Forms().items(body), "Priority: p1"]
+def _priority_read(body: str | None) -> ticketreader.Read:
+    found = getattr(totalcomplete.Forms().items(body), "found")
+    return ticketreader.Items(found=[*found, "Priority: p1"])
 
 
 PLANTS = {

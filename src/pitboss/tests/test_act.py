@@ -9,11 +9,13 @@ import unittest
 from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import actcore, answer, render
-from . import fakehub, gatesaid, knownkit
+from . import fakegiven, fakehub, gatesaid, knownkit
 from .knownshipped import GIVEN, refusal
 from .actplay import file_issue, hold_issue, kinds, red, stop_line
 from .knownkit import BASE, HEAD, NUMBER, REPO, act, change, made
 from .totalworld import World
+
+RESTS = knownkit.rests_of(GIVEN.rests)  # the verbs' rests as pitboss ships them
 
 GRADES = {"plan": "approved", "execution": "approved", "verdict": "approved"}
 TICKET = {
@@ -49,9 +51,11 @@ class TestMerge(unittest.TestCase):
     def test_p8_a_pr_no_actor_takes_with_no_work_is_not_enough_work(self) -> None:
         """A closed PR has no decision: with no other work, merge says so."""
         idle = answer.NotEnoughWork()
-        none = dataclasses.replace(fakehub.work(), answer=idle, by_item={})
+        none = dataclasses.replace(fakegiven.work(), answer=idle, by_item={})
         given = knownkit.given_of(GIVEN, none)
-        hub = fakehub.holding(change(pull={"state": "closed"}), given)
+        hub = fakehub.holding(
+            change(pull={"state": "closed"}), knownkit.rests_of(given)
+        )
         said = act(GIVEN, hub, "merge")
         name = f"{REPO}#{NUMBER}"
         wanted = f"{render.NOT_DONE}: merge {name}: {render.NOT_ENOUGH_WORK}"
@@ -80,7 +84,7 @@ class TestMerge(unittest.TestCase):
     def test_c17_ack_hold_holds_every_repository(self) -> None:
         """A hold of all is an issue in each repository; it refuses arm."""
         both = [REPO, "bats-lang/pwa"]
-        hub = fakehub.holding(BASE, GIVEN.rests, actcore.Owner(messages=["m2"]), both)
+        hub = fakehub.holding(BASE, RESTS, actcore.Owner(messages=["m2"]), both)
         options = {"repo": "all", "number": "0", "message": "m2", "scope": "merges"}
         act(GIVEN, hub, "ack", kind="hold", **options)
         held = sorted(
@@ -214,7 +218,7 @@ class TestHolds(unittest.TestCase):
 
     def test_c17_a_hold_of_another_repository_holds_nothing_here(self) -> None:
         """A hold of every scope in another repository leaves this one's merge alone."""
-        hub = fakehub.holding(BASE, GIVEN.rests, None, [REPO, "bats-lang/pwa"])
+        hub = fakehub.holding(BASE, RESTS, None, [REPO, "bats-lang/pwa"])
         file_issue(hub, 902, hold_issue(902, "all"), "bats-lang/pwa")
         act(GIVEN, hub, "merge")
         assert_that(kinds(hub), equal_to(["merge"]))

@@ -12,11 +12,11 @@ state ``pullstate`` made (plan 6.1).
 import re
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from .pullrecords import File, Hold, Run, Status
+from . import checkruns
+from .pullrecords import CheckRead, File, Hold, Status
 from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS
 
 SELF = "pitboss-gate"
-OK_CONCLUSIONS = frozenset({"success", "neutral", "skipped"})
 PENDING_STATES = frozenset({"pending"})
 OK_STATES = frozenset({"success"})
 MERGING = frozenset({"merge"})
@@ -64,37 +64,17 @@ DECLARED: Mapping[str, Mapping[str, str]] = {
 }
 
 
-def current_runs(runs: Sequence[Run]) -> Sequence[Run]:
-    """The newest run of each check name.
-
-    Args:
-        runs: the check runs of the head.
-
-    Returns:
-        One run for each name: a run superseded by a newer one of its name (a
-        cancelled text-lint) is not current.
-    """
-    best: dict[str, Run] = {}
-    for each in runs:
-        kept = best.get(each.name)
-        if kept is None or (each.started_at, each.number) > (
-            kept.started_at,
-            kept.number,
-        ):
-            best[each.name] = each
-    return list(best.values())
-
-
-def _run_lines(runs: Sequence[Run]) -> Sequence[tuple[str, bool]]:
+def _run_lines(runs: Sequence[CheckRead]) -> Sequence[tuple[str, bool]]:
     # each failed check, and each one still running (marked True: merge only)
     found = []
     for each in runs:
         if each.name == SELF:
             continue
-        if each.status != "completed":
-            found.append((f"check {each.name} is {each.status}", True))
-        elif each.conclusion not in OK_CONCLUSIONS:
-            line = f"check {each.name}={each.conclusion}: a failed check"
+        status, conclusion = each.said
+        if not each.finished:
+            found.append((f"check {each.name} is {status}", True))
+        elif each.failed:
+            line = f"check {each.name}={conclusion}: a failed check"
             found.append((line, False))
     return found
 
@@ -116,7 +96,7 @@ def _status_lines(statuses: Sequence[Status]) -> Sequence[tuple[str, bool]]:
 
 def check_stops(
     action: str,
-    runs: Sequence[Run],
+    runs: Sequence[CheckRead],
     statuses: Sequence[Status],
     required: AbstractSet[str],
 ) -> Sequence[tuple[str, bool]]:
@@ -135,7 +115,7 @@ def check_stops(
     """
     if action not in GATED_ACTIONS:
         return []
-    current = current_runs(runs)
+    current = checkruns.latest(runs)
     have = {each.name for each in current} | {each.context for each in statuses}
     missing = [
         (f"check {each}: required and not reported on the head", True)

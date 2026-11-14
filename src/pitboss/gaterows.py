@@ -8,9 +8,9 @@ no line is classified afterwards. The rows read the typed state ``pullstate`` ma
 
 from typing import Protocol, Sequence
 
-from . import totalbody, totalchecks, totalreview
+from . import totalbody, totalchecks
 from .gatestop import Body, Plan, Review, Route, Stop
-from .pullrecords import Event, GateState, Mistyped, Ticket, Unread
+from .pullrecords import Event, GateState, Mistyped, Ticket, Unread, listed
 from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS, PAUSED
 
 CHANGES_REQUESTED = ("changes_requested", "CHANGES_REQUESTED")
@@ -120,18 +120,6 @@ def check_stops(action: str, state: GateState) -> Sequence[Stop]:
     ]
 
 
-def listed[Item](read: Sequence[Item] | Unread | Mistyped) -> Sequence[Item]:
-    """The items of a list read; none when it was not read.
-
-    Args:
-        read: the read.
-
-    Returns:
-        Its items.
-    """
-    return [] if isinstance(read, (Unread, Mistyped)) else read
-
-
 def hold_stops(action: str, state: GateState) -> Sequence[Stop]:
     """The stops of the holds that cover the action.
 
@@ -157,7 +145,7 @@ def review_stops(action: str, state: GateState, policy: Readings) -> Sequence[St
     Returns:
         One stop when the newest review does not approve what the action needs.
     """
-    attempts = totalreview.review_attempts(listed(state.reads.timeline))
+    attempts = state.attempts
     newest = attempts[-1].body if attempts else ""
     body = state.pull.body
     if action in MERGE_ACTIONS:

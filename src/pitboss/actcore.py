@@ -1,19 +1,18 @@
 """``pitboss act``: the one path for every write to GitHub (pitboss#444).
 
-The keyword is act-verbs. A verb reads the state, runs the verdict, writes, and reads
-back; the agent gives only the intent. Every verb that changes GitHub first
-passes the owner gate (an owner message with no disposition refuses it) and the
-hold gate (a hold whose scope covers the verb refuses it). The invariant "armed
+The keyword is act-verbs. A verb's answer is decided in the command's one read
+(``actdecide``: an owner message with no disposition, a hold whose scope covers the
+verb, the fact the verb turns on), and ``actverbs.run`` applies it only when that
+answer is to go; the agent gives only the intent. The invariant "armed
 means GO": a verb that changes an input of the verdict on an armed PR disarms it
 first. GitHub is a port (``Hub``) with one write (``Change``), so the verbs run
 the same against GitHub (``acthub``) and against a test's fake.
 """
 
 import dataclasses
-import re
-from typing import Callable, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import actport, actstands, answer, ticketreader, totaljson
+from . import actport, answer, config, pullnames, pullrecords, ticketreader, totaljson
 from .running import Run
 from .totaljson import JsonMap, name_at, text
 
@@ -21,11 +20,9 @@ Pull = actport.Pull
 Options = actport.Options
 option = actport.option
 options_of = actport.options_of
-HOLD_LABEL = "pitboss-hold"
+HOLD_LABEL = pullrecords.HOLD_LABEL  # the one label of a hold (keyword: hold)
 ACK_LABEL = "pitboss-ack"
 RECORD = "pitboss-act:"
-HELD = actport.HELD
-ENDS_A_HOLD = actport.ENDS_A_HOLD
 DISARMING = frozenset({"all", "merges", "ci"})
 EVERY_REPOSITORY = frozenset({"", "all"})
 QUEUED = "added_to_merge_queue"
@@ -33,13 +30,13 @@ QUEUE_EVENTS = frozenset({QUEUED, "removed_from_merge_queue"})
 
 
 Refused = actport.Refused
-Stood = Sequence[actstands.Stands]  # what stands instead of a write, if anything
 Change = actport.Change
 Hub = actport.Hub
 Target = actport.Target
 
 
 Owner = actport.Owner
+Decisions = Callable[[actport.Asked], answer.Decided]  # the decisions, as asked
 cap_of = actport.cap_of
 
 
@@ -51,24 +48,17 @@ class Controls:
     """What the verbs rest on (each can be given, so a test can take one out).
 
     Attributes:
-        owner_gate: the owner gate.
-        hold_gate: the hold gate.
         disarm: what disarms an armed PR before its inputs change.
         items: the ticket reader.
-        started: which open PRs close a ticket.
+        works_on: the tickets a PR works on, by its title, body and branch (the one
+            parse, ``pullnames.names``).
     """
 
-    owner_gate: Callable[["Act"], Stood] = lambda act: owner_gate(act)
-    hold_gate: Callable[["Act", str, str], Stood] = lambda act, verb, repo: hold_gate(
-        act, verb, repo
-    )
     disarm: Callable[["Act", Target, str], None] = (
         lambda act, target, why: disarm_if_armed(act, target, why)
     )
-    items: ticketreader.Reader = ticketreader.items
-    started: Callable[[Sequence[tuple[int, str | None]], str, int], Sequence[int]] = (
-        ticketreader.started
-    )
+    items: ticketreader.Reader = ticketreader.done_when
+    works_on: Callable[[str, str, str, config.Repo], AbstractSet[str]] = pullnames.names
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -76,12 +66,12 @@ class Questions:
     """What the verbs ask of the decisions, reading the world once.
 
     Attributes:
-        decided: the decisions of the one read of the command line's mode:
-            ``dispatch-next`` looks the head of the order up in them, and merge,
-            arm, undraft and override the item their mode names (keyword: gate, P8).
+        decided: the decisions of the one read of the command line's mode, given
+            the verb asked: every verb looks its answer up in them (keyword: gate,
+            P8).
     """
 
-    decided: Callable[[], answer.Decided]
+    decided: Decisions
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -97,7 +87,7 @@ class Act:
         run: the runner git goes through.
         prepush: the pre-push check (its exit status and output).
         questions: what the verbs ask of the decisions (keyword: one-path).
-        controls: the gates and readers.
+        controls: the readers and the disarm.
     """
 
     hub: Hub
@@ -109,90 +99,6 @@ class Act:
     prepush: Callable[[], tuple[int, str]]
     questions: "Questions"
     controls: Controls
-
-
-def owner_gate(act: Act) -> Stood:
-    """What stands while an owner message has no disposition.
-
-    Args:
-        act: the verb's world.
-
-    Returns:
-        Each such message, in order.
-    """
-    pending = [
-        each for each in act.owner.messages if each not in act.owner.dispositions
-    ]
-    return [
-        actstands.Stands(
-            why=actstands.Why.OWNER_MESSAGE,
-            line=f"owner message {each} has no disposition: `pitboss act ack"
-            f" {each} --kind hold|cap|ruling|none`",
-        )
-        for each in pending
-    ]
-
-
-def holds(act: Act, repo: str) -> Sequence[Pull]:
-    """The holds of a repository.
-
-    Args:
-        act: the verb's world.
-        repo: the repository.
-
-    Returns:
-        Each hold's ``title`` and ``scope``.
-    """
-    found = []
-    for issue in act.hub.issues(repo, HOLD_LABEL):
-        scope = re.search(r"scope=(\w+)", text(issue.get("body")))
-        found.append(
-            {
-                "title": issue.get("title"),
-                "number": issue.get("number"),
-                "scope": scope.group(1) if scope else "all",
-            }
-        )
-    return found
-
-
-def hold_gate(act: Act, verb: str, repo: str) -> Stood:
-    """What stands when a hold covers a verb.
-
-    Args:
-        act: the verb's world.
-        verb: the verb.
-        repo: its repository ("" or "all" for every repository of the project).
-
-    Returns:
-        Each hold that covers it, in order.
-    """
-    if verb in ENDS_A_HOLD:
-        return []
-    return [
-        actstands.Stands(
-            why=actstands.Why.HOLD,
-            line=f"hold: {hold['title']} holds {verb} in {each}",
-        )
-        for each in ([repo] if repo not in EVERY_REPOSITORY else act.repos)
-        for hold in holds(act, each)
-        if hold["scope"] == "all" or verb in HELD.get(text(hold["scope"]), ())
-    ]
-
-
-def gate(act: Act, verb: str, repo: str) -> Stood:
-    """The owner gate, then the hold gate.
-
-    Args:
-        act: the verb's world.
-        verb: the verb.
-        repo: its repository.
-
-    Returns:
-        What stands instead of the verb, the owner gate's first.
-    """
-    stood = act.controls.owner_gate(act)
-    return stood or act.controls.hold_gate(act, verb, repo)
 
 
 def put(

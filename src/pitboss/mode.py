@@ -3,19 +3,20 @@
 ``parse`` maps every parse of the command line onto one ``Mode``: each command,
 action and item form that asks of the decisions has a constructor of its own
 (``next`` is ``Next``, ``next <item>`` is ``NextItem``, ``act merge <item>`` is
-``Merge``, ...), ``push --mechanical`` is ``MechanicalPush``, and every other
-command and action, which asks nothing of the decisions, is ``Other``. Every
-dispatch on a mode is a ``match`` that ends in ``assert_never``.
+``Merge``, ...), ``push --mechanical`` is ``MechanicalPush``, every other act
+verb is ``ActOn`` of its ``gateverbs.Verb``, and every other command and action,
+which asks nothing of the decisions, is ``Unasked`` of its ``modecommand.Command``:
+a new command or verb has no mode until it is named, and ``parse`` exits 2 for it.
+Every dispatch on a mode is a ``match`` that ends in ``assert_never``.
 """
 
 import argparse
-import dataclasses
-import enum
 import typing
 from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol, Sequence, assert_never
 
-from . import config, ledger, nextcommand
+from . import config, gateverbs, modecommand, nextcommand, slotbook
+from .modequestion import LISTED, QUIET, Answers, Question, asking
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -120,11 +121,22 @@ class PinsReview:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class DispatchNext:
-    """The one next piece of work: ``act dispatch-next``.
+class DispatchAny:
+    """The one next piece of work, whatever it is: ``act dispatch-next``.
 
     Attributes:
-        want: the item the caller means, empty for any.
+        options: the other options (``checkout``, ``paths``, ``home``).
+    """
+
+    options: Mapping[str, str]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DispatchWanted:
+    """The one next piece of work, when it is the item meant: ``want=<item>``.
+
+    Attributes:
+        want: the item the caller means.
         options: the other options (``checkout``, ``paths``, ``home``).
     """
 
@@ -170,52 +182,39 @@ class MechanicalPush:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class Other:
-    """A command or action that decides nothing about a step.
+class ActOn:
+    """``act <verb> <target>``: a write its decision says is done or not done.
 
     Attributes:
-        command: the command as typed.
+        verb: the verb (none of merge, arm, undraft, override and dispatch-next,
+            which have modes of their own).
+        target: the target as typed (``owner/name#N``, ``owner/name`` or ``all``).
+        item: the item it names in full, empty when it names a repository or all.
+        options: its ``name=value`` options.
     """
 
-    command: str
-
-
-class Answers(enum.Enum):
-    """What a mode prints of the decisions.
-
-    Attributes:
-        LIST: the answer of what is next, with its tail.
-        ITEM: the decision of the item it names.
-        NOTHING: no answer of its own.
-    """
-
-    LIST = enum.auto()
-    ITEM = enum.auto()
-    NOTHING = enum.auto()
+    verb: gateverbs.OwnVerb
+    target: str
+    item: str
+    options: Mapping[str, str]
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class Question:
-    """What a mode asks of the one read and of the decisions.
+class Unasked:
+    """A command or action that asks nothing of the decisions.
 
     Attributes:
-        answers: what it prints of the decisions.
-        item: the item it names, empty for none.
-        every_pull: whether it reads every open pull request (the sweep).
-        pushing: whether it reads the pull requests of the branches it pushes.
-        pushed: the arguments of that push.
+        command: which one.
     """
 
-    answers: Answers
-    item: str
-    every_pull: bool
-    pushing: bool
-    pushed: Sequence[str]
+    command: modecommand.Command
 
 
 Listing = Next | SlotsNext | FreeCheck | Tasks | Free | Heard | Watch
 Naming = NextItem | SlotsNextItem | Merge | Arm | Undraft | PinsReview
-Mode = Listing | Naming | DispatchNext | Sweep | OverrideAct | MechanicalPush | Other
+Dispatching = DispatchAny | DispatchWanted
+Acting = Dispatching | OverrideAct | ActOn
+Mode = Listing | Naming | Acting | Sweep | MechanicalPush | Unasked
 NAMES: Sequence[str] = tuple(each.__name__ for each in typing.get_args(Mode))
 ModeOf = Callable[[argparse.Namespace, config.Repo, Mapping[str, str]], Mode]
 
@@ -235,7 +234,7 @@ class Named(Protocol):
 
 
 def _item(word: object, project: config.Repo) -> str:
-    return ledger.reference(str(word), project) if word else ""
+    return slotbook.reference(str(word), project) if word else ""
 
 
 def _named(
@@ -269,7 +268,10 @@ def _dispatch_next(
     _: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
 ) -> Mode:
     rest = {key: value for key, value in options.items() if key != "want"}
-    return DispatchNext(want=_item(options.get("want"), project), options=rest)
+    want = _item(options.get("want"), project)
+    return (
+        DispatchWanted(want=want, options=rest) if want else DispatchAny(options=rest)
+    )
 
 
 def _acting(named: Named, field: str) -> ModeOf:
@@ -291,16 +293,27 @@ def _override(
 def _push(args: argparse.Namespace, *_: object) -> Mode:
     # only ``--mechanical`` asks of the decisions (keyword: mechanical-fix)
     if not getattr(args, "mechanical", False):
-        return Other(command="push")
+        return Unasked(command=modecommand.Command.PUSH)
     return MechanicalPush(arguments=list(getattr(args, "git_arguments", ()) or ()))
+
+
+def _verb(verb: gateverbs.OwnVerb) -> ModeOf:
+    # an act verb with no mode of its own
+    def parsed(
+        args: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
+    ) -> Mode:
+        target = str(getattr(args, "target", ""))
+        item = _item(target, project) if "#" in target else ""
+        return ActOn(verb=verb, target=target, item=item, options=options)
+
+    return parsed
 
 
 def _sweep(args: argparse.Namespace, *_: object) -> Mode:
     return Sweep(task_list=str(getattr(args, "task_list", "") or ""))
 
 
-# the commands whose second word is no action
-UNACTIONED = frozenset({"next", "sweep", "pins-review", "push"})
+UNACTIONED = frozenset({"next", "sweep", "pins-review", "push"})  # no action word
 PARSES: Mapping[tuple[str, str], ModeOf] = {
     ("sweep", ""): _sweep,
     ("next", ""): _next,
@@ -317,6 +330,7 @@ PARSES: Mapping[tuple[str, str], ModeOf] = {
     ("act", "override"): _override,
     ("pins-review", ""): _acting(PinsReview, "pull"),
     ("push", ""): _push,
+    **{("act", each.value): _verb(each) for each in gateverbs.ACTED_ON},
 }
 
 
@@ -332,6 +346,9 @@ def parse(
 
     Returns:
         The mode.
+
+    Raises:
+        SystemExit: no mode names the command (exit 2).
     """
     name = str(getattr(args, "__gather_name__", ""))
     action = str(getattr(args, "action", "") or getattr(args, "verb", "") or "")
@@ -340,18 +357,10 @@ def parse(
     found = PARSES.get((name, action))
     if found is not None:
         return found(args, project, options)
-    return Other(command=" ".join(filter(None, [name, action])))
-
-
-def _question(answers: Answers, item: str) -> Question:
-    return Question(
-        answers=answers, item=item, every_pull=False, pushing=False, pushed=()
-    )
-
-
-LISTED = _question(Answers.LIST, "")
-QUIET = _question(Answers.NOTHING, "")
-EVERY = dataclasses.replace(QUIET, every_pull=True)
+    words = " ".join(filter(None, [name, action]))
+    if words not in modecommand.UNASKED:
+        raise SystemExit(f"{words}: no mode names it (keyword: one-path)")
+    return Unasked(command=modecommand.UNASKED[words])
 
 
 def question_of(chosen: Mode) -> Question:
@@ -361,21 +370,19 @@ def question_of(chosen: Mode) -> Question:
         chosen: the mode.
 
     Returns:
-        What it answers, the item it names and what it reads beyond it.
+        What it answers and the item it names.
     """
     match chosen:
         case Next() | SlotsNext() | FreeCheck() | Tasks() | Free() | Heard() | Watch():
             return LISTED
         case NextItem() | SlotsNextItem() | Merge() | Arm() | Undraft() | PinsReview():
-            return _question(Answers.ITEM, chosen.item)
-        case OverrideAct():
-            return _question(Answers.NOTHING, chosen.item)
-        case DispatchNext() | Other():
+            return asking(Answers.ITEM, chosen.item)
+        case OverrideAct() | ActOn():
+            return asking(Answers.NOTHING, chosen.item)
+        case DispatchWanted():
+            return asking(Answers.NOTHING, chosen.want)
+        case DispatchAny() | Unasked() | Sweep() | MechanicalPush():
             return QUIET
-        case Sweep():
-            return EVERY
-        case MechanicalPush():
-            return dataclasses.replace(QUIET, pushing=True, pushed=chosen.arguments)
         case _:  # pragma: no cover
             assert_never(chosen)
 
@@ -387,6 +394,6 @@ def item_of(chosen: Mode) -> str:
         chosen: the mode.
 
     Returns:
-        The item of an item form or an override, empty for any other.
+        The item it names, empty for none.
     """
     return question_of(chosen).item

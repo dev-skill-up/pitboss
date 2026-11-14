@@ -30,6 +30,22 @@ OPTIONS: Mapping[str, Mapping[str, str]] = {"act": {"want": ITEM}}
 # the counts of words that make an argument a list
 MANY = (argparse.ZERO_OR_MORE, argparse.ONE_OR_MORE)
 LEFT_OUT = (argparse.ZERO_OR_MORE, argparse.OPTIONAL)  # what a command line may omit
+# the optional arguments of the commands that ask of the decisions that change
+# nothing they ask (how it is printed, where the configuration is, the time): a new
+# one is listed here or read by ``mode.parse`` (keyword: one-path)
+ASKS_NOTHING: Mapping[str, AbstractSet[str]] = {
+    "act": frozenset({"words", "config_option", "now", "no_dry_run"}),
+    "next": frozenset({"config", "config_option", "now", "running"}),
+    "pins-review": frozenset({"config", "now", "no_dry_run"}),
+    "slots": frozenset(
+        {
+            *("config", "config_option", "now", "running", "words", "kind"),
+            *("rearmed", "done", "since", "until", "interval", "rounds"),
+            "process_start",
+        }
+    ),
+    "sweep": frozenset({"config", "config_option", "now", "running"}),
+}
 
 
 @runtime_checkable
@@ -91,7 +107,7 @@ def _required(action: argparse.Action) -> bool:
 
 def _lines(
     name: str, arguments: Sequence[argparse.Action]
-) -> Iterator[tuple[str, argparse.Namespace]]:
+) -> Iterator[tuple[str, argparse.Namespace, str]]:
     required = [each for each in arguments if _required(each)]
     optional = [each for each in arguments if not _required(each)]
     for chosen in itertools.product(*(_values(each) for each in required)):
@@ -101,8 +117,18 @@ def _lines(
             **{each.dest: value for each, value in zip(required, chosen)},
         }
         label = " ".join([name, *(str(each) for each in chosen)])
-        yield label, argparse.Namespace(**base)
-        yield from _varied(label, base, optional)
+        yield label, argparse.Namespace(**base), ""
+        for each in optional:
+            for varied, args in _varied(label, base, [each]):
+                yield varied, args, each.dest
+
+
+def _all_lines(
+    declared: cli_parser.Declared,
+) -> Iterator[tuple[str, argparse.Namespace, str]]:
+    # each command line, with the optional argument it varies ("" for none)
+    for name, registered in sorted(unique(declared).items()):
+        yield from _lines(name, _arguments(name, registered))
 
 
 def command_lines(
@@ -116,8 +142,8 @@ def command_lines(
     Yields:
         A label and the parsed arguments.
     """
-    for name, registered in sorted(unique(declared).items()):
-        yield from _lines(name, _arguments(name, registered))
+    for label, args, _ in _all_lines(declared):
+        yield label, args
 
 
 def _options(args: argparse.Namespace) -> Mapping[str, str]:
@@ -143,6 +169,41 @@ def _mapped(
     return found, seen
 
 
+def _parsed(mode_of: mode.ModeOf, args: argparse.Namespace) -> mode.Mode | None:
+    # the mode of a command line; None when it has none (``_mapped`` says so)
+    try:
+        return mode_of(args, PROJECT, _options(args))
+    except SystemExit:
+        return None
+
+
+def unlisted(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]:
+    """Each optional argument of a command that asks that changes nothing it asks.
+
+    An argument a command that asks of the decisions takes either changes its mode
+    or is listed in ``ASKS_NOTHING``, so a new flag is a choice, never a default.
+
+    Args:
+        mode_of: ``mode.parse``, or a stand-in.
+        declared: the table the parser is built from.
+
+    Returns:
+        One finding for each argument that is neither.
+    """
+    found: dict[str, None] = {}
+    base: mode.Mode | None = None
+    for label, args, dest in _all_lines(declared):
+        given = _parsed(mode_of, args)
+        if not dest:
+            base = given
+            continue
+        name = label.split()[0]
+        asks = base is not None and type(base) is not mode.Unasked
+        if asks and given == base and dest not in ASKS_NOTHING.get(name, ()):
+            found[f"P4: {name} {dest} changes no mode, not in ASKS_NOTHING"] = None
+    return list(found)
+
+
 def images(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]:
     """Map every command line through ``mode_of``.
 
@@ -152,12 +213,13 @@ def images(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]
 
     Returns:
         The findings: a command line with no mode, a constructor with no command
-        line.
+        line, an argument of a command that asks that changes nothing it asks.
     """
     found, seen = _mapped(mode_of, declared)
     return [
         *found,
         *(f"P4: no command line is {each}" for each in mode.NAMES if each not in seen),
+        *unlisted(mode_of, declared),
     ]
 
 

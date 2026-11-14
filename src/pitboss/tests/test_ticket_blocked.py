@@ -17,7 +17,7 @@ from hamcrest import (
     has_length,
 )
 
-from .. import brief, ticketblock
+from .. import blockedform, brief
 from . import briefmake, decisionline, fakes, liveagents, quietworld, rankworld, world
 from .test_commands import sweep
 from .test_holds import START_LINE
@@ -81,7 +81,7 @@ class TestSentence(unittest.TestCase):
         for text, expected in cases.items():
             with self.subTest(text):
                 assert_that(
-                    list(ticketblock.named(text, REPOSITORY)), equal_to(expected)
+                    list(blockedform.named(text, REPOSITORY.slug)), equal_to(expected)
                 )
 
 
@@ -204,14 +204,16 @@ class TestForm(unittest.TestCase):
         }
         for text, expected in cases.items():
             with self.subTest(text):
-                found = ticketblock.named(text, REPOSITORY)
+                found = blockedform.named(text, REPOSITORY.slug)
                 assert_that(list(found), equal_to(expected))
 
     def test_other_words_name_nothing(self) -> None:
         """The nearest texts that are not the sentence."""
         for text in ("independent of #3", "depend on #3", "depends upon #3"):
             with self.subTest(text):
-                assert_that(list(ticketblock.named(text, REPOSITORY)), equal_to([]))
+                assert_that(
+                    list(blockedform.named(text, REPOSITORY.slug)), equal_to([])
+                )
 
 
 class TestOrder(unittest.TestCase):

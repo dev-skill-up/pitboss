@@ -9,6 +9,8 @@ import dataclasses
 import enum
 from typing import Mapping, Sequence
 
+NOT_DONE = "NOT DONE"  # a verb whose decision is another prints the one that stands
+
 
 class Actor(enum.Enum):
     """Who acts; the name is the word printed.
@@ -93,10 +95,61 @@ class Decided:
     Attributes:
         answer: what is next.
         by_item: the decision of each examined item that has one.
+        acting: what stands instead of the ``act`` verb the world was read for;
+            None when nothing does (and for any other command).
     """
 
     answer: Answer
     by_item: Mapping[str, Decision]
+    acting: "Acting"
 
 
 Standing = Decision | NotEnoughWork  # the decision that stands: the head, or none
+
+
+class Why(enum.Enum):
+    """Which state of GitHub, the owner or the checkout stands instead of a write.
+
+    Attributes:
+        OWNER_MESSAGE: an owner message has no disposition.
+        HOLD: a hold covers the verb.
+        OVER_P90: the ticket's Max-lines is over the repository's p90, with no ruling.
+        STARTED: a PR closes the ticket, so a worker started it.
+        NOT_OURS: the comment is not one ``pitboss act`` posted.
+        TICKET_FORM: the ticket body is not in the form the ticket reader takes.
+        DEFAULT_BRANCH: the branch to push to is a default branch.
+        EMPTY_COMMIT: the head commit changes nothing (a body is ``act pr-edit``).
+        OTHER_BRANCH: the worktree is not on the branch dispatch assigned.
+        PRE_PUSH: the pre-push check did not say ok.
+        KEPT_CHANGES: a worktree has changes not committed, so it is kept.
+        KEPT_UNPUSHED: a worktree has a commit on no remote branch, so it is kept.
+    """
+
+    OWNER_MESSAGE = enum.auto()
+    HOLD = enum.auto()
+    OVER_P90 = enum.auto()
+    STARTED = enum.auto()
+    NOT_OURS = enum.auto()
+    TICKET_FORM = enum.auto()
+    DEFAULT_BRANCH = enum.auto()
+    EMPTY_COMMIT = enum.auto()
+    OTHER_BRANCH = enum.auto()
+    PRE_PUSH = enum.auto()
+    KEPT_CHANGES = enum.auto()
+    KEPT_UNPUSHED = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class NotDone:
+    """The verb is not done: what stands instead of it.
+
+    Attributes:
+        why: which state stands.
+        line: what it is, in one line.
+    """
+
+    why: Why
+    line: str
+
+
+Acting = NotDone | None  # the decision on an act verb: None when nothing stands

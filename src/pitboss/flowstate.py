@@ -9,6 +9,7 @@ import dataclasses
 from typing import AbstractSet, Sequence
 
 from . import (
+    checkoutcome,
     draftfacts,
     expansion,
     plandigest,
@@ -301,7 +302,7 @@ def draft_plan_review(pr: PullState, step: steps.Next) -> steps.Move:
     """
     name = pr.draft.plan_review_check
     due = step.step is steps.Step.REGULAR_REVIEW and name
-    if due and not draftfacts.completed(pr.checks, name):
+    if due and not checkoutcome.any_finished(draftfacts.of_name(pr.checks, name)):
         return steps.IDLE
     return step
 

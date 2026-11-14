@@ -9,19 +9,19 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, none
 
-from .. import answer, blockedstep, config, decide, gateverbs, listed
-from .. import mode, nextcommand, onepath, pullnames, pushdraft, refill, render
-from .. import slotbook, slotsheader, steps, stuckwords
+from .. import actfacts, answer, blockedstep, config, decide, gateverbs, listed
+from .. import mode, modecommand, nextcommand, onepath, pullnames, pushdraft, refill
+from .. import render, slotbook, slotsheader, steps, stuckwords
 from .. import sweepline, work, workorder, world
-from . import fakes, flowread, gatewords, knownkit, knownshipped, test_decide
-from . import queuedrun, test_work
+from . import fakes, flowread, gatewords, knownshipped, test_decide
+from . import knownruns, queuedrun, test_work
 from . import rankworld, totalcomplete, totalpairs, totalworld
 from . import world as scenes
 from .says import errs
 
 REPO = config.make_repo("owner", "project")
 NONE = answer.NotEnoughWork()
-NOTHING = answer.Decided(answer=NONE, by_item={})
+NOTHING = answer.Decided(answer=NONE, by_item={}, acting=None)
 PLAIN = "repos/owner/project/issues?state=open&labels=p1"
 REFERENCE = "o/r#1"
 
@@ -104,7 +104,9 @@ def ticket_judgement() -> decide.Judgement:
         The judgement.
     """
     walk = world.Stopped(examined=[test_decide.ticket(1)], stop=1)
-    made = world.World(grounds=test_decide.GROUNDS, walk=walk, named=[])
+    made = world.World(
+        grounds=test_decide.GROUNDS, walk=walk, named=[], act=actfacts.NO_ACT
+    )
     return decide.decide(made)
 
 
@@ -190,8 +192,8 @@ class TestAnswers(unittest.TestCase):
 
     def test_a_kept_item_gives_a_slot_nothing(self) -> None:
         """An item the walk did not read is no pick."""
-        unread = world.Unread(reference=REFERENCE, pull=False)
-        assert_that(onepath.pick(unread), none())
+        occupied = world.Occupied(reference=REFERENCE, pull=False)
+        assert_that(onepath.pick(occupied), none())
 
     def test_an_emptied_slot_takes_the_first_when_none_fits(self) -> None:
         """With no decision a slot can take, the line is the answer's first."""
@@ -207,7 +209,7 @@ class TestAct(unittest.TestCase):
 
     def test_dispatch_next_with_no_work_says_so(self) -> None:
         """The head of an empty order is the not-enough-work line."""
-        said = knownkit.dispatch(knownshipped.GIVEN, NOTHING)
+        said = knownruns.dispatch(knownshipped.GIVEN, NOTHING)
         assert_that(said, equal_to(render.NOT_ENOUGH_WORK))
 
     def test_dispatch_next_on_the_command_line(self) -> None:
@@ -336,11 +338,15 @@ class TestSilentModes(unittest.TestCase):
     def test_6_1_every_other_mode_prints_no_answer(self) -> None:
         """Dispatch, sweep, override, a mechanical push and the rest print nothing."""
         silent: list[mode.Mode] = [
-            mode.DispatchNext(want="", options={}),
+            mode.DispatchAny(options={}),
+            mode.DispatchWanted(want="o/r#1", options={}),
             mode.Sweep(task_list="t"),
             mode.OverrideAct(item="o/r#1", stop="s", reason="r"),
             mode.MechanicalPush(arguments=["origin"]),
-            mode.Other(command="act label"),
+            mode.ActOn(
+                verb=gateverbs.OwnVerb.LABEL, target="o/r#1", item="o/r#1", options={}
+            ),
+            mode.Unasked(command=modecommand.UNASKED["sync"]),
         ]
         found = [onepath.answered(each, NOTHING) for each in silent]
-        assert_that(found, equal_to([([], [])] * 5))
+        assert_that(found, equal_to([([], [])] * 7))

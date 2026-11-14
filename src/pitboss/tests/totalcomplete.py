@@ -20,6 +20,7 @@ from typing import AbstractSet, Callable, Collection, Iterator, Mapping, Sequenc
 from .. import (
     actverbs,
     actwrite,
+    checkoutcome,
     enumeration,
     gateevents,
     actrules,
@@ -60,7 +61,7 @@ class Forms:
     ticket: Callable[[Sequence[str], Sequence[str], int, str], str] = (
         ticketreader.written
     )
-    items: ticketreader.Reader = ticketreader.items
+    items: ticketreader.Reader = ticketreader.done_when
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -110,7 +111,7 @@ def _schema(parts: Parts) -> Iterator[str]:
         for value, meaning in parts.declared.get("check-conclusion", {}).items()
         if meaning == "passed"
     }
-    if passed != set(totalchecks.OK_CONCLUSIONS):
+    if passed != set(checkoutcome.OK_CONCLUSIONS):
         yield "schema: the passed conclusions are not the verdict's"
 
 
@@ -174,7 +175,7 @@ def _forms(parts: Parts) -> Iterator[str]:
             f" approval: {why[:60]}"
         )
     body = parts.forms.ticket(ITEMS, ["src/"], 100, "p1")
-    if list(parts.forms.items(body)) != list(ITEMS):
+    if parts.forms.items(body) != ticketreader.Items(found=list(ITEMS)):
         yield "forms: what `act ticket` writes, the ticket reader reads differently"
     yield from _instructions(parts)
 

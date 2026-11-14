@@ -6,7 +6,7 @@ from typing import Callable, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import flow, planbody, rulingwords, shapes
+from .. import checkoutcome, flow, planbody, rulingwords, shapes
 from . import blank, test_flow
 
 APPROVED = test_flow.APPROVED
@@ -99,7 +99,7 @@ class TestQuestions(unittest.TestCase):
         ]
         answers = [flow.Ci.GREEN, flow.Ci.RED, flow.Ci.RED, None, None, None]
         cases = [(state(checks=each), want) for each, want in zip(checks, answers)]
-        check(flow.ci_result, cases)
+        check(lambda pr: checkoutcome.result(pr.checks), cases)
 
     def test_plan_approved(self) -> None:
         """Some regular review graded the plan approved, at any head."""

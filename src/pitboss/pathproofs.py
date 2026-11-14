@@ -11,12 +11,12 @@ import pathlib
 import sys
 from typing import Callable, Mapping, Sequence
 
-from . import decideproofs, proofsource, readproofs
+from . import decideproofs, factproofs, proofsource, readproofs
 from .proofsource import Package
 
 Proof = Callable[[Package], Sequence[str]]
 # the one place PR JSON becomes typed state (plan 6.1): only these read JSON
-PARSERS = frozenset({"pullstate", "pullobject", "listed"})
+PARSERS = frozenset({"pullstate", "pullobject", "listed", "holdparse"})
 
 
 def _aliases(package: Package) -> Mapping[str, Sequence[str]]:
@@ -118,6 +118,7 @@ PROOFS: Mapping[str, Proof] = {
     "P3": decideproofs.no_partial_world,
     "P5": same_answer,
     "6.1": one_parse,
+    "6.1 facts": factproofs.one_fact,
     "P6": readproofs.one_read,
     "P7": decideproofs.no_wait,
     "P8": decideproofs.act_agrees,

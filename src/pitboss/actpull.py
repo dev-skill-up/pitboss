@@ -7,27 +7,22 @@ head, never a failed check or status, a hold, a block, a closed PR or a failed
 read.
 """
 
-from . import actcore, actstands, gateverbs, render, totalanswer
+from . import actcore, totalanswer
 from .actcore import disarm_first, head_now, options_of, pull_of, repo_write
 from .totaljson import text
 
 LABELS = totalanswer.KNOWN_LABELS | {"p0", "p1", "p2", "p3", actcore.HOLD_LABEL}
 WORKFLOWS = ("relock.yml", "check.yml")
 CLOSE_REASONS = ("completed", "not_planned", "duplicate")
-GATED = {
-    "merge": gateverbs.Verb.MERGE,
-    "arm": gateverbs.Verb.ARM,
-    "undraft": gateverbs.Verb.UNDRAFT,
-}
 
 
 def gated_write(
     action: str, act: actcore.Act, target: actcore.Target, options: actcore.Options
 ) -> str:
-    """Merge, arm or undraft a PR when its decision is that verb; arm records its head.
+    """Merge, arm or undraft a PR; arm records its head.
 
-    The verb looks itself up in the decisions (keyword: gate, P8): it runs only
-    when ``next`` would say it, and otherwise prints the decision that stands.
+    ``actverbs.run`` applies it only when the item's decision is that verb
+    (keyword: gate, P8).
 
     Args:
         action: ``merge``, ``arm`` or ``undraft``.
@@ -36,12 +31,8 @@ def gated_write(
         options: none.
 
     Returns:
-        What was done; or, when the decision that stands is another, that decision.
+        What was done.
     """
-    verb = GATED[action]
-    found = gateverbs.lookup(act.questions.decided(), verb, target.name)
-    if not gateverbs.allows(verb, found, target.name):
-        return f"{render.NOT_DONE}: {action} {target.name}: {render.standing(found)}"
     pull = pull_of(act, target)
     if action == "arm":
         actcore.record(act, target, f"arm head={actcore.head_of(pull)}")
@@ -66,8 +57,12 @@ def disarm(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
 
 def override_stop(
     act: actcore.Act, target: actcore.Target, options: actcore.Options
-) -> actstands.Said:
+) -> str:
     """Lift one stop line for the PR's head, with a reason.
+
+    ``actverbs.run`` applies it only when the line is the stop the item's decision
+    answers and an override lifts (a hold, a red, a read GitHub answered with an
+    error, a block or a closed PR is never lifted).
 
     Args:
         act: the verb's world.
@@ -75,17 +70,9 @@ def override_stop(
         options: ``stop`` (the line) and ``reason`` (the ruling it rests on).
 
     Returns:
-        What was done, or that the line is no stop of the item's decision that an
-        override lifts.
+        What was done.
     """
     stop, reason = options_of(options, "stop", "reason")
-    decided = act.questions.decided()
-    found = gateverbs.lookup(decided, gateverbs.Verb.OVERRIDE, target.name)
-    if not gateverbs.overridable(found, target.name, stop):
-        line = f"not an overridable stop of this item's decision: {stop[:60]!r}"
-        line += " (a hold, a red, a read GitHub answered with an error, a block or"
-        line += " a closed PR is never lifted)"
-        return actstands.Stands(why=actstands.Why.NOT_A_STOP, line=line)
     head = head_now(act, target)
     actcore.record(act, target, f'override head={head} stop="{stop}" reason="{reason}"')
     return f"override {target.name} at {head}"

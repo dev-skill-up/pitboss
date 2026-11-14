@@ -4,7 +4,7 @@
 """
 
 import dataclasses
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Mapping, Protocol, Sequence
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -132,25 +132,6 @@ class PullObject:
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Run:
-    """A check run of the head.
-
-    Attributes:
-        name: the check's name.
-        status: queued, in_progress or completed.
-        conclusion: its conclusion, ``None`` while running.
-        number: its id.
-        started_at: when it started.
-    """
-
-    name: str
-    status: str
-    conclusion: str
-    number: int
-    started_at: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Status:
     """A commit status of the head.
 
@@ -216,6 +197,9 @@ class Ticket:
     body: str
 
 
+HOLD_LABEL = "pitboss-hold"  # the label of a hold issue (keyword: hold)
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Hold:
     """An open ``pitboss-hold`` issue.
@@ -254,6 +238,34 @@ class Repository:
     max_lines: int
 
 
+class CheckRead(Protocol):
+    """A check run of the head as the one parser read it (``parsing.one_check``)."""
+
+    @property
+    def id(self) -> int:
+        """Return its id."""
+
+    @property
+    def name(self) -> str:
+        """Return its name."""
+
+    @property
+    def started_at(self) -> str:
+        """Return when it started."""
+
+    @property
+    def finished(self) -> bool:
+        """Return whether it completed."""
+
+    @property
+    def failed(self) -> bool:
+        """Return whether it completed and did not pass (``checkoutcome``)."""
+
+    @property
+    def said(self) -> tuple[str, str]:
+        """Return its status and conclusion as GitHub wrote them."""
+
+
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Reads:
     """The lists read of the head and the PR.
@@ -262,13 +274,13 @@ class Reads:
     a row branches on is of another type than documented.
 
     Attributes:
-        runs: the head's check runs.
+        runs: the head's check runs, as the one parser reads them (``parsing``).
         statuses: the head's statuses.
         files: the files changed.
         timeline: the PR's events, oldest first.
     """
 
-    runs: Sequence[Run] | Unread | Mistyped
+    runs: Sequence[CheckRead] | Unread | Mistyped
     statuses: Sequence[Status] | Unread | Mistyped
     files: Sequence[File] | Unread | Mistyped
     timeline: Sequence[Event] | Unread | Mistyped
@@ -286,6 +298,8 @@ class GateState:
         blockers: the state of each item a Blocked-by line names.
         holds: the repository's holds.
         absent: each input that was not given at all.
+        attempts: the timeline's review attempts, oldest first: the one parse of
+            "reviewed" for the gate (``totalreview.review_attempts``, plan 6.1).
     """
 
     pull: PullObject
@@ -295,3 +309,16 @@ class GateState:
     blockers: Mapping[str, str]
     holds: Sequence[Hold]
     absent: Sequence[str]
+    attempts: Sequence[Event]
+
+
+def listed[Item](read: Sequence[Item] | Unread | Mistyped) -> Sequence[Item]:
+    """The items of a list read; none when it was not read.
+
+    Args:
+        read: the read.
+
+    Returns:
+        Its items.
+    """
+    return [] if isinstance(read, (Unread, Mistyped)) else read

@@ -13,7 +13,10 @@ import pathlib
 import sys
 from typing import Mapping, Sequence
 
-from . import cli_parser, config, mode, modeproof, pathproofs, proofsource
+from gather.api import Wrapper, unique
+from gather.commands import add_argument
+
+from . import cli_parser, config, mode, modecommand, modeproof, pathproofs, proofsource
 
 SOURCE = "src/pitboss/"
 
@@ -101,7 +104,7 @@ def seeded(texts: Mapping[str, str], seed: Seed) -> Mapping[str, str]:
 def other_modes(
     args: argparse.Namespace, project: config.Repo, options: Mapping[str, str]
 ) -> mode.Mode:
-    """P4's seeded parse: every command line is ``Other``.
+    """P4's seeded parse: every command line asks nothing.
 
     Args:
         args: the parsed arguments.
@@ -109,9 +112,37 @@ def other_modes(
         options: the options.
 
     Returns:
-        ``Other``, so the other modes are the image of no command line.
+        ``Unasked``, so the other modes are the image of no command line.
     """
-    return mode.Other(command="")
+    return mode.Unasked(command=next(iter(modecommand.Command)))
+
+
+def new_command(declared: cli_parser.Declared) -> cli_parser.Declared:
+    """P4's seeded table: a command no mode names.
+
+    Args:
+        declared: the table the parser is built from.
+
+    Returns:
+        The table with ``clean``'s registration under a new name.
+    """
+    return {**declared, "seeded": declared["clean"]}
+
+
+def new_flag(declared: cli_parser.Declared) -> cli_parser.Declared:
+    """P4's seeded table: a flag of ``next`` that ``ASKS_NOTHING`` does not list.
+
+    Args:
+        declared: the table the parser is built from.
+
+    Returns:
+        The table with ``--seeded`` added to ``next``.
+    """
+    registered = unique(declared)["next"]
+    extra: Sequence[object] = getattr(registered, "extra")
+    flag = add_argument("--seeded", action="store_true")
+    changed = Wrapper(original=getattr(registered, "original"), extra=[*extra, flag])
+    return {**declared, "next": [changed]}
 
 
 def missed(
@@ -136,6 +167,9 @@ def missed(
         found.append("P4: a match on a mode without assert_never is not found")
     if not modeproof.images(seed_parse, declared):
         found.append("P4: a parse that leaves a mode with no image is not found")
+    for name, table in (("command", new_command), ("flag", new_flag)):
+        if not modeproof.images(mode.parse, table(declared)):
+            found.append(f"P4: a new {name} with no mode is not found")
     return found
 
 

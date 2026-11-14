@@ -25,7 +25,7 @@ tracking ticket's ``closes when`` is ``ticketblock``'s.
 import dataclasses
 from typing import MutableMapping, Sequence
 
-from . import blockedstep, configrepos, ghapi, pullfacts, pullref, ticketblock
+from . import blockedform, blockedstep, ghapi, pullfacts, pullref
 from . import ticketdata
 from .blockedstep import Blocker, Closure, State
 
@@ -65,7 +65,7 @@ def declared(pull: pullfacts.PullFacts) -> Sequence[str]:
     Returns:
         The references, each once, never the PR itself.
     """
-    names = ticketblock.named(pull.pull.body, pull.repo)
+    names = blockedform.named(pull.pull.body, pull.repo.slug)
     return [each for each in dict.fromkeys(names) if each != pullref.reference(pull)]
 
 
@@ -93,7 +93,7 @@ def loop(
         if path[-1] not in visited:
             visited.add(path[-1])
             found = seen.setdefault(path[-1], read(github, path[-1]))
-            more = ticketblock.named(found.body, configrepos.repo_of(path[-1]))
+            more = blockedform.named(found.body, path[-1].rpartition("#")[0])
             todo += [[*path, each] for each in more if found.state is State.OPEN]
     return []
 

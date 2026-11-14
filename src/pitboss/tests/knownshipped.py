@@ -11,7 +11,7 @@ from .. import headsignals, rounds, straycomments
 from .. import gatefacts
 from .. import gatepolicy, listed, parsing, pullfacts, reviews, steps, world
 from ..actport import Pull
-from . import fakehub, flowread
+from . import fakedecider, fakegiven, fakehub, flowread
 from . import knownkit
 from .fakes import pull_body
 from .knownkit import Kit
@@ -81,17 +81,18 @@ def decision_of(
 
 
 @functools.cache
-def rests() -> fakehub.Given:
+def rests() -> fakegiven.Given:
     """The gate and the act verbs' controls as pitboss ships them.
 
     Returns:
         What a fake GitHub's verbs rest on.
     """
-    return fakehub.Given(
+    return fakegiven.Given(
         controls=actcore.Controls(),
         gating=gate.stops_for,
         policy=gatepolicy.shipped(),
         deciding=decision_of,
+        decisions_of=fakedecider.Decider,
     )
 
 

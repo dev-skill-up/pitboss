@@ -7,13 +7,7 @@ import dataclasses
 import enum
 from typing import AbstractSet, Sequence
 
-FINISHED_STATUSES = frozenset({"completed"})
 WAITING_STATUSES = frozenset({"queued"})
-# A cancelled check (concurrency cancel-in-progress) is superseded, not red;
-# skipped and neutral ones are not here either.
-FAILED_CONCLUSIONS = frozenset(
-    {"failure", "timed_out", "action_required", "startup_failure"}
-)
 
 
 class MergeState(enum.Enum):

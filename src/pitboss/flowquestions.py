@@ -4,10 +4,9 @@
 recorded of the PR.
 """
 
-import enum
 from typing import AbstractSet, Protocol, Sequence
 
-from . import bodydigest, draftfacts, expansion, plandigest, shapes
+from . import bodydigest, checkoutcome, draftfacts, expansion, plandigest, shapes
 
 current_for = expansion.current_for
 Subject = expansion.Subject
@@ -15,16 +14,7 @@ Verdict = shapes.Verdict
 Graded = shapes.Graded
 
 
-class Ci(enum.Enum):
-    """The result of the checks on the current head, once finished.
-
-    Attributes:
-        GREEN: every check finished and none failed.
-        RED: a check failed.
-    """
-
-    GREEN = enum.auto()
-    RED = enum.auto()
+Ci = checkoutcome.Ci  # the head's CI, decided once (``checkoutcome.result``)
 
 
 class PullState(Protocol):
@@ -125,23 +115,6 @@ def get_plan_rejections(pr: PullState) -> int:
     """
     reviews = regular_reviews(pr)
     return sum(each.plan is Verdict.CHANGES_NEEDED for each in reviews)
-
-
-def ci_result(pr: PullState) -> Ci | None:
-    """The result of the checks on the current head.
-
-    Args:
-        pr: the PR.
-
-    Returns:
-        RED when a check failed, GREEN when all finished and none failed,
-        None while some run or none has started.
-    """
-    if any(each.failed for each in pr.checks):
-        return Ci.RED
-    if not pr.checks or any(not each.finished for each in pr.checks):
-        return None
-    return Ci.GREEN
 
 
 def plan_rejected_last(pr: PullState) -> bool:

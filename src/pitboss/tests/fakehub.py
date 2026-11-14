@@ -6,17 +6,45 @@ import json
 import functools
 import pathlib
 import subprocess
-from typing import Callable, Mapping, MutableMapping, MutableSequence, Sequence
+from typing import Callable, Mapping, MutableMapping, MutableSequence, Protocol
+from typing import Sequence
 
-from .. import answer, gatefacts, gateinputs, gatepolicy, pullstate, steps
-from ..actcore import Act, Controls, Inputs, Owner, Questions
+from .. import gateinputs
+from ..actcore import Act, Controls, Decisions, Owner, Questions
 from ..actport import Change, Hub, Pull
-from ..gatestop import Stop
 from ..totaljson import members, records
-from . import hubwork, totalworld
+from . import totalworld
 from .fakes import write
 
 Key = tuple[str, int]
+
+
+class Deciders(Protocol):
+    """How a verb's decisions are made over a hub, bound to the kit."""
+
+    def __call__(self, *, name: str, acts: MutableSequence[Act]) -> Decisions:
+        """The decisions of a world's PR.
+
+        Args:
+            name: the world's PR, ``owner/name#number``.
+            acts: the verb's world, once it is made (its one entry).
+
+        Returns:
+            The decisions, as each verb asks.
+        """
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Rests:
+    """What a fake GitHub's verbs rest on (``knownkit.rests_of`` makes it).
+
+    Attributes:
+        controls: the readers and the disarm.
+        decided: how the verb's decisions are made.
+    """
+
+    controls: Controls
+    decided: Deciders
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -182,41 +210,6 @@ WRITES: Mapping[str, Callable[[Memory, Change], str]] = {
 }
 
 
-Gating = Callable[[str, gatefacts.Gate, gatepolicy.Policy], Sequence[Stop]]
-Deciding = Callable[
-    [str, Pull, steps.Next, gatefacts.Gate | None], answer.Decision | None
-]
-
-
-def work(*items: str) -> answer.Decided:
-    """The decisions of a world whose order is the items, each a worker's.
-
-    Args:
-        *items: the items, first to take first (``q#10`` when none).
-
-    Returns:
-        The decisions.
-    """
-    every = [hubwork.worker(each) for each in items or ["q#10"]]
-    return work_of(*every)
-
-
-def work_of(first: answer.Decision, *rest: answer.Decision) -> answer.Decided:
-    """The decisions of a world in the order of the decisions given.
-
-    Args:
-        first: the first decision.
-        *rest: the others.
-
-    Returns:
-        The decisions.
-    """
-    return answer.Decided(
-        answer=answer.Work(first=first, rest=rest, free=1),
-        by_item={each.item: each for each in (first, *rest)},
-    )
-
-
 def git_run(cmdargs: Sequence[str], /) -> subprocess.CompletedProcess[str]:
     """Run a command for real, raising when it fails.
 
@@ -271,7 +264,8 @@ class WorldInputs:
             The inputs, with the blockers the body names (``blockers_of``).
         """
         events = timeline or self.hub.timeline(where, which)
-        return gateinputs.blockers_in(pull, {**self.world.ctx, "timeline": events})
+        given = {**self.world.ctx, "timeline": events}
+        return gateinputs.blockers_in(pull, given, where)
 
 
 def _memory(world: totalworld.World) -> Memory:
@@ -282,33 +276,9 @@ def _memory(world: totalworld.World) -> Memory:
     return memory
 
 
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Given:
-    """What a fake GitHub's verbs rest on.
-
-    Attributes:
-        controls: the gates and readers.
-        gating: the gate's stops (``gate.stops_for``).
-        policy: the gate's readings.
-        deciding: the PR's decision, by the one item decider (``knownshipped``).
-        decided: the decisions ``dispatch-next`` takes the head of.
-    """
-
-    controls: Controls
-    gating: Gating
-    policy: gatepolicy.Policy
-    deciding: Deciding
-    decided: answer.Decided = dataclasses.field(default_factory=work)
-
-
-def _questions(hub: Hub, inputs: Inputs, kit: Given, name: str) -> Questions:
-    # the world's decisions, with its PR decided as next decides it
-    return Questions(decided=Decider(hub=hub, inputs=inputs, kit=kit, name=name))
-
-
 def holding(
     world: totalworld.World,
-    given: Given,
+    given: Rests,
     owner: Owner | None = None,
     repos: Sequence[str] = (),
 ) -> Made:
@@ -324,20 +294,34 @@ def holding(
         The hub and the verb's world.
     """
     memory = _memory(world)
-    hub = port(memory)
+    project = (owner or Owner(), list(repos) or [str(world.ctx["repo"])])
+    act = _act(port(memory), world, given, project)
+    return Made(hub=memory, act=act, world=world)
+
+
+def _act(
+    hub: Hub,
+    world: totalworld.World,
+    given: Rests,
+    project: tuple[Owner, Sequence[str]],
+) -> Act:
+    # the verb's world over the hub (the owner's messages and the project's
+    # repositories), its decisions made as ``decide`` makes them
     inputs = WorldInputs(world=world, hub=hub)
+    made: list[Act] = []
     act = Act(
         hub=hub,
         inputs=inputs,
-        owner=owner or Owner(),
-        repos=list(repos) or [str(world.ctx["repo"])],
+        owner=project[0],
+        repos=project[1],
         p90=lambda _: 2151,
         run=git_run,
         prepush=lambda: (0, "lint passed\nok\n"),
-        questions=_questions(hub, inputs, given, _name_of(world)),
+        questions=Questions(decided=given.decided(name=_name_of(world), acts=made)),
         controls=given.controls,
     )
-    return Made(hub=memory, act=act, world=world)
+    made.append(act)
+    return act
 
 
 def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
@@ -362,38 +346,3 @@ def rule_checkouts(root: pathlib.Path) -> Mapping[str, pathlib.Path]:
 
 def _name_of(world: totalworld.World) -> str:  # the world's PR, owner/name#number
     return f"{world.ctx['repo']}#{world.ctx['number']}"
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Decider:
-    """A PR's decision as ``next`` makes it, over the hub as it is now.
-
-    Attributes:
-        hub: the fake GitHub.
-        inputs: the gate's other inputs.
-        kit: the gate's rows and the decisions of the rest of the world.
-        name: the world's PR, ``owner/name#number``.
-    """
-
-    hub: Hub
-    inputs: Inputs
-    kit: "Given"
-    name: str
-
-    def __call__(self) -> answer.Decided:
-        """The decisions of the kit's world, with its PR at the merge or undraft step.
-
-        Returns:
-            The kit's decisions, with the PR's own when an actor takes it.
-        """
-        name, (repo, number) = self.name, self.name.split("#")
-        pull = self.hub.pull(repo, int(number))
-        ctx = self.inputs(repo, int(number), pull, [])
-        step = steps.undraft() if pull.get("draft") else steps.merge()
-        gated = pullstate.gate_of(pull, ctx)
-        found = self.kit.gating(gatefacts.ACTIONS[step.step], gated, self.kit.policy)
-        decided = self.kit.deciding(name, pull, step, gated if found else None)
-        given = self.kit.decided
-        if decided is None:
-            return given
-        return dataclasses.replace(given, by_item={**given.by_item, name: decided})

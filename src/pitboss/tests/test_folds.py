@@ -9,7 +9,6 @@ from hamcrest import assert_that, contains_string, equal_to, has_length
 
 from .. import (
     config,
-    fixes,
     foldline,
     folds,
     forms,
@@ -158,15 +157,6 @@ class TestFolds(unittest.TestCase):
         for text in ["not json", "[1]", '[{"body": "x"}]']:
             with self.assertRaises(ValueError):
                 folds.read_comments(text, {"MEMBER"})
-
-
-class TestTickets(unittest.TestCase):
-    """The tickets a PR fixes are the ones it closes too."""
-
-    def test_closes_is_fixed(self) -> None:
-        """A Closes line is a ticket the PR fixes, as a Fixes line is."""
-        found = fixes.fixed_tickets(facts(TWO, []))
-        assert_that(found, equal_to({"o/r#12", "o/r#13"}))
 
 
 class TestLintBody(unittest.TestCase):

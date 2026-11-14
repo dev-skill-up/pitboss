@@ -9,7 +9,7 @@ reads).
 
 import dataclasses
 import datetime
-from typing import Sequence
+from typing import AbstractSet, Sequence
 
 from . import (
     allowlistmiss,
@@ -17,6 +17,7 @@ from . import (
     blockedstep,
     blockers,
     config,
+    configrepos,
     failures,
     flowstep,
     gatefacts,
@@ -24,6 +25,7 @@ from . import (
     listed,
     pullfacts,
     pullnames,
+    pullrecords,
     pulls,
     sharedstep,
     steps,
@@ -97,7 +99,10 @@ def _allowlist(github: ghapi.GitHub, facts: pulls.PullFacts) -> Sequence[str]:
 
 
 def examine_pull(
-    reading: Context, row: listed.Listed, others: Sequence[listed.Listed]
+    reading: Context,
+    row: listed.Listed,
+    others: Sequence[listed.Listed],
+    holds: Sequence[pullrecords.Hold],
 ) -> world.PullRecord:
     """Read one open pull request and its closure.
 
@@ -105,6 +110,7 @@ def examine_pull(
         reading: what the read starts from.
         row: its listing row.
         others: the other open rows of its repository (a shared red's closure).
+        holds: its repository's hold issues (its gate's, keyword: gate).
 
     Returns:
         Its record.
@@ -122,7 +128,7 @@ def examine_pull(
         shared=_shared(reading, facts, others) if not named else (),
         blockers=named,
         stuck=stuckci.runs_of(github, [facts], reading.now),  # keyword: stuck-ci
-        gated=_gated(reading, read, facts),
+        gated=_gated(reading, read, facts, holds),
         failures=failures.read_all(github, facts) if fixing else {},
     )
 
@@ -136,10 +142,14 @@ def _shared(
 
 
 def _gated(
-    reading: Context, read: pullfacts.PullRead, facts: pulls.PullFacts
+    reading: Context,
+    read: pullfacts.PullRead,
+    facts: pulls.PullFacts,
+    holds: Sequence[pullrecords.Hold],
 ) -> gatefacts.Gate | None:
     # keyword: gate: read only at the merge or the undraft step
-    return reading.closures.gated(read) if steps.step_is(facts.step, GATED) else None
+    gated = steps.step_is(facts.step, GATED)
+    return reading.closures.gated(read, holds) if gated else None
 
 
 def examine_ticket(
@@ -166,7 +176,15 @@ def examine_ticket(
         superseded=superseded,
         blockers=found,
         opens_ready=_opens_ready(reading.settings.project, reference),
-        branches=branches,
+        branch_named=_branch_named(reference, branches),
+    )
+
+
+def _branch_named(reference: str, branches: Sequence[str]) -> AbstractSet[str]:
+    # keyword: taken: the tickets the open pull requests' branches name
+    repo = configrepos.repo_of(reference)
+    return frozenset().union(
+        *(pullnames.names("", "", each, repo) for each in branches)
     )
 
 

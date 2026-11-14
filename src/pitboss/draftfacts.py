@@ -77,21 +77,21 @@ def named(run: Run, name: str) -> bool:
     return run.name == name or run.name.endswith(f" / {name}")
 
 
-def failed_besides(checks: Sequence[Run], name: str) -> bool:
-    """Whether a check other than the Plan review's has failed (keyword: draft-red-ci).
+def besides(checks: Sequence[Run], name: str) -> Sequence[Run]:
+    """The check runs of other names than the Plan review's (keyword: draft-red-ci).
 
     Args:
         checks: the current check runs of the head.
         name: the Plan review's check, empty when there is none.
 
     Returns:
-        True when a run of another name completed and failed.
+        The runs of another name (``checkoutcome`` says whether one failed).
     """
-    return any(each.failed and not named(each, name) for each in checks)
+    return [each for each in checks if not named(each, name)]
 
 
-def completed(checks: Sequence[Run], name: str) -> bool:
-    """Whether the check run of a name has completed (keyword: plan-review-check).
+def of_name(checks: Sequence[Run], name: str) -> Sequence[Run]:
+    """The check runs of a name (keyword: plan-review-check).
 
     A job of a called workflow is named ``caller / job``, so the name matches
     that form too.
@@ -101,7 +101,6 @@ def completed(checks: Sequence[Run], name: str) -> bool:
         name: the check's name.
 
     Returns:
-        True when a run of that name completed, green or red; False when it
-        runs, is queued or has not been created.
+        The runs of that name (``checkoutcome`` says whether one completed).
     """
-    return any(each.finished and named(each, name) for each in checks)
+    return [each for each in checks if named(each, name)]

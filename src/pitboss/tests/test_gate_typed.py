@@ -11,7 +11,7 @@ from typing import Sequence
 from hamcrest import assert_that, equal_to
 
 from .. import gate, gateevents, gatefields, gatepolicy, gaterows, totalbody
-from .. import totalchecks
+from .. import checkruns, parsing
 from ..gatestop import Route, Stop
 from ..pullrecords import File, GateState, Hold, Mistyped, Ticket, Unread
 from . import gatestate
@@ -23,10 +23,14 @@ POLICY = gatepolicy.Policy(
     plan=lambda review, body: "",
 )
 OPEN = Ticket(state="open", reason="None", locked=False, is_pull=False, body="")
-RUNNING = dataclasses.replace(
-    gatestate.GREEN_RUN, status="in_progress", conclusion="None", number=2
+STARTED = "2026-11-01"
+RUNNING = parsing.one_check(
+    {"name": "check", "status": "in_progress", "id": 2, "started_at": STARTED}
 )
-RED = dataclasses.replace(gatestate.GREEN_RUN, name="lint", conclusion="failure")
+RED = parsing.one_check(
+    {"name": "lint", "status": "completed", "conclusion": "failure", "id": 1}
+    | {"started_at": STARTED}
+)
 
 
 def _says(found: Sequence[Stop], lines: Sequence[str]) -> None:
@@ -185,7 +189,7 @@ class TestChecks(unittest.TestCase):
         """Order in the list does not decide; the start time does."""
         newer = dataclasses.replace(gatestate.GREEN_RUN, started_at="2026-11-02")
         runs = [newer, dataclasses.replace(RED, name="check")]
-        assert_that(list(totalchecks.current_runs(runs)), equal_to([newer]))
+        assert_that(list(checkruns.latest(runs)), equal_to([newer]))
 
 
 class TestFields(unittest.TestCase):

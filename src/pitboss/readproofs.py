@@ -117,9 +117,7 @@ def _walk_breaks(walk: ast.FunctionDef | None) -> Sequence[str]:
     compared = [ast.unparse(node) for node in walked if isinstance(node, ast.Compare)]
     held = [
         ast.unparse(node.annotation)
-        for node in walked
-        if isinstance(node, ast.AnnAssign)
-        and proofsource.dotted(node.target) == "decisions"
+        for node in proofsource.assigned(walked, "decisions")
     ]
     found = []
     if "len(decisions) >= walking.stop" not in compared:

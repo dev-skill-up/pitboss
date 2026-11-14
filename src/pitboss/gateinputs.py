@@ -10,10 +10,9 @@ A read that fails is kept as ``{"_error": ...}`` so the gate stops on it.
 import copy
 import dataclasses
 import json
-import re
 from typing import Callable, Sequence
 
-from . import ghapi, ticketreader, totalbody
+from . import blockedform, config, ghapi, pullnames
 from .actport import Pull
 from .totaljson import lines_of, members, records, text
 
@@ -79,14 +78,6 @@ def _rules(read: Read, repo: str, branch: str) -> tuple[list[str], bool]:
     return checks, any(rule.get("type") == "merge_queue" for rule in rules)
 
 
-def _refs(body: str, repo: str, pattern: re.Pattern[str], group: int) -> list[str]:
-    found = []
-    for match in pattern.finditer(body):
-        ref = match.group(group)
-        found.append(ref if not ref.startswith("#") else f"{repo}{ref}")
-    return found
-
-
 def _states(read: Read, refs: Sequence[str]) -> dict[str, object]:
     found: dict[str, object] = {}
     for each in refs:
@@ -95,44 +86,34 @@ def _states(read: Read, refs: Sequence[str]) -> dict[str, object]:
     return found
 
 
-def named_blockers(body: str) -> Sequence[str]:
-    """The references a PR's ``Blocked-by:`` lines name (keyword: blocked-by).
-
-    ``act block`` writes such a line, so the body is the one place a block is
-    read (keyword: one-path, P8).
-
-    Args:
-        body: the PR's body.
-
-    Returns:
-        The references, as written.
-    """
-    lines = [line for line in body.splitlines() if totalbody.BLOCKED.match(line)]
-    return [each for line in lines for each in totalbody.REFERENCE.findall(line)]
-
-
-def blockers_in(pull: Pull, inputs: Pull) -> Pull:
+def blockers_in(pull: Pull, inputs: Pull, repo: str) -> Pull:
     """A copy of a PR's inputs with each blocker its body names that they lack.
 
     Args:
         pull: the PR.
         inputs: its inputs; their ``blockers`` are the states read.
+        repo: its repository, ``owner/name``.
 
     Returns:
         The copy; a blocker named and not read is "not read".
     """
-    named = named_blockers(text(pull.get("body")))
+    named = blockedform.named(text(pull.get("body")), repo)
     found = copy.deepcopy(dict(inputs))
     states = members(found.get("blockers"))
     found["blockers"] = {**dict.fromkeys(named, "not read"), **states}
     return found
 
 
+def _repo(slug: str) -> config.Repo:
+    # the repository of an ``owner/name``
+    return config.make_repo(*slug.split("/", 1))
+
+
 def _blockers(read: Read, body: str, repo: str) -> dict[str, object]:
+    # keyword: blocked-by: the state of each item the one parse names
     found: dict[str, object] = {}
-    for each in named_blockers(body):
-        full = each if not each.startswith("#") else f"{repo}{each}"
-        answer = _states(read, [full])[full]
+    for each in blockedform.named(body, repo):
+        answer = _states(read, [each])[each]
         found[each] = text(members(answer).get("state")) or "not read"
     return found
 
@@ -151,7 +132,7 @@ def repo_reads(read: Read, repo: str, number: int, pull: tuple[str, str]) -> Pul
     """
     body, branch = pull
     checks, queue = _rules(read, repo, branch)
-    tickets = _refs(body, repo, ticketreader.CLOSING, 2)
+    tickets = sorted(pullnames.closed(body, _repo(repo)))
     return {
         "repo": repo,
         "number": number,

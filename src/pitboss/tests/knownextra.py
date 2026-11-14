@@ -6,8 +6,9 @@ twin through; ``test_known`` runs every table.
 
 from typing import MutableMapping
 
+from .. import actfacts, ticketreader
 from ..actcore import Target
-from . import knownkit, knownplay
+from . import knownkit, knownplay, knownruns
 from .knownkit import change, stops
 from .knownplay import pull_now, review_edited, stopping
 from .knowngit import git, refusing_pair, repo_pair
@@ -50,12 +51,8 @@ def _paused_armed(given: knownkit.Kit) -> bool:
     "a `Priority: p1` line after the Done-when bullets",
 )
 def _priority(given: knownkit.Kit) -> bool:
-    return list(
-        given.rests.controls.items("## Done when\n\n- a\n- b\n\nPriority: p1\n")
-    ) == [
-        "a",
-        "b",
-    ]
+    body = "## Done when\n\n- a\n- b\n\nPriority: p1\n"
+    return given.rests.controls.items(body) == ticketreader.Items(found=["a", "b"])
 
 
 @case(
@@ -114,7 +111,7 @@ def _blocked_line(given: knownkit.Kit) -> bool:
 @case("X34", "act push: read back", "the origin refuses the push")
 def _origin_refuses(given: knownkit.Kit) -> bool:
     return "not pushed" in knownkit.refused(
-        lambda: knownkit.pushed(given, refusing_pair())
+        lambda: knownruns.pushed(given, refusing_pair())
     )
 
 
@@ -127,15 +124,11 @@ def _kept(given: knownkit.Kit) -> bool:
     worktree = repo_pair()
     options = {"worktree": str(worktree)}
     hub = knownkit.made(given)
-    kept = knownkit.refused(
-        lambda: given.verbs["clean"](hub.act, dispatch_target(), options)
-    )
-    knownkit.pushed(given, worktree)
+    asked = actfacts.Asked(verb="clean", target=dispatch_target(), options=options)
+    kept = knownkit.refused(lambda: knownkit.ran(given, hub.act, asked))
+    knownruns.pushed(given, worktree)
     git(worktree, "fetch", "-q", "origin")
-    return (
-        "KEPT" in kept
-        and given.verbs["clean"](hub.act, dispatch_target(), options) == "removable"
-    )
+    return "KEPT" in kept and knownkit.ran(given, hub.act, asked) == "removable"
 
 
 @case(

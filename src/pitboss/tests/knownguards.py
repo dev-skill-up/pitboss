@@ -7,10 +7,11 @@ twin through; ``test_known`` runs every table.
 import pathlib
 from typing import MutableMapping
 
-from .. import handbackform
-from . import fakehub, knownkit, scratch
+from .. import handbackform, ticketreader
+from . import fakegiven, knownkit, knownruns, scratch
 from .knowngit import git, remote_head, repo_pair
-from .knownkit import brief_for, change, pushed, refused
+from .knownkit import brief_for, change, refused
+from .knownruns import pushed
 from .knownplay import arm_record, held, pull_now, verb_refused, review_edited, stopping
 
 from .totalworld import ARMED, files_of, record
@@ -43,9 +44,9 @@ def _pwa_shell(given: knownkit.Kit) -> bool:
 
 def _unfinished_first(given: knownkit.Kit) -> bool:
     # the newer ticket is refused while the unfinished PR is the head of the order
-    decided = fakehub.work("q#1119", "q#1200")
-    newer = refused(lambda: knownkit.dispatch(given, decided, want="q#1200"))
-    return bool(newer) and knownkit.dispatch(given, decided, want="q#1119") == "q#1119"
+    decided = fakegiven.work("q#1119", "q#1200")
+    newer = refused(lambda: knownruns.dispatch(given, decided, want="q#1200"))
+    return bool(newer) and knownruns.dispatch(given, decided, want="q#1119") == "q#1119"
 
 
 @case(
@@ -173,15 +174,10 @@ def _found_by(given: knownkit.Kit) -> bool:
         "## Done when\n\n- a demonstrated by b\n- c demonstrated by d\n\nFound by"
         " quire#1118.\n"
     )
-    read = list(given.rests.controls.items(body)) == [
-        "a demonstrated by b",
-        "c demonstrated by d",
-    ]
-    return read and bool(
-        refused(
-            lambda: given.rests.controls.items(body.replace("Found by", "Also see"))
-        )
-    )
+    found = ["a demonstrated by b", "c demonstrated by d"]
+    read = given.rests.controls.items(body) == ticketreader.Items(found=found)
+    other = given.rests.controls.items(body.replace("Found by", "Also see"))
+    return read and isinstance(other, ticketreader.NotInForm)
 
 
 @case(

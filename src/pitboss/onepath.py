@@ -27,6 +27,7 @@ from . import (
     logline,
     mode,
     modeextent,
+    modequestion,
     nextfound,
     project,
     pullread,
@@ -99,12 +100,15 @@ def _examiner(found: nextfound.Found, read: PullReader) -> readworld.Examiner:
     )
 
 
-def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Reading:
+def reading_of(
+    found: nextfound.Found, measured: sweepline.Look, acts: readworld.Acts
+) -> readworld.Reading:
     """What the read of a command starts from.
 
     Args:
         found: the context.
         measured: the run's one look at the runners.
+        acts: what the act verb asked for is decided from, read (``actread``).
 
     Returns:
         The reading: the ledger, the holds, the examiner, the decider.
@@ -121,6 +125,7 @@ def reading_of(found: nextfound.Found, measured: sweepline.Look) -> readworld.Re
         examiner=examiner,
         quiesced=quiesce.is_on(settings.slots.ledger),
         released=functools.partial(handedback.ledger_after_hand_backs, found),
+        acts=acts,
     )
 
 
@@ -155,12 +160,15 @@ class Seen:
         return self.judgement.decided
 
 
-def looked(found: nextfound.Found, chosen: mode.Mode) -> Seen:
+def looked(
+    found: nextfound.Found, chosen: mode.Mode, acts: readworld.Acts = readworld.no_acts
+) -> Seen:
     """Read the world a mode asks for, once, and decide: the one read (P6).
 
     Args:
         found: the context.
         chosen: the mode.
+        acts: what an ``act`` verb is decided from, read (``actread``).
 
     Returns:
         The world and its decisions.
@@ -170,7 +178,7 @@ def looked(found: nextfound.Found, chosen: mode.Mode) -> Seen:
         found.github, runs, found.settings.runners, found.now
     )
     made = readworld.read_world(
-        reading_of(found, measured), modeextent.extent_of(chosen)
+        reading_of(found, measured, acts), modeextent.extent_of(chosen)
     )
     judged = decide.decide(made)
     return Seen(made=made, judgement=judged, runners=measured)
@@ -220,7 +228,7 @@ def pick(record: world.Record) -> suggest.Pick | None:
             return _pull_pick(record)
         case world.TicketRecord():
             return _ticket_pick(record)
-        case world.Unread():
+        case world.Occupied():
             return None
         case _:  # pragma: no cover
             assert_never(record)
@@ -287,11 +295,11 @@ def answered(
     """
     answers = mode.question_of(chosen).answers
     match answers:
-        case mode.Answers.LIST:
+        case modequestion.Answers.LIST:
             return _listed(project.what_next(decided))
-        case mode.Answers.ITEM:
+        case modequestion.Answers.ITEM:
             return _asked(project.item_next(decided, mode.item_of(chosen)))
-        case mode.Answers.NOTHING:
+        case modequestion.Answers.NOTHING:
             return [], []
         case _:  # pragma: no cover
             assert_never(answers)
@@ -321,7 +329,7 @@ def answer_of(found: nextfound.Found) -> None:
     lines, shown = answered(chosen, judgement.decided)
     lines = [*ticketnotes.asked(found.args, chosen, judgement.records), *lines]
     source, picks = briefed(found, judgement.records, shown)
-    listing = mode.question_of(chosen).answers is mode.Answers.LIST
+    listing = mode.question_of(chosen).answers is modequestion.Answers.LIST
     tail = suggest.tail(source) if listing else []
     said = [*lines, *tail, *suggest.lines(source, picks)]
     logline.after(said, found.settings.slots.log)
@@ -341,23 +349,6 @@ def pull_records(found: nextfound.Found) -> Sequence[world.PullRecord]:
         The records of the open pull requests the mode names.
     """
     return world.named_pulls(seen_for(found).made)
-
-
-def decisions(found: nextfound.Found, chosen: mode.Mode) -> answer.Decided:
-    """What ``act`` looks its verb up in: the decisions of its mode's one read.
-
-    ``dispatch-next`` takes the head of the order; merge, arm, undraft and override
-    the decision of the item their mode names (keyword: gate, P8), so a verb runs
-    only when the advice for the item is that verb.
-
-    Args:
-        found: the context.
-        chosen: the mode of the ``act`` command line.
-
-    Returns:
-        The decisions of the world.
-    """
-    return looked(found, chosen).decided
 
 
 def mode_of(

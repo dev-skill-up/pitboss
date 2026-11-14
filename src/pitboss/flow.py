@@ -8,6 +8,7 @@ from what is recorded of the PR. Its second function is ``rulings.after_opus_rul
 from typing import Sequence
 
 from . import (
+    checkoutcome,
     conflicts,
     expansion,
     draftfacts,
@@ -44,7 +45,6 @@ newest_counting_review = flowquestions.newest_counting_review
 plan_approved = flowquestions.plan_approved
 plan_revised = flowquestions.plan_revised
 get_plan_rejections = flowquestions.get_plan_rejections
-ci_result = flowquestions.ci_result
 
 
 PAUSED = steps.IDLE
@@ -207,8 +207,7 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
             return ready
         # keyword: draft-review (pitboss#156, #176): a rejection is fixed first
         rejection = rejection_step(pr, review) if review else None
-        red = draftfacts.failed_besides(pr.checks, pr.draft.plan_review_check)
-        if red and not rejection:  # keyword: draft-red-ci
+        if _red_besides(pr) and not rejection:  # keyword: draft-red-ci
             return ci_gate(pr, review)
         if rejection or not plan_approved(pr):
             alone = plancheckflow.plan_review(pr)
@@ -218,6 +217,12 @@ def draft_gate(pr: PullState, review: Graded | None) -> steps.Move:
         return unrun or flowstate.e2e_step(pr) or ready
 
     return ci_gate(pr, review)
+
+
+def _red_besides(pr: PullState) -> bool:
+    # keyword: draft-red-ci: a check other than the Plan review's failed
+    others = draftfacts.besides(pr.checks, pr.draft.plan_review_check)
+    return checkoutcome.result(others) is checkoutcome.Ci.RED
 
 
 def _ready(pr: PullState) -> steps.Move:
@@ -235,7 +240,7 @@ def ci_gate(pr: PullState, review: Graded | None) -> steps.Move:
     Returns:
         The step.
     """
-    ci = ci_result(pr)  # GREEN, RED, or None (still running or not started)
+    ci = checkoutcome.result(pr.checks)  # GREEN, RED, or None (running or none)
     if ci is None:
         return steps.IDLE  # nobody works or reviews meanwhile
     if ci is Ci.RED:  # a red CI is never a rejection, and it fixes no wait

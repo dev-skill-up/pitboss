@@ -8,7 +8,7 @@ from typing import Mapping, Sequence, assert_never
 from . import answer, project
 from .markers import Marker
 
-NOT_DONE = "NOT DONE"  # a verb whose decision is another prints the one that stands
+NOT_DONE = answer.NOT_DONE  # a verb whose decision is another prints it first
 NOT_ENOUGH_WORK = (
     "NOT ENOUGH WORK: no open pull request and no ticket of the priority labels can"
     " be started now"

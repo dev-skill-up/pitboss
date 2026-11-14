@@ -8,7 +8,8 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, equal_to
 
-from .. import config, ghapi, mode, modeproof, proofsource, readextent, world
+from .. import actfacts, config, ghapi, mode, modecommand, modeproof, proofsource
+from .. import readextent, world
 from ..running import Output
 from .test_decide import GROUNDS
 
@@ -87,7 +88,7 @@ class TestForms(unittest.TestCase):
         plain = parsed("push", mechanical=False, git_arguments=[])
         want = (
             mode.MechanicalPush(arguments=["origin", "b"]),
-            mode.Other(command="push"),
+            mode.Unasked(command=modecommand.Command.PUSH),
         )
         assert_that((pushed, plain), equal_to(want))
 
@@ -120,7 +121,7 @@ class TestPushed(unittest.TestCase):
     def test_6_1_the_named_pull_requests_of_a_world(self) -> None:
         """``named_pulls`` of a world that named nothing is empty."""
         walk = world.Exhausted(examined=[])
-        made = world.World(grounds=GROUNDS, walk=walk, named=[])
+        made = world.World(grounds=GROUNDS, walk=walk, named=[], act=actfacts.NO_ACT)
         assert_that(world.named_pulls(made), equal_to([]))
 
 

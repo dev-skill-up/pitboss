@@ -16,6 +16,7 @@ from typing import AbstractSet, Sequence
 
 from . import (
     basefix,
+    checkoutcome,
     checkruns,
     config,
     dispatchruns,
@@ -104,7 +105,7 @@ def last_completed(checks: Sequence[shapes.CheckRun]) -> str:
     Returns:
         The time (ISO 8601); empty when there is none or one has not completed.
     """
-    if not checks or not all(each.finished for each in checks):
+    if not checks or not checkoutcome.all_finished(checks):
         return ""
     return max(each.completed_at for each in checks)
 
@@ -145,7 +146,7 @@ def _settled(
 ) -> Sequence[shapes.CheckRun]:
     # a failure that a later passing status answers is not one, nor one that the
     # base passed since, in a merge-queue repository (fixed-on-base, pitboss#314)
-    if not any(run.failed for run in current):
+    if checkoutcome.result(current) is not checkoutcome.Ci.RED:
         return current
     posted = headchecks.statuses(seen.github, seen.repo, sha)
     settled = headchecks.checks(seen.github, seen.repo, sha, posted)

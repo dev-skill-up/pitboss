@@ -8,7 +8,8 @@ import dataclasses
 import pathlib
 from typing import Callable, Mapping, Sequence
 
-from .. import actcore, actrules, actverbs, gatefacts, gatepolicy, project, render
+from .. import actcore, actrules, actverbs, gatefacts, gatepolicy
+from .. import render, ticketreader
 from ..gatestop import Stop
 from . import captured
 from .knownkit import Kit, Known
@@ -33,6 +34,11 @@ def _rows(given: Kit, **changes: object) -> Kit:
 
 def _controls(given: Kit, **changes: object) -> Kit:
     return _part(given, "controls", **changes)
+
+
+def _decide(given: Kit, **changes: object) -> Kit:
+    # the rows of an act verb's decision (``actdecide.ROWS``), one taken out
+    return _part(given, "rows", **changes)
 
 
 def _kit(given: Kit, **changes: object) -> Kit:
@@ -70,18 +76,18 @@ def _naive_push(
 
 
 def _first(act: actcore.Act, target: actcore.Target, options: Mapping[str, str]) -> str:
-    return (
-        options.get("want")
-        or render.dispatch(project.dispatch_next(act.questions.decided()))[0]
+    head = actverbs.head(act, target, options)
+    return options.get("want") or render.dispatch(head)[0]
+
+
+def _naive_items(body: str | None) -> ticketreader.Read:
+    return ticketreader.Items(
+        found=[
+            line.lstrip("- ").strip()
+            for line in str(body).split("## Done when", 1)[1].splitlines()
+            if line.strip()
+        ]
     )
-
-
-def _naive_items(body: str | None) -> Sequence[str]:
-    return [
-        line.lstrip("- ").strip()
-        for line in str(body).split("## Done when", 1)[1].splitlines()
-        if line.strip()
-    ]
 
 
 def _root_only(ticket: object) -> str:
@@ -104,17 +110,17 @@ REMOVALS: Mapping[str, Removal] = {
             "orchestrator": ["Merge when the PR is ready."],
         },
     ),
-    "act_gate": lambda given: _controls(_rests(given, gating=_go), hold_gate=_none),
+    "act_gate": lambda given: _decide(_rests(given, gating=_go), hold=_none),
     "disarm": lambda given: _controls(given, disarm=_nothing),
     "block": lambda given: _verbs(given, block=lambda act, target, options: ""),
-    "owner_gate": lambda given: _controls(given, owner_gate=_none),
-    "push": lambda given: _verbs(given, push=_naive_push),
-    "clean": lambda given: _verbs(
-        given, clean=lambda act, target, options: "removable"
+    "owner_gate": lambda given: _decide(given, owner=_none),
+    "push": lambda given: _decide(_verbs(given, push=_naive_push), checks=_none),
+    "clean": lambda given: _decide(
+        _verbs(given, clean=lambda act, target, options: "removable"), checks=_none
     ),
     "dispatch": lambda given: _verbs(given, dispatch_next=_first),
     "ticket_reader": lambda given: _controls(given, items=_naive_items),
-    "started": lambda given: _controls(given, started=_none),
+    "works_on": lambda given: _controls(given, works_on=lambda *said: frozenset()),
     "brief": lambda given: _kit(given, brief=_root_only, recount=_none),
     "rulecases": lambda given: _kit(
         given,

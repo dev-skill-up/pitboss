@@ -4,7 +4,7 @@ import json
 import re
 from typing import AbstractSet, Mapping, Sequence
 
-from . import shapes
+from . import checkoutcome, shapes, totaljson
 from .totaljson import text as text_of
 
 FAILURE = "failure"
@@ -12,10 +12,6 @@ FAILURE = "failure"
 
 def _each(text: str, key: str) -> Sequence[str]:
     return [str(item[key]) for item in json.loads(text)]
-
-
-def _finished(status: str) -> bool:
-    return status in shapes.FINISHED_STATUSES
 
 
 def pull(text: str) -> shapes.Pull:
@@ -101,6 +97,9 @@ def outcomes(text: str) -> Sequence[shapes.Outcome]:
     ]
 
 
+CHECK_TEXTS = ("name", "head_sha", "started_at", "completed_at", "details_url")
+
+
 def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     """Parse a page of check runs.
 
@@ -110,7 +109,7 @@ def check_runs(text: str) -> Sequence[shapes.CheckRun]:
     Returns:
         The check runs.
     """
-    return [_check_run(item) for item in json.loads(text)["check_runs"]]
+    return [one_check(item) for item in json.loads(text)["check_runs"]]
 
 
 def _login(item: Mapping[str, object]) -> str:
@@ -119,19 +118,28 @@ def _login(item: Mapping[str, object]) -> str:
     return text_of(user.get("login")) if isinstance(user, dict) else ""
 
 
-def _check_run(item: Mapping[str, object]) -> shapes.CheckRun:
-    conclusion = item.get("conclusion")
+def one_check(item: Mapping[str, object]) -> shapes.CheckRun:
+    """One check run, as GitHub answers it: its outcome by ``checkoutcome``.
+
+    Args:
+        item: the check run's object.
+
+    Returns:
+        The check run.
+    """
+    conclusion, status = item.get("conclusion"), text_of(item.get("status"))
+    words = {key: text_of(item.get(key)) for key in CHECK_TEXTS}
     return shapes.CheckRun(
-        id=int(str(item["id"])),
-        name=str(item["name"]),
-        finished=_finished(str(item["status"])),
-        failed=conclusion in shapes.FAILED_CONCLUSIONS,
-        head_sha=text_of(item.get("head_sha")),
-        started_at=text_of(item.get("started_at")),
-        completed_at=text_of(item.get("completed_at")),
-        run=run_of(text_of(item.get("details_url")) or None),
+        id=totaljson.count(item, "id"),
+        finished=checkoutcome.finished(status),
+        failed=checkoutcome.failed(status, conclusion),
+        name=words["name"],
+        head_sha=words["head_sha"],
+        started_at=words["started_at"],
+        completed_at=words["completed_at"],
+        run=run_of(words["details_url"] or None),
         succeeded=conclusion == "success",
-        said=(str(item.get("status")), str(conclusion)),  # keyword: gate
+        said=(status, str(conclusion)),  # keyword: gate
     )
 
 
@@ -302,7 +310,7 @@ def workflow_runs(text: str) -> Sequence[shapes.WorkflowRun]:
             id=item["id"],
             status=item["status"],
             conclusion=item.get("conclusion"),
-            finished=_finished(item["status"]),
+            finished=checkoutcome.finished(item["status"]),
             created_at=item["created_at"],
             head_branch=item.get("head_branch") or "",
         )

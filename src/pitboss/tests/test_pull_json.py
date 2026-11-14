@@ -5,7 +5,7 @@ from typing import Mapping
 
 from hamcrest import assert_that, equal_to
 
-from pitboss import pullobject, pullrecords, pullstate
+from pitboss import pullobject, pullrecords, pullstate, shapes
 
 SCHEMA = {
     "number": "required, integer",
@@ -98,8 +98,17 @@ class TestInputs(unittest.TestCase):
     def test_6_1_checks_are_runs(self) -> None:
         """Plan 6.1: the head's check runs; a run with no conclusion says None."""
         reads = _state(check_runs=[{"name": "t", "status": "queued", "id": 4}]).reads
-        want = pullrecords.Run(
-            name="t", status="queued", conclusion="None", number=4, started_at=""
+        want = shapes.CheckRun(
+            id=4,
+            name="t",
+            finished=False,
+            failed=False,
+            head_sha="",
+            started_at="",
+            completed_at="",
+            run=0,
+            succeeded=False,
+            said=("queued", "None"),
         )
         assert_that(reads.runs, equal_to([want]))
 

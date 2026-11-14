@@ -6,7 +6,7 @@ decisions a slot or an Opus agent takes, in the order ``decide`` gives them.
 
 import dataclasses
 import pathlib
-from typing import Iterable, Mapping, Sequence
+from typing import AbstractSet, Iterable, Mapping, Sequence
 
 from . import (
     brief,
@@ -19,11 +19,11 @@ from . import (
     configloads,
     diskwatch,
     exempt,
-    fixes,
     gates,
     ghapi,
     nextfound,
     pullfiles,
+    pullnames,
     pulls,
     reporules,
     reviews,
@@ -215,6 +215,12 @@ def _ticket_title(source: Source, ticket: str, fallback: str) -> str:
     return found.title if found else fallback
 
 
+def _works_on(pull: pulls.PullFacts) -> AbstractSet[str]:
+    # the tickets the PR works on, as the one parse reads them (plan 6.1)
+    head = pull.pull
+    return pullnames.names(head.title, head.body, head.head.branch, pull.repo)
+
+
 def goal(source: Source, pick: Pick) -> tuple[str, str]:
     """The ticket a pick is for, and its original goal in one line.
 
@@ -227,7 +233,7 @@ def goal(source: Source, pick: Pick) -> tuple[str, str]:
     """
     if pick.pull is not None and pick.pull.relock:
         return "", RELOCK_GOAL.format(reference=pick.reference, title=pick.title)
-    named = sorted(fixes.fixed_tickets(pick.pull)) if pick.pull else [pick.reference]
+    named = sorted(_works_on(pick.pull)) if pick.pull else [pick.reference]
     if not named:
         return "", f"PR {pick.reference}, which names no ticket: {pick.title}"
     title = _ticket_title(source, named[0], pick.title) if pick.pull else pick.title

@@ -8,7 +8,7 @@ as given. The flow reads the table ``AFTER`` (``flow.AFTER``);
 
 from typing import Sequence
 
-from . import conflicts, flow, rulingafter, rulingwords, steps
+from . import checkoutcome, conflicts, flow, rulingafter, rulingwords, steps
 
 RULING_LINE_PREFIX = rulingwords.RULING_LINE_PREFIX
 Ruling = rulingwords.Ruling
@@ -46,7 +46,7 @@ def merge_when_green(pr: flow.PullState) -> steps.Move:
     Returns:
         The step.
     """
-    ci = flow.ci_result(pr)
+    ci = checkoutcome.result(pr.checks)
     if ci is None:
         return steps.IDLE
     green = ci is flow.Ci.GREEN

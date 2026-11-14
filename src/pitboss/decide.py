@@ -12,9 +12,9 @@ label and no item gave a decision.
 import dataclasses
 from typing import AbstractSet, Mapping, Sequence, assert_never
 
-from . import answer, blockedstep, configrepos, finishstep, flowstep, gate, holds
-from . import listed, pullfacts, pullnames, sharedstep, slotbook, steps, stepwords
-from . import stuckwords, work, world
+from . import actdecide, answer, blockedstep, finishstep, flowstep
+from . import gate, holds, listed, pullfacts, sharedstep, slotbook, steps
+from . import stepwords, stuckwords, work, world
 from .gatestop import Stop
 
 # who takes each step that has an actor
@@ -185,7 +185,7 @@ def decide_item(record: world.Record) -> answer.Decision | None:
             return _pull_decision(record)
         case world.TicketRecord():
             return _ticket_decision(record)
-        case world.Unread():
+        case world.Occupied():
             return None
         case _:  # pragma: no cover
             assert_never(record)
@@ -229,15 +229,6 @@ def ticket_kept(grounds: world.Grounds, reference: str) -> bool:
     return grounds.quiesced or reference.rpartition("#")[0] in standing
 
 
-def _branch_taken(record: world.TicketRecord) -> bool:
-    # keyword: taken: an open pull request's branch ends in the ticket's number
-    repo = configrepos.repo_of(record.reference)
-    return any(
-        record.reference in pullnames.names("", "", branch, repo)
-        for branch in record.branches
-    )
-
-
 def decide_in(grounds: world.Grounds, record: world.Record) -> answer.Decision | None:
     """The startable predicate: the grounds' occupancy, then the item's own record.
 
@@ -252,9 +243,9 @@ def decide_in(grounds: world.Grounds, record: world.Record) -> answer.Decision |
         case world.PullRecord():
             occupied = pull_kept(grounds, record.row.reference)
         case world.TicketRecord():
-            taken = _branch_taken(record)
+            taken = record.reference in record.branch_named
             occupied = ticket_kept(grounds, record.reference) or taken
-        case world.Unread():
+        case world.Occupied():
             occupied = True
         case _:  # pragma: no cover
             assert_never(record)
@@ -303,5 +294,6 @@ def decide(made: world.World) -> Judgement:
     decided = answer.Decided(
         answer=_answer(made.walk, ordered, free),
         by_item={each.item: each for each in [*ordered, *named]},
+        acting=actdecide.verdict(made.act, grounds.held, actdecide.ROWS),
     )
     return Judgement(decided=decided, records={**named_records, **records})

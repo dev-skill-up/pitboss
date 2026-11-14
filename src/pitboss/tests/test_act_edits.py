@@ -8,8 +8,8 @@ import unittest
 
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import actcore
-from . import fakehub
+from .. import actcore, actfacts
+from . import fakehub, knownruns
 from .knownshipped import GIVEN, refusal
 from .actplay import file_issue, kinds, verb_refusal
 from .knownkit import BODY, NUMBER, REPO, act, change, made
@@ -118,8 +118,8 @@ class TestPushAndQueue(unittest.TestCase):
         )
         hub = made(GIVEN, armed)
         world = dataclasses.replace(hub.act, prepush=lambda: (0, "ok\n"))
-        options = {"worktree": str(worktree), "branch": "worker/7"}
-        GIVEN.verbs["push"](world, actcore.Target(repo=REPO, number=NUMBER), options)
+        target = actcore.Target(repo=REPO, number=NUMBER)
+        knownruns.push_in(GIVEN, world, worktree, target)
         assert_that(
             kinds(hub)[:4], equal_to(["disarm", "comment", "dequeue", "comment"])
         )
@@ -136,7 +136,8 @@ class TestPushAndQueue(unittest.TestCase):
         target = actcore.Target(repo=REPO)
         said = []
         for verb in ("push", "clean"):
-            said.append(verb_refusal(GIVEN.verbs[verb], world, target, options))
+            asked = actfacts.Asked(verb=verb, target=target, options=options)
+            said.append(verb_refusal(GIVEN, world, asked))
             write(worktree / "loose", "x")
         assert_that(said[0], contains_string("default branch"))
         assert_that(said[1], contains_string("not committed"))

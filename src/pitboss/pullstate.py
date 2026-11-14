@@ -6,10 +6,9 @@ inputs read with it and gives a frozen ``GateState``. A fact that was not read i
 gate rows read typed fields and nothing past here reads JSON (keyword: one-path).
 """
 
-import re
 from typing import AbstractSet, Callable, Mapping, Sequence
 
-from . import gatefacts, pullobject, totalschema
+from . import gatefacts, holdparse, parsing, pullobject, totalreview, totalschema
 from . import pullrecords as records
 from .pullobject import Raw, count_at, list_at, object_at, pull_object, text_at
 from .pullrecords import Mistyped, Unread
@@ -35,7 +34,9 @@ INPUTS = (
 
 
 # the head's runs, its statuses and the PR's events, typed by the PR's own read
-Head = tuple[Sequence[records.Run], Sequence[records.Status], Sequence[records.Event]]
+Head = tuple[
+    Sequence[records.CheckRead], Sequence[records.Status], Sequence[records.Event]
+]
 
 # the member each list's rows branch on, a string GitHub documents, and whether
 # it may be null
@@ -59,16 +60,6 @@ def _listing(key: str, value: object) -> Sequence[Raw] | Unread | Mistyped:
         if name in each and not typed:
             return Mistyped(name=name, said=str(value)[:40])
     return found
-
-
-def _run(each: Raw) -> records.Run:
-    return records.Run(
-        name=pullobject.said_at(each, "name"),
-        status=pullobject.said_at(each, "status"),
-        conclusion=pullobject.said_at(each, "conclusion"),
-        number=count_at(each, "id"),
-        started_at=text_at(each, "started_at"),
-    )
 
 
 def _status(each: Raw) -> records.Status:
@@ -110,17 +101,11 @@ def _listed[Item](
 
 def _reads(inputs: Raw) -> records.Reads:
     return records.Reads(
-        runs=_listed(inputs, "check_runs", _run),
+        runs=_listed(inputs, "check_runs", parsing.one_check),
         statuses=_listed(inputs, "statuses", _status),
         files=_listed(inputs, "files", _file),
         timeline=_listed(inputs, "timeline", _event),
     )
-
-
-def _hold(issue: Raw) -> records.Hold:
-    scope = re.search(r"scope=(\w+)", text_at(issue, "body"))
-    title = text_at(issue, "title") or str(issue.get("number"))
-    return records.Hold(title=title, scope=scope.group(1) if scope else "all")
 
 
 def _names(value: object) -> AbstractSet[str]:
@@ -143,7 +128,10 @@ def _repository(inputs: Raw) -> records.Repository:
 
 
 def _state(
-    pull: records.PullObject, inputs: Raw, reads: records.Reads
+    pull: records.PullObject,
+    inputs: Raw,
+    reads: records.Reads,
+    holds: Sequence[records.Hold],
 ) -> records.GateState:
     return records.GateState(
         pull=pull,
@@ -153,8 +141,9 @@ def _state(
         blockers={
             ref: str(said) for ref, said in object_at(inputs, "blockers").items()
         },
-        holds=[_hold(object_at(each)) for each in list_at(inputs, "holds")],
+        holds=holds,
         absent=[name for name in INPUTS if name not in inputs],
+        attempts=totalreview.review_attempts(records.listed(reads.timeline)),
     )
 
 
@@ -170,10 +159,16 @@ def parse(raw: Raw, inputs: Raw, schema: Mapping[str, str]) -> records.GateState
     Returns:
         The typed state.
     """
-    return _state(pull_object(raw, schema), inputs, _reads(inputs))
+    holds = [holdparse.parse(object_at(each)) for each in list_at(inputs, "holds")]
+    return _state(pull_object(raw, schema), inputs, _reads(inputs), holds)
 
 
-def gate_read(pull: records.PullObject, inputs: Raw, head: Head) -> gatefacts.Gate:
+def gate_read(
+    pull: records.PullObject,
+    inputs: Raw,
+    head: Head,
+    holds: Sequence[records.Hold],
+) -> gatefacts.Gate:
     """A PR's gate from the fields its own read typed, and the gate-only inputs.
 
     The PR object, its head's runs, its statuses, its comments and its reviews
@@ -182,8 +177,9 @@ def gate_read(pull: records.PullObject, inputs: Raw, head: Head) -> gatefacts.Ga
 
     Args:
         pull: the PR object.
-        inputs: the gate-only reads (``gateinputs``); holds as GitHub's issues.
+        inputs: the gate-only reads (``gateinputs``).
         head: the head's runs, its statuses and the PR's events.
+        holds: its repository's holds, as the world read them (``holdissues``).
 
     Returns:
         The gate.
@@ -195,8 +191,8 @@ def gate_read(pull: records.PullObject, inputs: Raw, head: Head) -> gatefacts.Ga
         files=_listed(inputs, "files", _file),
         timeline=events,
     )
-    given = {**inputs, "check_runs": (), "statuses": (), "timeline": ()}
-    return gatefacts.Gate(state=_state(pull, given, typed))
+    given = {**inputs, "check_runs": (), "statuses": (), "timeline": (), "holds": ()}
+    return gatefacts.Gate(state=_state(pull, given, typed, holds))
 
 
 def gate_of(pull: JsonMap, inputs: JsonMap) -> gatefacts.Gate:

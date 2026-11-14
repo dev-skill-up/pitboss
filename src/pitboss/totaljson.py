@@ -49,6 +49,19 @@ def text(value: object) -> str:
     return value if isinstance(value, str) else ""
 
 
+def count(item: Mapping[str, object], key: str) -> int:
+    """A JSON object's whole number at a key, 0 when it has none.
+
+    Args:
+        item: the object.
+        key: the key.
+
+    Returns:
+        The number.
+    """
+    return int(str(item.get(key) or 0))
+
+
 def listing(value: object) -> Sequence[object]:
     """A JSON array, or an empty one.
 

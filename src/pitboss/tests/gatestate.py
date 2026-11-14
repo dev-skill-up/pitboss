@@ -6,6 +6,7 @@ here, with no JSON, and changes one value of it.
 
 import dataclasses
 
+from .. import parsing, totalreview
 from .. import pullrecords as records
 
 REPO = "example-org/example"
@@ -15,12 +16,14 @@ BODY = f"Fixes #1\n\nHead: {HEAD}\n"
 REVIEW = records.Event(
     kind="commented", state="", login="reviewer", body="Verdict: approved", label=""
 )
-GREEN_RUN = records.Run(
-    name="check",
-    status="completed",
-    conclusion="success",
-    number=1,
-    started_at="2026-11-01",
+GREEN_RUN = parsing.one_check(
+    {
+        "name": "check",
+        "status": "completed",
+        "conclusion": "success",
+        "id": 1,
+        "started_at": "2026-11-01",
+    }
 )
 OPEN = records.Closure(
     state="open",
@@ -145,8 +148,11 @@ def state(**changes: object) -> records.GateState:
         blockers={},
         holds=[],
         absent=[],
+        attempts=[],
     )
-    return dataclasses.replace(made, **changes)  # type: ignore[arg-type]
+    given = dataclasses.replace(made, **changes)  # type: ignore[arg-type]
+    timeline = records.listed(given.reads.timeline)
+    return dataclasses.replace(given, attempts=totalreview.review_attempts(timeline))
 
 
 def happened(kind: str, **changes: object) -> records.Event:

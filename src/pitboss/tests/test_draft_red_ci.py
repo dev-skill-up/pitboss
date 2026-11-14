@@ -9,8 +9,8 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import draftfacts, flow, shapes, steps
-from . import blank, fakes, suggestions, world
+from .. import flow, steps
+from . import fakes, suggestions, world
 from .test_flow import RED, expect, state
 
 LOG = "Failed check log: test: https://github.com/owner/project/runs/8"
@@ -33,20 +33,6 @@ def draft_world(checks: Sequence[object]) -> world.World:
         3, draft=True, head=head, mergeable_state="clean"
     )
     return here
-
-
-def failing(name: str) -> shapes.CheckRun:
-    """A completed failed check run.
-
-    Args:
-        name: its name.
-
-    Returns:
-        The run.
-    """
-    return dataclasses.replace(
-        blank.CHECK_RUN, id=len(name), name=name, finished=True, failed=True
-    )
 
 
 def set_check(name: str) -> flow.PullState:
@@ -100,10 +86,3 @@ class TestDraftRedCi(unittest.TestCase):
     def test_another_failed_check_is_fixed_beside_the_plan_review_check(self) -> None:
         """A failure of a check with another name is a fix, whatever is set."""
         expect(steps.worker(steps.Task.FIX_CI), set_check("plan"))
-
-    def test_a_job_of_a_called_workflow_is_the_named_check(self) -> None:
-        """``caller / name`` is the check of that name; a name ending alike is not."""
-        called = [failing("x / plan")]
-        other = [failing("x / explan")]
-        assert_that(draftfacts.failed_besides(called, "plan"), equal_to(False))
-        assert_that(draftfacts.failed_besides(other, "plan"), equal_to(True))

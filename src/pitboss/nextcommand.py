@@ -4,7 +4,7 @@ import re
 import sys
 from typing import NoReturn, Sequence
 
-from . import config, ledger
+from . import config, slotbook
 
 _FULL_REFERENCE = re.compile(r"^[\w.-]+/[\w.-]+#\d+$")
 TAKES_ONE = "next takes one ticket or PR, or none"
@@ -31,7 +31,7 @@ def reference(words: Sequence[str], repo: config.Repo) -> str | None:
         _refuse(TAKES_ONE)
     if not words:
         return None
-    named = ledger.reference(words[0], repo)
+    named = slotbook.reference(words[0], repo)
     if not _FULL_REFERENCE.match(named):
         _refuse(TAKES_FULL)
     return named

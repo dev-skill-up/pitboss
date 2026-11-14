@@ -16,7 +16,7 @@ names takes that item's place (keyword: dependency).
 
 An item ``decide`` already says no actor takes from the grounds alone (a slot holds
 it, a pull request works on it, a hold covers its repository) is not read: it is an
-``Unread`` record, and ``decide`` decides it. A read that fails after its tries
+``Occupied`` record, and ``decide`` decides it. A read that fails after its tries
 (``retrying``) fails the command: nothing is decided on a part.
 """
 
@@ -24,6 +24,7 @@ import dataclasses
 from typing import Callable, Iterator, Mapping, Sequence
 
 from . import (
+    actfacts,
     answer,
     blockedby,
     branchtaken,
@@ -32,9 +33,12 @@ from . import (
     configrepos,
     ghapi,
     holdconfig,
+    holdissues,
+    holdparse,
     ledger,
     listed,
     placing,
+    pullrecords,
     pullsearch,
     readextent,
     ticketdata,
@@ -47,6 +51,17 @@ PullReader = world.PullReader
 Decides = Callable[[world.Grounds, world.Record], answer.Decision | None]
 Kept = Callable[[world.Grounds, str], bool]
 Others = Sequence[listed.Listed]  # the other open rows of a pull request's repository
+Holds = Sequence[pullrecords.Hold]  # the hold issues of a pull request's repository
+Acts = Callable[[], actfacts.ActRead]  # what an act verb is decided from, read
+
+
+def no_acts() -> actfacts.ActRead:
+    """The read of a command that asks for no act verb.
+
+    Returns:
+        ``actfacts.NO_ACT``.
+    """
+    return actfacts.NO_ACT
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -72,11 +87,11 @@ class Examiner:
 
     Attributes:
         pull: an open pull request and its closure, given the other open rows of
-            its repository.
+            its repository and its repository's holds (keyword: gate).
         ticket: an open ticket's closure, given its repository's open branches.
     """
 
-    pull: Callable[[listed.Listed, Others], world.PullRecord]
+    pull: Callable[[listed.Listed, Others, Holds], world.PullRecord]
     ticket: Callable[[workorder.Ticket, Sequence[str]], world.TicketRecord]
 
 
@@ -94,6 +109,8 @@ class Reading:
         examiner: how an item is read.
         released: the ledger less the slots whose worker handed back the head
             the listing gives (``handedback``, keyword: hand-back-done).
+        acts: what the act verb the command asks for is decided from
+            (``actread``; ``actfacts.NO_ACT`` for any other command).
     """
 
     github: ghapi.GitHub
@@ -104,6 +121,7 @@ class Reading:
     judge: Judge
     examiner: Examiner
     released: Callable[[Sequence[listed.Listed], ledger.Ledger], ledger.Ledger]
+    acts: Acts
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -114,6 +132,7 @@ class _Walking:
     stop: int
     every_pull: bool
     branches: dict[str, Sequence[str]]  # each repository's open branches, read once
+    held: holdparse.Held  # each repository's hold issues, read once
 
 
 def _rows(walking: _Walking) -> Mapping[str, listed.Listed]:
@@ -129,11 +148,15 @@ def _grounds(walking: _Walking) -> world.Grounds:
         _rows(walking).values(), key=lambda row: (row.created_at, rank[row.repo.slug])
     )
     return world.Grounds(
-        listing=rows, book=reading.book, holds=reading.holds, quiesced=reading.quiesced
+        listing=rows,
+        book=reading.book,
+        holds=reading.holds,
+        held=walking.held,
+        quiesced=reading.quiesced,
     )
 
 
-def _unread(walking: _Walking, candidate: workorder.Candidate) -> bool:
+def _occupied(walking: _Walking, candidate: workorder.Candidate) -> bool:
     # an item the grounds already decide is not read; the sweep reads every PR
     judge = walking.reading.judge
     if isinstance(candidate, workorder.Ticket):
@@ -150,7 +173,8 @@ def _examine(walking: _Walking, candidate: workorder.Candidate) -> world.Record:
     rows = walking.read.read
     others = [each for each in rows if each.repo == candidate.repo]
     others = [each for each in others if each != candidate]
-    return walking.reading.examiner.pull(candidate, others)
+    holds = walking.held.get(candidate.repo.slug, ())
+    return walking.reading.examiner.pull(candidate, others, holds)
 
 
 def _by_reference(walking: _Walking, reference: str) -> workorder.Candidate | None:
@@ -223,7 +247,7 @@ def _resolved(
     # a candidate listed, or a blocker read by its reference
     found = walked.listed.get(reference) or _by_reference(walking, reference)
     if found is None:  # a blocker that is no open item: nothing to examine
-        walked.examined[reference] = world.Unread(reference=reference, pull=False)
+        walked.examined[reference] = world.Occupied(reference=reference, pull=False)
     return found
 
 
@@ -286,14 +310,14 @@ def _each(
 ) -> Mapping[str, world.Record]:
     # one wave, examined at once (plan 3.1: one wave of workers); the open
     # branches of a ticket's repository are read once a walk (keyword: taken)
-    unread = {
-        each.reference: world.Unread(
+    occupied = {
+        each.reference: world.Occupied(
             reference=each.reference, pull=isinstance(each, listed.Listed)
         )
         for each in wave
-        if _unread(walking, each)
+        if _occupied(walking, each)
     }
-    read = [each for each in wave if each.reference not in unread]
+    read = [each for each in wave if each.reference not in occupied]
     slugs = {
         configrepos.repo_of(each.reference).slug
         for each in read
@@ -305,7 +329,7 @@ def _each(
     walking.branches.update(zip(wanted, found))
     records = concurrently.each(lambda each: _examine(walking, each), read)
     examined = {each.reference: record for each, record in zip(read, records)}
-    return {each.reference: {**unread, **examined}[each.reference] for each in wave}
+    return {each.reference: {**occupied, **examined}[each.reference] for each in wave}
 
 
 def _named(walking: _Walking, references: Sequence[str]) -> Sequence[world.Record]:
@@ -336,12 +360,14 @@ def read_world(reading: Reading, extent: readextent.Extent) -> world.World:
         stop=workorder.stop_count(reading.book),
         every_pull=extent.every_pull,
         branches={},
+        held=holdissues.read(reading.github, reading.settings),
     )
     walked = walk(walking)
     return world.World(
         grounds=_grounds(walking),
         walk=walked,
         named=_named(walking, _asked_for(reading, extent)),
+        act=reading.acts(),
     )
 
 

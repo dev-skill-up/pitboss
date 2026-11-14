@@ -4,6 +4,7 @@ from typing import AbstractSet, Sequence
 
 from . import (
     basefix,
+    checkoutcome,
     checkruns,
     config,
     ghapi,
@@ -126,7 +127,7 @@ def checks(
     """
     found = runs_of(github, repo, head)
     current = checkruns.current_checks(found, head)
-    if not any(check.failed for check in current):
+    if checkoutcome.result(current) is not checkoutcome.Ci.RED:
         return current
 
     def workflow_of(run: int) -> str:
@@ -154,8 +155,7 @@ def red(
         if each.state in RED_STATES
         and not any(
             check.name == each.context
-            and check.finished
-            and not check.failed
+            and checkoutcome.passed(check)
             and check.completed_at > each.created_at
             for check in current
         )

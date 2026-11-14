@@ -24,7 +24,7 @@ from . import (
     totalreview,
 )
 from .gatestop import Stop
-from .pullrecords import GateState
+from .pullrecords import GateState, listed
 
 Gate = gatefacts.Gate
 ACTIONS = gatefacts.ACTIONS
@@ -91,6 +91,6 @@ def stops_of(step: steps.Step, gate: Gate) -> Sequence[Stop]:
 def _overridden(state: GateState) -> str:
     # the override records of the head, as one text
     identity, head = state.repository.identity, state.pull.where.head_sha
-    timeline = gaterows.listed(state.reads.timeline)
+    timeline = listed(state.reads.timeline)
     records = totalreview.act_records(timeline, identity, "override")
     return "\n".join(rest for at, rest in records if at == head)

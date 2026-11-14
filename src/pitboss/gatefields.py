@@ -9,9 +9,8 @@ fields a rule names, that rule (plan 6.1: the rows read the typed state
 from typing import Callable, Mapping, Sequence
 
 from . import schematypes, totalreview
-from .gaterows import listed
 from .gatestop import Route, Stop
-from .pullrecords import GateState, Merging
+from .pullrecords import GateState, Merging, listed
 from .totalanswer import GATED_ACTIONS, KNOWN_LABELS, MERGE_ACTIONS, PAUSED
 
 Check = Callable[[GateState, str], bool]

@@ -219,6 +219,18 @@ class TestEdits(unittest.TestCase):
         said = "P8: gateverbs.lookup does not take the decisions"
         assert_that(found, has_item(said))
 
+    def test_p8_each_verb_is_matched_applied_and_looked_up(self) -> None:
+        """Every verb is one the lookup matches and act applies, and run looks it up."""
+        lookup = "found = gateverbs.lookup("
+        seeds = {
+            ("actverbs.py", '    "ack": actwrite.ack,\n', ""): "verb ack has nothing",
+            ("gateverbs.py", '    ACK = "ack"\n', ""): "act verb ack is no verb",
+            ("actverbs.py", lookup, lookup.replace("(", "_none(")): "does not look",
+        }
+        for (path, old, new), said in seeds.items():
+            found = decideproofs.act_agrees(_edited(path, old, new))
+            assert_that("\n".join(found), contains_string(f"P8: {said}"))
+
     def test_p8_a_totalverdict_module_is_a_finding(self) -> None:
         """There is no second verdict."""
         found = decideproofs.act_agrees(_edited("totalverdict.py", "", "\n"))

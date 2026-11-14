@@ -5,7 +5,7 @@
 
 from typing import Protocol, Sequence
 
-from . import config, shapes
+from . import checkoutcome, config, shapes
 
 
 class Named(Protocol):
@@ -69,7 +69,7 @@ def waiting_for_ci(facts: Named) -> bool:
     Returns:
         True when no check run of the head has completed.
     """
-    return not any(check.finished for check in facts.checks)
+    return not checkoutcome.any_finished(facts.checks)
 
 
 def green(facts: Named) -> bool:
@@ -83,4 +83,4 @@ def green(facts: Named) -> bool:
     Returns:
         True when green.
     """
-    return not waiting_for_ci(facts) and not pending(facts) and not failed_checks(facts)
+    return checkoutcome.result(facts.checks) is checkoutcome.Ci.GREEN

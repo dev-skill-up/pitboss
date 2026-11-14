@@ -226,6 +226,10 @@ def _ends_total(function: ast.FunctionDef) -> bool:
 def act_agrees(package: Package) -> Sequence[str]:
     """P8: act looks its verb up in the decisions, and ``totalverdict`` is gone.
 
+    The lookup is a total match on the verb, and its verbs are the 27 that act
+    applies. A verb in one and not the other is a finding, and so is ``run`` with
+    no call of the lookup.
+
     Args:
         package: the package.
 
@@ -245,4 +249,51 @@ def act_agrees(package: Package) -> Sequence[str]:
     )
     if "pitboss.totalverdict" in package.sources:
         found.append("P8: the totalverdict module exists")
-    return found
+    return [*found, *_every_verb(package)]
+
+
+def _texts(values: Sequence[ast.expr | None]) -> set[str]:
+    # the string constants among some expressions
+    return {str(each.value) for each in values if isinstance(each, ast.Constant)}
+
+
+def _words(tree: ast.AST, kinds: Sequence[str]) -> set[str]:
+    # the words of the verbs' enums: each member's string value
+    named = [
+        kind.body for name, kind in proofsource.classes(tree).items() if name in kinds
+    ]
+    return _texts(
+        [node.value for body in named for node in body if isinstance(node, ast.Assign)]
+    )
+
+
+def _table(tree: ast.AST) -> set[str]:
+    # the words ``actverbs.VERBS`` applies
+    tables = [
+        node.value
+        for node in proofsource.assigned(proofsource.statements(tree), "VERBS")
+    ]
+    return _texts(
+        [key for each in tables if isinstance(each, ast.Dict) for key in each.keys]
+    )
+
+
+def _every_verb(package: Package) -> Sequence[str]:
+    # P8: each of act's verbs is a member of the lookup's verbs, and act looks it up
+    verbs = _words(proofsource.module(package, "gateverbs"), ("ItemVerb", "OwnVerb"))
+    applied = _table(proofsource.module(package, "actverbs"))
+    run = proofsource.defined(package, "actverbs", "run")
+    looked = run is not None and any(
+        proofsource.called(node) == "gateverbs.lookup" for node in ast.walk(run)
+    )
+    return [
+        *(
+            f"P8: act verb {each} is no verb the lookup matches"
+            for each in sorted(applied - verbs)
+        ),
+        *(
+            f"P8: verb {each} has nothing that applies it"
+            for each in sorted(verbs - applied)
+        ),
+        *([] if looked else ["P8: actverbs.run does not look its verb up"]),
+    ]

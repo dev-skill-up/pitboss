@@ -11,7 +11,7 @@ import unittest
 from hamcrest import assert_that, contains_string, empty, equal_to
 
 from .. import actcore, actrules, actverbs, rulecount, rulefiles
-from . import fakehub, knownshipped, scratch
+from . import fakegiven, knownshipped, scratch
 from .knownkit import CHECKOUTS, made
 from .fakes import write
 from .says import raises_with
@@ -186,7 +186,7 @@ class TestDispatchBrief(unittest.TestCase):
             hub.act,
             questions=dataclasses.replace(
                 hub.act.questions,
-                decided=lambda: fakehub.work("o/r#5"),
+                decided=lambda asked: fakegiven.work("o/r#5"),
             ),
         )
         options = {

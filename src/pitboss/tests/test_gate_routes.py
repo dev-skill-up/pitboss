@@ -52,10 +52,10 @@ class TestRoutes(unittest.TestCase):
         """``allows`` reads the decision's ``carried``, not its words."""
         merging = stopped("", answer.Carried.MERGE)
         said = [
-            gateverbs.allows(gateverbs.Verb.MERGE, merging, "o/r#1"),
-            gateverbs.allows(gateverbs.Verb.ARM, merging, "o/r#1"),
-            gateverbs.allows(gateverbs.Verb.UNDRAFT, merging, "o/r#1"),
-            gateverbs.allows(gateverbs.Verb.MERGE, worker("o/r#1"), "o/r#1"),
-            gateverbs.allows(gateverbs.Verb.OVERRIDE, merging, "o/r#1"),
+            gateverbs.allows(gateverbs.ItemVerb.MERGE, merging, "o/r#1"),
+            gateverbs.allows(gateverbs.ItemVerb.ARM, merging, "o/r#1"),
+            gateverbs.allows(gateverbs.ItemVerb.UNDRAFT, merging, "o/r#1"),
+            gateverbs.allows(gateverbs.ItemVerb.MERGE, worker("o/r#1"), "o/r#1"),
+            gateverbs.allows(gateverbs.ItemVerb.OVERRIDE, merging, "o/r#1"),
         ]
         assert_that(said, equal_to([True, True, False, False, False]))

@@ -7,13 +7,14 @@ so a record is whole or not made: a read that failed after its tries
 """
 
 import dataclasses
-from typing import Callable, Mapping, Sequence, assert_never
+from typing import AbstractSet, Callable, Mapping, Sequence, assert_never
 
 
-from . import blockedstep, gatefacts, holdconfig, listed, pullfacts, shapes
-from . import sharedstep, slotbook, stuckwords
+from . import actfacts, blockedstep, gatefacts, holdconfig, holdparse, listed
+from . import pullfacts, pullrecords, shapes, sharedstep, slotbook, stuckwords
 
-GateRead = Callable[[pullfacts.PullRead], gatefacts.Gate]  # keyword: gate
+# keyword: gate: a PR's gate, with its repository's holds
+GateRead = Callable[[pullfacts.PullRead, Sequence[pullrecords.Hold]], gatefacts.Gate]
 PullReader = Callable[[listed.Listed], pullfacts.PullRead]  # one PR, read once a run
 Others = Sequence[listed.Listed]  # the other open rows of a pull request's repository
 SharedRead = Callable[[pullfacts.PullFacts, Others], Sequence[sharedstep.Shared]]
@@ -74,8 +75,9 @@ class TicketRecord:
         superseded: the configuration or a comment marks it superseded.
         blockers: the open items it says it waits for (``ticketblock``).
         opens_ready: its repository opens pull requests ready (keyword: no-drafts).
-        branches: the head branch of each open pull request of its repository
-            (keyword: taken: a branch that ends in its number works on it).
+        branch_named: the tickets the head branches of its repository's open pull
+            requests name (``pullnames.names``, keyword: taken: a branch that ends
+            in its number works on it).
     """
 
     reference: str
@@ -84,11 +86,11 @@ class TicketRecord:
     superseded: bool
     blockers: Sequence[str]
     opens_ready: bool
-    branches: Sequence[str]
+    branch_named: AbstractSet[str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Unread:
+class Occupied:
     """An item the walk reached and did not read: its grounds already decide it.
 
     ``decide.pull_kept`` or ``decide.ticket_kept`` says from the grounds alone that
@@ -104,7 +106,7 @@ class Unread:
     pull: bool
 
 
-Record = PullRecord | TicketRecord | Unread
+Record = PullRecord | TicketRecord | Occupied
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -142,12 +144,14 @@ class Grounds:
         listing: the open pull requests of the configuration, as listed.
         book: the slot ledger, as the live agents make it.
         holds: the owner's holds on new pull requests (``[holds]``).
+        held: each repository's hold issues (``holdissues``, keyword: hold).
         quiesced: whether the owner quiesced the work (``quiesce``).
     """
 
     listing: Sequence[listed.Listed]
     book: slotbook.Ledger
     holds: holdconfig.Holds
+    held: holdparse.Held
     quiesced: bool
 
 
@@ -160,11 +164,14 @@ class World:
         walk: how the walk in the order ended, and what it examined.
         named: the records of the items examined whatever the walk reached (the
             item the command names, the owner's priorities).
+        act: what the act verb the command asks for is decided from
+            (``actfacts.NO_ACT`` for any other command).
     """
 
     grounds: Grounds
     walk: Walk
     named: Sequence[Record]
+    act: actfacts.ActRead
 
 
 def blockers_of(record: Record) -> Sequence[str]:
@@ -179,7 +186,7 @@ def blockers_of(record: Record) -> Sequence[str]:
     match record:
         case PullRecord() | TicketRecord():
             return record.blockers
-        case Unread():
+        case Occupied():
             return ()
         case _:  # pragma: no cover
             assert_never(record)

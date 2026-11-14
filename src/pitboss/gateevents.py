@@ -8,10 +8,9 @@ It reads the typed timeline ``pullstate`` made (plan 6.1).
 import functools
 from typing import AbstractSet, Sequence
 
-from . import enumeration, totalreview
-from .gaterows import listed
+from . import enumeration
 from .gatestop import Route, Stop
-from .pullrecords import Event, GateState
+from .pullrecords import Event, GateState, listed
 from .totalanswer import KNOWN_LABELS
 
 LABEL_EVENTS = frozenset({"labeled", "unlabeled"})
@@ -53,7 +52,6 @@ def event_stops(state: GateState, benign: AbstractSet[str]) -> Sequence[Stop]:
         A stop for a label pitboss does not apply, and for an event that makes
         the review of an older state.
     """
-    timeline = listed(state.reads.timeline)
-    attempts = totalreview.review_attempts(timeline)
+    timeline, attempts = listed(state.reads.timeline), state.attempts
     since = timeline[timeline.index(attempts[-1]) + 1 :] if attempts else []
     return [stop for event in since for stop in _event_stop(event, benign)]

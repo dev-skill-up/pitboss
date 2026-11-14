@@ -6,13 +6,15 @@ every control a case runs; ``knownremovals`` takes one out at a time.
 """
 
 import dataclasses
+import functools
 import pathlib
 from typing import Callable, Mapping, MutableMapping, Sequence
 
 from .. import (
     actcore,
+    actfacts,
     actrules,
-    actstands,
+    actverbs,
     answer,
     handbackform,
     pullstate,
@@ -21,16 +23,14 @@ from .. import (
     rulecases,
     rulecount,
     rulefiles,
-    ticketreader,
 )
 from ..totaljson import JsonMap, members
-from . import fakehub, gatewords, knowngit, scratch, totalworld
+from . import fakegiven, fakehub, gatewords, knowngit, scratch, totalworld
 from .totalworld import World
 
 REFUSALS = (
     actcore.Refused,
     rulefiles.Refused,
-    ticketreader.Refused,
     rulecases.Refused,
 )
 Brief = Callable[[rulefiles.Ticket], str]
@@ -43,7 +43,7 @@ Diff = Callable[
     Sequence[str],
 ]
 Findings = Callable[[str, Sequence[str], handbackform.Exists], Sequence[str]]
-Verb = Callable[[actcore.Act, actcore.Target, Mapping[str, str]], actstands.Said]
+Verb = Callable[[actcore.Act, actcore.Target, Mapping[str, str]], str]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -62,7 +62,7 @@ class Kit:
         registrations: the check that no command runs mutants.
     """
 
-    rests: fakehub.Given
+    rests: fakegiven.Given
     verbs: Mapping[str, Verb]
     requirements: Mapping[str, Sequence[str]] = dataclasses.field(
         default_factory=lambda: actrules.REQUIREMENTS
@@ -218,10 +218,10 @@ def made(
     Returns:
         The hub and the verb's world.
     """
-    return fakehub.holding(world, given_of(given), owner)
+    return fakehub.holding(world, rests_of(given_of(given)), owner)
 
 
-def given_of(given: Kit, decided: answer.Decided | None = None) -> fakehub.Given:
+def given_of(given: Kit, decided: answer.Decided | None = None) -> fakegiven.Given:
     """What a fake GitHub's verbs rest on, from a kit.
 
     Args:
@@ -232,7 +232,20 @@ def given_of(given: Kit, decided: answer.Decided | None = None) -> fakehub.Given
     Returns:
         The controls and the gate.
     """
-    return dataclasses.replace(given.rests, decided=decided or fakehub.work())
+    return dataclasses.replace(given.rests, decided=decided or fakegiven.work())
+
+
+def rests_of(given: fakegiven.Given) -> fakehub.Rests:
+    """What a fake GitHub's verbs rest on, its decisions bound to the kit.
+
+    Args:
+        given: the controls, the gate and how the decisions are made.
+
+    Returns:
+        The controls and the verb's decisions.
+    """
+    decided = functools.partial(given.decisions_of, kit=given)
+    return fakehub.Rests(controls=given.controls, decided=decided)
 
 
 def act(given: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:
@@ -251,14 +264,21 @@ def act(given: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:
     target = actcore.Target(
         repo=words.pop("repo", REPO), number=int(words.pop("number", str(NUMBER)))
     )
-    return _said(given.verbs[verb](hub.act, target, words))
+    return ran(given, hub.act, actfacts.Asked(verb=verb, target=target, options=words))
 
 
-def _said(answered: actstands.Said) -> str:
-    # what a verb did; what stands instead is raised as the refusal it was
-    if isinstance(answered, actstands.Stands):
-        raise actcore.Refused(answered.line)
-    return answered
+def ran(given: Kit, world: actcore.Act, asked: actfacts.Asked) -> str:
+    """Run a verb as ``act`` runs it: looked up in the decisions, then applied.
+
+    Args:
+        given: the kit.
+        world: the verb's world.
+        asked: the verb, its target and its options.
+
+    Returns:
+        What it said; the ``NOT DONE`` line of what stands instead.
+    """
+    return actverbs.run(world, asked, given.verbs)
 
 
 def refused(run: Callable[[], object]) -> str:
@@ -275,8 +295,6 @@ def refused(run: Callable[[], object]) -> str:
         went = run()
     except REFUSALS as error:
         return str(error) or "refused"
-    if isinstance(went, actstands.Stands):
-        return went.line
     return str(went) if str(went).startswith(render.NOT_DONE) else ""
 
 
@@ -336,49 +354,6 @@ def registry(
         return register
 
     return one
-
-
-def dispatch(given: Kit, decided: answer.Decided, **options: str) -> str:
-    """Run ``dispatch-next`` over the decisions of a world.
-
-    Args:
-        given: the kit.
-        decided: the decisions.
-        **options: ``want``.
-
-    Returns:
-        The item it answers.
-    """
-    hub = fakehub.holding(BASE, given_of(given, decided))
-    world = dataclasses.replace(
-        hub.act,
-        questions=dataclasses.replace(
-            hub.act.questions,
-            decided=lambda: decided,
-        ),
-    )
-    return _said(
-        given.verbs["dispatch-next"](world, actcore.Target(repo=REPO), options)
-    )
-
-
-def pushed(
-    given: Kit, worktree: pathlib.Path, prepush: tuple[int, str] = (0, "ok\n")
-) -> str:
-    """Run ``push`` of a worktree to ``worker/7``.
-
-    Args:
-        given: the kit.
-        worktree: the worktree.
-        prepush: what the pre-push check says.
-
-    Returns:
-        What it said.
-    """
-    hub = made(given)
-    world = dataclasses.replace(hub.act, prepush=lambda: prepush)
-    options = {"worktree": str(worktree), "branch": "worker/7"}
-    return _said(given.verbs["push"](world, actcore.Target(repo=REPO), options))
 
 
 def refusal(kit: Kit, hub: fakehub.Made, verb: str, **options: str) -> str:

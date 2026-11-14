@@ -1,6 +1,7 @@
 """The ``slots`` command: the worker-slot ledger, and what to start next."""
 
 import argparse
+import functools
 import sys
 from typing import Callable, Mapping, Sequence
 
@@ -16,6 +17,8 @@ from . import (
     ledger,
     ledgerowner,
     logline,
+    mode,
+    modeextent,
     nextfound,
     onepath,
     freecheck,
@@ -24,21 +27,17 @@ from . import (
     repoaccess,
     slotholder,
     slotholding,
+    slotfreeline,
     slotlog,
     slotreport,
-    slotsheader,
     slotwindow,
     tasklistlines,
     ticketof,
     tracefs,
     watchrun,
 )
-from .commandarguments import (
-    CONFIG_ARGUMENT,
-    NOW_ARGUMENT,
-    RUNNING_ARGUMENT,
-    WATCH_ARGUMENTS,
-)
+from .commandarguments import CONFIG_ARGUMENT, NOW_ARGUMENT, RUNNING_ARGUMENT
+from .commandarguments import WATCH_ARGUMENTS
 from .commands import Context, load_context
 from .markers import Marker
 from .slotaction import Action
@@ -285,16 +284,23 @@ def _tasklist(found: Context) -> None:
     repoaccess.finish(found.access)
 
 
-READS: Mapping[Action, Callable[[Context], None]] = {
-    Action.FREE_CHECK: _free_check,
-    Action.TASKLIST: _tasklist,
-}
-
-
 def _next(found: Context) -> None:
     # keyword: one-path: the list and the item form print one value
     onepath.answer_of(found)
     repoaccess.finish(found.access)
+
+
+def _watch(found: Context) -> None:
+    free = functools.partial(slotfreeline.line, onepath.first_line)
+    watchrun.watch(found.args, load_context, free)
+
+
+READS: Mapping[Action, Callable[[Context], None]] = {  # an action's mode asks these
+    Action.NEXT: _next,
+    Action.FREE_CHECK: _free_check,
+    Action.TASKLIST: _tasklist,
+    Action.WATCH: _watch,
+}
 
 
 def _read(found: Context) -> ledger.Ledger:
@@ -345,6 +351,26 @@ def slots(args: argparse.Namespace) -> None:
     tracefs.say(args.safe_run)
     found = load_context(args)
     _require_ledger(found, action)
+    _by_mode(found, action, onepath.mode_of(args, found, {}))
+
+
+def _by_mode(found: Context, action: Action, chosen: mode.Mode) -> None:
+    # run a ``slots`` action by its mode (keyword: one-path); another's exits 2
+    match chosen:
+        case mode.SlotsNext() | mode.SlotsNextItem() | mode.FreeCheck() | mode.Tasks():
+            READS[action](found)
+        case mode.Watch():
+            READS[action](found)
+        case mode.Free() | mode.Heard():
+            _changing(found, action)
+        case mode.Unasked():
+            _unasked(found, action)
+        case _:  # pragma: no cover - no action of slots parses to another mode
+            modeextent.foreign("slots", chosen)
+
+
+def _unasked(found: Context, action: Action) -> None:
+    # an action that asks nothing of the decisions
     if action in CHANGES:
         _changing(found, action)
     elif action is Action.CHECK:
@@ -353,22 +379,5 @@ def slots(args: argparse.Namespace) -> None:
         slotwindow.report(found)
     elif action is Action.TIME:
         slotwindow.worked(found)
-    elif action is Action.NEXT:
-        _next(found)
-    elif action in READS:
-        READS[action](found)
-    elif action is Action.WATCH:
-        watchrun.watch(args, load_context, _free_line)
     else:
         _shown(found, _read(found))
-
-
-def _free_line(found: nextfound.Found, book: ledger.Ledger, cap: int) -> str:
-    # the ``SLOT FREE`` line of ``slots watch``, naming the first decision
-    since = slotsheader.free_since(book, found.settings.slots.log, found.now)
-    free = cap - len(slotsheader.running(book))
-    return (
-        f"{Marker.WATCH_SLOT_FREE.text}: {free} of {cap} free since"
-        f" {slotlog.utc(since).strftime(slotsheader.TIME_FORMAT)}; first startable:"
-        f" {onepath.first_line(found)}"
-    )

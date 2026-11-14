@@ -3,7 +3,7 @@
 import json
 from typing import Mapping, Sequence
 
-from . import shapes
+from . import shapes, totaljson
 from .totaljson import text
 
 
@@ -30,7 +30,7 @@ def issue_of(item: Mapping[str, object]) -> shapes.Issue | None:
         created_at=text(item.get("created_at")),
         labels=frozenset(text(each.get("name")) for each in named),
         body=text(item.get("body")),
-        comments=int(str(item.get("comments") or 0)),
+        comments=totaljson.count(item, "comments"),
     )
 
 
