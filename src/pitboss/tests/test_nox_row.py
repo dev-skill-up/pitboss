@@ -82,6 +82,13 @@ class TestNoxRow(unittest.TestCase):
         for each in OTHER_ROWS:
             assert_that(noxrow.runs_nox(each), equal_to(False), each)
 
+    def test_plan_check_does_not_run_a_nox_row(self) -> None:
+        """The nox row did not run, the git row did."""
+        rows, bad, _ = plancheck.report(PLAN_WITH_NOX, ran_nothing)
+        assert_that(bad, equal_to([1]))
+        assert_that(rows[0], contains_string("NOT RUN"))
+        assert_that(plancheck.verdict(bad), contains_string("refused"))
+
     def test_plan_check_accepts_the_ci_pointer_and_git_rows(self) -> None:
         """The same Plan with the pointer passes."""
         assert_that(refused(PLAN_WITH_POINTER), empty())
