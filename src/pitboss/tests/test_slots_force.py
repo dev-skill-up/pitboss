@@ -82,11 +82,16 @@ class TestQuiesce(unittest.TestCase):
 class TestForce(unittest.TestCase):
     """``--force`` decides a ticket an open PR keeps by its own record."""
 
-    def test_force_briefs_a_ticket_that_a_pr_keeps(self) -> None:
-        """Plain, the PR keeps ticket 9 and nothing starts it; forced, it is briefed."""
+    def test_force_answers_a_ticket_with_the_decision_of_its_pr(self) -> None:
+        """Forced, ticket 9 gets the review brief of its PR 4, never a start."""
         here = with_pull_issues(named())
-        plain, forced = (one(here, NINTH, *more) for more in ((), ("--force",)))
+        forced = one(here, NINTH, "--force")
         same(
-            (plain.code, forced.code, STARTS in plain.out, STARTS in forced.out),
-            (0, 0, False, True),
+            (
+                forced.code,
+                STARTS in forced.out,
+                "REVIEWER: owner/project#4:" in forced.out,
+            ),
+            (0, False, True),
         )
+        says(forced.out, "PITBOSS-SLOT: owner/project#4 review")

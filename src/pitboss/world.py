@@ -229,3 +229,24 @@ def pull_records(made: World) -> Sequence[PullRecord]:
     return [
         read[row.reference] for row in made.grounds.listing if row.reference in read
     ]
+
+
+def pulls_of(grounds: Grounds, forced: Sequence[str]) -> Sequence[str]:
+    """The open pull requests of the forced tickets (keyword: force).
+
+    Forcing only prioritizes, so the ticket's PR is decided with it, and the
+    ticket is never started again.
+
+    Args:
+        grounds: the listing and the rest of what is known before items are read.
+        forced: the forced items.
+
+    Returns:
+        The references of the pull requests that work on a forced item and are
+        not forced themselves.
+    """
+    return [
+        row.reference
+        for row in grounds.listing
+        if any(each in row.works_on for each in forced) and row.reference not in forced
+    ]

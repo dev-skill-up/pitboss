@@ -289,6 +289,22 @@ def _answer(
             assert_never(walk)
 
 
+def _pulls_instead(
+    grounds: world.Grounds,
+    forced: Sequence[str],
+    by_item: Mapping[str, answer.Decision],
+) -> Mapping[str, answer.Decision]:
+    # a forced ticket is answered by the decision of its open PR (keyword: force):
+    # forcing only prioritizes, and a ticket with a PR is never started again
+    return {
+        ticket: by_item[row.reference]
+        for row in grounds.listing
+        for ticket in forced
+        if ticket in row.works_on
+        if row.reference in by_item
+    }
+
+
 def decide(made: world.World) -> Judgement:
     """Decide every examined item of a world, and what is next.
 
@@ -303,9 +319,10 @@ def decide(made: world.World) -> Judgement:
     ordered, records = _decided(grounds, made.walk.examined)
     named, named_records = _decided(grounds, made.named, made.forced)
     free = sum(1 for slot in grounds.book.slots if not slot.agent)
+    by_item = {each.item: each for each in [*ordered, *named]}
     decided = answer.Decided(
         answer=_answer(made.walk, ordered, free),
-        by_item={each.item: each for each in [*ordered, *named]},
+        by_item={**by_item, **_pulls_instead(grounds, made.forced, by_item)},
         acting=actdecide.verdict(made.act, grounds.held, actdecide.ROWS),
     )
     return Judgement(decided=decided, records={**named_records, **records})

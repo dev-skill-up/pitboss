@@ -375,12 +375,15 @@ def read_world(reading: Reading, extent: modequestion.Extent) -> world.World:
     walking = _walking_of(reading, extent)
     walked = walk(walking)
     reading = walking.reading
+    grounds = _grounds(walking)
+    kept = world.pulls_of(grounds, extent.forced)
+    forced = [*extent.forced, *kept]
     return world.World(
-        grounds=_grounds(walking),
+        grounds=grounds,
         walk=walked,
-        named=_named(walking, _asked_for(reading, extent), extent.forced),
+        named=_named(walking, [*_asked_for(reading, extent), *kept], forced),
         act=reading.acts(),
-        forced=extent.forced,
+        forced=forced,
     )
 
 
