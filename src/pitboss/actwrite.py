@@ -12,7 +12,15 @@ it) gets nothing added: those are decided in the one read (``actdecide``), and
 import re
 from typing import Callable, Mapping, Sequence
 
-from . import actcore, bodydigest, pullnames, pullobject, reviewattempt, totalbody
+from . import (
+    actcore,
+    actreview,
+    bodydigest,
+    pullnames,
+    pullobject,
+    reviewattempt,
+    totalbody,
+)
 from . import totalreview
 from .actcore import (
     disarm_first,
@@ -112,30 +120,37 @@ def _plain(words: str) -> None:
         )
 
 
+def _written(
+    act: actcore.Act,
+    target: actcore.Target,
+    pull: actcore.Pull,
+    options: actcore.Options,
+) -> str:
+    # the review in the form of its kind and of the repository
+    kind = actreview.kind_of(options)
+    grades = actreview.grades_of(kind, options)
+    tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
+    words = review_text(pull, grades, actcore.option(options, "findings"), tickets)
+    words = actreview.shaped(words, kind, options)
+    return formed(words, act.form(target.repo), actcore.head_of(pull), grades[2])
+
+
 def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
     """Post a review in the one form the verdict reads.
 
     Args:
         act: the verb's world.
         target: the PR.
-        options: ``plan``, ``execution``, ``verdict`` (each approved or changes
-            needed) and ``findings``.
+        options: ``kind`` (a ``--review-kind`` word, ``full`` when none),
+            ``plan``, ``execution``, ``verdict`` (each approved or changes needed, as
+            the kind needs), ``findings``, and the digests ``body`` and
+            ``plan-digest`` of the body the reviewer read.
 
     Returns:
         The review's text.
-
-    Raises:
-        actcore.Refused: a grade in another form, or findings that carry a grade line.
     """
-    grades = [text(options.get(each)) for each in ("plan", "execution", "verdict")]
-    if any(each not in GRADES for each in grades):
-        raise actcore.Refused("a grade is approved or changes needed")
-    findings = actcore.option(options, "findings")
-    _plain(findings)
-    pull = pull_of(act, target)
-    tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
-    words = review_text(pull, grades, findings, tickets)
-    words = formed(words, act.form(target.repo), actcore.head_of(pull), grades[2])
+    _plain(actcore.option(options, "findings"))
+    words = _written(act, target, pull_of(act, target), options)
     put(act, target, "comment", {"body": words})
     return words
 

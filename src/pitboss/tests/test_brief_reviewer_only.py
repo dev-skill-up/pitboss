@@ -2,9 +2,17 @@
 
 import unittest
 
+from . import briefmake
 from .briefmake import text
 from .says import has_all, has_none
-from .. import brief, brieftextci, brieftextexec, brieftextfailure, brieftextlint
+from .. import (
+    brief,
+    briefgrade,
+    brieftextci,
+    brieftextexec,
+    brieftextfailure,
+    brieftextlint,
+)
 from .. import brieftextnote, brieftextorder
 from ..brief import Kind
 from .. import brieftext
@@ -43,15 +51,23 @@ class TestReviewerOnly(unittest.TestCase):
             [brieftext.SCOPE_FULL.split("{")[0], brieftextnote.REVIEW_NOTES],
         )
 
-    def test_a_review_that_grades_an_execution_is_posted_by_act_review(self) -> None:
-        """The brief names `act review` and leaves out the form and the digests."""
-        for kind in (Kind.REVIEW_FULL, Kind.REVIEW_EXECUTION):
+    def test_every_review_is_posted_by_act_review_with_its_kind_and_digest(
+        self,
+    ) -> None:
+        """The brief names `act review`, the kind word and the body digest read."""
+        for kind in brief.REVIEWS:
             found = text(kind)
-            has_all(found, ["uvx pitboss act review o/r#3"])
+            word = briefgrade.KIND_WORDS[kind]
+            has_all(found, ["uvx pitboss act review o/r#3", f"kind={word}"])
+            has_all(found, [f"body={briefmake.BODY_DIGEST}"])
             has_none(found, ["Form:", "Grade lines:", "Body: the PR body"])
 
-    def test_the_other_reviews_still_carry_the_form(self) -> None:
-        """A Plan review and a scoped review post a comment of their own form."""
-        for kind in (Kind.REVIEW_PLAN, Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND):
-            has_all(text(kind), ["Form:"])
-            has_none(text(kind), ["act review"])
+    def test_the_grades_asked_for_are_the_ones_the_kind_needs(self) -> None:
+        """A Plan review gives the Plan, a review after the Plan the Execution."""
+        plan = text(Kind.REVIEW_PLAN)
+        has_all(plan, ["plan=<approved", f"plan-digest={briefmake.PLAN_DIGEST}"])
+        has_none(plan, ["execution="])
+        for kind in (Kind.REVIEW_EXECUTION, Kind.REVIEW_RELOCK):
+            has_all(text(kind), ["execution=<approved"])
+            has_none(text(kind), ["plan=", "plan-digest="])
+        has_all(text(Kind.REVIEW_FULL), ["plan=<approved", "execution=<approved"])

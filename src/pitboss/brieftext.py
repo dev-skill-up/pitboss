@@ -181,23 +181,6 @@ CI_DRAFT = (
     " dry-run the Plan's commands); never hand back"
     " `NOT STARTED` for a missing check run of a draft."
 )
-FORM = (
-    "Form: read `references/adversarial-review.md` of the sweep skill, then post"
-    " one comment on the PR in the form of the repository, from `uvx pitboss"
-    " review-form {config} {repo}`:"
-)
-GATED = (
-    "Gated: this repository's review-gate.yml reads the comment, and the merge"
-    " waits for it: {note}. A comment that breaks any of it leaves the status"
-    " `adversarial-review` pending."
-)
-PLAN_DIGEST = (
-    "Plan digest: you grade the Plan, so add {plan_digest_line} to the comment,"
-    " beside the `Plan:` line, as given (it is what `uvx pitboss plan-digest`"
-    " prints for the body this brief read). The sweep prints `PLAN EDITED` when"
-    " the Plan section of the body later differs from it, and offers the PR for"
-    " no round until an Opus ruling allows the edit."
-)
 NO_PLAN_EDIT = (
     "Approved Plan: do not edit the Plan section of an approved PR; hand back a"
     " Plan problem as NOT PROCEEDING with the evidence."
@@ -208,15 +191,6 @@ NO_PLAN_FINDING = (
     " Execution: do not post it as one and never ground changes needed on it;"
     " write it as a note for an Opus ruling, and judge the Execution against the"
     " Plan as written."
-)
-BODY_DIGEST = (
-    "Body: the PR body is part of what you read. This brief read it as it stood"
-    " when the sweep printed it: add the"
-    " line `Body: {body_digest}` to the comment, beside the `Verdict:` line, as"
-    " given. The sweep shows `review=older-body` for a body edited after the"
-    " review of an unmoved head, and a review that records the new digest"
-    " answers it. This brief is complete: the orchestrator dispatches it"
-    " unchanged, and you copy its form, head and digest lines as given."
 )
 HONEST = (
     "Changes needed: a verdict of changes needed names, for each change, a failure"

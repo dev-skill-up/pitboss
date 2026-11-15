@@ -19,7 +19,6 @@ from . import (
     configloads,
     diskwatch,
     exempt,
-    gates,
     ghapi,
     nextfound,
     pullfiles,
@@ -254,7 +253,6 @@ def _rules(source: Source, slug: str, head: str, ticket: str) -> brief.Rules:
         config=source.given,
         form=_form(source, slug, head),
         project=_project(source, slug, ticket),
-        gate_note=gates.note(sorted(review.trusted)) if slug in review.gated else "",
         plan_check=source.settings.project.plan_review_check,
         verdicts=(words.approved, words.changes_needed),
     )

@@ -8,8 +8,8 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import config, gates, ghapi, headchecks, shapes
-from . import decisionline, fakes, quietworld, suggestions, test_commands
-from . import test_flow_sweep, world
+from . import decisionline, fakes, quietworld, test_commands
+from . import world
 from .gateworld import (
     FORM,
     GATE,
@@ -275,11 +275,6 @@ class TestSettled(unittest.TestCase):
         found = test_commands.sweep(failing_world(500))
         assert_that((found.code, found.out), equal_to((1, "")))
         assert_that(found.err, contains_string("review-gate.yml: HTTP 500"))
-
-    def test_an_ungated_reviewer_brief_has_no_gate_note(self) -> None:
-        """The usual form only."""
-        text = "\n".join(suggestions.third(test_flow_sweep.world_with([]))[1])
-        assert_that("Gated:" in text, equal_to(False))
 
 
 class TestPendingGate(unittest.TestCase):

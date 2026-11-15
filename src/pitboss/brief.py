@@ -15,7 +15,6 @@ from typing import Mapping, Sequence
 from . import (
     briefconfig,
     briefpost,
-    briefgrade,
     briefkind,
     briefruling,
     briefslot,
@@ -72,7 +71,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
         *brieftextfolded.PLAN_REVIEW,
-        text.PLAN_DIGEST,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
     Kind.REVIEW_FIX_ROUND: [text.SCOPE_FIX_ROUND, text.NO_PLAN_FINDING, text.CARRIED],
@@ -158,8 +156,6 @@ class Rules:
         config: the configuration, as given to the command.
         form: the lines of the review form, filled in for this PR.
         project: what the project's briefs say beyond the process.
-        gate_note: what a gated repository's gate also requires of the comment
-            (keyword: review-gate, pitboss#166), empty when it is not gated.
         plan_check: the check a draft's Plan review reads first (keyword:
             plan-review-check, pitboss#275), empty when the project has none.
         verdicts: the form's word for an approval and its word for changes
@@ -169,7 +165,6 @@ class Rules:
     config: str
     form: Sequence[str]
     project: briefconfig.Brief
-    gate_note: str = ""
     plan_check: str = ""
     verdicts: tuple[str, str] = ("approved", "changes needed")
 
@@ -242,7 +237,7 @@ def _named(heads: Heads, where: str) -> Mapping[str, str]:
         "review": review,
         "checkout": where.format(base=heads.base, branch=heads.branch),
         "body_digest": heads.body_digest,
-        "plan_digest_line": brieftextwhen.plan_digest_line(heads.plan_digest),
+        "plan_digest": heads.plan_digest,
     }
 
 
@@ -320,28 +315,6 @@ def _e2e(spec: Spec) -> Sequence[str]:
     return [brieftextci.E2E] if spec.e2e and spec.kind in E2E_KINDS else []
 
 
-def _after_form(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
-    # keyword: grade-spellings (rp#684): the exact grade lines and the check to run
-    rules = spec.rules
-    gate = [text.GATED.format(note=rules.gate_note)] if rules.gate_note else []
-    reads = f" --gated --repository {values['repo']} --config {rules.config}"
-    arguments = f"--head {values['head']}{reads if rules.gate_note else ''}"
-    return [*gate, *briefgrade.lines(spec.kind, rules.verdicts, arguments)]
-
-
-def _posting(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
-    # how the review is posted: one tool line, or the form, grade lines and digests
-    if posted := briefpost.lines(spec.kind, values):
-        return posted
-    form = [f"    {line}" for line in spec.rules.form]
-    return [
-        *_filled([text.FORM], values),
-        *form,
-        *_after_form(spec, values),
-        *_filled([text.BODY_DIGEST], values),
-    ]
-
-
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
@@ -354,7 +327,7 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     head = [text.REVIEW, *lines, *([separate] if separate else []), ci, *_e2e(spec)]
     return [
         *_filled(head, values),
-        *_posting(spec, values),
+        *briefpost.lines(spec.kind, values),
         text.HONEST,
         brieftextowner.OWNER,
         *tail,

@@ -12,14 +12,12 @@ import unittest
 
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string
 
 from .. import (
     brief,
-    briefgrade,
     briefkind,
     config,
-    gradeline,
     rulingwords,
     steps,
 )
@@ -58,41 +56,6 @@ def named_in_every(each: Sequence[brief.Kind], words: Sequence[str]) -> None:
         with unittest.TestCase().subTest(made.name):
             for phrase in words:
                 assert_that(printed(made), contains_string(phrase))
-
-
-class TestGradeLines(unittest.TestCase):
-    """B-forms: the Plan and Execution lines, with the words the check reads."""
-
-    def test_a_plan_review_has_no_execution_line_and_the_others_have_one(self) -> None:
-        """The Plan-only scope prints one line, the rest two."""
-        for kind in REVIEWS:
-            with self.subTest(kind.name):
-                lines = briefgrade.grade_lines(kind, "approved", "changes needed")
-                plan_only = kind is brief.Kind.REVIEW_PLAN
-                assert_that(len(lines), equal_to(1 if plan_only else 2))
-
-    def test_the_lines_printed_are_ones_the_check_and_the_sweep_read(self) -> None:
-        """Filling the verdict with either word gives a line with no finding."""
-        for kind in REVIEWS:
-            for word in (FORM.approved, FORM.changes_needed):
-                with self.subTest(kind.name, word=word):
-                    body = "\n".join(
-                        each.strip().replace(WORDS, word)
-                        for each in briefgrade.grade_lines(
-                            kind, FORM.approved, FORM.changes_needed
-                        )
-                    )
-                    found = gradeline.ungraded(body, FORM.approved, FORM.changes_needed)
-                    assert_that(list(found), equal_to([]))
-
-    def test_the_fixed_plan_line_is_the_one_the_check_wants(self) -> None:
-        """A re-review prints ``fixed_line``, which ``--plan-approved`` wants."""
-        text = printed(brief.Kind.REVIEW_EXECUTION)
-        assert_that(text, contains_string(gradeline.fixed_line(FORM.approved)))
-
-
-class TestCheckBeforePosting(unittest.TestCase):
-    """Each review brief names the command that checks the comment."""
 
 
 class TestOtherForms(unittest.TestCase):
