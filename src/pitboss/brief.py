@@ -360,13 +360,13 @@ def _after_form(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
-    # keyword: draft-review (pitboss#156): the Plan stage is a draft's
-    # a Plan revised on a PR that is not a draft has its checks (pitboss#167)
+    # keyword: draft-review (pitboss#156, #167): a draft has the Plan stage, its checks
     draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
     ci = brieftextdraft.draft_ci(spec.rules.plan_check) if draft else text.CI
     separate = text.SEPARATE_DRAFT if draft else text.SEPARATE
     separate = DRY_RUNNERS.get(spec.kind, separate)
-    head = [text.REVIEW, *SCOPE_LINES[spec.kind], separate, ci, *_e2e(spec), text.FORM]
+    lines = brieftextprcheck.kept(SCOPE_LINES[spec.kind], values["repo"])
+    head = [text.REVIEW, *lines, separate, ci, *_e2e(spec), text.FORM]
     return [
         *_filled(head, values),
         *(f"    {line}" for line in spec.rules.form),

@@ -36,6 +36,11 @@ class TestPrcheckChecklist(unittest.TestCase):
                 for wanted in (COMMAND, f"checkout of {repo} at", "`checked, ok`"):
                     assert_that(found, contains_string(wanted))
 
+    def test_a_repository_without_bats_prcheck_does_not_get_the_command(self) -> None:
+        """The brief of a pitboss pull request does not name `bats prcheck`."""
+        for kind in CARRIERS:
+            has_none(text(kind, repo="dev-skill-up/pitboss"), [COMMAND])
+
     def test_the_reviews_that_grade_no_execution_do_not_carry_it(self) -> None:
         """A Plan, a resolution, a fix round and a relock review do not."""
         for kind in OTHERS:
