@@ -2,11 +2,9 @@
 
 import re
 import unittest
-from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import bodydigest, plandigest
 from . import fakes, suggestions, test_flow_sweep, world
 
 ONE_LINE_FORM = (
@@ -19,22 +17,6 @@ GATED_FORM = (
     'lines = ["## Adversarial review", "Reviewed: {sha}", "Verdict: {verdict}"]\n'
 )
 BODY = "## Plan\nthe plan\nHead: 1\n\n## Execution\nthe work\n"
-
-
-def digests(body: str) -> tuple[str, str]:
-    """The two lines a review of a body records.
-
-    Args:
-        body: the PR body.
-
-    Returns:
-        The ``Body:`` line and the ``Plan digest:`` line.
-    """
-    plan = bodydigest.digest(plandigest.section(body))
-    return (
-        f"{bodydigest.PREFIX}{bodydigest.digest(body)}",
-        f"{bodydigest.PLAN_PREFIX}{plan}",
-    )
 
 
 def brief_of_third(here: world.World) -> str:
@@ -78,18 +60,6 @@ def world_with_body(body: str, form: str = "", gated: str = "gated") -> world.Wo
     here = test_flow_sweep.world_with([], body=body)
     reconfigure(here.config, form, gated)
     return here
-
-
-def holds_all(text: str, pieces: Sequence[str]) -> None:
-    """Check that the brief holds the lines of the body now and each piece.
-
-    Args:
-        text: the brief.
-        pieces: what else it must hold.
-    """
-    for wanted in (*(f"`{line}`" for line in digests(BODY)), *pieces):
-        assert_that(text, contains_string(wanted))
-    assert_that("<scratchpad>" in text, equal_to(False))
 
 
 class TestReviewBrief(unittest.TestCase):

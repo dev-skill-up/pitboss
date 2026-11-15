@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import actreview, actwrite, gradesrequired
+from .. import actport, actreview, actwrite, gradesrequired
 
 HEAD = "a" * 40
 BASE = (
@@ -90,3 +90,9 @@ class TestKinds(unittest.TestCase):
             actreview.grades_of("execution", execution)[1], equal_to("approved")
         )
         assert_that(len(actreview.grades_of("full", both)), equal_to(3))
+
+    def test_a_kind_no_review_has_is_refused(self) -> None:
+        """Only the `--review-kind` words are kinds."""
+        with self.assertRaises(actport.Refused):
+            actreview.kind_of({"kind": "other"})
+        assert_that(actreview.kind_of({}), equal_to("full"))
