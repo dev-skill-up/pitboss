@@ -279,6 +279,14 @@ def _touches_e2e(source: Source, pick: Pick, kind: brief.Kind) -> bool:
     return pullfiles.touches(source.github, slug, found.pull.number, prefixes)
 
 
+def _paths(source: Source, pick: Pick, kind: brief.Kind) -> Sequence[str] | None:
+    # keyword: brief-when: the files of the PR a review reads
+    found = pick.pull
+    if found is None or kind not in brief.REVIEWS:
+        return None
+    return pullfiles.names(source.github, found.repo.slug, found.pull.number)
+
+
 def spec(source: Source, pick: Pick) -> brief.Spec:
     """What the brief of a pick is built from.
 
@@ -302,6 +310,7 @@ def spec(source: Source, pick: Pick) -> brief.Spec:
         ready=pick.pull is not None and not pick.pull.pull.draft,
         e2e=_touches_e2e(source, pick, kind),
         conflict=ruleconflicts.brief_lines(pick.pull.step if pick.pull else None),
+        paths=_paths(source, pick, kind),
     )
 
 

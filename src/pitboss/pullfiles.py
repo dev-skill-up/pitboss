@@ -45,6 +45,20 @@ def changed_tests(patches: str) -> Sequence[str]:
     ]
 
 
+def names(github: ghapi.GitHub, slug: str, number: int) -> Sequence[str]:
+    """The paths of the files a PR changes (keyword: brief-when).
+
+    Args:
+        github: the API.
+        slug: the repository's ``owner/name``.
+        number: the PR's number.
+
+    Returns:
+        Each changed file's path, and the old path of a renamed one.
+    """
+    return list(ghapi.pages(github, f"repos/{slug}/pulls/{number}/files", file_names))
+
+
 def touches(
     github: ghapi.GitHub, slug: str, number: int, prefixes: Sequence[str]
 ) -> bool:

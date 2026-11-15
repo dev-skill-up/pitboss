@@ -95,7 +95,8 @@ def make(kind: brief.Kind, **changes: object) -> brief.Spec:
 
     Args:
         kind: the kind of brief.
-        **changes: fields of the subject, the heads or the rules to replace.
+        **changes: fields of the subject, the heads or the rules to replace, and
+            ``paths``, the files the PR changes.
 
     Returns:
         The spec.
@@ -105,6 +106,7 @@ def make(kind: brief.Kind, **changes: object) -> brief.Spec:
         subject=_part(SUBJECT, changes),
         heads=_part(COMMITS, changes),
         rules=_part(RULES, changes),
+        paths=changes.get("paths"),  # type: ignore[arg-type]
     )
 
 

@@ -30,8 +30,8 @@ from . import (
     brieftextnote,
     brieftextorder,
     brieftextowner,
-    brieftextpins,
     brieftextprcheck,
+    briefwhen,
     brieftextwhen,
     brieftextwork,
     envrules,
@@ -106,12 +106,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         brieftextfolded.RELOCK_TEST_FIX,
         text.CARRIED,
     ],
-}
-# keyword: all-findings (pitboss#169): the reviews of a Plan try its commands
-DRY_RUNNERS: Mapping[Kind, str] = {
-    Kind.REVIEW_FULL: text.SEPARATE_DRY,
-    Kind.REVIEW_PLAN: text.SEPARATE_DRAFT_DRY,
-    Kind.REVIEW_RELOCK: brieftextpins.SEPARATE_PINS,
 }
 PLAN_RUNNERS = frozenset(
     {Kind.NEW_PR, Kind.FIRST_ROUND, Kind.FIX_REVIEW, Kind.FIX_ROUND}
@@ -220,6 +214,7 @@ class Spec:
             for a draft (keyword: run-e2e, pitboss#199).
         conflict: the lines of a rule conflict a RULING brief adds (keyword:
             rule-conflicts, quire#1115).
+        paths: the files the PR changes, None when not read (keyword: brief-when).
     """
 
     kind: Kind
@@ -229,6 +224,7 @@ class Spec:
     ready: bool = False
     e2e: bool = False
     conflict: Sequence[str] = ()
+    paths: Sequence[str] | None = None
 
 
 def fields(spec: Spec) -> Mapping[str, str]:
@@ -364,8 +360,8 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
     ci = brieftextdraft.draft_ci(spec.rules.plan_check) if draft else text.CI
     separate = text.SEPARATE_DRAFT if draft else text.SEPARATE
-    separate = DRY_RUNNERS.get(spec.kind, separate)
-    lines = brieftextprcheck.kept(SCOPE_LINES[spec.kind], values["repo"])
+    separate = briefwhen.DRY_RUNNERS.get(spec.kind, separate)
+    lines = briefwhen.kept(SCOPE_LINES[spec.kind], values["repo"], spec.paths)
     head = [text.REVIEW, *lines, separate, ci, *_e2e(spec), text.FORM]
     return [
         *_filled(head, values),
