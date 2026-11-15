@@ -37,6 +37,7 @@ from . import (
     generatedfiles,
     ghclient,
     headfindings,
+    lintchange,
     markuplines,
     plancheck,
     plancheckconfig,
@@ -46,6 +47,7 @@ from . import (
     plandigest,
     plantickets,
     pullfile,
+    selectdiff,
     shapes,
 )
 
@@ -309,8 +311,30 @@ def _findings(
             body, section, patch, (head, plancheckgit.sha(args, ref))
         ),
         *_gated(args, section, patch, head),
+        *lint_tests(args, section, patch, head),
     ]
     return found, hand
+
+
+def lint_tests(
+    args: argparse.Namespace, section: str, patch: str, head: pathlib.Path
+) -> Sequence[str]:
+    """The lint-test findings of the diff, none for a reprieve (keyword: reprieve).
+
+    Args:
+        args: the parsed arguments, with the body and ``--pull``.
+        section: the Plan section.
+        patch: the output of ``git diff -U0 --no-renames`` of the PR.
+        head: the head's tree.
+
+    Returns:
+        The findings of ``lintchange``, none when the body cites the owner's
+        reprieve of the PR ``--pull`` names.
+    """
+    number = pullfile.split("plan-check", args.pull)[1] if args.pull else 0
+    if number and lintchange.reprieved(args.body, number):
+        return []
+    return lintchange.findings(section, patch, selectdiff.sources_of(str(head)))
 
 
 def scripted_in(args: argparse.Namespace, head: pathlib.Path) -> Callable[[str], bool]:

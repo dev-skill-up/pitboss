@@ -1,11 +1,12 @@
 """A changed lint with no new test the Plan cites is refused (pitboss#398)."""
 
+import argparse
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, contains_string, equal_to, has_length
 
-from .. import lintchange
+from .. import lintchange, plancheck_commands
 from . import diffrepo
 from .plancheckrun import body_of, passed, plan_check, refused_with
 from .repositories import run_git
@@ -110,6 +111,75 @@ class TestLintChange(unittest.TestCase):
         """Changing a test file needs no test."""
         patch = LOOSENED.replace(MODULE, TESTS)
         assert_that(found(patch), equal_to([]))
+
+
+GRANT = (
+    "## Execution\nReprieve: #480, the owner, 2026-11-14T18:29:33-08:00:"
+    ' "reprieve for #480 is'
+    ' granted"\n'
+)
+
+
+class TestReprieve(unittest.TestCase):
+    """The owner's reprieve lifts the check for the PR he names (keyword: reprieve)."""
+
+    def test_a_cited_grant_is_a_reprieve(self) -> None:
+        """The accepted form: an instant, and his quoted words with the number."""
+        assert_that(lintchange.reprieved(GRANT, 480), equal_to(True))
+
+    def test_a_grant_that_is_one_input_off_is_no_reprieve(self) -> None:
+        """The nearest inputs: no instant, no zone, other words, another number."""
+        cases = {
+            "no instant": GRANT.replace("2026-11-14T18:29:33-08:00", "yesterday"),
+            "no zone": GRANT.replace("-08:00", ""),
+            "other words": GRANT.replace('"reprieve for', '"go ahead for'),
+            "number longer": GRANT.replace('"reprieve for #480', '"reprieve for #4800'),
+            "number shorter": GRANT.replace('"reprieve for #480', '"reprieve for #48'),
+            "outside the quote": (
+                '## Execution\nReprieve: #480 reprieve 2026-11-14T18:29:33-08:00 "ok"\n'
+            ),
+            "fenced": f"## Execution\n```\n{GRANT}```\n",
+        }
+        for name, body in cases.items():
+            with self.subTest(name):
+                assert_that(lintchange.reprieved(body, 480), equal_to(False))
+
+    def test_the_reprieve_of_one_pull_does_not_lift_another(self) -> None:
+        """The grant names #480; the check at #481 still finds."""
+        assert_that(lintchange.reprieved(GRANT, 481), equal_to(False))
+
+
+def lint_tests(case: unittest.TestCase, body: str, pull: str) -> Sequence[str]:
+    """The lint-test findings of ``plan-check`` for a loosened lint.
+
+    Args:
+        case: the test, whose end removes the repository.
+        body: the PR's body.
+        pull: the ``--pull`` value, or none.
+
+    Returns:
+        The findings.
+    """
+    repo = loosened(case)
+    patch = run_git(repo.root, "diff", "-U0", "--no-renames", "origin/main")
+    args = argparse.Namespace(pull=pull, body=body)
+    return plancheck_commands.lint_tests(args, "", patch, repo.root)
+
+
+class TestGranted(unittest.TestCase):
+    """``plan-check`` finds nothing for the PR the owner granted (keyword: reprieve)."""
+
+    def test_the_granted_pull_has_no_finding(self) -> None:
+        """The accepted form."""
+        assert_that(lint_tests(self, GRANT, "o/r#480"), equal_to([]))
+
+    def test_another_pull_has_its_finding(self) -> None:
+        """The nearest input: the grant is for #480, the check is of #481."""
+        assert_that(lint_tests(self, GRANT, "o/r#481"), has_length(1))
+
+    def test_no_pull_has_its_finding(self) -> None:
+        """The nearest input: no --pull, so no reprieve is read."""
+        assert_that(lint_tests(self, GRANT, ""), has_length(1))
 
 
 def loosened(case: unittest.TestCase) -> diffrepo.Repository:

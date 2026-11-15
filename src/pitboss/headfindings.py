@@ -8,7 +8,7 @@ changes. The module reads only the example of the configuration.
 import pathlib
 from typing import Sequence
 
-from . import configkeys, evidence, lintchange, selectdiff
+from . import configkeys, evidence
 
 
 def of_head(
@@ -24,7 +24,7 @@ def of_head(
 
     Returns:
         The Evidence blocks expanded at another commit (``evidence``) and the
-        changed finding functions with no cited new test (``lintchange``).
+        configuration keys the diff adds (``configkeys``).
     """
     tree, sha = head
     example = tree / configkeys.EXAMPLE
@@ -32,5 +32,4 @@ def of_head(
     return [
         *evidence.stale_heads(body, sha),
         *configkeys.findings(body, patch, shown),
-        *lintchange.findings(section, patch, selectdiff.sources_of(str(tree))),
     ]

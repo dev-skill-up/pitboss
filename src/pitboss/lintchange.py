@@ -9,13 +9,20 @@ that imports the module, cited in the Plan. This is a heuristic: it catches a
 missing test, not a wrong one, and a change to a line outside every function
 (a constant) is not seen. The module reads no file and calls nothing; it is
 given the head's files.
+
+(Keyword: reprieve.) The owner may grant a PR a reprieve from the check: the body
+has a line ``Reprieve: ...`` that cites the instant he said it (an ISO 8601 time
+with its zone) and quotes his words, which hold "reprieve" and the PR's number
+(``#N``). With that line the check finds nothing for that PR; nothing else
+lifts it. The line is a citation, not a proof: the sweep's reviewer compares
+it with what the owner wrote.
 """
 
 import ast
 import re
 from typing import Mapping, Sequence
 
-from . import importgraph, markuplines
+from . import bodytext, importgraph, markuplines
 
 CHECK = "lint-test"
 EMITS = "finding"
@@ -27,6 +34,9 @@ MISSING = (
     " it: add a test for the nearest input it must still reject, and cite its"
     " name in a Plan row"
 )
+REPRIEVE = re.compile(r"^Reprieve:.*$", re.MULTILINE)
+INSTANT = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)")
+QUOTED = re.compile(r'"([^"]*)"')
 Function = ast.FunctionDef | ast.AsyncFunctionDef
 Changed = Sequence[tuple[int, bool]]
 
@@ -146,6 +156,30 @@ def _emitted(diff: str, head: Mapping[str, str]) -> Sequence[tuple[str, str, int
         if _library(path, head)
         for name, line in _changed_in(head[path], changed).items()
     ]
+
+
+def reprieved(body: str, number: int) -> bool:
+    """Whether the body cites the owner's reprieve of this PR (keyword: reprieve).
+
+    Args:
+        body: the PR's body.
+        number: the PR's number.
+
+    Returns:
+        True when a ``Reprieve:`` line of the Plan or the Execution, outside a
+        fenced block, names an instant
+        and quotes words that hold "reprieve" and ``#number``.
+    """
+    mark = re.compile(rf"#{number}(?!\d)")
+    return any(
+        INSTANT.search(line)
+        and any(
+            "reprieve" in said.lower() and mark.search(said)
+            for said in QUOTED.findall(line)
+        )
+        for part in bodytext.paragraphs(body)
+        for line in REPRIEVE.findall(part)
+    )
 
 
 def findings(section: str, patch: str, head: Mapping[str, str]) -> Sequence[str]:
