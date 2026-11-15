@@ -127,6 +127,11 @@ class TestReprieve(unittest.TestCase):
         """The accepted form: an instant, and his quoted words with the number."""
         assert_that(lintchange.reprieved(GRANT, 480), equal_to(True))
 
+    def test_a_grant_in_a_list_item_is_a_reprieve(self) -> None:
+        """The accepted form: the Execution's lines are list items."""
+        body = GRANT.replace("\nReprieve", "\n- Reprieve")
+        assert_that(lintchange.reprieved(body, 480), equal_to(True))
+
     def test_a_grant_that_is_one_input_off_is_no_reprieve(self) -> None:
         """The nearest inputs: no instant, no zone, other words, another number."""
         cases = {

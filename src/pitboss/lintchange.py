@@ -34,7 +34,7 @@ MISSING = (
     " it: add a test for the nearest input it must still reject, and cite its"
     " name in a Plan row"
 )
-REPRIEVE = re.compile(r"^Reprieve:.*$", re.MULTILINE)
+REPRIEVE = re.compile(r"^(?:[-*+][ \t]+)?Reprieve:.*$", re.MULTILINE)
 INSTANT = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)")
 QUOTED = re.compile(r'"([^"]*)"')
 Function = ast.FunctionDef | ast.AsyncFunctionDef
