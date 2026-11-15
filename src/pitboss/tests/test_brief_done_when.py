@@ -6,7 +6,7 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import brief, brieftextwork, plandonewhen, ticketwhen
 from .briefmake import pinned, text
-from .says import has_all, has_none
+from .says import has_none
 
 DIGEST = ticketwhen.digest("Done-when:\n- one\n")
 RULE = "meet the Done-when as written, or prove it impossible"
@@ -105,12 +105,6 @@ class TestImpactListIsGone(unittest.TestCase):
         for kind in brief.Kind:
             with self.subTest(kind):
                 has_none(text(kind), ["Impact list", "pitboss impact", "disposition"])
-
-    def test_the_review_briefs_do_not_reject_a_missed_mention(self) -> None:
-        """Done-when: the grep line is about a docstring; a missed mention is none."""
-        for kind in GREPPING:
-            has_all(text(kind), [GREP])
-            has_none(text(kind), ["anywhere in the tree"])
 
     def test_the_conflict_brief_still_refreshes_the_body(self) -> None:
         """The sentence moved with the impact list's removal."""

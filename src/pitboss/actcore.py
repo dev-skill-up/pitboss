@@ -88,6 +88,8 @@ class Act:
         prepush: the pre-push check (its exit status and output).
         questions: what the verbs ask of the decisions (keyword: one-path).
         controls: the readers and the disarm.
+        form: the lines a review of a repository takes (``{sha}`` and ``{verdict}``
+            to fill), none when it is not read (keyword: act-review-form).
     """
 
     hub: Hub
@@ -99,6 +101,7 @@ class Act:
     prepush: Callable[[], tuple[int, str]]
     questions: "Questions"
     controls: Controls
+    form: Callable[[str], Sequence[str]] = lambda repository: ()
 
 
 def put(

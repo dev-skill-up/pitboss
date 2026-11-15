@@ -10,25 +10,22 @@ from typing import Mapping, Sequence
 from . import (
     brieftextfolded,
     brieftextlint,
-    brieftextorder,
     brieftextpins,
     brieftextprcheck,
     briefkind,
 )
-from .brieftext import SEPARATE_DRAFT_DRY, SEPARATE_DRY
 
-# keyword: all-findings (pitboss#169): the reviews of a Plan try its commands
+# keyword: reviewer-only: a review of a Plan or an Execution is not told it is not
+# the author's (the thread sees that); a relock review still reads the pins
 DRY_RUNNERS: Mapping[briefkind.Kind, str] = {
-    briefkind.Kind.REVIEW_FULL: SEPARATE_DRY,
-    briefkind.Kind.REVIEW_PLAN: SEPARATE_DRAFT_DRY,
+    briefkind.Kind.REVIEW_FULL: "",
+    briefkind.Kind.REVIEW_EXECUTION: "",
+    briefkind.Kind.REVIEW_PLAN: "",
     briefkind.Kind.REVIEW_RELOCK: brieftextpins.SEPARATE_PINS,
 }
 DOCS = (".md", ".rst")
-ORDER_DOCS = ("sweep.md", "rules.md", "slots.md")
 WORDS = {
     brieftextlint.MARKUP_LINES_REVIEW: DOCS,
-    brieftextorder.ORDER_REVIEW: (*ORDER_DOCS, "order", "flow"),
-    brieftextlint.LINT_TEST_REVIEW: ("lint", "check"),
     brieftextfolded.SYNTAX_SCAN_REVIEW: ("scan",),
 }
 

@@ -8,7 +8,6 @@ from hamcrest import assert_that, contains_string, equal_to
 
 from .. import (
     bodydigest,
-    brief,
     brieftext,
     flow,
     flowstate,
@@ -19,7 +18,6 @@ from .. import (
 from . import blank, decisionline, fakes, world
 from . import test_plan_digest_urls as urls
 from .test_plan_digest_urls import pointed
-from .briefmake import text as brief_text
 from .test_commands import sweep
 from .test_plan_digest_collapse import digest, legacy_digest
 from .test_plan_digest_collapse import plan as expanded_plan
@@ -289,26 +287,6 @@ class TestTheCommand(unittest.TestCase):
 
 class TestTheBriefs(unittest.TestCase):
     """The briefs say that an approved Plan is not edited."""
-
-    def test_each_sentence_is_in_the_briefs_it_belongs_to(self) -> None:
-        """Who is told not to edit the Plan, who not to ask for it, who records it."""
-        Kind = brief.Kind
-        belongs = {
-            brieftext.NO_PLAN_EDIT: {
-                Kind.FIX_REVIEW,
-                Kind.FIX_CI,
-                Kind.RESOLVE_CONFLICT,
-                Kind.RULING_STEPS,
-                Kind.RUN_PLAN,
-                Kind.ADD_CI_QUOTES,
-            },
-            brieftext.NO_PLAN_FINDING: {Kind.REVIEW_EXECUTION, Kind.REVIEW_FIX_ROUND},
-            PLAN_DIGEST_START: {Kind.REVIEW_FULL, Kind.REVIEW_PLAN},
-        }
-        for sentence, kinds in belongs.items():
-            found = {kind for kind in Kind if sentence in brief_text(kind)}
-            with self.subTest(sentence):
-                assert_that(found, equal_to(kinds))
 
     def test_a_plan_problem_is_handed_back_as_not_proceeding(self) -> None:
         """The worker's sentence names the hand-back and the evidence."""

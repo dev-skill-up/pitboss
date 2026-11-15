@@ -12,7 +12,6 @@ from typing import Sequence
 from hamcrest import assert_that, contains_string, equal_to
 
 from .. import briefgrade, briefkind, gradesrequired
-from . import briefmake
 from .linting import HEAD, lines, lint, write_text
 
 START = f"## Review\nReviewed: {HEAD}\nVerdict: approved\n"
@@ -50,16 +49,6 @@ class TestKinds(unittest.TestCase):
                     for each in briefgrade.grade_lines(kind, "approved", "changes")
                 ]
                 assert_that(list(required), equal_to(printed))
-
-    def test_c23_each_brief_prints_its_kind_and_the_accepted_words(self) -> None:
-        """`--review-kind WORD`, both verdict words and the not-counted warning."""
-        for kind in briefkind.REVIEWS:
-            with self.subTest(kind.name):
-                text = briefmake.text(kind)
-                word = briefgrade.KIND_WORDS[kind]
-                assert_that(text, contains_string(f"--review-kind {word}"))
-                assert_that(text, contains_string("`approved` or `changes needed`"))
-                assert_that(text, contains_string("is not counted"))
 
 
 class TestLint(unittest.TestCase):

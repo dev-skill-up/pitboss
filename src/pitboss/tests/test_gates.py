@@ -276,24 +276,6 @@ class TestSettled(unittest.TestCase):
         assert_that((found.code, found.out), equal_to((1, "")))
         assert_that(found.err, contains_string("review-gate.yml: HTTP 500"))
 
-    def test_a_reviewer_brief_quotes_the_form_the_gate_accepts(self) -> None:
-        """Done-when 2: the form, filled in, and what else the gate wants."""
-        here = with_gate(test_flow_sweep.world_with([]), PROJECT_GATE)
-        header, brief = suggestions.third(here)
-        text = "\n".join(brief)
-        assert_that(
-            header.split(": ")[1], equal_to("review the Plan and the Execution")
-        )
-        quoted = (
-            "uvx pitboss review-form",
-            f"    ## Adversarial review\n    Verdict: <approved or changes needed>\n"
-            f"    Reviewed: {test_flow_sweep.HEAD}\n",
-            "Gated: this repository's review-gate.yml reads the comment",
-            "ASCII only",
-        )
-        for piece in quoted:
-            assert_that(text, contains_string(piece))
-
     def test_an_ungated_reviewer_brief_has_no_gate_note(self) -> None:
         """The usual form only."""
         text = "\n".join(suggestions.third(test_flow_sweep.world_with([]))[1])

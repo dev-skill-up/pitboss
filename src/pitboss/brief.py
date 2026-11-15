@@ -14,6 +14,7 @@ from typing import Mapping, Sequence
 
 from . import (
     briefconfig,
+    briefpost,
     briefgrade,
     briefkind,
     briefruling,
@@ -23,12 +24,10 @@ from . import (
     brieftextci,
     brieftextconflict,
     brieftextdraft,
-    brieftextfailure,
     brieftextfix,
     brieftextlint,
     brieftextfolded,
     brieftextnote,
-    brieftextorder,
     brieftextowner,
     brieftextprcheck,
     briefwhen,
@@ -46,40 +45,25 @@ SCOPED = frozenset({Kind.REVIEW_RESOLUTION, Kind.REVIEW_FIX_ROUND, Kind.REVIEW_R
 
 TASKS = brieftextwork.TASKS
 SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
+    # keyword: reviewer-only (owner ruling 2026-11-15): a check pitboss can make in
+    # code, or a worker made, is not a line of a reviewer's brief
     Kind.REVIEW_FULL: [
         text.SCOPE_FULL,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
-        brieftextci.QUARANTINE_REVIEW,
-        text.CHECK,
-        text.GREP,
-        text.PLAN_COMMANDS_PLAN,
-        *brieftextci.PLAN_CI_REVIEW,
-        text.PLAN_DRY_RUN,
-        brieftextci.PLAN_CHECK,
-        *brieftextnote.EXECUTION_REVIEW,
-        brieftextlint.LINT_TEST_REVIEW,
+        brieftextnote.REVIEW_NOTES,
         brieftextlint.MARKUP_LINES_REVIEW,
-        brieftextorder.ORDER_REVIEW,
-        brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
         *brieftextfolded.EXECUTION_REVIEW,
         *brieftextfolded.PLAN_REVIEW,
-        text.PLAN_DIGEST,
     ],
     Kind.REVIEW_EXECUTION: [
         text.SCOPE_EXECUTION,
         text.NO_PLAN_FINDING,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
-        brieftextci.QUARANTINE_REVIEW,
-        text.CHECK,
-        text.GREP,
-        *brieftextnote.EXECUTION_REVIEW,
-        brieftextlint.LINT_TEST_REVIEW,
+        brieftextnote.REVIEW_NOTES,
         brieftextlint.MARKUP_LINES_REVIEW,
-        brieftextorder.ORDER_REVIEW,
-        brieftextfailure.FAILURE_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
         *brieftextfolded.EXECUTION_REVIEW,
     ],
@@ -87,14 +71,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
         text.SCOPE_PLAN,
         text.ALL_FINDINGS,
         text.MISSED_EARLIER,
-        brieftextci.QUARANTINE_REVIEW,
-        text.GREP,
-        text.PLAN_COMMANDS_PLAN,
-        *brieftextci.PLAN_CI_REVIEW,
-        text.PLAN_DRY_RUN,
-        brieftextci.PLAN_CHECK,
-        brieftextorder.ORDER_REVIEW,
-        brieftextfailure.FAILURE_REVIEW,
         *brieftextfolded.PLAN_REVIEW,
         text.PLAN_DIGEST,
     ],
@@ -353,6 +329,19 @@ def _after_form(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
     return [*gate, *briefgrade.lines(spec.kind, rules.verdicts, arguments)]
 
 
+def _posting(spec: Spec, values: Mapping[str, str]) -> Sequence[str]:
+    # how the review is posted: one tool line, or the form, grade lines and digests
+    if posted := briefpost.lines(spec.kind, values):
+        return posted
+    form = [f"    {line}" for line in spec.rules.form]
+    return [
+        *_filled([text.FORM], values),
+        *form,
+        *_after_form(spec, values),
+        *_filled([text.BODY_DIGEST], values),
+    ]
+
+
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
@@ -362,12 +351,10 @@ def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     separate = text.SEPARATE_DRAFT if draft else text.SEPARATE
     separate = briefwhen.DRY_RUNNERS.get(spec.kind, separate)
     lines = briefwhen.kept(SCOPE_LINES[spec.kind], values["repo"], spec.paths)
-    head = [text.REVIEW, *lines, separate, ci, *_e2e(spec), text.FORM]
+    head = [text.REVIEW, *lines, *([separate] if separate else []), ci, *_e2e(spec)]
     return [
         *_filled(head, values),
-        *(f"    {line}" for line in spec.rules.form),
-        *_after_form(spec, values),
-        *_filled([text.BODY_DIGEST], values),
+        *_posting(spec, values),
         text.HONEST,
         brieftextowner.OWNER,
         *tail,

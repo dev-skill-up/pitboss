@@ -84,13 +84,6 @@ class TestGoal(unittest.TestCase):
 class TestForms(unittest.TestCase):
     """The repository's own forms are in the brief."""
 
-    def test_a_gated_repository_gets_its_form(self) -> None:
-        """The configured review form, with the head and the verdict words."""
-        here = world.make_world()
-        append(here, FORM_TABLES)
-        review = [line for line in third(here)[1] if line.startswith("    ")]
-        assert_that(review, equal_to(MINE))
-
     def test_a_new_pr_brief_follows_the_projects_table(self) -> None:
         """Drafts, holds and lines follow the table; the footer rule is stated."""
         here = world.make_world()

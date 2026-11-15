@@ -40,13 +40,6 @@ class TestOrderTables(unittest.TestCase):
         for kind in (*REVIEWS, *OTHERS):
             has_none(text(kind), [ORDER_TICKET])
 
-    def test_the_plan_and_execution_reviews_carry_the_review_sentence(self) -> None:
-        """REVIEW_FULL, REVIEW_PLAN and REVIEW_EXECUTION carry it; no other does."""
-        for kind in REVIEWS:
-            pinned(kind, [ORDER_REVIEW])
-        for kind in (brief.Kind.RULING, *OTHERS):
-            has_none(text(kind), [ORDER_REVIEW])
-
     def test_the_rule_sits_in_the_tickets_section_of_rules(self) -> None:
         """The bullet is between the Tickets heading and the next heading."""
         rules = read("rules.md")

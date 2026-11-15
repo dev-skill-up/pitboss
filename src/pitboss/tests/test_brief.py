@@ -130,11 +130,6 @@ class TestReviewScopes(unittest.TestCase):
         """No body check, no Head line, no Evidence, no Grep, no Done-when walk."""
         has_none(text(brief.Kind.REVIEW_RESOLUTION), OUTSIDE_THE_MERGE)
 
-    def test_a_first_review_is_the_full_review_of_the_head(self) -> None:
-        """2b: the Plan and the Execution of that head, with the body checks."""
-        pinned(brief.Kind.REVIEW_FULL, FULL)
-        has_none(text(brief.Kind.REVIEW_FULL), ["Scope (exclusive)"])
-
     def test_a_review_of_an_approved_plan_grades_the_execution_only(self) -> None:
         """The Plan line is carried over, not reassessed."""
         pinned(brief.Kind.REVIEW_EXECUTION, EXECUTION)
@@ -175,10 +170,6 @@ class TestReviewRules(unittest.TestCase):
         """Obfuscation and faked output are not hunted and get no ticket."""
         for kind in FULL_SCOPES:
             pinned(kind, [GUARDS])
-
-    def test_the_review_form_is_filled_in_and_the_head_named(self) -> None:
-        """The comment's lines are the repository's, with the head."""
-        pinned(brief.Kind.REVIEW_FULL, FORM_LINES)
 
     def test_a_relock_review_may_run_the_pins_check_and_nothing_else(self) -> None:
         """The relock brief names the one command, and does not say it runs nothing."""

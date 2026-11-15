@@ -15,7 +15,7 @@ import subprocess
 import sys
 from typing import Callable, Sequence
 
-from . import acthub, actinputs, config, configrepos, gateread
+from . import acthub, actinputs, config, configrepos, gateform, gateread
 from .actcore import Act, Controls, Owner, Questions, cap_of
 from .ghapi import GitHub
 from .running import Run
@@ -133,4 +133,5 @@ def act_of(github: GitHub, settings: config.Config, run: Run, asking: Asking) ->
         prepush=prepush(quiet),
         questions=asking.questions,
         controls=CONTROLS,
+        form=lambda repository: gateform.read(run, settings, repository).form.lines,
     )

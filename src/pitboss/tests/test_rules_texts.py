@@ -46,12 +46,6 @@ class TestTheRulesAreInTheBriefs(unittest.TestCase):
             ):
                 assert_that(printed, contains_string(word))
 
-    def test_t53_a_review_brief_has_the_check_lines(self) -> None:
-        """``Quarantine check:`` and ``Race check:``."""
-        assert_that(len(REVIEWERS) > 0, equal_to(True))
-        for kind in REVIEWERS:
-            assert_that(brief_text(kind), contains_string("`Race check:`"))
-
     def test_t56_a_worker_brief_says_runs_are_short_and_in_the_foreground(self) -> None:
         """No background run, no sleep loop."""
         for kind in WORKERS:

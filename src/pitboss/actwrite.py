@@ -64,6 +64,28 @@ def review_text(
     return "\n".join(lines) + f"\n\n{findings}"
 
 
+def formed(words: str, form: Sequence[str], head: str, verdict: str) -> str:
+    """A review in the lines the repository's reviews take (keyword: act-review-form).
+
+    Args:
+        words: the review as ``review_text`` wrote it.
+        form: the repository's lines (``{sha}`` and ``{verdict}`` to fill); none
+            leaves the review as it is.
+        head: the full head SHA.
+        verdict: the verdict, approved or changes needed.
+
+    Returns:
+        The form's lines, then the review without its own head and verdict lines
+        (and with them again when the form has none of its own).
+    """
+    if not form:
+        return words
+    own = (f"Reviewed: {head}", f"Verdict: {verdict}")
+    kept = [each for each in words.splitlines() if each not in own]
+    opened = [each.format(sha=head, verdict=verdict) for each in form]
+    return "\n".join([*opened, *kept])
+
+
 def keyed(words: str) -> str:
     """The first line of a text that starts with a review or act key.
 
@@ -113,6 +135,7 @@ def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -
     pull = pull_of(act, target)
     tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
     words = review_text(pull, grades, findings, tickets)
+    words = formed(words, act.form(target.repo), actcore.head_of(pull), grades[2])
     put(act, target, "comment", {"body": words})
     return words
 

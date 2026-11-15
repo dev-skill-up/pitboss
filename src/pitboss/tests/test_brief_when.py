@@ -5,13 +5,11 @@ import unittest
 from .briefmake import text
 from .says import has_all, has_none
 from ..brief import Kind
-from .. import brieftextfolded, brieftextlint, brieftextorder
+from .. import brieftextfolded, brieftextlint
 
 DOCS = brieftextlint.MARKUP_LINES_REVIEW
-ORDER = brieftextorder.ORDER_REVIEW
-LINT = brieftextlint.LINT_TEST_REVIEW
 SCAN = brieftextfolded.SYNTAX_SCAN_REVIEW
-EVERY = [DOCS, ORDER, LINT, SCAN]
+EVERY = [DOCS, SCAN]
 
 
 class TestBriefWhen(unittest.TestCase):
@@ -25,14 +23,6 @@ class TestBriefWhen(unittest.TestCase):
     def test_a_doc_brings_the_doc_sentence(self) -> None:
         """A changed .md file brings the sentence about doc lines."""
         has_all(text(Kind.REVIEW_FULL, paths=["README.md"]), [DOCS])
-
-    def test_a_lint_brings_the_lint_sentence(self) -> None:
-        """A changed lint module brings the sentence about lint tests."""
-        has_all(text(Kind.REVIEW_FULL, paths=["src/pitboss/lintchange.py"]), [LINT])
-
-    def test_an_order_doc_brings_the_order_sentence(self) -> None:
-        """A changed sweep.md brings the sentence about order tables."""
-        has_all(text(Kind.REVIEW_FULL, paths=["docs/sweep.md"]), [ORDER])
 
     def test_a_scan_brings_the_scan_sentence(self) -> None:
         """A changed scan module brings the sentence about syntax scans."""
