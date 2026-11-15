@@ -78,7 +78,7 @@ def _pairs(hunk: str) -> Sequence[tuple[int, str, str]]:
 
 
 def hunks(patch: str) -> Sequence[tuple[str, int, str]]:
-    """The hunks of a patch (``lintchange`` reads them too).
+    """The hunks of a patch.
 
     Args:
         patch: the output of ``git diff -U0 --no-renames``.
