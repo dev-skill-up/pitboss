@@ -2,9 +2,9 @@
 
 import unittest
 
-from hamcrest import assert_that, contains_string, equal_to, has_item
+from hamcrest import assert_that, contains_string, equal_to
 
-from .. import analysis, brief, brieftext
+from .. import analysis, brief
 from . import briefmake, linting
 
 CARD = "Escalate PR 3?\nHow we got here: two rejections, prevention pitboss#12\n"
@@ -65,11 +65,10 @@ class TestOwnerCard(unittest.TestCase):
 class TestRulingBrief(unittest.TestCase):
     """The Opus agent's brief."""
 
-    def test_it_carries_the_section_and_refuses_without_it(self) -> None:
-        """The brief has the line, the refusal, and the ruling carries it too."""
+    def test_it_names_the_reviews_and_asks_for_the_section(self) -> None:
+        """The brief has no template to fill: it names the review itself."""
         found = briefmake.text(brief.Kind.RULING)
-        assert_that(found, contains_string("\nHow we got here: "))
-        assert_that(found, contains_string("Refuse to rule without it"))
+        assert_that(found, contains_string("\nHow we got here: the rejections"))
+        assert_that(found, contains_string("the review at https://example.org/c/1"))
         assert_that(found, contains_string("a section headed `How we got here`"))
-        assert_that(found.splitlines(), has_item(brieftext.RULING_HOW))
-        assert_that("{" in found, equal_to(False))
+        assert_that("{" in found or "<the orchestrator" in found, equal_to(False))

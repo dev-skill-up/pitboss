@@ -347,11 +347,10 @@ RULING_RECORD = (
     " taken as given."
 )
 RULING_HOW = (
-    "How we got here: <the orchestrator writes this before the brief is sent: for"
-    " each rejection before this ruling, the finding, the rule or brief line that"
-    " should have prevented it, and the prevention filed (a pitboss ticket"
-    " number)>. Refuse to rule without it: if this line is still the template,"
-    " is empty, or names no prevention filed for a rejection, hand back NOT STARTED"
-    " with what is missing, post no comment, and write no ruling."
+    "How we got here: the rejections before this ruling are {review} and the"
+    " reviews and comments of the PR before it. In your `How we got here` section,"
+    " give for each the finding, the rule or brief line that should have"
+    " prevented it, and the prevention it needs (a pitboss ticket number, or the"
+    " words `none filed`)."
 )
 RULING_END = "Hand back the comment's URL and nothing else."

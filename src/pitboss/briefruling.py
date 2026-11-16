@@ -25,7 +25,7 @@ def lines(values: Mapping[str, str]) -> Sequence[str]:
     words = ", ".join(f"`{each.value}`" for each in rulingwords.Ruling)
     return [
         text.RULING_WHO.format_map(values),
-        text.RULING_HOW,
+        text.RULING_HOW.format_map(values),
         brieftextorder.ORDER_TICKET,
         text.RULING_RECORD.format(words=words),
         OWNER_CONFLICT,
