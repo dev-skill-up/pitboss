@@ -5,7 +5,7 @@ import unittest
 from hamcrest import assert_that, contains_string, equal_to, has_length
 
 
-from .. import ruling_commands, rulingedits, rulinglint
+from .. import ruling_commands, rulingedits
 from ..rulinglint import findings
 from . import fakes, world
 from .test_ticket_corpus import body as corpus

@@ -5,7 +5,7 @@ A leaf module: the flow reads it, and it imports nothing of the gates.
 
 import dataclasses
 import re
-from typing import Sequence
+from typing import Protocol, Sequence
 
 STEP = re.compile(
     r"^[ \t]*(?:(?:\d+[.)]|[-*])[ \t]+)?(ticket|body)[ \t]+(delete|replace)[ \t]*:"
@@ -13,6 +13,19 @@ STEP = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 ARROW = " => "
+
+
+class Ordered(Protocol):
+    """One edit a ruling orders, as the gates read it."""
+
+    step: int
+    target: str
+    old: str
+    new: str
+
+    @property
+    def shown(self) -> str:
+        """The step as written."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -76,8 +89,15 @@ def body_edits_done(ruling: str, body: str) -> bool:
     )
 
 
-def edits(ruling: str) -> Sequence[Edit]:
-    # the edits a ruling orders, in the order written
+def edits(ruling: str) -> Sequence[Ordered]:
+    """The edits a ruling orders, in the order written.
+
+    Args:
+        ruling: the ruling's text.
+
+    Returns:
+        Its ``ticket`` and ``body`` edit steps.
+    """
     found: list[Edit] = []
     for number, each in enumerate(STEP.finditer(ruling), 1):
         target, operation, text = (

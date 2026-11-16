@@ -16,7 +16,7 @@ is stated as demonstrated (``done-when-form``) and the body keeps the PR body's 
 from typing import Sequence
 
 from . import forms, plandigest, plandonewhen, rulingedits
-from .rulingedits import Edit
+from .rulingedits import Ordered
 
 GATE = "ruling step {step} ({edit}): {why}"
 FAILS = "gate {gate}: after the ruling's steps, {finding}"
@@ -49,7 +49,7 @@ def findings(ruling: str, ticket: str, body: str, head: str) -> Sequence[str]:
     ]
 
 
-def _applied(ordered: Sequence[Edit], texts: dict[str, str]) -> Sequence[str]:
+def _applied(ordered: Sequence[Ordered], texts: dict[str, str]) -> Sequence[str]:
     # applies each edit to its text; a finding for each whose text is not there
     lost: list[str] = []
     for each in ordered:
