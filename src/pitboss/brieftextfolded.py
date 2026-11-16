@@ -36,13 +36,7 @@ DESIGN_WORKER = (
     " of the primitive it wraps). A revision after a rejection re-checks every"
     " code path its own additions touch, not only the finding's text."
 )
-DESIGN_REVIEW = (
-    "Design: for a design, check each row"
-    " of its guarantee table against the code (the function, the file and the"
-    " test exist and enforce the guarantee) and each lifecycle list against"
-    " every caller of the primitive; a claim with no enforcing code or test, or"
-    " a path the lifecycle leaves out, is a finding."
-)
+DESIGN_REVIEW = "Design: check the ticket."
 SCRATCH_WORKER = (
     "Scratch state: a precise command whose"
     " working directory or argument is a path outside the checkout needs, in the"

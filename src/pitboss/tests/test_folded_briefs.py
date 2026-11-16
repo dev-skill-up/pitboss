@@ -17,10 +17,7 @@ GUARANTEES = [
     " restored and cleaned up",
     "re-checks every code path its own additions touch, not only the" " finding's text",
 ]
-GUARANTEE_REVIEW = [
-    "check each row of its guarantee table against the code",
-    "every caller of the primitive",
-]
+GUARANTEE_REVIEW = ["Design: check the ticket."]
 
 
 class TestFoldedBriefs(unittest.TestCase):

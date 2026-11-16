@@ -7,24 +7,19 @@ from hamcrest import assert_that, equal_to
 
 from .. import brief, missed, shapes
 from . import blank, test_brief
-from .briefmake import APPROVED, HEAD, PLAN_REVIEWS, pinned, text
-from .says import has_none
+from .briefmake import APPROVED, PLAN_REVIEWS, pinned, text
+from .says import has_all, has_none
 
 FIRST_ROUND = (
-    "in the first round of a stage, read the whole PR body, the whole diff and"
-    " every command of the Plan against the repository, and list every finding of"
-    " the stage you grade in that one review, not the first few. A later round on"
-    " the same stage (an earlier review of this PR graded it) checks only the"
-    " earlier findings and the findings caused by the changes made since the head"
-    " that review read."
+    "Round: read the whole PR body, the whole diff and every command of the Plan"
+    " against the repository, and list every finding of the stage you grade in"
+    " that one review, not the first few."
 )
-MISSED_EARLIER = (
-    "a review that is not the first round and raises a finding that is present in"
-    " the unchanged text of an earlier head says so, with one line for each such"
-    " finding that starts with `Missed earlier:` and says what the finding is;"
-    " the sweep counts those lines for the analysis of the rounds after an Opus"
-    " ruling."
+LATER_ROUND = (
+    "Round: check only the findings of the earlier review and the findings caused"
+    " by the changes made since the head it read."
 )
+MISSED_EARLIER = "Missed earlier: a review that is not the first round"
 DRY_RUN = (
     "in a review of the Plan, try each command of the Plan as a read-only dry run"
     " where it can be tried (it changes nothing in the repository, the PR or the"
@@ -32,9 +27,9 @@ DRY_RUN = (
     " Plan."
 )
 FIX_ROUND_CLAUSE = (
-    f"The diff to read is `git diff {APPROVED}..{HEAD}`. Check that each finding"
-    f" is fixed at head {HEAD} as the finding asks, whether the fixes invalidate"
-    " the approved Plan, and the CI on the head, and nothing else. You may raise"
+    f"The diff to read is `git diff {APPROVED}..<the head>`. Check that each"
+    " finding is fixed as the finding asks, whether the fixes invalidate the"
+    " approved Plan, and the CI on the head, and nothing else. You may raise"
     " nothing outside that diff or those findings:"
 )
 FIX_ROUND_VERDICT = (
@@ -73,15 +68,19 @@ def review_at(when: str, lines: int, comment: bool = True) -> shapes.Graded:
 class TestBriefs(unittest.TestCase):
     """The briefs say it (Done-when 1, 2 and the fix round's)."""
 
-    def test_a_review_of_a_stage_lists_every_finding_in_the_first_round(self) -> None:
-        """Done-when 1: the whole body, the whole diff, every Plan command."""
+    def test_a_first_round_says_to_list_every_finding(self) -> None:
+        """Pitboss knows the round: nothing graded yet gives the first-round line."""
         for kind in STAGES:
-            pinned(kind, [FIRST_ROUND])
+            found = text(kind, graded="")
+            has_all(found, [FIRST_ROUND])
+            has_none(found, [LATER_ROUND, MISSED_EARLIER])
 
-    def test_a_later_round_says_a_finding_was_missed_earlier(self) -> None:
-        """Done-when 3: the line the sweep counts."""
+    def test_a_later_round_says_only_the_later_round(self) -> None:
+        """Pitboss knows the round: a graded stage gives the later-round lines."""
         for kind in STAGES:
-            pinned(kind, [MISSED_EARLIER])
+            found = text(kind, graded="execution")
+            has_all(found, [LATER_ROUND, MISSED_EARLIER])
+            has_none(found, [FIRST_ROUND])
 
     def test_the_review_after_a_fix_round_is_scoped_to_the_fixes(self) -> None:
         """The diff range, the clause and the approval, and no whole-Execution walk."""

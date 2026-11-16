@@ -1,6 +1,6 @@
 """The commits and addresses a brief names for a PR (keyword: review-brief)."""
 
-from . import bodydigest, brief, expansion, plandigest, pullfacts, steps
+from . import brief, pullfacts, reviews, steps
 
 RULED = (steps.Task.FIX_EXECUTION, steps.Task.RULING_STEPS)
 
@@ -26,15 +26,21 @@ def of(base: str, pull: pullfacts.PullFacts | None) -> brief.Heads:
         approved=found.sha if found else "",
         findings=found.url if found else "",
         ruling=_ruling(step),
-        body_digest=bodydigest.digest(pull.pull.body),
-        plan_digest=expansion.section_digest(plandigest.section(pull.pull.body)),
         branch=pull.pull.head.branch,
         # the newest review that counts grades the Plan approved, or leaves it as
         # an earlier one graded it (keyword: plan-digest)
         plan_approved=found is not None and found.plan_approved is not False,
+        graded=_graded(found),
     )
 
 
 def _ruling(step: steps.Move) -> str:
     # keyword: unfixed-execution: the ruling an Execution fix follows
     return step.comment if isinstance(step, steps.Next) and step.task in RULED else ""
+
+
+def _graded(found: reviews.Found | None) -> str:
+    # keyword: all-findings: the stage an earlier review graded
+    if found is None:
+        return ""
+    return "plan" if found.plan_alone else "execution"

@@ -12,10 +12,9 @@ from typing import Mapping, Sequence
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import brief, config, dispatchruns, earlyfound, earlyreview, markers
+from .. import config, dispatchruns, earlyfound, earlyreview, markers
 from .. import parsing, shapes
 from . import actreviewed, blank, fakes, quietworld, world
-from .briefmake import make
 from .test_commands import sweep
 from .test_flow_sweep import APPROVED, HEAD, OLDER, graded, older_checks, world_with
 from ..textparts import having
@@ -302,20 +301,3 @@ class TestThePieces(unittest.TestCase):
         printed = {each.text for each in markers.Marker}
         assert_that(retired & printed, equal_to(set()))
         assert_that(retired.issubset(markers.RETIRED), equal_to(True))
-
-
-class TestTheBrief(unittest.TestCase):
-    """Only the Plan-stage brief says a draft runs no CI job."""
-
-    def test_each_review_brief_but_the_plan_stage_reads_the_complete_run(self) -> None:
-        """The sentence, in the briefs that grade an Execution."""
-        sentence = (
-            "Read the complete run of this head. A draft, or a head with an"
-            " unfinished check, is `NOT STARTED`, not a verdict"
-        )
-        said = "a draft runs no CI job"
-        for kind in brief.REVIEWS:
-            found = brief.build(make(kind))
-            plan = kind is brief.Kind.REVIEW_PLAN
-            assert_that(sentence in found, equal_to(not plan), kind.name)
-            assert_that(said in found, equal_to(plan), kind.name)

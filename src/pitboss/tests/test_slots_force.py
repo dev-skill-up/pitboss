@@ -94,4 +94,4 @@ class TestForce(unittest.TestCase):
             ),
             (0, False, True),
         )
-        says(forced.out, "Review: owner/project#4 at head")
+        says(forced.out, "Review: owner/project#4.")

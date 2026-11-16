@@ -47,8 +47,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     # code, or a worker made, is not a line of a reviewer's brief
     Kind.REVIEW_FULL: [
         text.SCOPE_FULL,
-        text.ALL_FINDINGS,
-        text.MISSED_EARLIER,
         brieftextnote.REVIEW_NOTES,
         brieftextlint.MARKUP_LINES_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
@@ -58,8 +56,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     Kind.REVIEW_EXECUTION: [
         text.SCOPE_EXECUTION,
         text.NO_PLAN_FINDING,
-        text.ALL_FINDINGS,
-        text.MISSED_EARLIER,
         brieftextnote.REVIEW_NOTES,
         brieftextlint.MARKUP_LINES_REVIEW,
         brieftextprcheck.PRCHECK_REVIEW,
@@ -67,8 +63,6 @@ SCOPE_LINES: Mapping[Kind, Sequence[str]] = {
     ],
     Kind.REVIEW_PLAN: [
         text.SCOPE_PLAN,
-        text.ALL_FINDINGS,
-        text.MISSED_EARLIER,
         *brieftextfolded.PLAN_REVIEW,
     ],
     Kind.REVIEW_RESOLUTION: [text.SCOPE_RESOLUTION, text.CARRIED],
@@ -125,26 +119,23 @@ class Heads:
         approved: the head an earlier review graded.
         findings: the address of the review whose findings are to be fixed or
             checked, empty when it has none.
-        body_digest: the digest of the PR body now (``bodydigest.digest``),
-            empty for a ticket (keyword: review-brief, pitboss#338).
-        plan_digest: the digest of the body's Plan section, empty when the
-            body has none.
         ruling: the address of the Opus ruling a round follows or does,
             empty when it follows none (keyword: unfixed-execution, pitboss#390).
         branch: the PR's head branch, empty for a ticket (keyword: branch-naming).
         plan_approved: whether a review that counts approved the PR's Plan
             (keyword: plan-digest).
+        graded: the stage an earlier review graded, ``plan``, ``execution`` or
+            empty (keyword: all-findings, so the brief says which round it is).
     """
 
     head: str
     base: str
     approved: str
     findings: str
-    body_digest: str = ""
-    plan_digest: str = ""
     ruling: str = ""
     branch: str = ""
     plan_approved: bool = False
+    graded: str = ""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -155,8 +146,6 @@ class Rules:
         config: the configuration, as given to the command.
         form: the lines of the review form, filled in for this PR.
         project: what the project's briefs say beyond the process.
-        plan_check: the check a draft's Plan review reads first (keyword:
-            plan-review-check, pitboss#275), empty when the project has none.
         verdicts: the form's word for an approval and its word for changes
             (keyword: grade-spellings, rp#684).
     """
@@ -164,7 +153,6 @@ class Rules:
     config: str
     form: Sequence[str]
     project: briefconfig.Brief
-    plan_check: str = ""
     verdicts: tuple[str, str] = ("approved", "changes needed")
 
 
@@ -235,8 +223,6 @@ def _named(heads: Heads, where: str) -> Mapping[str, str]:
         "approved": heads.approved,
         "review": review,
         "checkout": where.format(base=heads.base, branch=heads.branch),
-        "body_digest": heads.body_digest,
-        "plan_digest": heads.plan_digest,
     }
 
 
@@ -314,16 +300,25 @@ def _e2e(spec: Spec) -> Sequence[str]:
     return [brieftextci.E2E] if spec.e2e and spec.kind in E2E_KINDS else []
 
 
+def _round(spec: Spec) -> list[str]:
+    # keyword: all-findings (pitboss#169): pitboss knows the round, the brief says it
+    if spec.kind not in (Kind.REVIEW_FULL, Kind.REVIEW_EXECUTION, Kind.REVIEW_PLAN):
+        return []
+    stage = "plan" if spec.kind is Kind.REVIEW_PLAN else "execution"
+    later = spec.heads.graded == stage or spec.heads.graded == "execution"
+    return [text.LATER_ROUND, text.MISSED_EARLIER] if later else [text.FIRST_ROUND]
+
+
 def _review(spec: Spec, values: Mapping[str, str]) -> list[str]:
     scoped = spec.kind in SCOPED
     tail = [text.NO_ATTACKS] if scoped else [text.GOAL_ONLY, text.GUARDS, text.NO_EXIT]
     # keyword: draft-review (pitboss#156, #167): a draft has the Plan stage, its checks
     draft = spec.kind is Kind.REVIEW_PLAN and not spec.ready
-    ci = brieftextdraft.draft_ci(spec.rules.plan_check) if draft else text.CI
     separate = text.SEPARATE_DRAFT if draft else text.SEPARATE
     separate = briefwhen.DRY_RUNNERS.get(spec.kind, separate)
     lines = briefwhen.kept(SCOPE_LINES[spec.kind], values["repo"], spec.paths)
-    head = [text.REVIEW, *lines, *([separate] if separate else []), ci, *_e2e(spec)]
+    head = [text.REVIEW, *lines, *_round(spec), *([separate] if separate else [])]
+    head = [*head, *_e2e(spec)]
     return [
         *_filled(head, values),
         *briefpost.lines(spec.kind, values),

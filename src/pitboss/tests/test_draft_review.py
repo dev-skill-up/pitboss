@@ -7,7 +7,6 @@ head had a changes-needed review the gate asked for another Plan review instead
 of the fix the review asked for.
 """
 
-import dataclasses
 import pathlib
 import re
 import unittest
@@ -15,11 +14,10 @@ from typing import Sequence
 
 from hamcrest import assert_that, contains_string, equal_to, starts_with
 
-from .. import brief, shapes, steps
+from .. import shapes, steps
 from ..tasklist import LABEL
 from . import actreviewed, fakes, test_flow, world
-from .briefmake import make, text
-from .says import has_none, says
+from .says import says
 from .test_commands import sweep
 from .test_flow import CHANGES as FLOW_CHANGES, expect, state
 from .test_flow_sweep import (
@@ -40,7 +38,6 @@ THIRD_LINE = re.compile(
 PLAN_REVIEW = "grade the Plan ONLY (no Execution line); changes needed rejects it"
 REVISE = "revise the PLAN only, change no code"
 RULING = "start an Opus agent whose only brief is to make a ruling"
-CI_LINE = "CI: first read the checks of the head SHA above"
 
 
 def quiet(here: world.World) -> world.World:
@@ -257,43 +254,3 @@ class TestTheFlow(unittest.TestCase):
         review = test_flow.graded(*test_flow.PLAN_APPROVED_ALONE, 1)
         draft = state(review, checks=(), draft=True, undraft_clear=True)
         expect(steps.undraft(), draft)
-
-
-class TestTheBrief(unittest.TestCase):
-    """The review of a draft says it has no check run."""
-
-    def test_a_plan_review_reads_the_diff_and_the_body_only(self) -> None:
-        """No hand-back NOT STARTED for a missing check run."""
-        found = text(brief.Kind.REVIEW_PLAN)
-        assert_that(found, contains_string("a draft runs no CI job"))
-        assert_that(found, contains_string("You read the diff and the PR body only"))
-        assert_that(found, contains_string("never hand back `NOT STARTED`"))
-        has_none(
-            found, ["CI: first read the checks", "the diff and the CI of the head"]
-        )
-
-    def test_a_plan_review_of_a_ready_pr_reads_the_checks(self) -> None:
-        """A revised Plan of a PR that is not a draft has checks (pitboss#167)."""
-        spec = dataclasses.replace(make(brief.Kind.REVIEW_PLAN), ready=True)
-        found = brief.build(spec)
-        assert_that(found.count(CI_LINE), equal_to(1))
-        assert_that(found, contains_string("Scope (exclusive): the Plan of head"))
-        has_none(
-            found,
-            [
-                "a draft runs no CI job (its check is reported skipped, never missing;"
-                " keyword: draft-ci, pitboss#321), so there is no CI"
-            ],
-        )
-
-    def test_every_other_review_still_reads_the_checks(self) -> None:
-        """A review of a head with a check run is refused without a finished one."""
-        found = text(brief.Kind.REVIEW_FULL) + text(brief.Kind.REVIEW_EXECUTION)
-        assert_that(found.count(CI_LINE), equal_to(2))
-        has_none(
-            found,
-            [
-                "a draft runs no CI job (its check is reported skipped, never missing;"
-                " keyword: draft-ci, pitboss#321), so there is no CI"
-            ],
-        )

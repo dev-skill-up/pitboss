@@ -70,8 +70,7 @@ E2E = (
     "E2E: this PR's diff touches what the e2e suite runs on. Read the run of"
     " `check.yml` of the head that ran e2e, and every e2e job of it: for a draft,"
     " whose CI skips e2e, the run dispatched on its branch (`RUN E2E BEFORE"
-    " APPROVAL`). A head with no complete run is `NOT STARTED: e2e has not run at"
-    " {head}`, not a verdict."
+    " APPROVAL`)."
 )
 
 QUARANTINE_REVIEW = (

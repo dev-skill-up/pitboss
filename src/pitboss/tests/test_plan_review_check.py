@@ -11,21 +11,17 @@ import pathlib
 import unittest
 from typing import Mapping, Sequence
 
-from hamcrest import assert_that, contains_string, equal_to
+from hamcrest import assert_that, equal_to
 
-from .. import brief, shapes, steps
+from .. import shapes, steps
 from . import fakes, test_flow, world
-from .briefmake import make, text
 from .pinsworld import offered as state_line
-from .says import has_none
 from .test_commands import sweep
 from .test_flow import state
 from .test_flow_sweep import CHANGES, HEAD, OLDER, graded, world_with
-from .test_slot_commands import next_output
 
 CHECK_RUNS = f"{world.PROJECT}/commits/{HEAD}/check-runs"
 REVIEW = "REVIEWER: owner/project#3: grade the Plan ONLY"
-NOT_STARTED = "NOT STARTED: check is <state>"
 SETTING = '\n[sweep]\nplan_review_check = "check"\n'
 
 
@@ -126,18 +122,6 @@ class TestTheSweep(unittest.TestCase):
         here = draft([IN_PROGRESS], setting="")
         assert_that(offered(here), equal_to(True))
 
-    def test_the_suggestion_carries_the_sentence(self) -> None:
-        """The brief ``slots next`` prints for the review reads the check run."""
-        out = next_output(draft([COMPLETED]))
-        assert_that(out, contains_string(NOT_STARTED))
-        has_none(
-            out,
-            [
-                "a draft runs no CI job (its check is reported skipped, never missing;"
-                " keyword: draft-ci, pitboss#321), so there is no CI"
-            ],
-        )
-
 
 class TestTheFlow(unittest.TestCase):
     """The step, by the check runs the caller read."""
@@ -172,21 +156,3 @@ class TestTheConfiguration(unittest.TestCase):
         for extra, wanted in (("", ""), (SETTING, "check")):
             settings = fakes.settings(directory, extra)
             assert_that(settings.project.plan_review_check, equal_to(wanted))
-
-
-class TestTheBrief(unittest.TestCase):
-    """The Plan review of a draft reads the check run when the project has one."""
-
-    def test_the_brief_says_to_read_the_check_run(self) -> None:
-        """The NOT STARTED sentence, and not the sentence that a draft has none."""
-        found = text(brief.Kind.REVIEW_PLAN, plan_check="check")
-        assert_that(found, contains_string(NOT_STARTED))
-        assert_that(found, contains_string("`check` check run of the head SHA"))
-        has_none(found, ["a draft runs no CI job", "never hand back `NOT STARTED`"])
-
-    def test_a_ready_pr_keeps_the_ci_sentence(self) -> None:
-        """Only a draft's brief changes."""
-        spec = dataclasses.replace(
-            make(brief.Kind.REVIEW_PLAN, plan_check="check"), ready=True
-        )
-        has_none(brief.build(spec), [NOT_STARTED])

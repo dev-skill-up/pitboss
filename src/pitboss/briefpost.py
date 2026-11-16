@@ -14,9 +14,10 @@ from .briefkind import Kind
 EITHER = "<approved or changes needed>"
 POST = (
     "Post: post the review with `uvx pitboss act review {reference} kind={kind}"
-    "{grades} verdict={either} body={body_digest}{plan_line}"
+    "{grades} verdict={either}"
     " findings=<your findings> --config {config} --no-dry-run`; it writes the"
-    " repository's form, the grades and the digests, so write no other comment."
+    " repository's form, the grades and the digests it reads from the PR, so"
+    " write no other comment."
 )
 GRADED = {
     Kind.REVIEW_FULL: f" plan={EITHER} execution={EITHER}",
@@ -37,8 +38,4 @@ def lines(kind: Kind, values: Mapping[str, str]) -> Sequence[str]:
     """
     grades = GRADED.get(kind, f" execution={EITHER}")
     word = briefgrade.KIND_WORDS[kind]
-    own = values.get("plan_digest", "")
-    digest = f" plan-digest={own}" if own and kind in GRADED else ""
-    return [
-        POST.format(kind=word, grades=grades, either=EITHER, plan_line=digest, **values)
-    ]
+    return [POST.format(kind=word, grades=grades, either=EITHER, **values)]

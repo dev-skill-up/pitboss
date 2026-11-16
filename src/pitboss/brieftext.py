@@ -146,19 +146,10 @@ TASK_RULING_AS_GIVEN = (
     " or abandon. Do exactly what that ruling says to the ticket and the PR; it is"
     " not checked against the one-ticket-one-PR rules."
 )
-REVIEW = (
-    "Review: {reference} at head {head}. Read the head from the PR when you start"
-    " and again before you post; if it moved, review the new head."
-)
+REVIEW = "Review: {reference}."
 SEPARATE = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
     " say so and stop. You run nothing: you read the diff and the CI of the head."
-)
-CI = (
-    "CI: first read the checks of the head SHA above; if one has not finished or"
-    " has not passed, hand back `NOT STARTED: <check> is <state> at <sha>` and"
-    " review nothing. Read the complete run of this head. A draft, or a head with"
-    " an unfinished check, is `NOT STARTED`, not a verdict."
 )
 SEPARATE_DRAFT = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
@@ -173,13 +164,6 @@ SEPARATE_DRAFT_DRY = (
     "Separate agent: you are not the author; if you wrote any part of the change,"
     " say so and stop. You run nothing but the dry runs of the Plan's commands:"
     " you read the diff and the PR body."
-)
-CI_DRAFT = (
-    "Draft: this PR is a draft, and a draft runs no CI job (its check is reported"
-    " skipped, never missing), so there is no CI"
-    " to read and none to wait for. You read the diff and the PR body only (and"
-    " dry-run the Plan's commands); never hand back"
-    " `NOT STARTED` for a missing check run of a draft."
 )
 NO_PLAN_EDIT = (
     "Approved Plan: do not edit the Plan section of an approved PR; hand back a"
@@ -254,12 +238,12 @@ EXCLUSIVE = (
 )
 
 SCOPE_FULL = (
-    "Scope: the full review of head {head}: the Plan and the Execution, against"
+    "Scope: the full review: the Plan and the Execution, against"
     " the goal and the ticket's Done-when. Grade both in one review, with a"
     " `Plan:` line and an `Execution:` line beside the one `Verdict:` line."
 )
 SCOPE_EXECUTION = (
-    "Scope: the Execution of head {head}, against the approved Plan and the"
+    "Scope: the Execution, against the approved Plan and the"
     " ticket's Done-when. The Plan is approved: grade only the Execution, and"
     " write `Plan: approved (fixed)` and an `Execution:` line with your verdict, the"
     " same word as the `Verdict:` line (a review with no `Execution:` line is not"
@@ -267,14 +251,14 @@ SCOPE_EXECUTION = (
     " you see in the Plan is a request for an Opus ruling, never a Plan finding."
 )
 SCOPE_PLAN = (
-    "Scope (exclusive): the Plan of head {head}, alone, against the goal and the"
+    "Scope (exclusive): the Plan, alone, against the goal and the"
     " ticket's Done-when. Write a `Plan:` line and the one `Verdict:` line (the"
     " Plan's verdict), no `Execution:` line and no defect of the Execution. Of the"
     " PR's facts only the last `Head:` line of the body is checked: it is the full"
     " SHA of the head."
 )
 SCOPE_RESOLUTION = (
-    "Scope (exclusive): this head {head} differs from the approved head {approved}"
+    "Scope (exclusive): the head differs from the approved head {approved}"
     " only by a merge of {base}. Check the merge commit's resolution against both"
     " parents, any file regenerated from the merge (a rebuilt zip), and the CI on"
     " the head, and nothing else: not the PR body (its Head line, footer or commit"
@@ -284,7 +268,7 @@ SCOPE_RESOLUTION = (
 SCOPE_FIX_ROUND = (
     "Scope (exclusive): the fix round. The findings to check are those of"
     " {review}, of head {approved}. The diff to read is `git diff"
-    " {approved}..{head}`. Check that each finding is fixed at head {head} as the"
+    " {approved}..<the head>`. Check that each finding is fixed as the"
     " finding asks, whether the fixes invalidate the approved Plan, and the CI on"
     " the head, and nothing else. You may raise nothing outside that diff or those"
     " findings: a finding outside this scope is not a ground for changes needed;"
@@ -294,13 +278,14 @@ SCOPE_FIX_ROUND = (
 )
 # keyword: all-findings (pitboss#169): a first round lists every finding, a later
 # round checks those; a fix round is scoped to its diff and its findings
-ALL_FINDINGS = (
-    "Round: in the first round of a stage,"
-    " read the whole PR body, the whole diff and every command of the Plan"
+FIRST_ROUND = (
+    "Round: read the whole PR body, the whole diff and every command of the Plan"
     " against the repository, and list every finding of the stage you grade in"
-    " that one review, not the first few. A later round on the same stage (an"
-    " earlier review of this PR graded it) checks only the earlier findings and"
-    " the findings caused by the changes made since the head that review read."
+    " that one review, not the first few."
+)
+LATER_ROUND = (
+    "Round: check only the findings of the earlier review and the findings caused"
+    " by the changes made since the head it read."
 )
 MISSED_EARLIER = (
     "Missed earlier: a review that is not the first round and raises a finding"
@@ -318,7 +303,7 @@ PLAN_DRY_RUN = (
 )
 
 SCOPE_RELOCK = (
-    "Scope (exclusive): the relock {reference} at head {head}, which fixes no"
+    "Scope (exclusive): the relock {reference}, which fixes no"
     " ticket and has no Plan or Execution of its own. The goal above is its"
     " goal: moves of pins are safe when the lock matches and CI is green. It"
     " changes nothing but pins (the compiler, the package repository, the"

@@ -73,8 +73,6 @@ COMMITS = brief.Heads(
     base="main",
     approved=APPROVED,
     findings="https://example.org/c/1",
-    body_digest=BODY_DIGEST,
-    plan_digest=PLAN_DIGEST,
     plan_approved=True,
 )
 RULES = brief.Rules(config="proj", form=FORM, project=PROJECT)

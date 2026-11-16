@@ -69,7 +69,7 @@ OUTSIDE_THE_MERGE = [
     "Guards:",
 ]
 FULL = [
-    f"Scope: the full review of head {HEAD}: the Plan and the Execution,"
+    "Scope: the full review: the Plan and the Execution,"
     " against the goal and the ticket's Done-when.",
     "Check: the last `Head:` line of the PR body is the full SHA of the head;",
     "Grep: look for a docstring that contradicts the code it sits next to",
@@ -85,20 +85,20 @@ FULL_SCOPES = (
     brief.Kind.REVIEW_PLAN,
 )
 EXECUTION = [
-    f"Scope: the Execution of head {HEAD}, against the approved Plan",
+    "Scope: the Execution, against the approved Plan",
     "write `Plan: approved (fixed)` and an `Execution:` line with your verdict, the"
     " same word as the `Verdict:` line (a review with no `Execution:` line is not"
     " read: REVIEW UNREAD); do not reassess or discuss the Plan.",
 ]
 PLAN = [
-    f"Scope (exclusive): the Plan of head {HEAD}, alone,",
+    "Scope (exclusive): the Plan, alone,",
     "no `Execution:` line and no defect of the Execution.",
     "Of the PR's facts only the last `Head:` line of the body is checked",
 ]
 FORM_LINES = [
     "from `uvx pitboss review-form proj o/r`:\n    ## Review\n"
     f"    Reviewed: {HEAD}\n    Verdict: <approved or changes needed>\n",
-    f"Review: o/r#3 at head {HEAD}.",
+    "Review: o/r#3.",
     "You run nothing",
     "Do not push, merge, or edit the PR or its branch.",
 ]
@@ -106,7 +106,7 @@ SEPARATE_PINS = "You run nothing but the project's pins-check command:"
 FIX_ROUND = [
     "Scope (exclusive): the fix round. The findings to check are those"
     " of the review at https://example.org/c/1, of head " + APPROVED,
-    f"Check that each finding is fixed at head {HEAD} as the finding asks,"
+    "Check that each finding is fixed as the finding asks,"
     " whether the fixes invalidate the approved Plan, and the CI on the head,"
     " and nothing else. You may raise nothing outside that diff or those"
     " findings: a finding outside this scope is not a ground for changes needed;"

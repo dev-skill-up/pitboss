@@ -2,7 +2,6 @@
 
 import unittest
 
-from . import briefmake
 from .briefmake import text
 from .says import has_all, has_none
 from .. import (
@@ -54,20 +53,19 @@ class TestReviewerOnly(unittest.TestCase):
     def test_every_review_is_posted_by_act_review_with_its_kind_and_digest(
         self,
     ) -> None:
-        """The brief names `act review`, the kind word and the body digest read."""
+        """The brief names `act review`, the kind word, no digests."""
         for kind in brief.REVIEWS:
             found = text(kind)
             word = briefgrade.KIND_WORDS[kind]
             has_all(found, ["uvx pitboss act review o/r#3", f"kind={word}"])
-            has_all(found, [f"body={briefmake.BODY_DIGEST}"])
-            has_none(found, ["Form:", "Grade lines:", "Body: the PR body"])
+            has_none(found, ["Form:", "Grade lines:", "body=", "plan-digest="])
 
     def test_the_grades_asked_for_are_the_ones_the_kind_needs(self) -> None:
         """A Plan review gives the Plan, a review after the Plan the Execution."""
         plan = text(Kind.REVIEW_PLAN)
-        has_all(plan, ["plan=<approved", f"plan-digest={briefmake.PLAN_DIGEST}"])
+        has_all(plan, ["plan=<approved"])
         has_none(plan, ["execution="])
         for kind in (Kind.REVIEW_EXECUTION, Kind.REVIEW_RELOCK):
             has_all(text(kind), ["execution=<approved"])
-            has_none(text(kind), ["plan=", "plan-digest="])
+            has_none(text(kind), ["plan="])
         has_all(text(Kind.REVIEW_FULL), ["plan=<approved", "execution=<approved"])

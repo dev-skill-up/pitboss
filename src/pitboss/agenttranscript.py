@@ -39,7 +39,7 @@ _TASKS = tuple(
     for pattern, kind in (
         (r"^Task: do the whole of ticket {ref}", "start"),
         (r"^Task: PR {ref}", "fix"),
-        (r"^Review: {ref} at head", "review"),
+        (r"^Review: {ref}\.", "review"),
         (r"^Ruling: .*? PR {ref}", "ruling"),
     )
 )

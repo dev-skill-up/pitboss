@@ -253,7 +253,6 @@ def _rules(source: Source, slug: str, head: str, ticket: str) -> brief.Rules:
         config=source.given,
         form=_form(source, slug, head),
         project=_project(source, slug, ticket),
-        plan_check=source.settings.project.plan_review_check,
         verdicts=(words.approved, words.changes_needed),
     )
 
