@@ -5,7 +5,7 @@ A leaf module: the flow reads it, and it imports nothing of the gates.
 
 import dataclasses
 import re
-from typing import Sequence
+from typing import MutableMapping, Sequence
 
 STEP = re.compile(
     r"^[ \t]*(?:(?:\d+[.)]|[-*])[ \t]+)?(ticket|body)[ \t]+(delete|replace)[ \t]*:"
@@ -95,7 +95,7 @@ def _edits(ruling: str) -> Sequence[Edit]:
     return found
 
 
-def applied(ruling: str, texts: dict[str, str]) -> Sequence[str]:
+def applied(ruling: str, texts: MutableMapping[str, str]) -> Sequence[str]:
     """Apply each edit a ruling orders to its text, in the order written.
 
     Args:
