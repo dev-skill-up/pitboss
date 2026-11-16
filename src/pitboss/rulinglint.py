@@ -72,6 +72,24 @@ def orders_edits(ruling: str) -> bool:
     return bool(_edits(ruling))
 
 
+def body_edits_done(ruling: str, body: str) -> bool:
+    """Whether the body already shows every edit the ruling orders on it.
+
+    Args:
+        ruling: the ruling's text.
+        body: the PR's body.
+
+    Returns:
+        True when each ``body replace`` has its new text in the body and each
+        ``body delete`` has its old text gone (keyword: body-edits-done).
+    """
+    return all(
+        (each.new in body) if each.new else (each.old not in body)
+        for each in _edits(ruling)
+        if each.target == "body"
+    )
+
+
 def _edits(ruling: str) -> Sequence[Edit]:
     # the edits a ruling orders, in the order written
     found: list[Edit] = []
