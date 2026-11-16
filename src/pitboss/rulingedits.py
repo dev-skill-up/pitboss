@@ -25,18 +25,25 @@ class Ordered(Protocol):
         new: what takes its place; empty for a deletion.
     """
 
-    step: int
-    target: str
-    old: str
-    new: str
+    @property
+    def step(self) -> int:
+        """Its number."""
+
+    @property
+    def target(self) -> str:
+        """Its target."""
+
+    @property
+    def old(self) -> str:
+        """Its old text."""
+
+    @property
+    def new(self) -> str:
+        """Its new text."""
 
     @property
     def shown(self) -> str:
-        """The step as written.
-
-        Returns:
-            The target, the operation and the text, cut short.
-        """
+        """The step as written."""
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
