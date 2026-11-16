@@ -5,7 +5,7 @@ A leaf module: the flow reads it, and it imports nothing of the gates.
 
 import dataclasses
 import re
-from typing import Protocol, Sequence
+from typing import Sequence
 
 STEP = re.compile(
     r"^[ \t]*(?:(?:\d+[.)]|[-*])[ \t]+)?(ticket|body)[ \t]+(delete|replace)[ \t]*:"
@@ -13,37 +13,7 @@ STEP = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 ARROW = " => "
-
-
-class Ordered(Protocol):
-    """One edit a ruling orders, as the gates read it.
-
-    Attributes:
-        step: its number, from 1, in the order written.
-        target: ``ticket`` or ``body``.
-        old: the text to find, whole.
-        new: what takes its place; empty for a deletion.
-    """
-
-    @property
-    def step(self) -> int:
-        """Its number."""
-
-    @property
-    def target(self) -> str:
-        """Its target."""
-
-    @property
-    def old(self) -> str:
-        """Its old text."""
-
-    @property
-    def new(self) -> str:
-        """Its new text."""
-
-    @property
-    def shown(self) -> str:
-        """The step as written."""
+GATE = "ruling step {step} ({edit}): {why}"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -86,7 +56,7 @@ def orders_edits(ruling: str) -> bool:
     Returns:
         True when one of its steps is an edit.
     """
-    return bool(edits(ruling))
+    return bool(_edits(ruling))
 
 
 def body_edits_done(ruling: str, body: str) -> bool:
@@ -102,20 +72,13 @@ def body_edits_done(ruling: str, body: str) -> bool:
     """
     return all(
         (each.new in body) if each.new else (each.old not in body)
-        for each in edits(ruling)
+        for each in _edits(ruling)
         if each.target == "body"
     )
 
 
-def edits(ruling: str) -> Sequence[Ordered]:
-    """The edits a ruling orders, in the order written.
-
-    Args:
-        ruling: the ruling's text.
-
-    Returns:
-        Its ``ticket`` and ``body`` edit steps.
-    """
+def _edits(ruling: str) -> Sequence[Edit]:
+    # the edits a ruling orders, in the order written
     found: list[Edit] = []
     for number, each in enumerate(STEP.finditer(ruling), 1):
         target, operation, text = (
@@ -130,3 +93,23 @@ def edits(ruling: str) -> Sequence[Ordered]:
             Edit(step=number, target=target, old=_unquoted(old), new=_unquoted(new))
         )
     return found
+
+
+def applied(ruling: str, texts: dict[str, str]) -> Sequence[str]:
+    """Apply each edit a ruling orders to its text, in the order written.
+
+    Args:
+        ruling: the ruling's text.
+        texts: the ticket's and the body's text by target; each edit is made in it.
+
+    Returns:
+        A finding for each edit whose text is not there, naming the step.
+    """
+    lost: list[str] = []
+    for each in _edits(ruling):
+        if each.old not in texts[each.target]:
+            why = f"the text is not in the {each.target}: {each.old[:60]}"
+            lost.append(GATE.format(step=each.step, edit=each.shown, why=why))
+        else:
+            texts[each.target] = texts[each.target].replace(each.old, each.new, 1)
+    return lost
