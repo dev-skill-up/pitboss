@@ -130,8 +130,8 @@ def read(
     freed, gone = _freed(book, agents, started)
     after, came = _taken(freed, agents, now)
     lost = [
-        f"UNMARKED {each.name}: its brief has no PITBOSS-SLOT or Goal line, so it"
-        " holds no slot"
+        f"UNMARKED {each.name}: its brief has no Task, Review, Ruling or Goal"
+        " line, so it holds no slot"
         for each in agents
         if each.state is State.RUNNING and not each.task
     ]

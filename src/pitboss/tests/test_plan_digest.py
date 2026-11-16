@@ -171,7 +171,13 @@ class TestThePlanEditedLine(unittest.TestCase):
         assert_that(listed, contains_string(EDIT_LINE))
         offered = next_output(here)
         assert_that(offered, contains_string("make an Opus ruling: owner/project#3"))
-        assert_that(offered, contains_string("PITBOSS-SLOT: owner/project#3 ruling"))
+        assert_that(
+            offered,
+            contains_string(
+                "Ruling: you are an Opus agent whose only brief is to make a ruling"
+                " on PR owner/project#3"
+            ),
+        )
 
     def test_the_sweep_prints_the_line(self) -> None:
         """The line names the PR and the way out."""

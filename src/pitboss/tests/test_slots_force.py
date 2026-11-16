@@ -94,4 +94,4 @@ class TestForce(unittest.TestCase):
             ),
             (0, False, True),
         )
-        says(forced.out, "PITBOSS-SLOT: owner/project#4 review")
+        says(forced.out, "Review: owner/project#4 at head")

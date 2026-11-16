@@ -225,7 +225,7 @@ class TestOrder(unittest.TestCase):
         """The brief tells the worker to resume the PR, not start a new one."""
         out = next_output(partial_world())
         assert_that(out, contains_string("Resume this PR on its own branch"))
-        assert_that(out, contains_string("PITBOSS-SLOT: owner/project#3 fix"))
+        assert_that(out, contains_string("Task: PR owner/project#3"))
 
 
 _ = fakes

@@ -168,7 +168,7 @@ class TestPlanCheckRefusal(unittest.TestCase):
         assert_that(owned[0], contains_string(refused.url))
         for round_word in (FIX_ROUND, "fix round: fix", "(review it"):
             assert_that(round_word in out, equal_to(False))
-        assert_that("PITBOSS-SLOT: owner/project#3" in out, equal_to(False))
+        assert_that("Task: PR owner/project#3" in out, equal_to(False))
 
     def test_a_refused_plan_with_no_command_is_sent_back_with_the_findings(
         self,
@@ -182,7 +182,7 @@ class TestPlanCheckRefusal(unittest.TestCase):
         )
         out = next_output(sweeps.world_with([refused], body=NO_COMMANDS))
         assert_that(out, contains_string(found))
-        assert_that("PITBOSS-SLOT: owner/project#3" in out, equal_to(False))
+        assert_that("Task: PR owner/project#3" in out, equal_to(False))
 
     def test_a_clean_check_offers_the_review_as_before(self) -> None:
         """The control: the same body with a clean check."""

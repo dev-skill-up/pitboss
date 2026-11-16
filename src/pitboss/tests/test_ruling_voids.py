@@ -85,7 +85,7 @@ class TestRulingVoidsApproval(unittest.TestCase):
     def test_t467_the_brief_is_the_fix_round_worker_brief_with_the_ruling(self) -> None:
         """Done-when 2: the marker ends in ``fix`` and the brief names the ruling."""
         out = next_output(world_of(test_flow.ruling(2)))
-        assert_that(out, contains_string("PITBOSS-SLOT: owner/project#3 fix\n"))
+        assert_that(out, contains_string("Task: PR owner/project#3: "))
         assert_that(out, contains_string(f"the comment at {RULING_URL}"))
 
     def test_t467_a_review_after_the_ruling_restores_the_approval(self) -> None:

@@ -17,7 +17,6 @@ from . import (
     briefpost,
     briefkind,
     briefruling,
-    briefslot,
     brieftext as text,
     brieftextbody,
     brieftextci,
@@ -352,6 +351,5 @@ def build(spec: Spec) -> str:
         rules = [*briefruling.lines(values), *spec.conflict]
     else:
         rules = _worker(spec, values)
-    slot = briefslot.line(spec.kind, spec.subject.reference)
     # the brief starts at its Goal line; what precedes it is for the thread
-    return "\n".join([f"Goal: {spec.subject.goal}", slot, *rules])
+    return "\n".join([f"Goal: {spec.subject.goal}", *rules])
