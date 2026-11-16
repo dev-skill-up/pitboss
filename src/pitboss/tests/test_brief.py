@@ -120,7 +120,7 @@ class TestEveryBrief(unittest.TestCase):
     def test_each_brief_starts_with_the_original_goal(self) -> None:
         """The first line is the goal, taken from the ticket, in one line."""
         for kind in brief.Kind:
-            assert_that(text(kind).splitlines()[1], equal_to(f"Goal: {GOAL}"))
+            assert_that(text(kind).splitlines()[0], equal_to(f"Goal: {GOAL}"))
 
 
 class TestReviewScopes(unittest.TestCase):
