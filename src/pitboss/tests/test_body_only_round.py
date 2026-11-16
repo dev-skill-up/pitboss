@@ -72,32 +72,19 @@ class TestBodyOnlyRound(unittest.TestCase):
         """The check names a Plan that is not the one now."""
         expect(FIX, ruled(check_after(OK, f"Plan digest: {'0' * 16}")))
 
-    def test_body_edits_not_in_the_body_give_the_fix(self) -> None:
-        """A clean check is not the steps: the ordered text must be in the body."""
-        orders = "1. body replace: the plan => the better plan\n"
-        edited = dataclasses.replace(
-            test_flow.ruling(3), body=f"Opus ruling\nRuling: do these steps\n{orders}"
-        )
-        pr = state(*REJECTIONS, comments=[edited, check_after(OK)])
-        expect(FIX, pr)
-
-    def test_body_edits_in_the_body_give_the_review(self) -> None:
-        """The nearest input it must still accept: the ordered text is there."""
-        orders = "1. body replace: the work => the work\n"
-        edited = dataclasses.replace(
-            test_flow.ruling(3), body=f"Opus ruling\nRuling: do these steps\n{orders}"
-        )
-        pr = state(*REJECTIONS, comments=[edited, check_after(OK)])
-        expect(REVIEW, pr)
-
-    def test_a_body_delete_is_done_when_its_text_is_gone(self) -> None:
-        """A delete step has no new text: its old text must be gone."""
-        orders = "1. body delete: the work\n"
-        edited = dataclasses.replace(
-            test_flow.ruling(3), body=f"Opus ruling\nRuling: do these steps\n{orders}"
-        )
-        pr = state(*REJECTIONS, comments=[edited, check_after(OK)])
-        expect(FIX, pr)
+    def test_a_clean_check_counts_only_when_the_ordered_edits_are_in_the_body(
+        self,
+    ) -> None:
+        """The ordered text must be in the body (a replace) or gone (a delete)."""
+        for order, want in [
+            ("body replace: the plan => the better plan", FIX),
+            ("body replace: the work => the work", REVIEW),
+            ("body delete: the work", FIX),
+        ]:
+            with self.subTest(order):
+                text = f"Opus ruling\nRuling: do these steps\n1. {order}\n"
+                edited = dataclasses.replace(test_flow.ruling(3), body=text)
+                expect(want, state(*REJECTIONS, comments=[edited, check_after(OK)]))
 
     def test_a_clean_check_before_the_ruling_is_not_since(self) -> None:
         """The nearest input checked_since must still reject: a check that is older."""
