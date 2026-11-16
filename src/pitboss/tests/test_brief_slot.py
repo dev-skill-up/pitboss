@@ -25,32 +25,34 @@ FIRST = {
 }
 
 
-class TestFirstLine(unittest.TestCase):
+class TestMarkerLine(unittest.TestCase):
     """The marker line of each kind of brief."""
 
-    def test_each_kind_of_brief_starts_with_its_marker(self) -> None:
+    def test_each_kind_of_brief_has_its_marker_after_the_goal(self) -> None:
         """A worker's start, a worker's fix, a review and a ruling."""
         found = {
-            kind: briefmake.text(kind).splitlines()[0].rpartition(" ")[2]
+            kind: briefmake.text(kind).splitlines()[1].rpartition(" ")[2]
             for kind in FIRST
         }
         assert_that(found, equal_to(FIRST))
 
     def test_the_marker_names_the_reference_of_the_subject(self) -> None:
         """The reference the brief is about, in the line the watcher reads."""
-        line = briefmake.text(Kind.NEW_PR).splitlines()[0]
-        assert_that(line, starts_with("PITBOSS-SLOT: "))
-        assert_that(line.split()[1], equal_to(briefmake.SUBJECT.reference))
+        brief = briefmake.text(Kind.NEW_PR).splitlines()
+        assert_that(brief[0], starts_with("Goal: "))
+        assert_that(brief[1], starts_with("PITBOSS-SLOT: "))
+        assert_that(brief[1].split()[1], equal_to(briefmake.SUBJECT.reference))
 
-    def test_the_printed_brief_of_a_ticket_has_it_before_the_goal(self) -> None:
-        """``slots next TICKET`` prints the brief, marker first."""
+    def test_the_printed_brief_of_a_ticket_starts_at_its_goal(self) -> None:
+        """``slots next TICKET`` prints the brief from its Goal, the marker after."""
         here = queued()
         shown = world.invoke(
             here, "slots", "next", TEN, "--config", here.config, "--now", world.FUTURE
         )
         lines = shown.out.splitlines()
         at = lines.index(f"PITBOSS-SLOT: {TEN} start")
-        assert_that(lines[at + 1], starts_with("Goal: ticket "))
+        assert_that(lines[at - 1], starts_with("Goal: ticket "))
+        assert_that(lines[at - 2], starts_with("--- brief 1:"))
 
 
 def read_as(text: str) -> tuple[Sequence[str], Sequence[str]]:

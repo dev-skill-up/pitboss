@@ -348,6 +348,12 @@ def suggest(source: Source, pick: Pick) -> Suggestion:
     )
 
 
+BRIEF_BEGINS = (
+    "--- brief {rank}: the lines below, from Goal, are the brief; the lines above are"
+    " for you ---"
+)
+
+
 def _ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]:
     marker = Marker.SUGGESTION.text
     for rank, found in enumerate(made, start=first):
@@ -355,6 +361,7 @@ def _ranked(made: Sequence[Suggestion], first: int, total: int) -> Iterable[str]
             f"{marker} {rank} of {total}: {found.kind.value}:"
             f" {found.reference}: {found.model}"
         )
+        yield BRIEF_BEGINS.format(rank=rank)
         yield from found.text.splitlines()
         yield f"--- end of suggestion {rank} ---"
 

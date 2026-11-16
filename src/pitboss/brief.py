@@ -353,4 +353,5 @@ def build(spec: Spec) -> str:
     else:
         rules = _worker(spec, values)
     slot = briefslot.line(spec.kind, spec.subject.reference)
-    return "\n".join([slot, f"Goal: {spec.subject.goal}", *rules])
+    # the brief starts at its Goal line; what precedes it is for the thread
+    return "\n".join([f"Goal: {spec.subject.goal}", slot, *rules])
