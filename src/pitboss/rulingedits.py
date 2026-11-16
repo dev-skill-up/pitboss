@@ -92,5 +92,3 @@ def edits(ruling: str) -> Sequence[Edit]:
             Edit(step=number, target=target, old=_unquoted(old), new=_unquoted(new))
         )
     return found
-
-

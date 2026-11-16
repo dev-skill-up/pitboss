@@ -61,7 +61,9 @@ class TestRulingLint(unittest.TestCase):
 
     def test_c34_a_ruling_without_edits_is_not_judged(self) -> None:
         """No step, no finding."""
-        assert_that(rulingedits.orders_edits(ruling("1. split the PR")), equal_to(False))
+        assert_that(
+            rulingedits.orders_edits(ruling("1. split the PR")), equal_to(False)
+        )
         assert_that(findings(ruling("x"), TICKET, "no plan", HEAD), equal_to([]))
 
     def test_c34_ruling_post_refuses_the_same_steps(self) -> None:
