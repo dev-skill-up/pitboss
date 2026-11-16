@@ -16,7 +16,14 @@ ARROW = " => "
 
 
 class Ordered(Protocol):
-    """One edit a ruling orders, as the gates read it."""
+    """One edit a ruling orders, as the gates read it.
+
+    Attributes:
+        step: its number, from 1, in the order written.
+        target: ``ticket`` or ``body``.
+        old: the text to find, whole.
+        new: what takes its place; empty for a deletion.
+    """
 
     step: int
     target: str
@@ -25,7 +32,11 @@ class Ordered(Protocol):
 
     @property
     def shown(self) -> str:
-        """The step as written."""
+        """The step as written.
+
+        Returns:
+            The target, the operation and the text, cut short.
+        """
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
