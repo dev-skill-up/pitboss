@@ -14,6 +14,7 @@ from typing import Callable, Mapping, Sequence, assert_never
 
 from . import (
     answer,
+    concurrently,
     config,
     configfile,
     configloads,
@@ -67,19 +68,18 @@ def _book(found: nextfound.Found) -> ledger.Ledger:
 def _reader(found: nextfound.Found, undraft: Callable[[], bool]) -> PullReader:
     # a run reads a pull request once: a pull request read as a shared red's
     # closure is not read again when it is examined
-    done: dict[str, pulls.PullRead] = {}
-    gated: dict[str, config.Config] = {}  # a repository's gate, read once
 
-    def read(row: listed.Listed) -> pulls.PullRead:
-        if row.reference not in done:
-            github, slug = found.github, row.repo.slug
-            if slug not in gated:
-                gated[slug] = gates.settled(github, found.settings, {slug})
-            source = pullread.source_for(github, gated[slug], undraft, row.repo)
-            done[row.reference] = pulls.fetch(source, row.repo, row.number)
-        return done[row.reference]
+    def settle(slug: str) -> config.Config:
+        return gates.settled(found.github, found.settings, {slug})
 
-    return read
+    gated = concurrently.once(settle, str)
+
+    def fetch(row: listed.Listed) -> pulls.PullRead:
+        github = found.github
+        source = pullread.source_for(github, gated(row.repo.slug), undraft, row.repo)
+        return pulls.fetch(source, row.repo, row.number)
+
+    return concurrently.once(fetch, lambda row: row.reference)
 
 
 def _closures(found: nextfound.Found, read: PullReader) -> world.Closures:

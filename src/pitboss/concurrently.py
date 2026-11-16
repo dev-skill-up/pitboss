@@ -6,6 +6,7 @@ checkouts asks them all together and keeps their order.
 """
 
 import concurrent.futures
+import threading
 from typing import Callable, Iterable, Iterator, Sequence, TypeVar
 
 WORKERS = 16
@@ -66,3 +67,34 @@ def pair(
         one = pool.submit(first)
         other = pool.submit(second)
         return one.result(), other.result()
+
+
+def once(
+    function: Callable[[_Item], _Result], key: Callable[[_Item], str]
+) -> Callable[[_Item], _Result]:
+    """A function that runs once for each key, whichever thread asks first.
+
+    A second asker of a key waits for the first's answer, so a read that is
+    "made once" is not made twice when two threads ask at the same moment.
+
+    Args:
+        function: what to call; it may block on a command.
+        key: the key of an item.
+
+    Returns:
+        The function, answering each key from its one call.
+    """
+    guard = threading.Lock()
+    made: dict[str, _Result] = {}
+    gates: dict[str, threading.Lock] = {}
+
+    def call(item: _Item) -> _Result:
+        name = key(item)
+        with guard:
+            gate = gates.setdefault(name, threading.Lock())
+        with gate:
+            if name not in made:
+                made[name] = function(item)
+            return made[name]
+
+    return call
