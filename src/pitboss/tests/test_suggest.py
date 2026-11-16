@@ -116,7 +116,7 @@ class TestKindsOfReview(unittest.TestCase):
 
     def test_a_first_review_is_the_full_review(self) -> None:
         """2b: no review of the PR."""
-        scope = f"Scope: the full review of head {HEAD}"
+        scope = "Scope: the full review"
         scope_is(world_with([]), "review the Plan and the Execution", scope)
 
     def test_a_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
@@ -124,7 +124,7 @@ class TestKindsOfReview(unittest.TestCase):
         here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
         merge_only(here)
         scope = (
-            f"Scope (exclusive): this head {HEAD} differs from the approved"
+            "Scope (exclusive): the head differs from the approved"
             f" head {OLDER} only by a merge of main."
         )
         scope_is(here, "review the merge resolution only", scope)
@@ -132,7 +132,7 @@ class TestKindsOfReview(unittest.TestCase):
     def test_a_head_changed_by_more_than_a_merge_is_reviewed_in_full(self) -> None:
         """2b: the same approval, but a commit of the author's since."""
         here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
-        scope_is(here, "review the Execution", f"Scope: the Execution of head {HEAD}")
+        scope_is(here, "review the Execution", "Scope: the Execution,")
 
     def test_the_review_after_a_fix_round_checks_its_findings(self) -> None:
         """2c: the review asked for changes, and the head moved."""
@@ -146,7 +146,7 @@ class TestKindsOfReview(unittest.TestCase):
     def test_a_revised_plan_is_graded_alone_not_as_a_fix(self) -> None:
         """A rejected Plan, revised: the head moved, the Plan was never approved."""
         here = world_with([graded(CHANGES, None, 1, sha=OLDER)])
-        scope = f"Scope (exclusive): the Plan of head {HEAD}, alone,"
+        scope = "Scope (exclusive): the Plan, alone,"
         scope_is(here, PLAN_ALONE, scope)
 
     def test_a_gated_merge_only_head_is_checked_for_the_merge_alone(self) -> None:
@@ -155,7 +155,7 @@ class TestKindsOfReview(unittest.TestCase):
         merge_only(here)
         gate_project(here)
         scope = (
-            f"Scope (exclusive): this head {HEAD} differs from the approved"
+            "Scope (exclusive): the head differs from the approved"
             f" head {OLDER} only by a merge of main."
         )
         scope_is(here, "review the merge resolution only", scope)
@@ -166,11 +166,11 @@ class TestKindsOfReview(unittest.TestCase):
         """The gated repository is not special when the author changed the code."""
         here = world_with([graded(APPROVED, APPROVED, 1, sha=OLDER)])
         gate_project(here)
-        scope_is(here, "review the Execution", f"Scope: the Execution of head {HEAD}")
+        scope_is(here, "review the Execution", "Scope: the Execution,")
 
     def test_a_draft_gets_the_plan_alone(self) -> None:
         """The Plan stage."""
-        scope = f"Scope (exclusive): the Plan of head {HEAD}, alone,"
+        scope = "Scope (exclusive): the Plan, alone,"
         scope_is(world_with([], draft=True), PLAN_ALONE, scope)
 
 

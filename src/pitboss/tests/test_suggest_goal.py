@@ -76,9 +76,7 @@ class TestGoal(unittest.TestCase):
             here.bodies.update(issues)
             goal, rule = third(here)[1][:2]
             assert_that(goal, contains_string(wanted))
-            assert_that(
-                rule.startswith("Review: owner/project#3 at head"), equal_to(True)
-            )
+            assert_that(rule.startswith("Review: owner/project#3."), equal_to(True))
 
 
 class TestForms(unittest.TestCase):

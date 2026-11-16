@@ -7,7 +7,7 @@ from hamcrest import assert_that, equal_to
 
 from .. import brief, missed, shapes
 from . import blank, test_brief
-from .briefmake import APPROVED, PLAN_REVIEWS, pinned, text
+from .briefmake import APPROVED, HEAD, PLAN_REVIEWS, pinned, text
 from .says import has_all, has_none
 
 FIRST_ROUND = (
@@ -27,7 +27,7 @@ DRY_RUN = (
     " Plan."
 )
 FIX_ROUND_CLAUSE = (
-    f"The diff to read is `git diff {APPROVED}..<the head>`. Check that each"
+    f"The diff to read is `git diff {APPROVED}..{HEAD}`. Check that each"
     " finding is fixed as the finding asks, whether the fixes invalidate the"
     " approved Plan, and the CI on the head, and nothing else. You may raise"
     " nothing outside that diff or those findings:"

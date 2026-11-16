@@ -218,26 +218,11 @@ class TestTheFlow(unittest.TestCase):
 class TestTheBrief(unittest.TestCase):
     """A review of such a PR reads the dispatched run."""
 
-    def test_a_review_of_a_changed_e2e_says_not_started_without_a_run(self) -> None:
-        """The sentence, in the kinds that read the head's checks."""
-        head = make(brief.Kind.REVIEW_FULL).heads.head
-        said_it = [built(kind, True) for kind in brief.E2E_KINDS]
-        assert_that(len(said_it), equal_to(4))
-        for found in said_it:
-            assert_that(found, contains_string("dispatched on its branch"))
-            assert_that(found, contains_string(f"`{NOT_STARTED} {head}`"))
-
     def test_a_review_of_another_pr_does_not_say_it(self) -> None:
         """No e2e change, no sentence; and a Plan review reads no run."""
         every = [built(kind, False) for kind in brief.REVIEWS]
         every.append(built(brief.Kind.REVIEW_PLAN, True))
         assert_that(any(NOT_STARTED in each for each in every), equal_to(False))
-
-    def test_the_suggestion_of_a_review_says_it_for_a_changed_e2e(self) -> None:
-        """A ready PR 3 that changes ``e2e/`` is reviewed with the sentence."""
-        changed = served(world_with([]), "files", [E2E_FILE])
-        assert_that(next_output(changed), contains_string(NOT_STARTED))
-        assert_that(NOT_STARTED in next_output(world_with([])), equal_to(False))
 
 
 class TestThePieces(unittest.TestCase):

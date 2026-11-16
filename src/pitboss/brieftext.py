@@ -268,7 +268,7 @@ SCOPE_RESOLUTION = (
 SCOPE_FIX_ROUND = (
     "Scope (exclusive): the fix round. The findings to check are those of"
     " {review}, of head {approved}. The diff to read is `git diff"
-    " {approved}..<the head>`. Check that each finding is fixed as the"
+    " {approved}..{head}`. Check that each finding is fixed as the"
     " finding asks, whether the fixes invalidate the approved Plan, and the CI on"
     " the head, and nothing else. You may raise nothing outside that diff or those"
     " findings: a finding outside this scope is not a ground for changes needed;"

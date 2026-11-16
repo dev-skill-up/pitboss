@@ -114,7 +114,10 @@ class TestReviews(unittest.TestCase):
         """The review brief says so."""
         each(
             "test_all_findings",
-            ["test_a_review_of_a_stage_lists_every_finding_in_the_first_round"],
+            [
+                "test_a_first_round_says_to_list_every_finding",
+                "test_a_later_round_says_only_the_later_round",
+            ],
         )
 
     def test_a17_a_merge_of_main_is_reviewed_for_the_merge_alone(self) -> None:
