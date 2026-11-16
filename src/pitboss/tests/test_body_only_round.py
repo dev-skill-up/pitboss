@@ -90,7 +90,10 @@ class TestBodyOnlyRound(unittest.TestCase):
         """A check run after the ruling counts as the steps only when they show."""
         pushed = dataclasses.replace(test_flow.GREEN, started_at="2026-10-30T00:00:09Z")
         for order, want in [
-            ("body replace: the plan => the better plan", rulingwords.Ruling.DO_THESE_STEPS),
+            (
+                "body replace: the plan => the better plan",
+                rulingwords.Ruling.DO_THESE_STEPS,
+            ),
             ("body replace: the work => the work", None),
         ]:
             with self.subTest(order):
