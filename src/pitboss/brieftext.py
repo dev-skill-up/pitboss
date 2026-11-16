@@ -340,10 +340,8 @@ RULING_RECORD = (
     " this brief's `How we got here` line, checked against the PR); then"
     " the steps or the reasons. A step that edits the ticket or the PR body is one"
     " line `N. ticket delete: TEXT`, `N. body delete: TEXT` or `N. ticket replace:"
-    " OLD => NEW` (or `body replace:`), and before you post, run `uvx pitboss lint"
-    " ruling RULING TICKET BODY --head SHA` on the ruling, the ticket's body and the"
-    " PR's body (`ruling post` runs it too and refuses a ruling whose steps fail"
-    " plan-check or lint pr-body, naming the gate and the step). The ruling is"
+    " OLD => NEW` (or `body replace:`); `ruling post` refuses a ruling whose steps fail"
+    " plan-check or lint pr-body, naming the gate and the step. The ruling is"
     " taken as given."
 )
 RULING_HOW = (
