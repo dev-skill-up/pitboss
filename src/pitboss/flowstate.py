@@ -13,6 +13,7 @@ from . import (
     draftfacts,
     expansion,
     plandigest,
+    rulingedits,
     rulingwords,
     sessionurl,
     shapes,
@@ -281,7 +282,9 @@ def ruling_unapplied(pr: PullState) -> rulingwords.Ruling | None:
         return None
     posted, ruled = answered
     reviewed = any(each.when > posted.created_at for each in pr.graded if each.comment)
-    pushed = any(each.started_at > posted.created_at for each in pr.checks)
+    shown = rulingedits.body_edits_done(posted.body, pr.pull.body)
+    # a push is no record of body edits the body does not show (body-edits-done)
+    pushed = shown and any(each.started_at > posted.created_at for each in pr.checks)
     return None if reviewed or pushed else ruled
 
 
