@@ -7,6 +7,7 @@ for a subprocess run from a pool or a thread.
 
 import ast
 import dataclasses
+import functools
 import pathlib
 import subprocess
 from collections.abc import Mapping, Sequence, Set
@@ -85,8 +86,11 @@ class Bindings:
     functions: Mapping[str, str]
 
 
+@functools.cache
 def defs(tree: ast.AST) -> Sequence[ast.FunctionDef | ast.AsyncFunctionDef]:
     """The ``def`` and ``async def`` of a file, wherever they are.
+
+    Walked once for each tree: the scans ask for the same file's functions again.
 
     Args:
         tree: the parsed file.
