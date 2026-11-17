@@ -13,7 +13,7 @@ the recount finds a file missing.
 
 import functools
 import pathlib
-from typing import Callable, Mapping, assert_never
+from typing import Callable, Literal, Mapping, assert_never
 
 from . import (
     actfacts,
@@ -141,8 +141,46 @@ def applied_to_item(verb: gateverbs.ItemVerb) -> Verb:
             assert_never(verb)
 
 
-def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
-    """What applies a verb of its own: a total match, so one with none is a type error.
+OwnFirst = Literal[
+    gateverbs.OwnVerb.DISARM,
+    gateverbs.OwnVerb.REVIEW,
+    gateverbs.OwnVerb.LABEL,
+    gateverbs.OwnVerb.HOLD,
+    gateverbs.OwnVerb.UNHOLD,
+    gateverbs.OwnVerb.BLOCK,
+]
+
+
+OwnSecond = Literal[
+    gateverbs.OwnVerb.TICKET,
+    gateverbs.OwnVerb.TICKET_EDIT,
+    gateverbs.OwnVerb.CLOSE,
+    gateverbs.OwnVerb.COMMENT,
+    gateverbs.OwnVerb.COMMENT_EDIT,
+    gateverbs.OwnVerb.COMMENT_DELETE,
+]
+
+
+OwnThird = Literal[
+    gateverbs.OwnVerb.PR_CREATE,
+    gateverbs.OwnVerb.PR_EDIT,
+    gateverbs.OwnVerb.UPDATE_BRANCH,
+    gateverbs.OwnVerb.RERUN,
+    gateverbs.OwnVerb.CANCEL,
+    gateverbs.OwnVerb.DISPATCH_WORKFLOW,
+]
+
+
+OwnFourth = Literal[
+    gateverbs.OwnVerb.PUSH,
+    gateverbs.OwnVerb.SCRATCH_CLEAN,
+    gateverbs.OwnVerb.CLEAN,
+    gateverbs.OwnVerb.ACK,
+]
+
+
+def applied_to_own_first(verb: OwnFirst) -> Verb:
+    """What applies one of these own verbs: a total match.
 
     Args:
         verb: the verb.
@@ -163,6 +201,20 @@ def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
             return actpull.unhold
         case gateverbs.OwnVerb.BLOCK:
             return actpull.block
+        case _:  # pragma: no cover
+            assert_never(verb)
+
+
+def applied_to_own_second(verb: OwnSecond) -> Verb:
+    """What applies one of these own verbs: a total match.
+
+    Args:
+        verb: the verb.
+
+    Returns:
+        The function that runs it (P8, keyword: act-verbs).
+    """
+    match verb:
         case gateverbs.OwnVerb.TICKET:
             return actwrite.ticket
         case gateverbs.OwnVerb.TICKET_EDIT:
@@ -175,6 +227,20 @@ def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
             return actwrite.comment_edit
         case gateverbs.OwnVerb.COMMENT_DELETE:
             return actwrite.comment_delete
+        case _:  # pragma: no cover
+            assert_never(verb)
+
+
+def applied_to_own_third(verb: OwnThird) -> Verb:
+    """What applies one of these own verbs: a total match.
+
+    Args:
+        verb: the verb.
+
+    Returns:
+        The function that runs it (P8, keyword: act-verbs).
+    """
+    match verb:
         case gateverbs.OwnVerb.PR_CREATE:
             return actwrite.pr_create
         case gateverbs.OwnVerb.PR_EDIT:
@@ -187,6 +253,20 @@ def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
             return actpull.cancel
         case gateverbs.OwnVerb.DISPATCH_WORKFLOW:
             return actpull.dispatch_workflow
+        case _:  # pragma: no cover
+            assert_never(verb)
+
+
+def applied_to_own_fourth(verb: OwnFourth) -> Verb:
+    """What applies one of these own verbs: a total match.
+
+    Args:
+        verb: the verb.
+
+    Returns:
+        The function that runs it (P8, keyword: act-verbs).
+    """
+    match verb:
         case gateverbs.OwnVerb.PUSH:
             return actgit.push
         case gateverbs.OwnVerb.SCRATCH_CLEAN:
@@ -195,6 +275,28 @@ def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
             return actgit.clean
         case gateverbs.OwnVerb.ACK:
             return actwrite.ack
+        case _:  # pragma: no cover
+            assert_never(verb)
+
+
+def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
+    """What applies a verb of its own: each group's match is total, and so is this.
+
+    Args:
+        verb: the verb.
+
+    Returns:
+        The function that runs it (P8, keyword: act-verbs).
+    """
+    match verb:
+        case gateverbs.OwnVerb.DISARM | gateverbs.OwnVerb.REVIEW | gateverbs.OwnVerb.LABEL | gateverbs.OwnVerb.HOLD | gateverbs.OwnVerb.UNHOLD | gateverbs.OwnVerb.BLOCK:
+            return applied_to_own_first(verb)
+        case gateverbs.OwnVerb.TICKET | gateverbs.OwnVerb.TICKET_EDIT | gateverbs.OwnVerb.CLOSE | gateverbs.OwnVerb.COMMENT | gateverbs.OwnVerb.COMMENT_EDIT | gateverbs.OwnVerb.COMMENT_DELETE:
+            return applied_to_own_second(verb)
+        case gateverbs.OwnVerb.PR_CREATE | gateverbs.OwnVerb.PR_EDIT | gateverbs.OwnVerb.UPDATE_BRANCH | gateverbs.OwnVerb.RERUN | gateverbs.OwnVerb.CANCEL | gateverbs.OwnVerb.DISPATCH_WORKFLOW:
+            return applied_to_own_third(verb)
+        case gateverbs.OwnVerb.PUSH | gateverbs.OwnVerb.SCRATCH_CLEAN | gateverbs.OwnVerb.CLEAN | gateverbs.OwnVerb.ACK:
+            return applied_to_own_fourth(verb)
         case _:  # pragma: no cover
             assert_never(verb)
 
