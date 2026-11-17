@@ -122,7 +122,10 @@ def post_comment(
     print(comment(github, slug, number, text))
 
 
-def register(name: str, file_help: str) -> Callable[[Callable[..., None]], object]:
+Command = Callable[[argparse.Namespace], None]
+
+
+def register(name: str, file_help: str) -> Callable[[Command], Command]:
     """Register a command that takes a PR and a file.
 
     Args:
@@ -132,8 +135,9 @@ def register(name: str, file_help: str) -> Callable[[Callable[..., None]], objec
     Returns:
         The decorator that registers the command.
     """
-    return ENTRY_DATA.register(
+    decorator: Callable[[Command], Command] = ENTRY_DATA.register(
         add_argument("pull", help="OWNER/NAME#NUMBER: the pull request"),
         add_argument("file", help=file_help),
         name=name,
     )
+    return decorator
