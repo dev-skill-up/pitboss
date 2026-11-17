@@ -11,7 +11,6 @@ from . import proofsource, worldfields
 from .proofsource import Package
 
 
-
 def one_decider(package: Package) -> Sequence[str]:
     """P1: ``decide.decide`` decides from one world and nothing else.
 
