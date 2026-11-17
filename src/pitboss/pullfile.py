@@ -11,7 +11,9 @@ import re
 import sys
 from typing import Callable, NoReturn
 
-from . import ghapi, ghstore
+from gather.commands import add_argument
+
+from . import ENTRY_DATA, ghapi, ghstore
 
 USAGE_ERROR = 2
 PULL = re.compile(r"^([\w.-]+/[\w.-]+)#(\d+)$")
@@ -118,3 +120,20 @@ def post_comment(
     if before:
         before(github, slug, number)
     print(comment(github, slug, number, text))
+
+
+def register(name: str, file_help: str) -> Callable[[Callable[..., None]], object]:
+    """Register a command that takes a PR and a file.
+
+    Args:
+        name: the command's name.
+        file_help: what the file holds, for the command's help.
+
+    Returns:
+        The decorator that registers the command.
+    """
+    return ENTRY_DATA.register(
+        add_argument("pull", help="OWNER/NAME#NUMBER: the pull request"),
+        add_argument("file", help=file_help),
+        name=name,
+    )
