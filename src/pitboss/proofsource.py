@@ -7,6 +7,7 @@ the package's code.
 
 import ast
 import dataclasses
+import functools
 import pathlib
 from typing import AbstractSet, Iterable, Iterator, Mapping, Sequence, TypeVar
 
@@ -39,8 +40,24 @@ class Package:
     edges: Mapping[str, AbstractSet[str]]
 
 
+@functools.cache
+def _source(path: str, text: str) -> importgraph.Source | None:
+    # one file parsed once for the whole run: a proof's edit changes one file's text
+    found, _ = importgraph.parse({path: text})
+    return found[0] if found else None
+
+
+@functools.cache
+def _imports(source: importgraph.Source, known: AbstractSet[str]) -> AbstractSet[str]:
+    # what a file imports of the package, read once for each file's text
+    return frozenset(importgraph.imported_by(source, known))
+
+
 def of_texts(texts: Mapping[str, str]) -> Package:
     """The package of the files given.
+
+    Each file is parsed once for the run and what it imports is read once, so a
+    package that differs from another in one file's text costs that one file.
 
     Args:
         texts: the text of each ``.py`` file, by its path from the repository's
@@ -49,14 +66,15 @@ def of_texts(texts: Mapping[str, str]) -> Package:
     Returns:
         The package, without the tests.
     """
-    found, _ = importgraph.parse(
-        {path: text for path, text in texts.items() if importgraph.module_of(path)}
-    )
+    parsed = [
+        _source(path, text) for path, text in texts.items() if importgraph.module_of(path)
+    ]
+    found = [each for each in parsed if each is not None]
+    known = frozenset(each.module for each in found)
     sources = {
         each.module: each for each in found if not importgraph.in_tests(each.module)
     }
-    graph = importgraph.build_graph(texts)
-    edges = {name: graph.edges.get(name, frozenset()) for name in sources}
+    edges = {name: _imports(each, known) - {name} for name, each in sources.items()}
     return Package(sources=sources, edges=edges)
 
 
