@@ -185,8 +185,8 @@ def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
     """
     counts: collections.Counter[str] = collections.Counter()
     bad: list[str] = []
-    by_action: dict[str, list[tuple[Change, totalanswer.Word]]] = (
-        collections.defaultdict(list)
+    by_action: dict[str, list[tuple[Change, gatewords.Word]]] = collections.defaultdict(
+        list
     )
     for each in cells:
         change = change_of(start(base, each.action), each.world)
