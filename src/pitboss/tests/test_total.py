@@ -25,6 +25,8 @@ from . import (
 from .fakes import write
 
 SOURCE = pathlib.Path(__file__).parent.parent
+# a command added after the frozen list was made (pitboss#480): it labels and posts
+ADDED = ("impossible",)
 SHA256 = {
     enumeration.VARIABLES: (
         "2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc"
@@ -136,27 +138,33 @@ class TestCover(unittest.TestCase):
         assert_that(dict(kinds), equal_to({"read": 24, "verb": 12, "unused": 12}))
 
     def test_444_cover_commands_at_0_uncovered(self) -> None:
-        """39 commands: 11 write through a verb, 28 write nothing."""
+        """40 commands: 12 write through a verb, 28 write nothing."""
         names = [
-            name
-            for name in enumeration.values("pitboss-command")
-            if name != "mutation-check"
+            *(
+                name
+                for name in enumeration.values("pitboss-command")
+                if name != "mutation-check"
+            ),
+            *ADDED,
         ]
         kinds = collections.Counter(
             row.kind for row in coverwrites.commands(SOURCE, names, actverbs.VERBS)
         )
         assert_that(
-            (len(names), dict(kinds)), equal_to((39, {"fires": 11, "benign": 28}))
+            (len(names), dict(kinds)), equal_to((40, {"fires": 12, "benign": 28}))
         )
 
     def test_444_the_registered_commands_are_the_frozen_list_less_mutation_check(
         self,
     ) -> None:
-        """mutation-check left the command list; nothing else came or went."""
+        """mutation-check left the command list, ``impossible`` came; no other."""
         names = {
-            name
-            for name in enumeration.values("pitboss-command")
-            if name != "mutation-check"
+            *(
+                name
+                for name in enumeration.values("pitboss-command")
+                if name != "mutation-check"
+            ),
+            *ADDED,
         }
         assert_that(set(coverwrites.call_graph(SOURCE).registered), equal_to(names))
 

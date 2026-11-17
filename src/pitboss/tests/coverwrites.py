@@ -38,6 +38,7 @@ ROUTE: Mapping[str, str] = {
     "clean-worktrees": "scratch-clean",
     "case": "ticket-edit",
     "owner-pause": "label",
+    "impossible": "label",
     "plan-check": "comment",
     "sweep": "scratch-clean",
 }
