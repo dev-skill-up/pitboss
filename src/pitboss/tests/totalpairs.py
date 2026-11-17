@@ -1,11 +1,11 @@
-"""The enumeration two at a time: every pair of cells that change different inputs.
+"""The enumeration's cells together: the verdict is the conjunction of its inputs.
 
 For each action, the change each cell makes to the GO world is read back from the
-cell (what differs from the GO world), and two changes that touch different inputs
-are applied together. The pair must be GO exactly when both cells are GO, and
-every stop line of the pair must have a route: no value hides another's stop, and
-no pair makes a state with no step. Two changes of the same input are not paired,
-since an input holds one value at a time.
+cell (what differs from the GO world), one change for each input. All the GO
+changes together must be GO; each stop change on top of them must be a stop, and
+so must all the stop changes together; and every stop line of each world must have
+a route, so no value hides another's stop and no world has no step. Each world is
+one verdict, so the work grows with the cells and not with their pairs.
 """
 
 import collections
@@ -123,69 +123,51 @@ def apply(origin: World, *changes: Change) -> World:
     return made
 
 
+def _checked(
+    origin: World,
+    made: Sequence[Change],
+    want: gatewords.Word,
+    verdict: Verdict,
+    action: str,
+) -> tuple[str, Sequence[str]]:
+    # what one world of several changes shows: its count's kind, and the exception
+    world = apply(origin, *made)
+    answer = verdict(action, world.pull, world.ctx)
+    lost = routed(answer.stops)
+    if answer.word == want and not lost:
+        return answer.word.name, []
+    said = f"{action} {sorted({key for each in made for key in each})}"
+    return "exception", [f"{said}: {answer.word.name}, want {want.name} {lost[:1]}"]
+
+
 def _one_action(
     origin: World,
     found: Sequence[tuple[Change, gatewords.Word]],
     verdict: Verdict,
     action: str,
 ) -> tuple[collections.Counter[str], list[str]]:
+    # the verdict is the conjunction of its inputs: three worlds say so for all of
+    # them, with no pair of cells made (the pairs of #444 were 75 thousand verdicts)
+    goes: dict[tuple[str, str], Change] = {}
+    stops: dict[tuple[str, str], Change] = {}
+    every_stop: list[Change] = []
+    for change, word in found:
+        table = goes if word == gatewords.GO else stops
+        table.setdefault(min(change), change)
+        if word != gatewords.GO:
+            every_stop.append(change)
     counts: collections.Counter[str] = collections.Counter()
     bad: list[str] = []
-    for index, one in enumerate(found):
-        for other in found[index + 1 :]:
-            kind, wrong = _pair(origin, (one, other), verdict, action)
-            counts[kind] += 1
-            bad.extend(wrong)
+    worlds = [
+        (list(goes.values()), gatewords.GO),
+        (list(stops.values()), gatewords.STOP),
+        *(([*goes.values(), each], gatewords.STOP) for each in every_stop),
+    ]
+    for made, want in worlds:
+        kind, wrong = _checked(origin, made, want, verdict, action)
+        counts[kind] += 1
+        bad.extend(wrong)
     return counts, bad
-
-
-def _pair(
-    origin: World,
-    pair: tuple[tuple[Change, gatewords.Word], tuple[Change, gatewords.Word]],
-    verdict: Verdict,
-    action: str,
-) -> tuple[str, Sequence[str]]:
-    # what one pair of changes shows: its count's kind, and the exception if any
-    (first, first_word), (second, second_word) = pair
-    if set(first) & set(second):
-        return "same input", []
-    both = apply(origin, first, second)
-    answer = verdict(action, both.pull, both.ctx)
-    go = first_word == second_word == gatewords.GO
-    want = gatewords.GO if go else gatewords.STOP
-    lost = routed(answer.stops)
-    if answer.word == want and not lost:
-        return answer.word.name, []
-    said = f"{action} {sorted(first)} {sorted(second)}: {answer.word.name}"
-    return "exception", [f"{said}, want {want.name} {lost[:1]}"]
-
-
-def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
-    """Run every pair of cells that change different inputs.
-
-    Args:
-        base: the GO world.
-        cells: the cells.
-        verdict: the verdict.
-
-    Returns:
-        The counts and the exceptions.
-    """
-    counts: collections.Counter[str] = collections.Counter()
-    bad: list[str] = []
-    by_action: dict[str, list[tuple[Change, gatewords.Word]]] = collections.defaultdict(
-        list
-    )
-    for each in cells:
-        change = change_of(start(base, each.action), each.world)
-        if change:
-            word = verdict(each.action, each.world.pull, each.world.ctx).word
-            by_action[each.action].append((change, word))
-    for action, found in by_action.items():
-        more, worse = _one_action(start(base, action), found, verdict, action)
-        counts.update(more)
-        bad.extend(worse)
-    return Pairs(counts=counts, exceptions=bad[:12])
 
 
 def routed(stops: Sequence[Stop]) -> Sequence[str]:

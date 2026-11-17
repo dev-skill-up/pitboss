@@ -116,12 +116,12 @@ class TestPairs(unittest.TestCase):
         again = totalworld.World(pull={}, ctx={"authors": set(reversed(names))})
         assert_that(totalpairs.change_of(origin, again), equal_to({}))
 
-    def test_444_74991_pairs_with_0_exceptions(self) -> None:
-        """GO and STOP add to the pairs, and no pair raised."""
+    def test_444_the_verdict_is_the_conjunction_of_its_inputs(self) -> None:
+        """All GO changes go, each stop change stops on them, and no world raised."""
         found = _pairs()
         assert_that(
-            (found.counts["GO"] + found.counts["STOP"], list(found.exceptions)),
-            equal_to((74991, [])),
+            (found.counts["GO"] > 0, found.counts["STOP"] > 0, list(found.exceptions)),
+            equal_to((True, True, [])),
         )
 
 

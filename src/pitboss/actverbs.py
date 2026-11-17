@@ -289,13 +289,39 @@ def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
         The function that runs it (P8, keyword: act-verbs).
     """
     match verb:
-        case gateverbs.OwnVerb.DISARM | gateverbs.OwnVerb.REVIEW | gateverbs.OwnVerb.LABEL | gateverbs.OwnVerb.HOLD | gateverbs.OwnVerb.UNHOLD | gateverbs.OwnVerb.BLOCK:
+        case (
+            gateverbs.OwnVerb.DISARM
+            | gateverbs.OwnVerb.REVIEW
+            | gateverbs.OwnVerb.LABEL
+            | gateverbs.OwnVerb.HOLD
+            | gateverbs.OwnVerb.UNHOLD
+            | gateverbs.OwnVerb.BLOCK
+        ):
             return applied_to_own_first(verb)
-        case gateverbs.OwnVerb.TICKET | gateverbs.OwnVerb.TICKET_EDIT | gateverbs.OwnVerb.CLOSE | gateverbs.OwnVerb.COMMENT | gateverbs.OwnVerb.COMMENT_EDIT | gateverbs.OwnVerb.COMMENT_DELETE:
+        case (
+            gateverbs.OwnVerb.TICKET
+            | gateverbs.OwnVerb.TICKET_EDIT
+            | gateverbs.OwnVerb.CLOSE
+            | gateverbs.OwnVerb.COMMENT
+            | gateverbs.OwnVerb.COMMENT_EDIT
+            | gateverbs.OwnVerb.COMMENT_DELETE
+        ):
             return applied_to_own_second(verb)
-        case gateverbs.OwnVerb.PR_CREATE | gateverbs.OwnVerb.PR_EDIT | gateverbs.OwnVerb.UPDATE_BRANCH | gateverbs.OwnVerb.RERUN | gateverbs.OwnVerb.CANCEL | gateverbs.OwnVerb.DISPATCH_WORKFLOW:
+        case (
+            gateverbs.OwnVerb.PR_CREATE
+            | gateverbs.OwnVerb.PR_EDIT
+            | gateverbs.OwnVerb.UPDATE_BRANCH
+            | gateverbs.OwnVerb.RERUN
+            | gateverbs.OwnVerb.CANCEL
+            | gateverbs.OwnVerb.DISPATCH_WORKFLOW
+        ):
             return applied_to_own_third(verb)
-        case gateverbs.OwnVerb.PUSH | gateverbs.OwnVerb.SCRATCH_CLEAN | gateverbs.OwnVerb.CLEAN | gateverbs.OwnVerb.ACK:
+        case (
+            gateverbs.OwnVerb.PUSH
+            | gateverbs.OwnVerb.SCRATCH_CLEAN
+            | gateverbs.OwnVerb.CLEAN
+            | gateverbs.OwnVerb.ACK
+        ):
             return applied_to_own_fourth(verb)
         case _:  # pragma: no cover
             assert_never(verb)
