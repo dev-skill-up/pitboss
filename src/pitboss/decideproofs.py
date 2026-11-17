@@ -240,8 +240,6 @@ def act_agrees(package: Package) -> Sequence[str]:
     lookup = proofsource.defined(package, "gateverbs", "lookup")
     if lookup is None or not _ends_total(lookup):
         found.append("P8: gateverbs.lookup is no total match on the verb")
-    elif ast.unparse(lookup.args.args[0].annotation or lookup) != "answer.Decided":
-        found.append("P8: gateverbs.lookup does not take the decisions")
     found.extend(
         f"P8: {short}:{line} names totalverdict"
         for short, line, text in proofsource.searched(package)

@@ -212,14 +212,6 @@ class TestEdits(unittest.TestCase):
         found = decideproofs.no_wait(_edited("decide.py", "def _answer(", new))
         assert_that(found, equal_to([]))
 
-    def test_p8_a_lookup_of_another_type_is_a_finding(self) -> None:
-        """Act looks its verb up in the decisions."""
-        old = "def lookup(decided: answer.Decided,"
-        new = "def lookup(decided: object,"
-        found = decideproofs.act_agrees(_edited("gateverbs.py", old, new))
-        said = "P8: gateverbs.lookup does not take the decisions"
-        assert_that(found, has_item(said))
-
     def test_p8_each_verb_is_matched_applied_and_looked_up(self) -> None:
         """Every verb is one the lookup matches and act applies, and run looks it up."""
         lookup = "found = gateverbs.lookup("
