@@ -172,6 +172,34 @@ def _one_action(
     return counts, bad
 
 
+def run(base: World, cells: Sequence[Cell], verdict: Verdict) -> Pairs:
+    """Run the worlds of the cells' changes together.
+
+    Args:
+        base: the GO world.
+        cells: the cells.
+        verdict: the verdict.
+
+    Returns:
+        The counts and the exceptions.
+    """
+    counts: collections.Counter[str] = collections.Counter()
+    bad: list[str] = []
+    by_action: dict[str, list[tuple[Change, totalanswer.Word]]] = (
+        collections.defaultdict(list)
+    )
+    for each in cells:
+        change = change_of(start(base, each.action), each.world)
+        if change:
+            word = verdict(each.action, each.world.pull, each.world.ctx).word
+            by_action[each.action].append((change, word))
+    for action, found in by_action.items():
+        more, worse = _one_action(start(base, action), found, verdict, action)
+        counts.update(more)
+        bad.extend(worse)
+    return Pairs(counts=counts, exceptions=bad[:12])
+
+
 def routed(stops: Sequence[Stop]) -> Sequence[str]:
     """The lines of the stops that say pitboss does not know.
 
