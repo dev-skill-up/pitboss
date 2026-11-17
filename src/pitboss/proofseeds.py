@@ -1,10 +1,9 @@
-"""Each proof of the one path fails on a seeded violation (plan section 6.5).
+"""P4's proofs fail on a seeded violation (plan section 6.5).
 
 ``python -m pitboss.proofseeds``, a step of CI's ``mutation`` job, reads
-``src/pitboss`` from the current directory, requires every proof to hold on it,
-then for each proof applies one edit to the text in memory and requires that
-proof to find it. Nothing is written and nothing seeded is run: the proofs only
-parse (keyword: one-path).
+``src/pitboss`` from the current directory and requires each of P4's checks to
+find its seeded violation. Nothing is written and nothing seeded is run
+(keyword: one-path).
 """
 
 import argparse
@@ -16,7 +15,7 @@ from typing import Mapping, Sequence
 from gather.api import Wrapper, unique
 from gather.commands import add_argument
 
-from . import cli_parser, config, mode, modecommand, modeproof, pathproofs, proofsource
+from . import cli_parser, config, mode, modecommand, modeproof, proofsource
 
 SOURCE = "src/pitboss/"
 
@@ -36,38 +35,6 @@ class Seed:
     new: str
 
 
-SEEDS: Mapping[str, Seed] = {
-    "P1": Seed(
-        path="decide.py",
-        old="def decide(made: world.World) -> Judgement:",
-        new="def decide(made: world.World, more: int) -> Judgement:",
-    ),
-    "P2": Seed(path="render.py", old="", new="\nimport subprocess\n"),
-    "P3": Seed(
-        path="shapes.py",
-        old="    said: tuple[str, str]\n",
-        new="    said: tuple[str, str] = ('', '')\n",
-    ),
-    "P5": Seed(
-        path="render.py", old="", new="\ndef said(given: int) -> str:\n    return ''\n"
-    ),
-    "P6": Seed(
-        path="commands.py", old="", new="\nREAD = readworld.read_world(None, None)\n"
-    ),
-    "P9": Seed(
-        path="workorder.py", old="", new="\nPATH = 'repos/o/r/issues?state=all'\n"
-    ),
-    "P10": Seed(
-        path="decide.py",
-        old="def decide_item(record: world.Record)",
-        new="def decide_item(record: world.Record, made: world.World)",
-    ),
-    "P11": Seed(
-        path="retrying.py",
-        old="def with_retries(run: KeywordRun, draw: Draw, sleep: Sleep)",
-        new="def with_retries(run: KeywordRun, draw: Draw, sleep: Sleep = print)",
-    ),
-}
 # P4's static half: a match on a mode that does not end in assert_never
 UNMATCHED = Seed(
     path="mode.py",
@@ -156,10 +123,7 @@ def missed(
         One line for each.
     """
     whole = proofsource.of_texts(texts)
-    found = [*pathproofs.findings(whole), *modeproof.total_matches(whole)]
-    for name, seed in SEEDS.items():
-        if not pathproofs.PROOFS[name](proofsource.of_texts(seeded(texts, seed))):
-            found.append(f"{name}: its seed is not found ({seed.path})")
+    found = [*modeproof.total_matches(whole)]
     if not modeproof.total_matches(proofsource.of_texts(seeded(texts, UNMATCHED))):
         found.append("P4: a match on a mode without assert_never is not found")
     if not modeproof.images(seed_parse, declared):

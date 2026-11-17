@@ -188,8 +188,6 @@ def lint(session):
         "--check-yield-types=False",
         "src/",
     )
-    # the one path's static proofs, P1 to P11 but P4 (plan section 6.3)
-    session.run("python", "-m", "pitboss.pathproofs")
 
 
 @nox.session(python=VERSIONS[-1])

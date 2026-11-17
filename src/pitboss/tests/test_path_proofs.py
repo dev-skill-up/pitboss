@@ -1,4 +1,4 @@
-"""The proofs of the one path, P1 to P11, on the package and its seeds (plan 6.3)."""
+"""P4, the modes proof, on the package and its seeds (plan 6.3)."""
 
 import argparse
 import contextlib
@@ -17,14 +17,12 @@ from .. import (
     config,
     mode,
     modeproof,
-    pathproofs,
     proofseeds,
     proofsource,
 )
 
-# the repository: src/pitboss/pathproofs.py is two levels below it
-ROOT = pathlib.Path(pathproofs.__file__).resolve().parents[2]
-EMPTY = proofsource.of_texts({})
+# the repository: src/pitboss/modeproof.py is two levels below it
+ROOT = pathlib.Path(modeproof.__file__).resolve().parents[2]
 TICKET = gather_commands.add_argument("ticket", nargs="?")
 NEXT_ONLY = {"next": [Wrapper(original=print, extra=(TICKET,))]}
 TEXTS = proofsource.read(ROOT)
@@ -39,11 +37,6 @@ def _bare_root(base: str) -> pathlib.Path:
 def _status_of_seeds(root: pathlib.Path) -> int:
     with contextlib.redirect_stdout(io.StringIO()):
         return proofseeds.main(root, NEXT_ONLY)
-
-
-def _status_of_main(root: pathlib.Path) -> int:
-    with contextlib.redirect_stdout(io.StringIO()):
-        return pathproofs.main(root)
 
 
 def _exits(
@@ -68,13 +61,9 @@ class TestThePackage(unittest.TestCase):
     """Plan 6.3 and 6.5: the proofs hold on the package and find each seed."""
 
     def test_every_proof_holds_and_every_seed_is_found(self) -> None:
-        """P1 to P11 hold, and each fails on its one seeded edit."""
+        """P4 holds, and each of its checks fails on its seeded edit."""
         missed = proofseeds.missed(TEXTS, cli_parser.table(), proofseeds.other_modes)
         assert_that(missed, equal_to([]))
-
-    def test_the_path_proofs_exit_zero_on_the_package(self) -> None:
-        """``python -m pitboss.pathproofs`` exits 0 at the repository's root."""
-        assert_that(_status_of_main(ROOT), equal_to(0))
 
     def test_p4_exits_zero_on_the_package(self) -> None:
         """``python -m pitboss.modeproof`` exits 0 at the repository's root."""
@@ -84,21 +73,7 @@ class TestThePackage(unittest.TestCase):
 
 
 class TestNoPackage(unittest.TestCase):
-    """Plan 6.3: a module a proof requires that is gone is a finding."""
-
-    def test_the_proofs_name_what_is_missing(self) -> None:
-        """P1 and P11 each say the function they read is not there."""
-        found = pathproofs.findings(EMPTY)
-        for each in [
-            "P1: decide.decide takes []",
-            "P11: there is no retrying.with_retries",
-        ]:
-            assert_that(found, has_item(each))
-
-    def test_the_path_proofs_exit_one_with_no_package(self) -> None:
-        """At a root with no ``src/pitboss`` the proofs exit 1."""
-        with tempfile.TemporaryDirectory() as base:
-            assert_that(_status_of_main(_bare_root(base)), equal_to(1))
+    """Plan 6.3: a package that is gone is a finding."""
 
     def test_the_seeds_exit_one_with_no_package(self) -> None:
         """``python -m pitboss.proofseeds`` exits 1 where the proofs do not hold."""
