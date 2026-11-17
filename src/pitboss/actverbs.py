@@ -117,8 +117,8 @@ REFUSALS = (
 )
 
 
-def applied(verb: gateverbs.Verb) -> Verb:
-    """What applies an act verb: a total match, so a verb with none is a type error.
+def applied_to_item(verb: gateverbs.ItemVerb) -> Verb:
+    """What applies a verb of an item: a total match, so one with none is a type error.
 
     Args:
         verb: the verb.
@@ -131,10 +131,28 @@ def applied(verb: gateverbs.Verb) -> Verb:
             return functools.partial(actpull.gated_write, "merge")
         case gateverbs.ItemVerb.ARM:
             return functools.partial(actpull.gated_write, "arm")
-        case gateverbs.OwnVerb.DISARM:
-            return actpull.disarm
         case gateverbs.ItemVerb.UNDRAFT:
             return functools.partial(actpull.gated_write, "undraft")
+        case gateverbs.ItemVerb.OVERRIDE:
+            return actpull.override_stop
+        case gateverbs.ItemVerb.DISPATCH_NEXT:
+            return dispatch_next
+        case _:  # pragma: no cover
+            assert_never(verb)
+
+
+def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
+    """What applies a verb of its own: a total match, so one with none is a type error.
+
+    Args:
+        verb: the verb.
+
+    Returns:
+        The function that runs it (P8, keyword: act-verbs).
+    """
+    match verb:
+        case gateverbs.OwnVerb.DISARM:
+            return actpull.disarm
         case gateverbs.OwnVerb.REVIEW:
             return actwrite.review
         case gateverbs.OwnVerb.LABEL:
@@ -145,8 +163,6 @@ def applied(verb: gateverbs.Verb) -> Verb:
             return actpull.unhold
         case gateverbs.OwnVerb.BLOCK:
             return actpull.block
-        case gateverbs.ItemVerb.OVERRIDE:
-            return actpull.override_stop
         case gateverbs.OwnVerb.TICKET:
             return actwrite.ticket
         case gateverbs.OwnVerb.TICKET_EDIT:
@@ -173,8 +189,6 @@ def applied(verb: gateverbs.Verb) -> Verb:
             return actpull.dispatch_workflow
         case gateverbs.OwnVerb.PUSH:
             return actgit.push
-        case gateverbs.ItemVerb.DISPATCH_NEXT:
-            return dispatch_next
         case gateverbs.OwnVerb.SCRATCH_CLEAN:
             return actwrite.scratch_clean
         case gateverbs.OwnVerb.CLEAN:
@@ -186,7 +200,8 @@ def applied(verb: gateverbs.Verb) -> Verb:
 
 
 VERBS: Mapping[str, Verb] = {
-    each.value: applied(each) for each in (*gateverbs.ItemVerb, *gateverbs.OwnVerb)
+    **{each.value: applied_to_item(each) for each in gateverbs.ItemVerb},
+    **{each.value: applied_to_own(each) for each in gateverbs.OwnVerb},
 }
 
 
