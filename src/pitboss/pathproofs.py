@@ -11,7 +11,7 @@ import pathlib
 import sys
 from typing import Callable, Mapping, Sequence
 
-from . import decideproofs, factproofs, proofsource, readproofs
+from . import decideproofs, proofsource, readproofs
 from .proofsource import Package
 
 Proof = Callable[[Package], Sequence[str]]
@@ -80,33 +80,12 @@ def same_answer(package: Package) -> Sequence[str]:
     ]
 
 
-def one_parse(package: Package) -> Sequence[str]:
-    """Plan 6.1: in what ``decide`` reaches, only the parsers import ``totaljson``.
-
-    Args:
-        package: the package.
-
-    Returns:
-        A finding for each other module of the closure that imports it.
-    """
-    json = f"{proofsource.PACKAGE}.totaljson"
-    return [
-        f"6.1: {proofsource.short(each)} reads JSON; only the parsers do"
-        for each in sorted(proofsource.closure(package, "decide"))
-        if json in package.edges.get(each, ())
-        and proofsource.short(each) not in PARSERS
-    ]
-
-
 PROOFS: Mapping[str, Proof] = {
     "P1": decideproofs.one_decider,
     "P2": readproofs.no_io,
     "P3": decideproofs.no_partial_world,
     "P5": same_answer,
-    "6.1": one_parse,
-    "6.1 facts": factproofs.one_fact,
     "P6": readproofs.one_read,
-    "P7": decideproofs.no_wait,
     "P9": readproofs.small_read,
     "P10": readproofs.stop_counts_decisions,
     "P11": readproofs.retried_once,

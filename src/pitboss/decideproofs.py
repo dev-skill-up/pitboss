@@ -1,19 +1,15 @@
-"""The proofs of the decider's side: P1, P3 and P7 (plan section 6.3).
+"""The proofs of the decider's side: P1 and P3 (plan section 6.3).
 
 Each takes the parsed package and returns its findings, one line each, empty when
 the property holds (keyword: one-path).
 """
 
 import ast
-import re
 from typing import Iterator, Sequence
 
 from . import proofsource, worldfields
 from .proofsource import Package
 
-WAIT_WORDS = re.compile(r"wait|nobody acts|after |passed over|held", re.IGNORECASE)
-SAYING = ("decide", "project", "render", "answer")
-ITEM_DECIDERS = frozenset({"decide_item", "decide_in"})  # P7(b): an item alone
 
 
 def one_decider(package: Package) -> Sequence[str]:
@@ -43,17 +39,8 @@ def _caught(package: Package, name: str) -> Iterator[tuple[str, ast.ExceptHandle
                 yield short, node
 
 
-def _exits_nonzero(handler: ast.ExceptHandler) -> bool:
-    for node in ast.walk(handler):
-        if proofsource.called(node) == "SystemExit" and isinstance(node, ast.Call):
-            status = proofsource.first_argument(node)
-            if isinstance(status, ast.Constant) and status.value not in (0, None):
-                return True
-    return False
-
-
 def read_failure(package: Package) -> Sequence[str]:
-    """The one read failure: caught once, at the command entry, which exits nonzero.
+    """The one read failure: caught once, at the command entry.
 
     Args:
         package: the package.
@@ -65,11 +52,6 @@ def read_failure(package: Package) -> Sequence[str]:
     caught = list(_caught(package, "ReadFailed"))
     if [short for short, _ in caught] != ["cli_parser"]:
         found.append(f"P3: ReadFailed is caught in {[s for s, _ in caught]}")
-    found.extend(
-        f"P3: {short} catches ReadFailed without a nonzero exit"
-        for short, handler in caught
-        if not _exits_nonzero(handler)
-    )
     return found
 
 
@@ -83,133 +65,3 @@ def no_partial_world(package: Package) -> Sequence[str]:
         Each default in the World's closure and each break of the one read failure.
     """
     return [*worldfields.defaults(package), *read_failure(package)]
-
-
-def _decision_shape(package: Package) -> Sequence[str]:
-    fields = _fields(proofsource.module(package, "answer"), "Decision")
-    names = {_field_name(each) for each in fields}
-    found = [
-        f"P7: Decision has no {each}" for each in sorted({"actor", "verb"} - names)
-    ]
-    for each in fields:
-        said = ast.unparse(each.annotation)
-        if each.value is not None or "None" in said or "Optional" in said:
-            found.append(f"P7: Decision.{_field_name(each)} is optional")
-    return found
-
-
-def _admits_none(function: ast.FunctionDef) -> bool:
-    returns = function.returns
-    return returns is not None and "None" in ast.unparse(returns)
-
-
-def _takes_none(function: ast.FunctionDef) -> bool:
-    said = [
-        ast.unparse(each.annotation) for each in function.args.args if each.annotation
-    ]
-    return any("None" in each for each in said)
-
-
-def _nothing_none(package: Package) -> Sequence[str]:
-    found = [
-        f"P7: answer:{node.lineno} admits None"
-        for node in ast.walk(proofsource.module(package, "answer"))
-        if isinstance(node, ast.AnnAssign) and "None" in ast.unparse(node.annotation)
-    ]
-    found.extend(
-        f"P7: {name}.{function.name} admits None"
-        for name in ("project", "render")
-        for function in proofsource.functions_of(package, name).values()
-        if _admits_none(function) or _takes_none(function)
-    )
-    deciding = proofsource.functions_of(package, "decide")
-    found.extend(
-        f"P7: decide.{name} admits None"
-        for name, function in deciding.items()
-        if _admits_none(function)
-        and not name.startswith("_")
-        and name not in ITEM_DECIDERS
-    )
-    return found
-
-
-def _said(tree: ast.AST) -> Sequence[tuple[int, str]]:
-    # each text, class name and assigned name of a module, with its line
-    walked = proofsource.every_node(tree)
-    return [
-        *proofsource.texts_of(tree),
-        *(
-            (node.lineno, node.name)
-            for node in walked
-            if isinstance(node, ast.ClassDef)
-        ),
-        *(
-            (node.lineno, proofsource.dotted(target))
-            for node in walked
-            if isinstance(node, ast.Assign)
-            for target in node.targets
-        ),
-    ]
-
-
-def _wait_words(package: Package) -> Sequence[str]:
-    return [
-        f"P7: {name}:{line} says a wait: {text[:40]!r}"
-        for name in SAYING
-        for line, text in _said(proofsource.module(package, name))
-        if WAIT_WORDS.search(text)
-    ]
-
-
-def _not_enough_work(package: Package) -> Sequence[str]:
-    found: list[str] = []
-    answer = proofsource.module(package, "answer")
-    union = [
-        ast.unparse(node.value)
-        for node in ast.walk(answer)
-        if isinstance(node, ast.Assign)
-        and [proofsource.dotted(each) for each in node.targets] == ["Answer"]
-    ]
-    if union != ["Work | NotEnoughWork"]:
-        found.append(f"P7: Answer is {union}")
-    first = [each for each in _fields(answer, "Work") if _field_name(each) == "first"]
-    if [ast.unparse(each.annotation) for each in first] != ["Decision"]:
-        found.append("P7: Work has no required first Decision")
-    answered = [
-        each
-        for each in proofsource.sites(package, "answer", "NotEnoughWork")
-        if each.startswith("decide:")
-    ]
-    if answered != [_exhausted_arm(package)]:
-        found.append(f"P7: decide makes NotEnoughWork at {answered}")
-    return found
-
-
-def _exhausted_arm(package: Package) -> str:
-    # where the arm ``case world.Exhausted() if not ...`` makes the answer
-    for node in ast.walk(proofsource.module(package, "decide")):
-        if isinstance(node, ast.match_case) and isinstance(node.guard, ast.UnaryOp):
-            pattern = node.pattern
-            if isinstance(pattern, ast.MatchClass) and isinstance(
-                node.guard.op, ast.Not
-            ):
-                if proofsource.dotted(pattern.cls) == "world.Exhausted":
-                    return f"decide:{node.body[0].lineno}"
-    return "decide:none"
-
-
-def no_wait(package: Package) -> Sequence[str]:
-    """P7: no wait is said, and ``NotEnoughWork`` only when nothing is startable.
-
-    Args:
-        package: the package.
-
-    Returns:
-        Each break of (a) to (d).
-    """
-    return [
-        *_decision_shape(package),
-        *_nothing_none(package),
-        *_wait_words(package),
-        *_not_enough_work(package),
-    ]

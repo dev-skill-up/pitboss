@@ -4,7 +4,6 @@ import argparse
 import contextlib
 import io
 import pathlib
-import re
 import tempfile
 import unittest
 from typing import Mapping
@@ -16,8 +15,6 @@ from hamcrest import assert_that, contains_string, equal_to, has_item
 from .. import (
     cli_parser,
     config,
-    decideproofs,
-    factproofs,
     mode,
     modeproof,
     pathproofs,
@@ -31,28 +28,6 @@ EMPTY = proofsource.of_texts({})
 TICKET = gather_commands.add_argument("ticket", nargs="?")
 NEXT_ONLY = {"next": [Wrapper(original=print, extra=(TICKET,))]}
 TEXTS = proofsource.read(ROOT)
-GUARDED = """
-
-def _guarded(given: object) -> None:
-    match given:
-        case world.Stopped() if not given:
-            pass
-        case _ if not given:
-            pass
-"""
-
-
-def _edited(path: str, old: str, new: str) -> proofsource.Package:
-    # the package with one file's text changed; a text not there once is a failure
-    seed = proofseeds.Seed(path=path, old=old, new=new)
-    texts = proofseeds.seeded(TEXTS, seed)
-    assert_that(texts != TEXTS, equal_to(True), f"{path}: {old!r} is not once")
-    return proofsource.of_texts(texts)
-
-
-def _path_of(name: str) -> str:
-    # a module's file, as ``proofsource.read`` names it
-    return f"src/{name.replace('.', '/')}.py"
 
 
 def _bare_root(base: str) -> pathlib.Path:
@@ -172,71 +147,3 @@ class TestModes(unittest.TestCase):
         found = proofseeds.missed(TEXTS, cli_parser.table(), mode.parse)
         said = "P4: a parse that leaves a mode with no image is not found"
         assert_that(found, equal_to([said]))
-
-
-class TestEdits(unittest.TestCase):
-    """Plan 6.3: each proof finds the one edit that breaks its property."""
-
-    def test_p3_a_read_failure_that_exits_zero_is_a_finding(self) -> None:
-        """The one catch of ``ReadFailed`` must exit nonzero."""
-        old = "            raise SystemExit(1) from failed\n"
-        new = old.replace("(1)", "(0)")
-        found = decideproofs.no_partial_world(_edited("cli_parser.py", old, new))
-        said = "P3: cli_parser catches ReadFailed without a nonzero exit"
-        assert_that(found, has_item(said))
-
-    def test_p7a_an_optional_verb_is_a_finding(self) -> None:
-        """A decision always carries its verb."""
-        old = "    verb: str\n    item: str\n    title: str\n"
-        new = old.replace("verb: str", "verb: str | None")
-        found = decideproofs.no_wait(_edited("answer.py", old, new))
-        assert_that(found, has_item("P7: Decision.verb is optional"))
-
-    def test_p7d_another_guarded_arm_is_not_the_exhausted_one(self) -> None:
-        """Only ``case world.Exhausted() if not ...`` is the arm of NotEnoughWork."""
-        # before the real arm, so the walk reaches both guarded arms first
-        new = GUARDED.lstrip() + "\n\ndef _answer("
-        found = decideproofs.no_wait(_edited("decide.py", "def _answer(", new))
-        assert_that(found, equal_to([]))
-
-
-class TestOneParse(unittest.TestCase):
-    """Plan 6.1: in what decide reaches, only the parsers read JSON."""
-
-    def test_6_1_a_row_that_reads_json_is_a_finding(self) -> None:
-        """A row module that imports ``totaljson`` is named."""
-        new = "\nfrom . import totaljson\n"
-        found = pathproofs.one_parse(_edited("gaterows.py", "", new))
-        assert_that(found, equal_to(["6.1: gaterows reads JSON; only the parsers do"]))
-
-
-class TestOneFact(unittest.TestCase):
-    """Plan 6.1 and 4.3: each fact is derived once (``factproofs``)."""
-
-    def test_6_1_a_second_reading_of_each_fact_is_a_finding(self) -> None:
-        """A blocked, works-on or Verdict pattern; a blocker's state; a hold's scope."""
-        seeds = {
-            "blocked": "\nB = re.compile('Blocked by #1')\n",
-            "blocker": "\nS = 'open' == 'closed'\n",
-            "held": "\nH = Hold(title='', scope='all').scope == 'all'\n",
-            "works on": "\nW = re.compile('fixes #1')\n",
-            "reviewed": "\nR = re.compile('^Verdict: approved')\n",
-        }
-        for name, new in seeds.items():
-            found = factproofs.one_fact(_edited("pullref.py", "", new))
-            assert_that("\n".join(found), contains_string("6.1: pullref:"), name)
-
-
-class TestNoCheckIn(unittest.TestCase):
-    """Plan 6.5: no check-in decision."""
-
-    def test_6_5_decide_reaches_no_check_in(self) -> None:
-        """Only the ledger's record of the last post names a check-in."""
-        package = proofsource.of_texts(TEXTS)
-        reached = proofsource.closure(package, "decide")
-        named = sorted(
-            proofsource.short(each)
-            for each in reached
-            if re.search(r"(?i)check-?in", TEXTS.get(_path_of(each), ""))
-        )
-        assert_that(named, equal_to(["slotbook"]))

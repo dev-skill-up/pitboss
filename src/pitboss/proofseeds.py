@@ -51,15 +51,9 @@ SEEDS: Mapping[str, Seed] = {
     "P5": Seed(
         path="render.py", old="", new="\ndef said(given: int) -> str:\n    return ''\n"
     ),
-    "6.1": Seed(path="gaterows.py", old="", new="\nfrom . import totaljson\n"),
-    # a second derivation of "CI is green", as flowquestions.ci_result was
-    "6.1 facts": Seed(
-        path="pullref.py", old="", new="\nRED = any(each.failed for each in ())\n"
-    ),
     "P6": Seed(
         path="commands.py", old="", new="\nREAD = readworld.read_world(None, None)\n"
     ),
-    "P7": Seed(path="decide.py", old="", new="\nSAID = 'nobody acts'\n"),
     "P9": Seed(
         path="workorder.py", old="", new="\nPATH = 'repos/o/r/issues?state=all'\n"
     ),

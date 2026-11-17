@@ -18,7 +18,6 @@ PACKAGE = "pitboss"
 PROOFS = frozenset(
     {
         "pitboss.decideproofs",
-        "pitboss.factproofs",
         "pitboss.readproofs",
         "pitboss.pathproofs",
         "pitboss.proofseeds",
