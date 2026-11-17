@@ -13,7 +13,7 @@ the recount finds a file missing.
 
 import functools
 import pathlib
-from typing import Callable, Mapping
+from typing import Callable, Mapping, assert_never
 
 from . import (
     actfacts,
@@ -117,34 +117,76 @@ REFUSALS = (
 )
 
 
+def applied(verb: gateverbs.Verb) -> Verb:
+    """What applies an act verb: a total match, so a verb with none is a type error.
+
+    Args:
+        verb: the verb.
+
+    Returns:
+        The function that runs it (P8, keyword: act-verbs).
+    """
+    match verb:
+        case gateverbs.ItemVerb.MERGE:
+            return functools.partial(actpull.gated_write, "merge")
+        case gateverbs.ItemVerb.ARM:
+            return functools.partial(actpull.gated_write, "arm")
+        case gateverbs.OwnVerb.DISARM:
+            return actpull.disarm
+        case gateverbs.ItemVerb.UNDRAFT:
+            return functools.partial(actpull.gated_write, "undraft")
+        case gateverbs.OwnVerb.REVIEW:
+            return actwrite.review
+        case gateverbs.OwnVerb.LABEL:
+            return actpull.label
+        case gateverbs.OwnVerb.HOLD:
+            return actpull.hold
+        case gateverbs.OwnVerb.UNHOLD:
+            return actpull.unhold
+        case gateverbs.OwnVerb.BLOCK:
+            return actpull.block
+        case gateverbs.ItemVerb.OVERRIDE:
+            return actpull.override_stop
+        case gateverbs.OwnVerb.TICKET:
+            return actwrite.ticket
+        case gateverbs.OwnVerb.TICKET_EDIT:
+            return actwrite.ticket_edit
+        case gateverbs.OwnVerb.CLOSE:
+            return actpull.close
+        case gateverbs.OwnVerb.COMMENT:
+            return actwrite.comment
+        case gateverbs.OwnVerb.COMMENT_EDIT:
+            return actwrite.comment_edit
+        case gateverbs.OwnVerb.COMMENT_DELETE:
+            return actwrite.comment_delete
+        case gateverbs.OwnVerb.PR_CREATE:
+            return actwrite.pr_create
+        case gateverbs.OwnVerb.PR_EDIT:
+            return actwrite.pr_edit
+        case gateverbs.OwnVerb.UPDATE_BRANCH:
+            return actpull.update_branch
+        case gateverbs.OwnVerb.RERUN:
+            return actpull.rerun
+        case gateverbs.OwnVerb.CANCEL:
+            return actpull.cancel
+        case gateverbs.OwnVerb.DISPATCH_WORKFLOW:
+            return actpull.dispatch_workflow
+        case gateverbs.OwnVerb.PUSH:
+            return actgit.push
+        case gateverbs.ItemVerb.DISPATCH_NEXT:
+            return dispatch_next
+        case gateverbs.OwnVerb.SCRATCH_CLEAN:
+            return actwrite.scratch_clean
+        case gateverbs.OwnVerb.CLEAN:
+            return actgit.clean
+        case gateverbs.OwnVerb.ACK:
+            return actwrite.ack
+        case _:  # pragma: no cover
+            assert_never(verb)
+
+
 VERBS: Mapping[str, Verb] = {
-    "merge": functools.partial(actpull.gated_write, "merge"),
-    "arm": functools.partial(actpull.gated_write, "arm"),
-    "disarm": actpull.disarm,
-    "undraft": functools.partial(actpull.gated_write, "undraft"),
-    "review": actwrite.review,
-    "label": actpull.label,
-    "hold": actpull.hold,
-    "unhold": actpull.unhold,
-    "block": actpull.block,
-    "override": actpull.override_stop,
-    "ticket": actwrite.ticket,
-    "ticket-edit": actwrite.ticket_edit,
-    "close": actpull.close,
-    "comment": actwrite.comment,
-    "comment-edit": actwrite.comment_edit,
-    "comment-delete": actwrite.comment_delete,
-    "pr-create": actwrite.pr_create,
-    "pr-edit": actwrite.pr_edit,
-    "update-branch": actpull.update_branch,
-    "rerun": actpull.rerun,
-    "cancel": actpull.cancel,
-    "dispatch-workflow": actpull.dispatch_workflow,
-    "push": actgit.push,
-    "dispatch-next": dispatch_next,
-    "scratch-clean": actwrite.scratch_clean,
-    "clean": actgit.clean,
-    "ack": actwrite.ack,
+    each.value: applied(each) for each in (*gateverbs.ItemVerb, *gateverbs.OwnVerb)
 }
 
 

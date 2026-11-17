@@ -60,7 +60,6 @@ SEEDS: Mapping[str, Seed] = {
         path="commands.py", old="", new="\nREAD = readworld.read_world(None, None)\n"
     ),
     "P7": Seed(path="decide.py", old="", new="\nSAID = 'nobody acts'\n"),
-    "P8": Seed(path="actverbs.py", old='    "ack": actwrite.ack,\n', new=""),
     "P9": Seed(
         path="workorder.py", old="", new="\nPATH = 'repos/o/r/issues?state=all'\n"
     ),

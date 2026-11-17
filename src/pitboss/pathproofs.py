@@ -107,7 +107,6 @@ PROOFS: Mapping[str, Proof] = {
     "6.1 facts": factproofs.one_fact,
     "P6": readproofs.one_read,
     "P7": decideproofs.no_wait,
-    "P8": decideproofs.act_agrees,
     "P9": readproofs.small_read,
     "P10": readproofs.stop_counts_decisions,
     "P11": readproofs.retried_once,

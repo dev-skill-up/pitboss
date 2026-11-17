@@ -67,7 +67,9 @@ def of_texts(texts: Mapping[str, str]) -> Package:
         The package, without the tests.
     """
     parsed = [
-        _source(path, text) for path, text in texts.items() if importgraph.module_of(path)
+        _source(path, text)
+        for path, text in texts.items()
+        if importgraph.module_of(path)
     ]
     found = [each for each in parsed if each is not None]
     known = frozenset(each.module for each in found)
