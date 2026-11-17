@@ -125,20 +125,6 @@ def nodes(package: Package) -> Iterator[tuple[str, ast.AST]]:
             yield short(name), node
 
 
-def called(node: ast.AST) -> str:
-    """The name a call calls, as written (``answer.Decision``, ``open``).
-
-    Args:
-        node: a node.
-
-    Returns:
-        The dotted name; empty when the node is no call of a plain name.
-    """
-    if not isinstance(node, ast.Call):
-        return ""
-    return dotted(node.func)
-
-
 def dotted(node: ast.AST) -> str:
     """A name or an attribute chain as written.
 
@@ -166,7 +152,11 @@ def ends_never(body: Sequence[ast.stmt]) -> bool:
         True when its last statement is that call.
     """
     last = body[-1] if body else None
-    return isinstance(last, ast.Expr) and called(last.value) == "assert_never"
+    return (
+        isinstance(last, ast.Expr)
+        and isinstance(last.value, ast.Call)
+        and dotted(last.value.func) == "assert_never"
+    )
 
 
 def statements(tree: ast.AST) -> Sequence[ast.stmt]:

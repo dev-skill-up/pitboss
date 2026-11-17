@@ -58,8 +58,6 @@ def seeded(texts: Mapping[str, str], seed: Seed) -> Mapping[str, str]:
     """
     path = f"{SOURCE}{seed.path}"
     before = texts.get(path, "")
-    if not seed.old:
-        return {**texts, path: before + seed.new}
     if before.count(seed.old) != 1:
         return texts
     return {**texts, path: before.replace(seed.old, seed.new)}
