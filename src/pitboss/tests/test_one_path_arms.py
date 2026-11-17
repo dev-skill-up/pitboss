@@ -3,6 +3,7 @@
 import dataclasses
 import itertools
 import pathlib
+import re
 import tempfile
 import unittest
 from typing import Sequence
@@ -339,6 +340,24 @@ class TestReadOnce(unittest.TestCase):
         scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
         reads = [" ".join(each) for each in fakes.calls_with(here.calls, "api")]
         assert_that((bool(reads), len(reads)), equal_to((True, len(set(reads)))))
+
+
+    def test_p9_each_listing_is_ordered_and_none_asks_for_all(self) -> None:
+        """Every listing of ``act dispatch-next`` is oldest first or the open pulls."""
+        here = scenes.make_world()
+        words = ("dispatch-next", "owner/project", "--config", here.config)
+        scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
+        paths = [each[-1] for each in fakes.calls_with(here.calls, "api")]
+        listed = [each for each in paths if re.search(r"/(issues|pulls)\?", each)]
+        unordered = [
+            each
+            for each in listed
+            if "sort=created&direction=asc" not in each
+            and "sort=created&order=asc" not in each
+            and not ("/pulls?" in each and "state=open" in each)
+        ]
+        asks_for_all = [each for each in paths if "state=all" in each]
+        assert_that((bool(listed), unordered, asks_for_all), equal_to((True, [], [])))
 
 
 class TestSilentModes(unittest.TestCase):
