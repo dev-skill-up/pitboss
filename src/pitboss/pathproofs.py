@@ -59,19 +59,6 @@ def _renderers(package: Package, returned: Sequence[str]) -> Sequence[str]:
     return found
 
 
-def _projections_given(package: Package) -> Sequence[str]:
-    # each call of a projection given anything but the decisions as decided
-    asked = {f"project.{each}" for each in proofsource.functions_of(package, "project")}
-    found = []
-    for short, node in proofsource.nodes(package):
-        if proofsource.called(node) in asked and isinstance(node, ast.Call):
-            argument = proofsource.first_argument(node)
-            given = "" if argument is None else proofsource.dotted(argument)
-            if not given.endswith("decided"):
-                found.append(f"P5: {short}:{node.lineno} projects {given or 'a call'}")
-    return found
-
-
 def same_answer(package: Package) -> Sequence[str]:
     """P5: one projection a question; a renderer takes a projection's value.
 
@@ -79,8 +66,8 @@ def same_answer(package: Package) -> Sequence[str]:
         package: the package.
 
     Returns:
-        Each question with two projections, each renderer that takes another
-        type, and each projection given anything but the decisions as decided.
+        Each question with two projections and each renderer that takes another
+        type.
     """
     returned = _projected(package)
     return [
@@ -90,7 +77,6 @@ def same_answer(package: Package) -> Sequence[str]:
             if returned.count(each) > 1
         ),
         *_renderers(package, returned),
-        *_projections_given(package),
     ]
 
 

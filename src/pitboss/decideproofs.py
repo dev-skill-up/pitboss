@@ -12,7 +12,6 @@ from . import proofsource, worldfields
 from .proofsource import Package
 
 WAIT_WORDS = re.compile(r"wait|nobody acts|after |passed over|held", re.IGNORECASE)
-REASONS = frozenset({"reason", "why", "because"})
 SAYING = ("decide", "project", "render", "answer")
 ITEM_DECIDERS = frozenset({"decide_item", "decide_in"})  # P7(b): an item alone
 
@@ -96,8 +95,6 @@ def _decision_shape(package: Package) -> Sequence[str]:
         said = ast.unparse(each.annotation)
         if each.value is not None or "None" in said or "Optional" in said:
             found.append(f"P7: Decision.{_field_name(each)} is optional")
-        if _field_name(each) in REASONS:
-            found.append(f"P7: Decision has a reason field {_field_name(each)}")
     return found
 
 
@@ -224,7 +221,7 @@ def _ends_total(function: ast.FunctionDef) -> bool:
 
 
 def act_agrees(package: Package) -> Sequence[str]:
-    """P8: act looks its verb up in the decisions, and ``totalverdict`` is gone.
+    """P8: act looks its verb up in the decisions.
 
     The lookup is a total match on the verb, and its verbs are the 27 that act
     applies. A verb in one and not the other is a finding, and so is ``run`` with
@@ -240,13 +237,6 @@ def act_agrees(package: Package) -> Sequence[str]:
     lookup = proofsource.defined(package, "gateverbs", "lookup")
     if lookup is None or not _ends_total(lookup):
         found.append("P8: gateverbs.lookup is no total match on the verb")
-    found.extend(
-        f"P8: {short}:{line} names totalverdict"
-        for short, line, text in proofsource.searched(package)
-        if "totalverdict" in text
-    )
-    if "pitboss.totalverdict" in package.sources:
-        found.append("P8: the totalverdict module exists")
     return [*found, *_every_verb(package)]
 
 

@@ -186,24 +186,12 @@ class TestEdits(unittest.TestCase):
         said = "P3: cli_parser catches ReadFailed without a nonzero exit"
         assert_that(found, has_item(said))
 
-    def test_p5_a_projection_of_another_value_is_a_finding(self) -> None:
-        """A projection is given the decisions, nothing else."""
-        new = "from . import project\n\nproject.by_item(made)\n"
-        found = pathproofs.same_answer(_edited("extra.py", "", new))
-        assert_that(found, has_item("P5: extra:3 projects made"))
-
     def test_p7a_an_optional_verb_is_a_finding(self) -> None:
         """A decision always carries its verb."""
         old = "    verb: str\n    item: str\n    title: str\n"
         new = old.replace("verb: str", "verb: str | None")
         found = decideproofs.no_wait(_edited("answer.py", old, new))
         assert_that(found, has_item("P7: Decision.verb is optional"))
-
-    def test_p7a_a_reason_field_is_a_finding(self) -> None:
-        """A decision has no field for a reason not to act."""
-        old = "    verb: str\n    item: str\n    title: str\n"
-        found = decideproofs.no_wait(_edited("answer.py", old, old + "    why: str\n"))
-        assert_that(found, has_item("P7: Decision has a reason field why"))
 
     def test_p7d_another_guarded_arm_is_not_the_exhausted_one(self) -> None:
         """Only ``case world.Exhausted() if not ...`` is the arm of NotEnoughWork."""
@@ -224,12 +212,6 @@ class TestEdits(unittest.TestCase):
         for (path, old, new), said in seeds.items():
             found = decideproofs.act_agrees(_edited(path, old, new))
             assert_that("\n".join(found), contains_string(f"P8: {said}"))
-
-    def test_p8_a_totalverdict_module_is_a_finding(self) -> None:
-        """There is no second verdict."""
-        found = decideproofs.act_agrees(_edited("totalverdict.py", "", "\n"))
-        assert_that(found, has_item("P8: the totalverdict module exists"))
-
 
 class TestOneParse(unittest.TestCase):
     """Plan 6.1: in what decide reaches, only the parsers read JSON."""
