@@ -32,6 +32,7 @@ class Command(enum.Enum):
         FORMAT: ``format``.
         HAND_BACK_CHECK: ``hand-back-check``.
         HOOK: ``hook``.
+        IMPOSSIBLE: ``impossible``.
         LINT: ``lint``.
         MERGED: ``merged``.
         NOX: ``nox``.
@@ -68,6 +69,7 @@ class Command(enum.Enum):
     FORMAT = "format"
     HAND_BACK_CHECK = "hand-back-check"
     HOOK = "hook"
+    IMPOSSIBLE = "impossible"
     LINT = "lint"
     MERGED = "merged"
     NOX = "nox"
