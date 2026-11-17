@@ -13,7 +13,7 @@ import copy
 import dataclasses
 import json
 import re
-from typing import AbstractSet, Mapping, Sequence
+from typing import AbstractSet, Callable, Mapping, Sequence
 
 from ..gatestop import Stop
 from . import gatewords
@@ -124,19 +124,17 @@ def apply(origin: World, *changes: Change) -> World:
 
 
 def _checked(
+    ask: Callable[[World], gatewords.Answer],
     origin: World,
     made: Sequence[Change],
     want: gatewords.Word,
-    verdict: Verdict,
-    action: str,
 ) -> tuple[str, Sequence[str]]:
     # what one world of several changes shows: its count's kind, and the exception
-    world = apply(origin, *made)
-    answer = verdict(action, world.pull, world.ctx)
+    answer = ask(apply(origin, *made))
     lost = routed(answer.stops)
     if answer.word == want and not lost:
         return answer.word.name, []
-    said = f"{action} {sorted({key for each in made for key in each})}"
+    said = f"{sorted({key for each in made for key in each})}"
     return "exception", [f"{said}: {answer.word.name}, want {want.name} {lost[:1]}"]
 
 
@@ -163,10 +161,14 @@ def _one_action(
         (list(stops.values()), gatewords.STOP),
         *(([*goes.values(), each], gatewords.STOP) for each in every_stop),
     ]
+
+    def ask(world: World) -> gatewords.Answer:
+        return verdict(action, world.pull, world.ctx)
+
     for made, want in worlds:
-        kind, wrong = _checked(origin, made, want, verdict, action)
+        kind, wrong = _checked(ask, origin, made, want)
         counts[kind] += 1
-        bad.extend(wrong)
+        bad.extend(f"{action} {each}" for each in wrong)
     return counts, bad
 
 

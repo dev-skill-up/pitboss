@@ -141,37 +141,19 @@ def applied_to_item(verb: gateverbs.ItemVerb) -> Verb:
             assert_never(verb)
 
 
-OwnFirst = Literal[
-    gateverbs.OwnVerb.DISARM,
-    gateverbs.OwnVerb.REVIEW,
-    gateverbs.OwnVerb.LABEL,
-    gateverbs.OwnVerb.HOLD,
-    gateverbs.OwnVerb.UNHOLD,
-    gateverbs.OwnVerb.BLOCK,
-]
-
-
-OwnSecond = Literal[
+OwnSecondOnward = Literal[
     gateverbs.OwnVerb.TICKET,
     gateverbs.OwnVerb.TICKET_EDIT,
     gateverbs.OwnVerb.CLOSE,
     gateverbs.OwnVerb.COMMENT,
     gateverbs.OwnVerb.COMMENT_EDIT,
     gateverbs.OwnVerb.COMMENT_DELETE,
-]
-
-
-OwnThird = Literal[
     gateverbs.OwnVerb.PR_CREATE,
     gateverbs.OwnVerb.PR_EDIT,
     gateverbs.OwnVerb.UPDATE_BRANCH,
     gateverbs.OwnVerb.RERUN,
     gateverbs.OwnVerb.CANCEL,
     gateverbs.OwnVerb.DISPATCH_WORKFLOW,
-]
-
-
-OwnFourth = Literal[
     gateverbs.OwnVerb.PUSH,
     gateverbs.OwnVerb.SCRATCH_CLEAN,
     gateverbs.OwnVerb.CLEAN,
@@ -179,8 +161,30 @@ OwnFourth = Literal[
 ]
 
 
-def applied_to_own_first(verb: OwnFirst) -> Verb:
-    """What applies one of these own verbs: a total match.
+OwnThirdOnward = Literal[
+    gateverbs.OwnVerb.PR_CREATE,
+    gateverbs.OwnVerb.PR_EDIT,
+    gateverbs.OwnVerb.UPDATE_BRANCH,
+    gateverbs.OwnVerb.RERUN,
+    gateverbs.OwnVerb.CANCEL,
+    gateverbs.OwnVerb.DISPATCH_WORKFLOW,
+    gateverbs.OwnVerb.PUSH,
+    gateverbs.OwnVerb.SCRATCH_CLEAN,
+    gateverbs.OwnVerb.CLEAN,
+    gateverbs.OwnVerb.ACK,
+]
+
+
+OwnFourthOnward = Literal[
+    gateverbs.OwnVerb.PUSH,
+    gateverbs.OwnVerb.SCRATCH_CLEAN,
+    gateverbs.OwnVerb.CLEAN,
+    gateverbs.OwnVerb.ACK,
+]
+
+
+def applied_to_own_first(verb: gateverbs.OwnVerb) -> Verb:
+    """What applies an own verb: these arms, then the later groups; the last is total.
 
     Args:
         verb: the verb.
@@ -201,12 +205,12 @@ def applied_to_own_first(verb: OwnFirst) -> Verb:
             return actpull.unhold
         case gateverbs.OwnVerb.BLOCK:
             return actpull.block
-        case _:  # pragma: no cover
-            assert_never(verb)
+        case _:
+            return applied_to_own_second(verb)
 
 
-def applied_to_own_second(verb: OwnSecond) -> Verb:
-    """What applies one of these own verbs: a total match.
+def applied_to_own_second(verb: OwnSecondOnward) -> Verb:
+    """What applies an own verb: these arms, then the later groups; the last is total.
 
     Args:
         verb: the verb.
@@ -227,12 +231,12 @@ def applied_to_own_second(verb: OwnSecond) -> Verb:
             return actwrite.comment_edit
         case gateverbs.OwnVerb.COMMENT_DELETE:
             return actwrite.comment_delete
-        case _:  # pragma: no cover
-            assert_never(verb)
+        case _:
+            return applied_to_own_third(verb)
 
 
-def applied_to_own_third(verb: OwnThird) -> Verb:
-    """What applies one of these own verbs: a total match.
+def applied_to_own_third(verb: OwnThirdOnward) -> Verb:
+    """What applies an own verb: these arms, then the later groups; the last is total.
 
     Args:
         verb: the verb.
@@ -253,12 +257,12 @@ def applied_to_own_third(verb: OwnThird) -> Verb:
             return actpull.cancel
         case gateverbs.OwnVerb.DISPATCH_WORKFLOW:
             return actpull.dispatch_workflow
-        case _:  # pragma: no cover
-            assert_never(verb)
+        case _:
+            return applied_to_own_fourth(verb)
 
 
-def applied_to_own_fourth(verb: OwnFourth) -> Verb:
-    """What applies one of these own verbs: a total match.
+def applied_to_own_fourth(verb: OwnFourthOnward) -> Verb:
+    """What applies an own verb: these arms, then the later groups; the last is total.
 
     Args:
         verb: the verb.
@@ -279,52 +283,7 @@ def applied_to_own_fourth(verb: OwnFourth) -> Verb:
             assert_never(verb)
 
 
-def applied_to_own(verb: gateverbs.OwnVerb) -> Verb:
-    """What applies a verb of its own: each group's match is total, and so is this.
-
-    Args:
-        verb: the verb.
-
-    Returns:
-        The function that runs it (P8, keyword: act-verbs).
-    """
-    match verb:
-        case (
-            gateverbs.OwnVerb.DISARM
-            | gateverbs.OwnVerb.REVIEW
-            | gateverbs.OwnVerb.LABEL
-            | gateverbs.OwnVerb.HOLD
-            | gateverbs.OwnVerb.UNHOLD
-            | gateverbs.OwnVerb.BLOCK
-        ):
-            return applied_to_own_first(verb)
-        case (
-            gateverbs.OwnVerb.TICKET
-            | gateverbs.OwnVerb.TICKET_EDIT
-            | gateverbs.OwnVerb.CLOSE
-            | gateverbs.OwnVerb.COMMENT
-            | gateverbs.OwnVerb.COMMENT_EDIT
-            | gateverbs.OwnVerb.COMMENT_DELETE
-        ):
-            return applied_to_own_second(verb)
-        case (
-            gateverbs.OwnVerb.PR_CREATE
-            | gateverbs.OwnVerb.PR_EDIT
-            | gateverbs.OwnVerb.UPDATE_BRANCH
-            | gateverbs.OwnVerb.RERUN
-            | gateverbs.OwnVerb.CANCEL
-            | gateverbs.OwnVerb.DISPATCH_WORKFLOW
-        ):
-            return applied_to_own_third(verb)
-        case (
-            gateverbs.OwnVerb.PUSH
-            | gateverbs.OwnVerb.SCRATCH_CLEAN
-            | gateverbs.OwnVerb.CLEAN
-            | gateverbs.OwnVerb.ACK
-        ):
-            return applied_to_own_fourth(verb)
-        case _:  # pragma: no cover
-            assert_never(verb)
+applied_to_own = applied_to_own_first
 
 
 VERBS: Mapping[str, Verb] = {
