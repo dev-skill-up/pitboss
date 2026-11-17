@@ -8,6 +8,7 @@ import functools
 import hashlib
 import pathlib
 import unittest
+from collections.abc import Sequence
 
 from hamcrest import assert_that, equal_to
 
@@ -35,6 +36,18 @@ SHA256 = {
         "f44496cc5b0518262b11f30be4ddae819b2f8b533a8b31364db68b45924f7e3f"
     ),
 }
+
+
+def _commands() -> Sequence[str]:
+    # the frozen list, less the command that left it, and the one added since
+    return [
+        *(
+            name
+            for name in enumeration.values("pitboss-command")
+            if name != "mutation-check"
+        ),
+        *ADDED,
+    ]
 
 
 def _verdict(
@@ -139,14 +152,7 @@ class TestCover(unittest.TestCase):
 
     def test_444_cover_commands_at_0_uncovered(self) -> None:
         """40 commands: 12 write through a verb, 28 write nothing."""
-        names = [
-            *(
-                name
-                for name in enumeration.values("pitboss-command")
-                if name != "mutation-check"
-            ),
-            *ADDED,
-        ]
+        names = _commands()
         kinds = collections.Counter(
             row.kind for row in coverwrites.commands(SOURCE, names, actverbs.VERBS)
         )
@@ -158,14 +164,7 @@ class TestCover(unittest.TestCase):
         self,
     ) -> None:
         """mutation-check left the command list, ``impossible`` came; no other."""
-        names = {
-            *(
-                name
-                for name in enumeration.values("pitboss-command")
-                if name != "mutation-check"
-            ),
-            *ADDED,
-        }
+        names = set(_commands())
         assert_that(set(coverwrites.call_graph(SOURCE).registered), equal_to(names))
 
     def test_444_a_tool_used_with_no_verb_is_uncovered(self) -> None:
