@@ -330,24 +330,29 @@ class TestOneDecision(unittest.TestCase):
         assert_that((said, agree), equal_to((want, [True, True])))
 
 
+def dispatch_next_paths() -> Sequence[str]:
+    """The request paths of one ``act dispatch-next`` in the scene's world.
+
+    Returns:
+        Each ``gh api`` path it asked, in order.
+    """
+    here = scenes.make_world()
+    words = ("dispatch-next", "owner/project", "--config", here.config)
+    scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
+    return [each[-1] for each in fakes.calls_with(here.calls, "api")]
+
+
 class TestReadOnce(unittest.TestCase):
     """Plan 6.1: a request is made once, in ``act dispatch-next`` as in ``next``."""
 
     def test_6_1_dispatch_next_makes_each_read_once(self) -> None:
         """No ``gh api`` read of ``act dispatch-next`` is made twice."""
-        here = scenes.make_world()
-        words = ("dispatch-next", "owner/project", "--config", here.config)
-        scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
-        reads = [" ".join(each) for each in fakes.calls_with(here.calls, "api")]
+        reads = dispatch_next_paths()
         assert_that((bool(reads), len(reads)), equal_to((True, len(set(reads)))))
-
 
     def test_p9_each_listing_is_ordered_and_none_asks_for_all(self) -> None:
         """Every listing of ``act dispatch-next`` is oldest first or the open pulls."""
-        here = scenes.make_world()
-        words = ("dispatch-next", "owner/project", "--config", here.config)
-        scenes.invoke(here, "act", *words, "--now", scenes.FUTURE)
-        paths = [each[-1] for each in fakes.calls_with(here.calls, "api")]
+        paths = dispatch_next_paths()
         listed = [each for each in paths if re.search(r"/(issues|pulls)\?", each)]
         unordered = [
             each

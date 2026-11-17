@@ -99,10 +99,6 @@ def package_at(root: pathlib.Path) -> Package:
     return of_texts(read(root))
 
 
-
-
-
-
 def short(name: str) -> str:
     """A module's name in the package.
 
@@ -160,12 +156,6 @@ def dotted(node: ast.AST) -> str:
     return ""
 
 
-
-
-
-
-
-
 def ends_never(body: Sequence[ast.stmt]) -> bool:
     """Whether a block ends in a call of ``assert_never``.
 
@@ -189,25 +179,3 @@ def statements(tree: ast.AST) -> Sequence[ast.stmt]:
         Them; none for anything but a module.
     """
     return tree.body if isinstance(tree, ast.Module) else []
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
