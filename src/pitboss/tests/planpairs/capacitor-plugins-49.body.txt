@@ -1,0 +1,133 @@
+Fixes bats-lang/capacitor-plugins#49
+
+## Plan
+
+This pull request is Dependabot's weekly grouped update, opened by `.github/dependabot.yml` as bats-lang/capacitor-plugins#15 and #27 set it up. It names no ticket and its page has no comments, so there is no ticket text and no completion criteria written by anyone to copy. The standard used is the one the repository's CLAUDE.md states for a pin that moves ("CI is pinned", "Merging", "Adversarial review before merge"), and the Plan states each of its rows as a check. #15 is not closed by this pull request (its Renovate part is still open), so it is not named in `Fixes`.
+
+The checks, from CLAUDE.md: every input to CI stays pinned in the source (every package by `pnpm-lock.yaml` under `--frozen-lockfile`), a release is at least 7 days old when proposed (the cooldown), the committed files are what the source builds, the `check` job passes on this exact head, and the head contains the current main.
+
+1. Row 1, the change is the five pins Dependabot named, plus what `pnpm-lock.yaml` pulls in with them. The diff is four files: `package.json` (`eslint` 10.13.0 to 10.14.0, `rollup` 4.65.1 to 4.67.4), `packages/google-authorize/package.json` and `packages/google-authorize/example/package.json` (`@capacitor/android`, `@capacitor/core`, and in the example `@capacitor/cli`, 8.5.3 to 8.6.0) and `pnpm-lock.yaml`. The lock also moves what the five pull in, which Dependabot did not name: `xcode` 3.0.1 to 4.0.0 (a new major, pulled in by `@capacitor/cli`; its node engine range changes from `>=10.0.0` to `>=14.17.0`), `uuid@7.0.3` removed (it was only `xcode@3.0.1`'s), `@types/estree@1.0.10` added beside 1.0.9, and the platform package `@rollup/rollup-android-x64@4.67.4` added (a new optional dependency of `rollup` 4.67.4). Row 5 shows the publish age of each of these. The command, exactly: `git diff --stat origin/main HEAD`.
+2. Row 2, the diff of the three `package.json` files is those versions only. The command, exactly: `git diff origin/main HEAD -- package.json packages/google-authorize/package.json packages/google-authorize/example/package.json`.
+3. Row 3, no old pin is left. The command, exactly: `git grep -n -e '10\.13\.0' -e '4\.65\.1' -e '8\.5\.3' HEAD -- '*package.json'`. It searches the head's tree for the old versions in every `package.json` and must print no match; `pitboss expand` then prints `exit status: 1`, git grep's status for no match.
+4. Row 4, the head contains the current main (CLAUDE.md, "Merging"). The command, exactly: `git merge-base --is-ancestor origin/main HEAD`, which must print nothing and no `exit status:` line (status 0).
+5. Row 5, the 7-day cooldown held, for the five direct packages and for the three versions the lock adds or moves. The command, exactly: `python3 -c "import json,urllib.request as u; [print(p, json.load(u.urlopen('https://registry.npmjs.org/'+p.rpartition('@')[0]))['time',p.rpartition('@')[2]]) for p in ['eslint@10.14.0', 'rollup@4.67.4', '@capacitor/core@8.6.0', '@capacitor/android@8.6.0', '@capacitor/cli@8.6.0', 'xcode@4.0.0', '@types/estree@1.0.10', '@rollup/rollup-android-x64@4.67.4']]"`. It prints one line for each package, its name@version and the registry's publish time, each at least 7 days before 2026-11-10.
+6. Row 6, the build and the checks pass on this exact head. This is CI's to show and is not rerun here. Workflow `check` (`.github/workflows/check.yml`), found for the head by `gh api repos/bats-lang/capacitor-plugins/commits/08d8f8781431c27f3897ad46301bd82c91abdb76/check-runs`; the job is https://github.com/bats-lang/capacitor-plugins/actions/runs/42848682567/job/129943027889 . Its log shows, by step: step `Install` prints `pnpm install --frozen-lockfile` and succeeds; step `Lint and format` runs `pnpm run lint` (lint and format) and succeeds; step `Build each package` runs `pnpm --recursive --workspace-concurrency=1 run build`; step `The committed files are what the source builds` (the check that nothing committed changed, `dist/` and the README API sections) prints no `::error::`; step `Android, each package` runs `./gradlew --no-daemon --stacktrace :build :test` for each Android project. It was `success` on the head below, as were `build`, `canonical-files`, `text-lint / lint` and `gate`.
+* Kind (CLAUDE.md, "Adversarial review"): process, documentation or CI. It adds no capability: no plugin code changed, no workflow changed, and every package stays pinned by lock.
+
+## Execution
+
+Nothing is committed here: the diff is Dependabot's, from head 08d8f8781431c27f3897ad46301bd82c91abdb76, and this pull request's body is the only thing changed. The branch already contains origin/main (df3a02dbeb377d4f119b509d954fd565f9f57c68), so the merge of main was a no-op.
+
+1. The diff was read in full (Rows 1 and 2): three `package.json` files change versions only, and `pnpm-lock.yaml` changes the same versions and what they pull in (`xcode` 4.0.0, `@types/estree` 1.0.10, `@rollup/rollup-android-x64` 4.67.4, `uuid@7.0.3` removed), with their integrity hashes.
+2. Rows 3 to 5 were run on the head, below. The pull request's title says 1 update across multiple ecosystems; Dependabot's own body listed 5 npm updates (`eslint`, `rollup`, and `@capacitor/android`, `@capacitor/core`, `@capacitor/cli`), which is what the direct pins hold, and no action or Gradle pin moved.
+3. Row 6: the `check` job and the other jobs are `success` on this head, linked above.
+4. The text of Dependabot's original body (the release notes of the five packages) is replaced by this one; the notes are on each project's release page.
+5. The repository has no nox sessions, so `pitboss nox` does not apply and was not run.
+
+Deviations: none
+
+Head: 08d8f8781431c27f3897ad46301bd82c91abdb76
+
+## Evidence
+
+Row 1:
+
+```pitboss-expand sha256=52d301eaf7bf5b1e head=08d8f8781431c27f3897ad46301bd82c91abdb76
+$ git diff --stat origin/main HEAD
+ package.json                                   |   4 +-
+ packages/google-authorize/example/package.json |   6 +-
+ packages/google-authorize/package.json         |   4 +-
+ pnpm-lock.yaml                                 | 346 +++++++++++++------------
+ 4 files changed, 183 insertions(+), 177 deletions(-)
+```
+
+Row 2:
+
+```pitboss-expand sha256=fb608c9b5065a706 head=08d8f8781431c27f3897ad46301bd82c91abdb76
+$ git diff origin/main HEAD -- package.json packages/google-authorize/package.json packages/google-authorize/example/package.json
+diff --git a/package.json b/package.json
+index cfcaab6..4e56882 100644
+--- a/package.json
++++ b/package.json
+@@ -13,10 +13,10 @@
+   "devDependencies": {
+     "@capacitor/docgen": "0.3.1",
+     "@eslint/js": "10.0.1",
+-    "eslint": "10.13.0",
++    "eslint": "10.14.0",
+     "prettier": "3.9.10",
+     "prettier-plugin-java": "2.11.0",
+-    "rollup": "4.65.1",
++    "rollup": "4.67.4",
+     "typescript": "6.0.3",
+     "typescript-eslint": "8.72.1"
+   }
+diff --git a/packages/google-authorize/example/package.json b/packages/google-authorize/example/package.json
+index f52774e..f68ebaf 100644
+--- a/packages/google-authorize/example/package.json
++++ b/packages/google-authorize/example/package.json
+@@ -8,11 +8,11 @@
+   },
+   "dependencies": {
+     "@bats-lang/capacitor-google-authorize": "workspace:*",
+-    "@capacitor/android": "8.5.3",
+-    "@capacitor/core": "8.5.3"
++    "@capacitor/android": "8.6.0",
++    "@capacitor/core": "8.6.0"
+   },
+   "devDependencies": {
+-    "@capacitor/cli": "8.5.3",
++    "@capacitor/cli": "8.6.0",
+     "typescript": "6.0.3",
+     "vite": "8.3.5"
+   }
+diff --git a/packages/google-authorize/package.json b/packages/google-authorize/package.json
+index f3fe48d..72405d9 100644
+--- a/packages/google-authorize/package.json
++++ b/packages/google-authorize/package.json
+@@ -16,8 +16,8 @@
+     "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc && rollup --config rollup.config.mjs && docgen --api GoogleAuthorizePlugin --output-readme README.md --output-json dist/docs.json"
+   },
+   "devDependencies": {
+-    "@capacitor/android": "8.5.3",
+-    "@capacitor/core": "8.5.3"
++    "@capacitor/android": "8.6.0",
++    "@capacitor/core": "8.6.0"
+   },
+   "peerDependencies": {
+     "@capacitor/core": ">=8.0.0"
+```
+
+Row 3:
+
+```pitboss-expand sha256=b61a97d739494fef head=08d8f8781431c27f3897ad46301bd82c91abdb76
+$ git grep -n -e '10\.13\.0' -e '4\.65\.1' -e '8\.5\.3' HEAD -- '*package.json'
+exit status: 1
+```
+
+Row 4:
+
+```pitboss-expand sha256=22722182d0422785 head=08d8f8781431c27f3897ad46301bd82c91abdb76
+$ git merge-base --is-ancestor origin/main HEAD
+```
+
+Row 5:
+
+```pitboss-expand sha256=8574f8ee20e79998 head=08d8f8781431c27f3897ad46301bd82c91abdb76
+$ python3 -c "import json,urllib.request as u; [print(p, json.load(u.urlopen('https://registry.npmjs.org/'+p.rpartition('@')[0]))['time',p.rpartition('@')[2]]) for p in ['eslint@10.14.0', 'rollup@4.67.4', '@capacitor/core@8.6.0', '@capacitor/android@8.6.0', '@capacitor/cli@8.6.0', 'xcode@4.0.0', '@types/estree@1.0.10', '@rollup/rollup-android-x64@4.67.4']]"
+eslint@10.14.0 2026-10-30T14:12:27.179Z
+rollup@4.67.4 2026-11-01T07:48:35.871Z
+@capacitor/core@8.6.0 2026-10-28T16:17:46.034Z
+@capacitor/android@8.6.0 2026-10-28T16:16:57.634Z
+@capacitor/cli@8.6.0 2026-10-28T16:17:30.420Z
+xcode@4.0.0 2026-10-20T09:34:44.560Z
+@types/estree@1.0.10 2026-10-29T04:34:27.999Z
+@rollup/rollup-android-x64@4.67.4 2026-11-01T07:45:56.494Z
+```
+
+---
+
+https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

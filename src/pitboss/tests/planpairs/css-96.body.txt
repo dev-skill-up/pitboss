@@ -1,0 +1,114 @@
+Fixes bats-lang/css#81
+
+Done-when digest: 87b34a4549f73aca
+
+## Plan
+
+1. the "CI is pinned" section of CLAUDE.md is removed, or replaced by one line pointing to repository-prototype's CLAUDE.md ("A library's check.yml is a caller of package-check.yml" and "CI Pattern: every input is pinned"); any passage of CLAUDE.md or README.md that restates what the code does (a list of functions, their signatures, a command's flags or output) is removed or replaced by a pointer to the package's generated docs or to the command's help text; sections that state a decision, its research, or what is proved apart from what is tested stay; a comment in the PR lists each section of CLAUDE.md and README.md and what became of it (kept as a decision, pointer, removed). If this repository's CI or tests read the removed text (grep before removing), that is changed in the same PR. Read: `git diff --stat origin/main...HEAD` shows only the two removals (CLAUDE.md and README.md, no added line); rows 2 to 5 show each part.
+2. The CLAUDE.md section is gone: `cat CLAUDE.md` shows only the title.
+3. The Features list of README.md is gone and its API pointer to docs/lib.md stays, with Usage, Proven colours and Safety: `cat README.md` shows them.
+4. The comment lists each section and what became of it: `gh api repos/bats-lang/css/issues/96/comments --jq '.[].body | split("\n---")[0]'` shows it.
+5. Nothing in CI or tests reads the removed text: `grep -rn "CI is pinned" .github tests scripts src bats.toml` finds nothing.
+6. The head: `git rev-parse HEAD`.
+
+## Execution
+
+Removed the CLAUDE.md section and the README Features list, grepped first for readers of the text (none), posted the section comment.
+
+Deviations: none
+
+## Evidence
+
+Head: 9c2e38c02b02d07548fc42cd5f4cff3450394be6
+
+```pitboss-expand sha256=85e1713e80f86983 head=9c2e38c02b02d07548fc42cd5f4cff3450394be6
+$ git diff --stat origin/main...HEAD
+ CLAUDE.md | 29 -----------------------------
+ README.md |  8 --------
+ 2 files changed, 37 deletions(-)
+```
+
+```pitboss-expand sha256=03cd78fa5b93256e head=9c2e38c02b02d07548fc42cd5f4cff3450394be6
+$ cat CLAUDE.md
+# css
+```
+
+````pitboss-expand sha256=0b13236802eef730 head=9c2e38c02b02d07548fc42cd5f4cff3450394be6
+$ cat README.md
+# css
+
+CSS value types and rendering for the [Bats](https://github.com/bats-lang) programming language.
+
+## Usage
+
+There is no GC: colors, values, selectors, declarations and rules are
+linear. The emitters borrow them; free each with its `*_free`.
+
+```bats
+#use array as A
+#use builder as B
+#use css as C
+
+val r = $C.Rule($C.Class($A.text_lit("card"), 4),
+  $C.Decl($A.text_lit("color"), 5, $C.Color($C.RGB(255, 0, 0))))
+val b = $B.create()
+val () = $C.emit_rule(b, r)
+val () = $C.css_rule_free(r)
+```
+
+## Proven colours
+
+A theme's colours can be proven at compile time; a colour is a static
+`int` 0xRRGGBB.
+
+- `src/contrast.bats`: WCAG 2 relative luminance (`LUM`) and contrast
+  (`CONTRAST(a, b, k)`: at least k/10:1), so text that is hard to read
+  does not type-check.
+- `src/harmony.bats`: rules for a harmonious theme, over the channels
+  (`RGB`): hue arcs (`HUE`), chroma, HSV saturation (`CALM`,
+  `SATNEAR`), the brightest channel (`PEAK`) and relative lightness
+  (`LIGHTER`); hue families (`FAMILIES`, `IN3`: at most three arcs, each
+  at most 30 degrees wide), neutrals (`NEUTRAL`), and text/ground pairs
+  that do not vibrate (`NOVIB`). The module's header gives the source of
+  each rule.
+
+`tests/static` holds a theme that is accepted and one rejected fixture
+per rule.
+
+## API
+
+See [docs/lib.md](docs/lib.md) for the full API reference.
+
+## Safety
+
+Safe library — `unsafe = false`.
+````
+
+```pitboss-expand sha256=6d14c095c19d17b9 head=9c2e38c02b02d07548fc42cd5f4cff3450394be6
+$ gh api repos/bats-lang/css/issues/96/comments --jq '.[].body | split("\n---")[0]'
+Sections of CLAUDE.md and README.md and what became of each:
+
+- CLAUDE.md, "CI is pinned": removed (restated the workflows, pins and relock behavior that repository-prototype's CLAUDE.md describes; nothing reads it).
+- README.md, title and one-line description: kept (high level).
+- README.md, "Features": removed (a list of the units, colors, selectors and class_text, which the code and docs/lib.md state).
+- README.md, "Usage": kept as a decision (linear values, the emitters borrow, each is freed with its *_free) with its example.
+- README.md, "Proven colours": kept (states what is proved and which fixtures test it).
+- README.md, "API": kept as a pointer (to docs/lib.md, the generated API reference).
+- README.md, "Safety": kept as a decision (unsafe = false).
+
+
+```
+
+```pitboss-expand sha256=4e52cc764e431c46 head=9c2e38c02b02d07548fc42cd5f4cff3450394be6
+$ grep -rn "CI is pinned" .github tests scripts src bats.toml
+exit status: 1
+```
+
+```pitboss-expand sha256=be44520b1cdf58b7 head=9c2e38c02b02d07548fc42cd5f4cff3450394be6
+$ git rev-parse HEAD
+9c2e38c02b02d07548fc42cd5f4cff3450394be6
+```
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

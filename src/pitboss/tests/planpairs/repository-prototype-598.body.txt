@@ -1,0 +1,132 @@
+Fixes bats-lang/repository-prototype#597
+
+Head: e69ce0eec6a1b2c51cd4d52a3294b21d7dc724af
+
+## Plan
+
+Why: quire#1083 adds a step to the `build` job of quire's `check.yml`, whose `on:` block is push, pull_request, merge_group, workflow_dispatch and schedule. The row `scratch-run` of text-lint calls it gated because `schedule` is one of the 21 events, and refuses the pull request until it cites a run of relock-scratch that shows nothing about the change. The `pull_request` run of the pull request itself executes the changed step, which is what #509 asks for.
+
+Done-when of #597, word for word (the ticket has no comments):
+
+* A changed workflow file whose `on:` block holds `pull_request` (or `push`) beside a gated event is not judged by `scratch-run` for the job steps the PR's own `pull_request` run executes; a file whose only triggers are gated events is still refused.
+* A test plants quire's real `on:` block (push, pull_request, merge_group, workflow_dispatch, schedule) with a changed step and requires no `scratch-run` finding.
+* A test plants a file with only `schedule` and a file with only `pull_request_target` and requires the finding for both.
+* `text_lint` prints, for the accepted file, no finding, and for the refused one the file and the trigger that gates it.
+
+One PR: yes. Only `tools/text-lint` changes; no workflow, no `src/` of the compiler, no `bats.lock`, no `bootstrap/c`, and no line is added to any `.md` or `.rst` file.
+
+The change:
+
+- `tools/text-lint/src/gated.bats`: the trigger reading now returns where the matching event's line starts in `gated-triggers.txt` (a negative number for none) instead of a bool; a changed file is gated by the first such event of its patch or its base copy, and is not gated when the same reading with the events `pull_request` and `push` finds one in the patch or the base copy. The file is judged whole, since a line reading cannot tell which job a step is in. A word as a permission, in a step or in a condition is not a trigger, as before; `pull_request_target` is a different word from `pull_request`. The finding is now `PR body: <file> runs from the default branch on its trigger <event>: cite its job URL in bats-lang/relock-scratch (scratch-run)`.
+- Fixtures under `tools/text-lint/tests/gated`: the 21 event files and 3 form files had `push` as a decoy beside the gated event, which now exempts them, so the decoy is `workflow_dispatch`; the base `check-gated-list.yml` likewise; the hunk case moves to a new base file `check-hunk.yml`, whose `on:` has no `push`. New: quire's `on:` block with a changed step (`check-quire.yml`, `changes-quire-step.diff`), a new file with schedule and pull_request, and the refused nearest inputs: only schedule, only pull_request_target, only schedule with the words `push` and `pull_request` in permissions, condition and step, and a new file with schedule and pull_request_target.
+- `tools/text-lint/src/text_lint_tests.bats`: the expected findings carry the trigger; the status description is cut at 140 characters as before, so it now ends in `bats-lang/re`; two new tests, `test_pull_request_or_push_beside_a_gated_event_is_not_gated` and `test_only_gated_triggers_are_still_refused`.
+
+Commands, in the order of the Evidence (all run on the head in the checkout):
+
+1. `git rev-parse HEAD`
+2. `timeout 598 env -C tools/text-lint /home/user/w/b615/dist/debug/bats test --repository /home/user/w/rp597`: every test passes, among them the two new ones (rows 2 to 4 of the Done-when); the compiler is bats main plus #615, read-only.
+3. `git diff --stat origin/main...HEAD`: the files changed, none ending in `.md`, none outside `tools/text-lint`.
+4. CI pointer: workflow `.github/workflows/tools-test.yml`, step `Test the pull request body lint`, greppable `PASS test_only_gated_triggers_are_still_refused` and `PASS test_pull_request_or_push_beside_a_gated_event_is_not_gated`; the run is found for the head with `gh api "repos/bats-lang/repository-prototype/actions/runs?head_sha=<the Head above>" --jq '.workflow_runs[] | select(.path==".github/workflows/tools-test.yml") | .html_url'` (a draft runs no job; the run exists once the pull request is ready).
+
+## Execution
+
+Changed the trigger reading of `gated.bats` and its callers, adapted the fixtures that used `push` as a decoy, added the fixtures and tests above, and ran the package's tests with the compiler of bats main plus #615 (`bats check`, then `bats test`). Nothing was run on CI.
+
+Deviations: none.
+
+## Evidence
+
+```pitboss-expand sha256=e65883b0fb7f8225
+$ git rev-parse HEAD
+e69ce0eec6a1b2c51cd4d52a3294b21d7dc724af
+```
+```pitboss-expand sha256=9d4081c2ce7cef2f
+$ timeout 598 env -C tools/text-lint /home/user/w/b615/dist/debug/bats test --repository /home/user/w/rp597
+running 33 native test(s)
+  PASS test_passing_bodies_have_no_finding
+  PASS test_refs_instead_of_fixes_is_refused
+  PASS test_two_tickets_are_refused
+  PASS test_head_line_is_there_and_is_the_head
+  PASS test_evidence_has_a_heading_and_a_command_block
+  PASS test_footer_is_the_one_of_the_template
+  PASS test_phrases_of_the_file_are_refused
+  PASS test_regular_expression_phrases_have_fixtures
+  PASS test_every_example_is_found_by_its_line
+  PASS test_pattern_language
+  PASS test_class_spelled_patterns
+  PASS test_empty_body_fails_each_row
+  PASS test_first_line_edges
+  PASS test_same_ticket_twice_is_one_ticket
+  PASS test_head_line_edges
+  PASS test_evidence_edges
+  PASS test_events
+  PASS test_session_url_changes_no_finding_of_a_bad_body
+  PASS test_session_url_changes_no_phrase_finding
+  PASS test_session_url_changes_nothing_in_an_event
+text-lint: the event is not an object
+text-lint: the event text is not JSON, at byte 1
+  PASS test_refused_events
+  PASS test_exemption_is_a_relock_branch_or_a_bot
+lines of phrases.txt reached: 57 of 57
+lines of the corpus compared with the oracle: 242 of 242
+text rows of the copy reached: 32 of 32
+  PASS test_phrases_equal_the_original
+  PASS test_gated_workflow_without_a_scratch_run_is_refused
+  PASS test_gated_workflow_with_a_scratch_run_passes
+  PASS test_gated_event_status
+  PASS test_other_changes_need_no_scratch_run
+  PASS test_one_finding_for_each_gated_file
+  PASS test_every_default_branch_event_gates
+  PASS test_forms_of_on_gate
+  PASS test_permissions_and_words_do_not_gate
+  PASS test_pull_request_or_push_beside_a_gated_event_is_not_gated
+  PASS test_only_gated_triggers_are_still_refused
+all tests passed
+```
+```pitboss-expand sha256=c9e90789d58b6f9e
+$ git diff --stat origin/main...HEAD
+ tools/text-lint/src/gated.bats                     | 182 ++++++++++++++-------
+ tools/text-lint/src/text_lint_tests.bats           |  99 ++++++-----
+ .../base/.github/workflows/check-gated-list.yml    |   2 +-
+ .../gated/base/.github/workflows/check-hunk.yml    |  11 ++
+ .../gated/base/.github/workflows/check-quire.yml   |  27 +++
+ .../base/.github/workflows/check-schedule-only.yml |  11 ++
+ .../.github/workflows/check-schedule-words.yml     |  15 ++
+ .../base/.github/workflows/check-target-only.yml   |  11 ++
+ ...changes-added-event-branch_protection_rule.diff |   2 +-
+ .../tests/gated/changes-added-event-check_run.diff |   2 +-
+ .../gated/changes-added-event-check_suite.diff     |   2 +-
+ .../tests/gated/changes-added-event-delete.diff    |   2 +-
+ .../gated/changes-added-event-discussion.diff      |   2 +-
+ .../changes-added-event-discussion_comment.diff    |   2 +-
+ .../tests/gated/changes-added-event-fork.diff      |   2 +-
+ .../tests/gated/changes-added-event-gollum.diff    |   2 +-
+ .../gated/changes-added-event-image_version.diff   |   2 +-
+ .../gated/changes-added-event-issue_comment.diff   |   2 +-
+ .../tests/gated/changes-added-event-issues.diff    |   2 +-
+ .../tests/gated/changes-added-event-label.diff     |   2 +-
+ .../tests/gated/changes-added-event-milestone.diff |   2 +-
+ .../gated/changes-added-event-page_build.diff      |   2 +-
+ .../tests/gated/changes-added-event-public.diff    |   2 +-
+ .../changes-added-event-pull_request_target.diff   |   2 +-
+ .../changes-added-event-repository_dispatch.diff   |   2 +-
+ .../tests/gated/changes-added-event-schedule.diff  |   2 +-
+ .../tests/gated/changes-added-event-status.diff    |   2 +-
+ .../tests/gated/changes-added-event-watch.diff     |   2 +-
+ .../gated/changes-added-event-workflow_run.diff    |   2 +-
+ .../gated/changes-added-form-flow-multiline.diff   |   2 +-
+ .../tests/gated/changes-added-form-flow.diff       |   2 +-
+ .../tests/gated/changes-added-form-list.diff       |   2 +-
+ .../changes-added-schedule-and-pull-request.diff   |  10 ++
+ .../gated/changes-added-schedule-and-target.diff   |  10 ++
+ .../tests/gated/changes-hunk-in-on-block.diff      |   6 +-
+ .../text-lint/tests/gated/changes-quire-step.diff  |   7 +
+ .../tests/gated/changes-schedule-only-step.diff    |   5 +
+ .../tests/gated/changes-schedule-words-step.diff   |   5 +
+ .../tests/gated/changes-target-only-step.diff      |   5 +
+ 39 files changed, 326 insertions(+), 128 deletions(-)
+```
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

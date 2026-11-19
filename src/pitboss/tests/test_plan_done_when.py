@@ -155,6 +155,19 @@ def row_of(ticket: str, own: str) -> str:
     return f"## Plan\n1. {ticketwhen.items(ticket)[0]} {own}\n"
 
 
+def findings_of(ticket: str, own: str) -> Sequence[str]:
+    """What the Done-when check says of a row that adds its own text to the item.
+
+    Args:
+        ticket: the ticket.
+        own: the text after the copy.
+
+    Returns:
+        The findings.
+    """
+    return plandonewhen.findings(row_of(ticket, own), ticket)
+
+
 MEASURE = "rg -c x src"
 SPELLINGS = list(itertools.product(plandonewhen.VERBS, plandonewhen.PREPOSITIONS))
 
@@ -185,8 +198,28 @@ class TestMeasurement(unittest.TestCase):
             for own in (f"`{MEASURE}`", f"`{MEASURE} | wc -l`"):
                 with self.subTest(verb=verb, preposition=preposition, own=own):
                     ticket = measured(verb, preposition, MEASURE)
-                    found = plandonewhen.findings(row_of(ticket, own), ticket)
-                    assert_that(list(found), equal_to([]))
+                    assert_that(list(findings_of(ticket, own)), equal_to([]))
+
+    def test_measurement_with_arguments_or_piped_counts_as_run(self) -> None:
+        """Done-when: the command, then a space and arguments or a pipe, is it run."""
+        ticket = measured("demonstrated", "by", MEASURE)
+        for own in (
+            f"`{MEASURE} -n`",
+            f"`{MEASURE} -n | wc -l`",
+            f"`{MEASURE} | wc -l`",
+            f"`{MEASURE}|wc -l`",
+        ):
+            with self.subTest(own=own):
+                assert_that(list(findings_of(ticket, own)), equal_to([]))
+
+    def test_measurement_prefix_letters_do_not_count_as_run(self) -> None:
+        """Done-when: a span that only starts with the command's letters is another."""
+        ticket = measured("demonstrated", "by", MEASURE)
+        for own in (f"`{MEASURE}s`", f"`{MEASURE}2 -n`", f"`{MEASURE}-more`"):
+            with self.subTest(own=own):
+                found = findings_of(ticket, own)
+                assert_that(len(found), equal_to(1))
+                assert_that(found[0], starts_with("plan-measurement:"))
 
     def test_a36_a_demonstrated_by_command_is_the_command_the_row_runs(self) -> None:
         """Rp 683: the item said `demonstrated by` a command; the row ran a script."""
@@ -202,7 +235,7 @@ class TestMeasurement(unittest.TestCase):
         ticket = measured("measured", "by", MEASURE)
         for own in ("`git status`", ""):
             with self.subTest(own=own):
-                found = plandonewhen.findings(row_of(ticket, own), ticket)
+                found = findings_of(ticket, own)
                 assert_that(len(found), equal_to(1))
                 assert_that(found[0], contains_string("plan-measurement:"))
 

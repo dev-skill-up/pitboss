@@ -1,0 +1,32 @@
+Fixes #66
+
+Head: 256b044ce22102094b0a24037a18d941ba0dd87f
+
+## Done-when
+
+- `pitboss pressure` appends (time, none|hold) to `[runners] record` and exits 0 only after `[runners] quiet_minutes` (default 15) with no hold; else exit 1 with the minutes remaining, which are minutes only, never a job count (`test_newest_hold_decides`, `test_exactly_the_quiet_period`, `test_lines`, `test_zero_quiet_minutes_with_jobs_waiting`).
+- `pitboss queued` appends a hold; `pitboss push` appends one only when its push goes out, nothing when refused, in a dry run, when git fails, or with `--draft` (`test_queued_after_a_clear_look`, `test_refused_push_changes_nothing`, `test_push_that_goes_out`, `test_pushes_that_do_not_record`). A push that went out whose hold could not be written says "push WENT OUT", tells to run `pitboss queued`, and exits 2 (`test_push_went_out_but_the_hold_was_not_recorded`). There was no `pitboss push`, so this adds it: pressure check, `git push`, record; `--draft` skips both; dry run unless `--no-dry-run`.
+- Scenarios, clock (`--now`) and gh (the fake) injected: hold 14 minutes old gives 1, 16 gives 0; hold at 0, push at 10 refused with the record byte-identical, exit 0 at 15; push out at 16, exit 1 at 30, 0 at 31; `queued` at 16 after a clear look at 15, exit 1 at 30, 0 at 31.
+- `sweep` reads the record without writing it and prints the same quiet-aware line, so `NO RUNNER PRESSURE` is printed only when the quiet period is over (`test_sweep_line_follows_the_record`). A record it cannot read is its own `RUNNER PRESSURE` line (a hold) and the rest of the sweep is still printed (`test_sweep_goes_on_when_the_record_cannot_be_read`).
+- Statements the PR made false, fixed: docs/quire-inventory.md line 118 ("pitboss has no single push command") now names `pitboss push` and `pitboss queued`; the SKILL.md push row, sweep.md, ci.md and design.rst were updated earlier. Grepped the whole tree (docs/, doc/, plugins/, README, src, scripts) for push command, pressure check, read-only, 15 minutes, keeps no history: no other statement left that this PR contradicts (docs/quire-inventory.md lines 47 and 98 describe quire's own `qsweep` and its 15-minute rule, which stay quire's).
+- rules.md states the rule once (the key, not a number in the rule); ci.md points to it and its missing-key note is removed; example.toml, README.rst and skill-zips updated.
+- Robust record: a missing or empty file has seen no quiet yet; a line that cannot be read counts as a hold at the next good line's time, or at the look being made when last, so it never reports a quiet period that was not seen; a cut-short last line is not glued; a record that cannot be read or written stops `pressure` and `push`, naming it.
+
+## Evidence
+
+```
+$ nox -s lint mypy tests-3.13 docs skills
+Ran 194 tests with 8 subtests
+PASSED
+TOTAL    4794      0    556      0   100%
+all 24 markers explained in 6 references
+nox > Session lint was successful in 7 seconds.
+nox > Session mypy was successful in 12 seconds.
+nox > Session tests-3.13 was successful in 27 seconds.
+nox > Session docs was successful in 7 seconds.
+nox > Session skills was successful in 3 seconds.
+```
+
+Sample: all tests ran (Python 3.13 only; 3.12, 3.14 and dry_release are CI's).
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

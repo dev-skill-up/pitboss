@@ -43,6 +43,15 @@ class TestForm(unittest.TestCase):
         """The nearest input it must still accept: the form of pitboss#444."""
         assert_that(asked(f"## Done when\n\n{LEAD}\n\n{ITEMS}"), empty())
 
+    def test_each_item_keeps_the_form_check_of_the_others(self) -> None:
+        """A bullet with each, every or all speaks for itself, not for the others."""
+        for word in ("Each", "Every", "All"):
+            with self.subTest(word=word):
+                said = f"{word} rule is demonstrated by a test."
+                found = asked(f"## Done when\n\n1. {said}\n2. Another rule.\n")
+                assert_that(found, has_length(1))
+                assert_that(found[0], contains_string("first one is: Another rule."))
+
     def test_a20_t458_every_item_demonstrated_passes(self) -> None:
         """Each says it itself."""
         both = ITEMS.replace("Another rule.", "Another rule, demonstrated by a test.")

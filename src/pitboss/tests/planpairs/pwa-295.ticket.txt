@@ -1,0 +1,7 @@
+What happened (2026-11-08): `.github/actions/e2e-setup/stall-tools.sh` (lines 142 to 154 at origin/main) answers an unavailable `libc6-dbg`, `rr`, `gdb` or `elfutils` with `echo "::warning::..."` and goes on ("rr is not available: the preflight logs it as not installed", "gdb and elfutils are not installed: the stall capture's native stacks are missing"). These tools are the flake-capture machinery: a run whose stall capture is silently degraded gives a green job that cannot explain the next stall. Moshe, 2026-11-08T04:24Z: "Unset token SHOULD ALSO FAIL WE DO NOT IGNORE PROBLEMS". This is the same class (found by the search of bats-lang workflows for green skips of a failed step, repository-prototype#592, pitboss#353).
+
+Done when:
+* In `stall-tools.sh` a failed install of `libc6-dbg`, `rr`, `gdb` or `elfutils` exits non-zero with an `::error::` naming the tool and the status, so the setup step fails.
+* A test (the script's own, with a stand-in installer that fails) shows each of the four tools failing the script, and a stand-in that succeeds passing it.
+* A grep of `.github/actions/e2e-setup` for `::warning::` shows no warning left that continues past a failed requirement; the retry warnings that are followed by a final failure stay.
+* No line is added to any .md or .rst file.

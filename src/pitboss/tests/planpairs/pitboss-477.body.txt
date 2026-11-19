@@ -1,0 +1,407 @@
+Fixes dev-skill-up/pitboss#444
+
+Done-when digest: f99f974a3736dbd4
+
+This pull request installs the design of the safety analysis `cast-477-final.md` (fourth version, 2026-11-12) in pitboss, as written, in this one pull request. The owner's order: "implement the plan in cast-477-final.md AS WRITTEN, in this one PR". Every gap of the 29 is one of four kinds (a write with no verb, a state the verdict does not read, a text its reader reads differently, a line with no step), and each kind is closed by a construction that is a test in `pitboss nox`, so this pull request is green only when all of them are. The design text follows the Plan, under `## Design`.
+
+## Plan
+
+Rows 0 to 14 are the ticket's Done-when, word for word, each with the test that shows it; rows 15 to 23 are the nine pieces of section 8 of the design, each with the check in `pitboss nox` that fails until it is in.
+
+0. Each item is demonstrated by the named test failing on main 482a642 and passing on the branch. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_r1_planted`.
+1. `pitboss rules check` exists. It passes on the branch, and it fails when a register row names a function that does not exist, names a test that does not exist, or names a test whose name does not contain the rule's id. Demonstrated by a test that plants each of the three. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_r1_planted`.
+2. The register has a row for every rule of the coverage table that pitboss can enforce (the A, B and C lists), and a row of kind `output` for each D rule, except D4 (never say "I haven't checked"), D12 (Moshe stays private), D13 (the coordinator's instructions are an Opus ruling) and D14 (a thread attaches a missing repo itself), which are kind `outside`. Every row of kind `enforced` names a real function and real tests. Demonstrated by a test that reads the coverage table's ids from `src/pitboss/tests/coverage_ids.txt` and the register's ids and compares them, and by `rules check`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_r2_the_register_has_every_id_of_the_table`. Evidence: `pitboss done-when-check --ref 482a642`, which prints `done-when check: ok` when every item of the Done-when has its tests passing on the head and one failing on 482a642.
+3. `pitboss capture-timeline OWNER/REPO#N` writes a PR's comments, reviews, labels, pushes and check runs in order to a file, and `tests/scenarios/` holds those timelines for pitboss PRs 465, 470, 460, 463 and 468, quire PRs 1104 and 1083 and bats PR 650. A scenario test replays each and, at each marked event, requires the step Moshe's rules require. Demonstrated by the scenario tests for 465, 470, 460, 463 and 468 failing on main and passing on the branch. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_capture_timeline`.
+4. Property tests drive the fake GitHub through every sequence of up to five events from this alphabet: a Plan review approved or changes needed, an Execution review approved or changes needed, an Opus ruling saying `do these steps`, `revise the plan` or `escalates`, plan-check ok at a new head, a push, a merge of main, CI green or red, a label, a conflict. After every prefix they require: (a) every open PR has a step that names an action or an owner ("there is no 'nothing to do' state", Moshe 2026-11-11 22:37Z); (b) a ruling that says `do these steps` is the next step within one call; (c) running plan-check at a later head leaves an approved Plan's digest unchanged (the digest ignores run and job URLs); (d) at most one ruling is posted before the PR is paused for the owner; (e) doing the printed step changes the state, so no step repeats forever. They finish in under 60 seconds in the nox tests session and print the failing sequence. Demonstrated by planting a violation of each of (a) to (e) and the test failing. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_properties`.
+5. The first three order rules (A1 an approved Plan is never edited; A2 a posted ruling's steps are executed at once; A3 a fix round is followed by a re-review) hold on the real timelines of PRs 465 and 470: a `revise the plan` ruling followed by `do these steps` is executed, and plan-check at the next head does not change the approved Plan's digest. Demonstrated by the scenarios of item 3 for 465 and 470. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a1_a2_a3_pitboss_465`.
+6. These rules about reviews and the owner hold, one test each: A4 no PR is ever in a state with no action and no owner; A5 `pitboss owner-pause OWNER/REPO#N` puts the `paused-owner` label and posts the question for the owner; A6 `pitboss ruling post` refuses a second ruling on a PR before it is paused; A7 a review with one verdict for the Plan and another for the Execution counts as changes needed; A8 the printed review brief no longer says "makes false" and the review lint refuses a review that does; A9 the review lint refuses a piecemeal documentation-cut round. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a5_the_label_goes_on_and_the_question_is_posted`.
+7. These rules about tickets and plans hold, one test each: A19 `pitboss case post` edits the Done-when in the ticket body (never a comment) and refuses once a worker started; A20 plan-check refuses a Done-when item that is not stated as "X demonstrated by Y"; A25 an extra file found in review gets the step "remove it and add a .gitignore line"; A30 plan-check refuses a Plan row that reads a scratch or temp path; A31 an addition to a PR a worker started is refused (new findings go to an older open ticket). CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_a20_an_item_with_no_demonstration_is_refused`.
+8. These rules about slots, workers and briefs hold, one test each: B2 `slots next --skip ITEM` skips a blocked item so a free slot is filled in the same turn; B6 `slots next` saves each printed brief to a file named from the item and prints the dispatch line, and `--force` prints the brief for an item it answers UNKNOWN; B9 mechanical relock PRs rank last; B10 a PR blocked on another ticket is not offered the undraft; B15 `pitboss nox` and `pitboss push` refuse a worktree whose branch does not match the ticket; B16 `hand-back-check` lists the worker's file edit tools and the files in other worktrees; B17 a partial hand-back keeps the slot; B21 a worker's change of a PR's draft state is flagged; B22 a run stuck queued gets a diagnosis step; B23 agents left running by a restarted session are counted against the cap. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_b2_a_skipped_item_is_left_out_and_said`; the tests are in `test_slots_rules.py` (`test_b2_`, `test_b6_`, `test_b9_`, `test_b10_`, `test_b22_`, `test_b23_`) and `test_worker_rules.py` (`test_b15_`, `test_b16_`, `test_b17_`, `test_b21_`).
+9. The numbered cases below (10, 11, 14 to 18, 24 to 28, 30 to 32, 34, 36 and 38) and the cases of the folded tickets are each a scenario or unit test whose name contains the case number. Demonstrated by the register naming those tests. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_i11_a_body_without_execution_is_refused`.
+10. Orchestrator conduct that only a command can make visible, one test each: D1 `slots next` prints, for each UNKNOWN, the rule and data that decided it; D2 and D3 the same output plus `--force` let the orchestrator diagnose and override without asking; D5 and D6 `pitboss case post` records a correction against its ticket; D11 `pitboss quiesce on|off` stops `slots next` from offering new work until switched off. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_d1_the_pr_that_names_the_ticket_is_in_the_reason`; the tests are `test_d1_`, `test_d2_d3_`, `test_d5_d6_` and `test_d11_` in `test_slots_force.py`.
+11. The order in which `next_step` decides is one table in one file. A test fails when two rows that can both hold at once have no stated order. Demonstrated by deleting one row's order. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_flow_order_deleting_one_pairs_order_is_found`; the table is `floworder.py` and `flow.ROWS`, the tests are `test_flow_order_` in `test_flow_order.py`.
+12. `pitboss lint change` fails a diff that changes a module of the flow (next step, plans, reviews, rulings, slots) without also changing `rules.tsv` or `tests/scenarios`. Demonstrated by a planted diff. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_lint_change_refuses_a_flow_module_with_no_row_or_scenario`.
+13. The sweep or `pitboss count` prints the share of pitboss PRs that changed the flow in the last 7 days. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_flow_share_is_printed_by_count`.
+14. Rule C13 (Moshe 2026-11-12 00:30Z): re-running a CI job is forbidden only to clear a flake, and allowed to work around a GitHub problem such as runs stuck queued with no jobs. No pitboss wording, brief or test forbids the second case. Demonstrated by a test that shows a re-run of a stuck-queued run is not refused and one that shows a flake re-run is refused. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_c13_a_flake_rerun_is_refused`.
+15. Piece 1 of section 8: Frozen enumeration and its derivation script (`src/pitboss/enumeration.py`, `src/pitboss/enumeration/`): the re-derivation gives `variables.tsv` sha256 2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc (188 rows) and `actions.tsv` sha256 c4f777245a4492773e9774b4acd2391b6d8c938125d1d9ec2442735785c65d82 (322 rows). Demonstrated by `test_444_the_hashes_reproduce` and `test_444_the_frozen_sets_are_derived_from_their_sources`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_444_the_hashes_reproduce`.
+16. Piece 2 of section 8: Total verdict (`totalverdict.py`, `totalschema.py`, `totalchecks.py`, `totalbody.py`, `totalreview.py`): field rows, event classes, enum tables, review and body readers. 732 cells with 0 uncovered (526 fire, 206 benign) and 74,991 pairs with 0 exceptions. Demonstrated by `test_444_732_cells_with_0_uncovered`, `test_444_74991_pairs_with_0_exceptions` and `test_444_a_wrong_answer_is_counted`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_444_74991_pairs_with_0_exceptions`.
+17. Piece 3 of section 8: Act verbs (`pitboss act <verb> <target> name=value`, 27 verbs in `actverbs.VERBS`), each calling the verdict in the same call as its write; `hold` also removes a queued PR from the merge queue. `cover_writes` and `cover_commands` at 0 uncovered (24 write tools: 12 with a verb, 12 never used; 11 writing commands, each with a verb). Demonstrated by `test_act` (`test_c17_` tests), `test_444_cover_writes_at_0_uncovered` and `test_444_cover_commands_at_0_uncovered`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_444_cover_writes_at_0_uncovered`.
+18. Piece 4 of section 8: `act dispatch-next` (`dispatchnext.py`), replacing the slot ledger commands as the way to fill a slot. Demonstrated by the dispatch cases of the 66 (G1, G13, G16, S16, S17, S19, X25, X26) in `test_every_case_holds` and by `test_444_nothing_free_is_refused`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_444_nothing_free_is_refused`.
+19. Piece 5 of section 8: Ticket reader (`ticketreader.py`), hand-back form (`handbackform.py`) and rulings as cases (`rulecases.py`): 755 of 755 held-out placements refused, and the G10 case. Demonstrated by `test_444_755_of_755_placements_refused` and `test_444_a_conflict_names_the_old_case`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_444_755_of_755_placements_refused`.
+20. Piece 6 of section 8: Brief writer (`rulefiles.py`, `rulecount.py`) and `totalroutes.instructions()`: the brief carries every rule file whose `paths:` match the ticket's paths, in full, and the verdict's gates on those paths; the sweep prints the instructions and the brief `act dispatch-next` writes appends them. 68 real rule files, 0 refused. Demonstrated by `test_444_68_real_rule_files_0_refused`, `test_444_the_sweep_prints_the_instructions` and the brief cases of the 66. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_444_68_real_rule_files_0_refused`.
+21. Piece 7 of section 8: `mutation-check` leaves the command list; mutants run only in CI: the module `pitboss.mutationci` refuses outside GitHub Actions, and the mutation workflow of the repository runs it. `no_local_mutants` passes and the command count is 38. Demonstrated by `test_t444_no_command_runs_mutants`, `test_t444_outside_ci_nothing_runs` and `test_444_the_registered_commands_are_the_frozen_list_less_mutation_check`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_t444_no_command_runs_mutants`.
+22. Piece 8 of section 8: Route table (`totalroutes.ROUTES`) and the completeness test `total.complete` (`tests/totalcomplete.py`): complete on the shipped parts, and 11 of 11 planted holes are red, each naming its hole. Demonstrated by `test_444_the_shipped_parts_are_complete` and `test_444_11_of_11_planted_holes_are_red`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_444_11_of_11_planted_holes_are_red`.
+23. Piece 9 of section 8: The 66 cases and the 19 removals as tests (`tests/knowncases.py`, `tests/knownremovals.py`): 66 of 66 hold with the safe twin of each let through, and every removal makes a case miss. Demonstrated by `test_every_case_holds`, `test_every_removal_makes_a_case_miss` and `test_every_case_misses_under_a_removal`. CI: workflow `pr-main.yml`, job `tests`, step `Run Nox`, greppable `test_every_removal_makes_a_case_miss`.
+
+## Execution
+
+All nine pieces are in this head, each with the test named in its Plan row. The local `timeout 595 pitboss nox` on this head passed skills, lint and mypy, and was stopped at its time limit inside tests-3.13 (the whole suite runs, since `.github/workflows/mutation.yml` is outside the test map); the tests are CI's `Run Nox`.
+
+Quarantine: none
+
+- Piece 1 (row 15): `enumeration.derive()` reads the frozen sources under `src/pitboss/enumeration/` and writes the same bytes as the shipped `variables.tsv` and `actions.tsv`; the two hashes and row counts are asserted.
+- Piece 2 (row 16): the cells are run over `knownkit.BASE` (quire#1090 rebuilt from GitHub's JSON), one variable changed to one value, for merge, arm and undraft; the pairs over every two changes on different inputs. A planted wrong answer (an unrouted line) is counted as an exception, so the pairs test is not vacuous.
+- Piece 3 (row 17): `pitboss act` with `name=value` options, a dry run unless `--no-dry-run`. `hold`, `block` and `label paused-owner` disarm, and a push to a queued armed PR disarms and dequeues. `cover_writes` reads the agent tool list and the 51,933-call usage; `cover_commands` follows the call graph of every registered command to a GitHub write.
+- Piece 4 (row 18): `dispatch-next` takes slots and the cap from the config, the oldest unfinished PR first, one ticket for a red shared by PRs or by the base, and a refused plan-check back to its own worker; nothing free is refused with that line.
+- Piece 5 (row 19): the ticket reader takes list items or paragraphs, never a key line, and reads back what `act ticket` writes; the hand-back form is one line per Done-when item; `rulecases.add` refuses a ruling no encoding keeps together with the old ones, naming the old case it loses.
+- Piece 6 (row 20): the writer refuses a front matter it does not read (flow lists, unknown keys, unclosed, empty, loose) naming the file, and the recount refuses a brief that lost a file.
+- Piece 7 (row 21): `mutation_commands.py` is gone; `nolocalmutants` finds no registered command that runs mutants; `mutationci.killers` adds the tests named for a row.
+- Piece 8 (row 22): `complete(parts, cells)` checks the schema, the totality, the verbs, the forms and the repositories' labels; each of the 11 plants returns its line.
+- Piece 9 (row 23): the cases are the 29 gaps and 37 seeded faults of section 5.5; the removals are the 19 controls of its last column.
+
+## Deviations
+
+Each place this head differs from the design as written, or from the brief's rules, and why:
+
+- `pyproject.toml` was edited with `sed`: package data for `enumeration/*.tsv`, `enumeration/*.txt`, `total/*.json` and `total/*.tsv`, and the removal of the `mutation_commands` mypy override.
+- `donewhen.py` and `test_done_when.py` were overwritten by mistake and restored from git before any commit.
+- `tests/test_rule_files.py` was first written over `tests/test_brief.py` and `tests/test_brief_rules.py`; both were restored with `git checkout` and the new tests are in `test_rule_files.py`.
+- Twice, earlier in this branch's work, a local `mutation-check` run let a mutant replace `/dev/null` on the host (G29); the null device was restored each time. Since then no mutant is run outside CI, and the command that ran them is removed (piece 7).
+- The branch's earlier single-gap commits are kept in its history; their rules are the rows the 66 cases test.
+- The slot ledger commands are kept beside `dispatch-next` (the unledgered and claims checks read them); the old `actions`, `actrun` and `actback` modules are kept for the same reason.
+- `instructions()` is printed by the sweep (in `sweep_sections`) and appended by `dispatch-next`'s brief, rather than written as skill lines: no line is added to any `.md`.
+- The fixtures are JSON files under `src/pitboss/tests/total/`.
+- The act options are given as `name=value` words.
+- The owner-message store is `owner.json` beside the slot ledger.
+- Removing the `act_gate` control (removal 1) also replaces the verdict control with one that passes, as the design's last column needs.
+- The mutation job is its own workflow, `.github/workflows/mutation.yml` (manual dispatch and a weekly schedule, Python 3.14, contents read), not a row of `pr-main.yml`; it runs the nox session `mutation`.
+- `totalverdict.gate_status` is removed (no caller).
+- Rule C17's function in `rules.tsv` is now `actcore.hold_gate`.
+- `rulecases.add` names the old case the kept encoding loses (it named none).
+- The rule-file writer refuses a glob with a character class (`[x]`), which it reads literally and the recount reads as a class: the brief is refused by the recount.
+- The lint's duplicated-structure check (SLD801) found 509 duplicates across 188 groups in the first version of this branch; each group was merged into one shared helper or table in one pass: `textparts.py` (line and partition helpers), `plansection.py` (the Plan section the total verdict reads), the `ghapi` readers (`get_json`, `get_object`, `run_json`, `branch_pulls`), `configloads._document`, `actverbs.gate_first` with `actpull.gated_write` (one gate for every gated verb, and merge, arm and undraft as one write), `actcore`'s step helpers (`options_of`, `pull_of`, `timeline_of`, `disarm_first`, `repo_write`, `head_now`, `make_hold`), and in the tests `knownplay.py` (the shared plays and the stop-row tables of the known cases), `pushworld.py`, `existing.py`, the `says` assertions (`exits`, `ended`, `errs`, `outs`, `raises_with`, `has_all`, `has_none`) and table-driven tests where tests differed only in data.
+- `actport` now holds the pure parts of the act core (`Owner`, `cap_of`, `HELD`, `ENDS_A_HOLD`, `Refused`, `option`, `options_of`), named again in `actcore`, so that `actcore` stays under 400 lines and the import graph stays at depth 8.
+- Impact: `env-check` and `hook` take `--config` and find their configuration with `configsettle.find_or_say`, as the other commands do; `doc/example.toml` now lists the keys of `[lint.quarantine]`, `[mechanical]`, `[[pre_push]]` and `[review] required_check` with their defaults.
+- `test_mutation_rows.py` holds the 37 killer tests as one-line `rerun("module.Class.test")` calls in three classes (`killers.rerun` takes the dotted name); the test names end in `_is_held`.
+- The three shape tests of `test_ticket_corpus` are one table test, `test_c33_each_shape_is_read`, and rule C33's row in `rules.tsv` names it.
+
+## Design
+
+The design as written, `cast-477-final.md`; its section 8 is the Plan above.
+
+### PR 477: safety analysis (CAST) and the design that leaves no gap to find
+
+Written 2026-11-12, fourth version (earlier: `cast-477-final-1.md` to `-3.md`). Code read: pitboss main 482a642 and branch b6985a2. **What the programs in `cast-sets/final/` are.** They are prototype programs written to measure the design: a verdict, the act verbs, the readers and writers, and the tests over them. They run on fake GitHub worlds, on real read-only data and on real git in scratch directories. They are not pitboss. **PR 477 puts this behaviour into pitboss**, with these tests as its tests (section 8). Every number below is from running the prototypes; one command re-runs them all, and the outputs are in `cast-sets/final/out/`:
+
+`sh /mnt/project-files/pitboss/cast-sets/final/RUN.sh`
+
+Nothing was written to GitHub or to any repository.
+
+The owner's rulings this version is built on:
+
+* **Agents told to use `pitboss act` use it.** There is no token split, no read-only identity, no credential check and no barrier around agents. The design makes the right path complete and correct, and keeps forgetting out.
+* **477 does not merge with a hole.** Completeness is a test in 477's own CI (`pitboss nox`). The PR cannot be green with an uncovered state, an unrouted line, a write without a verb or a text its reader reads differently. Nothing is left to be found after the merge, and nothing here leads to another pitboss ticket.
+* **GitHub's documented schema and behaviour are stable.** The sets are derived from them once and frozen. No control, test or text here is about GitHub changing.
+* **Mutants run in CI only, and Plan commands are run as written.** There is no sandbox. 477 removes the pitboss command that runs mutants, so none can run on a host.
+* **All of it is one PR.**
+
+### 1. The answer
+
+Every one of the 29 gaps is one of four kinds:
+
+| Kind | What happened | Gaps |
+|---|---|---|
+| A. No verb | pitboss printed a step; the agent did the write itself, a little differently, or at the wrong time | G2, G3, G18, G21, G22, G23, G25 |
+| B. Unread state | pitboss said "ready" in a state it never read | G6, G11, G14, G19, G24 |
+| C. Writer and reader differ | An agent typed a text (review, ticket, hand-back, PR body) that pitboss read differently from what was meant; or the instruction did not say what the checker requires | G7, G8, G9, G12, G15, G16, G17, G20, G26, G28 |
+| D. No defined step | A situation had no next step in pitboss (slots, order, a shared red, two rulings that disagree), or pitboss offered a step it should not have (mutants on a host) | G1, G4, G5, G10, G13, G27, G29 |
+
+Each kind is closed by construction, and the construction is a test of 477's CI:
+
+| Kind | By construction | The test in 477's CI (`total.complete`, `cover_pairs`) |
+|---|---|---|
+| A | Every write is an act verb, and the verb does the checking and the writing in one call | Every write agents made in 51,933 recorded tool calls, and every pitboss command that writes, has a verb. 0 without one |
+| B | The verdict is a total function over GitHub's schema: every PR field has a row, every documented event kind and enum value is in a named table | 732 single cells and 74,991 pairs run; 0 uncovered; a documented value in no table is a red CI |
+| C | Agents do not type the texts pitboss reads. An act verb writes them, and the instructions are generated from the same tables | What each writer writes, its reader accepts; each actor's instruction names its route |
+| D | Every stop line has a route: who acts, with which verb. The owner appears only for states the owner made (a hold, `paused-owner`, a lock, a human review) | 219 distinct lines, each with a route; 0 that say pitboss does not know |
+
+Results of the runs:
+
+| Measure | Result | Output |
+|---|---|---|
+| Completeness test on the prototype | complete: 49 PR fields, 46 event kinds, 219 stop lines, 26 routes, 22 verbs | `total.out` |
+| The same test with a hole planted (11 holes, one at a time) | red, 11 of 11, each naming the hole | `test_total.out` |
+| Verdict cells executed (188 state values, 3 actions) | 732: 526 fire, 206 benign, **0 uncovered** | `cover2.out` |
+| The state product two at a time (every pair of those changes on different inputs, 3 actions) | 74,991 pairs: a pair is GO exactly when both singles are GO, every line has a route; **0 exceptions** | `cover_pairs.out` |
+| GitHub write tools an agent has (24 of 48 GitHub tools) | 12 have a verb; 12 were never used in 51,933 calls; **0 uncovered** | `cover_writes.out` |
+| pitboss commands that write (11 of 39) | each has a verb; **0 uncovered** | `cover_commands.out` |
+| The 29 gaps and 37 seeded faults, each run as a world | **66 of 66** handled, with the safe twin of each let through | `test_known.out` |
+| Each control switched off in turn (19 removals) | every removal makes cases miss; all 66 miss under at least one | `test_removal.out` |
+| Stop lines on 134 real merged PRs | 251 lines, **251 with a route**, none to the owner | `real_routes.out` |
+| Held-out disclosures in real hand-backs | 755 placements, 755 refused | `test_handback2.out` |
+
+Section 8 is the one PR that installs this. Section 9 lists the rulings that conflict, each as a question with a proposed answer.
+
+### 2. The loss
+
+* **L1.** A wrong action reached GitHub or a host: an undraft on a known red, a merge during a hold, a push to the wrong branch, an empty commit, a dropped merge-queue entry, a replaced device node.
+* **L2.** Thirteen post-mortems each said a class was closed. None predicted the next gap.
+* **L3.** Each new gap cost the owner attention, including the ones that only delayed a merge.
+
+### 3. The control structure
+
+| Controller | Control actions | What it believes | Feedback |
+|---|---|---|---|
+| Owner | Rulings in chat, tickets, holds | The queue as reported | Chat, PR pages |
+| Coordinator (Opus) | Relays rulings | Rulings as remembered (62 relays on 477) | Hand-backs |
+| Orchestrator | Dispatch, review requests, merge, arm, undraft, label | pitboss's printed step and its own memory | `pitboss sweep` |
+| pitboss | Prints a step | The fields and events its code happens to read | GitHub reads |
+| Workers, reviewers | Push, PR body, review comment, hand-back | The brief | CI, review text |
+| GitHub | Merge, queue, CI runs | Own state | n/a |
+
+#### Flaws and the unsafe control actions they allow
+
+| # | Flaw | Unsafe control action | Kind |
+|---|---|---|---|
+| F1 | pitboss decides and the agent acts, as two steps. The step is retyped by the agent, so it can differ or come late | An action pitboss would stop is taken; a printed step is done differently | A |
+| F2 | The verdict reads the fields someone thought of. Everything else counts as fine | "READY TO MERGE" in an unread state | B |
+| F3 | Free text is written by agents and parsed by pitboss, with no shared definition | An approval or item is read that was not given, or the reverse | C |
+| F4 | The brief is the root rule file. Path-scoped rules and the checker's own requirements are not in it | Correct work against rules never shown | C |
+| F5 | Slots, order, shared reds and rule conflicts have no pitboss step | The orchestrator improvises | D |
+| F5a | pitboss has a command that runs mutants, so a worker can run it on a host | A worker ran `mutation-check` locally as root; a mutant replaced the null device (G29) | D |
+| F6 | A claim that a class is closed needs no run that would fail if it were open | L2 | all |
+
+The thirteen post-mortems each fixed an instance and left F1 to F5 in place. That is why none predicted the next gap: the next gap was the next unread field, the next retyped step, the next typed text.
+
+### 4. The enumeration
+
+`frozen/frozen.py` reads only external lists: GitHub's REST documentation (PR fields, timeline event kinds, check-run and status values, mergeable states, review states, file statuses, read outcomes), the agent session's tool list and `python -m pitboss --help`. It reads no gap, no fault and no pitboss register. Re-run today, it writes the same bytes:
+
+| File | sha256 | Rows |
+|---|---|---|
+| `frozen/variables.tsv` | `2967d3849c60b31278234ebc5f43967534efd4434fdc906b0225c701ee701dbc` | 188 |
+| `frozen/actions.tsv` | `c4f777245a4492773e9774b4acd2391b6d8c938125d1d9ec2442735785c65d82` | 322 |
+
+`cover2.py` takes the one real PR world on which merge, arm and undraft are all GO (quire#1090 rebuilt from GitHub's JSON), changes one variable to one value, and runs the verdict for each action. "Fires" means the stop line is the row of the changed variable. "Benign" means a table in the script names why the value is safe. Result: 732 cells, 526 fire, 206 benign, 0 uncovered. Run against the earlier draft's verdict, the same enumeration finds one uncovered cell that no gap report had named: an undraft goes through when the newest review says the Plan needs changes (`cover2.v5-code.txt`).
+
+### 5. The design
+
+#### 5.1 One path: act verbs (kind A)
+
+A verb reads the state, runs the verdict, writes, and reads back. The agent supplies only the intent. The verbs: merge, arm, disarm, undraft, review, label, hold, unhold, block, override, ticket, ticket-edit, close, comment, pr-create, pr-edit, update-branch, rerun, cancel, dispatch-workflow, push, clean, dispatch-next.
+
+Completeness of the verb set is derived from the actions, in two directions:
+
+* **From the tools.** The session's tool list has 48 GitHub tools; 24 write. Twelve have a verb. The other twelve (`push_files`, `delete_file`, `fork_repository`, `sub_issue_write` and so on) were used 0 times in 51,933 recorded calls, so no step of the work needs them (`cover_writes.out`).
+* **From pitboss.** Of its 39 commands, 11 reach a GitHub write by call graph; each has a verb (`cover_commands.out`).
+
+What the verbs do that a printed step cannot:
+
+| Verb | What it holds | Cases |
+|---|---|---|
+| merge, arm, undraft | Hold check and verdict in the same call as the write | G2, G3, G21, S04, S23 |
+| hold, block, label `paused-owner` | Disarm auto-merge on the PRs they cover, so an armed PR is always one the verdict passes | G18, X27, G14 |
+| push | The assigned branch, a commit with a change, a pre-push check that printed `ok`, then `ls-remote` shows the commit | G22, G23, G25, X34 |
+| clean | A worktree with a commit on no remote branch is kept | X35 |
+| dispatch-next | Slots are the config's, the cap holds, the oldest unfinished PR first, a red shared by PRs or by the base is one ticket, a refused plan-check goes back to its worker | G1, G13, G16, S16, S17, S19, X25, X26 |
+| override | Lifts one named stop line for one head, with a reason. Never a failed check or status, a hold, a block, a closed PR, a failed read | G4, G27, X31 |
+
+#### 5.2 A total verdict (kind B)
+
+* Every PR field of the schema has a row. A field with no rule has a row that says so by name (`milestone`, `stack`).
+* Every documented timeline kind is in exactly one class: benign, or "after the review, so review again".
+* Two changes at once behave as their union (`cover_pairs.py`): over 74,991 pairs, no value hides another's stop and no pair gives a line without a route. The 8,199 pairs left out change the same input, which holds one value at a time.
+* Every documented value of each enum the verdict branches on (check conclusion, check status, status state, mergeable state) is in a named table with its meaning.
+* Passing is an allowlist: a check passes on `success`, `neutral`, `skipped`; a status on `success`. Everything else is red or waiting.
+* The review binds the head and digests of the body, of the Plan section and of each ticket, so an edit after approval makes the review stale without a rule per kind of edit (G6, G24).
+* Block records and `Blocked` lines are read with the state of what they name (G14, X32).
+
+#### 5.3 Verbs write the texts; instructions come from the checker (kind C)
+
+* `act review` writes the review. A review typed as a comment is not read. So `Plan: ok`, `Plan: approved.` and a prose Plan line (G7, G9, G12, G17, X28) have no way to be written.
+* `act ticket` writes the ticket; the reader takes list items, or paragraphs when there is no list, and never a key line (G26, X29). Of 378 real tickets with a Done-when heading it reads 329; the 49 others are rewritten by `act ticket` before dispatch (`corpus_tickets.out`).
+* `act pr-create` and `act pr-edit` check the body rows before writing (G8, G11).
+* The hand-back has one line per Done-when item: `done` with a GitHub URL or path, `impossible` with the command and its output, or `owner` with a request and a recommended answer (G16).
+* `total.instructions()` is the text the brief and skills carry. It is built from the route table, so each actor is told the verb and the form the checker requires. The brief adds every rule file whose `paths:` match the ticket's paths, in full, and the verdict's gates on those paths (G15, G20, G28; 68 real rule files, 0 refused).
+
+#### 5.4 Every line has a route (kind D)
+
+`total.ROUTES` maps each stop line to an actor and a verb. Counted over the 219 distinct lines of the enumeration: none is without a route, and none says pitboss does not know something. On the 134 real merged PRs, the verdict gives 251 stop lines: 102 to the worker, 99 to the reviewer, 48 to the orchestrator, 2 to pitboss itself (read again), 0 to the owner.
+
+* Rulings are cases (`rulecases.py`): a world, an action, the expected verdict. A new ruling that no encoding satisfies together with the old ones is refused when it is recorded, as one question (G10). Dropping a case needs a record of which ruling wins.
+* Mutants run only in the CI job, on its ephemeral runner. In 477 the `mutation-check` command is removed from pitboss's command list; the mutant runner is the CI job's own step and has no local mode and no root flag. The check `no_local_mutants.py` finds a registered command that runs mutants: on branch b6985a2 it is red (`src/pitboss/mutation_commands.py:180`), and on a tree without the registration it is green (case G29). Plan commands are run by plan-check as written.
+
+#### 5.5 The 66 cases
+
+Each row is a world that was run: the 29 known gaps and 37 of the 38 seeded faults. The 38th, X36 (a Plan row that moves a file over the null device), is no fault under the owner's ruling that a Plan command is run as written. A case passes only when the unsafe world is refused and its safe twin goes through. The last column is the removal (`test_removal.py`) under which the case misses.
+
+| Case | World that was run | Control | Misses when this is removed |
+|---|---|---|---|
+| G1 | one agent runs, cap 1, the ledger offers a second slot | dispatch: cap and slots are the config's | act_gate, owner_gate, dispatch |
+| G2 | merge of an approved PR while merges are held | hold record + act gate | act_gate |
+| G3 | undraft while undrafts are held | hold record + act gate | act_gate |
+| G4 | a ruling allowed 4 added lines in CLAUDE.md; the gate refused them with no route | verdict diff row + recorded override | verdict_rows, benign |
+| G5 | a blank added line counted by one version and not another | verdict diff row (GitHub's own count) | verdict_rows |
+| G6 | the Plan, or the ticket's Done-when, edited after the approval | review binds body and ticket digests | verdict_rows, review_form |
+| G7 | `Plan: ok` | review form (closed) | verdict_rows, review_form |
+| G8 | a Plan row names the scratchpad | body row: no path outside the repository | verdict_rows, body_rows |
+| G9 | a prose `Plan:` line | review form (closed) | verdict_rows, review_form |
+| G10 | `test.fixme` required by quire's rule, forbidden by C14 | rulings as cases: a conflict is a red suite | rulecases |
+| G11 | the body's Head line names an older head | body row: Head line | verdict_rows, body_rows |
+| G12 | `Plan: approved.` | review form (closed) | verdict_rows, review_form |
+| G13 | three PRs red on canonical-files at the same step | dispatch: a shared red is one ticket | dispatch |
+| G14 | a PR that waits on another PR, known only to the orchestrator | block record read by the verdict | verdict_rows, benign, block |
+| G15 | pwa's `We write bats, not shell` in the brief for a pwa ticket | brief: every rule file on the ticket's paths | brief |
+| G16 | a partial hand-back, and the unfinished PR passed over for a newer ticket | hand-back form; dispatch order | dispatch, handback |
+| G17 | an Execution review with no `Execution:` line | review form (closed) | verdict_rows, review_form |
+| G18 | auto-merge re-armed during a hold | hold disarms; act gate | act_gate, disarm |
+| G19 | the PR was removed from the merge queue and nothing said so | verdict event row (closed world) | verdict_rows, benign |
+| G20 | relock.yml's scratch-run gate missing from the worker's brief | brief carries the verdict's path gates; verdict diff row | verdict_rows, brief |
+| G21 | undraft with a failed text-lint status on the head | verdict status row on undraft | verdict_rows |
+| G22 | a push that went to another branch, reported as pushed | act push: assigned branch, read back | push |
+| G23 | an empty commit pushed for a revision of the body alone | act push: no empty commit | push |
+| G24 | an approval with no digest outlives the revised Plan | review binds the body digest | verdict_rows, review_form |
+| G25 | the pre-push check errored and the push went through | act push: the pre-push check must say ok | push |
+| G26 | `Found by quire#1118.` read as a Done-when item | ticket reader (closed world) | ticket_reader |
+| G27 | a ruling that waives a red | a failed check is not overridable; rulings as cases | verdict_rows, not_overridable |
+| G28 | no setup step and no check rule in the worker's brief (quire#1065) | brief: every rule file on the ticket's paths | brief |
+| G29 | a worker ran mutation-check on a host as root and a mutant replaced the null device | mutants run only in the CI job: no CLI command runs them | no_local_mutants |
+| S01 | renamed to `WIP: do not merge` after the approval | verdict event row | verdict_rows |
+| S02 | an `unpinned` event in the timeline | verdict event row (benign by a row) | benign |
+| S03 | an event with no created_at and a null actor | verdict event row (benign by a row) | benign |
+| S04 | undraft before the Plan is approved | verdict review row on undraft | verdict_rows, act_gate |
+| S05 | `gh pr merge` by habit, outside pitboss | instructions name the act verb for every write; the verb exists | instructions |
+| S06 | the ticket was converted to a discussion: 404 | verdict ticket row (a failed read stops) | verdict_rows |
+| S07 | diff_url is null | verdict typed field row | verdict_rows |
+| S08 | the `url` names another repository | verdict field row | verdict_rows |
+| S09 | the conversation is locked | verdict field row | verdict_rows |
+| S10 | a `do-not-merge` label | verdict label row (closed world) | verdict_rows |
+| S11 | listed as open, but closed and merged | verdict field row | verdict_rows |
+| S12 | the approval names an older head | review binds the head | verdict_rows, review_form |
+| S13 | bats's pins-check rule in the brief | brief: every rule file on the ticket's paths | brief |
+| S14 | quire's platform rule in the brief | brief: every rule file on the ticket's paths | brief |
+| S15 | pwa's static-pages rule in the brief | brief: every rule file on the ticket's paths | brief |
+| S16 | three PRs red on one check with the same failing step | dispatch: a shared red is one ticket | dispatch |
+| S17 | the PR is red on tools-test, and so is main | dispatch: a red of the base is not the PR's | dispatch |
+| S18 | approved, checks green, the `text-lint` status failed | verdict status row | verdict_rows |
+| S19 | the fix sent to a new worker | dispatch: a refused plan-check goes to its own worker | dispatch |
+| S20 | a relock PR that also changes a test file, with no review | verdict: a relock is its files | verdict_rows |
+| S21 | a case posted to a ticket that a PR `Resolves` | a started ticket gets nothing added (GitHub's closing keywords) | started |
+| S22 | a label during a runner-pressure hold | hold record + act gate | act_gate |
+| S23 | merge of a PR whose Plan was edited after the approval | review binds the body digest; act gate | verdict_rows, review_form, act_gate |
+| S24 | workflow runs dispatched during the hold | hold record + act gate | act_gate |
+| X25 | the cap is 2 in a ruling and 3 in the config | owner message gate; dispatch cap | act_gate, owner_gate, dispatch |
+| X26 | a ledger slot the config does not name | dispatch: slots are the config's (closed world) | dispatch |
+| X27 | paused-owner on a PR with auto-merge armed | verdict row; paused-owner disarms | verdict_rows, disarm |
+| X28 | `Verdict: approved.` | review form (closed) | verdict_rows, review_form |
+| X29 | a `Priority: p1` line after the Done-when bullets | ticket reader (closed world) | ticket_reader |
+| X30 | the base changed to `release` after the approval | verdict event and base rows | verdict_rows |
+| X31 | a ruling says `skip the e2e run, merge when green` | a required check must be reported; not overridable | verdict_rows, not_overridable |
+| X32 | the body says `Blocked by owner/lib#4`, an open PR | body row: Blocked line | verdict_rows, body_rows |
+| X33 | added to the merge queue, then removed, the queue run failed | verdict event row (closed world) | verdict_rows |
+| X34 | the origin refuses the push | act push: read back | push |
+| X35 | a finished worktree with an unpushed commit removed | act clean: a commit on no remote branch is kept | clean |
+| X37 | the brief lacks the repository's setup step | brief: every rule file on the ticket's paths | brief |
+| X38 | a Plan row `rm -rf` of the shared cache under the home directory | body row: no Plan command names a machine path | verdict_rows, body_rows |
+
+#### 5.6 Real data
+
+The 134 merged PRs, rebuilt at the moment each was armed or merged (`real_rebuild.out`): 27 GO; 39 stop on the review form alone, which `act review` writes; 68 stop on another row. Counted by PR, a PR can be in several: 28 with a Plan command naming a machine path, 25 with added lines in a `.md` file, 16 with a non-required check not green, 16 with a failed status, 11 on the ticket row, 10 over Max-lines, 2 workflow changes with no scratch run. Most of these rules were made after the PR merged, so the count shows how often each row fires on real work. Every one of the 251 lines has a route.
+
+rp#684 was merged correctly under a ruling that allowed its added lines in CLAUDE.md. The verdict gives it two lines: the review has no `Ticket:` digest line (the reviewer's `act review` writes it), and "CLAUDE.md gets 10 added lines", whose route is `act override` naming the ruling (section 9, Q1).
+
+Held-out hand-backs: 30 real ones were sampled and labelled before the form was written; 23 carry a disclosure. Each paragraph of each was placed at five positions in a valid hand-back: 755 placements, 755 refused.
+
+### 6. Why 477 merges with no gap left
+
+A gap is a state in which pitboss's output is wrong or missing. It needs one of four things to be true. Each is false by construction, and a test in 477's CI is red if it becomes true, so the PR cannot merge with it.
+
+| A gap needs | Why it cannot hold | The CI test, and the planted hole that turns it red (`test_total.out`) |
+|---|---|---|
+| A write with no verb | The verb set covers every write tool that was ever used and every writing command | `cover_writes`, `cover_commands`; "a verb a route names is removed" |
+| A state the verdict does not read | The verdict has a row for every field of GitHub's schema and a named meaning for every documented value, alone and in pairs | `cover2`, `cover_pairs`; "a timeline kind of the frozen list is in no class", "a check conclusion ... in no table", "a mergeable_state ... in no table", "a documented kind is dropped from its class" |
+| A text read differently than written | The writer and the reader are run against each other | "`act review` writes a form the verdict does not read", "the ticket reader reads what `act ticket` writes differently", "the reviewer's instruction does not name `act review`" |
+| A line with no step | Every line the verdict can emit, over the whole enumeration, has a route | "the route of a body stop is removed", "a row that says pitboss does not know comes back", "a repository has a label pitboss does not apply" |
+
+The sets are complete because they are GitHub's own: the PR object's 49 fields, the 46 timeline kinds, the values of each enum, the 48 GitHub tools of the agent session and pitboss's 39 commands. They are derived by script from GitHub's documentation and frozen in the PR; the re-derivation gives the same bytes. GitHub's schema is stable, so the frozen sets are the whole input space of pitboss, at the merge and after it.
+
+Rulings are the other input. A ruling is recorded as a case. If it contradicts an earlier one, the recording is refused with the question, at the moment of the ruling (G4, G10). It does not surface later as a PR with no route.
+
+So when 477 is green: there is no write outside a verb, no field or value without a meaning, no hand-typed text that pitboss parses, and no line without a route. Each of these four statements is a test that was run with a planted hole and went red. That is what the thirteen post-mortems lacked: a claim of closure was never a test.
+
+### 7. What re-running the earlier drafts changed
+
+* Coverage counted any stop as covered. Requiring the row of the changed variable, and adding arm and undraft, found the uncovered cell of section 4.
+* The verdict had lines of the form "a field with no row" and "not one the verdict reads". The completeness test forbids such a line; the rows were given a meaning or removed (`milestone`, `stack`, CODEOWNERS have no rule).
+* A status passed unless it was `failure` or `error`. It now passes only on `success`.
+* The body path row refused any path anywhere in the body and stopped 42 of the 134 real PRs, most on evidence text. It reads only the commands of the Plan section.
+* The ticket reader refused 305 of 378 real tickets, which use numbered lists and paragraphs. It reads 329.
+* The token split, the session check, the tool guard, the GitHub-side gate and the sandbox are removed.
+
+### 8. The one PR
+
+All of it lands in pitboss PR 477 for ticket #444, and nothing in it waits for a token, a ruleset or any other owner setting. The contents are fixed by section 5. `pitboss nox` runs every check below, so 477's CI is green only when all of them are, and the PR merges complete. Order of the commits, each with the check that is red until the commit is in:
+
+| # | Contents | Check in `pitboss nox` that fails until it is in |
+|---|---|---|
+| 1 | Frozen enumeration and its derivation script | Re-derivation gives the two hashes of section 4 |
+| 2 | Total verdict: field rows, event classes, enum tables, review and body readers | 732 cells, 0 uncovered; 74,991 pairs, 0 exceptions |
+| 3 | Act verbs, each calling the verdict; `hold` also removes a queued PR from the merge queue | `test_act`; `cover_writes` and `cover_commands` at 0 uncovered |
+| 4 | `dispatch-next`, replacing the slot ledger commands | The dispatch cases of the 66 |
+| 5 | Ticket reader, hand-back form, rulings as cases | 755 of 755; the G10 case |
+| 6 | Brief writer and `instructions()`; the sweep skill and the worker and reviewer briefs carry its text | 68 rule files, 0 refused; the brief cases of the 66 |
+| 7 | `mutation-check` leaves the command list; mutants are a step of the CI job only | `no_local_mutants` (red on b6985a2 today); the command count is 38 |
+| 8 | Route table and the completeness test `total.complete` | Complete; 11 of 11 planted holes are red |
+| 9 | The 66 cases and the 19 removals as tests; the branch's existing tests kept where they test the same rows | 66 of 66; every removal makes a case miss |
+
+The branch's commits that add single-gap rules outside these nine are removed from the PR, since their cases are among the 66.
+
+### 9. Rulings that conflict
+
+Each is one question with the answer the prototype encodes.
+
+**Q1. "pitboss is not the final arbiter: you have to run it, but you can override it if there's a reason" (2026-11-04) against a verdict that stops.**
+Proposed: the override is the verb `act override` (the stop line, the reason). It lifts that one line for that head. It never lifts a failed check or status, a hold, a block, a closed PR or a failed read (cases G4, G27, X31).
+
+**Q2 (B2). After a Plan is approved, what follows the first Execution "changes needed"?**
+Proposed: one fix round when every finding is mechanical and named; otherwise `paused-owner`.
+
+**Q3 (B4). Quarantining a failing test:** quire's e2e rule requires `test.fixme('#N')` in the filing commit; C14 forbids any skip.
+Proposed: allowed in quire e2e only, with the ticket number. `rulecases` picks this encoding when both cases are kept (case G10).
+
+**Q4 (B3). Does a coordinator relay use up a PR's one ruling?**
+Proposed: no. Only a posted `Opus ruling` comment counts.
+
+**Q5 (B5). How is "the test fails on main" shown?**
+Proposed: no run on main. Each test plants the violation and the removal check shows the control is what refuses it, as this document does.
+
+**Q6 (B8). Does the pre-push hook run the full `pitboss nox`?**
+Proposed: only checks that finish in about a minute and print `ok`; nox is CI's. `act push` requires the `ok` (case G25).
+
+**Q7 (B6). When does 477's worker resume?**
+Proposed: when this document is accepted, on section 8.
+
+Answered by the owner on 2026-11-12 ("all work must be done in one PR"): B1 (a gap found during 477 goes into 477) and B7 (#444 stays one PR). "Nothing is added to a started PR" keeps 477 as its one stated exception.
+
+Seventeen further conflicts are resolved by removing the newer or narrower text; they are A1 to A19 in `rulings-contradictions.md` and become cases in commit 5.
+
+### 10. Files
+
+| Path under `/mnt/project-files/pitboss/cast-sets/final/` | Content |
+|---|---|
+| `RUN.sh` | Re-runs everything; data from `../v5/data`, pitboss b6985a2 by `git archive` |
+| `frozen/` | The enumeration and its script |
+| `bin/total.py`, `test_total.py`, `stale-events.txt`, `cover_pairs.py` | Completeness test, routes, instructions, planted holes, the pairwise product |
+| `bin/verdict.py`, `worlds.py`, `cover2.py` | The verdict and its executed coverage |
+| `bin/act.py`, `act2.py`, `test_act.py`, `cover_writes.py`, `cover_commands.py`, `act-routes.tsv` | The verbs and their completeness |
+| `bin/test_known.py`, `test_removal.py` | The 66 cases and the 19 removals |
+| `bin/handback2.py`, `rulecases.py`, `brief.py`, `no_local_mutants.py` and their tests | Forms, rulings as cases, brief, mutants in CI only |
+| `bin/real_rebuild.py`, `real_routes.py`, `corpus_tickets.py`, `corpus/` | Real-data runs |
+| `out/` | Every output cited |
+
+## Evidence
+
+The full `pitboss nox` run of this head is CI's `Run Nox` step of `pr-main.yml` (each Plan row names its test there); the local run's stages are in the Execution section. The register:
+
+```pitboss-expand sha256=b5c9bc43e6f883a3 head=dcafe445ec41a832041f3404b0a112bc52ab8d69
+$ pitboss rules check
+rules: 180 rows, 15 open: T111 T336 T337 T319 T361 T4 T6 T93 T105 T133 T51 T334 T310 T432 T449
+rules check: ok
+```
+
+Head: dcafe445ec41a832041f3404b0a112bc52ab8d69
+
+https://claude.ai/code/session_01HwLsLqwSNSbmmJuhcqUVnw
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

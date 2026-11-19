@@ -1,0 +1,78 @@
+Fixes bats-lang/pwa#313
+
+Done-when digest: 205fe34e9c88410b
+
+Kind: process and test tooling (the smoke script, which runs on the CI host with adb): it adds no capability; nothing pwa generates for the app and nothing the app runs changes. No non-bats code of ours is added: the script text is written by bats (`src/lib.bats`), and the only other edits are two test files that already existed (`tests/android-smoke-dom/check.sh`, `tests/dynamic/smoke-compat`) and three lines of paths in `android.yml`.
+
+## Plan
+
+What changes: a new `_smoke_probes_scaled_printed` and `build_smoke_test_script_scaled_probes_printed` beside the old `_smoke_probes_scaled` and `build_smoke_test_script_scaled_probes` (type, bound 20600 and text of the old ones unchanged, the old one marked deprecated; `create_android_locked` writes the new one); `android.yml` uploads the three files with the existing `android-smoke-test` artifact; `check.sh` case 10 asserts the lines; `tests/dynamic/smoke-compat` prints the old form as a fourth section.
+
+1. Inside `for scale in 1.0 2.0`, after the long press (`adb shell input swipe`) the script prints `Probe long press: font scale $scale at $px $py`; after each `adb shell -n input tap` it prints `Probe tap: font scale $scale: $name at $px $py`; when the page's answer is `true` it prints `Probe taps: font scale $scale: $taps taps, the page saw a click on every one: true`; when it is not, the failure line is unchanged. None of the three starts with `Long press:` or `Taps:` (those are the failure markers). Command: `grep -n -E 'for scale in 1.0 2.0|adb shell input swipe|adb shell -n input tap|Probe (long press|tap|taps):|"Long press:|"Taps:' src/lib.bats`
+
+2. The files `select-point-$scale.txt`, `tap-points-$scale.txt` and `tap-result-$scale.txt` are uploaded with the job's artifacts (the existing `android-smoke-test` artifact), for 1.0 and 2.0. Command: `grep -n -E 'name: android-smoke-test|smoke/(select-point|tap-points|tap-result)-\*\.txt' .github/workflows/android.yml`
+
+3. pwa's CLAUDE.md allows test tooling as process (the smoke script changes nothing the app runs). Command: `grep -n -i 'test tooling' CLAUDE.md`
+
+4. `build_smoke_test_script_scaled_probes` and `_smoke_probes_scaled` keep their old signatures, bounds and output beside the new ones for one published version (the overlap rule: the new form beside the old, a test calls the old form), and a test asserts the three lines in the generated script and that the failure lines are unchanged. CI shows this row (pointer, no evidence in the body): workflow `check.yml`, job `check`, found for the head by `gh api repos/bats-lang/pwa/actions/runs?head_sha=<Head>` (the run named `check`). Step `Dynamic tests` runs `tests/dynamic/run.sh`, whose package `smoke-compat` prints the old form as a fourth section compared with `tests/dynamic/smoke-compat/expected`, greppable `smoke-compat`. Step `Smoke test keeps the page's DOM and plays the font scale` runs `tests/android-smoke-dom/check.sh`, greppable `case 10, a setup probe, a ready probe and probes at both scales` (the three `Probe` lines at 1.0 and 2.0, no line starting `Long press:` or `Taps:` on success) and greppable `case 10, a miss at 2.0: Taps: font scale 2.0: the page saw no click on: back` (the failure line unchanged).
+
+5. The green `android / smoke-test` log of a quire head built with the new pwa lists, for 1.0 and 2.0, one `Probe long press`, one `Probe tap` for each toolbar button and `Probe taps: ... true`, and the artifact holds the three files for each scale. CI shows this row once a quire head uses this pwa, which needs this PR merged and pwa published (a quire pull request that moves its pwa pin): workflow `android.yml`, job `smoke-test`, step `Run the app on an emulator (attempt 1 of 2)`, greppable `Probe long press: font scale 1.0` and greppable `Probe taps: font scale 2.0`; step `Upload screenshot, UI dump and logcat` uploads the artifact `android-smoke-test` of that run. The orchestrator finds the run by `gh api repos/bats-lang/quire/actions/runs?head_sha=<quire head>`. It cannot be had in this PR.
+
+## Execution
+
+The edits are in `src/lib.bats`, `.github/workflows/android.yml`, `tests/android-smoke-dom/check.sh` and `tests/dynamic/smoke-compat`. The new piece is 4588 bytes of its bound 4600 (the bound of the old piece), so the bound of the whole, 20600, is the old one. The `expected` section of the old form was made by taking section 3 (the probes form) and replacing its probes piece with the old `_smoke_probes_scaled` text, as extracted from the bput strings of the source. No local build was run: this checkout is cold (10 to 15 minutes), so type checking and the tests are CI's.
+
+Deviations: none
+
+Head: b3d09618311f4ad4690375901ac8382546bae332
+
+## Evidence
+
+```pitboss-expand sha256=4c9dd84901b773a2 head=b3d09618311f4ad4690375901ac8382546bae332
+$ grep -n -E 'for scale in 1.0 2.0|adb shell input swipe|adb shell -n input tap|Probe (long press|tap|taps):|"Long press:|"Taps:' src/lib.bats
+1327:  val () = $B.bput(b, "    adb shell input swipe \"${px%%.*}\" \"${py%%.*}\" \"${px%%.*}\" \"${py%%.*}\" 1000\n")
+1330:  val () = $B.bput(b, "    fail \"Long press: smoke-select-point.js answered '$(head -c 200 \"$OUT/select-point.txt\")', not x and y in device pixels\"\n")
+1338:  val () = $B.bput(b, "    fail \"Taps: smoke-tap-points.js and smoke-tap-result.js go together, and one is missing\"\n")
+1345:  val () = $B.bput(b, "        adb shell -n input tap \"${px%%.*}\" \"${py%%.*}\"\n")
+1349:  val () = $B.bput(b, "        fail \"Taps: smoke-tap-points.js answered the line '$name $px $py $extra', not a name and x and y in device pixels\"\n")
+1353:  val () = $B.bput(b, "      fail \"Taps: smoke-tap-points.js named no button ('$(head -c 200 \"$OUT/tap-points.txt\")')\"\n")
+1357:  val () = $B.bput(b, "        fail \"Taps: the page saw no click on: $(head -c 200 \"$OUT/tap-result.txt\" | tr '\\n' ' ')\"\n")
+1398:  val () = $B.bput(b, "  for scale in 1.0 2.0; do\n")
+1407:  val () = $B.bput(b, "          adb shell input swipe \"${px%%.*}\" \"${py%%.*}\" \"${px%%.*}\" \"${py%%.*}\" 1000\n")
+1410:  val () = $B.bput(b, "          fail \"Long press: font scale $scale: smoke-select-point.js answered '$(head -c 200 \"$OUT/select-point-$scale.txt\")', not x and y in device pixels\"\n")
+1418:  val () = $B.bput(b, "          fail \"Taps: font scale $scale: smoke-tap-points.js and smoke-tap-result.js go together, and one is missing\"\n")
+1425:  val () = $B.bput(b, "              adb shell -n input tap \"${px%%.*}\" \"${py%%.*}\"\n")
+1429:  val () = $B.bput(b, "              fail \"Taps: font scale $scale: smoke-tap-points.js answered the line '$name $px $py $extra', not a name and x and y in device pixels\"\n")
+1433:  val () = $B.bput(b, "            fail \"Taps: font scale $scale: smoke-tap-points.js named no button ('$(head -c 200 \"$OUT/tap-points-$scale.txt\")')\"\n")
+1437:  val () = $B.bput(b, "              fail \"Taps: font scale $scale: the page saw no click on: $(head -c 200 \"$OUT/tap-result-$scale.txt\" | tr '\\n' ' ')\"\n")
+1483:  val () = $B.bput(b, "  for scale in 1.0 2.0; do\n")
+1492:  val () = $B.bput(b, "          adb shell input swipe \"${px%%.*}\" \"${py%%.*}\" \"${px%%.*}\" \"${py%%.*}\" 1000\n")
+1493:  val () = $B.bput(b, "          echo \"Probe long press: font scale $scale at $px $py\"\n")
+1496:  val () = $B.bput(b, "          fail \"Long press: font scale $scale: smoke-select-point.js answered '$(head -c 200 \"$OUT/select-point-$scale.txt\")', not x and y in device pixels\"\n")
+1504:  val () = $B.bput(b, "          fail \"Taps: font scale $scale: smoke-tap-points.js and smoke-tap-result.js go together, and one is missing\"\n")
+1511:  val () = $B.bput(b, "              adb shell -n input tap \"${px%%.*}\" \"${py%%.*}\"\n")
+1512:  val () = $B.bput(b, "              echo \"Probe tap: font scale $scale: $name at $px $py\"\n")
+1516:  val () = $B.bput(b, "              fail \"Taps: font scale $scale: smoke-tap-points.js answered the line '$name $px $py $extra', not a name and x and y in device pixels\"\n")
+1520:  val () = $B.bput(b, "            fail \"Taps: font scale $scale: smoke-tap-points.js named no button ('$(head -c 200 \"$OUT/tap-points-$scale.txt\")')\"\n")
+1524:  val () = $B.bput(b, "              fail \"Taps: font scale $scale: the page saw no click on: $(head -c 200 \"$OUT/tap-result-$scale.txt\" | tr '\\n' ' ')\"\n")
+1526:  val () = $B.bput(b, "              echo \"Probe taps: font scale $scale: $taps taps, the page saw a click on every one: true\"\n")
+```
+
+```pitboss-expand sha256=e4c217c8a0246b48 head=b3d09618311f4ad4690375901ac8382546bae332
+$ grep -n -E 'name: android-smoke-test|smoke/(select-point|tap-points|tap-result)-\*\.txt' .github/workflows/android.yml
+881:          name: android-smoke-test
+887:            smoke/select-point-*.txt
+888:            smoke/tap-points-*.txt
+889:            smoke/tap-result-*.txt
+```
+
+```pitboss-expand sha256=ff02e62a58cd6ae4 head=b3d09618311f4ad4690375901ac8382546bae332
+$ grep -n -i 'test tooling' CLAUDE.md
+142:  no capability. Test tooling (gen-pwa test, which runs an app's suite)
+```
+
+https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

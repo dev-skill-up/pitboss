@@ -57,6 +57,21 @@ def items(ticket: str) -> Sequence[str]:
     return [text for _, text in _marked(ticket)]
 
 
+def leads(ticket: str) -> Sequence[str]:
+    """The lines of a ticket's Done-when that are no bullet.
+
+    The keyword is lead-line: a line before the list ("Each item is demonstrated
+    by Y") speaks for the list, and a bullet only for itself.
+
+    Args:
+        ticket: the ticket's text.
+
+    Returns:
+        The text of each item that has no bullet marker, in order.
+    """
+    return [text for marker, text in _marked(ticket) if not marker]
+
+
 def _marked(ticket: str) -> Sequence[tuple[str, str]]:
     # each item's marker (empty for a paragraph) and its text
     lines = _lines(ticket)

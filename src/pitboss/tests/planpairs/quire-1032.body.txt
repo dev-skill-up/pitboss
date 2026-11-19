@@ -1,0 +1,110 @@
+Fixes #848
+
+Head: 6e4efe5983b309d974058eb48ab162277c3aeefa
+
+`take_text_proved` is in the new module `src/text_proved.bats`, beside `take_text` (unchanged). It takes an entry's data as a `barr` whose cells are in its type, plus the entry's method as `entry_method(kind)`, and gives the array back with a `text_taken(kind, cs)`. `TextTaken` carries `INFLATES(kind, cs, output)`, `TEXTOF(output, plan, TOUT_bytes(octets))` and `HOLDS(text, 0, octets, count)` over the same `output` cells. A deflated entry is inflated by zip's `inflate_cells_proved` (the in-memory form that returns `INFLATES`; `inflate_proved` reads and writes files and is native only, and quire is wasm). A stored entry is a copy of its data. The text is read by `text_plan_proved`, and converted by `text_convert_size` and `text_convert_fill` when it needs a conversion. Other outcomes have constructors of their own: refused (with its `TEXTOF`), empty (with its `INFLATES`), malformed, and too large.
+
+Lemma `text_taken_functional`: the same compressed cells by the same method give the same plan and the same octets (`EQPLAN`, `EQB`), from `inflates_functional` and `textof_functional`.
+
+The PR starts with the relock of `bats.lock` to zip 2026.10.28.85840 (repository-prototype main 24a99fd). That brings two proofs-audit rows of zip (`INFLATE_OUTPUT_MOST`, `window_nth_back`, both a bound of 2147483647). Main has since landed a verdict for each of the two rows with its own fixtures (`-context`, `-range`); the proofs audit refuses a second verdict for one row, so this PR's two verdicts are folded into main's: each row's one verdict lists all four fixtures (main's two and this PR's `-written`/`-satisfiable` or `-most`/`-satisfiable`).
+
+Fixes of the red CI of the first head: the plan job (four `text-proved` fixtures were in no group of `tests/groups.json`: the accept is in `accepts`, the three rejects in `rejects`); the check job (`bats.lock` locked zip 2026.10.28.85840, which the package repository at the old merge base's `.github/repository-version` did not hold; main's pin holds it, so the merge of main below is what the lock needs); the proofs-audit duplicate that the merge of main brought (above). The `lint` job of the first head failed on a review comment (p1 for the removal ticket); its newer run on the same head passed.
+
+Notes for the reviewer:
+* The array is a `barr`, not an arena piece, because the decoder's output is one. Nothing calls `take_text_proved` yet; moving the callers of `take_text` is quire#849.
+* `.github/bats-version` is not moved: the change needs no newer compiler. The local checks ran with a bats built from bats-lang/bats main at 1bbf, not the pinned compiler; CI runs the pinned one.
+* No e2e or dynamic test reaches `take_text_proved`, since no caller does. What is checked is the types (accept and reject fixtures) and the lemma (mutation check).
+* The local affected run is below. The branch's own `scripts/ci-groups.py` has the `local` command and it ran from this checkout. It selects the whole static population and every spec (`src/text_proved.bats`: the app -> e2e all, static all; `tests/groups.json`: CI files -> e2e all, static all): 306 fixtures from `bats fixtures --list-affected`, `check`, `checkers`, `solver` and 96 e2e specs. What ran here: `check`, `checkers` and `solver` (all ok in the run below), plus the four new fixtures and `mutation/text_proved` (Evidence further down). What did not run here: the 306 listed static fixtures (in that run `bats fixtures` printed bats's usage line and none of them ran; cause not found, so CI is where they run) and the e2e step (this machine has no Playwright and no built `gen-pwa` test setup: `gen-pwa test: the project has no Playwright`; the seeded sample of 12 of the 96 specs, seed 953935338 in the run below, was drawn but not run; the run's command cuts the printed line at 330 characters). CI runs the 306 fixtures and all 96 specs once the PR is marked ready.
+
+## Plan
+
+1. Relock `bats.lock` to the zip that publishes `inflate_cells_proved`, with one verdict for each of its two new proofs-audit rows.
+2. Add `src/text_proved.bats` with `take_text_proved` and the lemma `text_taken_functional`, leaving `take_text` as it is.
+3. Pin the types with one accept fixture and three reject fixtures, put the four in groups, and put the module under the mutation check.
+
+## Execution
+
+1. `bats.lock` moved to zip 2026.10.28.85840; the two verdicts are folded into main's.
+2. `src/text_proved.bats` is added; `src/book.bats` is untouched.
+3. The fixtures `accept/text-proved-two-takes-one-text`, `reject/text-proved-functional-other-entry`, `reject/text-proved-functional-other-method` and `reject/text-proved-held-other-octets` are added and in `tests/groups.json`, and `src/text_proved.bats` is in `tests/static/mutation_modules.txt`.
+4. The e2e step (96 specs) and the 306 listed static fixtures did not run on this machine: it has no Playwright and no built `gen-pwa` test setup, and `bats fixtures` printed its usage line in the `local --run` below. CI runs both.
+
+## Evidence
+
+```pitboss-expand sha256=ecb0c5eafa9bee1e
+$ git diff origin/main -- bats.lock
+```
+
+```pitboss-expand sha256=023235ab0e32d8d6
+$ python3 scripts/ci-groups.py matrix | tail -1
+96 specs and 338 static members, each in exactly one group
+static=["accepts", "accepts-data", "accepts-reader", "app", "mutation-bytes-records", "mutation-bytes-seq", "mutation-bytesarr-cut", "mutation-chunk", "mutation-crc-1", "mutation-crc-2", "mutation-crc-3", "mutation-crc-4", "mutation-crc-5", "mutation-fields-record", "mutation-schema-1", "mutation-schema-2", "mutation-text-codes", "mutation-text-labels-1", "mutation-text-labels-2", "mutation-text-labels-3", "mutation-text-labels-4", "mutation-text-labels-5", "mutation-text-proved", "mutation-text-relation-1", "mutation-text-relation-2", "mutation-text-relation-3", "mutation-text-relation-4", "rejects", "rest"]
+```
+
+```pitboss-expand sha256=bd91d65375426e15
+$ cd /home/user/w/quire-1032 && PATH=/home/user/w/bats-1bbf/bin:$PATH BATS_SLOTS=1 BATS_LOCK_DIR=/tmp/work/q1032/lock BATS_CACHE_DIR=/tmp/work/q1032/cache QUIRE_STATIC_WORK=/tmp/work/q1032/static BATS_REPOSITORY=/home/user/repository-prototype bats check 2>&1 | tail -3
+built ./dist/debug/gen-pwa (debug)
+built ./dist/debug/quire.wasm (wasm)
+check passed (binary)
+```
+
+```pitboss-expand sha256=dfe6ee8feb04f3a4
+$ PATH=/home/user/w/bats-1bbf/bin:$PATH BATS_SLOTS=1 BATS_LOCK_DIR=/tmp/work/q1032/lock BATS_CACHE_DIR=/tmp/work/q1032/cache QUIRE_STATIC_WORK=/tmp/work/q1032/static tests/static/run.sh /home/user/repository-prototype accept/text-proved-two-takes-one-text reject/text-proved-functional-other-entry reject/text-proved-functional-other-method reject/text-proved-held-other-octets
+ok   accept/text-proved-two-takes-one-text (0 s) [memo]
+ok   reject/text-proved-functional-other-entry (0 s) [memo]
+ok   reject/text-proved-functional-other-method (0 s) [memo]
+ok   reject/text-proved-held-other-octets (0 s) [memo]
+fixtures: 4 ok, 0 failed (4 from the memo)
+```
+
+```pitboss-expand sha256=ff7a819abdb222dc
+$ python3 tests/static/proofs_audit.py --fail-on high src | tail -2
+22 high, 450 medium, 2 low
+9 verdicts used, 0 rows without one, 0 bad verdicts
+```
+
+```pitboss-expand sha256=8edc243e205fb725
+$ python3 tests/static/proofs_audit.py --fail-on high --lock bats.lock --repository /home/user/repository-prototype | tail -2
+104 high, 472 medium, 3 low
+43 verdicts used, 0 rows without one, 0 bad verdicts
+```
+
+```pitboss-expand sha256=3d0be511eeebdd03
+$ PATH=/home/user/w/bats-1bbf/bin:$PATH BATS_SLOTS=1 BATS_LOCK_DIR=/tmp/work/q1032/lock BATS_CACHE_DIR=/tmp/work/q1032/cache QUIRE_STATIC_WORK=/tmp/work/q1032/static tests/static/run.sh /home/user/repository-prototype mutation/text_proved
+ok   mutation/text_proved: 9 mutant(s) rejected, 0 accepted, 0 broken, 0 controls failed
+```
+
+```pitboss-expand sha256=8fd878f5cd03809e
+$ cd /home/user/w/quire-1032 && PATH=/home/user/w/bats-1bbf/bin:$PATH BATS_SLOTS=1 BATS_LOCK_DIR=/tmp/work/q1032/lock BATS_CACHE_DIR=/tmp/work/q1032/cache QUIRE_STATIC_WORK=/tmp/work/q1032/static BATS_REPOSITORY=/home/user/repository-prototype python3 scripts/ci-groups.py local 37008d78b38a6adc98e385dec6cfbffcf7e3c750 2>&1 | grep -v '^[AM] ' | grep -v '^\(accept\|reject\|e2e\)/'
+306 fixtures from `bats fixtures tests/static --list-affected` over 28 changed paths
+CI runs the whole static population for: tests/groups.json: CI files
+e2e: every spec (the app or a shared module changed; a spec reads the built app)
+check
+checkers
+solver
+```
+
+```pitboss-expand sha256=096523fec20340ae
+$ cd /home/user/w/quire-1032 && PATH=/home/user/w/bats-1bbf/bin:$PATH BATS_SLOTS=1 BATS_LOCK_DIR=/tmp/work/q1032/lock BATS_CACHE_DIR=/tmp/work/q1032/cache QUIRE_STATIC_WORK=/tmp/work/q1032/static BATS_REPOSITORY=/home/user/repository-prototype python3 scripts/ci-groups.py local 37008d78b38a6adc98e385dec6cfbffcf7e3c750 2>/dev/null | cut -d/ -f1 | sort | uniq -c
+     41 accept
+      1 check
+      1 checkers
+     96 e2e
+    265 reject
+      1 solver
+```
+
+```pitboss-expand sha256=017c9fcae1208787
+$ cd /home/user/w/quire-1032 && PATH=/home/user/w/bats-1bbf/bin:$PATH BATS_SLOTS=1 BATS_LOCK_DIR=/tmp/work/q1032/lock BATS_CACHE_DIR=/tmp/work/q1032/cache QUIRE_STATIC_WORK=/tmp/work/q1032/static BATS_REPOSITORY=/home/user/repository-prototype python3 scripts/ci-groups.py local 37008d78b38a6adc98e385dec6cfbffcf7e3c750 --run /home/user/repository-prototype 2>&1 | tail -6 | cut -c1-330
+ok   solver/gen_lemmas: 12 lemma specs, 24 fixtures checked, 0 differ
+ok   solver/gen_guards: 106 dataprop constructors, 554 fixtures checked, 0 differ
+ok   solver/gen_vacuity: 36 vacuity specs, 72 fixtures checked, 0 differ
+usage: bats <init|lock|add|remove|build|run|test|check|tree|upload|clean|ats2|clone-repository|record-commit|completions> [--only debug|release]
+e2e: 12 of the 96 selected specs run (seed 953935338, --specs 12); CI runs the rest: e2e/about.spec.js e2e/folders.spec.js e2e/font-scale.spec.js e2e/library.spec.js e2e/math-layout.spec.js e2e/navigation.spec.js e2e/reader.spec.js e2e/reading-ruler.spec.js e2e/storage.spec.js e2e/sync-android-outcomes.spec.js e2e/sync-android.s
+gen-pwa test: the project has no Playwright (node_modules/playwright-core): npm install
+```
+
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

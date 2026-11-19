@@ -1,0 +1,9 @@
+Owner rule (2026-10-26, from bats-lang/quire#905, whose qsweep is not changed; pitboss carries the feature): runner pressure must be absent for a quiet period before a hold lifts, because some jobs take a minute to trigger in a serial queue. And once a job is put on the queue it counts as immediate pressure, so stuffing the queue cannot eject entries (a dequeued entry restarts the merge queue and causes infinite holds).
+
+Done when:
+- `pitboss pressure` appends one line (time, `none` or `hold`) to a record file (config key `[runners] record`) at each call; it exits 0 only when the record shows no hold at any look for the last `[runners] quiet_minutes` minutes in a row (default 15), and exits 1 saying how many minutes remain otherwise; a hold line resets the quiet period.
+- `pitboss queued` appends a hold line at once (called by the orchestrator after a merge, an enqueue or a push that went out); `pitboss push` appends one when its push goes out and nothing when it refuses, so a retried refused push does not keep resetting the wait.
+- Tests with an injected clock and gh: a record whose newest hold is 14 minutes old gives exit 1, 16 minutes old gives exit 0; a push at minute 10 is refused and leaves the record unchanged (exit 0 at minute 15); a push that goes out at minute 16 gives exit 1 until minute 31; `pitboss queued` after a clear look resets the wait.
+- The sweep skill's rules.md and ci.md state the rule once (the quiet period is the config key, not a number in the rule), and the missing-key note of ci.md for the quiet period is removed.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)

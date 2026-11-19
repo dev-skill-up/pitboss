@@ -24,7 +24,6 @@ import re
 from typing import AbstractSet, Sequence
 
 from . import bodytext, hopedfigure, planrowtext, ticketwhen
-from .textparts import heads
 
 CHECK = "plan-done-when"
 MEASUREMENT = "plan-measurement"
@@ -100,9 +99,10 @@ def measurements(item: str) -> Sequence[str]:
 
 
 def _runs(command: str, remainder: str) -> bool:
-    # the row's own backticked spans: the command itself, or piped into more
+    # the row's own backticked spans: the command itself, or followed by a space
+    # and more (arguments, a pipe), or by a pipe (keyword: measurement-arguments)
     return any(
-        heads(span, command, " |")
+        span == command or span.startswith((f"{command} ", f"{command}|"))
         for span in (_squeezed(each) for each in planrowtext.spans(remainder))
     )
 
@@ -149,13 +149,15 @@ def form(ticket: str) -> Sequence[str]:
         ticket: the ticket's text.
 
     Returns:
-        One finding naming the first item with no ``demonstrated by``, unless an
-        item says that each (every, all) is demonstrated by something; none when
-        the ticket has no Done-when.
+        One finding naming the first item with no ``demonstrated by``, unless a
+        lead line (a line of the section that is no bullet) says that each (every,
+        all) is demonstrated by something; none when the ticket has no Done-when.
+        A bullet that says each, every or all keeps the check for the others.
     """
     found = ticketwhen.items(ticket)
     hoped = hopedfigure.findings(ticket)
-    if any(EACH.search(each) for each in found):
+    # keyword: lead-line: only a line that is no bullet states it for every item
+    if any(EACH.search(each) for each in ticketwhen.leads(ticket)):
         return hoped
     bare = [each for each in found if not DEMONSTRATED.search(each)]
     said = [NOT_DEMONSTRATED.format(check=FORM, item=bare[0][:SHOWN])] if bare else []

@@ -1,0 +1,59 @@
+Fixes bats-lang/quire#1072
+
+Head: e2ff20359364ecc8448fbf86084f458ad58851bb
+
+Deviations: none
+
+## Plan
+
+Why: `e2e/stall-capture.spec.js:993` ("every page of a test about to time out is captured") fails on desktop, mobile-portrait and android in `e2e (reading-tools)` because the capture of an idle page that answers reports `paused` in an anonymous function at line 1 column 1 with no URL, and the spec expects `capture.paused` to be undefined.
+
+Done-when of #1072, word for word:
+
+> 1. The cause of the pause is shown by evidence: the script at line 1 column 1 with an empty url is named (what ran in the page, from which call of `e2e/stall-capture.js`), with the log of a run of the spec that shows it.
+> 2. The spec at line 993 and the one at line 786 pass in `e2e (reading-tools)` on desktop, mobile-portrait and android in three runs of one head in a row, without a retry, a skip or a weaker assertion: if the pause of the capture's own probe is a legitimate pause, `e2e/stall-capture.js` does not report it as `paused`.
+> 3. The PR cites those three runs (workflow `check.yml`, job `e2e (reading-tools)`).
+
+The change does, per Done-when item:
+
+1. **Item 1, the script is named.** What the evidence below shows: in runs 42225686094 and 42221882797 the failing capture logs `the main thread is free: it answers a task, and paused next in (anonymous) (:1:1)` with exactly one frame, `(anonymous)` at line 1 column 1, url empty, in a page (`<title>Idle</title><p>Idle</p>`) that has no script. That is the first statement of a top-level script that a DevTools client started with `Runtime.evaluate`: the scripts `e2e/stall-capture.js` starts that way are `session.send('Runtime.evaluate', { expression: '1' })` (the task the capture asks, `captureArmed`) and `OBSERVE_LONG_TASKS` (`watchTiming`); a `page.evaluate` function would add Playwright's frames. The fixed code does not pause in them at all, so a green run of the existing specs prints nothing about the script. So this change makes the pause happen on purpose, in a spec of its own (`stall-capture.spec.js`, "a pause that stops in a client's script is named in the capture's summary and is not reported as paused"): a second DevTools session of the page keeps starting `Runtime.evaluate` of `1` (no URL, line 1 column 1, no caller, the same shape as the failing frame) while the capture asks for its pause; the pause stops in one, the spec prints the summary line `pause stopped in a script with no URL, made by a debugger client (line 1 column 1, no caller) (reason ..., the watch's own calls running: ...)` to the log and asserts `paused` is undefined and `clientPause.frames[0]` is url `''`, line 1, column 1. The watch's own scripts also carry `//# sourceURL=quire-stall-watch/<name>.js` (`task`, `observe`) and its page-side calls are noted while they run (`ownCall`), so a pause in one prints `quire-stall-watch/task.js` instead. The failing frame is read from `gh api repos/bats-lang/quire/actions/jobs/127935047107/logs | grep -n "paused next in\|Received: {\"frames\"" | cut -c1-260` (Evidence). The log of a run of this head shows the line, and Done-when 1 is read from it (CI pointer below). The unit case `clientScript` (`stall-capture.spec.js:1014`) covers the frame shapes without a browser.
+2. **Item 2, the capture does not report the probe's pause as `paused`.** In `e2e/stall-capture.js`: (a) the harvest does not run while the page is captured (`armed.capturing`), as the probe already does not; (b) before `Debugger.pause` the capture of a page that answers waits (at most `COMMAND_MS`) for the watch's own calls in flight; (c) a pause of a page that answers a task which stopped in a script of a debugger client (`clientScript`: the watch's sourceURL, or the first statement of a script with no URL, no function and no caller) is resumed and recorded as `clientPause`, not `paused`, and the capture then takes the profile as it does when nothing runs (`pauseError` says why). A page that does not answer is unchanged: its pause is still `paused` (`stall-capture.spec.js:211`, `:224`, `evidence.spec.js:122`). No assertion of `stall-capture.spec.js:786` or `:993` is changed, retried or skipped. A case for `clientScript` is added (`stall-capture.spec.js`, "a pause in a script of the watch or the first statement of a client's script is not the page's ..."). In each of the three runs, the step `Run e2e tests` of job `e2e (reading-tools)` (workflow `check.yml`) shows `✓ ... stall-capture.spec.js:993:1 › every page of a test about to time out is captured` on `[desktop]`, `[mobile-portrait]` and `[android]`. It shows `✓ ... stall-capture.spec.js:786:1 › a busy page next to an idle healthy one` on `[desktop]`, and `- ... stall-capture.spec.js:786:1` (skipped) on `[mobile-portrait]` and `[android]`. That skip is `desktopOnly` (`stall-capture.spec.js:106`), which is on main and is not changed here. It is not a skip this change adds, which Done-when 2 forbids.
+3. **Item 3, the three runs:** all three are workflow `check.yml` at head `e2ff20359364ecc8448fbf86084f458ad58851bb`, job `e2e (reading-tools)`, step `Run e2e tests`. The first is run 42264070622 (event `pull_request`, job 128057018322). The second and third are `workflow_dispatch` runs made by the orchestrator. Each is cited with its run id, its job id and the log lines of the strings above, plus, for Done-when 1, the line `pause stopped in a script with no URL, made by a debugger client` from the same step.
+
+Not done here, said plainly: `stall-capture.spec.js:786` ("a busy page next to an idle healthy one") failed once on desktop in run 42225686094 with `capture.presumedBusy` undefined; the logs read do not show why, and this change does not touch the presumed-busy rule. Item 2 requires it to pass in the three runs; if it fails in one, that failure is the next thing to root-cause, not a retry.
+
+## Execution
+
+Files: `e2e/stall-capture.js` (the helpers `ownCall`, `clientScript`, `sourceUrlOf` and `OWN_SCRIPT` before `arm`; `armed.running`; `scriptParsed` reads `sourceURL`; the harvest guard; the wait and the `clientPause` branch in `captureArmed`; the line in `summary`) and `e2e/stall-capture.spec.js` (the import of `clientScript`, the `clientScript` case and the case that forces the pause and prints the line). No `src/` change, so no `bats check` and no `bootstrap/c`. No Playwright browser exists on the machine that wrote this, so no spec was run here; CI runs them.
+
+## Evidence
+
+### What the failing runs logged (Done-when 1, the input)
+
+```pitboss-expand sha256=c4fa96672ab47a10
+$ gh api repos/bats-lang/quire/actions/jobs/127935047107/logs | grep -n "paused next in\|Received: {\"frames\"" | cut -c1-260
+793:2026-11-06T14:19:41.6546726Z   the main thread is free: it answers a task, and paused next in spinForever (:2:41)
+1406:2026-11-06T14:27:36.5416652Z   the main thread is free: it answers a task, and paused next in (anonymous) (:1:52)
+1665:2026-11-06T14:30:09.8377079Z   the main thread is free: it answers a task, and paused next in (anonymous) (:1:1)
+1867:2026-11-06T14:33:44.9814174Z   the main thread is free: it answers a task, and paused next in (anonymous) (:1:1)
+2110:2026-11-06T14:37:35.9693233Z   the main thread is free: it answers a task, and paused next in (anonymous) (:1:1)
+2231:2026-11-06T14:38:36.7893610Z     Received: {"frames": [{"column": 1, "functionName": "(anonymous)", "line": 1, "url": ""}], "reason": "other"}
+2288:2026-11-06T14:38:36.7928303Z     Received: {"frames": [{"column": 1, "functionName": "(anonymous)", "line": 1, "url": ""}], "reason": "other"}
+2345:2026-11-06T14:38:36.7966313Z     Received: {"frames": [{"column": 1, "functionName": "(anonymous)", "line": 1, "url": ""}], "reason": "other"}
+```
+
+Line 1406 is another test's capture, stopped at column 52 of a function (not the one of the failure); lines 1665, 1867 and 2110 are the three projects of the failing spec, and 2231, 2288 and 2345 are its `Received` values.
+
+### CI pointer (Done-when 1, 2 and 3)
+
+All three runs are of workflow `check.yml` at head `e2ff20359364ecc8448fbf86084f458ad58851bb`, job `e2e (reading-tools)`, step `Run e2e tests`. In each, the step prints `✓ ... stall-capture.spec.js:993:1 › every page of a test about to time out is captured` on `[desktop]`, `[mobile-portrait]` and `[android]`, `✓ ... stall-capture.spec.js:786:1 › a busy page next to an idle healthy one` on `[desktop]`, `- ... stall-capture.spec.js:786:1` (skipped by `desktopOnly`) on `[mobile-portrait]` and `[android]`, and, for Done-when 1, `pause stopped in a script with no URL, made by a debugger client` once on each project. The strings are found in the job log with `grep -n "stall-capture.spec.js:993:1\|stall-capture.spec.js:786:1\|pause stopped in"`.
+
+Run 42264070622 (event `pull_request`), job 128057018322: https://github.com/bats-lang/quire/actions/runs/42264070622/job/128057018322 . Log lines: `:993` passes at 1960 `[desktop]`, 1586 `[mobile-portrait]`, 2167 `[android]`; `:786` passes at 1458 `[desktop]` and is skipped at 1554 `[mobile-portrait]` and 2127 `[android]`; `pause stopped in` at 1963, 1588 and 2170.
+
+Run 42295324424 (event `workflow_dispatch`), job 128179584620: https://github.com/bats-lang/quire/actions/runs/42295324424/job/128179584620 . Log lines: `:993` passes at 1927 `[desktop]`, 1668 `[mobile-portrait]`, 2153 `[android]`; `:786` passes at 1430 `[desktop]` and is skipped at 1543 `[mobile-portrait]` and 2114 `[android]`; `pause stopped in` at 1930, 1670 and 2155.
+
+Run 42324676871 (event `workflow_dispatch`), job 128266769190: https://github.com/bats-lang/quire/actions/runs/42324676871/job/128266769190 . Log lines: `:993` passes at 1907 `[desktop]`, 1665 `[mobile-portrait]`, 2150 `[android]`; `:786` passes at 1402 `[desktop]` and is skipped at 1632 `[mobile-portrait]` and 2111 `[android]`; `pause stopped in` at 1909, 1667 and 2153.
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

@@ -1,0 +1,39 @@
+This is the package side of bats-lang/quire#203.
+
+## Survey (default branches, 2026-10-02)
+| | Runs `bats lock` in CI | `bats.lock` in `.gitignore` | bats compiler checked out at |
+|---|---|---|---|
+| bridge, dom, html, gestures, zip, file, argparse, dict, decompress, file-input, process, builder, css, env, path, sha256, sort, str, toml, widget, xml-tree, json | yes | yes | `main` |
+| pwa | yes (2 workflows) | yes | `main` |
+| arith, list | no | yes | `main` |
+| array, promise, result | no | no | `main` |
+| bats (the compiler) | no; its lock is committed | no | n/a |
+
+Every package except the compiler also calls `bats-lang/repository-prototype/.github/workflows/publish.yml@main`. pwa also calls `bats-lang/pwa/.github/workflows/android.yml@main`. archived event and dom-read have no CI.
+
+So a package's CI result depends on:
+- what was published elsewhere since the last run;
+- the compiler's main;
+- this repository's publish workflow's main.
+
+The same commit can pass, then fail. It happened today: bats#226, the linear-allocation rule, and every breaking package publish could each turn an unrelated package's main red.
+
+## Decision
+The same rule as quire#203: every input to a package's own CI is pinned in that package's source, and pins move only through a reviewed PR that runs the same CI.
+
+1. **The lock:** commit `bats.lock` (drop it from `.gitignore`); CI uses it and never runs `bats lock`. A library's lock pins only its own CI and tests. Dependents still resolve their own versions, so publishing is unchanged.
+2. **The compiler:** pinned by SHA in one file (`.github/bats-version`), read by every workflow.
+3. **Called workflows:** `publish.yml` (and pwa's `android.yml` where it's used) are called by SHA, not `@main`.
+4. **A shared relock workflow:** one reusable workflow lives here, next to `publish.yml`, and each package calls it, by SHA, from a small daily `relock.yml`. It:
+   - relocks and moves the compiler and workflow pins to their newest;
+   - pushes `relock/<date>` and opens a PR listing the changes;
+   - dispatches the package's `check.yml` on that branch, since a PR opened with `GITHUB_TOKEN` doesn't trigger workflows on its own, and `workflow_dispatch` is the documented exception.
+   - A breaking publish then shows as a red relock PR in each affected package, and no main goes red.
+5. **This repository's `verify`:** it stays as it is. It's the integration gate that checks a new version against every package's newest version, and it's the one place where testing against the newest is the point.
+
+## Order
+1. quire#203 lands first. It confirms that `bats build`/`check` honour a committed lock, and fixes bats if they don't.
+2. The reusable relock workflow lands here.
+3. Then one PR per package, each committing a lock that passes its CI.
+
+Archived repos (event, callback and the old `wasm.bats-packages.dev/*` ones) are skipped.

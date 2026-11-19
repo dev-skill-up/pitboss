@@ -1,0 +1,79 @@
+Fixes bats-lang/pwa#291
+
+## Plan
+
+Done-when, word for word from the ticket:
+
+* In `stall-tools.sh` a failed install of `libc6-dbg`, `rr`, `gdb` or `elfutils` exits non-zero with an `::error::` naming the tool and the status, so the setup step fails.
+* A test (the script's own, with a stand-in installer that fails) shows each of the four tools failing the script, and a stand-in that succeeds passing it.
+* A grep of `.github/actions/e2e-setup` for `::warning::` shows no warning left that continues past a failed requirement; the retry warnings that are followed by a final failure stay.
+* No line is added to any .md or .rst file.
+
+The change: `stall-tools.sh install` no longer answers a missing tool with `::warning::` and `exit 0`. A tool whose download or install failed after the last attempt (or all four, when `apt-get update` failed) is an `::error::<tool> could not be installed: apt-get failed with status <N>`; the other tools are still tried, and the script exits 1 at the end. `gdb` and `elfutils` are one apt call, so a failure of it names both. The test `tests/e2e-setup/check.sh` (its fake `apt-get` gets `FAKE_FAIL`, a package whose download and install fail, and `FAKE_FAIL_INSTALL`, one whose install fails after its download) runs each of the four tools failing in both ways and requires a non-zero exit and an error naming it with status 100; a stalled apt (status 124) names all four; the existing runs with a succeeding fake still require exit 0 and now also no `::error::`. The nearest input the change must still reject is the failure after a good download (`FAKE_FAIL_INSTALL`), and the nearest it must accept is a fake that succeeds. Stale statements are cut: the script's header comment, the `stall-tools` input's description in `action.yml`, and in `.claude/rules/e2e-setup.md` the sentence "A diagnostic for a rare freeze never fails the job: what cannot be installed is a warning and the script exits 0" (two lines cut to the one word `No` that the next sentence needs; no line is added). No new step, no shell beyond the script, no new action.
+
+It alters these behaviours, stated in the code's terms: every caller of the `e2e-setup` action with `stall-tools: "true"` now has its setup step fail, for any of the following, where before it passed with a warning: an `apt-get update` that fails after its attempts (including one that never returns), a download of gdb, elfutils, libc6-dbg of the installed libc6 or rr that fails after its attempts, and an install of any of them that fails after its attempts. The line `Install gdb: installed=<yes|no> after <N> s` is still printed, now before the exit.
+
+Rows:
+
+1. `grep -rn '::warning::' .github/actions/e2e-setup`
+2. `grep -n '::error::\|exit 1' .github/actions/e2e-setup/stall-tools.sh`
+3. `tests/e2e-setup/check.sh`
+4. `uvx pitboss impact "installed=no"`
+5. `git diff --numstat origin/main HEAD -- '*.md' '*.rst'`
+6. `git rev-parse HEAD`
+
+Row 1 shows the four warnings left, none of them past a failed requirement: `japanese-font.sh` (followed by `::error::` and `exit 1` when no URL gave the pinned file), `retry.sh` (followed by the final `::error::` after the last try) and the two retry warnings of `stall-tools.sh` (`attempt` returns 1 after the last try and the caller says `::error::`). Row 3 is the test of Done-when 2, it prints `e2e-setup: all checks passed`; CI runs the same script in workflow `check`, job `check`, step `e2e-setup action`, so the head's run shows it too. Row 5 shows one changed line of a .md file with 1 added and 2 deleted: the added one is the old line `job: ... exits 0. No` with characters deleted and none inserted.
+
+Dispositions of the hits of row 4:
+
+- .github/actions/e2e-setup/stall-tools.sh:131: not edited, it is the initial value of the variable `installed`, still printed by the `Install gdb` line
+- tests/e2e-setup/check.sh:267: not edited, it checks that line for a run where every call stalled, which now also fails
+
+## Execution
+
+- Read the ticket (no comments) and `stall-tools.sh`, `check.sh`, `action.yml` and `.claude/rules/e2e-setup.md`; searched the tree for the words of the old statements ("never fails the job", "what cannot be installed", "native stacks are missing", "is not available", "stay unnamed") and found none left at the head.
+- `stall-tools.sh`: `attempt` keeps the status of its last call in `last_status`; `tool_failed` prints one `::error::` for each tool named; the warnings and the final `exit 0` are replaced by `tool_failed` calls and `exit 1` when any was made.
+- `tests/e2e-setup/check.sh`: the every-call-stalls case now requires failure and four errors with status 124; a loop over `FAKE_FAIL` and `FAKE_FAIL_INSTALL` and the four tools requires failure, the named errors with status 100 and no error for a tool that installed.
+- Row 3 was run with its own `TMPDIR`, removed after; the push was `pitboss push --draft`, which pushed the branch and opened no pull request, so the draft was opened with `gh api`.
+
+Deviations: none
+
+## Evidence
+
+```pitboss-expand sha256=f4347c60972eff64
+$ grep -rn '::warning::' .github/actions/e2e-setup
+.github/actions/e2e-setup/japanese-font.sh:51:        echo "::warning::$url: not fetched, or not the file pinned by SHA-256"
+.github/actions/e2e-setup/retry.sh:45:    echo "::warning::$label: the download failed (try $n of $attempts); again in ${pause}s"
+.github/actions/e2e-setup/stall-tools.sh:61:      echo "::warning::$label: apt-get did not return in ${hang}s and was stopped (try $n of $attempts)"
+.github/actions/e2e-setup/stall-tools.sh:63:      echo "::warning::$label: apt-get failed with $status (try $n of $attempts)"
+```
+```pitboss-expand sha256=b3b20765f146c951
+$ grep -n '::error::\|exit 1' .github/actions/e2e-setup/stall-tools.sh
+20:# that is missing after the last attempt is an `::error::` naming it and the
+70:# tool_failed <tool...>: an `::error::` for each tool, with the status of the last apt-get call
+75:    echo "::error::$tool could not be installed: apt-get failed with status $last_status"
+163:[ "$failed" = no ] || exit 1
+```
+```pitboss-expand sha256=51ad47159124f346
+$ tests/e2e-setup/check.sh
+e2e-setup: all checks passed
+```
+```pitboss-expand sha256=1978390f44b7bf88
+$ uvx pitboss impact "installed=no"
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+.github/actions/e2e-setup/stall-tools.sh:131:installed=no
+tests/e2e-setup/check.sh:267:grep -q 'installed=no' "$TMP/out" || fail "installed=no not said" "$TMP/out"
+```
+```pitboss-expand sha256=bf25f161bae1d13c
+$ git diff --numstat origin/main HEAD -- '*.md' '*.rst'
+1	2	.claude/rules/e2e-setup.md
+```
+```pitboss-expand sha256=1c8efab9062d66e8
+$ git rev-parse HEAD
+466cada92188e9595d528a49b7d5806a6bc733b7
+```
+
+Head: 466cada92188e9595d528a49b7d5806a6bc733b7
+
+---
+_Generated by [Claude Code](https://claude.ai/code/session_01HwLsLtFgHv4ix6TZzPYRcT)_

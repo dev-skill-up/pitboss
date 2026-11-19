@@ -1,0 +1,75 @@
+Fixes bats-lang/dom#126
+
+Done-when digest: 86af65034eb41b13
+
+## Plan
+
+The change adds `src/book.bats` (the book document, its container token, the typed operations, the narrower attribute and the data-name proof), the dynamic test `tests/dynamic/book`, nine static fixtures (`tests/static/accept/book-chapter` and the eight rejects) and a relock of `bats.lock` to bridge 2026.11.10.45941 and css 2026.11.10.21756 (`bats lock --repository`, no hand edit). No existing export or type changed; nothing is added to `src/lib.bats`.
+
+1. Static accept fixture `book-chapter` passes (mint through bridge, container, element, names, style, sheet, font, close). Shown by `timeout 598 tests/static/run.sh /home/user/rp-126 2>&1 | grep -F book-chapter`, which prints `ok   accept/book-chapter`.
+2. Static reject fixtures fail to type-check: `book-container-unproved`, `book-sheet-unproved`, `book-style-other-source`, `book-layout-mismatch`, `book-container-leaked`, `book-container-after-close`, `book-sheet-from-bytes`, `book-element-app-style`. Shown by `timeout 598 tests/static/run.sh /home/user/rp-126 2>&1 | grep -F reject/book-`, which prints `ok   reject/<name>` for each of the eight, each rejected with the message of its `expect` file.
+3. The bytes of each new operation are checked against a written expectation. Shown by `timeout 598 tests/dynamic/run.sh /home/user/rp-126 2>&1 | grep -F "ok   book"`, which prints `ok   book`: `tests/dynamic/book/check.mjs` compares the bytes of the container (opcode 13), the book element (14), the names (16), the style in pieces (19 and 20), the sheet (17 and 18) and the ordinary operations with written expectations, and its `expected` file holds the document, the sheet and the face.
+4. `bats check` clean, no `$UNSAFE`, `praxi` or `assume`, package stays `unsafe = false`; published alone by repository-prototype's "Publishing Packages", the old forms still there and called by a test. The first part is shown by `bats check --repository /home/user/rp-126`, which prints `check passed (library)`.
+5. `grep -n -E 'UNSAFE|praxi|assume' src/book.bats` prints nothing and exits with status 1.
+6. `grep unsafe bats.toml` prints `unsafe = false`.
+7. `git rev-parse HEAD` is the head.
+8. CI pointer: workflow `check.yml`, job `check`, greppable `ok   tree` and `ok   borrow-ops` in the log of its dynamic tests step: the old forms are still there (no export or type changed) and called by the dynamic tests `tree` and `borrow-ops`. A draft pull request runs no job (keyword: draft-ci), so the run starts when the orchestrator marks it ready, and is found with `gh api "repos/bats-lang/dom/actions/runs?head_sha=<head>"`.
+9. After the merge, not in this pull request: the publication of the last bullet, alone, by repository-prototype's CLAUDE.md "Publishing Packages" (a checkout of main, `bats upload`, the sidecar check, a pull request in repository-prototype).
+10. 🤖 Generated with [Claude Code](https://claude.com/claude-code) After the merge, not in this pull request: this is the footer line of the ticket's Done-when section, not a deliverable (the publication of row 9 is by `bats upload`).
+
+## Execution
+
+Written with the Edit tool, the Write tool and small scripts that wrote the fixtures. `book_document(g)` holds bridge's `book_stream`; `book_container(g)` is the linear token; `ROOT_TAG(cs, o)` is made by `book_root_scan`; every operation that copies a span takes `OUTSIDE_READ(cs)` and the `cborrow` of that array, so a tree or span of another array or layout is a type error. The sheet and the style are written from css's piece walkers. `book_attribute` has no `Style` and no `Data`; a data attribute is set by `set_book_data`, which takes `BOOK_DATA_FREE(cs, n)` made by `book_data_scan` (a name not starting with `book-`). Two findings: css's contrast imports four llint operations the wasm prelude lacks (bats-lang/bats#646, filed), so `tests/dynamic/book` declares no colour and stands the four in as functions that fail if called; a style piece for the generated face name has no id piece in bridge's style opcodes (19 and 20), so a container id piece in a style is written as nothing. Locally the static run (27 fixtures) and the dynamic run (`book`, `borrow-ops`, `tree`) passed on this head; the rest is CI's.
+
+Head: 3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+
+Deviations: the last Done-when bullet (the publication) cannot be done before the merge, because its steps need main checked out, so row 9 is the orchestrator's after the merge; otherwise none.
+
+## Evidence
+
+```pitboss-expand sha256=e526f5934bd5f5ea head=3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+$ timeout 598 tests/static/run.sh /home/user/rp-126 2>&1 | grep -F book-chapter
+ok   accept/book-chapter
+```
+
+```pitboss-expand sha256=257ef1d53521f3d2 head=3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+$ timeout 598 tests/static/run.sh /home/user/rp-126 2>&1 | grep -F reject/book-
+ok   reject/book-container-after-close
+ok   reject/book-container-leaked
+ok   reject/book-container-unproved
+ok   reject/book-element-app-style
+ok   reject/book-layout-mismatch
+ok   reject/book-sheet-from-bytes
+ok   reject/book-sheet-unproved
+ok   reject/book-style-other-source
+```
+
+```pitboss-expand sha256=0ac6e3416ea26fdf head=3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+$ timeout 598 tests/dynamic/run.sh /home/user/rp-126 2>&1 | grep -F "ok   book"
+ok   book
+```
+
+```pitboss-expand sha256=ef7da316ea3b9ef0 head=3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+$ bats check --repository /home/user/rp-126
+generated docs (2 module(s))
+check passed (library)
+```
+
+```pitboss-expand sha256=fee646d90af0c867 head=3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+$ grep -n -E 'UNSAFE|praxi|assume' src/book.bats
+exit status: 1
+```
+
+```pitboss-expand sha256=a134164da4f4711d head=3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+$ grep unsafe bats.toml
+unsafe = false
+```
+
+```pitboss-expand sha256=4895f07ac09acbea head=3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+$ git rev-parse HEAD
+3b19e4cdd283c540ebafb7e3d16944bdf6b5f6f3
+```
+
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_

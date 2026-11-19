@@ -1,0 +1,13 @@
+Split from bats-lang/quire#412 (E2E coverage for position stability and Android display settings). Everything of #412 that Chromium can stand in for is merged (quire#705 `e2e/font-scale.spec.js` at 130% and 200%, #676, #689, #691, the stability, keys and relaunch specs). What is left is the real WebView part, which only the emulator job can show, and the emulator job (`android.yml`) is pwa's (quire's CLAUDE.md, "Pipeline and tooling improvements belong in bats or pwa": the Android project, test running and the emulator job).
+
+## What
+
+In `android.yml`'s smoke test, set the emulator's system font scale to 1.3 and then 2.0 (`adb shell settings put system font_scale <scale>`), and assert on the real WebView: `textZoom` is not set by the Capacitor shell, so the system font scale reaches the page; the icon glyphs and boxes fit as they do under the Chromium stand-in (`text-size-adjust: <percent>` in quire's `font-scale.spec.js`). The assertions are made through bridge's existing entry points; the test decides nothing in the app (bats-lang/pwa#49).
+
+## Done when
+
+The smoke test fails when the shell sets `textZoom` (shown red against that mutation in the PR) and passes on the real shell; the PR shows both runs. quire#412 closes on this.
+
+## Notes
+
+* pwa's CLAUDE.md allows bug fixes and new platforms; this is a test of current functionality (the font scale reaching the page), which the review confirms adds no capability: it changes nothing pwa generates and nothing the app runs.
