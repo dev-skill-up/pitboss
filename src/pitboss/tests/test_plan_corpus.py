@@ -4,7 +4,8 @@ The keyword is plan-corpus. ``planpairs/`` holds the ticket body and the PR body
 each pair as GitHub gave them, and its manifest names the source URL, the head SHA,
 the bad states of the pair and what each check gave on it, recorded. A test for
 each check that failed on main runs the check on every pair and compares. The
-ticket the Done-when checks read comes from the fixture, through a runner that fails any other call.
+ticket the Done-when checks read comes from the fixture, through a runner that
+fails any other call.
 """
 
 import json
