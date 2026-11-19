@@ -15,14 +15,14 @@ GATED = ["## Adversarial review", "Reviewed: {sha}", "Verdict: {verdict}"]
 
 
 class TestFormed(unittest.TestCase):
-    """The form's lines come first and the review's own head and verdict go."""
+    """The form's lines come first; the review's own head goes, its verdict stays."""
 
     def test_no_form_leaves_the_review_as_written(self) -> None:
         """A repository whose form is not read keeps the review as it was."""
         assert_that(actwrite.formed(BASE, [], HEAD, "approved"), equal_to(BASE))
 
     def test_a_one_line_form_opens_the_review(self) -> None:
-        """The head and the verdict are in the form's line only."""
+        """The head is in the form's line only; the verdict line is kept for the gate."""
         found = actwrite.formed(BASE, ONE_LINE, HEAD, "approved").splitlines()
         assert_that(
             found,
@@ -31,6 +31,7 @@ class TestFormed(unittest.TestCase):
                     f"Independent review of head {HEAD}: approved",
                     "Plan: approved",
                     "Execution: approved",
+                    "Verdict: approved",
                     "Body: 1",
                 ]
             ),
