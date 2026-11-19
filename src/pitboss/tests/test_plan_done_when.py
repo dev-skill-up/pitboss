@@ -75,12 +75,17 @@ PLANS: Mapping[str, tuple[str, Sequence[str]]] = {
 }
 
 
-def run_forms(case: unittest.TestCase, owns: tuple[str, ...]) -> None:
-    """Each of ``owns`` as a Plan row runs the measurement the Done-when names."""
+def run_forms(case: unittest.TestCase, rows: Sequence[str]) -> None:
+    """Each of ``rows`` as a Plan row runs the measurement the Done-when names.
+
+    Args:
+        case: the test, whose sub-tests name the row that failed.
+        rows: the spans a Plan row may hold.
+    """
     ticket = measured("demonstrated", "by", MEASURE)
-    for own in owns:
-        with case.subTest(own=own):
-            assert_that(list(findings_of(ticket, own)), equal_to([]))
+    for span in rows:
+        with case.subTest(span=span):
+            assert_that(list(findings_of(ticket, span)), equal_to([]))
 
 
 class TestItems(unittest.TestCase):
