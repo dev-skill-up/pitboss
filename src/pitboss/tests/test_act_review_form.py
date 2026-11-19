@@ -4,7 +4,7 @@ import unittest
 
 from hamcrest import assert_that, equal_to
 
-from .. import actport, actreview, actwrite, gradesrequired
+from .. import actport, actreview, gradesrequired, reviewform
 
 HEAD = "a" * 40
 BASE = (
@@ -19,11 +19,12 @@ class TestFormed(unittest.TestCase):
 
     def test_no_form_leaves_the_review_as_written(self) -> None:
         """A repository whose form is not read keeps the review as it was."""
-        assert_that(actwrite.formed(BASE, [], HEAD, "approved"), equal_to(BASE))
+        assert_that(reviewform.formed(BASE, [], HEAD, "approved"), equal_to(BASE))
 
     def test_a_one_line_form_opens_the_review(self) -> None:
-        """The head is in the form's line only; the verdict line is kept for the gate."""
-        found = actwrite.formed(BASE, ONE_LINE, HEAD, "approved").splitlines()
+        """The head is in the form's line only; the verdict line is kept."""
+        found = reviewform.formed(BASE, ONE_LINE, HEAD, "approved")
+        found = found.splitlines()
         assert_that(
             found,
             equal_to(
@@ -39,7 +40,7 @@ class TestFormed(unittest.TestCase):
 
     def test_a_gated_form_has_its_own_head_and_verdict_lines_once(self) -> None:
         """The gate's lines are written once, not twice."""
-        found = actwrite.formed(BASE, GATED, HEAD, "approved").splitlines()
+        found = reviewform.formed(BASE, GATED, HEAD, "approved").splitlines()
         assert_that(
             found[:3],
             equal_to(
