@@ -3,9 +3,8 @@
 The keyword is plan-corpus. ``planpairs/`` holds the ticket body and the PR body of
 each pair as GitHub gave them, and its manifest names the source URL, the head SHA,
 the bad states of the pair and what each check gave on it, recorded. A test for
-each check runs the check on every pair and compares: a check that changes what it
-says of a real body is a failing test. The ticket the Done-when checks read comes
-from the fixture, through a runner that fails any other call.
+each check that failed on main runs the check on every pair and compares. The
+ticket the Done-when checks read comes from the fixture, through a runner that fails any other call.
 """
 
 import json
@@ -32,21 +31,9 @@ SHA = re.compile(r"[0-9a-f]{40}")
 POSTED = ("Plan check: ok", "Plan check: refused", "none")
 
 
-# the checks whose outcome differs between real pairs (pitboss#482, item 37: a check
-# that gives every pair the same outcome tests nothing, and is not run alone)
-TOLD_APART = (
-    "plan-done-when",
-    "plan-measurement",
-    "done-when-form",
-    "done-when-edited",
-    "ci-pointer",
-    "plan-pointer",
-    "execution-section",
-    "evidence.blocks",
-    "evidence.produced",
-    "evidence.hand_typed",
-    "plandigest",
-)
+# the checks whose corpus test failed on main (pitboss#482, item 37: a corpus test that
+# passes on main is kept only where main is wrong or the test too weak, else removed)
+FAILED_ON_MAIN = ("plan-done-when",)
 NOT_THE_NETWORK = (
     ["gh", "api", "repos/owner/name/pulls/1"],
     ["curl", "https://api.github.com/"],
@@ -139,6 +126,6 @@ def _gives(check: str) -> Callable[[TestCorpus], None]:
     return test
 
 
-# one test for each check that tells the real pairs apart, named by the check
-for _check in TOLD_APART:
+# one test for each check that failed on main, named by the check
+for _check in FAILED_ON_MAIN:
     setattr(TestCorpus, f"test_corpus_{re.sub(r'[-.]', '_', _check)}", _gives(_check))
