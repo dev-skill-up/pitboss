@@ -75,6 +75,14 @@ PLANS: Mapping[str, tuple[str, Sequence[str]]] = {
 }
 
 
+def run_forms(case: unittest.TestCase, owns: tuple[str, ...]) -> None:
+    """Each of ``owns`` as a Plan row runs the measurement the Done-when names."""
+    ticket = measured("demonstrated", "by", MEASURE)
+    for own in owns:
+        with case.subTest(own=own):
+            assert_that(list(findings_of(ticket, own)), equal_to([]))
+
+
 class TestItems(unittest.TestCase):
     """The items of a ticket's Done-when, and the digest that records them."""
 
@@ -202,17 +210,11 @@ class TestMeasurement(unittest.TestCase):
 
     def test_measurement_with_arguments_counts_as_run(self) -> None:
         """Done-when: the command, then a space and arguments, is it run."""
-        ticket = measured("demonstrated", "by", MEASURE)
-        for own in (f"`{MEASURE} -n`", f"`{MEASURE} -n | wc -l`"):
-            with self.subTest(own=own):
-                assert_that(list(findings_of(ticket, own)), equal_to([]))
+        run_forms(self, (f"`{MEASURE} -n`", f"`{MEASURE} -n | wc -l`"))
 
     def test_measurement_piped_into_more_counts_as_run(self) -> None:
         """Done-when: the command piped into more is it run."""
-        ticket = measured("demonstrated", "by", MEASURE)
-        for own in (f"`{MEASURE} | wc -l`", f"`{MEASURE}|wc -l`"):
-            with self.subTest(own=own):
-                assert_that(list(findings_of(ticket, own)), equal_to([]))
+        run_forms(self, (f"`{MEASURE} | wc -l`", f"`{MEASURE}|wc -l`"))
 
     def test_measurement_prefix_letters_do_not_count_as_run(self) -> None:
         """Done-when: a span that only starts with the command's letters is another."""
