@@ -111,7 +111,9 @@ def _written(
     tickets = members(act.inputs(target.repo, target.number, pull, []).get("tickets"))
     words = review_text(pull, grades, actcore.option(options, "findings"), tickets)
     words = actreview.shaped(words, kind, options)
-    return reviewform.formed(words, act.form(target.repo), actcore.head_of(pull), grades[2])
+    return reviewform.formed(
+        words, act.form(target.repo), actcore.head_of(pull), grades[2]
+    )
 
 
 def review(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> str:
