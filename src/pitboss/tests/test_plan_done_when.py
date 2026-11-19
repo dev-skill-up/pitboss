@@ -200,15 +200,17 @@ class TestMeasurement(unittest.TestCase):
                     ticket = measured(verb, preposition, MEASURE)
                     assert_that(list(findings_of(ticket, own)), equal_to([]))
 
-    def test_measurement_with_arguments_or_piped_counts_as_run(self) -> None:
-        """Done-when: the command, then a space and arguments or a pipe, is it run."""
+    def test_measurement_with_arguments_counts_as_run(self) -> None:
+        """Done-when: the command, then a space and arguments, is it run."""
         ticket = measured("demonstrated", "by", MEASURE)
-        for own in (
-            f"`{MEASURE} -n`",
-            f"`{MEASURE} -n | wc -l`",
-            f"`{MEASURE} | wc -l`",
-            f"`{MEASURE}|wc -l`",
-        ):
+        for own in (f"`{MEASURE} -n`", f"`{MEASURE} -n | wc -l`"):
+            with self.subTest(own=own):
+                assert_that(list(findings_of(ticket, own)), equal_to([]))
+
+    def test_measurement_piped_into_more_counts_as_run(self) -> None:
+        """Done-when: the command piped into more is it run."""
+        ticket = measured("demonstrated", "by", MEASURE)
+        for own in (f"`{MEASURE} | wc -l`", f"`{MEASURE}|wc -l`"):
             with self.subTest(own=own):
                 assert_that(list(findings_of(ticket, own)), equal_to([]))
 
