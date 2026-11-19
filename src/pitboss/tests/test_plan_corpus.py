@@ -11,6 +11,7 @@ from the fixture, through a runner that fails any other call.
 import json
 import re
 import unittest
+from typing import Callable
 
 from hamcrest import (
     any_of,
@@ -108,16 +109,6 @@ class TestCorpus(unittest.TestCase):
         wanted = sorted(f"{name}.{kind}.txt" for name in names for kind in KINDS)
         assert_that(listed, equal_to(wanted))
 
-    def test_corpus_each_check_gives_every_pair_its_recorded_outcome(self) -> None:
-        """Done-when: each check that tells the pairs apart gives each its outcome."""
-        for check in TOLD_APART:
-            for pair in planpairs.pairs():
-                with self.subTest(pair=pair.name, check=check):
-                    assert_that(
-                        planoutcomes.outcome(check, pair),
-                        equal_to(pair.record.checks[check]["outcome"]),
-                    )
-
     def test_corpus_pr_main_yml(self) -> None:
         """Done-when: no network request: the runner serves the ticket, no more."""
         for pair in planpairs.pairs():
@@ -132,3 +123,22 @@ class TestCorpus(unittest.TestCase):
                 # every check runs on the pair through that runner, and none fails it
                 for check in planpairs.CHECKS:
                     assert_that(planoutcomes.outcome(check, pair), is_not(equal_to("")))
+
+
+def _gives(check: str) -> Callable[[TestCorpus], None]:
+    # a test of one check: it gives each pair its recorded outcome
+    def test(self: TestCorpus) -> None:
+        for pair in planpairs.pairs():
+            with self.subTest(pair=pair.name, check=check):
+                assert_that(
+                    planoutcomes.outcome(check, pair),
+                    equal_to(pair.record.checks[check]["outcome"]),
+                )
+
+    test.__doc__ = f"Done-when: `{check}` gives every pair its recorded outcome."
+    return test
+
+
+# one test for each check that tells the real pairs apart, named by the check
+for _check in TOLD_APART:
+    setattr(TestCorpus, f"test_corpus_{re.sub(r'[-.]', '_', _check)}", _gives(_check))
