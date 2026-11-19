@@ -23,8 +23,8 @@ class TestFormed(unittest.TestCase):
 
     def test_a_one_line_form_opens_the_review(self) -> None:
         """The head is in the form's line only; the verdict line is kept."""
-        found = reviewform.formed(BASE, ONE_LINE, HEAD, "approved")
-        found = found.splitlines()
+        written = reviewform.formed(BASE, ONE_LINE, HEAD, "approved")
+        found = written.splitlines()
         assert_that(
             found,
             equal_to(
