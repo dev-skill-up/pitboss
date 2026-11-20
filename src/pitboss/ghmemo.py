@@ -17,7 +17,7 @@ from typing import MutableMapping, Sequence
 from . import running
 from .running import KeywordRun, Output
 
-LIMIT = 24  # reads running at once, over every pool that asks
+LIMIT = 40  # reads running at once, over every pool that asks
 
 
 def _claim(memo: "Memo", key: str) -> tuple["concurrent.futures.Future[Output]", bool]:

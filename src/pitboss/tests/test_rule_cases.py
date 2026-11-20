@@ -9,7 +9,7 @@ from typing import Mapping
 
 from hamcrest import assert_that, contains_string, equal_to
 
-from .. import rulecases
+from .. import actport, rulecases
 from .says import raises_with
 
 GO, STOP, OTHER = (
@@ -53,7 +53,7 @@ class TestCases(unittest.TestCase):
             ({"go": _go}, "(none passes it)"),
         ):
             add = functools.partial(rulecases.add, [GO], STOP, encodings)
-            raises_with(rulecases.Refused, said, add)
+            raises_with(actport.BadInput, said, add)
 
     def test_444_a_change_of_the_cases(self) -> None:
         """A drop or a flip needs a winning ruling that is in the file."""

@@ -127,7 +127,7 @@ class TestInputs(unittest.TestCase):
     def test_6_1_a_list_github_answered_with_an_error_is_unread(self) -> None:
         """Plan 6.1: GitHub's error is the read's reason."""
         files = _state(files={"_error": "HTTP 502"}).reads.files
-        assert_that(files, equal_to(pullrecords.Unread(why="HTTP 502")))
+        assert_that(files, equal_to(pullrecords.Errored(why="HTTP 502")))
 
     def test_6_1_a_read_that_is_no_list_is_empty(self) -> None:
         """Plan 6.1: a value that is no list holds no item, as the gate read it."""
@@ -143,7 +143,7 @@ class TestInputs(unittest.TestCase):
         timeline = _state(timeline=[REVIEWED, LABELED]).reads.timeline
         events = (
             []
-            if isinstance(timeline, (pullrecords.Unread, pullrecords.Mistyped))
+            if isinstance(timeline, (pullrecords.Errored, pullrecords.Mistyped))
             else timeline
         )
         got = [(e.kind, e.state, e.login, e.label) for e in events]
@@ -156,7 +156,7 @@ class TestInputs(unittest.TestCase):
         want = pullrecords.Ticket(
             state="open", reason="None", locked=False, is_pull=False, body="b"
         )
-        unread = pullrecords.Unread(why="404")
+        unread = pullrecords.Errored(why="404")
         got = _state(tickets=given).tickets
         assert_that(got, equal_to({"o/r#3": want, "o/r#4": unread}))
 

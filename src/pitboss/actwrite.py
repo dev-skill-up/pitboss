@@ -94,7 +94,7 @@ def keyed(words: str) -> str:
 
 def _plain(words: str) -> None:
     if bad := keyed(words):
-        raise actcore.Refused(
+        raise actcore.BadInput(
             f"a line starts with a review or act key: {bad[:40]!r}; use the verb"
         )
 
@@ -238,14 +238,14 @@ def _fixes_first(body: str) -> bool:
 
 def _body_rows(body: str, head: str, skip: Sequence[str]) -> None:
     if not _fixes_first(body):
-        raise actcore.Refused("the body's first line is not `Fixes #N`")
+        raise actcore.BadInput("the body's first line is not `Fixes #N`")
     found = [
         each
         for each in totalbody.body_findings(body, head)
         if not mentions_any(each, skip)
     ]
     if found:
-        raise actcore.Refused(found[0])
+        raise actcore.BadInput(found[0])
 
 
 def pr_create(
@@ -308,10 +308,10 @@ def scratch_clean(
         What was done.
 
     Raises:
-        actcore.Refused: not a scratch repository.
+        actcore.BadInput: not a scratch repository.
     """
     if target.repo not in SCRATCH:
-        raise actcore.Refused(f"{target.repo} is not a scratch repository")
+        raise actcore.BadInput(f"{target.repo} is not a scratch repository")
     if branch := options.get("branch"):
         whole = actcore.Target(repo=target.repo)
         put(act, whole, "branch-delete", {"branch": branch})
@@ -334,11 +334,11 @@ def ack(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> s
         The disposition.
 
     Raises:
-        actcore.Refused: a kind in no row, or what it needs is missing.
+        actcore.BadInput: a kind in no row, or what it needs is missing.
     """
     message, kind = options_of(options, "message", "kind")
     if kind not in ACKS:
-        raise actcore.Refused(f"ack is {', '.join(ACKS)}")
+        raise actcore.BadInput(f"ack is {', '.join(ACKS)}")
     ACKS[kind](act, target, options)
     act.owner.dispositions[message] = kind
     return f"ack {message} {kind}"
@@ -347,7 +347,7 @@ def ack(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> s
 def _note(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:
     quote, reason = text(options.get("quote")), text(options.get("reason"))
     if not quote or len(reason) < 10:
-        raise actcore.Refused("ack none quotes the message and gives a reason")
+        raise actcore.BadInput("ack none quotes the message and gives a reason")
     repo = act.repos[0] if target.repo == "all" else target.repo
     fields = {
         "title": f"owner message {options['message']}: no action",
@@ -368,7 +368,7 @@ def _cap(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> 
 
 def _ruling(act: actcore.Act, target: actcore.Target, options: actcore.Options) -> None:
     if not text(options.get("reason")).startswith(("http", "#")):
-        raise actcore.Refused("ack ruling names the ruling (a URL or #N)")
+        raise actcore.BadInput("ack ruling names the ruling (a URL or #N)")
 
 
 ACKS: Mapping[str, Callable[[actcore.Act, actcore.Target, actcore.Options], None]] = {

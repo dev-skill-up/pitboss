@@ -12,7 +12,8 @@ the Plan alone (``Execution: not graded`` too) is a draft's, and always counts.
 """
 
 import dataclasses
-from typing import AbstractSet, Sequence
+import functools
+from typing import AbstractSet, Callable, Sequence
 
 from . import (
     basefix,
@@ -159,15 +160,19 @@ def _unjudged(current: Sequence[shapes.CheckRun]) -> Sequence[shapes.CheckRun]:
 
 
 def _before(
-    seen: Seen, events: Sequence[shapes.TimelineEvent], each: reviews.Found
+    seen: Seen,
+    events: Callable[[], Sequence[shapes.TimelineEvent]],
+    each: reviews.Found,
 ) -> tuple[str, str]:
+    # the timeline is read only for a head with no completed dispatched run: a
+    # head with one was not a draft's (keyword: execution-before-green)
     sha = _full(seen.pull, each.sha)
     drafted = (
         "the PR was a draft and no dispatched run of check.yml had completed"
-        if draft_at(seen.pull, events, each.when)
-        and not dispatchruns.completed_before(
+        if not dispatchruns.completed_before(
             seen.github, seen.repo.slug, sha, each.when
         )
+        and draft_at(seen.pull, events(), each.when)
         else ""
     )
     found = headchecks.runs_of(seen.github, seen.repo, sha)
@@ -252,7 +257,7 @@ def split(
     if not written:
         return comments, []
     seen = _seen(tools, repo, pull)
-    events = _timeline(seen)
+    events = functools.cache(functools.partial(_timeline, seen))
     said = [(each, *_before(seen, events, each)) for each in written]
     early = [
         _premature(*triple)

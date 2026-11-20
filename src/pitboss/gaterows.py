@@ -10,7 +10,7 @@ from typing import Protocol, Sequence
 
 from . import totalbody, totalchecks
 from .gatestop import Body, Plan, Review, Route, Stop
-from .pullrecords import Event, GateState, Mistyped, Ticket, Unread, listed
+from .pullrecords import Errored, Event, GateState, Mistyped, Ticket, listed
 from .totalanswer import GATED_ACTIONS, MERGE_ACTIONS, PAUSED
 
 CHANGES_REQUESTED = ("changes_requested", "CHANGES_REQUESTED")
@@ -98,7 +98,7 @@ def read_stops(state: GateState) -> Sequence[Stop]:
     return [
         Stop(route=Route.UNREAD, line=f"input {key}: GitHub answered {read.why[:60]}")
         for key, read in _reads(state)
-        if isinstance(read, Unread)
+        if isinstance(read, Errored)
     ]
 
 
@@ -242,9 +242,9 @@ def unticketed_stops(state: GateState) -> Sequence[Stop]:
     return [Stop(route=Route.NO_TICKET, line="ticket: the body closes no ticket")]
 
 
-def _ticket_line(ref: str, read: Ticket | Unread) -> str:
+def _ticket_line(ref: str, read: Ticket | Errored) -> str:
     # the stop line of one ticket the body closes, "" for an open issue unlocked
-    if isinstance(read, Unread):
+    if isinstance(read, Errored):
         return f"ticket {ref}: not read ({read.why[:40]})"
     if read.is_pull:
         return f"ticket {ref}: a pull request, not an issue"

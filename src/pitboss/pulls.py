@@ -1,5 +1,6 @@
 """The open PRs of the project and its libraries, and what each needs."""
 
+import concurrent.futures
 import dataclasses
 import json
 from typing import AbstractSet, Sequence
@@ -50,14 +51,15 @@ Source = pullsource.Source
 
 def _sources(source: Source, repo: config.Repo, number: int) -> reviews.Sources:
     prefix = f"repos/{repo.slug}"
-    return reviews.Sources(
-        comments=ghapi.pages(
+    comments, sent = concurrently.pair(  # the comments and the reviews, together
+        lambda: ghapi.pages(
             source.github, f"{prefix}/issues/{number}/comments", parsing.comments
         ),
-        reviews=ghapi.pages(
+        lambda: ghapi.pages(
             source.github, f"{prefix}/pulls/{number}/reviews", parsing.reviews
         ),
     )
+    return reviews.Sources(comments=comments, reviews=sent)
 
 
 def _standing(
@@ -110,17 +112,33 @@ class Fetched:
     fixed: Sequence[basefix.Answer]
 
 
+def _base_ahead(source: Source, repo: config.Repo, base: str) -> None:
+    # start the base's read (what a failed check asks for next) and go on: its
+    # answer is kept by the read memo, and a failure of it is said where it is needed
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    pool.submit(_base_runs, source, repo, base)
+    pool.shutdown(wait=False)
+
+
+def _base_runs(source: Source, repo: config.Repo, base: str) -> None:
+    headchecks.runs_of(source.github, repo, base)  # a failure stays in its future
+
+
 def _fetched(source: Source, repo: config.Repo, number: int) -> Fetched:
     text = ghapi.get(source.github, f"repos/{repo.slug}/pulls/{number}")
     pull = parsing.pull(text)
     gated = pullobject.pull_object(json.loads(text), totalschema.schema())
-    posted, sent = concurrently.pair(
-        lambda: headchecks.statuses(source.github, repo, pull.head.sha),
+    head = pull.head.sha
+    queued = repo.slug in source.merge_queue
+    if queued:  # the base's runs, which a failed check asks for next, start now
+        _base_ahead(source, repo, pull.base)
+    seen, sent = concurrently.pair(  # the head's reads and the PR's, together
+        lambda: headchecks.read_head(source.github, repo, head),
         lambda: _sources(source, repo, number),
     )
+    posted = seen.statuses
     kept, early = source.early(repo, pull, sent.comments)
-    current = headchecks.checks(source.github, repo, pull.head.sha, posted)
-    queued = repo.slug in source.merge_queue
+    current = headchecks.settled(source.github, repo, head, seen)
     base = pull.base
     return Fetched(
         pull=pull,

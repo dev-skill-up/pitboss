@@ -2,8 +2,8 @@
 
 The listing (``workorder.listing``) is complete and is what the order of work is
 computed from; an item is read further only when the walk reaches it. Its rows
-come from the organisations' searches (keyword: org-search), whose items carry no
-branch and no head: those are known once the pull request is read.
+come from each repository's listing of open pull requests (keyword: pull-listing),
+whose rows carry the branch and the head.
 """
 
 import dataclasses

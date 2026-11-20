@@ -26,11 +26,11 @@ def kind_of(options: actport.Options) -> str:
         The ``--review-kind`` word, ``full`` when none is given.
 
     Raises:
-        actport.Refused: a kind no review has.
+        actport.BadInput: a kind no review has.
     """
     kind = actport.option(options, "kind") if "kind" in options else "full"
     if kind not in KINDS:
-        raise actport.Refused(f"kind is one of {', '.join(KINDS)}")
+        raise actport.BadInput(f"kind is one of {', '.join(KINDS)}")
     return kind
 
 
@@ -46,7 +46,7 @@ def grades_of(kind: str, options: actport.Options) -> Sequence[str]:
         The three grades; a grade the kind does not write is ``approved``.
 
     Raises:
-        actport.Refused: a grade the kind needs is not approved or changes needed.
+        actport.BadInput: a grade the kind needs is not approved or changes needed.
     """
     reads = (kind in BOTH, kind != PLAN_ALONE, True)
     names = ("plan", "execution", "verdict")
@@ -55,7 +55,7 @@ def grades_of(kind: str, options: actport.Options) -> Sequence[str]:
         for name, read in zip(names, reads)
     ]
     if any(each not in GRADES for each in found):
-        raise actport.Refused("a grade is approved or changes needed")
+        raise actport.BadInput("a grade is approved or changes needed")
     return found
 
 

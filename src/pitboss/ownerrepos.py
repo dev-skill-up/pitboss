@@ -1,5 +1,6 @@
 """The owner's repositories the configuration does not name (keyword: repo-access)."""
 
+import concurrent.futures
 import dataclasses
 import json
 import subprocess
@@ -64,12 +65,6 @@ def _search(github: ghapi.GitHub, qualifier: str) -> Sequence[tuple[str, bool]]:
     )
 
 
-def _searched(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
-    # repo-access: a bound session may list an owner only through the search; an
-    # organization is asked first, and an owner it finds nothing for is a user.
-    return _search(github, f"org:{owner}") or _search(github, f"user:{owner}")
-
-
 def _as_user(
     github: ghapi.GitHub, owner: str, refused: subprocess.CalledProcessError
 ) -> Sequence[tuple[str, bool]]:
@@ -83,12 +78,17 @@ def _listing(github: ghapi.GitHub, owner: str) -> Sequence[tuple[str, bool]]:
     # repo-access: a user's list holds only public repositories of an org, so the
     # users path is tried only after the organization's answered 404; a bound
     # session's refusal goes to the search (pitboss#305); any other refusal (403,
-    # SSO, proxy, 5xx) is raised, not answered with a shorter list.
+    # SSO, proxy, 5xx) is raised, not answered with a shorter list. The search is
+    # started with the organization's list (keyword: one-path), so a refusal does
+    # not wait for it: its answer is used only then, and is not waited for else.
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    searching = pool.submit(_search, github, f"org:{owner}")
+    pool.shutdown(wait=False)
     try:
         return ghapi.pages(github, PATHS[0].format(owner=owner), repositories)
     except subprocess.CalledProcessError as refused:
         if is_bound_refusal(refused):
-            return _searched(github, owner)
+            return searching.result() or _search(github, f"user:{owner}")
         if ghapi.status_of(refused) != "HTTP 404":
             raise
         return _as_user(github, owner, refused)

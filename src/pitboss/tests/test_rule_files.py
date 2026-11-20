@@ -10,7 +10,7 @@ import unittest
 
 from hamcrest import assert_that, contains_string, empty, equal_to
 
-from .. import actcore, actrules, actverbs, rulecount, rulefiles
+from .. import actcore, actport, actrules, actverbs, rulecount, rulefiles
 from . import fakegiven, knownshipped, scratch
 from .knownkit import CHECKOUTS, made
 from .fakes import write
@@ -99,7 +99,7 @@ class TestWriter(unittest.TestCase):
                 ticket = _planted()
                 write(_rules_of(ticket) / name, text)
                 written = functools.partial(rulefiles.write, ticket)
-                raises_with(rulefiles.Refused, said, written)
+                raises_with(actport.BadInput, said, written)
 
     def test_444_68_real_rule_files_0_refused(self) -> None:
         """The rule files of six real repositories are each read."""
@@ -224,5 +224,5 @@ class TestDispatchBrief(unittest.TestCase):
             "---\npaths:\n  - src/[x].bats\n---\nCLASS\n",
         )
         raises_with(
-            actcore.Refused, "class.md", functools.partial(actverbs.brief, ticket)
+            actcore.BadInput, "class.md", functools.partial(actverbs.brief, ticket)
         )

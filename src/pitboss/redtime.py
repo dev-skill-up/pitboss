@@ -17,7 +17,7 @@ def moment(text: str) -> datetime.datetime:
 
 
 def seconds(start: str, end: str) -> int:
-    """Whole seconds between two ISO 8601 times.
+    """Seconds, rounded down, between two ISO 8601 times.
 
     Args:
         start: the earlier.

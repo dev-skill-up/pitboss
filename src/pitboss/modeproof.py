@@ -24,6 +24,8 @@ from gather.api import Wrapper, unique
 from . import actverbs, cli_parser, config, mode, modecommand, proofsource
 
 ITEM = "owner/project#1"
+KIND = "__gather_kind__"  # what a command line varies: its P4 bullet (P4.1 to P4.4)
+BULLET = {"subcommand": "P4.1", "choice": "P4.2", "flag": "P4.3", "positional": "P4.4"}
 ENUMERATED = ("Command", "SlotsCommand")  # modes whose members are each a mode
 
 
@@ -114,10 +116,11 @@ def _values(action: argparse.Action) -> Sequence[object]:
 def _varied(
     label: str, base: Mapping[str, object], optional: Sequence[argparse.Action]
 ) -> Iterator[tuple[str, argparse.Namespace]]:
-    # each optional argument present, one at a time
+    # each optional argument present, one at a time: a flag or an optional positional
     for each in optional:
+        kind = "flag" if each.nargs == 0 else "positional"
         for value in _values(each):
-            varied = argparse.Namespace(**{**base, each.dest: value})
+            varied = argparse.Namespace(**{**base, each.dest: value, KIND: kind})
             yield f"{label} {each.dest}={value}", varied
 
 
@@ -135,6 +138,7 @@ def _lines(
     for chosen in itertools.product(*(_values(each) for each in required)):
         base = {
             "__gather_name__": name,
+            KIND: "choice" if required else "subcommand",
             **{each.dest: each.default for each in optional},
             **{each.dest: value for each, value in zip(required, chosen)},
         }
@@ -173,6 +177,11 @@ def _options(args: argparse.Namespace) -> Mapping[str, str]:
     return OPTIONS.get(str(getattr(args, "__gather_name__", "")), {}) if given else {}
 
 
+def _bullet(args: argparse.Namespace) -> str:
+    # the bullet of the command line an argument varies
+    return BULLET[str(getattr(args, KIND))]
+
+
 def _mapped(
     mode_of: mode.ModeOf, declared: cli_parser.Declared
 ) -> tuple[Sequence[str], AbstractSet[str]]:
@@ -183,10 +192,10 @@ def _mapped(
         try:
             given = _quietly(mode_of, args)
         except SystemExit as stopped:
-            found.append(f"P4: {label} exits {stopped.code} instead of a mode")
+            found.append(f"{_bullet(args)}: {label} exits {stopped.code}, no mode")
             continue
         if not isinstance(given, kinds):
-            found.append(f"P4: {label} is {type(given).__name__}, no mode")
+            found.append(f"{_bullet(args)}: {label} is {type(given).__name__}, no mode")
         seen.add(constructor(given))
     return found, seen
 
@@ -228,7 +237,7 @@ def unlisted(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[st
         name = label.split()[0]
         asks = base is not None and constructor(base).split(".")[0] not in ENUMERATED
         if asks and given == base and dest not in ASKS_NOTHING.get(name, ()):
-            found[f"P4: {name} {dest} changes no mode, not in ASKS_NOTHING"] = None
+            found[f"P4.7: {name} {dest} changes no mode, not in ASKS_NOTHING"] = None
     return list(found)
 
 
@@ -247,7 +256,7 @@ def images(mode_of: mode.ModeOf, declared: cli_parser.Declared) -> Sequence[str]
     return [
         *found,
         *(
-            f"P4: no command line is {each}"
+            f"P4.5: no command line is {each}"
             for each in CONSTRUCTORS
             if each not in seen
         ),
@@ -286,7 +295,7 @@ def total_matches(package: proofsource.Package) -> Sequence[str]:
         Each match that does not.
     """
     return [
-        f"P4: {short}:{node.lineno} matches a mode without assert_never"
+        f"P4.6: {short}:{node.lineno} matches a mode without assert_never"
         for short, node in proofsource.nodes(package)
         if isinstance(node, ast.Match)
         and _is_mode_match(node)
@@ -372,7 +381,7 @@ def main(root: pathlib.Path, mode_of: mode.ModeOf) -> int:
     Returns:
         0 when it holds, 1 otherwise.
     """
-    package = proofsource.package_at(root)
+    package = proofsource.of_texts(proofsource.read(root))
     found = [
         *images(mode_of, cli_parser.table()),
         *total_matches(package),

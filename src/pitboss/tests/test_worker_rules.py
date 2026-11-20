@@ -181,7 +181,7 @@ class TestPartialHandBack(unittest.TestCase):
         )
 
     def test_b17_hand_back_check_refuses_a_partial_hand_back(self) -> None:
-        """Refused, nothing recorded; with the line it is accepted."""
+        """BadInput, nothing recorded; with the line it is accepted."""
         here = ready(world.make_world())
         quiet = no_jobs()
         refused = hand_back(here, quiet, text=PARTIAL)

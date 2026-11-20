@@ -28,11 +28,7 @@ from ..totaljson import JsonMap, members
 from . import fakegiven, fakehub, gatewords, knowngit, scratch, totalworld
 from .totalworld import World
 
-REFUSALS = (
-    actcore.Refused,
-    rulefiles.Refused,
-    rulecases.Refused,
-)
+REFUSALS = (actcore.BadInput,)
 Brief = Callable[[rulefiles.Ticket], str]
 Recount = Callable[[str, rulefiles.Ticket], Sequence[str]]
 Add = Callable[
