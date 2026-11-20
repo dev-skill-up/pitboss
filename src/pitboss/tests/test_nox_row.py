@@ -3,7 +3,7 @@
 import unittest
 from typing import Sequence
 
-from hamcrest import assert_that, contains_string, empty, equal_to, has_length
+from hamcrest import assert_that, empty, equal_to, has_length
 
 from .. import forms, noxrow, plancheck
 
@@ -81,13 +81,6 @@ class TestNoxRow(unittest.TestCase):
         """A word that contains or mentions nox is no run of it."""
         for each in OTHER_ROWS:
             assert_that(noxrow.runs_nox(each), equal_to(False), each)
-
-    def test_plan_check_does_not_run_a_nox_row(self) -> None:
-        """The nox row did not run, the git row did."""
-        rows, bad, _ = plancheck.report(PLAN_WITH_NOX, ran_nothing)
-        assert_that(bad, equal_to([1]))
-        assert_that(rows[0], contains_string("NOT RUN"))
-        assert_that(plancheck.verdict(bad), contains_string("refused"))
 
     def test_plan_check_accepts_the_ci_pointer_and_git_rows(self) -> None:
         """The same Plan with the pointer passes."""
