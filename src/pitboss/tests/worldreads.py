@@ -14,11 +14,6 @@ SEARCH = re.compile(r"^search/issues\?q=")
 TIMELINE = re.compile(r"^repos/[\w.-]+/[\w.-]+/issues/\d+/timeline")
 OPEN_LISTING = re.compile(r"^(repos/[^/]+/[^/]+)/pulls\?state=open")
 
-# the closed pull requests, newest created first: where the sizes of merged PRs
-# are read (none merged)
-CLOSED_BY_CREATION = re.compile(
-    r"^repos/[\w.-]+/[\w.-]+/pulls\?state=closed&sort=created&direction=desc&per_page"
-)
 # the login
 GATE_READS: Mapping[str, object] = {"user": {"login": "pitboss-bot"}}
 
@@ -63,8 +58,6 @@ def none_listed(path: str) -> object:
         None for any other path.
     """
     if UNLABELED_LISTING.match(path) or TIMELINE.match(path):
-        return []
-    if CLOSED_BY_CREATION.match(path):
         return []
     return {"items": []} if SEARCH.match(path) else None
 
