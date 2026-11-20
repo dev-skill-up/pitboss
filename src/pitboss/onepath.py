@@ -38,6 +38,7 @@ from . import (
     quiesce,
     readworld,
     render,
+    reporules,
     sharedred,
     slotholding,
     suggest,
@@ -177,16 +178,17 @@ def looked(
     Returns:
         The world and its decisions.
     """
-    # the queue runs are read from the start, while the world is, for the look
-    # that is asked at the first undraft check (keyword: one-path, pull-read)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+    # the queue runs and a named item's repository rules are read at the start
+    extent = modeextent.extent_of(chosen)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         runs = pool.submit(read_runner_runs, found).result
+        for each in extent.named:
+            ref = ledger.reference(each, found.settings.project.repo)
+            pool.submit(reporules.read, found.github, ref.rpartition("#")[0])
         measured = sweepline.runners_look(
             found.github, runs, found.settings.runners, found.now
         )
-        made = readworld.read_world(
-            reading_of(found, measured, acts), modeextent.extent_of(chosen)
-        )
+        made = readworld.read_world(reading_of(found, measured, acts), extent)
         judged = decide.decide(made)
     return Seen(made=made, judgement=judged, runners=measured)
 
