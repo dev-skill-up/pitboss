@@ -24,7 +24,6 @@ TICKET = {
     "paths": "src/",
     "priority": "p1",
 }
-BIG = {"filename": "src/x.bats", "status": "modified", "additions": 600, "deletions": 0}
 
 
 def _acked(hub: fakehub.Made) -> None:
@@ -183,8 +182,8 @@ class TestOverride(unittest.TestCase):
 
     def test_d2_d3_a_stop_is_lifted_by_the_orchestrators_override(self) -> None:
         """The record lifts that one line for that head."""
-        world = change(ctx={"files": [BIG]})
-        line = stop_line(GIVEN, world, "diff:")
+        world = knownkit.draft()
+        line = stop_line(GIVEN, world, "draft=")
         hub = made(GIVEN, world)
         said = refusal(
             hub,
@@ -193,7 +192,7 @@ class TestOverride(unittest.TestCase):
             reason="owner ruling quire#1200",
         )
         assert_that(said, contains_string("not an overridable stop"))
-        why = "owner ruling quire#1200: the generated table counts"
+        why = "owner ruling quire#1200: the draft is merged"
         act(GIVEN, hub, "override", stop=line, reason=why)
         act(GIVEN, hub, "merge")
         assert_that(kinds(hub)[-1], equal_to("merge"))

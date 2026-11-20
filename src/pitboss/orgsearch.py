@@ -1,9 +1,7 @@
 """One oldest-first search of each organisation, filtered here (keyword: org-search).
 
-The owner: "Do per-org for every relevant org (the orgs the config's repos belong
-to), one oldest-first query each, then filter in pitboss to the configured repos
-and labels." So the number of requests depends on neither the repositories nor
-the items: a query of an organisation's open pull requests, and of a label's open
+The owner (2026-11-13): "Just do per-org for every relevant org, and filter."
+So the number of requests depends on neither the repositories nor the items: a query of an organisation's open pull requests, and of a label's open
 tickets, each read a page at a time.
 """
 
